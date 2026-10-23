@@ -1,0 +1,170 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5M822WW9M1N7GG58SEA3QZ6",
+  "session_id": "5eba8fcb-a1a5-481f-815a-f220d1577a35",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-23T11:24:14.998112Z",
+  "branch": "r6-fixb",
+  "checkpoints_count": 9,
+  "save_step_count": 9,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "7b38aa28d003",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 996354,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 43797120,
+    "output_tokens": 228588,
+    "api_call_count": 145,
+    "subagent_tokens": {
+      "input_tokens": 642482,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 11564288,
+      "output_tokens": 95115,
+      "api_call_count": 274
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-10-23T01:21:56.680324211Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "48739cd35c6f",
+      "timestamp": "2026-10-23T01:21:56.680324211Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 34
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1358,
+      "user_lines_removed": 464,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/blocked_triage.md": 16,
+        "docs/gem5-fi/lsu/mdspec/blockers_for_approval.md": 3,
+        "docs/gem5-fi/lsu/mdspec/coverage_matrix.md": 13,
+        "docs/gem5-fi/lsu/mdspec/pilot_evidence.json": 1200,
+        "docs/gem5-fi/lsu/mdspec/ready_contract.json": 115,
+        "docs/gem5-fi/lsu/mdspec/ready_contract.md": 11
+      },
+      "user_removed_per_file": {
+        "docs/gem5-fi/lsu/mdspec/blocked_triage.md": 16,
+        "docs/gem5-fi/lsu/mdspec/blockers_for_approval.md": 3,
+        "docs/gem5-fi/lsu/mdspec/coverage_matrix.md": 13,
+        "docs/gem5-fi/lsu/mdspec/pilot_evidence.json": 334,
+        "docs/gem5-fi/lsu/mdspec/ready_contract.json": 87,
+        "docs/gem5-fi/lsu/mdspec/ready_contract.md": 11
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 9201,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1358,
+      "agent_lines_removed": 464,
+      "user_added_per_file": {
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json": 8839,
+        "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md": 362
+      }
+    }
+  ]
+}

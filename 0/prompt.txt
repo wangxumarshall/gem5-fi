@@ -1,0 +1,700 @@
+<task-notification>
+<task-id>ac453046054f2eed2</task-id>
+<tool-use-id>call_01_y65mssplm993iceh1u7xasdx</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ac453046054f2eed2.output</output-file>
+<status>completed</status>
+<summary>Agent "L26 fix integration regressions" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Diff scope is exactly the 4 owned files + 1 new plan file; tree clean; pushed.
+
+## L26 报告（≤25 行）
+
+**逐套件定性（真机实测）**
+1. `test_lsu_r6_golden_control` — **测试环境敏感 bug**。本 worktree 未构建→PASS；集成树有 `CHAOS/gem5/build/ARM/gem5.opt`→`FAIL 缺文件必须 SystemExit &lt;- 返回了 .../CHAOS/gem5/build/ARM/gem5.opt`。解析器契约（`$LSU_GEM5_BIN`→本 checkout 构建→皆缺才 SystemExit）本就正确；测试未构造"本 checkout 无构建"。
+2. `test_lsu_coverage_matrix` — **测试 bug（schema 漂移）**，非证据缺失。L17（`b3321b6f`）重生成 evidence，键由裸 `&lt;RunID&gt;` 变**逐 seed** `&lt;RunID&gt;-seed&lt;N&gt;`；3 检查硬编码裸键落空。实据：`C11-F0-W6-seed1` 有 mshr_alloc/merge/fill/free，`C12-...-seed1` 有 mshr_fill/free/cache_fill，`P01-F0-W8-seed1` 有 pf_queue/pf_issue。
+3. `test_lsu_obs_driver_workers`（基线 ENV，从未真跑）— **混合**：`d_real_gate_precondition` 纯环境（`gate` 实测 `disk_free 64.4 &lt; floor max(50,0.20×353.2)=70.6`，blocked/compile 均空）；`g2_exact_stop_mixed_activation` **测试隔离缺陷**（`ObsDriver.__init__` 在 `guard_dir=None` 时硬改写 LSU_GUARD_DIR 为主树全局路径，claim 泄漏；主树遗留死 pid 陈旧 claim `g2_r0/A01-F0-W9/{s2,s3}.claim`）。
+
+**修复与 RED→GREEN**
+- U1 `405f3d62`：RED=落假 build→返回路径 FAIL；改指向保证无构建的临时 checkout；GREEN=有/无构建两环境 `ALL PASS`。
+- U2 `a27e3d86`：RED=`FAILURES: ['c11_...','prefetch_...','c12_...']`；工具新增 `runid_kinds`（裸键∪逐 seed，与 `aux_run_boundary` 同源）供测试聚合（**未放宽判据**：仍要求矩阵 RunID 自证）；GREEN=`FAILURES: 无`（25/25）。
+- U3 `ed78ad01`：`make_ns` 默认隔离 guard_dir + gate BLOCKED 判显式 ENV skip；GREEN=rc0，`PASS g2_exact_stop_mixed_activation`、`SKIP d_real_gate_precondition &lt;- 宿主环境阻塞`，主树 claims 无新泄漏。
+
+**修后汇总**：`suites=56 ENV=2 FAIL=13 PASS=39 SKIP=2`（基线 `52/5/13/33/1`；修前 `56/1/16/38/1`）。
+FAIL 集（13）与基线逐一相同，**无基线外新 FAIL**；3 个新 FAIL → 2 PASS + 1 诚实 SKIP。
+
+**剩余合理失败**：13 项即基线集（pytest::collect、campaign_propagation、hook_a07/c11/c12/c14/c15/cpf/l04/o0x/p06/s10/sq）。ENV=2 系我以另一 worktree 二进制运行的无资产套件（geom_distribution、slot_release_latency），非回归。
+**未修（超 lane 范围）**：`tools/lsu_guard.py::_disk_guard_reason` 在 GUARD_DIR 不存在时（`disk_total_gib=None`）崩溃 `TypeError`——已在报告中披露。报告：`/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L26.md`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>92</tool_uses><duration_ms>1516001</duration_ms></usage>
+</task-notification>
+
+---
+
+补充执行指令：保留上一条提示语的全部目标、门禁和现有进展，不要重置任务，不要丢弃已经生成的有效产物，也不要重复运行已经完成且证据有效的pilot。
+
+从现在开始改用多subagent滚动执行：
+
+1. 主agent负责全局编排、资源调度、状态表维护、证据审核、串行合并、统一构建和最终准入。
+2. 启动多个subagent；每个subagent每次只负责一个RunID的端到端闭环：
+   配置审查 → 3个seed pilot → 事件流检查 → L0–L5/containment验证 → 根因定位 → 独立worktree修复 → 测试 → 复验 → 结构化汇报。
+3. 第一波优先处理12个TLB锚点；完成一批后继续滚动分配剩余RunID，直到全部可执行RunID均为PILOT_READY。
+4. 如果多个RunID属于相同根因，只指定一个subagent实施公共修复，其他subagent提供复现证据；禁止并行编写相互冲突的补丁。
+5. subagent不得自行合并、修改全局状态、删除文件或启动formal。所有合并由主agent串行完成。
+6. 每次合并后统一测试、统一构建并更新gem5.opt SHA-256；使用旧二进制的受影响pilot必须重新运行。
+7. subagent可以并行分析，但gem5运行仍受统一资源门禁约束：FS总并发不超过6，内存不足时降为4；SE总并发不超过20。
+8. 直接复用当前仍有效的运行和证据。对正在运行的安全任务不要仅因本补充指令而中断；先登记其RunID、二进制SHA和当前状态，完成后按相同准入标准审核。
+9. 任何可执行RunID尚未达到PILOT_READY时，都不得启动formal实验。
+
+收到后先汇报：
+- 当前已有subagent及其负责的RunID；
+- 当前正在运行的任务；
+- 第一波准备分配的RunID；
+- 是否存在文件所有权或资源冲突。
+
+然后继续执行，不要从头开始。
+
+---
+
+可以。现在将 L26 的 r6-mergefix 串行合入 lsu-mdspec-20261019，但按以下约束执行：
+
+1. 合并前记录：
+   - 集成分支当前HEAD；
+   - r6-mergefix的准确commit；
+   - 两个worktree的git status；
+   - r6-mergefix相对集成分支的文件和diff摘要。
+2. 确认两个worktree均无不明未提交修改后再合并。
+3. 使用可审计的非快进合并；如果出现冲突，不得自行猜测解决，停止并报告冲突文件及双方修改意图。
+4. 合并后立即运行L26针对的3个失败测试，确认全部通过。
+5. 再运行与当前集成基线相同的完整测试套件，对比合并前后的PASS/FAIL/ENV/SKIP；不得通过删除测试、放宽断言或把FAIL改为SKIP来通过。
+6. 如果出现任何新增失败，保留现场并报告，不继续合并其他lane。
+7. 验证通过后报告：
+   - 合并后的HEAD；
+   - 合入commit；
+   - 修改文件；
+   - 3个针对性测试结果；
+   - 完整测试结果；
+   - 相对原集成分支是否有新增失败。
+8. 此次只在本地集成分支合并，暂不push。等L27、L29、L30依赖全部落地、串行合并、统一测试和统一构建通过后再决定push。
+9. 不启动新的gem5 pilot或formal，不中断当前安全运行的T01-F1-W4、S01 census和L27构建。
+10. 同时可以把“跨request拼接”公共根因交给唯一subagent诊断和修复，但它不得与L27/L29/L30发生文件所有权冲突，也不得使用未冻结二进制产生权威pilot结论。
+
+完成L26合并和验证后继续执行，不需要再次等待确认；只有发生合并冲突、测试新增失败、文件所有权冲突或资源门禁失败时才停下汇报。
+
+---
+
+<task-notification>
+<task-id>acc4f50fc89019edd</task-id>
+<tool-use-id>call_01_950mnutwhl4pe7d5apgrd6ea</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/acc4f50fc89019edd.output</output-file>
+<status>completed</status>
+<summary>Agent "L32 authoritative status table tool" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane L32 complete. Worktree `.claude/worktrees/r6-status` (branch `r6-status` @ d6baa3f1), pushed to origin.
+
+**Tool**: `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-status/tools/lsu_r6_status_table.py` (+ test `tests/test_lsu_r6_status_table.py`, artifacts `docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.{json,md}`, report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L32.md`). Discovers `&lt;runs-root&gt;/**/seed&lt;N&gt;/prop_evt.txt[.gz]`, calls the REAL `lsu_chain_check.check_chain`/`check_admission` (no rule re-implementation), derives all columns from spec §4.
+
+**Real state counts** (325 RunIDs, committed snapshot B):
+`NOT_RUN=238 · CHAIN_INCOMPLETE=2 · ORACLE_INCOMPLETE=1 · BLOCKED=84 · PILOT_READY=0` (RUNNING/NO_ACTIVATION/INFRA_FAILED/FORMAL_*=0).
+
+**Complete/truncated/missing**: 42 streams — 30 complete, 12 truncated (counted, never complete); **306 RunIDs have no stream at all ⇒ NOT_RUN / "not measured"**. 19 RunIDs have evidence; of the 3 executable (SE) ones: L01 (7 activated, 4 complete/3 truncated, chain stops at L2), S01 (chain stops L2 + `time_reversed_edge`) → CHAIN_INCOMPLETE; S04 (new seeds lack `cell_results.json`) → ORACLE_INCOMPLETE. The other 16 are contract-BLOCKED (FS-INFRA/FS-MULTICORE) — BLOCKED takes precedence even where a full L0–L5 chain appears (T04).
+
+**Sample rows**: `L01-F0-W5 | yes | READY | 7 seeds | 7 act | 4 complete | 3 trunc | L0..L5 | Crash=3,Masked=4 | CHAIN_INCOMPLETE`; `O01-F0-W7 | no | BLOCKED(FS-MULTICORE) | 1 | 1 | 1 | 0 | not measured (fault group&gt;cap) | BLOCKED`.
+
+**Disagreements with `ready_contract.json`** (reported, not reconciled): **241** — every contract-READY RunID is non-PILOT_READY here (238 NOT_RUN + 3 with evidence). BLOCKED 84 matches exactly, 0 reverse.
+
+**Two real bugs found and fixed by testing**: (1) `NameError: ctx` in `_verdict` (real FAIL → fixed → PASS); (2) nested `seed1/dbgrun/prop_evt.txt.gz` counted as a sample/inflating seeds → restricted to `seed&lt;N&gt;` layout. Also discovered the checker is O(n²) (6.4k events=60s; O01/O02 have ~222k-event fault groups) → added `--max-chain-events` (default 20000) that marks oversized streams "NOT certified → CHAIN_INCOMPLETE", never READY.
+
+**Provisional**: `gem5.opt SHA-256 = f4dbfb9a…6191f5` and checkpoint `…/fs_cpt_boot/cpt.237949797015` come from the contract `gate` block (freeze lane pending); `--sha256 &lt;path&gt;` verified to hash it to the same value. Note: the runs root is live — a re-run minutes later gave 42 vs 41 streams (another lane appended `r6_sq2_S04-F0-W5`), which flipped S04's state; this drift is recorded in L32.md, and the table is a time-point snapshot.
+
+Tests: new suite 3/3 PASS; regressions `tests/test_lsu_chain_check.py` and `tests/test_lsu_prop_fields.py` ALL PASS.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>83</tool_uses><duration_ms>1446192</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae8aff438f81ea7f0</task-id>
+<tool-use-id>call_00_herwpos7a6r9d9opojd7w8jj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ae8aff438f81ea7f0.output</output-file>
+<status>completed</status>
+<summary>Agent "L33 stale FS-INFRA upstream key" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>L33 done. Worktree clean, `9fc63bec` pushed to `origin/r6-fsinfra`.
+
+**Key origin code** — `tools/lsu_runid_map.py::_resolve_workload` (model-agnostic): `for key, reason in sorted(lc.WL_BLOCKED.items(),...): if spec_name.startswith(key): return None, f"workload-level:{reason}"` → `generate_map` does `reasons.append(f"workload:{wl_note}")`; source string is `lsu_campaign.WL_BLOCKED["TLB-AliasPerm"] = "blocked(fs-infra: TLB workload needs FS)"` (lsu_campaign.py:237). It cannot see `resolve_cell`'s armtlb FS special-case.
+
+**Assessment: partially true** — "TLB workload needs FS" is true (no SE carrier); the implied "⇒ blocked" is **refuted**. Read on disk: `R5-FS-PILOT-EVIDENCE.md` (T01-F0-W4 `arm_tlb_lookup_hit` pfn 0x81d75→0x100000000081d75; T04-F0-W4 activated=1/Crash/chain L0→L5 full, 1572 ev; §1 table 10 more); `R5-ADMISSION-CLOSEOUT.md` §4.3/§6; `blockers_for_approval.md` §FS-INFRA ("并非缺 FS 基础设施"); `runs/lsu/r6_tlb_*` cell_results (11 T-W4 rows activated=1) + chain terminals full/detected_contained/provable_to_L0_then_unknown; `L29.md` §3 (T06/T08-F0-W4 admitted=True, detected_contained, 0 violations).
+
+**Rows changed: 0.** All 24 stay BLOCKED. The key's *content* is corrected per-row (`_correct_fs_infra_key`): names the refutation, the FS carrier fs:tlb_probe (golden b6d81b36…), and the TRUE residual blocker. New field `fs_workload={carrier, stale_key_refuted, evidence, run_artifact}`; evidence anchors in new `docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md#&lt;RunID&gt;` — 16 rows with real pilot artifacts, 8 (T05-F2/F6, T06-F2/F6, T07-F4/F6, T08-F4/F6) say honestly "NO per-cell FS pilot artifact".
+
+**Refused to unblock (and why):** no row meets the documented unlock condition (30 activated/cell, blockers_for_approval §FS-INFRA — all pilots are 1 seed); T05–T08 additionally carry an independent `MODEL_BLOCKED` reason (not runid_map's). Unblocking below that threshold would BE the forbidden relaxation.
+
+**Counts:** denominator 325 unchanged; `lsu_ready_contract` before==after: `READY=241 PARTIAL=0 BLOCKED=84`, `FS-INFRA=24`; no new READY.
+
+**TDD/suite:** RED `python3 tests/test_lsu_runid_map.py` → 6 FAIL (stale literal still on all 24; no corrected key; no evidence anchor) → GREEN `FAILURES: 无`. `tools/lsu_test_runner.py` before/after identical: `suites=56 ENV=5 FAIL=14 PASS=36 SKIP=1`; **NEW FAIL: []** (baseline's 14 include `test_lsu_coverage_matrix`, which the task list omitted).
+
+**Not mine, left alone:** `lsu_ready_contract.*` regenerated by running the contract (its `why` mirrors the reasons) — reverted, its owning lane must regenerate. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L33.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>72</tool_uses><duration_ms>858761</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1e3b2639e9b9e571</task-id>
+<tool-use-id>call_00_0gv3ynzdx7ifyj8cjrj5upi1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a1e3b2639e9b9e571.output</output-file>
+<status>completed</status>
+<summary>Agent "L27 remaining C++ emitters" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane L27 complete. All four items closed, verified, committed, pushed.
+
+**Setup**: worktree `r6-emit2` (base `56993c80`); binary `r6-emit2/CHAOS/gem5/build/ARM/gem5.opt` sha256 `47e16252c2fa5926`.
+
+**Per-item RED→GREEN (real runs)**
+- **A3** — `test_lsu_hook_c11.py` §[3b] 14 asserts: RED (all `cache_access`/`cache_return`/`mshr_*` lacked `dyn_inst_seq`/`request_id`) → GREEN. Fix sites: `cache.cc` (access/return), `base.cc` (mshr_merge/alloc/fill, cache_fill, mshr_free), identity from `pkt-&gt;req`.
+- **A9** — `test_lsu_hook_sq.py` §[5]: RED (`lq_read` no `request_id`) → GREEN. `lsq_unit.cc` lq_read now emits the Request-stamped seq.
+- **oracle contract** — `test_lsu_hook_sq.py` §[6]: RED (7 of 11 FAIL: `chain_end` lacked commit_seq/pc/dyn_inst_seq, `errant_commit` no `contained`, no `CHAOS_DETECT`) → GREEN. Added tracer commit counter, per-chain detection point lifted onto `chain_end`, `contained=0` on `errant_commit`, and `emitDetectSignal()` printing `CHAOS_DETECT: layer=&lt;Hardware RAS|None&gt; contained=&lt;0|1&gt; tick=&lt;n&gt; ptag=&lt;n&gt; reason=&lt;...&gt;` on detection + every containment recording.
+- **A7** — `test_lsu_hook_sq.py` §[4]: RED (4 FAIL: no store branch/`store_taint`/`faulting_store_commit`) → GREEN.
+
+**Build**: `scons -j16 build/ARM/gem5.opt` → `scons: done building targets.` rc=0, only the 4 pre-existing host-lib configure warnings. (The oracle intermediate state was also compiled clean before its commit.)
+
+**Smoke pilot** S04-F0-W5 → `runs/lsu/r6_sq2_S04-F0-W5` (was `provable_to_L3_then_unknown`, 11 ev; now 12 ev):
+```
+kind=taint_reg tick=5905137 dyn_inst_seq=4001 request_id=4001 va=75250 before=clean after=tainted corr=seq_primary
+kind=chain_end tick=18849215 detection_layer=L4 contained=1 outcome=detected_contained containment_reason=store_discarded_not_retired
+CHAOS_DETECT: layer=Hardware RAS contained=1 tick=18849215 ptag=1 reason=store_discarded_not_retired
+chain_check: terminal=detected_contained provable_to=L5 edges L0→L5 all proven
+```
+
+**Honest boundary**: `--debug-flags=Commit` proved the injected store `sn:4001` never retires (a same-PC replay does), and the cell's oracle is clean (L24: 6 seeds Masked) — so it is containment, not escape. A committed tainted store takes the `faulting_store_commit` → `errant_commit` branch instead (synthetic test covers it).
+
+**Regression**: 24/24 `test_lsu_hook_*.py` + `test_lsu_chain_check.py` + `test_lsu_prop_fields.py` PASS.
+
+**Not closed**: **A5** (ArmTLB per-lookup post-hook) — needs `arch/arm/` TLB path, outside this lane's file set; `way=-1` left as the injector's `candidate_way`.
+
+**Commits** (pushed to `origin/r6-emit2`): `f35d5f07` A3 · `720197c7` A9 · `dd872048` oracle · `f4598c8a` A7 · `29511146` plan. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L27.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>132</tool_uses><duration_ms>4096210</duration_ms></usage>
+</task-notification>
+
+---
+
+裁决：不要在当前冲突现场直接选择ours/theirs继续合并。采用“abort + 新建对齐分支”的方案，保留原始历史，不重写、不force-push r6-gate。
+
+具体执行：
+
+1. 先保存当前冲突清单、双方HEAD和语义差异摘要，然后执行git merge --abort。
+2. 为当前集成HEAD和r6-gate HEAD分别建立只读安全引用，确保任何修改都可恢复。
+3. 从最新lsu-mdspec-20261019创建新的独立分支/worktree，例如r6-gate-reconcile。
+4. 不要整体重放造成历史重复的旧B2提交。以集成分支已有B2逻辑为基线，只移植r6-gate最终版本相对该基线的净新增语义，尤其是L29的FS-INFRA/chain-gate可达性修复。
+5. 三个冲突文件按语义处理：
+   - tools/lsu_chain_check.py：以r6-gate最终严格语义为目标，但逐函数与集成版本比较，保留集成侧更新；不得整文件无审查覆盖。
+   - tests/test_lsu_chain_check.py：保留双方测试的并集，不得删除或弱化断言。
+   - admission-hard-gate计划文档：合并双方已完成事项、提交身份和验证证据，形成一份权威版本，不重复声称完成。
+6. 必须证明合并后的checker仍满足：
+   - chain_end不能充当L5；
+   - L5必须有真实detection_layer/outcome/correlation；
+   - parent_event_id形成连续DAG；
+   - 不允许跨request、跨fault或跨sample拼接；
+   - cache_access不能伪装TLB专属L1；
+   - 显式containment可以准入，但后续层必须确实没有更深传播；
+   - evidence_root必须指向真实证据根，禁止在没有runs/lsu的worktree根上生成权威计数。
+7. 使用真实服务器证据根重新验证已知案例：
+   - T04必须拒绝跨request拼接；
+   - T08-F0-W4的显式containment必须能够被直接识别；
+   - T05/T01/T10不得因chain_end或更深层事件被错误准入；
+   - L01-F0-W5和S10-F5-W9不得再因登记路径错误被判为无文件。
+8. 运行checker、ready contract、blocked triage、coverage matrix及相关完整测试。任何新增失败都停止，不继续合并后续lane。
+9. 测试通过后，将r6-gate-reconcile串行合入集成分支；报告合并commit、测试结果和真实证据根下的325行计数。
+10. 暂不push。随后再依次合并r6-scal、r6-fsinfra、r6-emit2，每次合并后执行针对性测试和完整回归。
+11. 全部合并通过后，才在集成分支统一构建gem5.opt并冻结SHA-256，然后开始12个锚点的3-seed pilot复跑。
+12. 不启动formal实验。
+
+分类口径以后以L31对磁盘真实文件逐条gunzip核验的结果为准：
+- 业务/阻塞分类：195未执行、46链不完整、0完整准入、10规格阻塞、74外部/基础设施阻塞；
+- 纯证据分类：252无事件流、72有流但未闭合、1个显式containment、15个截断；
+- admitted仍为0/325。
+
+注意：唯一T08 containment只是“存在有效链证据”，不等于当前全局契约已经准入。规格阻塞和基础设施阻塞也不能被当作PILOT_READY；如果目标是全部325个实验都有完整观测链，这84项阻塞必须被解决，或由用户明确修改实验范围，否则正式实验门禁不能通过。
+
+完成reconcile和验证后继续执行；只有语义无法同时保留、测试新增失败或证据计数仍受错误evidence_root影响时才停下汇报。
+
+---
+
+<task-notification>
+<task-id>a066bff19fc2b7bcb</task-id>
+<tool-use-id>call_00_k00xca3583xo9yr3nekt6fsj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a066bff19fc2b7bcb.output</output-file>
+<status>completed</status>
+<summary>Agent "L34 r6-gate semantic reconciliation" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**L34 完成。** merge commit **`ad579cc1`**（tree 与 `r6-gate-reconcile` 逐字节同 `526923012a…`）；已 `git push -u origin r6-gate-reconcile`；**未 push 集成分支**，未碰 `r6-gate`，未 force-push。
+
+**文件 / 逐函数理由**
+- `tools/lsu_chain_check.py`：以集成分支既有 `9a7da7cf` 内容为基线，只按 10 个 hunk **逐函数** patch 移植 r6-gate 净新语义（非整文件覆写，`diff -q` 与 r6-gate 快照一致）：`_explicit_l5`(重写，D1/D5)、`_family_of`(重写，D4)、`_obs_layer_of`(新)/`_layer_of`(改写)、`_event_has_prefix`(改写)、`_ancestry_request_breaks`(新，D3)、`containment_from_events`(新，D2)、`check_admission`(接线 + 两个 D4 token)。集成侧无独有逻辑被丢弃。
+- `tests/test_lsu_chain_check.py`：两侧断言并集（`+os`、D1 夹具富化、`[13]–[16]`）。**唯一反演项** = 集成侧 `_L5_OUTCOME_KINDS == {"chain_end"}`（正是 D1 禁的语义），改以更强形式保留其意图；其余无删除/弱化。
+- `tools/lsu_ready_contract.py`+`lsu_blocked_triage.py`+`test_lsu_ready_contract_{category,verdict,gate,chain_wiring}.py`：L29 前向移植（这些文件自 merge-base 集成分支未变动）。新增 `tests/test_lsu_r6_reconcile_realroot.py`、计划文件；`ready_contract.json/.md`、`blocked_triage.md`、`blockers_for_approval.md` 在真根重生成。**范围外但必需**：`lsu_ready_contract.py` 等不在指令的 ownership 列表中，但不移植 L29 则点 1/点 7 无法满足——已在计划 §File ownership 明示。
+
+**7 条性质（真根，`ALL PASS`）**：1 chain_end 不作 L5(`L4-&gt;L5 missing`)；2 四要素齐 + `corr=none`/`run_end`/缺 dl 均 False；3 悬空父→`L1-&gt;L2 missing`；4 祖先 req7→8 拒 + 异 fault 不互证 + 多样本任一未准入即整体不准入；5 LQ→`cache_access_faked_l1`、TLB→`tlb_l1_faked_by_cache_access`；6 束 L2/na=L3-5 →admitted=True，含住后有更深见证→束 None；7 `--evidence-root&gt;env&gt;REPO`，契约 `evidence_root`=真根。
+
+**4 条复验**：T04 `admitted=False`，`cross_request_edge`（首例 `event 38:resp req=307 → 39:resp req=308`；真实 T04 首例非 304→310，按实际引用）；T08 `admitted=True` `layer=L2` 直认；T05/T01/T10 均 `False`+`no_closed_chain_and_no_containment`（deeper-layer/chain_end 未误准入）；L01/F0-W5 与 S10-F5-W9 **流级不再是 no file**（S10 注册表真根下 `evaluated=3`）。
+
+**套件**：合并后 `suites=59 FAIL=13 PASS=43`，beyond-baseline=**[]**（基线 @45611d59 亦 13，同集合）。**NEW FAIL = 0**。唯一非基线观测：`test_lsu_guard_v2::r1_no_torn_lock_visible`（1.2s 锁撕裂时序竞争，不引用本 lane 任何文件、且字母序先于新测试运行）1/4 次出现，隔离连跑 20 次 0 复现 → 判既有偶发。
+
+**真根 325 计数**：`READY=0 BLOCKED=325 self_consistent=True`；`CHAIN-UNPROVEN 44 / CHAIN-EVIDENCE-MISSING 197` + 上游 84(RULING6/FS-INFRA24/MODE-UNIMPL3/UNRESOLVED4/FS-MULTICORE35/LICENSE12)；`recorded=325/325`，`evaluated=64`，**链准入=2（T06-F0-W4、T08-F0-W4，均显式含住且仍被上游 FS-INFRA 独立阻塞）**，故**全局 adopted = 0/325**（L31 baseline of record；规格/基础设施阻塞 84 行绝不计 PILOT_READY）。与 L31 `46/195` 的差 = **2 行**：`C01-F0-W1`、`L01-F0-W5`。
+
+**拒绝/残余**：① **未改 `pilot_evidence.json`**（不在所有权内）→ 该 2 行契约层仍记 CHAIN-EVIDENCE-MISSING，尽管流在盘上、门禁流级已如实拒绝；修复=1 行登记，属注册表 owner。② 未重放旧 B2 提交链（按指令）。③ 唯一断言反演（`_L5_OUTCOME_KINDS`）。报告：`/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L34.md`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>105</tool_uses><duration_ms>5112445</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b1mwyes0q</task-id>
+<tool-use-id>call_00_cg6g5fabmdq3vdpqex8qb6mh</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/b1mwyes0q.output</output-file>
+<status>completed</status>
+<summary>Background command "Full regression on merged integration branch" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+确认采用你建议的修法。
+
+请只修复 tests/test_lsu_campaign_large_stream.py 中编码旧语义的合成夹具：
+
+1. 保留chain_end作为生命周期结束事件，但不得让它承担L5。
+2. 在合成大流中加入真实L5检测事件，例如errant_commit，并确保包含：
+   - detection_layer=L5；
+   - 非空outcome；
+   - 与当前故障链关联的corr；
+   - 正确的fault_id、sample_run_id、parent_event_id；
+   - 适用时保持request_id和dyn_inst_seq一致。
+3. 真实L5事件必须通过parent_event_id接在连续DAG上，不得使用孤立事件或跨request拼接来满足测试。
+4. 不删除、不跳过、不弱化现有断言；继续检查：
+   - 22万事件在时限内完成；
+   - 事件数守恒；
+   - chain_report.json正常生成；
+   - terminal=full；
+   - provable_to=L5；
+   - beyond为空；
+   - 优化前后语义/形状一致。
+5. 增加或保留负向断言：只有chain_end、没有真实检测事件时，必须判为L4_then_unknown或不准入，绝不能成为full。
+6. 先单独运行test_lsu_campaign_large_stream.py，确认全部通过。
+7. 再运行chain checker、reconcile真实根测试和campaign propagation相关测试，确认新旧语义一致。
+8. 最后重新运行完整lsu_test_runner，并与基线FAIL集合比较。目标是：
+   - NEW FAIL=0；
+   - 不把FAIL改成SKIP或ENV；
+   - 原有13个基线FAIL集合不增加。
+9. 将此次修复作为独立commit提交到当前集成分支，记录修改内容、测试结果和commit SHA；暂不push。
+10. 完整回归确认无NEW FAIL后，不需再次等待确认，继续：
+    - 精确处理三个卡住的旧O类后处理任务并离线重生成结果；
+    - 评估S01 census；
+    - 在集成HEAD上统一构建gem5.opt；
+    - 冻结并记录完整SHA-256；
+    - 刷新325行权威状态；
+    - 启动12个TLB锚点的3-seed pilot。
+11. 不启动formal，不删除任何数据；如果再次出现新增失败、构建失败或语义冲突，立即停止并汇报。补充：当前夹具修复、完整回归、统一构建和二进制冻结由主agent串行完成。冻结SHA后，必须重新启动多个subagent，以滚动波次并行处理RunID pilot：
+
+- 每个subagent一次负责一个RunID的3-seed pilot、链检查、诊断、修复建议和复验；
+- 第一波处理12个TLB锚点；
+- 同时运行的subagent数量按可用槽位安排；
+- FS gem5总并发不超过6，内存不足时降到4；
+- 同根因只允许一个subagent修改代码，其余提供复现证据；
+- 所有代码修复由主agent串行审核、合并、测试和重新构建；
+- 一波完成后继续分配下一批RunID，直到全部可执行RunID达到PILOT_READY；
+- 不得只完成第一波就停止，也不得提前启动formal。
+
+---
+
+确认：当前只使用一个lane修夹具；统一二进制冻结后，必须重新启动多个subagent，按滚动波次并行处理不同RunID的3-seed pilot，直到全部可执行RunID达到PILOT_READY。不要把当前单lane模式延续到pilot阶段。
+
+---
+
+<task-notification>
+<task-id>a70b33a997461b3b8</task-id>
+<tool-use-id>call_00_okzhrooy64rzzf5tqud8k5ps</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a70b33a997461b3b8.output</output-file>
+<status>completed</status>
+<summary>Agent "L35 fix stale large-stream fixture" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Done. Report:
+
+**Fixture change** (`tests/test_lsu_campaign_large_stream.py`, only file touched): `_spine(n_events_out, real_l5=True)` now enriches the `errant_commit` event (the real detection point) with `detection_layer=L5 outcome=SDC corr=taint_prop dyn_inst_seq=5 request_id=77`, still parented to the chain's `taint_reg`(L4) node via `parent_event_id` (same DAG, no orphan, no cross-request stitch). `chain_end` stays a lifecycle marker (`corr=none`) and never carries L5. `real_l5=False` gives the negative stream.
+
+**3 formerly-failing assertions (now):**
+- `判定与参考形状一致（terminal=full）` → PASS (terminal=full)
+- `层映射与参考形状一致（provable_to=L5）` → PASS (provable_to=L5)
+- `闭合终局 beyond 为空` → PASS (beyond='')
+
+**Negative assertion** (new section [4], stream with only `chain_end`, real_l5=False): PASS — `terminal != full`, `terminal=provable_to_L4_then_unknown`, `provable_to=L4`, `beyond=Unknown`, `check_admission admitted=False`, chain_report terminal != full. All 6 PASS.
+
+**Targeted suites:**
+- `test_lsu_campaign_large_stream.py` → ALL PASS (wall 6.0s, 222007 events)
+- `test_lsu_chain_check.py` → ALL PASS
+- `test_lsu_r6_reconcile_realroot.py` → ALL PASS
+- `test_lsu_campaign_propagation.py` → FAILED (2) — pre-existing baseline, unchanged (its source `lsu_campaign.py` not touched)
+
+**Full suite** `tools/lsu_test_runner.py`: `suites=61 ENV=1 FAIL=13 PASS=45 SKIP=2`. FAIL set == the 13 known baseline (`pytest::collect, test_lsu_campaign_propagation.py, hook_a07/c11/c12/c14/c15/cpf/l04/o0x/p06/s10/sq`). `test_lsu_coverage_matrix.py` and `test_lsu_r6_golden_control.py` both PASS (no extras). **NEW FAIL = 0**; no FAIL converted to SKIP/ENV.
+
+**Commit:** `508c716e` on `lsu-mdspec-20261019` (not pushed).</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>21</tool_uses><duration_ms>1073344</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6f31c978ce50df36</task-id>
+<tool-use-id>call_01_8poje8ibnzbxlmo8qlmzkcsw</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a6f31c978ce50df36.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T02-F0-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>P1 lane T02-F0-W4 complete. Report written to `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P1_T02-F0-W4.md`.
+
+RUNID T02-F0-W4 — per-seed (all sha 6469bad2… pre &amp; post, unchanged)
+
+| seed | activated | events | stream | check_chain | L5 witness | oracle | admitted | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 1 | yes (1 inj) | 204 | gzip-EOF OK, stats 2651 ln | detected_contained, L0→L5 all proven | errant_commit (NOT chain_end) | Crash exit 0 | **False** | FAIL |
+| 2 | yes (1 inj) | 372 | OK, 2651 ln | detected_contained, L0→L5 all proven | errant_commit | Crash exit 0 | **False** | FAIL |
+| 3 | yes (1 inj) | 437 | OK, 2643 ln | detected_contained, L0→L5 all proven | errant_commit | Crash exit 0 | **False** | FAIL |
+
+All pass: real injection (`inj` L0 before≠after, 2-bit PPN flip, inj log non-empty), no Unknown, no truncation, no timeout, no orphans, continuous single-root parent DAG, identity consistent, complete oracle, **chain_end never used as L5** (corr=none). Path: `runs/lsu/r6_p1_T02-F0-W4/T02-F0-W4/`.
+
+OVERALL: **FAIL — 0/3 admitted.** `check_admission` rejects all 3 seeds with a single substantive violation `cross_request_edge` (31/92/95 ancestry breaks). The ancestry from the L5 `errant_commit` back to L0 interleaves events of *different* `request_id`s (e.g. seed1 event 8 `mshr_alloc` req=301 → event 9 `cache_access` req=303, different instructions, same faulted line). A TLB PPN fault redirects one VA→one wrong PA, so CHAOSPropagation links many requests under one fault_id. Stable failure mode → no 5-seed expansion warranted; it is not a trigger problem, re-running cannot fix it.
+
+GAPS (no tracked source edited): (1) BLOCKER — propagation parent-links across requests; the "no cross-request stitching" criterion cannot be met by long-DAG TLB address faults (also hits prior T02/T04). (2) `lsu_campaign.py` records the verdict from `check_chain` only, never `check_admission` → cell_results/chain_summary show `detected_contained`/`chain_valid:true` for samples the binding gate rejects. (3) `containment_from_events` fabricates option-2 containment from lifecycle `chain_end` (corr=none), contradicting the D1 rule. (4) `attempted=0` while `activated=3` → `activation_rate` prints 0.0 despite 3/3 activated. (5) minor: report `sample_run_id="1"` vs stream `"s1"`.
+
+CODE FIX NEEDED: **yes** — item 1 requires a tracked-source change (propagation linkage or a mission rule for address-broadcast propagation); items 2–4 are reporting/honesty fixes so the pilot tooling cannot display an inadmissible sample as a valid chain.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>44</tool_uses><duration_ms>616999</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a29c04646c09aaa3a</task-id>
+<tool-use-id>call_02_r87i0wutm3fcwjhsbhzl4mvk</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a29c04646c09aaa3a.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T02-F2-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane P2 complete. Worktree `r6-p1-t02f2` created at 508c716e; no tracked source edited (git status clean); frozen binary SHA unchanged before/after and at end.
+
+**Matrix resolution:** T02-F2-W4 resolves **RUNNABLE** (dry-run `Resolution: {'runnable': 1}`) — not blocked. T02 ∈ ARMTLB_MODELS, so the `TLB-AliasPerm` workload-block is bypassed and the FS `tlb_probe` carrier serves it.
+
+**Campaign:** `n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK`. SHA `6469bad2…aef4e` throughout.
+
+**Per-seed (real injections, ~10 s gem5 each, Crash/exit 0):**
+| seed | events | gzip | L0 before→after | terminal | check_admission |
+|---|---|---|---|---|---|
+| 1 | 204 | OK | 81d75→100040000081d75 | detected_contained | **False** |
+| 2 | 372 | OK | 81d75→1000000800081d75 | detected_contained | **False** |
+| 3 | 437 | OK | 81d75→200000000c1d75 | detected_contained | **False** |
+
+All seeds: 1 `kind=inj` at L0 (2 PPM bits, T02 ✓), `stats.txt` non-empty, gzip `-t` OK, `truncated=False`, 0 dup/0 orphan/0 bad-parent-order event ids, single root, one `fault_id=1`, one `sample_run_id` per seed, 0 Unknown, no Timeout. `check_chain` proves all five edges L0→L5 on one DAG ancestry.
+
+**Overall: FAIL (not admitted) — 0/3.** Two substantive gaps (I own no source fix):
+1. **BLOCKER — cross-request stitching.** `check_admission` rejects every seed: `cross_request_edge: … 所选祖先上 {31,92,95} 处相邻见证 request_id 不一致` (seed1 event 8 `mshr_alloc req=301` → event 9 `cache_access req=303`). A PPN fault's wrong line is consumed by many concurrent requests linked under one `fault_id`; re-running won't fix it. This independently replicates the P1 lane's F0 run of the same unit (`runs/lsu/r6_reports/P1_T02-F0-W4.md`).
+2. **`chain_end` is load-bearing as L5** (violates "chain_end never as L5"). Emitter stamps `chain_end` with `detection_layer=L5/contained=1/corr=none`; `_terminal()`'s contained-loop doesn't filter lifecycle kinds, so it returns `detected_contained` via chain_end. Proof: deleting `chain_end` flips terminal to `full` (the stronger `errant_commit`-derived verdict). `containment_from_events` also fabricates option-2 containment quoting `kind=chain_end`.
+
+**Extra finding:** F2 is inert for T02 — `resolve_cell` appends `--tlb_lsu_tier` only for walk types, so T02-F2-W4's gem5 cmdline is byte-identical to F0's except `--prop_run_id`, and event counts match (204/372/437). The 1/100k semantics is not exercised; the cell silently degenerates to F0.
+
+**Code fix needed: yes** — item 1 (propagation linkage / per-request sub-chain or a mission rule) is a real blocker outside my ownership; items 2 and the F-column collapse are checker/producer fixes; `attempted=0` vs `activated=3` is a minor reporting honesty bug. Report: `runs/lsu/r6_reports/P2_T02-F2-W4.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>52</tool_uses><duration_ms>822742</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>af1419c9bfa56a215</task-id>
+<tool-use-id>call_05_6buo6yn2o1i0wn1rtzosc593</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/af1419c9bfa56a215.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T04-F6-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane P5 complete. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P5_T04-F6-W4.md`; evidence at `/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T04-F6-W4`. Worktree clean (no tracked source touched), nothing pushed/deleted, binary untouched.
+
+Frozen binary sha `6469bad2…ef4e` verified before AND after every run — identical.
+
+**Per-seed** (all `--max-parallel 1`, ~18 s each, 1 gem5 of mine):
+| seed | oracle | exit | events | roots/orphans | gzip+stats | truncated | L0 inj |
+|---|---|---|---|---|---|---|---|
+| 1 | Crash | 0 | 1593 | 1 / 0 | OK / 2657 lines | False | `81d75`→`0` |
+| 2 | Crash | 0 | 1764 | 1 / 0 | OK / 2655 lines | False | `81d75`→`0` |
+| 3 | Crash | 0 | 1776 | 1 / 0 | OK / 2655 lines | False | `81d75`→`0` |
+
+Real injection seed1: `Tick 237950940537 … old_pfn 0x81d75, new_pfn 0x0, FaultType pfn_to_mapped_page, candidates: 31`. All 5 edges `proven` (chain_check, frozen tree); `parent_event_id` ancestry contiguous per node; `run_id`/`sample_run_id`/`fault_id` single-valued; containment `squash_masked contained=1 reason=squash_replay`. **`chain_end` never L5**: path L5 = `errant_commit` (real `det_layer=L5` detection); the lifecycle `chain_end` nodes are excluded. No Unknown/timeout/orphan.
+
+**Overall: PASS on the designated evaluator (`tools/lsu_chain_check.py`)**, with one unresolved flag.
+
+**Gaps:**
+1. **`cross_request_edge` — strict rejudge (`lsu_r6_rejudge.py`) gives `admitted=False` on all 3 seeds** (30/59/59 adjacent `request_id` breaks, first `mshr_alloc req=301 → cache_access req=303`). This is **systemic, not F6-specific** — the identical pattern reproduces on sibling lanes' streams: `T04-F0-W4` (30), `T02-F0-W4` (31), `T04-F2-W4` (30). `chain_check` (the designated evaluator) considers the chain non-stitched; the two tools disagree. The old splice IS fixed (old evidence now replays as `provable_to_L4_then_unknown`, `L4-&gt;L5: missing`).
+2. **`new_pfn=0x0` on 3/3 seeds — fault-model fidelity**: `CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc:423-430` filters candidates only on `!=entry &amp;&amp; pfn!=entry-&gt;pfn`, **without `it-&gt;valid`**, so stale pfn=0 slots dominate (31 candidates). PA becomes `0xfa8`; guest takes a level-0 translation fault → kernel Oops, i.e. the "wrong page" flavour, not the documented silent wrong-live-page read.
+
+**Code fix needed: yes (2 items; I edited neither — not my files):** (a) add `it-&gt;valid` (+ same page-size) to the pfn candidate predicate; (b) reconcile PROP-EVT `request_id` namespacing with the strict rejudge's `cross_request_edge` rule, since it currently rejects every TLB-family candidate identically.
+
+3 seeds sufficed (all activated, no instability) — no need to expand to 5.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>38</tool_uses><duration_ms>712180</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3c26655afa035fa5</task-id>
+<tool-use-id>call_04_redub1fv38bn63g4j8fqh86b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a3c26655afa035fa5.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T04-F2-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**P4 / T04-F2-W4 pilot — verdict: FAIL (chain not admissible)**
+
+Binary: `6469bad2…2aef4e` — identical before AND after run (frozen, unmodified). Worktree `r6-p1-t04f2` @ `508c716e`. Outdir `runs/lsu/r6_p1_T04-F2-W4`; report `runs/lsu/r6_reports/P4_T04-F2-W4.md`.
+
+Campaign: `T04-F2-W4: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK`
+
+Per-seed (literal):
+- seed1: events 1593 · seed2: 1764 · seed3: 1776; all exit 0, oracle Crash
+- Real injection: `Field=pfn_to_mapped_page old_pfn=0x81d75 new_pfn=0x0 candidates=31`, L0 `evidence_status=observed corr=origin` ✔
+- gzip -t OK, stats.txt 2655–2657 lines non-empty ✔; unknown/truncated/orphan/timeout = 0/0/0/0 ✔
+- DAG: single root `inj#0`, orphans=0, one continuous tick-monotone ancestry to L5 ✔
+- IDs: run_id/sample_run_id(s1|s2|s3)/fault_id=1 consistent ✔
+- `check_chain`: L0→L1→L2→L3→L4→L5 all `proven`, terminal `detected_contained` ✔
+- `check_admission` (the authoritative READY gate, used by `lsu_ready_contract.py:296`): **admitted=False, 1 violation each** ✘
+
+Blocking gap — cross-request stitching (mission-forbidden #3), all 3 seeds:
+`cross_request_edge: 30 处 (seed1) / 59 (seed2) / 59 (seed3) 相邻见证 request_id 不一致（首例 event 8:mshr_alloc req='301' → event 9:cache_access req='303'）`
+i.e. two distinct non-zero request ids joined by one parent→child edge (`cache_return#7 req=301,pa=fa8 → mshr_alloc#8 req=301 → cache_access#9 req=303,va=…3fe0,pa=fe0`).
+
+Secondary: `containment_from_events` returns `layer=L5 kind=chain_end outcome=errant_commit_seen` — the READY-gate containment rests on the lifecycle `chain_end` marker, contradicting the "chain_end never as L5" doctrine (`_LIFECYCLE_KINDS` is enforced in `_explicit_l5` but not here).
+
+Vs prior evidence (not reused): prior `r6_tlb_G` was `provable_to_L4_then_unknown`, 8 breaks. The `508c716e` fixture did close L4→L5 (real `errant_commit` witness) but did **not** remove the splice — break count rose with the longer ancestry.
+
+Code fix needed (not a trigger change — activation is healthy at 3/3): in the propagation recorder, stop parenting a differently-`request_id`-stamped access under another request's MSHR/DAG node; and exclude `_LIFECYCLE_KINDS` in `containment_from_events`. No source files were edited; nothing pushed or deleted.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>40</tool_uses><duration_ms>821900</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aafb3e1fdd5818f15</task-id>
+<tool-use-id>call_03_2ed9ercgwlv1fembazefi26r</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/aafb3e1fdd5818f15.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T04-F0-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>P3 T04-F0-W4 pilot complete. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P3_T04-F0-W4.md`.
+
+**Setup**: worktree `r6-p1-t04f0@508c716e`; frozen SHA `6469bad2…aef4e` verified before AND after (match, not replaced). Campaign exit clean, 3/3 seeds terminated, no tracked source touched, nothing pushed/deleted.
+
+**Per-seed literal results** (all `fault_id=1`, oracle=Crash):
+- seed1: stats 383746B, gz OK, 1593 evt, L0 inj real `pfn_to_mapped_page 81d75→0`, req=301/f=1/sr=s1, 0 orphans, no truncation/timeout.
+- seed2: stats 383417B, gz OK, 1764 evt, same L0 real injection, sr=s2, 0 orphans.
+- seed3: stats 383417B, gz OK, 1776 evt, same L0 real injection, req=31/f=1/sr=s3, 0 orphans.
+Oracle line: `KERNEL OOPS under fault — exiting (classify: Crash/DUE per fs_mode)`. `sample_run_id` distinct per seed, consistent within chain.
+
+**Overall verdict: FAIL.** 3/3 terminate and activate, but every activated seed has neither a valid complete chain nor valid containment.
+
+**Cross-request verdict: STILL CROSS-REQUESTS** — frozen binary did NOT fix it. `check_chain` alone shows L0→L5 all `proven` + `detected_contained` (per-edge check only sees 6 layer reps). The strict `check_admission` (D3 full-ancestry walk) rejects all 3:
+- seed1: 30 adjacent request_id breaks; first edge **event 8 `mshr_alloc` req=301 → event 9 `cache_access` req=303**
+- seed2: 59 breaks; **event 8 `mshr_alloc` req=32 → event 9 `cache_access` req=34**
+- seed3: 59 breaks; **event 12 `mshr_alloc` req=31 → event 13 `cache_access` req=32**
+
+That edge is a genuine emitter parent link, not a checker artifact: `event9.parent_event_id=8`, `event8.parent_event_id=7` — the emitter stamps the req=303 `cache_access` as a direct child of the req=301 `mshr_alloc` under one fault_id. ⇒ L27's parent-linkage fix is incomplete for T04.
+
+**Pass-condition breakdown**: ✅ terminate; ✅ ≥1 activates (3/3); ❌ no complete chain / valid containment; ✅ `chain_end` never used as L5 (D1 maps it to no layer; the real L5 evidence is a `squash_masked` dl=L4/cont=1/corr=addr_fallback event); ❌ **no cross-request stitching violated on all 3**.
+
+**Note**: campaign's `chain_summary.md`/`cell_results.json` say `detected_contained` because it uses per-edge `check_chain`; the disagreement with `check_admission` is by design — trust the latter. The `activated=3` in the campaign resolution line is the backfilled matrix header, not a fresh result.
+
+**Code fix needed: YES** — in the emitter (CHAOSPropagation): break or re-stamp the fault_id-keyed parent link at request boundaries (addr_fallback fan-out `mshr_alloc(req=A)→cache_access(req=B)` is emitted as a direct parent edge). Re-running the frozen binary is futile; the defect is in the current frozen build.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>31</tool_uses><duration_ms>1098481</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae97b2c9715d41d4a</task-id>
+<tool-use-id>call_01_9v8w2zb2si8e5s9n595d8vlj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ae97b2c9715d41d4a.output</output-file>
+<status>completed</status>
+<summary>Agent "Refresh 325 authoritative state" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>L37 done. All five regenerations ran with `LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding`; no tool source touched, nothing pushed.
+
+**Regenerated artifacts** (all under `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/docs/gem5-fi/lsu/mdspec/`): `pilot_evidence.json`, `coverage_matrix.md`, `ready_contract.json/.md`, `blocked_triage.md`, `blockers_for_approval.md`, `R6-STATUS-TABLE.json/.md`; report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L37.md`. Frozen binary sha256 in the status-table meta = `6469bad2…ef4e`, `provisional=False`.
+
+**Real counts**: registry `roots=2 pilots=183 (runids=84) unmatched=52 dup=30 truncated=33 kinds=46`. Coverage `PASS=245 / PARTIAL=0 / BLOCKED=80` (with `--evidence`). Contract `READY=0 PARTIAL=0 BLOCKED=325`; chain_gate `admitted=2 unproven=45 evidence_missing=196`, `blocked_upstream_admitted=[T06-F0-W4,T08-F0-W4]`. Triage `RULING6 LICENSE12 FS-MULTICORE35 FS-INFRA24 MODE-UNIMPL3 CHAIN-UNPROVEN45 CHAIN-EVIDENCE-MISSING196 UNRESOLVED4` (Σ=325 ✓).
+
+**State machine** (status table): `BLOCKED=325`, everything else 0 — rule 0 short-circuits every row because the contract says all 325 BLOCKED, so "never-run" never surfaces there; `PILOT_READY=0`. Streams: `total=58 complete=45 truncated=13, runids_without_stream=305` (single `runs/lsu` root).
+
+**4 focus rows, three-way separated**:
+- `C01-F0-W1` — **still "no file"** (contra the brief): `CHAIN-EVIDENCE-MISSING`, 0 seeds. No stream anywhere under the evidence root; the only match is `/tmp/r4-7-fsinfra/w1smoke/...` (outside the root), gzip-truncated with a 0-byte `stats.txt`. So L31's bucket-2 attribution came from `/tmp` scratch.
+- `L01-F0-W5` — **no longer "no file"**: 7 seeds, 4 complete / 3 truncated, `L0..L5`, oracle `Crash=3, Masked=4`; verdict `n/a (BLOCKED:CHAIN-UNPROVEN)` — chain unclosed, not admitted.
+- `T06-F0-W4` / `T08-F0-W4` — **stream-level chain evidence holds AND still blocked upstream**: contract `chain.admitted=true, terminal="detected_contained", violations=[]`; literal table verdict `"n/a (BLOCKED:FS-INFRA)"`; blocking reason `FS-INFRA` (deferred/compile-unverified sub-models + `30 activated/cell not met`), reported separately. Honesty flag: both were admitted on **truncated** streams (gzip no EOF, `stats.txt` 0 B).
+- `O02-F0-W7` / `O02-F5-W7` — L36's regeneration **does not change their row**: still `BLOCKED/FS-MULTICORE`, `L0_L5_coverage="not measured (fault group &gt; cap)"`; the gate refuses them (`chain_evidence_too_large: 222056/224700 &gt; cap 4000 — 未评估`). Build stamps confirm two builds: O01=`Oct 23 2026 10:26:46`, O02-F0/F5/O03=`11:41:40`.
+
+**Truncated list** (verified by gunzip-to-EOF + non-empty sibling `stats.txt`): truncated-only 13 RunIDs — `A01-F0-W3, C14-F5-W10, C14-F5-W6, C15-F0-W10, C15-F0-W6, C15-F6-W10, C15-F6-W6, O03-F0-W7, T01-F1-W4, T06-F0-W4, T07-F0-W4, T08-F0-W4, T08-F0-W9`; the status table's own single-root set is 9 RunIDs (adds mixed rows `L01-F0-W5, T01-F0-W4, T05-F0-W4, T10-F0-W4`).
+
+**Disagreement with L31** (reported, not reconciled): admitted **2** vs L31's 0/325 — this tree's `lsu_chain_check.py` carries the D1/D4 hardening (lifecycle `chain_end` never serves as L5) while L31 imported `origin/r6-gate`'s older copy. Evidence-scope: L37 counts 67 RunIDs with streams / 258 without under the evidence root, vs L31's 73/252 host-wide (`/tmp` + other worktrees); hence complete streams 54 vs 58 and truncated 13 vs 15. Two new findings: the `C01-F0-W1` premise is false, and `detected_contained` was asserted over truncated evidence for T06/T08-F0-W4 (worth a ruling-lane review). Note the status table's `--runs-root` accepts only one value, so its stream view covers the main root only while the contract/registry counts cover both roots — they must not be conflated.
+
+No spec- or infra-blocked row was marked PILOT_READY.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>71</tool_uses><duration_ms>2352796</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a17438f48c27aff16</task-id>
+<tool-use-id>call_06_4ejv7daun0hlnt8n726zcsj4</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a17438f48c27aff16.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T01-F0-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>P6 — T01-F0-W4 3-seed pilot — **PASS**
+
+Binary sha256 `6469bad2…aef4e` verified before / after-seed2 / after-campaign — identical, unchanged. Worktree `r6-p1-t01f0` @ `508c716e`, `git status` clean (no tracked source touched). Campaign log verbatim: `T01-F0-W4: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK`.
+
+Per-seed:
+
+| seed | outcome | events | inj (real) | chain | terminal | provable_to |
+|---|---|---|---|---|---|---|
+| 1 | Masked | 10 | tick 237950940537, bit 56, 0x81d75→0x100000000081d75 | L0→L4 proven | detected_contained | L4 |
+| 2 | Crash | 425 | tick 237950233911, bit 35, 0x81d75→0x800081d75 | L0→L5 proven (L5=errant_commit) | detected_contained | L5 |
+| 3 | Masked | 11 | tick 237950233578, bit 53, 0x81d75→0x20000000081d75 | L0→L4 proven | detected_contained | L4 |
+
+Checks (all real output): `gzip -t` OK + non-empty `stats.txt` (427682/382875/427682 B) all 3; L0 `kind=inj` event_id=0 real before/after all 3; parent DAG single root `['0']`, `orphan_parents=[]`, no non-topological edges; `fault_id=1` only, `sample_run_id=s1|s2|s3` per dir; `truncated=False`, `evidence_truncated_samples=[]`, no Unknown/timeout/orphan. Oracle: s1/s3 `rounds ok=10/10` (simSeconds 0.076565); s2 `KERNEL OOPS under fault — exiting (classify: Crash/DUE)`. No cross-request stitching (seed2 L4→L5 is same-fault_id ancestry, tainted reg dyn 32 → errant commit dyn 391).
+
+Short chain = **genuine containment, not truncation**: payload ends `m5 exit` after 10 rounds (by design), injected bit is above the used PA width so `new_pa==old_pa` (`pa_changed=0`), taints a reg (L4) but no arch change. Prior 9-event/`provable_to=L0` was the older `r6-tlb-hooks` binary (no `taint_reg`); the frozen binary emits L0→L4 (10–11) or a full L0→L5 (425) — count scales with real propagation.
+
+Gaps — **code fix needed: 1 (yes)**. `tools/lsu_chain_check.py::_terminal()` has a D1 leak: `_layer_of`/`_explicit_l5` exclude the lifecycle `chain_end`, but `_terminal`'s "explicit contained" scan reads raw `detection_layer`/`contained`, consuming `chain_end`'s own `contained=1`. Decisive: seed2 as-is → `detected_contained`; seed2 with `chain_end` removed → **`full`** (same path, same L4→L5 witness = real `errant_commit`). Seeds 1/3 unaffected (real detection event drives them). Fix = gate that scan on `_explicit_l5(e)`. The pass condition **"chain_end never as L5" holds structurally in the path** — the L4→L5 edge is the real `errant_commit` (event 259), never `chain_end` (424); only the terminal label is affected, and seed2's cell class (Crash) is unchanged.
+
+Report: `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P6_T01-F0-W4.md`; evidence: `/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T01-F0-W4/`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>52</tool_uses><duration_ms>4469446</duration_ms></usage>
+</task-notification>
+
+---
+
+继续执行，但暂时不要启动第二波 pilot，也不得启动任何正式实验。目标是先修复第一波暴露的公共根因，再用新冻结二进制重跑验证。
+
+一、先汇报并清理执行状态
+
+1. 确认第一波所有 pilot subagent 均已结束，不再占用 gem5 资源。
+2. 列出当前仍在运行的全部 subagent、gem5、构建和调度器进程。
+3. S01 census 已运行超过 7 小时且 stats.txt、注入日志均为 0 字节：
+   - 先保存命令行、PID、运行时间、日志尾部、输出文件大小等诊断证据；
+   - 若能确认它仍是同一个无产出的旧 census 任务，则终止该任务；
+   - 不删除其目录或已有证据；
+   - 将其标记为 timeout/infra blocked，不得标记为成功。
+4. 不 push，不删除历史证据，不修改正式实验数据。
+
+二、使用多个 subagent 并行修复，但同一公共根因只能有一个代码负责人
+
+请先列出准备启用的 lane、负责人、worktree、文件所有权和依赖，然后再启动。建议最多并行以下 4 条修复线：
+
+A. request-scoped 链路修复
+- 负责解决 T02/T04 中：
+  mshr_alloc request_id=A → cache_access request_id=B
+  形成 cross_request_edge 的问题。
+- 优先修复事件发射器、corr/parent/request 传播关系。
+- 不得通过放宽或删除 cross_request_edge 检查来制造通过。
+- 添加最小单元测试，证明：
+  1. 同一请求的合法边通过；
+  2. 跨请求边仍被拒绝；
+  3. T02/T04 所需的真实 L0–L5 链能够保持 request 一致。
+
+B. checker 终局语义修复
+- 修复 containment_from_events 和 _terminal 对 chain_end 原始字段的误用。
+- chain_end 本身不得充当真实 L5，也不得单独制造 containment。
+- containment/L5 必须来自满足既定关联规则的真实检测事件。
+- 任意 truncated、gzip EOF error 或零字节关键证据不得因为 containment 而被准入。
+- 保留并增强现有断言，不得删除或弱化测试。
+
+C. T04 映射目标修复
+- 修复 pfn_to_mapped_page 的候选选择。
+- 至少要求候选 valid，并核验页大小、映射状态及实验要求的地址关系。
+- 不得再选择 stale/invalid PFN 0。
+- 添加测试证明无效候选会被排除，合法 live mapping 会被选择。
+
+D. campaign 与权威状态修复
+- campaign 的最终结论必须实际调用 binding check_admission；不得只凭 check_chain/chain_valid 报绿。
+- 修复 attempted=0、activated=3 的计数矛盾。
+- 统一 sample_run_id（例如 s1/s2/s3），避免报告与事件流标识不一致。
+- 状态表与 ready contract 必须使用相同且明确记录的 evidence roots。
+- 保留以下状态区别：NOT_RUN、EVIDENCE_MISSING、TRUNCATED、UNPROVEN、PILOT_READY、BLOCKED。
+- 合同原因不能无条件覆盖磁盘事实，导致所有未运行项目都显示成同一种 BLOCKED。
+
+三、集成和验证必须串行执行
+
+所有修复 lane 完成后，由主 agent 统一执行：
+
+1. 审查每个提交和文件所有权，确保没有相互覆盖。
+2. 串行合并到集成分支。
+3. 运行相关定向测试。
+4. 运行完整回归，并与当前基线比较：
+   suites=61，PASS=45，FAIL=13，SKIP=2，ENV=1，新增失败必须为 0。
+5. 如果出现新增失败，立即停止并汇报，不得继续构建或 pilot。
+6. 回归通过后统一构建 gem5。
+7. 记录：
+   - 集成 HEAD；
+   - 二进制路径；
+   - 新二进制 SHA-256；
+   - 构建命令和构建结果。
+8. 新 SHA 冻结后，旧冻结 SHA
+   6469bad23ed035fde43b92bcd24570f24de7a4bf12faddce3fee7fe6562aef4e
+   只能作为历史记录，不得继续用于后续 pilot。
+
+四、重新验证第一波
+
+只使用新冻结二进制重跑以下 6 个 RunID，每个固定运行 3 个 seed：
+
+- T01-F0-W4
+- T02-F0-W4
+- T02-F2-W4
+- T04-F0-W4
+- T04-F2-W4
+- T04-F6-W4
+
+可按 RunID 并行，但要求：
+
+1. 每个 RunID 一个独立 subagent/lane。
+2. 每个 lane 只负责自己的 3 个 seed 和诊断报告，不得私自修改共享代码。
+3. 每个 seed 必须核验：
+   - 实际使用的新二进制 SHA；
+   - attempted 与 activated；
+   - 正常结束或明确的失败原因；
+   - gzip 能读到 EOF；
+   - 非 truncated；
+   - stats 和关键日志非零；
+   - request/corr/parent 关系；
+   - L0–L5 或满足规范的显式 containment；
+   - binding check_admission 结果；
+   - 不存在 cross_request_edge、orphan、Unknown terminal 和证据路径错配。
+4. 某 RunID 任一 seed 失败，则该 RunID 不得标记 PILOT_READY。
+5. 同一公共根因如果再次出现，只指定一个代码修复者；其他 lane 只提交复现证据，避免重复修改。
+
+五、启动第二波的硬条件
+
+只有第一波 6 个 RunID 全部通过严格准入，才允许启动剩余第二波：
+
+- T01-F1-W4
+- T01-F2-W4
+- T03-F5-W4
+- T10-F0-W4
+- T10-F1-W4
+- T10-F2-W4
+
+第二波同样每个 RunID 运行 3 个 seed，并采用相同准入标准。
+
+任何阶段都不得启动正式实验。正式实验的必要条件仍然是：
+
+- 所有可执行 RunID 均完成 3-seed pilot；
+- 每个 RunID 都获得完整观测链或符合规范的显式 containment；
+- 权威表中相应项目为 PILOT_READY；
+- 无截断、无证据缺失、无未解释 Unknown；
+- 使用同一冻结二进制 SHA；
+- /home 可用空间达到至少 70.6 GiB；
+- 我明确批准开始正式实验。
+
+现在开始执行。先给我输出：
+1. 当前进程和 subagent 清单；
+2. S01 的诊断及处理结果；
+3. 修复 lane 分工、worktree、文件所有权；
+4. 然后开始修复，不要只停留在计划。
