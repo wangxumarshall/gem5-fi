@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5KEET3DNMAXDZBAAFGW9TTN",
+  "strategy": "manual-commit",
+  "branch": "r6-oracle",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 575857,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 8552448,
+    "output_tokens": 106673,
+    "api_call_count": 53,
+    "subagent_tokens": {
+      "input_tokens": 1385697,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 21267328,
+      "output_tokens": 128648,
+      "api_call_count": 594
+    }
+  }
+}
