@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated_at": "2026-10-23T13:08:57+0800",
+  "generated_at": "2026-10-23T13:14:03+0800",
   "spec": "docs/gem5-fi/lsu/mdspec/R6-PILOT-ADMISSION-SPEC.md",
   "contract": "docs/gem5-fi/lsu/mdspec/ready_contract.json",
   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
@@ -15,12 +15,6 @@
     "stream": "r6_tlb_negative2/seed1/prop_evt.txt.gz",
     "seed": "1",
     "complete": false,
-    "activated": false
-   },
-   {
-    "stream": "r6_mc_clean_control/prop_evt.txt.gz",
-    "seed": "6",
-    "complete": true,
     "activated": false
    },
    {
@@ -43,20 +37,20 @@
    "RUNNING": 0,
    "NO_ACTIVATION": 0,
    "INFRA_FAILED": 0,
-   "CHAIN_INCOMPLETE": 3,
-   "ORACLE_INCOMPLETE": 0,
+   "CHAIN_INCOMPLETE": 2,
+   "ORACLE_INCOMPLETE": 1,
    "BLOCKED": 84,
    "PILOT_READY": 0,
    "FORMAL_RUNNING": 0,
    "FORMAL_COMPLETE": 0
   },
   "streams": {
-   "total": 41,
-   "complete": 29,
+   "total": 42,
+   "complete": 30,
    "truncated": 12,
    "runids_missing_stream": 306
   },
-  "activated_samples_total": 40,
+  "activated_samples_total": 41,
   "ready_vs_contract": {
    "ready_by_contract": 241,
    "blocked_by_contract": 84,
@@ -1000,7 +994,7 @@
     [
      "S04-F0-W5",
      "READY",
-     "CHAIN_INCOMPLETE"
+     "ORACLE_INCOMPLETE"
     ],
     [
      "S04-F2-W0",
@@ -7658,18 +7652,18 @@
    "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015",
    "checkpoint_provisional": true,
    "executable": true,
-   "result_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S04-F0-W5/S04-F0-W5;/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5",
-   "pilot_seeds": 7,
-   "activated_samples": 7,
-   "complete_streams": 7,
+   "result_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_sq2_S04-F0-W5/S04-F0-W5;/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S04-F0-W5/S04-F0-W5;/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5",
+   "pilot_seeds": 8,
+   "activated_samples": 8,
+   "complete_streams": 8,
    "truncated_streams": 0,
-   "L0_L5_coverage": "L0..L3 (missing L4,L5)",
+   "L0_L5_coverage": "L0..L4 (missing L5)",
    "containment": "",
-   "oracle_result": "Masked=7",
-   "run_result": "exit=0",
-   "strict_chain_verdict": "NOT ADMITTED (seed1: provable_to_L3_then_unknown)",
-   "state": "CHAIN_INCOMPLETE",
-   "failure_reason": "7/7 activated sample(s) not admitted | deepest=L3 | no_closed_chain_and_no_containment: S04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY; ready_by_activated_only: S04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）; ready_by_rc0: S04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+   "oracle_result": "MISSING=8",
+   "run_result": "streams complete",
+   "strict_chain_verdict": "n/a",
+   "state": "ORACLE_INCOMPLETE",
+   "failure_reason": "8 activated sample(s) lack oracle outcome"
   },
   {
    "run_id": "S04-F2-W0",

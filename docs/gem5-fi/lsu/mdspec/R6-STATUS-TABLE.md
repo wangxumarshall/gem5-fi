@@ -1,6 +1,6 @@
 # R6 逐 RunID 权威准入状态表（L32 背板）
 
-- 生成时间：2026-10-23T13:08:57+0800
+- 生成时间：2026-10-23T13:14:03+0800
 - 权威规格：`docs/gem5-fi/lsu/mdspec/R6-PILOT-ADMISSION-SPEC.md`
 - 契约：`docs/gem5-fi/lsu/mdspec/ready_contract.json`
 - runs root：`/home/sdc/gem5-fi-ding/runs/lsu`
@@ -14,16 +14,16 @@
 - RUNNING: 0
 - NO_ACTIVATION: 0
 - INFRA_FAILED: 0
-- CHAIN_INCOMPLETE: 3
-- ORACLE_INCOMPLETE: 0
+- CHAIN_INCOMPLETE: 2
+- ORACLE_INCOMPLETE: 1
 - BLOCKED: 84
 - PILOT_READY: 0
 - FORMAL_RUNNING: 0
 - FORMAL_COMPLETE: 0
 
-- 事件流：total=41 complete=29 truncated=12
+- 事件流：total=42 complete=30 truncated=12
 - 无任何流的 RunID（never-run）：306
-- activated 样本合计：40
+- activated 样本合计：41
 
 ## 与 ready_contract.json 的类别分歧
 
@@ -270,7 +270,7 @@
 | S03-F5-W10 | Store Queue | S03 | yes | 0 | 0 | 0 | 0 | none |  | not measured | not measured | n/a | NOT_RUN | not measured: no prop_evt stream found | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
 | S03-F5-W5 | Store Queue | S03 | yes | 0 | 0 | 0 | 0 | none |  | not measured | not measured | n/a | NOT_RUN | not measured: no prop_evt stream found | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
 | S04-F0-W0 | Store Queue | S04 | yes | 0 | 0 | 0 | 0 | none |  | not measured | not measured | n/a | NOT_RUN | not measured: no prop_evt stream found | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
-| S04-F0-W5 | Store Queue | S04 | yes | 7 | 7 | 7 | 0 | L0..L3 (missing L4,L5) |  | Masked=7 | exit=0 | NOT ADMITTED (seed1: provable_to_L3_then_unknown) | CHAIN_INCOMPLETE | 7/7 activated sample(s) not admitted \| deepest=L3 \| no_closed_chain_and_no_containment: S04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY; ready_by_activated_only: S04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）; ready_by_rc0: S04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整） | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
+| S04-F0-W5 | Store Queue | S04 | yes | 8 | 8 | 8 | 0 | L0..L4 (missing L5) |  | MISSING=8 | streams complete | n/a | ORACLE_INCOMPLETE | 8 activated sample(s) lack oracle outcome | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
 | S04-F2-W0 | Store Queue | S04 | yes | 0 | 0 | 0 | 0 | none |  | not measured | not measured | n/a | NOT_RUN | not measured: no prop_evt stream found | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
 | S04-F2-W5 | Store Queue | S04 | yes | 0 | 0 | 0 | 0 | none |  | not measured | not measured | n/a | NOT_RUN | not measured: no prop_evt stream found | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
 | S04-F6-W0 | Store Queue | S04 | yes | 0 | 0 | 0 | 0 | none |  | not measured | not measured | n/a | NOT_RUN | not measured: no prop_evt stream found | f4dbfb9a66e0df807096c50033714a01d5db62607c6a1f16f735a1bf2e6191f5 |  |
