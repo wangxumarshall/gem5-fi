@@ -1,0 +1,86 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5KF379YYZ8YSX5PX3E22T2P",
+  "session_id": "5eba8fcb-a1a5-481f-815a-f220d1577a35",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-23T04:07:55.218291957Z",
+  "branch": "r6-tlb-hooks",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc",
+    "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh",
+    "CHAOS/gem5/src/arch/arm/mmu.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh",
+    "docs/superpowers/plans/2026-10-23-lsu-r6-tlb-a-l0-l5-containment.md",
+    "tests/test_lsu_hook_tlb_observation.py"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "9e8799566c85",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 585575,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9777792,
+    "output_tokens": 111827,
+    "api_call_count": 58,
+    "subagent_tokens": {
+      "input_tokens": 236207,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 10812672,
+      "output_tokens": 36596,
+      "api_call_count": 318
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-10-23T01:21:56.680324211Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "48739cd35c6f",
+      "timestamp": "2026-10-23T01:21:56.680324211Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-23T04:07:55.018634588Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 753,
+    "human_modified": 40,
+    "human_removed": 0,
+    "total_committed": 753,
+    "total_lines_changed": 793,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
