@@ -206,6 +206,34 @@ def main():
           and "{ptag, branch_key}" in emit,
           "ptag_last_event.find" in emit)
 
+    print("[8] [R6-FIXA2] 显式 lineage bridge（request_fork）发射契约")
+    # 用户裁决：兄弟子链「无父生根、不进祖先路径」不可接受。新请求首事件必须
+    # 经显式 bridge 接到**真实污染来源事件**；无来源/无共享对象则不造桥。
+    check("hh 声明 bridge 契约（id 空间 + 发射器）",
+          "BRIDGE_ID_BASE" in prop_hh and "emitLineageBridge" in prop_hh
+          and "ptag_bridge_event" in prop_hh)
+    check("hh 声明 bridge 家族字段（old/new request + source/dest + 共享对象）",
+          all(k in prop_hh for k in
+              ("old_request_id", "new_request_id", "source_event_id",
+               "dest_event_id", "bridge_layer", "shared_addr", "shared_size")))
+    check("emitPropEvt 发射 bridge 并让目标事件挂到 bridge 下",
+          "emitLineageBridge(kind, ptag, branch_key," in prop_cc
+          and 'fields["parent_event_id"] = std::to_string(bridge_id)' in prop_cc)
+    # 不得无源造桥：来源事件 / 共享对象二者缺一即返回 0（不建边）。
+    elb = prop_cc[prop_cc.index("CHAOSPropagation::emitLineageBridge("):]
+    elb = elb[:elb.index("prefetch request id")]
+    check("无真实来源事件 → 不造桥",
+          "no source -> no bridge" in elb, elb[-160:])
+    check("无共享污染对象 → 不造桥",
+          "no verifiable object -> no bridge" in elb, elb[-160:])
+    check("bridge 记录来源事件父边 + 目标首事件 + 稳定 corr identity",
+          'b["parent_event_id"] = std::to_string(sit->second)' in elb
+          and 'b["dest_event_id"] = std::to_string(dest_event_id)' in elb
+          and 'b["bridge_layer"]' in elb and 'b["bridge_reason"]' in elb)
+    check("bridge 记录被共享的坏对象区间（可核验）",
+          'b["shared_addr"]' in elb and 'b["shared_size"]' in elb
+          and "blk_registry" in elb)
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

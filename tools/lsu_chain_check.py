@@ -407,6 +407,11 @@ GATE_VIOLATIONS = (
     "missing_mandatory_metric",
     "contained_without_later_na",
     "no_closed_chain_and_no_containment",
+    # [MDSPEC][R6-FIXA2] cross-request lineage bridge missing/malformed/
+    # unverifiable — the ONLY legal carrier of a request transition, so a bad
+    # one is a named hard-gate failure (never a silent pass, never a loosened
+    # cross_request_edge rule).
+    "invalid_lineage_bridge",
 )
 
 # cache/memory kinds that must never stand in for the TLB family's L1 DTLB
@@ -509,7 +514,180 @@ def _creq_mismatch(e1, e2):
     return (r1 != "" and r2 != "" and r1 != "0" and r2 != "0" and r1 != r2)
 
 
-def _ancestry_request_breaks(chain_events, family, path):
+# ---------------------------------------------------------------------------
+# [MDSPEC][R6-FIXA2] Explicit lineage bridge (kind=request_fork).
+#
+# Ruling A (R6-RULINGS-20261023): a chosen ancestry may cross a request
+# identity boundary in EXACTLY TWO ways — (i) a normal parent edge whose two
+# witnesses share the same stamped request_id, or (ii) an edge carried by a
+# fully specified, source-verifiable bridge event.  Everything else stays
+# `cross_request_edge` (never a silent pass, never a loosened gate).
+#
+# A bridge is whitelisted ONLY when all of the following hold (each failure is
+# reported loudly as `invalid_lineage_bridge`):
+#   * every mandatory field is present and non-empty;
+#   * source_event_id / dest_event_id resolve to REAL events of this chain;
+#   * the DAG is actually connected: bridge.parent_event_id == source_event_id
+#     and dest_event.parent_event_id == bridge.event_id;
+#   * the endpoints really are the declared requests (source_event.request_id ==
+#     old_request_id, dest_event.request_id == new_request_id, old != new);
+#   * chain identity (fault_id, corr) and the bridge layer match the
+#     destination event — drift between the emitter's map and this checker's
+#     map is DETECTED, not silently tolerated;
+#   * the declared shared propagation object [shared_addr, +shared_size) is
+#     really addressed by BOTH endpoint events (the verifiable evidence that
+#     the two requests are reading the same polluted object).
+_BRIDGE_KINDS = frozenset({"request_fork", "lineage_bridge"})
+_BRIDGE_FIELDS = ("fault_id", "corr", "old_request_id", "new_request_id",
+                  "source_event_id", "dest_event_id", "bridge_layer",
+                  "bridge_reason", "shared_addr", "shared_size")
+
+
+def _hexint(value):
+    """Parse a hex address field; None when absent/unparsable."""
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        return int(s, 16)
+    except ValueError:
+        return None
+
+
+def _evt_in_range(evt, base, size):
+    """Does `evt` address [base, base+size) through any of its own address
+    fields?  This is how the bridge's declared shared object is *verified*
+    against real event evidence (never trusted from the bridge alone)."""
+    if size <= 0:
+        return False
+    hi = base + size
+    for key in ("va", "pa", "cache_line"):
+        v = _hexint(evt.get(key, ""))
+        if v is not None and base <= v < hi:
+            return True
+    return False
+
+
+def _validate_bridges(chain_events, by_id, family):
+    """Return ({event_id: bridge}, [issue...]) for every bridge in the chain.
+
+    Only bridges in the returned map may carry a request transition.
+    """
+    valid, issues = {}, []
+    for eid, b in sorted((e.get("event_id", ""), e)
+                         for e in chain_events
+                         if e.get("kind", "") in _BRIDGE_KINDS):
+        miss = [f for f in _BRIDGE_FIELDS if not str(b.get(f, "")).strip()]
+        if miss:
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 缺必录字段 "
+                          f"{miss}——假 bridge 不得放行跨请求边")
+            continue
+        src = by_id.get(str(b.get("source_event_id", "")))
+        dst = by_id.get(str(b.get("dest_event_id", "")))
+        if src is None or dst is None:
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 声明的来源/"
+                          f"目标事件不存在（source_event_id="
+                          f"{b.get('source_event_id')!r} dest_event_id="
+                          f"{b.get('dest_event_id')!r}）——不得放行跨请求边")
+            continue
+        if (str(b.get("parent_event_id", "")) != str(b["source_event_id"])
+                or str(dst.get("parent_event_id", "")) != str(eid)):
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 与 source/dest "
+                          f"事件的父子边不连（parent={b.get('parent_event_id')!r}"
+                          f" dest.parent={dst.get('parent_event_id')!r}）")
+            continue
+        if str(b["old_request_id"]) == str(b["new_request_id"]):
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 两端 request_id "
+                          f"相同（{b['old_request_id']!r}）——非跨请求，不得充当 bridge")
+            continue
+        if str(src.get("request_id", "")).strip() != str(b["old_request_id"]).strip():
+            issues.append(f"invalid_lineage_bridge: bridge {eid} source 事件 "
+                          f"{b['source_event_id']} 实际 request_id="
+                          f"{src.get('request_id')!r}≠old_request_id="
+                          f"{b['old_request_id']!r}")
+            continue
+        if str(dst.get("request_id", "")).strip() != str(b["new_request_id"]).strip():
+            issues.append(f"invalid_lineage_bridge: bridge {eid} dest 事件 "
+                          f"{b['dest_event_id']} 实际 request_id="
+                          f"{dst.get('request_id')!r}≠new_request_id="
+                          f"{b['new_request_id']!r}")
+            continue
+        if (str(b["fault_id"]).strip() != str(dst.get("fault_id", "")).strip()
+                or str(b["corr"]).strip() != str(dst.get("corr", "")).strip()):
+            issues.append(f"invalid_lineage_bridge: bridge {eid} chain identity "
+                          f"与目标事件不一致（fault_id={b['fault_id']!r}"
+                          f"/corr={b['corr']!r} vs 目标 fault_id="
+                          f"{dst.get('fault_id')!r}/corr={dst.get('corr')!r}）")
+            continue
+        if str(b["bridge_layer"]).strip() != str(_obs_layer_of(dst, family) or ""):
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 声明层 "
+                          f"{b['bridge_layer']!r}≠目标事件观察层 "
+                          f"{_obs_layer_of(dst, family)!r}")
+            continue
+        base, size = _hexint(b["shared_addr"]), _hexint(b["shared_size"])
+        if base is None or size is None or size <= 0:
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 共享对象区间非法"
+                          f"（shared_addr={b['shared_addr']!r} shared_size="
+                          f"{b['shared_size']!r}）")
+            continue
+        if not _evt_in_range(src, base, size):
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 声明的共享对象 "
+                          f"[{base:#x},+{size:#x}) 未被 source 事件 "
+                          f"{b['source_event_id']} 实际访问——来源不可核验")
+            continue
+        if not _evt_in_range(dst, base, size):
+            issues.append(f"invalid_lineage_bridge: bridge {eid} 声明的共享对象 "
+                          f"[{base:#x},+{size:#x}) 未被 dest 事件 "
+                          f"{b['dest_event_id']} 实际访问——地址/line 不一致")
+            continue
+        valid[eid] = b
+    return valid, issues
+
+
+def _carried_by_bridge(e1, e2, ancestry, valid_bridges):
+    """True when the ancestry segment e1..e2 contains a VALIDATED bridge that
+    carries e1's request to e2's request — the only legal way to cross a
+    request identity boundary."""
+    if not valid_bridges:
+        return False
+    ids = [e.get("event_id", "") for e in ancestry]
+    try:
+        i, j = ids.index(e1.get("event_id", "")), ids.index(e2.get("event_id", ""))
+    except ValueError:
+        return False
+    if j < i:
+        i, j = j, i
+    for k in range(i, j):
+        b = valid_bridges.get(ancestry[k].get("event_id", ""))
+        if b is None:
+            continue
+        if (str(b.get("dest_event_id", "")) == str(ancestry[k + 1].get("event_id", ""))
+                and str(b.get("new_request_id", "")).strip()
+                == str(e2.get("request_id", "")).strip()):
+            return True
+    return False
+
+
+def _ancestry_request_breaks(chain_events, family, path, ancestry=None):
+    """[R6-GATE-D3] Adjacent witnesses on the *chosen ancestry* whose stamped,
+    non-zero `request_id` differs WITHOUT a validated lineage bridge carrying
+    the transition.
+
+    The per-edge check below only sees the ≤6 layer representatives, so a
+    stream whose DAG walks resp(req=A) → resp(req=B) → … under one fault_id
+    slipped through (real T04: event 47 req=304 → event 48 req=310, both L3).
+    Walking the whole ancestry catches cross-request stitching anywhere on the
+    proven path (mission-forbidden #3).
+    """
+    if not path:
+        return []
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    anc = ancestry if ancestry is not None else _ancestry(path[-1], by_id)
+    valid, _ = _validate_bridges(chain_events, by_id, family)
+    return [(a, b) for a, b in zip(anc, anc[1:])
+            if _creq_mismatch(a, b)
+            and not _carried_by_bridge(a, b, anc, valid)]
     """[R6-GATE-D3] Adjacent witnesses on the *chosen ancestry* whose stamped,
     non-zero `request_id` differs.
 
@@ -721,13 +899,22 @@ def check_admission(bundle):
                     f"单元自身观察点")
 
     # (3) edge stitching integrity — branch / request / time.
+    # [MDSPEC][R6-FIXA2] Lineage bridges are validated FIRST; only a fully
+    # specified, source-verifiable bridge may carry a request transition, and
+    # every rejected bridge is named loudly (never silently ignored).
+    by_id = {e.get("event_id", ""): e for e in chain
+             if e.get("event_id", "") != ""}
+    chosen_ancestry = _ancestry(path[-1], by_id) if path else []
+    valid_bridges, bridge_issues = _validate_bridges(chain, by_id, family)
+    viol.extend(bridge_issues)
     if _splice_detected(chain, family, path):
         viol.append(f"cross_branch_edge: {run_id} fault {fid} 成对拼接比单 DAG "
                     f"路径多证出边——边见证分散在多个分支，禁止跨分支拼接")
     for i in range(len(path) - 1):
         e1, e2 = path[i], path[i + 1]
         lay = f"{LAYERS[i]}->{LAYERS[i + 1]}"
-        if _creq_mismatch(e1, e2):
+        if _creq_mismatch(e1, e2) and not _carried_by_bridge(
+                e1, e2, chosen_ancestry, valid_bridges):
             viol.append(f"cross_request_edge: {run_id} fault {fid} {lay} 见证 "
                         f"request_id 不一致（{e1.get('request_id')!r}≠"
                         f"{e2.get('request_id')!r}）——禁止跨请求拼接")
@@ -738,7 +925,8 @@ def check_admission(bundle):
     if tr:
         viol.append(f"{tr}（{run_id} fault {fid}）")
     # [R6-GATE-D3] 跨请求拼接：整条所选祖先上任意相邻见证 request_id 不一致。
-    breaks = _ancestry_request_breaks(chain, family, path)
+    breaks = _ancestry_request_breaks(chain, family, path,
+                                     ancestry=chosen_ancestry)
     if breaks:
         a, b = breaks[0]
         viol.append(f"cross_request_edge: {run_id} fault {fid} 所选祖先上 "

@@ -198,6 +198,12 @@ class CHAOSPropagation : public SimObject
     // walk_refill_lost).
     static inline const char *const PROP_EVT_EXT_FIELDS[] = {
         "containment_layer", "containment_reason",
+        // [MDSPEC][R6-FIXA2] Explicit lineage-bridge (kind=request_fork)
+        // vocabulary — family keys emitted ONLY on bridge events; the parser
+        // keeps family keys outside the shared registry (see above), so the
+        // bridge contract travels without growing the shared sheet-11 registry.
+        "old_request_id", "new_request_id", "source_event_id", "dest_event_id",
+        "bridge_layer", "bridge_reason", "shared_addr", "shared_size",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
@@ -740,6 +746,51 @@ class CHAOSPropagation : public SimObject
     // the old cursor.
     std::map<uint64_t, uint64_t> ptag_owner_request;   // ptag -> owning req id
     std::map<std::pair<uint64_t, uint64_t>, uint64_t> ptag_branch_last;
+
+    // [MDSPEC][R6-FIXA2] Explicit lineage bridge.  The request-scoped cursor
+    // above stops a SIBLING sub-chain from hanging off another request's
+    // event, but a sibling with no parent at all would drop the *real*
+    // cross-request pollution propagation out of the causal graph (user
+    // ruling 2026-10-23: "事件数不变不代表传播图语义等价").  So the FIRST
+    // event of a new request of an existing fault chain is joined to the
+    // pollution source by one explicit `request_fork` bridge event, which
+    // records old/new request ids, source/dest event ids, the stable chain
+    // identity (corr), the crossing layer, the reason, and the SHARED
+    // propagation object — the registered corrupted byte range that BOTH
+    // requests actually address (verifiable by the chain checker).
+    //
+    // A bridge is emitted ONLY when a real source event and a real shared
+    // object are both known.  With no provenance the request is NOT linked
+    // (no fabricated bridge) and the chain stays honestly per-request.
+    static constexpr uint64_t BRIDGE_ID_BASE = 1ull << 32;
+    uint64_t next_bridge_id = BRIDGE_ID_BASE;          // disjoint id space
+    std::map<std::pair<uint64_t, uint64_t>, uint64_t> ptag_bridge_event;
+    // Last STAMPED event of each (ptag, request) branch together with the
+    // addresses it carried: the only admissible pollution source for a
+    // bridge, because a bridge's source must be verifiable (a request-stamped
+    // event that really addresses the shared object).  An un-stamped
+    // lifecycle event can never carry the identity, so it is not a source.
+    struct LineageSrc {
+        uint64_t event_id = 0;
+        uint64_t va = 0, pa = 0, line = 0;
+        bool touches(Addr begin, Addr end) const
+        {
+            for (uint64_t a : {va, pa, line})
+                if (a != 0 && a >= begin && a < end)
+                    return true;
+            return false;
+        }
+    };
+    std::map<std::pair<uint64_t, uint64_t>, LineageSrc> ptag_branch_src;
+    // Emit the bridge for `dest_request` of `ptag` (returns its event id, or
+    // 0 when no verifiable source/object exists).  `kind` is the destination
+    // event's kind; `fields` is its pending field map (read-only).
+    uint64_t emitLineageBridge(const std::string &kind, uint64_t ptag,
+                               uint64_t dest_request, uint64_t dest_event_id,
+                               const std::map<std::string, std::string> &fields);
+    // Serialize + flush one PROP-EVT row (shared by the normal emitter and
+    // the lineage-bridge emitter).
+    void writePropEvtRow(std::map<std::string, std::string> &fields);
 
     struct TlbPending {
         uint64_t ptag = 0;
