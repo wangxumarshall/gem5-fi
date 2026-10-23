@@ -146,6 +146,75 @@ def _taint_chain(prop_trace_path):
             "prop_trace_path": str(prop_trace_path)}
 
 
+def _classify_mod():
+    """复用 tools/classify.py（同目录）——oracle 提取器单一实现，零漂移。
+
+    CLAUDE.md 纪律："One classifier, no drift"。本模块**不复制**任何 oracle
+    正则，直接 import 同目录的 tools/classify.py。
+    """
+    import importlib
+    import classify as CLS
+    importlib  # noqa: F401  （保持 import 形态显式）
+    return CLS
+
+
+def _detect_oracle_kind(stdout):
+    """输出里出现哪种非哈希 oracle 行（auto-detect；无则 None）。"""
+    try:
+        CLS = _classify_mod()
+    except ImportError:
+        return None
+    if CLS.extract_arrayhash(stdout):
+        return "array_hash"
+    if CLS.extract_elemdiff(stdout) is not None:
+        return "per_element_diff"
+    if CLS.extract_ulp(stdout) is not None:
+        return "fp_ulp"
+    return None
+
+
+def _oracle_compare(stdout, oracle_kind, oracle_tol, golden, checksum):
+    """按 oracle 口径比较（语义逐条对齐 tools/classify.py）。
+
+    返回 (outcome, oracle_diff, error)。error 非 None → outcome 无意义
+    （调用方记为 INCONCLUSIVE，绝不猜测）。非哈希口径缺 oracle 行 = 响亮
+    拒判（对应 tools/classify.py 的 "oracle line missing, run invalid"）。
+    """
+    CLS = _classify_mod()
+    od = {"kind": oracle_kind, "compared": False, "golden": golden,
+          "observed": None, "match": None, "tolerance": oracle_tol}
+    if oracle_kind == "array_hash":
+        ah = CLS.extract_arrayhash(stdout)
+        if not ah:
+            return None, od, ("array_hash 口径但无 ARRAYHASH=<64hex> 行——"
+                              "oracle 行缺失，run invalid（不猜测结局）")
+        od.update({"compared": True, "observed": ah, "match": ah == golden})
+        return ("Masked" if od["match"] else "SDC"), od, None
+    if oracle_kind == "per_element_diff":
+        ed = CLS.extract_elemdiff(stdout)
+        if ed is None:
+            return None, od, ("per_element_diff 口径但无 ELEMDIFF n=... 行"
+                              "——oracle 行缺失，run invalid（不猜测结局）")
+        n_diff, first, maxulp = ed
+        od.update({"compared": True,
+                   "observed": {"n_diff": n_diff, "first": first,
+                                "maxulp": maxulp},
+                   "match": n_diff == 0})
+        return ("Masked" if od["match"] else "SDC"), od, None
+    if oracle_kind == "fp_ulp":
+        ulp = CLS.extract_ulp(stdout)
+        if ulp is None:
+            return None, od, ("fp_ulp 口径但无 ULP=<n> 行——oracle 行缺失，"
+                              "run invalid（不猜测结局）")
+        od.update({"compared": True, "observed": ulp,
+                   "match": ulp <= oracle_tol})
+        return ("Masked" if od["match"] else "SDC"), od, None
+    # exact_hash 走调用方主路径（16-hex / w1-fnv），此处不重复实现
+    return (("Masked" if checksum == golden else "SDC"),
+            dict(od, compared=True, observed=checksum,
+                 match=checksum == golden), None)
+
+
 def _derived_detection_layer(crash_kind, detection_signal_layer):
     """detection_layer ∈ {Hardware RAS, OS, Application, None}（总方针 §32）。
 
@@ -255,6 +324,21 @@ def classify(args):
     exit_code = args.exit
     oracle_kind = getattr(args, "oracle_kind", "exact_hash")
     oracle_tol = getattr(args, "oracle_tol", 0)
+    # ---- G6: oracle 口径解析（与 tools/classify.py 单一实现，零漂移） ----
+    # 审计 G6：本分类器只懂 16-hex/w1-fnv 校验和，而 tools/classify.py 还产
+    # ARRAYHASH/ELEMDIFF/ULP——非哈希 oracle 的运行 checksum=None → 误判 Crash。
+    # 修法：显式 --oracle-kind，且默认 exact_hash 但输出里出现别的 oracle 行时
+    # 自动识别并**如实记 oracle_kind_source=auto_detected**；两者都没有时响亮
+    # 拒判（INCONCLUSIVE + error），绝不误标 Crash。
+    oracle_kind_source = "declared"
+    if oracle_kind == "exact_hash" and checksum is None:
+        detected = _detect_oracle_kind(stdout)
+        if detected:
+            oracle_kind = detected
+            oracle_kind_source = "auto_detected"
+            out["warning_oracle_kind"] = (
+                f"输出含 {detected} oracle 行而 --oracle-kind 缺省（exact_hash）"
+                f"——已自动识别（生产调用方应显式传 --oracle-kind）")
     # oracle_diff（G4）：显式记录"是否真的做过 oracle 比较"。审计 G4：
     # activated=1 + RC=0 + 与 golden 相符 → Masked 被 _execution_complete
     # 接受 → execution_complete=True 却无 oracle_diff——这是被禁止的
@@ -262,6 +346,8 @@ def classify(args):
     oracle_diff = {"kind": oracle_kind, "compared": False,
                    "golden": args.golden, "observed": checksum,
                    "match": None, "tolerance": oracle_tol}
+    out["oracle_kind"] = oracle_kind
+    out["oracle_kind_source"] = oracle_kind_source
 
     if args.timed_out:
         outcome = "Timeout"
@@ -269,10 +355,29 @@ def classify(args):
         outcome = "Crash"
         out["crash_kind"] = ("simulator_assert" if sim_assert
                              else "guest_or_unknown")
-    elif checksum is None:
-        outcome = "Crash"          # no checksum line at all on abort paths
-        out["crash_kind"] = ("simulator_assert" if sim_assert
-                             else "guest_or_unknown")
+    elif checksum is None and oracle_kind == "exact_hash":
+        # 16-hex 与 w1-fnv 派生都拿不到，也没有别的 oracle 行可比：
+        #  - 未知退出码（exit 未给）且有模拟器断言 → 模拟器 DUE（Crash）；
+        #  - 否则**响亮拒判**（INCONCLUSIVE + error），绝不判 Crash
+        #    （G6：非哈希 oracle / 无 oracle 行不得被误标成 Crash）。
+        if exit_code is None and sim_assert:
+            outcome = "Crash"
+            out["crash_kind"] = "simulator_assert"
+        else:
+            out["oracle_diff"] = oracle_diff
+            out["error"] = ("无可比 oracle 行（既无 16-hex 校验和、非 W1 八行"
+                            "形态，也无 ARRAYHASH/ELEMDIFF/ULP）——拒绝判 "
+                            "Crash（G6：无 oracle ≠ 崩溃）")
+            out["error_class"] = "no_oracle_line"
+            out["outcome"] = "INCONCLUSIVE"
+            out["attempted"], out["eligible"], out["injected"] = \
+                attempted, eligible, injected
+            out["activated"] = injected
+            if injected is not None:
+                out["activated_source"] = "fallback=injected（无 oracle 行）"
+            out["classes"] = None
+            out["recorded"] = True
+            return out
     elif not args.golden:
         # 无 golden → 无从比较 → **绝不判 Masked**（G4 泄漏源）。响亮 INCONCLUSIVE
         # 并把 activated 记下来（不丢样本——与 G3 同一纪律）。
@@ -293,9 +398,23 @@ def classify(args):
         out["recorded"] = True
         return out
     else:
-        oracle_diff["compared"] = True
-        oracle_diff["match"] = (checksum == args.golden)
-        outcome = "Masked" if oracle_diff["match"] else "SDC"
+        # 非 exact_hash 口径：与 tools/classify.py 的语义逐条对齐（零漂移），
+        # 缺行则 INCONCLUSIVE（拒判，不猜）。
+        outcome, oracle_diff, err = _oracle_compare(
+            stdout, oracle_kind, oracle_tol, args.golden, checksum)
+        if err is not None:
+            out["oracle_diff"] = oracle_diff
+            out["error"] = err
+            out["error_class"] = "no_oracle_line"
+            out["outcome"] = "INCONCLUSIVE"
+            out["attempted"], out["eligible"], out["injected"] = \
+                attempted, eligible, injected
+            out["activated"] = injected
+            if injected is not None:
+                out["activated_source"] = "fallback=injected（oracle 行缺失）"
+            out["classes"] = None
+            out["recorded"] = True
+            return out
     out["oracle_diff"] = oracle_diff
 
     # ---- G1: Crash 检测点 / detection_layer / outcome / 污染链关联 ----
@@ -324,17 +443,23 @@ def classify(args):
     # single-run verdict: the whole activated count lands in one class
     classes = {"Masked": 0, "Detected/Contained": detected, "SDC": 0,
                "Crash": 0, "Timeout": 0}
-    if activated:
-        classes[outcome] = activated
-    s = sum(classes.values())
+    if outcome in classes:
+        if activated:
+            classes[outcome] = activated
+        conservation = ("OK" if sum(classes.values()) == activated
+                        else f"VIOLATION sum={sum(classes.values())} "
+                             f"activated={activated}")
+    else:
+        # 非五类结局（G6：INCONCLUSIVE 等）→ 不冒充五类守恒
+        classes = None
+        conservation = None
     out.update({
         "attempted": attempted, "eligible": eligible, "injected": injected,
         "activated": activated,
         "injected_not_activated": max(0, (injected or 0) - activated),
         "checksum": checksum, "outcome": outcome, "classes": classes,
     })
-    out["conservation"] = ("OK" if s == activated else
-                           f"VIOLATION sum={s} activated={activated}")
+    out["conservation"] = conservation
     return out
 
 
