@@ -109,6 +109,7 @@ TLB 观测 hook 与严格链检查器修复完成后，必须用**新编译的�
 | L14 | 325 BLOCKED 根因聚类 | 无（只读） | — | — | **完成** | — | runs/lsu/r6_reports/L14.md | 已回收 | 无 |
 | L15 | 正式批量调度/断点恢复/目录隔离 | r6-blocked | tools/lsu_r6_schedule.sh, R6-BATCH-PLAN.md | — | 运行中 | — | 同上 | — | 待定 |
 | L16 | 独立 reviewer（只认真实产物） | 无（只读） | — | — | 运行中 | — | runs/lsu/r6_reports/L16.md | — | — |
+| L22 | FS-MULTICORE W7 多核 FS pilot（4 个 routable 格 + 负对照） | r6-multicore | configs/fs/lsu_multicore_fs.py, tools/lsu_fsmc_verdict.py （本轮均未改） | O01-F0-W7, O02-F0-W7, O02-F5-W7, O03-F0-W7 | **完成** | 2700s | runs/lsu/r6_mc_* | 见 L22.md §3 | 无（仅文档） |
 | B2 | checker：L5=真实检测事件语义 | r6-gate | tools/lsu_chain_check.py 等 | — | 待派 | — | — | — | — |
 
 ## 进度 / Ruling 记录
@@ -140,3 +141,20 @@ TLB 观测 hook 与严格链检查器修复完成后，必须用**新编译的�
 
 **Ruling（2026-10-23）**：L5 证据 = **真实检测事件**，即把 `errant_commit` 充实为携带 `detection_layer` + `outcome` + 与链关联的 `corr`，并以它作为 L5；`chain_end` 永远只作生命周期件、**不得**充当 L5。依据：用户"chain_end 只能是生命周期事件，不能单独充当 L5" × "Crash 必须记录实际检测点、detection_layer、outcome，并与污染链关联"，且 L5 定义为"commit/squash/oracle/detection 结局"（`errant_commit` 正是 commit 结局）。代价若错判：checker 需再改一次映射与测试。
 第二条：`inj`（L0）必须携带注入字段的 before/after（当前为空）。
+
+### L22 实测：FS-MULTICORE W7 多核 FS pilot（2026-10-23，`runs/lsu/r6_reports/L22.md`）
+
+4 个 routable 格（`CARRIER_ROUTED_PENDING_RUN`）各跑一条真实 `trial` 样本 + 一条无注入负对照
+（`runs/lsu/r6_mc_{clean_control,O01-F0-W7,O02-F0-W7,O02-F5-W7,O03-F0-W7}`，2 核 Ruby/CHI 检查点
+`/tmp/r4-8-fsmc/mc_boot/cpt.243414599076`，`--fs-timeout 2700`）：
+
+- 负对照 `prop_evt` 仅表头（248 B），`FINAL=6b39e7aaa74b663f` **== FSMC_GOLDEN_FINAL**（golden 正确）。
+- `O01-F0-W7` / `O02-F0-W7`：activated=1，链 **222 057 事件**（inj→addr_form→exmon_monitor→rmw/stxr→taint_reg→errant_commit→chain_end），`FINAL=golden` / violations=0 ⇒ Masked。**控制对照成立**。
+- `O02-F5-W7`：activated=**104**（F5 的"永久"语义真机成立），224 701 事件，`FINAL=golden` ⇒ Masked。
+- `O03-F0-W7`：activated=1，**随后 gem5 硬断言中止** —— `src/mem/request.hh:912 Request::getExtraData(): extraDataValid() failed`，栈顶 `ArmISAInst::STXRW64::completeAcc`。载荷先跑完、中止发生在其后；**样本不可用作干净结论**，且 `classify_fsmc_run` 只读 guest terminal ⇒ 该格被记成 `Masked`（**分类器看不到载荷完成后的 gem5 中止**）。
+- **L5 未充实**：本轮 multicore 链的 `errant_commit` 同样 `detection_layer=`/`outcome=` 为空（与上方 T04 裁决同病），`chain_end` 仍出现。⇒ 上面第二条 Ruling **对 multicore FS 链同样适用**（`inj` 的 before/after 本轮 multicore 链**已**携带：`event_id=0 ... before=835e9df0 after=1000835e9df0`）。
+- **工具缺陷（非本 lane 可修，`tools/lsu_campaign.py` 禁改）**：`write_chain_report` 对 ~222k 事件链不可扩展 —— gem5 结束后 campaign 已消耗 >25 min CPU 仍未写出 `cell_results.json`/`chain_report.json`（O03 因 0 事件瞬时完成）。原始逐样本证据完整可用。
+
+**覆盖**：35 个 FS-MULTICORE RunID 中 **4 已覆盖 / 31 未覆盖**（31 = F2/F6 档位 6 + C08 宿主 4 + O04–O07/O09 模型 15 + W13 负载身份 6）。**不宣称 PASS**：3 个干净样本的 oracle 全为 Masked，O03 被污染，L5 未充实。
+`tools/lsu_fsmc_verdict.py` 与 `configs/fs/lsu_multicore_fs.py` **本轮未改**（改裁决枚举会破坏其 pin 住的计数断言，且无新枚举表达"已取样但未充实 L5"）。
+
