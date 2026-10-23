@@ -115,11 +115,25 @@ def hardcoded_main_checkout_hits(path):
 
 def main():
     print("[1] 二进制解析：$LSU_GEM5_BIN 优先，缺则响亮失败，绝不回落主树")
+    # [R6-MERGEFIX 2026-10-23] 本项曾把 `$LSU_GEM5_BIN` 指到不存在文件后直接调
+    # 解析器——但解析器契约是 `$LSU_GEM5_BIN` → **本 checkout 的 CHAOS 构建** →
+    # 两者皆缺才 SystemExit。故"缺文件必须 SystemExit"只在 *本 checkout 未构建*
+    # 时偶然成立：已构建的 worktree（如集成树）里，解析器**正确**回落到本 checkout
+    # 的 `CHAOS/gem5/build/ARM/gem5.opt`，测试却判负（实测集成树：
+    # `FAIL 缺文件必须 SystemExit <- 返回了 .../CHAOS/gem5/build/ARM/gem5.opt`）。
+    # 修法：repo= 指到一个**保证没有构建**的临时 checkout，把"两者皆缺"真实构造
+    # 出来——检验的仍是解析器的响亮失败，不再依赖宿主是否恰好构建过。
+    empty_repo = ROOT / "runs/lsu/r6_golden_verify/_unittest_empty_repo"
+    empty_repo.mkdir(parents=True, exist_ok=True)
     try:
-        got = GB.resolve_gem5_bin({"LSU_GEM5_BIN": "/nonexistent/gem5.opt"})
-        check("缺文件必须 SystemExit", False, "返回了 " + str(got))
-    except SystemExit:
-        check("缺文件必须 SystemExit", True)
+        try:
+            got = GB.resolve_gem5_bin({"LSU_GEM5_BIN": "/nonexistent/gem5.opt"},
+                                      empty_repo)
+            check("缺文件必须 SystemExit", False, "返回了 " + str(got))
+        except SystemExit:
+            check("缺文件必须 SystemExit", True)
+    finally:
+        shutil.rmtree(empty_repo, ignore_errors=True)
 
     # 若本 worktree 已构建，env 覆盖必须原样生效
     wt_bin = GB.worktree_gem5_path()
