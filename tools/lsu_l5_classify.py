@@ -44,6 +44,127 @@ def _read(path, out, label):
     return p.read_text(errors="replace")
 
 
+# ---- G1: 检测点 / detection_layer / 污染链关联 ------------------------------
+# 用户指令（L18-v2 审计 G1）："Crash 必须记录实际检测点、detection_layer、
+# outcome，并与污染链关联"。规格依据：
+#   * docs/gem5-fi/lsu/总方针.md:32 首检来源必须且只能是 Hardware RAS/OS/
+#     Application/None（本模块用同名四值）。
+#   * docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md:229
+#     `detection_layer / contained` = 最终判定事件必需。
+# Python 侧只靠 stdout/stderr/注入日志；硬件检测器信号须由发射器给出
+# （见 plan 文件"C++ 发射器侧字段契约"）——无信号时 detection_layer 为
+# None（n/a），绝不猜测成 Hardware RAS。
+_ARCH_TRAP_MARKERS = ("illegal instruction", "SError", "data abort",
+                      "prefetch abort", "Unknown instruction", "SIGILL",
+                      "SIGSEGV", "SIGABRT")
+_EXIT_TICK_RE = re.compile(r"exiting @ tick\s+(\d+)")
+_ASSERT_LINE_RE = re.compile(
+    r"^.*?(?:Assertion .*? failed\.?|panic|fatal: .*|"
+    r"(?:Illegal instruction|SError|data abort|Data Abort|prefetch abort|"
+    r"Prefetch Abort|Unknown instruction|SIG(?:ILL|SEGV|ABRT))).*$", re.M)
+
+
+def _crash_detection_point(stdout, stderr, sim_assert):
+    """崩溃检测点：kind / tick / pc / detail（真实从输出提取，缺则 None）。
+
+    kind 枚举：simulator_assert（模拟器 DUE）> arch_trap（工作负载陷入）>
+    exit_code（仅退出码非零，无文本证据）> unknown。
+    """
+    text = (stderr or "") + "\n" + (stdout or "")
+    tick = None
+    m = _EXIT_TICK_RE.search(text)
+    if m:
+        tick = int(m.group(1))
+    detail = None
+    dm = _ASSERT_LINE_RE.search(text)
+    if dm:
+        detail = dm.group(0).strip()[:300]
+    low = text.lower()
+    kind = ("simulator_assert" if sim_assert
+            else "arch_trap" if any(mk.lower() in low
+                                    for mk in _ARCH_TRAP_MARKERS)
+            else "exit_code" if detail else "unknown")
+    pc = None
+    pm = re.search(r"\bpc[=:\s]+(0x[0-9a-fA-F]+|[0-9a-fA-F]{6,16})\b", text)
+    if pm:
+        pc = pm.group(1)
+    return {"kind": kind, "tick": tick, "pc": pc, "detail": detail}
+
+
+def _fault_linkage(injlog_text):
+    """与注入点关联：首个 Site 行的 tick/site（污染链根，L0 侧）。"""
+    for line in (injlog_text or "").splitlines():
+        sm = re.search(r"Site:\s*([^,]+)", line)
+        if not sm:
+            continue
+        tm = re.search(r"Tick:\s*(\d+)", line)
+        fid = re.search(r"fault_id[=:\s]+(\d+)", line)
+        return {"injected_tick": (int(tm.group(1)) if tm else None),
+                "injected_site": sm.group(1).strip(),
+                "fault_id": (int(fid.group(1)) if fid else None),
+                "fault_index": 0}
+    return None
+
+
+def _taint_chain(prop_trace_path):
+    """污染链关联：给了 prop_trace 则取 taint 终点/ptag（复用 L3 解析器）。
+
+    绝不二次实现传播解析（单一解析入口 lsu_l3_propagation）；未给 trace 时
+    如实记 not_provided（n/a），不静默。
+    """
+    if not prop_trace_path:
+        return {"status": "not_provided",
+                "reason": "未指定 --prop-trace（L3 传播 trace 未收集/未接线）"}
+    try:
+        import lsu_l3_propagation as L3P
+    except ImportError as e:
+        return {"status": "unavailable", "reason": f"lsu_l3_propagation 导入失败：{e}"}
+    parsed = L3P.parse_prop_trace(prop_trace_path)
+    nodes = parsed.get("nodes") or []
+    if not nodes:
+        return {"status": "empty_or_missing",
+                "reason": f"prop_trace 0 节点（truncated={parsed.get('truncated')}）"}
+    ptag = None
+    for n in nodes:
+        if n.get("kind") == "inj":
+            ptag = n.get("ptag")
+            break
+    terminal = None
+    for kind in ("errant_commit", "consumer", "taint_reg", "resp"):
+        for n in nodes:
+            if n.get("kind") == kind:
+                terminal = {"terminal_kind": kind, "tick": n.get("tick"),
+                            "ptag": n.get("ptag"),
+                            "dyn_inst_seq": n.get("dyn_inst_seq")}
+                break
+        if terminal:
+            break
+    if terminal is None:
+        return {"status": "no_terminal", "ptag": ptag,
+                "reason": "prop_trace 无终点节点（inj/addr_form/mem_req 止）"}
+    return {"status": "linked", "ptag": ptag, **terminal,
+            "prop_trace_path": str(prop_trace_path)}
+
+
+def _derived_detection_layer(crash_kind, detection_signal_layer):
+    """detection_layer ∈ {Hardware RAS, OS, Application, None}（总方针 §32）。
+
+    有真实检测器信号 → 采信信号层；否则诚实降级：
+      simulator_assert（模拟器 DUE）= 非架构检测 → None；
+      guest trap（内核陷入可见）= OS（并 note detector 未接线）；
+      其余 → None。绝不把"无检测器"猜成 Hardware RAS。
+    """
+    if detection_signal_layer:
+        return detection_signal_layer, "detector signal (CHAOS_DETECT/CLI)"
+    if crash_kind == "simulator_assert":
+        return "None", ("simulator DUE (panic/assert) is not an architectural "
+                        "detection; audit 单列于五类之外")
+    if crash_kind == "guest_or_unknown":
+        return "OS", ("guest trap observed via kernel trap; hardware detector "
+                      "signal not wired (W6)")
+    return None, "no detection signal and no crash kind — n/a（不猜测）"
+
+
 def classify(args):
     out = {"conservation": None, "error": None}
     # 输入完整性（P1 收尾加固，2026-09-29）：stdout 是 checksum 判定的唯一依据，
@@ -60,12 +181,16 @@ def classify(args):
     m = re.search(r"CHAOS_LSU_TRIGGER: .*?attempted=(\d+) eligible=(\d+) "
                   r"injected=(\d+)", stdout)
     attempted = eligible = injected = None
+    # 注入日志文本：funnel 回退与 G1 的 fault_linkage（污染链根）共用同一
+    # 读取（此前只在 funnel 回退分支里读，导致 stdout 有 CHAOS_LSU_TRIGGER
+    # 时 fault_linkage 恒 None —— G1 实测暴露）。
+    logs = list(Path(args.run_dir).glob("*injections.log")) if args.run_dir else []
+    injlog_text = logs[0].read_text(errors="replace") if logs else ""
     if m:
         attempted, eligible, injected = (int(x) for x in m.groups())
     else:
-        logs = list(Path(args.run_dir).glob("*injections.log")) if args.run_dir else []
         if logs:
-            text = logs[0].read_text(errors="replace")
+            text = injlog_text
             # FUNNEL 行优先（取最后一行=终态计数——cache 家族两行 FUNNEL：
             # 中途态 injected=0 + exit 终态 injected=1；旧代码取 Site 计数
             # 对 cache 格式恒 0 → 全部误判 inactive，2026-10-13 探测实证修复）
@@ -115,6 +240,23 @@ def classify(args):
     else:
         outcome = "Masked"
 
+    # ---- G1: Crash 检测点 / detection_layer / outcome / 污染链关联 ----
+    # 只对 Crash 生效（规格 229 的"最终判定事件必需"字段）；Masked/SDC 的
+    # 隔离层见 obs_core（G2）。detection_layer=None 表示 n/a（无信号），
+    # 绝不猜测成 Hardware RAS。
+    if outcome == "Crash":
+        dp = _crash_detection_point(stdout, stderr, sim_assert)
+        layer, layer_note = _derived_detection_layer(out["crash_kind"], None)
+        out["detection_layer"] = layer
+        out["detection_layer_source"] = layer_note
+        out["detection_point"] = dp
+        out["fault_linkage"] = _fault_linkage(injlog_text)
+        out["taint_chain"] = _taint_chain(getattr(args, "prop_trace", None))
+        if dp["tick"] is not None and (out["fault_linkage"] or {}).get(
+                "injected_tick") is not None:
+            dp["latency_ticks_from_injection"] = max(
+                0, dp["tick"] - out["fault_linkage"]["injected_tick"])
+
     # ---- L5 five-class + conservation (04 L5 pinned identity) ----
     # Detected/Contained: no detector wired yet (W6 protection modeling) —
     # reported as detected=0 with detected_na=True, never silently.
@@ -146,6 +288,8 @@ def main():
     p.add_argument("--golden")
     p.add_argument("--exit", type=int)
     p.add_argument("--timed-out", action="store_true")
+    p.add_argument("--prop-trace", dest="prop_trace", default=None,
+                   help="可选 prop_trace.csv.gz：Crash 的污染链关联（G1）")
     p.add_argument("--json", help="optional JSON output path")
     a = p.parse_args()
     r = classify(a)
