@@ -344,6 +344,154 @@ def main():
     check("只有生命周期尾标不得 full", f42["terminal"] != "full",
           f42["terminal"])
 
+    print("[12] R6-GATE hard-admission gate（activated 样本 READY 判定的硬门）")
+    # 门禁：activated 样本仅当 (1) family-specific 完整 L0→L5 链，或
+    # (2) 显式 containment（含层级+理由+逐层指标）且后续层全 N/A(contained)
+    # 才 admitted；六类禁用情形一律响亮拒绝。
+    def adm(events, **kw):
+        bundle = {"run_id": kw.pop("run_id", "G1"), "activated": 1,
+                  "events": events}
+        bundle.update(kw)
+        return CC.check_admission(bundle)
+
+    # (a) 正常完整链 → admitted（对照，证明门禁不是无条件拒绝）
+    good = adm(full_chain)
+    check("full 链 admitted=True（对照组）", good["admitted"] is True,
+          str(good["violations"]))
+    check("full 链 path=full_chain", good["path"] == "full_chain",
+          str(good.get("path")))
+
+    # (b) activated 样本含 Unknown → 拒绝
+    unk = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 tick=1",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 tick=2",
+        "PROP-EVT: kind=resp fault_id=1 event_id=2 tick=3 "
+        "evidence_status=unknown",
+    ])
+    r = adm(unk, run_id="U1")
+    check("Unknown activated 样本被拒（unknown_in_activated_chain）",
+          r["admitted"] is False and "unknown_in_activated_chain" in " ".join(
+              r["violations"]), str(r["violations"]))
+
+    # (c) TLB 族用 cache_access 冒充 L1 → 拒绝
+    tlb_fake = _evts([
+        "PROP-EVT: kind=inj run_id=T02-F0-W4 fault_id=1 event_id=0 "
+        "parent_event_id= tick=1",
+        "PROP-EVT: kind=cache_access run_id=T02-F0-W4 fault_id=1 event_id=1 "
+        "parent_event_id=0 tick=2 va=1000 pa=2000",
+        "PROP-EVT: kind=resp run_id=T02-F0-W4 fault_id=1 event_id=2 "
+        "parent_event_id=1 tick=3 dyn_inst_seq=7",
+    ])
+    r = adm(tlb_fake, run_id="T02-F0-W4")
+    check("TLB L1 被 cache_access 冒充被拒",
+          r["admitted"] is False and "tlb_l1_faked_by_cache_access"
+          in " ".join(r["violations"]), str(r["violations"]))
+
+    # (d) 跨分支拼接（两分支各自补出一条“完整”链）→ 拒绝
+    branch = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=1",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 parent_event_id=0 "
+        "tick=2",
+        "PROP-EVT: kind=mem_req fault_id=1 event_id=2 parent_event_id=1 tick=3",
+        # branch B starts at L3; pairwise joining would splice A and B into a
+        # spurious full chain, but no single DAG ancestry holds both.
+        "PROP-EVT: kind=resp fault_id=1 event_id=3 parent_event_id=0 tick=4",
+        "PROP-EVT: kind=errant_commit fault_id=1 event_id=4 "
+        "parent_event_id=3 tick=5",
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=5 parent_event_id=4 "
+        "tick=6 outcome=SDC detection_layer=Software contained=0",
+    ])
+    r = adm(branch, run_id="B1")
+    check("跨分支拼接被拒（cross_branch_edge）",
+          r["admitted"] is False and "cross_branch_edge"
+          in " ".join(r["violations"]), str(r["violations"]))
+
+    # (e) 跨请求拼接（相邻层见证 request_id 不同）→ 拒绝
+    xreq = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=1",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 parent_event_id=0 "
+        "tick=2 request_id=7",
+        "PROP-EVT: kind=mem_req fault_id=1 event_id=2 parent_event_id=1 "
+        "tick=3 request_id=99",
+    ])
+    r = adm(xreq, run_id="X1")
+    check("跨请求拼接被拒（cross_request_edge）",
+          r["admitted"] is False and "cross_request_edge"
+          in " ".join(r["violations"]), str(r["violations"]))
+
+    # (f) 时间倒挂拼接（深层层见证 tick 早于浅层）→ 拒绝
+    trev = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=10",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 parent_event_id=0 "
+        "tick=20",
+        "PROP-EVT: kind=mem_req fault_id=1 event_id=2 parent_event_id=1 "
+        "tick=5",
+        "PROP-EVT: kind=resp fault_id=1 event_id=3 parent_event_id=1 tick=5",
+    ])
+    r = adm(trev, run_id="TR1")
+    check("时间倒挂拼接被拒（time_reversed_edge）",
+          r["admitted"] is False and "time_reversed_edge"
+          in " ".join(r["violations"]), str(r["violations"]))
+
+    # (g) 仅凭 activated / RC=0 / chain_end → 拒绝（三条各自点名）
+    crutch = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=1",
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=1 parent_event_id=0 "
+        "tick=2 outcome=run_end detection_layer=None contained=0",
+    ])
+    r = adm(crutch, run_id="C1", rc=0)
+    joined = " ".join(r["violations"])
+    check("READY-by-activated-only 被拒",
+          r["admitted"] is False and "ready_by_activated_only" in joined,
+          joined)
+    check("READY-by-RC0 被拒", "ready_by_rc0" in joined, joined)
+    check("READY-by-chain_end-only 被拒", "ready_by_chain_end_only" in joined,
+          joined)
+
+    # (h) 缺逐层必录指标 → 响亮拒绝（L2 见证缺 event_id）
+    missm = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=1",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 parent_event_id=0 "
+        "tick=2",
+        "PROP-EVT: kind=mem_req fault_id=1 parent_event_id=1 tick=3",
+        "PROP-EVT: kind=resp fault_id=1 event_id=3 parent_event_id=2 tick=4",
+        "PROP-EVT: kind=taint_reg fault_id=1 event_id=4 parent_event_id=3 "
+        "tick=5",
+        "PROP-EVT: kind=errant_commit fault_id=1 event_id=5 "
+        "parent_event_id=4 tick=6",
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=6 parent_event_id=5 "
+        "tick=7 outcome=SDC detection_layer=Software contained=0",
+    ])
+    r = adm(missm, run_id="M1")
+    check("缺逐层必录指标被拒（missing_mandatory_metric）",
+          r["admitted"] is False and "missing_mandatory_metric"
+          in " ".join(r["violations"]), str(r["violations"]))
+
+    # (i) 显式 containment 路径（option 2）→ admitted，后续层 N/A(contained)
+    cont = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=1",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 parent_event_id=0 "
+        "tick=2",
+        "PROP-EVT: kind=tlb_fault fault_id=1 event_id=2 parent_event_id=1 "
+        "tick=3 detection_layer=Hardware contained=1 "
+        "outcome=GenericPageTableFault",
+    ])
+    r = adm(cont, run_id="CT1", containment={
+        "layer": "L2", "reason": "翻译阶段 Hardware 检测并含住",
+        "metrics": {"L2": {"faults": 1}}, "na_layers": ["L3", "L4", "L5"]})
+    check("containment 路径 admitted=True", r["admitted"] is True,
+          str(r["violations"]))
+    check("containment path=contained", r["path"] == "contained",
+          str(r.get("path")))
+
+    # (j) containment 但后续层未全 N/A(contained) → 拒绝
+    r = adm(cont, run_id="CT2", containment={
+        "layer": "L2", "reason": "翻译阶段 Hardware 检测并含住",
+        "metrics": {"L2": {"faults": 1}}, "na_layers": ["L3"]})
+    check("containment 后续层未全 N/A 被拒（contained_without_later_na）",
+          r["admitted"] is False and "contained_without_later_na"
+          in " ".join(r["violations"]), str(r["violations"]))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
