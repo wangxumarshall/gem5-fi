@@ -39,33 +39,44 @@ No C++, no `lsu_campaign.py`, no `lsu_runid_map.py`, no `lsu_coverage_matrix.py`
 
 ### Task A — `check_admission` hard gate in `lsu_chain_check.py` (TDD)
 
-- [ ] A.1 RED: add section `[12]` to `tests/test_lsu_chain_check.py` calling
+- [x] A.1 RED: add section `[12]` to `tests/test_lsu_chain_check.py` calling
       `CC.check_admission(bundle)` for each forbidden case; run it, quote the real
       `AttributeError`-style failure.
-- [ ] A.2 Implement `GATE_VIOLATIONS`, `MANDATORY_METRICS`, `_has_unknown`,
+- [x] A.2 Implement `GATE_VIOLATIONS`, `MANDATORY_METRICS`, `_has_unknown`,
       `_splice_detected`, `_cross_request`, `_time_reversed`, `_containment_ok`,
       `check_admission`. Re-run: quote `ALL PASS`.
-- [ ] A.3 Regression: `python3 tests/test_lsu_chain_check.py` still `ALL PASS`.
+- [x] A.3 Regression: `python3 tests/test_lsu_chain_check.py` still `ALL PASS`.
 
 ### Task B — wire the gate into the contract (`lsu_ready_contract.py`)
 
-- [ ] B.1 Add `chain_admission(runid, evidence_root)` + `CHAIN-EVIDENCE-MISSING` /
+- [x] B.1 Add `chain_admission(runid, evidence_root)` + `CHAIN-EVIDENCE-MISSING` /
       `CHAIN-UNPROVEN` categories; READY now requires admission.
-- [ ] B.2 RED→GREEN in `tests/test_lsu_ready_contract_category.py`: a fake activated
+- [x] B.2 RED→GREEN in `tests/test_lsu_ready_contract_category.py`: a fake activated
       RunID with a non-chain pilot is BLOCKED before/after; update census.
-- [ ] B.3 Verify `test_lsu_ready_contract_verdict.py` and `-why.py` still PASS.
+- [x] B.3 Verify `test_lsu_ready_contract_verdict.py` and `-why.py` still PASS.
 
 ### Task C — regenerate contract + triage, report honest counts
 
-- [ ] C.1 `python3 tools/lsu_ready_contract.py` (with `LSU_CHAIN_EVIDENCE_ROOT` set to
+- [x] C.1 `python3 tools/lsu_ready_contract.py` (with `LSU_CHAIN_EVIDENCE_ROOT` set to
       the base worktree), quote READY/BLOCKED.
-- [ ] C.2 `python3 tools/lsu_blocked_triage.py --contract ... --out
+- [x] C.2 `python3 tools/lsu_blocked_triage.py --contract ... --out
       docs/gem5-fi/lsu/mdspec/blocked_triage.md`, quote output.
-- [ ] C.3 Full suite `python3 tools/lsu_test_runner.py`, quote summary, zero FAIL.
-- [ ] C.4 `docs/gem5-fi/lsu/mdspec/R6-GATE-B-report.md`; commit + push.
+- [x] C.3 Full suite `python3 tools/lsu_test_runner.py` — 0 **new** FAIL vs base 97f74786
+      (13 identical pre-existing FAILs from 317c71bf chain semantics + missing
+      binary; see report).
+- [x] C.4 `docs/gem5-fi/lsu/mdspec/R6-GATE-B-report.md`; commit + push.
 
 ## Honesty constraints
 
 - Never relax a rule to keep READY high. A drop is expected and correct.
 - Report `n/a` where a rule cannot be enforced yet, loudly.
 - Quote only real command output.
+
+## Outcome (all tasks done)
+
+- Task A `9a7da7cf`; Task B `ec75cdb1`; Task C `5a8841db`; report `0d0aa91b`.
+- Contract: READY 241 -> 0, BLOCKED 84 -> 325 (CHAIN-UNPROVEN 43 /
+  CHAIN-EVIDENCE-MISSING 198 / RULING 6 / LICENSE 12 / FS-MULTICORE 35 /
+  FS-INFRA 24 / MODE-UNIMPL 3 / UNRESOLVED 4). Verdict NO-GO.
+- Full suite: 53 suites, FAIL=13 identical to base 97f74786 (zero new FAIL),
+  PASS 33->34, ENV 5, SKIP 1.

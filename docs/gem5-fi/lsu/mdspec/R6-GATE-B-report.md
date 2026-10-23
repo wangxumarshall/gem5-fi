@@ -6,7 +6,7 @@
   - `9a7da7cf` `[R6-GATE] check_admission hard gate: activated sample READY requires full chain or explicit containment`
   - `ec75cdb1` `[R6-GATE] ready_contract READY now requires chain admission (hard gate)`
   - `5a8841db` `[R6-GATE] regenerate contract under the chain gate: READY 241->0, BLOCKED 84->325`
-  - (this report) `[R6-GATE] R6-GATE-B report`
+  - `0d0aa91b` `[R6-GATE] R6-GATE-B report: gate red->green evidence, READY 241->0, suite vs base`
 - Plan: `docs/superpowers/plans/2026-10-23-r6-gate-b-admission-hard-gate.md`
 
 ## Files changed
