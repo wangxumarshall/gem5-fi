@@ -628,6 +628,46 @@ def main():
     # Byte Offset 原格式不回退：本节上方既有 _CACHE_INJ_RE 用例继续全绿（本套件
     # 全体 check 通过 = 退出码 0 即为回归证明）。
 
+    # ---- 13) [R6-ORACLE][G2] Masked 的隔离层 + 理由（显式，绝不空手） ----
+    # 审计 G2：Masked 只裸返回 classify() 结果——无 containment layer/reason，
+    # L4 恒 detector=not_present/detected_na=true。用户要求显式隔离层 + 理由。
+    # 隔离层由既有证据推导（L1 µarch 影子 vs L2 提交流），证据不足时记 n/a，
+    # 证据矛盾（L2 已见分歧却判 Masked）则响亮加 violation。
+    l4_cb = C.build_l4(l0v, l1_div, l2_same, make_l5("Masked"))
+    check("g2_masked_commit_boundary",
+          l4_cb.get("containment_layer") == "commit_boundary"
+          and bool(l4_cb.get("containment_reason")),
+          str((l4_cb.get("containment_layer"), l4_cb.get("containment_reason"))))
+    l4_nd = C.build_l4(l0v, l1_same, l2_same, make_l5("Masked"))
+    check("g2_masked_no_divergence_observed",
+          l4_nd.get("containment_layer") == "no_divergence_observed_at_L1_or_L2",
+          str(l4_nd.get("containment_layer")))
+    l4_contra = C.build_l4(l0v, l1_same, l2_div, make_l5("Masked"))
+    check("g2_masked_l2_diverged_is_loud",
+          l4_contra.get("containment_layer") == "inconsistent_with_masked"
+          and any("masked_but_l2_diverged" in v
+                  for v in (l4_contra.get("violations") or [])),
+          str((l4_contra.get("containment_layer"),
+               l4_contra.get("violations"))))
+    l4_na = C.build_l4(l0v, l1_same, l2_same, make_l5("SDC"))
+    check("g2_containment_na_when_not_masked",
+          l4_na.get("containment_layer") == "not_applicable(non_masked_outcome)",
+          str(l4_na.get("containment_layer")))
+    l4_unk = C.build_l4(l0v, {}, {}, make_l5("Masked"))
+    check("g2_masked_no_l2_evidence_unknown",
+          l4_unk.get("containment_layer") == "unknown"
+          and "n/a" in (l4_unk.get("containment_reason") or ""),
+          str((l4_unk.get("containment_layer"), l4_unk.get("containment_reason"))))
+    # 矛盾必须经 build_observation 传播进顶层 violations（阻断 finalize）
+    obs_contra = C.build_observation(
+        ident, l0v, l1_same, l2_div, C.build_l3("addrpath", l2_div),
+        l4_contra, make_l5("Masked"), replay_ok, files)
+    check("g2_contradiction_blocks_chain",
+          any("masked_but_l2_diverged" in v
+              for v in obs_contra["violations"])
+          and obs_contra["chain_complete"] is False,
+          str(obs_contra["violations"]))
+
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0
 

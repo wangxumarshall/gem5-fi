@@ -530,6 +530,67 @@ def _msnap_tick_at(fault_msnap_path, snap_seq):
     return None
 
 
+def _containment(l1, l2, l5):
+    """[R6-ORACLE][G2] Masked 的隔离层 + 理由（显式，绝不空手返回）。
+
+    审计 G2：Masked 只裸返回 classify() 结果——无隔离层/理由。用户要求
+    显式 containment layer + reason。规格 docs/gem5-fi/lsu/
+    gem5-fi-LSU单元故障注入方案.md:229 把 contained 列为"最终判定事件必需"。
+
+    隔离层由**既有证据**推导（不引入新检测器）：
+      * L2 commit 已见分歧却判 Masked → 证据矛盾，响亮 violation
+        （masked_but_l2_diverged，阻断 chain/finalize）。
+      * L1 µarch 影子见分歧、L2 提交流无分歧 → 故障被挡在提交边界。
+      * L1/L2 均无分歧 → 故障在观测点前即被吸收。
+      * 无 L2 证据（not_collected/未比对）→ unknown + 理由（n/a，不猜测）。
+    返回 (containment_layer, containment_reason, containment_dict,
+    violations)。非 Masked 结局 → not_applicable。
+    """
+    outcome = (l5 or {}).get("outcome")
+    if outcome != "Masked":
+        return ("not_applicable(non_masked_outcome)",
+                f"outcome={outcome}：隔离层仅对 Masked 判定（其余结局的"
+                f"检测/传播见 L5 及 L3）",
+                {"status": "not_applicable", "outcome": outcome}, [])
+    cd = (l2 or {}).get("commit_diff") or {}
+    l2_known = bool(cd)
+    l2_diverged = bool(cd.get("first_errant_commit")) \
+        or cd.get("verdict") == "diverged"
+    md = (l1 or {}).get("micro_diff") or {}
+    l1_known = isinstance(md, dict) and bool(md)
+    l1_first = md.get("first_divergence_snap_seq") if l1_known else None
+    viol = []
+    if not l2_known:
+        layer = "unknown"
+        reason = ("无 L2 commit 比对证据（not_collected/未比对）→ 隔离层 n/a"
+                  "（不猜测层级）")
+    elif l2_diverged:
+        layer = "inconsistent_with_masked"
+        reason = ("L2 commit 已见分歧而结局判 Masked——证据矛盾，隔离层无法"
+                  "自洽（低估隔离 = 高估保护）")
+        viol.append("masked_but_l2_diverged: L2 first_errant/verdict 显示分歧"
+                    "却判 Masked（隔离层不一致）")
+    elif l1_known and l1_first is not None:
+        layer = "commit_boundary"
+        reason = (f"L1 µarch 影子见分歧（snap {l1_first}）而 L2 提交流无分歧 "
+                  f"→ 故障被挡在提交边界（未成为架构可见状态）")
+    elif l1_known:
+        layer = "no_divergence_observed_at_L1_or_L2"
+        reason = ("L1 影子与 L2 提交流均无分歧 → 故障在首个观测点之前即被"
+                  "吸收（未扰动 µarch 状态）")
+    else:
+        layer = "unknown"
+        reason = ("有 L2 比对但无 L1 影子证据 → 隔离层只能判到「提交边界"
+                  "以内」（n/a 细分，不猜测）")
+    return (layer, reason,
+            {"status": "derived", "layer": layer, "reason": reason,
+             "evidence": {"l1_micro_diff_known": l1_known,
+                          "l1_first_divergence_snap_seq": l1_first,
+                          "l2_commit_diff_known": l2_known,
+                          "l2_diverged": l2_diverged}},
+            viol)
+
+
 def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False, l3=None):
     """L4：首次可验证异常与距 L0 延迟（纠偏轮 v2，中央指令 2026-10-13）。
 
@@ -540,6 +601,9 @@ def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False, l3=None):
     L2 first_errant_commit > L1 first_divergence_snap_seq。不再按最早 tick
     混排：L1 µarch 分歧常早于首个错误提交，但可验证性弱于 commit 级/
     传播级证据（中央钉死优先级）。
+
+    [R6-ORACLE][G2] 追加 Masked 的 containment_layer/containment_reason/
+    containment（见 _containment；证据矛盾时带 violations）。
     """
     if inactive:
         return {"status": "N/A(inactive_no_activation)",
@@ -580,6 +644,12 @@ def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False, l3=None):
             c["latency_ticks_from_first_injection"] = \
                 max(0, c["tick"] - inj_tick)
         out["first_anomaly"] = c
+    # [R6-ORACLE][G2] Masked 隔离层 + 理由（显式；矛盾证据 → violations）
+    layer, reason, cont, viol = _containment(l1, l2, l5)
+    out["containment_layer"] = layer
+    out["containment_reason"] = reason
+    out["containment"] = cont
+    out["violations"] = viol
     return out
 
 
@@ -669,6 +739,9 @@ def build_observation(identity, l0, l1, l2, l3, l4, l5, replay, files,
     for lv, entry in (("L1", l1), ("L2", l2)):
         if entry.get("status") == "error":
             violations.append(f"{lv}_error: {entry.get('error')}")
+    # [R6-ORACLE][G2] L4 自带 violation（Masked 证据矛盾）须上抛顶层：否则
+    # "L2 已见分歧却判 Masked"会被静默 finalize。
+    violations.extend((l4 or {}).get("violations") or [])
     if (l5 or {}).get("error"):
         violations.append(f"l5_error: {l5['error']}")
     src, src_note = first_detection_source(l5)
