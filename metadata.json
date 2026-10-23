@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5KQW1EQD8G46FPK16GJB3MT",
+  "strategy": "manual-commit",
+  "branch": "r6-gate-reconcile",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "docs/superpowers/plans/2026-10-23-r6-gate-b-admission-hard-gate.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 845311,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 27894272,
+    "output_tokens": 180865,
+    "api_call_count": 112,
+    "subagent_tokens": {
+      "input_tokens": 1698520,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 83402240,
+      "output_tokens": 248692,
+      "api_call_count": 761
+    }
+  }
+}
