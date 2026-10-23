@@ -30,8 +30,11 @@ XLSX = ROOT / "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
 # [R4-8-INT] 合并后重钉：PLATFORM-DEFECT 0（S10 平台缺陷修复 + F0 真机解锁）、
 # UNRESOLVED 19→4（W1/MiBench 过宽阻塞订正 + S10-F2 转精确拒绝）、
 # MODE-UNIMPL 保持 3（T08-W9，理由已改实测但仍属子模型模式未实现）。
+# [R6-GATE] 追加链准入门禁：本测试以 `pilots={}`（无链证据）构建，故原 241 行
+# READY 全部降为 BLOCKED/CHAIN-EVIDENCE-MISSING —— READY 不再仅凭 coverage
+# PASS 得出，须真链准入。原 84 阻塞行分类不变。
 EXPECTED = {"RULING": 6, "FS-INFRA": 24, "MODE-UNIMPL": 3, "UNRESOLVED": 4,
-            "FS-MULTICORE": 35, "LICENSE": 12}
+            "FS-MULTICORE": 35, "LICENSE": 12, "CHAIN-EVIDENCE-MISSING": 241}
 
 
 def main():
@@ -49,7 +52,7 @@ def main():
                     "--xlsx", str(XLSX), "--out", str(fresh)],
                    check=True, capture_output=True, text=True)
     rows = RC.build_contract(str(fresh), str(RC.DEFAULT_MATRIX),
-                             str(RC.MDS / "coverage_matrix.md"))
+                             str(RC.MDS / "coverage_matrix.md"), pilots={})
     from collections import Counter
     cats = Counter(r["category"] for r in rows if r["status"] == "BLOCKED")
     st = Counter(r["status"] for r in rows)
@@ -59,8 +62,9 @@ def main():
           str(dict(cats)))
     check("no_unclassified_fallthrough", cats.get("UNCLASSIFIED", 0) == 0,
           "有理由语句落进兜底 UNCLASSIFIED —— 分类器需补显式判据")
-    check("status_census_ready241_blocked84",
-          st["READY"] == 241 and st["BLOCKED"] == 84 and st["PARTIAL"] == 0,
+    # [R6-GATE] 无链证据时不得有任何行 READY（硬门生效）
+    check("no_ready_without_chain_evidence",
+          st["READY"] == 0 and st["BLOCKED"] == 325 and st["PARTIAL"] == 0,
           str(dict(st)))
 
     def cat_of(rid):

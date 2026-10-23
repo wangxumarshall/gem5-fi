@@ -37,14 +37,27 @@ check("nogo_reason_cites_blocked", v and any("BLOCKED" in r for r in v["reasons"
       f"NO-GO 未给出 BLOCKED 理由：{v and v['reasons']}")
 
 # --- 2. 正式命令口径 ---
+# [R6-GATE] 链门生效后 READY 可降至 0（无链证据即不准入），正式命令随之可为空
+# ——契约中已有的命令仍须满足口径（无异类命令）；**生成器**口径另行独立钉死，
+# 不受 READY 计数影响。
 cmds = [r["command"] for r in DOC["entries"] if r.get("command")]
-check("commands_nonempty", len(cmds) > 0)
 check("no_trial_phase", not any("--phase trial" in c for c in cmds),
       "正式命令仍含 pilot 口径 --phase trial")
 check("no_3seed_cap", not any("--max-seeds-per-cell 3 " in c for c in cmds),
       "正式命令仍是 3-seed pilot")
 check("all_screening_phase", all(f"--phase {rc.FORMAL_PHASE}" in c for c in cmds),
       f"存在非 {rc.FORMAL_PHASE} phase 的命令")
+# 生成器口径（独立于契约当前 READY 计数）
+gen_focus = rc._command("A01-F0-W3", "addrpath")     # 在 FOCUS_RUNIDS 内
+gen_norm = rc._command("A02-F0-W3", "addrpath")      # 非重点
+check("gen_no_trial_phase", "--phase trial" not in gen_focus
+      and "--phase trial" not in gen_norm, gen_focus)
+check("gen_screening_phase", f"--phase {rc.FORMAL_PHASE}" in gen_focus
+      and f"--phase {rc.FORMAL_PHASE}" in gen_norm, gen_focus)
+check("gen_focus_target_2401",
+      f"--screening-target {rc.FOCUS_TARGET}" in gen_focus, gen_focus)
+check("gen_normal_target_385",
+      f"--screening-target {rc.SCREENING_TARGET}" in gen_norm, gen_norm)
 
 # --- 3. 重点 RunID 采样规则 ---
 by_id = {r["run_id"]: r for r in DOC["entries"]}

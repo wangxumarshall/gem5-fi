@@ -16,7 +16,9 @@ contained，或 (3) 明确 squash/replay/mask 且无错误副作用。若链在�
   cache_access 属 L3，绝不能冒充 DTLB lookup。
 - 终止判定：
   * full                    —— L0→L5 全边 proven，且同一祖先链包含
-                                errant_commit 与显式 L5 结局
+                                errant_commit 与**真实检测事件**（[R6-GATE-D1]
+                                非生命周期 kind + detection_layer + outcome +
+                                链关联 corr；生命周期 chain_end 永不充当 L5）
   * provable_to_Ln_then_unknown —— 在 Ln 后缺事件（绝不推断 Masked）
   * detected_contained      —— 存在显式 detection_layer 事件且 contained=1
   * squash_replay_masked    —— 存在显式 squash/replay/mask 证据事件
@@ -38,11 +40,42 @@ import lsu_prop_fields as P  # noqa: E402
 # L3 cache/内存 → L4 架构可见 → L5 检测/结局）
 LAYERS = ["L0", "L1", "L2", "L3", "L4", "L5"]
 
-# L5 的显式终局证据 kind：chain_end 由 CHAOSPropagation 退出回调发射
-# （gem5 正常退出时每条故障链一条；abort 样本的链终局由离线 reclass join）。
-# detected_contained 需要 detection_layer 非空且 contained=1；
-# squash_replay_masked 需要 kind 明示 squash/replay/mask。
-_L5_OUTCOME_KINDS = {"chain_end"}
+# [R6-GATE-D1] L5 = 检测/结局层。它的**唯一**合法证据是"真实检测事件"：
+# 一个非生命周期 kind 的事件，同时携带 非空 detection_layer、非空 outcome、
+# 以及链关联 corr（即该事件确实由 correlate*/污染集成员关系关联进本故障链）。
+# chain_end 由 CHAOSPropagation 退出回调发射，是**链生命周期标记**（规范
+# 词汇表 _CORR 中 corr=none，无关联语义），故结构性**永不**充当 L5：它不占
+# 任何层级（_layer_of → None）。这样 ready_by_chain_end_only 由构造堵死，
+# 而不再只是一条文案（D1）。真实流实证：T04/T02 的 chain_end 为
+# outcome=errant_commit_seen / detection_layer=None / corr=none，其真实检测
+# 点是 errant_commit（未富化 ⇒ 只到 L4）；T05/T08 的 tlb_translate_result 才
+# 是带 dl+contained+outcome+corr 的真实检测事件。
+_LIFECYCLE_KINDS = frozenset({"chain_end"})
+
+# 链关联 corr 取值（lsu_prop_fields.CORR_VALUES 去掉生命周期值 "none"）。
+_CHAIN_CORR = frozenset({"seq_primary", "addr_fallback", "origin",
+                         "taint_prop"})
+
+_EMPTY_DETECTION = ("", "None", "none", "Unknown", "unknown")
+_EMPTY_OUTCOME = ("", "run_end", "unknown", "Unknown")
+
+# contained 字段的"真"取值（发射端写 1；解析端容忍文本形式）。
+_CONTAINED_VALUES = ("1", "true", "True", "yes", "Yes")
+
+
+def _explicit_l5(evt):
+    """真实检测事件 = 非生命周期 kind + detection_layer + outcome + 链关联 corr。
+
+    生命周期 chain_end 恒为 False（corr=none）——这是 D1 的结构性保证。
+    """
+    if evt.get("kind", "") in _LIFECYCLE_KINDS:
+        return False
+    if str(evt.get("detection_layer", "")).strip() in _EMPTY_DETECTION:
+        return False
+    if str(evt.get("outcome", "")).strip() in _EMPTY_OUTCOME:
+        return False
+    return str(evt.get("corr", "")).strip() in _CHAIN_CORR
+
 
 _L4_TERMINAL_KINDS = {"errant_commit"}  # L4 终局：首个错误提交（v1/H0）
 
@@ -83,33 +116,43 @@ _TLB_KIND_LAYER = {
 }
 
 
+# [R6-GATE-D4] 族判定：RunID 前缀 = 单元族（台账模型号：T=tlb / L=Load Queue /
+# S=Store Queue / C=L1d-Cache / A=AGU / P=prefetch / O=atomic）。族决定 L1 的
+# 合法观察点，故 cache 结构事件（cache_access …）不得冒充非 cache 族的 L1。
+_UNIT_FAMILY = {"T": "tlb", "L": "lq", "S": "sq", "C": "cache",
+                "A": "agu", "P": "pf", "O": "atomic"}
+
+
 def _family_of(chain_events):
-    """Infer only families whose table-9 path differs from the global map."""
+    """Infer the unit family (table-9 path / L1 identity differ per family)."""
     for evt in chain_events:
         run_id = evt.get("run_id", "")
-        if run_id.startswith("T") or evt.get("kind", "") in _TLB_SIGNATURE_KINDS:
+        fam = _UNIT_FAMILY.get(run_id[:1])
+        if fam:
+            return fam
+        if evt.get("kind", "") in _TLB_SIGNATURE_KINDS:
             return "tlb"
     return "generic"
 
 
-def _explicit_l5(evt):
-    """A lifecycle run_end marker is not detection/outcome evidence."""
-    if evt.get("kind") != "chain_end":
-        return False
-    detection = evt.get("detection_layer", "")
-    outcome = evt.get("outcome", "")
-    return (evt.get("contained") == "1"
-            or detection not in ("", "None", "none", "Unknown", "unknown")
-            or outcome not in ("", "run_end", "unknown", "Unknown"))
-
-
-def _layer_of(evt, family="generic"):
+def _obs_layer_of(evt, family="generic"):
+    """Observation layer of a kind (family-specific map).  Independent of the
+    D1 L5 promotion below, so prefix proofs keep working for detection
+    events (whose observation layer is L2 for the T-series)."""
     kind = evt.get("kind", "")
-    if kind == "chain_end" and not _explicit_l5(evt):
-        return None
     if family == "tlb":
         return _TLB_KIND_LAYER.get(kind)
     return P.KIND_LAYER.get(kind)
+
+
+def _layer_of(evt, family="generic"):
+    # [R6-GATE-D1] 生命周期 chain_end 不占任何层级；真实检测事件占 L5
+    # （检测/结局层，spec 表 9 "L5 检测/结局"）。
+    if evt.get("kind", "") in _LIFECYCLE_KINDS:
+        return None
+    if _explicit_l5(evt):
+        return "L5"
+    return _obs_layer_of(evt, family)
 
 
 def _tick(evt):
@@ -181,16 +224,28 @@ def _best_ordered_path(chain_events, family):
 
 
 def _event_has_prefix(chain_events, target, family):
-    """Whether target descends from a contiguous L0..target-layer prefix."""
-    layer = _layer_of(target, family)
+    """Whether target descends from a contiguous L0..target-layer prefix.
+
+    [R6-GATE-D1] Uses the *observation* layer of the target (not the L5
+    promotion) so a detection event is still proven to descend from the
+    unit's own L0→L_obs prefix.
+    """
+    layer = _obs_layer_of(target, family)
     if layer not in LAYERS:
         return False
     target_idx = LAYERS.index(layer)
     by_id = {e.get("event_id", ""): e for e in chain_events
              if e.get("event_id", "") != ""}
     ancestry = _ancestry(target, by_id)
-    selected = _ordered_prefix(ancestry, family)
-    return len(selected) > target_idx
+    # The target itself is the witness of its own observation layer, so the
+    # monotone prefix only needs to reach target_idx - 1 before it (D1: a
+    # promoted detection event must not disqualify itself from being prefixed).
+    selected = _ordered_prefix([e for e in ancestry if e is not target], family)
+    if len(selected) < target_idx:
+        return False
+    if target_idx == 0:
+        return True
+    return _tick(target) >= _tick(selected[target_idx - 1])
 
 
 def _edges_for(chain_events, family):
@@ -341,6 +396,8 @@ GATE_VIOLATIONS = (
     "unknown_in_activated_chain",
     "tlb_l1_faked_by_cache_access",
     "tlb_l1_missing",
+    "cache_access_faked_l1",
+    "cache_l1_missing",
     "cross_branch_edge",
     "cross_request_edge",
     "time_reversed_edge",
@@ -452,6 +509,24 @@ def _creq_mismatch(e1, e2):
     return (r1 != "" and r2 != "" and r1 != "0" and r2 != "0" and r1 != r2)
 
 
+def _ancestry_request_breaks(chain_events, family, path):
+    """[R6-GATE-D3] Adjacent witnesses on the *chosen ancestry* whose stamped,
+    non-zero `request_id` differs.
+
+    The per-edge check below only sees the ≤6 layer representatives, so a
+    stream whose DAG walks resp(req=A) → resp(req=B) → … under one fault_id
+    slipped through (real T04: event 47 req=304 → event 48 req=310, both L3).
+    Walking the whole ancestry catches cross-request stitching anywhere on the
+    proven path (mission-forbidden #3).
+    """
+    if not path:
+        return []
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    anc = _ancestry(path[-1], by_id)
+    return [(a, b) for a, b in zip(anc, anc[1:]) if _creq_mismatch(a, b)]
+
+
 def _time_reversed_gap(chain_events, family, path):
     """A deeper-layer witness whose tick precedes the last proven witness =
     reversed-in-time stitch (mission-forbidden #3)."""
@@ -497,6 +572,56 @@ def _containment_issues(bundle, run_id):
         issues.append(f"missing_mandatory_metric: {run_id} containment 缺逐层"
                       f"指标 metrics")
     return issues
+
+
+def containment_from_events(events, run_id="?", fault_id=None):
+    """[R6-GATE-D2] 由**显式证据**推导 option-2 containment 束（绝不猜测）。
+
+    合法含住证据 = 某事件 contained=1 且 detection_layer 非空且 outcome 非空，
+    且该事件确实从单元自身 L0→L_obs 前缀可证（_event_has_prefix），且**没有**
+    更深的层见证（否则故障并未止于该层——含住主张不成立）。
+
+    返回 {layer, reason, metrics, na_layers} 或 None（无证据/主张不成立）。
+    """
+    faults = _group_by_fault(events)
+    if not faults:
+        return None
+    if fault_id is not None and fault_id in faults:
+        fid, chain = fault_id, faults[fault_id]
+    else:
+        fid, chain = max(faults.items(), key=lambda kv: len(kv[1]))
+    family = _family_of(chain)
+    for e in chain:
+        if str(e.get("contained", "")).strip() not in _CONTAINED_VALUES:
+            continue
+        if str(e.get("detection_layer", "")).strip() in _EMPTY_DETECTION:
+            continue
+        if str(e.get("outcome", "")).strip() in _EMPTY_OUTCOME:
+            continue
+        if not _event_has_prefix(chain, e, family):
+            continue
+        layer = _obs_layer_of(e, family)
+        if layer not in LAYERS:
+            continue
+        deeper = max((LAYERS.index(_obs_layer_of(x, family)) for x in chain
+                      if _obs_layer_of(x, family) in LAYERS), default=-1)
+        if deeper > LAYERS.index(layer):
+            # 该层之后仍有见证 ⇒ 传播并未止于此，含住主张不成立
+            continue
+        return {
+            "layer": layer,
+            "reason": (f"{run_id} fault {fid} 显式含住：kind={e.get('kind')} "
+                       f"field={e.get('field', '')!r} detection_layer="
+                       f"{e.get('detection_layer')} outcome={e.get('outcome')}"),
+            "metrics": {layer: {"kind": e.get("kind", ""),
+                                "field": e.get("field", ""),
+                                "outcome": e.get("outcome", ""),
+                                "contained": e.get("contained", ""),
+                                "event_id": e.get("event_id", ""),
+                                "tick": e.get("tick", "")}},
+            "na_layers": LAYERS[LAYERS.index(layer) + 1:],
+        }
+    return None
 
 
 def _missing_metrics(path, family):
@@ -569,10 +694,10 @@ def check_admission(bundle):
     path = _best_ordered_path(chain, family)
     res["path_layers"] = [_layer_of(e, family) for e in path]
 
-    # (2) TLB L1 impersonation — family-specific, loud.
+    # (2) L1 impersonation — family-specific, loud.
+    l1 = next((e for e in path if _layer_of(e, family) == "L1"), None)
+    l1kind = l1.get("kind") if l1 else None
     if family == "tlb":
-        l1 = next((e for e in path if _layer_of(e, family) == "L1"), None)
-        l1kind = l1.get("kind") if l1 else None
         if l1kind != "tlb_lookup":
             imp = sorted({e.get("kind") for e in chain
                           if e.get("kind") in _FORCED_L1_KINDS})
@@ -583,6 +708,17 @@ def check_admission(bundle):
             else:
                 viol.append(f"tlb_l1_missing: {run_id} TLB 族缺 tlb_lookup L1"
                             f"（实际 L1={l1kind!r}）")
+    elif family == "cache":
+        # [R6-GATE-D4] cache 族（H4 表 9：L1=lookup）L1 必须是 cache_access。
+        if l1kind != "cache_access":
+            viol.append(f"cache_l1_missing: {run_id} cache 族 L1 必须为 "
+                        f"cache_access（lookup），实际 L1={l1kind!r}")
+    elif l1kind in _FORCED_L1_KINDS:
+        # [R6-GATE-D4] 非 cache 族的 L1 是单元自身的观察点（lsq_push /
+        # addr_form / pf_train / exmon_monitor …）；cache 结构事件不得冒充。
+        viol.append(f"cache_access_faked_l1: {run_id} {family} 族 L1 不得由 "
+                    f"cache 结构事件冒充（实际 L1={l1kind!r}）——表 9 该族 L1 是"
+                    f"单元自身观察点")
 
     # (3) edge stitching integrity — branch / request / time.
     if _splice_detected(chain, family, path):
@@ -601,6 +737,16 @@ def check_admission(bundle):
     tr = _time_reversed_gap(chain, family, path)
     if tr:
         viol.append(f"{tr}（{run_id} fault {fid}）")
+    # [R6-GATE-D3] 跨请求拼接：整条所选祖先上任意相邻见证 request_id 不一致。
+    breaks = _ancestry_request_breaks(chain, family, path)
+    if breaks:
+        a, b = breaks[0]
+        viol.append(f"cross_request_edge: {run_id} fault {fid} 所选祖先上 "
+                    f"{len(breaks)} 处相邻见证 request_id 不一致（首例 event "
+                    f"{a.get('event_id')}:{a.get('kind')} req="
+                    f"{a.get('request_id')!r} → event {b.get('event_id')}:"
+                    f"{b.get('kind')} req={b.get('request_id')!r}）——整条祖先"
+                    f"禁止跨请求拼接")
 
     # (4) per-layer mandatory metrics on the proven path — LOUD when missing.
     for layer, field, kind in _missing_metrics(path, family):
