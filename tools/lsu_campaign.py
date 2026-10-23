@@ -486,6 +486,11 @@ MODEL_FLAGS = {
 # workload-level "fs-infra" phrase.
 ARMTLB_MODELS = {"T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T10"}
 
+# These modes are implemented but deliberately remain MODEL_BLOCKED until
+# real evidence is reviewed.  Trial may route them to the FS carrier to
+# collect that evidence; formal/default resolution must stay blocked.
+EVIDENCE_PILOT_MODELS = {"T05", "T06", "T07", "T08"}
+
 # [R4-10] the walk/refill family — the four sub-models of T08. All ride the
 # event-normalized tier on the walk-ISSUE stream (the armtlb branch below
 # appends --tlb_lsu_tier <F> for these). T08-a drops the walk at issue;
@@ -1293,7 +1298,7 @@ def load_matrix(path):
     return header, cells
 
 
-def resolve_cell(cell, allow_blocked=False):
+def resolve_cell(cell, allow_blocked=False, evidence_pilot=False):
     """Cell -> (flags list, golden, binary) or (None, None, blocked_reason).
 
     Every cell resolves to exactly one of: runnable flags, or a blocked/
@@ -1310,6 +1315,9 @@ def resolve_cell(cell, allow_blocked=False):
     (measured on this exact branch — see the R4-6-T08 report §"integration
     deadlock"). The block reason is NOT hidden: it is echoed to stdout and
     carried in the cell/run JSON as model_blocked_reason.
+
+    evidence_pilot=True is narrower: only landed T05--T08 modes may use it,
+    solely to collect trial evidence.  It never changes formal admission.
     """
     model = cell[COL_MODEL].strip()
     freq = cell[COL_FREQ].strip()
@@ -1351,11 +1359,13 @@ def resolve_cell(cell, allow_blocked=False):
             return None, None, reason
     # 2. model-level block / deferral / N-A
     if model in MODEL_BLOCKED:
-        if not allow_blocked:
+        pilot_only = evidence_pilot and model in EVIDENCE_PILOT_MODELS
+        if not allow_blocked and not pilot_only:
             return None, None, MODEL_BLOCKED[model]
-        print(f"[allow-blocked] {cell[COL_RUNID]}: running a MODEL_BLOCKED "
-              f"model under the explicit --allow-blocked-models opt-in; "
-              f"reason kept in the output: {MODEL_BLOCKED[model]}")
+        tag = "evidence-pilot" if pilot_only and not allow_blocked else "allow-blocked"
+        print(f"[{tag}] {cell[COL_RUNID]}: running a MODEL_BLOCKED model "
+              f"only to collect evidence; reason kept in the output: "
+              f"{MODEL_BLOCKED[model]}")
     # 3. model must have a mapping
     if model not in MODEL_FLAGS:
         return None, None, f"NOT-MAPPED(model {model})"
@@ -1686,7 +1696,9 @@ def run_single_cell(cell, args, seed, outdir):
     model = cell[COL_MODEL].strip()
 
     flags, golden, _binary = resolve_cell(
-        cell, allow_blocked=getattr(args, "allow_blocked_models", False))
+        cell, allow_blocked=getattr(args, "allow_blocked_models", False),
+        evidence_pilot=(getattr(args, "phase", None) == "trial" and
+                        model in EVIDENCE_PILOT_MODELS))
     if flags is None:
         return {"outcome": "Blocked", "error": golden}
 
@@ -1911,7 +1923,9 @@ def main():
     runnable = []
     for cell in cells:
         flags, _g, reason = resolve_cell(
-            cell, allow_blocked=a.allow_blocked_models)
+            cell, allow_blocked=a.allow_blocked_models,
+            evidence_pilot=(a.phase == "trial" and
+                            cell[COL_MODEL].strip() in EVIDENCE_PILOT_MODELS))
         if flags is None:
             key = reason.split("(")[0].split(":")[0]
             counts[key] = counts.get(key, 0) + 1
@@ -1961,6 +1975,7 @@ def run_cell_adaptive(cell, args, outroot):
     construction (same seed = same injection-point RNG draws, 05 r16).
     """
     runid = cell[COL_RUNID]
+    model = cell[COL_MODEL].strip()
     freq = cell[COL_FREQ].strip()
     clustered = freq in ("F1", "F2", "F3", "F4")
     target = {"trial": args.trial_target,
@@ -1995,10 +2010,15 @@ def run_cell_adaptive(cell, args, outroot):
                   "outcome": r.get("outcome", "Unclassified"),
                   "chain": r.get("chain_report"),
                   "trigger_alarm": r.get("trigger_alarm")}
-        if getattr(args, "allow_blocked_models", False):
-            _mb = MODEL_BLOCKED.get(cell[COL_MODEL].strip())
+        _model = cell[COL_MODEL].strip()
+        _evidence_pilot = (getattr(args, "phase", None) == "trial" and
+                           _model in EVIDENCE_PILOT_MODELS)
+        if getattr(args, "allow_blocked_models", False) or _evidence_pilot:
+            _mb = MODEL_BLOCKED.get(_model)
             if _mb:
                 _entry["model_blocked_reason"] = _mb
+                _entry["admission_status"] = "BLOCKED"
+                _entry["evidence_pilot_only"] = bool(_evidence_pilot)
         runs.append(_entry)
         attempted += int(r.get("attempted", 0) or 0)
         activated += act
@@ -2020,6 +2040,12 @@ def run_cell_adaptive(cell, args, outroot):
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
         "runs": runs,
     }
+    if model in MODEL_BLOCKED:
+        result["admission_status"] = "BLOCKED"
+        result["model_blocked_reason"] = MODEL_BLOCKED[model]
+        result["evidence_pilot_only"] = bool(
+            getattr(args, "phase", None) == "trial" and
+            model in EVIDENCE_PILOT_MODELS)
     cell_out.mkdir(parents=True, exist_ok=True)
     # [MDSPEC][C1] auditable chain artefacts for the cell: the machine-
     # readable array (one entry per sample) plus a human summary. Written
