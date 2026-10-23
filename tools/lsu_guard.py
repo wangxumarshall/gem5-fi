@@ -73,8 +73,13 @@ GATE_MEM_MIN_GIB = 12.0
 GATE_SWAP_MIN_GIB = 4.0
 WARN_MEM_GIB = 10.0
 STOP_DISPATCH_MEM_GIB = 10.0   # 用户指令 2026-10-12 三.3：MemAvailable<10GiB 停止加任务
-DISK_MIN_FREE_GIB = 50.0       # 0101 保留红线：/home 至少 50GiB 且至少 20%（取大者）
-DISK_MIN_FREE_PCT = 0.20
+# 用户裁决 2026-10-23：「去掉 /home 存储的约束」。
+# 原判据 floor = max(50 GiB, 20% x total) 在 353 GiB 的 /home 上 = 70.6 GiB，长期无法满足，
+# 已成为批量启动的阻塞条件。豁免方式：**只去除百分比判据**，保留 50 GiB 绝对下限作为
+# “不要把盘写满”的最后保护；磁盘仍由 snapshot() 测量并在每次 gate 报告中如实输出 ——
+# 是豁免，不是隐藏，也不是删除检查。恢复方式：把 DISK_MIN_FREE_PCT 改回 0.20。
+DISK_MIN_FREE_GIB = 50.0       # 绝对安全下限（保留）
+DISK_MIN_FREE_PCT = 0.0        # 2026-10-23 用户授权豁免：不再是门禁条件
 TRIP_MEM_GIB = 8.0
 TRIP_MEM_HARD_GIB = 6.0
 TRIP_SWAP_GIB = 2.0
