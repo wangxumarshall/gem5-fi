@@ -2385,15 +2385,34 @@ def run_cell_adaptive(cell, args, outroot):
             classes[oc] += act
 
     hw, lo, hi = _wilson_stats(classes, activated, runs, clustered)
-    sdc_rate = (classes["SDC"] / activated) if activated else 0.0
-    act_rate = (activated / attempted) if attempted else 0.0
+    # [R6-FIXD] 分母为 0 的"率"绝不静默报 0.0。attempted=0 而 activated>0 本身
+    # 就是计数矛盾（activated 不可能超过 attempted）：必须响亮说出，不得伪装
+    # 成一个"0 激活率"。activated=0 时 sdc_rate 同理（None = 不适用）。
+    count_contradiction = bool(attempted == 0 and activated > 0)
+    if attempted > 0:
+        act_rate = round(activated / attempted, 4)
+    elif activated == 0:
+        act_rate = 0.0                      # 真零（无矛盾）
+    else:
+        act_rate = None                     # 矛盾：不报数
+    sdc_rate = (round(classes["SDC"] / activated, 4) if activated else None)
+    rate_note = ""
+    if count_contradiction:
+        rate_note = (f"计数矛盾：attempted=0 而 activated={activated}"
+                     f"（activated 不可能超过 attempted）——activation_rate "
+                     f"不适用，绝不报 0.0")
+    if not activated:
+        rate_note = ((rate_note + "；") if rate_note else "") + \
+            "activated=0 → sdc_rate 不适用（n/a），非 0.0"
     cons = (activated == sum(classes.values()))
     result = {
         "runid": runid, "phase": args.phase, "seed_batches": seed,
         "clustered": clustered, "n_runs": len(runs),
         "attempted": attempted, "activated": activated,
-        "classes": classes, "sdc_rate": round(sdc_rate, 4),
-        "activation_rate": round(act_rate, 4),
+        "classes": classes, "sdc_rate": sdc_rate,
+        "activation_rate": act_rate,
+        "activation_rate_note": rate_note,
+        "count_contradiction": count_contradiction,
         "wilson": {"lo": round(lo, 4), "hi": round(hi, 4)},
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
         # [LSU][R6-CAMPAIGN] the effective budgets this cell ran under (visible,
@@ -2460,12 +2479,17 @@ def run_cell_adaptive(cell, args, outroot):
     if result.get("admission_status") != "BLOCKED":
         result["admission_status"] = _gate_status
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
-    line = ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
-            "stop=%s cons=%s budget[fs=%ss se=%ss]" %
-            (runid, args.phase, len(runs), activated, classes["SDC"],
+    line = ("  %s: phase=%s n_runs=%d attempted=%s activated=%d sdc=%s "
+            "act_rate=%s stop=%s cons=%s budget[fs=%ss se=%ss]" %
+            (runid, args.phase, len(runs), attempted, activated,
+             classes["SDC"] if activated else "n/a",
+             act_rate if act_rate is not None else "n/a（不适用）",
              stop_reason, result["conservation"],
              result["timeout_budget"]["fs_timeout"],
              result["timeout_budget"]["se_timeout"]))
+    if count_contradiction:
+        # 响亮：绝不把计数矛盾静默成一个"0 激活率"
+        line += "\n  COUNT-CONTRADICTION %s: %s" % (runid, rate_note)
     if alarm_msgs:
         line += "\n  ALARM %s: %d trigger alarm(s): %s" % (
             runid, len(alarm_msgs), " | ".join(alarm_msgs))
