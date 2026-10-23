@@ -117,9 +117,31 @@ chain admitted=True 恰恰是**在截断流**上判的，正是缺这道门的�
 
 ## 验收
 
-- [ ] 任务 1 RED→GREEN（admission 真调用）
-- [ ] 任务 2 RED→GREEN（计数矛盾不伪装成率）
-- [ ] 任务 3 RED→GREEN（sample_run_id 一致）
-- [ ] 任务 4 RED→GREEN（六态状态表 + 真实计数）
-- [ ] `python3 tools/lsu_test_runner.py` NEW FAIL = 0（基线 FAIL=13）
-- [ ] 各自独立提交 `[LSU][MDSPEC][R6-FIXD]`，push 到 `r6-fixd`
+- [x] 任务 1 RED→GREEN（admission 真调用）— commit 5208c8a5
+- [x] 任务 2 RED→GREEN（计数矛盾不伪装成率）— commit 2ecb13c8
+- [x] 任务 3 RED→GREEN（sample_run_id 一致）— commit f52a52eb
+- [x] 任务 4 RED→GREEN（六态状态表 + 真实计数）— commit ac604e68
+- [x] `python3 tools/lsu_test_runner.py` NEW FAIL = 0（基线 FAIL=13 → 现 FAIL=13，逐套件比对一致）
+- [x] 各自独立提交 `[LSU][MDSPEC][R6-FIXD]`，push 到 `r6-fixd`
+
+### 实测结论（真实输出）
+
+- 状态表（真根）：325 行 ⇒ NOT_RUN=305 / EVIDENCE_MISSING=0 / TRUNCATED=8 /
+  UNPROVEN=12 / PILOT_READY=0 / BLOCKED=0；流 total=60 complete=48 truncated=12
+  activated=59 admitted=6。`evidence_root=/home/sdc/gem5-fi-ding matches_contract=True`。
+- 契约重生成（同根）逐字一致：`total=325 BLOCKED=325`，
+  `blocked_by_category` 含 84 个上游阻塞（FS-INFRA 24 / FS-MULTICORE 35 /
+  LICENSE 12 / RULING 6 / MODE-UNIMPL 3 / UNRESOLVED 4），与状态表
+  `upstream_blocked=84` 完全同源。`lsu_ready_contract.py` 无需改动。
+- 真根 `BLOCKED=0` 是事实而非漏洞：所有带证据的上游阻塞行同时被截断，
+  disk 事实优先；BLOCKED 的可达性由合成夹具（X06）证明。
+
+
+### 套件回归（真实输出）
+
+- 改动后：`suites=64 ENV=5 FAIL=13 PASS=45 SKIP=1`（基线 `suites=61 FAIL=13 PASS=42`；
+  +3 套件 = 本 lane 新增的 3 个测试套件，均 PASS）。
+- NEW FAIL 逐套件实证：在**基线 worktree r6-fixa（07c004e5，lsu_campaign.py 未改）**
+  对 13 个 FAIL 套件逐个运行并与改动后比对，逐套件失败数**完全一致**
+  （a07 2/2, c11 2/2, c12 2/2, c14 2/2, c15 2/2, cpf 7/7, l04 2/2, o0x 0/0,
+  p06 3/3, s10 3/3, sq 4/4, campaign_propagation 4/4）⇒ NEW FAIL = 0。
