@@ -183,6 +183,32 @@ def main():
     check("legacy cache 路径回归不变（victim 钩子未动）",
           "chaosVictimHook = this" in chk)
 
+    print("[3b] A3 L3 cache/内存事件身份（dyn_inst_seq + request_id）")
+
+    def emit_args(text, kind):
+        """notePropEvt("<kind>" ... }); 的参数切片（含 kv）。"""
+        start = text.index('notePropEvt("' + kind + '"')
+        return text[start:text.index("});", start)]
+
+    ccc = src("CHAOS/gem5/src/mem/cache/cache.cc")
+    # 每个结构性 L1/L2 事件都必须携带请求身份（否则 L2→L3 断链——
+    # T04 实测 cache_access/cache_return/mshr_* 的 request_id/dyn_inst_seq 为空）。
+    for kind, text in (("cache_access", ccc), ("cache_return", ccc),
+                       ("mshr_merge", bcc), ("mshr_alloc", bcc),
+                       ("mshr_fill", bcc), ("cache_fill", bcc),
+                       ("mshr_free", bcc)):
+        a = emit_args(text, kind)
+        check(f"{kind} 写 dyn_inst_seq（pkt->req 身份）",
+              '{"dyn_inst_seq"' in a, a[:120])
+        check(f"{kind} 写 request_id（pkt->req 身份）",
+              '{"request_id"' in a, a[:120])
+    # 身份来自 Packet::req 的 Request-stamped seq（lsq_sendfrag 约定：
+    # 未盖戳=0），不是猜测值。
+    check("cache.cc 从 pkt->req 取身份（hasInstSeqNum/getReqInstSeqNum）",
+          "hasInstSeqNum" in ccc and "getReqInstSeqNum" in ccc)
+    check("base.cc 从 pkt->req 取身份（hasInstSeqNum/getReqInstSeqNum）",
+          "hasInstSeqNum" in bcc and "getReqInstSeqNum" in bcc)
+
     print("[4] 路由契约（lsu_proxy → MODEL_FLAGS → F0 跨度 → 解阻塞）")
     proxy = src("configs/se/lsu_proxy.py")
     check("lsu_proxy --l1d_target_field 含 mshr_merge",

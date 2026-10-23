@@ -191,9 +191,19 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 h4_hex.str(""); h4_hex.clear();
                 if (pkt->req && pkt->req->hasVaddr())
                     h4_hex << pkt->req->getVaddr();
+                // [MDSPEC][R6-EMIT2/A3] request identity: the L1 lookup must
+                // name the instruction whose access is being looked up —
+                // without it the L2->L3 request chain breaks (T04 measured
+                // empty request_id/dyn_inst_seq on every cache structural
+                // event). Source = the Request-stamped seq (lsq_sendfrag
+                // convention: 0 = unstamped), never a guess.
+                const uint64_t h4_seq = (pkt->req && pkt->req->hasInstSeqNum())
+                    ? pkt->req->getReqInstSeqNum() : 0;
                 h4->notePropEvt("cache_access", {
                     {"fault_id", std::to_string(h4_ptag)},
                     {"corr", h4_corr ? h4_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4_seq)},
+                    {"request_id", std::to_string(h4_seq)},
                     {"va", h4_hex.str()},
                     {"pa", h4_pa},
                 });
@@ -237,9 +247,15 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             if (h4r_ptag) {
                 std::ostringstream h4r_hex;
                 h4r_hex << std::hex << pkt->getAddr();
+                // [MDSPEC][R6-EMIT2/A3] request identity (see cache_access).
+                const uint64_t h4r_seq =
+                    (pkt->req && pkt->req->hasInstSeqNum())
+                        ? pkt->req->getReqInstSeqNum() : 0;
                 h4r->notePropEvt("cache_return", {
                     {"fault_id", std::to_string(h4r_ptag)},
                     {"corr", h4r_corr ? h4r_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4r_seq)},
+                    {"request_id", std::to_string(h4r_seq)},
                     {"pa", h4r_hex.str()},
                     {"field", h4_result ? "hit" : "miss"},
                 });

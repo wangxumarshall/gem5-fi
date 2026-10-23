@@ -459,9 +459,15 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                         if (h4m_ptag) {
                             std::ostringstream h4m_hex;
                             h4m_hex << std::hex << pkt->getAddr();
+                            // [MDSPEC][R6-EMIT2/A3] request identity.
+                            const uint64_t h4m_seq =
+                                (pkt->req && pkt->req->hasInstSeqNum())
+                                    ? pkt->req->getReqInstSeqNum() : 0;
                             h4m->notePropEvt("mshr_merge", {
                                 {"fault_id", std::to_string(h4m_ptag)},
                                 {"corr", h4m_corr ? h4m_corr : ""},
+                                {"dyn_inst_seq", std::to_string(h4m_seq)},
+                                {"request_id", std::to_string(h4m_seq)},
                                 {"cache_line", h4m_hex.str()},
                                 {"mshr_id", std::to_string(
                                     h4m->noteMshrLookup(
@@ -550,9 +556,15 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                         std::ostringstream h4a_hex;
                         h4a_hex << std::hex << pkt->getAddr();
                         const Addr h4a_line = pkt->getBlockAddr(blkSize);
+                        // [MDSPEC][R6-EMIT2/A3] request identity.
+                        const uint64_t h4a_seq =
+                            (pkt->req && pkt->req->hasInstSeqNum())
+                                ? pkt->req->getReqInstSeqNum() : 0;
                         h4a->notePropEvt("mshr_alloc", {
                             {"fault_id", std::to_string(h4a_ptag)},
                             {"corr", h4a_corr ? h4a_corr : ""},
+                            {"dyn_inst_seq", std::to_string(h4a_seq)},
+                            {"request_id", std::to_string(h4a_seq)},
                             {"cache_line", h4a_hex.str()},
                             {"mshr_id", std::to_string(
                                 h4a->noteMshrAlloc(h4a_line))},
@@ -1844,11 +1856,19 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 h4f_hex << std::hex << addr;
                 const Addr h4f_line = addr;
                 h4_fill_id = h4f->noteFill(h4f_line);
+                // [MDSPEC][R6-EMIT2/A3] request identity on the fill triplet
+                // (the fill response's own packet request — same convention
+                // as the access/return/mshr sites).
+                const uint64_t h4f_seq =
+                    (pkt->req && pkt->req->hasInstSeqNum())
+                        ? pkt->req->getReqInstSeqNum() : 0;
                 // mshr_fill: the miss completes (fill_id + the mshr it
                 // serviced), then mshr_free releases that mshr id.
                 h4f->notePropEvt("mshr_fill", {
                     {"fault_id", std::to_string(h4f_ptag)},
                     {"corr", h4f_corr ? h4f_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4f_seq)},
+                    {"request_id", std::to_string(h4f_seq)},
                     {"cache_line", h4f_hex.str()},
                     {"mshr_id", std::to_string(
                         h4f->noteMshrLookup(h4f_line))},
@@ -1858,6 +1878,8 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 h4f->notePropEvt("cache_fill", {
                     {"fault_id", std::to_string(h4f_ptag)},
                     {"corr", h4f_corr ? h4f_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4f_seq)},
+                    {"request_id", std::to_string(h4f_seq)},
                     {"pa", h4f_hex.str()},
                     {"cache_line", h4f_hex.str()},
                     {"fill_id", std::to_string(h4_fill_id)},
@@ -1865,6 +1887,8 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 h4f->notePropEvt("mshr_free", {
                     {"fault_id", std::to_string(h4f_ptag)},
                     {"corr", h4f_corr ? h4f_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4f_seq)},
+                    {"request_id", std::to_string(h4f_seq)},
                     {"cache_line", h4f_hex.str()},
                     {"mshr_id", std::to_string(
                         h4f->noteMshrFree(h4f_line))},
