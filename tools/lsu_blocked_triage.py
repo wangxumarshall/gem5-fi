@@ -26,7 +26,8 @@ from pathlib import Path
 # 优先级序（先匹配者胜）——类别名保持稳定，下游脚本按名引用。
 CLASS_ORDER = ["RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
                "MODE-UNIMPL", "HOOK-UNIMPL", "UNRESOLVED",
-               "PLATFORM-DEFECT", "UNCLASSIFIED", "OK"]
+               "PLATFORM-DEFECT", "CHAIN-UNPROVEN", "CHAIN-EVIDENCE-MISSING",
+               "UNCLASSIFIED", "OK"]
 
 # [R5-U4] 单一分类来源。本工具曾自带一套正则（`先实现：`/`spec:需新增` 等旧
 # 词表），在 runid_map 措辞演进后整体失配，产出 `MODE-UNIMPL=23`、且**没有**
@@ -35,6 +36,8 @@ CLASS_ORDER = ["RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
 # no drift」，改为**从契约产物读取已判定的 category**，不再自行重判。
 CONTRACT_CATS = {"RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
                  "MODE-UNIMPL", "UNRESOLVED", "PLATFORM-DEFECT",
+                 # [R6-GATE] 链准入门禁新增的两类阻塞（契约 _classify 产出）
+                 "CHAIN-UNPROVEN", "CHAIN-EVIDENCE-MISSING",
                  "UNCLASSIFIED"}
 
 
@@ -129,8 +132,11 @@ def main():
          "## 需用户批准的延期清单", "",
          "以下类别**在可预见范围内无法由本轨道单方面解除**，需批准延期：",
          ""]
+    # [R6-GATE] CHAIN-* 也列入本清单：它们不是范围性延期，而是**证据门**——
+    # 只能由该 cell 产出「过 check_admission 的 activated pilot」解除（见 MECH）。
     deferrable = [c for c in ("LICENSE", "FS-MULTICORE", "FS-INFRA",
-                              "RULING", "UNRESOLVED") if cnt[c]]
+                              "RULING", "UNRESOLVED", "CHAIN-UNPROVEN",
+                              "CHAIN-EVIDENCE-MISSING") if cnt[c]]
     for c in deferrable:
         ids = per_class[c]
         L.append(f"- **{c}**（{len(ids)} 个）：{', '.join(sorted(ids))}")
@@ -169,6 +175,22 @@ def main():
             "UNRESOLVED": ("S10-F2 为规格结构性拒绝（F2 首抽下界 ≫ 实测流长）；"
                            "S01/S02-F0-W1 待 span census 收敛",
                            "规格级重划 cell（长载体）或接受拒绝；census 收敛后写入 span"),
+            # [R6-GATE] 证据门（非范围性延期）：解除条件 = 该 cell 产出过
+            # check_admission 的 activated pilot。
+            "CHAIN-UNPROVEN": (
+                "**非范围性延期——链准入门禁（R6-GATE）**：该 cell 的 pilot "
+                "PROP-EVT 未过 `lsu_chain_check.check_admission`（无 family-"
+                "specific 完整 L0→L5 链，也无显式 containment 且后续层 N/A"
+                "(contained)）；此前仅凭 coverage PASS 即判 READY 是假象。",
+                "为该 cell 产出真实 activated pilot，其链须满足：完整 L0→L5 "
+                "链（同 parent-event DAG、无 Unknown、无跨分支/跨请求/逆时拼接、"
+                "逐层必录指标齐），或显式 containment 路径。解除后重生成契约。"),
+            "CHAIN-EVIDENCE-MISSING": (
+                "**非范围性延期——链准入门禁（R6-GATE）**：契约无该 cell 的 "
+                "pilot PROP-EVT 证据（或证据根不可达）——链不可证，故不得判 "
+                "READY（绝不因缺证据默认通过）。",
+                "为该 cell 运行 pilot 并把 prop_evt 纳入 pilot_evidence.json "
+                "（或设 LSU_CHAIN_EVIDENCE_ROOT 指向证据根），再重生成契约。"),
         }
         M = [f"# 需用户裁决 / 延期清单（{len(blocked)} BLOCKED 中的不可自解项）", "",
              f"> 生成自 `tools/lsu_blocked_triage.py --contract`，与 `blocked_triage.md` "
