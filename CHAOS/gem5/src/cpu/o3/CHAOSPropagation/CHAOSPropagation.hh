@@ -808,6 +808,15 @@ class CHAOSPropagation : public SimObject
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
 
+    // [MDSPEC][R6/A7] Store-response taint, keyed by the STORE's DynInst seq
+    // (a store has no arch dest reg to key the phys-reg taint set on — its
+    // architectural materialization is its COMMIT). noteMemResponse records
+    // the store here at its L3 response; noteCommit then treats the store's
+    // own commit as the error path (errant_commit, L4/L5) exactly as it does
+    // the faulting load's self-taint commit. Without this the store chain
+    // honestly stopped at L3 (measured S04-F0-W5).
+    std::map<uint64_t, TaintEntry> store_taint;
+
     // [MDSPEC][H5] prefetch-request registry: one entry per prefetch
     // request keyed by its line base, carrying the request-level
     // pf_request_id (independent of ptag) so every downstream node of the

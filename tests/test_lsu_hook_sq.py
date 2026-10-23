@@ -94,6 +94,64 @@ def main():
           f1["terminal"] == "full",
           f"{f1['terminal']} edges={ {k: v2 for k, v2 in f1['edges'].items() if not k.endswith('_witness')} }")
 
+    print("[4] A7 store 链抵达 L4/L5（store 无 wb_to_reg，旧路径止于 L3）")
+    # 真实证据 runs/lsu/r6_sq_S04-F0-W5：11 事件、无 taint_reg/consumer/
+    # errant_commit，verdict=provable_to_L3_then_unknown。store 的架构物化
+    # 就是它的 commit（错误内存副作用），故 store 链必须也能到 L4/L5。
+    store_chain = [P.parse_line(l) for l in [
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 tick=10 dyn_inst_seq=4001",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 tick=10 "
+        "dyn_inst_seq=4001",
+        "PROP-EVT: kind=lsq_push fault_id=1 event_id=2 tick=11 "
+        "dyn_inst_seq=4001 sq_idx=338 va=490250",
+        "PROP-EVT: kind=lsq_sendfrag fault_id=1 event_id=3 tick=12 "
+        "dyn_inst_seq=4001 request_id=4001 va=490250",
+        "PROP-EVT: kind=sq_execute fault_id=1 event_id=4 tick=15 "
+        "dyn_inst_seq=4001 sq_idx=338 va=490250 state_before=issued",
+        "PROP-EVT: kind=sq_complete fault_id=1 event_id=5 tick=30 "
+        "dyn_inst_seq=4001 sq_idx=338 va=490250 state_after=completed",
+        # A7 新增的两条 store L4/L5 事件：
+        "PROP-EVT: kind=taint_reg fault_id=1 event_id=6 tick=31 "
+        "dyn_inst_seq=4001 corr=seq_primary field=store_data",
+        "PROP-EVT: kind=errant_commit fault_id=1 event_id=7 tick=40 "
+        "dyn_inst_seq=4001 detection_layer=L5 contained=0 "
+        "outcome=errant_commit corr=taint_prop",
+        # 逃逸链：无 containment，contained=0（否则 checker 按 L5 显式
+        # contained 判 detected_contained 而非 full）。
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=8 tick=99 "
+        "fault_id=1 detection_layer=L5 contained=0 "
+        "outcome=errant_commit_seen corr=none",
+    ]]
+    sv = CC.check_chain(store_chain)
+    sf = sv["faults"]["1"]
+    check("store 链 L3→L4 proven（sq_complete → taint_reg）",
+          sf["edges"]["L3->L4"] == "proven", str(sf["edges"].get("L3->L4")))
+    check("store 链 L4→L5 proven（errant_commit → chain_end）",
+          sf["edges"]["L4->L5"] == "proven", str(sf["edges"].get("L4->L5")))
+    check("store 链 terminal=full（不再止于 L3）", sf["terminal"] == "full",
+          sf["terminal"])
+
+    # 源码契约：store 响应污染 + 提交即错误路径（A7）
+    prop_cc = src("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/"
+                  "CHAOSPropagation.cc")
+    prop_hh = src("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/"
+                  "CHAOSPropagation.hh")
+    check("noteMemResponse 对 store 响应发 taint_reg（!wb_to_reg && isStore）",
+          "!wb_to_reg && inst->isStore()" in prop_cc)
+    check("store 污染按 dyn seq 记入 store_taint（新成员）",
+          "store_taint[" in prop_cc and "store_taint;" in prop_hh)
+    check("noteCommit 认 store 自污染 → errant_commit",
+          "self_store_taint" in prop_cc
+          and "faulting_store_commit" in prop_cc)
+    check("errant_commit 绑定链（errant_ptags）不受 store 路径破坏",
+          "errant_ptags.insert(ptag);" in prop_cc)
+    # 未 retirement 的故障 store（响应后遭 squash/replay 丢弃）在退出回调记
+    # containment，链闭合为 detected_contained（S04-F0-W5 实测：注入 store
+    # sn:4001 从不提交、同 PC 重放实例提交，oracle 干净）。
+    check("退出回调把未退休的故障 store 记为 containment",
+          "store_discarded_not_retired" in prop_cc
+          and "containment_ptags[p] = {\"L4\"," in prop_cc)
+
     print("[5] A9 lq_read 携带 request_id（L2→L3 请求连续性）")
     lu = src("CHAOS/gem5/src/cpu/o3/lsq_unit.cc")
     lq_read = lu[lu.index("// [MDSPEC][H7] unified lq_read event"):]
@@ -106,8 +164,6 @@ def main():
           "getReqInstSeqNum" in lq_read, lq_read[-200:])
 
     print("[6] oracle crash/abort 字段契约（L18 §需要发射器车道的字段契约）")
-    prop_cc = src("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc")
-    prop_hh = src("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh")
     # (1) 崩溃/abort 路径须写出 detection_layer/contained/outcome，且 L5 结局
     #     join 需要 fault_id/commit_seq/pc/dyn_inst_seq。
     ce = prop_cc[prop_cc.index('notePropEvt("chain_end"'):]

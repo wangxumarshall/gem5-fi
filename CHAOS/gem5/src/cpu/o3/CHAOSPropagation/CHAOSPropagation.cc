@@ -111,6 +111,28 @@ namespace gem5
                 // outcome=unknown means "pending offline join" — the honest
                 // default, never guessed (spec: 不得推断).
                 if (evt_gz_file && write_log) {
+                    // [MDSPEC][R6-EMIT2/A7] Store chains whose fault-carrying
+                    // store NEVER retired. A store taints itself at its
+                    // response (noteMemResponse) and the taint is erased by
+                    // its own commit (noteCommit); an entry still present at
+                    // exit therefore means that store instance was squashed/
+                    // discarded and never reached architectural state — a
+                    // same-PC replay retires instead. That is containment by
+                    // squash/replay (measured S04-F0-W5: the injected store
+                    // sn:4001 never commits while a same-PC replay does, and
+                    // the cell's oracle is clean). Record it explicitly so
+                    // the chain closes as detected_contained instead of an
+                    // Unknown terminal.
+                    for (const auto &st : store_taint) {
+                        const uint64_t p = st.second.ptag;
+                        if (errant_ptags.count(p)
+                                || containment_ptags.count(p))
+                            continue;
+                        containment_ptags[p] = {"L4",
+                                                "store_discarded_not_retired"};
+                        emitDetectSignal("Hardware RAS", true, p,
+                                         "store_discarded_not_retired");
+                    }
                     for (const auto &kv : ptag_last_event) {
                         const uint64_t ptag = kv.first;
                         // [MDSPEC][R6] Per-chain evidence, not a run-global
@@ -1948,6 +1970,33 @@ namespace gem5
             });
         }
 
+        // [MDSPEC][R6/A7] Store chains: a STORE's response carries the
+        // wrong value/address to memory, but a store has no register
+        // writeback (needWBToRegister() is false), so the load-only taint
+        // path below returned before anything was tainted and the chain used
+        // to stop at L3 (measured: S04-F0-W5, verdict
+        // provable_to_L3_then_unknown, 11 events, no L4 node). A store's
+        // architectural materialization IS its commit (the wrong memory side
+        // effect), so taint the store BY DYN SEQ: the store's own later
+        // commit (noteCommit) then fires the errant commit and the chain
+        // closes at L4->L5. The taint_reg node is the L4 anchor the chain
+        // checker needs (L3->L4 witness = this store's resp/sq_complete).
+        if (!wb_to_reg && inst->isStore()) {
+            std::ostringstream sd;
+            sd << "class=store;dest_idx=0;old_addr=clean;new_addr=tainted";
+            writeNode(hit_ptag, "taint_reg", inst->seqNum, true,
+                      req_seq, req_seq != 0, pkt->getAddr(), true,
+                      0, false, 0, false, sd.str(), hit_corr);
+            TaintEntry ste;
+            ste.ptag = hit_ptag;
+            ste.taintor_seq = inst->seqNum;
+            // [R6/A6] the event that established this taint = the node just
+            // written (writeNode's dual-emit used event_id == next_node_id).
+            ste.src_event = next_node_id - 1;
+            store_taint[inst->seqNum] = ste;
+            return;
+        }
+
         // taint_reg: exactly the condition under which LSQUnit::writeback
         // performs completeAcc (needWBToRegister + NoFault) — the load's
         // dest phys regs receive the fault-delivered data.
@@ -2002,6 +2051,18 @@ namespace gem5
         bool any_consumer = false;
         bool self_taint = false;
         uint64_t self_taint_ptag = 0;
+        // [MDSPEC][R6/A7] A STORE whose own response carried the fault: its
+        // commit is the architectural materialization (the wrong memory side
+        // effect). Keyed by dyn seq (see store_taint / noteMemResponse).
+        bool self_store_taint = false;
+        uint64_t self_store_ptag = 0;
+        {
+            const auto stit = store_taint.find(head_inst->seqNum);
+            if (stit != store_taint.end()) {
+                self_store_taint = true;
+                self_store_ptag = stit->second.ptag;
+            }
+        }
         // [MDSPEC][R6/A6] event_id of the last consumer node emitted above —
         // the taint source for the dests it re-taints (see below).
         uint64_t last_consumer_evt = 0;
@@ -2064,9 +2125,10 @@ namespace gem5
         // "first wrong architectural commit" stays L2 commit_diff's
         // first_errant_commit (authoritative); this node is the
         // propagation-view alignment point (same seqNum space).
-        if (!errant_commit_seen && (any_consumer || self_taint)) {
+        if (!errant_commit_seen
+                && (any_consumer || self_taint || self_store_taint)) {
             const uint64_t ptag = any_consumer ? first_consumed_ptag
-                                               : self_taint_ptag;
+                : self_taint ? self_taint_ptag : self_store_ptag;
             std::ostringstream d;
             // [R6-C/GAP-2] This IS the observable L5 detection: the wrong
             // value reached architectural state (a committed instruction
@@ -2080,7 +2142,8 @@ namespace gem5
             // be THIS event, so it must name its layer and outcome. Both keys
             // are registry fields, so the dual-emit lifts them verbatim.
             d << "trigger=" << (any_consumer ? "first_consumer"
-                                             : "faulting_load_commit")
+                                 : self_taint ? "faulting_load_commit"
+                                              : "faulting_store_commit")
               << ";detection_layer=L5"
               << ";outcome=errant_commit"
               // [MDSPEC][R6-EMIT2/oracle] the escape is NOT contained, and
@@ -2105,6 +2168,13 @@ namespace gem5
             // so the L5 chain_end node can report it (see .hh).
             errant_ptags.insert(ptag);
         }
+        // [MDSPEC][R6/A7] Bound the store taint: the store's commit has now
+        // been observed (it either fired the errant commit above or the run
+        // already had its first one) — drop the entry so a recycled dyn seq
+        // cannot re-fire later.
+        if (self_store_taint)
+            store_taint.erase(head_inst->seqNum);
+
         // Propagation rules (see .hh):
         //  - consumer commits → its dests now carry the wrong value
         //    (re-taint under the consumed chain's ptag);
@@ -2124,7 +2194,7 @@ namespace gem5
                 taint_set[std::make_pair(phys->classValue(),
                                          phys->index())] = te;
             }
-        } else if (!self_taint) {
+        } else if (!self_taint && !self_store_taint) {
             for (int i = 0; i < ndest; ++i) {
                 const PhysRegIdPtr phys = head_inst->renamedDestIdx(i);
                 if (!phys)
