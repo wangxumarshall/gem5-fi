@@ -1,0 +1,3463 @@
+{
+ "meta": {
+  "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+  "checker_module": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-final/tools/lsu_chain_check.py",
+  "checker_commit": "d32cdfe9 (cherry-pick -x of 9a7da7cf, blob 2191e98b = r6-gate strict checker)",
+  "canonical_12": [
+   "T02-F0-W4",
+   "T02-F2-W4",
+   "T04-F0-W4",
+   "T04-F2-W4",
+   "T04-F6-W4",
+   "T01-F0-W4",
+   "T01-F1-W4",
+   "T01-F2-W4",
+   "T03-F5-W4",
+   "T10-F0-W4",
+   "T10-F1-W4",
+   "T10-F2-W4"
+  ],
+  "falsely_full_historical": [
+   "T02-F0-W4",
+   "T02-F2-W4",
+   "T04-F0-W4",
+   "T04-F2-W4",
+   "T04-F6-W4"
+  ],
+  "previously_incomplete_historical": [
+   "T01-F0-W4",
+   "T01-F1-W4",
+   "T01-F2-W4",
+   "T03-F5-W4",
+   "T10-F0-W4",
+   "T10-F1-W4",
+   "T10-F2-W4"
+  ],
+  "roots": [
+   "/home/sdc/gem5-fi-ding/runs/lsu"
+  ],
+  "line_format": "PROP-EVT: kind=<k> key=value …",
+  "generated": "2026-10-23 12:34:48",
+  "caveat": "Provisional: lane B2-v2 is concurrently changing checker semantics (L5 = real detection event; containment option reachability; stronger cross-request guard). This table must be RE-RUN after B2-v2 lands."
+ },
+ "rows": [
+  {
+   "run_id": "T02-F0-W4",
+   "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1/prop_evt.txt.gz",
+   "stream_sha256": "a1189be7577fa7ae00aaf37d6d2e869f3161f26d2628976dd2f0d16edfd6db55",
+   "stream_bytes": 6760,
+   "stream_mtime": 1792722693,
+   "stream_status": "COMPLETE",
+   "stream_detail": {
+    "gz_ok": true,
+    "stats_bytes": 382875
+   },
+   "parser_truncated": false,
+   "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+   "event_count": 186,
+   "activated": 1,
+   "oracle_outcome": "Crash",
+   "oracle_source": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1/chain_report.json",
+   "fault_ids": [
+    "1"
+   ],
+   "check_chain": {
+    "faults": {
+     "1": {
+      "edges": {
+       "L0->L1": "proven",
+       "L0->L1_witness": {
+        "from": "L0:inj@t237950940537",
+        "to": "L1:tlb_lookup@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L1->L2": "proven",
+       "L1->L2_witness": {
+        "from": "L1:tlb_lookup@t237950940537",
+        "to": "L2:tlb_pfn@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L2->L3": "proven",
+       "L2->L3_witness": {
+        "from": "L2:tlb_pfn@t237950940537",
+        "to": "L3:sq_execute@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L3->L4": "proven",
+       "L3->L4_witness": {
+        "from": "L3:sq_execute@t237950940537",
+        "to": "L4:taint_reg@t237951471339",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path"
+        ]
+       },
+       "L4->L5": "missing"
+      },
+      "terminal": "provable_to_L4_then_unknown",
+      "provable_to": "L4",
+      "beyond": "Unknown",
+      "event_count": 186,
+      "family": "tlb",
+      "path_event_ids": [
+       "0",
+       "1",
+       "2",
+       "4",
+       "83"
+      ]
+     }
+    },
+    "spec_nodes": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "oracle_outcome": "Crash"
+   },
+   "check_admission": {
+    "run_id": "T02-F0-W4",
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "provable_to_L4_then_unknown",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4"
+    ],
+    "violations": [
+     "cross_request_edge: T02-F0-W4 fault 1 所选祖先上 10 处相邻见证 request_id 不一致（首例 event 32:resp req='307' → event 33:resp req='308'）——整条祖先禁止跨请求拼接",
+     "no_closed_chain_and_no_containment: T02-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T02-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+     "ready_by_chain_end_only: T02-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+    ],
+    "reasons": [],
+    "n_events": 186
+   },
+   "dominant_fault_id": "1",
+   "family": "tlb",
+   "layers": {
+    "L0": [
+     "inj"
+    ],
+    "L1": [
+     "tlb_lookup"
+    ],
+    "L2": [
+     "tlb_pfn",
+     "tlb_translate_result"
+    ],
+    "L3": [
+     "cache_access",
+     "cache_return",
+     "lq_complete",
+     "mshr_alloc",
+     "mshr_merge",
+     "resp",
+     "sq_complete",
+     "sq_execute",
+     "sq_writeback"
+    ],
+    "L4": [
+     "consumer",
+     "errant_commit",
+     "taint_reg"
+    ],
+    "L5": []
+   },
+   "layer_kinds": {
+    "L0": {
+     "inj": 1
+    },
+    "L1": {
+     "tlb_lookup": 1
+    },
+    "L2": {
+     "tlb_pfn": 1,
+     "tlb_translate_result": 1
+    },
+    "L3": {
+     "sq_execute": 1,
+     "sq_writeback": 1,
+     "cache_access": 32,
+     "cache_return": 32,
+     "mshr_alloc": 18,
+     "mshr_merge": 14,
+     "resp": 21,
+     "sq_complete": 1,
+     "lq_complete": 3
+    },
+    "L4": {
+     "taint_reg": 3,
+     "errant_commit": 1,
+     "consumer": 54
+    },
+    "L5": {}
+   },
+   "path_witnesses": [
+    {
+     "layer": "L0",
+     "kind": "inj",
+     "event_id": "0",
+     "parent_event_id": "",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L1",
+     "kind": "tlb_lookup",
+     "event_id": "1",
+     "parent_event_id": "0",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "0",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L2",
+     "kind": "tlb_pfn",
+     "event_id": "2",
+     "parent_event_id": "1",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L3",
+     "kind": "sq_execute",
+     "event_id": "4",
+     "parent_event_id": "3",
+     "tick": "237950940537",
+     "request_id": "",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L4",
+     "kind": "taint_reg",
+     "event_id": "83",
+     "parent_event_id": "82",
+     "tick": "237951471339",
+     "request_id": "391",
+     "walk_id": "",
+     "dyn_inst_seq": "391",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    }
+   ],
+   "correlation": {
+    "fault_ids_present": [
+     "1"
+    ],
+    "chain_event_count": 186,
+    "parent_ids_contiguous": true,
+    "parent_relation_is_linear": true,
+    "tick_monotonic": true,
+    "path_request_ids": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_request_ids_consistent": false,
+    "path_dyn_inst_seqs": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L3",
+      "sq_execute",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_dyn_inst_seqs_consistent": false,
+    "path_seq_break": [
+     "L0:inj=301",
+     "L1:tlb_lookup=301",
+     "L2:tlb_pfn=301",
+     "L3:sq_execute=301",
+     "L4:taint_reg=391"
+    ],
+    "walk_ids_nonzero": []
+   },
+   "field_gaps": [
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "detection_layer",
+     "state": "sentinel:None"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "corr",
+     "state": "sentinel:none"
+    }
+   ],
+   "checker_missing_metrics": [],
+   "forbidden": [
+    "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+    "l0_inj_before_after_empty"
+   ],
+   "cross_edges": {
+    "path_stamped_request_ids": [
+     "301",
+     "391"
+    ],
+    "chain_stamped_request_id_count": 21
+   },
+   "injection": {
+    "l0_inj": {
+     "kind": "inj",
+     "field": "bit_flip",
+     "before": "",
+     "after": "",
+     "va": "ffffffc009483fa8",
+     "pa": "",
+     "state_before": "",
+     "state_after": "",
+     "dyn_inst_seq": "301"
+    },
+    "l1_witness": {
+     "kind": "tlb_lookup",
+     "field": "post_lookup",
+     "before": "81d75",
+     "after": "100040000081d75",
+     "state_before": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8",
+     "state_after": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=100040000081d75;ap=0;mtype=2;page_size=1000;pa=40000081d75fa8"
+    },
+    "injector_log": "protection: model=none bits=2 -> Raw\nTick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x100040000081d75, FaultType: bit_flip, Mask: 0x100040000000000"
+   },
+   "candidates": [
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1/prop_evt.txt.gz"
+   ],
+   "all_candidates": [
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 186,
+     "stream_sha256": "a1189be7577fa7ae00aaf37d6d2e869f3161f26d2628976dd2f0d16edfd6db55",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "proven",
+         "L3->L4_witness": {
+          "from": "L3:sq_execute@t237950940537",
+          "to": "L4:taint_reg@t237951471339",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path"
+          ]
+         },
+         "L4->L5": "missing"
+        },
+        "terminal": "provable_to_L4_then_unknown",
+        "provable_to": "L4",
+        "beyond": "Unknown",
+        "event_count": 186,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4",
+         "83"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Crash"
+     },
+     "check_admission": {
+      "run_id": "T02-F0-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "provable_to_L4_then_unknown",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4"
+      ],
+      "violations": [
+       "cross_request_edge: T02-F0-W4 fault 1 所选祖先上 10 处相邻见证 request_id 不一致（首例 event 32:resp req='307' → event 33:resp req='308'）——整条祖先禁止跨请求拼接",
+       "no_closed_chain_and_no_containment: T02-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T02-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T02-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 186
+     },
+     "forbidden": [
+      "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+      "l0_inj_before_after_empty"
+     ]
+    }
+   ]
+  },
+  {
+   "run_id": "T02-F2-W4",
+   "stream_status": "MISSING",
+   "stream": null,
+   "candidates": []
+  },
+  {
+   "run_id": "T04-F0-W4",
+   "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/prop_evt.txt.gz",
+   "stream_sha256": "2232f4de78e49a68b99fb8c4df9b05db332e6346f2b9966091ddcafe61ac1f71",
+   "stream_bytes": 50806,
+   "stream_mtime": 1792722712,
+   "stream_status": "COMPLETE",
+   "stream_detail": {
+    "gz_ok": true,
+    "stats_bytes": 383746
+   },
+   "parser_truncated": false,
+   "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+   "event_count": 1574,
+   "activated": 1,
+   "oracle_outcome": "Crash",
+   "oracle_source": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/chain_report.json",
+   "fault_ids": [
+    "1"
+   ],
+   "check_chain": {
+    "faults": {
+     "1": {
+      "edges": {
+       "L0->L1": "proven",
+       "L0->L1_witness": {
+        "from": "L0:inj@t237950940537",
+        "to": "L1:tlb_lookup@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L1->L2": "proven",
+       "L1->L2_witness": {
+        "from": "L1:tlb_lookup@t237950940537",
+        "to": "L2:tlb_pfn@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L2->L3": "proven",
+       "L2->L3_witness": {
+        "from": "L2:tlb_pfn@t237950940537",
+        "to": "L3:sq_execute@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L3->L4": "proven",
+       "L3->L4_witness": {
+        "from": "L3:sq_execute@t237950940537",
+        "to": "L4:taint_reg@t237951293850",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path"
+        ]
+       },
+       "L4->L5": "missing"
+      },
+      "terminal": "provable_to_L4_then_unknown",
+      "provable_to": "L4",
+      "beyond": "Unknown",
+      "event_count": 1574,
+      "family": "tlb",
+      "path_event_ids": [
+       "0",
+       "1",
+       "2",
+       "4",
+       "101"
+      ]
+     }
+    },
+    "spec_nodes": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "oracle_outcome": "Crash"
+   },
+   "check_admission": {
+    "run_id": "T04-F0-W4",
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "provable_to_L4_then_unknown",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4"
+    ],
+    "violations": [
+     "cross_request_edge: T04-F0-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+     "no_closed_chain_and_no_containment: T04-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T04-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+     "ready_by_chain_end_only: T04-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+    ],
+    "reasons": [],
+    "n_events": 1574
+   },
+   "dominant_fault_id": "1",
+   "family": "tlb",
+   "layers": {
+    "L0": [
+     "inj"
+    ],
+    "L1": [
+     "tlb_lookup"
+    ],
+    "L2": [
+     "tlb_pfn",
+     "tlb_translate",
+     "tlb_translate_result"
+    ],
+    "L3": [
+     "cache_access",
+     "cache_fill",
+     "cache_return",
+     "lq_complete",
+     "lsq_sendfrag",
+     "mem_req",
+     "mshr_alloc",
+     "mshr_fill",
+     "mshr_free",
+     "mshr_merge",
+     "resp",
+     "sq_complete",
+     "sq_execute",
+     "sq_writeback"
+    ],
+    "L4": [
+     "consumer",
+     "errant_commit",
+     "taint_reg"
+    ],
+    "L5": []
+   },
+   "layer_kinds": {
+    "L0": {
+     "inj": 1
+    },
+    "L1": {
+     "tlb_lookup": 1
+    },
+    "L2": {
+     "tlb_pfn": 1,
+     "tlb_translate_result": 1,
+     "tlb_translate": 29
+    },
+    "L3": {
+     "sq_execute": 1,
+     "sq_writeback": 1,
+     "cache_access": 27,
+     "cache_return": 27,
+     "mshr_alloc": 8,
+     "mshr_merge": 8,
+     "mshr_fill": 8,
+     "cache_fill": 8,
+     "mshr_free": 8,
+     "resp": 29,
+     "sq_complete": 1,
+     "lq_complete": 11,
+     "mem_req": 29,
+     "lsq_sendfrag": 29
+    },
+    "L4": {
+     "taint_reg": 19,
+     "errant_commit": 1,
+     "consumer": 1296
+    },
+    "L5": {}
+   },
+   "path_witnesses": [
+    {
+     "layer": "L0",
+     "kind": "inj",
+     "event_id": "0",
+     "parent_event_id": "",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L1",
+     "kind": "tlb_lookup",
+     "event_id": "1",
+     "parent_event_id": "0",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "0",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L2",
+     "kind": "tlb_pfn",
+     "event_id": "2",
+     "parent_event_id": "1",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L3",
+     "kind": "sq_execute",
+     "event_id": "4",
+     "parent_event_id": "3",
+     "tick": "237950940537",
+     "request_id": "",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L4",
+     "kind": "taint_reg",
+     "event_id": "101",
+     "parent_event_id": "100",
+     "tick": "237951293850",
+     "request_id": "391",
+     "walk_id": "",
+     "dyn_inst_seq": "391",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    }
+   ],
+   "correlation": {
+    "fault_ids_present": [
+     "1"
+    ],
+    "chain_event_count": 1574,
+    "parent_ids_contiguous": true,
+    "parent_relation_is_linear": true,
+    "tick_monotonic": true,
+    "path_request_ids": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_request_ids_consistent": false,
+    "path_dyn_inst_seqs": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L3",
+      "sq_execute",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_dyn_inst_seqs_consistent": false,
+    "path_seq_break": [
+     "L0:inj=301",
+     "L1:tlb_lookup=301",
+     "L2:tlb_pfn=301",
+     "L3:sq_execute=301",
+     "L4:taint_reg=391"
+    ],
+    "walk_ids_nonzero": []
+   },
+   "field_gaps": [
+    {
+     "layer": null,
+     "kind": "lsq_push",
+     "field": "sq_idx",
+     "state": "sentinel:-1"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "detection_layer",
+     "state": "sentinel:None"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "corr",
+     "state": "sentinel:none"
+    }
+   ],
+   "checker_missing_metrics": [],
+   "forbidden": [
+    "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+    "l0_inj_before_after_empty"
+   ],
+   "cross_edges": {
+    "path_stamped_request_ids": [
+     "301",
+     "391"
+    ],
+    "chain_stamped_request_id_count": 51
+   },
+   "injection": {
+    "l0_inj": {
+     "kind": "inj",
+     "field": "pfn_to_mapped_page",
+     "before": "",
+     "after": "",
+     "va": "ffffffc009483fa8",
+     "pa": "",
+     "state_before": "",
+     "state_after": "",
+     "dyn_inst_seq": "301"
+    },
+    "l1_witness": {
+     "kind": "tlb_lookup",
+     "field": "post_lookup",
+     "before": "81d75",
+     "after": "0",
+     "state_before": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8",
+     "state_after": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=0;ap=0;mtype=2;page_size=1000;pa=fa8"
+    },
+    "injector_log": "Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x0, FaultType: pfn_to_mapped_page, candidates: 31"
+   },
+   "candidates": [
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/prop_evt.txt.gz",
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_verify/out/T04-F0-W4/seed1/prop_evt.txt.gz",
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot/out/T04-F0-W4/seed1/prop_evt.txt.gz"
+   ],
+   "all_candidates": [
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 1574,
+     "stream_sha256": "2232f4de78e49a68b99fb8c4df9b05db332e6346f2b9966091ddcafe61ac1f71",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "proven",
+         "L3->L4_witness": {
+          "from": "L3:sq_execute@t237950940537",
+          "to": "L4:taint_reg@t237951293850",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path"
+          ]
+         },
+         "L4->L5": "missing"
+        },
+        "terminal": "provable_to_L4_then_unknown",
+        "provable_to": "L4",
+        "beyond": "Unknown",
+        "event_count": 1574,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4",
+         "101"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Crash"
+     },
+     "check_admission": {
+      "run_id": "T04-F0-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "provable_to_L4_then_unknown",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4"
+      ],
+      "violations": [
+       "cross_request_edge: T04-F0-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+       "no_closed_chain_and_no_containment: T04-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T04-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T04-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 1574
+     },
+     "forbidden": [
+      "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+      "l0_inj_before_after_empty"
+     ]
+    },
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_verify/out/T04-F0-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 1574,
+     "stream_sha256": "bd2a4b37ad3e2d799dfef31755e5f672e280ddb17b49e0916c75f33e0d156612",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "proven",
+         "L3->L4_witness": {
+          "from": "L3:sq_execute@t237950940537",
+          "to": "L4:taint_reg@t237951293850",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path"
+          ]
+         },
+         "L4->L5": "missing"
+        },
+        "terminal": "provable_to_L4_then_unknown",
+        "provable_to": "L4",
+        "beyond": "Unknown",
+        "event_count": 1574,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4",
+         "101"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Crash"
+     },
+     "check_admission": {
+      "run_id": "T04-F0-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "provable_to_L4_then_unknown",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4"
+      ],
+      "violations": [
+       "cross_request_edge: T04-F0-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+       "no_closed_chain_and_no_containment: T04-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T04-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T04-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 1574
+     },
+     "forbidden": [
+      "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+      "l0_inj_before_after_empty"
+     ]
+    },
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot/out/T04-F0-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 1574,
+     "stream_sha256": "a36f9c163b16b1448d43127eceaedb490fa9e4913dab44b8844bbca5d77af2ee",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "proven",
+         "L3->L4_witness": {
+          "from": "L3:sq_execute@t237950940537",
+          "to": "L4:taint_reg@t237951293850",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path"
+          ]
+         },
+         "L4->L5": "missing"
+        },
+        "terminal": "provable_to_L4_then_unknown",
+        "provable_to": "L4",
+        "beyond": "Unknown",
+        "event_count": 1574,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4",
+         "101"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Crash"
+     },
+     "check_admission": {
+      "run_id": "T04-F0-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "provable_to_L4_then_unknown",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4"
+      ],
+      "violations": [
+       "cross_request_edge: T04-F0-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+       "no_closed_chain_and_no_containment: T04-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T04-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T04-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 1574
+     },
+     "forbidden": [
+      "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+      "l0_inj_before_after_empty"
+     ]
+    }
+   ]
+  },
+  {
+   "run_id": "T04-F2-W4",
+   "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1/prop_evt.txt.gz",
+   "stream_sha256": "f195010367564d61836d369236acc5c1ae30ff7b258221b480895f192287dc0f",
+   "stream_bytes": 50806,
+   "stream_mtime": 1792725235,
+   "stream_status": "COMPLETE",
+   "stream_detail": {
+    "gz_ok": true,
+    "stats_bytes": 383746
+   },
+   "parser_truncated": false,
+   "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+   "event_count": 1574,
+   "activated": 1,
+   "oracle_outcome": "Crash",
+   "oracle_source": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1/chain_report.json",
+   "fault_ids": [
+    "1"
+   ],
+   "check_chain": {
+    "faults": {
+     "1": {
+      "edges": {
+       "L0->L1": "proven",
+       "L0->L1_witness": {
+        "from": "L0:inj@t237950940537",
+        "to": "L1:tlb_lookup@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L1->L2": "proven",
+       "L1->L2_witness": {
+        "from": "L1:tlb_lookup@t237950940537",
+        "to": "L2:tlb_pfn@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L2->L3": "proven",
+       "L2->L3_witness": {
+        "from": "L2:tlb_pfn@t237950940537",
+        "to": "L3:sq_execute@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L3->L4": "proven",
+       "L3->L4_witness": {
+        "from": "L3:sq_execute@t237950940537",
+        "to": "L4:taint_reg@t237951293850",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path"
+        ]
+       },
+       "L4->L5": "missing"
+      },
+      "terminal": "provable_to_L4_then_unknown",
+      "provable_to": "L4",
+      "beyond": "Unknown",
+      "event_count": 1574,
+      "family": "tlb",
+      "path_event_ids": [
+       "0",
+       "1",
+       "2",
+       "4",
+       "101"
+      ]
+     }
+    },
+    "spec_nodes": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "oracle_outcome": "Crash"
+   },
+   "check_admission": {
+    "run_id": "T04-F2-W4",
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "provable_to_L4_then_unknown",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4"
+    ],
+    "violations": [
+     "cross_request_edge: T04-F2-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+     "no_closed_chain_and_no_containment: T04-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T04-F2-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+     "ready_by_chain_end_only: T04-F2-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+    ],
+    "reasons": [],
+    "n_events": 1574
+   },
+   "dominant_fault_id": "1",
+   "family": "tlb",
+   "layers": {
+    "L0": [
+     "inj"
+    ],
+    "L1": [
+     "tlb_lookup"
+    ],
+    "L2": [
+     "tlb_pfn",
+     "tlb_translate",
+     "tlb_translate_result"
+    ],
+    "L3": [
+     "cache_access",
+     "cache_fill",
+     "cache_return",
+     "lq_complete",
+     "lsq_sendfrag",
+     "mem_req",
+     "mshr_alloc",
+     "mshr_fill",
+     "mshr_free",
+     "mshr_merge",
+     "resp",
+     "sq_complete",
+     "sq_execute",
+     "sq_writeback"
+    ],
+    "L4": [
+     "consumer",
+     "errant_commit",
+     "taint_reg"
+    ],
+    "L5": []
+   },
+   "layer_kinds": {
+    "L0": {
+     "inj": 1
+    },
+    "L1": {
+     "tlb_lookup": 1
+    },
+    "L2": {
+     "tlb_pfn": 1,
+     "tlb_translate_result": 1,
+     "tlb_translate": 29
+    },
+    "L3": {
+     "sq_execute": 1,
+     "sq_writeback": 1,
+     "cache_access": 27,
+     "cache_return": 27,
+     "mshr_alloc": 8,
+     "mshr_merge": 8,
+     "mshr_fill": 8,
+     "cache_fill": 8,
+     "mshr_free": 8,
+     "resp": 29,
+     "sq_complete": 1,
+     "lq_complete": 11,
+     "mem_req": 29,
+     "lsq_sendfrag": 29
+    },
+    "L4": {
+     "taint_reg": 19,
+     "errant_commit": 1,
+     "consumer": 1296
+    },
+    "L5": {}
+   },
+   "path_witnesses": [
+    {
+     "layer": "L0",
+     "kind": "inj",
+     "event_id": "0",
+     "parent_event_id": "",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L1",
+     "kind": "tlb_lookup",
+     "event_id": "1",
+     "parent_event_id": "0",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "0",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L2",
+     "kind": "tlb_pfn",
+     "event_id": "2",
+     "parent_event_id": "1",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L3",
+     "kind": "sq_execute",
+     "event_id": "4",
+     "parent_event_id": "3",
+     "tick": "237950940537",
+     "request_id": "",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L4",
+     "kind": "taint_reg",
+     "event_id": "101",
+     "parent_event_id": "100",
+     "tick": "237951293850",
+     "request_id": "391",
+     "walk_id": "",
+     "dyn_inst_seq": "391",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    }
+   ],
+   "correlation": {
+    "fault_ids_present": [
+     "1"
+    ],
+    "chain_event_count": 1574,
+    "parent_ids_contiguous": true,
+    "parent_relation_is_linear": true,
+    "tick_monotonic": true,
+    "path_request_ids": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_request_ids_consistent": false,
+    "path_dyn_inst_seqs": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L3",
+      "sq_execute",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_dyn_inst_seqs_consistent": false,
+    "path_seq_break": [
+     "L0:inj=301",
+     "L1:tlb_lookup=301",
+     "L2:tlb_pfn=301",
+     "L3:sq_execute=301",
+     "L4:taint_reg=391"
+    ],
+    "walk_ids_nonzero": []
+   },
+   "field_gaps": [
+    {
+     "layer": null,
+     "kind": "lsq_push",
+     "field": "sq_idx",
+     "state": "sentinel:-1"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "detection_layer",
+     "state": "sentinel:None"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "corr",
+     "state": "sentinel:none"
+    }
+   ],
+   "checker_missing_metrics": [],
+   "forbidden": [
+    "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+    "l0_inj_before_after_empty"
+   ],
+   "cross_edges": {
+    "path_stamped_request_ids": [
+     "301",
+     "391"
+    ],
+    "chain_stamped_request_id_count": 51
+   },
+   "injection": {
+    "l0_inj": {
+     "kind": "inj",
+     "field": "pfn_to_mapped_page",
+     "before": "",
+     "after": "",
+     "va": "ffffffc009483fa8",
+     "pa": "",
+     "state_before": "",
+     "state_after": "",
+     "dyn_inst_seq": "301"
+    },
+    "l1_witness": {
+     "kind": "tlb_lookup",
+     "field": "post_lookup",
+     "before": "81d75",
+     "after": "0",
+     "state_before": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8",
+     "state_after": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=0;ap=0;mtype=2;page_size=1000;pa=fa8"
+    },
+    "injector_log": "Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x0, FaultType: pfn_to_mapped_page, candidates: 31"
+   },
+   "candidates": [
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1/prop_evt.txt.gz"
+   ],
+   "all_candidates": [
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 1574,
+     "stream_sha256": "f195010367564d61836d369236acc5c1ae30ff7b258221b480895f192287dc0f",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "proven",
+         "L3->L4_witness": {
+          "from": "L3:sq_execute@t237950940537",
+          "to": "L4:taint_reg@t237951293850",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path"
+          ]
+         },
+         "L4->L5": "missing"
+        },
+        "terminal": "provable_to_L4_then_unknown",
+        "provable_to": "L4",
+        "beyond": "Unknown",
+        "event_count": 1574,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4",
+         "101"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Crash"
+     },
+     "check_admission": {
+      "run_id": "T04-F2-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "provable_to_L4_then_unknown",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4"
+      ],
+      "violations": [
+       "cross_request_edge: T04-F2-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+       "no_closed_chain_and_no_containment: T04-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T04-F2-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T04-F2-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 1574
+     },
+     "forbidden": [
+      "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+      "l0_inj_before_after_empty"
+     ]
+    }
+   ]
+  },
+  {
+   "run_id": "T04-F6-W4",
+   "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F6-W4/T04-F6-W4/seed1/prop_evt.txt.gz",
+   "stream_sha256": "c7cf13b8790721a810aa5ea7a33f32046dc4329c68f6eb59688234aa25dc417c",
+   "stream_bytes": 50806,
+   "stream_mtime": 1792725236,
+   "stream_status": "COMPLETE",
+   "stream_detail": {
+    "gz_ok": true,
+    "stats_bytes": 383746
+   },
+   "parser_truncated": false,
+   "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+   "event_count": 1574,
+   "activated": 1,
+   "oracle_outcome": "Crash",
+   "oracle_source": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F6-W4/T04-F6-W4/seed1/chain_report.json",
+   "fault_ids": [
+    "1"
+   ],
+   "check_chain": {
+    "faults": {
+     "1": {
+      "edges": {
+       "L0->L1": "proven",
+       "L0->L1_witness": {
+        "from": "L0:inj@t237950940537",
+        "to": "L1:tlb_lookup@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L1->L2": "proven",
+       "L1->L2_witness": {
+        "from": "L1:tlb_lookup@t237950940537",
+        "to": "L2:tlb_pfn@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L2->L3": "proven",
+       "L2->L3_witness": {
+        "from": "L2:tlb_pfn@t237950940537",
+        "to": "L3:sq_execute@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L3->L4": "proven",
+       "L3->L4_witness": {
+        "from": "L3:sq_execute@t237950940537",
+        "to": "L4:taint_reg@t237951293850",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path"
+        ]
+       },
+       "L4->L5": "missing"
+      },
+      "terminal": "provable_to_L4_then_unknown",
+      "provable_to": "L4",
+      "beyond": "Unknown",
+      "event_count": 1574,
+      "family": "tlb",
+      "path_event_ids": [
+       "0",
+       "1",
+       "2",
+       "4",
+       "101"
+      ]
+     }
+    },
+    "spec_nodes": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "oracle_outcome": "Crash"
+   },
+   "check_admission": {
+    "run_id": "T04-F6-W4",
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "provable_to_L4_then_unknown",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4"
+    ],
+    "violations": [
+     "cross_request_edge: T04-F6-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+     "no_closed_chain_and_no_containment: T04-F6-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T04-F6-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+     "ready_by_chain_end_only: T04-F6-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+    ],
+    "reasons": [],
+    "n_events": 1574
+   },
+   "dominant_fault_id": "1",
+   "family": "tlb",
+   "layers": {
+    "L0": [
+     "inj"
+    ],
+    "L1": [
+     "tlb_lookup"
+    ],
+    "L2": [
+     "tlb_pfn",
+     "tlb_translate",
+     "tlb_translate_result"
+    ],
+    "L3": [
+     "cache_access",
+     "cache_fill",
+     "cache_return",
+     "lq_complete",
+     "lsq_sendfrag",
+     "mem_req",
+     "mshr_alloc",
+     "mshr_fill",
+     "mshr_free",
+     "mshr_merge",
+     "resp",
+     "sq_complete",
+     "sq_execute",
+     "sq_writeback"
+    ],
+    "L4": [
+     "consumer",
+     "errant_commit",
+     "taint_reg"
+    ],
+    "L5": []
+   },
+   "layer_kinds": {
+    "L0": {
+     "inj": 1
+    },
+    "L1": {
+     "tlb_lookup": 1
+    },
+    "L2": {
+     "tlb_pfn": 1,
+     "tlb_translate_result": 1,
+     "tlb_translate": 29
+    },
+    "L3": {
+     "sq_execute": 1,
+     "sq_writeback": 1,
+     "cache_access": 27,
+     "cache_return": 27,
+     "mshr_alloc": 8,
+     "mshr_merge": 8,
+     "mshr_fill": 8,
+     "cache_fill": 8,
+     "mshr_free": 8,
+     "resp": 29,
+     "sq_complete": 1,
+     "lq_complete": 11,
+     "mem_req": 29,
+     "lsq_sendfrag": 29
+    },
+    "L4": {
+     "taint_reg": 19,
+     "errant_commit": 1,
+     "consumer": 1296
+    },
+    "L5": {}
+   },
+   "path_witnesses": [
+    {
+     "layer": "L0",
+     "kind": "inj",
+     "event_id": "0",
+     "parent_event_id": "",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L1",
+     "kind": "tlb_lookup",
+     "event_id": "1",
+     "parent_event_id": "0",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "0",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L2",
+     "kind": "tlb_pfn",
+     "event_id": "2",
+     "parent_event_id": "1",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L3",
+     "kind": "sq_execute",
+     "event_id": "4",
+     "parent_event_id": "3",
+     "tick": "237950940537",
+     "request_id": "",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L4",
+     "kind": "taint_reg",
+     "event_id": "101",
+     "parent_event_id": "100",
+     "tick": "237951293850",
+     "request_id": "391",
+     "walk_id": "",
+     "dyn_inst_seq": "391",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    }
+   ],
+   "correlation": {
+    "fault_ids_present": [
+     "1"
+    ],
+    "chain_event_count": 1574,
+    "parent_ids_contiguous": true,
+    "parent_relation_is_linear": true,
+    "tick_monotonic": true,
+    "path_request_ids": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_request_ids_consistent": false,
+    "path_dyn_inst_seqs": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L3",
+      "sq_execute",
+      "301"
+     ],
+     [
+      "L4",
+      "taint_reg",
+      "391"
+     ]
+    ],
+    "path_dyn_inst_seqs_consistent": false,
+    "path_seq_break": [
+     "L0:inj=301",
+     "L1:tlb_lookup=301",
+     "L2:tlb_pfn=301",
+     "L3:sq_execute=301",
+     "L4:taint_reg=391"
+    ],
+    "walk_ids_nonzero": []
+   },
+   "field_gaps": [
+    {
+     "layer": null,
+     "kind": "lsq_push",
+     "field": "sq_idx",
+     "state": "sentinel:-1"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "detection_layer",
+     "state": "sentinel:None"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "corr",
+     "state": "sentinel:none"
+    }
+   ],
+   "checker_missing_metrics": [],
+   "forbidden": [
+    "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+    "l0_inj_before_after_empty"
+   ],
+   "cross_edges": {
+    "path_stamped_request_ids": [
+     "301",
+     "391"
+    ],
+    "chain_stamped_request_id_count": 51
+   },
+   "injection": {
+    "l0_inj": {
+     "kind": "inj",
+     "field": "pfn_to_mapped_page",
+     "before": "",
+     "after": "",
+     "va": "ffffffc009483fa8",
+     "pa": "",
+     "state_before": "",
+     "state_after": "",
+     "dyn_inst_seq": "301"
+    },
+    "l1_witness": {
+     "kind": "tlb_lookup",
+     "field": "post_lookup",
+     "before": "81d75",
+     "after": "0",
+     "state_before": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8",
+     "state_after": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=0;ap=0;mtype=2;page_size=1000;pa=fa8"
+    },
+    "injector_log": "Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x0, FaultType: pfn_to_mapped_page, candidates: 31"
+   },
+   "candidates": [
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F6-W4/T04-F6-W4/seed1/prop_evt.txt.gz"
+   ],
+   "all_candidates": [
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F6-W4/T04-F6-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 1574,
+     "stream_sha256": "c7cf13b8790721a810aa5ea7a33f32046dc4329c68f6eb59688234aa25dc417c",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "proven",
+         "L3->L4_witness": {
+          "from": "L3:sq_execute@t237950940537",
+          "to": "L4:taint_reg@t237951293850",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path"
+          ]
+         },
+         "L4->L5": "missing"
+        },
+        "terminal": "provable_to_L4_then_unknown",
+        "provable_to": "L4",
+        "beyond": "Unknown",
+        "event_count": 1574,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4",
+         "101"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Crash"
+     },
+     "check_admission": {
+      "run_id": "T04-F6-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "provable_to_L4_then_unknown",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4"
+      ],
+      "violations": [
+       "cross_request_edge: T04-F6-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
+       "no_closed_chain_and_no_containment: T04-F6-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T04-F6-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T04-F6-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 1574
+     },
+     "forbidden": [
+      "cross_request_on_proven_path(L0:301→L1:301→L2:301→L4:391)",
+      "l0_inj_before_after_empty"
+     ]
+    }
+   ]
+  },
+  {
+   "run_id": "T01-F0-W4",
+   "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1/prop_evt.txt.gz",
+   "stream_sha256": "de579336f26b2c6d9e810eaacd9e9e6ec575e0e43a83901bf1f87af13ac2693b",
+   "stream_bytes": 997,
+   "stream_mtime": 1792727091,
+   "stream_status": "COMPLETE",
+   "stream_detail": {
+    "gz_ok": true,
+    "stats_bytes": 427682
+   },
+   "parser_truncated": false,
+   "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+   "event_count": 9,
+   "activated": 1,
+   "oracle_outcome": "Masked",
+   "oracle_source": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1/chain_report.json",
+   "fault_ids": [
+    "1"
+   ],
+   "check_chain": {
+    "faults": {
+     "1": {
+      "edges": {
+       "L0->L1": "proven",
+       "L0->L1_witness": {
+        "from": "L0:inj@t237950940537",
+        "to": "L1:tlb_lookup@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L1->L2": "proven",
+       "L1->L2_witness": {
+        "from": "L1:tlb_lookup@t237950940537",
+        "to": "L2:tlb_pfn@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L2->L3": "proven",
+       "L2->L3_witness": {
+        "from": "L2:tlb_pfn@t237950940537",
+        "to": "L3:sq_execute@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L3->L4": "missing",
+       "L4->L5": "missing"
+      },
+      "terminal": "detected_contained",
+      "provable_to": "L3",
+      "beyond": "",
+      "event_count": 9,
+      "family": "tlb",
+      "path_event_ids": [
+       "0",
+       "1",
+       "2",
+       "4"
+      ]
+     }
+    },
+    "spec_nodes": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "oracle_outcome": "Masked"
+   },
+   "check_admission": {
+    "run_id": "T01-F0-W4",
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "detected_contained",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3"
+    ],
+    "violations": [
+     "no_closed_chain_and_no_containment: T01-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T01-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+     "ready_by_chain_end_only: T01-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+    ],
+    "reasons": [],
+    "n_events": 9
+   },
+   "dominant_fault_id": "1",
+   "family": "tlb",
+   "layers": {
+    "L0": [
+     "inj"
+    ],
+    "L1": [
+     "tlb_lookup"
+    ],
+    "L2": [
+     "tlb_pfn"
+    ],
+    "L3": [
+     "resp",
+     "sq_complete",
+     "sq_execute",
+     "sq_writeback"
+    ],
+    "L4": [],
+    "L5": [
+     "tlb_translate_result"
+    ]
+   },
+   "layer_kinds": {
+    "L0": {
+     "inj": 1
+    },
+    "L1": {
+     "tlb_lookup": 1
+    },
+    "L2": {
+     "tlb_pfn": 1
+    },
+    "L3": {
+     "sq_execute": 1,
+     "sq_writeback": 1,
+     "resp": 1,
+     "sq_complete": 1
+    },
+    "L4": {},
+    "L5": {
+     "tlb_translate_result": 1
+    }
+   },
+   "path_witnesses": [
+    {
+     "layer": "L0",
+     "kind": "inj",
+     "event_id": "0",
+     "parent_event_id": "",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L1",
+     "kind": "tlb_lookup",
+     "event_id": "1",
+     "parent_event_id": "0",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "0",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L2",
+     "kind": "tlb_pfn",
+     "event_id": "2",
+     "parent_event_id": "1",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L3",
+     "kind": "sq_execute",
+     "event_id": "4",
+     "parent_event_id": "3",
+     "tick": "237950940537",
+     "request_id": "",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    }
+   ],
+   "correlation": {
+    "fault_ids_present": [
+     "1"
+    ],
+    "chain_event_count": 9,
+    "parent_ids_contiguous": true,
+    "parent_relation_is_linear": true,
+    "tick_monotonic": true,
+    "path_request_ids": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ]
+    ],
+    "path_request_ids_consistent": true,
+    "path_dyn_inst_seqs": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L3",
+      "sq_execute",
+      "301"
+     ]
+    ],
+    "path_dyn_inst_seqs_consistent": true,
+    "path_seq_break": [
+     "L0:inj=301",
+     "L1:tlb_lookup=301",
+     "L2:tlb_pfn=301",
+     "L3:sq_execute=301"
+    ],
+    "walk_ids_nonzero": []
+   },
+   "field_gaps": [
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "detection_layer",
+     "state": "sentinel:None"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "corr",
+     "state": "sentinel:none"
+    }
+   ],
+   "checker_missing_metrics": [],
+   "forbidden": [
+    "l0_inj_before_after_empty"
+   ],
+   "cross_edges": {
+    "path_stamped_request_ids": [
+     "301"
+    ],
+    "chain_stamped_request_id_count": 1
+   },
+   "injection": {
+    "l0_inj": {
+     "kind": "inj",
+     "field": "bit_flip",
+     "before": "",
+     "after": "",
+     "va": "ffffffc009483fa8",
+     "pa": "",
+     "state_before": "",
+     "state_after": "",
+     "dyn_inst_seq": "301"
+    },
+    "l1_witness": {
+     "kind": "tlb_lookup",
+     "field": "post_lookup",
+     "before": "81d75",
+     "after": "100000000081d75",
+     "state_before": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8",
+     "state_after": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=100000000081d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8"
+    },
+    "injector_log": "protection: model=none bits=1 -> Raw\nTick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x100000000081d75, FaultType: bit_flip, Mask: 0x100000000000000"
+   },
+   "candidates": [
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1/prop_evt.txt.gz"
+   ],
+   "all_candidates": [
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 9,
+     "stream_sha256": "de579336f26b2c6d9e810eaacd9e9e6ec575e0e43a83901bf1f87af13ac2693b",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "missing",
+         "L4->L5": "missing"
+        },
+        "terminal": "detected_contained",
+        "provable_to": "L3",
+        "beyond": "",
+        "event_count": 9,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Masked"
+     },
+     "check_admission": {
+      "run_id": "T01-F0-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "detected_contained",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3"
+      ],
+      "violations": [
+       "no_closed_chain_and_no_containment: T01-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T01-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T01-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 9
+     },
+     "forbidden": [
+      "l0_inj_before_after_empty"
+     ]
+    }
+   ]
+  },
+  {
+   "run_id": "T01-F1-W4",
+   "stream_status": "MISSING",
+   "stream": null,
+   "candidates": []
+  },
+  {
+   "run_id": "T01-F2-W4",
+   "stream_status": "MISSING",
+   "stream": null,
+   "candidates": []
+  },
+  {
+   "run_id": "T03-F5-W4",
+   "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_I_T03-F5-W4/T03-F5-W4/seed1/prop_evt.txt.gz",
+   "stream_sha256": "986ebb2288a673125d3b98eb64cc02aafd4b0efecc254bf6b1e514078c885be3",
+   "stream_bytes": 930,
+   "stream_mtime": 1792727933,
+   "stream_status": "TRUNCATED",
+   "stream_detail": {
+    "gz_ok": false,
+    "gz_error": "EOFError: Compressed file ended before the end-of-stream marker was reached",
+    "stats_bytes": 0
+   },
+   "parser_truncated": true,
+   "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+   "event_count": 8,
+   "activated": 1,
+   "oracle_outcome": null,
+   "oracle_source": null,
+   "fault_ids": [
+    "1"
+   ],
+   "check_chain": {
+    "faults": {
+     "1": {
+      "edges": {
+       "L0->L1": "proven",
+       "L0->L1_witness": {
+        "from": "L0:inj@t237950940537",
+        "to": "L1:tlb_lookup@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L1->L2": "proven",
+       "L1->L2_witness": {
+        "from": "L1:tlb_lookup@t237950940537",
+        "to": "L2:tlb_pfn@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L2->L3": "proven",
+       "L2->L3_witness": {
+        "from": "L2:tlb_pfn@t237950940537",
+        "to": "L3:sq_execute@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L3->L4": "missing",
+       "L4->L5": "missing"
+      },
+      "terminal": "detected_contained",
+      "provable_to": "L3",
+      "beyond": "",
+      "event_count": 8,
+      "family": "tlb",
+      "path_event_ids": [
+       "0",
+       "1",
+       "2",
+       "4"
+      ]
+     }
+    },
+    "spec_nodes": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "oracle_outcome": null
+   },
+   "check_admission": {
+    "run_id": "T03-F5-W4",
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "detected_contained",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3"
+    ],
+    "violations": [
+     "no_closed_chain_and_no_containment: T03-F5-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T03-F5-W4 activated=1 本身不是 READY 依据（须完整链或 containment）"
+    ],
+    "reasons": [],
+    "n_events": 8
+   },
+   "dominant_fault_id": "1",
+   "family": "tlb",
+   "layers": {
+    "L0": [
+     "inj"
+    ],
+    "L1": [
+     "tlb_lookup"
+    ],
+    "L2": [
+     "tlb_pfn"
+    ],
+    "L3": [
+     "resp",
+     "sq_complete",
+     "sq_execute",
+     "sq_writeback"
+    ],
+    "L4": [],
+    "L5": [
+     "tlb_translate_result"
+    ]
+   },
+   "layer_kinds": {
+    "L0": {
+     "inj": 1
+    },
+    "L1": {
+     "tlb_lookup": 1
+    },
+    "L2": {
+     "tlb_pfn": 1
+    },
+    "L3": {
+     "sq_execute": 1,
+     "sq_writeback": 1,
+     "resp": 1,
+     "sq_complete": 1
+    },
+    "L4": {},
+    "L5": {
+     "tlb_translate_result": 1
+    }
+   },
+   "path_witnesses": [
+    {
+     "layer": "L0",
+     "kind": "inj",
+     "event_id": "0",
+     "parent_event_id": "",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L1",
+     "kind": "tlb_lookup",
+     "event_id": "1",
+     "parent_event_id": "0",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "0",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L2",
+     "kind": "tlb_pfn",
+     "event_id": "2",
+     "parent_event_id": "1",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L3",
+     "kind": "sq_execute",
+     "event_id": "4",
+     "parent_event_id": "3",
+     "tick": "237950940537",
+     "request_id": "",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    }
+   ],
+   "correlation": {
+    "fault_ids_present": [
+     "1"
+    ],
+    "chain_event_count": 8,
+    "parent_ids_contiguous": true,
+    "parent_relation_is_linear": true,
+    "tick_monotonic": true,
+    "path_request_ids": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ]
+    ],
+    "path_request_ids_consistent": true,
+    "path_dyn_inst_seqs": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L3",
+      "sq_execute",
+      "301"
+     ]
+    ],
+    "path_dyn_inst_seqs_consistent": true,
+    "path_seq_break": [
+     "L0:inj=301",
+     "L1:tlb_lookup=301",
+     "L2:tlb_pfn=301",
+     "L3:sq_execute=301"
+    ],
+    "walk_ids_nonzero": []
+   },
+   "field_gaps": [],
+   "checker_missing_metrics": [],
+   "forbidden": [],
+   "cross_edges": {
+    "path_stamped_request_ids": [
+     "301"
+    ],
+    "chain_stamped_request_id_count": 1
+   },
+   "injection": {
+    "l0_inj": {
+     "kind": "inj",
+     "field": "stuck_at_zero",
+     "before": "81d75",
+     "after": "81d75",
+     "va": "ffffffc009483fa8",
+     "pa": "",
+     "state_before": "",
+     "state_after": "",
+     "dyn_inst_seq": "301"
+    },
+    "l1_witness": {
+     "kind": "tlb_lookup",
+     "field": "post_lookup",
+     "before": "81d75",
+     "after": "81d75",
+     "state_before": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8",
+     "state_after": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8"
+    },
+    "injector_log": "protection: model=none bits=1 -> Raw\nTick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x81d75, FaultType: stuck_at_zero, Mask: 0x100000000000000"
+   },
+   "candidates": [
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_I_T03-F5-W4/T03-F5-W4/seed1/prop_evt.txt.gz"
+   ],
+   "all_candidates": [
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_I_T03-F5-W4/T03-F5-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "TRUNCATED",
+     "event_count": 8,
+     "stream_sha256": "986ebb2288a673125d3b98eb64cc02aafd4b0efecc254bf6b1e514078c885be3",
+     "parser_truncated": true,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "missing",
+         "L4->L5": "missing"
+        },
+        "terminal": "detected_contained",
+        "provable_to": "L3",
+        "beyond": "",
+        "event_count": 8,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": null
+     },
+     "check_admission": {
+      "run_id": "T03-F5-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "detected_contained",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3"
+      ],
+      "violations": [
+       "no_closed_chain_and_no_containment: T03-F5-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T03-F5-W4 activated=1 本身不是 READY 依据（须完整链或 containment）"
+      ],
+      "reasons": [],
+      "n_events": 8
+     },
+     "forbidden": []
+    }
+   ]
+  },
+  {
+   "run_id": "T10-F0-W4",
+   "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz",
+   "stream_sha256": "d2c94fcf42d89215f1ca8713d527b5fd11934db0a75978ffefb8992d4d4cc762",
+   "stream_bytes": 997,
+   "stream_mtime": 1792727086,
+   "stream_status": "COMPLETE",
+   "stream_detail": {
+    "gz_ok": true,
+    "stats_bytes": 427682
+   },
+   "parser_truncated": false,
+   "checker_blob": "eba5d4a0b6120e32244e15c31b2c7f808bf43ee9d06c08ccb2120c0e2a5ea0cd",
+   "event_count": 9,
+   "activated": 1,
+   "oracle_outcome": "Masked",
+   "oracle_source": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/chain_report.json",
+   "fault_ids": [
+    "1"
+   ],
+   "check_chain": {
+    "faults": {
+     "1": {
+      "edges": {
+       "L0->L1": "proven",
+       "L0->L1_witness": {
+        "from": "L0:inj@t237950940537",
+        "to": "L1:tlb_lookup@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L1->L2": "proven",
+       "L1->L2_witness": {
+        "from": "L1:tlb_lookup@t237950940537",
+        "to": "L2:tlb_pfn@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L2->L3": "proven",
+       "L2->L3_witness": {
+        "from": "L2:tlb_pfn@t237950940537",
+        "to": "L3:sq_execute@t237950940537",
+        "shared_keys": [
+         "fault_id",
+         "parent_event_path",
+         "dyn_inst_seq"
+        ]
+       },
+       "L3->L4": "missing",
+       "L4->L5": "missing"
+      },
+      "terminal": "detected_contained",
+      "provable_to": "L3",
+      "beyond": "",
+      "event_count": 9,
+      "family": "tlb",
+      "path_event_ids": [
+       "0",
+       "1",
+       "2",
+       "4"
+      ]
+     }
+    },
+    "spec_nodes": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "oracle_outcome": "Masked"
+   },
+   "check_admission": {
+    "run_id": "T10-F0-W4",
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "detected_contained",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3"
+    ],
+    "violations": [
+     "no_closed_chain_and_no_containment: T10-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T10-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+     "ready_by_chain_end_only: T10-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+    ],
+    "reasons": [],
+    "n_events": 9
+   },
+   "dominant_fault_id": "1",
+   "family": "tlb",
+   "layers": {
+    "L0": [
+     "inj"
+    ],
+    "L1": [
+     "tlb_lookup"
+    ],
+    "L2": [
+     "tlb_pfn"
+    ],
+    "L3": [
+     "resp",
+     "sq_complete",
+     "sq_execute",
+     "sq_writeback"
+    ],
+    "L4": [],
+    "L5": [
+     "tlb_translate_result"
+    ]
+   },
+   "layer_kinds": {
+    "L0": {
+     "inj": 1
+    },
+    "L1": {
+     "tlb_lookup": 1
+    },
+    "L2": {
+     "tlb_pfn": 1
+    },
+    "L3": {
+     "sq_execute": 1,
+     "sq_writeback": 1,
+     "resp": 1,
+     "sq_complete": 1
+    },
+    "L4": {},
+    "L5": {
+     "tlb_translate_result": 1
+    }
+   },
+   "path_witnesses": [
+    {
+     "layer": "L0",
+     "kind": "inj",
+     "event_id": "0",
+     "parent_event_id": "",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L1",
+     "kind": "tlb_lookup",
+     "event_id": "1",
+     "parent_event_id": "0",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "0",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L2",
+     "kind": "tlb_pfn",
+     "event_id": "2",
+     "parent_event_id": "1",
+     "tick": "237950940537",
+     "request_id": "301",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    },
+    {
+     "layer": "L3",
+     "kind": "sq_execute",
+     "event_id": "4",
+     "parent_event_id": "3",
+     "tick": "237950940537",
+     "request_id": "",
+     "walk_id": "",
+     "dyn_inst_seq": "301",
+     "detection_layer": "",
+     "contained": "",
+     "outcome": ""
+    }
+   ],
+   "correlation": {
+    "fault_ids_present": [
+     "1"
+    ],
+    "chain_event_count": 9,
+    "parent_ids_contiguous": true,
+    "parent_relation_is_linear": true,
+    "tick_monotonic": true,
+    "path_request_ids": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ]
+    ],
+    "path_request_ids_consistent": true,
+    "path_dyn_inst_seqs": [
+     [
+      "L0",
+      "inj",
+      "301"
+     ],
+     [
+      "L1",
+      "tlb_lookup",
+      "301"
+     ],
+     [
+      "L2",
+      "tlb_pfn",
+      "301"
+     ],
+     [
+      "L3",
+      "sq_execute",
+      "301"
+     ]
+    ],
+    "path_dyn_inst_seqs_consistent": true,
+    "path_seq_break": [
+     "L0:inj=301",
+     "L1:tlb_lookup=301",
+     "L2:tlb_pfn=301",
+     "L3:sq_execute=301"
+    ],
+    "walk_ids_nonzero": []
+   },
+   "field_gaps": [
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "detection_layer",
+     "state": "sentinel:None"
+    },
+    {
+     "layer": null,
+     "kind": "chain_end",
+     "field": "corr",
+     "state": "sentinel:none"
+    }
+   ],
+   "checker_missing_metrics": [],
+   "forbidden": [
+    "l0_inj_before_after_empty"
+   ],
+   "cross_edges": {
+    "path_stamped_request_ids": [
+     "301"
+    ],
+    "chain_stamped_request_id_count": 1
+   },
+   "injection": {
+    "l0_inj": {
+     "kind": "inj",
+     "field": "bit_flip",
+     "before": "",
+     "after": "",
+     "va": "ffffffc009483fa8",
+     "pa": "",
+     "state_before": "",
+     "state_after": "",
+     "dyn_inst_seq": "301"
+    },
+    "l1_witness": {
+     "kind": "tlb_lookup",
+     "field": "post_lookup",
+     "before": "81d75",
+     "after": "100000000081d75",
+     "state_before": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8",
+     "state_after": "vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=100000000081d75;ap=0;mtype=2;page_size=1000;pa=81d75fa8"
+    },
+    "injector_log": "protection: model=none bits=1 -> Raw\nTick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x100000000081d75, FaultType: bit_flip, Mask: 0x100000000000000"
+   },
+   "candidates": [
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz",
+    "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_E_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz"
+   ],
+   "all_candidates": [
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "COMPLETE",
+     "event_count": 9,
+     "stream_sha256": "d2c94fcf42d89215f1ca8713d527b5fd11934db0a75978ffefb8992d4d4cc762",
+     "parser_truncated": false,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "missing",
+         "L4->L5": "missing"
+        },
+        "terminal": "detected_contained",
+        "provable_to": "L3",
+        "beyond": "",
+        "event_count": 9,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Masked"
+     },
+     "check_admission": {
+      "run_id": "T10-F0-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "detected_contained",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3"
+      ],
+      "violations": [
+       "no_closed_chain_and_no_containment: T10-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T10-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+       "ready_by_chain_end_only: T10-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+      ],
+      "reasons": [],
+      "n_events": 9
+     },
+     "forbidden": [
+      "l0_inj_before_after_empty"
+     ]
+    },
+    {
+     "stream": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_E_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz",
+     "stream_status": "TRUNCATED",
+     "event_count": 8,
+     "stream_sha256": "eec2c41c5e6ce6aaa0e4f029f96fd0bef8ee188fe5ee9f62cfac4d5f8fe179a8",
+     "parser_truncated": true,
+     "check_chain": {
+      "faults": {
+       "1": {
+        "edges": {
+         "L0->L1": "proven",
+         "L0->L1_witness": {
+          "from": "L0:inj@t237950940537",
+          "to": "L1:tlb_lookup@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L1->L2": "proven",
+         "L1->L2_witness": {
+          "from": "L1:tlb_lookup@t237950940537",
+          "to": "L2:tlb_pfn@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L2->L3": "proven",
+         "L2->L3_witness": {
+          "from": "L2:tlb_pfn@t237950940537",
+          "to": "L3:sq_execute@t237950940537",
+          "shared_keys": [
+           "fault_id",
+           "parent_event_path",
+           "dyn_inst_seq"
+          ]
+         },
+         "L3->L4": "missing",
+         "L4->L5": "missing"
+        },
+        "terminal": "detected_contained",
+        "provable_to": "L3",
+        "beyond": "",
+        "event_count": 8,
+        "family": "tlb",
+        "path_event_ids": [
+         "0",
+         "1",
+         "2",
+         "4"
+        ]
+       }
+      },
+      "spec_nodes": [
+       "L0",
+       "L1",
+       "L2",
+       "L3",
+       "L4",
+       "L5"
+      ],
+      "oracle_outcome": "Timeout"
+     },
+     "check_admission": {
+      "run_id": "T10-F0-W4",
+      "applicable": true,
+      "admitted": false,
+      "path": null,
+      "terminal": "detected_contained",
+      "family": "tlb",
+      "path_layers": [
+       "L0",
+       "L1",
+       "L2",
+       "L3"
+      ],
+      "violations": [
+       "no_closed_chain_and_no_containment: T10-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+       "ready_by_activated_only: T10-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）"
+      ],
+      "reasons": [],
+      "n_events": 8
+     },
+     "forbidden": [
+      "l0_inj_before_after_empty"
+     ]
+    }
+   ]
+  },
+  {
+   "run_id": "T10-F1-W4",
+   "stream_status": "MISSING",
+   "stream": null,
+   "candidates": []
+  },
+  {
+   "run_id": "T10-F2-W4",
+   "stream_status": "MISSING",
+   "stream": null,
+   "candidates": []
+  }
+ ]
+}

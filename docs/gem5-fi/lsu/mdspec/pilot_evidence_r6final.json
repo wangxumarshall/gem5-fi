@@ -1,0 +1,3172 @@
+{
+ "generated_by": "tools/lsu_r6_register_evidence.py",
+ "generated_at": "2026-10-23T04:37:11+00:00",
+ "generator_repo_head": "040688f2",
+ "evidence_root": "/home/sdc/gem5-fi-ding",
+ "runs_roots": [
+  {
+   "path": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "volatile": false,
+   "prop_evt_found": 38
+  }
+ ],
+ "fault_count_method": [
+  "lsu_chain_check._group_by_fault"
+ ],
+ "schema_note": "字段与 tools/lsu_pilot_evidence.py 同构；额外字段：path_kind/truncated_reasons/seed/runs_root/shadowed_paths 及本文件顶层元数据。门禁只读 pilots。",
+ "pilots": {
+  "L01-F0-W5-seed1": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_lq_L01-F0-W5_s6/L01-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 8,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "shadowed_paths": [
+    "r6_lq_L01-F0-W5/L01-F0-W5/seed1/prop_evt.txt.gz"
+   ]
+  },
+  "L01-F0-W5-seed2": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_lq_L01-F0-W5_s6/L01-F0-W5/seed2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 7,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 1,
+   "seed": 2,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "L01-F0-W5-seed3": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_lq_L01-F0-W5_s6/L01-F0-W5/seed3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lq_complete",
+    "lq_read",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "taint_reg",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 3,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "L01-F0-W5-seed4": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_lq_L01-F0-W5_s6/L01-F0-W5/seed4/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lq_read",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "taint_reg",
+    "tlb_translate"
+   ],
+   "events": 21,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 4,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "L01-F0-W5-seed5": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_lq_L01-F0-W5_s6/L01-F0-W5/seed5/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 7,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 1,
+   "seed": 5,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "L01-F0-W5-seed6": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_lq_L01-F0-W5_s6/L01-F0-W5/seed6/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 7,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 1,
+   "seed": 6,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "O01-F0-W7-seed1": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_mc_O01-F0-W7/O01-F0-W7/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 222056,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "O02-F0-W7-seed1": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_mc_O02-F0-W7/O02-F0-W7/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 222056,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "O02-F5-W7-seed1": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_mc_O02-F5-W7/O02-F5-W7/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 224700,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 104,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "O03-F0-W7-seed1": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_mc_O03-F0-W7/O03-F0-W7/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 0,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S01-F0-W5-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S01-F0-W5/S01-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "lsq_fwd",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 30,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S01-F0-W5-seed2": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S01-F0-W5/S01-F0-W5/seed2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "lsq_fwd",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 26,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 2,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S01-F0-W5-seed3": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S01-F0-W5/S01-F0-W5/seed3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "lsq_fwd",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 42,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 3,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S04-F0-W5-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "shadowed_paths": [
+    "r6_sq_S04-F0-W5/S04-F0-W5/seed1/prop_evt.txt.gz"
+   ]
+  },
+  "S04-F0-W5-seed2": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5/seed2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 2,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S04-F0-W5-seed3": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5/seed3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 3,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S04-F0-W5-seed4": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5/seed4/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 4,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S04-F0-W5-seed5": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5/seed5/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 5,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "S04-F0-W5-seed6": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5/seed6/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 6,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T01-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_lookup",
+    "tlb_pfn",
+    "tlb_translate_result"
+   ],
+   "events": 9,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T02-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_merge",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "taint_reg",
+    "tlb_lookup",
+    "tlb_pfn",
+    "tlb_translate_result"
+   ],
+   "events": 186,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T03-F5-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_I_T03-F5-W4/T03-F5-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "inj",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_lookup",
+    "tlb_pfn",
+    "tlb_translate_result"
+   ],
+   "events": 8,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T04-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_fill",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "taint_reg",
+    "tlb_lookup",
+    "tlb_pfn",
+    "tlb_translate",
+    "tlb_translate_result"
+   ],
+   "events": 1574,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "shadowed_paths": [
+    "r6_tlb_verify/out/T04-F0-W4/seed1/prop_evt.txt.gz",
+    "r6_tlb_pilot/out/T04-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  },
+  "T04-F2-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_fill",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "taint_reg",
+    "tlb_lookup",
+    "tlb_pfn",
+    "tlb_translate",
+    "tlb_translate_result"
+   ],
+   "events": 1574,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T04-F6-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_G_T04-F6-W4/T04-F6-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_fill",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "taint_reg",
+    "tlb_lookup",
+    "tlb_pfn",
+    "tlb_translate",
+    "tlb_translate_result"
+   ],
+   "events": 1574,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T05-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_pilot2/T05-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "tlb_lookup",
+    "tlb_state",
+    "tlb_translate_result"
+   ],
+   "events": 5,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "shadowed_paths": [
+    "r6_tlb_verify/out/T05-F0-W4/seed1/prop_evt.txt.gz",
+    "r6_tlb_pilot/out/T05-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  },
+  "T06-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_D_T06-F0-W4/T06-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "inj",
+    "tlb_lookup",
+    "tlb_state",
+    "tlb_translate_result"
+   ],
+   "events": 4,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T07-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_pilot2/T07-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "inj",
+    "tlb_lookup",
+    "tlb_state",
+    "tlb_translate_result"
+   ],
+   "events": 4,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+  },
+  "T08-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "inj",
+    "tlb_lookup",
+    "tlb_refill",
+    "tlb_translate_result",
+    "tlb_walk"
+   ],
+   "events": 5,
+   "truncated": true,
+   "truncated_reasons": [
+    "gzip_read_incomplete"
+   ],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "shadowed_paths": [
+    "r6_tlb_verify/out/T08-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  },
+  "T10-F0-W4-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_lookup",
+    "tlb_pfn",
+    "tlb_translate_result"
+   ],
+   "events": 9,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 1,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "shadowed_paths": [
+    "r6_tlb_E_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  },
+  "A01-F0-W3-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10/A01-F0-W3/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_sendfrag",
+    "mem_req",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 6,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A04-F0-W3-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/A04-F0-W3/s1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lq_read",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "taint_reg",
+    "tlb_translate"
+   ],
+   "events": 33,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A06-F0-W3-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_a06/A06-F0-W3/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_a06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A06-F0-W5-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_a06/A06-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 11,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_a06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A07-F0-W3-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 10,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A07-F0-W5-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_execute",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 10,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A07-F4-W3-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A07-F4-W5-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A07-F6-W3-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lq_read",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "taint_reg",
+    "tlb_translate"
+   ],
+   "events": 234,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A07-F6-W5-seed1": {
+   "unit": "AGU",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lq_read",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "taint_reg",
+    "tlb_translate"
+   ],
+   "events": 234,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C01-F0-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10/C01-F0-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 188,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-F0-W10-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 206,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-F0-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 206,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C11-F0-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 11221,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C11-F6-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5i1_f6_postfix/C11-F6-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_fill",
+    "cache_return",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 184,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5i1_f6_postfix",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C12-F0-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_fill",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_fill",
+    "mshr_free",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 6040,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C12-F6-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t52_c12f6w6/C12-F6-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 600,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t52_c12f6w6",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C14-F5-W10-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_busy",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 8,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C14-F5-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_busy",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 8,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C15-F0-W10-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C15-F0-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C15-F4-W10-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C15-F4-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C15-F6-W10-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C15-F6-W6-seed1": {
+   "unit": "L1d-Cache",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "L04-F0-W12-seed1": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 13,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "L04-F0-W5-seed1": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 11,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "L04-F2-W12-seed1": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "L04-F2-W5-seed1": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "L04-F6-W12-seed1": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 14,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "L04-F6-W5-seed1": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 14,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P01-F0-W8-seed1": {
+   "unit": "数据预取器",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/P01-F0-W8/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "pf_demand",
+    "pf_fill",
+    "pf_issue",
+    "pf_queue",
+    "pf_train",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 630,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P06-F0-W6-seed1": {
+   "unit": "数据预取器",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "pf_demand",
+    "pf_fill",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 24780,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P06-F0-W8-seed1": {
+   "unit": "数据预取器",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P06-F2-W6-seed1": {
+   "unit": "数据预取器",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P06-F2-W8-seed1": {
+   "unit": "数据预取器",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P06-F6-W6-seed1": {
+   "unit": "数据预取器",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "pf_demand",
+    "pf_fill",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 99,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P06-F6-W8-seed1": {
+   "unit": "数据预取器",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "pf_demand",
+    "pf_fill",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 99,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S02-F0-W5-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "lsq_fwd",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 30,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S05-F0-W5-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 9,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S10-F0-W5-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "ssit_consult"
+   ],
+   "events": 3,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S10-F0-W9-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "ssit_consult"
+   ],
+   "events": 3,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S10-F2-W5-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S10-F2-W9-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W9/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 0,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S10-F5-W5-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "ssit_consult"
+   ],
+   "events": 9,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 3,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "S10-F5-W9-seed1": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "ssit_consult",
+    "ssit_violation"
+   ],
+   "events": 46087,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 4,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "T08-F0-W9-seed1": {
+   "unit": "L1d-TLB",
+   "unit_source": "exact",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t6_pilot2/T08-F0-W9/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "inj",
+    "tlb_refill",
+    "tlb_walk"
+   ],
+   "events": 3,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t6_pilot2",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P01-F0-W8-P03mech": {
+   "unit": "数据预取器",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/_h5mech/P03/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "pf_demand",
+    "pf_fill",
+    "pf_issue",
+    "pf_queue",
+    "pf_train",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 475,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C4-cache_dirtyevict": {
+   "unit": null,
+   "unit_source": null,
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/_mshr/cache_dirtyevict_c5000/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 438,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 2,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C4-stream_chase": {
+   "unit": null,
+   "unit_source": null,
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/_mshr/stream_chase_c5000/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 442,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 2,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "A01-F0-W3-campaign": {
+   "unit": "AGU",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/A01-F0-W3/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_sendfrag",
+    "mem_req",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 6,
+   "truncated": true,
+   "truncated_reasons": [
+    "carried_over_flag"
+   ],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "P01-F0-W8-campaign": {
+   "unit": "数据预取器",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/P01-F0-W8/seed1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "pf_demand",
+    "pf_fill",
+    "pf_issue",
+    "pf_queue",
+    "pf_train",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 630,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-R4T3-MSHRREF-s1": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_mshr/s1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 172920,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-R4T3-MSHRREF-s2": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_mshr/s2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 171672,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-R4T3-MSHRREF-s3": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_mshr/s3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 177134,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-R4T3-MSHRREF-s4": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_mshr/s4/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 177789,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-R4T3-MSHRREF-s5": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_mshr/s5/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 172313,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C09-R4T3-MSHRREF-s6": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_mshr/s6/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 170424,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C11-R4T5-MSHRREF-s1": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11_mshrref/s1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 19822,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C11-R4T5-MSHRREF-s2": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11_mshrref/s2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 128916,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C11-R4T5-MSHRREF-s3": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11_mshrref/s3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 48833,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C12-R4T52-MSHRREF-s1": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t52_c12_mshrref/s1/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 68605,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C12-R4T52-MSHRREF-s2": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t52_c12_mshrref/s2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 73567,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "C12-R4T52-MSHRREF-s3": {
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t52_c12_mshrref/s3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_alloc",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 89903,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": null,
+   "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
+   "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  }
+ },
+ "kinds_observed": [
+  "addr_form",
+  "cache_access",
+  "cache_evict",
+  "cache_fill",
+  "cache_return",
+  "cache_writeback",
+  "chain_end",
+  "consumer",
+  "errant_commit",
+  "exmon_monitor",
+  "exmon_rmw",
+  "exmon_stxr",
+  "inj",
+  "lq_complete",
+  "lq_read",
+  "lsq_fwd",
+  "lsq_push",
+  "lsq_sendfrag",
+  "mem_req",
+  "mshr_alloc",
+  "mshr_busy",
+  "mshr_fill",
+  "mshr_free",
+  "mshr_merge",
+  "pf_demand",
+  "pf_fill",
+  "pf_issue",
+  "pf_queue",
+  "pf_train",
+  "resp",
+  "sq_complete",
+  "sq_execute",
+  "sq_writeback",
+  "ssit_consult",
+  "ssit_violation",
+  "taint_reg",
+  "tlb_fault",
+  "tlb_lookup",
+  "tlb_pfn",
+  "tlb_refill",
+  "tlb_state",
+  "tlb_translate",
+  "tlb_translate_result",
+  "tlb_walk"
+ ],
+ "kinds_observed_by_unit": {
+  "Load Queue": [
+   "addr_form",
+   "chain_end",
+   "consumer",
+   "errant_commit",
+   "inj",
+   "lq_complete",
+   "lq_read",
+   "lsq_push",
+   "lsq_sendfrag",
+   "mem_req",
+   "resp",
+   "taint_reg",
+   "tlb_fault",
+   "tlb_translate"
+  ],
+  "原子与同步": [
+   "addr_form",
+   "chain_end",
+   "consumer",
+   "errant_commit",
+   "exmon_monitor",
+   "exmon_rmw",
+   "exmon_stxr",
+   "inj",
+   "lq_complete",
+   "resp",
+   "taint_reg"
+  ],
+  "Store Queue": [
+   "addr_form",
+   "chain_end",
+   "inj",
+   "lsq_fwd",
+   "lsq_push",
+   "lsq_sendfrag",
+   "mem_req",
+   "resp",
+   "sq_complete",
+   "sq_execute",
+   "sq_writeback",
+   "ssit_consult",
+   "ssit_violation",
+   "tlb_translate"
+  ],
+  "L1d-TLB": [
+   "cache_access",
+   "cache_fill",
+   "cache_return",
+   "chain_end",
+   "consumer",
+   "errant_commit",
+   "inj",
+   "lq_complete",
+   "lsq_push",
+   "lsq_sendfrag",
+   "mem_req",
+   "mshr_alloc",
+   "mshr_fill",
+   "mshr_free",
+   "mshr_merge",
+   "resp",
+   "sq_complete",
+   "sq_execute",
+   "sq_writeback",
+   "taint_reg",
+   "tlb_lookup",
+   "tlb_pfn",
+   "tlb_refill",
+   "tlb_state",
+   "tlb_translate",
+   "tlb_translate_result",
+   "tlb_walk"
+  ],
+  "AGU": [
+   "addr_form",
+   "chain_end",
+   "consumer",
+   "errant_commit",
+   "inj",
+   "lq_complete",
+   "lq_read",
+   "lsq_push",
+   "lsq_sendfrag",
+   "mem_req",
+   "resp",
+   "sq_complete",
+   "sq_execute",
+   "sq_writeback",
+   "taint_reg",
+   "tlb_fault",
+   "tlb_translate"
+  ],
+  "L1d-Cache": [
+   "cache_access",
+   "cache_evict",
+   "cache_fill",
+   "cache_return",
+   "cache_writeback",
+   "chain_end",
+   "consumer",
+   "errant_commit",
+   "inj",
+   "lq_complete",
+   "mshr_alloc",
+   "mshr_busy",
+   "mshr_fill",
+   "mshr_free",
+   "mshr_merge",
+   "resp",
+   "taint_reg"
+  ],
+  "数据预取器": [
+   "cache_access",
+   "cache_evict",
+   "cache_fill",
+   "cache_return",
+   "cache_writeback",
+   "chain_end",
+   "consumer",
+   "errant_commit",
+   "inj",
+   "lq_complete",
+   "mshr_alloc",
+   "mshr_fill",
+   "mshr_free",
+   "mshr_merge",
+   "pf_demand",
+   "pf_fill",
+   "pf_issue",
+   "pf_queue",
+   "pf_train",
+   "resp",
+   "taint_reg"
+  ]
+ },
+ "truncated_keys": [
+  "A01-F0-W3-campaign",
+  "A01-F0-W3-seed1",
+  "C14-F5-W10-seed1",
+  "C14-F5-W6-seed1",
+  "C15-F0-W10-seed1",
+  "C15-F0-W6-seed1",
+  "C15-F6-W10-seed1",
+  "C15-F6-W6-seed1",
+  "L01-F0-W5-seed2",
+  "L01-F0-W5-seed5",
+  "L01-F0-W5-seed6",
+  "L04-F0-W5-seed1",
+  "O03-F0-W7-seed1",
+  "S05-F0-W5-seed1",
+  "T03-F5-W4-seed1",
+  "T06-F0-W4-seed1",
+  "T07-F0-W4-seed1",
+  "T08-F0-W4-seed1",
+  "T08-F0-W9-seed1"
+ ],
+ "duplicate_keys": [
+  {
+   "key": "L01-F0-W5-seed1",
+   "chosen": "/home/sdc/gem5-fi-ding/runs/lsu/r6_lq_L01-F0-W5_s6/L01-F0-W5/seed1/prop_evt.txt.gz",
+   "shadowed": [
+    "r6_lq_L01-F0-W5/L01-F0-W5/seed1/prop_evt.txt.gz"
+   ]
+  },
+  {
+   "key": "S04-F0-W5-seed1",
+   "chosen": "/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S04-F0-W5_s6/S04-F0-W5/seed1/prop_evt.txt.gz",
+   "shadowed": [
+    "r6_sq_S04-F0-W5/S04-F0-W5/seed1/prop_evt.txt.gz"
+   ]
+  },
+  {
+   "key": "T04-F0-W4-seed1",
+   "chosen": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/prop_evt.txt.gz",
+   "shadowed": [
+    "r6_tlb_verify/out/T04-F0-W4/seed1/prop_evt.txt.gz",
+    "r6_tlb_pilot/out/T04-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  },
+  {
+   "key": "T05-F0-W4-seed1",
+   "chosen": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T05-F0-W4/seed1/prop_evt.txt.gz",
+   "shadowed": [
+    "r6_tlb_verify/out/T05-F0-W4/seed1/prop_evt.txt.gz",
+    "r6_tlb_pilot/out/T05-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  },
+  {
+   "key": "T08-F0-W4-seed1",
+   "chosen": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/prop_evt.txt.gz",
+   "shadowed": [
+    "r6_tlb_verify/out/T08-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  },
+  {
+   "key": "T10-F0-W4-seed1",
+   "chosen": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz",
+   "shadowed": [
+    "r6_tlb_E_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz"
+   ]
+  }
+ ],
+ "unmatched_prop_evt": [
+  {
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "path": "r6_golden_verify/seed1/prop_evt.txt.gz",
+   "reason": "路径中无矩阵 RunID 段（<RunID> 或 <RunID>-seed<N>）——辅助/机制/探针跑，本工具不冒充 RunID 登记"
+  },
+  {
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "path": "r6_mc_clean_control/prop_evt.txt.gz",
+   "reason": "路径中无矩阵 RunID 段（<RunID> 或 <RunID>-seed<N>）——辅助/机制/探针跑，本工具不冒充 RunID 登记"
+  },
+  {
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "path": "r6_tlb_H2_T02-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "路径中无矩阵 RunID 段（<RunID> 或 <RunID>-seed<N>）——辅助/机制/探针跑，本工具不冒充 RunID 登记"
+  },
+  {
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "path": "r6_tlb_H_T02-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "路径中无矩阵 RunID 段（<RunID> 或 <RunID>-seed<N>）——辅助/机制/探针跑，本工具不冒充 RunID 登记"
+  },
+  {
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "path": "r6_tlb_negative/seed1/prop_evt.txt.gz",
+   "reason": "路径中无矩阵 RunID 段（<RunID> 或 <RunID>-seed<N>）——辅助/机制/探针跑，本工具不冒充 RunID 登记"
+  },
+  {
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "path": "r6_tlb_negative2/seed1/prop_evt.txt.gz",
+   "reason": "路径中无矩阵 RunID 段（<RunID> 或 <RunID>-seed<N>）——辅助/机制/探针跑，本工具不冒充 RunID 登记"
+  }
+ ],
+ "carried_over_keys": [
+  "A01-F0-W3-campaign",
+  "A01-F0-W3-seed1",
+  "A04-F0-W3-seed1",
+  "A06-F0-W3-seed1",
+  "A06-F0-W5-seed1",
+  "A07-F0-W3-seed1",
+  "A07-F0-W5-seed1",
+  "A07-F4-W3-seed1",
+  "A07-F4-W5-seed1",
+  "A07-F6-W3-seed1",
+  "A07-F6-W5-seed1",
+  "C01-F0-W6-seed1",
+  "C09-F0-W10-seed1",
+  "C09-F0-W6-seed1",
+  "C09-R4T3-MSHRREF-s1",
+  "C09-R4T3-MSHRREF-s2",
+  "C09-R4T3-MSHRREF-s3",
+  "C09-R4T3-MSHRREF-s4",
+  "C09-R4T3-MSHRREF-s5",
+  "C09-R4T3-MSHRREF-s6",
+  "C11-F0-W6-seed1",
+  "C11-F6-W6-seed1",
+  "C11-R4T5-MSHRREF-s1",
+  "C11-R4T5-MSHRREF-s2",
+  "C11-R4T5-MSHRREF-s3",
+  "C12-F0-W6-seed1",
+  "C12-F6-W6-seed1",
+  "C12-R4T52-MSHRREF-s1",
+  "C12-R4T52-MSHRREF-s2",
+  "C12-R4T52-MSHRREF-s3",
+  "C14-F5-W10-seed1",
+  "C14-F5-W6-seed1",
+  "C15-F0-W10-seed1",
+  "C15-F0-W6-seed1",
+  "C15-F4-W10-seed1",
+  "C15-F4-W6-seed1",
+  "C15-F6-W10-seed1",
+  "C15-F6-W6-seed1",
+  "C4-cache_dirtyevict",
+  "C4-stream_chase",
+  "L04-F0-W12-seed1",
+  "L04-F0-W5-seed1",
+  "L04-F2-W12-seed1",
+  "L04-F2-W5-seed1",
+  "L04-F6-W12-seed1",
+  "L04-F6-W5-seed1",
+  "P01-F0-W8-P03mech",
+  "P01-F0-W8-campaign",
+  "P01-F0-W8-seed1",
+  "P06-F0-W6-seed1",
+  "P06-F0-W8-seed1",
+  "P06-F2-W6-seed1",
+  "P06-F2-W8-seed1",
+  "P06-F6-W6-seed1",
+  "P06-F6-W8-seed1",
+  "S02-F0-W5-seed1",
+  "S05-F0-W5-seed1",
+  "S10-F0-W5-seed1",
+  "S10-F0-W9-seed1",
+  "S10-F2-W5-seed1",
+  "S10-F2-W9-seed1",
+  "S10-F5-W5-seed1",
+  "S10-F5-W9-seed1",
+  "T08-F0-W9-seed1"
+ ],
+ "dropped_existing": [
+  {
+   "key": "A07-F0-W3-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed2/prop_evt.txt.gz",
+   "reason": "A07-F0-W3 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F0-W3-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed3/prop_evt.txt.gz",
+   "reason": "A07-F0-W3 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F0-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed2/prop_evt.txt.gz",
+   "reason": "A07-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F0-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed3/prop_evt.txt.gz",
+   "reason": "A07-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F4-W3-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed2/prop_evt.txt.gz",
+   "reason": "A07-F4-W3 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F4-W3-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed3/prop_evt.txt.gz",
+   "reason": "A07-F4-W3 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F4-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed2/prop_evt.txt.gz",
+   "reason": "A07-F4-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F4-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed3/prop_evt.txt.gz",
+   "reason": "A07-F4-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F6-W3-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed2/prop_evt.txt.gz",
+   "reason": "A07-F6-W3 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F6-W3-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed3/prop_evt.txt.gz",
+   "reason": "A07-F6-W3 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F6-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed2/prop_evt.txt.gz",
+   "reason": "A07-F6-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "A07-F6-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed3/prop_evt.txt.gz",
+   "reason": "A07-F6-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C09-F0-W10-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed2/prop_evt.txt.gz",
+   "reason": "C09-F0-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C09-F0-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed2/prop_evt.txt.gz",
+   "reason": "C09-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C09-F0-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed3/prop_evt.txt.gz",
+   "reason": "C09-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C11-F0-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed2/prop_evt.txt.gz",
+   "reason": "C11-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C11-F0-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed3/prop_evt.txt.gz",
+   "reason": "C11-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C12-F0-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed2/prop_evt.txt.gz",
+   "reason": "C12-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C12-F0-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed3/prop_evt.txt.gz",
+   "reason": "C12-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C14-F5-W10-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed2/prop_evt.txt.gz",
+   "reason": "C14-F5-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C14-F5-W10-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed3/prop_evt.txt.gz",
+   "reason": "C14-F5-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C14-F5-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed2/prop_evt.txt.gz",
+   "reason": "C14-F5-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C14-F5-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed3/prop_evt.txt.gz",
+   "reason": "C14-F5-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F0-W10-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed2/prop_evt.txt.gz",
+   "reason": "C15-F0-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F0-W10-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed3/prop_evt.txt.gz",
+   "reason": "C15-F0-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F0-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed2/prop_evt.txt.gz",
+   "reason": "C15-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F0-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed3/prop_evt.txt.gz",
+   "reason": "C15-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F4-W10-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed2/prop_evt.txt.gz",
+   "reason": "C15-F4-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F4-W10-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed3/prop_evt.txt.gz",
+   "reason": "C15-F4-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F4-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed2/prop_evt.txt.gz",
+   "reason": "C15-F4-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F4-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed3/prop_evt.txt.gz",
+   "reason": "C15-F4-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F6-W10-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed2/prop_evt.txt.gz",
+   "reason": "C15-F6-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F6-W10-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed3/prop_evt.txt.gz",
+   "reason": "C15-F6-W10 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F6-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed2/prop_evt.txt.gz",
+   "reason": "C15-F6-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "C15-F6-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed3/prop_evt.txt.gz",
+   "reason": "C15-F6-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F0-W12-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed2/prop_evt.txt.gz",
+   "reason": "L04-F0-W12 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F0-W12-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed3/prop_evt.txt.gz",
+   "reason": "L04-F0-W12 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F0-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed2/prop_evt.txt.gz",
+   "reason": "L04-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F0-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed3/prop_evt.txt.gz",
+   "reason": "L04-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F2-W12-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed2/prop_evt.txt.gz",
+   "reason": "L04-F2-W12 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F2-W12-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed3/prop_evt.txt.gz",
+   "reason": "L04-F2-W12 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F2-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed2/prop_evt.txt.gz",
+   "reason": "L04-F2-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F2-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed3/prop_evt.txt.gz",
+   "reason": "L04-F2-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F6-W12-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed2/prop_evt.txt.gz",
+   "reason": "L04-F6-W12 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F6-W12-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed3/prop_evt.txt.gz",
+   "reason": "L04-F6-W12 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F6-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed2/prop_evt.txt.gz",
+   "reason": "L04-F6-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "L04-F6-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed3/prop_evt.txt.gz",
+   "reason": "L04-F6-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "O01-F0-W7-seed1",
+   "path": "runs/lsu/r6_mc_O01-F0-W7/O01-F0-W7/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "O02-F0-W7-seed1",
+   "path": "runs/lsu/r6_mc_O02-F0-W7/O02-F0-W7/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "O02-F5-W7-seed1",
+   "path": "runs/lsu/r6_mc_O02-F5-W7/O02-F5-W7/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "O03-F0-W7-seed1",
+   "path": "runs/lsu/r6_mc_O03-F0-W7/O03-F0-W7/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "P01-F0-W8-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/P01-F0-W8/s2/prop_evt.txt.gz",
+   "reason": "P01-F0-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P01-F0-W8-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/P01-F0-W8/s3/prop_evt.txt.gz",
+   "reason": "P01-F0-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P01-F0-W8-seed4",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/P01-F0-W8/s4/prop_evt.txt.gz",
+   "reason": "P01-F0-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F0-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed2/prop_evt.txt.gz",
+   "reason": "P06-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F0-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed3/prop_evt.txt.gz",
+   "reason": "P06-F0-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F0-W8-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed2/prop_evt.txt.gz",
+   "reason": "P06-F0-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F0-W8-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed3/prop_evt.txt.gz",
+   "reason": "P06-F0-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F2-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed2/prop_evt.txt.gz",
+   "reason": "P06-F2-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F2-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed3/prop_evt.txt.gz",
+   "reason": "P06-F2-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F2-W8-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed2/prop_evt.txt.gz",
+   "reason": "P06-F2-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F2-W8-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed3/prop_evt.txt.gz",
+   "reason": "P06-F2-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F6-W6-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed2/prop_evt.txt.gz",
+   "reason": "P06-F6-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F6-W6-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed3/prop_evt.txt.gz",
+   "reason": "P06-F6-W6 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F6-W8-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed2/prop_evt.txt.gz",
+   "reason": "P06-F6-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "P06-F6-W8-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed3/prop_evt.txt.gz",
+   "reason": "P06-F6-W8 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S01-F0-W5-seed1",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "S01-F0-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed2/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "S01-F0-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed3/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "S02-F0-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed2/prop_evt.txt.gz",
+   "reason": "S02-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S02-F0-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed3/prop_evt.txt.gz",
+   "reason": "S02-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S04-F0-W5-seed1",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "S04-F0-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed2/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "S04-F0-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed3/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "S05-F0-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed2/prop_evt.txt.gz",
+   "reason": "S05-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F0-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed2/prop_evt.txt.gz",
+   "reason": "S10-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F0-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed3/prop_evt.txt.gz",
+   "reason": "S10-F0-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F0-W9-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed2/prop_evt.txt.gz",
+   "reason": "S10-F0-W9 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F0-W9-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed3/prop_evt.txt.gz",
+   "reason": "S10-F0-W9 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F2-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W5/seed2/prop_evt.txt.gz",
+   "reason": "S10-F2-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F2-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W5/seed3/prop_evt.txt.gz",
+   "reason": "S10-F2-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F2-W9-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W9/seed2/prop_evt.txt.gz",
+   "reason": "S10-F2-W9 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F2-W9-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W9/seed3/prop_evt.txt.gz",
+   "reason": "S10-F2-W9 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F5-W5-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed2/prop_evt.txt.gz",
+   "reason": "S10-F5-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F5-W5-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed3/prop_evt.txt.gz",
+   "reason": "S10-F5-W5 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F5-W9-seed2",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed2/prop_evt.txt.gz",
+   "reason": "S10-F5-W9 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "S10-F5-W9-seed3",
+   "path": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed3/prop_evt.txt.gz",
+   "reason": "S10-F5-W9 已由本次扫描的 seed 样本覆盖（取较新者，同一 cell 不重复计样本）"
+  },
+  {
+   "key": "T01-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T02-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T03-F5-W4-seed1",
+   "path": "runs/lsu/r6_tlb_I_T03-F5-W4/T03-F5-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T04-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T04-F2-W4-seed1",
+   "path": "runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T04-F6-W4-seed1",
+   "path": "runs/lsu/r6_tlb_G_T04-F6-W4/T04-F6-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T05-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_pilot2/T05-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T06-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_D_T06-F0-W4/T06-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T07-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_pilot2/T07-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T08-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  },
+  {
+   "key": "T10-F0-W4-seed1",
+   "path": "runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz",
+   "reason": "由本次扫描的同键条目取代（扫盘为真值）"
+  }
+ ]
+}
