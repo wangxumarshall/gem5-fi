@@ -131,14 +131,37 @@ def build_ledger(campaign, freeze_path):
 
 # ------------------------------------------------------- campaign handoff
 def _nine_class_counts(obs_list):
+    """九分类计数（[R6-ORACLE][G3] 未定结局必须显式计数，不得静默丢弃）。
+
+    审计 G3：旧实现对 `l5.error or outcome=="INCONCLUSIVE"` 直接 `continue`
+    —— 一个 activated 样本被静默丢弃（丢弃比 Unknown 更糟）。现在单列
+    `inconclusive` / `classifier_error` 两个桶 + `unrecorded` 明细（含
+    activated 与原因），守恒式显式写明（activated = 五类 + simfail +
+    not_activated + inconclusive + classifier_error）。
+    """
     five = {k: 0 for k in ("Masked", "Detected/Contained", "SDC", "Crash",
                            "Timeout")}
     fds = {k: 0 for k in ("Hardware RAS", "OS", "Application", "None")}
-    simfail = not_act = 0
-    for o in obs_list:
+    simfail = not_act = inconclusive = cls_error = 0
+    unrecorded = []
+    for i, o in enumerate(obs_list):
         l5 = o.get("L5", {})
         out, act = l5.get("outcome"), (o.get("L0", {}).get("activated") or 0)
-        if l5.get("error") or out == "INCONCLUSIVE":
+        # 先判 INCONCLUSIVE：lsu_l5_classify 的"输入不完整"结局**同时**带
+        # error 字段（reason），若先判 error 会把"结局未定"误记成"分类器
+        # 崩溃"——两者都单列但语义不同（实测暴露）。
+        if out == "INCONCLUSIVE":
+            inconclusive += 1
+            why = l5.get("error_class") or "无 oracle 比较"
+            unrecorded.append({"index": i, "activated": act,
+                               "error_class": l5.get("error_class"),
+                               "reason": f"inconclusive: 结局未定（{why}）"
+                                         f"——单列，不丢"})
+            continue
+        if l5.get("error"):
+            cls_error += 1
+            unrecorded.append({"index": i, "activated": act,
+                               "reason": f"classifier_error: {l5['error']}"})
             continue
         if not act:
             not_act += 1
@@ -152,7 +175,14 @@ def _nine_class_counts(obs_list):
             fds[src] += 1
     return {"five_class": five, "first_detection_source": fds,
             "post_activation_simulator_failure": simfail,
-            "injected_not_activated": not_act}
+            "injected_not_activated": not_act,
+            "inconclusive": inconclusive, "classifier_error": cls_error,
+            "samples_total": len(obs_list), "unrecorded": unrecorded,
+            "conservation": (
+                "activated = five_class + post_activation_simulator_failure "
+                "+ injected_not_activated + inconclusive + classifier_error"
+                "（逐样本见 observation.json L5；未定结局单列 unrecorded，"
+                "绝不静默丢弃）")}
 
 
 def build_campaign_handoff(cdir, out_dir=None):
@@ -200,8 +230,9 @@ def build_campaign_handoff(cdir, out_dir=None):
         "baseline_key": ident.get("baseline_key"),
         "nine_class": _nine_class_counts(obs_list),
         "conservation": ("activated(五类+simfail) + not_activated + "
-                         "classifier_failures = attempted（逐样本见 "
-                         "observation.json L5.conservation）"),
+                         "classifier_error + inconclusive = attempted"
+                         "（逐样本见 observation.json L5.conservation；"
+                         "未定结局单列 nine_class.unrecorded，绝不静默丢弃）"),
         "full_chain": {
             "samples_total": len(obs_list),
             # 纠偏轮 v2（中央指令 2026-10-13）：执行完成 ≠ chain_complete，

@@ -173,6 +173,35 @@ def classify(args):
     if args.stdout and not Path(args.stdout).exists():
         out["error"] = f"stdout file missing: {args.stdout} — 输入不完整，拒绝猜测结局"
         out["outcome"] = "INCONCLUSIVE"
+        out["error_class"] = "input_incomplete"
+        # [R6-ORACLE][G3] 早退前先补 activated/injected：审计实测此路径在
+        # activated 赋值之前返回，且 lsu_handoff 对 INCONCLUSIVE 直接
+        # `continue` → 一个 activated 样本被静默丢弃（丢弃比 Unknown 更糟）。
+        # 注入日志（FUNNEL 行 > Site 行计数）是唯一幸存证据，据此如实回填，
+        # 回填不了就显式记 n/a（绝不静默）。
+        logs = (list(Path(args.run_dir).glob("*injections.log"))
+                if args.run_dir else [])
+        if logs:
+            text = logs[0].read_text(errors="replace")
+            funnels = re.findall(
+                r"FUNNEL: attempted=(\d+) eligible=(\d+) injected=(\d+)", text)
+            if funnels:
+                out["attempted"], out["eligible"], out["injected"] = \
+                    (int(x) for x in funnels[-1])
+            else:
+                n = len(re.findall(r"Site: ", text))
+                if n:
+                    out["injected"] = n
+            out["funnel_source"] = f"injection-log({logs[0].name})"
+        if out.get("injected") is not None:
+            out["activated"] = out["injected"]
+            out["activated_source"] = "fallback=injected（stdout 缺失，注入日志回填）"
+        else:
+            out["activated"] = None
+            out.setdefault("warnings", []).append(
+                "stdout 缺失且无注入日志 → activated n/a（不猜测）")
+        out["classes"] = None
+        out["recorded"] = True
         return out
     stdout = _read(args.stdout, out, "stdout")
     stderr = _read(args.stderr, out, "stderr")
