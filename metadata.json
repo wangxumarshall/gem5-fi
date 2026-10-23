@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5KR3XFEWX82PNYG3RRVHB36",
+  "strategy": "manual-commit",
+  "branch": "r6-gate-reconcile",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "docs/gem5-fi/lsu/mdspec/blocked_triage.md",
+    "docs/gem5-fi/lsu/mdspec/ready_contract.json",
+    "docs/gem5-fi/lsu/mdspec/ready_contract.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 845311,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 27894272,
+    "output_tokens": 180865,
+    "api_call_count": 112
+  }
+}
