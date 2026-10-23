@@ -106,6 +106,16 @@ def wl_binary_path(binary):
 # the same constant so the two drivers agree (no drift, no silent fake Timeout).
 SE_W1_TIMEOUT = 43200
 
+# [LSU][R6-CAMPAIGN] Per-run wall-clock budgets. The FS default was 1800 s,
+# which silently killed FS runs that legitimately needed longer on this
+# checkpoint (classified Timeout with only a salvaged prefix). 2700 s is the
+# KNOWN-GOOD budget — runs given `--fs-timeout 2700` terminated cleanly with a
+# complete stream + stats.txt. Both defaults are surfaced (never silently
+# lowered): the effective value lands in every per-seed entry and the cell
+# result (timeout_budget / timeout_seconds) and prints on the cell line.
+FS_TIMEOUT_DEFAULT = 2700
+SE_TIMEOUT_DEFAULT = 300
+
 
 def require_fs_assets():
     """Hard-fail (with the reuse hint) when the FS images are absent."""
@@ -1823,13 +1833,15 @@ def run_single_cell(cell, args, seed, outdir):
             # Timeout must still yield prop_evt.txt.gz + chain_report.json;
             # losing it because there is no chain_end is evidence loss).
             _to = {"outcome": "Timeout", "injected": inj, "activated": inj,
-                   "classes": classes, "mode": "FS"}
+                   "classes": classes, "mode": "FS",
+                   "timeout_seconds": args.fs_timeout}
             _to["chain_report"] = write_chain_report(
                 outdir, runid, seed, _to, exit_code=None)
             return _to
         _fsres = (classify_fs_run(outdir, proc.stdout, exit_code)
                   if family == "armtlb"
                   else classify_fsmc_run(outdir, proc.stdout, exit_code))
+        _fsres["timeout_seconds"] = args.fs_timeout   # effective budget, visible
         _fsres["chain_report"] = write_chain_report(
             outdir, runid, seed, _fsres, exit_code=exit_code)
         return _fsres
@@ -1864,7 +1876,8 @@ def run_single_cell(cell, args, seed, outdir):
         stderr_file.write_text("TIMEOUT")
         # [MDSPEC][C1] a killed run keeps its flushed prefix: build the chain
         # report BEFORE returning, so a Timeout is not evidence loss.
-        _to = {"outcome": "Timeout", "injected": 0, "activated": 0}
+        _to = {"outcome": "Timeout", "injected": 0, "activated": 0,
+               "timeout_seconds": _se_timeout}
         _crep = write_chain_report(outdir, runid, seed, _to, exit_code=None)
         _to["chain_report"] = _crep
         return _to
@@ -1879,6 +1892,7 @@ def run_single_cell(cell, args, seed, outdir):
                 cache_inj += 1
 
     result = classify_run(outdir, stdout_file, golden, exit_code, stderr_file)
+    result["timeout_seconds"] = _se_timeout   # effective SE budget, visible
     # [MDSPEC][R4-1-review-I2] surface the injector's LOUD F0 span alarms
     # (CHAOS_LSU_TRIGGER_ALARM, chaos_lsu_trigger.hh summary) into the
     # per-run result so the cell summary prints them — the alarm must be
@@ -1909,8 +1923,11 @@ def run_single_cell(cell, args, seed, outdir):
     return result
 
 
-def main():
-    p = argparse.ArgumentParser(description=__doc__)
+def build_parser():
+    """[LSU][R6-CAMPAIGN] Construct the CLI parser (split out of main() so the
+    timeout defaults — FS 2700 / SE 300 — are directly inspectable in tests)."""
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument("--matrix", required=True)
     p.add_argument("--outdir", default="runs/lsu")
     p.add_argument("--max-parallel", type=int, default=4)
@@ -1942,7 +1959,7 @@ def main():
                    help="main-phase activated cap (05 r15)")
     p.add_argument("--wilson-stop-hw", type=float, default=0.02,
                    help="main-phase Wilson 95%% half-width stop (05 r15)")
-    p.add_argument("--timeout", type=int, default=300,
+    p.add_argument("--timeout", type=int, default=SE_TIMEOUT_DEFAULT,
                    help="per-run wall-clock seconds — absolute cap (05 r17; all "
                          "SE workloads run 10-40s, so 300s > 10x any golden)")
     # ---- FS (armtlb family / M3) ----
@@ -1954,10 +1971,16 @@ def main():
                         "runs/lsu/fs_cpt_boot/cpt.237949797015 and "
                         "runs/h7formal/mkckpt/cpt.90000000 (see "
                         "tests/test_lsu_fs_infra.py)")
-    p.add_argument("--fs-timeout", type=int, default=1800,
-                   help="FS per-run wall-clock cap (05 r17 FS: restore+payload "
-                        "~4 min measured, 30 min absolute cap)")
-    a = p.parse_args()
+    p.add_argument("--fs-timeout", type=int, default=FS_TIMEOUT_DEFAULT,
+                   help="FS per-run wall-clock cap. [LSU][R6-CAMPAIGN] default "
+                        "2700 s = the KNOWN-GOOD budget (1800 s silently killed "
+                        "runs that needed longer; runs given 2700 terminated "
+                        "cleanly with a complete stream + stats.txt)")
+    return p
+
+
+def main():
+    a = build_parser().parse_args()
     if a.n_seeds is not None:
         a.max_seeds_per_cell = a.n_seeds
 
@@ -2067,6 +2090,8 @@ def run_cell_adaptive(cell, args, outroot):
                   # without opening the chain).
                   "evidence_truncated": _chain.get("evidence_truncated"),
                   "truncation_reason": _chain.get("truncation_reason", ""),
+                  # effective wall-clock budget this sample actually got
+                  "timeout_seconds": r.get("timeout_seconds"),
                   "trigger_alarm": r.get("trigger_alarm")}
         _model = cell[COL_MODEL].strip()
         _evidence_pilot = (getattr(args, "phase", None) == "trial" and
@@ -2096,6 +2121,10 @@ def run_cell_adaptive(cell, args, outroot):
         "activation_rate": round(act_rate, 4),
         "wilson": {"lo": round(lo, 4), "hi": round(hi, 4)},
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
+        # [LSU][R6-CAMPAIGN] the effective budgets this cell ran under (visible,
+        # never silently lowered).
+        "timeout_budget": {"fs_timeout": args.fs_timeout,
+                           "se_timeout": args.timeout},
         "runs": runs,
     }
     if model in MODEL_BLOCKED:
@@ -2139,9 +2168,10 @@ def run_cell_adaptive(cell, args, outroot):
     result["evidence_truncated_samples"] = trunc_msgs
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
     line = ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
-            "stop=%s cons=%s" %
+            "stop=%s cons=%s budget[fs=%ss se=%ss]" %
             (runid, args.phase, len(runs), activated, classes["SDC"],
-             stop_reason, result["conservation"]))
+             stop_reason, result["conservation"], args.fs_timeout,
+             args.timeout))
     if alarm_msgs:
         line += "\n  ALARM %s: %d trigger alarm(s): %s" % (
             runid, len(alarm_msgs), " | ".join(alarm_msgs))
