@@ -123,6 +123,7 @@
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -178,6 +179,28 @@ class CHAOSPropagation : public SimObject
     };
     static constexpr int N_PROP_EVT_FIELDS =
         (int)(sizeof(PROP_EVT_FIELDS) / sizeof(PROP_EVT_FIELDS[0]));
+
+    // [MDSPEC][R6] T-series containment vocabulary, carried OUTSIDE the
+    // shared PROP_EVT_FIELDS registry on purpose. That registry is mirrored
+    // 1:1 by tools/lsu_prop_fields.py and pinned equal by
+    // tests/test_lsu_prop_fields.py; the parser already keeps family keys
+    // outside it ("注册表外的家族键…保留在 dict 中供家族消费" —
+    // lsu_prop_fields.parse_line). Growing the SHARED registry is a
+    // tools-lane change, so the TLB family records its disposition here
+    // rather than half-routing a contract it does not own.
+    //
+    // Ruling: an unchanged-PA (Masked) / permission-denied / lost-walk
+    // fault is CONTAINED. A contained chain must say WHERE it was contained
+    // and WHY, so the offline checker can close it as detected_contained
+    // instead of "provable_to_Ln_then_unknown" (beyond=Unknown). The layer
+    // value is the L-number (e.g. "L2"); the reason reuses the L2 `field`
+    // vocabulary (effective_pa_unchanged / translation_blocked /
+    // walk_refill_lost).
+    static inline const char *const PROP_EVT_EXT_FIELDS[] = {
+        "containment_layer", "containment_reason",
+    };
+    static constexpr int N_PROP_EVT_EXT_FIELDS =
+        (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
 
     // H1-H7 hook families (and any future observer): emit one unified
     // event. kv pairs use registry field names; unknown keys are warned
@@ -456,7 +479,10 @@ class CHAOSPropagation : public SimObject
     uint64_t registerTlbFault(uint64_t req_seq, Addr va, Addr size,
                               Addr old_pfn, Addr new_pfn,
                               Addr old_pa, Addr new_pa, Addr pa_span,
-                              const char *mode);
+                              const char *mode, int entry_way,
+                              int candidate_way, uint64_t walk_id,
+                              const std::string &entry_before,
+                              const std::string &entry_after);
 
     // [MDSPEC][R4-10-T05/T06/T07] TLB entry-STATE / access-attribute faults
     // (valid / global / ASID / AP / memory-type / page-size). These mutate a
@@ -471,7 +497,17 @@ class CHAOSPropagation : public SimObject
     uint64_t registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
                                    const char *field,
                                    const std::string &before,
-                                   const std::string &after);
+                                   const std::string &after,
+                                   Addr old_pa, Addr new_pa,
+                                   int entry_way, int candidate_way,
+                                   uint64_t walk_id,
+                                   const std::string &entry_before,
+                                   const std::string &entry_after);
+
+    // Close a T-series lookup observation at the real MMU completion point,
+    // after permission/alignment checks have produced the final Fault.
+    void noteTlbTranslationResult(uint64_t req_seq, Addr va, bool has_pa,
+                                  Addr pa, const char *fault);
 
     // [MDSPEC][R4-5.9] T08 walk/fill pairing (FS-only): register a PAIR of
     // nodes for ONE page-table walk — `tlb_walk` (the walk issued by
@@ -672,11 +708,45 @@ class CHAOSPropagation : public SimObject
     bool evt_corr_missing_warned = false;   // [R4-4-review-I1] guard above
     std::map<uint64_t, uint64_t> ptag_last_event;
 
+    struct TlbPending {
+        uint64_t ptag = 0;
+        std::string corr;
+        uint64_t walk_id = 0;
+        int entry_way = -1;
+        int candidate_way = -1;
+        Addr clean_pa = 0;
+        Addr lookup_pa = 0;
+        std::string entry_before;
+        std::string entry_after;
+        // [R6-B/T08-bcd] walk-family faults have no clean-PA baseline (the
+        // corrupted object is the walk handshake, not the entry pfn); the
+        // completion must not claim containment on an unknown baseline.
+        bool walk_fault = false;
+    };
+    // Request sequence plus VA disambiguates stage/functional lookups while
+    // preserving a direct join with the MMU request that completes them.
+    std::map<std::pair<uint64_t, Addr>, TlbPending> tlb_pending;
+
     static CHAOSPropagation *chaos_instance;
 
     uint64_t next_node_id = 0;
     uint64_t next_ptag = 0;        // 0 reserved ("no chain")
     bool errant_commit_seen = false;
+    // [MDSPEC][R6] Per-chain record of the (single, first) errant commit.
+    // The errant_commit node already carries the faulting chain's own ptag,
+    // so WHICH chain reached the wrong architecturally-visible commit is
+    // observable; the run-global flag above cannot say it, which forced the
+    // L5 `chain_end` node to report a lifecycle-only outcome for every chain
+    // (outcome=run_end / detection_layer=None) — rejected as L5 evidence.
+    std::set<uint64_t> errant_ptags;
+
+    // [MDSPEC][R6] Per-chain containment disposition (layer, reason), set
+    // when a translation completes with the fault ABSORBED (effective PA
+    // unchanged / permission-denied / lost walk) — i.e. the Masked case.
+    // The exit callback lifts it onto the chain's chain_end node so the
+    // chain closes as detected_contained (later layers justified
+    // N/A(contained)) instead of falling back to an Unknown terminal.
+    std::map<uint64_t, std::pair<std::string, std::string>> containment_ptags;
 
     struct AddrEntry {
         uint64_t ptag;

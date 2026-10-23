@@ -82,6 +82,11 @@ namespace gem5
             eh << "# prop-evt v1:";
             for (int i = 0; i < N_PROP_EVT_FIELDS; ++i)
                 eh << " " << PROP_EVT_FIELDS[i];
+            // [R6] the family-extension columns are part of the row contract
+            // too, so the header must list them (else the row would carry
+            // keys the documented schema does not name).
+            for (int i = 0; i < N_PROP_EVT_EXT_FIELDS; ++i)
+                eh << " " << PROP_EVT_EXT_FIELDS[i];
             eh << "\n";
             const std::string ehs = eh.str();
             if (gzwrite(evt_gz_file, ehs.data(), (unsigned)ehs.size())
@@ -107,17 +112,40 @@ namespace gem5
                 if (evt_gz_file && write_log) {
                     for (const auto &kv : ptag_last_event) {
                         const uint64_t ptag = kv.first;
-                        const bool seen_errant = false; // per-chain: the
-                        // errant_commit node carries ptag; a global flag
-                        // can't distinguish chains (single-fault campaign
-                        // is the honest limit — multi-fault chains get
-                        // outcome=unknown for all, documented).
+                        // [MDSPEC][R6] Per-chain evidence, not a run-global
+                        // guess: the errant_commit node carries the faulting
+                        // chain's own ptag, so this chain's L5 can say
+                        // "the wrong value reached the architectural state"
+                        // instead of falling back to the bare lifecycle
+                        // marker (outcome=run_end) that the chain checker
+                        // rejects as L5 evidence. Chains that did not commit
+                        // errantly keep run_end — still honest.
+                        const bool seen_errant = errant_ptags.count(ptag) > 0;
+                        const auto cit = containment_ptags.find(ptag);
+                        const bool contained = cit != containment_ptags.end();
+                        // [R6] This node is a LIFECYCLE terminus, not L5
+                        // evidence on its own: it never invents a detection
+                        // layer. It REPORTS what the chain's own events
+                        // proved — the errant commit (real L5 detection, the
+                        // chain's `errant_commit` node) or the explicit
+                        // containment recorded at L2 (Masked / refused /
+                        // lost walk). A chain with neither stays honestly
+                        // empty (no layer, outcome=run_end): a bare
+                        // lifecycle marker must never be read as L5.
+                        const char *outcome = seen_errant ? "errant_commit_seen"
+                            : contained ? "detected_contained" : "run_end";
+                        const char *layer = seen_errant ? "L5"
+                            : contained ? cit->second.first.c_str() : "";
                         notePropEvt("chain_end", {
                             {"fault_id", std::to_string(ptag)},
-                            {"outcome", seen_errant
-                                ? "errant_commit_seen" : "run_end"},
-                            {"detection_layer", "None"},
-                            {"contained", "0"},
+                            {"outcome", outcome},
+                            {"detection_layer", layer},
+                            {"contained", (seen_errant || contained)
+                                ? "1" : "0"},
+                            {"containment_layer",
+                                contained ? cit->second.first : ""},
+                            {"containment_reason",
+                                contained ? cit->second.second : ""},
                             // [R4-4-review-I1] explicit non-join marker:
                             // the exit summary correlates nothing (the
                             // per-event corr fields carry provenance).
@@ -298,6 +326,13 @@ namespace gem5
             row << ' ' << PROP_EVT_FIELDS[i] << '='
                 << (it == fields.end() ? "" : it->second);
         }
+        // [R6] family-extension columns follow the shared registry (same
+        // key=value shape; parser keeps them for the family that owns them).
+        for (int i = 0; i < N_PROP_EVT_EXT_FIELDS; ++i) {
+            const char *k = PROP_EVT_EXT_FIELDS[i];
+            const auto it = fields.find(k);
+            row << ' ' << k << '=' << (it == fields.end() ? "" : it->second);
+        }
         row << '\n';
         const std::string s = row.str();
         if (gzwrite(evt_gz_file, s.data(), (unsigned)s.size()) != (int)s.size())
@@ -324,6 +359,12 @@ namespace gem5
                     known = true;
                     break;
                 }
+            }
+            // [R6] family-extension keys (containment_layer/_reason) are
+            // legitimately emitted but live outside the shared registry.
+            for (int i = 0; !known && i < N_PROP_EVT_EXT_FIELDS; ++i) {
+                if (pair.first == PROP_EVT_EXT_FIELDS[i])
+                    known = true;
             }
             if (!known) {
                 if (!evt_unknown_key_warned) {
@@ -1026,7 +1067,11 @@ namespace gem5
     CHAOSPropagation::registerTlbFault(uint64_t req_seq, Addr va, Addr size,
                                        Addr old_pfn, Addr new_pfn,
                                        Addr old_pa, Addr new_pa,
-                                       Addr pa_span, const char *mode)
+                                       Addr pa_span, const char *mode,
+                                       int entry_way, int candidate_way,
+                                       uint64_t walk_id,
+                                       const std::string &entry_before,
+                                       const std::string &entry_after)
     {
         if (!write_log)
             return 0;
@@ -1046,10 +1091,21 @@ namespace gem5
         // in-flight request's identity ("" when unstamped).
         {
             std::ostringstream d;
+            // [R6-C/GAP-1] The L0 node must say WHAT the injection changed,
+            // not only name it. The faulted VALUE of the pfn model is the
+            // pfn pair, and the unified emitter's documented lift is
+            // old_addr/new_addr -> before/after (registerStoreSetFault /
+            // registerInjection convention). Measured before this fix:
+            //   kind=inj ... field=pfn_to_mapped_page before= after=
+            // — an L0 that cannot say before/after is not evidence that an
+            // injection happened. The pfn hex pair now rides BOTH the native
+            // old_pfn/new_pfn keys and the lifted old_addr/new_addr keys.
             d << "family=tlb;field=" << mode
               << ";req_seq=" << req_seq
               << ";old_pfn=" << std::hex << old_pfn
               << ";new_pfn=" << new_pfn
+              << ";old_addr=" << old_pfn
+              << ";new_addr=" << new_pfn
               << ";old_pa=" << old_pa
               << ";new_pa=" << new_pa
               << ";pa_span=" << pa_span_eff
@@ -1098,16 +1154,43 @@ namespace gem5
         else if (pa_changed)
             corr = CORR_ADDR_FALLBACK;
 
-        // Unified L2 event (tlb_pfn): full pfn/pa old-new state. Address
-        // fields are bare lowercase hex (registry convention); pfn values
-        // hex; dyn_inst_seq/request_id "0" = unstamped (lsq_sendfrag
-        // convention).
+        // T-series L1: the faulted request has completed TLB lookup. The
+        // snapshot preserves the selected entry's identity and every field
+        // needed to explain why the translation did (or did not) change.
+        // notePropEvt links parent_event_id through this ptag.
         std::ostringstream h_va, h_pfn_old, h_pfn_new, h_pa_old, h_pa_new;
         h_va << std::hex << va;
         h_pfn_old << std::hex << old_pfn;
         h_pfn_new << std::hex << new_pfn;
         h_pa_old << std::hex << old_pa;
         h_pa_new << std::hex << new_pa;
+        notePropEvt("tlb_lookup", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", corr ? corr : ""},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"entry_index", std::to_string(entry_way)},
+            {"way", std::to_string(candidate_way)},
+            {"field", "post_lookup"},
+            {"before", h_pfn_old.str()},
+            {"after", h_pfn_new.str()},
+            {"state_before", entry_before},
+            {"state_after", entry_after},
+        });
+
+        // Do not guess the post-translation outcome here: permission and
+        // alignment checks run later in MMU::translateMmuOn. Keep the lookup
+        // evidence until that completion point reports the actual PA/Fault.
+        tlb_pending[{req_seq, va}] = TlbPending{
+            ptag, corr ? corr : "", walk_id, entry_way, candidate_way,
+            old_pa, new_pa, entry_before, entry_after};
+
+        // Unified L2 event (tlb_pfn): full pfn/pa old-new state. Address
+        // fields are bare lowercase hex (registry convention); pfn values
+        // hex; dyn_inst_seq/request_id "0" = unstamped (lsq_sendfrag
+        // convention).
         notePropEvt("tlb_pfn", {
             {"fault_id", std::to_string(ptag)},
             {"corr", corr ? corr : ""},
@@ -1124,6 +1207,83 @@ namespace gem5
         return ptag;
     }
 
+    void
+    CHAOSPropagation::noteTlbTranslationResult(uint64_t req_seq, Addr va,
+                                               bool has_pa, Addr pa,
+                                               const char *fault)
+    {
+        if (!write_log)
+            return;
+        auto it = tlb_pending.find({req_seq, va});
+        if (it == tlb_pending.end())
+            return;
+        const TlbPending pending = it->second;
+        tlb_pending.erase(it); // exactly one completion per injected lookup
+
+        const std::string fault_name = fault ? fault : "NoFault";
+        const bool translation_blocked = fault_name != "NoFault";
+        // A walk-family fault corrupts the walk handshake, not the entry's
+        // pfn, so there is no clean-PA baseline to compare against. Report
+        // the real PA/fault honestly, but never claim containment for a
+        // completed walk on the strength of an unknown baseline.
+        const bool pa_unchanged = has_pa && pa == pending.clean_pa;
+        const bool contained = translation_blocked
+            || (!pending.walk_fault && pa_unchanged);
+        std::ostringstream h_va, h_before, h_after;
+        h_va << std::hex << va;
+        // The walk family has no clean-PA baseline (the corrupted object is
+        // the walk handshake, not an entry pfn). Leave the baseline EMPTY
+        // rather than printing a fabricated 0 that would read as a real PA.
+        if (!pending.walk_fault)
+            h_before << std::hex << pending.clean_pa;
+        if (has_pa)
+            h_after << std::hex << pa;
+
+        // [R6-A] The fault name rides `outcome` (the tlb_fault convention)
+        // and the outcome reason rides `field`. Both are registry fields;
+        // notePropEvt DROPS any key outside the emittable registry, so a
+        // bespoke `fault=`/`detail=` key would be silently lost from the
+        // stream (measured: the L2 Fault and the reason were invisible to
+        // the pilot's chain checker before this fix).
+        const char *field_reason = translation_blocked
+            ? "translation_blocked"
+            : pending.walk_fault ? "walk_result_reported"
+            : pa_unchanged ? "effective_pa_unchanged"
+                           : "effective_pa_changed";
+
+        // [R6] A contained translation is the Masked case: the injected
+        // fault was absorbed (effective PA unchanged), refused
+        // (permission/alignment fault) or its walk never arrived. Record
+        // WHERE (L2) and WHY explicitly, and remember it per chain so the
+        // terminus can justify every later layer as N/A(contained) instead
+        // of leaving the chain at an unresolvable terminal state.
+        const char *reason = contained ? field_reason : "";
+        if (contained)
+            containment_ptags[pending.ptag] = {"L2", reason};
+
+        notePropEvt("tlb_translate_result", {
+            {"fault_id", std::to_string(pending.ptag)},
+            {"corr", pending.corr},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"walk_id", std::to_string(pending.walk_id)},
+            {"va", h_va.str()},
+            {"pa", h_after.str()},
+            {"entry_index", std::to_string(pending.entry_way)},
+            {"way", std::to_string(pending.candidate_way)},
+            {"field", field_reason},
+            {"before", h_before.str()},
+            {"after", h_after.str()},
+            {"state_before", pending.entry_before},
+            {"state_after", pending.entry_after},
+            {"outcome", fault_name},
+            {"detection_layer", contained ? "L2" : ""},
+            {"contained", contained ? "1" : "0"},
+            {"containment_layer", contained ? "L2" : ""},
+            {"containment_reason", reason},
+        });
+    }
+
     // [MDSPEC][R4-5.9] T08 walk/fill pairing. Two PROP-EVT nodes for ONE
     // [MDSPEC][R4-10-T05/T06/T07] TLB entry-state / attribute fault. One L0
     // `inj` anchor + one L2 `tlb_state` node. The pfn/PA are not the fault
@@ -1138,7 +1298,12 @@ namespace gem5
     CHAOSPropagation::registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
                                             const char *field,
                                             const std::string &before,
-                                            const std::string &after)
+                                            const std::string &after,
+                                            Addr old_pa, Addr new_pa,
+                                            int entry_way, int candidate_way,
+                                            uint64_t walk_id,
+                                            const std::string &entry_before,
+                                            const std::string &entry_after)
     {
         if (!write_log)
             return 0;
@@ -1154,15 +1319,38 @@ namespace gem5
             {"dyn_inst_seq", std::to_string(req_seq)},
             {"request_id", std::to_string(req_seq)},
             {"field", field},
+            // [R6-C/GAP-1] L0 must record WHAT changed, not only what was
+            // injected. The faulted VALUE of the T05/T06/T07 state model is
+            // the mutated entry field: `before`/`after` are that field's
+            // text before/after the mutation (the injector computed them at
+            // the site). Measured before this fix: before= after=.
+            {"before", before},
+            {"after", after},
             {"evidence_status", "observed"},
             {"detail", d_inj.str()},
         });
 
         std::ostringstream h_va;
         h_va << std::hex << va;
+        const char *corr = req_seq ? CORR_SEQ_PRIMARY : "";
+        notePropEvt("tlb_lookup", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", corr},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"entry_index", std::to_string(entry_way)},
+            {"way", std::to_string(candidate_way)},
+            {"field", "post_lookup"},
+            {"before", before},
+            {"after", after},
+            {"state_before", entry_before},
+            {"state_after", entry_after},
+        });
         notePropEvt("tlb_state", {
             {"fault_id", std::to_string(ptag)},
-            {"corr", req_seq ? CORR_SEQ_PRIMARY : ""},
+            {"corr", corr},
             {"dyn_inst_seq", std::to_string(req_seq)},
             {"request_id", std::to_string(req_seq)},
             {"va", h_va.str()},
@@ -1170,6 +1358,9 @@ namespace gem5
             {"state_before", before},
             {"state_after", after},
         });
+        tlb_pending[{req_seq, va}] = TlbPending{
+            ptag, corr, walk_id, entry_way, candidate_way,
+            old_pa, new_pa, entry_before, entry_after};
         return ptag;
     }
 
@@ -1213,8 +1404,33 @@ namespace gem5
             {"dyn_inst_seq", std::to_string(req_seq)},
             {"request_id", std::to_string(req_seq)},
             {"field", mode},
+            // [R6-C/GAP-1] L0 before/after for the walk-issue model: the
+            // faulted VALUE is the walk handshake itself — the correct
+            // machine issues the walk (before=walk_issued), the corrupted
+            // handshake is named by the injector's own mode (after=<mode>,
+            // e.g. walk_fill_dup / walk_done_early / walk_stale_result).
+            // Measured before this fix: before= after=.
+            {"before", "walk_issued"},
+            {"after", mode},
             {"evidence_status", "observed"},
             {"detail", d_inj.str()},
+        });
+
+        // The walk family starts from a real post-lookup miss. There is no
+        // selected entry/way yet, so preserve that absence explicitly.
+        notePropEvt("tlb_lookup", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"entry_index", "-1"},
+            {"way", "-1"},
+            {"field", "post_lookup"},
+            {"state_before", "entry=miss"},
+            {"state_after", "entry=miss"},
+            {"outcome", "miss"},
         });
 
         std::ostringstream d_walk;
@@ -1260,6 +1476,45 @@ namespace gem5
             {"outcome", refill_outcome},
             {"tick", std::to_string(refill_tick)},
         });
+        if (fill_lost) {
+            // No MMU completion callback can occur after the walk is dropped;
+            // close the DAG here with an observed translation block. The
+            // reason rides `field` and the outcome rides `outcome` (both
+            // registry fields) — a bespoke detail=/fault= key would be
+            // dropped by notePropEvt before it ever reached the stream.
+            notePropEvt("tlb_translate_result", {
+                {"fault_id", std::to_string(ptag)},
+                {"corr", CORR_ORIGIN},
+                {"walk_id", std::to_string(walk_id)},
+                {"va", h_va.str()},
+                {"dyn_inst_seq", std::to_string(req_seq)},
+                {"request_id", std::to_string(req_seq)},
+                {"entry_index", "-1"},
+                {"way", "-1"},
+                {"field", "walk_refill_lost"},
+                {"pa", ""},
+                // No entry was ever selected and no PA was materialised: the
+                // payload carries the honest empty baseline (same shape as
+                // the MMU-completion L2 node) instead of omitting the keys.
+                {"before", ""},
+                {"after", ""},
+                {"state_before", "entry=miss"},
+                {"state_after", "entry=miss"},
+                {"outcome", "translation_blocked"},
+                {"detection_layer", "L2"},
+                {"contained", "1"},
+            });
+        } else {
+            // [R6-B/T08-bcd] The walk completed (duplicated / done-early /
+            // stale result): the requesting translation still completes in
+            // the MMU, so register the pending lookup exactly like the
+            // pfn/state faults. The real L2 node (effective PA + Fault) is
+            // then emitted by noteTlbTranslationResult at that completion.
+            // Without this, the T08-b/c/d chain had no real-PA L2 node.
+            tlb_pending[{req_seq, va}] = TlbPending{
+                ptag, CORR_ORIGIN, walk_id, -1, -1, 0, 0,
+                "entry=miss", "entry=miss", /*walk_fault=*/true};
+        }
         return ptag;
     }
 
@@ -1702,13 +1957,29 @@ namespace gem5
             const uint64_t ptag = any_consumer ? first_consumed_ptag
                                                : self_taint_ptag;
             std::ostringstream d;
+            // [R6-C/GAP-2] This IS the observable L5 detection: the wrong
+            // value reached architectural state (a committed instruction
+            // consumed the tainted value, or the faulting load committed its
+            // tainted dest). Measured before this fix:
+            //   kind=errant_commit corr=taint_prop dyn_inst_seq=391
+            //   detection_layer= outcome=
+            // — the real detection event named neither its layer nor its
+            // outcome, while the lifecycle chain_end node carried the only
+            // (non-evidentiary) L5-ish fields. The ruling: L5 evidence must
+            // be THIS event, so it must name its layer and outcome. Both keys
+            // are registry fields, so the dual-emit lifts them verbatim.
             d << "trigger=" << (any_consumer ? "first_consumer"
                                              : "faulting_load_commit")
+              << ";detection_layer=L5"
+              << ";outcome=errant_commit"
               << ";pc=" << std::hex << pc << std::dec;
             writeNode(ptag, "errant_commit", head_inst->seqNum, true,
                       0, false, 0, false, 0, false, 0, false, d.str(),
                       CORR_TAINT_PROP, (int)tid);
             errant_commit_seen = true;
+            // [MDSPEC][R6] Bind the observed errant commit to its own chain
+            // so the L5 chain_end node can report it (see .hh).
+            errant_ptags.insert(ptag);
         }
 
         // Propagation rules (see .hh):
