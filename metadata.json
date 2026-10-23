@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5KQYVQWRBA30QZYWKMWJBXB",
+  "strategy": "manual-commit",
+  "branch": "r6-gate-reconcile",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "docs/superpowers/plans/2026-10-23-r6-gate-b2-chain-gate-defects.md",
+    "tests/test_lsu_ready_contract_category.py",
+    "tests/test_lsu_ready_contract_chain_wiring.py",
+    "tests/test_lsu_ready_contract_gate.py",
+    "tests/test_lsu_ready_contract_verdict.py",
+    "tools/lsu_blocked_triage.py",
+    "tools/lsu_ready_contract.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 845311,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 27894272,
+    "output_tokens": 180865,
+    "api_call_count": 112
+  }
+}
