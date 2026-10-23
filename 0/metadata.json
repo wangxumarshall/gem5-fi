@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5K7FHK1G96SHV6CVSP4DA4K",
+  "session_id": "5eba8fcb-a1a5-481f-815a-f220d1577a35",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-23T01:54:49.073834271Z",
+  "branch": "r6-gate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/mdspec/R6-GATE-B-report.md"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "48739cd35c6f",
+  "checkpoint_transcript_start": 261,
+  "transcript_lines_at_start": 261,
+  "compact_transcript_start": 32,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-10-23T01:21:56.680324211Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "48739cd35c6f",
+      "timestamp": "2026-10-23T01:21:56.680324211Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-10-23T01:54:49.003194241Z",
+    "agent_lines": 204,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 204,
+    "total_lines_changed": 204,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
