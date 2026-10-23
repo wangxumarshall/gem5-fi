@@ -36,6 +36,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -1518,6 +1519,138 @@ def detect_evidence_truncation(outdir):
     return (bool(reasons), reasons)
 
 
+# =========================================================== [R6-SCAL] chain
+# `lsu_chain_check._best_ordered_path` walks `_ancestry` + `_ordered_prefix`
+# **once per event**, so its cost is Θ(n · depth). The multicore FS stream
+# `runs/lsu/r6_mc_O01-F0-W7/O01-F0-W7/seed1` is a single linear consumer chain
+# (222,056 events, depth(i)=i+1, Σdepth = 2.47e10, exactly one leaf), so the
+# per-cell chain report burned >27 CPU-minutes without ever writing
+# chain_results.json — O-series cells were effectively wedged (Lane L30).
+#
+# Measured before the fix: check_chain prefix scaling 1.19s @1k, 7.31s @2k,
+# 30.9s @4k; cProfile(2k) = `_best_ordered_path` 16.27s of 16.30s total.
+#
+# `_linear_best_ordered_path` below returns the **same path object-for-object**
+# in O(n). It exploits that `_ordered_prefix` is a forward greedy scan:
+#   ancestry(child) = ancestry(parent) + [child]
+#   ⇒ prefix(child)  = step(prefix_state(parent), child)
+# where the state is (next-layer index, last tick, selected events). One
+# memoised pass over the parent DAG therefore yields the prefix of every
+# event's ancestry in O(1) amortised, and the winner is still the FIRST event
+# in the original list order attaining the maximum length — so ties (and hence
+# `path_event_ids` / the terminal derived from `path[-1]`) break identically.
+#
+# It reuses `lsu_chain_check`'s own `LAYERS` / `_layer_of` / `_tick`, so the
+# layer mapping can never drift; only the search strategy changes. The shipped
+# function stays authoritative for cyclic parent graphs (where `_ancestry`'s
+# seen-set walk has no steady-state equivalent) — correctness never depends on
+# the optimisation being applicable.
+_LINEAR_PATH_LOCK = threading.Lock()
+_SHIPPED_BEST_PATH = {}          # module name -> shipped _best_ordered_path
+
+
+def _shipped_best_ordered_path(mod):
+    """The module's shipped `_best_ordered_path` (cached; never our fast one)."""
+    fn = _SHIPPED_BEST_PATH.get(mod.__name__)
+    if fn is None:
+        fn = mod._best_ordered_path
+        _SHIPPED_BEST_PATH[mod.__name__] = fn
+    return fn
+
+
+class _ChainCycle(Exception):
+    """Cyclic parent graph: fall back to the shipped walk."""
+
+
+def _linear_best_ordered_path(chain_events, family, module=None):
+    """Drop-in, linear-time `lsu_chain_check._best_ordered_path`.
+
+    `module` defaults to `lsu_chain_check`. Returns a list of the very same
+    event dicts (identity preserved) that the shipped implementation returns.
+    """
+    if module is None:
+        import lsu_chain_check as module
+    layers = module.LAYERS
+    layer_of = module._layer_of
+    tick_of = module._tick
+    n_layers = len(layers)
+
+    by_id = {}
+    for e in chain_events:
+        eid = e.get("event_id", "")
+        if eid != "":                 # same by_id rule as the shipped walk
+            by_id[eid] = e
+    state = {}                        # id(event) -> (want, last_tick, tuple)
+    busy = set()
+
+    def resolve(evt):
+        """Greedy state after scanning ancestry(evt) root→evt (iterative)."""
+        stack = []
+        cur = evt
+        while True:
+            key = id(cur)
+            st = state.get(key)
+            if st is not None:
+                break
+            if key in busy:           # cycle: _ancestry would cut here
+                raise _ChainCycle()
+            busy.add(key)
+            stack.append(cur)
+            pid = cur.get("parent_event_id", "")
+            nxt = by_id.get(pid) if pid != "" else None
+            if nxt is None:
+                st = (0, -1, ())      # root: _ordered_prefix's initial state
+                break
+            cur = nxt
+        while stack:
+            node = stack.pop()
+            want, last_tick, sel = st
+            if want < n_layers:       # _ordered_prefix breaks at len(LAYERS)
+                layer = layer_of(node, family)
+                if layer in layers:
+                    idx = layers.index(layer)
+                    tick = tick_of(node)
+                    if idx == want and tick >= last_tick:
+                        st = (want + 1, tick, sel + (node,))
+            state[id(node)] = st
+            busy.discard(id(node))
+        return st
+
+    best = []
+    for e in chain_events:
+        try:
+            sel = resolve(e)[2]
+        except _ChainCycle:
+            return _shipped_best_ordered_path(module)(chain_events, family)
+        if len(sel) > len(best):
+            best = sel
+    return list(best)
+
+
+def check_chain_fast(events, oracle_outcome=None):
+    """`lsu_chain_check.check_chain` with the linear best-path scan installed.
+
+    Only `_best_ordered_path` is substituted (for the duration of this call);
+    fault grouping, family inference, edge/layer mapping and every terminal
+    rule run the shipped implementation verbatim. The lock keeps the module
+    global consistent while campaign workers classify in parallel; both
+    implementations return the same path, so the critical section only costs
+    wall time, never semantics.
+    """
+    import lsu_chain_check as CHAIN
+    shipped = _shipped_best_ordered_path(CHAIN)
+
+    def _fast(chain_events, family):
+        return _linear_best_ordered_path(chain_events, family, CHAIN)
+
+    with _LINEAR_PATH_LOCK:
+        CHAIN._best_ordered_path = _fast
+        try:
+            return CHAIN.check_chain(events, oracle_outcome=oracle_outcome)
+        finally:
+            CHAIN._best_ordered_path = shipped
+
+
 def write_chain_report(outdir, runid, seed, result, exit_code=None):
     """[MDSPEC][C1] per-sample chain report: join the propagation stream with
     this sample's L5 oracle outcome and persist machine-readable verdicts.
@@ -1532,7 +1665,6 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
 
     Returns the report dict (also written to <outdir>/chain_report.json).
     """
-    import lsu_chain_check as CHAIN
     import lsu_prop_fields as PF
 
     oracle = result.get("outcome") if isinstance(result, dict) else None
@@ -1553,7 +1685,10 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
     evt = Path(outdir) / "prop_evt.txt.gz"
     if evt.exists():
         events, truncated = PF.read_events(evt)
-        verdict = CHAIN.check_chain(events, oracle_outcome=oracle)
+        # [R6-SCAL] same verdict as CHAIN.check_chain, linear in event count —
+        # a 222k-event multicore consumer chain otherwise wedges the cell (see
+        # _linear_best_ordered_path for the measured defect).
+        verdict = check_chain_fast(events, oracle_outcome=oracle)
         rep.update({"stream_present": True, "truncated": truncated,
                     "event_count": len(events), "faults": verdict["faults"]})
         if verdict["faults"]:
