@@ -255,3 +255,90 @@ SME 助记符/clang，GCCFLAGS 现成约定），`make vl_api_probe` -Wall -Wext
 （gem5-fi 侧 all-VL Phase 2 P1 / Task 8 收口）。交叉引用：sdcshield PR #277
 （feat/arm64-vl-api）；spec docs/superpowers/specs/2026-10-23-sve-sme-all-vl2-design.md
 §7（sdcshield 仓）。
+
+---
+
+## all-VL Phase 2 P2：sme_fmopa_za_arm 重构语义裁决，四档 16 run 实证（2026-10-23，feat/fmopa-za-dual 分支）
+
+sdcshield all-VL Phase 2 P2 将重构测试 `sme_fmopa_za_arm`（分支
+feat/sme-fmopa-za-allvl，将建）。重构遗留两个从未实证的选择，由本仓同源
+镜像 kernel `workloads/sdcshield/sme_fmopa_za_dual.c` 裁决：
+(a) `mova za0v.s[w12,0]` 读出轴向（ROW vs COLUMN，双 golden 判别）；
+(b) `smstart za`（无 sm）能否执行 FMOPA。kernel 镜像重构后 asm 形状
+（窗口步进寄存器化、256 步 FMOPA 链、mova 读出、st1w），gcc
+`-march=armv9-a+sve+sme` -Wall -Wextra 零告警。
+
+### SMSTART 裁决（先于 16 run，应急路径如实记录）
+
+za-only 初版在 tier-1 pilot 即崩溃：gem5 panic @ tick 16931500，
+"Page table fault when accessing virtual address 0x400"，进程 SIGABRT
+(exit 134)。Exec trace（--debug-flags=Exec）还原：`smstart za`(d503457f)
+执行 → `zero {za}` 执行 → 两条 ld1w 数据有效 → **首条 fmopa(0x400784,
+main+660) 执行后陷入**。机制：gem5 SME 模型中 FMOPA 走
+`smEnCheckCode` = smPreamble + **smCheckCode（要求 SVCR.SM=1，否则
+smeAccessTrap(EL1, 0b10)）** + zaCheckCode + CPACR 检查（仅 FS）
+（CHAOS/gem5/src/arch/arm/isa/templates/sme.isa:37-45,61-75；
+insts/sme.isa:296-298 smeFPOPInst）。SM=0 → SME access trap @EL0 →
+异常向量 VBAR_EL1+0x400（AArch64 lower-EL 同步偏移 0x400；SE 模式
+VBAR=0）→ 0x400 取指页错误 → commit 处未处理 → abort。za-only 对
+ZA-only 指令（zero {za} 等，模板 smEnCheckCodeNoSM）本可通过——
+崩点恰在 FMOPA，证据闭环。
+
+**裁决：za-only smstart 不足以执行 FMOPA——外积族要求 streaming mode
+（SVCR.SM）**。按计划应急路径（唯一逻辑修改，sme_fmopa_dual.c
+:126-127/155-156 先例）改为 `smstart sm`+`smstart za` /
+`smstop za`+`smstop sm`，重编（零告警，smstart sm=d503437f 编码实证）
+后重跑全部 16 run。sdcshield 重构必须同样用 sm+za 双开（或裸 smstart）。
+
+### 16 run 全绿（O3，configs/se/arm_chaos.py，--sve_vl/--sme_vl 同档同值）
+
+| tier | SVL 标称 | mode | cols | axis | checksum | FAILS | exit |
+|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | fixed 1 | 4 | COLUMN | 150538c2b9aab782 | 0 | 0 |
+| 1 | 128-bit | random 1 | 4 | COLUMN | ea37c7521dc62bb4 | 0 | 0 |
+| 1 | 128-bit | random 2 | 4 | COLUMN | 997ba21032c76f79 | 0 | 0 |
+| 1 | 128-bit | random 3 | 4 | COLUMN | 347c27de98fb5f6f | 0 | 0 |
+| 2 | 256-bit | fixed 1 | 8 | COLUMN | 95df82c828fc6def | 0 | 0 |
+| 2 | 256-bit | random 1 | 8 | COLUMN | 618090d00ee127b5 | 0 | 0 |
+| 2 | 256-bit | random 2 | 8 | COLUMN | 6cb021df5d22c0ca | 0 | 0 |
+| 2 | 256-bit | random 3 | 8 | COLUMN | 18ab5a42de83e9fa | 0 | 0 |
+| 4 | 512-bit | fixed 1 | 16 | COLUMN | 4f59b61aee123767 | 0 | 0 |
+| 4 | 512-bit | random 1 | 16 | COLUMN | 15cc91cca71242b9 | 0 | 0 |
+| 4 | 512-bit | random 2 | 16 | COLUMN | af1845fa683809b7 | 0 | 0 |
+| 4 | 512-bit | random 3 | 16 | COLUMN | a9e948093e1d75d1 | 0 | 0 |
+| 8 | 1024-bit | fixed 1 | 32 | COLUMN | 4b24367960892976 | 0 | 0 |
+| 8 | 1024-bit | random 1 | 32 | COLUMN | f857e372c6343060 | 0 | 0 |
+| 8 | 1024-bit | random 2 | 32 | COLUMN | fa3522378490e714 | 0 | 0 |
+| 8 | 1024-bit | random 3 | 32 | COLUMN | 5afc394bb7d786f0 | 0 | 0 |
+
+（完整日志 /tmp/fza_sve{1,2,4,8}_{fixed_1,random_1,random_2,random_3}.log；
+单 run 秒级，gem5 启动占大头；16 checksum 互异——operand 数据
+mode/seed 依赖，与 P1 探针"同档同值"预期不同，属预期。）
+
+**判据全过**：
+1. cols=SVL/4 逐档精确（4/8/16/32 = 128/256/512/1024-bit）；
+2. **axis=COLUMN 四档 16 run 一字不差**——`mova za0v.s[w12,0]`(w12=0)
+   读出为**列切片**（COLUMN 0：out[x] = Σ_s a[s*cols+x]·b[s*cols]
+   逐 lane 字节精确；行 golden (Σ_s a[s*cols]·b[s*cols+x]) 16 run
+   全部不匹配——axis 判别逻辑保证两者互斥且非退化）；
+3. SDCSHIELD_FAILS=0 ×16，gem5_exit=0 ×16。
+
+**轴向裁决：COLUMN。** sdcshield 重构的 mova 读出轴向按 COLUMN 0 计算
+golden；原测试 docblock 的 ROW 0 说法错误，与 PR #242 sme_za_tileview_dual
+的 .d 探针结论（COLUMN 0）一致，本次在 128–1024-bit 四档字节级实证。
+
+### F4 豁免依据（精确整数，免 gem5 fplib 双舍入适配）
+
+operand 全为精确小整数：fixed a=(si%7)+1∈[1,7]、b=(si%5)+1∈[1,5]；
+random (xs32()%7)+1/(xs32()%5)+1 同域。每步外积 a·b≤35（精确 f32 整数），
+256 步累加上界 256×35=**8960 < 2^24=16777216**（f32 精确整数域，
+裕度 ≈1872×）——所有中间部分和与最终值均为精确可表示整数，单舍入 FMA
+（真硬件）与 gem5 fplib mul→add 双舍入（F4）结果逐位相同，无需
+-ffp-contract=off / 双 golden 适配（sme_fmopa_dual 的 F4 手法在此豁免）；
+16 run 字节级全绿是该豁免的实证。
+
+**结论**：sdcshield `sme_fmopa_za_arm` 重构两选择裁决完毕——
+(a) mova 轴向 = COLUMN；(b) smstart 必须 sm+za（za-only FMOPA 非法）。
+交叉引用：sdcshield feat/sme-fmopa-za-allvl（将建）；spec
+docs/superpowers/specs/2026-10-23-sve-sme-all-vl2-design.md §7（sdcshield 仓）；
+先例 PR #242（sme_za_tileview_dual）。

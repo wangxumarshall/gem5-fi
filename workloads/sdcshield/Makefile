@@ -11,7 +11,7 @@ FP_OFF = -ffp-contract=off
 BINS = sve_sme_semantics fpu_special_sve_dual stencil_axis_dual
 BINS += sme_fmopa_dual sme_za_tileview_dual
 
-all: $(BINS) vl_api_probe
+all: $(BINS) vl_api_probe sme_fmopa_za_dual
 
 %: %.c
 	$(CC) $(CFLAGS) $(if $(filter sme_fmopa_dual,$@),$(FP_OFF),) -o $@ $< -lm
@@ -21,7 +21,12 @@ all: $(BINS) vl_api_probe
 vl_api_probe: vl_api_probe.c
 	$(GCC) $(GCCFLAGS) -o $@ $< -lm
 
+# all-VL Phase 2 P2 语义裁决 kernel (sme_fmopa_za_arm 重构的镜像;
+# 含 SME 助记符 -> gcc +sme march, 无需 clang)
+sme_fmopa_za_dual: sme_fmopa_za_dual.c
+	$(GCC) -static -O2 -march=armv9-a+sve+sme -Wall -Wextra -o $@ $< -lm
+
 clean:
-	rm -f $(BINS) vl_api_probe
+	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual
 
 .PHONY: all clean
