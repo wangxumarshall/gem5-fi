@@ -253,6 +253,15 @@ def classify(args):
             out["checksum_source"] = "w1_fnv_derived"
     sim_assert = bool(re.search(r"Assertion .* failed|panic|abort", stderr))
     exit_code = args.exit
+    oracle_kind = getattr(args, "oracle_kind", "exact_hash")
+    oracle_tol = getattr(args, "oracle_tol", 0)
+    # oracle_diff（G4）：显式记录"是否真的做过 oracle 比较"。审计 G4：
+    # activated=1 + RC=0 + 与 golden 相符 → Masked 被 _execution_complete
+    # 接受 → execution_complete=True 却无 oracle_diff——这是被禁止的
+    # "activated=1/RC=0 即 READY"泄漏。compared=False 的一律不得判 Masked/SDC。
+    oracle_diff = {"kind": oracle_kind, "compared": False,
+                   "golden": args.golden, "observed": checksum,
+                   "match": None, "tolerance": oracle_tol}
 
     if args.timed_out:
         outcome = "Timeout"
@@ -264,10 +273,30 @@ def classify(args):
         outcome = "Crash"          # no checksum line at all on abort paths
         out["crash_kind"] = ("simulator_assert" if sim_assert
                              else "guest_or_unknown")
-    elif args.golden and checksum != args.golden:
-        outcome = "SDC"
+    elif not args.golden:
+        # 无 golden → 无从比较 → **绝不判 Masked**（G4 泄漏源）。响亮 INCONCLUSIVE
+        # 并把 activated 记下来（不丢样本——与 G3 同一纪律）。
+        out["oracle_diff"] = oracle_diff
+        out["error"] = ("无 --golden：无法与黄金参照比较，拒绝判 Masked/SDC"
+                        "（activated=1 + RC=0 不构成 READY 依据）")
+        out["error_class"] = "no_oracle_reference"
+        out["outcome"] = "INCONCLUSIVE"
+        out["attempted"], out["eligible"], out["injected"] = \
+            attempted, eligible, injected
+        out["activated"] = injected
+        if injected is not None:
+            out["activated_source"] = "fallback=injected（无 oracle 参照）"
+        else:
+            out.setdefault("warnings", []).append(
+                "无 golden 且无漏斗计数 → activated n/a（不猜测）")
+        out["classes"] = None
+        out["recorded"] = True
+        return out
     else:
-        outcome = "Masked"
+        oracle_diff["compared"] = True
+        oracle_diff["match"] = (checksum == args.golden)
+        outcome = "Masked" if oracle_diff["match"] else "SDC"
+    out["oracle_diff"] = oracle_diff
 
     # ---- G1: Crash 检测点 / detection_layer / outcome / 污染链关联 ----
     # 只对 Crash 生效（规格 229 的"最终判定事件必需"字段）；Masked/SDC 的
@@ -319,6 +348,12 @@ def main():
     p.add_argument("--timed-out", action="store_true")
     p.add_argument("--prop-trace", dest="prop_trace", default=None,
                    help="可选 prop_trace.csv.gz：Crash 的污染链关联（G1）")
+    p.add_argument("--oracle-kind", dest="oracle_kind", default="exact_hash",
+                   choices=["exact_hash", "array_hash", "per_element_diff",
+                            "fp_ulp"],
+                   help="oracle 口径（与 tools/classify.py 同名同义）")
+    p.add_argument("--oracle-tol", dest="oracle_tol", type=int, default=0,
+                   help="fp_ulp oracle 的容差（ULP）")
     p.add_argument("--json", help="optional JSON output path")
     a = p.parse_args()
     r = classify(a)

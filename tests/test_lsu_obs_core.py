@@ -70,10 +70,16 @@ def base_ident(**over):
 def make_l5(outcome, activated=1, crash_kind=None, timed_out=False):
     # gem5_exit：guard run-finish 周期完整标记（runner/driver 在 verdict 写入；
     # 纠偏 v2 execution_complete 依据之一——缺失即执行不完整）
+    # oracle_diff：G4 起 lsu_l5_classify 恒记的显式 oracle 比较记录；
+    # Masked/SDC 的 execution_complete 需要它（compared=True）。
     return {"outcome": outcome, "activated": activated, "injected": activated,
             "crash_kind": crash_kind, "timed_out": timed_out,
             "gem5_exit": 0,
             "detected_na": True, "checksum": "0123456789abcdef",
+            "oracle_diff": {"kind": "exact_hash", "compared": True,
+                            "golden": "0123456789abcdef",
+                            "observed": "0123456789abcdef",
+                            "match": outcome == "Masked", "tolerance": 0},
             "classes": {"Masked": 0, "Detected/Contained": 0, "SDC": 0,
                         "Crash": 0, "Timeout": 0},
             "conservation": "OK"}
@@ -526,6 +532,50 @@ def main():
                                                    make_l5("SDC")),
         make_l5("SDC"), {"policy": "per_sample", "verified": False}, files)
     check("obs_replay_unverified_false", obs_norep["chain_complete"] is False)
+
+    # ---- 9b) [R6-ORACLE][G4] execution_complete 不得凭 activated=1/RC=0 通过 ----
+    # 审计 G4：activated=1 + RC=0 + 与 golden 相符 → Masked 被
+    # _execution_complete 接受 → execution_complete=True 却无 oracle_diff
+    # （禁止的"activated=1/RC=0 即 READY"泄漏）。Masked/SDC 必须有真实的
+    # oracle 比较记录（oracle_diff.compared=True）才算执行完成。
+    l5_no_od = make_l5("Masked")
+    del l5_no_od["oracle_diff"]
+    obs_no_od = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("Masked")),
+        l5_no_od, replay_ok, files)
+    check("g4_exec_false_masked_without_oracle_diff",
+          obs_no_od["execution_complete"] is False,
+          str(obs_no_od["L5"].get("oracle_diff")))
+    l5_od_notcmp = make_l5("Masked")
+    l5_od_notcmp["oracle_diff"] = {"kind": "exact_hash", "compared": False,
+                                   "golden": None, "observed": None,
+                                   "match": None}
+    obs_od_notcmp = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("Masked")),
+        l5_od_notcmp, replay_ok, files)
+    check("g4_exec_false_oracle_not_compared",
+          obs_od_notcmp["execution_complete"] is False,
+          str(obs_od_notcmp["L5"]["oracle_diff"]))
+    l5_od_ok = make_l5("Masked")
+    obs_od_ok = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("Masked")),
+        l5_od_ok, replay_ok, files)
+    check("g4_exec_true_with_oracle_compared",
+          obs_od_ok["execution_complete"] is True,
+          str(obs_od_ok["L5"].get("oracle_diff")))
+    # Crash/Timeout 无需 oracle 比较（无 golden 可比）→ 不因此降级
+    l5_crash_no_od = make_l5("Crash", crash_kind="simulator_assert")
+    del l5_crash_no_od["oracle_diff"]
+    obs_crash_no_od = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        C.build_l4(l0v, l1_div, l2_div, l5_crash_no_od),
+        l5_crash_no_od, replay_ok, files)
+    check("g4_exec_true_crash_without_oracle_diff",
+          obs_crash_no_od["execution_complete"] is True,
+          str(obs_crash_no_od["L5"].get("oracle_diff")))
 
     # ---- 10) staging → COMPLETE 协议 ----
     def stage(name, obs):

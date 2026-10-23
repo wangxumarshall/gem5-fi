@@ -700,7 +700,14 @@ def _execution_complete(l5):
     run_finish = isinstance(l5.get("gem5_exit"), int)
     outcome_valid = (not l5.get("error")
                      and l5.get("outcome") not in (None, "INCONCLUSIVE"))
-    return bool(run_finish and outcome_valid)
+    # [R6-ORACLE][G4] Masked/SDC 是 **oracle 判定结论**：必须有真实的 oracle
+    # 比较记录（oracle_diff.compared=True）。否则 activated=1 + RC=0 + "与
+    # golden 相符"（或压根没给 golden）会被误当 READY——禁止的泄漏。
+    # Crash/Timeout/Detected-Contained 无 golden 可比，不受此门约束。
+    oracle_ok = True
+    if outcome_valid and l5.get("outcome") in ("Masked", "SDC"):
+        oracle_ok = (l5.get("oracle_diff") or {}).get("compared") is True
+    return bool(run_finish and outcome_valid and oracle_ok)
 
 
 def _evidence_complete(o):
