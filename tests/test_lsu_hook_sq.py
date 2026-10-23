@@ -185,6 +185,27 @@ def main():
     check("CHAOS_DETECT layer 用四值词汇表（Hardware RAS / None 用例）",
           '"Hardware RAS"' in prop_cc and '"None"' in prop_cc)
 
+    print("[7] [R6-FIXA] 发射器父边按请求域（不是单一 ptag 游标）")
+    # 根因：emitPropEvt 原先以 `ptag_last_event[ptag]` 单游标作 parent_event_id，
+    # 使 addr_fallback 广播直接产生跨请求父子边（T04-F0-W4 实测 59 处断裂）。
+    # 修复后父边按 (fault, request) 取：事件挂到**自身请求**的上一事件；未盖戳
+    # 生命周期事件归属链的 owner 请求。检查器门禁未放宽（见
+    # test_lsu_campaign_propagation.py §6）。
+    check("emitPropEvt 用请求域游标 ptag_branch_last",
+          "ptag_branch_last" in prop_cc, prop_cc[:80])
+    check("记录 owner 请求 ptag_owner_request",
+          "ptag_owner_request" in prop_cc)
+    check("hh 声明请求域游标成员",
+          "ptag_owner_request" in prop_hh and "ptag_branch_last" in prop_hh)
+    # 旧的单一 ptag 游标不得再作为 parent 来源（只允许留在退出回调枚举链）。
+    _s = prop_cc.index("CHAOSPropagation::emitPropEvt(")
+    _e = prop_cc.index("CHAOSPropagation::notePropEvt(", _s)
+    emit = prop_cc[_s:_e]
+    check("emitPropEvt 不再用 ptag_last_event 作 parent",
+          "ptag_last_event.find" not in emit
+          and "{ptag, branch_key}" in emit,
+          "ptag_last_event.find" in emit)
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

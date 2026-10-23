@@ -720,6 +720,27 @@ class CHAOSPropagation : public SimObject
     bool evt_corr_missing_warned = false;   // [R4-4-review-I1] guard above
     std::map<uint64_t, uint64_t> ptag_last_event;
 
+    // [MDSPEC][R6-FIXA] Request-scoped parent cursor.  `ptag_last_event` alone
+    // made every event of a fault descend from the previous event of the SAME
+    // ptag no matter which request it belonged to.  That is wrong for the
+    // addr_fallback broadcast (one polluted line/PA read by many requests):
+    // it chained request A's event directly onto request B's event, i.e. a
+    // cross-request parent edge — which the chain checker's `cross_request_edge`
+    // rule (R6-GATE-D3) correctly rejects (measured T04-F0-W4: event 12
+    // mshr_alloc req=31 -> event 13 cache_access req=32, 59 breaks).
+    //
+    // The chain is now per (ptag, request): a stamped event descends from the
+    // last event of ITS OWN request; an un-stamped event (lifecycle only —
+    // lsq_push / sq_complete / taint_reg / resp / errant_commit / chain_end /
+    // lq_complete) belongs to the chain's OWNER request, i.e. the first stamped
+    // request of that ptag = the faulting request.  A later, different request
+    // therefore starts a SIBLING sub-chain under the same fault_id (rooted
+    // where its own request first appears) instead of hanging off another
+    // request's event.  For a single-request chain this is byte-identical to
+    // the old cursor.
+    std::map<uint64_t, uint64_t> ptag_owner_request;   // ptag -> owning req id
+    std::map<std::pair<uint64_t, uint64_t>, uint64_t> ptag_branch_last;
+
     struct TlbPending {
         uint64_t ptag = 0;
         std::string corr;

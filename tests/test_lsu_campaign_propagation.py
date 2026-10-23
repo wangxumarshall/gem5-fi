@@ -228,6 +228,124 @@ def main():
               rep2["stream_present"] is False and rep2["terminal"] is None,
               str(rep2))
 
+    print("[6] [R6-FIXA] 请求域父边：同请求通过 / 跨请求拒绝 / T02-T04 真实形状")
+    # 发射器（CHAOSPropagation::emitPropEvt）此前用单一 ptag 游标作
+    # parent_event_id，使 addr_fallback 广播（一条被污染 line/PA 被多请求读到）
+    # 直接挂成跨请求父子边——T04-F0-W4 实测 59 处断裂（首例 event 12
+    # mshr_alloc req=31 → event 13 cache_access req=32）。修复把链变成
+    # per-(fault, request)：非本请求的事件是**兄弟子链**（各自在自身请求首现处
+    # 生根），不再成为跨请求父边。检查器门禁一字未改——这里用真实流形状钉死。
+    import lsu_chain_check as CC  # noqa: E402（tools/ 已在 sys.path）
+    import lsu_prop_fields as PF  # noqa: E402
+    RUN = "T04-F0-W4"
+
+    def _L(kind, **kw):
+        parts = [f"kind={kind}", f"run_id={RUN}"]
+        parts += [f"{k}={v}" for k, v in kw.items()]
+        return PF.parse_line("PROP-EVT: " + " ".join(parts))
+
+    # 真实 T04/T02 流形状：owner 请求 31 的 L0→L2（inj/tlb_lookup/tlb_pfn/
+    # tlb_translate_result）+ 未盖戳生命周期（lsq_push）+ L3（cache_access/
+    # mshr_alloc）+ 一个**兄弟**请求 32 的 cache_access/cache_return（自身生根，
+    # 无跨请求父边）+ owner 的 resp/taint_reg + errant_commit（未盖戳，随 owner）。
+    owner = [
+        _L("inj", fault_id=1, event_id=0, tick=10, request_id=31,
+           corr="origin"),
+        _L("tlb_lookup", fault_id=1, event_id=1, parent_event_id=0, tick=11,
+           request_id=31, corr="seq_primary", dyn_inst_seq=31,
+           field="post_lookup", state_before="valid", state_after="valid"),
+        _L("tlb_pfn", fault_id=1, event_id=2, parent_event_id=1, tick=12,
+           request_id=31, corr="seq_primary", va="7f000", before="1000",
+           after="2000"),
+        _L("tlb_translate_result", fault_id=1, event_id=3, parent_event_id=2,
+           tick=13, request_id=31, corr="seq_primary", outcome="NoFault",
+           contained="0"),
+        _L("lsq_push", fault_id=1, event_id=4, parent_event_id=3, tick=14,
+           corr="seq_primary"),
+        _L("cache_access", fault_id=1, event_id=5, parent_event_id=4, tick=15,
+           request_id=31, corr="addr_fallback"),
+        _L("mshr_alloc", fault_id=1, event_id=6, parent_event_id=5, tick=16,
+           request_id=31, corr="addr_fallback"),
+    ]
+    # 兄弟子链（请求 32）：NO parent_event_id —— 自身生根，**不得**指向
+    # 请求 31 的任何事件。
+    sibling = [
+        _L("cache_access", fault_id=1, event_id=7, tick=17, request_id=32,
+           corr="addr_fallback"),
+        _L("cache_return", fault_id=1, event_id=8, parent_event_id=7, tick=18,
+           request_id=32, corr="addr_fallback"),
+    ]
+    owner_tail = [
+        _L("resp", fault_id=1, event_id=9, parent_event_id=6, tick=19,
+           request_id=31, corr="seq_primary"),
+        _L("taint_reg", fault_id=1, event_id=10, parent_event_id=9, tick=20,
+           request_id=31, corr="seq_primary"),
+        _L("errant_commit", fault_id=1, event_id=11, parent_event_id=10,
+           tick=21, corr="taint_prop", detection_layer="L5", contained="0",
+           outcome="errant_commit"),
+        _L("chain_end", fault_id=1, event_id=12, parent_event_id=11, tick=22,
+           corr="none", detection_layer="L5", contained="0",
+           outcome="errant_commit_seen"),
+    ]
+
+    # (1) 同一请求的合法边通过：纯 owner 链（无兄弟）→ 门禁 PASS。
+    r1 = CC.check_admission({"run_id": RUN, "activated": 1,
+                             "events": owner + owner_tail,
+                             "oracle_outcome": "SDC"})
+    check("同请求链 admitted + full_chain",
+          r1["admitted"] is True and r1["path"] == "full_chain",
+          f'{r1["admitted"]} / {r1["path"]}')
+    check("同请求链无 cross_request_edge",
+          not any("cross_request_edge" in v for v in r1["violations"]),
+          str(r1["violations"]))
+
+    # (2) 跨请求边仍被拒绝（门禁未被放宽）：修复前的**单游标**形状——请求 32
+    #     的事件直接挂在请求 31 的事件 6 之下，owner tail 再续在 32 之后，
+    #     使跨请求边落在所选祖先上（复现实测的 59 处断裂形状）。
+    linear = ([L2 for L2 in owner]
+              + [_L("cache_access", fault_id=1, event_id=7, parent_event_id=6,
+                    tick=17, request_id=32, corr="addr_fallback"),
+                 _L("cache_return", fault_id=1, event_id=8, parent_event_id=7,
+                    tick=18, request_id=32, corr="addr_fallback"),
+                 _L("resp", fault_id=1, event_id=9, parent_event_id=8, tick=19,
+                    request_id=31, corr="seq_primary"),
+                 _L("taint_reg", fault_id=1, event_id=10, parent_event_id=9,
+                    tick=20, request_id=31, corr="seq_primary"),
+                 _L("errant_commit", fault_id=1, event_id=11,
+                    parent_event_id=10, tick=21, corr="taint_prop",
+                    detection_layer="L5", contained="0",
+                    outcome="errant_commit"),
+                 _L("chain_end", fault_id=1, event_id=12, parent_event_id=11,
+                    tick=22, corr="none", detection_layer="L5", contained="0",
+                    outcome="errant_commit_seen")])
+    r2 = CC.check_admission({"run_id": RUN, "activated": 1, "events": linear,
+                             "oracle_outcome": "SDC"})
+    check("跨请求父边仍被拒绝",
+          r2["admitted"] is False
+          and any("cross_request_edge" in v for v in r2["violations"]),
+          str(r2["violations"][:1]))
+
+    # (3) T02/T04 真实 L0–L5 链保持 request 一致：加兄弟子链后仍 admitted，
+    #     且兄弟事件**不在**所选祖先上（未被拼接进 owner 链）。
+    r3 = CC.check_admission({"run_id": RUN, "activated": 1,
+                             "events": owner + sibling + owner_tail,
+                             "oracle_outcome": "SDC"})
+    check("真实形状仍 admitted + L0..L5 全层",
+          r3["admitted"] is True
+          and r3["path_layers"] == ["L0", "L1", "L2", "L3", "L4", "L5"],
+          f'{r3["admitted"]} / {r3["path_layers"]}')
+    check("真实形状无 cross_request_edge",
+          not any("cross_request_edge" in v for v in r3["violations"]),
+          str(r3["violations"]))
+    by_id = {e["event_id"]: e for e in owner + sibling + owner_tail}
+    anc = CC._ancestry(by_id["12"], by_id)
+    anc_ids = [e["event_id"] for e in anc]
+    check("兄弟请求 32 的事件不在所选祖先上",
+          "7" not in anc_ids and "8" not in anc_ids, str(anc_ids))
+    check("所选祖先全部为 owner(31) 或未盖戳（request 一致）",
+          all(str(e.get("request_id", "")).strip() in ("", "0", "31")
+              for e in anc), str([e.get("request_id") for e in anc]))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

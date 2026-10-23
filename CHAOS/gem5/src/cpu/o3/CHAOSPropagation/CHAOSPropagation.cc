@@ -346,9 +346,37 @@ namespace gem5
             fields["thread_id"] = std::to_string(tid);
         fields["fault_id"] = std::to_string(ptag);
         fields["event_id"] = std::to_string(event_id);
+        // [MDSPEC][R6-FIXA] Request-scoped chain cursor (see .hh).  The event's
+        // branch key is its own stamped request_id; an un-stamped (lifecycle)
+        // event rides the chain's OWNER request (= the first stamped request of
+        // this ptag, i.e. the faulting request).  A later, different request is
+        // therefore a SIBLING sub-chain, never a cross-request parent edge.
+        uint64_t branch_key = 0;
+        {
+            const std::string &reqs = fields["request_id"];
+            const bool stamped = !reqs.empty() && reqs != "0";
+            if (stamped) {
+                branch_key = strtoull(reqs.c_str(), nullptr, 10);
+                if (ptag != 0 && ptag_owner_request.find(ptag)
+                        == ptag_owner_request.end()) {
+                    ptag_owner_request[ptag] = branch_key;
+                    // Carry the pre-owner un-stamped cursor (e.g. an un-stamped
+                    // L0 inj) onto the owner's branch so the owner's first
+                    // stamped event still descends from it (byte-identical to
+                    // the old single cursor for a single-request chain).
+                    const auto pit = ptag_branch_last.find({ptag, 0});
+                    if (pit != ptag_branch_last.end())
+                        ptag_branch_last[{ptag, branch_key}] = pit->second;
+                }
+            } else if (ptag != 0) {
+                const auto oit = ptag_owner_request.find(ptag);
+                branch_key = (oit == ptag_owner_request.end()) ? 0
+                                                              : oit->second;
+            }
+        }
         if (fields["parent_event_id"].empty()) {
-            const auto it = ptag_last_event.find(ptag);
-            if (it != ptag_last_event.end() && it->second != event_id)
+            const auto it = ptag_branch_last.find({ptag, branch_key});
+            if (it != ptag_branch_last.end() && it->second != event_id)
                 fields["parent_event_id"] = std::to_string(it->second);
         }
         if (!run_id.empty() && fields["run_id"].empty())
@@ -380,8 +408,12 @@ namespace gem5
             panic("CHAOSPropagation: PROP-EVT write failed (event %llu)",
                   (unsigned long long)event_id);
         gzflush(evt_gz_file, Z_SYNC_FLUSH);
-        if (ptag != 0)
+        if (ptag != 0) {
             ptag_last_event[ptag] = event_id;
+            // Advance the request-scoped cursor for this event's branch, so
+            // the NEXT event of the same (ptag, request) descends from it.
+            ptag_branch_last[{ptag, branch_key}] = event_id;
+        }
     }
 
     void
