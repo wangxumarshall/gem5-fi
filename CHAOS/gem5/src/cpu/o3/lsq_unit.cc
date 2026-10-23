@@ -1571,10 +1571,21 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         if (h7_ptag) {
             std::ostringstream h7_hex;
             h7_hex << std::hex << h7_base;
+            // [MDSPEC][R6-EMIT2/A9] request_id: the L3 read must name the
+            // request that issues it, or the L2->L3 request chain breaks
+            // (measured: lq_read carried no request_id). Source = the
+            // Request-stamped seq (lsq_sendfrag convention: the same value
+            // the mem_req/lsq_sendfrag nodes carry); fall back to the
+            // instruction's own seq when the request is not yet stamped.
+            const uint64_t h7_req =
+                (request->mainReq() && request->mainReq()->hasInstSeqNum())
+                    ? request->mainReq()->getReqInstSeqNum()
+                    : load_inst->seqNum;
             cpu->chaosPropagation->notePropEvt("lq_read", {
                 {"fault_id", std::to_string(h7_ptag)},
                 {"corr", h7_corr ? h7_corr : ""},
                 {"dyn_inst_seq", std::to_string(load_inst->seqNum)},
+                {"request_id", std::to_string(h7_req)},
                 {"lq_idx", std::to_string((long long)load_idx)},
                 {"va", h7_hex.str()},
             });

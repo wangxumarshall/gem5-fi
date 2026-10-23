@@ -1133,7 +1133,7 @@ MMU::translateMmuOn(ThreadContext* tc, const RequestPtr &req, Mode mode,
                 // abort regardless of sctlr.a
                 stats.alignFaults++;
                 bool is_write  = (mode == Write);
-                return std::make_shared<DataAbort>(
+                fault = std::make_shared<DataAbort>(
                     vaddr_tainted,
                     DomainType::NoAccess, is_write,
                     ArmFault::AlignmentFault, state.isStage2,
@@ -1144,6 +1144,19 @@ MMU::translateMmuOn(ThreadContext* tc, const RequestPtr &req, Mode mode,
             fault = testAndFinalize(req, tc, mode, te, state);
     }
 
+    // [MDSPEC][T-series] Close an injected lookup only after the MMU has
+    // materialized the effective PA and run permission/alignment checks.
+    // A delayed walk is intentionally left pending; T08-a closes itself at
+    // the observed drop point because no completion callback can follow.
+    if (!delay) {
+        CHAOSPropagation *tlb_prop = CHAOSPropagation::instance();
+        if (tlb_prop && req && req->hasVaddr()) {
+            tlb_prop->noteTlbTranslationResult(
+                req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0,
+                vaddr, req->hasPaddr(), req->hasPaddr() ? req->getPaddr() : 0,
+                fault != NoFault ? fault->name() : "NoFault");
+        }
+    }
     return fault;
 }
 

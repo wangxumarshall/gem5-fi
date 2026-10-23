@@ -4,6 +4,7 @@
 #include <random>
 #include <bitset>
 #include <memory>
+#include <string>
 
 #include "base/output.hh"
 #include "base/statistics.hh"
@@ -61,7 +62,10 @@ class CHAOSArmTLB : public SimObject
     // entry's page size (entry->size + 1).
     void registerTrace(Addr va, Addr old_pfn, Addr new_pfn,
                        Addr old_pa, Addr new_pa, Addr pa_span,
-                       const char *mode, uint64_t req_seq, uint64_t req_size);
+                       const char *mode, uint64_t req_seq, uint64_t req_size,
+                       int entry_way, int candidate_way, uint64_t walk_id,
+                       const std::string &entry_before,
+                       const std::string &entry_after);
 
     // [MDSPEC][R4-5.9] T08 walk/fill pairing (FS-only). Called from
     // TableWalker::walk() once per page-table walk, right AFTER the
@@ -177,6 +181,11 @@ class CHAOSArmTLB : public SimObject
     // (no candidate — nothing registered, nothing counted).
     bool applyEntryFieldFault(ArmISA::TlbEntry *entry, FaultType ft, Addr va,
                               uint64_t req_seq, uint64_t req_size);
+
+    // Stable lookup-slot identity plus the complete TLB entry state carried
+    // by the T-series L1/L2 observation events. -1 means no applicable way.
+    int entryIndex(const ArmISA::TlbEntry *entry) const;
+    std::string snapshotEntry(const ArmISA::TlbEntry *entry, Addr pa) const;
 
     ArmISA::TLB *tlb;
     // [R4-5.9] T08 target walker (optional; nullptr unless the FS config

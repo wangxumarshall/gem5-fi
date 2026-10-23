@@ -123,6 +123,7 @@
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -178,6 +179,28 @@ class CHAOSPropagation : public SimObject
     };
     static constexpr int N_PROP_EVT_FIELDS =
         (int)(sizeof(PROP_EVT_FIELDS) / sizeof(PROP_EVT_FIELDS[0]));
+
+    // [MDSPEC][R6] T-series containment vocabulary, carried OUTSIDE the
+    // shared PROP_EVT_FIELDS registry on purpose. That registry is mirrored
+    // 1:1 by tools/lsu_prop_fields.py and pinned equal by
+    // tests/test_lsu_prop_fields.py; the parser already keeps family keys
+    // outside it ("注册表外的家族键…保留在 dict 中供家族消费" —
+    // lsu_prop_fields.parse_line). Growing the SHARED registry is a
+    // tools-lane change, so the TLB family records its disposition here
+    // rather than half-routing a contract it does not own.
+    //
+    // Ruling: an unchanged-PA (Masked) / permission-denied / lost-walk
+    // fault is CONTAINED. A contained chain must say WHERE it was contained
+    // and WHY, so the offline checker can close it as detected_contained
+    // instead of "provable_to_Ln_then_unknown" (beyond=Unknown). The layer
+    // value is the L-number (e.g. "L2"); the reason reuses the L2 `field`
+    // vocabulary (effective_pa_unchanged / translation_blocked /
+    // walk_refill_lost).
+    static inline const char *const PROP_EVT_EXT_FIELDS[] = {
+        "containment_layer", "containment_reason",
+    };
+    static constexpr int N_PROP_EVT_EXT_FIELDS =
+        (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
 
     // H1-H7 hook families (and any future observer): emit one unified
     // event. kv pairs use registry field names; unknown keys are warned
@@ -456,7 +479,10 @@ class CHAOSPropagation : public SimObject
     uint64_t registerTlbFault(uint64_t req_seq, Addr va, Addr size,
                               Addr old_pfn, Addr new_pfn,
                               Addr old_pa, Addr new_pa, Addr pa_span,
-                              const char *mode);
+                              const char *mode, int entry_way,
+                              int candidate_way, uint64_t walk_id,
+                              const std::string &entry_before,
+                              const std::string &entry_after);
 
     // [MDSPEC][R4-10-T05/T06/T07] TLB entry-STATE / access-attribute faults
     // (valid / global / ASID / AP / memory-type / page-size). These mutate a
@@ -471,7 +497,17 @@ class CHAOSPropagation : public SimObject
     uint64_t registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
                                    const char *field,
                                    const std::string &before,
-                                   const std::string &after);
+                                   const std::string &after,
+                                   Addr old_pa, Addr new_pa,
+                                   int entry_way, int candidate_way,
+                                   uint64_t walk_id,
+                                   const std::string &entry_before,
+                                   const std::string &entry_after);
+
+    // Close a T-series lookup observation at the real MMU completion point,
+    // after permission/alignment checks have produced the final Fault.
+    void noteTlbTranslationResult(uint64_t req_seq, Addr va, bool has_pa,
+                                  Addr pa, const char *fault);
 
     // [MDSPEC][R4-5.9] T08 walk/fill pairing (FS-only): register a PAIR of
     // nodes for ONE page-table walk — `tlb_walk` (the walk issued by
@@ -622,6 +658,18 @@ class CHAOSPropagation : public SimObject
     // errant_commit, dest re-taint / clean-overwrite.
     void noteCommit(ThreadID tid, o3::DynInst *head_inst);
 
+    // [MDSPEC][R6-EMIT2/oracle] Hardware-detector stdout signal, the single
+    // input the offline oracle's Detected/Contained class consumes (L18-G7):
+    //   CHAOS_DETECT: layer=<Hardware RAS|OS|Application|None> contained=<0|1>
+    //                 tick=<n> ptag=<n> reason=<...>
+    // Emitted on the DETECTION path itself (errant_commit = escaped, layer
+    // None, contained 0; every containment recording = layer Hardware RAS,
+    // contained 1). stdout (not the gz stream) so a crash/abort sample —
+    // whose exit callback never runs — still carries the detection to the
+    // harness. No-op when the tracer is disabled.
+    void emitDetectSignal(const char *layer, bool contained, uint64_t ptag,
+                          const char *reason);
+
   private:
     // One CSV row: numeric fields with has_x=false print as "".
     // corr labels the PROP-EVT dual-emit ([R4-4-review-I1]): one of the
@@ -672,11 +720,63 @@ class CHAOSPropagation : public SimObject
     bool evt_corr_missing_warned = false;   // [R4-4-review-I1] guard above
     std::map<uint64_t, uint64_t> ptag_last_event;
 
+    struct TlbPending {
+        uint64_t ptag = 0;
+        std::string corr;
+        uint64_t walk_id = 0;
+        int entry_way = -1;
+        int candidate_way = -1;
+        Addr clean_pa = 0;
+        Addr lookup_pa = 0;
+        std::string entry_before;
+        std::string entry_after;
+        // [R6-B/T08-bcd] walk-family faults have no clean-PA baseline (the
+        // corrupted object is the walk handshake, not the entry pfn); the
+        // completion must not claim containment on an unknown baseline.
+        bool walk_fault = false;
+    };
+    // Request sequence plus VA disambiguates stage/functional lookups while
+    // preserving a direct join with the MMU request that completes them.
+    std::map<std::pair<uint64_t, Addr>, TlbPending> tlb_pending;
+
     static CHAOSPropagation *chaos_instance;
 
     uint64_t next_node_id = 0;
     uint64_t next_ptag = 0;        // 0 reserved ("no chain")
     bool errant_commit_seen = false;
+    // [MDSPEC][R6] Per-chain record of the (single, first) errant commit.
+    // The errant_commit node already carries the faulting chain's own ptag,
+    // so WHICH chain reached the wrong architecturally-visible commit is
+    // observable; the run-global flag above cannot say it, which forced the
+    // L5 `chain_end` node to report a lifecycle-only outcome for every chain
+    // (outcome=run_end / detection_layer=None) — rejected as L5 evidence.
+    std::set<uint64_t> errant_ptags;
+
+    // [MDSPEC][R6-EMIT2/oracle] Tracer-observed commit ordinal (counts every
+    // commit seen by noteCommit — the CHAOSMicroSnap commit_seq semantic).
+    // The L5 detection node / chain_end carry it so the offline outcome join
+    // has a commit point (L18 contract item 3: fault_id/commit_seq/pc/
+    // dyn_inst_seq).
+    uint64_t commit_seq_counter = 0;
+    // Per-chain record of the DETECTION point (the errant commit): pc /
+    // DynInst seq / commit ordinal / tick, lifted onto the chain's L5
+    // chain_end node at exit. Chains that never reached a detection keep an
+    // empty record (honest — the fields stay "").
+    struct DetectPoint {
+        uint64_t pc = 0;
+        uint64_t dyn_seq = 0;
+        uint64_t commit_seq = 0;
+        Tick tick = 0;
+    };
+    std::map<uint64_t, DetectPoint> errant_detect;
+
+    // [MDSPEC][R6] Per-chain containment disposition (layer, reason), set
+    // when a translation completes with the fault ABSORBED (effective PA
+    // unchanged / permission-denied / lost walk) — i.e. the Masked case.
+    // The exit callback lifts it onto the chain's chain_end node so the
+    // chain closes as detected_contained (later layers justified
+    // N/A(contained)) instead of falling back to an Unknown terminal.
+    std::map<uint64_t, std::pair<std::string, std::string>> containment_ptags;
 
     struct AddrEntry {
         uint64_t ptag;
@@ -698,8 +798,24 @@ class CHAOSPropagation : public SimObject
     struct TaintEntry {
         uint64_t ptag;
         uint64_t taintor_seq;      // DynInst::seqNum of the tainting inst
+        // [MDSPEC][R6/A6] The event that ESTABLISHED this taint (the
+        // taint_reg node, or the consumer node that re-tainted a dest).
+        // Consumers of this taint name it as their parent_event_id, so the
+        // chain is a real DAG (one source → many consumers) instead of the
+        // degenerate "parent = previous event" linear list the single
+        // ptag_last_event cursor produced.
+        uint64_t src_event = 0;
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
+
+    // [MDSPEC][R6/A7] Store-response taint, keyed by the STORE's DynInst seq
+    // (a store has no arch dest reg to key the phys-reg taint set on — its
+    // architectural materialization is its COMMIT). noteMemResponse records
+    // the store here at its L3 response; noteCommit then treats the store's
+    // own commit as the error path (errant_commit, L4/L5) exactly as it does
+    // the faulting load's self-taint commit. Without this the store chain
+    // honestly stopped at L3 (measured S04-F0-W5).
+    std::map<uint64_t, TaintEntry> store_taint;
 
     // [MDSPEC][H5] prefetch-request registry: one entry per prefetch
     // request keyed by its line base, carrying the request-level

@@ -418,19 +418,26 @@ namespace gem5
         // FS-only by construction (the hook fires under the MMU).
         if (chosen == FaultType::PfnToMappedPage) {
             if (!tlb) return;
-            // collect candidate pfns from the other entries
-            std::vector<Addr> candidates;
+            // Collect candidate entries, retaining their deterministic table
+            // index so the observation says which legal alternative won.
+            std::vector<std::pair<const ArmISA::TlbEntry *, int>> candidates;
             const auto &tbl = tlb->entryTable();
+            int table_idx = 0;
             for (auto it = tbl.begin(); it != tbl.end(); ++it) {
                 if (&(*it) != entry && it->pfn != entry->pfn)
-                    candidates.push_back(it->pfn);
+                    candidates.emplace_back(&(*it), table_idx);
+                ++table_idx;
             }
             if (candidates.empty()) return;  // no legal substitute (honest no-op)
             Addr old_pfn = entry->pfn;
             // [R4-4] gem5's own PA arithmetic, before/after the mutation —
             // captures the 64-bit wrap that leaves high pfn bits inert.
             const Addr old_pa = entry->pAddr(va);
-            entry->pfn = candidates[rng() % candidates.size()];
+            const int entry_way = entryIndex(entry);
+            const std::string entry_before = snapshotEntry(entry, old_pa);
+            const auto &candidate = candidates[rng() % candidates.size()];
+            entry->pfn = candidate.first->pfn;
+            const int candidate_way = candidate.second;
             stats->numFaultsInjected++;
             ++faults_injected_count;
             if (write_log) {
@@ -444,9 +451,11 @@ namespace gem5
                     << ", candidates: " << std::dec << candidates.size()
                     << std::endl;
             }
-            registerTrace(va, old_pfn, entry->pfn, old_pa, entry->pAddr(va),
+            const Addr new_pa = entry->pAddr(va);
+            registerTrace(va, old_pfn, entry->pfn, old_pa, new_pa,
                           entry->size + 1, "pfn_to_mapped_page",
-                          req_seq, req_size);
+                          req_seq, req_size, entry_way, candidate_way, 0,
+                          entry_before, snapshotEntry(entry, new_pa));
             return;
         }
 
@@ -458,6 +467,8 @@ namespace gem5
         // [R4-4] gem5's own PA arithmetic, before/after the mutation —
         // captures the 64-bit wrap that leaves high pfn bits inert.
         const Addr old_pa = entry->pAddr(va);
+        const int entry_way = entryIndex(entry);
+        const std::string entry_before = snapshotEntry(entry, old_pa);
         switch (chosen) {
             case FaultType::StuckAtZero:
                 entry->pfn &= ~mask;
@@ -502,9 +513,12 @@ namespace gem5
                 << ", Mask: 0x" << mask << std::dec
                 << std::endl;
         }
-        registerTrace(va, old_pfn, entry->pfn, old_pa, entry->pAddr(va),
+        const Addr new_pa = entry->pAddr(va);
+        registerTrace(va, old_pfn, entry->pfn, old_pa, new_pa,
                       entry->size + 1, faultTypeToString(chosen),
-                      req_seq, req_size);
+                      req_seq, req_size, entry_way,
+                      /*candidate_way=*/-1, /*walk_id=*/0,
+                      entry_before, snapshotEntry(entry, new_pa));
     }
 
     // [MDSPEC][R4-10-T08-b/c/d] walk/refill pairing sub-models. Called at the
@@ -616,6 +630,10 @@ namespace gem5
         if (!entry) return false;
         const char *field = faultTypeToString(ft);
         std::string before, after;
+        const Addr old_pa = entry->pAddr(va);
+        const int entry_way = entryIndex(entry);
+        const std::string state_before = snapshotEntry(entry, old_pa);
+        int candidate_way = -1;
 
         switch (ft) {
           case FaultType::ValidClear:
@@ -637,10 +655,12 @@ namespace gem5
             if (!tlb) return false;
             bool found = false; uint16_t cand = 0;
             const auto &tbl = tlb->entryTable();
-            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+            int idx = 0;
+            for (auto it = tbl.begin(); it != tbl.end(); ++it, ++idx) {
                 if (&(*it) == entry) continue;
                 if (it->valid && it->asid != entry->asid) {
-                    cand = it->asid; found = true; break;
+                    cand = it->asid; candidate_way = idx;
+                    found = true; break;
                 }
             }
             if (!found) return false;   // no other active ASID: honest no-op
@@ -653,10 +673,12 @@ namespace gem5
             if (!tlb) return false;
             bool found = false; uint8_t cand = 0;
             const auto &tbl = tlb->entryTable();
-            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+            int idx = 0;
+            for (auto it = tbl.begin(); it != tbl.end(); ++it, ++idx) {
                 if (&(*it) == entry) continue;
                 if (it->valid && it->ap != entry->ap) {
-                    cand = it->ap; found = true; break;
+                    cand = it->ap; candidate_way = idx;
+                    found = true; break;
                 }
             }
             if (!found) return false;
@@ -669,12 +691,14 @@ namespace gem5
             if (!tlb) return false;
             bool found = false; uint8_t cand = 0;
             const auto &tbl = tlb->entryTable();
-            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+            int idx = 0;
+            for (auto it = tbl.begin(); it != tbl.end(); ++it, ++idx) {
                 if (&(*it) == entry) continue;
                 if (it->valid &&
                     static_cast<uint8_t>(it->mtype) !=
                         static_cast<uint8_t>(entry->mtype)) {
-                    cand = static_cast<uint8_t>(it->mtype); found = true; break;
+                    cand = static_cast<uint8_t>(it->mtype);
+                    candidate_way = idx; found = true; break;
                 }
             }
             if (!found) return false;
@@ -689,10 +713,12 @@ namespace gem5
             bool found = false; uint8_t n = 0; ArmISA::GrainSize tg =
                 ArmISA::Grain4KB;
             const auto &tbl = tlb->entryTable();
-            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+            int idx = 0;
+            for (auto it = tbl.begin(); it != tbl.end(); ++it, ++idx) {
                 if (&(*it) == entry) continue;
                 if (it->valid && it->N != entry->N) {
-                    n = it->N; tg = it->tg; found = true; break;
+                    n = it->N; tg = it->tg; candidate_way = idx;
+                    found = true; break;
                 }
             }
             if (!found) return false;
@@ -722,8 +748,12 @@ namespace gem5
         }
         CHAOSPropagation *tr = CHAOSPropagation::instance();
         if (tr) {
+            const Addr new_pa = entry->pAddr(va);
+            const std::string state_after = snapshotEntry(entry, new_pa);
             tr->registerTlbStateFault(req_seq, va, req_size, field,
-                                      before, after);
+                                      before, after, old_pa, new_pa,
+                                      entry_way, candidate_way, 0,
+                                      state_before, state_after);
         }
         return true;
     }
@@ -752,6 +782,9 @@ namespace gem5
         const char *field = faultTypeToString(fault_type_enum);
         std::string before, after;
         ArmISA::TlbEntry *ret = entry;
+        const Addr old_pa = entry ? entry->pAddr(va) : 0;
+        const int entry_way = entryIndex(entry);
+        const std::string state_before = snapshotEntry(entry, old_pa);
 
         switch (fault_type_enum) {
           case FaultType::FalseHit: {
@@ -811,10 +844,47 @@ namespace gem5
         }
         CHAOSPropagation *tr = CHAOSPropagation::instance();
         if (tr) {
+            const Addr new_pa = ret ? ret->pAddr(va) : 0;
+            const int candidate_way = entryIndex(ret);
+            const std::string state_after = snapshotEntry(ret, new_pa);
             tr->registerTlbStateFault(req_seq, va, req_size, field,
-                                      before, after);
+                                      before, after, old_pa, new_pa,
+                                      entry_way, candidate_way, 0,
+                                      state_before, state_after);
         }
         return ret;
+    }
+
+    int
+    CHAOSArmTLB::entryIndex(const ArmISA::TlbEntry *entry) const
+    {
+        if (!tlb || !entry)
+            return -1;
+        int entry_way = 0;
+        const auto &tbl = tlb->entryTable();
+        for (auto it = tbl.begin(); it != tbl.end(); ++it, ++entry_way) {
+            if (&(*it) == entry)
+                return entry_way;
+        }
+        return -1;
+    }
+
+    std::string
+    CHAOSArmTLB::snapshotEntry(const ArmISA::TlbEntry *entry, Addr pa) const
+    {
+        if (!entry)
+            return "entry=none";
+        std::ostringstream out;
+        out << "vpn=" << std::hex << entry->vpn
+            << ";asid=" << std::dec << entry->asid
+            << ";valid=" << (entry->valid ? 1 : 0)
+            << ";global=" << (entry->global ? 1 : 0)
+            << ";pfn=" << std::hex << entry->pfn
+            << ";ap=" << std::dec << static_cast<unsigned>(entry->ap)
+            << ";mtype=" << static_cast<unsigned>(entry->mtype)
+            << ";page_size=" << std::hex << (entry->size + 1)
+            << ";pa=" << pa;
+        return out.str();
     }
 
     // [MDSPEC][R4-4] register a TLB-entry fault with the propagation tracer
@@ -858,13 +928,18 @@ namespace gem5
     CHAOSArmTLB::registerTrace(Addr va, Addr old_pfn, Addr new_pfn,
                                Addr old_pa, Addr new_pa, Addr pa_span,
                                const char *mode, uint64_t req_seq,
-                               uint64_t req_size)
+                               uint64_t req_size, int entry_way,
+                               int candidate_way, uint64_t walk_id,
+                               const std::string &entry_before,
+                               const std::string &entry_after)
     {
         CHAOSPropagation *tr = CHAOSPropagation::instance();
         if (!tr)
             return;
         tr->registerTlbFault(req_seq, va, req_size, old_pfn, new_pfn,
-                             old_pa, new_pa, pa_span, mode);
+                             old_pa, new_pa, pa_span, mode, entry_way,
+                             candidate_way, walk_id, entry_before,
+                             entry_after);
     }
 
     CHAOSArmTLB::CHAOSArmTLBStats::CHAOSArmTLBStats(statistics::Group *parent)
