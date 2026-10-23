@@ -106,6 +106,45 @@ def assess(entry, evidence):
     return "PARTIAL", why
 
 
+# [R6-MERGEFIX 2026-10-23] 矩阵 RunID 的逐 seed 流标签 `<矩阵RunID>-seed<数字>`
+# 就是该矩阵运行本身（见 aux_run_boundary 的规则收紧）。此判据此前内联在
+# aux_run_boundary 里；L17（b3321b6f）扫盘重生成 pilot_evidence.json 后，pilot
+# 键由裸 `<RunID>` 变为**逐 seed** `<RunID>-seed<N>`（`dropped_existing` 明记
+# `C11-F0-W6` 被 `-seed1..3` 取代），需要"该 RunID 自己观测到哪些 kind"的调用方
+# 因此必须按同一判据聚合。抽成单一真相源，避免按裸键取值造成的静默落空。
+_SEED_SUFFIX = re.compile(r"^(?P<base>.+)-seed\d+$")
+
+
+def _matrix_stream_owner(rid, matrix_rids):
+    """<rid> 若属某矩阵 RunID 的自身流则返回该矩阵 RunID，否则 None。
+
+    `rid` 自身在 `matrix_rids` → 归它；`<base>-seed<N>` 且 `base` 在
+    `matrix_rids` → 归 `base`；其余（`-campaign` 复跑、`-R4T3-MSHRREF-sN`
+    载体、`-P03mech` 机理变体）→ 辅助运行，返回 None。
+    """
+    if rid in matrix_rids:
+        return rid
+    m = _SEED_SUFFIX.match(rid)
+    return m.group("base") if m and m.group("base") in matrix_rids else None
+
+
+def runid_kinds(evidence, rid):
+    """矩阵 RunID `rid` **自身**观测到的全部 kind 并集。
+
+    = 裸键 `<rid>` ∪ 逐 seed 流 `<rid>-seed<N>`（与 `aux_run_boundary` 的
+    矩阵归属判据同源）。供需要审计"该矩阵运行自己是否观测到某必需节点"的
+    调用方使用（辅助运行/载体的 kind **不计入**——那属于 aux_run_boundary
+    的边界陈述）。无证据文件 / 旧格式 → 空集（诚实缺省，绝不臆造）。
+    """
+    if not evidence or "pilots" not in evidence:
+        return set()
+    out = set()
+    for k, p in evidence["pilots"].items():
+        if _matrix_stream_owner(k, {rid}) == rid:
+            out.update(p.get("kinds", []))
+    return out
+
+
 def aux_run_boundary(entries, evidence):
     """逐单元计算"仅在辅助运行中观测到的必需节点"（R4-3 评审边界要求）。
 
@@ -134,22 +173,15 @@ def aux_run_boundary(entries, evidence):
     # "sq_execute 仅辅助运行可见"，而它其实来自矩阵单元 S04-F0-W5 自己的 seed 流）。
     # 规则收紧为：`<矩阵RunID>-seed<数字>` 归矩阵；其余后缀
     # （`-campaign` 复跑、`-R4T3-MSHRREF-sN` 载体、`-P03mech` 机理变体）
-    # 仍是辅助——它们确实是另一条运行。
-    _seed_suffix = re.compile(r"^(?P<base>.+)-seed\d+$")
-
-    def _matrix_owner(rid):
-        if rid in matrix_rids:
-            return rid
-        m = _seed_suffix.match(rid)
-        return m.group("base") if m and m.group("base") in matrix_rids else None
-
+    # 仍是辅助——它们确实是另一条运行。（判据现由 `_matrix_stream_owner`
+    # 单一提供，与 `runid_kinds` 同源，防两处漂移。）
     per_unit = {}
     for rid, p in evidence["pilots"].items():
         unit = p.get("unit")
         if not unit:
             continue
         d = per_unit.setdefault(unit, {"matrix_kinds": set(), "aux": {}})
-        if _matrix_owner(rid):
+        if _matrix_stream_owner(rid, matrix_rids):
             d["matrix_kinds"].update(p.get("kinds", []))
         else:
             d["aux"][rid] = set(p.get("kinds", []))

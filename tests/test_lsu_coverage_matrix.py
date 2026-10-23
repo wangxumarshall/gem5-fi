@@ -110,11 +110,16 @@ def main():
         # 关闭依据可审计：C11-F0-W6（矩阵 RunID 的 campaign 运行）的
         # pilot 观测含全部 mshr_* 必需节点；R4-3 的 6 载体与 R4-5.1 的
         # 3 载体仍在证据文件中留证。
-        c11ev = evidence["pilots"].get("C11-F0-W6", {})
+        # [R6-MERGEFIX 2026-10-23] L17（b3321b6f）扫盘重生成 pilot_evidence.json
+        # 后，pilot 键由裸 `<RunID>` 变为**逐 seed** `<RunID>-seed<N>`（dropped_
+        # existing 明记 `C11-F0-W6` 被 `-seed1..3` 取代）。按裸键 `.get()` 取值一律
+        # 落空——但证据并未缺失（C11-F0-W6-seed1 kinds 含全部 mshr_*）。改按工具
+        # 单一真相源 `CM.runid_kinds`（裸键 ∪ 逐 seed 流，与 aux_run_boundary 同判据）
+        # 聚合；要求仍是**该矩阵 RunID 自身**观测到生命周期节点（辅助载体不计入）。
+        c11_kinds = CM.runid_kinds(evidence, "C11-F0-W6")
         mshr_nodes = {"mshr_alloc", "mshr_merge", "mshr_fill", "mshr_free"}
         check("c11_matrix_run_observes_mshr_lifecycle",
-              mshr_nodes.issubset(set(c11ev.get("kinds", []))),
-              str(c11ev.get("kinds")))
+              mshr_nodes.issubset(c11_kinds), str(sorted(c11_kinds)))
         carriers = set(evidence["pilots"])
         check("boundary_carriers_retained_in_evidence",
               all(f"C09-R4T3-MSHRREF-s{i}" in carriers for i in range(1, 7))
@@ -130,11 +135,12 @@ def main():
               str({u: v["nodes"] for u, v in b.items()}))
         # 关闭依据可审计：矩阵 RunID P01-F0-W8（**精确匹配**，非辅助）的 pilot
         # 观测到 pf_queue/pf_issue —— 数据预取器单元因此不再依赖辅助运行。
-        pref_ev = evidence["pilots"].get("P01-F0-W8", {})
+        # [R6-MERGEFIX 2026-10-23] 同 c11/c12：L17 后 P01-F0-W8 的 pilot 亦为逐
+        # seed 键（P01-F0-W8-seed1..4），裸键落空。改用 runid_kinds 聚合自证。
+        pref_kinds = CM.runid_kinds(evidence, "P01-F0-W8")
         check("prefetch_nodes_observed_by_matrix_run",
-              {"pf_queue", "pf_issue"}.issubset(set(pref_ev.get("kinds", []))),
-              str(sorted(set(pref_ev.get("kinds", [])) & {"pf_queue",
-                                                          "pf_issue"})))
+              {"pf_queue", "pf_issue"}.issubset(pref_kinds),
+              str(sorted(pref_kinds & {"pf_queue", "pf_issue"})))
         # 机制本身仍须被钉死（活数据已干净 → 用**合成夹具**验证，否则回归网
         # 会在"数据恰好干净"时静默失效）：一个单元的必需节点只出现在
         # 非矩阵运行的 pilot 里时，必须被标出。
@@ -166,11 +172,10 @@ def main():
         # campaign 3-seed 之 seed1）+ 3 载体（C12-R4T52-MSHRREF-*）均在
         # 证据文件中；6 行 C12 全 PASS；L1d 边界保持关闭（C11 已闭，C12
         # 载体的 16 kinds 不引入辅助独供节点）。
-        c12ev = evidence["pilots"].get("C12-F0-W6", {})
+        c12_kinds = CM.runid_kinds(evidence, "C12-F0-W6")
         mshr_fill_nodes = {"mshr_fill", "mshr_free", "cache_fill"}
         check("c12_matrix_run_observes_delayed_fill_lifecycle",
-              mshr_fill_nodes.issubset(set(c12ev.get("kinds", []))),
-              str(c12ev.get("kinds")))
+              mshr_fill_nodes.issubset(c12_kinds), str(sorted(c12_kinds)))
         c12_carriers = set(evidence["pilots"])
         check("c12_carriers_retained_in_evidence",
               all(f"C12-R4T52-MSHRREF-s{i}" in c12_carriers
