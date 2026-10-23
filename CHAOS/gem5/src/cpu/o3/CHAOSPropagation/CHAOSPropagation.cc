@@ -346,10 +346,65 @@ namespace gem5
             fields["thread_id"] = std::to_string(tid);
         fields["fault_id"] = std::to_string(ptag);
         fields["event_id"] = std::to_string(event_id);
+        // [MDSPEC][R6-FIXA] Request-scoped chain cursor (see .hh).  The event's
+        // branch key is its own stamped request_id; an un-stamped (lifecycle)
+        // event rides the chain's OWNER request (= the first stamped request of
+        // this ptag, i.e. the faulting request).  A later, different request is
+        // therefore a SIBLING sub-chain, never a cross-request parent edge.
+        uint64_t branch_key = 0;
+        {
+            const std::string &reqs = fields["request_id"];
+            const bool stamped = !reqs.empty() && reqs != "0";
+            if (stamped) {
+                branch_key = strtoull(reqs.c_str(), nullptr, 10);
+                if (ptag != 0 && ptag_owner_request.find(ptag)
+                        == ptag_owner_request.end()) {
+                    ptag_owner_request[ptag] = branch_key;
+                    // Carry the pre-owner un-stamped cursor (e.g. an un-stamped
+                    // L0 inj) onto the owner's branch so the owner's first
+                    // stamped event still descends from it (byte-identical to
+                    // the old single cursor for a single-request chain).
+                    const auto pit = ptag_branch_last.find({ptag, 0});
+                    if (pit != ptag_branch_last.end())
+                        ptag_branch_last[{ptag, branch_key}] = pit->second;
+                }
+            } else if (ptag != 0) {
+                const auto oit = ptag_owner_request.find(ptag);
+                branch_key = (oit == ptag_owner_request.end()) ? 0
+                                                              : oit->second;
+            }
+        }
+        // [MDSPEC][R6-FIXA2] Explicit lineage bridge.  The request-scoped
+        // cursor below would leave a NEW request's first event with NO parent
+        // at all — which drops the real cross-request pollution propagation
+        // out of the causal graph (user ruling 2026-10-23).  Instead the new
+        // request's first event is joined to the pollution source by exactly
+        // one explicit `request_fork` bridge; when no real source event /
+        // shared object is verifiable, NO bridge is fabricated and the event
+        // keeps no parent (the chain stays honestly per-request).
+        uint64_t bridge_id = 0;
+        {
+            const std::string &reqs0 = fields["request_id"];
+            const bool stamped0 = !reqs0.empty() && reqs0 != "0"
+                                  && reqs0 != "0x0";
+            const auto oit = ptag_owner_request.find(ptag);
+            const bool is_owner = (oit != ptag_owner_request.end()
+                                   && oit->second == branch_key);
+            const bool first_of_branch =
+                ptag_branch_last.find({ptag, branch_key})
+                    == ptag_branch_last.end();
+            if (ptag != 0 && stamped0 && !is_owner && first_of_branch)
+                bridge_id = emitLineageBridge(kind, ptag, branch_key,
+                                              event_id, fields);
+        }
         if (fields["parent_event_id"].empty()) {
-            const auto it = ptag_last_event.find(ptag);
-            if (it != ptag_last_event.end() && it->second != event_id)
-                fields["parent_event_id"] = std::to_string(it->second);
+            if (bridge_id) {
+                fields["parent_event_id"] = std::to_string(bridge_id);
+            } else {
+                const auto it = ptag_branch_last.find({ptag, branch_key});
+                if (it != ptag_branch_last.end() && it->second != event_id)
+                    fields["parent_event_id"] = std::to_string(it->second);
+            }
         }
         if (!run_id.empty() && fields["run_id"].empty())
             fields["run_id"] = run_id;
@@ -360,6 +415,37 @@ namespace gem5
         // kind is forced — the caller cannot retype an event.
         fields["kind"] = kind;
 
+        writePropEvtRow(fields);
+        if (ptag != 0) {
+            ptag_last_event[ptag] = event_id;
+            // Advance the request-scoped cursor for this event's branch, so
+            // the NEXT event of the same (ptag, request) descends from it.
+            ptag_branch_last[{ptag, branch_key}] = event_id;
+            // [R6-FIXA2] Remember the last STAMPED event of this branch with
+            // the addresses it carried — the only admissible, verifiable
+            // pollution source for a later lineage bridge (an un-stamped
+            // lifecycle event carries no request identity and is never used).
+            const std::string &rq = fields["request_id"];
+            if (!rq.empty() && rq != "0") {
+                auto hex = [&](const char *k) -> uint64_t {
+                    const auto it = fields.find(k);
+                    return (it == fields.end() || it->second.empty())
+                        ? 0 : strtoull(it->second.c_str(), nullptr, 16);
+                };
+                ptag_branch_src[{ptag, branch_key}] =
+                    LineageSrc{event_id, hex("va"), hex("pa"),
+                               hex("cache_line")};
+            }
+        }
+    }
+
+    // [MDSPEC][R6-FIXA2] Serialize + flush one PROP-EVT row.  Shared by the
+    // normal emitter and the explicit lineage-bridge emitter so the bridge is
+    // byte-shaped exactly like every other event (registry order + family
+    // extension columns).
+    void
+    CHAOSPropagation::writePropEvtRow(std::map<std::string, std::string> &fields)
+    {
         std::ostringstream row;
         row << "PROP-EVT:";
         for (int i = 0; i < N_PROP_EVT_FIELDS; ++i) {
@@ -377,11 +463,152 @@ namespace gem5
         row << '\n';
         const std::string s = row.str();
         if (gzwrite(evt_gz_file, s.data(), (unsigned)s.size()) != (int)s.size())
-            panic("CHAOSPropagation: PROP-EVT write failed (event %llu)",
-                  (unsigned long long)event_id);
+            panic("CHAOSPropagation: PROP-EVT write failed");
         gzflush(evt_gz_file, Z_SYNC_FLUSH);
-        if (ptag != 0)
-            ptag_last_event[ptag] = event_id;
+    }
+
+    // [MDSPEC][R6-FIXA2] Observation layer of a kind for the chain's unit
+    // family, mirroring tools/lsu_prop_fields.KIND_LAYER (generic) and the
+    // checker's T-series table.  Deliberately NOT a general table: a kind the
+    // fork actually lands on must be listed, and the chain checker re-derives
+    // the layer and REJECTS a bridge whose declared layer disagrees — so any
+    // drift between this map and the checker is loud, never silent.
+    static const char *
+    bridgeLayerOf(const std::string &kind, char family)
+    {
+        if (family == 'T') {
+            if (kind == "tlb_lookup") return "L1";
+            if (kind == "tlb_pfn" || kind == "tlb_state"
+                    || kind == "tlb_walk" || kind == "tlb_refill"
+                    || kind == "tlb_translate" || kind == "tlb_translate_result"
+                    || kind == "tlb_fault")
+                return "L2";
+            if (kind == "taint_reg" || kind == "consumer"
+                    || kind == "errant_commit")
+                return "L4";
+            return "L3";            // lookup/request/cache/memory side
+        }
+        if (kind == "inj") return "L0";
+        if (kind == "addr_form" || kind == "lsq_push"
+                || kind == "cache_access")
+            return "L1";
+        if (kind == "mem_req" || kind == "lsq_sendfrag"
+                || kind == "tlb_translate" || kind == "cache_return"
+                || kind == "mshr_alloc" || kind == "mshr_merge"
+                || kind == "mshr_fill" || kind == "mshr_free")
+            return "L2";
+        if (kind == "resp" || kind == "lq_complete" || kind == "sq_execute"
+                || kind == "sq_writeback" || kind == "sq_complete"
+                || kind == "cache_fill" || kind == "cache_evict"
+                || kind == "cache_writeback")
+            return "L3";
+        if (kind == "taint_reg" || kind == "consumer"
+                || kind == "errant_commit")
+            return "L4";
+        return "";                  // unmapped -> checker rejects it loudly
+    }
+
+    uint64_t
+    CHAOSPropagation::emitLineageBridge(
+        const std::string &kind, uint64_t ptag, uint64_t dest_request,
+        uint64_t dest_event_id,
+        const std::map<std::string, std::string> &fields)
+    {
+        if (!write_log || !evt_gz_file || ptag == 0)
+            return 0;
+        const auto oit = ptag_owner_request.find(ptag);
+        if (oit == ptag_owner_request.end() || oit->second == dest_request)
+            return 0;
+        const uint64_t src_request = oit->second;
+        // A REAL, VERIFIABLE source event is mandatory: the last request-
+        // stamped event of the owner request (an un-stamped lifecycle event
+        // carries no identity and is never used as a pollution source).  With
+        // no such source there is NO bridge (never fabricated).
+        const auto sit = ptag_branch_src.find({ptag, src_request});
+        if (sit == ptag_branch_src.end() || sit->second.event_id == 0)
+            return 0;               // no source -> no bridge
+
+        // The SHARED propagation object: the registered corrupted byte range
+        // that BOTH requests really address.  Requiring both sides here (not
+        // only the destination) is what makes the bridge source-verifiable —
+        // and it is exactly what the chain checker re-checks offline.
+        auto addr_of = [&](const char *k) -> uint64_t {
+            const auto it = fields.find(k);
+            if (it == fields.end() || it->second.empty())
+                return 0;
+            return strtoull(it->second.c_str(), nullptr, 16);
+        };
+        LineageSrc dstsrc;
+        dstsrc.va = addr_of("va");
+        dstsrc.pa = addr_of("pa");
+        dstsrc.line = addr_of("cache_line");
+        const LineageSrc &src = sit->second;
+        Addr base = 0, size = 0;
+        const char *reason = nullptr;
+        for (const auto &kv : blk_registry) {
+            const BlkEntry &e = kv.second;
+            if (e.byte_end > e.byte_begin
+                    && dstsrc.touches(e.byte_begin, e.byte_end)
+                    && src.touches(e.byte_begin, e.byte_end)) {
+                base = e.byte_begin; size = e.byte_end - e.byte_begin;
+                reason = "addr_fallback_broadcast";
+                break;
+            }
+        }
+        if (!reason) {
+            for (const auto &kv : addr_registry) {
+                const AddrEntry &e = kv.second;
+                if (e.size && dstsrc.touches(e.base, e.base + e.size)
+                        && src.touches(e.base, e.base + e.size)) {
+                    base = e.base; size = e.size;
+                    reason = "request_handoff";
+                    break;
+                }
+            }
+        }
+        if (!reason)
+            return 0;               // no verifiable object -> no bridge
+
+        const uint64_t bridge_id = next_bridge_id++;
+        const std::string layer =
+            bridgeLayerOf(kind, run_id.empty() ? '\0' : run_id[0]);
+        std::map<std::string, std::string> b;
+        b["kind"] = "request_fork";
+        b["fault_id"] = std::to_string(ptag);
+        b["event_id"] = std::to_string(bridge_id);
+        b["parent_event_id"] = std::to_string(src.event_id);
+        b["tick"] = std::to_string(curTick());
+        b["cycle"] = clock_period ? std::to_string(curTick() / clock_period)
+                                  : std::string("0");
+        b["core_id"] = std::to_string(cpu ? cpu->cpuId() : 0);
+        if (!run_id.empty())
+            b["run_id"] = run_id;
+        if (!sample_run_id.empty())
+            b["sample_run_id"] = sample_run_id;
+        b["evidence_status"] = "observed";
+        // request_id follows the registry convention: the SOURCE (old)
+        // request — the bridge is the transition carrier, so the parent edge
+        // (source -> bridge) stays request-consistent while (bridge -> dest)
+        // is the single whitelisted transition.
+        b["request_id"] = std::to_string(src_request);
+        b["old_request_id"] = std::to_string(src_request);
+        b["new_request_id"] = std::to_string(dest_request);
+        b["source_event_id"] = std::to_string(src.event_id);
+        b["dest_event_id"] = std::to_string(dest_event_id);
+        const auto cit = fields.find("corr");
+        b["corr"] = cit == fields.end() ? "" : cit->second;
+        b["bridge_layer"] = layer;
+        b["bridge_reason"] = reason;
+        {
+            std::ostringstream sa, ss;
+            sa << std::hex << base;
+            ss << std::hex << size;
+            b["shared_addr"] = sa.str();
+            b["shared_size"] = ss.str();
+        }
+        writePropEvtRow(b);
+        ptag_bridge_event[{ptag, dest_request}] = bridge_id;
+        return bridge_id;
     }
 
     void

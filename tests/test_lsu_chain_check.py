@@ -853,6 +853,110 @@ def main():
           str(r_un["violations"]))
 
     print()
+    print("[19] [R6-ABREC] 合法 lineage bridge 不得绕过 B 的终局门禁"
+          "（bridge 白名单 ≠ 放宽 L5/收口）")
+    # 本 lane 收口 A2 的 bridge 白名单与 B 的终局语义：bridge 只豁免
+    # cross_request_edge（跨请求身份），**绝不**制造 L5、绝不豁免截断/未收口
+    # 的含住准入。下面用**完整可核验 bridge**（与 A2 test [6] 同形）证明：
+    # 合法 bridge 在场时，(a) chain_end 伪 L5 仍被判非 full 且不准入；
+    # (b) 截断流仍被响亮拒绝——且两例都**不是**因 cross_request_edge。
+    RUN19 = "T04-F0-W4"
+
+    def _L19(kind, **kw):
+        parts = [f"kind={kind}", f"run_id={RUN19}"]
+        parts += [f"{k}={v}" for k, v in kw.items()]
+        return P.parse_line("PROP-EVT: " + " ".join(parts))
+
+    owner19 = [
+        _L19("inj", fault_id=1, event_id=0, tick=10, request_id=301,
+             va="ffffffc009483fa8", corr="origin"),
+        _L19("tlb_lookup", fault_id=1, event_id=1, parent_event_id=0, tick=11,
+             request_id=301, corr="seq_primary", dyn_inst_seq=301,
+             field="post_lookup", state_before="valid", state_after="valid"),
+        _L19("tlb_pfn", fault_id=1, event_id=2, parent_event_id=1, tick=12,
+             request_id=301, corr="seq_primary", va="ffffffc009483fa8",
+             before="81d75", after="0", pa="fa8"),
+        _L19("tlb_translate_result", fault_id=1, event_id=3, parent_event_id=2,
+             tick=13, request_id=301, corr="seq_primary", outcome="NoFault",
+             contained="0"),
+        _L19("lsq_push", fault_id=1, event_id=4, parent_event_id=3, tick=14,
+             corr="seq_primary"),
+        _L19("cache_access", fault_id=1, event_id=5, parent_event_id=4,
+             tick=15, request_id=301, corr="addr_fallback", pa="fa8",
+             va="ffffffc009483fa8"),
+        _L19("mshr_alloc", fault_id=1, event_id=6, parent_event_id=5, tick=16,
+             request_id=301, corr="addr_fallback", cache_line="fa8"),
+    ]
+    bridge19 = _L19(
+        "request_fork", fault_id=1, event_id=7, parent_event_id=6, tick=17,
+        request_id=301, corr="addr_fallback", old_request_id=301,
+        new_request_id=303, source_event_id=6, dest_event_id=8,
+        bridge_layer="L3", bridge_reason="addr_fallback_broadcast",
+        shared_addr="0", shared_size="1000")
+    branch19 = [
+        _L19("cache_access", fault_id=1, event_id=8, parent_event_id=7,
+             tick=18, request_id=303, corr="addr_fallback", pa="fe0",
+             va="ffffffc009483fe0"),
+        _L19("resp", fault_id=1, event_id=9, parent_event_id=8, tick=19,
+             request_id=303, corr="addr_fallback", pa="fe0",
+             va="ffffffc009483fe0"),
+        _L19("taint_reg", fault_id=1, event_id=10, parent_event_id=9, tick=20,
+             request_id=303, corr="addr_fallback"),
+    ]
+    # 对照组：真实检测事件（errant_commit 富化 L5）—— 合法 bridge 应 admitted。
+    real_l5 = _L19("errant_commit", fault_id=1, event_id=11,
+                   parent_event_id=10, tick=21, request_id=303,
+                   corr="addr_fallback", detection_layer="L5", contained="0",
+                   outcome="errant_commit")
+    end19 = _L19("chain_end", fault_id=1, event_id=12, parent_event_id=11,
+                 tick=22, corr="none", detection_layer="L5", contained="1",
+                 outcome="errant_commit_seen")
+    r_ctrl = adm(owner19 + [bridge19] + branch19 + [real_l5, end19],
+                 run_id=RUN19)
+    j_ctrl = " ".join(r_ctrl["violations"])
+    check("(19 对照) 合法 bridge + 真实 L5 事件 ⇒ admitted=True",
+          r_ctrl["admitted"] is True, j_ctrl)
+    check("(19 对照) 合法 bridge 本身不触发 invalid_lineage_bridge/"
+          "cross_request_edge",
+          "invalid_lineage_bridge" not in j_ctrl
+          and "cross_request_edge" not in j_ctrl, j_ctrl)
+
+    # (a) bridge 合法，但把真实 L5 换成 chain_end 伪 L5（无真实检测事件）。
+    pseudo_end = _L19("chain_end", fault_id=1, event_id=11,
+                      parent_event_id=10, tick=21, corr="none",
+                      detection_layer="L5", contained="1",
+                      outcome="errant_commit_seen")
+    r_a = adm(owner19 + [bridge19] + branch19 + [pseudo_end], run_id=RUN19)
+    j_a = " ".join(r_a["violations"])
+    f_a = CC.check_chain(owner19 + [bridge19] + branch19 + [pseudo_end])
+    check("(19a) 合法 bridge + chain_end 伪 L5 ⇒ 不得 full",
+          f_a["faults"]["1"]["terminal"] != "full",
+          f_a["faults"]["1"]["terminal"])
+    check("(19a) 合法 bridge + chain_end 伪 L5 ⇒ 不准入",
+          r_a["admitted"] is False, j_a)
+    check("(19a) 该拒绝**不是**因 cross_request_edge（bridge 有效）",
+          "cross_request_edge" not in j_a
+          and "invalid_lineage_bridge" not in j_a, j_a)
+
+    # (b) bridge 合法，但流被显式标记截断 + 含住主张 ⇒ 仍不得准入。
+    cont_l2 = _L19("tlb_translate_result", fault_id=1, event_id=3,
+                   parent_event_id=2, tick=13, request_id=301,
+                   corr="seq_primary", outcome="translation_blocked",
+                   detection_layer="L2", contained="1")
+    # 用 owner19 前缀（把事件 3 换成显式含住检测）+ bridge + B 分支，合成
+    # 一条止于 L2 含住、后续经 bridge 跨请求的流；调用方显式 truncated=True。
+    chain_b = ([e for e in owner19 if e["event_id"] != "3"] + [cont_l2,
+               bridge19] + branch19)
+    r_b = adm(chain_b, run_id=RUN19, truncated=True, containment={
+        "layer": "L2", "reason": "翻译阶段 Hardware 检测并含住",
+        "metrics": {"L2": {"faults": 1}}, "na_layers": ["L3", "L4", "L5"]})
+    j_b = " ".join(r_b["violations"])
+    check("(19b) 合法 bridge + 显式截断 ⇒ 不准入",
+          r_b["admitted"] is False, j_b)
+    check("(19b) 合法 bridge + 显式截断 ⇒ 响亮 containment_on_truncated_stream",
+          "containment_on_truncated_stream" in j_b, j_b)
+
+    print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
         return 1
