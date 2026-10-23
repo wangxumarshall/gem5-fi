@@ -740,3 +740,65 @@ D. campaign 与权威状态修复
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
 <result>Build is running (~40+ min expected). Let me wait for it.</result>
 </task-notification>
+
+---
+
+收到。磁盘豁免按当前 HEAD 94c1c13d 执行：磁盘仅监测和如实报告，不再参与 gate，不需要再为磁盘空间停工。
+
+A、C 继续执行，不要等待；完成后按你列出的串行流程集成、回归、统一构建和冻结。不得提前启动 pilot 或正式实验。
+
+对两个待裁决项，我给出以下口径：
+
+一、跨 request 语义
+
+不得简单放宽或删除 cross_request_edge 检查，也不得为了通过而把本来属于不同局部请求的 request_id 强行伪装成相同值。
+
+采用“全局传播链身份 + 局部请求身份”口径：
+
+1. corr/chain identity 用于表示同一条端到端故障传播链，跨 cache/LSQ/MSHR 层必须稳定。
+2. request_id 保留其组件或阶段内的真实局部语义。
+3. 如果硬件流程确实会在层间产生新的 request_id，必须发出明确、可审计的 request-handoff/bridge 事件，记录：
+   - old_request_id；
+   - new_request_id；
+   - 稳定的 corr/chain identity；
+   - parent/child；
+   - 发生层级及原因。
+4. checker 只允许以下两种边：
+   - request_id 一致的普通父子边；
+   - 有合法显式 handoff/bridge 证据支持的跨 request 边。
+5. 没有 bridge 证据的原始跨 request 父边继续判定为 cross_request_edge。
+6. Lane A 必须说明实际采用了哪种实现、为什么符合真实微架构语义，并用测试证明：
+   - 合法同请求边通过；
+   - 合法显式 handoff 通过；
+   - 无 handoff 的跨请求边仍被拒绝。
+7. 如果当前事件模型无法可靠表达 handoff，则本轮先采用严格的 request-scoped 父边，不得自行弱化门禁。
+
+二、状态表 BLOCKED=0 口径
+
+状态表改为“两轴表达”，不要让一个 BLOCKED 状态覆盖证据事实：
+
+A. evidence_state 表示磁盘上的实际观测进度，仅取：
+- NOT_RUN
+- EVIDENCE_MISSING
+- TRUNCATED
+- UNPROVEN
+- PILOT_READY
+
+B. eligibility/blocker_state 单独表示是否被规格、基础设施或模式能力阻塞：
+- RUNNABLE
+- BLOCKED
+并列出 blocker_code 和 blocker_detail。
+
+要求：
+
+1. 有规格或基础设施 blocker 的 RunID，仍应在 evidence_state 中如实显示 NOT_RUN、TRUNCATED 或 UNPROVEN，同时 eligibility=BLOCKED。
+2. 不得因为 contract 中有 blocker，就把所有磁盘事实短路成 BLOCKED。
+3. `BLOCKED=0` 只能表示当前统计维度中没有 blocker，不能被解释为全部实验已经可运行或已经通过。
+4. 权威汇总必须同时报告：
+   - 各 evidence_state 数量；
+   - RUNNABLE/BLOCKED 数量；
+   - PILOT_READY 数量；
+   - blocker_code 分类数量。
+5. 正式实验准入依据仍是 PILOT_READY，不以 BLOCKED=0 代替。
+
+现在继续推进 A、C。二者完成后先汇报各自提交、测试结果和语义说明，再串行合并。完整回归若出现新增 FAIL 或新增无法解释的 ENV，立即停止并汇报；否则继续统一构建、冻结新 SHA，并重跑第一波 6 RunID × 3 seed。
