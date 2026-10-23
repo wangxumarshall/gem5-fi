@@ -658,6 +658,18 @@ class CHAOSPropagation : public SimObject
     // errant_commit, dest re-taint / clean-overwrite.
     void noteCommit(ThreadID tid, o3::DynInst *head_inst);
 
+    // [MDSPEC][R6-EMIT2/oracle] Hardware-detector stdout signal, the single
+    // input the offline oracle's Detected/Contained class consumes (L18-G7):
+    //   CHAOS_DETECT: layer=<Hardware RAS|OS|Application|None> contained=<0|1>
+    //                 tick=<n> ptag=<n> reason=<...>
+    // Emitted on the DETECTION path itself (errant_commit = escaped, layer
+    // None, contained 0; every containment recording = layer Hardware RAS,
+    // contained 1). stdout (not the gz stream) so a crash/abort sample —
+    // whose exit callback never runs — still carries the detection to the
+    // harness. No-op when the tracer is disabled.
+    void emitDetectSignal(const char *layer, bool contained, uint64_t ptag,
+                          const char *reason);
+
   private:
     // One CSV row: numeric fields with has_x=false print as "".
     // corr labels the PROP-EVT dual-emit ([R4-4-review-I1]): one of the
@@ -739,6 +751,24 @@ class CHAOSPropagation : public SimObject
     // L5 `chain_end` node to report a lifecycle-only outcome for every chain
     // (outcome=run_end / detection_layer=None) — rejected as L5 evidence.
     std::set<uint64_t> errant_ptags;
+
+    // [MDSPEC][R6-EMIT2/oracle] Tracer-observed commit ordinal (counts every
+    // commit seen by noteCommit — the CHAOSMicroSnap commit_seq semantic).
+    // The L5 detection node / chain_end carry it so the offline outcome join
+    // has a commit point (L18 contract item 3: fault_id/commit_seq/pc/
+    // dyn_inst_seq).
+    uint64_t commit_seq_counter = 0;
+    // Per-chain record of the DETECTION point (the errant commit): pc /
+    // DynInst seq / commit ordinal / tick, lifted onto the chain's L5
+    // chain_end node at exit. Chains that never reached a detection keep an
+    // empty record (honest — the fields stay "").
+    struct DetectPoint {
+        uint64_t pc = 0;
+        uint64_t dyn_seq = 0;
+        uint64_t commit_seq = 0;
+        Tick tick = 0;
+    };
+    std::map<uint64_t, DetectPoint> errant_detect;
 
     // [MDSPEC][R6] Per-chain containment disposition (layer, reason), set
     // when a translation completes with the fault ABSORBED (effective PA

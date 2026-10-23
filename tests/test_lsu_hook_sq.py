@@ -105,6 +105,30 @@ def main():
     check("lq_read request_id 来自 Request 盖戳 seq（或 load seq 兜底）",
           "getReqInstSeqNum" in lq_read, lq_read[-200:])
 
+    print("[6] oracle crash/abort 字段契约（L18 §需要发射器车道的字段契约）")
+    prop_cc = src("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc")
+    prop_hh = src("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh")
+    # (1) 崩溃/abort 路径须写出 detection_layer/contained/outcome，且 L5 结局
+    #     join 需要 fault_id/commit_seq/pc/dyn_inst_seq。
+    ce = prop_cc[prop_cc.index('notePropEvt("chain_end"'):]
+    ce = ce[:ce.index("});")]
+    for f in ("fault_id", "commit_seq", "pc", "dyn_inst_seq",
+              "detection_layer", "contained", "outcome"):
+        check(f"chain_end 写 {f}", f'{{"{f}"' in ce, ce[:160])
+    # (2) 检测事件 errant_commit 自带 contained（逃逸=0）。
+    check("errant_commit 写 contained=0（逃逸语义）",
+          '";contained=0"' in prop_cc)
+    # (3) 硬件检测器 stdout 信号行（G7 唯一输入）。
+    check("发射 CHAOS_DETECT stdout 信号行",
+          "CHAOS_DETECT: layer=" in prop_cc
+          and "ptag=" in prop_cc and "reason=" in prop_cc)
+    check("CHAOS_DETECT 在检测/containment 路径都发射",
+          "emitDetectSignal" in prop_cc
+          and prop_hh.count("emitDetectSignal") >= 1)
+    # 量刑：4 值层词汇表（Hardware RAS / OS / Application / None）
+    check("CHAOS_DETECT layer 用四值词汇表（Hardware RAS / None 用例）",
+          '"Hardware RAS"' in prop_cc and '"None"' in prop_cc)
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

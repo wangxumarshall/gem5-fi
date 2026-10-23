@@ -15,6 +15,7 @@
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
 
 #include <cstring>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -136,8 +137,26 @@ namespace gem5
                             : contained ? "detected_contained" : "run_end";
                         const char *layer = seen_errant ? "L5"
                             : contained ? cit->second.first.c_str() : "";
+                        // [MDSPEC][R6-EMIT2/oracle] L18 contract item 3: the
+                        // L5 outcome join needs the detection point. When the
+                        // chain reached an errant commit we have it (pc /
+                        // DynInst seq / commit ordinal / tick); a chain that
+                        // never detected keeps them empty (honest — no
+                        // invented values).
+                        const auto dit = errant_detect.find(ptag);
+                        std::string ce_pc, ce_seq, ce_commit;
+                        if (dit != errant_detect.end()) {
+                            std::ostringstream p;
+                            p << std::hex << dit->second.pc;
+                            ce_pc = p.str();
+                            ce_seq = std::to_string(dit->second.dyn_seq);
+                            ce_commit = std::to_string(dit->second.commit_seq);
+                        }
                         notePropEvt("chain_end", {
                             {"fault_id", std::to_string(ptag)},
+                            {"commit_seq", ce_commit},
+                            {"pc", ce_pc},
+                            {"dyn_inst_seq", ce_seq},
                             {"outcome", outcome},
                             {"detection_layer", layer},
                             {"contained", (seen_errant || contained)
@@ -384,6 +403,28 @@ namespace gem5
     }
 
     // ------------------------------------------------------------------ util
+
+    // [MDSPEC][R6-EMIT2/oracle] Hardware-detector stdout signal (see .hh).
+    void
+    CHAOSPropagation::emitDetectSignal(const char *layer, bool contained,
+                                       uint64_t ptag, const char *reason)
+    {
+        if (!write_log)
+            return;
+        // The four-value detection-layer vocabulary is
+        // Hardware RAS | OS | Application | None; "None" = nothing detected
+        // (an escape). Contained faults are detected by the hardware
+        // (Hardware RAS). stdout, not the gz stream: a crash/abort sample
+        // never reaches the exit callback, so the gz chain_end is absent —
+        // this line is the oracle's only detection input in that case.
+        std::cout << "CHAOS_DETECT: layer="
+                  << (layer && *layer ? layer : "None")
+                  << " contained=" << (contained ? 1 : 0)
+                  << " tick=" << curTick()
+                  << " ptag=" << ptag
+                  << " reason=" << (reason && *reason ? reason : "unknown")
+                  << std::endl;
+    }
 
     void
     CHAOSPropagation::writeNode(uint64_t ptag, const char *kind,
@@ -1258,8 +1299,14 @@ namespace gem5
         // terminus can justify every later layer as N/A(contained) instead
         // of leaving the chain at an unresolvable terminal state.
         const char *reason = contained ? field_reason : "";
-        if (contained)
+        if (contained) {
             containment_ptags[pending.ptag] = {"L2", reason};
+            // [MDSPEC][R6-EMIT2/oracle] the translation absorbed the fault
+            // (effective PA unchanged / refused / lost walk): hardware
+            // detection + containment → stdout signal.
+            emitDetectSignal("Hardware RAS", true, pending.ptag,
+                             reason && *reason ? reason : field_reason);
+        }
 
         notePropEvt("tlb_translate_result", {
             {"fault_id", std::to_string(pending.ptag)},
@@ -1852,6 +1899,9 @@ namespace gem5
                 {"containment_reason", "squash_replay"},
             });
             containment_ptags[hit_ptag] = {"L4", "squash_replay"};
+            // [MDSPEC][R6-EMIT2/oracle] the hardware squash/replay detected
+            // and contained the fault: signal it on stdout too.
+            emitDetectSignal("Hardware RAS", true, hit_ptag, "squash_replay");
             return;
         }
 
@@ -1942,6 +1992,11 @@ namespace gem5
         if (!write_log || !head_inst)
             return;
 
+        // [MDSPEC][R6-EMIT2/oracle] tracer commit ordinal (counts every
+        // commit observed, CHAOSMicroSnap semantic). The L5 detection node
+        // and chain_end carry it as commit_seq (L18 contract item 3).
+        ++commit_seq_counter;
+
         const uint64_t pc = head_inst->pcState().instAddr();
         uint64_t first_consumed_ptag = 0;
         bool any_consumer = false;
@@ -2028,16 +2083,28 @@ namespace gem5
                                              : "faulting_load_commit")
               << ";detection_layer=L5"
               << ";outcome=errant_commit"
+              // [MDSPEC][R6-EMIT2/oracle] the escape is NOT contained, and
+              // the detection point is named (L18 contract items 1+3): a
+              // crash/abort sample that never reaches the exit callback must
+              // still carry contained=0 and the commit point.
+              << ";contained=0"
+              << ";commit_seq=" << commit_seq_counter
               << ";pc=" << std::hex << pc << std::dec;
             writeNode(ptag, "errant_commit", head_inst->seqNum, true,
                       0, false, 0, false, 0, false, 0, false, d.str(),
                       CORR_TAINT_PROP, (int)tid);
+            // Remember the detection point for the chain's L5 chain_end.
+            errant_detect[ptag] = DetectPoint{pc, head_inst->seqNum,
+                                              commit_seq_counter, curTick()};
+            // Hardware-detector stdout signal: the wrong value reached
+            // architectural state and NOTHING contained it → layer None,
+            // contained 0. This is the escape the oracle records as SDC.
+            emitDetectSignal("None", false, ptag, "errant_commit");
             errant_commit_seen = true;
             // [MDSPEC][R6] Bind the observed errant commit to its own chain
             // so the L5 chain_end node can report it (see .hh).
             errant_ptags.insert(ptag);
         }
-
         // Propagation rules (see .hh):
         //  - consumer commits → its dests now carry the wrong value
         //    (re-taint under the consumed chain's ptag);
