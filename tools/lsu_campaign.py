@@ -1744,7 +1744,9 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
     # branch (stream present or absent) — a mid-write kill must be LOUD, never
     # a silently-complete chain.
     evidence_truncated, _trunc_reasons = detect_evidence_truncation(outdir)
-    rep = {"run_id": runid, "sample_run_id": str(seed),
+    # [R6-FIXD] 与事件流同源：propagation_flags 写 --prop_sample_run_id s<seed>，
+    # 报告此前写 str(seed)（"1"）——同一份证据出现两个样本 id，下游 join 错配。
+    rep = {"run_id": runid, "sample_run_id": "s%d" % int(seed),
            "oracle_outcome": oracle, "exit_code": exit_code,
            "stream_present": False, "truncated": None, "event_count": 0,
            "faults": {}, "terminal": None, "provable_to": None,
