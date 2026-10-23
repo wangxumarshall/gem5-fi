@@ -201,3 +201,57 @@ SME 矩阵路径（FMOPA 写 ZA 不走 FP 写回 hook）——注入器覆盖边
 - kernel 总周期：fpu_special fixed 932k/random 2146k（2.3x=12³→16³）、stencil 207k、
   fmopa 60k、za 53k——跨 mode 对比必须周期对齐窗（Task 7 混淆教训）；
 - 分类协议：Detected(FAILS>0 或 checksum≠per-seed 基线)/Masked/Inactive/Hang。
+
+---
+
+## all-VL Phase 2 P1：sdcshield arm64_vl.h 查询层探针四档实证（2026-10-23，feat/vl-api-probe 分支）
+
+sdcshield PR #277（feat/arm64-vl-api）新建框架层 VL/SVL API
+（`framework/device/cpu/arm64/arm64_vl.h`，rdvl/rdsvl 用 `.inst` 定数编码
+0x04bf5020/0x04bf5820，as+objdump 汇编器实证）。本机（Kunpeng 920，0xd01）无 SVE，
+功能验证按规则 2b 走 gem5 四档。探针 = `workloads/sdcshield/vl_api_probe.c`
+（同源镜像查询层；gcc `-march=armv9-a+sve` 即可——`.inst` 定数编码不需要
+SME 助记符/clang，GCCFLAGS 现成约定），`make vl_api_probe` -Wall -Wextra 零告警。
+
+### 8 run 全绿（O3，configs/se/arm_chaos.py，--sve_vl/--sme_vl 同档同值）
+
+| tier | VL/SVL 标称 | mode | rdvl(B) | rdsvl(B) | checksum | FAILS | gem5_exit |
+|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | fixed  | 16  | 16  | fc6b7711a5894505 | 0 | 0 |
+| 1 | 128-bit | random | 16  | 16  | fc6b7711a5894505 | 0 | 0 |
+| 2 | 256-bit | fixed  | 32  | 32  | cd1a5f5cf05bcec5 | 0 | 0 |
+| 2 | 256-bit | random | 32  | 32  | cd1a5f5cf05bcec5 | 0 | 0 |
+| 4 | 512-bit | fixed  | 64  | 64  | eb4200cb1ffccb85 | 0 | 0 |
+| 4 | 512-bit | random | 64  | 64  | eb4200cb1ffccb85 | 0 | 0 |
+| 8 | 1024-bit | fixed  | 128 | 128 | 54b1c1bf3fbd7405 | 0 | 0 |
+| 8 | 1024-bit | random | 128 | 128 | 54b1c1bf3fbd7405 | 0 | 0 |
+
+（完整日志 /tmp/vl_probe_sve{1,2,4,8}_{fixed_1,random_2}.log；单 run 1-2 s——
+纯查询探针无计算段，gem5 启动占绝大头。）
+
+**判据全过**：
+1. rdvl=rdsvl=16×T（T=1/2/4/8 → 16/32/64/128 字节 = 128/256/512/1024-bit）逐档精确；
+2. SDCSHIELD_FAILS=0 ×8（sanity 通道：VL/SVL 均为 [16,256] 内 16 的倍数）；
+3. 同档 fixed/random checksum 相同（确定性证明——探针无 seed 依赖数据，两模式
+   必须同值，实证成立）；
+4. 跨档 checksum 互异（fc6b…/cd1a…/eb42…/54b1… 四值全不同——checksum 覆盖
+   vl/svl，档间必异，实证成立）。
+
+### prctl/hwcap 诚实边界（如实记录，不判定）
+
+- `prctl(PR_SVE_GET_VL)`/`prctl(PR_SME_GET_VL)` 恒 0：gem5 SE 64 位表 prctl
+  （base+167）映射 **ignoreFunc**（工作树未提交 CHAOS 改动；2026-10-15 03:18 构建
+  的本仓 gem5.opt 已含——源码 mtime 全部早于二进制），每 run `warn: ignoring
+  syscall prctl(...)` ×2。返回 0 是"忽略"语义而非真 GET_VL 编码值——SE syscall
+  覆盖边界，不是失败；真 prctl 语义须 FS 臂或宿主 kernel。
+- auxv（gem5 从模拟 ISA 填充 AT_HWCAP/HWCAP2）：hwcap_sve=1、hwcap2_sme=1、
+  hwcap2_sve2=0，八档一致。rdvl/rdsvl 执行正确性与 hwcap 位无耦合（探针不设
+  门控直读指令；即便 hwcap 缺位指令也可执行，属预期观察）。
+- 顺带观察：readlink('/proc/self/exe') 返回宿主真实路径、mprotect/
+  set_robust_list/rseq 均 ignoreFunc——与本探针判定无关。
+
+**结论**：sdcshield `arm64_vl.h` 的 rdvl/rdsvl `.inst` 查询层在 gem5 四档
+（128/256/512/1024-bit）全部语义正确且确定——PR #277 VL/SVL API 编码验证通过
+（gem5-fi 侧 all-VL Phase 2 P1 / Task 8 收口）。交叉引用：sdcshield PR #277
+（feat/arm64-vl-api）；spec docs/superpowers/specs/2026-10-23-sve-sme-all-vl2-design.md
+§7（sdcshield 仓）。
