@@ -268,6 +268,54 @@ def main():
     check("cache_hitmiss_caveat",
           any("hit/miss" in c for c in b9["caveats"]), b9["caveats"])
 
+    # 8b) [R6-ORACLE][G5] 孤立 resp 不构成可验证终点
+    # 审计 G5：terminal_verified=bool(terminal_nodes) 把单独的 resp 也算终点。
+    # resp 只是"内存系统应答了请求"——任何访问都有；代码自己的 caveat 已写明
+    # CPU 侧 hook 无法区分 hit/miss，clean 块 refetch 的响应可能是假阳性上界。
+    # 承故障终点只能是 taint_reg / consumer / errant_commit。
+    resp_only = HEADER + (
+        "0,1000,1,inj,7,,1a2b3000,,,site=lsq_pushRequest_PRE;"
+        "family=addrpath;is_load=1;old_size=8;new_size=8;old_addr=1a2b3000;"
+        "new_addr=1a2b3008\n"
+        "1,1100,1,addr_form,7,,1a2b3008,,,site=lsq_pushRequest_PRE;"
+        "old_addr=1a2b3000;new_addr=1a2b3008\n"
+        "2,1200,1,mem_req,7,7,1a2b3008,,,site=lsq_sendFragmentToTranslation;"
+        "family=addrpath;size=8\n"
+        "3,1300,1,resp,7,7,1a2b3008,,,family=addrpath;size=8;"
+        "data_fnv=0123456789abcdef\n"
+    )
+    ro = write_gz(tmp, "resp_only.csv.gz", resp_only)
+    b_ro = LP.build_l3("addrpath", {}, ro)
+    check("g5_resp_only_not_terminal_verified",
+          b_ro["evidence"]["terminal_verified"] is False,
+          str(b_ro["evidence"].get("terminal_verified")))
+    check("g5_resp_only_status_partial",
+          b_ro["status"] == "partial_no_verified_terminal",
+          str(b_ro.get("status")))
+    check("g5_resp_only_reason_names_resp",
+          "resp" in (b_ro.get("reason") or ""),
+          str(b_ro.get("reason")))
+    check("g5_resp_only_responses_recorded",
+          b_ro["evidence"]["responses"]["count"] == 1,
+          str(b_ro["evidence"].get("responses")))
+    # 完整链（含 taint/consumer/errant）仍 terminal_verified=True
+    b_full = LP.build_l3("addrpath", {}, full)
+    check("g5_fault_terminal_still_verified",
+          b_full["evidence"]["terminal_verified"] is True
+          and b_full["status"] == "complete",
+          str(b_full.get("status")))
+    check("g5_first_terminal_never_resp",
+          b_full["evidence"]["terminal"]["kind"] != "resp",
+          str(b_full["evidence"]["terminal"]))
+    # 截断 trace 的孤立 resp 也不得算终点
+    resp_trunc = write_gz(tmp, "resp_only_trunc.csv.gz", resp_only,
+                          finish=False)
+    b_rt = LP.build_l3("addrpath", {}, resp_trunc)
+    check("g5_truncated_resp_not_terminal",
+          b_rt["evidence"]["terminal_verified"] is False
+          and b_rt["status"] == "partial_no_verified_terminal",
+          str(b_rt.get("status")))
+
     # 9) [OBS-L3 驱动接线] —— _obs_args 单元 + dry-run 端到端
     os.environ["LSU_GUARD_DIR"] = "/tmp/l3_prop_test_guard_unused"
     import lsu_obs_driver as OD

@@ -217,13 +217,21 @@ def build_l3(family, l2, prop_trace_path, inactive=False):
         }
 
     # ---- L3 终点语义（中央纠偏指令 2026-10-13 二轮规则 2）----
-    # L3 完整 ≠ 仅 inj→addr_form→mem_req。须有与故障族相符的可验证终点：
-    #   resp / taint_reg / consumer / errant_commit 节点，或
-    #   完整下游扫描（trace 未截断）证明的明确 terminal_reason。
-    terminal_nodes = (resps + taints + consumers + errants)
+    # L3 完整 ≠ 仅 inj→addr_form→mem_req。须有与故障族相符的**可验证终点**。
+    #
+    # [R6-ORACLE][G5] 审计实测：`terminal_verified=bool(terminal_nodes)`（把
+    # resp 也计入）会把**孤立 resp** 当终点。resp 只证明"内存系统应答了一个
+    # 请求"——任何访问都有应答，它不证明故障生效。本模块自己的 caveat 已写明
+    # "CPU 侧 hook 无法区分 cache hit/miss——clean 块逐出后 refetch 的响应可能
+    # 被误计为 resp（假阳性上界）"。故承故障终点只认 taint_reg / consumer /
+    # errant_commit；孤立 resp（有 resp 无 taint/consumer/errant）记
+    # terminal_reason="response_without_taint_or_consumer" 且 terminal_verified
+    # =False（绝不冒充已抵达终点）。
+    fault_terminals = taints + consumers + errants
+    resp_only = bool(resps) and not fault_terminals
     terminal_reason = None
-    if not terminal_nodes and not parsed["truncated"]:
-        # 完整扫描（未截断）后无任何终点节点 → 推导 terminal_reason
+    if not fault_terminals and not parsed["truncated"]:
+        # 完整扫描（未截断）后无承故障终点 → 推导 terminal_reason
         # （须"经过完整下游扫描证明"——截断 trace 不得给 terminal_reason）
         if addr_forms and not mem_reqs:
             terminal_reason = (f"no_memory_request_after_addr_form"
@@ -235,12 +243,19 @@ def build_l3(family, l2, prop_trace_path, inactive=False):
                                f"（完整扫描 {len(nodes)} 节点：请求发出后"
                                f"无响应/无寄存器污染——如 metadata 故障无"
                                f"投递跟踪，如实）")
+        elif resp_only:
+            terminal_reason = (f"response_without_taint_or_consumer"
+                               f"（完整扫描 {len(nodes)} 节点：请求获响应但"
+                               f"故障未到任何寄存器/消费者——孤立 resp 是"
+                               f"任何访问的预期行为，且 clean 块 refetch 的"
+                               f"响应可能是假阳性上界，不构成故障传播终点）")
         else:
             terminal_reason = (f"injection_only_no_downstream"
                                f"（完整扫描 {len(nodes)} 节点：注入后无任何"
                                f"下游节点——注入未活化或地址未被消费）")
-    terminal_verified = bool(terminal_nodes) or (
-        terminal_reason is not None and not parsed["truncated"])
+    terminal_verified = bool(fault_terminals) or (
+        terminal_reason is not None and not parsed["truncated"]
+        and not resp_only)
 
     # path_complete（规则 1 对偶）：仅 errant_commit（传播链抵达错误提交）
     # 才算路径走完；截断 trace 一律 False（链可能在截断点后继续）。
@@ -252,7 +267,16 @@ def build_l3(family, l2, prop_trace_path, inactive=False):
                        "不成立——中央纠偏指令 2026-10-13 二轮规则 2）")
 
     if not terminal_verified:
-        # 有节点但无任何可验证终点且截断（无法证明终点）→ 诚实 partial
+        # 有节点但无可验证承故障终点（孤立 resp，或截断无法证明完整下游
+        # 扫描）→ 诚实 partial（绝不冒充已抵达终点）
+        if resp_only:
+            why = (f"孤立 resp（{len(resps)} 个）不构成故障传播终点：resp 是"
+                   f"任何访问的预期应答，且 clean 块 refetch 的响应可能是假"
+                   f"阳性上界（G5）")
+        else:
+            why = ("prop_trace 有节点但无可验证终点（无 taint_reg/consumer/"
+                   "errant_commit 承故障终点且 trace 截断无法证明完整下游"
+                   "扫描）——中央纠偏指令 2026-10-13 二轮规则 2")
         return {
             "status": "partial_no_verified_terminal",
             "method": "propagation_trace",
@@ -264,14 +288,16 @@ def build_l3(family, l2, prop_trace_path, inactive=False):
                 "mem_requests": {"count": len(mem_reqs),
                                  "nodes": [_compact(n) for n in
                                            mem_reqs[:_EVIDENCE_NODE_CAP]]},
+                "responses": {"count": len(resps),
+                              "nodes": [_compact(n) for n in
+                                        resps[:_EVIDENCE_NODE_CAP]]},
                 "terminal_verified": False,
-                "terminal_reason": None,
+                "terminal": None,
+                "terminal_reason": terminal_reason,
                 "first_errant_commit": None,
                 "path_complete": False,
             },
-            "reason": ("prop_trace 有节点但无可验证终点（无 resp/taint_reg/"
-                       "consumer/errant_commit 且 trace 截断无法证明完整下"
-                       "游扫描）——中央纠偏指令 2026-10-13 二轮规则 2"),
+            "reason": why,
             "caveats": caveats,
             "funnel": parsed["funnel"],
             "malformed": parsed["malformed"],
@@ -280,10 +306,10 @@ def build_l3(family, l2, prop_trace_path, inactive=False):
         }
 
     first_terminal = None
-    if terminal_nodes:
-        # 终点节点按 kind 优先级取首个：errant_commit > consumer >
-        # taint_reg > resp（越下游越强）
-        for kind in ("errant_commit", "consumer", "taint_reg", "resp"):
+    if fault_terminals:
+        # 承故障终点按 kind 优先级取首个：errant_commit > consumer >
+        # taint_reg（越下游越强）。resp 不入候选（G5）。
+        for kind in ("errant_commit", "consumer", "taint_reg"):
             firsts = _kind_nodes(nodes, kind)
             if firsts:
                 first_terminal = {"kind": kind, **_compact(firsts[0])}
