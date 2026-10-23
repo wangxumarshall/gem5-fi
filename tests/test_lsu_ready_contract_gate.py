@@ -50,13 +50,15 @@ FULL = [
     "PROP-EVT: kind=taint_reg fault_id=1 event_id=5 parent_event_id=4 tick=6",
     "PROP-EVT: kind=errant_commit fault_id=1 event_id=6 parent_event_id=5 "
     "tick=7",
-    "PROP-EVT: kind=chain_end fault_id=1 event_id=7 parent_event_id=6 tick=8 "
-    "outcome=SDC detection_layer=Software contained=0",
+    # [R6-GATE-D1] L5 = 真实检测事件（富化检测载荷 + 链关联 corr）；
+    # 生命周期 chain_end 不再充当 L5。
+    "PROP-EVT: kind=errant_commit fault_id=1 event_id=7 parent_event_id=6 "
+    "tick=8 detection_layer=Software outcome=SDC contained=0 corr=taint_prop",
 ]
 # activated=1 但链止于 L4 后 Unknown（表 9：绝不推断 Masked/完成）
 NO_TAIL = FULL[:6] + [
     "PROP-EVT: kind=chain_end fault_id=1 event_id=6 parent_event_id=5 tick=7 "
-    "outcome=run_end detection_layer=None contained=0",
+    "outcome=run_end detection_layer=None contained=0 corr=none",
 ]
 
 

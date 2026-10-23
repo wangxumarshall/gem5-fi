@@ -12,6 +12,7 @@
 
 用法：python3 tests/test_lsu_chain_check.py   （退出码 0=全 PASS）
 """
+import os
 import sys
 from pathlib import Path
 
@@ -70,9 +71,12 @@ def main():
         "PROP-EVT: kind=lq_complete fault_id=1 event_id=6 tick=20",
         "PROP-EVT: kind=taint_reg fault_id=1 event_id=7 tick=21",
         "PROP-EVT: kind=consumer fault_id=1 event_id=8 tick=30",
-        "PROP-EVT: kind=errant_commit fault_id=1 event_id=9 tick=31",
-        "PROP-EVT: kind=chain_end fault_id=1 event_id=10 tick=32 "
-        "outcome=SDC detection_layer=Software contained=0",
+        # [R6-GATE-D1] L5 证据 = 真实检测事件：非生命周期 kind 且携带
+        # detection_layer + outcome + 链关联 corr（此处 errant_commit 由离线
+        # reclass join 富化：错误提交已确认 + 检测/结局载荷）。生命周期
+        # chain_end 不再充当 L5。
+        "PROP-EVT: kind=errant_commit fault_id=1 event_id=9 tick=31 "
+        "detection_layer=Software outcome=SDC contained=0 corr=taint_prop",
     ])
     v = CC.check_chain(full_chain)
     f1 = v["faults"]["1"]
@@ -106,16 +110,18 @@ def main():
         "PROP-EVT: kind=inj fault_id=3 event_id=0 tick=10",
         "PROP-EVT: kind=addr_form fault_id=3 event_id=1 tick=10",
         "PROP-EVT: kind=resp fault_id=3 event_id=2 tick=20",
-        # 显式检测事件（L5 证据；kind 在 _L5_OUTCOME_KINDS 内才会判
-        # contained——当前发射端空集，本例验证"缺席不猜测"：
-        # 无显式事件时绝不判 detected_contained）
+        # 显式检测事件（L5 证据）只认"真实检测事件"（D1）：本例验证
+        # "缺席不猜测"——无真实检测事件时绝不判 detected_contained。
     ])
     v3 = CC.check_chain(contained)
     f3 = v3["faults"]["3"]
     check("无显式检测事件 → 不判 contained（缺席不猜测）",
           f3["terminal"] != "detected_contained", f3["terminal"])
-    check("contained 判定只认显式事件（_L5_OUTCOME_KINDS 含 chain_end）",
-          CC._L5_OUTCOME_KINDS == {"chain_end"})
+    check("L5 证据由 _explicit_l5 严格定义（生命周期 chain_end 恒 False）",
+          CC._LIFECYCLE_KINDS == {"chain_end"}
+          and CC._explicit_l5(P.parse_line(
+              "PROP-EVT: kind=chain_end fault_id=3 outcome=SDC "
+              "detection_layer=Software contained=0 corr=none")) is False)
 
     print("[4] 边证明的共享键 + 时间序")
     # 时间倒挂（L2 事件 tick 早于 L1）→ 该边不得 proven
@@ -239,8 +245,9 @@ def main():
         "PROP-EVT: kind=resp fault_id=30 event_id=4 tick=4",
         "PROP-EVT: kind=taint_reg fault_id=30 event_id=5 tick=5",
         "PROP-EVT: kind=errant_commit fault_id=30 event_id=6 tick=6",
-        "PROP-EVT: kind=chain_end fault_id=30 event_id=7 tick=7 "
-        "outcome=SDC detection_layer=Software contained=0",
+        # [R6-GATE-D1] L5 见证 = 富化检测事件（dl+outcome+链关联 corr）
+        "PROP-EVT: kind=errant_commit fault_id=30 event_id=7 tick=7 "
+        "detection_layer=Software outcome=SDC contained=0 corr=taint_prop",
     ])
     contained_evts = _evts([
         "PROP-EVT: kind=inj fault_id=31 event_id=0 tick=1",
@@ -491,6 +498,65 @@ def main():
     check("containment 后续层未全 N/A 被拒（contained_without_later_na）",
           r["admitted"] is False and "contained_without_later_na"
           in " ".join(r["violations"]), str(r["violations"]))
+
+    print()
+    print("[13] D1/D5：L5 证据必须是真实检测事件（chain_end 生命周期标记绝不充当 L5）")
+    # [R6-GATE-D1] 规格：L5（检测/结局）只能由**真实检测事件**证明——非生命周期
+    # kind 且同时携带 detection_layer + outcome + 链关联 corr（在故障祖先上）。
+    # chain_end 是退出回调的生命周期标记（corr=none），结构性不能占任何层级，
+    # 故 ready_by_chain_end_only 由构造堵死（不再是"仅文案"）。
+    t04_lifecycle = _evts([
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=1",
+        "PROP-EVT: kind=addr_form fault_id=1 event_id=1 parent_event_id=0 tick=2",
+        "PROP-EVT: kind=mem_req fault_id=1 event_id=2 parent_event_id=1 tick=3",
+        "PROP-EVT: kind=resp fault_id=1 event_id=3 parent_event_id=2 tick=4",
+        "PROP-EVT: kind=taint_reg fault_id=1 event_id=4 parent_event_id=3 tick=5",
+        "PROP-EVT: kind=errant_commit fault_id=1 event_id=5 parent_event_id=4 "
+        "tick=6 corr=taint_prop",
+        # 真实 T04/T02 形状：chain_end outcome=errant_commit_seen、dl=None、corr=none
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=6 parent_event_id=5 "
+        "tick=7 outcome=errant_commit_seen detection_layer=None contained=0 "
+        "corr=none",
+    ])
+    f43 = CC.check_chain(t04_lifecycle)["faults"]["1"]
+    check("chain_end 生命周期标记不证明 L4->L5",
+          f43["edges"]["L4->L5"] == "missing", str(f43["edges"]))
+    check("T04 形状终局非 full（止于 L4 Unknown）",
+          f43["terminal"] == "provable_to_L4_then_unknown", f43["terminal"])
+    check("T04 形状 beyond=Unknown", f43["beyond"] == "Unknown")
+    # 富化检测事件（同一 errant_commit 由 reclass join 补齐检测载荷）才证明 L5
+    check("_explicit_l5 拒绝生命周期 chain_end 载荷",
+          CC._explicit_l5(P.parse_line(
+              "PROP-EVT: kind=chain_end fault_id=1 outcome=SDC "
+              "detection_layer=Software contained=0 corr=none")) is False)
+    check("_explicit_l5 接受带链关联 corr 的检测载荷",
+          CC._explicit_l5(P.parse_line(
+              "PROP-EVT: kind=errant_commit fault_id=1 outcome=SDC "
+              "detection_layer=Software contained=0 corr=taint_prop")) is True)
+    miss_corr = P.parse_line(
+        "PROP-EVT: kind=errant_commit fault_id=1 outcome=SDC "
+        "detection_layer=Software contained=0 corr=none")
+    check("_explicit_l5 要求链关联 corr（corr=none 不算）",
+          CC._explicit_l5(miss_corr) is False)
+
+    # 真实流回归（D5）：T04 真样本绝不判 full / 绝不 admitted
+    t04 = Path(os.environ.get(
+        "LSU_R6_T04_EVT",
+        "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/"
+        "prop_evt.txt.gz"))
+    if t04.is_file():
+        ev04, _t = P.read_events(t04)
+        v04 = CC.check_chain(ev04)["faults"]["1"]
+        check("真实 T04 终局非 full", v04["terminal"] != "full",
+              v04["terminal"])
+        check("真实 T04 止于 L4（provable_to=L4）",
+              v04["provable_to"] == "L4", str(v04["provable_to"]))
+        a04 = CC.check_admission({"run_id": "T04-F0-W4", "activated": 1,
+                                  "events": ev04, "rc": 0})
+        check("真实 T04 不得 admitted（D5）", a04["admitted"] is False,
+              str(a04["violations"]))
+    else:
+        print("  SKIP 真实 T04 流不在（合成例已覆盖）")
 
     print()
     if FAILED:

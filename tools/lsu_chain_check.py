@@ -16,7 +16,9 @@ contained，或 (3) 明确 squash/replay/mask 且无错误副作用。若链在�
   cache_access 属 L3，绝不能冒充 DTLB lookup。
 - 终止判定：
   * full                    —— L0→L5 全边 proven，且同一祖先链包含
-                                errant_commit 与显式 L5 结局
+                                errant_commit 与**真实检测事件**（[R6-GATE-D1]
+                                非生命周期 kind + detection_layer + outcome +
+                                链关联 corr；生命周期 chain_end 永不充当 L5）
   * provable_to_Ln_then_unknown —— 在 Ln 后缺事件（绝不推断 Masked）
   * detected_contained      —— 存在显式 detection_layer 事件且 contained=1
   * squash_replay_masked    —— 存在显式 squash/replay/mask 证据事件
@@ -38,11 +40,39 @@ import lsu_prop_fields as P  # noqa: E402
 # L3 cache/内存 → L4 架构可见 → L5 检测/结局）
 LAYERS = ["L0", "L1", "L2", "L3", "L4", "L5"]
 
-# L5 的显式终局证据 kind：chain_end 由 CHAOSPropagation 退出回调发射
-# （gem5 正常退出时每条故障链一条；abort 样本的链终局由离线 reclass join）。
-# detected_contained 需要 detection_layer 非空且 contained=1；
-# squash_replay_masked 需要 kind 明示 squash/replay/mask。
-_L5_OUTCOME_KINDS = {"chain_end"}
+# [R6-GATE-D1] L5 = 检测/结局层。它的**唯一**合法证据是"真实检测事件"：
+# 一个非生命周期 kind 的事件，同时携带 非空 detection_layer、非空 outcome、
+# 以及链关联 corr（即该事件确实由 correlate*/污染集成员关系关联进本故障链）。
+# chain_end 由 CHAOSPropagation 退出回调发射，是**链生命周期标记**（规范
+# 词汇表 _CORR 中 corr=none，无关联语义），故结构性**永不**充当 L5：它不占
+# 任何层级（_layer_of → None）。这样 ready_by_chain_end_only 由构造堵死，
+# 而不再只是一条文案（D1）。真实流实证：T04/T02 的 chain_end 为
+# outcome=errant_commit_seen / detection_layer=None / corr=none，其真实检测
+# 点是 errant_commit（未富化 ⇒ 只到 L4）；T05/T08 的 tlb_translate_result 才
+# 是带 dl+contained+outcome+corr 的真实检测事件。
+_LIFECYCLE_KINDS = frozenset({"chain_end"})
+
+# 链关联 corr 取值（lsu_prop_fields.CORR_VALUES 去掉生命周期值 "none"）。
+_CHAIN_CORR = frozenset({"seq_primary", "addr_fallback", "origin",
+                         "taint_prop"})
+
+_EMPTY_DETECTION = ("", "None", "none", "Unknown", "unknown")
+_EMPTY_OUTCOME = ("", "run_end", "unknown", "Unknown")
+
+
+def _explicit_l5(evt):
+    """真实检测事件 = 非生命周期 kind + detection_layer + outcome + 链关联 corr。
+
+    生命周期 chain_end 恒为 False（corr=none）——这是 D1 的结构性保证。
+    """
+    if evt.get("kind", "") in _LIFECYCLE_KINDS:
+        return False
+    if str(evt.get("detection_layer", "")).strip() in _EMPTY_DETECTION:
+        return False
+    if str(evt.get("outcome", "")).strip() in _EMPTY_OUTCOME:
+        return False
+    return str(evt.get("corr", "")).strip() in _CHAIN_CORR
+
 
 _L4_TERMINAL_KINDS = {"errant_commit"}  # L4 终局：首个错误提交（v1/H0）
 
@@ -92,24 +122,24 @@ def _family_of(chain_events):
     return "generic"
 
 
-def _explicit_l5(evt):
-    """A lifecycle run_end marker is not detection/outcome evidence."""
-    if evt.get("kind") != "chain_end":
-        return False
-    detection = evt.get("detection_layer", "")
-    outcome = evt.get("outcome", "")
-    return (evt.get("contained") == "1"
-            or detection not in ("", "None", "none", "Unknown", "unknown")
-            or outcome not in ("", "run_end", "unknown", "Unknown"))
-
-
-def _layer_of(evt, family="generic"):
+def _obs_layer_of(evt, family="generic"):
+    """Observation layer of a kind (family-specific map).  Independent of the
+    D1 L5 promotion below, so prefix proofs keep working for detection
+    events (whose observation layer is L2 for the T-series)."""
     kind = evt.get("kind", "")
-    if kind == "chain_end" and not _explicit_l5(evt):
-        return None
     if family == "tlb":
         return _TLB_KIND_LAYER.get(kind)
     return P.KIND_LAYER.get(kind)
+
+
+def _layer_of(evt, family="generic"):
+    # [R6-GATE-D1] 生命周期 chain_end 不占任何层级；真实检测事件占 L5
+    # （检测/结局层，spec 表 9 "L5 检测/结局"）。
+    if evt.get("kind", "") in _LIFECYCLE_KINDS:
+        return None
+    if _explicit_l5(evt):
+        return "L5"
+    return _obs_layer_of(evt, family)
 
 
 def _tick(evt):
@@ -181,8 +211,13 @@ def _best_ordered_path(chain_events, family):
 
 
 def _event_has_prefix(chain_events, target, family):
-    """Whether target descends from a contiguous L0..target-layer prefix."""
-    layer = _layer_of(target, family)
+    """Whether target descends from a contiguous L0..target-layer prefix.
+
+    [R6-GATE-D1] Uses the *observation* layer of the target (not the L5
+    promotion) so a detection event is still proven to descend from the
+    unit's own L0→L_obs prefix.
+    """
+    layer = _obs_layer_of(target, family)
     if layer not in LAYERS:
         return False
     target_idx = LAYERS.index(layer)
