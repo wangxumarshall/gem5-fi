@@ -67,6 +67,13 @@ KIND_LAYER = {
     # [MDSPEC][H2] TLB 翻译统一事件（mmu.cc translateTiming = SE+FS 漏斗；
     # SE 不经 TLB::lookup——tlb.cc:173 实证）。
     "tlb_translate": "L2",
+    # [MDSPEC][R6] T-series family-specific path.  tlb_lookup is the
+    # post-injection lookup/selection observation required by table 9 L1;
+    # tlb_translate_result is the corresponding PA/fault materialisation at
+    # L2.  The global mapping remains useful to the schema validator, while
+    # lsu_chain_check applies stricter family-specific mappings so later
+    # cache_access events can never impersonate a TLB lookup.
+    "tlb_lookup": "L1", "tlb_translate_result": "L2",
     # [MDSPEC][R4-5.9] T08 walk/fill 配对（FS-only）：tlb_walk = DTLB miss
     # 启动的页表遍历（TableWalker::walk 发出，table_walker.cc）；tlb_refill
     # = 该 walk 的 refill 完成（walker 把 PTE 交回 MMU）。两节点共享同一
@@ -152,6 +159,11 @@ REQUIRED_FIELDS = {
                      "request_id", "va"],
     # [MDSPEC][H2] pa 入口未定留空（诚实 pending；PA 物化由 resp 节点覆盖）
     "tlb_translate": ["fault_id", "corr", "dyn_inst_seq", "va", "request_id"],
+    "tlb_lookup": ["fault_id", "corr", "dyn_inst_seq", "request_id", "va",
+                   "entry_index", "field", "state_before", "state_after"],
+    "tlb_translate_result": ["fault_id", "corr", "dyn_inst_seq",
+                             "request_id", "va", "pa", "field",
+                             "state_before", "state_after"],
     # [MDSPEC][R4-5.9] T08 walk/fill 配对（FS-only，见 KIND_LAYER 注）。
     # tlb_walk：walk 发出点（TableWalker::walk，table_walker.cc）——必录
     #   walk_id（配对键）+ va + dyn_inst_seq/request_id（Request 身份；

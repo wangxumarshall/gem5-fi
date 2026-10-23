@@ -9,11 +9,14 @@ contained，或 (3) 明确 squash/replay/mask 且无错误副作用。若链在�
 
 实现（计划 Task C1 Interfaces）：
 - check_chain(events, spec_nodes=None) → {edges, terminal}
-- 边证明规则：相邻层级 Ln→Ln+1 = 存在 e1∈Layer(n) 与 e2∈Layer(n+1)，
-  fault_id 相同（跨单元关联键；可选 dyn_inst_seq 双键加强）且
-  time(e2) >= time(e1)（时间/可达性）。
+- 边证明规则：必须在 parent_event_id DAG 的**同一条祖先路径**上依次
+  找到 L0,L1,...；所选事件 tick 单调。禁止把两个分支或乱序阶段上的
+  独立证人拼成一条链。
+- TLB family 使用表 9 专用层级：L1 只认 tlb_lookup；下游
+  cache_access 属 L3，绝不能冒充 DTLB lookup。
 - 终止判定：
-  * full                    —— 全边 proven 且到达 L4/L5 终局事件之一
+  * full                    —— L0→L5 全边 proven，且同一祖先链包含
+                                errant_commit 与显式 L5 结局
   * provable_to_Ln_then_unknown —— 在 Ln 后缺事件（绝不推断 Masked）
   * detected_contained      —— 存在显式 detection_layer 事件且 contained=1
   * squash_replay_masked    —— 存在显式 squash/replay/mask 证据事件
@@ -57,8 +60,56 @@ CLOSED_TERMINALS = {
 }
 
 
-def _layer_of(evt):
-    return P.KIND_LAYER.get(evt.get("kind", ""))
+_TLB_SIGNATURE_KINDS = {
+    "tlb_lookup", "tlb_pfn", "tlb_state", "tlb_walk", "tlb_refill",
+    "tlb_translate_result",
+}
+
+_TLB_KIND_LAYER = {
+    "inj": "L0",
+    "tlb_lookup": "L1",
+    "tlb_pfn": "L2", "tlb_state": "L2", "tlb_walk": "L2",
+    "tlb_refill": "L2", "tlb_translate": "L2",
+    "tlb_translate_result": "L2", "tlb_fault": "L2",
+    # Table 9 T-series L3 is the request/cache/memory side after translation.
+    "lsq_sendfrag": "L3", "mem_req": "L3", "lq_read": "L3",
+    "lq_complete": "L3", "sq_execute": "L3", "sq_writeback": "L3",
+    "sq_complete": "L3", "resp": "L3", "cache_access": "L3",
+    "cache_return": "L3", "cache_fill": "L3", "cache_evict": "L3",
+    "mshr_alloc": "L3", "mshr_merge": "L3", "mshr_fill": "L3",
+    "mshr_free": "L3", "cache_writeback": "L3",
+    "taint_reg": "L4", "consumer": "L4", "errant_commit": "L4",
+    "chain_end": "L5",
+}
+
+
+def _family_of(chain_events):
+    """Infer only families whose table-9 path differs from the global map."""
+    for evt in chain_events:
+        run_id = evt.get("run_id", "")
+        if run_id.startswith("T") or evt.get("kind", "") in _TLB_SIGNATURE_KINDS:
+            return "tlb"
+    return "generic"
+
+
+def _explicit_l5(evt):
+    """A lifecycle run_end marker is not detection/outcome evidence."""
+    if evt.get("kind") != "chain_end":
+        return False
+    detection = evt.get("detection_layer", "")
+    outcome = evt.get("outcome", "")
+    return (evt.get("contained") == "1"
+            or detection not in ("", "None", "none", "Unknown", "unknown")
+            or outcome not in ("", "run_end", "unknown", "Unknown"))
+
+
+def _layer_of(evt, family="generic"):
+    kind = evt.get("kind", "")
+    if kind == "chain_end" and not _explicit_l5(evt):
+        return None
+    if family == "tlb":
+        return _TLB_KIND_LAYER.get(kind)
+    return P.KIND_LAYER.get(kind)
 
 
 def _tick(evt):
@@ -79,42 +130,96 @@ def _group_by_fault(events):
     return groups
 
 
-def _edges_for(chain_events):
-    """逐边判定：Ln→Ln+1 proven 当且仅当存在共享 fault_id 的
-    (e1∈Ln, e2∈Ln+1) 且 tick(e2) >= tick(e1)（时间/可达性）。"""
+def _ancestry(evt, by_id):
+    """Return root→evt along parent_event_id; cycles/missing parents stop."""
+    out = []
+    seen = set()
+    cur = evt
+    while cur is not None:
+        eid = cur.get("event_id", "")
+        marker = eid if eid != "" else id(cur)
+        if marker in seen:
+            break
+        seen.add(marker)
+        out.append(cur)
+        parent = cur.get("parent_event_id", "")
+        cur = by_id.get(parent) if parent != "" else None
+    out.reverse()
+    return out
+
+
+def _ordered_prefix(path, family):
+    """Select one tick-monotone L0→... subsequence from one DAG ancestry."""
+    selected = []
+    want = 0
+    last_tick = -1
+    for evt in path:
+        layer = _layer_of(evt, family)
+        if layer not in LAYERS:
+            continue
+        idx = LAYERS.index(layer)
+        tick = _tick(evt)
+        if idx == want and tick >= last_tick:
+            selected.append(evt)
+            want += 1
+            last_tick = tick
+            if want == len(LAYERS):
+                break
+    return selected
+
+
+def _best_ordered_path(chain_events, family):
+    """Best contiguous layer prefix on any single parent DAG ancestry."""
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    best = []
+    for evt in chain_events:
+        selected = _ordered_prefix(_ancestry(evt, by_id), family)
+        if len(selected) > len(best):
+            best = selected
+    return best
+
+
+def _event_has_prefix(chain_events, target, family):
+    """Whether target descends from a contiguous L0..target-layer prefix."""
+    layer = _layer_of(target, family)
+    if layer not in LAYERS:
+        return False
+    target_idx = LAYERS.index(layer)
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    ancestry = _ancestry(target, by_id)
+    selected = _ordered_prefix(ancestry, family)
+    return len(selected) > target_idx
+
+
+def _edges_for(chain_events, family):
+    """Prove edges only from one contiguous, tick-monotone DAG path."""
+    path = _best_ordered_path(chain_events, family)
     by_layer = {}
-    for e in chain_events:
-        lay = _layer_of(e)
-        if lay:
-            by_layer.setdefault(lay, []).append(e)
+    for evt in path:
+        by_layer[_layer_of(evt, family)] = [evt]
     edges = {}
     for i in range(len(LAYERS) - 1):
         a, b = LAYERS[i], LAYERS[i + 1]
-        ev_a, ev_b = by_layer.get(a, []), by_layer.get(b, [])
-        proven = False
-        witness = None
-        for e1 in ev_a:
-            for e2 in ev_b:
-                if _tick(e2) >= _tick(e1):
-                    proven = True
-                    witness = {
-                        "from": f"{a}:{e1.get('kind')}@t{e1.get('tick')}",
-                        "to": f"{b}:{e2.get('kind')}@t{e2.get('tick')}",
-                        "shared_keys": ["fault_id"],
-                    }
-                    if (e1.get("dyn_inst_seq") and e2.get("dyn_inst_seq")
-                            and e1["dyn_inst_seq"] == e2["dyn_inst_seq"]):
-                        witness["shared_keys"].append("dyn_inst_seq")
-                    break
-            if proven:
-                break
+        proven = len(path) > i + 1
         edges[f"{a}->{b}"] = "proven" if proven else "missing"
-        if witness:
-            edges[f"{a}->{b}_witness"] = witness
-    return edges, by_layer
+        if proven:
+            e1, e2 = path[i], path[i + 1]
+            shared = ["fault_id", "parent_event_path"]
+            if (e1.get("dyn_inst_seq") and e2.get("dyn_inst_seq")
+                    and e1["dyn_inst_seq"] == e2["dyn_inst_seq"]):
+                shared.append("dyn_inst_seq")
+            edges[f"{a}->{b}_witness"] = {
+                "from": f"{a}:{e1.get('kind')}@t{e1.get('tick')}",
+                "to": f"{b}:{e2.get('kind')}@t{e2.get('tick')}",
+                "shared_keys": shared,
+            }
+    return edges, by_layer, path
 
 
-def _terminal(chain_events, edges, by_layer, oracle_outcome=None):
+def _terminal(chain_events, edges, by_layer, path, family,
+              oracle_outcome=None):
     """终止判定（规格三终局 + Unknown 兜底；缺席不猜测）。
 
     [H2-fix] tlb_fault = Hardware 检测，表示**翻译阶段阻断**，它本身
@@ -137,7 +242,8 @@ def _terminal(chain_events, edges, by_layer, oracle_outcome=None):
     translation_blocked = False
     for e in chain_events:
         if (e.get("kind") == "tlb_fault"
-                and e.get("detection_layer") == "Hardware"):
+                and e.get("detection_layer") == "Hardware"
+                and _event_has_prefix(chain_events, e, family)):
             translation_blocked = True
             if e.get("contained") == "1":
                 # 显式 contained 证据（非推断）优先于 oracle 兜底
@@ -155,33 +261,34 @@ def _terminal(chain_events, edges, by_layer, oracle_outcome=None):
     # 显式 contained 检测（L5 证据事件）
     for e in chain_events:
         if (e.get("detection_layer") and e.get("contained") == "1"
-                and e.get("kind") in _L5_OUTCOME_KINDS):
+                and _event_has_prefix(chain_events, e, family)):
             return "detected_contained"
     # 显式 squash/replay/mask（L5 证据事件）
     for e in chain_events:
-        if any(k in e.get("kind", "") for k in ("squash", "replay", "mask")):
-            if e.get("kind") in _L5_OUTCOME_KINDS or _layer_of(e):
-                # 只认 kind 明示的事件（缺席不推断 Masked——规格钉死）
-                if e.get("kind") in _L5_OUTCOME_KINDS:
-                    return "squash_replay_masked"
+        if (any(k in e.get("kind", "") for k in ("squash", "replay", "mask"))
+                and _event_has_prefix(chain_events, e, family)):
+            return "squash_replay_masked"
     # 逐边最深可证层级
-    deepest = None
-    for i, lay in enumerate(LAYERS):
-        if by_layer.get(lay):
-            deepest = lay
-        else:
-            break
+    deepest = LAYERS[len(path) - 1] if path else None
     if deepest is None:
         return "no_l0_fault_applied"
-    # full（规格终局 1：到达 errant commit + 链终局事件）= L0→L4 各边
-    # proven 且 L4 终局事件在场。L4→L5（chain_end）是运行终局的证据，
-    # 正常退出时应在案；abort 样本无 chain_end（退出回调不运行）——
-    # 此时 full 仍可成立（L4 终局即到达），L4→L5 标 missing=诚实。
-    l4_terminal = any(e.get("kind") in _L4_TERMINAL_KINDS
-                      for e in by_layer.get("L4", []))
-    l0_to_l4_proven = all(edges[f"{LAYERS[i]}->{LAYERS[i+1]}"] == "proven"
-                          for i in range(len(LAYERS) - 2))  # L0→…→L4
-    if l0_to_l4_proven and l4_terminal:
+    # full（规格终局 1：到达 errant commit + 显式链终局）要求 L0→L5
+    # 全路径连续。abort 样本若没有 chain_end，就只能诚实停在 L4；不得
+    # 单靠 errant_commit 补造 L5。
+    # The ordered prefix records only one representative per layer (often a
+    # taint_reg for L4), so inspect the chosen L5 event's ancestry for the
+    # errant_commit rather than requiring it to be that representative.  This
+    # still forbids cross-branch splicing: both witnesses are on one ancestry.
+    l4_terminal = False
+    explicit_l5 = False
+    if deepest == "L5":
+        by_id = {e.get("event_id", ""): e for e in chain_events
+                 if e.get("event_id", "") != ""}
+        chosen_ancestry = _ancestry(path[-1], by_id)
+        l4_terminal = any(e.get("kind") in _L4_TERMINAL_KINDS
+                          for e in chosen_ancestry)
+        explicit_l5 = _explicit_l5(path[-1])
+    if deepest == "L5" and l4_terminal and explicit_l5:
         return "full"
     if deepest == "L0" and not by_layer.get("L1"):
         return "provable_to_L0_then_unknown"
@@ -201,14 +308,10 @@ def check_chain(events, spec_nodes=None, oracle_outcome=None):
     result = {"faults": {}, "spec_nodes": spec_nodes or LAYERS,
               "oracle_outcome": oracle_outcome}
     for fid, chain in _group_by_fault(events).items():
-        edges, by_layer = _edges_for(chain)
-        term = _terminal(chain, edges, by_layer, oracle_outcome)
-        provable = None
-        for lay in LAYERS:
-            if by_layer.get(lay):
-                provable = lay
-            else:
-                break
+        family = _family_of(chain)
+        edges, by_layer, path = _edges_for(chain, family)
+        term = _terminal(chain, edges, by_layer, path, family, oracle_outcome)
+        provable = LAYERS[len(path) - 1] if path else None
         result["faults"][fid] = {
             "edges": edges,
             "terminal": term,
@@ -218,6 +321,8 @@ def check_chain(events, spec_nodes=None, oracle_outcome=None):
             # 绝不 Masked。
             "beyond": "" if term in CLOSED_TERMINALS else "Unknown",
             "event_count": len(chain),
+            "family": family,
+            "path_event_ids": [e.get("event_id", "") for e in path],
         }
     return result
 
