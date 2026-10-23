@@ -113,11 +113,21 @@ _TLB_KIND_LAYER = {
 }
 
 
+# [R6-GATE-D4] 族判定：RunID 前缀 = 单元族（台账模型号：T=tlb / L=Load Queue /
+# S=Store Queue / C=L1d-Cache / A=AGU / P=prefetch / O=atomic）。族决定 L1 的
+# 合法观察点，故 cache 结构事件（cache_access …）不得冒充非 cache 族的 L1。
+_UNIT_FAMILY = {"T": "tlb", "L": "lq", "S": "sq", "C": "cache",
+                "A": "agu", "P": "pf", "O": "atomic"}
+
+
 def _family_of(chain_events):
-    """Infer only families whose table-9 path differs from the global map."""
+    """Infer the unit family (table-9 path / L1 identity differ per family)."""
     for evt in chain_events:
         run_id = evt.get("run_id", "")
-        if run_id.startswith("T") or evt.get("kind", "") in _TLB_SIGNATURE_KINDS:
+        fam = _UNIT_FAMILY.get(run_id[:1])
+        if fam:
+            return fam
+        if evt.get("kind", "") in _TLB_SIGNATURE_KINDS:
             return "tlb"
     return "generic"
 
@@ -376,6 +386,8 @@ GATE_VIOLATIONS = (
     "unknown_in_activated_chain",
     "tlb_l1_faked_by_cache_access",
     "tlb_l1_missing",
+    "cache_access_faked_l1",
+    "cache_l1_missing",
     "cross_branch_edge",
     "cross_request_edge",
     "time_reversed_edge",
@@ -622,10 +634,10 @@ def check_admission(bundle):
     path = _best_ordered_path(chain, family)
     res["path_layers"] = [_layer_of(e, family) for e in path]
 
-    # (2) TLB L1 impersonation — family-specific, loud.
+    # (2) L1 impersonation — family-specific, loud.
+    l1 = next((e for e in path if _layer_of(e, family) == "L1"), None)
+    l1kind = l1.get("kind") if l1 else None
     if family == "tlb":
-        l1 = next((e for e in path if _layer_of(e, family) == "L1"), None)
-        l1kind = l1.get("kind") if l1 else None
         if l1kind != "tlb_lookup":
             imp = sorted({e.get("kind") for e in chain
                           if e.get("kind") in _FORCED_L1_KINDS})
@@ -636,6 +648,17 @@ def check_admission(bundle):
             else:
                 viol.append(f"tlb_l1_missing: {run_id} TLB 族缺 tlb_lookup L1"
                             f"（实际 L1={l1kind!r}）")
+    elif family == "cache":
+        # [R6-GATE-D4] cache 族（H4 表 9：L1=lookup）L1 必须是 cache_access。
+        if l1kind != "cache_access":
+            viol.append(f"cache_l1_missing: {run_id} cache 族 L1 必须为 "
+                        f"cache_access（lookup），实际 L1={l1kind!r}")
+    elif l1kind in _FORCED_L1_KINDS:
+        # [R6-GATE-D4] 非 cache 族的 L1 是单元自身的观察点（lsq_push /
+        # addr_form / pf_train / exmon_monitor …）；cache 结构事件不得冒充。
+        viol.append(f"cache_access_faked_l1: {run_id} {family} 族 L1 不得由 "
+                    f"cache 结构事件冒充（实际 L1={l1kind!r}）——表 9 该族 L1 是"
+                    f"单元自身观察点")
 
     # (3) edge stitching integrity — branch / request / time.
     if _splice_detected(chain, family, path):

@@ -583,6 +583,59 @@ def main():
     else:
         print("  SKIP 真实 T04 流不在（合成例已覆盖）")
 
+    print("[15] D4：cache_access 不得冒充非 cache 族的 L1（且 cache 族 L1 必须是 lookup）")
+    # 族由 RunID 前缀判定（T=tlb/L=Load Queue/S=Store Queue/C=L1d-Cache/
+    # A=AGU/P=prefetch/O=atomic）——非 cache 族的 L1 观察点不是 cache 结构事件。
+    lq_fake = _evts([
+        "PROP-EVT: kind=inj run_id=L04-F0-W5 fault_id=1 event_id=0 "
+        "parent_event_id= tick=1 corr=origin",
+        "PROP-EVT: kind=cache_access run_id=L04-F0-W5 fault_id=1 event_id=1 "
+        "parent_event_id=0 tick=2 va=1000 pa=2000 corr=origin",
+        "PROP-EVT: kind=cache_return run_id=L04-F0-W5 fault_id=1 event_id=2 "
+        "parent_event_id=1 tick=3 pa=2000 field=miss corr=origin",
+        "PROP-EVT: kind=resp run_id=L04-F0-W5 fault_id=1 event_id=3 "
+        "parent_event_id=2 tick=4 dyn_inst_seq=7 corr=seq_primary",
+    ])
+    r = adm(lq_fake, run_id="L04-F0-W5")
+    check("LQ 族 cache_access 冒充 L1 被拒（cache_access_faked_l1）",
+          r["admitted"] is False and "cache_access_faked_l1"
+          in " ".join(r["violations"]), str(r["violations"]))
+    check("LQ 族判定为 family=lq（非 generic）", r["family"] == "lq",
+          str(r.get("family")))
+    # cache 族 L1 必须是 cache_access（lookup）
+    cache_l1_wrong = _evts([
+        "PROP-EVT: kind=inj run_id=C01-F0-W6 fault_id=1 event_id=0 "
+        "parent_event_id= tick=1 corr=origin",
+        "PROP-EVT: kind=lsq_push run_id=C01-F0-W6 fault_id=1 event_id=1 "
+        "parent_event_id=0 tick=2 dyn_inst_seq=7 pc=4000 opcode=ldr "
+        "lq_idx=1 va=1000 corr=origin",
+        "PROP-EVT: kind=cache_return run_id=C01-F0-W6 fault_id=1 event_id=2 "
+        "parent_event_id=1 tick=3 pa=2000 field=miss corr=origin",
+    ])
+    r = adm(cache_l1_wrong, run_id="C01-F0-W6")
+    check("cache 族 L1 非 cache_access 被拒（cache_l1_missing）",
+          r["admitted"] is False and "cache_l1_missing"
+          in " ".join(r["violations"]), str(r["violations"]))
+    # 对照组：cache 族以 cache_access 作 L1 → 不触发这两个 guard
+    cache_ok = _evts([
+        "PROP-EVT: kind=inj run_id=C99-F0-W6 fault_id=1 event_id=0 "
+        "parent_event_id= tick=1 corr=origin",
+        "PROP-EVT: kind=cache_access run_id=C99-F0-W6 fault_id=1 event_id=1 "
+        "parent_event_id=0 tick=2 va=1000 pa=2000 corr=origin",
+        "PROP-EVT: kind=cache_return run_id=C99-F0-W6 fault_id=1 event_id=2 "
+        "parent_event_id=1 tick=3 pa=2000 field=miss corr=origin",
+        "PROP-EVT: kind=resp run_id=C99-F0-W6 fault_id=1 event_id=3 "
+        "parent_event_id=2 tick=4 dyn_inst_seq=7 corr=seq_primary",
+    ])
+    r = adm(cache_ok, run_id="C99-F0-W6")
+    joined = " ".join(r["violations"])
+    check("cache 族以 cache_access 作 L1 不误报（对照组）",
+          "cache_access_faked_l1" not in joined
+          and "cache_l1_missing" not in joined, joined[:160])
+    check("两个 D4 规则名登记在 GATE_VIOLATIONS",
+          {"cache_access_faked_l1", "cache_l1_missing"}
+          <= set(CC.GATE_VIOLATIONS))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
