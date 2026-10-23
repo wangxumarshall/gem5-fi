@@ -25,6 +25,74 @@ import lsu_campaign as lc   # noqa: E402  (MODEL_BLOCKED / WL_BINARY / GOLDENS)
 
 RUNID_RE = re.compile(r"^[A-Z]\d{2}-F\d+-W\d+$")
 
+# ------------------------------------------------------------------ FS-INFRA
+# [LSU][MDSPEC][R6-FSINFRA] The workload-level key WL_BLOCKED["TLB-AliasPerm"]
+# => "blocked(fs-infra: TLB workload needs FS)" (lsu_campaign.py:237) is emitted
+# here by the model-AGNOSTIC _resolve_workload(): it cannot see resolve_cell's
+# armtlb FS special-case (T-models route to the fs:tlb_probe carrier). The claim
+# "needs FS => blocked" is REFUTED by real FS runs already on disk
+# (R5-FS-PILOT-EVIDENCE.md: T01/T04-F0-W4 activated=1 on FS; the T08 containment
+# chain; R5-ADMISSION-CLOSEOUT §4.3/§6; blockers_for_approval §FS-INFRA says the
+# old wording "已被本轮真机证据反驳"). The correction is per row: name the
+# refutation + its artifact and the TRUE residual blocker. NO row is unblocked:
+# the documented unlock condition (30 activated/cell, blockers_for_approval
+# §FS-INFRA) is met by ZERO cells (all pilots are 1 seed), and T05-T08 carry an
+# independent, unchanged lsu_campaign.MODEL_BLOCKED reason. This is a factual
+# key rewrite, not a threshold relaxation (no denominator/classification change).
+FS_CARRIER = "fs:tlb_probe"
+FS_EVIDENCE_MANIFEST = "docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md"
+FS_UNLOCK_CONDITION = ("unlock condition = 30 activated/cell not met "
+                       "(blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)")
+# Per-row real FS-pilot artifacts (activated>=1). Durable anchors live in
+# FS_EVIDENCE_MANIFEST; the run dirs under runs/ are runtime artifacts (may
+# rotate). Rows absent here have NO per-cell FS pilot and say so.
+FS_PILOT_EVIDENCE = {
+    "T01-F0-W4": "runs/lsu/r6_tlb_F_T01-F0-W4",
+    "T01-F1-W4": "R5-FS-PILOT-EVIDENCE.md §1",
+    "T01-F2-W4": "R5-FS-PILOT-EVIDENCE.md §1",
+    "T02-F0-W4": "runs/lsu/r6_tlb_pilot2",
+    "T02-F2-W4": "R5-FS-PILOT-EVIDENCE.md §1",
+    "T03-F5-W4": "runs/lsu/r6_tlb_I_T03-F5-W4",
+    "T04-F0-W4": "runs/lsu/r6_tlb_pilot2",
+    "T04-F2-W4": "runs/lsu/r6_tlb_G_T04-F2-W4",
+    "T04-F6-W4": "runs/lsu/r6_tlb_G_T04-F6-W4",
+    "T05-F0-W4": "runs/lsu/r6_tlb_pilot2",
+    "T06-F0-W4": "runs/lsu/r6_tlb_D_T06-F0-W4",
+    "T07-F0-W4": "runs/lsu/r6_tlb_pilot2",
+    "T08-F0-W4": "runs/lsu/r6_tlb_C_T08-F0-W4",
+    "T10-F0-W4": "runs/lsu/r6_tlb_E_T10-F0-W4",
+    "T10-F1-W4": "R5-FS-PILOT-EVIDENCE.md §1",
+    "T10-F2-W4": "R5-FS-PILOT-EVIDENCE.md §1",
+}
+
+
+def _correct_fs_infra_key(rid, wl_note):
+    """(corrected_note, fs_record) for an armtlb FS-family row.
+
+    Replaces the fabricated workload-level block with a truthful per-row key:
+    the refutation, its artifact, the TRUE residual blocker, and (when a real
+    FS pilot exists) the evidence anchor. The row stays BLOCKED either way.
+    """
+    stale = "blocked(fs-infra: TLB workload needs FS)"
+    art = FS_PILOT_EVIDENCE.get(rid)
+    common = (f"fs-infra: refuted(stale workload-level claim 'TLB workload "
+              f"needs FS' — the FS carrier {FS_CARRIER} "
+              f"(golden {lc.TLB_PROBE_GOLDEN}) serves this workload; see "
+              f"{FS_EVIDENCE_MANIFEST})")
+    if art:
+        note = (f"{common}; residual blocker: per-cell pilot breadth — "
+                f"{FS_UNLOCK_CONDITION}; FS pilot evidence (activated=1): "
+                f"{art}")
+        rec = dict(carrier=FS_CARRIER, stale_key_refuted=stale,
+                   evidence=f"{FS_EVIDENCE_MANIFEST}#{rid}", run_artifact=art)
+    else:
+        note = (f"{common}; residual blocker: NO per-cell FS pilot artifact "
+                f"for this cell (逐格 campaign 入口 pilot 未完成); "
+                f"{FS_UNLOCK_CONDITION}")
+        rec = dict(carrier=FS_CARRIER, stale_key_refuted=stale,
+                   evidence="", run_artifact="")
+    return note, rec
+
 
 def _rows(ws):
     hdr = [c.value for c in ws[1]]
@@ -455,6 +523,11 @@ def generate_map(xlsx_path):
         model = _txt(r[i7["模型ID"]])
         spec_name = _txt(r[i7["负载（真实名称）"]])
         binary, wl_note = _resolve_workload(spec_name)
+        # [R6-FSINFRA] FS-family rows: the model-agnostic fs-infra workload
+        # key is refuted — replace it with the truthful per-row key.
+        fs_workload = None
+        if model in lc.ARMTLB_MODELS and wl_note and "fs-infra" in wl_note:
+            wl_note, fs_workload = _correct_fs_infra_key(rid, wl_note)
         s9 = rid9[rid]
         impl_status = _txt(s9[i9["实现状态"]])
         reasons = []
@@ -495,6 +568,9 @@ def generate_map(xlsx_path):
             # [MDSPEC][R4-5.1] 落地登记留证（SPEC_IMPL_LANDED）：非阻塞，
             # 记录该模型 spec「需新增」前提被实现解除的依据。
             spec_landed=landed or "",
+            # [R6-FSINFRA] FS 家族行的更正留证（carrier / 被反驳的旧键 /
+            # 证据锚点 + run artifact）；非 FS 家族行为 None。
+            fs_workload=fs_workload,
             status="BLOCKED" if reasons else "PARTIAL",
             status_reasons=reasons,
             target_activated_samples=_txt(s9[i9["首轮目标Activated样本数"]]),

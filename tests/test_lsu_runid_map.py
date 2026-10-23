@@ -128,6 +128,72 @@ def main():
           set(lc.WL_BLOCKED) == {"TLB-AliasPerm", "Atomic-Litmus", "PARSEC",
                                  lc.SPEC_WL_IDENTITY},
           str(sorted(lc.WL_BLOCKED)))
+    # [LSU][MDSPEC][R6-FSINFRA] FS-family workload key correction (R5 §8).
+    # The fabricated, model-agnostic key
+    #   workload:workload-level:blocked(fs-infra: TLB workload needs FS)
+    # is REFUTED by real FS runs on disk (R5-FS-PILOT-EVIDENCE.md: T01/T04-F0-W4
+    # activated on the FS carrier; the T08 containment chain). It is a stale
+    # *workload-level* claim emitted by _resolve_workload, which is blind to
+    # resolve_cell's armtlb FS special-case. Per row the key must be rewritten
+    # to name (i) the refutation, (ii) the refuting artifact, and (iii) the TRUE
+    # residual blocker -- and NOTHING may be mass-cleared: all 24 rows stay
+    # BLOCKED because no cell yet meets the documented unlock condition
+    # (30 activated/cell, blockers_for_approval.md §FS-INFRA).
+    fs_rows = [e for e in entries
+               if e["model_id"] in lc.ARMTLB_MODELS
+               and "TLB-AliasPerm" in e["workload"]["spec_name"]
+               and "fs-infra" in " ".join(e["status_reasons"])]
+    fs_ids = sorted(e["run_id"] for e in fs_rows)
+    check("fs-infra family is exactly the 24 TLB-AliasPerm rows",
+          len(fs_rows) == 24, f"n={len(fs_rows)} {fs_ids}")
+    STALE = "blocked(fs-infra: TLB workload needs FS)"
+    bad = [e["run_id"] for e in fs_rows
+           if STALE in " ".join(e["status_reasons"])]
+    check("the stale fabricated claim is gone from every fs-infra row",
+          not bad, str(bad))
+    check("no fs-infra row was mass-cleared (24/24 stay BLOCKED)",
+          all(e["status"] == "BLOCKED" for e in fs_rows),
+          str([(e["run_id"], e["status"]) for e in fs_rows
+               if e["status"] != "BLOCKED"]))
+    check("every corrected key names the refutation + the FS carrier",
+          all(any(r.startswith("workload:fs-infra: refuted(")
+                  and lc.TLB_PROBE_GOLDEN in r for r in e["status_reasons"])
+              for e in fs_rows),
+          str([e["run_id"] for e in fs_rows
+               if not any(r.startswith("workload:fs-infra: refuted(")
+                          for r in e["status_reasons"])]))
+    check("every corrected key names the TRUE residual blocker (pilot, "
+          "not the stale FS claim)",
+          all(any("residual blocker:" in r for r in e["status_reasons"])
+              for e in fs_rows),
+          str([e["run_id"] for e in fs_rows
+               if not any("residual blocker:" in r
+                          for r in e["status_reasons"])]))
+    # Per-row evidence: exactly the rows with a real FS pilot artifact carry a
+    # path into the committed evidence manifest; the rest say so loudly.
+    MANIFEST = "docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md"
+    ev_rows = [e for e in fs_rows if e.get("fs_workload", {}).get("evidence")]
+    no_ev = [e["run_id"] for e in fs_rows
+             if not e.get("fs_workload", {}).get("evidence")]
+    check("evidence manifest exists (durable, committed)",
+          (ROOT / MANIFEST).exists(), MANIFEST)
+    check("evidence-covered FS rows record a manifest anchor",
+          len(ev_rows) == 16 and all(
+              e["fs_workload"]["evidence"].startswith(MANIFEST + "#")
+              and e["fs_workload"]["run_artifact"]
+              for e in ev_rows),
+          f"n_ev={len(ev_rows)}")
+    check("rows with no per-cell FS pilot say so (no silent claim)",
+          sorted(no_ev) == ["T05-F2-W4", "T05-F6-W4", "T06-F2-W4",
+                            "T06-F6-W4", "T07-F4-W4", "T07-F6-W4",
+                            "T08-F4-W4", "T08-F6-W4"],
+          str(sorted(no_ev)))
+    check("every evidenced row is named in the manifest section it cites",
+          all(e["run_id"] in (ROOT / MANIFEST).read_text()
+              for e in ev_rows),
+          str([e["run_id"] for e in ev_rows
+               if e["run_id"] not in (ROOT / MANIFEST).read_text()]))
+
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0
 
