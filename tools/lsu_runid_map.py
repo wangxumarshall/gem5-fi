@@ -465,6 +465,7 @@ def generate_map(xlsx_path):
             reasons.append(f"spec:{impl_status}")
         if wl_note:
             reasons.append(f"workload:{wl_note}")
+        pilot_routable = model in lc.EVIDENCE_PILOT_MODELS
         entries.append(dict(
             run_id=rid, model_id=model,
             unit=_txt(r[i7["单元"]]), freq=_txt(r[i7["频率"]]),
@@ -474,6 +475,15 @@ def generate_map(xlsx_path):
             workload=dict(spec_name=spec_name, binary=binary,
                           golden=lc.GOLDENS.get(binary) if binary else None,
                           note=wl_note or ""),
+            pilot=dict(
+                routable=pilot_routable,
+                phase="trial" if pilot_routable else None,
+                carrier="fs:tlb_probe" if pilot_routable else None,
+                golden=(lc.TLB_PROBE_GOLDEN if pilot_routable else None),
+                formal_status="BLOCKED" if pilot_routable else None,
+                note=("evidence collection only; MODEL_BLOCKED retained"
+                      if pilot_routable else ""),
+            ),
             path_raw=_txt(s9[i9["完整传播路径（按顺序）"]]),
             path_nodes=re.findall(r"L\d", _txt(s9[i9["完整传播路径（按顺序）"]])),
             monitors=_txt(s9[i9["必监控单元/事件/指标"]]),
