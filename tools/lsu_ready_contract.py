@@ -269,9 +269,15 @@ def chain_admission(runid, pilots=None, evidence_root=None):
                                            f"{CHAIN_EVENT_CAP}——未评估，绝不"
                                            f"默认通过"]})
             continue
+        # [R6-GATE-D2] 显式 containment 证据（option 2）必须传进门禁，否则
+        # 合法含住的样本（如 T08-F0-W4 walk_refill_lost detection_layer=L2
+        # contained=1 outcome=translation_blocked）会被无谓拒绝。
+        # oracle_outcome 亦透传（转录台账若有；缺省 None ⇒ 不猜测）。
         bundle = {"run_id": runid,
                   "activated": max(1, int(s.get("faults") or 1)),
-                  "events": events, "rc": 0}
+                  "events": events, "rc": 0,
+                  "containment": chain.containment_from_events(events, runid),
+                  "oracle_outcome": s.get("oracle_outcome")}
         results.append(chain.check_admission(bundle))
     out["evaluated"] = sum(1 for r in results if r.get("admitted") is not None)
     out["admitted"] = bool(results) and all(r.get("admitted") for r in results)

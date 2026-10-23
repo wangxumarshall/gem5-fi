@@ -59,6 +59,9 @@ _CHAIN_CORR = frozenset({"seq_primary", "addr_fallback", "origin",
 _EMPTY_DETECTION = ("", "None", "none", "Unknown", "unknown")
 _EMPTY_OUTCOME = ("", "run_end", "unknown", "Unknown")
 
+# contained 字段的"真"取值（发射端写 1；解析端容忍文本形式）。
+_CONTAINED_VALUES = ("1", "true", "True", "yes", "Yes")
+
 
 def _explicit_l5(evt):
     """真实检测事件 = 非生命周期 kind + detection_layer + outcome + 链关联 corr。
@@ -234,8 +237,15 @@ def _event_has_prefix(chain_events, target, family):
     by_id = {e.get("event_id", ""): e for e in chain_events
              if e.get("event_id", "") != ""}
     ancestry = _ancestry(target, by_id)
-    selected = _ordered_prefix(ancestry, family)
-    return len(selected) > target_idx
+    # The target itself is the witness of its own observation layer, so the
+    # monotone prefix only needs to reach target_idx - 1 before it (D1: a
+    # promoted detection event must not disqualify itself from being prefixed).
+    selected = _ordered_prefix([e for e in ancestry if e is not target], family)
+    if len(selected) < target_idx:
+        return False
+    if target_idx == 0:
+        return True
+    return _tick(target) >= _tick(selected[target_idx - 1])
 
 
 def _edges_for(chain_events, family):
@@ -562,6 +572,56 @@ def _containment_issues(bundle, run_id):
         issues.append(f"missing_mandatory_metric: {run_id} containment 缺逐层"
                       f"指标 metrics")
     return issues
+
+
+def containment_from_events(events, run_id="?", fault_id=None):
+    """[R6-GATE-D2] 由**显式证据**推导 option-2 containment 束（绝不猜测）。
+
+    合法含住证据 = 某事件 contained=1 且 detection_layer 非空且 outcome 非空，
+    且该事件确实从单元自身 L0→L_obs 前缀可证（_event_has_prefix），且**没有**
+    更深的层见证（否则故障并未止于该层——含住主张不成立）。
+
+    返回 {layer, reason, metrics, na_layers} 或 None（无证据/主张不成立）。
+    """
+    faults = _group_by_fault(events)
+    if not faults:
+        return None
+    if fault_id is not None and fault_id in faults:
+        fid, chain = fault_id, faults[fault_id]
+    else:
+        fid, chain = max(faults.items(), key=lambda kv: len(kv[1]))
+    family = _family_of(chain)
+    for e in chain:
+        if str(e.get("contained", "")).strip() not in _CONTAINED_VALUES:
+            continue
+        if str(e.get("detection_layer", "")).strip() in _EMPTY_DETECTION:
+            continue
+        if str(e.get("outcome", "")).strip() in _EMPTY_OUTCOME:
+            continue
+        if not _event_has_prefix(chain, e, family):
+            continue
+        layer = _obs_layer_of(e, family)
+        if layer not in LAYERS:
+            continue
+        deeper = max((LAYERS.index(_obs_layer_of(x, family)) for x in chain
+                      if _obs_layer_of(x, family) in LAYERS), default=-1)
+        if deeper > LAYERS.index(layer):
+            # 该层之后仍有见证 ⇒ 传播并未止于此，含住主张不成立
+            continue
+        return {
+            "layer": layer,
+            "reason": (f"{run_id} fault {fid} 显式含住：kind={e.get('kind')} "
+                       f"field={e.get('field', '')!r} detection_layer="
+                       f"{e.get('detection_layer')} outcome={e.get('outcome')}"),
+            "metrics": {layer: {"kind": e.get("kind", ""),
+                                "field": e.get("field", ""),
+                                "outcome": e.get("outcome", ""),
+                                "contained": e.get("contained", ""),
+                                "event_id": e.get("event_id", ""),
+                                "tick": e.get("tick", "")}},
+            "na_layers": LAYERS[LAYERS.index(layer) + 1:],
+        }
+    return None
 
 
 def _missing_metrics(path, family):

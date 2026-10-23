@@ -13,6 +13,8 @@ READY；否则 BLOCKED 且响亮点名（CHAIN-UNPROVEN / CHAIN-EVIDENCE-MISSING
 """
 import gzip
 import json
+import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -112,6 +114,38 @@ def main():
     from collections import Counter
     st = Counter(r["status"] for r in rows)
     check("计数自洽", sum(st.values()) == 325, str(dict(st)))
+
+    # 6) [R6-GATE-D2] 显式 containment（option 2）必须可达：真实 T08 pilot 是
+    #    tlb_translate_result field=walk_refill_lost detection_layer=L2
+    #    contained=1 outcome=translation_blocked —— 证真含住，须可准入。
+    T08_SRC = Path(os.environ.get(
+        "LSU_R6_T08_EVT",
+        "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/"
+        "prop_evt.txt.gz"))
+    if T08_SRC.is_file():
+        d = tmp / "t08" / "T08-F0-W4"
+        (d / "seed1").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(T08_SRC, d / "seed1" / "prop_evt.txt.gz")
+        pl = {"T08-F0-W4": {"unit": "L1d-TLB",
+                            "path": "T08-F0-W4/seed1/prop_evt.txt.gz",
+                            "faults": 1, "truncated": True}}
+        res = RC.chain_admission("T08-F0-W4", pl, evidence_root=str(tmp / "t08"))
+        check("真实 T08 显式含住 → admitted=True（option 2 可达）",
+              res["admitted"] is True, str(res["violations"]))
+        check("真实 T08 terminal=detected_contained",
+              res["terminal"] == "detected_contained", str(res["terminal"]))
+        # 对照：无显式含住证据的样本不得凭 option 2 准入
+        d2 = tmp / "no" / "T99-F0-W4"
+        (d2 / "seed1").mkdir(parents=True, exist_ok=True)
+        write_evt(d2 / "seed1" / "prop_evt.txt.gz", NO_TAIL)
+        pl2 = {"T99-F0-W4": {"unit": "L1d-TLB",
+                             "path": "T99-F0-W4/seed1/prop_evt.txt.gz",
+                             "faults": 1, "truncated": False}}
+        res2 = RC.chain_admission("T99-F0-W4", pl2, evidence_root=str(tmp / "no"))
+        check("无含住证据不得凭 option 2 准入（对照组）",
+              res2["admitted"] is False, str(res2["violations"]))
+    else:
+        print("  SKIP 真实 T08 流不在（合成例已覆盖）")
 
     print()
     if FAILS:

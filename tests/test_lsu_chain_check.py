@@ -636,6 +636,51 @@ def main():
           {"cache_access_faked_l1", "cache_l1_missing"}
           <= set(CC.GATE_VIOLATIONS))
 
+    print("[16] D2：containment 束由显式证据推导（含住主张须真成立）")
+    cont_ok = _evts([
+        "PROP-EVT: kind=inj run_id=T77-F0-W4 fault_id=1 event_id=0 "
+        "parent_event_id= tick=1 corr=origin",
+        "PROP-EVT: kind=tlb_lookup run_id=T77-F0-W4 fault_id=1 event_id=1 "
+        "parent_event_id=0 tick=2 dyn_inst_seq=7 request_id=7 va=1000 "
+        "entry_index=1 field=post_lookup state_before=x state_after=y "
+        "corr=origin",
+        "PROP-EVT: kind=tlb_translate_result run_id=T77-F0-W4 fault_id=1 "
+        "event_id=2 parent_event_id=1 tick=3 dyn_inst_seq=7 request_id=7 "
+        "va=1000 pa=2000 field=walk_refill_lost detection_layer=L2 "
+        "contained=1 outcome=translation_blocked corr=origin",
+    ])
+    b = CC.containment_from_events(cont_ok, "T77-F0-W4")
+    check("显式含住证据 → 束合法（layer=L2 / na_layers=L3,L4,L5）",
+          bool(b) and b["layer"] == "L2"
+          and b["na_layers"] == ["L3", "L4", "L5"], str(b))
+    r = CC.check_admission({"run_id": "T77-F0-W4", "activated": 1,
+                            "events": cont_ok, "rc": 0, "containment": b})
+    check("显式含住 → admitted=True", r["admitted"] is True,
+          str(r["violations"]))
+    # 含住之后仍有更深层见证 ⇒ 传播未止 ⇒ 主张不成立（束为 None）
+    cont_deep = _evts([
+        "PROP-EVT: kind=inj run_id=T78-F0-W4 fault_id=1 event_id=0 "
+        "parent_event_id= tick=1 corr=origin",
+        "PROP-EVT: kind=tlb_lookup run_id=T78-F0-W4 fault_id=1 event_id=1 "
+        "parent_event_id=0 tick=2 dyn_inst_seq=7 request_id=7 va=1000 "
+        "entry_index=1 field=post_lookup state_before=x state_after=y "
+        "corr=origin",
+        "PROP-EVT: kind=tlb_translate_result run_id=T78-F0-W4 fault_id=1 "
+        "event_id=2 parent_event_id=1 tick=3 dyn_inst_seq=7 request_id=7 "
+        "va=1000 pa=2000 field=walk_refill_lost detection_layer=L2 "
+        "contained=1 outcome=translation_blocked corr=origin",
+        # 更深的见证（L3 交付）⇒ 故障并未止于 L2
+        "PROP-EVT: kind=resp run_id=T78-F0-W4 fault_id=1 event_id=3 "
+        "parent_event_id=2 tick=4 dyn_inst_seq=7 request_id=7 "
+        "corr=seq_primary",
+    ])
+    check("含住层之后仍有见证 → 主张不成立（束=None）",
+          CC.containment_from_events(cont_deep, "T78-F0-W4") is None)
+    check("无证据 → containment_from_events 返回 None（不猜测）",
+          CC.containment_from_events(
+              _evts(["PROP-EVT: kind=inj fault_id=1 event_id=0 tick=1"]),
+              "N1") is None)
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
