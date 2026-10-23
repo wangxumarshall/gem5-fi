@@ -1464,6 +1464,49 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False):
     return flags, golden, binary
 
 
+# [LSU][R6-CAMPAIGN] An FS run that overruns its timeout is SIGKILLed mid-write
+# and leaves a half-written evidence set: an incomplete gzip stream (no
+# end-of-stream trailer — gzip.open().read() raises EOFError: "Compressed file
+# ended before the end-of-stream marker was reached") and/or a missing/0-byte
+# stats.txt. Either is proof the sample never finished. The salvaged
+# Z_SYNC_FLUSH-ed prefix is still evidence, but the sample MUST be marked
+# LOUDLY and must NEVER be treated as a complete/valid chain (user instruction
+# 2026-10-23; real cases: r6_tlb_C_T08-F0-W4 and r6_tlb_negative2 seed1).
+def detect_evidence_truncation(outdir):
+    """Detect a mid-write-killed sample. Returns (evidence_truncated, reasons).
+
+    reasons is a loud, human-readable list; it is empty iff the evidence set
+    is complete (complete gzip stream OR no stream at all, plus a non-empty
+    stats.txt). A stream that is absent is handled by write_chain_report as an
+    honest `stream_present: false`; only an *incomplete* stream or a
+    missing/0-byte stats.txt is truncation.
+    """
+    import lsu_prop_fields as PF
+    outdir = Path(outdir)
+    reasons = []
+    evt = outdir / "prop_evt.txt.gz"
+    plain = outdir / "prop_evt.txt"
+    stream = evt if evt.exists() else (plain if plain.exists() else None)
+    if stream is not None:
+        try:
+            _events, truncated = PF.read_events(stream)
+        except Exception as e:            # read_events normally swallows these
+            truncated = True
+            reasons.append("prop_evt %s unreadable (%r)" % (stream.name, e))
+        else:
+            if truncated:
+                reasons.append(
+                    "prop_evt %s incomplete gzip stream (EOF before the "
+                    "end-of-stream marker; run killed mid-write)"
+                    % stream.name)
+    stats = outdir / "stats.txt"
+    if not stats.exists():
+        reasons.append("stats.txt missing (gem5 never finalized stats)")
+    elif stats.stat().st_size == 0:
+        reasons.append("stats.txt empty (0 bytes; gem5 never wrote it)")
+    return (bool(reasons), reasons)
+
+
 def write_chain_report(outdir, runid, seed, result, exit_code=None):
     """[MDSPEC][C1] per-sample chain report: join the propagation stream with
     this sample's L5 oracle outcome and persist machine-readable verdicts.
@@ -1482,11 +1525,20 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
     import lsu_prop_fields as PF
 
     oracle = result.get("outcome") if isinstance(result, dict) else None
+    # [LSU][R6-CAMPAIGN] truncation is decided up-front and surfaced in EVERY
+    # branch (stream present or absent) — a mid-write kill must be LOUD, never
+    # a silently-complete chain.
+    evidence_truncated, _trunc_reasons = detect_evidence_truncation(outdir)
     rep = {"run_id": runid, "sample_run_id": str(seed),
            "oracle_outcome": oracle, "exit_code": exit_code,
            "stream_present": False, "truncated": None, "event_count": 0,
            "faults": {}, "terminal": None, "provable_to": None,
-           "beyond": None, "summary": ""}
+           "beyond": None, "summary": "",
+           "evidence_truncated": evidence_truncated,
+           "truncation_reason": "; ".join(_trunc_reasons),
+           "chain_valid": not evidence_truncated}
+    _loud = ("EVIDENCE TRUNCATED: %s | " % rep["truncation_reason"]
+             if evidence_truncated else "")
     evt = Path(outdir) / "prop_evt.txt.gz"
     if evt.exists():
         events, truncated = PF.read_events(evt)
@@ -1500,14 +1552,14 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
             rep.update({"terminal": f["terminal"],
                         "provable_to": f["provable_to"],
                         "beyond": f["beyond"]})
-        rep["summary"] = (
+        rep["summary"] = (_loud +
             "%s s%s oracle=%s exit=%s stream=%s truncated=%s events=%d "
             "faults=%d terminal=%s provable_to=%s beyond=%s"
             % (runid, seed, oracle, exit_code, True, truncated,
                len(events), len(verdict["faults"]), rep["terminal"],
                rep["provable_to"], rep["beyond"]))
     else:
-        rep["summary"] = ("%s s%s oracle=%s exit=%s stream=absent "
+        rep["summary"] = (_loud + "%s s%s oracle=%s exit=%s stream=absent "
                           "(no prop_evt.txt.gz — injector not wired or run "
                           "died before the tracer opened)"
                           % (runid, seed, oracle, exit_code))
@@ -2005,10 +2057,16 @@ def run_cell_adaptive(cell, args, outroot):
         act = int(r.get("activated", 0) or 0)
         # [MDSPEC][R4-6-T08] the opt-in's honesty trail: a sample of a
         # MODEL_BLOCKED model carries its block reason in the cell JSON.
+        _chain = r.get("chain_report") or {}
         _entry = {"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
                   "activated": act,
                   "outcome": r.get("outcome", "Unclassified"),
                   "chain": r.get("chain_report"),
+                  # [LSU][R6-CAMPAIGN] loud per-sample truncation flag (also in
+                  # the nested chain report; surfaced here so it is greppable
+                  # without opening the chain).
+                  "evidence_truncated": _chain.get("evidence_truncated"),
+                  "truncation_reason": _chain.get("truncation_reason", ""),
                   "trigger_alarm": r.get("trigger_alarm")}
         _model = cell[COL_MODEL].strip()
         _evidence_pilot = (getattr(args, "phase", None) == "trial" and
@@ -2056,12 +2114,14 @@ def run_cell_adaptive(cell, args, outroot):
         json.dumps({"runid": runid, "samples": chains}, indent=1,
                    ensure_ascii=False), encoding="utf-8")
     lines = ["# chain summary — %s" % runid, "",
-             "| seed | oracle | stream | truncated | events | terminal | "
-             "provable_to | beyond |", "|---|---|---|---|---|---|---|---|"]
+             "| seed | oracle | stream | truncated | evid_truncated | events | "
+             "terminal | provable_to | beyond |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for c in chains:
-        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
+        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
             c.get("sample_run_id"), c.get("oracle_outcome"),
-            c.get("stream_present"), c.get("truncated"), c.get("event_count"),
+            c.get("stream_present"), c.get("truncated"),
+            c.get("evidence_truncated"), c.get("event_count"),
             c.get("terminal"), c.get("provable_to"), c.get("beyond")))
     (cell_out / "chain_summary.md").write_text("\n".join(lines) + "\n",
                                                encoding="utf-8")
@@ -2072,6 +2132,11 @@ def run_cell_adaptive(cell, args, outroot):
                   for rr in runs
                   for a in (rr.get("trigger_alarm") or [])]
     result["trigger_alarms"] = alarm_msgs
+    # [LSU][R6-CAMPAIGN] loud roll-up of mid-write-killed samples (incomplete
+    # stream / missing stats.txt): the cell summary must SHOUT, never bury it.
+    trunc_msgs = ["seed%d: %s" % (rr["seed"], rr.get("truncation_reason", ""))
+                  for rr in runs if rr.get("evidence_truncated")]
+    result["evidence_truncated_samples"] = trunc_msgs
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
     line = ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
             "stop=%s cons=%s" %
@@ -2080,6 +2145,10 @@ def run_cell_adaptive(cell, args, outroot):
     if alarm_msgs:
         line += "\n  ALARM %s: %d trigger alarm(s): %s" % (
             runid, len(alarm_msgs), " | ".join(alarm_msgs))
+    if trunc_msgs:
+        line += "\n  EVIDENCE-TRUNCATED %s: %d sample(s) killed mid-write " \
+                "(NOT a complete chain): %s" % (
+                    runid, len(trunc_msgs), " | ".join(trunc_msgs))
     return runid, line
 
 

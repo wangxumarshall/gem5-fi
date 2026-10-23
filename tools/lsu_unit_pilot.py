@@ -134,6 +134,15 @@ def run_one(manifest, outdir, span):
     gem5_exit = int(ec.group(1))
     v = classify_run(outdir, guard_out, manifest["golden"], gem5_exit)
     v["gem5_exit"] = gem5_exit
+    # [LSU][R6-CAMPAIGN] a run killed mid-write (incomplete prop_evt gzip stream
+    # and/or missing/0-byte stats.txt) is NOT a complete chain — mark it LOUDLY
+    # in the verdict (never silently treated as valid evidence).
+    etr, reasons = LC.detect_evidence_truncation(outdir)
+    v["evidence_truncated"] = etr
+    v["truncation_reason"] = "; ".join(reasons)
+    if etr:
+        print(f"[{manifest['run_id']}] s{manifest['sample_index']}: "
+              f"EVIDENCE TRUNCATED (not a complete chain): {v['truncation_reason']}")
     (outdir / "l5_verdict.json").write_text(json.dumps(v, ensure_ascii=False, indent=1))
     return v, gem5_exit
 
@@ -181,7 +190,11 @@ def _valid_resumed(udir, it, s):
         v = json.loads(vj.read_text())
     except json.JSONDecodeError:
         return None
-    return None if v.get("error") else v
+    # [LSU][R6-CAMPAIGN] a verdict marked evidence_truncated (mid-write kill)
+    # is NOT valid evidence — do not silently reuse it on resume.
+    if v.get("error") or v.get("evidence_truncated"):
+        return None
+    return v
 
 
 def _activated_count(runs):
