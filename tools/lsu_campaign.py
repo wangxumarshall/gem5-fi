@@ -33,6 +33,7 @@ import argparse
 import csv
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -105,6 +106,16 @@ def wl_binary_path(binary):
 # already freezes SE_W1=43200 s for exactly this reason; the campaign reuses
 # the same constant so the two drivers agree (no drift, no silent fake Timeout).
 SE_W1_TIMEOUT = 43200
+
+# [LSU][R6-CAMPAIGN] Per-run wall-clock budgets. The FS default was 1800 s,
+# which silently killed FS runs that legitimately needed longer on this
+# checkpoint (classified Timeout with only a salvaged prefix). 2700 s is the
+# KNOWN-GOOD budget — runs given `--fs-timeout 2700` terminated cleanly with a
+# complete stream + stats.txt. Both defaults are surfaced (never silently
+# lowered): the effective value lands in every per-seed entry and the cell
+# result (timeout_budget / timeout_seconds) and prints on the cell line.
+FS_TIMEOUT_DEFAULT = 2700
+SE_TIMEOUT_DEFAULT = 300
 
 
 def require_fs_assets():
@@ -1464,6 +1475,49 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False):
     return flags, golden, binary
 
 
+# [LSU][R6-CAMPAIGN] An FS run that overruns its timeout is SIGKILLed mid-write
+# and leaves a half-written evidence set: an incomplete gzip stream (no
+# end-of-stream trailer — gzip.open().read() raises EOFError: "Compressed file
+# ended before the end-of-stream marker was reached") and/or a missing/0-byte
+# stats.txt. Either is proof the sample never finished. The salvaged
+# Z_SYNC_FLUSH-ed prefix is still evidence, but the sample MUST be marked
+# LOUDLY and must NEVER be treated as a complete/valid chain (user instruction
+# 2026-10-23; real cases: r6_tlb_C_T08-F0-W4 and r6_tlb_negative2 seed1).
+def detect_evidence_truncation(outdir):
+    """Detect a mid-write-killed sample. Returns (evidence_truncated, reasons).
+
+    reasons is a loud, human-readable list; it is empty iff the evidence set
+    is complete (complete gzip stream OR no stream at all, plus a non-empty
+    stats.txt). A stream that is absent is handled by write_chain_report as an
+    honest `stream_present: false`; only an *incomplete* stream or a
+    missing/0-byte stats.txt is truncation.
+    """
+    import lsu_prop_fields as PF
+    outdir = Path(outdir)
+    reasons = []
+    evt = outdir / "prop_evt.txt.gz"
+    plain = outdir / "prop_evt.txt"
+    stream = evt if evt.exists() else (plain if plain.exists() else None)
+    if stream is not None:
+        try:
+            _events, truncated = PF.read_events(stream)
+        except Exception as e:            # read_events normally swallows these
+            truncated = True
+            reasons.append("prop_evt %s unreadable (%r)" % (stream.name, e))
+        else:
+            if truncated:
+                reasons.append(
+                    "prop_evt %s incomplete gzip stream (EOF before the "
+                    "end-of-stream marker; run killed mid-write)"
+                    % stream.name)
+    stats = outdir / "stats.txt"
+    if not stats.exists():
+        reasons.append("stats.txt missing (gem5 never finalized stats)")
+    elif stats.stat().st_size == 0:
+        reasons.append("stats.txt empty (0 bytes; gem5 never wrote it)")
+    return (bool(reasons), reasons)
+
+
 def write_chain_report(outdir, runid, seed, result, exit_code=None):
     """[MDSPEC][C1] per-sample chain report: join the propagation stream with
     this sample's L5 oracle outcome and persist machine-readable verdicts.
@@ -1482,11 +1536,20 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
     import lsu_prop_fields as PF
 
     oracle = result.get("outcome") if isinstance(result, dict) else None
+    # [LSU][R6-CAMPAIGN] truncation is decided up-front and surfaced in EVERY
+    # branch (stream present or absent) — a mid-write kill must be LOUD, never
+    # a silently-complete chain.
+    evidence_truncated, _trunc_reasons = detect_evidence_truncation(outdir)
     rep = {"run_id": runid, "sample_run_id": str(seed),
            "oracle_outcome": oracle, "exit_code": exit_code,
            "stream_present": False, "truncated": None, "event_count": 0,
            "faults": {}, "terminal": None, "provable_to": None,
-           "beyond": None, "summary": ""}
+           "beyond": None, "summary": "",
+           "evidence_truncated": evidence_truncated,
+           "truncation_reason": "; ".join(_trunc_reasons),
+           "chain_valid": not evidence_truncated}
+    _loud = ("EVIDENCE TRUNCATED: %s | " % rep["truncation_reason"]
+             if evidence_truncated else "")
     evt = Path(outdir) / "prop_evt.txt.gz"
     if evt.exists():
         events, truncated = PF.read_events(evt)
@@ -1500,14 +1563,14 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
             rep.update({"terminal": f["terminal"],
                         "provable_to": f["provable_to"],
                         "beyond": f["beyond"]})
-        rep["summary"] = (
+        rep["summary"] = (_loud +
             "%s s%s oracle=%s exit=%s stream=%s truncated=%s events=%d "
             "faults=%d terminal=%s provable_to=%s beyond=%s"
             % (runid, seed, oracle, exit_code, True, truncated,
                len(events), len(verdict["faults"]), rep["terminal"],
                rep["provable_to"], rep["beyond"]))
     else:
-        rep["summary"] = ("%s s%s oracle=%s exit=%s stream=absent "
+        rep["summary"] = (_loud + "%s s%s oracle=%s exit=%s stream=absent "
                           "(no prop_evt.txt.gz — injector not wired or run "
                           "died before the tracer opened)"
                           % (runid, seed, oracle, exit_code))
@@ -1690,6 +1753,50 @@ def classify_fsmc_run(outdir, run_stdout, exit_code):
     return out
 
 
+# [LSU][R6-CAMPAIGN] A timed-out gem5 child must actually be KILLED and REAPED
+# (no orphans holding the checkpoint/outdir), with exit code / signal recorded.
+# subprocess.run's TimeoutExpired path killed but left the signal unrecorded;
+# this Popen-based helper makes the kill auditable and reaps unconditionally.
+# The child leads its own process group (start_new_session=True) so SIGTERM /
+# SIGKILL reach any grandchildren too.
+def run_gem5(cmd, timeout, out_file, err_file, grace=10):
+    """Run gem5, capturing stdout/stderr to files.
+
+    Returns {timed_out, exit_code, signal, stdout, stderr, pid}.
+    On timeout: SIGTERM the process group, wait `grace` s, then SIGKILL if it
+    survives; wait() to reap either way. `signal` is the signum actually sent
+    (None on a clean run); `exit_code` is the (negative) wait status when killed.
+    """
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, start_new_session=True)
+    timed_out, used_sig = False, None
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        used_sig = int(signal.SIGTERM)
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            out, err = proc.communicate(timeout=grace)
+        except subprocess.TimeoutExpired:
+            used_sig = int(signal.SIGKILL)
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            out, err = proc.communicate()
+    if proc.returncode is None:          # never leave it unreaped
+        proc.wait()
+    Path(out_file).write_text(out or "")
+    Path(err_file).write_text(err or "")
+    return {"timed_out": timed_out, "exit_code": proc.returncode,
+            "signal": used_sig, "stdout": out or "", "stderr": err or "",
+            "pid": proc.pid}
+
+
 def run_single_cell(cell, args, seed, outdir):
     """Run one gem5 invocation for a single cell×seed. Returns classification dict."""
     runid = cell[COL_RUNID]
@@ -1742,15 +1849,12 @@ def run_single_cell(cell, args, seed, outdir):
         if model == "T03":
             i = cmd.index("--tlb_fault_type")
             cmd[i + 1] = "stuck_at_zero" if seed % 2 else "stuck_at_one"
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  timeout=args.fs_timeout)
-            (outdir / "run.out").write_text(proc.stdout)
-            (outdir / "run.err").write_text(proc.stderr)
-            exit_code = proc.returncode
-        except subprocess.TimeoutExpired:
-            (outdir / "run.out").write_text("")
-            (outdir / "run.err").write_text("TIMEOUT")
+        _r = run_gem5(cmd, args.fs_timeout, outdir / "run.out",
+                      outdir / "run.err")
+        if _r["timed_out"]:
+            (outdir / "run.err").write_text(
+                "TIMEOUT signal=%d exit=%s (process group killed + reaped)"
+                % (_r["signal"], _r["exit_code"]))
             # Evidence-preserving timeout (the 6e0dcd52 family): a killed
             # run may already carry injections — read the log and classify
             # Timeout WITH the activated count. The T01 anchor trial hid
@@ -1771,13 +1875,19 @@ def run_single_cell(cell, args, seed, outdir):
             # Timeout must still yield prop_evt.txt.gz + chain_report.json;
             # losing it because there is no chain_end is evidence loss).
             _to = {"outcome": "Timeout", "injected": inj, "activated": inj,
-                   "classes": classes, "mode": "FS"}
+                   "classes": classes, "mode": "FS",
+                   "timeout_seconds": args.fs_timeout,
+                   # auditable reap record: which signal killed it, its status
+                   "timeout_signal": _r["signal"],
+                   "timeout_exit_code": _r["exit_code"]}
             _to["chain_report"] = write_chain_report(
                 outdir, runid, seed, _to, exit_code=None)
             return _to
-        _fsres = (classify_fs_run(outdir, proc.stdout, exit_code)
+        exit_code = _r["exit_code"]
+        _fsres = (classify_fs_run(outdir, _r["stdout"], exit_code)
                   if family == "armtlb"
-                  else classify_fsmc_run(outdir, proc.stdout, exit_code))
+                  else classify_fsmc_run(outdir, _r["stdout"], exit_code))
+        _fsres["timeout_seconds"] = args.fs_timeout   # effective budget, visible
         _fsres["chain_report"] = write_chain_report(
             outdir, runid, seed, _fsres, exit_code=exit_code)
         return _fsres
@@ -1801,21 +1911,21 @@ def run_single_cell(cell, args, seed, outdir):
     # budget; every other SE carrier keeps the operator's --timeout.
     _se_timeout = (SE_W1_TIMEOUT if str(_binary).endswith("w1_all")
                    else args.timeout)
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=_se_timeout)
-        stdout_file.write_text(proc.stdout)
-        stderr_file.write_text(proc.stderr)
-        exit_code = proc.returncode
-    except subprocess.TimeoutExpired:
-        stdout_file.write_text("")
-        stderr_file.write_text("TIMEOUT")
+    _r = run_gem5(cmd, _se_timeout, stdout_file, stderr_file)
+    if _r["timed_out"]:
+        stderr_file.write_text(
+            "TIMEOUT signal=%d exit=%s (process group killed + reaped)"
+            % (_r["signal"], _r["exit_code"]))
         # [MDSPEC][C1] a killed run keeps its flushed prefix: build the chain
         # report BEFORE returning, so a Timeout is not evidence loss.
-        _to = {"outcome": "Timeout", "injected": 0, "activated": 0}
+        _to = {"outcome": "Timeout", "injected": 0, "activated": 0,
+               "timeout_seconds": _se_timeout,
+               "timeout_signal": _r["signal"],
+               "timeout_exit_code": _r["exit_code"]}
         _crep = write_chain_report(outdir, runid, seed, _to, exit_code=None)
         _to["chain_report"] = _crep
         return _to
+    exit_code = _r["exit_code"]
 
     # C-series: CHAOSCache logs to cache_injections.log, not stdout — read
     # it for the injection count (223e4b12 fix).
@@ -1827,6 +1937,7 @@ def run_single_cell(cell, args, seed, outdir):
                 cache_inj += 1
 
     result = classify_run(outdir, stdout_file, golden, exit_code, stderr_file)
+    result["timeout_seconds"] = _se_timeout   # effective SE budget, visible
     # [MDSPEC][R4-1-review-I2] surface the injector's LOUD F0 span alarms
     # (CHAOS_LSU_TRIGGER_ALARM, chaos_lsu_trigger.hh summary) into the
     # per-run result so the cell summary prints them — the alarm must be
@@ -1857,8 +1968,11 @@ def run_single_cell(cell, args, seed, outdir):
     return result
 
 
-def main():
-    p = argparse.ArgumentParser(description=__doc__)
+def build_parser():
+    """[LSU][R6-CAMPAIGN] Construct the CLI parser (split out of main() so the
+    timeout defaults — FS 2700 / SE 300 — are directly inspectable in tests)."""
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument("--matrix", required=True)
     p.add_argument("--outdir", default="runs/lsu")
     p.add_argument("--max-parallel", type=int, default=4)
@@ -1890,7 +2004,7 @@ def main():
                    help="main-phase activated cap (05 r15)")
     p.add_argument("--wilson-stop-hw", type=float, default=0.02,
                    help="main-phase Wilson 95%% half-width stop (05 r15)")
-    p.add_argument("--timeout", type=int, default=300,
+    p.add_argument("--timeout", type=int, default=SE_TIMEOUT_DEFAULT,
                    help="per-run wall-clock seconds — absolute cap (05 r17; all "
                          "SE workloads run 10-40s, so 300s > 10x any golden)")
     # ---- FS (armtlb family / M3) ----
@@ -1902,10 +2016,16 @@ def main():
                         "runs/lsu/fs_cpt_boot/cpt.237949797015 and "
                         "runs/h7formal/mkckpt/cpt.90000000 (see "
                         "tests/test_lsu_fs_infra.py)")
-    p.add_argument("--fs-timeout", type=int, default=1800,
-                   help="FS per-run wall-clock cap (05 r17 FS: restore+payload "
-                        "~4 min measured, 30 min absolute cap)")
-    a = p.parse_args()
+    p.add_argument("--fs-timeout", type=int, default=FS_TIMEOUT_DEFAULT,
+                   help="FS per-run wall-clock cap. [LSU][R6-CAMPAIGN] default "
+                        "2700 s = the KNOWN-GOOD budget (1800 s silently killed "
+                        "runs that needed longer; runs given 2700 terminated "
+                        "cleanly with a complete stream + stats.txt)")
+    return p
+
+
+def main():
+    a = build_parser().parse_args()
     if a.n_seeds is not None:
         a.max_seeds_per_cell = a.n_seeds
 
@@ -2005,10 +2125,18 @@ def run_cell_adaptive(cell, args, outroot):
         act = int(r.get("activated", 0) or 0)
         # [MDSPEC][R4-6-T08] the opt-in's honesty trail: a sample of a
         # MODEL_BLOCKED model carries its block reason in the cell JSON.
+        _chain = r.get("chain_report") or {}
         _entry = {"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
                   "activated": act,
                   "outcome": r.get("outcome", "Unclassified"),
                   "chain": r.get("chain_report"),
+                  # [LSU][R6-CAMPAIGN] loud per-sample truncation flag (also in
+                  # the nested chain report; surfaced here so it is greppable
+                  # without opening the chain).
+                  "evidence_truncated": _chain.get("evidence_truncated"),
+                  "truncation_reason": _chain.get("truncation_reason", ""),
+                  # effective wall-clock budget this sample actually got
+                  "timeout_seconds": r.get("timeout_seconds"),
                   "trigger_alarm": r.get("trigger_alarm")}
         _model = cell[COL_MODEL].strip()
         _evidence_pilot = (getattr(args, "phase", None) == "trial" and
@@ -2038,6 +2166,12 @@ def run_cell_adaptive(cell, args, outroot):
         "activation_rate": round(act_rate, 4),
         "wilson": {"lo": round(lo, 4), "hi": round(hi, 4)},
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
+        # [LSU][R6-CAMPAIGN] the effective budgets this cell ran under (visible,
+        # never silently lowered).
+        "timeout_budget": {"fs_timeout": getattr(args, "fs_timeout",
+                                                  FS_TIMEOUT_DEFAULT),
+                           "se_timeout": getattr(args, "timeout",
+                                                 SE_TIMEOUT_DEFAULT)},
         "runs": runs,
     }
     if model in MODEL_BLOCKED:
@@ -2056,12 +2190,14 @@ def run_cell_adaptive(cell, args, outroot):
         json.dumps({"runid": runid, "samples": chains}, indent=1,
                    ensure_ascii=False), encoding="utf-8")
     lines = ["# chain summary — %s" % runid, "",
-             "| seed | oracle | stream | truncated | events | terminal | "
-             "provable_to | beyond |", "|---|---|---|---|---|---|---|---|"]
+             "| seed | oracle | stream | truncated | evid_truncated | events | "
+             "terminal | provable_to | beyond |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for c in chains:
-        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
+        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
             c.get("sample_run_id"), c.get("oracle_outcome"),
-            c.get("stream_present"), c.get("truncated"), c.get("event_count"),
+            c.get("stream_present"), c.get("truncated"),
+            c.get("evidence_truncated"), c.get("event_count"),
             c.get("terminal"), c.get("provable_to"), c.get("beyond")))
     (cell_out / "chain_summary.md").write_text("\n".join(lines) + "\n",
                                                encoding="utf-8")
@@ -2072,14 +2208,25 @@ def run_cell_adaptive(cell, args, outroot):
                   for rr in runs
                   for a in (rr.get("trigger_alarm") or [])]
     result["trigger_alarms"] = alarm_msgs
+    # [LSU][R6-CAMPAIGN] loud roll-up of mid-write-killed samples (incomplete
+    # stream / missing stats.txt): the cell summary must SHOUT, never bury it.
+    trunc_msgs = ["seed%d: %s" % (rr["seed"], rr.get("truncation_reason", ""))
+                  for rr in runs if rr.get("evidence_truncated")]
+    result["evidence_truncated_samples"] = trunc_msgs
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
     line = ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
-            "stop=%s cons=%s" %
+            "stop=%s cons=%s budget[fs=%ss se=%ss]" %
             (runid, args.phase, len(runs), activated, classes["SDC"],
-             stop_reason, result["conservation"]))
+             stop_reason, result["conservation"],
+             result["timeout_budget"]["fs_timeout"],
+             result["timeout_budget"]["se_timeout"]))
     if alarm_msgs:
         line += "\n  ALARM %s: %d trigger alarm(s): %s" % (
             runid, len(alarm_msgs), " | ".join(alarm_msgs))
+    if trunc_msgs:
+        line += "\n  EVIDENCE-TRUNCATED %s: %d sample(s) killed mid-write " \
+                "(NOT a complete chain): %s" % (
+                    runid, len(trunc_msgs), " | ".join(trunc_msgs))
     return runid, line
 
 

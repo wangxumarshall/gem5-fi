@@ -78,17 +78,25 @@ def main():
         os.environ["LSU_GEM5_BIN"] = str(real)
         captured = {}
 
-        def fake_run(cmd, **kw):
-            captured["cmd"] = cmd
+        # [LSU][R6-CAMPAIGN] run_single_cell now drives gem5 through
+        # LC.run_gem5 (Popen-based, so a timeout can be killed + reaped); fake
+        # Popen captures the assembled command and returns cleanly.
+        class FakePopen:
+            def __init__(self, cmd, **kw):
+                captured["cmd"] = cmd
+                self.pid = 4242
+                self.returncode = None
 
-            class P:
-                returncode = 0
-                stdout = "FINAL 728e604ffcec539d\n"
-                stderr = ""
-            return P()
+            def communicate(self, timeout=None):
+                self.returncode = 0
+                return ("FINAL 728e604ffcec539d\n", "")
 
-        orig = LC.subprocess.run
-        LC.subprocess.run = fake_run
+            def wait(self):
+                self.returncode = 0
+                return 0
+
+        orig = LC.subprocess.Popen
+        LC.subprocess.Popen = FakePopen
         orig_classify = LC.classify_run
         LC.classify_run = lambda *a, **k: {"outcome": "Masked",
                                           "activated": 1, "classes": {}}
@@ -101,7 +109,7 @@ def main():
             out = ROOT / "runs/lsu/_test_prop_assembly/seed1"
             LC.run_single_cell(cell, args, 7, out)
         finally:
-            LC.subprocess.run = orig
+            LC.subprocess.Popen = orig
             LC.classify_run = orig_classify
             os.environ.pop("LSU_GEM5_BIN", None)
 
@@ -127,17 +135,22 @@ def main():
         os.environ["LSU_GEM5_BIN"] = str(real)
         captured = {}
 
-        def fake_run_fs(cmd, **kw):
-            captured["cmd"] = cmd
+        class FakePopenFS:
+            def __init__(self, cmd, **kw):
+                captured["cmd"] = cmd
+                self.pid = 4343
+                self.returncode = None
 
-            class P:
-                returncode = 0
-                stdout = ""
-                stderr = ""
-            return P()
+            def communicate(self, timeout=None):
+                self.returncode = 0
+                return ("", "")
 
-        orig = LC.subprocess.run
-        LC.subprocess.run = fake_run_fs
+            def wait(self):
+                self.returncode = 0
+                return 0
+
+        orig = LC.subprocess.Popen
+        LC.subprocess.Popen = FakePopenFS
         # asset guard is exercised by the real FS smoke; here we only assert
         # the command shape (the worktree has no gem5-fs submodule).
         orig_assets = LC.require_fs_assets
@@ -154,7 +167,7 @@ def main():
             out = ROOT / "runs/lsu/_test_prop_assembly_fs/seed1"
             LC.run_single_cell(cell, args, 5, out)
         finally:
-            LC.subprocess.run = orig
+            LC.subprocess.Popen = orig
             LC.classify_fs_run = orig_fs
             LC.require_fs_assets = orig_assets
             os.environ.pop("LSU_GEM5_BIN", None)
