@@ -29,6 +29,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lsu_campaign as LC  # 家族映射唯一来源（no drift）
+import lsu_gem5_bin as GB  # [R6-GOLDEN] 二进制解析唯一来源
 from lsu_seed import lsu_seed
 
 L5 = REPO / "tools/lsu_l5_classify.py"
@@ -42,12 +43,19 @@ CPT = REPO / "runs/lsu/fs_cpt_boot/cpt.237949797015"  # G0-06 固化的 B0 FS ch
 
 
 def g5_path():
-    """[LSU][OBS-3] gem5 二进制路径：LSU_GEM5_BIN 覆盖（默认 repo 根冻结件）。
+    """[LSU][OBS-3] gem5 二进制路径：LSU_GEM5_BIN 覆盖 → **本 checkout** 的
+    CHAOS 构建（`CHAOS/gem5/build/ARM/gem5.opt`）。
 
-    worktree 运行（build/ 不在 checkout 里）必须设 LSU_GEM5_BIN 指向主树
-    冻结二进制；冻结 sha256 记入 manifest identity，绝不重编/替换。
+    [R6-GOLDEN] 此前默认回落到 repo 根 `build/ARM/gem5.opt` —— 那是**主树专用**
+    约定（历史里 `build/ARM` 是指向主树 `CHAOS/gem5/build/ARM` 的符号链接）。
+    worktree 里该路径不存在，而未设 `LSU_GEM5_BIN` 的 golden 运行会因此指向
+    别的 track 的二进制（实测失败：
+    `runs/lsu/r6_tlb_verify/golden/run.log` → timeout: 无法运行命令
+    .../CHAOS/gem5/build/ARM/gem5.opt: No such file or directory）。
+    默认值改为本 checkout 的 CHAOS 构建；冻结 sha256 仍记入 manifest identity，
+    绝不重编/替换。
     """
-    return Path(os.environ.get("LSU_GEM5_BIN", str(REPO / "build/ARM/gem5.opt")))
+    return GB.resolve_default_gem5_bin()
 # G0-09 分级口径（2026-10-11 W1 timeout 修复，无人值守决策树步骤 10）：
 #   SE 短流（W0/W2/W3/W5/W9 等）golden ≤61s → 600s（10×）不变；
 #   W1 w1_all 长流 golden 实测 7.44-7.51h（F-050 三副本，规范哈希五方全等）
@@ -275,7 +283,7 @@ def main():
                             "--desc", f"COUNT {tag}", "--log",
                             str(outdir.parent / (tag + "_count_rsrc.log")),
                             "--interval", "60", "--max-seconds", str(m["timeout_seconds"]),
-                            "--", str(REPO / "build/ARM/gem5.opt"),
+                            "--", str(g5_path()),
                             "--outdir", str(cnt_dir), cfg] + c,
                            capture_output=True, text=True)
         n = re.search(r"CHAOS_LSU_TRIGGER: .*eligible=(\d+)", r.stdout)
@@ -291,7 +299,7 @@ def main():
                             "--desc", f"RUN {tag}", "--log",
                             str(outdir.parent / (tag + "_rsrc.log")),
                             "--interval", "60", "--max-seconds", str(m["timeout_seconds"]),
-                            "--", str(REPO / "build/ARM/gem5.opt"),
+                            "--", str(g5_path()),
                             "--outdir", str(outdir), cfg] + c,
                            stdout=gf, stderr=subprocess.STDOUT)
     # L5 分类（P1 收尾集成）：守卫合并流同时作 stdout/stderr（panic 栈在合并流中）
