@@ -132,8 +132,10 @@ def main():
     # 本检查改指向**当前**口径：60 GiB 在 354 GiB 盘上高于绝对下限 → 放行（旧口径会因 20% 而拒绝）。
     check("disk_guard_pct_waived_20261023",
           G._disk_guard_reason(free_gib=60.0, total_gib=354.0) is None)
-    check("disk_guard_50gib_floor",
-          G._disk_guard_reason(free_gib=45.0, total_gib=100.0) is not None)
+    # 2026-10-23 用户裁决（二次）：「不再把 50 GiB 作为停止条件」——磁盘不再是门禁。
+    # 检查保留，改指向**当前**口径：任何空闲量都不再触发磁盘拒绝。
+    check("disk_guard_no_disk_stop_20261023",
+          G._disk_guard_reason(free_gib=45.0, total_gib=100.0) is None)
     check("disk_guard_pass", G._disk_guard_reason(free_gib=90.0, total_gib=354.0) is None)
 
     # ---- 7) 心跳原子重写 ----
