@@ -1783,7 +1783,7 @@ namespace gem5
     CHAOSPropagation::noteMemResponse(o3::DynInst *inst, Packet *pkt,
                                       bool wb_to_reg)
     {
-        if (!write_log || !inst || !pkt || inst->isSquashed())
+        if (!write_log || !inst || !pkt)
             return;
         sweepExpired();
 
@@ -1825,6 +1825,35 @@ namespace gem5
         }
         if (!hit_ptag)
             return;
+
+        // [MDSPEC][R6/A10] A load that received the wrong response but is
+        // then SQUASHED has its result discarded and the instruction
+        // replayed: the corruption is contained by the squash/replay
+        // mechanism. This case used to emit NOTHING at all (the old
+        // `isSquashed()` early-return fired before any emission), so a
+        // contain-by-squash outcome could never fire and the chain looked
+        // like it silently vanished. Record the containment explicitly.
+        if (inst->isSquashed()) {
+            std::ostringstream h_va, h_pa;
+            if (pkt->req && pkt->req->hasVaddr())
+                h_va << std::hex << pkt->req->getVaddr();
+            h_pa << std::hex << pkt->getAddr();
+            notePropEvt("squash_masked", {
+                {"fault_id", std::to_string(hit_ptag)},
+                {"corr", hit_corr ? hit_corr : ""},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"va", h_va.str()},
+                {"pa", h_pa.str()},
+                {"field", "squashed_load"},
+                {"outcome", "masked"},
+                {"detection_layer", "L4"},
+                {"contained", "1"},
+                {"containment_layer", "L4"},
+                {"containment_reason", "squash_replay"},
+            });
+            containment_ptags[hit_ptag] = {"L4", "squash_replay"};
+            return;
+        }
 
         // resp node: the memory response delivering the fault.
         const uint64_t req_seq =
@@ -1884,14 +1913,26 @@ namespace gem5
             TaintEntry te;
             te.ptag = hit_ptag;
             te.taintor_seq = inst->seqNum;
-            taint_set[key] = te;
             std::ostringstream d;
             d << "class=" << regClassName(phys->classValue())
-              << ";dest_idx=" << i;
+              << ";dest_idx=" << i
+              // [MDSPEC][R6/A4] The faulted VALUE of this node is the
+              // physical cell's taint state: the cell held a legitimate
+              // (clean) value and now holds fault-delivered data. The pair
+              // rides the documented old_addr/new_addr → before/after lift
+              // so the T-series stream can show WHAT changed (C12 tick pair
+              // / L04 seq pair precedent). Measured before this fix:
+              // kind=taint_reg ... before= after=.
+              << ";old_addr=clean;new_addr=tainted";
             writeNode(hit_ptag, "taint_reg", inst->seqNum, true,
                       req_seq, req_seq != 0, pkt->getAddr(), true,
                       phys->index(), true,
                       inst->destRegIdx(i).index(), true, d.str(), hit_corr);
+            // [MDSPEC][R6/A6] Remember WHICH event established this taint:
+            // writeNode's dual-emit used event_id == next_node_id (pre-
+            // increment), so the node just written is next_node_id - 1.
+            te.src_event = next_node_id - 1;
+            taint_set[key] = te;
         }
     }
 
@@ -1906,6 +1947,9 @@ namespace gem5
         bool any_consumer = false;
         bool self_taint = false;
         uint64_t self_taint_ptag = 0;
+        // [MDSPEC][R6/A6] event_id of the last consumer node emitted above —
+        // the taint source for the dests it re-taints (see below).
+        uint64_t last_consumer_evt = 0;
 
         // Sources: a tainted source phys reg = this commit consumes a
         // fault-delivered value → consumer node.
@@ -1923,11 +1967,23 @@ namespace gem5
                 first_consumed_ptag = it->second.ptag;
             std::ostringstream d;
             d << "class=" << regClassName(phys->classValue())
-              << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec;
+              << ";src_idx=" << i
+              // [MDSPEC][R6/A6] A consumer does NOT descend from the previous
+              // event of the chain: it descends from the event that
+              // established the taint it consumed. Naming that event is what
+              // turns the chain into a real DAG (one source → many
+              // consumers) instead of the degenerate linear list the single
+              // ptag_last_event cursor produced. parent_event_id is a
+              // registry field, so the dual-emit honours this override.
+              << ";parent_event_id=" << it->second.src_event
+              << ";pc=" << std::hex << pc << std::dec;
             writeNode(it->second.ptag, "consumer", head_inst->seqNum, true,
                       0, false, 0, false, phys->index(), true,
                       head_inst->srcRegIdx(i).index(), true, d.str(),
                       CORR_TAINT_PROP, (int)tid);
+            // The just-emitted consumer node is the taint source for any
+            // dest it re-taints below.
+            last_consumer_evt = next_node_id - 1;
         }
 
         // Dests: is this the faulting load itself committing its tainted
@@ -1996,6 +2052,8 @@ namespace gem5
                 TaintEntry te;
                 te.ptag = first_consumed_ptag;
                 te.taintor_seq = head_inst->seqNum;
+                // [R6/A6] the re-taint is established by the consumer node.
+                te.src_event = last_consumer_evt;
                 taint_set[std::make_pair(phys->classValue(),
                                          phys->index())] = te;
             }

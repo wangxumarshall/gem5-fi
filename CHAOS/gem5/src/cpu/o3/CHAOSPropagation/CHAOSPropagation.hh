@@ -768,6 +768,13 @@ class CHAOSPropagation : public SimObject
     struct TaintEntry {
         uint64_t ptag;
         uint64_t taintor_seq;      // DynInst::seqNum of the tainting inst
+        // [MDSPEC][R6/A6] The event that ESTABLISHED this taint (the
+        // taint_reg node, or the consumer node that re-tainted a dest).
+        // Consumers of this taint name it as their parent_event_id, so the
+        // chain is a real DAG (one source → many consumers) instead of the
+        // degenerate "parent = previous event" linear list the single
+        // ptag_last_event cursor produced.
+        uint64_t src_event = 0;
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
 

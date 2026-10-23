@@ -263,6 +263,51 @@ def main():
           "effective_pa_unchanged" in PROP_CC
           and '{"containment_reason", reason}' in PROP_CC)
 
+    # --- [R6-D/A4] L4 taint_reg must say the taint transition it records ----
+    # Measured: kind=taint_reg ... before= after= (the load dest phys reg
+    # entered the taint set but the node did not say the cell's taint state
+    # changed). The v1-CSV node is dual-emitted, so the pair must ride the
+    # documented old_addr/new_addr → before/after lift (same mechanism as
+    # registerLSQForwardFault's seq pair / registerRespPairFault's pairing).
+    tr = PROP_CC.find('writeNode(hit_ptag, "taint_reg"')
+    check("taint_reg emission located", tr >= 0)
+    tr_win = PROP_CC[max(0, tr - 900):tr + 200] if tr >= 0 else ""
+    check("taint_reg records the cell's taint transition (before/after lift)",
+          ";old_addr=" in tr_win and ";new_addr=" in tr_win)
+
+    # --- [R6-D/A10] a squashed load must not emit nothing --------------------
+    # noteMemResponse early-returned on isSquashed() BEFORE any emission, so a
+    # load that received the wrong response and was then squashed (result
+    # discarded, replayed) produced NO node at all — a contain-by-squash event
+    # could never fire and the chain looked like it silently disappeared.
+    check("squashed loads emit an explicit squash containment event",
+          'notePropEvt("squash_masked"' in PROP_CC)
+    sq = _kv_blocks("squash_masked")
+    check("squash event is emitted in the squashed branch", len(sq) >= 1)
+    for i, b in enumerate(sq):
+        keys = set(re.findall(r'\{"([^"]+)"', b))
+        check(f"squash_masked #{i + 1} records layer/outcome/containment",
+              {"outcome", "detection_layer", "contained",
+               "containment_layer", "containment_reason"} <= keys,
+              str(sorted({"outcome", "detection_layer", "contained",
+                          "containment_layer", "containment_reason"} - keys)))
+        check(f"squash_masked #{i + 1} uses only registered fields",
+              not (keys - reg), str(sorted(keys - reg)))
+    check("squash containment is remembered per chain",
+          "containment_ptags[hit_ptag]" in PROP_CC)
+
+    # --- [R6-D/A6] the chain must be a real DAG, not "previous event - 1" ----
+    # The emitter kept ONE ptag_last_event cursor, so every event's
+    # parent_event_id was simply the previous event of the chain — a linear
+    # list. A consumer does not descend from the previous event: it descends
+    # from the taint_reg/resp that established the taint it consumed. The
+    # source event must therefore be carried on the taint entry and named
+    # explicitly as the consumer's parent.
+    check("taint entries carry the event that established the taint",
+          "src_event" in PROP_HH and "src_event" in PROP_CC)
+    check("consumer nodes name their taint source as parent_event_id",
+          '";parent_event_id="' in PROP_CC)
+
     if failed:
         print(f"FAILED ({len(failed)}): {failed}")
         return 1
