@@ -126,7 +126,21 @@ def _proc_fields(pid):
 
 
 def snapshot():
-    """资源快照：内存/swap/load/blocked/编译进程/磁盘。"""
+    """资源快照：内存/swap/load/blocked/编译进程/磁盘。
+
+    R6-GUARD（2026-10-23）：GUARD_DIR 缺失时先创建再测盘（与 acquire/_log_event
+    一致）。此前 GUARD_DIR 不存在 → disk_free_gib/disk_total_gib 双双为 None →
+    _disk_guard_reason 在 None 判定前先算 `DISK_MIN_FREE_PCT * total_gib` →
+    TypeError（lane L15-v2 实测崩溃）。创建失败（如只读盘）退化为 None，
+    由 _disk_guard_reason 返回可读阻断理由。
+    """
+    try:
+        os.makedirs(GUARD_DIR, exist_ok=True)
+        du = shutil.disk_usage(GUARD_DIR)
+        disk_free_gib = round(du.free / GIB, 1)
+        disk_total_gib = round(du.total / GIB, 1)
+    except OSError:
+        disk_free_gib = disk_total_gib = None
     mi = _meminfo()
     l1, l5, l15 = _loadavg()
     blocked, compile_pids = [], []
@@ -150,10 +164,8 @@ def snapshot():
         "load_1_5_15": [l1, l5, l15],
         "blocked": blocked,
         "compile_processes": compile_pids,
-        "disk_free_gib": round(shutil.disk_usage(GUARD_DIR).free / GIB, 1)
-        if os.path.isdir(GUARD_DIR) else None,
-        "disk_total_gib": round(shutil.disk_usage(GUARD_DIR).total / GIB, 1)
-        if os.path.isdir(GUARD_DIR) else None,
+        "disk_free_gib": disk_free_gib,
+        "disk_total_gib": disk_total_gib,
     }
 
 
@@ -290,10 +302,14 @@ def _stop_dispatch(snap):
 
 
 def _disk_guard_reason(free_gib, total_gib):
-    """0101 磁盘红线：free < max(50GiB, 20%×total) → 阻断理由（None=通过）。"""
-    floor = max(DISK_MIN_FREE_GIB, DISK_MIN_FREE_PCT * total_gib)
+    """0101 磁盘红线：free < max(50GiB, 20%×total) → 阻断理由（None=通过）。
+
+    R6-GUARD：None 检查**必须先于** floor 算术——否则 total_gib=None 时
+    `DISK_MIN_FREE_PCT * total_gib` 抛 TypeError（lane L15-v2 实测）。
+    """
     if free_gib is None or total_gib is None:
         return "磁盘用量不可读（GUARD_DIR 所在盘）"
+    floor = max(DISK_MIN_FREE_GIB, DISK_MIN_FREE_PCT * total_gib)
     if free_gib < floor:
         return (f"磁盘 free {free_gib:.1f} GiB < 红线 {floor:.1f} GiB "
                 f"(=max(50, 20%×{total_gib:.0f}))")
