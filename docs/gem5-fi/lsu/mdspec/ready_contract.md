@@ -3,8 +3,8 @@
 - 总数：325（**READY=0 / PARTIAL=0 / BLOCKED=325**）
 - 自洽：✅
 - BLOCKED 分类：{'CHAIN-UNPROVEN': 43, 'CHAIN-EVIDENCE-MISSING': 198, 'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}
-- **链准入门禁（R6-GATE）**：READY 须经 `lsu_chain_check.check_admission` 准入（完整 family-specific L0→L5 链，或显式 containment 且后续层全 N/A(contained)）。证据根 `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-gate`，事件上限 4000；admitted=0 / CHAIN-UNPROVEN=43 / CHAIN-EVIDENCE-MISSING=198
-- **准入裁决：NO-GO**（BLOCKED=325 > 0（{'CHAIN-UNPROVEN': 43, 'CHAIN-EVIDENCE-MISSING': 198, 'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}）；未运行 --gate 资源/测试门禁）
+- **链准入门禁（R6-GATE）**：READY 须经 `lsu_chain_check.check_admission` 准入（完整 family-specific L0→L5 链，或显式 containment 且后续层全 N/A(contained)）。证据根 `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019`，事件上限 4000；admitted=0 / CHAIN-UNPROVEN=43 / CHAIN-EVIDENCE-MISSING=198
+- **准入裁决：NO-GO**（BLOCKED=325 > 0（{'CHAIN-UNPROVEN': 43, 'CHAIN-EVIDENCE-MISSING': 198, 'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}）；正式二进制缺失；pytest_rc=1 != 0（2 failed, 19 passed in 6.90s）；全套件运行器 tests_rc=1 != 0（运行器自身失败/超时，其结果不可采信）；全套件 FAIL=13（{'FAIL': 13, 'PASS': 34, 'ENV': 5, 'SKIP': 1}）；全套件 ENV 阻塞=5 项未判定（缺二进制/资产，不得计入通过）；磁盘 free 64.4G < 红线 70.6G）
 - 正式口径：`--phase screening`，默认 RunID 累计 ≥385 activated，21 个重点 RunID 累计 2401；`--max-parallel 1`（禁止 trial/3-seed 与 Wilson 序贯）
 - FS checkpoint：`/home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015`
 

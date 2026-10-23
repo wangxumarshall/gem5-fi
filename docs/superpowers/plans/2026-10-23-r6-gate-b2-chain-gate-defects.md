@@ -50,52 +50,52 @@ this plan, `docs/gem5-fi/lsu/mdspec/R6-GATE-B2-report.md`,
 
 ### Task 1 — D1 + D5: L5 must be the real detection event
 
-- [ ] 1.1 RED: `tests/test_lsu_chain_check.py` — new section `[13]`: (a) a
+- [x] 1.1 RED: `tests/test_lsu_chain_check.py` — new section `[13]`: (a) a
       `chain_end outcome=errant_commit_seen` chain is not `full`; (b) the real
       T04 stream (skip if absent) is not `full` and not admitted;
       (c) `_explicit_l5` rejects every lifecycle `chain_end` payload.
       Quote the real FAIL output.
-- [ ] 1.2 Implement: strict `_explicit_l5` (kind + payload + chain `corr`),
+- [x] 1.2 Implement: strict `_explicit_l5` (kind + payload + chain `corr`),
       `_layer_of` returns `None` for lifecycle `chain_end` and `L5` for a real
       detection witness, `_event_has_prefix` uses the *observation* layer.
       Update the positive-control fixtures in `[1]`, `[3]`, `[8]` and the
       contract-gate `FULL` fixture to a real detection witness.
-- [ ] 1.3 Re-run `tests/test_lsu_chain_check.py`,
+- [x] 1.3 Re-run `tests/test_lsu_chain_check.py`,
       `tests/test_lsu_ready_contract_gate.py` → quote `ALL PASS`.
-- [ ] 1.4 Commit + push.
+- [x] 1.4 Commit + push.
 
 ### Task 2 — D3: cross-request edges on the whole ancestry
 
-- [ ] 2.1 RED: real T04 must be rejected with `cross_request_edge`.
-- [ ] 2.2 Implement `_ancestry_request_breaks()`; wire into `check_admission`.
-- [ ] 2.3 Re-run the chain-check + gate tests → `ALL PASS`. Commit + push.
+- [x] 2.1 RED: real T04 must be rejected with `cross_request_edge`.
+- [x] 2.2 Implement `_ancestry_request_breaks()`; wire into `check_admission`.
+- [x] 2.3 Re-run the chain-check + gate tests → `ALL PASS`. Commit + push.
 
 ### Task 3 — D4: `cache_access` may not fake a non-cache family's L1
 
-- [ ] 3.1 RED: fixture with an atomic/LQ-family chain whose L1 witness is
+- [x] 3.1 RED: fixture with an atomic/LQ-family chain whose L1 witness is
       `cache_access` → `cache_access_faked_l1`; a cache-family chain whose L1 is
       not `cache_access` → `cache_l1_missing`.
-- [ ] 3.2 Implement family inference (`_UNIT_FAMILY` by RunID prefix) + the two
+- [x] 3.2 Implement family inference (`_UNIT_FAMILY` by RunID prefix) + the two
       guards; add tokens to `GATE_VIOLATIONS`.
-- [ ] 3.3 Re-run the chain-check + gate tests → `ALL PASS`; real C01 stays
+- [x] 3.3 Re-run the chain-check + gate tests → `ALL PASS`; real C01 stays
       admitted-neutral (no regression). Commit + push.
 
 ### Task 4 — D2: containment (option 2) reachable from real evidence
 
-- [ ] 4.1 RED: `chain_admission` on the real T08/T05 pilots currently returns
+- [x] 4.1 RED: `chain_admission` on the real T08/T05 pilots currently returns
       `detected_contained` terminal but `admitted=False` (no containment bundle).
-- [ ] 4.2 Implement `lsu_chain_check.containment_from_events()` (explicit
+- [x] 4.2 Implement `lsu_chain_check.containment_from_events()` (explicit
       contained=1 detection evidence → layer reason metrics na_layers) and
       thread `containment` + `oracle_outcome` through
       `lsu_ready_contract.chain_admission`.
-- [ ] 4.3 Quote the real T08/T05 admission GREEN. Commit + push.
+- [x] 4.3 Quote the real T08/T05 admission GREEN. Commit + push.
 
 ### Task 5 — regenerate the contract, report honest counts
 
-- [ ] 5.1 Restore the honest evidence root
+- [x] 5.1 Restore the honest evidence root
       (`LSU_CHAIN_EVIDENCE_ROOT=.claude/worktrees/lsu-mdspec-20261019`) and
       regenerate `ready_contract.json/.md` (+ triage md if it consumes it).
-- [ ] 5.2 Run the owned tests, then the full suite
+- [x] 5.2 Run the owned tests, then the full suite
       `python3 tools/lsu_test_runner.py`; confirm `NEW FAIL=[]`.
-- [ ] 5.3 Write `R6-GATE-B2-report.md` + `runs/lsu/r6_reports/B2.md`; commit +
+- [x] 5.3 Write `R6-GATE-B2-report.md` + `runs/lsu/r6_reports/B2.md`; commit +
       push.
