@@ -54,9 +54,9 @@ Baseline suite: `suites=52 ENV=5 FAIL=13 PASS=33 SKIP=1`.
 - [x] RED: test drives the run helper with a fake `Popen` that ignores SIGTERM, asserts: timeout path
       sends SIGTERM then SIGKILL to the process group, calls `wait()` (reaped), and records exit
       code / signal. Run → FAIL.
-- [x] GREEN: add `_run_capture(cmd, timeout, out_file, err_file)` using `Popen(start_new_session=True)`;
+- [x] GREEN: add `run_gem5(cmd, timeout, out_file, err_file)` using `Popen(start_new_session=True)`;
       on `TimeoutExpired` killpg(SIGTERM) → killpg(SIGKILL) → `communicate()`/`wait()`; return
-      `(exit_code, timed_out, term_signal)`. Route FS + SE paths through it. Update
+      `{timed_out, exit_code, signal, stdout, stderr, pid}`. Route FS + SE paths through it. Update
       `test_lsu_campaign_propagation.py` fakes to patch `Popen`. Run → PASS.
 - [x] Regression: full `python3 tools/lsu_test_runner.py` → FAIL count ≤ baseline 13, no NEW FAIL.
 
