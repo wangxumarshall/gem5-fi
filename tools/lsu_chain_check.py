@@ -487,6 +487,24 @@ def _creq_mismatch(e1, e2):
     return (r1 != "" and r2 != "" and r1 != "0" and r2 != "0" and r1 != r2)
 
 
+def _ancestry_request_breaks(chain_events, family, path):
+    """[R6-GATE-D3] Adjacent witnesses on the *chosen ancestry* whose stamped,
+    non-zero `request_id` differs.
+
+    The per-edge check below only sees the ≤6 layer representatives, so a
+    stream whose DAG walks resp(req=A) → resp(req=B) → … under one fault_id
+    slipped through (real T04: event 47 req=304 → event 48 req=310, both L3).
+    Walking the whole ancestry catches cross-request stitching anywhere on the
+    proven path (mission-forbidden #3).
+    """
+    if not path:
+        return []
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    anc = _ancestry(path[-1], by_id)
+    return [(a, b) for a, b in zip(anc, anc[1:]) if _creq_mismatch(a, b)]
+
+
 def _time_reversed_gap(chain_events, family, path):
     """A deeper-layer witness whose tick precedes the last proven witness =
     reversed-in-time stitch (mission-forbidden #3)."""
@@ -636,6 +654,16 @@ def check_admission(bundle):
     tr = _time_reversed_gap(chain, family, path)
     if tr:
         viol.append(f"{tr}（{run_id} fault {fid}）")
+    # [R6-GATE-D3] 跨请求拼接：整条所选祖先上任意相邻见证 request_id 不一致。
+    breaks = _ancestry_request_breaks(chain, family, path)
+    if breaks:
+        a, b = breaks[0]
+        viol.append(f"cross_request_edge: {run_id} fault {fid} 所选祖先上 "
+                    f"{len(breaks)} 处相邻见证 request_id 不一致（首例 event "
+                    f"{a.get('event_id')}:{a.get('kind')} req="
+                    f"{a.get('request_id')!r} → event {b.get('event_id')}:"
+                    f"{b.get('kind')} req={b.get('request_id')!r}）——整条祖先"
+                    f"禁止跨请求拼接")
 
     # (4) per-layer mandatory metrics on the proven path — LOUD when missing.
     for layer, field, kind in _missing_metrics(path, family):

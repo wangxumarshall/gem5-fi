@@ -558,6 +558,31 @@ def main():
     else:
         print("  SKIP 真实 T04 流不在（合成例已覆盖）")
 
+    print("[14] D3：跨请求拼接必须在**整条所选祖先**上被抓（不只层代表）")
+    # 真实 T04：相邻 resp 对 id=47(req=304) → id=48(req=310) 直接父子同挂
+    # 一个 fault_id，却落在同一层（L3）而只保留一个代表 —— 旧口径漏判。
+    if t04.is_file():
+        ev14, _t = P.read_events(t04)
+        r14 = CC.check_admission({"run_id": "T04-F0-W4", "activated": 1,
+                                  "events": ev14, "rc": 0})
+        joined = " ".join(r14["violations"])
+        check("真实 T04 相邻跨请求对被抓（cross_request_edge）",
+              "cross_request_edge" in joined, joined[:160])
+        # 祖先上确有多处相邻 request_id 不一致（不是空报）
+        by_id = {e.get("event_id"): e for e in ev14}
+        fam = CC._family_of([e for e in ev14 if e.get("fault_id") == "1"])
+        ch = [e for e in ev14 if e.get("fault_id") == "1"]
+        path14 = CC._best_ordered_path(ch, fam)
+        brk = CC._ancestry_request_breaks(ch, fam, path14)
+        check("T04 祖先跨请求对计数 >0（真实证据）", len(brk) > 0, str(len(brk)))
+        ex = [(a.get("kind"), a.get("request_id"), b.get("kind"),
+               b.get("request_id")) for a, b in brk[:2]]
+        check("T04 首例形如 resp 304→310（D3 点名证据）",
+              any(x[0] == "resp" and x[2] == "resp" and x[1] != x[3]
+                  for x in ex), str(ex))
+    else:
+        print("  SKIP 真实 T04 流不在（合成例已覆盖）")
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
