@@ -12,6 +12,18 @@
   PARTIAL = 可跑但 coverage_matrix 判 PARTIAL（缺节点 / 未观测）
 自洽断言：325 == READY + PARTIAL + BLOCKED，否则工具非零退出（不得静默）。
 
+**两道门（互不替代）**——[R6-GATE-L29]：
+  门 1（**上游**判定，台账/覆盖）：即上面三行，决定行"是否本可跑"。
+  门 2（**链准入** hard gate）：`lsu_chain_check.check_admission` 对该 RunID 的
+  pilot PROP-EVT 判定（完整 family-specific L0→L5 链，或显式 containment 且
+  后续层全 N/A(contained)）。门 2 对**每一行**运行（与上游类别无关），判定
+  逐行记在 `chain`（admitted/terminal/violations/n_samples/evaluated）。
+  只有门 1 放行（READY/PARTIAL）的行的**状态**受门 2 约束：门 2 不准入 ⇒
+  降级 BLOCKED（CHAIN-UNPROVEN / CHAIN-EVIDENCE-MISSING）。门 1 已阻塞的行
+  （FS-INFRA / RULING / LICENSE …）**保持**其上游类别与理由——上游阻塞是
+  **独立**阻塞，门 2 准入**不得**解除它；但门 2 的判定仍如实记录（否则
+  "链已准入"这一事实在契约里不可见，即 L28 实测的"结构性不可达"）。
+
 同时产出**构建门禁**与**资源准入**（7.2/7.3）：二进制 sha256、构建日志 exit、
 `pytest tests/ -q` 结果、CPU/内存/磁盘、4 并发 gem5 上限，以及**唯一正式启动命令**。
 
@@ -238,7 +250,8 @@ def chain_admission(runid, pilots=None, evidence_root=None):
     逐一读 PROP-EVT 并过 check_admission；**全员 admitted 且至少评估 1 例**
     才准入（任一样本 Unknown/伪链即整体不准入——诚实纪律）。返回
     {admitted, terminal, violations, n_samples, evaluated, note}。
-    证据缺失或超事件上限 → 不准入并响亮给因（绝不默认通过）。
+    证据缺失或超事件上限 → 不准入（admitted=False）并响亮给因（绝不默认通过）；
+    evaluated=0 表示门禁无可评之据（与"评而未过"区分）。
     """
     pilots = _load_pilots() if pilots is None else pilots
     root = _evidence_root(evidence_root)
@@ -248,8 +261,12 @@ def chain_admission(runid, pilots=None, evidence_root=None):
     out = {"admitted": None, "terminal": None, "violations": [],
            "n_samples": len(samples), "evaluated": 0, "note": ""}
     if not samples:
+        # [L29] 无证据 ⇒ 该 RunID **不得**准入（admitted=False，而非 None）。
+        # 「无可评之据」与「评而未过」分由 evaluated=0 与 violations 区分开，
+        # 行级 chain.admitted 因此对全部 325 行都是确定的布尔值。
+        out["admitted"] = False
         out["note"] = (f"无 {runid} 的 pilot 证据（pilot_evidence.json 中无该 "
-                       f"RunID 或其 seed 样本）——链不可证")
+                       f"RunID 或其 seed 样本）——链不可证，故不准入")
         return out
     results = []
     for s in samples:
@@ -288,6 +305,36 @@ def chain_admission(runid, pilots=None, evidence_root=None):
     return out
 
 
+def chain_gate_summary(rows, evidence_root=None):
+    """[R6-GATE-L29] 门禁汇总：对**全体**行的链判定计数（不只看被降级的行）。
+
+    关键字段 blocked_upstream_admitted：上游另有独立阻塞、但链证据**已准入**
+    的行——它们既证明门禁确实运行过，也说明"链准入不足以解除上游阻塞"。
+    """
+    rec = [r for r in rows if r.get("chain") is not None]
+    adm = [r for r in rows if (r.get("chain") or {}).get("admitted") is True]
+    return {
+        "rule": "READY requires lsu_chain_check.check_admission admission "
+                "on this RunID's pilot PROP-EVT (complete family-specific "
+                "L0→L5 chain, or explicit containment with later layers "
+                "N/A(contained)); the gate is evaluated for EVERY RunID and "
+                "its verdict is recorded on the row, independent of the "
+                "upstream (ledger/coverage) category",
+        "evidence_root": str(_evidence_root(evidence_root)),
+        "event_cap": CHAIN_EVENT_CAP,
+        "recorded": len(rec),
+        "rows_total": len(rows),
+        "admitted": len(adm),
+        "evaluated": sum(1 for r in rows
+                         if (r.get("chain") or {}).get("evaluated")),
+        "unproven": sum(1 for r in rows if r.get("category") == "CHAIN-UNPROVEN"),
+        "evidence_missing": sum(1 for r in rows
+                                if r.get("category") == "CHAIN-EVIDENCE-MISSING"),
+        "blocked_upstream_admitted": sorted(r["run_id"] for r in adm
+                                            if r["status"] == "BLOCKED"),
+    }
+
+
 def _load_pilots(path=None):
     p = Path(path) if path else PILOT_EVIDENCE
     if not p.exists():
@@ -317,12 +364,17 @@ def build_contract(map_path, matrix_path, cov_path, pilots=None,
             if flags is not None:
                 fam = lc.MODEL_FLAGS[e["model_id"]][0]
         status, cat, why = _classify(e, cov.get(runid, "?"), flags, reason)
-        # [R6-GATE] 硬门：非 BLOCKED 行必须过链准入门禁，否则降级 BLOCKED。
-        # 此前 READY 仅凭 coverage PASS（=节点 kind 曾观测到）即可得——该口径
-        # 可无真链（activated=1/RC=0/裸 chain_end）而通过，是本门禁要堵的洞。
-        chain_res = None
+        upstream_status, upstream_cat = status, cat
+        # [R6-GATE-L29 接线修复] 链准入门禁是**附加**门禁：它对**每一行**运行
+        # 并把判定记在行上，与上游类别无关。此前只在 status ∈ {READY,PARTIAL}
+        # 时才调用 `chain_admission` ⇒ 上游已阻塞的行（84 行，含 24 个 FS-INFRA
+        # 的 T 系列）`chain` 恒为 null，门禁在它们身上从未运行——L28 实测：
+        # 即使 T08-F0-W4 的证据真能过 `check_admission`（显式含住 admitted=True），
+        # 契约里也完全看不到"链已准入"这一事实（"结构性不可达"）。
+        # 上游类别（FS-INFRA/RULING/LICENSE…）是**独立**阻塞：链准入**不得**解除
+        # 它；反之，上游本可跑（READY/PARTIAL）的行仍必须过链门禁，否则降级。
+        chain_res = chain_admission(runid, pilots, evidence_root)
         if status in ("READY", "PARTIAL"):
-            chain_res = chain_admission(runid, pilots, evidence_root)
             if not chain_res["admitted"]:
                 if chain_res["n_samples"] == 0:
                     cat = "CHAIN-EVIDENCE-MISSING"
@@ -340,6 +392,10 @@ def build_contract(map_path, matrix_path, cov_path, pilots=None,
         row = {
             "run_id": runid, "unit": unit, "model": e.get("model_id", ""),
             "chain": chain_res,
+            # [R6-GATE-L29] 上游（台账/覆盖）判定与链门禁判定分列，便于复核
+            # "链已准入但被独立阻塞挡下"与"上游放行但链未证"两类不同的洞。
+            "upstream_status": upstream_status,
+            "upstream_category": upstream_cat,
             "freq": e.get("freq", ""), "status": status, "category": cat,
             "family": fam, "why": why,
             "precondition": ("FS 资产 (LSU_FS_DIR) + B0 checkpoint "
@@ -416,14 +472,22 @@ def main():
     ap.add_argument("--matrix", default=str(DEFAULT_MATRIX))
     ap.add_argument("--coverage", default=str(MDS / "coverage_matrix.md"))
     ap.add_argument("--out", default=str(MDS / "ready_contract.json"))
+    ap.add_argument("--pilots", default=str(PILOT_EVIDENCE),
+                    help="pilot 证据注册表（默认 docs/.../pilot_evidence.json）；"
+                         "换注册表可复现『链已准入』的分支判定")
+    ap.add_argument("--evidence-root", default=None,
+                    help="证据根（默认 $LSU_CHAIN_EVIDENCE_ROOT 或仓库根）")
     ap.add_argument("--gate", action="store_true",
                     help="追加构建/全测试/资源门禁（真实运行）")
     a = ap.parse_args()
 
-    rows = build_contract(a.map, a.matrix, a.coverage)
+    rows = build_contract(a.map, a.matrix, a.coverage,
+                          pilots=_load_pilots(a.pilots),
+                          evidence_root=a.evidence_root)
     counts = Counter(r["status"] for r in rows)
     total = sum(counts.values())
     cats = Counter(r["category"] for r in rows if r["status"] == "BLOCKED")
+    cg = chain_gate_summary(rows, a.evidence_root)
 
     doc = {
         "source": "runid_map.json + coverage_matrix.md + lsu_campaign.resolve_cell",
@@ -432,21 +496,9 @@ def main():
         "blocked_by_category": dict(cats),
         "self_consistent": total == counts["READY"] + counts["PARTIAL"]
         + counts["BLOCKED"],
-        # [R6-GATE] 链准入门禁记录：证据根 + 判定口径（可复现）
-        "chain_gate": {
-            "rule": "READY requires lsu_chain_check.check_admission admission "
-                    "on this RunID's pilot PROP-EVT (complete family-specific "
-                    "L0→L5 chain, or explicit containment with later layers "
-                    "N/A(contained))",
-            "evidence_root": str(_evidence_root()),
-            "event_cap": CHAIN_EVENT_CAP,
-            "admitted": sum(1 for r in rows if (r.get("chain") or {})
-                            .get("admitted") is True),
-            "unproven": sum(1 for r in rows if r.get("category")
-                            == "CHAIN-UNPROVEN"),
-            "evidence_missing": sum(1 for r in rows if r.get("category")
-                                    == "CHAIN-EVIDENCE-MISSING"),
-        },
+        # [R6-GATE / L29] 链准入门禁记录：证据根 + 判定口径（可复现）。
+        # 门禁对**每一行**评估（recorded==rows_total），判定记在每行的 chain。
+        "chain_gate": cg,
         "seeds_per_cell": SEEDS_PER_CELL,
         "max_parallel": MAX_PARALLEL,
         "formal_outdir": FORMAL_OUTDIR,
@@ -458,6 +510,11 @@ def main():
     doc["verdict"] = verdict(doc)
 
     Path(a.out).write_text(json.dumps(doc, ensure_ascii=False, indent=1))
+    # [L29] md 镜像跟随 --out（此前硬编码写 MDS/ready_contract.md：一次
+    # `--out /tmp/...` 的复现运行会**静默改写**仓库内已提交的 md，而 json 留在
+    # /tmp ⇒ json 与 md 描述两份不同的契约）。默认仍为 MDS/ready_contract.md。
+    md_out = (Path(a.out).with_suffix(".md") if a.out
+              else MDS / "ready_contract.md")
 
     # 人可读镜像
     md = [f"# 325 RunID READY 契约（R4-7）",
@@ -469,10 +526,16 @@ def main():
           f"- **链准入门禁（R6-GATE）**：READY 须经 "
           f"`lsu_chain_check.check_admission` 准入（完整 family-specific "
           f"L0→L5 链，或显式 containment 且后续层全 N/A(contained)）。"
-          f"证据根 `{doc['chain_gate']['evidence_root']}`，事件上限 "
-          f"{doc['chain_gate']['event_cap']}；admitted={doc['chain_gate']['admitted']}"
-          f" / CHAIN-UNPROVEN={doc['chain_gate']['unproven']}"
-          f" / CHAIN-EVIDENCE-MISSING={doc['chain_gate']['evidence_missing']}",
+          f"[L29] 门禁对**每一行**评估（recorded={cg['recorded']}/"
+          f"{cg['rows_total']}）并逐行记录，与上游类别无关；上游阻塞是"
+          f"**独立**阻塞，不因链准入而解除。"
+          f"证据根 `{cg['evidence_root']}`，事件上限 {cg['event_cap']}；"
+          f"admitted={cg['admitted']} / evaluated={cg['evaluated']}"
+          f" / CHAIN-UNPROVEN={cg['unproven']}"
+          f" / CHAIN-EVIDENCE-MISSING={cg['evidence_missing']}",
+          f"- **链已准入但上游独立阻塞**（{len(cg['blocked_upstream_admitted'])} 行）"
+          f"：{', '.join(cg['blocked_upstream_admitted']) or '（无）'}"
+          f"——链准入不等于解锁，仍按上游理由 BLOCKED",
           f"- **准入裁决：{doc['verdict']['verdict']}**"
           + ("" if doc['verdict']['verdict'] == "GO"
              else f"（{'；'.join(doc['verdict']['reasons'])}）"),
@@ -481,22 +544,29 @@ def main():
           f"`--max-parallel {MAX_PARALLEL}`（禁止 trial/3-seed 与 Wilson 序贯）",
           f"- FS checkpoint：`{DEFAULT_CKPT}`",
           ""]
-    md.append("| RunID | 单元 | 模型 | F | 状态 | 类别 | 覆盖 | 命令(READY/PARTIAL) |")
-    md.append("|---|---|---|---|---|---|---|---|")
+    md.append("| RunID | 单元 | 模型 | F | 状态 | 类别 | 覆盖 | 链门禁 | "
+              "命令(READY/PARTIAL) |")
+    md.append("|---|---|---|---|---|---|---|---|---|")
     for r in rows:
+        c = r.get("chain") or {}
         md.append(f"| {r['run_id']} | {r['unit']} | {r['model']} | {r['freq']} | "
                   f"{r['status']} | {r['category']} | {r['coverage']} | "
+                  f"admitted={c.get('admitted')}"
+                  f"{'/' + str(c.get('terminal')) if c.get('terminal') else ''}"
+                  f"{'/n=' + str(c.get('n_samples')) if c.get('n_samples') is not None else ''} | "
                   f"{'`'+r['command']+'`' if r['command'] else '—'} |")
-    (MDS / "ready_contract.md").write_text("\n".join(md) + "\n")
+    md_out.write_text("\n".join(md) + "\n")
 
     print(f"[ready_contract] total={total} "
           f"READY={counts['READY']} PARTIAL={counts['PARTIAL']} "
           f"BLOCKED={counts['BLOCKED']} self_consistent={doc['self_consistent']}")
     print(f"[ready_contract] blocked_by_category={dict(cats)}")
-    cg = doc["chain_gate"]
-    print(f"[ready_contract] chain_gate admitted={cg['admitted']} "
-          f"unproven={cg['unproven']} evidence_missing="
-          f"{cg['evidence_missing']} root={cg['evidence_root']}")
+    print(f"[ready_contract] chain_gate recorded={cg['recorded']}/"
+          f"{cg['rows_total']} admitted={cg['admitted']} "
+          f"evaluated={cg['evaluated']} unproven={cg['unproven']} "
+          f"evidence_missing={cg['evidence_missing']} "
+          f"blocked_upstream_admitted={len(cg['blocked_upstream_admitted'])} "
+          f"root={cg['evidence_root']}")
     if a.gate:
         g = doc["gate"]
         print(f"[gate] binary_sha256={g.get('binary_sha256_16')} "
