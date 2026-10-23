@@ -48,3 +48,28 @@
 **Artifacts:** `tools/lsu_census_w1_span.py` (verified: py_compile + parse on real/injected samples + `--help`), `docs/gem5-fi/lsu/mdspec/R6-CENSUS-S01-S02-span.md`, report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L23.md` (runs/ is gitignored). Commit `783cd82a` pushed to `origin/r6-census`.</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>59</tool_uses><duration_ms>2591494</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a0ccd71100bc2ad72</task-id>
+<tool-use-id>call_02_0cm1c4vvxhl0dqaqr5s7z0fb</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a0ccd71100bc2ad72.output</output-file>
+<status>completed</status>
+<summary>Agent "L17v2 evidence registry" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**L17-v2 (/r6-evidence, commit `b3321b6f`, pushed `origin/r6-evidence`)**
+
+- **Script**: `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-evidence/tools/lsu_r6_register_evidence.py` (new). Registry regenerated: `docs/gem5-fi/lsu/mdspec/pilot_evidence.json` — **162 pilots** (145 scanned + 17 carried-over aux), 45 kinds (old table 36; **LOST=[]**, gained 9). Report: `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L17.md`.
+- **Caveat on the brief**: `chain_admission` does *not* exist on my base `97f74786`; it lives on `r6-gate` (`ec75cdb1`). I ran the gate read-only from a `git archive r6-gate -- tools docs artifacts/lsu-trial` copy in `/tmp` with `LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding`; no owned tool was edited.
+- **Real counts** (same as r6-gate's committed baseline): `total=325 READY=0 PARTIAL=0 BLOCKED=325 self_consistent=True`; `chain_gate={"evidence_root":"/home/sdc/gem5-fi-ding","event_cap":4000,"admitted":0,"unproven":44,"evidence_missing":197}`; verdict NO-GO. Baseline was `admitted=0 / unproven=43 / evidence_missing=198` → registering **all** discoverable evidence moves **exactly 1 row** (S10-F5-W9: MISSING→UNPROVEN). Nothing was tuned; READY stays 0. **Provisional — B2-v2's concurrent checker change requires a re-run.**
+- **ADMITS: none (0).** **REJECTS**, 241 rows reach the gate:
+  - 42 rows: chain provable only to L0–L4, no L0→L5 closure and no explicit containment (`no_closed_chain_and_no_containment`, `ready_by_activated_only/rc0/chain_end_only`); `S01-F0-W5`, `S02-F0-W5` also `time_reversed_edge`.
+  - 4 rows `chain_evidence_too_large` (samples &gt; 4000 events → loudly not evaluated): `S10-F5-W9`(46087), `C11-F0-W6`, `C12-F0-W6`, `P06-F0-W6`.
+  - 197 rows CHAIN-EVIDENCE-MISSING: **no prop_evt file exists anywhere on the host** for those RunIDs (verified by full-filesystem `find`) — never produced, not merely unregistered.
+  - 8 TLB rows (T01/T02/T04–T08/T10-F0-W4) have registered real evidence (e.g. T04-F0-W4, 1574 events) but are pre-gate `FS-INFRA` blocked (`chain=None`), so registration cannot help them.
+- **Real root cause found**: the old 154-entry registry's paths were all relative to *another* worktree (`lsu-mdspec-20261019`), so under the pinned evidence root all 154 missed. Evidence lives only in `runs/lsu` (24 files) and `.claude/worktrees/lsu-mdspec-20261019/runs/lsu` (248); other locations `n/a`.
+- **Truncated (32, registered + flagged)**: `gzip_read_incomplete` (abort samples by contract) and/or `no_sibling_stats_txt` — e.g. `A01-F0-W3-seed1`, `C14-F5-W6/W10-seed1..3`, `C15-*`, `L04-F0-W5-seed1/3`, `T06/T07/T08/T10-F0-W4`.
+- **Risks**: 147/162 entries point into the volatile `lsu-mdspec` worktree (another lane's; deletion → loud "missing", never silent); `--carry-existing` (default on) prevents silent kind loss (would have dropped `exmon_*`); dedup = newest mtime per RunID+seed, others in `shadowed_paths`, 137 dropped old entries itemized in `dropped_existing`; regression: 16/16 lsu-related tests pass, full suite 19 pass / 2 pre-existing fails in `test_claim_concurrency.py` (reproduced with registry reverted to HEAD).</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>78</tool_uses><duration_ms>3102307</duration_ms></usage>
+</task-notification>
