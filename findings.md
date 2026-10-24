@@ -342,3 +342,113 @@ random (xs32()%7)+1/(xs32()%5)+1 同域。每步外积 a·b≤35（精确 f32 �
 交叉引用：sdcshield feat/sme-fmopa-za-allvl（将建）；spec
 docs/superpowers/specs/2026-10-23-sve-sme-all-vl2-design.md §7（sdcshield 仓）；
 先例 PR #242（sme_za_tileview_dual）。
+
+## all-VL Phase 2 P3 Task 1 — sve512 家族 3-kernel 四档 48-run 实证（2026-10-24）
+
+镜像 sdcshield all-VL Phase 2 P3（sve512 家族×10 重构）的三个 dual-channel
+kernel（branch feat/sve512-dual，堆叠于 feat/fmopa-za-dual @ ebe08632）：
+`sve512_chain_dual`（chain_f64/slab/f32/special 四模式）、`sve512_gather_dual`
+（1d_tag/2d_block 两模式）、`stencil_axis_dual`（7bed7f0e 全 VL 版 + memcpy
+告警修复，替换旧 512-bit 固定版）。O3 + configs/se/arm_chaos.py，
+`--sve_vl {1,2,4,8}`（纯 SVE kernel，SME VL 无关），{fixed 1, random 1..3}
+×4 = 48 run 全部 **exit=0、SDCSHIELD_FAILS=0**（无 unsupported/无 mismatch）。
+完整日志 /tmp/p3_{kernel}_sve{tier}_{args}.log。
+
+### sve512_chain_dual — 16 run 全绿
+
+| tier | VL | args | f64 lanes | f32 lanes | checksum | FAILS | exit |
+|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | fixed 1 | 2 | 4 | fbd04ec64a4dfc0e | 0 | 0 |
+| 1 | 128-bit | random 1 | 2 | 4 | 0af5d50ce7a1de12 | 0 | 0 |
+| 1 | 128-bit | random 2 | 2 | 4 | 7d668773b8ca20b3 | 0 | 0 |
+| 1 | 128-bit | random 3 | 2 | 4 | b67e59f45f8bdd3d | 0 | 0 |
+| 2 | 256-bit | fixed 1 | 4 | 8 | adef4f1b9f84c49f | 0 | 0 |
+| 2 | 256-bit | random 1 | 4 | 8 | 30f5e87527735a9a | 0 | 0 |
+| 2 | 256-bit | random 2 | 4 | 8 | e3ae19aec4525c71 | 0 | 0 |
+| 2 | 256-bit | random 3 | 4 | 8 | e8e4fc131f940558 | 0 | 0 |
+| 4 | 512-bit | fixed 1 | 8 | 16 | 13e0fae48214e216 | 0 | 0 |
+| 4 | 512-bit | random 1 | 8 | 16 | e156c895f13ef218 | 0 | 0 |
+| 4 | 512-bit | random 2 | 8 | 16 | 9c5333c8262c686b | 0 | 0 |
+| 4 | 512-bit | random 3 | 8 | 16 | 35d9b09097fed50e | 0 | 0 |
+| 8 | 1024-bit | fixed 1 | 16 | 32 | 268fd9b3e74d3690 | 0 | 0 |
+| 8 | 1024-bit | random 1 | 16 | 32 | ddf0161a67123ee2 | 0 | 0 |
+| 8 | 1024-bit | random 2 | 16 | 32 | ae08aeef99ba0860 | 0 | 0 |
+| 8 | 1024-bit | random 3 | 16 | 32 | b02ba905b195e11e | 0 | 0 |
+
+（chain_f64/chain_f64_slab/chain_f32/special_f64 四模式 × 16 run 逐条
+FAILS=0；slab 模式 19×19×2×STEPS×LMAX ≈ 5.9M 元素初始化使单 run 在
+gem5 O3 下约 5–9 分钟；16 checksum 互异——数据/seed 依赖，预期。）
+
+### sve512_gather_dual — 16 run 全绿
+
+| tier | VL | args | lanes | gn (1d) | 2d n | checksum | FAILS | exit |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | fixed 1 | 2 | 128 | 90000 | bf459a62ebc27b46 | 0 | 0 |
+| 1 | 128-bit | random 1 | 2 | 128 | 90000 | bf459a62ebc27b46 | 0 | 0 |
+| 1 | 128-bit | random 2 | 2 | 128 | 90000 | bf459a62ebc27b46 | 0 | 0 |
+| 1 | 128-bit | random 3 | 2 | 128 | 90000 | bf459a62ebc27b46 | 0 | 0 |
+| 2 | 256-bit | fixed 1 | 4 | 256 | 90000 | 8a930f2f5c486346 | 0 | 0 |
+| 2 | 256-bit | random 1 | 4 | 256 | 90000 | 8a930f2f5c486346 | 0 | 0 |
+| 2 | 256-bit | random 2 | 4 | 256 | 90000 | 8a930f2f5c486346 | 0 | 0 |
+| 2 | 256-bit | random 3 | 4 | 256 | 90000 | 8a930f2f5c486346 | 0 | 0 |
+| 4 | 512-bit | fixed 1 | 8 | 512 | 90000 | 5743796213069946 | 0 | 0 |
+| 4 | 512-bit | random 1 | 8 | 512 | 90000 | 5743796213069946 | 0 | 0 |
+| 4 | 512-bit | random 2 | 8 | 512 | 90000 | 5743796213069946 | 0 | 0 |
+| 4 | 512-bit | random 3 | 8 | 512 | 90000 | 5743796213069946 | 0 | 0 |
+| 8 | 1024-bit | fixed 1 | 16 | 1024 | 90000 | e0b143195d066946 | 0 | 0 |
+| 8 | 1024-bit | random 1 | 16 | 1024 | 90000 | e0b143195d066946 | 0 | 0 |
+| 8 | 1024-bit | random 2 | 16 | 1024 | 90000 | e0b143195d066946 | 0 | 0 |
+| 8 | 1024-bit | random 3 | 16 | 1024 | 90000 | e0b143195d066946 | 0 | 0 |
+
+（**同档 fixed/random checksum 相同是设计属性**：randomize 仅对 perm 做
+Fisher-Yates 洗牌（改变 gather/scatter 访问顺序），src 数据与 dst 最终
+内存内容均按地址序确定（1d: dst[j]=0x4000…|j；2d: dst[j]=1.5·src[j]，
+src[j]=(j%1009)+1 与 seed 无关），FNV 按地址序哈希 → 与排列/seed 无关；
+跨档互异（gn=64×lanes 随档变化）。）
+
+### stencil_axis_dual（all-VL 7bed7f0e 形态）— 16 run 全绿
+
+| tier | VL | bt=2×svcntd | args | checksum | FAILS | exit |
+|---|---|---|---|---|---|---|
+| 1 | 128-bit | 4 | fixed 1 | 5d92289179c35d09 | 0 | 0 |
+| 1 | 128-bit | 4 | random 1 | 6a6e2ba55a1f0240 | 0 | 0 |
+| 1 | 128-bit | 4 | random 2 | bf7df46ee1c199aa | 0 | 0 |
+| 1 | 128-bit | 4 | random 3 | 9a693226d856416a | 0 | 0 |
+| 2 | 256-bit | 8 | fixed 1 | ef684d243fe060cc | 0 | 0 |
+| 2 | 256-bit | 8 | random 1 | 8b7dcecd82a0e212 | 0 | 0 |
+| 2 | 256-bit | 8 | random 2 | 47965af0d63368e9 | 0 | 0 |
+| 2 | 256-bit | 8 | random 3 | a631d0fd2ce475c3 | 0 | 0 |
+| 4 | 512-bit | 16 | fixed 1 | da6f0aba50ed121a | 0 | 0 |
+| 4 | 512-bit | 16 | random 1 | 610e3ce5b02e1ace | 0 | 0 |
+| 4 | 512-bit | 16 | random 2 | 05c9f28e3009deee | 0 | 0 |
+| 4 | 512-bit | 16 | random 3 | 641c22fa69705a82 | 0 | 0 |
+| 8 | 1024-bit | 32 | fixed 1 | 59cb91088af95c84 | 0 | 0 |
+| 8 | 1024-bit | 32 | random 1 | 8ea5a0fb4dfb840c | 0 | 0 |
+| 8 | 1024-bit | 32 | random 2 | fc70cb7ef1e2d348 | 0 | 0 |
+| 8 | 1024-bit | 32 | random 3 | 63cbf810953195ca | 0 | 0 |
+
+（bt 正确性由 fixed 模式内核自检覆盖：scalar ref 必须逐 lane 等于
+analytic 1.5×(j+1)（bt 与布局一致才成立），16 run 无一条 "scalar ref !=
+analytic"/"unsupported VL"；fixed 各档 checksum 互异、random 各 seed 互异
+——src 数据 seed 依赖，预期。）
+
+### 判据核对与 issue #182 清除声明
+
+1. **lanes 逐档精确**：chain f64 2/4/8/16、f32 4/8/16/32；gather lanes
+   2/4/8/16（gn=128/256/512/1024）；stencil bt=4/8/16/32（=128/256/512/
+   1024-bit 全四档）。
+2. 48/48 `SDCSHIELD_FAILS=0`、exit=0，零 unsupported、零 mismatch 输出。
+3. **issue #182 疑点清除**：128-bit 档（tier=1）chain 四模式
+   （chain_f64/chain_f64_slab/chain_f32/special_f64）、gather 两模式
+   （1d_tag/2d_block）、stencil（analytic+运行时双参考）**全部字节级
+   全绿**——历史 GH runner VL=128 golden 失配疑点在 gem5-fi O3 全 VL
+   语义下不复现，三 kernel 128-bit golden 与硬件路径一致。
+4. checksum 见上三表：chain/stencil 随数据与 seed 互异；gather 同档
+   fixed/random 相同（perm-洗牌不影响按地址序的最终内存，设计属性，
+   见 gather 表后注）。
+
+**结论**：all-VL Phase 2 P3 Task 1 三 kernel 在 gem5-fi（CHAOS/SE，O3）
+128/256/512/1024-bit 四档 × {fixed, random×3} 48-run 全绿，sdcshield 侧
+sve512 家族×10 重构的 gem5 侧镜像基线成立。交叉引用：sdcshield
+docs/superpowers/plans/2026-10-24-sve-sme-all-vl2-p3.md（P3 计划）；先例
+P1 vl_api_probe、P2 sme_fmopa_za_dual。

@@ -35,7 +35,7 @@
 #include <string.h>
 
 #define RADIUS  6
-#define B_TILE  16
+#define B_TILE_MAX  32   /* upper bound: VL=1024bit => 2*16 lanes */
 #define COORD   10
 #define EXTENT  56
 #define STRIDE  64
@@ -67,20 +67,30 @@ int main(int argc, char **argv)
     const int randomize = (strcmp(mode, "random") == 0);
     xs_state = seed ? seed : 1;
 
+    /* Full-VL support: the kernel writes two result vectors (res0+res1),
+     * so the tile width is bt = 2*svcntd() f64 lanes (VL=128..1024-bit
+     * -> 4..32). All layout offsets below scale with bt. */
+    const int bt = (int)(2 * svcntd());
+    if (bt < 4 || bt > B_TILE_MAX) {
+        fprintf(stderr, "unsupported VL (bt=%d)\n", bt);
+        return 3;
+    }
+
     /* Layout: [extent][stride][B_TILE] doubles (the test's geometry). */
-    static double src[EXTENT * STRIDE * B_TILE];
-    for (size_t i = 0; i < sizeof src / sizeof src[0]; ++i)
+    static double src[EXTENT * STRIDE * B_TILE_MAX];
+    const size_t src_n = (size_t)EXTENT * STRIDE * bt;
+    for (size_t i = 0; i < src_n; ++i)
         src[i] = randomize ? (double)(1 + xs32() % 256)
-                           : (double)(i % B_TILE + 1);
-    const double *s_base = src + COORD * STRIDE * B_TILE;
+                           : (double)(i % bt + 1);
+    const double *s_base = src + COORD * STRIDE * bt;
 
     /* Runtime scalar reference (PR #237 run-side logic): per lane j one
      * kernel call adds sum_r 0.125*(src[coord-r][j] + src[coord+r][j]). */
-    double expected[B_TILE];
-    for (int j = 0; j < B_TILE; ++j) expected[j] = 0.0;
+    double expected[B_TILE_MAX];
+    for (int j = 0; j < bt; ++j) expected[j] = 0.0;
     for (size_t r = 1; r <= RADIUS; ++r) {
-        const ptrdiff_t off = (ptrdiff_t)(r * STRIDE) * B_TILE;
-        for (int j = 0; j < B_TILE; ++j) {
+        const ptrdiff_t off = (ptrdiff_t)(r * STRIDE) * bt;
+        for (int j = 0; j < bt; ++j) {
             double delta = 0.0;
             if (COORD >= (int)r)
                 delta += s_base[-off + j];
@@ -92,19 +102,20 @@ int main(int argc, char **argv)
     if (!randomize) {
         /* fixed mode degenerates to the pre-PR#237 analytic formula —
          * assert the reference agrees with it (kernel self-check). */
-        for (int j = 0; j < B_TILE; ++j)
+        for (int j = 0; j < bt; ++j)
             if (expected[j] != 1.5 * (double)(j + 1)) {
                 fprintf(stderr, "scalar ref != analytic at lane %d: %f vs %f\n",
                         j, expected[j], 1.5 * (double)(j + 1));
                 ++g_fails;
             }
     }
-    for (int j = 0; j < B_TILE; ++j)
+    for (int j = 0; j < bt; ++j)
         expected[j] *= (double)ITERS;
 
     /* The accumulation kernel: ITERS rounds of the two-vector svmla
      * pattern (res0/res1 accumulate; 0.125 coefficients). */
     const svbool_t ptrue = svptrue_b64();
+    const int LANES = (int)svcntd();
     double coeff[RADIUS + 1] = {};
     for (size_t r = 1; r <= RADIUS; ++r) coeff[r] = 0.125;
     svfloat64_t res0 = svdup_f64(0.0);
@@ -112,29 +123,29 @@ int main(int argc, char **argv)
 
     for (int it = 0; it < ITERS; ++it) {
         for (size_t r = 1; r <= RADIUS; ++r) {
-            const ptrdiff_t off = (ptrdiff_t)(r * STRIDE) * B_TILE;
+            const ptrdiff_t off = (ptrdiff_t)(r * STRIDE) * bt;
             const svfloat64_t c = svdup_f64(coeff[r]);
             if (COORD >= (int)r) {
                 res0 = svmla_f64_m(ptrue, res0,
                                    svld1_f64(ptrue, s_base - off), c);
                 res1 = svmla_f64_m(ptrue, res1,
-                                   svld1_f64(ptrue, s_base - off + 8), c);
+                                   svld1_f64(ptrue, s_base - off + LANES), c);
             }
             if (COORD + r < EXTENT) {
                 res0 = svmla_f64_m(ptrue, res0,
                                    svld1_f64(ptrue, s_base + off), c);
                 res1 = svmla_f64_m(ptrue, res1,
-                                   svld1_f64(ptrue, s_base + off + 8), c);
+                                   svld1_f64(ptrue, s_base + off + LANES), c);
             }
         }
     }
 
-    double result[B_TILE];
+    double result[B_TILE_MAX];
     svst1_f64(ptrue, result, res0);
-    svst1_f64(ptrue, result + 8, res1);
+    svst1_f64(ptrue, result + LANES, res1);
 
-    for (int j = 0; j < B_TILE; ++j) {
-        fnv_u64(*(uint64_t *)&result[j]);
+    for (int j = 0; j < bt; ++j) {
+        { uint64_t b; memcpy(&b, &result[j], 8); fnv_u64(b); }
         if (result[j] != expected[j]) {
             fprintf(stderr, "lane %2d result=%.1f expected=%.1f\n",
                     j, result[j], expected[j]);

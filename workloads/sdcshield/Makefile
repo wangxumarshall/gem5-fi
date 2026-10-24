@@ -11,7 +11,7 @@ FP_OFF = -ffp-contract=off
 BINS = sve_sme_semantics fpu_special_sve_dual stencil_axis_dual
 BINS += sme_fmopa_dual sme_za_tileview_dual
 
-all: $(BINS) vl_api_probe sme_fmopa_za_dual
+all: $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual
 
 %: %.c
 	$(CC) $(CFLAGS) $(if $(filter sme_fmopa_dual,$@),$(FP_OFF),) -o $@ $< -lm
@@ -26,7 +26,19 @@ vl_api_probe: vl_api_probe.c
 sme_fmopa_za_dual: sme_fmopa_za_dual.c
 	$(GCC) -static -O2 -march=armv9-a+sve+sme -Wall -Wextra -o $@ $< -lm
 
+# all-VL Phase 2 P3 kernels (sve512 家族×10 重构的镜像; 纯 SVE intrinsics,
+# gcc armv9-a+sve 即可; stencil_axis_dual.c 取 7bed7f0e 全 VL 版 + memcpy
+# 告警修复, 四档 16 run 重验):
+sve512_chain_dual: sve512_chain_dual.c
+	$(GCC) $(GCCFLAGS) -o $@ $< -lm
+sve512_gather_dual: sve512_gather_dual.c
+	$(GCC) $(GCCFLAGS) -o $@ $< -lm
+# stencil_axis_dual (all-VL 7bed7f0e form): pure intrinsics — build with
+# gcc too (the clang pattern rule does not apply on this host):
+stencil_axis_dual: stencil_axis_dual.c
+	$(GCC) $(GCCFLAGS) -o $@ $< -lm
+
 clean:
-	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual
+	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual
 
 .PHONY: all clean
