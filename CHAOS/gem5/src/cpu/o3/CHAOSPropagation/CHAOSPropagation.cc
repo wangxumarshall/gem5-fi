@@ -15,6 +15,7 @@
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
 #include "cpu/o3/CHAOSPropagation/chaos_tlb_chain.hh"
 
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -112,6 +113,39 @@ namespace gem5
                 // outcome=unknown means "pending offline join" — the honest
                 // default, never guessed (spec: 不得推断).
                 if (evt_gz_file && write_log) {
+                    // [MDSPEC][R6-FIXCPP/T3] Flush the consumer_summary
+                    // accounting to the stream BEFORE the chain_end
+                    // terminators: a real terminal / chain_end must precede
+                    // the accounting, and a summary never stands in for a
+                    // terminal (rules ②/⑦). Each row is written raw and
+                    // Z_SYNC_FLUSH-ed like every other node.
+                    for (const std::string &sl :
+                             consumer_agg.flush(run_id, sample_run_id)) {
+                        const std::string row = sl + "\n";
+                        if (gzwrite(evt_gz_file, row.data(),
+                                    (unsigned)row.size())
+                                != (int)row.size())
+                            panic("CHAOSPropagation: CONSUMER-SUMMARY write "
+                                  "failed");
+                        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+                    }
+                    // Resource bound hit: LOUD on stdout AND in the stream,
+                    // never silent. The abort path emitted every further
+                    // consumer (suppressed=0), so no evidence was dropped and
+                    // the run must not be read as complete (rules ⑦).
+                    if (consumer_agg.resourceAborted()) {
+                        const std::string ab =
+                            chaos_consumer::Aggregator::resourceAbortLine(
+                                consumer_agg.groupCount());
+                        printf("%s\n", ab.c_str());
+                        const std::string row = ab + "\n";
+                        if (gzwrite(evt_gz_file, row.data(),
+                                    (unsigned)row.size())
+                                != (int)row.size())
+                            panic("CHAOSPropagation: resource-abort marker "
+                                  "write failed");
+                        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+                    }
                     // [MDSPEC][R6-EMIT2/A7] Store chains whose fault-carrying
                     // store NEVER retired. A store taints itself at its
                     // response (noteMemResponse) and the taint is erased by
@@ -2369,25 +2403,49 @@ namespace gem5
             any_consumer = true;
             if (!first_consumed_ptag)
                 first_consumed_ptag = it->second.ptag;
-            std::ostringstream d;
-            d << "class=" << regClassName(phys->classValue())
-              << ";src_idx=" << i
-              // [MDSPEC][R6/A6] A consumer does NOT descend from the previous
-              // event of the chain: it descends from the event that
-              // established the taint it consumed. Naming that event is what
-              // turns the chain into a real DAG (one source → many
-              // consumers) instead of the degenerate linear list the single
-              // ptag_last_event cursor produced. parent_event_id is a
-              // registry field, so the dual-emit honours this override.
-              << ";parent_event_id=" << it->second.src_event
-              << ";pc=" << std::hex << pc << std::dec;
-            writeNode(it->second.ptag, "consumer", head_inst->seqNum, true,
-                      0, false, 0, false, phys->index(), true,
-                      head_inst->srcRegIdx(i).index(), true, d.str(),
-                      CORR_TAINT_PROP, (int)tid);
-            // The just-emitted consumer node is the taint source for any
-            // dest it re-taints below.
-            last_consumer_evt = next_node_id - 1;
+            // [MDSPEC][R6-FIXCPP/T3] Route the consumer through the summary
+            // aggregator. The group's FIRST member (and any member with a NEW
+            // dyn_inst_seq = a new semantic state) is emitted as its own
+            // PROP-EVT; an exact duplicate is folded into the group's
+            // CONSUMER-SUMMARY accounting (see chaos_consumer_summary.hh).
+            // The `consumer` kind is the ONLY aggregatable kind — L5 /
+            // containment / terminal / every state-change event is emitted
+            // unchanged below and elsewhere.
+            const uint64_t cptag = it->second.ptag;
+            const std::string csrc = chaos_consumer::sourceIdOf(phys->index());
+            if (consumer_agg.observe("consumer", cptag, csrc,
+                                     head_inst->seqNum, curTick())) {
+                std::ostringstream d;
+                d << "class=" << regClassName(phys->classValue())
+                  << ";src_idx=" << i
+                  // [MDSPEC][R6/A6] A consumer does NOT descend from the
+                  // previous event of the chain: it descends from the event
+                  // that established the taint it consumed. Naming that event
+                  // is what turns the chain into a real DAG (one source → many
+                  // consumers) instead of the degenerate linear list the
+                  // single ptag_last_event cursor produced. parent_event_id is
+                  // a registry field, so the dual-emit honours this override.
+                  << ";parent_event_id=" << it->second.src_event
+                  << ";pc=" << std::hex << pc << std::dec;
+                writeNode(cptag, "consumer", head_inst->seqNum, true,
+                          0, false, 0, false, phys->index(), true,
+                          head_inst->srcRegIdx(i).index(), true, d.str(),
+                          CORR_TAINT_PROP, (int)tid);
+                // The just-emitted consumer node is the taint source for any
+                // dest it re-taints below.
+                last_consumer_evt = next_node_id - 1;
+                consumer_agg.noteEmitted("consumer", cptag, csrc,
+                                         last_consumer_evt);
+            } else {
+                // Suppressed duplicate: no event is fabricated. Keep the DAG
+                // connected by naming the group's representative (the emitted
+                // first member) as the taint source for the dests re-tained
+                // below.
+                const uint64_t rep = consumer_agg.representativeEvent(
+                    "consumer", cptag, csrc);
+                if (rep)
+                    last_consumer_evt = rep;
+            }
         }
 
         // Dests: is this the faulting load itself committing its tainted

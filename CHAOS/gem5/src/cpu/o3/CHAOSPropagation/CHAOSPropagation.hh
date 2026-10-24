@@ -128,6 +128,7 @@
 #include <utility>
 #include <vector>
 
+#include "cpu/o3/CHAOSPropagation/chaos_consumer_summary.hh"  // [MDSPEC][R6-FIXCPP/T3]
 #include "base/types.hh"
 #include "mem/request.hh"          // RequestPtr (CHAOSAddrPath.hh precedent)
 #include "params/CHAOSPropagation.hh"
@@ -833,6 +834,13 @@ class CHAOSPropagation : public SimObject
 
     uint64_t next_node_id = 0;
     uint64_t next_ptag = 0;        // 0 reserved ("no chain")
+    // [MDSPEC][R6-FIXCPP/T3] consumer_summary aggregation (see
+    // chaos_consumer_summary.hh — the ONE shared definition, no drift). The
+    // `consumer` kind is the ONLY aggregatable kind; every other event is a
+    // semantic state change / witness / terminal and is always emitted as its
+    // own PROP-EVT. Flushed to the stream immediately before the chain_end
+    // events at exit, so a real terminal always precedes the accounting.
+    chaos_consumer::Aggregator consumer_agg;
     bool errant_commit_seen = false;
     // [MDSPEC][R6] Per-chain record of the (single, first) errant commit.
     // The errant_commit node already carries the faulting chain's own ptag,
