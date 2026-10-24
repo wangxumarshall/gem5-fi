@@ -135,9 +135,13 @@ def main():
     # F0-span-unmeasured 拒绝；另两格 S10-F2 由 r4-8-S10 的
     # interval-tier-unreachable 拒绝（spec 固定 interval 语义，非本任务范围）。
     # 改钉**结构不变量**：每格残余必须归入已具名的精确拒绝，不允许无归属拒跑。
+    # [MDSPEC][R6-FTIER] 追加具名拒绝 armtlb-lookup-tier-unimplemented：
+    # armtlb lookup 路径不消费 tier（TLB::lookup 不 poll lsuTrigger），F1-F6
+    # 档显式 BLOCKED —— 同样是**已具名的精确拒绝**（R6-FTIER）。
     unexplained = [(r, w, y) for r, w, y in unresolved
                    if not (y and ("F0-span-unmeasured" in y
-                                  or "interval-tier-unreachable" in y))]
+                                  or "interval-tier-unreachable" in y
+                                  or "armtlb-lookup-tier-unimplemented" in y))]
     check("C1_unresolved_is_explained_by_precise_refusals",
           not unexplained, str(unexplained))
     # C2: 残余集合里没有 W11（许可证阻塞走的是 BLOCKED 通道，不进 UNRESOLVED）。
