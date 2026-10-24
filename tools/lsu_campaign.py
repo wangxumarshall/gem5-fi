@@ -535,33 +535,133 @@ ARMTLB_T08_SPAN_EVENTS = 1000
 #     stream (unchanged; R4-5.9).
 #   * LOOKUP modes (T01-T04/T10 / T05-T07; every other fault type) — the
 #     lookup-hit path (TLB::lookup -> CHAOSArmTLB::maybeCorrupt /
-#     maybeCorruptLookup, arch/arm/tlb.cc:171-184) NEVER polls `lsuTrigger`
-#     (source fact: `lsuTrigger` appears in CHAOSArmTLB.cc only in the
-#     constructor and in maybeDropWalkFill), unlike every other injector
-#     family, which polls its trigger at its hook. The lookup path's ONLY
-#     lever is the legacy chain --tlb_max_faults / --tlb_probability +
-#     the seed-varied eligible-event skip, which implements exactly the F0
-#     semantics ("每次运行只注入 1 次；warm-up 后的 eligible event 中均匀
-#     抽样", 方案.md §5 sheet-5). No interval (F1/F2/F3), burst (F4),
-#     fixed-mask-permanent (F5) or first-event (F6) knob is consumed there.
-#     Those tiers therefore resolve to a LOUD BLOCKED reason instead of a
-#     silent F0 re-label (which is the R6-FTIER defect, and the "half-wired
-#     component must be rejected loudly" rule in CLAUDE.md). Making them
-#     runnable needs a C++ change to CHAOSArmTLB (out of this lane).
-ARMTLB_LOOKUP_TIERS = frozenset({"F0"})
+#     maybeCorruptLookup) was, before R6-FIXCPP `6ec7c5aa`, a path that NEVER
+#     polled `lsuTrigger`, so F1-F6 were physically NOT expressible there and
+#     --tlb_lsu_tier was inert ("half-wired"). That commit landed the real
+#     gate (CHAOSArmTLB::lookupTierMounted / lookupTierAllowsInjection, one
+#     eligible event per TLB lookup, F6 = first TlbHit) so the lookup path now
+#     consumes the SAME tier semantics as every other injector family. The
+#     tool side therefore passes a REAL `--tlb_lsu_tier <F>` for F1-F6.
+#
+# [MDSPEC][R6-FTIER] F0 stays byte-for-byte legacy: NO `--tlb_lsu_tier` flag is
+# emitted — the pre-R6 command (--tlb_max_faults 1 / --tlb_probability 1.0 +
+# seed-varied eligible-event skip) IS the F0 semantics ("每次运行只注入 1 次；
+# warm-up 后的 eligible event 中均匀抽样", 方案.md §5 sheet-5), and emitting a
+# tier flag there would change behaviour for the already-landed F0 cells.
+#
+# [MDSPEC][R6-FIXTOOLS] A tier is NOT trusted merely because the tool can now
+# name it: F1-F6 runs are additionally gated on a RUNTIME capability proof
+# (lookup_tier_capability_gate below) — a real run must print the
+# CHAOS_LSU_TIER_CAP startup marker with effective == requested and
+# lookup_tier_enabled=1, or the sample is refused LOUDLY (see
+# _ARMTLB_CAP_MISSING for the old-binary / missing-marker case). This keeps a
+# stale binary from silently producing degenerate F0 data under an F2/F6 label.
+ARMTLB_LOOKUP_TIERS = frozenset({"F0", "F1", "F2", "F3", "F4", "F5", "F6"})
+# F0 = legacy path (no tier flag); F1-F6 = the landed tiered lookup path.
+ARMTLB_LOOKUP_LEGACY_TIERS = frozenset({"F0"})
+ARMTLB_LOOKUP_TIERED_TIERS = frozenset({"F1", "F2", "F3", "F4", "F5", "F6"})
 
 
 def _armtlb_lookup_tier_block_reason(model, tier):
-    """resolve_cell 的 loud block 理由（与 ARMTLB_LOOKUP_TIERS 同源，不漂移）。"""
-    return ("BLOCKED(armtlb-lookup-tier-unimplemented: model %s tier %s — the "
-            "TLB lookup-hit path (TLB::lookup -> CHAOSArmTLB::maybeCorrupt / "
-            "maybeCorruptLookup) never polls lsuTrigger; only the walk path "
-            "(maybeDropWalkFill) does, so the event-normalized interval "
-            "(F1/F2/F3), burst (F4), fixed-mask-permanent (F5) and first-event "
-            "(F6) tiers have no landed knob on this path. Only F0 is "
-            "expressible (legacy --tlb_max_faults 1). Refusing rather than "
-            "silently re-labelling the F0 run as %s (R6-FTIER)" % (model,
-                                                                    tier, tier))
+    """resolve_cell 的 loud block 理由（与 ARMTLB_LOOKUP_TIERS 同源，不漂移）。
+
+    仅在档位**不在** F0-F6 时触发（未知档位，如 F7/off/拼写错误）——F1-F6
+    现由 6ec7c5aa 的真实 lookup gate 表达，不再落到这里。
+    """
+    return ("BLOCKED(armtlb-lookup-tier-unimplemented: model %s tier %s — not a "
+            "known F-tier (valid: F0-F6). F0 = legacy --tlb_max_faults 1; F1-F6 "
+            "= the ARM TLB lookup-path tier landed by R6-FIXCPP 6ec7c5aa "
+            "(CHAOSArmTLB::lookupTierMounted / lookupTierAllowsInjection, one "
+            "eligible event per TLB lookup). Refusing rather than silently "
+            "re-labelling an F0 run as %s (R6-FTIER)" % (model, tier, tier))
+
+
+# [MDSPEC][R6-FIXTOOLS] Runtime lookup-tier capability marker. The landing
+# binary MUST print exactly this once at startup (see the C++ field contract in
+# the R6-FIXTOOLS report). Campaign parses it to prove an F1-F6 lookup run
+# really ran with the tier mounted — requested vs effective must agree and the
+# lookup path must be enabled; an old binary that prints no marker (or a binary
+# whose effective tier disagrees) is refused LOUDLY, never accepted silently.
+LSU_TIER_CAP_PREFIX = "CHAOS_LSU_TIER_CAP:"
+LSU_TIER_CAP_FIELDS = ("requested", "effective", "lookup_tier_enabled")
+
+
+def parse_lsu_tier_capability(text):
+    """Parse the CHAOS_LSU_TIER_CAP startup marker from a run's output.
+
+    Returns {"requested", "effective", "lookup_tier_enabled", "raw"} for the
+    FIRST such line, or None when the marker is absent (old binary / not run).
+    Values are the raw strings; a marker line with missing fields keeps them "".
+    """
+    if not text:
+        return None
+    for ln in text.splitlines():
+        s = ln.strip()
+        i = s.find(LSU_TIER_CAP_PREFIX)
+        if i < 0:
+            continue
+        rec = {f: "" for f in LSU_TIER_CAP_FIELDS}
+        rec["raw"] = s
+        body = s[i + len(LSU_TIER_CAP_PREFIX):].strip()
+        for tok in body.split():
+            k, sep, v = tok.partition("=")
+            if sep:
+                rec[k] = v
+        return rec
+    return None
+
+
+def lookup_tier_capability_gate(requested, text):
+    """Runtime capability proof for an F1-F6 ARM-TLB-lookup run.
+
+    `requested` is the tier the campaign asked for (e.g. "F2"). Returns
+    {"ok": bool, "requested", "effective", "enabled", "marker", "reason"}.
+    `ok` only when the marker is present AND effective == requested AND
+    lookup_tier_enabled == 1. A missing marker (old binary), a mismatch, or a
+    disabled lookup tier is refused LOUDLY (`reason` names which) — never a
+    silent pass into an F0-degenerate dataset.
+    """
+    rec = parse_lsu_tier_capability(text)
+    base = {"requested": requested, "effective": None, "enabled": None,
+            "marker": rec}
+    if rec is None:
+        return dict(base, ok=False, reason=(
+            "armtlb-lookup-tier-capability-missing: 二进制未输出 %s 启动标记"
+            "（requested/effective/lookup_tier_enabled）——旧二进制无能力标记，"
+            "拒绝把 %s 当已挂载档位采信（不得产生静默退化数据）"
+            % (LSU_TIER_CAP_PREFIX, requested)))
+    miss = [f for f in LSU_TIER_CAP_FIELDS if not str(rec.get(f, "")).strip()]
+    if miss:
+        return dict(base, ok=False,
+                    effective=rec.get("effective") or None,
+                    enabled=rec.get("lookup_tier_enabled") or None,
+                    reason=(f"armtlb-lookup-tier-capability-malformed: 标记缺字段 "
+                            f"{miss}（raw={rec.get('raw')!r}）"))
+    eff = rec["effective"]
+    en = rec["lookup_tier_enabled"]
+    out = dict(base, effective=eff, enabled=en)
+    if en not in ("1", "true", "True", "yes"):
+        return dict(out, ok=False, reason=(
+            f"armtlb-lookup-tier-capability-disabled: lookup_tier_enabled={en!r}"
+            f"（应为 1）——lookup 路径未启用档位，{requested} 不成立"))
+    if eff != requested:
+        return dict(out, ok=False, reason=(
+            f"armtlb-lookup-tier-capability-mismatch: requested={requested} 但 "
+            f"effective={eff} ——请求档位与运行时生效档位不一致，拒绝采信"))
+    if str(rec.get("requested", "")) not in ("", requested):
+        return dict(out, ok=False, reason=(
+            f"armtlb-lookup-tier-capability-mismatch: 标记 requested="
+            f"{rec.get('requested')!r} 与命令请求 {requested!r} 不一致"))
+    return dict(out, ok=True, reason="")
+
+
+def _armtlb_lookup_tier_flags(freq):
+    """Flags the armtlb LOOKUP path needs for `freq` (None ⇒ not expressible)."""
+    if freq in ARMTLB_LOOKUP_LEGACY_TIERS:      # F0: byte-for-byte legacy
+        return []
+    if freq in ARMTLB_LOOKUP_TIERED_TIERS:      # F1-F6: real tier flag
+        return ["--tlb_lsu_tier", freq]
+    return None
 
 # ---- FS carrier (M3 plan Task 5/6 decision tree) ----
 # T-cell design workloads (MiBench/TLB-AliasPerm/GAP) have no binaries on the
@@ -1444,17 +1544,19 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False):
                       "--tlb_lsu_warmup_events",
                       str(ARMTLB_T08_WARMUP_EVENTS),
                       "--tlb_lsu_span_events", str(ARMTLB_T08_SPAN_EVENTS)]
-        elif freq not in ARMTLB_LOOKUP_TIERS:
-            # [MDSPEC][R6-FTIER] the lookup path does not consume the tier
-            # (see ARMTLB_LOOKUP_TIERS above): refuse LOUDLY instead of
-            # emitting the F0 flags under an F1-F6 label — the six first-wave
-            # RunIDs used to collapse to three conditions exactly this way.
-            return None, None, _armtlb_lookup_tier_block_reason(model, freq)
-        # F0 lookup modes fall through with the legacy F0 implementation
-        # already in `flags`: --tlb_max_faults 1 (single transient) +
-        # --tlb_probability 1.0 + the injector's seed-varied eligible-event
-        # skip. NO --tlb_lsu_tier here: the lookup path never polls it
-        # (tests/test_lsu_hook_t08_walk.py pins "T01 lookup 模式不带 tier").
+        else:
+            # [MDSPEC][R6-FIXTOOLS] LOOKUP modes (T01-T04/T10 / T05-T07). F0 =
+            # the legacy chain already in `flags` (--tlb_max_faults 1 +
+            # --tlb_probability 1.0 + seed-varied eligible-event skip), byte-
+            # for-byte unchanged (no --tlb_lsu_tier). F1-F6 = the real tier flag
+            # landed by R6-FIXCPP 6ec7c5aa (the lookup path now polls
+            # lsuTrigger). An unknown tier is refused LOUDLY (never an F0
+            # re-label; the six first-wave RunIDs collapsed to three conditions
+            # exactly that way before R6-FTIER).
+            tier_flags = _armtlb_lookup_tier_flags(freq)
+            if tier_flags is None:
+                return None, None, _armtlb_lookup_tier_block_reason(model, freq)
+            flags += tier_flags
         return flags, TLB_PROBE_GOLDEN, "fs:tlb_probe"
 
     # 3a2. [MDSPEC][R4-9-FSMC-A] FS family: 2-core Ruby/CHI + litmus_free 载体。
@@ -1717,7 +1819,8 @@ def check_chain_fast(events, oracle_outcome=None):
 
 
 def admission_gate(runid, events, activated, oracle_outcome=None, exit_code=None,
-                   containment=None):
+                   containment=None, summary_issues=None,
+                   consumer_summary_accounting=None):
     """[LSU][MDSPEC][R6-FIXD] binding 硬门禁：调用**唯一**判定源
     `lsu_chain_check.check_admission`。
 
@@ -1750,7 +1853,11 @@ def admission_gate(runid, events, activated, oracle_outcome=None, exit_code=None
                     "note": "门禁输入构造失败——绝不默认通过"}
     bundle = {"run_id": str(runid), "activated": act, "events": list(events),
               "rc": (exit_code if exit_code is not None else 0),
-              "oracle_outcome": oracle_outcome, "containment": cont}
+              "oracle_outcome": oracle_outcome, "containment": cont,
+              # [MDSPEC][R6-FIXTOOLS] a malformed/non-conserving consumer_summary
+              # is a loud hard-gate failure; a well-formed one changes nothing.
+              "summary_issues": list(summary_issues or []),
+              "consumer_summary_accounting": consumer_summary_accounting}
     try:
         # 与 check_chain_fast 同一 O(n) 路径替换：check_admission 内部会再跑
         # 一次 check_chain，超大流上若不替换会卡死整个 cell（L30 同源缺陷）。
@@ -1789,6 +1896,7 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
     Returns the report dict (also written to <outdir>/chain_report.json).
     """
     import lsu_prop_fields as PF
+    import lsu_chain_check as CHAIN
 
     oracle = result.get("outcome") if isinstance(result, dict) else None
     # [LSU][R6-CAMPAIGN] truncation is decided up-front and surfaced in EVERY
@@ -1807,17 +1915,40 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
            "chain_valid": not evidence_truncated,
            # [R6-FIXD] binding 门禁结论：admitted/certified 只有**实际调用**
            # check_admission 后才为布尔；无激活/无流时保持 None（不适用）。
-           "admitted": None, "admission": None, "certified": None}
+           "admitted": None, "admission": None, "certified": None,
+           # [MDSPEC][R6-FIXTOOLS] runtime lookup-tier capability proof result
+           # + the loud tool-side block it produces (old binary / mismatch).
+           "lookup_tier_capability":
+               (result.get("lookup_tier_capability")
+                if isinstance(result, dict) else None),
+           "blocked": (bool(result.get("blocked"))
+                       if isinstance(result, dict) else False),
+           "blocked_reason": (result.get("blocked_reason", "")
+                              if isinstance(result, dict) else "")}
+    _blocked = bool(rep["blocked"])
     _loud = ("EVIDENCE TRUNCATED: %s | " % rep["truncation_reason"]
              if evidence_truncated else "")
+    if _blocked:
+        _loud = "BLOCKED (lookup-tier capability): %s | " % rep["blocked_reason"]
     evt = Path(outdir) / "prop_evt.txt.gz"
     if evt.exists():
-        events, truncated = PF.read_events(evt)
+        # [MDSPEC][R6-FIXTOOLS] read the stream ONCE, separating consumer_summary
+        # records (rule ⑥ 报告必须展示 emitted/suppressed/logical total/
+        # conservation；规则 ①③ summary 不进 events、不进 DAG).
+        events, truncated, _summaries, _summ_issues = PF.read_stream(evt)
+        _acct = CHAIN.consumer_summary_accounting(_summaries, _summ_issues)
+        rep["consumer_summary"] = _summaries
+        rep["consumer_summary_accounting"] = _acct
         # [R6-FIXD] 最终结论必须过 binding 门禁（此前从不调用）。
         _act = evidence_activated(events)
         rep["activate"] = "on" if _act else "off"
-        gate = admission_gate(runid, events, _act, oracle, exit_code)
+        gate = admission_gate(runid, events, _act, oracle, exit_code,
+                              summary_issues=_summ_issues,
+                              consumer_summary_accounting=_acct)
         rep["admission"] = gate
+        if _acct["conservation"] == "violation":
+            _loud = ("CONSUMER-SUMMARY VIOLATION: %s | "
+                     % "; ".join(_acct["issues"][:2])) + _loud
         if _act:
             if evidence_truncated:
                 # 截断流上不得认证（与 Lane B 的 containment 口径一致）
@@ -1827,6 +1958,11 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
                 rep["admission"] = gate
             rep["admitted"] = bool(gate["admitted"])
             rep["certified"] = bool(gate["admitted"])
+        if _blocked:
+            # [MDSPEC][R6-FIXTOOLS] a lookup-tier capability failure is a hard
+            # tool-side block: never certified, regardless of the chain verdict.
+            rep["admitted"] = False
+            rep["certified"] = False
         if rep["admitted"] is False:
             _v = "; ".join((gate.get("violations") or [])[:2]) or (gate.get("note") or "")
             _loud = "NOT ADMITTED: %s | " % _v + _loud
@@ -1845,10 +1981,14 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
                         "beyond": f["beyond"]})
         rep["summary"] = (_loud +
             "%s s%s oracle=%s exit=%s stream=%s truncated=%s events=%d "
-            "faults=%d terminal=%s provable_to=%s beyond=%s"
+            "faults=%d terminal=%s provable_to=%s beyond=%s | "
+            "consumer_summary: emitted=%d suppressed=%d logical_total=%d "
+            "conservation=%s"
             % (runid, seed, oracle, exit_code, True, truncated,
                len(events), len(verdict["faults"]), rep["terminal"],
-               rep["provable_to"], rep["beyond"]))
+               rep["provable_to"], rep["beyond"],
+               _acct["emitted_events"], _acct["suppressed_consumers"],
+               _acct["logical_total"], _acct["conservation"]))
     else:
         rep["summary"] = (_loud + "%s s%s oracle=%s exit=%s stream=absent "
                           "(no prop_evt.txt.gz — injector not wired or run "
@@ -2121,6 +2261,12 @@ def run_single_cell(cell, args, seed, outdir):
         cmd += flags
         cmd += [seed_flag, str(seed)]
         cmd += prop
+        # [MDSPEC][R6-FIXTOOLS] requested lookup tier (from the resolved flags):
+        # only F1-F6 lookup runs require the runtime capability marker.
+        _req_tier = None
+        if family == "armtlb" and "--tlb_lsu_tier" in flags:
+            _req_tier = flags[flags.index("--tlb_lsu_tier") + 1]
+        _cap_required = _req_tier in ARMTLB_LOOKUP_TIERED_TIERS
         # [MDSPEC][C1] FS timeout bookkeeping was the one path that could lose
         # evidence: the outer `timeout` must stay well ABOVE --fs-timeout so
         # the inner cap produces a real campaign-visible Timeout WITH its
@@ -2131,6 +2277,15 @@ def run_single_cell(cell, args, seed, outdir):
             cmd[i + 1] = "stuck_at_zero" if seed % 2 else "stuck_at_one"
         _r = run_gem5(cmd, args.fs_timeout, outdir / "run.out",
                       outdir / "run.err")
+        # [MDSPEC][R6-FIXTOOLS] runtime lookup-tier capability proof. An F1-F6
+        # lookup run is only trustworthy if the binary itself printed the
+        # CHAOS_LSU_TIER_CAP startup marker with effective == requested and the
+        # lookup tier enabled. Missing (old binary) / mismatched / disabled is
+        # refused LOUDLY below — never a silent F0-degenerate dataset under an
+        # F2/F6 label.
+        _cap = (lookup_tier_capability_gate(_req_tier, _r.get("stdout", ""))
+                if _cap_required else None)
+        _cap_block = bool(_cap and not _cap["ok"])
         if _r["timed_out"]:
             (outdir / "run.err").write_text(
                 "TIMEOUT signal=%d exit=%s (process group killed + reaped)"
@@ -2160,6 +2315,10 @@ def run_single_cell(cell, args, seed, outdir):
                    # auditable reap record: which signal killed it, its status
                    "timeout_signal": _r["signal"],
                    "timeout_exit_code": _r["exit_code"]}
+            _to["lookup_tier_capability"] = _cap
+            if _cap_block:
+                _to["blocked"] = True
+                _to["blocked_reason"] = _cap["reason"]
             _to["chain_report"] = write_chain_report(
                 outdir, runid, seed, _to, exit_code=None)
             return _to
@@ -2168,6 +2327,10 @@ def run_single_cell(cell, args, seed, outdir):
                   if family == "armtlb"
                   else classify_fsmc_run(outdir, _r["stdout"], exit_code))
         _fsres["timeout_seconds"] = args.fs_timeout   # effective budget, visible
+        _fsres["lookup_tier_capability"] = _cap
+        if _cap_block:
+            _fsres["blocked"] = True
+            _fsres["blocked_reason"] = _cap["reason"]
         _fsres["chain_report"] = write_chain_report(
             outdir, runid, seed, _fsres, exit_code=exit_code)
         return _fsres

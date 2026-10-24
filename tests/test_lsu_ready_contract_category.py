@@ -34,13 +34,15 @@ XLSX = ROOT / "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
 # READY 全部降为 BLOCKED/CHAIN-EVIDENCE-MISSING —— READY 不再仅凭 coverage
 # PASS 得出，须真链准入。原 84 阻塞行分类不变。
 # [MDSPEC][R6-FTIER] 追加具名类别 TIER-UNIMPL：armtlb lookup 路径无法表达
-# F1-F6（TLB::lookup 不 poll lsuTrigger），resolve_cell 现在响亮拒绝这些格；
-# 台账给它们自己的类别，UNRESOLVED 保持订正后的 4（不回流成"无法解释"）。
-# 随之 6 行（T01-F1/F2-W1、T02-F2-W1、T03-F5-W9、T10-F1/F2-W1 —— 非
-# TLB-AliasPerm 载体的 armtlb 行）从 CHAIN-EVIDENCE-MISSING 241 转出 → 235。
+# F1-F6（TLB::lookup 不 poll lsuTrigger），resolve_cell 响亮拒绝这些格。
+# [MDSPEC][R6-FIXTOOLS] 该 C++ 缺口已由 6ec7c5aa 补齐（lookupTierMounted /
+# lookupTierAllowsInjection），工具侧 F1-F6 现产出真实 `--tlb_lsu_tier`：原
+# 6 行（T01-F1/F2-W1、T02-F2-W1、T03-F5-W9、T10-F1/F2-W1）不再落 TIER-UNIMPL
+# （类别消失）而回到链门禁（无样本）——CHAIN-EVIDENCE-MISSING 235 → 241。
+# TIER-UNIMPL 现只在**未知**档位（F7/off）时出现，325 行内无此格。
 EXPECTED = {"RULING": 6, "FS-INFRA": 24, "MODE-UNIMPL": 3, "UNRESOLVED": 4,
-            "TIER-UNIMPL": 6, "FS-MULTICORE": 35, "LICENSE": 12,
-            "CHAIN-EVIDENCE-MISSING": 235}
+            "FS-MULTICORE": 35, "LICENSE": 12,
+            "CHAIN-EVIDENCE-MISSING": 241}
 
 
 def main():

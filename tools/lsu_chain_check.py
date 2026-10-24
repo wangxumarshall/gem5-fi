@@ -533,7 +533,52 @@ GATE_VIOLATIONS = (
     # one is a named hard-gate failure (never a silent pass, never a loosened
     # cross_request_edge rule).
     "invalid_lineage_bridge",
+    # [MDSPEC][R6-FIXTOOLS] a consumer_summary record that is malformed / has
+    # negative counts / does not conserve is a named hard-gate failure. A
+    # summary NEVER counts as L5/containment/terminal and never becomes a
+    # parent-ancestry node (it is not a PROP-EVT and carries no event_id); it
+    # only carries the aggregation accounting for repeated consumers.
+    "malformed_consumer_summary",
 )
+
+
+def consumer_summary_accounting(summaries, summary_issues=None):
+    """[MDSPEC][R6-FIXTOOLS] Aggregate the consumer_summary records of one run.
+
+    Returns {n_summaries, emitted_events, suppressed_consumers, logical_total,
+             distinct_dyn_seq, conservation, issues}. `conservation` is "ok"
+    only when every record validates AND the batch totals conserve
+    (suppressed + emitted == logical_total); otherwise "violation". An empty
+    summary list is the honest "no aggregation happened" case (conservation
+    "n/a", zeros) — never a silent pass of a bad record.
+    """
+    issues = list(summary_issues or [])
+    if not summaries:
+        return {"n_summaries": 0, "emitted_events": 0,
+                "suppressed_consumers": 0, "logical_total": 0,
+                "distinct_dyn_seq": None,
+                "conservation": "n/a" if not issues else "violation",
+                "issues": issues}
+    emitted = suppressed = total = 0
+    distinct = 0
+    for s in summaries:
+        try:
+            emitted += int(str(s.get("emitted_consumer_count", "0") or 0))
+            suppressed += int(str(s.get("suppressed_consumer_count", "0") or 0))
+            total += int(str(s.get("total_before", "0") or 0))
+            distinct += int(str(s.get("distinct_dyn_seq_count", "0") or 0))
+        except (TypeError, ValueError):
+            issues.append("consumer_summary_accounting: 非整数计数字段")
+    ok = (not issues) and (emitted + suppressed == total)
+    if emitted + suppressed != total:
+        issues.append("consumer_summary_accounting: 批次不守恒 "
+                      f"emitted({emitted})+suppressed({suppressed}) != "
+                      f"logical_total({total})")
+    return {"n_summaries": len(summaries), "emitted_events": emitted,
+            "suppressed_consumers": suppressed, "logical_total": total,
+            "distinct_dyn_seq": distinct,
+            "conservation": "ok" if ok else "violation", "issues": issues}
+
 
 # cache/memory kinds that must never stand in for the TLB family's L1 DTLB
 # lookup (table 9 T-series L1 is the post-injection lookup observation).
@@ -1044,6 +1089,17 @@ def check_admission(bundle):
         res["reasons"].append("activated=0：非 activated 样本，门禁不适用")
         return res
     viol = res["violations"]
+    # [MDSPEC][R6-FIXTOOLS] consumer_summary validation. A malformed /
+    # negative-count / non-conserving summary is a LOUD hard-gate failure and
+    # can never be masked by an otherwise-good chain (rule ④⑦). A WELL-FORMED
+    # summary contributes no violation, so a small un-aggregated stream and its
+    # aggregated counterpart admit identically (rule ⑤).
+    for msg in (bundle.get("summary_issues") or []):
+        viol.append(f"malformed_consumer_summary: {run_id} {msg}")
+    acct = bundle.get("consumer_summary_accounting")
+    if isinstance(acct, dict) and acct.get("conservation") == "violation":
+        for msg in (acct.get("issues") or ["计数不守恒"]):
+            viol.append(f"malformed_consumer_summary: {run_id} {msg}")
     u = _has_unknown(events)
     if u is not None:
         viol.append(f"unknown_in_activated_chain: {run_id} activated={act} 存在"
