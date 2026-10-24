@@ -1819,7 +1819,8 @@ def check_chain_fast(events, oracle_outcome=None):
 
 
 def admission_gate(runid, events, activated, oracle_outcome=None, exit_code=None,
-                   containment=None):
+                   containment=None, summary_issues=None,
+                   consumer_summary_accounting=None):
     """[LSU][MDSPEC][R6-FIXD] binding 硬门禁：调用**唯一**判定源
     `lsu_chain_check.check_admission`。
 
@@ -1852,7 +1853,11 @@ def admission_gate(runid, events, activated, oracle_outcome=None, exit_code=None
                     "note": "门禁输入构造失败——绝不默认通过"}
     bundle = {"run_id": str(runid), "activated": act, "events": list(events),
               "rc": (exit_code if exit_code is not None else 0),
-              "oracle_outcome": oracle_outcome, "containment": cont}
+              "oracle_outcome": oracle_outcome, "containment": cont,
+              # [MDSPEC][R6-FIXTOOLS] a malformed/non-conserving consumer_summary
+              # is a loud hard-gate failure; a well-formed one changes nothing.
+              "summary_issues": list(summary_issues or []),
+              "consumer_summary_accounting": consumer_summary_accounting}
     try:
         # 与 check_chain_fast 同一 O(n) 路径替换：check_admission 内部会再跑
         # 一次 check_chain，超大流上若不替换会卡死整个 cell（L30 同源缺陷）。
@@ -1891,6 +1896,7 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
     Returns the report dict (also written to <outdir>/chain_report.json).
     """
     import lsu_prop_fields as PF
+    import lsu_chain_check as CHAIN
 
     oracle = result.get("outcome") if isinstance(result, dict) else None
     # [LSU][R6-CAMPAIGN] truncation is decided up-front and surfaced in EVERY
@@ -1926,12 +1932,23 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
         _loud = "BLOCKED (lookup-tier capability): %s | " % rep["blocked_reason"]
     evt = Path(outdir) / "prop_evt.txt.gz"
     if evt.exists():
-        events, truncated = PF.read_events(evt)
+        # [MDSPEC][R6-FIXTOOLS] read the stream ONCE, separating consumer_summary
+        # records (rule ⑥ 报告必须展示 emitted/suppressed/logical total/
+        # conservation；规则 ①③ summary 不进 events、不进 DAG).
+        events, truncated, _summaries, _summ_issues = PF.read_stream(evt)
+        _acct = CHAIN.consumer_summary_accounting(_summaries, _summ_issues)
+        rep["consumer_summary"] = _summaries
+        rep["consumer_summary_accounting"] = _acct
         # [R6-FIXD] 最终结论必须过 binding 门禁（此前从不调用）。
         _act = evidence_activated(events)
         rep["activate"] = "on" if _act else "off"
-        gate = admission_gate(runid, events, _act, oracle, exit_code)
+        gate = admission_gate(runid, events, _act, oracle, exit_code,
+                              summary_issues=_summ_issues,
+                              consumer_summary_accounting=_acct)
         rep["admission"] = gate
+        if _acct["conservation"] == "violation":
+            _loud = ("CONSUMER-SUMMARY VIOLATION: %s | "
+                     % "; ".join(_acct["issues"][:2])) + _loud
         if _act:
             if evidence_truncated:
                 # 截断流上不得认证（与 Lane B 的 containment 口径一致）
@@ -1964,10 +1981,14 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
                         "beyond": f["beyond"]})
         rep["summary"] = (_loud +
             "%s s%s oracle=%s exit=%s stream=%s truncated=%s events=%d "
-            "faults=%d terminal=%s provable_to=%s beyond=%s"
+            "faults=%d terminal=%s provable_to=%s beyond=%s | "
+            "consumer_summary: emitted=%d suppressed=%d logical_total=%d "
+            "conservation=%s"
             % (runid, seed, oracle, exit_code, True, truncated,
                len(events), len(verdict["faults"]), rep["terminal"],
-               rep["provable_to"], rep["beyond"]))
+               rep["provable_to"], rep["beyond"],
+               _acct["emitted_events"], _acct["suppressed_consumers"],
+               _acct["logical_total"], _acct["conservation"]))
     else:
         rep["summary"] = (_loud + "%s s%s oracle=%s exit=%s stream=absent "
                           "(no prop_evt.txt.gz — injector not wired or run "

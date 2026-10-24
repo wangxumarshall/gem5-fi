@@ -359,6 +359,183 @@ def evidence_status_of(evt):
     return evt.get("evidence_status") or "observed"
 
 
+# ============================================================ consumer_summary
+# [MDSPEC][R6-FIXTOOLS] T04 `consumer_summary` 记录契约。
+#
+# 口径（用户裁决 2026-10-24）：**语义状态变化完整保留，重复 consumer 有账聚合；
+# 禁止简单截断**。一个故障链可能把同一污染值喂给极大量 consumer（同一
+# dyn_inst_seq 反复命中，或同一状态的重复消费）。逐个写出会淹没流且无信息增量，
+# 于是发射端把**重复** consumer 聚合进一条 summary —— 但**语义状态变化**（新的
+# 污染源 / 新的 dyn_seq / 新的 outcome）仍逐条保留为 PROP-EVT。summary 只聚合
+# **重复**，绝不丢弃不同语义状态。
+#
+# 关键约束（8 条规则，tests/test_lsu_r6_consumer_summary.py 钉死）：
+#   ① summary **不映射** L0–L5 任何一层（它不是 PROP-EVT、无 kind、不进 chain）；
+#   ② summary **不得**充当 L5 / containment / terminal；
+#   ③ summary **不得**成为伪造的 parent ancestry 节点（无 event_id、不进 DAG）；
+#   ④ malformed / 负计数 / 计数不守恒 ⇒ **响亮拒绝**（validate_consumer_summary）；
+#   ⑤ checker 选出的 path_event_ids/terminal/admitted/violations 在**小型未聚合
+#      对照流**与**聚合流**上必须一致（summary 只替换重复项，不动链）；
+#   ⑥ campaign 报告同时展示 emitted events / suppressed consumers / logical total
+#      / conservation 状态；
+#   ⑦ truncated / resource_abort 仍必须 admitted=False，**不得靠 summary 掩盖**；
+#   ⑧ 原有无 summary 流必须保持兼容（read_events 行为不变）。
+#
+# 行格式（发射端 CHAOSPropagation 退出回调；解析端容错）：
+#   CONSUMER-SUMMARY: schema=1 version=1 run_id=… sample_run_id=… fault_id=…
+#     source_id=… suppressed_consumer_count=… distinct_dyn_seq_count=…
+#     emitted_consumer_count=… first_tick=… last_tick=… min_dyn_seq=…
+#     max_dyn_seq=… by_kind=consumer:12,errant_commit:1
+#     by_outcome=sd_observed:12,errant:1 total_before=… total_after=…
+# 守恒：total_before == total_after == emitted_consumer_count +
+#       suppressed_consumer_count；sum(by_kind) == sum(by_outcome) == total_before。
+SUMMARY_PREFIX = "CONSUMER-SUMMARY:"
+# 字符串身份字段（须非空）。
+SUMMARY_STR_FIELDS = ("schema", "version", "run_id", "sample_run_id",
+                      "fault_id", "source_id")
+# 整数字段（须可解析、非负）。
+SUMMARY_INT_FIELDS = ("schema", "version", "suppressed_consumer_count",
+                      "distinct_dyn_seq_count", "emitted_consumer_count",
+                      "first_tick", "last_tick", "min_dyn_seq", "max_dyn_seq",
+                      "total_before", "total_after")
+# 逐类精确计数映射字段（`<key>:<n>,<key>:<n>`）。
+SUMMARY_MAP_FIELDS = ("by_kind", "by_outcome")
+
+
+def parse_consumer_summary(line):
+    """解析一行 CONSUMER-SUMMARY；非 summary 行返回 None（PROP-EVT 走 parse_line）。
+
+    返回 {字段: 原始字符串}；缺失字段填空串（键不省略），`raw` 存原行。
+    本函数**不做**语义校验——malformed/负计数/不守恒由 validate_consumer_summary
+    判定并由调用方**响亮**处理。
+    """
+    if not line:
+        return None
+    s = line.strip()
+    i = s.find(SUMMARY_PREFIX)
+    if i < 0:
+        return None
+    rec = {f: "" for f in set(SUMMARY_STR_FIELDS) | set(SUMMARY_INT_FIELDS)
+           | set(SUMMARY_MAP_FIELDS)}
+    rec["raw"] = s
+    body = s[i + len(SUMMARY_PREFIX):].strip()
+    for tok in body.split():
+        k, sep, v = tok.partition("=")
+        if sep:
+            rec[k] = v
+    return rec
+
+
+def _parse_count_map(raw):
+    """`k:n,k:n` → {k:int}；格式非法返回 None。空串 → {}。"""
+    out = {}
+    if raw is None or str(raw).strip() == "":
+        return out
+    for part in str(raw).split(","):
+        k, sep, v = part.partition(":")
+        if not sep or not k.strip():
+            return None
+        try:
+            n = int(v)
+        except ValueError:
+            return None
+        out[k.strip()] = n
+    return out
+
+
+def validate_consumer_summary(rec):
+    """校验一条 summary 记录；返回错误串列表（空 = 合法且守恒）。
+
+    规则 ④：malformed（缺必录/非整数）/ 负计数 / 计数不守恒一律给出**响亮**
+    错误。任一基础字段非法即提前返回（守恒断言依赖它们，不做级联误判）。
+    """
+    if not isinstance(rec, dict):
+        return ["consumer_summary 非法（非记录对象）"]
+    errs = []
+    for f in SUMMARY_STR_FIELDS:
+        if not str(rec.get(f, "")).strip():
+            errs.append(f"consumer_summary: 缺必录字段 '{f}'")
+    for f in SUMMARY_MAP_FIELDS:
+        if not str(rec.get(f, "")).strip():
+            errs.append(f"consumer_summary: 缺必录字段 '{f}'")
+    ints = {}
+    for f in SUMMARY_INT_FIELDS:
+        raw = str(rec.get(f, "")).strip()
+        try:
+            n = int(raw)
+        except (TypeError, ValueError):
+            errs.append(f"consumer_summary: 字段 '{f}' 非整数（{raw!r}）")
+            continue
+        ints[f] = n
+        if n < 0:
+            errs.append(f"consumer_summary: 字段 '{f}' 为负（{n}）——拒绝")
+    if errs:
+        return errs
+    bk = _parse_count_map(rec.get("by_kind"))
+    bo = _parse_count_map(rec.get("by_outcome"))
+    if bk is None:
+        errs.append("consumer_summary: by_kind 格式非法（应为 k:n,k:n）")
+    if bo is None:
+        errs.append("consumer_summary: by_outcome 格式非法（应为 k:n,k:n）")
+    if errs:
+        return errs
+    # 守恒断言
+    if ints["total_before"] != ints["total_after"]:
+        errs.append("consumer_summary: 计数不守恒 total_before=%d != "
+                    "total_after=%d" % (ints["total_before"],
+                                        ints["total_after"]))
+    if ints["total_after"] != (ints["emitted_consumer_count"]
+                               + ints["suppressed_consumer_count"]):
+        errs.append("consumer_summary: 计数不守恒 total_after=%d != emitted=%d "
+                    "+ suppressed=%d" % (ints["total_after"],
+                                         ints["emitted_consumer_count"],
+                                         ints["suppressed_consumer_count"]))
+    if sum(bk.values()) != ints["total_before"]:
+        errs.append("consumer_summary: by_kind 合计=%d != total_before=%d"
+                    % (sum(bk.values()), ints["total_before"]))
+    if sum(bo.values()) != ints["total_before"]:
+        errs.append("consumer_summary: by_outcome 合计=%d != total_before=%d"
+                    % (sum(bo.values()), ints["total_before"]))
+    if ints["distinct_dyn_seq_count"] > ints["total_before"]:
+        errs.append("consumer_summary: distinct_dyn_seq_count=%d > "
+                    "total_before=%d（不可能）"
+                    % (ints["distinct_dyn_seq_count"], ints["total_before"]))
+    if ints["total_before"] > 0 and ints["emitted_consumer_count"] == 0:
+        errs.append("consumer_summary: total_before=%d 但 emitted=0 —— 简单截断"
+                    "（语义状态变化必须完整保留，禁止全抑无出）"
+                    % ints["total_before"])
+    return errs
+
+
+def read_stream(path):
+    """读整条流：PROP-EVT 事件 + consumer_summary 记录分离。
+
+    返回 (events, truncated, summaries, summary_issues)。summary 行**不**进入
+    events（规则 ①③：不占层、不进 DAG）；其校验问题单独返回供调用方关闭准入。
+    read_events 保持原签名/行为（规则 ⑧ 兼容无 summary 流）。
+    """
+    path = Path(path)
+    truncated = False
+    events = []
+    summaries = []
+    issues = []
+    opener = gzip.open if path.suffix == ".gz" else open
+    try:
+        with opener(path, "rt", errors="replace") as f:
+            for line in f:
+                summ = parse_consumer_summary(line)
+                if summ is not None:
+                    summaries.append(summ)
+                    issues.extend(validate_consumer_summary(summ))
+                    continue
+                evt = parse_line(line)
+                if evt is not None:
+                    events.append(evt)
+    except (EOFError, gzip.BadGzipFile, OSError):
+        truncated = True
+    return events, truncated, summaries, issues
+
+
 def provable_to(events):
     """按在场事件判定最大可证层级。
 
@@ -377,18 +554,11 @@ def provable_to(events):
 
 
 def read_events(path):
-    """读 PROP-EVT 流（.gz 或普通文件）。返回 (events, truncated)。"""
-    path = Path(path)
-    truncated = False
-    events = []
-    opener = gzip.open if path.suffix == ".gz" else open
-    try:
-        with opener(path, "rt", errors="replace") as f:
-            for line in f:
-                evt = parse_line(line)
-                if evt is not None:
-                    events.append(evt)
-    except (EOFError, gzip.BadGzipFile, OSError):
-        # Z_SYNC_FLUSH 前缀可救；截断标记（abort 样本契约）
-        truncated = True
+    """读 PROP-EVT 流（.gz 或普通文件）。返回 (events, truncated)。
+
+    规则 ⑧：原签名/行为不变——CONSUMER-SUMMARY 行与 PROP-EVT 一样被 parse_line
+    忽略（它不是 PROP-EVT），故无 summary 的旧流逐位兼容；需要 summary 的调用方
+    用 read_stream（额外返回 summaries + issues）。
+    """
+    events, truncated, _summaries, _issues = read_stream(path)
     return events, truncated
