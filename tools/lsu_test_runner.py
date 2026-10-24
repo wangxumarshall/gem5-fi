@@ -20,8 +20,16 @@ exit 0"的套件上静默放行。反之，**输出不可识别时按 FAIL 处�
          资产）——必须披露，绝不并入 PASS
   FAIL   `FAILURES: [...]` 非空，或 rc!=0，或出现 Traceback
 
+追踪（[LSU][MDSPEC][R6-DIAGRUNNER] 2026-10-24，**仅诊断用，绝不改判定**）：
+默认只把每个套件的末 3 行摘要打到 stdout，**完整** stdout/stderr/traceback 被丢弃，
+导致一条被截断的 traceback（`File ".../tools/lsu_o…`）无法归因。`--log-dir DIR`
+为每个套件落盘完整证据（stdout/stderr/meta.json：rc、signal、timeout、起止时间、
+耗时），判定逻辑与本文件 `classify()` 完全一致（逐字节未动）。`--only SPEC` 只跑
+指定套件（按相对路径/文件名匹配；不含 pytest 收集阶段），供逐套件复现用。
+
 用法：
   python3 tools/lsu_test_runner.py [--json OUT] [--timeout SEC] [--quiet]
+                                   [--log-dir DIR] [--only SPEC ...]
 退出码：0 当且仅当无 FAIL；ENV 存在时打印醒目披露但不单独判负（由调用方决定）。
 """
 import argparse
@@ -29,6 +37,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -81,10 +90,72 @@ def classify(rc, out):
     return "FAIL", "rc=0 但输出无可识别的判定标记（未见 ALL PASS / FAILURES）"
 
 
-def run_one(path, timeout):
-    r = subprocess.run([sys.executable, str(path)], capture_output=True,
-                       text=True, cwd=str(REPO), timeout=timeout)
-    return classify(r.returncode, (r.stdout or "") + (r.stderr or ""))
+def _run_and_capture(argv, cwd, timeout, env=None):
+    """真实子进程执行并**完整**保留 stdout/stderr/rc/signal/timeout/时序。
+
+    signal 约定：subprocess 返回值 rc<0 表示被信号 -rc 终止（POSIX）。
+    绝不吞异常：TimeoutExpired 如实记录为 timeout=True 并保留已捕获输出。
+    """
+    t0 = time.time()
+    t0_iso = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t0))
+    timed_out = False
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, cwd=cwd,
+                           timeout=timeout, env=env)
+        rc, so, se = r.returncode, r.stdout, r.stderr
+    except subprocess.TimeoutExpired as e:
+        timed_out = True
+        rc = None
+
+        def _txt(x):
+            if x is None:
+                return ""
+            return x.decode(errors="replace") if isinstance(x, bytes) else x
+        so, se = _txt(e.stdout), _txt(e.stderr)
+    t1 = time.time()
+    meta = {
+        "argv": [str(x) for x in argv], "cwd": str(cwd),
+        "start": t0_iso, "end": time.strftime("%Y-%m-%d %H:%M:%S",
+                                             time.localtime(t1)),
+        "seconds": round(t1 - t0, 3), "rc": rc,
+        "signal": (-rc if (rc is not None and rc < 0) else None),
+        "timeout": timed_out, "timeout_budget_s": timeout,
+    }
+    return so, se, rc, meta
+
+
+def run_one(path, timeout, log_dir=None):
+    """执行单个套件；判定口径与本文件 classify() 一致（未改）。
+
+    log_dir 给定时额外落盘 <suite>.stdout / <suite>.stderr / <suite>.meta.json
+    （完整证据，含非零 rc / 信号终止 / timeout 标记），**不改变** PASS/FAIL 判定。
+    """
+    so, se, rc, meta = _run_and_capture([sys.executable, str(path)],
+                                        str(REPO), timeout)
+    combined = (so or "") + (se or "")
+    status, detail = classify(rc if rc is not None else 1, combined)
+    meta["suite"] = f"tests/{Path(path).name}"
+    meta["runner_status"] = status
+    meta["runner_detail"] = detail
+    if log_dir is not None:
+        stem = Path(path).name
+        d = Path(log_dir)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{stem}.stdout").write_text(so or "")
+        (d / f"{stem}.stderr").write_text(se or "")
+        (d / f"{stem}.meta.json").write_text(
+            json.dumps(meta, ensure_ascii=False, indent=1))
+    return status, detail
+
+
+def _select_only(specs):
+    """--only：按相对路径 / 文件名匹配 tests/ 下的套件（不改判定，仅选择范围）。"""
+    chosen = []
+    for f in sorted(TESTS.glob("test_*.py")):
+        rel = f"tests/{f.name}"
+        if any(sp in (rel, f.name) for sp in specs):
+            chosen.append(f)
+    return chosen
 
 
 def main():
@@ -92,26 +163,46 @@ def main():
     ap.add_argument("--json", default=None, help="结果 JSON 输出路径")
     ap.add_argument("--timeout", type=int, default=900)
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--log-dir", default=None,
+                    help="逐套件完整证据落盘目录（stdout/stderr/meta.json）；"
+                         "仅诊断，不改判定")
+    ap.add_argument("--only", nargs="+", default=None,
+                    help="只跑指定套件（相对路径或文件名；跳过 pytest 收集），"
+                         "供逐套件复现")
     a = ap.parse_args()
 
-    owned = pytest_owned()
     results = []
 
-    # 1) pytest 自身（覆盖其收集到的套件）
-    r = subprocess.run([sys.executable, "-m", "pytest", "tests/", "-q"],
-                       capture_output=True, text=True, cwd=str(REPO))
-    pt = (r.stdout or "").strip().splitlines()[-1:] or [""]
-    results.append({"suite": "pytest::collect", "status":
-                    "PASS" if r.returncode == 0 else "FAIL",
-                    "detail": pt[0][:160], "collects": len(owned)})
+    if a.only:
+        owned = set()
+        targets = _select_only(a.only)
+    else:
+        owned = pytest_owned()
+        targets = None
 
-    # 2) 全部独立脚本（pytest 未收集者）
-    for f in sorted(TESTS.glob("test_*.py")):
+        # 1) pytest 自身（覆盖其收集到的套件）
+        so, se, rc, meta = _run_and_capture(
+            [sys.executable, "-m", "pytest", "tests/", "-q"], str(REPO), None)
+        pt = ((so or "") + (se or "")).strip().splitlines()[-1:] or [""]
+        if a.log_dir:
+            d = Path(a.log_dir)
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "pytest_collect.stdout").write_text(so or "")
+            (d / "pytest_collect.stderr").write_text(se or "")
+            (d / "pytest_collect.meta.json").write_text(
+                json.dumps(meta, ensure_ascii=False, indent=1))
+        results.append({"suite": "pytest::collect", "status":
+                        "PASS" if rc == 0 else "FAIL",
+                        "detail": pt[0][:160], "collects": len(owned)})
+
+    # 2) 全部独立脚本（pytest 未收集者）；--only 时只跑选定套件
+    files = targets if targets is not None else sorted(TESTS.glob("test_*.py"))
+    for f in files:
         rel = f"tests/{f.name}"
-        if rel in owned:
+        if not a.only and rel in owned:
             continue
         try:
-            st, detail = run_one(f, a.timeout)
+            st, detail = run_one(f, a.timeout, log_dir=a.log_dir)
         except subprocess.TimeoutExpired:
             st, detail = "FAIL", f"timeout >{a.timeout}s"
         results.append({"suite": rel, "status": st, "detail": detail})
@@ -127,6 +218,9 @@ def main():
         if counts.get("ENV"):
             print(f"[lsu_test_runner] DISCLOSURE: {counts['ENV']} 个套件因环境"
                   f"（缺二进制/资产）无法判定 —— 不计入 PASS。")
+        if a.log_dir:
+            print(f"[lsu_test_runner] 逐套件完整证据（stdout/stderr/meta.json）→ "
+                  f"{a.log_dir}（仅诊断，判定口径未改）")
 
     if a.json:
         Path(a.json).write_text(json.dumps(
