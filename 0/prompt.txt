@@ -1573,3 +1573,50 @@ T04-F6-W4
 才补齐每格3个seed。正式实验仍不启动。
 
 任何新FAIL、tier身份不一致、summary计数不守恒、T04再次无界增长，立即停止汇报。
+
+---
+
+<task-notification>
+<task-id>a795f5e1a031a9fff</task-id>
+<tool-use-id>call_00_m6v32szeurcv6molb1fyojpt</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a795f5e1a031a9fff.output</output-file>
+<status>completed</status>
+<summary>Agent "Diagnose runner failure of obs_driver_workers" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>24/24 burst runs PASS (d-real ran every time), zero residue. Work complete.
+
+## DIAG-RUNNER 结论
+
+**① 完整失败信息（截断为假象，真实 traceback 已复现）**
+merged3.log:74 的 80 字符截断 `File ".../lsu-mdspec-20261019/tools/lsu_o` **逐字节等于**我用真实调用复现出的 traceback 的 `detail[:80]`（脚本化比对 `MATCH: True`）。复现出的真实 traceback 尾 3 行：
+`  File "…/tools/lsu_obs_driver.py", line 187, in _guard_run` / `    raise UP.GuardFailure(` / `lsu_unit_pilot.GuardFailure: guard 周期未完成（F-023 同款）；guard_out=…`
+（证据：`/tmp/diagrunner_1792820249/mech/out.txt`）
+
+**② 复现矩阵**（全部落盘于 `/tmp/diagrunner_1792820249/`）
+
+| # | 条件 | 结果 |
+|---|---|---|
+| ① | standalone（gate 阻断） | rc=0，30.8s，SKIP（1 项诚实 ENV） |
+| ①b | standalone × 24，gate 开 | **24/24 rc=0 PASS**（52–53s；d-real wall=27.5s gates=4 finishes=2） |
+| ② | runner 单套件 `--only` | gate 阻→SKIP；gate 开→**PASS 52.8s**（meta rc=0 signal=null timeout=false） |
+| ③ | runner 完整顺序（集成 WT） | 该套件 SKIP；FAIL=13（12 项既有 hook/campaign 基线 + pytest::collect flake） |
+| ④⑤ | 唯一/共享 GUARD_DIR | 套件硬隔离（R6-MERGEFIX）；主树 `guard/claims` 前后 = 0 |
+| ⑥ | cwd/env 对齐 | 判定一致（SKIP↔SKIP、PASS↔PASS） |
+| ⑦ | g3/预算/signal | 30.8s / 52.8s vs 预算 900s；timeout=false signal=null ⇒ **timeout 无关**（17–29× 余量） |
+| ⑧ | 残留 | 无 temp 目录/claim/孤儿 guard 进程 |
+
+**③ 根因判定 + 证明 —— 归入「runner 资源中断」，非三支回归**
+- **非回归**：`git diff 184c1a92..848d803a` 对本套件运行期导入链（lsu_obs_driver→lsu_runner/obs_core/l3_propagation/unit_pilot/guard）改动 = ∅；测试文件字节相同；40+ 次执行（三种宿主状态）从未复现 FAIL。
+- **触发点唯一**：套件唯一宿主耦合段 `(d-real)` 真槽探针在 **ThreadPoolExecutor 之外的 try/except 之外**调 `_guard_run`，`fa.result()` 重抛；其门禁只在段首**一次性**检查（gate 阻断时才诚实跳过）。gate 检查通过后资源态变化（MemAvailable 跌破 10 GiB 的 STOP_DISPATCH / 陈旧槽）→ 未捕获 `GuardFailure` → 崩溃。
+- **旁证**：13:04（merged3 时刻）lane `r6-fixcpp` 正在跑 gem5（`runs/` 12:58–13:12）与 scons 构建；同类宿主敏感的可复现例子：`pytest::collect` 在 scons 链接负载下 `test_claim_concurrency.py::{test_d_run_concurrency_cap,test_e_heartbeat}` 2 failed，单独跑 2/2 通过。
+- **诚实边界**：merged3 那次事件本身今日未复现（需 13:04 那段的宿主资源窗口）；`lsu_o` 前缀无法用字节区分 driver/core，core 的 raise 只有 finalize RuntimeError（确定性，40+ 次全绿已排除）与 file_lock 7200s（&gt;900s 预算，无法以 traceback 形式出现）。
+
+**④ 修复**：`tools/lsu_test_runner.py`（提交 `1d12af12`，已 push `r6-diagrunner`）——通用日志增强 `--log-dir`（逐套件 stdout/stderr/meta.json：rc/signal/timeout/起止/耗时）+ `--only` 诊断过滤；**`classify()` 逐字节未改**（机械核验 `identical: True`），print/退出码不变。计划：`docs/superpowers/plans/2026-10-24-lsu-r6-diagrunner-runner-log-capture.md`。**未改测试语义、未改 timeout**（实测 52.8s vs 900s 预算，无据可改）。
+
+**⑤ 四项验收（真实输出）**：① standalone `rc=0` / gate 开 24/24 `FAILURES: 无`；② runner 单套件 `[PASS] … FAILURES: 无` `runner_status=PASS seconds=52.82`；③ 完整回归中该套件 `SKIP`（gate 阻断期）；④ **NEW FAIL = 0**——原 runner vs 增强 runner 同环境各跑一次完整回归，FAIL 集合仅差 `pytest::collect`（外部 churn、与本改动无关，本改动不触碰 pytest 执行）。
+
+**⑥ 是否指向三支回归：否。** 无需停止 C++ 后续集成。
+
+残留限制：`/tmp/merged3.log` 等既有证据未改动；输出全部落独立临时目录 `/tmp/diagrunner_1792820249/`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>67</tool_uses><duration_ms>3539073</duration_ms></usage>
+</task-notification>
