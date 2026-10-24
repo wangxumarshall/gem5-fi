@@ -480,3 +480,36 @@ golden 修复不进 checksum 通道（FNV 只哈希 hw 输出）的代码分析�
 运行命令形态：gem5.opt -d <outdir> configs/se/arm_chaos.py --cpu O3
 --cmd workloads/sdcshield/<kernel> --sve_vl <T> --workload_args "<mode> <seed>"
 日志：/tmp/final_sve512_chain_dual_sve*_*.log、/tmp/final_sleef_vla_dual_sve*_*.log
+
+## 2026-10-25 终审修复轮：sleef kernel 真函数集 + 输入域修正 + rot 补证（48-run）
+
+### 对抗性终审 Minor-4 修复：sleef kernel 换测试真函数集（12 个）
+
+原 kernel 跑 6 函数（含测试不调用的 exp2dx_u10，缺 f32 全组与
+cosdx_u35/logdx_u35/exp2dx_u35）。终版：f64 u10 sin/cos/exp/log +
+f64 u35 sin/cos/exp2/log + f32 u10 sin/cos/exp/log（grep 测试源码
+提取的真实调用集），f32 输入域同步修为测试真实域（trig [-pi,pi]/
+exp [-20,20)/log 正数）。
+
+### 判据抓到 kernel 两处自身缺陷（跨档 oracle 的价值实录）
+
+1. **f32 写指针类型错**（`double *out32` 形参收 `float[]` 实参——8 字节
+   步距散布越界踩缓冲）：四档 checksum 全发散报警 → 分组诊断（f64u10/
+   f64u35/f32u10 三组 FNV）→ f64 两组一致、f32 组发散 → 逐函数二分 →
+   修复后 f64 恢复一致而 f32 仍 T=1 单档发散 → 输入域定位。
+2. **f32 输入域错**（double 位型重解释 = 域外垃圾）：修为测试域后
+   **全部 12 函数四档 checksum 逐位一致**（8475eeba2772b999 ×4）。
+   **诚实边界记录**：Sleef_cosfx_u10sve 在 gem5 的 128-bit 档对域外
+   极端输入表现出档位相关行为（gem5 建模或 SLEEF 本身，本机不可
+   定论）——测试域内无此现象，不构成迁移障碍。
+
+### 终审 Important-2 修复：sve_rot_dual kernel（rot 家族 VLA 迁移补证）
+
+同源镜像 rot 家族 kernel 形态：全向量 inline-asm ldr/str（"ldr at
+top" 位置）+ 旋转 ALU（svadd/sveor/svand/svorr per slot%4）+ 同
+intrinsic golden 逐槽字节比对 + FNV。**48-run（四档 × {fixed,random}
+× seed1-3）全绿**：lanes 2/4/8/16、slots=256、FAILS=0。
+
+### 终版矩阵：两 kernel × 4 档 × 6 模式 = 48/48 全绿
+
+日志：/tmp/f2_sleef_vla_dual_sve*_*.log、/tmp/f2_sve_rot_dual_sve*_*.log

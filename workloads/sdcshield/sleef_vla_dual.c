@@ -60,22 +60,41 @@ static void fnv_bits(const void *p, size_t n)
 }
 
 /* One pass over the input through the six SLEEF VLA function groups,
-   mirroring the test's loop shape (svcnt stepping + whilelt tail). */
-static void compute_all(const double *x, double *out, size_t n)
+   mirroring the test's loop shape (svcnt stepping + whilelt tail).
+   The function set is the test's REAL call set (12 functions: f64 u10
+   sin/cos/exp/log, f64 u35 sin/cos/exp2/log, f32 u10 sin/cos/exp/log —
+   adversarial-review Minor-4: the first matrix ran a mismatched set
+   incl. an exp2dx_u10 the test never calls). */
+static void compute_all(const double *x, double *out, float *out32,
+                         const float *xf_trig, const float *xf_exp,
+                         const float *xf_log, size_t n)
 {
-    const svbool_t pg64 = svptrue_b64();
     for (size_t i = 0; i < n; i += (size_t)svcntd()) {
         const svbool_t pg = svwhilelt_b64((uint64_t)i, (uint64_t)n);
         const svfloat64_t v = svld1_f64(pg, x + i);
-        /* out layout: [function][element] — six function slots */
+        /* out layout: [function][element] — eight f64 slots */
         svst1_f64(pg, out + 0 * n + i, Sleef_sindx_u10sve(v));
         svst1_f64(pg, out + 1 * n + i, Sleef_cosdx_u10sve(v));
         svst1_f64(pg, out + 2 * n + i, Sleef_expdx_u10sve(v));
         svst1_f64(pg, out + 3 * n + i, Sleef_logdx_u10sve(v));
-        svst1_f64(pg, out + 4 * n + i, Sleef_exp2dx_u10sve(v));
-        svst1_f64(pg, out + 5 * n + i, Sleef_sindx_u35sve(v));
+        svst1_f64(pg, out + 4 * n + i, Sleef_sindx_u35sve(v));
+        svst1_f64(pg, out + 5 * n + i, Sleef_cosdx_u35sve(v));
+        svst1_f64(pg, out + 6 * n + i, Sleef_exp2dx_u35sve(v));
+        svst1_f64(pg, out + 7 * n + i, Sleef_logdx_u35sve(v));
     }
-    (void)pg64;
+    for (size_t i = 0; i < n; i += (size_t)svcntw()) {
+        const svbool_t pg = svwhilelt_b32((uint64_t)i, (uint64_t)n);
+        /* out32 layout: [function][element] — four f32 slots, each fed
+           from the test's own domain-specific input array */
+        svst1_f32(pg, out32 + 0 * n + i,
+                  Sleef_sinfx_u10sve(svld1_f32(pg, xf_trig + i)));
+        svst1_f32(pg, out32 + 1 * n + i,
+                  Sleef_cosfx_u10sve(svld1_f32(pg, xf_trig + i)));
+        svst1_f32(pg, out32 + 2 * n + i,
+                  Sleef_expfx_u10sve(svld1_f32(pg, xf_exp + i)));
+        svst1_f32(pg, out32 + 3 * n + i,
+                  Sleef_logfx_u10sve(svld1_f32(pg, xf_log + i)));
+    }
 }
 
 int main(int argc, char **argv)
@@ -91,25 +110,37 @@ int main(int argc, char **argv)
         return 3;
     }
 
-    /* Input domain: the test's band (|x| <= 2 for sin/cos; positive
-       (0.5, 2) for exp/log/exp2 to stay well-conditioned). */
+    /* Input domains mirror the TEST's real domains (sleef_sve.cpp):
+       f64 band (0.5, 2); f32 trig [-pi, pi] / exp [-20, 20) / log
+       positive — the first matrix fed the f32 set with reinterpreted
+       double bits (out-of-domain garbage); cosfx then diverged at the
+       128-bit tier, which the oracle flagged. */
     static double x[NELEMS];
+    static float xf_trig[NELEMS], xf_exp[NELEMS], xf_log[NELEMS];
     for (int i = 0; i < NELEMS; ++i) {
+        double f01, u;
         if (randomize) {
-            double f = (double)(xs32() >> 8) / (double)(1u << 24);
-            x[i] = 0.5 + 1.5 * f;
+            f01 = (double)(xs32() >> 8) / (double)(1u << 24);
+            u = (float)(xs32() >> 8) / (float)(1u << 24);
         } else {
-            x[i] = 0.5 + 1.5 * ((i % 199) / 199.0);
+            f01 = ((i % 199) / 199.0);
+            u = (float)((i % 173) / 173.0);
         }
+        x[i] = 0.5 + 1.5 * f01;
+        xf_trig[i] = (u * 2.0f - 1.0f) * 3.14159265f;
+        xf_exp[i] = (u * 2.0f - 1.0f) * 20.0f;
+        xf_log[i] = (u + 1.0e-30f) * 1.0e10f;
     }
 
-    static double out_a[6 * NELEMS], out_b[6 * NELEMS];
-    compute_all(x, out_a, NELEMS);
-    compute_all(x, out_b, NELEMS);
+    static double out_a[8 * NELEMS], out_b[8 * NELEMS];
+    static float out32_a[4 * NELEMS], out32_b[4 * NELEMS];
+    compute_all(x, out_a, out32_a, xf_trig, xf_exp, xf_log, NELEMS);
+    compute_all(x, out_b, out32_b, xf_trig, xf_exp, xf_log, NELEMS);
 
-    /* Channel A: two-pass determinism, byte-exact. */
-    if (memcmp(out_a, out_b, sizeof(out_a)) != 0) {
-        for (int i = 0; i < 6 * NELEMS; ++i)
+    /* Channel A: two-pass determinism, byte-exact (f64 + f32 sets). */
+    if (memcmp(out_a, out_b, sizeof(out_a)) != 0 ||
+        memcmp(out32_a, out32_b, sizeof(out32_a)) != 0) {
+        for (int i = 0; i < 8 * NELEMS; ++i)
             if (out_a[i] != out_b[i]) {
                 fprintf(stderr, "nondeterministic @%d %.17g vs %.17g\n",
                         i, out_a[i], out_b[i]);
@@ -121,6 +152,7 @@ int main(int argc, char **argv)
     /* Channel B: FNV over the first-pass outputs — the cross-tier
        oracle (fixed mode MUST give the same checksum at every tier). */
     fnv_bits(out_a, sizeof(out_a));
+    fnv_bits(out32_a, sizeof(out32_a));
 
     printf("mode=sleef_vla lanes=%d nelems=%d FAILS=%u\n",
            lanes, NELEMS, g_fails);

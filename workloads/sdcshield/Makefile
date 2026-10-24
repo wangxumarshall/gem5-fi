@@ -11,7 +11,7 @@ FP_OFF = -ffp-contract=off
 BINS = sve_sme_semantics fpu_special_sve_dual stencil_axis_dual
 BINS += sme_fmopa_dual sme_za_tileview_dual
 
-all: $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sleef_vla_dual
+all: $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sleef_vla_dual sve_rot_dual
 
 %: %.c
 	$(CC) $(CFLAGS) $(if $(filter sme_fmopa_dual,$@),$(FP_OFF),) -o $@ $< -lm
@@ -39,7 +39,7 @@ stencil_axis_dual: stencil_axis_dual.c
 	$(GCC) $(GCCFLAGS) -o $@ $< -lm
 
 clean:
-	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sleef_vla_dual
+	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sleef_vla_dual sve_rot_dual
 
 .PHONY: all clean
 
@@ -48,3 +48,8 @@ clean:
 SLEEF_INSTALL = /home/sdc/wangxu/code-review/sdcshield-sve/third-party/sleef/install
 sleef_vla_dual: sleef_vla_dual.c
 	$(GCC) $(GCCFLAGS) -I$(SLEEF_INSTALL)/include -o $@ $< $(SLEEF_INSTALL)/lib/libsleef.a -lm
+
+# all-VL Phase 2 P5 remediation kernel (adversarial review Important-2:
+# the sve_rot family's VLA migration needs runtime evidence at all tiers):
+sve_rot_dual: sve_rot_dual.c
+	$(GCC) $(GCCFLAGS) -o $@ $<
