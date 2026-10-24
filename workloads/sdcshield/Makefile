@@ -11,7 +11,7 @@ FP_OFF = -ffp-contract=off
 BINS = sve_sme_semantics fpu_special_sve_dual stencil_axis_dual
 BINS += sme_fmopa_dual sme_za_tileview_dual
 
-all: $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual
+all: $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sve_sha_dual
 
 %: %.c
 	$(CC) $(CFLAGS) $(if $(filter sme_fmopa_dual,$@),$(FP_OFF),) -o $@ $< -lm
@@ -38,7 +38,13 @@ sve512_gather_dual: sve512_gather_dual.c
 stencil_axis_dual: stencil_axis_dual.c
 	$(GCC) $(GCCFLAGS) -o $@ $< -lm
 
+# all-VL Phase 2 P4 kernel (ipsec HMAC×17 流数参数化的镜像; 单文件三族
+# sha1/sha256+mini-HMAC/sha512, K/IV 表与 sdcshield sve_sha_kernels.h
+# 同源复制):
+sve_sha_dual: sve_sha_dual.c
+	$(GCC) $(GCCFLAGS) -o $@ $< -lm
+
 clean:
-	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual
+	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sve_sha_dual
 
 .PHONY: all clean

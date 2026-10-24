@@ -452,3 +452,98 @@ analytic"/"unsupported VL"；fixed 各档 checksum 互异、random 各 seed 互�
 sve512 家族×10 重构的 gem5 侧镜像基线成立。交叉引用：sdcshield
 docs/superpowers/plans/2026-10-24-sve-sme-all-vl2-p3.md（P3 计划）；先例
 P1 vl_api_probe、P2 sme_fmopa_za_dual。
+
+## all-VL Phase 2 P4 Task 1 — sve_sha_dual（两轮实录，dual-kernel 纪律记录）
+
+单文件三族 sha1 / sha256+mini-HMAC / sha512 xN 压缩 kernel（ipsec
+HMAC×17 流数参数化的镜像；K/IV 表与 sdcshield sve_sha_kernels.h 同源
+复制）。矩阵：4 档 × {fixed 1, random 1..3} = 16 run，gem5-fi CHAOS/SE
+O3（build/ARM/gem5.opt，25.1.0.1，2026-10-15 编译）。
+
+### 第一轮（修复前）：16/16 FAIL
+
+| tier | VL | args | streams(32bit) | streams(64bit) | sha1 | sha256 | sha512 | SDCSHIELD_FAILS | checksum |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | fixed 1 | 4 | 2 | 20 | 64 | 16 | 100 | 9192919a65d18cff |
+| 1 | 128-bit | random 1 | 4 | 2 | 20 | 64 | 16 | 100 | cafbae93a639a9a7 |
+| 1 | 128-bit | random 2 | 4 | 2 | 20 | 64 | 16 | 100 | 964fbe97c2766873 |
+| 1 | 128-bit | random 3 | 4 | 2 | 20 | 64 | 16 | 100 | af88c6f121bd41bd |
+| 2 | 256-bit | fixed 1 | 8 | 4 | 40 | 128 | 32 | 200 | 07af8473102e096f |
+| 2 | 256-bit | random 1 | 8 | 4 | 40 | 128 | 32 | 200 | df130eeb04ada4aa |
+| 2 | 256-bit | random 2 | 8 | 4 | 40 | 128 | 32 | 200 | 8f10eeab5708a42f |
+| 2 | 256-bit | random 3 | 8 | 4 | 40 | 128 | 32 | 200 | 586dcb3f73e7741c |
+| 4 | 512-bit | fixed 1 | 16 | 8 | 80 | 256 | 64 | 400 | 8801464118aa1062 |
+| 4 | 512-bit | random 1 | 16 | 8 | 80 | 256 | 64 | 400 | 2176e7a6cffa10ae |
+| 4 | 512-bit | random 2 | 16 | 8 | 80 | 256 | 64 | 400 | 697dfae9ac46227f |
+| 4 | 512-bit | random 3 | 16 | 8 | 80 | 256 | 64 | 400 | a07c2a46430210d3 |
+| 8 | 1024-bit | fixed 1 | 32 | 16 | 160 | 512 | 128 | 800 | a77549ea0970ec62 |
+| 8 | 1024-bit | random 1 | 32 | 16 | 160 | 512 | 128 | 800 | 48802e32804190a8 |
+| 8 | 1024-bit | random 2 | 32 | 16 | 160 | 512 | 128 | 800 | 7168c2ca48f33518 |
+| 8 | 1024-bit | random 3 | 32 | 16 | 160 | 512 | 128 | 800 | b542234a7c6c3951 |
+
+（FAILS 与数据/seed 完全无关——每档 4 run 数字逐字相同，结构性缺陷
+特征；sha256 列含 mini-HMAC inner。）
+
+**两缺陷根因**（验证代理定位后依规止步，主 agent 修复）：
+
+1. **标量 golden 传址缺陷**：把 `[word][stream]` 布局的 `&sw[0][s]`
+   当作连续 5/8 字状态传给 `sha*_block_scalar` —— 标量链式压缩写在
+   row-0 存储上，`sw[1..][s]` 恒为 IV。直接证据（第一轮 mismatch 行）：
+   `sha1 s0 w1 hw=6818aa6b sw=efcdab89`、`w2 sw=98badcfe`、
+   `w3 sw=10325476` —— sw 侧恰为 SHA-1 IV 字，从未被链式更新。
+2. **mini-HMAC 向量侧组块连续性缺陷**：`{ipad_blk, msgblk}` 是两个
+   独立的 64B 栈块，却以两指针形式传给按"单指针 × nblocks 连续块"
+   读取的 xN 内核 → 第二块从 ipad_blk 越界读 64B。
+
+**修复**（修复后零告警重编）：
+- 每流局部连续 `uint32_t/uint64_t st[]` 链式压缩全部块，再散写
+  `sw[w][s]`（三族同构修复）；
+- mini-HMAC 向量侧先把 `{ipad||msg}` 拼入单块 128B 连续缓冲 `vbuf`
+  再传 `sha256_compress_xn`（inner 2 块 = 1 次调用）。
+
+### 第二轮（修复后）：16/16 全绿
+
+| tier | VL | args | n32 (sha1/sha256) | n64 (sha512) | checksum | FAILS | exit | 时长 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | fixed 1 | 4 | 2 | eb12c3e2c3443dbc | 0 | 0 | 2.5s |
+| 1 | 128-bit | random 1 | 4 | 2 | 1730e183a764d475 | 0 | 0 | 2s |
+| 1 | 128-bit | random 2 | 4 | 2 | 24cce9be5345193d | 0 | 0 | 3s |
+| 1 | 128-bit | random 3 | 4 | 2 | aad091d622804b20 | 0 | 0 | 2s |
+| 2 | 256-bit | fixed 1 | 8 | 4 | c57efb6442e51f06 | 0 | 0 | 4s |
+| 2 | 256-bit | random 1 | 8 | 4 | 473967301cf6d89f | 0 | 0 | 3s |
+| 2 | 256-bit | random 2 | 8 | 4 | 97b6adafce97ac91 | 0 | 0 | 3s |
+| 2 | 256-bit | random 3 | 8 | 4 | 790f5aa69bcf0065 | 0 | 0 | 4s |
+| 4 | 512-bit | fixed 1 | 16 | 8 | 9737f58e7a2a8a47 | 0 | 0 | 4s |
+| 4 | 512-bit | random 1 | 16 | 8 | 67b4f1b530c1d26a | 0 | 0 | 5s |
+| 4 | 512-bit | random 2 | 16 | 8 | 005261ddb1936037 | 0 | 0 | 5s |
+| 4 | 512-bit | random 3 | 16 | 8 | 63dbaff7a0da884e | 0 | 0 | 5s |
+| 8 | 1024-bit | fixed 1 | 32 | 16 | e97d6b00740f456b | 0 | 0 | 8s |
+| 8 | 1024-bit | random 1 | 32 | 16 | df8e4c3ae4f42fbd | 0 | 0 | 8s |
+| 8 | 1024-bit | random 2 | 32 | 16 | faa704ada1d76ad4 | 0 | 0 | 9s |
+| 8 | 1024-bit | random 3 | 32 | 16 | 2eb1789a303ee111 | 0 | 0 | 8s |
+
+（每 run 三族 mode 行齐全：`mode=sha1 streams=N FAILS=0` /
+`mode=sha256 streams=N FAILS=0 (incl. mini-HMAC inner)` /
+`mode=sha512 streams=M FAILS=0` / `SDCSHIELD_FAILS=0` + 16-hex
+checksum；16 个日志零 mismatch 行、零 unsupported。）
+
+### 判据核对
+
+1. **流数逐档精确**：32-bit 族（sha1/sha256/mini-HMAC）4/8/16/32 =
+   svcntw()；64-bit 族（sha512）2/4/8/16 = svcntd()。
+2. **16/16 全绿**：`SDCSHIELD_FAILS=0`、exit=0，对比第一轮 FAILS
+   100/200/400/800 → 全部归零（FAILS 100%→0）。
+3. **VL=128 可跑命题实证**：tier=1（VL=128）四 run 全绿 —— sha1/
+   sha256 四流、sha512 双流在 128-bit 语义下字节级匹配。
+4. **W 定宽无越界**：512/1024 档全绿 —— 静态定宽 W[80][S32MAX]/
+   [64][S32MAX]/[80][S64MAX] 在 32/16 流下无越界，mini-HMAC 128B
+   连续缓冲修复在全部四档验证。
+5. checksum 随数据/seed 互异（16 个互不相同，random 各 seed 独立）。
+
+**结论**：all-VL Phase 2 P4 Task 1 sve_sha_dual 修复后在 gem5-fi
+（CHAOS/SE，O3）128/256/512/1024-bit 四档 × {fixed, random×3}
+16-run 全绿；第一轮 16/16 FAIL 的两处 kernel 缺陷（标量 golden
+传址 / mini-HMAC 组块连续性）已修复并经同矩阵复验清零。两轮完整
+记录入档 —— dual-kernel 验证纪律（失配即止步上报、修复后同矩阵
+复验）的价值实录。交叉引用：sdcshield 侧 ipsec HMAC×17（流数参数
+化镜像源）。
