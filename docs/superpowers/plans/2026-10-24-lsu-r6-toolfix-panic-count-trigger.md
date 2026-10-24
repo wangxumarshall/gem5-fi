@@ -35,27 +35,27 @@
 
 文件：`tools/lsu_campaign.py`（`classify_fs_run`、`classify_fsmc_run`）、`tests/test_lsu_campaign_fs_exit_class.py`
 
-- [ ] 保留工作树既有的精确字面匹配改动（不加宽泛 panic/Oops 子串）。
-- [ ] 用具名正则精确匹配**两种配置**的受控标记行：
+- [x] 保留工作树既有的精确字面匹配改动（不加宽泛 panic/Oops 子串）。
+- [x] 用具名正则精确匹配**两种配置**的受控标记行：
       `^\[\s*(arm_chaos_fs|lsu_multicore_fs)\s*\] KERNEL (PANIC|OOPS) under fault — exiting \(classify: Crash/DUE per fs_mode\)\s*$`
       （锚定整行；em-dash U+2014 精确；PANIC→`crash_kind=kernel_panic`，OOPS→`kernel_oops`）。
-- [ ] 两函数各自先试精确标记；未命中再走既有 OOPS 回退（`"Oops" in terminal` / `"Kernel oops in guest"`），未知退出保持 `Unclassified`。
-- [ ] 测试：受控 PANIC 行 + exit_code=0 → `Crash/kernel_panic`；受控 OOPS 行 → `Crash/kernel_oops`；两种前缀各一例；普通日志含 "panic" 单词但**无**受控标记行 → 仍 `Unclassified`；未知正常退出 → `Unclassified`。
-- [ ] 验证：`python3 tests/test_lsu_campaign_fs_exit_class.py`（rc=0，逐条 PASS）。
+- [x] 两函数各自先试精确标记；未命中再走既有 OOPS 回退（`"Oops" in terminal` / `"Kernel oops in guest"`），未知退出保持 `Unclassified`。
+- [x] 测试：受控 PANIC 行 + exit_code=0 → `Crash/kernel_panic`；受控 OOPS 行 → `Crash/kernel_oops`；两种前缀各一例；普通日志含 "panic" 单词但**无**受控标记行 → 仍 `Unclassified`；未知正常退出 → `Unclassified`。
+- [x] 验证：`python3 tests/test_lsu_campaign_fs_exit_class.py`（rc=0，逐条 PASS）。
 
 ## 提交 2 — [R6-FIXCOUNT] armtlb 应用注入计数 + 三源交叉核对
 
 文件：`tools/lsu_campaign.py`（`_ARMTLB_DIAG_SITES` / `count_armtlb_injections` / 新 `armtlb_count_sources`）、`tests/test_lsu_campaign_armtlb_count.py`
 
-- [ ] `_ARMTLB_DIAG_SITES` 增加 `arm_tlb_lookup_tier`（能力/档位诊断，非注入）。
-- [ ] `count_armtlb_injections` 只计**已应用**注入；对 `Site: arm_tlb_lookup_hit` 要求同时出现 `VA:`、`old_pfn:`、`new_pfn:` 应用字段，缺字段的行不计（并计入一个「malformed」计数）。
-- [ ] 新增 `armtlb_count_sources(outdir, stdout_text)`：返回
+- [x] `_ARMTLB_DIAG_SITES` 增加 `arm_tlb_lookup_tier`（能力/档位诊断，非注入）。
+- [x] `count_armtlb_injections` 只计**已应用**注入；对 `Site: arm_tlb_lookup_hit` 要求同时出现 `VA:`、`old_pfn:`、`new_pfn:` 应用字段，缺字段的行不计（并计入一个「malformed」计数）。
+- [x] 新增 `armtlb_count_sources(outdir, stdout_text)`：返回
       `{"log": n1, "trigger": n2|None, "stats": n3|None, "contradiction": bool, "detail": {...}}`；
       `n2` 取自 stdout `CHAOS_LSU_TRIGGER ... injected=`；`n3` 取自 `stats.txt` 的 `...armtlb.numFaultsInjected`。
       三者在**可用**来源间必须完全一致；不一致 → `contradiction=True`（响亮，绝不静默选一个）。
-- [ ] `classify_fs_run` 用 `armtlb_count_sources` 决定 `injected/activated`，并把 `count_sources` / `count_contradiction` 写进返回字典。
-- [ ] 测试：tier 诊断行 + 1 条真实 hit → `activated=1`；真实 hit 缺 `old_pfn` → 不计入且报 malformed；三源一致 → 无 contradiction；人为造三源不一致 → `contradiction=True`（响亮）；T07 `arm_tlb_lookup` false_hit 与 T08 `arm_tlb_walk_issue_drop` 仍照旧计数（回归）。
-- [ ] 验证：`python3 tests/test_lsu_campaign_armtlb_count.py`（rc=0）。
+- [x] `classify_fs_run` 用 `armtlb_count_sources` 决定 `injected/activated`，并把 `count_sources` / `count_contradiction` 写进返回字典。
+- [x] 测试：tier 诊断行 + 1 条真实 hit → `activated=1`；真实 hit 缺 `old_pfn` → 不计入且报 malformed；三源一致 → 无 contradiction；人为造三源不一致 → `contradiction=True`（响亮）；T07 `arm_tlb_lookup` false_hit 与 T08 `arm_tlb_walk_issue_drop` 仍照旧计数（回归）。
+- [x] 验证：`python3 tests/test_lsu_campaign_armtlb_count.py`（rc=0）。
 
 ## 提交 3 — [R6-FIXTRIGGER] FS 路径接入权威漏斗摘要
 

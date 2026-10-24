@@ -2025,19 +2025,101 @@ def classify_run(outdir, stdout_file, golden, exit_code, stderr_file=None):
 # deliberately did NOT consume the lookup hit). Neither is an injection, so
 # counting every "Site: " line overstated T08-F0-W9 as activated=3 when the
 # real injection count was 1. Count only lines that record an applied fault.
+# [R6-FIXCOUNT 2026-10-24] `arm_tlb_lookup_tier` is a capability/FREQUENCY-MODEL
+# diagnostic ("a tiered run does NOT consume --tlb_max_faults=1 — the tier is
+# the frequency model"), written once at F1-F6 startup. It is NOT an injection.
+# It only appears in tiered runs (F0 emits no such line) — which is exactly why
+# T02-F0-W4 counted 1 correctly while T02-F2-W4 counted 2: the extra one was
+# this diagnostic (measured 2026-10-24, seed1/armtlb_injections.log).
 _ARMTLB_DIAG_SITES = ("arm_tlb_walk_issue_probe",
-                      "arm_tlb_lookup_hit_skipped")
+                      "arm_tlb_lookup_hit_skipped",
+                      "arm_tlb_lookup_tier")
+# A real lookup-hit fault MUST record the physical effect it applied; a
+# lookup_hit line without these fields is malformed evidence, not an injection.
+_ARMTLB_HIT_APPLIED_FIELDS = ("VA:", "old_pfn:", "new_pfn")
+
+
+def armtlb_line_applied(ln):
+    """True iff this armtlb log line records an APPLIED fault.
+
+    Ordering matters: `arm_tlb_lookup_hit_skipped` CONTAINS
+    `arm_tlb_lookup_hit`, so the diagnostic check must run first.
+    """
+    if "Site: " not in ln:
+        return False
+    if any(d in ln for d in _ARMTLB_DIAG_SITES):
+        return False
+    if "arm_tlb_lookup_hit" in ln:
+        return all(k in ln for k in _ARMTLB_HIT_APPLIED_FIELDS)
+    return True
 
 
 def count_armtlb_injections(ilog_path):
-    """Number of APPLIED faults in armtlb_injections.log (diagnostics excluded)."""
+    """Number of APPLIED faults in armtlb_injections.log (diagnostics and
+    field-less lookup_hit lines excluded)."""
     try:
         lines = Path(ilog_path).read_text(errors="replace").splitlines()
     except OSError:
         return 0
-    return sum(1 for ln in lines
-               if "Site: " in ln
-               and not any(d in ln for d in _ARMTLB_DIAG_SITES))
+    return sum(1 for ln in lines if armtlb_line_applied(ln))
+
+
+_ARMTLB_TRIGGER_RE = None      # compiled lazily on first use
+
+
+def _armtlb_trigger_counts(stdout_text):
+    """(attempted, eligible, injected) from the CHAOS_LSU_TRIGGER line, or None."""
+    import re as _re
+    global _ARMTLB_TRIGGER_RE
+    if _ARMTLB_TRIGGER_RE is None:
+        _ARMTLB_TRIGGER_RE = _re.compile(
+            r"CHAOS_LSU_TRIGGER: .*?attempted=(\d+) eligible=(\d+) injected=(\d+)")
+    m = _ARMTLB_TRIGGER_RE.search(stdout_text or "")
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+def _armtlb_stats_injected(outdir):
+    """board.*armtlb.numFaultsInjected from stats.txt, or None if absent."""
+    import re as _re
+    st = Path(outdir) / "stats.txt"
+    if not st.exists():
+        return None
+    m = _re.search(r"^\s*(\S*armtlb\S*\.numFaultsInjected)\s+(\d+)",
+                   st.read_text(errors="replace"), _re.M)
+    return int(m.group(2)) if m else None
+
+
+def armtlb_count_sources(outdir, stdout_text):
+    """[R6-FIXCOUNT] Cross-check the THREE independent injection counts.
+
+      * ``log``     — applied-fault lines in armtlb_injections.log (direct evidence)
+      * ``trigger`` — CHAOS_LSU_TRIGGER ... injected= (the injector's own funnel)
+      * ``stats``   — board.*armtlb.numFaultsInjected (gem5 statistics)
+
+    All AVAILABLE sources must agree exactly. Any disagreement sets
+    ``contradiction=True`` and names every source in ``detail`` — the count is
+    never silently taken from just one of them. An absent source (no stats.txt /
+    no funnel line) is reported as None: that is honest absence, not agreement.
+    """
+    ilog = Path(outdir) / "armtlb_injections.log"
+    lines = (ilog.read_text(errors="replace").splitlines()
+             if ilog.exists() else [])
+    log_n = sum(1 for ln in lines if armtlb_line_applied(ln))
+    malformed = sum(1 for ln in lines
+                    if "arm_tlb_lookup_hit" in ln
+                    and not any(d in ln for d in _ARMTLB_DIAG_SITES)
+                    and not all(k in ln for k in _ARMTLB_HIT_APPLIED_FIELDS))
+    trig = _armtlb_trigger_counts(stdout_text)
+    present = {"log": log_n, "trigger": trig[2] if trig else None,
+               "stats": _armtlb_stats_injected(outdir)}
+    avail = {k: v for k, v in present.items() if v is not None}
+    return {"log": present["log"], "trigger": present["trigger"],
+            "stats": present["stats"],
+            "attempted": trig[0] if trig else None,
+            "eligible": trig[1] if trig else None,
+            "malformed_hit_lines": malformed,
+            "contradiction": len(set(avail.values())) > 1,
+            "detail": ", ".join("%s=%s" % (k, v) for k, v in present.items())}
 
 
 # [R6-FIXEXIT2 2026-10-24] Controlled guest-exit markers emitted by OUR OWN
@@ -2080,12 +2162,15 @@ def classify_fs_run(outdir, run_stdout, exit_code):
     tf = outdir / "board.terminal"
     if tf.exists():
         terminal = tf.read_text(errors="replace")
-    injected = 0
-    ilog = outdir / "armtlb_injections.log"
-    if ilog.exists():
-        injected = count_armtlb_injections(ilog)
+    # [R6-FIXCOUNT 2026-10-24] count APPLIED faults only, and cross-check the
+    # three independent sources. A lookup_hit without its applied fields, or a
+    # tier/FREQ-model diagnostic line, is not an injection.
+    _src = armtlb_count_sources(outdir, run_stdout)
+    injected = _src["log"]
     out = {"injected": injected, "activated": injected,
-           "attempted": None, "eligible": None, "checksum": None}
+           "attempted": None, "eligible": None, "checksum": None,
+           "count_sources": _src,
+           "count_contradiction": _src["contradiction"]}
     # [R6-FIXEXIT2 2026-10-24] EXACT controlled-exit matching, checked first.
     # A fault-induced panic previously produced "Unclassified" and a
     # conservation VIOLATION because the controlled marker was unmatched.
