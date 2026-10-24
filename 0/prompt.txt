@@ -1,0 +1,273 @@
+继续执行六格最终收口。目标是彻底完成这六个 RunID 的完整结局观测，不再扩展到其他问题，不再做泛化审计。
+
+我已作出以下裁决：
+
+1. T01 不放宽 checker。
+2. T01 在 C++ 发射端补充诚实的 containment 关联。
+3. F0 不接受“永久缺漏斗统计”。
+4. F0 在 C++ 发射端增加纯观测型漏斗计数，不改变任何注入决策。
+5. 两项 C++ 修复完成后重新构建，因此六格 seed1 必须全部在同一个新 SHA 下重新验证。
+6. 六格 seed1 全通过后，直接补齐 seed2、seed3；期间不再请求一般性确认。
+7. 不启动正式实验，不合并 fi-ding。
+
+一、先确认并保持现场
+
+当前应为：
+
+- 集成 HEAD/远端：
+  3f3eb6173876821e43f4ea2893b3b122f52a4393
+- 旧冻结二进制：
+  3b9a43a4fd54233bcc49a80df6ec6a7ab8535dd5771f1efff1af6fe245cdcb88
+- gem5、campaign、scons、canary 调度器均为 0；
+- T04-F6 中止现场完整保留；
+- 工作树已有：
+  M docs/superpowers/plans/2026-10-24-lsu-r6-toolfix-panic-count-trigger.md
+  ?? docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json
+  ?? docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.md
+
+这三个现有文件不得删除、覆盖、回退或纳入本轮 C++ 提交。
+
+如需隔离修改，只允许建立一个 C++ 修复 worktree/唯一所有者。不得开多个重叠修改 CHAOSArmTLB 或 CHAOSPropagation 的 lane。
+
+二、修复 T01 的真实 L2 containment
+
+现有真实事件链已经确认：
+
+inj(event 0, corr=origin)
+→ tlb_lookup(event 1)
+→ tlb_pfn(event 2)
+→ tlb_translate_result(event 3,
+   contained=1,
+   detection_layer=L2,
+   outcome=NoFault,
+   containment_layer=L2,
+   containment_reason=effective_pa_unchanged,
+   corr="")
+
+根因是有效 PA 未改变时两个下游 registry arm 都正确关闭，但最终 containment 事件也继承了空 corr，导致 checker 无法认证其真实来源。
+
+执行以下语义：
+
+- 不修改 tools/lsu_chain_check.py；
+- 不放宽 `_explicit_l5`；
+- 不把 chain_end 当作检测或 containment 证据；
+- 不重新打开 seq_primary 或 addr_fallback；
+- 不允许任何 L3/L4/L5 下游事件加入这个已含住的链；
+- 不移动或伪造 tick；
+- 不制造不存在的传播。
+
+仅在 `noteTlbTranslationResult` 发射真实 contained 终局时：
+
+- 如果 `pending.corr` 非空，保持原值；
+- 如果 `contained=true` 且 `pending.corr` 为空，则该终局事件使用 `corr=origin`；
+- `origin` 表示该事件通过真实 parent_event_id ancestry 直接归属于原始 inj；
+- earlier `tlb_lookup`、`tlb_pfn` 的空 corr 可以保持；
+- 所有 registry arm 仍必须关闭/撤销；
+- chain_end 继续保持 `corr=none`，仍不得充当终局证据。
+
+目标结果不是伪造 L0→L5，而是形成完整、可认证的：
+
+L0 inj → L1 tlb_lookup → L2 tlb_pfn/translate_result
+→ detected_contained at L2
+
+即明确的完整 containment 结局。
+
+必须增加测试证明：
+
+1. `pa_changed=0` 时两条 registry arm 均关闭；
+2. contained translation result 使用 `corr=origin`；
+3. 它具有真实 parent ancestry，可被 checker 判为 `detected_contained`；
+4. admitted=True、violations=[]、certified=True；
+5. 不产生任何 L3/L4/L5 伪传播；
+6. 后续无关请求不能加入已关闭链；
+7. chain_end 仍不能作为终局；
+8. `pa_changed=1` 的 T02/T04 行为完全不变。
+
+三、为 F0 legacy 路径增加纯观测漏斗计数
+
+不得把 F0 改为 `ChaOSLsuTrigger(F0)` 来替换旧注入逻辑，因为这可能改变随机抽样和注入落点。
+
+F0 必须继续使用原有：
+
+- max_faults；
+- probability；
+- events_to_skip；
+- RNG 顺序；
+- fault selection；
+- 注入位置和注入次数。
+
+只增加被动计数，不参与任何控制分支：
+
+- `legacy_attempted`：
+  在对应 F0 lookup hook 每次调用时计数；
+- `legacy_eligible`：
+  在通过模型归属、fault cap 和 probability gate 后、消耗 `events_to_skip` 之前计数；
+- `legacy_injected`：
+  直接使用或严格同步现有实际成功注入计数 `faults_injected_count`；
+- 记录 first/last eligible tick；
+- 注册 F0 legacy 的 exit callback；
+- 退出时输出与解析器兼容的权威摘要，例如：
+
+  CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F0 attempted=<n> eligible=<n> injected=<n> first_eligible_tick=<n> last_eligible_tick=<n> (activated=W3-L0-layer)
+
+要求：
+
+- 计数代码不得调用会改变 RNG、skip、cap 或注入决策的函数；
+- 不得改变现有 F0 注入事件；
+- T01-F0、T02-F0、T04-F0 都必须获得 attempted/eligible/injected；
+- injected 必须与实际注入日志和 stats.numFaultsInjected 一致；
+- 三源不一致仍必须响亮失败；
+- 非 F0 的 F1–F6 继续使用现有 ChaOSLsuTrigger，行为不得改变；
+- CAM、walk 等其他路径不得双计数；
+- 每个 lookup 只能进入对应模型的一条 attempted 流。
+
+必须增加测试证明：
+
+1. 加计数前后的固定 seed F0 注入序列、注入 tick/VA/PFN/mask完全一致；
+2. F0 attempted/eligible 只观测、不参与决策；
+3. injected 与现有 applied fault 数一致；
+4. F0 三源核对通过；
+5. T02-F0、T04-F0 不再 attempted=None/0；
+6. count_contradiction=false；
+7. F2/F6 的既有触发序列与计数不变；
+8. 未发生双计数。
+
+四、实施与集成顺序
+
+允许一个唯一 C++ 修复者统一拥有：
+
+- CHAOSPropagation.cc/.hh；
+- CHAOSArmTLB.cc/.hh；
+- 为这两项修复新增的测试；
+- 必要的专用设计记录。
+
+禁止它修改：
+
+- tools/lsu_chain_check.py；
+- tools/lsu_campaign.py；
+- admission/conservation 规则；
+- 原始实验数据；
+- 当前集成工作树中的三个遗留文档/状态文件。
+
+完成顺序：
+
+1. TDD：先加入能在旧代码上失败的精确测试；
+2. 实现 T01 containment corr 修复；
+3. 实现 F0 被动漏斗统计；
+4. 运行全部相关定向测试；
+5. 报告源码 diff 与“为什么没有改变注入行为”的证据；
+6. 形成最多两个原子提交；
+7. 串行合入集成分支；
+8. 完整回归，要求 NEW FAIL=0；
+9. 如有新增失败立即停止，不得 SKIP/XFAIL、删断言或弱化门禁；
+10. 完整回归通过后，只构建一次；
+11. 记录新 binary_source_head、完整 SHA-256、大小、时间和构建日志；
+12. 原 SHA 3b9a43a4…降为历史，不再用于新 canary。
+
+五、六格 seed1 必须在新 SHA 下全部重跑
+
+因为 C++ 和二进制发生变化，为获得同一冻结环境下的权威六格证据，不采用“部分旧证据 + 部分新证据”的拼接口径。
+
+使用新冻结二进制，在全新目录重新运行：
+
+- T01-F0-W4
+- T02-F0-W4
+- T02-F2-W4
+- T04-F0-W4
+- T04-F2-W4
+- T04-F6-W4
+
+最多并发 3。建议分两批：
+
+第一批：
+- T01-F0-W4
+- T02-F0-W4
+- T04-F0-W4
+
+第一批全部通过后再运行第二批：
+- T02-F2-W4
+- T04-F2-W4
+- T04-F6-W4
+
+每格启动前、结束后核对同一二进制 SHA；每格使用全新目录，不覆盖旧证据。
+
+六格共同验收条件：
+
+- 正常终止或被明确归类的受控 Crash/DUE；
+- gzip 正常 EOF；
+- stats 非零；
+- run_id/sample_run_id 正确；
+- 二进制 SHA 一致；
+- tier requested/effective/enabled 正确；
+- attempted/eligible/injected 有权威来源；
+- 实际注入日志、TRIGGER injected、stats 注入数一致；
+- count_contradiction=false；
+- conservation=OK；
+- consumer_summary conservation=ok 或语义上明确 n/a；
+- campaign/checker 结论一致；
+- admitted=True；
+- violations=[]；
+- certified=True；
+- 不存在 Unknown。
+
+传播到架构结局的格必须：
+
+- terminal=full；
+- provable_to=L5；
+- 真实 L5 检测事件，不得用 chain_end 代替。
+
+真实被硬件含住的格允许：
+
+- terminal=detected_contained；
+- containment 层、原因、outcome、corr、parent ancestry 全部明确；
+- 不要求伪造后续 L3–L5；
+- T01 预期是 L2 `effective_pa_unchanged` 的完整 containment。
+
+任一格失败：
+
+- 立即停止尚未完成的同批 canary；
+- 保留现场；
+- 不补跑；
+- 不进入 seed2/seed3；
+- 汇报第一处分歧和最小修复，不做范围外重构。
+
+六、seed1 达到 6/6 后直接补 seed2、seed3
+
+只有六格 seed1 全部满足上述标准后，自动继续每格 seed2、seed3。
+
+约束：
+
+- 仍使用同一冻结二进制；
+- 最多并发 3；
+- 全新目录；
+- 每个 seed 独立核验全部判据；
+- 任一 seed 失败立即停止其余未完成任务并汇报；
+- 不把某一 seed 的成功替代另一 seed；
+- 不把 containment 当作传播到 L5，但可作为完整、真实的最终结局；
+- 最终要求六个 RunID 均为 3/3 合格。
+
+七、最终停点与汇报
+
+达到六格 3/3 后停止，不启动新的 RunID，不启动正式实验，不合并 fi-ding，先汇报：
+
+1. 两项 C++ 根因与最终修复；
+2. 修改文件和提交；
+3. 定向测试和完整回归；
+4. 新 binary_source_head 和 SHA-256；
+5. 六格 × 三 seed 的逐项结果；
+6. 每个 seed 是 full L0→L5 还是显式 L2 containment；
+7. attempted/eligible/injected；
+8. terminal、admitted、violations、certified；
+9. campaign/checker 一致性；
+10. 是否达到 18/18；
+11. 是否具备推进下一批六个 RunID 的条件。
+
+除以下情况外，不要再请求一般性裁决：
+
+- 无法在不改变 F0 注入序列的前提下增加计数；
+- `corr=origin` 会打开下游 registry 或造成伪传播；
+- 完整回归出现新增失败；
+- 新二进制任一 seed1/2/3 不满足验收；
+- 必须放宽 checker、修改原始证据或删除真实事件才能继续。
+
+目标是把这六格彻底收口，不要顺带处理其他 RunID、状态表、磁盘清理或正式实验。
