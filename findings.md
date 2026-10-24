@@ -452,3 +452,31 @@ analytic"/"unsupported VL"；fixed 各档 checksum 互异、random 各 seed 互�
 sve512 家族×10 重构的 gem5 侧镜像基线成立。交叉引用：sdcshield
 docs/superpowers/plans/2026-10-24-sve-sme-all-vl2-p3.md（P3 计划）；先例
 P1 vl_api_probe、P2 sme_fmopa_za_dual。
+
+## 2026-10-25 P3 重验 + P5 sleef 判据（45-run 矩阵，主 agent 直跑）
+
+### P3 chain kernel special 模式对称化重验（16 run = 四档 × {fixed,random}×3）
+
+对抗性评审 Important-1 修复（special_f64 golden 起始 1.0 → 0.0，与 hw
+svdup_f64(0.0) 对称）后的同矩阵重验。首轮 2 run 由代理完成（429 中断），
+余 14 run 主 agent 4 路并行直跑（-d 独立 outdir）。**16/16 全绿**：
+四模式（chain_f64/chain_f64_slab/chain_f32/special_f64）每档
+FAILS=0；lanes 逐档 f64 2/4/8/16、f32 4/8/16/32。fixed 档 checksum 与
+原 48-run 表逐位一致（fbd04ec6…/adef4f1b…/13e0fae4…/268fd9b3…）——
+golden 修复不进 checksum 通道（FNV 只哈希 hw 输出）的代码分析被印证。
+**special 族的有限值字节精确分支自此被四档真实行使**（修复前被 NaN
+掩盖，~2e-7/lane 有限概率）。
+
+### P5 sleef_vla_dual 判据 kernel（24 run = 四档 × {fixed,random}×seed1-3）
+
+链 vendored SLEEF 3.9.0 静态库（纯 VLA 机器码，反汇编实证）。六函数组
+（sin/cos/exp/log/exp2 u10 + sin u35）same-kernel 双趟确定性 + FNV。
+**24/24 全绿** + **跨档逐位一致判据达成**：fixed 模式四档 checksum 完全
+相同（f4c7b2932c50e261 ×4 @ 128/256/512/1024-bit）——逐 lane 纯函数在
+四档输出逐字节一致，sleef_sve 真迁移（tests_sve_vla 库）的正确性一锤
+定音；random 各 seed checksum 互异。历史 "256 编译回归" 在 VLA 路径
+四档全绿下不复发（H1 实验污染假说获得侧面支持）。
+
+运行命令形态：gem5.opt -d <outdir> configs/se/arm_chaos.py --cpu O3
+--cmd workloads/sdcshield/<kernel> --sve_vl <T> --workload_args "<mode> <seed>"
+日志：/tmp/final_sve512_chain_dual_sve*_*.log、/tmp/final_sleef_vla_dual_sve*_*.log

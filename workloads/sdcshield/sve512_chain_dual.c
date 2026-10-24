@@ -242,7 +242,10 @@ int main(int argc, char **argv)
                                           propagates through the chain */
         }
         for (int r = 0; r < lanes; ++r)
-            golden[r] = 1.0;
+            golden[r] = 0.0;   /* symmetric with the hw accumulator's
+                                  svdup_f64(0.0) start — the first matrix
+                                  left this at 1.0, an asymmetry masked by
+                                  NaN (adversarial review Important-1) */
         for (int s = 0; s < SPECIAL_STEPS; ++s)
             for (int r = 0; r < lanes; ++r)
                 golden[r] = fma(sa[(size_t)s * lanes + r],
