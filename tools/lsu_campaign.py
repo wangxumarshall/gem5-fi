@@ -2040,6 +2040,27 @@ def count_armtlb_injections(ilog_path):
                and not any(d in ln for d in _ARMTLB_DIAG_SITES))
 
 
+# [R6-FIXEXIT2 2026-10-24] Controlled guest-exit markers emitted by OUR OWN
+# FS configs when a fault drives the simulated kernel into a panic/oops
+# (configs/se/arm_chaos_fs.py:522-535, configs/fs/lsu_multicore_fs.py:293-302).
+# Match the WHOLE line: the "[<cfg>] " prefix AND the "(classify: ...)" suffix
+# AND the U+2014 EM DASH are all required. Deliberately NOT a broad
+# "panic"/"Oops" substring test — a fault-free boot may print such words, and
+# only our controlled markers mean "a fault-induced guest crash, ended cleanly".
+_CONTROLLED_EXIT_RE = (
+    r"(?m)^\[(?:arm_chaos_fs|lsu_multicore_fs)\] KERNEL (PANIC|OOPS) "
+    r"under fault — exiting \(classify: Crash/DUE per fs_mode\)\s*$")
+
+
+def controlled_guest_exit(run_stdout):
+    """'kernel_panic' | 'kernel_oops' | None for OUR configs' exact markers."""
+    import re as _re
+    m = _re.search(_CONTROLLED_EXIT_RE, run_stdout or "")
+    if not m:
+        return None
+    return "kernel_panic" if m.group(1) == "PANIC" else "kernel_oops"
+
+
 def classify_fs_run(outdir, run_stdout, exit_code):
     """L5 classification for one FS (armtlb) run.
 
@@ -2065,7 +2086,13 @@ def classify_fs_run(outdir, run_stdout, exit_code):
         injected = count_armtlb_injections(ilog)
     out = {"injected": injected, "activated": injected,
            "attempted": None, "eligible": None, "checksum": None}
-    if "Oops" in terminal or "Kernel oops in guest" in run_stdout:
+    # [R6-FIXEXIT2 2026-10-24] EXACT controlled-exit matching, checked first.
+    # A fault-induced panic previously produced "Unclassified" and a
+    # conservation VIOLATION because the controlled marker was unmatched.
+    _cex = controlled_guest_exit(run_stdout)
+    if _cex:
+        out.update(outcome="Crash", crash_kind=_cex)
+    elif "Oops" in terminal or "Kernel oops in guest" in run_stdout:
         out.update(outcome="Crash", crash_kind="kernel_oops")
     else:
         m = _re.findall(r"\[tlb_probe\.rcS\] ([0-9a-f]{32}) rounds ok=(\d+)/10",
@@ -2148,7 +2175,12 @@ def classify_fsmc_run(outdir, run_stdout, exit_code):
                            "mp_violations": mp_viol,
                            "atomic_violations": at_viol,
                            "final": finals[-1] if finals else None}
-    if "Oops" in terminal or "Kernel oops in guest" in run_stdout:
+    # [R6-FIXEXIT2 2026-10-24] see classify_fs_run: whole-line controlled
+    # markers, either config prefix ([arm_chaos_fs] / [lsu_multicore_fs]).
+    _cex = controlled_guest_exit(run_stdout)
+    if _cex:
+        out.update(outcome="Crash", crash_kind=_cex)
+    elif "Oops" in terminal or "Kernel oops in guest" in run_stdout:
         out.update(outcome="Crash", crash_kind="kernel_oops")
     else:
         viol = [v for v in (sb_forb, sb_bad, mp_viol, at_viol)
