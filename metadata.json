@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5Q36DRYBRWCP3T366NGSCYM",
+  "strategy": "manual-commit",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 17,
+  "files_touched": [
+    "CHAOS/gem5/src/python/gem5/simulate/exit_event.py",
+    "configs/fs/lsu_multicore_fs.py",
+    "configs/se/arm_chaos_fs.py",
+    "tests/test_lsu_r6_fixexit_contract.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2973383,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 176538752,
+    "output_tokens": 441483,
+    "api_call_count": 324
+  }
+}
