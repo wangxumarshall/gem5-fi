@@ -538,3 +538,32 @@ T10-F2-W4
 <status>failed</status>
 <summary>Background agent "Retry T04-F6-W4 3-seed" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
 </task-notification>
+
+---
+
+裁决如下：
+
+1. time_reversed_edge 归发射器/事件生成顺序负责，checker 保持严格，不得放宽或删除该拒绝。
+   - 合法关系必须满足 parent.tick <= child.tick。
+   - 对 request_fork 应满足 source.tick <= bridge.tick <= destination.tick。
+   - 同 tick 允许，parent.tick > child.tick 不允许。
+   - 若当前重跑出现 time_reversed_edge，先保存完整复现证据；不得修改正在使用的候选二进制。当前 wave 结束后再指定唯一修复者，重建 SHA并重跑所有受影响 RunID。
+
+2. T01-F0-W4 必须在候选 SHA 27134738c425d91a 下重新运行3个 seed。旧 SHA或旧 checker 下的完成结果不能作为本轮准入证据。
+
+3. 第一波最终范围仍是6个 RunID，每个3 seed：
+   - T01-F0-W4
+   - T02-F0-W4
+   - T02-F2-W4
+   - T04-F0-W4
+   - T04-F2-W4
+   - T04-F6-W4
+
+4. 当前三个 T04 campaign 不要中断。它们完成后再启动 T01/T02 三格，以控制内存。
+
+5. lane 进程退出不影响已 nohup 的 campaign，但主 agent 必须补齐并持久化原定的逐 seed 核验表。18个 seed 都必须报告：
+   SHA、attempted、activated、退出状态、stats、gzip EOF、truncated、L0-L5、parent/request/corr、request_fork、cross_request_edge、invalid_lineage_bridge、terminal、check_admission、oracle及 destination-L5。
+
+6. 任一 RunID 只有3/3 seed均通过，才能标记 PILOT_READY。不得因旧结果或单 seed通过而豁免重跑。
+
+继续当前执行，无需等待我再次确认；不得启动正式实验。
