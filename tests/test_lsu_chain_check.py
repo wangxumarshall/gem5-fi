@@ -12,6 +12,7 @@
 
 用法：python3 tests/test_lsu_chain_check.py   （退出码 0=全 PASS）
 """
+import json
 import os
 import sys
 from pathlib import Path
@@ -955,6 +956,119 @@ def main():
           r_b["admitted"] is False, j_b)
     check("(19b) 合法 bridge + 显式截断 ⇒ 响亮 containment_on_truncated_stream",
           "containment_on_truncated_stream" in j_b, j_b)
+
+    print("[20] [R6-LINCHECK] O(n) 最佳有序路径并入权威 checker：与旧搜索逐条一致")
+    # 缺陷：`_best_ordered_path` 对**每个事件**各做一次祖先遍历（_ancestry）+
+    # 贪心前缀（_ordered_prefix）⇒ Θ(n·depth)。真实 T04 seed1（568,093 事件、
+    # 祖先深度≈12,800）在原版 checker 上跑不完（20k 前缀实测 25.5 s）。
+    # 线性化**不得改变任何语义**：terminal / provable_to / path_event_ids /
+    # admitted / violations 必须与旧搜索逐条一致。
+    walk = getattr(CC, "_walk_best_ordered_path", None)
+    lin = getattr(CC, "_linear_best_ordered_path", None)
+    check("旧搜索保留为 _walk_best_ordered_path（等价参考 + 回退）",
+          walk is not None, "缺席——等价性无从证明")
+    check("线性实现 _linear_best_ordered_path 已并入权威 checker（非 campaign 临时替换）",
+          lin is not None, "缺席——权威 checker 仍是 Θ(n·depth)")
+    if walk is None or lin is None:
+        print()
+        if FAILED:
+            print(f"FAILED ({len(FAILED)}): {FAILED}")
+            return 1
+        print("ALL PASS")
+        return 0
+
+    def _mk(eid, parent, kind, tick, **kw):
+        d = {"event_id": str(eid), "parent_event_id": str(parent),
+             "kind": kind, "tick": str(tick), "fault_id": "1",
+             "run_id": "T04-F0-W4"}
+        d.update({k: str(v) for k, v in kw.items()})
+        return d
+
+    # 形状覆盖：线性链 / 扇形 / 并列（先到先得）/ 逆时 / 退化 / 孤儿父 /
+    # 自环 / 2 环 / 重复 event_id / 空 event_id 根。
+    shapes = {
+        "linear-chain": [_mk(i, i - 1 if i else "", "inj" if not i else
+                             "consumer", i * 10) for i in range(60)],
+        "flat-fanout": [_mk(0, "", "inj", 1)] +
+                       [_mk(i, 0, "consumer", 1 + i) for i in range(1, 40)],
+        "spine-ticks": [_mk(0, "", "inj", 5), _mk(1, 0, "addr_form", 5),
+                        _mk(2, 1, "lsq_push", 5), _mk(3, 2, "resp", 5),
+                        _mk(4, 3, "taint_reg", 5),
+                        _mk(5, 4, "errant_commit", 5,
+                            detection_layer="L5", outcome="SDC",
+                            corr="taint_prop")],
+        "tie-earliest-wins": [_mk(0, "", "inj", 1), _mk(1, 0, "addr_form", 2),
+                              _mk(2, 1, "lsq_push", 3),
+                              _mk(3, 1, "resp", 3),        # 同层并列，先到先得
+                              _mk(4, 3, "taint_reg", 4)],
+        "time-reversed": [_mk(0, "", "inj", 9), _mk(1, 0, "addr_form", 9),
+                          _mk(2, 1, "lsq_push", 9), _mk(3, 2, "resp", 2),
+                          _mk(4, 3, "taint_reg", 3)],
+        "orphan-parent": [_mk(0, "", "inj", 1), _mk(1, 999, "resp", 2),
+                          _mk(2, 1, "taint_reg", 3)],
+        "self-loop": [_mk(0, "", "inj", 1), _mk(1, 1, "resp", 2)],
+        "two-cycle": [_mk(0, "", "inj", 1), _mk(1, 2, "resp", 2),
+                      _mk(2, 1, "taint_reg", 3)],
+        "dup-event-id": [_mk(0, "", "inj", 1), _mk(1, 0, "addr_form", 2),
+                         _mk(1, 0, "resp", 3)],   # 两个不同对象同 id
+        "empty-id-root": [{"event_id": "", "parent_event_id": "", "kind":
+                           "inj", "tick": "1", "fault_id": "1",
+                           "run_id": "T04-F0-W4"}],
+    }
+    for name, evs in shapes.items():
+        for fam in ("generic", "tlb"):
+            got = [e.get("event_id") for e in CC._best_ordered_path(evs, fam)]
+            want = [e.get("event_id") for e in walk(evs, fam)]
+            check(f"(20) path 同结果[{name}/{fam}]", got == want,
+                  f"linear={got} walk={want}")
+            got_l = [e.get("event_id") for e in lin(evs, fam)]
+            check(f"(20) 线性实现==权威入口[{name}/{fam}]", got_l == got,
+                  f"lin={got_l} entry={got}")
+    # 身份：返回的必须是流里的同一批对象（下游据此取字段）
+    evs = shapes["spine-ticks"]
+    check("(20) path 元素为流内同一对象",
+          all(any(e is x for x in evs) for e in CC._best_ordered_path(evs,
+                                                                      "tlb")))
+
+    def _legacy(fn, events, **kw):
+        """在旧搜索下跑 fn（= 本次改动前的权威 checker 行为）。"""
+        saved = CC._best_ordered_path
+        CC._best_ordered_path = walk
+        try:
+            return fn(events, **kw)
+        finally:
+            CC._best_ordered_path = saved
+
+    # 真实小流逐条比对（含 terminal/provable_to/path_event_ids/admitted/
+    # violations）——任一不一致即 STOP。
+    runs_dir = Path(os.environ.get(
+        "LSU_R6_RUNS_DIR", "/home/sdc/gem5-fi-ding/runs/lsu"))
+    small = []
+    if runs_dir.is_dir():
+        for p in sorted(runs_dir.rglob("prop_evt.txt.gz")):
+            try:
+                if p.stat().st_size < 1_000_000:   # 小流（≤1 MB 压缩）
+                    small.append(p)
+            except OSError:
+                pass
+    print(f"      真实小流 N={len(small)}（{runs_dir}）")
+    n_mismatch = 0
+    for p in small:
+        ev, _t = P.read_events(p)
+        new_v = CC.check_chain(ev)
+        old_v = _legacy(CC.check_chain, ev)
+        new_a = CC.check_admission({"run_id": "X", "activated": 1, "events": ev})
+        old_a = _legacy(CC.check_admission,
+                        {"run_id": "X", "activated": 1, "events": ev})
+        same = (json.dumps(new_v["faults"], sort_keys=True)
+                == json.dumps(old_v["faults"], sort_keys=True)
+                and json.dumps(new_a, sort_keys=True)
+                == json.dumps(old_a, sort_keys=True))
+        if not same:
+            n_mismatch += 1
+            print(f"      MISMATCH {p}")
+    check("(20) 全部真实小流：新==旧（faults/admitted/violations 逐字段）",
+          n_mismatch == 0, f"{n_mismatch}/{len(small)} 条不一致")
 
     print()
     if FAILED:

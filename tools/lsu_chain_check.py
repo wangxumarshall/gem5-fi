@@ -221,8 +221,14 @@ def _ordered_prefix(path, family):
     return selected
 
 
-def _best_ordered_path(chain_events, family):
-    """Best contiguous layer prefix on any single parent DAG ancestry."""
+def _walk_best_ordered_path(chain_events, family):
+    """Best contiguous layer prefix on any single parent DAG ancestry.
+
+    这是**逐事件祖先遍历**的参考实现（Θ(n·depth)）：对每个事件各做一次
+    `_ancestry` + `_ordered_prefix`。它是 `_best_ordered_path` 的语义基准
+    （等价性由 tests/test_lsu_chain_check.py [20] 逐条钉死），也是线性实现
+    在**无法证明等价**的输入（重复非空 event_id、父图有环）上的回退。
+    """
     by_id = {e.get("event_id", ""): e for e in chain_events
              if e.get("event_id", "") != ""}
     best = []
@@ -231,6 +237,99 @@ def _best_ordered_path(chain_events, family):
         if len(selected) > len(best):
             best = selected
     return best
+
+
+class _ChainCycle(Exception):
+    """父图有环（`_ancestry` 的 seen-set 会在此截断，线性稳态不存在）。"""
+
+
+def _linear_best_ordered_path(chain_events, family):
+    """O(n) 版 `_walk_best_ordered_path` —— 返回**同一批事件对象**。
+
+    [R6-LINCHECK] 缺陷（实测）：`_walk_best_ordered_path` 对**每个事件**各做
+    一次祖先遍历 ⇒ Θ(n·depth)。真实 T04 seed1（568,093 事件、祖先深度
+    ≈12,800）在其上跑不完（20k 前缀实测 25.5 s，整文件 >16 CPU-分钟未完成），
+    此前只有 `lsu_campaign.py` 的临时替换绕开；**权威 checker 本身仍是
+    Θ(n·depth)**。这里把它正式并入权威 checker。
+
+    原理：`_ordered_prefix` 是**前向贪心**扫描，
+        ancestry(child) = ancestry(parent) + [child]
+    ⇒   prefix(child)  = step(prefix_state(parent), child)
+    状态 = (下一层下标, 上一见证 tick, 已选事件元组)。对父 DAG 做一次
+    记忆化自底向上传播即得每个事件祖先的前缀，均摊 O(1)；胜者仍取**原始
+    列表序中第一个达到最大长度**者（`>` 而非 `>=`），故并列与
+    `path_event_ids` / 由 `path[-1]` 导出的终局都与旧实现一致。
+
+    复用本模块自身的 `LAYERS` / `_layer_of` / `_tick`，层映射不可能漂移；
+    只有搜索策略改变。**正确性不依赖优化可适用**：任何可能不等价的输入
+    （链内出现两个不同对象携带同一非空 event_id —— 旧 `_ancestry` 的
+    seen-set 以 event_id 为标记；或父图有环）一律回退 `_walk_best_ordered_path`。
+    """
+    n_layers = len(LAYERS)
+    by_id = {}
+    for e in chain_events:
+        eid = e.get("event_id", "")
+        if eid == "":
+            continue
+        prev = by_id.get(eid)
+        if prev is not None and prev is not e:
+            # 同一 event_id 对应两个不同对象：`_ancestry` 的 event_id 标记
+            # 语义与 id() 稳态不等价 —— 交由参考实现（绝不猜测）。
+            return _walk_best_ordered_path(chain_events, family)
+        by_id[eid] = e
+    state = {}          # id(evt) -> (want_layer_idx, last_tick, selected_tuple)
+    busy = set()
+
+    def resolve(evt):
+        stack = []
+        cur = evt
+        while True:
+            key = id(cur)
+            st = state.get(key)
+            if st is not None:
+                break
+            if key in busy:               # 环：`_ancestry` 会在此截断
+                raise _ChainCycle()
+            busy.add(key)
+            stack.append(cur)
+            pid = cur.get("parent_event_id", "")
+            nxt = by_id.get(pid) if pid != "" else None
+            if nxt is None:
+                st = (0, -1, ())          # 根：`_ordered_prefix` 的初态
+                break
+            cur = nxt
+        while stack:
+            node = stack.pop()
+            want, last_tick, sel = st
+            if want < n_layers:           # `_ordered_prefix` 满层即止
+                layer = _layer_of(node, family)
+                if layer in LAYERS:
+                    idx = LAYERS.index(layer)
+                    tick = _tick(node)
+                    if idx == want and tick >= last_tick:
+                        st = (want + 1, tick, sel + (node,))
+            state[id(node)] = st
+            busy.discard(id(node))
+        return st
+
+    best = []
+    for e in chain_events:
+        try:
+            sel = resolve(e)[2]
+        except _ChainCycle:
+            return _walk_best_ordered_path(chain_events, family)
+        if len(sel) > len(best):
+            best = sel
+    return list(best)
+
+
+def _best_ordered_path(chain_events, family):
+    """Best contiguous layer prefix on any single parent DAG ancestry.
+
+    [R6-LINCHECK] 入口 = O(n) 线性搜索；仅在可证不等价时才回退参考实现
+    （见 `_linear_best_ordered_path`）。语义与旧的 Θ(n·depth) 遍历逐条一致。
+    """
+    return _linear_best_ordered_path(chain_events, family)
 
 
 def _event_has_prefix(chain_events, target, family):
