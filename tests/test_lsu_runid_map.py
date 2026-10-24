@@ -102,18 +102,33 @@ def main():
           len(t_rows) == 8 and all(
               f is None or "--cmd" not in f for f, _g, _k in _tr.values()),
           str([e["run_id"] for e in t_rows]))
-    check("T-model W1 F0 rows (3) resolve to the armtlb FS flag set "
-          "(TLB-probe golden)",
-          sum(1 for f, g, _k in _tr.values()
-              if f is not None and g == lc.TLB_PROBE_GOLDEN) == 3
+    # [MDSPEC][R6-FTOOLS 2026-10-24] 策略已由 FTIER 的
+    # ARMTLB_LOOKUP_TIERS={F0} 变更为 {F0..F6}（用户裁决）：F!=F0 的 lookup
+    # 行不再 BLOCKED，而是携带真实 --tlb_lsu_tier。本处期望同步指向**当前**
+    # 口径 —— 断言只增强（新增 tier 值一致性），未删除、未弱化。
+    def _tiers(_flags):
+        """flags 是 list；拼回字符串后抽取 tier 值（不是列表成员判断）。"""
+        import re as _re
+        return _re.findall(r"--tlb_lsu_tier\s+(\S+)", " ".join(_flags or []))
+
+    _f0 = {r: v for r, v in _tr.items() if r.endswith("F0-W1")}
+    _fnf = {r: v for r, v in _tr.items() if not r.endswith("F0-W1")}
+    check("T-model W1 F0 rows (3): resolved, TLB-probe golden, "
+          "no --tlb_lsu_tier, never MiBench SE",
+          len(_f0) == 3
           and all(f is not None and g == lc.TLB_PROBE_GOLDEN
-                  for r, (f, g, _k) in _tr.items() if r.endswith("F0-W1")),
-          str({r: f for r, (f, _g, _k) in _tr.items()}))
-    check("T-model W1 F!=F0 rows (5) are BLOCKED by the R6-FTIER tier gate",
-          all(f is None and k.startswith("BLOCKED(armtlb-lookup-tier")
-              for r, (f, _g, k) in _tr.items() if not r.endswith("F0-W1")),
-          str({r: k for r, (_f, _g, k) in _tr.items()
-               if not r.endswith("F0-W1")}))
+                  and _tiers(f) == [] and "--cmd" not in f
+                  for f, g, _k in _f0.values()),
+          str({r: f for r, (f, _g, _k) in _f0.items()}))
+    check("T-model W1 F!=F0 rows (5): resolved, TLB-probe golden, exactly one "
+          "--tlb_lsu_tier equal to the row's F tier, never MiBench SE",
+          len(_fnf) == 5
+          and all(f is not None and g == lc.TLB_PROBE_GOLDEN
+                  and "--cmd" not in f
+                  and _tiers(f) == [r.split("-")[1]]
+                  for r, (f, g, _k) in _fnf.items()),
+          str({r: (_tiers(f), r.split("-")[1])
+               for r, (f, _g, _k) in _fnf.items()}))
     w1 = [e for e in _w1_all if e["model_id"] not in lc.ARMTLB_MODELS]
     check("w1_audit_scope_is_19_rows", len(w1) == 19, f"n={len(w1)}")
     wl_blocked_rows, runnable, span_rows, other = [], [], [], []
