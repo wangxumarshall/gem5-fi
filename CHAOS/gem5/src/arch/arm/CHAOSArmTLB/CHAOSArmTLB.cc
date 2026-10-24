@@ -1,5 +1,6 @@
 #include "arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh"
 #include "arch/arm/CHAOSArmTLB/chaos_tlb_pfn.hh"  // [R6-FIXC] T04 candidate rule
+#include "cpu/o3/chaos_lsu_tier_cap.hh"  // [MDSPEC][R6-FIXCPP] tier-cap marker
 #include "params/CHAOSArmTLB.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/pagetable.hh"
@@ -43,6 +44,25 @@ namespace gem5
             lsuTrigger = std::make_unique<ChaOSLsuTrigger>(
                 tier, rng_seed ? rng_seed : 1,
                 p.lsuWarmupEvents, p.lsuSpanEvents);
+        }
+        // [MDSPEC][R6-FIXCPP] Runtime lookup-tier capability marker: printed
+        // ONCE at startup so the campaign's lookup_tier_capability_gate can
+        // PROVE this run really mounted the requested tier on the lookup path
+        // (rather than needing to trust the flag name). `mounted` is the
+        // trigger's real tier (-1 = no trigger object: the legacy F0 path);
+        // the marker never claims enabled=1 unless a real non-F0 gate is
+        // mounted. F0/`off` still prints (requested=F0 effective=F0
+        // lookup_tier_enabled=0) so the legacy path is equally auditable.
+        {
+            const int mounted = lsuTrigger
+                ? static_cast<int>(lsuTrigger->tier) : -1;
+            const auto cap = chaos_lsu_tier_cap::resolve(p.lsuTier, mounted);
+            printf("%s\n", chaos_lsu_tier_cap::marker(cap).c_str());
+            // Crash durability (the trace stream's Z_SYNC_FLUSH discipline,
+            // applied to the capability proof): an aborted run must still
+            // carry the marker, otherwise the campaign would refuse the
+            // sample as `capability-missing` for the WRONG reason.
+            fflush(stdout);
         }
         // walk_pairing is the only mode that needs the event-normalized
         // trigger; refuse loudly instead of silently injecting nothing
