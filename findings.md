@@ -214,3 +214,59 @@ sdcshield 仓 feat/sve-sme-all-vl 分支（6024d5d7/d420656d/4763c584），本�
 构建零警告 + skip 路径不变 + zstd19 回归——真机 SVE/SME 行为由 gem5
 kernel 等价实证背书（诚实边界：SE 单线程 kernel 与框架测试的 fork/多线程
 形态不同，数值契约与 asm 语义同源）。
+
+### sleef_sve 真 VLA 迁移 gem5-fi 16-run 实证（2026-10-24，feat/sleef-vla-dual 分支，sdcshield PR #286 merge blocker 补齐）
+
+sdcshield PR #286（feat/sleef-eigen-allvl @ be0bf9d8）把 sleef_sve 从 128-bit 锁定库
+迁入真 VLA 库（tests_sve_vla：-march=armv8.2-a+sve，无 -msve-vector-bits）；宿主无
+SVE，功能改动按 CLAUDE.md 规则 2 必须 gem5-fi 验证。本节补齐该矩阵。
+
+**验证对象 = vendored SLEEF 3.9.0 库本身**：sleef_vla_dual 链接 sdcshield
+third-party/sleef/install/lib/libsleef.a（与 tests_sve_vla 同一机器码）。入库前对档案
+复验：FMA 变体 SVE 成员纯 VLA——13 cntd/21 cntp/6 rdvl/86 ptrue，零 pattern 立即数
+ptrue（固定宽度残留）。同源镜像：输入构造（u53 均匀 + sleef_sve.cpp 精确域映射）、
+循环形态（svcntd/svcntw 步进 + svwhilelt_b64/b32 尾截断）、12 函数矩阵（double u10
+sin/cos/exp/log + float u10 ×4 + double u35 sin/cos/log/exp2，u35 无 exp、exp2 为独立
+链替补）。NELEMS=1028（测试 nelems knob 合法域内 4 的倍数，≡4 mod 32 → 256/512/
+1024-bit 档尾真正截断；128-bit 档按测试自身对齐设计无尾）。通道 A = golden 先算后比
+（镜像 init/run 双代码位点；SLEEF_CONST=__attribute__((const)) 会把单函数内第二遍
+调用 CSE 掉——golden_pass/compute_out 双 noinline 规避，反汇编实证两函数各含 12 个
+SLEEF bl）+ 测试的有限性哨兵界；通道 B = 全输出 FNV-1a。
+
+**16-run 实录**（O3 CPU，configs/se/arm_chaos.py，全部 gem5 进程退出码 0、
+SDCSHIELD_FAILS=0）：
+
+| 档位 | cols(svcntd×svcntw) | fixed 1 | random 1 | random 2 | random 3 |
+|------|--------------------|---------|----------|----------|----------|
+| 128-bit (--sve_vl 1) | 2×4 | 0e7d323699e93b79 | d57c395eaedf525e | 93386fc81537269b | b44f6cd4c1e83633 |
+| 256-bit (--sve_vl 2) | 4×8 | 0e7d323699e93b79 | d57c395eaedf525e | 93386fc81537269b | b44f6cd4c1e83633 |
+| 512-bit (--sve_vl 4) | 8×16 | 0e7d323699e93b79 | d57c395eaedf525e | 93386fc81537269b | b44f6cd4c1e83633 |
+| 1024-bit (--sve_vl 8) | 16×32 | 0e7d323699e93b79 | d57c395eaedf525e | 93386fc81537269b | b44f6cd4c1e83633 |
+
+**跨档字节同一性成立**：每个输入集 checksum 四档逐位一致（per-lane 纯度 + 尾精确的
+直接证据）；4 个输入集 checksum 互异（随机化生效）。
+
+**工具有效性（阴性对照，J1' 纪律）**：golden 毒化 1 ulp → FAILS=1（首失配逐位打印）；
+输入毒化 1 ulp → FAILS=4（恰为消费 xd_trig 的 4 个家族——per-lane 纯度旁证）+
+checksum 改变（通道 B 灵敏度）。
+
+**保真度闭环**（sleef_vla_semantics 探针 + 宿主锚；动机：SLEEF 代码含 325 处向量
+立即数 MOV，F3 曾记录此类写丢失，而双通道对确定性损毁自洽盲——本仓已知的 in-run
+双通道同损盲区类）：
+- S2 向量 vs 标量标定：12 家族 × 1028 lane（含域边缘值）× 四档，worst = 0.00 ulp
+  （逐位一致；标量路径无 SVE 指令，不受 F3 类偏差影响；与 SLEEF 同源生成多后端
+  架构相符）；
+- 宿主锚：同一 libsleef.a 标量函数在真硬件（Kunpeng 920）按同 fill/同 FNV 序重算，
+  4 输入集 checksum 与 gem5 向量路径逐位一致——**gem5 SVE 执行 == 真硬件 SLEEF
+  算术，逐位**；
+- S1 编码级 + F3 复现裁决：SLEEF 实际使用的 MOVI/FMOV 形态（符号掩码 0x8000…、
+  inf 掩码 0x7ff0…、fmov #1.5、z.b 非零预态清零）四档全部读回正确；原始 P2 形态
+  （mov z.d,#1）在孤立复现（全 lane 读回、±--sme_vl、NEON stp 预清零、x8 基址均
+  测试）四档全部正确，但原 sve_sme_semantics 二进制在其自身编译上下文中仍复现
+  DEVIATION——F3 为上下文相关 gem5 O3 现象，根因未裁决（登记 open item）；对
+  SLEEF 的执行不受影响由上述价值级证据（0 ulp + 宿主锚）独立证明，不依赖 S1。
+
+诚实边界：gem5 SE 不传播 guest 退出码（exit(7) 实证：gem5 进程退 0 且无打印）——
+kernel 退出码 = FAILS?1:0，经 FAILS 行记录；单发 kernel ≠ 框架 fork/多线程/定时循环
+形态（与既有全部 dual kernel 同一边界，数值契约与循环语义同源）；宿主无 SVE，四档
+向量执行仅在 gem5 实证，硬件锚经标量路径间接闭合。
