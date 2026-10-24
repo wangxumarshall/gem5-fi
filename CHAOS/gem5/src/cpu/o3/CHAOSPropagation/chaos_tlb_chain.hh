@@ -64,10 +64,16 @@ tlbRegistrationArms(uint64_t req_seq, bool pa_changed)
     Arms a;
     if (!pa_changed)
         return a;                    // effective PA unchanged: no downstream surface
+    // [R6-FIXARMS 2026-10-24] The two arms are INDEPENDENT, not either/or.
+    // A real physical redirect makes the whole forged PA page reachable, so
+    // the address-fallback arm must open in BOTH cases; the seq arm
+    // additionally binds the faulting request itself. (Pre-fix defect: an
+    // `else` made them mutually exclusive, so with pa_changed=1 & req_seq!=0
+    // the same-page victim requests lost attribution, `errant_commit`
+    // disappeared, and the chain was misjudged as a fake L4 containment.)
+    a.addr_fallback = true;          // forged PA page is shared -> always open
     if (req_seq != 0)
-        a.seq_primary = true;        // the faulting request (seq-bound)
-    else
-        a.addr_fallback = true;      // no Request identity: labeled fallback
+        a.seq_primary = true;        // ... plus the faulting request (seq-bound)
     return a;
 }
 

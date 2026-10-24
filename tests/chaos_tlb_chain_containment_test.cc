@@ -81,16 +81,21 @@ main()
     std::printf("[3] a REAL redirect keeps propagation (no over-fix)\n");
     {
         Arms a = tlbRegistrationArms(req_seq, /*pa_changed=*/true);
-        check("pa_changed=1 with a Request identity opens seq_primary",
-              a.seq_primary && !a.addr_fallback);
+        // [R6-FIXARMS 2026-10-24] The two arms are INDEPENDENT: a real
+        // physical redirect leaves the whole forged PA page reachable, so the
+        // address-fallback arm must open alongside the seq arm.
+        check("pa_changed=1 with a Request identity opens BOTH seq_primary and addr_fallback",
+              a.seq_primary && a.addr_fallback);
         ChainArmModel m;
         m.registerFault(1, req_seq, va_lo, new_page, span, true);
         check("the faulting request's own later events still join by seq",
               m.lookupSeq(va_lo) == 1);
-        // No VA-page fallback was created for the seq case (R4-4 ruling), so a
-        // merely-coincident same-PA event is not captured.
-        check("no PA-page fallback arm when req_seq != 0",
-              m.lookupBlock(new_page) == 0);
+        // The forged PA page is SHARED: a same-page victim request must be
+        // attributed too. (Pre-fix defect: an `else` made this 0, so the
+        // victim lost attribution, `errant_commit` vanished and the chain was
+        // misjudged as a fake L4 containment.)
+        check("a same-(forged)-PA-page event DOES join via the addr arm",
+              m.lookupBlock(new_page) == 1);
     }
 
     std::printf("[4] seq-less lookups keep the labeled addr_fallback\n");
