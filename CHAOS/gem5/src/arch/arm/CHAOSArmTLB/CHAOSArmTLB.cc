@@ -87,6 +87,14 @@ namespace gem5
                 if (lsuTrigger)
                     lsuTrigger->summary("CHAOSArmTLB");
             });
+        } else {
+            // [R6-F0FUNNEL 2026-10-25] F0 / no tier mounted: no
+            // ChaOSLsuTrigger exists, so nothing printed the authoritative L0
+            // funnel and the campaign could only record attempted=None for
+            // every F0 armtlb cell. Print the SAME line from the passive
+            // counters. Observation only — registering a callback changes no
+            // injection decision, RNG draw or skip/cap arithmetic.
+            registerExitCallback([this]() { printLegacyFunnelSummary(); });
         }
         if (probability > 0.0f) {
             log_stream = simout.create("armtlb_injections.log", false, true);
@@ -123,6 +131,29 @@ namespace gem5
     CHAOSArmTLB::lookupTierMounted() const
     {
         return lsuTrigger && lsuTrigger->tier != ChaOSLsuTier::F0;
+    }
+
+    // [R6-F0FUNNEL 2026-10-25] F0-legacy authoritative funnel summary.
+    // Same line/format the tier path prints (ChaOSLsuTrigger::summary) and the
+    // campaign's own regexes accept — so an F0 sample now carries a real
+    // attempted/eligible source instead of None. injected is the REAL
+    // faults_injected_count (the same counter the fault budget tests), never a
+    // mirrored copy. Nothing here is read by any injection decision.
+    void
+    CHAOSArmTLB::printLegacyFunnelSummary() const
+    {
+        printf("CHAOS_LSU_TRIGGER: injector=%s tier=F%d attempted=%lu "
+               "eligible=%lu injected=%lu first_eligible_tick=%lu "
+               "last_eligible_tick=%lu (activated=W3-L0-layer)\n",
+               "CHAOSArmTLB", static_cast<int>(ChaOSLsuTier::F0),
+               (unsigned long)legacy_attempted,
+               (unsigned long)legacy_eligible,
+               (unsigned long)faults_injected_count,
+               (unsigned long)legacy_first_eligible_tick,
+               (unsigned long)legacy_last_eligible_tick);
+        // Crash durability: keep the marker in the same flushed window the
+        // tier path uses, so an aborted run still carries it.
+        fflush(stdout);
     }
 
     // One eligible event = one TLB lookup on the mounted lookup path. Books
@@ -453,11 +484,27 @@ namespace gem5
         if (lookupTierMounted()) {
             if (!lookupTierAllowsInjection(/*is_hit=*/true)) return;
         } else {
+            // [R6-F0FUNNEL 2026-10-25] PASSIVE observation, legacy F0 path.
+            // One attempted per F0 lookup-hook call that reaches the legacy
+            // chain (walk/CAM models returned above, so nothing is double
+            // counted across hooks). Increment only — no draw, no branch.
+            ++legacy_attempted;
+
             if (max_faults != 0 && faults_injected_count >= max_faults) return;
 
             // Probability gate: per-lookup Bernoulli.
             std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
             if (probDist(rng) > probability) return;
+
+            // [R6-F0FUNNEL] Eligible = past the entry + fault-cap + probability
+            // gates, BEFORE the skip budget is consumed — the same junction
+            // the tier path's onEligible() counts at. Observation only: the
+            // counters are written after every gate has already decided, so
+            // the skip/cap/RNG arithmetic below is untouched.
+            ++legacy_eligible;
+            if (legacy_eligible == 1)
+                legacy_first_eligible_tick = curTick();
+            legacy_last_eligible_tick = curTick();
 
             // Sampling-bias fix (see .hh): consume the skip budget on ELIGIBLE
             // events (past the entry + probability gates) before the first

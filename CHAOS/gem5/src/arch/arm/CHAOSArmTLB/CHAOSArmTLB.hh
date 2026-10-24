@@ -150,6 +150,10 @@ class CHAOSArmTLB : public SimObject
     // instead of silently capping the tier back to a single shot.
     bool lookupTierMounted() const;
     bool lookupTierAllowsInjection(bool is_hit);
+    // [R6-F0FUNNEL] Exit-time authoritative funnel summary for the F0 legacy
+    // path (the tier path prints its own via ChaOSLsuTrigger::summary). Same
+    // line format the campaign / L5 / obs-core parsers already accept.
+    void printLegacyFunnelSummary() const;
 
   private:
     // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit
@@ -262,6 +266,19 @@ class CHAOSArmTLB : public SimObject
     Addr last_walk_vpn = 0;
     bool have_last_walk = false;
     bool stale_no_previous_notice = false;
+    // [R6-F0FUNNEL 2026-10-25] PASSIVE F0-legacy funnel observation.
+    // F0 mounts no ChaOSLsuTrigger (the tier object exists only when
+    // --tlb_lsu_tier != "off"), so the legacy lookup path had NO authority to
+    // report attempted/eligible from — the campaign could only record None.
+    // These counters OBSERVE ONLY: no injection decision, RNG draw,
+    // events_to_skip decrement or fault-cap test reads them, so the F0
+    // injection sequence is byte-identical with and without this fix.
+    // `injected` is deliberately NOT mirrored here — the exit summary prints
+    // the real faults_injected_count, the same counter the fault budget uses.
+    uint64_t legacy_attempted = 0;
+    uint64_t legacy_eligible = 0;
+    uint64_t legacy_first_eligible_tick = 0;
+    uint64_t legacy_last_eligible_tick = 0;
     bool write_log;
     std::string protection_model;  // §1.2 protection-aware layer
 
