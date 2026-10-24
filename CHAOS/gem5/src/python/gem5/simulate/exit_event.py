@@ -120,6 +120,16 @@ class ExitEvent(Enum):
             return ExitEvent.KERNEL_PANIC
         elif exit_string == "Kernel oops in guest":
             return ExitEvent.KERNEL_OOPS
+        # [R6-FIXEXIT 2026-10-24] `arch/arm/linux/fs_workload.cc:234` emits the
+        # "simulated kernel" wording for a fault-induced panic/oops. It was
+        # absent from this EXACT-match table, so it fell through to
+        # NotImplementedError (exit=1) instead of reaching the registered
+        # handlers. Exact matches only -- deliberately NO catch-all, so an
+        # unknown exit string still fails loudly below.
+        elif exit_string == "Kernel panic in simulated kernel":
+            return ExitEvent.KERNEL_PANIC
+        elif exit_string == "Kernel oops in simulated kernel":
+            return ExitEvent.KERNEL_OOPS
         elif exit_string.endswith("will terminate the simulation.\n"):
             # This is for the traffic generator exit event
             return ExitEvent.EXIT

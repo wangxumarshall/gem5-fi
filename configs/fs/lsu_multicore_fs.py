@@ -295,8 +295,18 @@ def _kernel_oops_exit():
     return True
 
 
+# [R6-FIXEXIT 2026-10-24] Same as arm_chaos_fs: a fault-induced panic arrives
+# as "Kernel panic in simulated kernel" and must be handled as a legitimate
+# Crash/DUE rather than falling through to NotImplementedError (exit=1).
+def _kernel_panic_exit():
+    print("[lsu_multicore_fs] KERNEL PANIC under fault — exiting (classify: "
+          "Crash/DUE per fs_mode)")
+    return True
+
+
 simulator = Simulator(
     board=board, full_system=True,
-    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit},
+    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit,
+                   ExitEvent.KERNEL_PANIC: _kernel_panic_exit},
 )
 simulator.run()

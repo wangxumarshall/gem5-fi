@@ -524,6 +524,17 @@ def _kernel_oops_exit():
           "Crash/DUE per fs_mode)")
     return True  # exit the simulation loop
 
+
+# [R6-FIXEXIT 2026-10-24] A fault-induced PANIC reaches Python as
+# "Kernel panic in simulated kernel" (fs_workload.cc:234) and had NO handler
+# registered, so it aborted with NotImplementedError (exit=1). Same outcome
+# class as the Oops: a legitimate Crash/DUE, ended through controlled
+# handling instead of an infrastructure error.
+def _kernel_panic_exit():
+    print("[arm_chaos_fs] KERNEL PANIC under fault — exiting (classify: "
+          "Crash/DUE per fs_mode)")
+    return True  # exit the simulation loop
+
 # ---- Platform preset application (M3 T4 fix, 2026-09-28) ----
 # In-body, BEFORE the Simulator is constructed (the only window where CPU/
 # TLB params provably reach instantiate — see the --v110_params/--lsu_b0
@@ -593,7 +604,8 @@ if args.chaos_propagation:
 
 simulator = Simulator(
     board=board, full_system=True,
-    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit},
+    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit,
+                   ExitEvent.KERNEL_PANIC: _kernel_panic_exit},
 )
 if args.early_checkpoint:
     # §2.10 H7 boot-phase checkpoint: run only up to <ticks> mid-boot, save,
