@@ -96,6 +96,45 @@ namespace gem5
 
     CHAOSArmTLB::~CHAOSArmTLB() {}
 
+    // [MDSPEC][R6-FIXCPP/B] lookup-mode F-tier. See CHAOSArmTLB.hh for the
+    // full ruling; the semantics are chaos_lsu_trigger.hh's (event-normalized,
+    // no frequency invented here).
+    bool
+    CHAOSArmTLB::lookupTierMounted() const
+    {
+        return lsuTrigger && lsuTrigger->tier != ChaOSLsuTier::F0;
+    }
+
+    // One eligible event = one TLB lookup on the mounted lookup path. Books
+    // the funnel attempt, emits a one-shot reachability/budget notice, and
+    // asks the tier. F0 is NOT tiered (the legacy gates run unchanged, so F0
+    // stays byte-equivalent to the pre-R6 tree).
+    bool
+    CHAOSArmTLB::lookupTierAllowsInjection(bool is_hit)
+    {
+        lsuTrigger->onAttempt();
+        if (!tier_lookup_notice) {
+            tier_lookup_notice = true;
+            if (write_log && log_stream) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_lookup_tier"
+                    << ", FaultType: " << faultTypeToString(fault_type_enum)
+                    << " (lookup path now polls lsuTrigger; tier=F"
+                    << static_cast<int>(lsuTrigger->tier)
+                    << "; a tiered run does NOT consume --tlb_max_faults="
+                    << max_faults << " — the tier is the frequency model)"
+                    << std::endl;
+            }
+        }
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // The F6 event source for the lookup path IS a TLB hit
+            // (09 §2.1 map): a miss never consumes the arm.
+            return is_hit ? lsuTrigger->onF6Event(false) : false;
+        }
+        return lsuTrigger->onEligible();
+    }
+
     CHAOSArmTLB::FaultType
     CHAOSArmTLB::stringToFaultType(const std::string &s) {
         if (s == "bit_flip") return FaultType::BitFlip;
@@ -384,16 +423,27 @@ namespace gem5
         // For simplicity we check the fault cap + probability only; the
         // clock window is advisory (the tlb SimObject's schedule isn't
         // easily reachable here without more plumbing).
-        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        // [MDSPEC][R6-FIXCPP/B] F-tier gate. A mounted non-F0 tier IS the
+        // frequency model for the lookup path (event-normalized, one
+        // eligible event per TLB-hit lookup) and replaces the legacy
+        // chain (--tlb_max_faults / --tlb_probability / the seed-varied
+        // eligible-event skip) — the latter would silently cap every tier
+        // back to a single F0 shot, which is exactly the R6-FTIER defect.
+        // F0 / no tier mounted: legacy path, byte-equivalent to pre-R6.
+        if (lookupTierMounted()) {
+            if (!lookupTierAllowsInjection(/*is_hit=*/true)) return;
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return;
 
-        // Probability gate: per-lookup Bernoulli.
-        std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
-        if (probDist(rng) > probability) return;
+            // Probability gate: per-lookup Bernoulli.
+            std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
+            if (probDist(rng) > probability) return;
 
-        // Sampling-bias fix (see .hh): consume the skip budget on ELIGIBLE
-        // events (past the entry + probability gates) before the first
-        // fault, so distinct seeds inject at distinct lookup sites.
-        if (events_to_skip > 0) { --events_to_skip; return; }
+            // Sampling-bias fix (see .hh): consume the skip budget on ELIGIBLE
+            // events (past the entry + probability gates) before the first
+            // fault, so distinct seeds inject at distinct lookup sites.
+            if (events_to_skip > 0) { --events_to_skip; return; }
+        }
 
         FaultType chosen = fault_type_enum;
         if (fault_type_enum == FaultType::Random) {
@@ -795,10 +845,21 @@ namespace gem5
     {
         if (!isCamFault(fault_type_enum)) return entry;
         if (probability <= 0.0f) return entry;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return entry;
-        std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
-        if (probDist(rng) > probability) return entry;
-        if (events_to_skip > 0) { --events_to_skip; return entry; }
+        // [MDSPEC][R6-FIXCPP/B] same F-tier gate as maybeCorrupt. The CAM
+        // family's eligible stream is the lookup itself (false_hit's premise
+        // IS a miss / T07's trigger is the CAM compare), so for non-F6 tiers
+        // both outcomes count; the F6 arm consumes only a real TLB hit
+        // (is_hit = entry != nullptr), matching the 09 §2.1 TlbHit source.
+        if (lookupTierMounted()) {
+            if (!lookupTierAllowsInjection(/*is_hit=*/entry != nullptr))
+                return entry;
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return entry;
+            std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
+            if (probDist(rng) > probability) return entry;
+            if (events_to_skip > 0) { --events_to_skip; return entry; }
+        }
         if (!tlb) return entry;
 
         const auto &tbl = tlb->entryTable();
