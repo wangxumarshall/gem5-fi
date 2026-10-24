@@ -2122,6 +2122,25 @@ def armtlb_count_sources(outdir, stdout_text):
             "detail": ", ".join("%s=%s" % (k, v) for k, v in present.items())}
 
 
+def _armtlb_funnel_from_log(outdir):
+    """(attempted, eligible, injected) from the injection log's FUNNEL line.
+
+    Abort-class runs never reach gem5's exit callback, so no stdout
+    CHAOS_LSU_TRIGGER line exists; the injector's per-injection FUNNEL line
+    survives (same precedence as tools/lsu_obs_core.parse_l0: last line = the
+    terminal count). None when the log has no FUNNEL line at all.
+    """
+    import re as _re
+    ilog = Path(outdir) / "armtlb_injections.log"
+    if not ilog.exists():
+        return None
+    f = _re.findall(r"FUNNEL: attempted=(\d+) eligible=(\d+) injected=(\d+)",
+                    ilog.read_text(errors="replace"))
+    if not f:
+        return None
+    return tuple(int(x) for x in f[-1])
+
+
 # [R6-FIXEXIT2 2026-10-24] Controlled guest-exit markers emitted by OUR OWN
 # FS configs when a fault drives the simulated kernel into a panic/oops
 # (configs/se/arm_chaos_fs.py:522-535, configs/fs/lsu_multicore_fs.py:293-302).
@@ -2167,8 +2186,24 @@ def classify_fs_run(outdir, run_stdout, exit_code):
     # tier/FREQ-model diagnostic line, is not an injection.
     _src = armtlb_count_sources(outdir, run_stdout)
     injected = _src["log"]
+    # [R6-FIXTRIGGER 2026-10-24] the L0 funnel (attempted/eligible) comes from
+    # the authoritative CHAOS_LSU_TRIGGER stdout summary — the SAME source
+    # tools/lsu_l5_classify.py:60 and tools/lsu_obs_core.py:177 already use.
+    # Only the legacy F0 path (no tier mounted) omits it, and abort-class runs
+    # never reach the exit callback; for those fall back to the injection log's
+    # FUNNEL line. When NEITHER exists the funnel is genuinely unknown: say so
+    # (funnel_missing) rather than letting the roll-up coerce None into 0.
+    _attempted, _eligible = _src["attempted"], _src["eligible"]
+    _funnel_src = "stdout:CHAOS_LSU_TRIGGER" if _attempted is not None else None
+    if _attempted is None:
+        _fb = _armtlb_funnel_from_log(outdir)
+        if _fb is not None:
+            _attempted, _eligible = _fb[0], _fb[1]
+            _funnel_src = "injections.log:FUNNEL(last)"
     out = {"injected": injected, "activated": injected,
-           "attempted": None, "eligible": None, "checksum": None,
+           "attempted": _attempted, "eligible": _eligible, "checksum": None,
+           "funnel_source": _funnel_src,
+           "funnel_missing": _attempted is None,
            "count_sources": _src,
            "count_contradiction": _src["contradiction"]}
     # [R6-FIXEXIT2 2026-10-24] EXACT controlled-exit matching, checked first.
@@ -2664,6 +2699,7 @@ def run_cell_adaptive(cell, args, outroot):
     classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
                               "Crash", "Timeout")}
     runs, attempted, activated = [], 0, 0
+    attempted_missing = False
     seed, stop_reason = 0, None
     cell_out = outroot / runid
 
@@ -2698,6 +2734,14 @@ def run_cell_adaptive(cell, args, outroot):
                   # [R6-FIXD] binding 门禁结论（来自 write_chain_report，真调
                   # check_admission）；None=无激活/不适用。
                   "admitted": _chain.get("admitted"),
+                  # [R6-FIXTRIGGER] per-sample funnel provenance/honesty:
+                  # which source supplied attempted/eligible, and the loud
+                  # flags (missing funnel / three-source count disagreement).
+                  "attempted": r.get("attempted"),
+                  "eligible": r.get("eligible"),
+                  "funnel_source": r.get("funnel_source"),
+                  "funnel_missing": r.get("funnel_missing"),
+                  "count_contradiction": r.get("count_contradiction"),
                   # effective wall-clock budget this sample actually got
                   "timeout_seconds": r.get("timeout_seconds"),
                   "trigger_alarm": r.get("trigger_alarm")}
@@ -2711,7 +2755,14 @@ def run_cell_adaptive(cell, args, outroot):
                 _entry["admission_status"] = "BLOCKED"
                 _entry["evidence_pilot_only"] = bool(_evidence_pilot)
         runs.append(_entry)
-        attempted += int(r.get("attempted", 0) or 0)
+        # [R6-FIXTRIGGER 2026-10-24] a sample with NO authoritative funnel
+        # reports attempted=None; summing that as 0 would FABRICATE
+        # "attempted=0" and then blame the data for the contradiction. Track
+        # the absence and surface it loudly instead.
+        if r.get("attempted") is None:
+            attempted_missing = True
+        else:
+            attempted += int(r.get("attempted"))
         activated += act
         oc = r.get("outcome")
         if oc in classes:
@@ -2721,8 +2772,17 @@ def run_cell_adaptive(cell, args, outroot):
     # [R6-FIXD] 分母为 0 的"率"绝不静默报 0.0。attempted=0 而 activated>0 本身
     # 就是计数矛盾（activated 不可能超过 attempted）：必须响亮说出，不得伪装
     # 成一个"0 激活率"。activated=0 时 sdc_rate 同理（None = 不适用）。
-    count_contradiction = bool(attempted == 0 and activated > 0)
-    if attempted > 0:
+    # [R6-FIXTRIGGER] 另有三种响亮情形：样本缺权威漏斗（attempted=None）、
+    # 样本级三源计数矛盾、或样本级 funnel_missing。
+    _contra_seeds = [e["seed"] for e in runs
+                     if e.get("count_contradiction") or e.get("funnel_missing")]
+    count_contradiction = bool((attempted == 0 and activated > 0)
+                               or attempted_missing or _contra_seeds)
+    if attempted_missing:
+        attempted_reported = None           # 缺权威摘要：如实记 None，非 0
+    else:
+        attempted_reported = attempted
+    if attempted > 0 and not attempted_missing:
         act_rate = round(activated / attempted, 4)
     elif activated == 0:
         act_rate = 0.0                      # 真零（无矛盾）
@@ -2730,10 +2790,17 @@ def run_cell_adaptive(cell, args, outroot):
         act_rate = None                     # 矛盾：不报数
     sdc_rate = (round(classes["SDC"] / activated, 4) if activated else None)
     rate_note = ""
-    if count_contradiction:
+    if attempted_missing:
+        rate_note = ("计数缺失：样本无权威漏斗摘要（stdout 无 CHAOS_LSU_TRIGGER "
+                     "且注入日志无 FUNNEL）——attempted 记 None，绝不默认 0；"
+                     "activation_rate 不适用")
+    elif count_contradiction:
         rate_note = (f"计数矛盾：attempted=0 而 activated={activated}"
                      f"（activated 不可能超过 attempted）——activation_rate "
                      f"不适用，绝不报 0.0")
+    if _contra_seeds:
+        rate_note = ((rate_note + "；") if rate_note else "") + \
+            ("样本级计数矛盾/funnel 缺失：seed%s" % _contra_seeds)
     if not activated:
         rate_note = ((rate_note + "；") if rate_note else "") + \
             "activated=0 → sdc_rate 不适用（n/a），非 0.0"
@@ -2741,7 +2808,7 @@ def run_cell_adaptive(cell, args, outroot):
     result = {
         "runid": runid, "phase": args.phase, "seed_batches": seed,
         "clustered": clustered, "n_runs": len(runs),
-        "attempted": attempted, "activated": activated,
+        "attempted": attempted_reported, "activated": activated,
         "classes": classes, "sdc_rate": sdc_rate,
         "activation_rate": act_rate,
         "activation_rate_note": rate_note,
@@ -2814,7 +2881,10 @@ def run_cell_adaptive(cell, args, outroot):
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
     line = ("  %s: phase=%s n_runs=%d attempted=%s activated=%d sdc=%s "
             "act_rate=%s stop=%s cons=%s budget[fs=%ss se=%ss]" %
-            (runid, args.phase, len(runs), attempted, activated,
+            # [R6-FIXTRIGGER] print the REPORTED attempted (None when no
+            # authoritative funnel) — never the raw 0 the roll-up would have
+            # fabricated from an absent summary.
+            (runid, args.phase, len(runs), attempted_reported, activated,
              classes["SDC"] if activated else "n/a",
              act_rate if act_rate is not None else "n/a（不适用）",
              stop_reason, result["conservation"],

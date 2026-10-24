@@ -61,15 +61,15 @@
 
 文件：`tools/lsu_campaign.py`（`classify_fs_run` 与新解析助手；`run_cell_adaptive` 汇总）、`tests/test_lsu_campaign_fs_trigger.py`
 
-- [ ] 复用既有正则解析 `run_stdout` 的 `CHAOS_LSU_TRIGGER: ... attempted= eligible= injected=`，回填 `attempted/eligible`（`injected` 由提交 2 的计数提供，两者须一致，否则 contradiction）。
-- [ ] stdout 无 TRIGGER 行时回退注入日志 `FUNNEL:` 最后一行（与 `lsu_obs_core.parse_l0` 同款）；两者皆无 → **不默认 0**：置 `funnel_missing=True` 且 `attempted=None`。
-- [ ] 单格汇总（`lsu_campaign.py:2609` 一带）：任何样本 `attempted is None` 或 `count_contradiction` 或 `funnel_missing` → cell 级 `count_contradiction=True` + 响亮 note，**不静默把 None 变 0**；不影响 SE 家族既有语义（SE 走 `lsu_l5_classify.py`，行为不变）。
-- [ ] 测试：本格解析 `attempted=110149/eligible=110149/injected=1`；缺失 TRIGGER → `attempted is None` 且 `funnel_missing=True`（非 0）；整格集成（模拟本格三缺陷叠加）得
+- [x] 复用既有正则解析 `run_stdout` 的 `CHAOS_LSU_TRIGGER: ... attempted= eligible= injected=`，回填 `attempted/eligible`（`injected` 由提交 2 的计数提供，两者须一致，否则 contradiction）。
+- [x] stdout 无 TRIGGER 行时回退注入日志 `FUNNEL:` 最后一行（与 `lsu_obs_core.parse_l0` 同款）；两者皆无 → **不默认 0**：置 `funnel_missing=True` 且 `attempted=None`。
+- [x] 单格汇总（`lsu_campaign.py:2609` 一带）：任何样本 `attempted is None` 或 `count_contradiction` 或 `funnel_missing` → cell 级 `count_contradiction=True` + 响亮 note，**不静默把 None 变 0**；不影响 SE 家族既有语义（SE 走 `lsu_l5_classify.py`，行为不变）。
+- [x] 测试：本格解析 `attempted=110149/eligible=110149/injected=1`；缺失 TRIGGER → `attempted is None` 且 `funnel_missing=True`（非 0）；整格集成（模拟本格三缺陷叠加）得
       `attempted=110149, activated=1, classes.Crash=1, conservation=OK, count_contradiction=False`。
-- [ ] 验证：`python3 tests/test_lsu_campaign_fs_trigger.py`（rc=0）。
+- [x] 验证：`python3 tests/test_lsu_campaign_fs_trigger.py`（rc=0）。
 
 ## 提交后（非代码提交）
 
-- [ ] **完整回归**：`python3 -m pytest tests/ -q` + 独立脚本套件（`tools/lsu_ready_contract.py --gate` 口径），确认 **NEW FAIL=0**。出现新增失败立即停止汇报。
+- [x] **完整回归**：`python3 -m pytest tests/ -q` + 独立脚本套件（`tools/lsu_ready_contract.py --gate` 口径），确认 **NEW FAIL=0**。出现新增失败立即停止汇报。
 - [ ] **T02-F2-W4 离线复判**（不跑 gem5、不覆盖旧报告）：以 `runs/lsu/r6_c5_T02-F2-W4/T02-F2-W4/seed1` 原始证据重生成报告到独立目录（如 `runs/lsu/r6_rejudge_T02-F2-W4_toolfix/`），产出字段级旧/新 diff。核验 §五 全部判据；传播链/admission/violations 意外变化 → 停止汇报。
 - [ ] **剩余四格 canary**（仅在复判全过后）：T01-F0-W4、T04-F0-W4、T04-F2-W4、T04-F6-W4 各 1 seed，全新目录，并发 ≤3，启动/结束各核二进制 SHA。
