@@ -608,6 +608,15 @@ class CHAOSPropagation : public SimObject
     // corr stays empty ONLY where an earlier approved family contract allows
     // the honest absence: tlb_pfn with no correlation surface (req_seq==0
     // AND PA page unchanged) and pf_fill/pf_demand with fault_id=0.
+    // [MDSPEC][R6-FIXCPP/A] It ALSO stays empty — with a Request identity
+    // present — for a TLB-entry fault whose corrupted pfn did NOT redirect
+    // the effective PA (pa_changed == 0; the pfn bit sits at/above the PA
+    // width and wraps out of the Addr): the translation the MMU runs is the
+    // CLEAN one, the chain opens no arm at all and honestly stops at the TLB
+    // layer (L2 containment), instead of fabricating a seq_primary that
+    // would capture the same request's later clean events. See
+    // chaos_tlb_chain.hh (chaos_chain::tlbRegistrationArms) — the single
+    // source of truth this contract is implemented from.
     static constexpr const char *CORR_SEQ_PRIMARY = "seq_primary";
     static constexpr const char *CORR_ADDR_FALLBACK = "addr_fallback";
     static constexpr const char *CORR_ORIGIN = "origin";
@@ -791,6 +800,15 @@ class CHAOSPropagation : public SimObject
     // Serialize + flush one PROP-EVT row (shared by the normal emitter and
     // the lineage-bridge emitter).
     void writePropEvtRow(std::map<std::string, std::string> &fields);
+
+    // [MDSPEC][R6-FIXCPP/A] Drop every correlation arm (addr_registry seq
+    // entry + blk_registry fallback page) belonging to `ptag`. Called at a
+    // CONTAINED translation completion so a closed chain leaves no residual
+    // mapping behind; idempotent, no-op for ptag == 0 or an arm-less chain.
+    // The registration-side gate + this revocation are the two halves of the
+    // containment contract pinned by tests/ (chaos_tlb_chain.hh is the shared
+    // decision source for both).
+    void revokeChainArms(uint64_t ptag);
 
     struct TlbPending {
         uint64_t ptag = 0;
