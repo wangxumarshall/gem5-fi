@@ -1,622 +1,649 @@
-/superpowers:executing-plans
-
-继续完成 LSU 正式实验准入。目标不是单纯将 BLOCKED 降为 0，而是确保每个正式实验 RunID 都能产出真实、完整、可审计的传播路径和各单元指标变换。满足正式准入条件后，在启动全量正式实验之前停止并通知我。
-
-先恢复现场：
-
-- 主工作目录：/home/sdc/gem5-fi-ding
-- 集成 worktree：/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019
-- 当前集成分支已包含：
-  - 317c71bf：family-aware、父子 DAG 连续链检查
-  - 97f74786：T05–T08 trial-only evidence 路由
-- C++ 修补 worktree：
-  /home/sdc/gem5-fi-ding/.claude/worktrees/r6-tlb-hooks
-- 先检查该 C++ worktree 的未提交修改、构建进程和测试结果。保留有效修改，完成测试、提交和推送后再审查集成。
-- 不要直接在脏的 /home/sdc/gem5-fi-ding 主 checkout 修改或提交。
-- 检查正在运行或已结束的 S01 无注入 golden census，保留结果，不要无故重跑。
-
-使用多个 subagent 并行，但必须给每个 agent 独立 worktree和互不重叠的文件所有权。主 agent 负责审查、串行集成、统一编译、准入重算和最终裁决。
-
-并行工作建议：
-
-Agent A：完成并审查 TLB C++ 完整观测链
-- 继续 r6-tlb-hooks。
-- 必须记录故障请求自身的：
-  - L0：注入及 before/after；
-  - L1：真实 DTLB lookup，包括 entry/way、VPN、ASID、valid/global、PPN、权限、memory type、page size；
-  - L2：MMU 权限和对齐检查之后的真实 translation result，包括 PA 与 Fault；
-  - L3：LSQ request、cache/memory request/response；
-  - L4：load PRF、store 落点、异常或架构可见差异；
-  - L5：commit/squash/oracle，或有依据的 containment 结局。
-- fault_id、parent_event_id、request_id、walk_id、dyn_inst_seq 必须连续关联。
-- 对 effective PA 不变、权限拒绝、walk 丢失等路径发射明确 containment_layer 和 containment_reason。
-- chain_end 只能是生命周期事件，不能单独充当 L5。
-- 覆盖 T01–T10，尤其 T05–T08，不得只实现 lookup 内近似。
-
-Agent B：正式准入硬门禁
-- 在独立 worktree 修改 ready contract、audit 和相应测试。
-- activated 样本必须满足以下之一：
-  1. 同一 parent-event DAG 上的族专用完整 L0→L5 链；
-  2. 传播到某层后，有明确 containment 层、原因和逐层指标，后续层为有依据的 N/A(contained)。
-- 禁止 Unknown。
-- 禁止用 cache_access 冒充 TLB 的 L1。
-- 禁止拼接不同分支、不同请求或时间倒挂的边。
-- 禁止仅凭 activated=1、RC=0 或 chain_end 判 READY。
-- 逐层必录指标缺失必须响亮失败。
-
-Agent C：BLOCKED 可执行项
-- 重新读取最新 ready_contract 和 blocked_triage。
-- 优先处理约 54 个服务器侧可攻关项：
-  - FS-INFRA 24；
-  - MODE-UNIMPL 3；
-  - FS-MULTICORE W7 约25；
-  - S01/S02 census 2。
-- 不得把 LICENSE、缺失外部 workload 或规格裁决项伪造成 READY。
-- 单独列出：
-  - SPEC LICENSE 12；
-  - PARSEC/W13 6；
-  - C08 classic-cache/Ruby 互斥 4；
-  - A06 load SHRINK 6；
-  - S10-F2 2。
-- 对这些项目提供准确解除条件，不得移出325分母。
-
-Agent D：多核与 pilot 调度
-- 准备独立 outdir、guard、锁和结果清单。
-- 先等待相关代码合入和统一二进制编译完成，再启动 pilot。
-- 每个 pilot 必须生成 cell_results、原始事件流、chain_report、逐层指标和完整性结论。
-- 发现缺链立即停止同类批量任务，先修 hook，不要高速生成无效数据。
-
-服务器有约126个在线CPU，但只有约29 GiB内存，FS gem5约占2.5 GiB/进程。因此：
-
-- 代码修补 subagent：3–4个并行。
-- 统一 ARM 编译：只允许一个构建，使用 `-j16`，最多 `-j24`。
-- SE pilot：先16并发，资源稳定后可提高到24–32。
-- FS pilot：先6并发；只有 MemAvailable > 10 GiB 且 swap不增长时才能提高到8，禁止按CPU核数启动126个。
-- FS结果不要大量写入 `/tmp`，因为 `/tmp` 是约15 GiB的 tmpfs；使用 `/home/sdc` 下专用 runs 目录并及时压缩事件文件。
-- 每30秒记录 load、MemAvailable、swap、各gem5 RSS和磁盘空间。
-- MemAvailable < 8 GiB 或 swap持续增长时立即降低FS并发。
-- 不要运行 stress-ng 或无意义CPU backfill。
-
-集成顺序：
-
-1. 审查并合入严格链检查器；
-2. 合入 TLB L1/L2/containment C++ hook；
-3. 合入 T05–T08 trial路由；
-4. 合入完整链准入硬门禁；
-5. 统一构建 ARM gem5；
-6. 先做少量代表性负向和真实 pilot；
-7. 通过后按资源限制并行重跑 T系列；
-8. 并行处理多核 W7 和 S01/S02；
-9. 重新审计全部325个 RunID。
-
-每个 subagent 必须返回：
-- 分支和提交 SHA；
-- 修改文件；
-- RED→GREEN 测试；
-- 编译结果；
-- 真实 pilot 的输出路径；
-- 链完整性结论；
-- 尚未解决的风险。
-
-主 agent 不得盲目合并。每次合并后统一测试并推送。上下文接近上限时，把HEAD、任务状态、运行进程、证据路径和剩余项写入进度文件并提交，然后继续，不得因阶段总结或subagent完成而停止。
-
-只有同时满足以下条件才可停止：
-
-1. 所有可实现 hook、路由和观测点已经实现、编译并测试；
-2. 325个RunID全部重新审计；
-3. 每个可执行实验都有完整族专用传播链，或有明确、可审计的 containment 路径；
-4. 所有 activated 样本均无 Unknown；
-5. 每层关键指标及 before/after 均满足MD/Excel要求；
-6. 正式启动命令经过机器校验，不含 trial、dry-run或少量seed限制；
-7. Git工作树清楚，全部有效代码和证据已提交并推送；
-8. 独立审查 subagent 复核通过；
-9. 权威准入达到正式实验条件，外部资源或规格裁决项不得被隐瞒。
-
-满足条件后不要真正启动全量正式实验。在启动前停下，报告最终HEAD、READY/BLOCKED、325格审计结果、完整链统计、所有验证命令、剩余外部事项、正式命令以及预计CPU/内存/磁盘和运行时间。
-
----
-
-补充一项强制回归要求：
-
-旧检查器曾把以下5个RunID误判为完整链：
-
-- T02-F0-W4
-- T02-F2-W4
-- T04-F0-W4
-- T04-F2-W4
-- T04-F6-W4
-
-它们目前不得继续视为full。原因是旧检查器使用后续cache_access/cache_return冒充TLB的L1/L2，并把corr=none、detection_layer=None、outcome=run_end的chain_end当成L5。
-
-完成TLB观测hook和严格链检查器修复后，必须使用新编译的统一二进制重新运行这5个RunID。每个RunID必须证明同一fault_id在同一条parent_event_id DAG路径上的：
-
-L0 inj
-→ L1 tlb_lookup（真实entry/way及VPN、ASID、valid/global、PPN、权限、memory type、page size before/after）
-→ L2 tlb_translate_result（权限/对齐检查后的PA或Fault）
-→ L3 LSQ request及cache/memory请求响应
-→ L4 PRF/store落点、异常或架构可见差异
-→ L5 与前述污染直接关联的commit/squash/oracle/detection结局。
-
-硬性要求：
-- 禁止用cache_access充当TLB L1；
-- 禁止跨请求或跨DAG分支拼接边；
-- 普通chain_end不能证明L5；
-- Crash必须记录实际检测点、detection_layer、outcome，并与污染链关联；
-- Masked必须记录明确的containment层和原因；
-- 不允许Unknown；
-- 每层必录指标缺失即失败。
-
-同时重新运行此前不完整的7个：
-T01-F0-W4、T01-F1-W4、T01-F2-W4、T03-F5-W4、T10-F0-W4、T10-F1-W4、T10-F2-W4。
-
-最终必须给出12个RunID逐项表格，包括：
-RunID、注入值before/after、各层事件、关联键、最终结局、chain verdict、证据路径。12项全部通过严格门禁后，才能解除对应FS-INFRA阻塞。不要仅凭activated=1、RC=0或旧chain_report宣布通过。
-
----
-
 <task-notification>
-<task-id>af83e2d77330ae934</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/5eba8fcb-a1a5-481f-815a-f220d1577a35/tasks/af83e2d77330ae934.output</output-file>
-<status>failed</status>
-<summary>Background agent "L1 TLB support: fix L0/L5 emission" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
-</task-notification>
-
----
-
-<task-notification>
-<task-id>a6120fc165c45dc30</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/5eba8fcb-a1a5-481f-815a-f220d1577a35/tasks/a6120fc165c45dc30.output</output-file>
-<status>failed</status>
-<summary>Background agent "L6 fix and verify Golden control" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
-</task-notification>
-
----
-
-<task-notification>
-<task-id>a1e15ce971114a7fd</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/5eba8fcb-a1a5-481f-815a-f220d1577a35/tasks/a1e15ce971114a7fd.output</output-file>
-<status>failed</status>
-<summary>Background agent "L10 cache/mem response hook audit" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
-</task-notification>
-
----
-
-当前多-subagent调度已经达到要求，但本机只有4个gem5进程、CPU仍有约95%空闲。请在避免重复RunID和输出目录冲突的前提下，立即再启动2个独立pilot，使gem5总并发达到6；不要再新增只做重复审计的agent。保持16个lane持续有任务，优先把已完成审计转化为修补、测试、真实pilot和集成。6个gem5稳定后，如available memory仍大于8 GiB且swap没有持续增长，再提升到8个。
-
----
-
-<task-notification>
-<task-id>af894281817ee8f05</task-id>
-<tool-use-id>call_00_90d3he0fq2bftwwev3nolel7</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/af894281817ee8f05.output</output-file>
+<task-id>ac453046054f2eed2</task-id>
+<tool-use-id>call_01_y65mssplm993iceh1u7xasdx</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ac453046054f2eed2.output</output-file>
 <status>completed</status>
-<summary>Agent "L36 regenerate wedged O-series results" came to rest</summary>
+<summary>Agent "L26 fix integration regressions" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Done. Lane L36 complete.
+<result>Diff scope is exactly the 4 owned files + 1 new plan file; tree clean; pushed.
 
-**Offline invocation** (no gem5): driver `/tmp/L36_regen.py` imports the merged worktree's `tools/lsu_campaign.py` and calls `classify_fsmc_run(seed_dir, run.out, exit_code=None)` → `write_chain_report(seed_dir, runid, 1, res, None)`, then rebuilds the cell-loop roll-up (`runs[]/classes/wilson/conservation`) into `cell_results.json` + `chain_report.json` + `chain_summary.md`. Single command: `cd /tmp &amp;&amp; python3 /tmp/L36_regen.py`.
+## L26 报告（≤25 行）
 
-**Wall time (O(n) proof, real 222k streams)** — per-cell `write_chain_report`, 3 runs: O01 10.30/10.13/10.30 s; O02-F0 11.46/11.50/11.55 s; O02-F5 11.47/11.38/11.63 s; whole script `real ≈ 33.2 s`. Was &gt;24 CPU-min with nothing written. Verdict is deterministic (seed+cell `chain_report.json`, `chain_summary.md` byte-identical across runs; only `cell_results.json`'s timing stamps vary).
+**逐套件定性（真机实测）**
+1. `test_lsu_r6_golden_control` — **测试环境敏感 bug**。本 worktree 未构建→PASS；集成树有 `CHAOS/gem5/build/ARM/gem5.opt`→`FAIL 缺文件必须 SystemExit &lt;- 返回了 .../CHAOS/gem5/build/ARM/gem5.opt`。解析器契约（`$LSU_GEM5_BIN`→本 checkout 构建→皆缺才 SystemExit）本就正确；测试未构造"本 checkout 无构建"。
+2. `test_lsu_coverage_matrix` — **测试 bug（schema 漂移）**，非证据缺失。L17（`b3321b6f`）重生成 evidence，键由裸 `&lt;RunID&gt;` 变**逐 seed** `&lt;RunID&gt;-seed&lt;N&gt;`；3 检查硬编码裸键落空。实据：`C11-F0-W6-seed1` 有 mshr_alloc/merge/fill/free，`C12-...-seed1` 有 mshr_fill/free/cache_fill，`P01-F0-W8-seed1` 有 pf_queue/pf_issue。
+3. `test_lsu_obs_driver_workers`（基线 ENV，从未真跑）— **混合**：`d_real_gate_precondition` 纯环境（`gate` 实测 `disk_free 64.4 &lt; floor max(50,0.20×353.2)=70.6`，blocked/compile 均空）；`g2_exact_stop_mixed_activation` **测试隔离缺陷**（`ObsDriver.__init__` 在 `guard_dir=None` 时硬改写 LSU_GUARD_DIR 为主树全局路径，claim 泄漏；主树遗留死 pid 陈旧 claim `g2_r0/A01-F0-W9/{s2,s3}.claim`）。
 
-**Results** (all `stream_present=true, truncated=false, evidence_truncated=false, chain_valid=true`, `gzip -t` OK, `stats.txt` 1.2 MB):
-- O01-F0-W7: activated=1, Masked, 222,056 events, terminal `provable_to_L4_then_unknown`, provable_to=L4, beyond=Unknown.
-- O02-F0-W7: activated=1, Masked, 222,056 events, terminal `detected_contained`, L4.
-- O02-F5-W7: activated=104, Masked, 224,700 events, top-level `detected_contained` (fault "1"; 104 faults: 1 contained / 96 L4-unknown / 7 L1-unknown), L4.
-All L4→L5 edges `missing`; no chain violation. Not a PASS.
+**修复与 RED→GREEN**
+- U1 `405f3d62`：RED=落假 build→返回路径 FAIL；改指向保证无构建的临时 checkout；GREEN=有/无构建两环境 `ALL PASS`。
+- U2 `a27e3d86`：RED=`FAILURES: ['c11_...','prefetch_...','c12_...']`；工具新增 `runid_kinds`（裸键∪逐 seed，与 `aux_run_boundary` 同源）供测试聚合（**未放宽判据**：仍要求矩阵 RunID 自证）；GREEN=`FAILURES: 无`（25/25）。
+- U3 `ed78ad01`：`make_ns` 默认隔离 guard_dir + gate BLOCKED 判显式 ENV skip；GREEN=rc0，`PASS g2_exact_stop_mixed_activation`、`SKIP d_real_gate_precondition &lt;- 宿主环境阻塞`，主树 claims 无新泄漏。
 
-**L22 cross-check**: activated/oracle match; event counts are 222,056 / 224,700, not L22's 222,057 / 224,701 (off-by-one). Chain `inj→addr_form→exmon_rmw→exmon_stxr→taint_reg` (path ids 0,1,8,9,12) proven through L4, stops at L4 — as expected. L22's claim that O02's `detection_layer` is empty is **wrong per the bytes**: O01 (44-col header, binary stamped 10:26:46) has `detection_layer= outcome=` empty, but O02-F0/F5 (46-col header, binary 11:41:40) have `errant_commit detection_layer=L5 outcome=errant_commit` and `chain_end contained=1`. So the streams are NOT one binary generation. I do **not** claim L27's emitter fix is verified — 11:41:40 predates L27's 13:07–13:36 builds.
+**修后汇总**：`suites=56 ENV=2 FAIL=13 PASS=39 SKIP=2`（基线 `52/5/13/33/1`；修前 `56/1/16/38/1`）。
+FAIL 集（13）与基线逐一相同，**无基线外新 FAIL**；3 个新 FAIL → 2 PASS + 1 诚实 SKIP。
 
-**Raw evidence**: md5 of all 42 original files identical before/after; only 12 new artifacts added, nothing deleted/overwritten. No failures. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L36.md`. No tracked source touched, nothing pushed.</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>47</tool_uses><duration_ms>1580119</duration_ms></usage>
+**剩余合理失败**：13 项即基线集（pytest::collect、campaign_propagation、hook_a07/c11/c12/c14/c15/cpf/l04/o0x/p06/s10/sq）。ENV=2 系我以另一 worktree 二进制运行的无资产套件（geom_distribution、slot_release_latency），非回归。
+**未修（超 lane 范围）**：`tools/lsu_guard.py::_disk_guard_reason` 在 GUARD_DIR 不存在时（`disk_total_gib=None`）崩溃 `TypeError`——已在报告中披露。报告：`/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L26.md`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>92</tool_uses><duration_ms>1516001</duration_ms></usage>
 </task-notification>
 
 ---
 
-继续执行，不要重复已经完成的合并、测试和统一构建。
+补充执行指令：保留上一条提示语的全部目标、门禁和现有进展，不要重置任务，不要丢弃已经生成的有效产物，也不要重复运行已经完成且证据有效的pilot。
 
-当前认可状态：
+从现在开始改用多subagent滚动执行：
 
-- 集成HEAD：508c716e；
-- 完整回归：61 suites，PASS=45、FAIL=13、SKIP=2、ENV=1，NEW FAIL=0；
-- 统一构建成功；
-- 冻结候选gem5.opt SHA-256：
-  6469bad23ed035fde43b92bcd24570f24de7a4bf12faddce3fee7fe6562aef4e；
-- 三个旧O类任务已完成离线后处理，但链仍未闭合到L5；
-- formal不得启动。
+1. 主agent负责全局编排、资源调度、状态表维护、证据审核、串行合并、统一构建和最终准入。
+2. 启动多个subagent；每个subagent每次只负责一个RunID的端到端闭环：
+   配置审查 → 3个seed pilot → 事件流检查 → L0–L5/containment验证 → 根因定位 → 独立worktree修复 → 测试 → 复验 → 结构化汇报。
+3. 第一波优先处理12个TLB锚点；完成一批后继续滚动分配剩余RunID，直到全部可执行RunID均为PILOT_READY。
+4. 如果多个RunID属于相同根因，只指定一个subagent实施公共修复，其他subagent提供复现证据；禁止并行编写相互冲突的补丁。
+5. subagent不得自行合并、修改全局状态、删除文件或启动formal。所有合并由主agent串行完成。
+6. 每次合并后统一测试、统一构建并更新gem5.opt SHA-256；使用旧二进制的受影响pilot必须重新运行。
+7. subagent可以并行分析，但gem5运行仍受统一资源门禁约束：FS总并发不超过6，内存不足时降为4；SE总并发不超过20。
+8. 直接复用当前仍有效的运行和证据。对正在运行的安全任务不要仅因本补充指令而中断；先登记其RunID、二进制SHA和当前状态，完成后按相同准入标准审核。
+9. 任何可执行RunID尚未达到PILOT_READY时，都不得启动formal实验。
 
-现在执行以下步骤：
+收到后先汇报：
+- 当前已有subagent及其负责的RunID；
+- 当前正在运行的任务；
+- 第一波准备分配的RunID；
+- 是否存在文件所有权或资源冲突。
 
-1. 正式冻结二进制
+然后继续执行，不要从头开始。
 
-创建freeze manifest并记录：
+---
 
-- 集成HEAD；
-- gem5.opt绝对路径；
-- 完整SHA-256；
-- 文件大小；
-- 构建时间；
-- 构建命令；
-- 构建日志；
-- 完整回归结果。
+可以。现在将 L26 的 r6-mergefix 串行合入 lsu-mdspec-20261019，但按以下约束执行：
 
-后续所有pilot必须在启动前和结束后核对该SHA。禁止pilot期间原位重建或替换该二进制。
+1. 合并前记录：
+   - 集成分支当前HEAD；
+   - r6-mergefix的准确commit；
+   - 两个worktree的git status；
+   - r6-mergefix相对集成分支的文件和diff摘要。
+2. 确认两个worktree均无不明未提交修改后再合并。
+3. 使用可审计的非快进合并；如果出现冲突，不得自行猜测解决，停止并报告冲突文件及双方修改意图。
+4. 合并后立即运行L26针对的3个失败测试，确认全部通过。
+5. 再运行与当前集成基线相同的完整测试套件，对比合并前后的PASS/FAIL/ENV/SKIP；不得通过删除测试、放宽断言或把FAIL改为SKIP来通过。
+6. 如果出现任何新增失败，保留现场并报告，不继续合并其他lane。
+7. 验证通过后报告：
+   - 合并后的HEAD；
+   - 合入commit；
+   - 修改文件；
+   - 3个针对性测试结果；
+   - 完整测试结果；
+   - 相对原集成分支是否有新增失败。
+8. 此次只在本地集成分支合并，暂不push。等L27、L29、L30依赖全部落地、串行合并、统一测试和统一构建通过后再决定push。
+9. 不启动新的gem5 pilot或formal，不中断当前安全运行的T01-F1-W4、S01 census和L27构建。
+10. 同时可以把“跨request拼接”公共根因交给唯一subagent诊断和修复，但它不得与L27/L29/L30发生文件所有权冲突，也不得使用未冻结二进制产生权威pilot结论。
 
-2. 处理S01 census
-
-S01 census已运行超过5小时。立即检查：
-
-- CPU时间和模拟tick是否继续增长；
-- 输出文件是否增长；
-- 预计完成时间；
-- 是否仍服务于当前准入目标。
-
-给出明确剩余预算和终止条件，不得无限运行。若判断无效或超出合理预算，精确终止其进程组，保存现场，不得标记成功。
-
-3. 刷新权威状态
-
-使用真实证据根：
-
-LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding
-
-重新生成：
-
-- evidence registry；
-- chain gate；
-- ready contract；
-- blocked triage；
-- coverage matrix；
-- 325行权威状态表。
-
-重点核对C01-F0-W1、L01-F0-W5、T06-F0-W4和T08-F0-W4。严格区分“流级链证据成立”“上游仍阻塞”和“PILOT_READY”。
-
-4. 启动多个subagent执行第一波pilot
-
-冻结和状态刷新完成后，必须重新启动多个subagent。不要继续维持单lane模式。
-
-第一波处理12个TLB锚点：
-
-T02-F0-W4
-T02-F2-W4
-T04-F0-W4
-T04-F2-W4
-T04-F6-W4
-T01-F0-W4
-T01-F1-W4
-T01-F2-W4
-T03-F5-W4
-T10-F0-W4
-T10-F1-W4
-T10-F2-W4
-
-执行规则：
-
-- 每个subagent一次负责一个RunID；
-- 每个RunID默认跑3个不同seed；
-- FS gem5总并发设成10；
-- 同根因只允许一个subagent修改代码；
-- 其他subagent提供复现和证据；
-- 所有代码修复由主agent串行审核、合并和测试；
-- 修改生产代码后必须重新构建、更新SHA并重跑受影响RunID；
-- 不得使用旧二进制结果作为最终准入证据。
-
-每个seed必须检查：
-
-- 二进制SHA；
-- 真实注入；
-- gzip/事件流完整性；
-- stats有效性；
-- L0 before/after；
-- 连续parent_event_id DAG；
-- request_id/fault_id/sample_run_id一致性；
-- L0–L5完整链或严格显式containment；
-- oracle完整；
-- 无Unknown、截断、超时和孤儿进程。
-
-通过条件：
-
-- 3个seed均正常结束；
-- 至少1个seed真实激活；
-- 所有已激活seed均形成完整链或有效containment；
-- 不允许chain_end冒充L5；
-- 不允许跨request拼链。
-
-未激活则调整触发条件后重跑；结果不稳定则扩大到5个seed。
-
-5. 阶段汇报
-
-第一波启动后汇报：
-
-- freeze manifest路径；
-- 冻结SHA；
-- S01处理结论；
-- 325行最新分类；
-- 已启动的subagent及RunID；
-- 各RunID当前seed进度；
-- FS总并发和资源占用；
-- 新发现的问题。
-
-在全部可执行RunID达到PILOT_READY前，不得启动formal，不得删除任何数据，不得push集成分支。
+完成L26合并和验证后继续执行，不需要再次等待确认；只有发生合并冲突、测试新增失败、文件所有权冲突或资源门禁失败时才停下汇报。
 
 ---
 
 <task-notification>
-<task-id>a36a6cde6f4087362</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a36a6cde6f4087362.output</output-file>
-<status>failed</status>
-<summary>Background agent "Lane A request-scoped chain fix" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
-</task-notification>
-
----
-
-<task-notification>
-<task-id>a52292853dabe8291</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a52292853dabe8291.output</output-file>
-<status>failed</status>
-<summary>Background agent "Lane C pfn candidate fix" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
-</task-notification>
-
----
-
-不再把 50 GiB作为停止条件，继续执行。
-
----
-
-<task-notification>
-<task-id>a12d94c9c919852cd</task-id>
-<tool-use-id>call_01_harl5sb7du1ehvkrvmcssdwx</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/a12d94c9c919852cd.output</output-file>
+<task-id>acc4f50fc89019edd</task-id>
+<tool-use-id>call_01_950mnutwhl4pe7d5apgrd6ea</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/acc4f50fc89019edd.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane C resume pfn candidate fix" came to rest</summary>
+<summary>Agent "L32 authoritative status table tool" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Lane C 完成。commit `37446e7a`，已 push `origin/r6-fixc`（新分支）。工作树干净，无 scons 在跑。
+<result>Lane L32 complete. Worktree `.claude/worktrees/r6-status` (branch `r6-status` @ d6baa3f1), pushed to origin.
 
-**继承工作评估**：上一进程的 4 项产物基本有效，我通读后确认谓词/接线/空集守卫均正确（`TlbEntry` 确含 `pfn`/`N`/`valid`，`entryMap()`→`entryTable()` API 存在，`if (candidates.empty()) return;` 一并消除了旧 `rng()%size()` 的除零/越界）。**发现并修掉 1 个真实缺陷**：`chaos_tlb_pfn.hh` 用了 `size_t` 却只 include `&lt;cstdint&gt;`，仅靠 gem5 头传递才编得过 —— 隔离编译实测 `error: 'size_t' 不是一个类型名`；补 `#include &lt;cstddef&gt;` 后自足。SConscript 无需改（头走 -I）。
+**Tool**: `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-status/tools/lsu_r6_status_table.py` (+ test `tests/test_lsu_r6_status_table.py`, artifacts `docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.{json,md}`, report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L32.md`). Discovers `&lt;runs-root&gt;/**/seed&lt;N&gt;/prop_evt.txt[.gz]`, calls the REAL `lsu_chain_check.check_chain`/`check_admission` (no rule re-implementation), derives all columns from spec §4.
 
-**新候选谓词** `chaos_tlb::isSelectablePfnTarget(hit,cand)`（.cc 与单测共用同一份，防漂移）：`!is_hit_entry` → `valid` → `pfn!=0` → `page_size_bits==hit.N` → `pfn!=hit.pfn`；选择 `draw % count`。
+**Real state counts** (325 RunIDs, committed snapshot B):
+`NOT_RUN=238 · CHAIN_INCOMPLETE=2 · ORACLE_INCOMPLETE=1 · BLOCKED=84 · PILOT_READY=0` (RUNNING/NO_ACTIVATION/INFRA_FAILED/FORMAL_*=0).
 
-**RED→GREEN（真实输出）**：RED 用 `git show HEAD:...cc` 建临时基线树（无头文件）→ `FAILURES: 8 / EXIT=1`；GREEN 本 patch → `ALL PASS / EXIT=0`。单测覆盖任务要求的 3 项（invalid/stale/pfn=0 排除、live mapping 选中、同 VA 多候选选择确定可复现），另加页大小/自身/同帧边界。
+**Complete/truncated/missing**: 42 streams — 30 complete, 12 truncated (counted, never complete); **306 RunIDs have no stream at all ⇒ NOT_RUN / "not measured"**. 19 RunIDs have evidence; of the 3 executable (SE) ones: L01 (7 activated, 4 complete/3 truncated, chain stops at L2), S01 (chain stops L2 + `time_reversed_edge`) → CHAIN_INCOMPLETE; S04 (new seeds lack `cell_results.json`) → ORACLE_INCOMPLETE. The other 16 are contract-BLOCKED (FS-INFRA/FS-MULTICORE) — BLOCKED takes precedence even where a full L0–L5 chain appears (T04).
 
-**new_pfn 取值域变化**：修复前 `∈ {0} ∪ {live pfn}`（真机 3/3 收敛 `0x0` → PA 0xfa8 → level-0 翻译故障 → 内核 Oops）；修复后 `∈ {live, 非零, 同页大小, 且 != old_pfn}`，回到规格 §2.10 F5 的"静默读另一个活页"。
+**Sample rows**: `L01-F0-W5 | yes | READY | 7 seeds | 7 act | 4 complete | 3 trunc | L0..L5 | Crash=3,Masked=4 | CHAIN_INCOMPLETE`; `O01-F0-W7 | no | BLOCKED(FS-MULTICORE) | 1 | 1 | 1 | 0 | not measured (fault group&gt;cap) | BLOCKED`.
 
-**构建**：`scons -j16 build/ARM/gem5.opt` → `scons: done building targets.`；编译器告警 **0**（仅 env 的 capstone/png/HDF5 检测提示，与 Lane A 基线逐条一致）；CHAOSArmTLB.cc 零告警。冒烟：新二进制跑 `arm_chaos.py reg_chain` → EXIT=0，无 SIGSEGV。
+**Disagreements with `ready_contract.json`** (reported, not reconciled): **241** — every contract-READY RunID is non-PILOT_READY here (238 NOT_RUN + 3 with evidence). BLOCKED 84 matches exactly, 0 reverse.
 
-**套件**：`lsu_test_runner.py` → `suites=62 ENV=1 FAIL=13 PASS=46 SKIP=2`，**13 项 FAIL 集合与基线逐项相同，NEW FAIL=0**；`tests/test_lsu_tlb_pfn_candidate.py` 已被 runner 收录并 PASS；`test_lsu_hook_tlb.py`、`test_lsu_hook_tlb_observation.py` 均 ALL PASS（构建后复跑）。
+**Two real bugs found and fixed by testing**: (1) `NameError: ctx` in `_verdict` (real FAIL → fixed → PASS); (2) nested `seed1/dbgrun/prop_evt.txt.gz` counted as a sample/inflating seeds → restricted to `seed&lt;N&gt;` layout. Also discovered the checker is O(n²) (6.4k events=60s; O01/O02 have ~222k-event fault groups) → added `--max-chain-events` (default 20000) that marks oversized streams "NOT certified → CHAIN_INCOMPLETE", never READY.
 
-**未决风险**：① 真机 FS 复验未做（本 lane 明令不跑 pilot）——"静默读错活页"仍待调度方在冻结机上实跑确认；② 若某 TLB 无同页大小其它 live 表项 → 诚实 no-op（不计数不注册），尚无人验证该分支在真机的触发频率；③ 该头用谓词视图只映射 valid/pfn/N，若将来 gem5 的 TlbEntry 页大小语义变更（如改存 size 而非 N），谓词需同步。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>55</tool_uses><duration_ms>4307192</duration_ms></usage>
+**Provisional**: `gem5.opt SHA-256 = f4dbfb9a…6191f5` and checkpoint `…/fs_cpt_boot/cpt.237949797015` come from the contract `gate` block (freeze lane pending); `--sha256 &lt;path&gt;` verified to hash it to the same value. Note: the runs root is live — a re-run minutes later gave 42 vs 41 streams (another lane appended `r6_sq2_S04-F0-W5`), which flipped S04's state; this drift is recorded in L32.md, and the table is a time-point snapshot.
+
+Tests: new suite 3/3 PASS; regressions `tests/test_lsu_chain_check.py` and `tests/test_lsu_prop_fields.py` ALL PASS.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>83</tool_uses><duration_ms>1446192</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>ad522381b82069e6d</task-id>
-<tool-use-id>call_00_b6pfhlqv2mtk47ftnn6t0bpp</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/ad522381b82069e6d.output</output-file>
+<task-id>ae8aff438f81ea7f0</task-id>
+<tool-use-id>call_00_herwpos7a6r9d9opojd7w8jj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ae8aff438f81ea7f0.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane A resume request-scoped chain" came to rest</summary>
+<summary>Agent "L33 stale FS-INFRA upstream key" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Lane A 完成。commit `f11d907b`，已 push `origin/r6-fixa`（未动集成分支）。
+<result>L33 done. Worktree clean, `9fc63bec` pushed to `origin/r6-fsinfra`.
 
-**继承工作评估**：上一进程的 4 个 `M` 文件方向正确、可保留——`ptag_branch_last[{ptag,request}]` 游标 + `ptag_owner_request` 逻辑自洽，我逐行复核后未改语义（`strtoull` 与文件既有用法一致；调用方显式 `parent_event_id`（R6/A6）优先级未被破坏；退出回调仍用 `ptag_last_event`）。我只补了计划文档与实测证据。
+**Key origin code** — `tools/lsu_runid_map.py::_resolve_workload` (model-agnostic): `for key, reason in sorted(lc.WL_BLOCKED.items(),...): if spec_name.startswith(key): return None, f"workload-level:{reason}"` → `generate_map` does `reasons.append(f"workload:{wl_note}")`; source string is `lsu_campaign.WL_BLOCKED["TLB-AliasPerm"] = "blocked(fs-infra: TLB workload needs FS)"` (lsu_campaign.py:237). It cannot see `resolve_cell`'s armtlb FS special-case.
 
-**选路**：选"保留广播 + 改为兄弟子链"（任务给的第 2 条路）。理由：广播物理真实存在，删除即伪造证据；改为同 `fault_id` 下"各自在自身请求首现处生根"的兄弟子链后，owner 链（请求 301 或未盖戳事件）在 `request_id` 上完全自洽。**门禁一字未改**，由 §6(2) 反向钉死。
+**Assessment: partially true** — "TLB workload needs FS" is true (no SE carrier); the implied "⇒ blocked" is **refuted**. Read on disk: `R5-FS-PILOT-EVIDENCE.md` (T01-F0-W4 `arm_tlb_lookup_hit` pfn 0x81d75→0x100000000081d75; T04-F0-W4 activated=1/Crash/chain L0→L5 full, 1572 ev; §1 table 10 more); `R5-ADMISSION-CLOSEOUT.md` §4.3/§6; `blockers_for_approval.md` §FS-INFRA ("并非缺 FS 基础设施"); `runs/lsu/r6_tlb_*` cell_results (11 T-W4 rows activated=1) + chain terminals full/detected_contained/provable_to_L0_then_unknown; `L29.md` §3 (T06/T08-F0-W4 admitted=True, detected_contained, 0 violations).
 
-**RED→GREEN（真实输出）**：
-- 真机 RED：冻结二进制流 `r6_p1_T04-F0-W4/seed1` → `admitted=False`，`cross_request_edge` **30 处**（首例 `event 8:mshr_alloc req='301' → event 9:cache_access req='303'`）；`T02-F0-W4/seed1` **31 处**。
-- 真机 GREEN（同 cell、同 flags，仅换二进制）：T04 seed1（1593 事件）`detected_contained/False/30` → **`full/full_chain/True/0`**；T02 seed1（204 事件）`False/31` → **`full/full_chain/True/0`**。事件数不变 ⇒ 仿真等价，只改了父边。
-- 契约 RED：HEAD 源码 + 新测试 → `test_lsu_hook_sq.py §7` 4 条 FAIL；本末源码 → 全 PASS。
+**Rows changed: 0.** All 24 stay BLOCKED. The key's *content* is corrected per-row (`_correct_fs_infra_key`): names the refutation, the FS carrier fs:tlb_probe (golden b6d81b36…), and the TRUE residual blocker. New field `fs_workload={carrier, stale_key_refuted, evidence, run_artifact}`; evidence anchors in new `docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md#&lt;RunID&gt;` — 16 rows with real pilot artifacts, 8 (T05-F2/F6, T06-F2/F6, T07-F4/F6, T08-F4/F6) say honestly "NO per-cell FS pilot artifact".
 
-**构建**：`scons -j16`，强制重编本 TU + 13 个 `.hh` 依赖 TU（共 14 个 `[CXX]`）→ **warning: 0 / error: 0**（仅余 capstone/png/HDF5 环境告警）。binary `4a3e8a12e4890d10…`。
+**Refused to unblock (and why):** no row meets the documented unlock condition (30 activated/cell, blockers_for_approval §FS-INFRA — all pilots are 1 seed); T05–T08 additionally carry an independent `MODEL_BLOCKED` reason (not runid_map's). Unblocking below that threshold would BE the forbidden relaxation.
 
-**套件**：`lsu_test_runner.py` → `suites=61 ENV=1 FAIL=13 PASS=45 SKIP=2`，FAIL 集合与基线 **diff 为空** ⇒ **NEW FAIL=0**。（中途一次 FAIL=14 是我自己 relink `gem5.opt` 与套件启动重叠所致，重跑即消失。）另：`test_lsu_hook_sq.py` 4 条 store-链 FAIL、`campaign_propagation.py` 2 条 §5 FAIL 均为 **HEAD 基线既有**，非本轮引入。
+**Counts:** denominator 325 unchanged; `lsu_ready_contract` before==after: `READY=241 PARTIAL=0 BLOCKED=84`, `FS-INFRA=24`; no new READY.
 
-**未决风险**：① owner 取"首个盖戳请求"——若某族故障请求本身无盖戳且其前已有他请求事件，owner 归属需再验（T 族实测 inj 即带 `request_id`，未触发）；② `ptag_branch_last` 随 (fault,request) 增长，大广播流下内存开销上升（未测长程）；③ 我只跑了 T02/T04 两格定向验证，其余族（S/L/O/C/P）未复验 terminal 变化。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>98</tool_uses><duration_ms>6013600</duration_ms></usage>
+**TDD/suite:** RED `python3 tests/test_lsu_runid_map.py` → 6 FAIL (stale literal still on all 24; no corrected key; no evidence anchor) → GREEN `FAILURES: 无`. `tools/lsu_test_runner.py` before/after identical: `suites=56 ENV=5 FAIL=14 PASS=36 SKIP=1`; **NEW FAIL: []** (baseline's 14 include `test_lsu_coverage_matrix`, which the task list omitted).
+
+**Not mine, left alone:** `lsu_ready_contract.*` regenerated by running the contract (its `why` mirrors the reasons) — reverted, its owning lane must regenerate. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L33.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>72</tool_uses><duration_ms>858761</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>ad522381b82069e6d</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/ad522381b82069e6d.output</output-file>
+<task-id>a1e3b2639e9b9e571</task-id>
+<tool-use-id>call_00_0gv3ynzdx7ifyj8cjrj5upi1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a1e3b2639e9b9e571.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane A resume request-scoped chain" came to rest</summary>
+<summary>Agent "L27 remaining C++ emitters" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>该通知只是那个早已冗余的"等待套件"后台包装进程（`bl1v7wc9w`，来自我察觉是误报的那次 FAIL=14 运行）被回收，不影响结论。
+<result>Lane L27 complete. All four items closed, verified, committed, pushed.
 
-权威结果仍以**干净重跑**为准：`tools/lsu_test_runner.py` → `suites=61 ENV=1 FAIL=13 PASS=45 SKIP=2`，FAIL 集合与基线 diff 为空（NEW FAIL=0）。任务无待办：commit `f11d907b` 已提交并 push 到 `origin/r6-fixa`，工作树与远端同步，无需再动作。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>98</tool_uses><duration_ms>7903190</duration_ms></usage>
+**Setup**: worktree `r6-emit2` (base `56993c80`); binary `r6-emit2/CHAOS/gem5/build/ARM/gem5.opt` sha256 `47e16252c2fa5926`.
+
+**Per-item RED→GREEN (real runs)**
+- **A3** — `test_lsu_hook_c11.py` §[3b] 14 asserts: RED (all `cache_access`/`cache_return`/`mshr_*` lacked `dyn_inst_seq`/`request_id`) → GREEN. Fix sites: `cache.cc` (access/return), `base.cc` (mshr_merge/alloc/fill, cache_fill, mshr_free), identity from `pkt-&gt;req`.
+- **A9** — `test_lsu_hook_sq.py` §[5]: RED (`lq_read` no `request_id`) → GREEN. `lsq_unit.cc` lq_read now emits the Request-stamped seq.
+- **oracle contract** — `test_lsu_hook_sq.py` §[6]: RED (7 of 11 FAIL: `chain_end` lacked commit_seq/pc/dyn_inst_seq, `errant_commit` no `contained`, no `CHAOS_DETECT`) → GREEN. Added tracer commit counter, per-chain detection point lifted onto `chain_end`, `contained=0` on `errant_commit`, and `emitDetectSignal()` printing `CHAOS_DETECT: layer=&lt;Hardware RAS|None&gt; contained=&lt;0|1&gt; tick=&lt;n&gt; ptag=&lt;n&gt; reason=&lt;...&gt;` on detection + every containment recording.
+- **A7** — `test_lsu_hook_sq.py` §[4]: RED (4 FAIL: no store branch/`store_taint`/`faulting_store_commit`) → GREEN.
+
+**Build**: `scons -j16 build/ARM/gem5.opt` → `scons: done building targets.` rc=0, only the 4 pre-existing host-lib configure warnings. (The oracle intermediate state was also compiled clean before its commit.)
+
+**Smoke pilot** S04-F0-W5 → `runs/lsu/r6_sq2_S04-F0-W5` (was `provable_to_L3_then_unknown`, 11 ev; now 12 ev):
+```
+kind=taint_reg tick=5905137 dyn_inst_seq=4001 request_id=4001 va=75250 before=clean after=tainted corr=seq_primary
+kind=chain_end tick=18849215 detection_layer=L4 contained=1 outcome=detected_contained containment_reason=store_discarded_not_retired
+CHAOS_DETECT: layer=Hardware RAS contained=1 tick=18849215 ptag=1 reason=store_discarded_not_retired
+chain_check: terminal=detected_contained provable_to=L5 edges L0→L5 all proven
+```
+
+**Honest boundary**: `--debug-flags=Commit` proved the injected store `sn:4001` never retires (a same-PC replay does), and the cell's oracle is clean (L24: 6 seeds Masked) — so it is containment, not escape. A committed tainted store takes the `faulting_store_commit` → `errant_commit` branch instead (synthetic test covers it).
+
+**Regression**: 24/24 `test_lsu_hook_*.py` + `test_lsu_chain_check.py` + `test_lsu_prop_fields.py` PASS.
+
+**Not closed**: **A5** (ArmTLB per-lookup post-hook) — needs `arch/arm/` TLB path, outside this lane's file set; `way=-1` left as the injector's `candidate_way`.
+
+**Commits** (pushed to `origin/r6-emit2`): `f35d5f07` A3 · `720197c7` A9 · `dd872048` oracle · `f4598c8a` A7 · `29511146` plan. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L27.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>132</tool_uses><duration_ms>4096210</duration_ms></usage>
 </task-notification>
 
 ---
 
+裁决：不要在当前冲突现场直接选择ours/theirs继续合并。采用“abort + 新建对齐分支”的方案，保留原始历史，不重写、不force-push r6-gate。
+
+具体执行：
+
+1. 先保存当前冲突清单、双方HEAD和语义差异摘要，然后执行git merge --abort。
+2. 为当前集成HEAD和r6-gate HEAD分别建立只读安全引用，确保任何修改都可恢复。
+3. 从最新lsu-mdspec-20261019创建新的独立分支/worktree，例如r6-gate-reconcile。
+4. 不要整体重放造成历史重复的旧B2提交。以集成分支已有B2逻辑为基线，只移植r6-gate最终版本相对该基线的净新增语义，尤其是L29的FS-INFRA/chain-gate可达性修复。
+5. 三个冲突文件按语义处理：
+   - tools/lsu_chain_check.py：以r6-gate最终严格语义为目标，但逐函数与集成版本比较，保留集成侧更新；不得整文件无审查覆盖。
+   - tests/test_lsu_chain_check.py：保留双方测试的并集，不得删除或弱化断言。
+   - admission-hard-gate计划文档：合并双方已完成事项、提交身份和验证证据，形成一份权威版本，不重复声称完成。
+6. 必须证明合并后的checker仍满足：
+   - chain_end不能充当L5；
+   - L5必须有真实detection_layer/outcome/correlation；
+   - parent_event_id形成连续DAG；
+   - 不允许跨request、跨fault或跨sample拼接；
+   - cache_access不能伪装TLB专属L1；
+   - 显式containment可以准入，但后续层必须确实没有更深传播；
+   - evidence_root必须指向真实证据根，禁止在没有runs/lsu的worktree根上生成权威计数。
+7. 使用真实服务器证据根重新验证已知案例：
+   - T04必须拒绝跨request拼接；
+   - T08-F0-W4的显式containment必须能够被直接识别；
+   - T05/T01/T10不得因chain_end或更深层事件被错误准入；
+   - L01-F0-W5和S10-F5-W9不得再因登记路径错误被判为无文件。
+8. 运行checker、ready contract、blocked triage、coverage matrix及相关完整测试。任何新增失败都停止，不继续合并后续lane。
+9. 测试通过后，将r6-gate-reconcile串行合入集成分支；报告合并commit、测试结果和真实证据根下的325行计数。
+10. 暂不push。随后再依次合并r6-scal、r6-fsinfra、r6-emit2，每次合并后执行针对性测试和完整回归。
+11. 全部合并通过后，才在集成分支统一构建gem5.opt并冻结SHA-256，然后开始12个锚点的3-seed pilot复跑。
+12. 不启动formal实验。
+
+分类口径以后以L31对磁盘真实文件逐条gunzip核验的结果为准：
+- 业务/阻塞分类：195未执行、46链不完整、0完整准入、10规格阻塞、74外部/基础设施阻塞；
+- 纯证据分类：252无事件流、72有流但未闭合、1个显式containment、15个截断；
+- admitted仍为0/325。
+
+注意：唯一T08 containment只是“存在有效链证据”，不等于当前全局契约已经准入。规格阻塞和基础设施阻塞也不能被当作PILOT_READY；如果目标是全部325个实验都有完整观测链，这84项阻塞必须被解决，或由用户明确修改实验范围，否则正式实验门禁不能通过。
+
+完成reconcile和验证后继续执行；只有语义无法同时保留、测试新增失败或证据计数仍受错误evidence_root影响时才停下汇报。
+
+---
+
 <task-notification>
-<task-id>ad522381b82069e6d</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/ad522381b82069e6d.output</output-file>
+<task-id>a066bff19fc2b7bcb</task-id>
+<tool-use-id>call_00_k00xca3583xo9yr3nekt6fsj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a066bff19fc2b7bcb.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane A resume request-scoped chain" came to rest</summary>
+<summary>Agent "L34 r6-gate semantic reconciliation" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>同样是那个冗余的"等待干净套件"包装进程（`brycavtsj`）被回收——干净套件本身早已跑完并读出结果。
+<result>**L34 完成。** merge commit **`ad579cc1`**（tree 与 `r6-gate-reconcile` 逐字节同 `526923012a…`）；已 `git push -u origin r6-gate-reconcile`；**未 push 集成分支**，未碰 `r6-gate`，未 force-push。
 
-结论不变，无待办：`FAIL=13`（NEW FAIL=0，FAIL 集合与基线逐套件一致）、真机 RED→GREEN（T04 30 断裂→0、T02 31 断裂→0，均 `admitted=True/full_chain`）、构建 14 TU 零告警；commit `f11d907b` 已 push `origin/r6-fixa`。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>98</tool_uses><duration_ms>8567774</duration_ms></usage>
+**文件 / 逐函数理由**
+- `tools/lsu_chain_check.py`：以集成分支既有 `9a7da7cf` 内容为基线，只按 10 个 hunk **逐函数** patch 移植 r6-gate 净新语义（非整文件覆写，`diff -q` 与 r6-gate 快照一致）：`_explicit_l5`(重写，D1/D5)、`_family_of`(重写，D4)、`_obs_layer_of`(新)/`_layer_of`(改写)、`_event_has_prefix`(改写)、`_ancestry_request_breaks`(新，D3)、`containment_from_events`(新，D2)、`check_admission`(接线 + 两个 D4 token)。集成侧无独有逻辑被丢弃。
+- `tests/test_lsu_chain_check.py`：两侧断言并集（`+os`、D1 夹具富化、`[13]–[16]`）。**唯一反演项** = 集成侧 `_L5_OUTCOME_KINDS == {"chain_end"}`（正是 D1 禁的语义），改以更强形式保留其意图；其余无删除/弱化。
+- `tools/lsu_ready_contract.py`+`lsu_blocked_triage.py`+`test_lsu_ready_contract_{category,verdict,gate,chain_wiring}.py`：L29 前向移植（这些文件自 merge-base 集成分支未变动）。新增 `tests/test_lsu_r6_reconcile_realroot.py`、计划文件；`ready_contract.json/.md`、`blocked_triage.md`、`blockers_for_approval.md` 在真根重生成。**范围外但必需**：`lsu_ready_contract.py` 等不在指令的 ownership 列表中，但不移植 L29 则点 1/点 7 无法满足——已在计划 §File ownership 明示。
+
+**7 条性质（真根，`ALL PASS`）**：1 chain_end 不作 L5(`L4-&gt;L5 missing`)；2 四要素齐 + `corr=none`/`run_end`/缺 dl 均 False；3 悬空父→`L1-&gt;L2 missing`；4 祖先 req7→8 拒 + 异 fault 不互证 + 多样本任一未准入即整体不准入；5 LQ→`cache_access_faked_l1`、TLB→`tlb_l1_faked_by_cache_access`；6 束 L2/na=L3-5 →admitted=True，含住后有更深见证→束 None；7 `--evidence-root&gt;env&gt;REPO`，契约 `evidence_root`=真根。
+
+**4 条复验**：T04 `admitted=False`，`cross_request_edge`（首例 `event 38:resp req=307 → 39:resp req=308`；真实 T04 首例非 304→310，按实际引用）；T08 `admitted=True` `layer=L2` 直认；T05/T01/T10 均 `False`+`no_closed_chain_and_no_containment`（deeper-layer/chain_end 未误准入）；L01/F0-W5 与 S10-F5-W9 **流级不再是 no file**（S10 注册表真根下 `evaluated=3`）。
+
+**套件**：合并后 `suites=59 FAIL=13 PASS=43`，beyond-baseline=**[]**（基线 @45611d59 亦 13，同集合）。**NEW FAIL = 0**。唯一非基线观测：`test_lsu_guard_v2::r1_no_torn_lock_visible`（1.2s 锁撕裂时序竞争，不引用本 lane 任何文件、且字母序先于新测试运行）1/4 次出现，隔离连跑 20 次 0 复现 → 判既有偶发。
+
+**真根 325 计数**：`READY=0 BLOCKED=325 self_consistent=True`；`CHAIN-UNPROVEN 44 / CHAIN-EVIDENCE-MISSING 197` + 上游 84(RULING6/FS-INFRA24/MODE-UNIMPL3/UNRESOLVED4/FS-MULTICORE35/LICENSE12)；`recorded=325/325`，`evaluated=64`，**链准入=2（T06-F0-W4、T08-F0-W4，均显式含住且仍被上游 FS-INFRA 独立阻塞）**，故**全局 adopted = 0/325**（L31 baseline of record；规格/基础设施阻塞 84 行绝不计 PILOT_READY）。与 L31 `46/195` 的差 = **2 行**：`C01-F0-W1`、`L01-F0-W5`。
+
+**拒绝/残余**：① **未改 `pilot_evidence.json`**（不在所有权内）→ 该 2 行契约层仍记 CHAIN-EVIDENCE-MISSING，尽管流在盘上、门禁流级已如实拒绝；修复=1 行登记，属注册表 owner。② 未重放旧 B2 提交链（按指令）。③ 唯一断言反演（`_L5_OUTCOME_KINDS`）。报告：`/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L34.md`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>105</tool_uses><duration_ms>5112445</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>abd3c881af4b43d03</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/abd3c881af4b43d03.output</output-file>
-<status>failed</status>
-<summary>Background agent "W1 T04-F0-W4 3-seed pilot" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+<task-id>b1mwyes0q</task-id>
+<tool-use-id>call_00_cg6g5fabmdq3vdpqex8qb6mh</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/b1mwyes0q.output</output-file>
+<status>completed</status>
+<summary>Background command "Full regression on merged integration branch" completed (exit code 0)</summary>
 </task-notification>
 
 ---
 
-<task-notification>
-<task-id>a2385684d3fb074b1</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/a2385684d3fb074b1.output</output-file>
-<status>failed</status>
-<summary>Background agent "W1 T04-F2-W4 3-seed pilot" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
-</task-notification>
+确认采用你建议的修法。
+
+请只修复 tests/test_lsu_campaign_large_stream.py 中编码旧语义的合成夹具：
+
+1. 保留chain_end作为生命周期结束事件，但不得让它承担L5。
+2. 在合成大流中加入真实L5检测事件，例如errant_commit，并确保包含：
+   - detection_layer=L5；
+   - 非空outcome；
+   - 与当前故障链关联的corr；
+   - 正确的fault_id、sample_run_id、parent_event_id；
+   - 适用时保持request_id和dyn_inst_seq一致。
+3. 真实L5事件必须通过parent_event_id接在连续DAG上，不得使用孤立事件或跨request拼接来满足测试。
+4. 不删除、不跳过、不弱化现有断言；继续检查：
+   - 22万事件在时限内完成；
+   - 事件数守恒；
+   - chain_report.json正常生成；
+   - terminal=full；
+   - provable_to=L5；
+   - beyond为空；
+   - 优化前后语义/形状一致。
+5. 增加或保留负向断言：只有chain_end、没有真实检测事件时，必须判为L4_then_unknown或不准入，绝不能成为full。
+6. 先单独运行test_lsu_campaign_large_stream.py，确认全部通过。
+7. 再运行chain checker、reconcile真实根测试和campaign propagation相关测试，确认新旧语义一致。
+8. 最后重新运行完整lsu_test_runner，并与基线FAIL集合比较。目标是：
+   - NEW FAIL=0；
+   - 不把FAIL改成SKIP或ENV；
+   - 原有13个基线FAIL集合不增加。
+9. 将此次修复作为独立commit提交到当前集成分支，记录修改内容、测试结果和commit SHA；暂不push。
+10. 完整回归确认无NEW FAIL后，不需再次等待确认，继续：
+    - 精确处理三个卡住的旧O类后处理任务并离线重生成结果；
+    - 评估S01 census；
+    - 在集成HEAD上统一构建gem5.opt；
+    - 冻结并记录完整SHA-256；
+    - 刷新325行权威状态；
+    - 启动12个TLB锚点的3-seed pilot。
+11. 不启动formal，不删除任何数据；如果再次出现新增失败、构建失败或语义冲突，立即停止并汇报。补充：当前夹具修复、完整回归、统一构建和二进制冻结由主agent串行完成。冻结SHA后，必须重新启动多个subagent，以滚动波次并行处理RunID pilot：
+
+- 每个subagent一次负责一个RunID的3-seed pilot、链检查、诊断、修复建议和复验；
+- 第一波处理12个TLB锚点；
+- 同时运行的subagent数量按可用槽位安排；
+- FS gem5总并发不超过6，内存不足时降到4；
+- 同根因只允许一个subagent修改代码，其余提供复现证据；
+- 所有代码修复由主agent串行审核、合并、测试和重新构建；
+- 一波完成后继续分配下一批RunID，直到全部可执行RunID达到PILOT_READY；
+- 不得只完成第一波就停止，也不得提前启动formal。
+
+---
+
+确认：当前只使用一个lane修夹具；统一二进制冻结后，必须重新启动多个subagent，按滚动波次并行处理不同RunID的3-seed pilot，直到全部可执行RunID达到PILOT_READY。不要把当前单lane模式延续到pilot阶段。
 
 ---
 
 <task-notification>
-<task-id>ad9af24450895829a</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/ad9af24450895829a.output</output-file>
-<status>failed</status>
-<summary>Background agent "W1 T04-F6-W4 3-seed pilot" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
-</task-notification>
-
----
-
-重跑一下未成功的三个实验
-
----
-
-执行一次受控的中间构建清理。
-
-当前所有活跃 gem5 均使用：
-/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt
-
-该最终集成 build 必须保留，不得触碰。
-
-请先逐路径核验没有任何进程打开或引用下列目录中的 gem5.opt，确认对应分支提交已保存、工作树无未提交源码改动后，仅清理其可再生成的 CHAOS/gem5/build 目录：
-
-- /home/sdc/gem5-fi-ding/.claude/worktrees/r6-abrec/CHAOS/gem5/build
-- /home/sdc/gem5-fi-ding/.claude/worktrees/r6-fixa/CHAOS/gem5/build
-- /home/sdc/gem5-fi-ding/.claude/worktrees/r6-fixc/CHAOS/gem5/build
-- /home/sdc/gem5-fi-ding/.claude/worktrees/r6-emit2/CHAOS/gem5/build
-- /home/sdc/gem5-fi-ding/.claude/worktrees/r6-tlb-hooks/CHAOS/gem5/build
-
-只清理 build 目录，不删除 worktree、源码、提交、分支、测试、运行证据或报告。不得触碰任何 r6_w1b_* 当前运行目录。
-
-清理前后分别记录：
-1. 每个目标目录大小；
-2. 活跃 gem5 的实际二进制路径；
-3. /home 可用空间；
-4. 清理结果。
-
-清理不能中断当前 pilot。若发现任一活跃进程引用目标目录，则跳过该目录并汇报。
-
----
-
-<task-notification>
-<task-id>adbcdded27bb347de</task-id>
-<tool-use-id>call_00_4b0orwqwdwsukwdrp47d1q9q</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/e2a89255-e370-4375-a640-f45af3b30b12/tasks/adbcdded27bb347de.output</output-file>
-<status>killed</status>
-<summary>Agent "Retry T04-F0-W4 3-seed" came to rest (stopped by user)</summary>
+<task-id>a70b33a997461b3b8</task-id>
+<tool-use-id>call_00_okzhrooy64rzzf5tqud8k5ps</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a70b33a997461b3b8.output</output-file>
+<status>completed</status>
+<summary>Agent "L35 fix stale large-stream fixture" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Seed2 at 21.5 min. Continuing to poll patiently.</result>
+<result>Done. Report:
+
+**Fixture change** (`tests/test_lsu_campaign_large_stream.py`, only file touched): `_spine(n_events_out, real_l5=True)` now enriches the `errant_commit` event (the real detection point) with `detection_layer=L5 outcome=SDC corr=taint_prop dyn_inst_seq=5 request_id=77`, still parented to the chain's `taint_reg`(L4) node via `parent_event_id` (same DAG, no orphan, no cross-request stitch). `chain_end` stays a lifecycle marker (`corr=none`) and never carries L5. `real_l5=False` gives the negative stream.
+
+**3 formerly-failing assertions (now):**
+- `判定与参考形状一致（terminal=full）` → PASS (terminal=full)
+- `层映射与参考形状一致（provable_to=L5）` → PASS (provable_to=L5)
+- `闭合终局 beyond 为空` → PASS (beyond='')
+
+**Negative assertion** (new section [4], stream with only `chain_end`, real_l5=False): PASS — `terminal != full`, `terminal=provable_to_L4_then_unknown`, `provable_to=L4`, `beyond=Unknown`, `check_admission admitted=False`, chain_report terminal != full. All 6 PASS.
+
+**Targeted suites:**
+- `test_lsu_campaign_large_stream.py` → ALL PASS (wall 6.0s, 222007 events)
+- `test_lsu_chain_check.py` → ALL PASS
+- `test_lsu_r6_reconcile_realroot.py` → ALL PASS
+- `test_lsu_campaign_propagation.py` → FAILED (2) — pre-existing baseline, unchanged (its source `lsu_campaign.py` not touched)
+
+**Full suite** `tools/lsu_test_runner.py`: `suites=61 ENV=1 FAIL=13 PASS=45 SKIP=2`. FAIL set == the 13 known baseline (`pytest::collect, test_lsu_campaign_propagation.py, hook_a07/c11/c12/c14/c15/cpf/l04/o0x/p06/s10/sq`). `test_lsu_coverage_matrix.py` and `test_lsu_r6_golden_control.py` both PASS (no extras). **NEW FAIL = 0**; no FAIL converted to SKIP/ENV.
+
+**Commit:** `508c716e` on `lsu-mdspec-20261019` (not pushed).</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>21</tool_uses><duration_ms>1073344</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>adbcdded27bb347de</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/e2a89255-e370-4375-a640-f45af3b30b12/tasks/adbcdded27bb347de.output</output-file>
-<status>failed</status>
-<summary>Background agent "Retry T04-F0-W4 3-seed" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+<task-id>a6f31c978ce50df36</task-id>
+<tool-use-id>call_01_8poje8ibnzbxlmo8qlmzkcsw</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a6f31c978ce50df36.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T02-F0-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>P1 lane T02-F0-W4 complete. Report written to `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P1_T02-F0-W4.md`.
+
+RUNID T02-F0-W4 — per-seed (all sha 6469bad2… pre &amp; post, unchanged)
+
+| seed | activated | events | stream | check_chain | L5 witness | oracle | admitted | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 1 | yes (1 inj) | 204 | gzip-EOF OK, stats 2651 ln | detected_contained, L0→L5 all proven | errant_commit (NOT chain_end) | Crash exit 0 | **False** | FAIL |
+| 2 | yes (1 inj) | 372 | OK, 2651 ln | detected_contained, L0→L5 all proven | errant_commit | Crash exit 0 | **False** | FAIL |
+| 3 | yes (1 inj) | 437 | OK, 2643 ln | detected_contained, L0→L5 all proven | errant_commit | Crash exit 0 | **False** | FAIL |
+
+All pass: real injection (`inj` L0 before≠after, 2-bit PPN flip, inj log non-empty), no Unknown, no truncation, no timeout, no orphans, continuous single-root parent DAG, identity consistent, complete oracle, **chain_end never used as L5** (corr=none). Path: `runs/lsu/r6_p1_T02-F0-W4/T02-F0-W4/`.
+
+OVERALL: **FAIL — 0/3 admitted.** `check_admission` rejects all 3 seeds with a single substantive violation `cross_request_edge` (31/92/95 ancestry breaks). The ancestry from the L5 `errant_commit` back to L0 interleaves events of *different* `request_id`s (e.g. seed1 event 8 `mshr_alloc` req=301 → event 9 `cache_access` req=303, different instructions, same faulted line). A TLB PPN fault redirects one VA→one wrong PA, so CHAOSPropagation links many requests under one fault_id. Stable failure mode → no 5-seed expansion warranted; it is not a trigger problem, re-running cannot fix it.
+
+GAPS (no tracked source edited): (1) BLOCKER — propagation parent-links across requests; the "no cross-request stitching" criterion cannot be met by long-DAG TLB address faults (also hits prior T02/T04). (2) `lsu_campaign.py` records the verdict from `check_chain` only, never `check_admission` → cell_results/chain_summary show `detected_contained`/`chain_valid:true` for samples the binding gate rejects. (3) `containment_from_events` fabricates option-2 containment from lifecycle `chain_end` (corr=none), contradicting the D1 rule. (4) `attempted=0` while `activated=3` → `activation_rate` prints 0.0 despite 3/3 activated. (5) minor: report `sample_run_id="1"` vs stream `"s1"`.
+
+CODE FIX NEEDED: **yes** — item 1 requires a tracked-source change (propagation linkage or a mission rule for address-broadcast propagation); items 2–4 are reporting/honesty fixes so the pilot tooling cannot display an inadmissible sample as a valid chain.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>44</tool_uses><duration_ms>616999</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>a44b61dac67d5148a</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/e2a89255-e370-4375-a640-f45af3b30b12/tasks/a44b61dac67d5148a.output</output-file>
-<status>failed</status>
-<summary>Background agent "Retry T04-F2-W4 3-seed" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+<task-id>a29c04646c09aaa3a</task-id>
+<tool-use-id>call_02_r87i0wutm3fcwjhsbhzl4mvk</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a29c04646c09aaa3a.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T02-F2-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane P2 complete. Worktree `r6-p1-t02f2` created at 508c716e; no tracked source edited (git status clean); frozen binary SHA unchanged before/after and at end.
+
+**Matrix resolution:** T02-F2-W4 resolves **RUNNABLE** (dry-run `Resolution: {'runnable': 1}`) — not blocked. T02 ∈ ARMTLB_MODELS, so the `TLB-AliasPerm` workload-block is bypassed and the FS `tlb_probe` carrier serves it.
+
+**Campaign:** `n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK`. SHA `6469bad2…aef4e` throughout.
+
+**Per-seed (real injections, ~10 s gem5 each, Crash/exit 0):**
+| seed | events | gzip | L0 before→after | terminal | check_admission |
+|---|---|---|---|---|---|
+| 1 | 204 | OK | 81d75→100040000081d75 | detected_contained | **False** |
+| 2 | 372 | OK | 81d75→1000000800081d75 | detected_contained | **False** |
+| 3 | 437 | OK | 81d75→200000000c1d75 | detected_contained | **False** |
+
+All seeds: 1 `kind=inj` at L0 (2 PPM bits, T02 ✓), `stats.txt` non-empty, gzip `-t` OK, `truncated=False`, 0 dup/0 orphan/0 bad-parent-order event ids, single root, one `fault_id=1`, one `sample_run_id` per seed, 0 Unknown, no Timeout. `check_chain` proves all five edges L0→L5 on one DAG ancestry.
+
+**Overall: FAIL (not admitted) — 0/3.** Two substantive gaps (I own no source fix):
+1. **BLOCKER — cross-request stitching.** `check_admission` rejects every seed: `cross_request_edge: … 所选祖先上 {31,92,95} 处相邻见证 request_id 不一致` (seed1 event 8 `mshr_alloc req=301` → event 9 `cache_access req=303`). A PPN fault's wrong line is consumed by many concurrent requests linked under one `fault_id`; re-running won't fix it. This independently replicates the P1 lane's F0 run of the same unit (`runs/lsu/r6_reports/P1_T02-F0-W4.md`).
+2. **`chain_end` is load-bearing as L5** (violates "chain_end never as L5"). Emitter stamps `chain_end` with `detection_layer=L5/contained=1/corr=none`; `_terminal()`'s contained-loop doesn't filter lifecycle kinds, so it returns `detected_contained` via chain_end. Proof: deleting `chain_end` flips terminal to `full` (the stronger `errant_commit`-derived verdict). `containment_from_events` also fabricates option-2 containment quoting `kind=chain_end`.
+
+**Extra finding:** F2 is inert for T02 — `resolve_cell` appends `--tlb_lsu_tier` only for walk types, so T02-F2-W4's gem5 cmdline is byte-identical to F0's except `--prop_run_id`, and event counts match (204/372/437). The 1/100k semantics is not exercised; the cell silently degenerates to F0.
+
+**Code fix needed: yes** — item 1 (propagation linkage / per-request sub-chain or a mission rule) is a real blocker outside my ownership; items 2 and the F-column collapse are checker/producer fixes; `attempted=0` vs `activated=3` is a minor reporting honesty bug. Report: `runs/lsu/r6_reports/P2_T02-F2-W4.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>52</tool_uses><duration_ms>822742</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>ab5b2fb129b514ba8</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/e2a89255-e370-4375-a640-f45af3b30b12/tasks/ab5b2fb129b514ba8.output</output-file>
-<status>failed</status>
-<summary>Background agent "Retry T04-F6-W4 3-seed" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+<task-id>af1419c9bfa56a215</task-id>
+<tool-use-id>call_05_6buo6yn2o1i0wn1rtzosc593</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/af1419c9bfa56a215.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T04-F6-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane P5 complete. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P5_T04-F6-W4.md`; evidence at `/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T04-F6-W4`. Worktree clean (no tracked source touched), nothing pushed/deleted, binary untouched.
+
+Frozen binary sha `6469bad2…ef4e` verified before AND after every run — identical.
+
+**Per-seed** (all `--max-parallel 1`, ~18 s each, 1 gem5 of mine):
+| seed | oracle | exit | events | roots/orphans | gzip+stats | truncated | L0 inj |
+|---|---|---|---|---|---|---|---|
+| 1 | Crash | 0 | 1593 | 1 / 0 | OK / 2657 lines | False | `81d75`→`0` |
+| 2 | Crash | 0 | 1764 | 1 / 0 | OK / 2655 lines | False | `81d75`→`0` |
+| 3 | Crash | 0 | 1776 | 1 / 0 | OK / 2655 lines | False | `81d75`→`0` |
+
+Real injection seed1: `Tick 237950940537 … old_pfn 0x81d75, new_pfn 0x0, FaultType pfn_to_mapped_page, candidates: 31`. All 5 edges `proven` (chain_check, frozen tree); `parent_event_id` ancestry contiguous per node; `run_id`/`sample_run_id`/`fault_id` single-valued; containment `squash_masked contained=1 reason=squash_replay`. **`chain_end` never L5**: path L5 = `errant_commit` (real `det_layer=L5` detection); the lifecycle `chain_end` nodes are excluded. No Unknown/timeout/orphan.
+
+**Overall: PASS on the designated evaluator (`tools/lsu_chain_check.py`)**, with one unresolved flag.
+
+**Gaps:**
+1. **`cross_request_edge` — strict rejudge (`lsu_r6_rejudge.py`) gives `admitted=False` on all 3 seeds** (30/59/59 adjacent `request_id` breaks, first `mshr_alloc req=301 → cache_access req=303`). This is **systemic, not F6-specific** — the identical pattern reproduces on sibling lanes' streams: `T04-F0-W4` (30), `T02-F0-W4` (31), `T04-F2-W4` (30). `chain_check` (the designated evaluator) considers the chain non-stitched; the two tools disagree. The old splice IS fixed (old evidence now replays as `provable_to_L4_then_unknown`, `L4-&gt;L5: missing`).
+2. **`new_pfn=0x0` on 3/3 seeds — fault-model fidelity**: `CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc:423-430` filters candidates only on `!=entry &amp;&amp; pfn!=entry-&gt;pfn`, **without `it-&gt;valid`**, so stale pfn=0 slots dominate (31 candidates). PA becomes `0xfa8`; guest takes a level-0 translation fault → kernel Oops, i.e. the "wrong page" flavour, not the documented silent wrong-live-page read.
+
+**Code fix needed: yes (2 items; I edited neither — not my files):** (a) add `it-&gt;valid` (+ same page-size) to the pfn candidate predicate; (b) reconcile PROP-EVT `request_id` namespacing with the strict rejudge's `cross_request_edge` rule, since it currently rejects every TLB-family candidate identically.
+
+3 seeds sufficed (all activated, no instability) — no need to expand to 5.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>38</tool_uses><duration_ms>712180</duration_ms></usage>
 </task-notification>
 
 ---
 
-裁决如下：
+<task-notification>
+<task-id>a3c26655afa035fa5</task-id>
+<tool-use-id>call_04_redub1fv38bn63g4j8fqh86b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a3c26655afa035fa5.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T04-F2-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**P4 / T04-F2-W4 pilot — verdict: FAIL (chain not admissible)**
 
-1. time_reversed_edge 归发射器/事件生成顺序负责，checker 保持严格，不得放宽或删除该拒绝。
-   - 合法关系必须满足 parent.tick <= child.tick。
-   - 对 request_fork 应满足 source.tick <= bridge.tick <= destination.tick。
-   - 同 tick 允许，parent.tick > child.tick 不允许。
-   - 若当前重跑出现 time_reversed_edge，先保存完整复现证据；不得修改正在使用的候选二进制。当前 wave 结束后再指定唯一修复者，重建 SHA并重跑所有受影响 RunID。
+Binary: `6469bad2…2aef4e` — identical before AND after run (frozen, unmodified). Worktree `r6-p1-t04f2` @ `508c716e`. Outdir `runs/lsu/r6_p1_T04-F2-W4`; report `runs/lsu/r6_reports/P4_T04-F2-W4.md`.
 
-2. T01-F0-W4 必须在候选 SHA 27134738c425d91a 下重新运行3个 seed。旧 SHA或旧 checker 下的完成结果不能作为本轮准入证据。
+Campaign: `T04-F2-W4: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK`
 
-3. 第一波最终范围仍是6个 RunID，每个3 seed：
-   - T01-F0-W4
-   - T02-F0-W4
-   - T02-F2-W4
-   - T04-F0-W4
-   - T04-F2-W4
-   - T04-F6-W4
+Per-seed (literal):
+- seed1: events 1593 · seed2: 1764 · seed3: 1776; all exit 0, oracle Crash
+- Real injection: `Field=pfn_to_mapped_page old_pfn=0x81d75 new_pfn=0x0 candidates=31`, L0 `evidence_status=observed corr=origin` ✔
+- gzip -t OK, stats.txt 2655–2657 lines non-empty ✔; unknown/truncated/orphan/timeout = 0/0/0/0 ✔
+- DAG: single root `inj#0`, orphans=0, one continuous tick-monotone ancestry to L5 ✔
+- IDs: run_id/sample_run_id(s1|s2|s3)/fault_id=1 consistent ✔
+- `check_chain`: L0→L1→L2→L3→L4→L5 all `proven`, terminal `detected_contained` ✔
+- `check_admission` (the authoritative READY gate, used by `lsu_ready_contract.py:296`): **admitted=False, 1 violation each** ✘
 
-4. 当前三个 T04 campaign 不要中断。它们完成后再启动 T01/T02 三格，以控制内存。
+Blocking gap — cross-request stitching (mission-forbidden #3), all 3 seeds:
+`cross_request_edge: 30 处 (seed1) / 59 (seed2) / 59 (seed3) 相邻见证 request_id 不一致（首例 event 8:mshr_alloc req='301' → event 9:cache_access req='303'）`
+i.e. two distinct non-zero request ids joined by one parent→child edge (`cache_return#7 req=301,pa=fa8 → mshr_alloc#8 req=301 → cache_access#9 req=303,va=…3fe0,pa=fe0`).
 
-5. lane 进程退出不影响已 nohup 的 campaign，但主 agent 必须补齐并持久化原定的逐 seed 核验表。18个 seed 都必须报告：
-   SHA、attempted、activated、退出状态、stats、gzip EOF、truncated、L0-L5、parent/request/corr、request_fork、cross_request_edge、invalid_lineage_bridge、terminal、check_admission、oracle及 destination-L5。
+Secondary: `containment_from_events` returns `layer=L5 kind=chain_end outcome=errant_commit_seen` — the READY-gate containment rests on the lifecycle `chain_end` marker, contradicting the "chain_end never as L5" doctrine (`_LIFECYCLE_KINDS` is enforced in `_explicit_l5` but not here).
 
-6. 任一 RunID 只有3/3 seed均通过，才能标记 PILOT_READY。不得因旧结果或单 seed通过而豁免重跑。
+Vs prior evidence (not reused): prior `r6_tlb_G` was `provable_to_L4_then_unknown`, 8 breaks. The `508c716e` fixture did close L4→L5 (real `errant_commit` witness) but did **not** remove the splice — break count rose with the longer ancestry.
 
-继续当前执行，无需等待我再次确认；不得启动正式实验。
+Code fix needed (not a trigger change — activation is healthy at 3/3): in the propagation recorder, stop parenting a differently-`request_id`-stamped access under another request's MSHR/DAG node; and exclude `_LIFECYCLE_KINDS` in `containment_from_events`. No source files were edited; nothing pushed or deleted.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>40</tool_uses><duration_ms>821900</duration_ms></usage>
+</task-notification>
 
 ---
 
-那三个实验都做完了吗？
+<task-notification>
+<task-id>aafb3e1fdd5818f15</task-id>
+<tool-use-id>call_03_2ed9ercgwlv1fembazefi26r</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/aafb3e1fdd5818f15.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T04-F0-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>P3 T04-F0-W4 pilot complete. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P3_T04-F0-W4.md`.
+
+**Setup**: worktree `r6-p1-t04f0@508c716e`; frozen SHA `6469bad2…aef4e` verified before AND after (match, not replaced). Campaign exit clean, 3/3 seeds terminated, no tracked source touched, nothing pushed/deleted.
+
+**Per-seed literal results** (all `fault_id=1`, oracle=Crash):
+- seed1: stats 383746B, gz OK, 1593 evt, L0 inj real `pfn_to_mapped_page 81d75→0`, req=301/f=1/sr=s1, 0 orphans, no truncation/timeout.
+- seed2: stats 383417B, gz OK, 1764 evt, same L0 real injection, sr=s2, 0 orphans.
+- seed3: stats 383417B, gz OK, 1776 evt, same L0 real injection, req=31/f=1/sr=s3, 0 orphans.
+Oracle line: `KERNEL OOPS under fault — exiting (classify: Crash/DUE per fs_mode)`. `sample_run_id` distinct per seed, consistent within chain.
+
+**Overall verdict: FAIL.** 3/3 terminate and activate, but every activated seed has neither a valid complete chain nor valid containment.
+
+**Cross-request verdict: STILL CROSS-REQUESTS** — frozen binary did NOT fix it. `check_chain` alone shows L0→L5 all `proven` + `detected_contained` (per-edge check only sees 6 layer reps). The strict `check_admission` (D3 full-ancestry walk) rejects all 3:
+- seed1: 30 adjacent request_id breaks; first edge **event 8 `mshr_alloc` req=301 → event 9 `cache_access` req=303**
+- seed2: 59 breaks; **event 8 `mshr_alloc` req=32 → event 9 `cache_access` req=34**
+- seed3: 59 breaks; **event 12 `mshr_alloc` req=31 → event 13 `cache_access` req=32**
+
+That edge is a genuine emitter parent link, not a checker artifact: `event9.parent_event_id=8`, `event8.parent_event_id=7` — the emitter stamps the req=303 `cache_access` as a direct child of the req=301 `mshr_alloc` under one fault_id. ⇒ L27's parent-linkage fix is incomplete for T04.
+
+**Pass-condition breakdown**: ✅ terminate; ✅ ≥1 activates (3/3); ❌ no complete chain / valid containment; ✅ `chain_end` never used as L5 (D1 maps it to no layer; the real L5 evidence is a `squash_masked` dl=L4/cont=1/corr=addr_fallback event); ❌ **no cross-request stitching violated on all 3**.
+
+**Note**: campaign's `chain_summary.md`/`cell_results.json` say `detected_contained` because it uses per-edge `check_chain`; the disagreement with `check_admission` is by design — trust the latter. The `activated=3` in the campaign resolution line is the backfilled matrix header, not a fresh result.
+
+**Code fix needed: YES** — in the emitter (CHAOSPropagation): break or re-stamp the fault_id-keyed parent link at request boundaries (addr_fallback fan-out `mshr_alloc(req=A)→cache_access(req=B)` is emitted as a direct parent edge). Re-running the frozen binary is futile; the defect is in the current frozen build.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>31</tool_uses><duration_ms>1098481</duration_ms></usage>
+</task-notification>
 
 ---
 
-立即停止当前所有实验，并在完全停止后对第一波6个 RunID做一次权威离线核验。
+<task-notification>
+<task-id>ae97b2c9715d41d4a</task-id>
+<tool-use-id>call_01_9v8w2zb2si8e5s9n595d8vlj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ae97b2c9715d41d4a.output</output-file>
+<status>completed</status>
+<summary>Agent "Refresh 325 authoritative state" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>L37 done. All five regenerations ran with `LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding`; no tool source touched, nothing pushed.
 
-一、终止所有实验
+**Regenerated artifacts** (all under `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/docs/gem5-fi/lsu/mdspec/`): `pilot_evidence.json`, `coverage_matrix.md`, `ready_contract.json/.md`, `blocked_triage.md`, `blockers_for_approval.md`, `R6-STATUS-TABLE.json/.md`; report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L37.md`. Frozen binary sha256 in the status-table meta = `6469bad2…ef4e`, `provisional=False`.
 
-1. 立即停止继续派发新 seed、新 RunID和任何专项诊断。
-2. 先保存当前全部实验进程清单，包括：
-   - campaign PID；
-   - gem5 PID；
-   - 父子关系；
-   - RunID/seed；
-   - 运行时长；
-   - 实际二进制路径及 SHA；
-   - 输出目录；
-   - 当前文件大小。
-3. 使用现有安全停止机制终止全部 campaign及其 gem5子进程。
-4. 先发送正常终止信号并等待有限时间；只有无法退出的残留进程才能强制终止，并必须记录。
-5. 确认没有遗留或孤儿化的：
-   - gem5.opt；
-   - lsu_campaign.py；
-   - timeout；
-   - pilot调度器；
-   - 会继续派发实验的监控脚本。
-6. 不要终止主 AI、SSH服务或非本项目系统进程。
-7. 不删除、不覆盖当前 seed2 的大文件。将其标记为用户要求终止或事件流异常，不得冒充正常完成。
-8. 停止后报告完整进程清单，并证明实验进程数为0。
+**Real counts**: registry `roots=2 pilots=183 (runids=84) unmatched=52 dup=30 truncated=33 kinds=46`. Coverage `PASS=245 / PARTIAL=0 / BLOCKED=80` (with `--evidence`). Contract `READY=0 PARTIAL=0 BLOCKED=325`; chain_gate `admitted=2 unproven=45 evidence_missing=196`, `blocked_upstream_admitted=[T06-F0-W4,T08-F0-W4]`. Triage `RULING6 LICENSE12 FS-MULTICORE35 FS-INFRA24 MODE-UNIMPL3 CHAIN-UNPROVEN45 CHAIN-EVIDENCE-MISSING196 UNRESOLVED4` (Σ=325 ✓).
 
-二、冻结当前判定环境
+**State machine** (status table): `BLOCKED=325`, everything else 0 — rule 0 short-circuits every row because the contract says all 325 BLOCKED, so "never-run" never surfaces there; `PILOT_READY=0`. Streams: `total=58 complete=45 truncated=13, runids_without_stream=305` (single `runs/lsu` root).
 
-停止所有实验后：
+**4 focus rows, three-way separated**:
+- `C01-F0-W1` — **still "no file"** (contra the brief): `CHAIN-EVIDENCE-MISSING`, 0 seeds. No stream anywhere under the evidence root; the only match is `/tmp/r4-7-fsinfra/w1smoke/...` (outside the root), gzip-truncated with a 0-byte `stats.txt`. So L31's bucket-2 attribution came from `/tmp` scratch.
+- `L01-F0-W5` — **no longer "no file"**: 7 seeds, 4 complete / 3 truncated, `L0..L5`, oracle `Crash=3, Masked=4`; verdict `n/a (BLOCKED:CHAIN-UNPROVEN)` — chain unclosed, not admitted.
+- `T06-F0-W4` / `T08-F0-W4` — **stream-level chain evidence holds AND still blocked upstream**: contract `chain.admitted=true, terminal="detected_contained", violations=[]`; literal table verdict `"n/a (BLOCKED:FS-INFRA)"`; blocking reason `FS-INFRA` (deferred/compile-unverified sub-models + `30 activated/cell not met`), reported separately. Honesty flag: both were admitted on **truncated** streams (gzip no EOF, `stats.txt` 0 B).
+- `O02-F0-W7` / `O02-F5-W7` — L36's regeneration **does not change their row**: still `BLOCKED/FS-MULTICORE`, `L0_L5_coverage="not measured (fault group &gt; cap)"`; the gate refuses them (`chain_evidence_too_large: 222056/224700 &gt; cap 4000 — 未评估`). Build stamps confirm two builds: O01=`Oct 23 2026 10:26:46`, O02-F0/F5/O03=`11:41:40`.
 
-- 不修改代码；
-- 不重新构建；
-- 不改变 checker；
-- 不启动任何新实验；
-- 候选二进制 SHA 固定为：
-  27134738c425d91a10548186af46e589707ac1c40f2951586df6717a1fcfe74e
-- 使用集成 HEAD：
-  a01ad2feac1b9a6dfbb4eb82eb2eec782658982d
-- 使用当前合并版 check_admission 做统一离线复判。
+**Truncated list** (verified by gunzip-to-EOF + non-empty sibling `stats.txt`): truncated-only 13 RunIDs — `A01-F0-W3, C14-F5-W10, C14-F5-W6, C15-F0-W10, C15-F0-W6, C15-F6-W10, C15-F6-W6, O03-F0-W7, T01-F1-W4, T06-F0-W4, T07-F0-W4, T08-F0-W4, T08-F0-W9`; the status table's own single-root set is 9 RunIDs (adds mixed rows `L01-F0-W5, T01-F0-W4, T05-F0-W4, T10-F0-W4`).
 
-三、核验这6个 RunID
+**Disagreement with L31** (reported, not reconciled): admitted **2** vs L31's 0/325 — this tree's `lsu_chain_check.py` carries the D1/D4 hardening (lifecycle `chain_end` never serves as L5) while L31 imported `origin/r6-gate`'s older copy. Evidence-scope: L37 counts 67 RunIDs with streams / 258 without under the evidence root, vs L31's 73/252 host-wide (`/tmp` + other worktrees); hence complete streams 54 vs 58 and truncated 13 vs 15. Two new findings: the `C01-F0-W1` premise is false, and `detected_contained` was asserted over truncated evidence for T06/T08-F0-W4 (worth a ruling-lane review). Note the status table's `--runs-root` accepts only one value, so its stream view covers the main root only while the contract/registry counts cover both roots — they must not be conflated.
 
-逐一核验：
+No spec- or infra-blocked row was marked PILOT_READY.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>71</tool_uses><duration_ms>2352796</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a17438f48c27aff16</task-id>
+<tool-use-id>call_06_4ejv7daun0hlnt8n726zcsj4</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a17438f48c27aff16.output</output-file>
+<status>completed</status>
+<summary>Agent "Pilot T01-F0-W4" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>P6 — T01-F0-W4 3-seed pilot — **PASS**
+
+Binary sha256 `6469bad2…aef4e` verified before / after-seed2 / after-campaign — identical, unchanged. Worktree `r6-p1-t01f0` @ `508c716e`, `git status` clean (no tracked source touched). Campaign log verbatim: `T01-F0-W4: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK`.
+
+Per-seed:
+
+| seed | outcome | events | inj (real) | chain | terminal | provable_to |
+|---|---|---|---|---|---|---|
+| 1 | Masked | 10 | tick 237950940537, bit 56, 0x81d75→0x100000000081d75 | L0→L4 proven | detected_contained | L4 |
+| 2 | Crash | 425 | tick 237950233911, bit 35, 0x81d75→0x800081d75 | L0→L5 proven (L5=errant_commit) | detected_contained | L5 |
+| 3 | Masked | 11 | tick 237950233578, bit 53, 0x81d75→0x20000000081d75 | L0→L4 proven | detected_contained | L4 |
+
+Checks (all real output): `gzip -t` OK + non-empty `stats.txt` (427682/382875/427682 B) all 3; L0 `kind=inj` event_id=0 real before/after all 3; parent DAG single root `['0']`, `orphan_parents=[]`, no non-topological edges; `fault_id=1` only, `sample_run_id=s1|s2|s3` per dir; `truncated=False`, `evidence_truncated_samples=[]`, no Unknown/timeout/orphan. Oracle: s1/s3 `rounds ok=10/10` (simSeconds 0.076565); s2 `KERNEL OOPS under fault — exiting (classify: Crash/DUE)`. No cross-request stitching (seed2 L4→L5 is same-fault_id ancestry, tainted reg dyn 32 → errant commit dyn 391).
+
+Short chain = **genuine containment, not truncation**: payload ends `m5 exit` after 10 rounds (by design), injected bit is above the used PA width so `new_pa==old_pa` (`pa_changed=0`), taints a reg (L4) but no arch change. Prior 9-event/`provable_to=L0` was the older `r6-tlb-hooks` binary (no `taint_reg`); the frozen binary emits L0→L4 (10–11) or a full L0→L5 (425) — count scales with real propagation.
+
+Gaps — **code fix needed: 1 (yes)**. `tools/lsu_chain_check.py::_terminal()` has a D1 leak: `_layer_of`/`_explicit_l5` exclude the lifecycle `chain_end`, but `_terminal`'s "explicit contained" scan reads raw `detection_layer`/`contained`, consuming `chain_end`'s own `contained=1`. Decisive: seed2 as-is → `detected_contained`; seed2 with `chain_end` removed → **`full`** (same path, same L4→L5 witness = real `errant_commit`). Seeds 1/3 unaffected (real detection event drives them). Fix = gate that scan on `_explicit_l5(e)`. The pass condition **"chain_end never as L5" holds structurally in the path** — the L4→L5 edge is the real `errant_commit` (event 259), never `chain_end` (424); only the terminal label is affected, and seed2's cell class (Crash) is unchanged.
+
+Report: `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/P6_T01-F0-W4.md`; evidence: `/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T01-F0-W4/`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>52</tool_uses><duration_ms>4469446</duration_ms></usage>
+</task-notification>
+
+---
+
+继续执行，但暂时不要启动第二波 pilot，也不得启动任何正式实验。目标是先修复第一波暴露的公共根因，再用新冻结二进制重跑验证。
+
+一、先汇报并清理执行状态
+
+1. 确认第一波所有 pilot subagent 均已结束，不再占用 gem5 资源。
+2. 列出当前仍在运行的全部 subagent、gem5、构建和调度器进程。
+3. S01 census 已运行超过 7 小时且 stats.txt、注入日志均为 0 字节：
+   - 先保存命令行、PID、运行时间、日志尾部、输出文件大小等诊断证据；
+   - 若能确认它仍是同一个无产出的旧 census 任务，则终止该任务；
+   - 不删除其目录或已有证据；
+   - 将其标记为 timeout/infra blocked，不得标记为成功。
+4. 不 push，不删除历史证据，不修改正式实验数据。
+
+二、使用多个 subagent 并行修复，但同一公共根因只能有一个代码负责人
+
+请先列出准备启用的 lane、负责人、worktree、文件所有权和依赖，然后再启动。建议最多并行以下 4 条修复线：
+
+A. request-scoped 链路修复
+- 负责解决 T02/T04 中：
+  mshr_alloc request_id=A → cache_access request_id=B
+  形成 cross_request_edge 的问题。
+- 优先修复事件发射器、corr/parent/request 传播关系。
+- 不得通过放宽或删除 cross_request_edge 检查来制造通过。
+- 添加最小单元测试，证明：
+  1. 同一请求的合法边通过；
+  2. 跨请求边仍被拒绝；
+  3. T02/T04 所需的真实 L0–L5 链能够保持 request 一致。
+
+B. checker 终局语义修复
+- 修复 containment_from_events 和 _terminal 对 chain_end 原始字段的误用。
+- chain_end 本身不得充当真实 L5，也不得单独制造 containment。
+- containment/L5 必须来自满足既定关联规则的真实检测事件。
+- 任意 truncated、gzip EOF error 或零字节关键证据不得因为 containment 而被准入。
+- 保留并增强现有断言，不得删除或弱化测试。
+
+C. T04 映射目标修复
+- 修复 pfn_to_mapped_page 的候选选择。
+- 至少要求候选 valid，并核验页大小、映射状态及实验要求的地址关系。
+- 不得再选择 stale/invalid PFN 0。
+- 添加测试证明无效候选会被排除，合法 live mapping 会被选择。
+
+D. campaign 与权威状态修复
+- campaign 的最终结论必须实际调用 binding check_admission；不得只凭 check_chain/chain_valid 报绿。
+- 修复 attempted=0、activated=3 的计数矛盾。
+- 统一 sample_run_id（例如 s1/s2/s3），避免报告与事件流标识不一致。
+- 状态表与 ready contract 必须使用相同且明确记录的 evidence roots。
+- 保留以下状态区别：NOT_RUN、EVIDENCE_MISSING、TRUNCATED、UNPROVEN、PILOT_READY、BLOCKED。
+- 合同原因不能无条件覆盖磁盘事实，导致所有未运行项目都显示成同一种 BLOCKED。
+
+三、集成和验证必须串行执行
+
+所有修复 lane 完成后，由主 agent 统一执行：
+
+1. 审查每个提交和文件所有权，确保没有相互覆盖。
+2. 串行合并到集成分支。
+3. 运行相关定向测试。
+4. 运行完整回归，并与当前基线比较：
+   suites=61，PASS=45，FAIL=13，SKIP=2，ENV=1，新增失败必须为 0。
+5. 如果出现新增失败，立即停止并汇报，不得继续构建或 pilot。
+6. 回归通过后统一构建 gem5。
+7. 记录：
+   - 集成 HEAD；
+   - 二进制路径；
+   - 新二进制 SHA-256；
+   - 构建命令和构建结果。
+8. 新 SHA 冻结后，旧冻结 SHA
+   6469bad23ed035fde43b92bcd24570f24de7a4bf12faddce3fee7fe6562aef4e
+   只能作为历史记录，不得继续用于后续 pilot。
+
+四、重新验证第一波
+
+只使用新冻结二进制重跑以下 6 个 RunID，每个固定运行 3 个 seed：
 
 - T01-F0-W4
 - T02-F0-W4
@@ -625,1068 +652,904 @@ T10-F2-W4
 - T04-F2-W4
 - T04-F6-W4
 
-对每个 RunID 搜索全部现有证据，但必须区分：
+可按 RunID 并行，但要求：
 
-A. 最终候选 SHA产生的证据；
-B. A2阶段或旧 SHA产生的预验证证据；
-C. 当前被终止、超时或未闭合的证据。
+1. 每个 RunID 一个独立 subagent/lane。
+2. 每个 lane 只负责自己的 3 个 seed 和诊断报告，不得私自修改共享代码。
+3. 每个 seed 必须核验：
+   - 实际使用的新二进制 SHA；
+   - attempted 与 activated；
+   - 正常结束或明确的失败原因；
+   - gzip 能读到 EOF；
+   - 非 truncated；
+   - stats 和关键日志非零；
+   - request/corr/parent 关系；
+   - L0–L5 或满足规范的显式 containment；
+   - binding check_admission 结果；
+   - 不存在 cross_request_edge、orphan、Unknown terminal 和证据路径错配。
+4. 某 RunID 任一 seed 失败，则该 RunID 不得标记 PILOT_READY。
+5. 同一公共根因如果再次出现，只指定一个代码修复者；其他 lane 只提交复现证据，避免重复修改。
 
-只有A类证据可用于“最终候选二进制已证明完整链”的结论。B类只能列为辅助证据，不能替代最终验证；C类不得判定通过。
+五、启动第二波的硬条件
 
-四、完整观测链判据
+只有第一波 6 个 RunID 全部通过严格准入，才允许启动剩余第二波：
 
-一个样本只有同时满足以下全部条件，才算获得完整观测链：
+- T01-F1-W4
+- T01-F2-W4
+- T03-F5-W4
+- T10-F0-W4
+- T10-F1-W4
+- T10-F2-W4
 
-1. 实际二进制 SHA与候选 SHA完全一致；
-2. activated=1；
-3. 正常完成，或属于规范明确允许的显式 containment；
-4. gzip可完整读取到EOF；
-5. 非 truncated；
-6. stats及必要日志有效；
-7. L0–L5路径完整，或者存在规范允许且证据闭合的显式 containment；
-8. L5来自真实检测事件，chain_end不得冒充L5；
-9. parent/request/corr/fault_id关系合法；
-10. 合法跨请求传播必须包含可核验的request_fork/bridge；
-11. cross_request_edge=0；
-12. invalid_lineage_bridge=0；
-13. time_reversed_edge=0；
-14. 无orphan、Unknown terminal或证据路径错配；
-15. binding check_admission返回admitted=True；
-16. campaign与checker结论一致。
+第二波同样每个 RunID 运行 3 个 seed，并采用相同准入标准。
 
-当前因用户指令终止的seed2，即使含有部分L0–L5事件，只要未正常闭合、EOF失败或被标记truncated，就不得计为通过。
+任何阶段都不得启动正式实验。正式实验的必要条件仍然是：
 
-五、输出两级结论
+- 所有可执行 RunID 均完成 3-seed pilot；
+- 每个 RunID 都获得完整观测链或符合规范的显式 containment；
+- 权威表中相应项目为 PILOT_READY；
+- 无截断、无证据缺失、无未解释 Unknown；
+- 使用同一冻结二进制 SHA；
+- /home 可用空间达到至少 70.6 GiB；
+- 我明确批准开始正式实验。
 
-为每个 RunID输出：
+现在开始执行。先给我输出：
+1. 当前进程和 subagent 清单；
+2. S01 的诊断及处理结果；
+3. 修复 lane 分工、worktree、文件所有权；
+4. 然后开始修复，不要只停留在计划。
 
-- 候选SHA下合格完整链的seed列表；
-- 旧SHA下仅供参考的seed列表；
-- 被终止/截断/不合格的seed列表；
-- 最佳合格证据路径；
-- terminal、admitted、violations；
-- 是否出现真实destination-request L5；
-- `CHAIN_DEMONSTRATED = YES/NO`；
-- `PILOT_READY = YES/NO`。
+---
 
-定义：
-
-- CHAIN_DEMONSTRATED=YES：该RunID至少有1个最终候选SHA样本满足完整观测链全部判据。
-- PILOT_READY=YES：该RunID按原计划要求的3个seed全部满足完整观测链判据。
-
-最后给出总表：
-
-- CHAIN_DEMONSTRATED：x/6；
-- PILOT_READY：x/6；
-- 仍缺哪些RunID、缺哪些seed、缺口原因；
-- 是否六个RunID都已证明能够产生完整观测链。
-
-六、后续权限
-
-1. 如果6/6均为CHAIN_DEMONSTRATED=YES：
-   - 可以继续推进剩余pilot验证；
-   - 只补齐尚未达到3/3的seed；
-   - 不得重新运行已经有合格证据且无需补跑的seed；
-   - 仍不得启动正式实验。
-2. 只有6/6均为PILOT_READY=YES，才允许进入下一波RunID pilot。
-3. 如果任一RunID的CHAIN_DEMONSTRATED=NO：
-   - 保持所有实验停止；
-   - 不自动重跑；
-   - 汇报确切缺口和最小补跑方案，等待我决定。
-4. 不得把旧SHA、合成测试、被终止流或单纯存在L0–L5字段解释为最终验证通过。
-
-现在立即停止全部实验，然后完成这份6 RunID权威离线核验。
+去掉/home存储的约束
 
 ---
 
 <task-notification>
-<task-id>a55cecf6fce06e0d7</task-id>
-<tool-use-id>call_00_4stb0qxq0hppun22a925atfp</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/fee4a410-5978-419f-9e64-09345a8f74ab/tasks/a55cecf6fce06e0d7.output</output-file>
+<task-id>a19608a63b306cd7c</task-id>
+<tool-use-id>call_03_mc211skk2vpv6maw92t6lac3</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a19608a63b306cd7c.output</output-file>
 <status>completed</status>
-<summary>Agent "Authoritative offline verification of 6 RunIDs" came to rest</summary>
+<summary>Agent "Lane D campaign and state authority" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Report written to `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/R6-VERIFY6.md`. No other file created or modified; no pyc written; gem5 not run.
+<result>Clean tree, branch pushed. Final report:
 
-**VERIFY-6 (read-only, frozen checker imported unmodified). Candidate SHA verified `27134738…`; checker sha `2661358b…`, byte-identical across r6-w1a/b/c/d worktrees; `a01ad2fe..HEAD` leaves the checker untouched.**
+**Lane D (`r6-fixd`, 4 commits `5208c8a5`→`8ee2f320`, pushed to `origin/r6-fixd`)**
 
-| RunID | A/B/C (streams) | terminal | admitted | violations | dest-L5 | CHAIN_DEMONSTRATED | PILOT_READY |
-|---|---|---|---|---|---|---|---|
-| T01-F0-W4 | 2/4/1 | s1 `detected_contained`, s2 `full` | s1 False, s2 True | `time_reversed_edge` (s1) | 无 | **YES** (s2) | **NO** (1/3) |
-| T02-F0-W4 | 3/6/0 | `full` ×3 | True ×3 | 无 | 无 | **YES** | **YES** (3/3) |
-| T02-F2-W4 | 3/3/0 | `full` ×3 | True ×3 | 无 | 无 | **YES** | **YES** (3/3) |
-| T04-F0-W4 | 2流/1样本, 6/2 | `full` (替换路径) | △ True* | 无 | 无 | **NO** | **NO** (1 样本) |
-| T04-F2-W4 | 2/1, 4/2 | `full` (替换路径) | △ True* | 无 | 无 | **NO** | **NO** |
-| T04-F6-W4 | 2/1, 4/2 | `full` (替换路径) | △ True* | 无 | 无 | **NO** | **NO** |
+1. **admission 真调用** — RED `FAILED (11)`（`admitted` 字段不存在、spy 计数 `check_admission` n=0）→ GREEN `ALL PASS`（spy n&gt;0；拒绝样本 `admitted=False`+`NOT ADMITTED` 前缀+落盘；完整链 `admitted=True`；截断流强制不认证；cell `admission_status=GATE-REFUSED`）。新增 `admission_gate()` + `_LinearPathSwap`（门禁内部重跑 `check_chain`，超大流不替换 O(n²) 会卡死 cell；修前 `large_stream` 的"大流在限时内完成"FAIL，修后 PASS）。
+2. **计数矛盾** — RED `FAILED (4)` → GREEN `ALL PASS`：`attempted=0 &amp; activated=3` 现为 `activation_rate=None`+`count_contradiction=True`+控制台 `COUNT-CONTRADICTION` 行；`activated=0` 时 `sdc_rate=None`；真零仍 0.0。
+3. **sample_run_id** — RED `FAILED (3)`（报告 `"1"`）→ GREEN `ALL PASS`（统一 `s1`/`s3`，与事件流 `--prop_sample_run_id` 同源；`chain_summary.md` 行首 `s1`）。
+4. **六态状态表**（新建 `tools/lsu_r6_status_table.py`）— 真 RED：复现旧短路（契约 `status=BLOCKED` 无条件覆盖）⇒ X01..X07 全变 `BLOCKED`，`NOT_RUN` 被杀；修后 `ALL PASS`。真实根（`LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding`，`matches_contract=True`）：**NOT_RUN 305 / EVIDENCE_MISSING 0 / TRUNCATED 8 / UNPROVEN 12 / PILOT_READY 0 / BLOCKED 0**（Σ=325；流 60=48 complete+12 truncated，activated 59，admitted 6）。
 
-**总表**: `CHAIN_DEMONSTRATED = 3/6` · `PILOT_READY = 2/6`. 6 个 RunID 全部能产生完整链？严格口径 **否 (3/6)**；若接受 T04 的线性替换辅助证据则为 6/6，但非冻结 checker 原版结论，不计入。
+**六态互不覆盖反证**：`C01-F0-W1`=NOT_RUN（契约 status=BLOCKED 却未被执行）；`A01-F0-W3`=NOT_RUN 且 `claimed_outside_runs_root` 非空（pilot 证据在权威 runs 根之外）；`L01-F0-W5`=TRUNCATED(4 完整/3 截断) 且 `conditions.unproven=True`（并存）；`T06/T08-F0-W4`=TRUNCATED、`upstream_block=FS-INFRA` 单列、`admitted=1/2` 但**非 PILOT_READY**；合成夹具 X06 证明 BLOCKED 可达且压制 PILOT_READY。
 
-**关键事实**
-- A 类 = 候选 SHA 产生（w1/w1b 录 `27134738…`；T01 无 per-run sha，由 compiled 00:31:28 + 启动 01:41 + mtime 00:35 未变推断）。B 类 = `6469bad2…`(p1) / r6-tlb-hooks(tlb_*) —— 旧 SHA 一律 `cross_request_edge` 拒绝，仅参考。C 类 = 终止/截断。
-- T01 seed2 唯一合格：477 ev、full、admitted、0 violations、L5=真实 `errant_commit`(ev259)；seed1 被 `time_reversed_edge` 拒（L5 候选 `tlb_translate_result` tick 237950940537 早于 L4 `taint_reg` 237950942203）；seed3 `eof=False/trunc=True/gzip -t rc=1/stats=0`。
-- T02-F0/F2 各 3 seed 全 `full`+admitted，L0–L5 全证，bridge 22/52/53 条全合法，orphan=0/Unknown=0，campaign `chain_summary.md` 逐格一致（判据 16 ✓）。
-- **无任何 RunID 出现真实 destination-request L5**：L5 见证一律 `errant_commit`/`squash_masked`（request_id 空、corr=taint_prop），bridge dest 均 L3 `cache_access` ⇒ 该项统一 `n/a`。
+**套件**：`suites=64 ENV=5 FAIL=13 PASS=45 SKIP=1`（基线 61/13/42）——+3 为本 lane 新套件且全 PASS。在基线 worktree r6-fixa 逐套件比对 13 个 FAIL，失败数**完全一致**（含 `campaign_propagation` 4/4）⇒ **NEW FAIL = 0**。
 
-**缺口**
-- G1 T01 缺 2 个合格 seed（s1 time_reversed / s3 截断）；PILOT_READY 不可达。
-- G2 T04 seed2 两波均失控被终止（1.3–2.8 GB，stats=0，`gzip -t` 90 s 未达 EOF）；T04 seed1 568,092 ev / 祖先深度≈12,800，冻结 checker 原版 `_best_ordered_path`(Θ(n·depth)) 不可行（实测 20 k 前缀 25.5 s，单文件 &gt;16 CPU-min 未完成）⇒ 判据 15 原版未证、判据 16 无 campaign 结论。
-- G4 T01 无 per-run SHA 记录（建议补录）。
-- G6 六格 campaign 全触发 `COUNT-CONTRADICTION: attempted=0 vs activated=3`（激活率不可用，不影响链结论）。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>70</tool_uses><duration_ms>2281743</duration_ms></usage>
+**未决风险**：真根 `BLOCKED=0`（所有带证据的上游阻塞行同时被截断，disk 事实优先）——若评审期望 BLOCKED 计数非零，需另行裁决优先级；`lsu_ready_contract.py`/`lsu_blocked_triage.py` 未改动（契约本已用 `LSU_CHAIN_EVIDENCE_ROOT` 并记录 `chain_gate.evidence_root`，重生成逐字一致）；未跑 pilot（按规定）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>155</tool_uses><duration_ms>2404613</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>bqpyw6nyp</task-id>
-<tool-use-id>call_00_4riiqp6oe1fh2l605dkhvcj1</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/fee4a410-5978-419f-9e64-09345a8f74ab/tasks/bqpyw6nyp.output</output-file>
+<task-id>a36a6cde6f4087362</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a36a6cde6f4087362.output</output-file>
 <status>killed</status>
-<summary>Background command "Spot-check the two most consequential claims" was stopped</summary>
+<summary>Agent "Lane A request-scoped chain fix" came to rest (stopped by user)</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Build is running (~40+ min expected). Let me wait for it.</result>
 </task-notification>
 
 ---
 
-保持所有 gem5/campaign 停止，不修代码、不重跑，只做只读离线导出。
+收到。磁盘豁免按当前 HEAD 94c1c13d 执行：磁盘仅监测和如实报告，不再参与 gate，不需要再为磁盘空间停工。
 
-请对以下六个 RunID 的现有证据，导出“实际被 checker 选中的完整故障传播路径”：
+A、C 继续执行，不要等待；完成后按你列出的串行流程集成、回归、统一构建和冻结。不得提前启动 pilot 或正式实验。
 
-T01-F0-W4
-T02-F0-W4
-T02-F2-W4
-T04-F0-W4
-T04-F2-W4
-T04-F6-W4
+对两个待裁决项，我给出以下口径：
+
+一、跨 request 语义
+
+不得简单放宽或删除 cross_request_edge 检查，也不得为了通过而把本来属于不同局部请求的 request_id 强行伪装成相同值。
+
+采用“全局传播链身份 + 局部请求身份”口径：
+
+1. corr/chain identity 用于表示同一条端到端故障传播链，跨 cache/LSQ/MSHR 层必须稳定。
+2. request_id 保留其组件或阶段内的真实局部语义。
+3. 如果硬件流程确实会在层间产生新的 request_id，必须发出明确、可审计的 request-handoff/bridge 事件，记录：
+   - old_request_id；
+   - new_request_id；
+   - 稳定的 corr/chain identity；
+   - parent/child；
+   - 发生层级及原因。
+4. checker 只允许以下两种边：
+   - request_id 一致的普通父子边；
+   - 有合法显式 handoff/bridge 证据支持的跨 request 边。
+5. 没有 bridge 证据的原始跨 request 父边继续判定为 cross_request_edge。
+6. Lane A 必须说明实际采用了哪种实现、为什么符合真实微架构语义，并用测试证明：
+   - 合法同请求边通过；
+   - 合法显式 handoff 通过；
+   - 无 handoff 的跨请求边仍被拒绝。
+7. 如果当前事件模型无法可靠表达 handoff，则本轮先采用严格的 request-scoped 父边，不得自行弱化门禁。
+
+二、状态表 BLOCKED=0 口径
+
+状态表改为“两轴表达”，不要让一个 BLOCKED 状态覆盖证据事实：
+
+A. evidence_state 表示磁盘上的实际观测进度，仅取：
+- NOT_RUN
+- EVIDENCE_MISSING
+- TRUNCATED
+- UNPROVEN
+- PILOT_READY
+
+B. eligibility/blocker_state 单独表示是否被规格、基础设施或模式能力阻塞：
+- RUNNABLE
+- BLOCKED
+并列出 blocker_code 和 blocker_detail。
 
 要求：
 
-1. 每个 RunID 分 seed 报告；不存在完整链的 seed 也必须列出失败点。
-2. 对每条被选中的 ancestry，按真实顺序逐事件列出：
-   sequence_index
-   event_id
-   parent_event_id
-   event_type/kind
-   layer（L0–L5）
-   tick
-   fault_id
-   corr
-   request_id
-   address/range（若有）
-   detection_layer
-   outcome
-   source文件及发射点（若能映射）
-3. 若路径经过 request_fork bridge，必须同时列出：
-   old_request_id
-   new_request_id
-   source_event_id
-   bridge event_id
-   dest_event_id
-   bridge_layer
-   bridge_reason
-   shared_addr/shared_size
-4. 明确区分：
-   - bridge 位于最终 L5 的 ancestry 内；
-   - bridge 只是旁支 fan-out，不属于最终所选 L5 路径。
-5. 每条链最后给出简化路径，例如：
-   injection(...) → ... → cache_access(...) → taint_reg(...) → errant_commit(...)
-   不得只写 L0→L1→L2→L3→L4→L5。
-6. T01 seed1 单独列出 time_reversed_edge 两端事件的完整字段和 tick。
-7. T02-F2 同时核对其实际命令行、tlb_lsu_tier 和配置是否与 F0 不同；若相同，明确标记“链完整，但实验身份退化为 F0”。
-8. T04 使用现有线性检查结果导出路径，但标记为“辅助证据、原版权威 checker 尚未认证”，不得写成正式准入。
-9. 输出：
-   runs/lsu/r6_reports/R6-SIX-PROPAGATION-PATHS.md
-   runs/lsu/r6_reports/R6-SIX-PROPAGATION-PATHS.json
-10. 不修改任何证据文件；报告中附输入流 SHA-256、checker commit 和生成时间。
+1. 有规格或基础设施 blocker 的 RunID，仍应在 evidence_state 中如实显示 NOT_RUN、TRUNCATED 或 UNPROVEN，同时 eligibility=BLOCKED。
+2. 不得因为 contract 中有 blocker，就把所有磁盘事实短路成 BLOCKED。
+3. `BLOCKED=0` 只能表示当前统计维度中没有 blocker，不能被解释为全部实验已经可运行或已经通过。
+4. 权威汇总必须同时报告：
+   - 各 evidence_state 数量；
+   - RUNNABLE/BLOCKED 数量；
+   - PILOT_READY 数量；
+   - blocker_code 分类数量。
+5. 正式实验准入依据仍是 PILOT_READY，不以 BLOCKED=0 代替。
 
-完成后先汇报六个 RunID 的简化路径及失败点，不启动任何新实验。
+现在继续推进 A、C。二者完成后先汇报各自提交、测试结果和语义说明，再串行合并。完整回归若出现新增 FAIL 或新增无法解释的 ENV，立即停止并汇报；否则继续统一构建、冻结新 SHA，并重跑第一波 6 RunID × 3 seed。
 
 ---
 
 <task-notification>
-<task-id>a949e0e1e557ae40b</task-id>
-<tool-use-id>call_00_ag14onlo6c9nyq6a55mzuu8l</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a949e0e1e557ae40b.output</output-file>
+<task-id>a07967c2b19c1801b</task-id>
+<tool-use-id>call_01_79h8woqppfuqd3kb0h33048q</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/a07967c2b19c1801b.output</output-file>
 <status>completed</status>
-<summary>Agent "Export six propagation paths read-only" came to rest</summary>
+<summary>Agent "Lane D2 two-axis state table" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Both deliverables are written and validated. Final report:
+<result>Lane D2 完成；分支 `r6-fixd2` 已推送（commit `ca0bfbed`）。
 
-**Lane EXPORT-6（只读，未跑 gem5 / 未改 checker、代码或任何证据文件）**
+**两轴字段设计**（`tools/lsu_r6_status_table.py`）
+- 轴 A `evidence_state`（仅五值，**永不为 BLOCKED**）：NOT_RUN/EVIDENCE_MISSING/TRUNCATED/UNPROVEN/PILOT_READY。
+- 轴 B `eligibility`：RUNNABLE/BLOCKED，附 `blocker_code` + `blocker_detail`。
+- 两轴并存；`conditions` 保留（TRUNCATED∧UNPROVEN 并存靠此）。旧 `state`（六态）标注为**非权威遗留**，仅向后兼容——既有 4 个测试与断言一字未删/未弱化。
+- 汇总新增 `evidence_states` / `eligibility` / `pilot_ready{count,run_ids,basis}` / `blocker_codes` / `blocker_code_zero_note`。
 
-**输出文件**
-- `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/R6-SIX-PROPAGATION-PATHS.md`（406 KB, 1319 行）
-- `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/R6-SIX-PROPAGATION-PATHS.json`（6.29 MB，逐事件 50+ 字段 + 全部 bridge）
+**三处真根锚点**（`LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding`）
+- `C01-F0-W1` → ev=NOT_RUN，elig=RUNNABLE，code=NONE
+- `T06-F0-W4`、`T08-F0-W4` → ev=TRUNCATED **且** elig=BLOCKED、code=FS-INFRA（并存）；无任何行 ev==BLOCKED
+- `L01-F0-W5` → ev=TRUNCATED 且 conditions.unproven=True
 
-**checker 身份**：`lsu_chain_check.py` sha256 `2661358b9a58d27fbdf3e32b11632439760fae97ef36a742d075c75103d38737`；worktree commit `8f70d163e4dd5e0b8606851846576190fe6449db`（集成 HEAD `a01ad2fe…`；两者间 `tools/lsu_chain_check.py` diff 为空 ⇒ 与合并版逐字节相同）。生成时间 `2026-10-24T10:41+0800`。
+**汇总四类计数**（325 RunID）
+- 轴 A：NOT_RUN 305 / EVIDENCE_MISSING 0 / TRUNCATED 8 / UNPROVEN 12 / PILOT_READY 0
+- 轴 B：RUNNABLE 241 / BLOCKED 84
+- 正式准入 PILOT_READY∧RUNNABLE = 0
+- blocker_code：FS-MULTICORE 35 / FS-INFRA 24 / LICENSE 12 / RULING 6 / UNRESOLVED 4 / MODE-UNIMPL 3
 
-**A 类（候选二进制 `27134738…`，波次 w1 / w1b）简化路径**
-- `T01-F0-W4/s2` ✅ `inj(field=bit_flip,va=…3eb8,81d75→800081d75) → tlb_lookup(way=-1,entry=0) → tlb_pfn(pa=800081d75eb8) → cache_access(pa=…eb8) → cache_return(miss) → mshr_alloc → cache_access(pa=…e80) → cache_return → mshr_alloc → resp → taint_reg(req=32,clean→tainted) → errant_commit(ev259,t237951515628,dl=L5,outcome=errant_commit)`
-- `T02-F0-W4/s1..s3` ✅ 三条同形 `inj(bit_flip) → tlb_lookup(way=-1,entry=0) → tlb_pfn(pa=…) → [s1/s3: tlb_translate_result; s3 另有 lsq_push] → sq_execute → sq_writeback → cache_access → cache_return(miss) → mshr_alloc → … → mshr_fill/cache_fill/mshr_free → resp → taint_reg(clean→tainted) → [s1: sq_complete] → errant_commit(ev98/ev259/ev293)`
-- `T02-F2-W4/s1..s3` ✅ **载荷与 T02-F0 逐字节相同**（run_id 归一化后 md5 全等）⇒ **链完整，但实验身份退化为 F0**
-- `T04-F0/F2/F6 seed1` ⚠️（**辅助证据、原版权威 checker 尚未认证**）`inj(field=pfn_to_mapped_page,va=…3fa8,81d75→ffbce) → tlb_lookup(way=1,entry=0) → tlb_pfn(pa=ffbcefa8) → tlb_translate_result → sq_execute → sq_writeback → cache_access(pa=…fa8) → cache_return(miss) → mshr_alloc → cache_access(pa=…f80) → … → mshr_fill/cache_fill/mshr_free ×2 → resp → taint_reg → sq_complete → errant_commit(ev118,t237951302175)`
+**RED→GREEN**：旧实现真实 `AttributeError: module 'lsu_r6_status_table' has no attribute 'EVIDENCE_STATES'`（新增 4 个两轴测试）→ 改后 `FAILURES: 0`（8 项全 PASS，pytest `8 passed`）。
 
-**失败点**
-- `T01/s1`：`time_reversed_edge` — L5 候选 `tlb_translate_result`(ev3,tick **237950940537**,dl=L2,outcome=NoFault,contained=1,corr=seq_primary) 早于已证 L4 `taint_reg`(ev7,tick **237950942203**,req=301,va=81d75fa8,clean→tainted)（差 1666 tick）⇒ admitted=False。
-- `T01/s3`：截断 —— `truncated=True`/`chain_end=0`/`stats.txt=0 B`/`gzip -t rc=1`/oracle=Timeout；仅到 L4，另有 `time_reversed_edge`（L4 tick 237950295516）⇒ admitted=False。
-- `T04 seed2`（F0/F2/F6 × w1+w1b 共 6 条）：失控流被用户指令终止 —— 1.34–2.83 GB、`stats.txt=0 B`、`gzip -t` 90 s 未达 EOF(rc=124)、`run.out` 无 CHAOS_DETECT ⇒ 准入**未判定**（无法证明或否证 L0–L5 与收口）。
-- `B 类（r6_p1_*，旧二进制 6469bad2…）全部 18 条**：`admitted=False`，唯一语义违规 `cross_request_edge`（T01/T02：31/92/95 处；T04：30/59 处），因旧二进制**不发射 request_fork bridge**（本流 n_bridges=0）⇒ 与 A 类的 22/52/53/70 条 bridge 形成 A2 差异对照。
+**套件**：`lsu_test_runner.py` = PASS 45 / FAIL 13 / ENV 5 / SKIP 1；与未改动基线工作区逐条比对，FAIL 集合**完全相同** ⇒ NEW FAIL=0。改动两文件无其他模块 import。
 
-**B 类 A 波输入流 SHA-256**（18 条）：T01 `867bc71a…/3ecc0741…/cdcfd677…`；T02-F0 `8c7ce8a9…/c2083478…/fdc2cdf1…`；T02-F2 `cbce7417…/4b345ad7…/cbbea8cf…`；T04-F0 `e8c4748d…/c51702d0…(w1)/cbe09d68…(w1b)`；T04-F2 `87553edd…/9e4daf27…/7c53e45d…`；T04-F6 `325054cc…/2fa987ee…/b34fc1ce…`（全 39 条完整 sha256 见 .md §1 与 .json `input_streams`）。
-
-**关键发现（实测，与给定事实一致）**
-1. **bridge 全部为类别 (b)**：六格所有流 `BRIDGES_ON_ANCESTRY=[]` —— 无一条 request_fork 位于最终 L5 ancestry 内 ⇒ 第 3 项为 “n/a，路径不经过任何 bridge”，但每条流的完整已验证 bridge 目录（含 old/new_request_id / source_event_id / bridge event_id / dest_event_id / bridge_layer / bridge_reason / shared_addr,shared_size）已逐条导出。
-2. **六格均无真实 destination-request L5**：L5 见证一律 `errant_commit`/`squash_masked`（request_id 空、corr=taint_prop），bridge 的 dest 全是 L3 `cache_access`。
-3. **T02-F2 身份退化**（实测三重证据）：命令行归一化后全等、`r6-w1b`/`r6-w1c` 的 `configs/fs/lsu_b0_fs.py` sha256 同为 `5762df1f…` 且逐字节相同、两次均**未传 `--tlb_lsu_tier`**（default=off）、执行参数为 F0 形（`--tlb_probability 1.0 --tlb_max_faults 1`）；矩阵行 48/50 仅差 `频率=F0|F2` 与频率定义。**T04-F0/F2/F6 同样退化**（seed1 载荷归一化后逐字节相同）。
-4. `T04 seed1`（568,092 事件；`consumer` 567,611 条）原版 checker 的 Θ(n·depth) 路径不可行 ⇒ 使用 `lsu_campaign` 线性替换，已标注**非正式准入**、判据 15 原版未证、判据 16 无 campaign 结论可对。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>68</tool_uses><duration_ms>1834684</duration_ms></usage>
+**未决风险**：(1) lane 指令给的 base `94c1c13d` 不含 `tools/lsu_r6_status_table.py`（该文件由 Lane D 于 07c004e5 后新建），故 r6-fixd2 实际基于 Lane D 交付 `8ee2f320`，属有意偏离、已在 plan 记录；(2) 合成夹具里"已准入+阻塞"行拿 PILOT_READY 作磁盘事实（真根 84 阻塞行无此组合），语义边界已写进 docstring；(3) 遗留 `state` 字段仍在输出中（标注非权威），若后续要求彻底移除需另开 patch。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>62</tool_uses><duration_ms>1589590</duration_ms></usage>
 </task-notification>
 
 ---
 
-继续保持所有实验停止。请对刚生成的
-R6-SIX-PROPAGATION-PATHS.md
-R6-SIX-PROPAGATION-PATHS.json
-做一次只读一致性复核，不修改原始事件流、不启动 gem5。
+裁决如下：
 
-重点检查摘要中的疑似串行/复制错误：
+1. B/C/D/D2 可以立即按既定顺序串行合并并运行定向测试。
+2. 暂时不要统一构建、不要冻结新 SHA、不要启动 pilot；最终冻结等待 Lane A 语义完成，避免重复构建和重复冻结。
+3. Lane A 当前“保留广播 + 无父节点兄弟子链”实现不作为最终方案接受。
 
-1. 当前汇报把 T02-F0 s1/s2/s3 简化写成：
-   va=…3eb8、PFN 81d75→800081d75。
-   这与此前 T01 seed2 的字段相似，而此前 T02 原始证据分别是：
-   s1 81d75→100040000081d75，VA …3fa8；
-   s2 81d75→1000000800081d75；
-   s3 81d75→200000000c1d75。
-   请逐 seed 重新从各自 prop_evt.txt.gz 核对，不得把一个 seed 的值概括为三个 seed。
+原因：当前实现虽然消除了 cross_request_edge，并使 T02/T04 admitted=True，但后续请求的兄弟子链在自身首事件处无父节点生根，也不进入所选 L0–L5 祖先路径。这会把真实的跨请求污染传播排除在因果图之外。事件数不变不代表传播图语义等价，也不能用 checker 翻绿代替完整因果链。
 
-2. 核对 T02 每个 seed 的真实 L5 ancestry 是否包含
-   mshr_fill/cache_fill/mshr_free。
-   请分别输出每个 seed 的完整 kind 序列，不要将 T04 的路径模板套给 T02。
+Lane A 改为显式 request_fork/lineage_bridge 模型。这里的语义是广播/扇出，不要求伪装成普通请求 handoff：
 
-3. 对六个 RunID 建立交叉一致性检查：
-   - Markdown 字段必须与 JSON 对应记录一致；
-   - JSON 必须与原始 prop_evt 逐事件一致；
-   - event_id/parent_event_id 必须形成真实 ancestry；
-   - run_id、sample_run_id、输入流 SHA-256 必须匹配；
-   - 简化路径不得混合不同 seed 的地址、事件和状态值。
+- 保留当前 per-(fault_id, request_id) 请求域游标；
+- 同一污染对象首次传播到新的 request_id 时，发出显式 bridge/fork 事件；
+- bridge 至少记录：
+  - fault_id；
+  - 稳定的全局 chain/corr identity；
+  - source_request_id / old_request_id；
+  - destination_request_id / new_request_id；
+  - source_event_id 或 parent_event_id；
+  - destination 首事件；
+  - layer；
+  - reason，例如 addr_fallback_broadcast；
+  - 被共享的物理地址、cache line 或其他可核验传播对象；
+- 新请求的首个事件必须通过 bridge 与污染来源连接，不能无父节点自行生根；
+- 普通跨 request 父边仍然拒绝；
+- checker 只对白名单化且字段完整、来源可核验的 bridge/fork 边允许 request 转换；
+- 如果找不到真实污染来源事件，不得制造 bridge，也不得准入该跨请求链。
 
-4. 明确列出真正独立的实验身份：
-   - T01-F0；
-   - T02-F0；
-   - T02-F2 是否退化为 T02-F0；
-   - T04-F0/F2/F6 是否三者退化为同一配置。
-   “链条完整”与“实验条件独立有效”必须分栏报告。
+必须增加测试证明：
 
-5. 若只发现报告摘要错误，只修正两个导出报告并给出 diff；
-   若发现 JSON 与原始流不一致，立即停止并汇报，不得继续修复或重跑。
+1. 同 request 普通父边通过；
+2. 没有 bridge 的跨 request 边仍被拒绝；
+3. 字段缺失、来源不存在或地址/line 不一致的假 bridge 被拒绝；
+4. 合法 A→bridge→B 路径进入所选 ancestry，而不是成为被忽略的兄弟根；
+5. 多请求广播表现为一个来源向多个 request 分支显式 fork；
+6. 如果 L5 发生在新请求 B，所选完整路径必须真实包含 L0…源请求…bridge…目标请求…L5；
+7. 单请求链行为保持不变；
+8. T02-F0、T02-F2、T04-F0、T04-F2、T04-F6 至少各做一次真实定向复验，不能只验证 T02-F0/T04-F0。
 
-完成后报告：
-- 哪些字段确实写错；
-- 错误只在简化摘要还是也进入 JSON；
-- 修正后每个 seed 的一行真实路径；
-- 六个 RunID 中实际有多少个独立实验条件。
+完成 Lane A 后再合入集成分支，随后统一执行：
+
+定向测试 → 完整回归（NEW FAIL=0）→ 单次统一构建 → 冻结新 SHA-256 → 第一波 6 RunID × 3 seed 重跑。
+
+不得通过断开兄弟分支、忽略兄弟事件或放宽 checker 来获得 admitted=True。
 
 ---
 
 <task-notification>
-<task-id>a37d8bf89b22389bf</task-id>
-<tool-use-id>call_00_rmcp83zfcliay0rnqvz07enh</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a37d8bf89b22389bf.output</output-file>
+<task-id>bi3ny791i</task-id>
+<tool-use-id>call_00_7lv9bypj3a7whwy2kfqg8qd5</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/bi3ny791i.output</output-file>
 <status>completed</status>
-<summary>Agent "Read-only consistency review of export" came to rest</summary>
-<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>**① 字段错写情况**：两个导出文件**均无字段错误** —— MD ↔ JSON ↔ 原始流三方一致（33 个简化路径块、38 个可比 seed 逐事件、39 条流 SHA-256 全过）。**唯一错误的载体是"只在编排者口头摘要"**（把 T01-F0-W4 seed2 的 `…3eb8 / 81d75→800081d75` 当成 T02-F0 三 seed 共同值）。**未修改两个导出文件（无 diff）**；另写复核报告 `runs/lsu/r6_reports/R6-EXPORT-REVIEW.md`。
-
-**② 修正后每 seed 真实路径（raw 重 derive，与文件一致）**
-- T01 s2(477): inj(va=…483eb8, 81d75→**800081d75**)→tlb_lookup(way=-1,ei=0,同值)→tlb_pfn(pa=800081d75eb8)→cache_access/return×…→resp→taint_reg→errant_commit(ev259)
-- T02-F0 s1(226): va=…483fa8, 81d75→**100040000081d75**; tlb way=-1,ei=0; pfn pa=40000081d75fa8
-- T02-F0 s2(424): va=…483eb8, 81d75→**1000000800081d75**; tlb way=-1,ei=0; pfn pa=800081d75eb8
-- T02-F0 s3(490): va=…483eb0, 81d75→**200000000c1d75**; tlb way=-1,ei=0; pfn pa=c1d75eb0
-- T02-F2 s1/s2/s3: 与 T02-F0 同 seed **逐字节相同**（run_id 归一化后）
-- T04-F0/F2/F6 s1(各568092): inj(field=pfn_to_mapped_page, va=…483fa8, 81d75→**ffbce**); tlb way=**1**,ei=0; 三者 seed1 流 md5 归一化后同为 `d08ba030…`
-
-**③ mshr_fill/cache_fill/mshr_free（raw 与 ancestry 判定相同）**
-- T02-F0/T02-F2：s1 ✗、s2 ✗、s3 **✓**(mshr_fill14/cache_fill14/mshr_free14 且进入 ancestry) —— **逐 seed 不同，不得一概而论**
-- T01 s2 ✗；T04 三格 s1 均 **✓**（10/10/10，进入 ancestry）
-- 6 个超大流（T04 seed2/A'seed2，1.3–2.8 GB）为 n/a，未解压
-
-**④ 六个 RunID 的实际独立实验条件数 = 3**：{T01-F0-W4}（缺 `--tlb_bits_to_change`，独立）、{T02-F0-W4 ≡ T02-F2-W4}（同命令行/同 config sha `5762df1f…`/同载荷 md5）、{T04-F0 ≡ T04-F2 ≡ T04-F6}（三者同）。即 **T02-F2 退化为 T02-F0，T04 三格退化为同一配置**；`--tlb_lsu_tier` 六格全未传。
-
-**⑤ 停止条件**：**未触发**。JSON 与原始事件流逐事件一致（ancestry 的 event_id/parent_event_id 构成真实 ancestry，chainbad=0），故未停止、未重跑、未改证据。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>46</tool_uses><duration_ms>1431595</duration_ms></usage>
+<summary>Background command "Run full regression on B+C+D+D2 merged tree" completed (exit code 0)</summary>
 </task-notification>
-
----
-
-继续保持所有实验停止。现在只处理 R6-SIX-PROPAGATION-PATHS 导出结果的一致性，不启动 gem5、不重跑、不修改任何原始事件流。
-
-请对：
-
-runs/lsu/r6_reports/R6-SIX-PROPAGATION-PATHS.md
-runs/lsu/r6_reports/R6-SIX-PROPAGATION-PATHS.json
-
-与其引用的全部原始 prop_evt.txt.gz 做逐项只读复核。
-
-一、核对疑似串行/复制错误
-
-当前汇报把 T02-F0 s1/s2/s3 简化写成：
-
-va=…3eb8
-PFN 81d75→800081d75
-
-这与 T01 seed2 相似。此前 T02 原始证据显示：
-
-s1：81d75→100040000081d75，VA …3fa8
-s2：81d75→1000000800081d75
-s3：81d75→200000000c1d75
-
-请逐 seed 从各自 prop_evt.txt.gz 重新读取，不得用一个 seed 的值概括三个 seed，也不得把 T01/T04 字段复制到 T02。
-
-二、逐 seed 核对真实 ancestry
-
-对 T01、T02-F0、T02-F2、T04-F0/F2/F6 的每个有效 seed，分别输出：
-
-- 输入流路径与 SHA-256；
-- event_id/parent_event_id；
-- kind；
-- mapped layer；
-- tick；
-- request_id、corr、fault_id、sample_run_id；
-- before/after、VA、PA；
-- detection_layer、outcome、contained；
-- 完整 L5 parent ancestry 的 kind 序列；
-- checker 选出的六层代表事件。
-
-重点确认 T02 每个 seed 的 L5 ancestry 是否真的包含：
-
-mshr_fill / cache_fill / mshr_free
-
-不得将 T04 的路径模板套给 T02。
-
-三、建立三方一致性检查
-
-必须自动比较：
-
-原始 prop_evt.txt.gz
-↔ R6-SIX-PROPAGATION-PATHS.json
-↔ R6-SIX-PROPAGATION-PATHS.md
-
-至少验证：
-
-1. Markdown 字段与 JSON 对应字段一致；
-2. JSON 逐事件内容与原始流一致；
-3. event_id/parent_event_id 构成真实、无环、无断边 ancestry；
-4. run_id、sample_run_id、fault_id 与输入目录一致；
-5. 输入流 SHA-256 与报告登记值一致；
-6. 简化路径没有混用其他 RunID 或其他 seed 的地址、事件和值；
-7. 所有标记为 L5 的终点均来自真实检测事件，不能来自 chain_end。
-
-四、核对实际实验身份
-
-分别核对最终 gem5 命令、配置文件 SHA、实际传入参数和归一化事件载荷：
-
-- T01-F0；
-- T02-F0；
-- T02-F2；
-- T04-F0；
-- T04-F2；
-- T04-F6。
-
-分开报告两列：
-
-- 观测链是否完整；
-- 实验条件是否独立且真实生效。
-
-若 T02-F2 退化为 F0，或 T04-F0/F2/F6 退化为同一配置，必须明确分组，不得把重复运行写成独立频率实验。
-
-五、错误处理规则
-
-1. 如果原始流和 JSON 正确、仅 Markdown/简化摘要错误：
-   - 找到生成摘要的来源；
-   - 修复导出逻辑，不得只手工改最终文本；
-   - 重新生成 MD/JSON；
-   - 给出修复前后 diff；
-   - 再运行三方一致性检查。
-
-2. 如果 JSON 与原始流不一致：
-   - 立即停止；
-   - 保留现有产物；
-   - 汇报第一个不一致的 RunID、seed、event_id、字段及两侧值；
-   - 不得继续修复、重跑或覆盖证据。
-
-3. 如果只是旧报告中的自然语言总结错误，而导出程序和两个产物均正确，也要明确指出错误只存在于哪条人工汇报中。
-
-完成后汇报：
-
-- 哪些字段确实写错；
-- 错误存在于口头摘要、Markdown、JSON还是导出程序；
-- 修正后每个有效 seed 的一行真实路径；
-- 六个 RunID 实际对应多少个独立实验条件；
-- 哪些路径严格认证、哪些仅为线性 checker 辅助认证；
-- 工作树 diff、修改文件、测试结果。
-
-完成一致性复核后停止，不启动实验，等待下一步指令。
 
 ---
 
 <task-notification>
-<task-id>af5e779a3dac7412a</task-id>
-<tool-use-id>call_00_5r71prfhtxgjfv5tsfy8x68p</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/af5e779a3dac7412a.output</output-file>
+<task-id>a2e0c684f17da0bb0</task-id>
+<tool-use-id>call_00_vqnyiz6lsvy73hc6m6blgpbf</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/a2e0c684f17da0bb0.output</output-file>
 <status>completed</status>
-<summary>Agent "Full three-way consistency audit" came to rest</summary>
+<summary>Agent "Lane A2 fork bridge model" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>所有审计完成。最终报告：
+<result>Done. Report:
 
-**① 哪些字段写错 / 错误在哪一层**
-- **MD、JSON、导出程序三者均无字段错写** —— 三处错误均为**人类汇报层**，产物未改：
-  - 编排者**口头摘要**：把 T02-F0 三 seed 压成同一条 `va=…3eb8 / 81d75→800081d75`（其中 `800081d75` 实为 **T01-F0-W4 seed2** 的值）。
-  - `R6-EXPORT-REVIEW.md` §4 表：T04 行写 `bits 2`，实测命令**未传** `--tlb_bits_to_change`（默认 = 1）。
-- 自动三方检查：MD↔JSON 371/371 行 0 mismatch；JSON↔原始流 0 mismatch；ancestry 0 断边/环；39/39 SHA-256 一致。
+**Bridge 事件字段实现**（`CHAOSPropagation.{hh,cc}`，kind=`request_fork`，独立 id 空间 2^32 起，不扰动 v1 编号）：`fault_id`、`corr`（稳定链身份）、`request_id`/`old_request_id`、`new_request_id`、`source_event_id`(=`parent_event_id`)、`dest_event_id`、`bridge_layer`、`bridge_reason`（addr_fallback_broadcast / request_handoff）、`shared_addr`+`shared_size`（被共享的**已登记坏字节区间**，如 T04 坏物理页 `[0,0x1000)`）。来源事件必须是该链**最后一条已盖戳事件**；来源与目标**双方**须实际访问同一区间；缺任一条件 → **不造桥**（新请求不并入链，绝不伪造）。
 
-**② 修正后逐有效 seed 真实路径**（`va` / `before→after` / L5 终点）
-`T01-F0-W4`: A1 `…3fa8/100000000081d75` L4→L5=missing（终点 taint_reg L4，非 L5）· A2 `…3eb8/800081d75` ev259 errant_commit · A3 `…3eb0/20000000081d75` missing
-`T02-F0-W4`: A1 `…3fa8/100040000081d75` ev98 · A2 `…3eb8/1000000800081d75` ev259 · A3 `…3eb0/200000000c1d75` ev293（均 errant_commit）
-`T02-F2-W4`: 与 T02-F0 同 seed **逐字节相同**（同三值）
-`T04-F0/F2/F6-W4`: A/A' s1 各 `…3fa8/ffbce` ev118（三者 seed1 流 SHA-256 相同）· seed2 未判定(n/a，1.3–2.8 GB 失控流) · B1/2/3 `…3fa8/…3eb8/…3eb0 →0` ev116/195/207
-**T02 各 seed 的 L5 ancestry 是否含 `mshr_fill/cache_fill/mshr_free`**：s1 **不含**、s2 **不含**、**s3 含**（流内各 ×14）；B 波同型。**未把 T04 模板套给 T02** —— 含 fill/free 的是 T04 A 波 seed1 ancestry。
+**8 项测试**（`tests/test_lsu_campaign_propagation.py §6`，全部 PASS）：(1) 同请求父边通过✅ (2) 无 bridge 跨请求边仍拒绝✅ (3a) 字段缺失假 bridge 拒绝✅ (3b) 来源事件不存在拒绝✅ (3c) 地址/line 不一致拒绝✅ (4) 合法 A→bridge→B **进入所选 ancestry**（非兄弟根，父边 6→bridge→8）✅ (5) 多请求 fan-out：同源事件 6 分叉出 303/307 两条 bridge✅ (6) L5 在新请求 B 时完整路径含 bridge 且 L0..L5✅ (7) 单请求链行为不变（零 bridge、full_chain、request 一致）✅。`test_lsu_hook_sq.py §8` 发射器契约 7 条全 PASS。**TDD 证据**：仅暂存 my checker 改动时，(3a/3b/3c/4/5) 5 条真实 FAIL（`cross_request_edge 301≠303`），即"无 bridge 仍拒绝"。
 
-**③ 六个 RunID 的实际独立实验条件数 = 3**：{T01-F0-W4}、{T02-F0 ≡ T02-F2}、{T04-F0 ≡ T04-F2 ≡ T04-F6}（命令逐 token 相同）。T02-F2 与 T04-F0/F2/F6 均为**退化重复**。
+**5 个 RunID 真实定向复验**（新二进制，各 seed1，outdir `runs/lsu/r6_fixa2/`）：`T02-F0-W4 / T02-F2-W4 / T04-F0-W4 / T04-F2-W4 / T04-F6-W4` → 流内 bridge **22/22/46/46/46** 条；`invalid_lineage_bridge=0`、`cross_request_edge=0`、`admitted=True`。样例 T04-F0-W4：`bridge ev=4294967296 parent=8 old=301 new=303 src=8 dst=9 layer=L3 reason=addr_fallback_broadcast shared=[0,+0x1000) corr=addr_fallback`，dest 事件 9 的父边=bridge。**祖先是否真含 bridge：这 5 格否** —— T04/T02 的 L5（`errant_commit`/`chain_end`，未盖戳）落在**故障请求自身**，所选 L0..L5 祖先即该请求链，bridge 是**已白名单验证的 fan-out 边**（不再是无父生根的兄弟根）。"L5 在新请求 B" 时路径含 bridge 由 §6(4)(6) 实测钉死。
 
-**④ 认证等级**：T01/T02（shipped `_best_ordered_path`）=**严格认证**；T04 A/A'（`_linear_best_ordered_path` O(n) 替换）=**仅线性 checker 辅助**（非正式准入）；所有 B 波仅作对照。
+**构建**：`scons -j16 build/ARM/gem5.opt` exit=0，compiler warning/error **0**，sha256 `41c2a575…`。**套件**：`lsu_test_runner.py` → `suites=61 ENV=1 FAIL=13 PASS=45 SKIP=2`，= 基线 FAIL=13，**NEW FAIL=0**。
 
-**⑤ 工作树 / 文件 / 测试**：`runs/` 被 gitignore ⇒ 无 git diff。**未改**任何 `prop_evt.txt.gz`/`cell_results.json`/`chain_report.json`/checker/`tools/`；两个受审产物 SHA-256 前后一致（md `e4719ab1…`、json `5b18553c…`）。新增只读脚本+结果：`_audit_export.py`、`_audit_export_md.py`、`_audit_export_result.json`、`_audit_export_md_result.json`、`R6-EXPORT-AUDIT.md`（4036 行）。测试 = 上述全部自动比对（B/C/D/E/MD 全 0）、`gzip_RC0` 除 1 条真截断流。
-
-**⑥ 停止条件：未触发**（JSON↔原始流不一致 = 0）。发现 1 条真截断 gzip（`T01-F0-W4` A seed3，truncated=True，已被如实标注），已容错解析。
-
-唯一需纠正者：口头摘要（及另一 lane 复核报告的 T04 `bits 2` 一处）。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>59</tool_uses><duration_ms>684552</duration_ms></usage>
+**未决风险（必须上报）**：
+1. **偏差**：指令要求"不得改 tools/**"，但"checker 只对白名单化 bridge 放行"**无法在不改 checker 的前提下实现**（原 `_creq_mismatch` 只认"两侧已盖戳且不等"）。我对 `tools/lsu_chain_check.py` 做了**最小加法式**白名单（新增 `invalid_lineage_bridge`，未放宽任何既有拒绝），按 R6-RULINGS 裁决 A(4)(6) 执行；若 orchestrator 判定越界，可单独丢弃该文件 hunk（emitter/tests 仍自洽）。该文件另一 lane（r6-fixb）也在改（含未合并的终局语义修复），合并时需人工对齐。
+2. 两个测试**文件级**仍红：campaign §5 两条、hook_sq 4 条 store 链 —— 均为 **HEAD 既有失败**（stash 复现），非本 lane 引入，未修（属其它 lane 语义）。
+3. 本 worktree 的 checker 未含 fixB 终局语义，故真实格判为 `detected_contained`（含住 L5）而非 `full`；该差异不影响 bridge 语义，集成后以 fixB 口径为准。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>124</tool_uses><duration_ms>2870013</duration_ms></usage>
 </task-notification>
 
 ---
 
-审计结论接受。
+裁决如下。
 
-一、先修正错误书面记录
+一、lsu_chain_check.py 的最终所有权
 
-授权修正 R6-EXPORT-REVIEW.md 中“T04 bits 2”的错误记录，改为：
+新建一个单一的 AB-reconcile 集成 lane，以当前集成 HEAD 184c1a92 为基线，并由该 lane 独占负责 tools/lsu_chain_check.py 及本次协调测试。
 
-实测命令未传 --tlb_bits_to_change，使用默认值 1。
+不得直接选择 ours/theirs，也不得丢弃 A2 的 checker hunk。
+
+最终语义要求：
+
+1. B 的规则作为终局基础，必须完整保留：
+   - chain_end 不得充当真实 L5；
+   - chain_end 不得单独制造 containment；
+   - L5/containment 必须来自真实检测事件；
+   - truncated、gzip EOF、零字节关键证据不得因 containment 而准入。
+2. 在 B 的基础上，加法式加入 A2 的 bridge 验证：
+   - 仅字段齐全且来源可核验的 request_fork/lineage_bridge 可以跨 request；
+   - source/destination 事件必须存在；
+   - old/new request_id 必须与两端一致；
+   - fault_id、corr、layer 和父子关系必须一致；
+   - shared_addr/shared_size 必须同时被两端真实访问；
+   - 不合法 bridge 报 invalid_lineage_bridge；
+   - 无 bridge 的普通跨 request 边继续报 cross_request_edge。
+3. A2 的 checker hunk不能丢弃。只保留 emitter 而不接纳严格 bridge，会使真实 bridge 无法通过绑定门禁。
+4. A2 对 tools/** 的越界作为已披露的所有权例外处理；从现在起由 AB-reconcile lane 统一收口，原 A2 lane 不再继续改 checker。
+5. 协调后必须同时运行 B、A2 两组测试，并增加至少一个组合测试：
+   - 合法 bridge 存在；
+   - 后续出现 chain_end 伪 L5 或截断流；
+   - 结果仍必须被 B 的规则拒绝。
+   以此证明 bridge 白名单没有绕过 B 的终局门禁。
+
+二、真实 L5 落在新请求的验证
+
+需要真实 gem5 证据。合成测试可以证明算法，但不能单独证明发射器在真实运行中能够形成：
+
+L0/源请求 → request_fork → 新请求 → L5
+
+处理方式：
+
+1. 先完成 AB 协调合并、定向测试和完整回归。
+2. 回归 NEW FAIL=0 后统一构建一次，记录候选二进制 SHA。
+3. 使用该候选二进制，在现有 RunID/种子中优先自动寻找 L5 位于 destination request 的案例。
+4. 若现有第一波 6×3 中自然出现该案例，可直接作为真实证明，不重复运行。
+5. 若未出现，则运行一个有界的真实 gem5 诊断 pilot，专门寻找或触发污染从源请求传播到新请求并在新请求产生真实 L5。
+6. 该诊断必须使用真实 workload、真实发射器事件和正常 checker；不得手工修改事件流或用合成 trace 冒充真实证据。
+7. 验证报告必须列出完整 ancestry：
+   - 源请求的 L0/L1/L2/L3；
+   - bridge event；
+   - old/new request_id；
+   - source/destination event_id；
+   - shared object；
+   - 新请求中的后续层级；
+   - 真实 L5；
+   - cross_request_edge=0；
+   - invalid_lineage_bridge=0；
+   - admitted=True。
+8. 若在合理的有界搜索内找不到真实 destination-L5，停止并报告“bridge 发射真实、destination-L5 动态覆盖缺失”，不得把合成测试写成真实闭环完成。
+
+三、后续执行顺序
+
+现在继续执行，无需再次等待：
+
+1. 新建 AB-reconcile lane；
+2. 以集成 HEAD 184c1a92 为基线，协调合入 A2；
+3. 运行 B+A2 定向测试及组合负向测试；
+4. 完整回归，NEW FAIL 必须为 0；
+5. 统一构建并记录候选 SHA；
+6. 第一波 6 RunID × 3 seed；
+7. 在第一波中检查是否出现真实 destination-request L5；
+8. 如未出现，再执行有界专项诊断；
+9. 全部验证通过后，才把候选 SHA 标记为最终冻结 SHA并更新权威状态。
+
+任何新增 FAIL、无法同时保留 B/A2 语义、或真实 bridge 校验失败时停止汇报。不得启动正式实验，不 push 集成分支，不删除既有证据。
+
+---
+
+<task-notification>
+<task-id>a9e46c277fc038216</task-id>
+<tool-use-id>call_00_8jd1of4ys5er6so5v9vakqi8</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/a9e46c277fc038216.output</output-file>
+<status>completed</status>
+<summary>Agent "AB-reconcile checker coordination" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane AB-reconcile done. Report:
+
+**策略（保留/新增）**
+- `tools/lsu_chain_check.py`：以 B（`184c1a92`）为终局基础，用 3-way merge（共同祖先 `07c004e5`）自动并入 A2；唯一冲突在 `GATE_VIOLATIONS`（纯加法）——保留 B 的 `containment_on_unclosed_stream`/`containment_on_truncated_stream` **并**加入 A2 的 `invalid_lineage_bridge`。B 的 L5/含住/截断终局门禁（`check_chain` terminal、`_stream_closed`、`_truncated_flag`）原样未动；A2 的 `_validate_bridges`/`_carried_by_bridge` 仅豁免 `cross_request_edge`（逐边+整祖先）。未放宽任何既有拒绝。
+- emitter `CHAOSPropagation.{cc,hh}`：取 A2 定稿成品（两 commit `f11d907b`+`a4f7e6cc`）。
+- 测试：纳入 A2 的 `test_lsu_campaign_propagation.py`、`test_lsu_hook_sq.py`；在 `test_lsu_chain_check.py` 新增 **[19] 组合负向测试**（合法 bridge 同形于 A2 [6]）。
+
+**组合负向测试（新增，全 PASS）**：合法 bridge + `chain_end` 伪 L5 ⇒ 非 full 且不准入；合法 bridge + 显式 `truncated=True` ⇒ 拒绝并响亮 `containment_on_truncated_stream`；两例拒绝**均非** `cross_request_edge`（证明 bridge 白名单未绕过 B 门禁）。对照组（合法 bridge + 真实 L5 事件）admitted=True。
+
+**测试结果**
+- B 组（chain_check / r6_reconcile_realroot / ready_contract_gate / ready_contract_chain_wiring）：全 `ALL PASS`（exit 0）。
+- A2 组：`test_lsu_campaign_propagation` FAIL(2): oracle join / provable_to-beyond；`test_lsu_hook_sq` FAIL(5)。**与 A2 分支 `a4f7e6cc` 自跑结果逐条相同**（在 A2 worktree 实测）——**非本合并引入**。
+
+**真实格复判**（`runs/lsu/r6_fixa2/T0{2,4}-{F0,F2,F6}-W4/seed1`，合并版 checker）：5/5 `admitted=True`，`cross_request_edge=0`，`invalid_lineage_bridge=0`（bridge 齐全且来源可核验）。
+
+**构建**：`scons -j16 build/ARM/gem5.opt` 成功，无新告警（仅既有 capstone/png/HDF5/systemc 环境告警；CHAOSPropagation 无告警）。
+
+**完整回归**：`suites=66 FAIL=12 PASS=53 SKIP=1 ENV=0`；FAIL 集与基线一致（`campaign_propagation` + 11 个 `test_lsu_hook_*`），**NEW FAIL=0**，未把 FAIL 改写为 SKIP/ENV。
+
+**语义冲突**：无（B 与 A2 可同时完整保留）。
+
+提交 `a01ad2fe`（merge commit，保留 A2 两 commit 血缘），已 push 到**本 lane 分支 `r6-abrec`**，未推集成分支。worktree `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-abrec`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>53</tool_uses><duration_ms>2077029</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bmvkzyjqm</task-id>
+<tool-use-id>call_00_b1xpfqfhmrdcb5misipx4oba</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/bmvkzyjqm.output</output-file>
+<status>completed</status>
+<summary>Background command "Merge abrec into integration and run full regression" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+继续执行，不要停在构建完成后的准备阶段。
+
+一、立即核验候选二进制
+
+统一构建已经完成。请立即确认并记录：
+
+- 集成 HEAD：
+  a01ad2feac1b9a6dfbb4eb82eb2eec782658982d
+- 候选 gem5.opt 路径；
+- 构建完成时间；
+- 候选 SHA-256：
+  27134738c425d91a10548186af46e589707ac1c40f2951586df6717a1fcfe74e
+- 构建日志最终状态；
+- 当前工作树状态。
+
+将本次构建告警与上一份成功构建日志比较：
+
+1. 已知的 capstone/png/HDF5 缺失告警可以如实记录。
+2. `CHAOSCache` 的 `-Wreorder` 必须确认是既有告警还是本轮新增。
+3. 若出现本轮代码引入的新告警或错误，立即停止并汇报。
+4. 若均为既有告警，继续执行，不要重复构建。
+5. 旧 SHA `6469bad2…` 从现在起只作历史，禁止用于后续 pilot。
+
+该 SHA 当前称为“候选冻结 SHA”；在第一波和 destination-request L5 验证完成前，不要称为最终冻结 SHA。
+
+二、立即启动第一波 6×3 pilot
+
+为以下每个 RunID 启动一个独立 lane，每个固定运行 3 个 seed：
+
+- T01-F0-W4
+- T02-F0-W4
+- T02-F2-W4
+- T04-F0-W4
+- T04-F2-W4
+- T04-F6-W4
 
 要求：
-- 只修改这一处事实错误及必要的更正说明；
-- 不修改 R6-SIX-PROPAGATION-PATHS.md/.json；
-- 不修改任何原始事件流；
-- 提交前给出最小 diff；
-- 在文档中注明这是人工复核报告错误，不是实验数据错误。
 
-完成后进入下面的修复轮。继续保持 gem5/campaign/正式实验全部停止，修复和离线分析完成前不得重跑。
-
-二、修复目标
-
-目标不是修改报告，而是让六个 RunID 真正成为六个独立、可稳定运行、可由权威 checker 认证的实验条件。
-
-当前事实基线：
-
-- 原始流 ↔ JSON ↔ Markdown：0 mismatch；
-- 当前六格实际只有三个独立条件：
-  {T01-F0}
-  {T02-F0 ≡ T02-F2}
-  {T04-F0 ≡ T04-F2 ≡ T04-F6}
-- T01 只有 seed2 完整；
-- T02-F0 3/3 完整；
-- T02-F2 3/3 完整但退化为 F0；
-- T04 seed1 内容完整，但原版权威 checker 无法处理大流；
-- T04 seed2 出现 1.34–2.83 GB 事件流暴增；
-- 所有 destination-request L5 仍为 0。
-
-三、修复顺序与文件所有权
-
-可以使用最多三个隔离 lane，但同一文件只能有一个最终所有者，禁止重叠修改。
-
-Lane 1：F-tier 路由与实验身份
-
-负责：
-- tools/lsu_campaign.py；
-- resolve_cell/FAMILY_TIER_FLAGS 相关测试；
-- 必要的配置参数接线。
-
-任务：
-1. 从矩阵、规格和已有实现中确认 F0/F2/F6 的准确语义，不得自行猜测。
-2. 查明 lookup-mode TLB 为什么没有传递 tier。
-3. 让 T02-F0 与 T02-F2、T04-F0/F2/F6 的最终运行参数真实不同。
-4. 必须用自动测试证明：
-   - 归一化后的命令行不再相同；
-   - 生效参数能够被运行配置读取；
-   - F0/F2/F6 不再静默退化；
-   - 若某种 fault model 无法表达某个频率档，必须显式 BLOCKED，不能伪装成已运行。
-5. 暂不运行 gem5。
-
-Lane 2：权威 checker 线性化
-
-唯一拥有：
-- tools/lsu_chain_check.py；
-- 对应 checker 测试。
-
-任务：
-1. 将已经验证的 O(n) `_linear_best_ordered_path` 正式并入权威 checker，而不是只存在于 lsu_campaign.py 的临时替换。
-2. 不得放宽任何现有规则：
-   - chain_end 不得充当 L5；
-   - 截断流不得准入；
-   - bridge 必须完整可核验；
-   - cross_request_edge、invalid_lineage_bridge、time_reversed_edge 继续严格拒绝；
-   - B/A2 组合负向测试全部保留。
-3. 对现有小流逐条比较新旧 checker：
-   - terminal；
-   - provable_to；
-   - path_event_ids；
-   - admitted；
-   - violations；
-   必须完全一致。
-4. 用现有三个 T04 seed1 离线验证新权威 checker 可以完成，并生成正式结果。
-5. 不运行 gem5。
-
-Lane 3：T01 倒挂与 T04 流暴增诊断
-
-该 lane 先只读诊断，确认根因后才能修改 C++ 发射器。
-
-T01：
-1. 核查为什么 `tlb_translate_result` 同时具有：
-   detection_layer=L2
-   outcome=NoFault
-   contained=1
-   并被 checker 提升为 L5。
-2. 不得为了通过门禁简单推迟或重写 tick。
-3. 必须判断真实根因属于：
-   - 发射器错误地设置 contained；
-   - detection_layer/outcome 组合错误；
-   - checker 对显式 containment 的提升条件错误；
-   - 或真实父子时间戳错误。
-4. 修复后必须保持事件物理发生顺序真实。
-
-T04：
-1. 对现有 1.34–2.83 GB seed2 流只读统计：
-   - 每类 kind 数量；
-   - 每秒/每百万 tick 增长率；
-   - request_id/corr/fault_id 基数；
-   - parent 深度；
-   - bridge 数量；
-   - consumer 事件数量；
-   - 首个开始失控的 event_id/tick；
-   - 最主要的重复事件模式和对应 C++ 发射点。
-2. 判断是：
-   - 合法但无界的传播；
-   - 重复记录同一污染状态；
-   - 请求 fan-out；
-   - 环/重复父链；
-   - 生命周期未回收；
-   - 或其他原因。
-3. 不得用截断、丢事件、采样、扩大磁盘上限来掩盖问题。
-4. 根因证据明确后才做最小修复。
-5. T01 与 T04 若涉及同一 C++ 文件，由本 lane 统一拥有，禁止另开重叠修改者。
-
-四、集成与停止条件
-
-三个 lane 完成后由主执行者串行：
-
-1. 审查每个提交和文件所有权；
-2. 串行合并；
-3. 定向测试；
-4. 完整回归；
-5. 要求 NEW FAIL=0；
-6. 离线重新认证现有 T04 seed1；
-7. 输出六个 RunID 修复后的解析命令，证明 F-tier 已独立。
-
-出现以下任一情况立即停止汇报：
-
-- 新增测试失败；
-- O(n) checker 与旧 checker 在小流上输出不一致；
-- F-tier 的规格语义无法确定；
-- T01 只能靠伪造/移动 tick 才能通过；
-- T04 暴增根因未确定；
-- 修复需要丢弃真实事件；
-- 文件所有权发生冲突。
-
-五、构建与后续 pilot
-
-只有全部修复、完整回归 NEW FAIL=0 后，才：
-
-1. 统一构建一次；
-2. 记录新的 binary SHA-256；
-3. 单独记录 checker commit/hash；
-4. 生成冻结清单；
-5. 先不要启动正式 325 实验。
-
-然后在资源允许时，对六个 RunID 使用同一冻结二进制执行新的 3-seed pilot：
-
-T01-F0-W4
-T02-F0-W4
-T02-F2-W4
-T04-F0-W4
-T04-F2-W4
-T04-F6-W4
-
-每个 RunID 必须同时满足：
-
-- 实际命令与对应 F-tier 一致；
-- 3/3 流正常收口；
-- gzip EOF；
-- stats 非零；
-- 无截断；
-- 权威 checker 可完成；
-- terminal=full 或真实显式 containment；
-- admitted=True；
-- violations=[]；
-- campaign 与 checker 一致；
-- 二进制 SHA 一致。
-
-正式实验仍不得启动。
-
-六、当前立即执行范围
-
-现在先执行：
-文档纠错 → 三条修复/诊断 lane → 串行集成 → 测试 → 离线复判。
-
-在开始任何 gem5 pilot 之前，先向我汇报：
-- 三条根因；
-- 修改文件和提交；
-- 测试结果；
-- F0/F2/F6 最终命令差异；
-- T04 seed1 的新权威 checker 认证结果；
-- 是否已具备重新冻结和重跑六格的条件。审计结论接受。
-
-一、先修正错误书面记录
-
-授权修正 R6-EXPORT-REVIEW.md 中“T04 bits 2”的错误记录，改为：
-
-实测命令未传 --tlb_bits_to_change，使用默认值 1。
-
-要求：
-- 只修改这一处事实错误及必要的更正说明；
-- 不修改 R6-SIX-PROPAGATION-PATHS.md/.json；
-- 不修改任何原始事件流；
-- 提交前给出最小 diff；
-- 在文档中注明这是人工复核报告错误，不是实验数据错误。
-
-完成后进入下面的修复轮。继续保持 gem5/campaign/正式实验全部停止，修复和离线分析完成前不得重跑。
-
-二、修复目标
-
-目标不是修改报告，而是让六个 RunID 真正成为六个独立、可稳定运行、可由权威 checker 认证的实验条件。
-
-当前事实基线：
-
-- 原始流 ↔ JSON ↔ Markdown：0 mismatch；
-- 当前六格实际只有三个独立条件：
-  {T01-F0}
-  {T02-F0 ≡ T02-F2}
-  {T04-F0 ≡ T04-F2 ≡ T04-F6}
-- T01 只有 seed2 完整；
-- T02-F0 3/3 完整；
-- T02-F2 3/3 完整但退化为 F0；
-- T04 seed1 内容完整，但原版权威 checker 无法处理大流；
-- T04 seed2 出现 1.34–2.83 GB 事件流暴增；
-- 所有 destination-request L5 仍为 0。
-
-三、修复顺序与文件所有权
-
-可以使用最多三个隔离 lane，但同一文件只能有一个最终所有者，禁止重叠修改。
-
-Lane 1：F-tier 路由与实验身份
-
-负责：
-- tools/lsu_campaign.py；
-- resolve_cell/FAMILY_TIER_FLAGS 相关测试；
-- 必要的配置参数接线。
-
-任务：
-1. 从矩阵、规格和已有实现中确认 F0/F2/F6 的准确语义，不得自行猜测。
-2. 查明 lookup-mode TLB 为什么没有传递 tier。
-3. 让 T02-F0 与 T02-F2、T04-F0/F2/F6 的最终运行参数真实不同。
-4. 必须用自动测试证明：
-   - 归一化后的命令行不再相同；
-   - 生效参数能够被运行配置读取；
-   - F0/F2/F6 不再静默退化；
-   - 若某种 fault model 无法表达某个频率档，必须显式 BLOCKED，不能伪装成已运行。
-5. 暂不运行 gem5。
-
-Lane 2：权威 checker 线性化
-
-唯一拥有：
-- tools/lsu_chain_check.py；
-- 对应 checker 测试。
-
-任务：
-1. 将已经验证的 O(n) `_linear_best_ordered_path` 正式并入权威 checker，而不是只存在于 lsu_campaign.py 的临时替换。
-2. 不得放宽任何现有规则：
-   - chain_end 不得充当 L5；
-   - 截断流不得准入；
-   - bridge 必须完整可核验；
-   - cross_request_edge、invalid_lineage_bridge、time_reversed_edge 继续严格拒绝；
-   - B/A2 组合负向测试全部保留。
-3. 对现有小流逐条比较新旧 checker：
-   - terminal；
-   - provable_to；
-   - path_event_ids；
-   - admitted；
-   - violations；
-   必须完全一致。
-4. 用现有三个 T04 seed1 离线验证新权威 checker 可以完成，并生成正式结果。
-5. 不运行 gem5。
-
-Lane 3：T01 倒挂与 T04 流暴增诊断
-
-该 lane 先只读诊断，确认根因后才能修改 C++ 发射器。
-
-T01：
-1. 核查为什么 `tlb_translate_result` 同时具有：
-   detection_layer=L2
-   outcome=NoFault
-   contained=1
-   并被 checker 提升为 L5。
-2. 不得为了通过门禁简单推迟或重写 tick。
-3. 必须判断真实根因属于：
-   - 发射器错误地设置 contained；
-   - detection_layer/outcome 组合错误；
-   - checker 对显式 containment 的提升条件错误；
-   - 或真实父子时间戳错误。
-4. 修复后必须保持事件物理发生顺序真实。
-
-T04：
-1. 对现有 1.34–2.83 GB seed2 流只读统计：
-   - 每类 kind 数量；
-   - 每秒/每百万 tick 增长率；
-   - request_id/corr/fault_id 基数；
-   - parent 深度；
-   - bridge 数量；
-   - consumer 事件数量；
-   - 首个开始失控的 event_id/tick；
-   - 最主要的重复事件模式和对应 C++ 发射点。
-2. 判断是：
-   - 合法但无界的传播；
-   - 重复记录同一污染状态；
-   - 请求 fan-out；
-   - 环/重复父链；
-   - 生命周期未回收；
-   - 或其他原因。
-3. 不得用截断、丢事件、采样、扩大磁盘上限来掩盖问题。
-4. 根因证据明确后才做最小修复。
-5. T01 与 T04 若涉及同一 C++ 文件，由本 lane 统一拥有，禁止另开重叠修改者。
-
-四、集成与停止条件
-
-三个 lane 完成后由主执行者串行：
-
-1. 审查每个提交和文件所有权；
-2. 串行合并；
-3. 定向测试；
-4. 完整回归；
-5. 要求 NEW FAIL=0；
-6. 离线重新认证现有 T04 seed1；
-7. 输出六个 RunID 修复后的解析命令，证明 F-tier 已独立。
-
-出现以下任一情况立即停止汇报：
-
-- 新增测试失败；
-- O(n) checker 与旧 checker 在小流上输出不一致；
-- F-tier 的规格语义无法确定；
-- T01 只能靠伪造/移动 tick 才能通过；
-- T04 暴增根因未确定；
-- 修复需要丢弃真实事件；
-- 文件所有权发生冲突。
-
-五、构建与后续 pilot
-
-只有全部修复、完整回归 NEW FAIL=0 后，才：
-
-1. 统一构建一次；
-2. 记录新的 binary SHA-256；
-3. 单独记录 checker commit/hash；
-4. 生成冻结清单；
-5. 先不要启动正式 325 实验。
-
-然后在资源允许时，对六个 RunID 使用同一冻结二进制执行新的 3-seed pilot：
-
-T01-F0-W4
-T02-F0-W4
-T02-F2-W4
-T04-F0-W4
-T04-F2-W4
-T04-F6-W4
-
-每个 RunID 必须同时满足：
-
-- 实际命令与对应 F-tier 一致；
-- 3/3 流正常收口；
-- gzip EOF；
-- stats 非零；
-- 无截断；
-- 权威 checker 可完成；
-- terminal=full 或真实显式 containment；
-- admitted=True；
-- violations=[]；
-- campaign 与 checker 一致；
-- 二进制 SHA 一致。
-
-正式实验仍不得启动。
-
-六、当前立即执行范围
-
-现在先执行：
-文档纠错 → 三条修复/诊断 lane → 串行集成 → 测试 → 离线复判。
-
-在开始任何 gem5 pilot 之前，先向我汇报：
-- 三条根因；
-- 修改文件和提交；
-- 测试结果；
-- F0/F2/F6 最终命令差异；
-- T04 seed1 的新权威 checker 认证结果；
-- 是否已具备重新冻结和重跑六格的条件。
+1. 每个 lane 只负责自己的 RunID、3 个 seed 和报告。
+2. 所有 lane 必须使用同一个候选 SHA：
+   27134738c425d91a10548186af46e589707ac1c40f2951586df6717a1fcfe74e
+3. lane 不得修改任何共享代码；发现代码问题只提交复现证据，由主 agent 指定唯一修复者。
+4. 可并行运行，但遵守现有内存/swap 资源门禁；磁盘只监测，不作为停止条件。
+5. 不得使用旧产物冒充本轮结果；输出目录必须与旧第一波分离，并在报告中记录二进制 SHA。
+6. 启动后立即汇报 lane、PID、RunID、seed、输出目录和实际二进制 SHA，不要只说“已派出”。
+
+三、每个 seed 的强制核验
+
+每个 seed 都必须检查：
+
+- attempted 与 activated；
+- 正常退出或明确失败原因；
+- stats.txt 和关键日志是否有效；
+- gzip 是否可读至 EOF；
+- 是否 truncated；
+- L0–L5 层级；
+- parent/request/corr/fault_id 关系；
+- request_fork 的字段与来源真实性；
+- invalid_lineage_bridge；
+- cross_request_edge；
+- orphan；
+- terminal；
+- binding check_admission；
+- oracle outcome；
+- sample_run_id 与事件流是否一致。
+
+只有 3/3 seed 均通过严格准入，RunID 才能标记为 PILOT_READY。
+
+四、destination-request L5 检查
+
+第一波运行时逐 seed 自动检查：
+
+- L5 事件的 request_id 是否等于 bridge 的 new_request_id；
+- 若相等，输出完整 ancestry：
+  源请求 → request_fork → 目标请求 → 真实 L5；
+- 同时证明：
+  cross_request_edge=0、
+  invalid_lineage_bridge=0、
+  admitted=True。
+
+若第一波自然出现真实 destination-request L5，直接保存为动态闭环证据。
+
+若第一波 18 次均未出现，则在第一波结束后自动进入既定的有界真实工作负载专项诊断，不需要再次等我确认。不得修改事件流或用合成 trace 冒充真实证据。
+
+五、停止条件
+
+以下情况立即停止新增任务并汇报：
+
+- 候选 SHA 与上述值不一致；
+- 二进制不是由集成 HEAD a01ad2fe 构建；
+- 出现新构建告警或新增测试失败；
+- 任一 seed 出现截断、gzip EOF、零字节关键证据；
+- bridge 校验失败；
+- 出现普通 cross_request_edge；
+- checker 与 campaign 结论不一致；
+- 需要修改共享代码；
+- 内存/swap 资源门禁拒绝启动。
+
+不得启动正式实验，不 push 集成分支，不删除既有证据。
+
+现在先完成候选二进制核验，然后立即派出第一波 6 个 lane，不要再次停下来等待我的确认。
 
 ---
 
 <task-notification>
-<task-id>a4150b5d644932582</task-id>
-<tool-use-id>call_01_uq2rgvrn80zl71axadulhh8t</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a4150b5d644932582.output</output-file>
+<task-id>afc1a41748ae4d11f</task-id>
+<tool-use-id>call_01_h528rffj01xxfkz3kqcznq7l</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/afc1a41748ae4d11f.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane2 checker linearization" came to rest</summary>
+<summary>Agent "W1 T02-F0-W4 3-seed pilot" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Lane FIX-LINCHECK 完成。提交 `237b3956`，已 push 分支 `r6-lincheck`（未 push 集成分支，未改 campaign/C++，未跑 gem5）。
+<result>W1-B / T02-F0-W4 — 完成。
 
-**线性化做法（checker 内替换、语义不变）**
-`tools/lsu_chain_check.py`：原逐事件祖先遍历实现原样更名 `_walk_best_ordered_path`（等价参考 + 回退）；新增 `_linear_best_ordered_path` —— 因 `_ordered_prefix` 是前向贪心，`ancestry(child)=ancestry(parent)+[child]` ⇒ 前缀状态可一次父 DAG 自底向上传播（均摊 O(1)），胜者仍取**原始列表序中首个达最大长度**者（`&gt;`），复用本模块 `LAYERS`/`_layer_of`/`_tick` 故层映射不可能漂移；`_best_ordered_path` = 线性入口，**仅在可证不等价时**回退参考实现（链内两不同对象同非空 event_id / 父图有环 `_ChainCycle`）。未动 campaign：其 `_LinearPathSwap` 现在换入的仍是等价实现（环回退指向 checker 的 walk，无递归）。
-
-**小流等价性比对结果**
-- in-process（新==旧搜索；10 合成形状 × 2 族 + 全部 70 条真实小流 faults/admitted/violations 逐字段）：`ALL PASS`。
-- 跨 commit（base `8f70d163` 原版 checker vs 本分支，70 条小流 terminal/provable_to/path_event_ids/admitted/violations）：`70/70 一致`（RC=0）。
-- **无不一致** ⇒ 未触发停点。
-
-**三个 T04 seed1 正式结果**（新权威 CLI / `check_admission`，各 568,092 事件）
-| 流 | terminal | provable_to | admitted | violations | 耗时 |
-|---|---|---|---|---|---|
-| r6_w1b_T04-F0-W4 seed1 | full | L5（全 5 边 proven） | True（path=full_chain） | 0 | 18.9 s |
-| r6_w1b_T04-F2-W4 seed1 | full | L5（全 5 边 proven） | True（path=full_chain） | 0 | 19.2 s |
-| r6_w1b_T04-F6-W4 seed1 | full | L5（全 5 边 proven） | True（path=full_chain） | 0 | 19.4 s |
-
-此前原版 &gt;16 CPU-分钟未完成。流未被修改。
-
-**RED→GREEN**：先加套件 [20]，旧树 `FAILED (2)`；实现后 `ALL PASS`。
-**规则未放宽**：`test_lsu_chain_check.py` [1]–[19]（含 chain_end 不充当 L5、截断流不准入、lineage bridge 完整核验、cross_request_edge / invalid_lineage_bridge / time_reversed_edge 严格拒绝、B/A2 组合负例）全绿；`test_lsu_campaign_large_stream.py` 222,007 事件 12.0 s `ALL PASS`；`test_lsu_r6_reconcile_realroot.py` `ALL PASS`（无需改动，T3）。
-**套件 NEW FAIL 数 = 0**：`suites=66 ENV=4 FAIL=12 PASS=49 SKIP=1`，与 pristine base `8f70d163` 的逐套件状态 **diff 完全无差异**。
-
-无任何不一致。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>56</tool_uses><duration_ms>1405869</duration_ms></usage>
+- **Lane/outdir/SHA**: W1-B, worktree `r6-w1b`@a01ad2fe; outdir `/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T02-F0-W4` (lane-exclusive, distinct from `r6_p1_*`); logs `/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T02-F0-W4_logs`; report `runs/lsu/r6_reports/W1-T02-F0-W4.md`. Actual SHA-256 `27134738c425d91a10548186af46e589707ac1c40f2951586df6717a1fcfe74e` before **and** after (mtime 00:35:26, unchanged). Campaign PID `691800` (launch subshell).
+- **Per-seed table** (s1/s2/s3): attempted/activated 0/1 each; exit 0; stats 382875/382875/381642 B; gzip full-read-to-EOF with CRC ok, truncated=False, raw 155280/289779/332806 B; events 226/424/490; run_id/sample_run_id/fault_id = T02-F0-W4/s1..s3/1; L0→L5 full; terminal `full`/provable_to L5; **cross_request_edge=0**, **invalid_lineage_bridge=0**, orphan=0; `request_fork` bridges 22/52/53 all authentic (independent re-check 0 invalid); binding `check_admission` admitted=True (path=full_chain, violations=[]); campaign ADMITTED; checker==campaign; oracle Crash×3; conservation OK.
+- **Destination-L5**: condition does **not** occur. L5 witness is `errant_commit` by taint propagation (`corr=taint_prop`) with **empty request_id** (e98/e259/e293); no bridge targets it. Ancestry is instead the verified real closure L0 inj req=301 → tlb_lookup/tlb_pfn 301 → L3 cache/mshr 301 → L4 taint_reg 301 → L5 errant_commit; ancestry request-break scan = 0. Reported honestly instead of fabricating a request-lineage closure.
+- **Historical failure resolved**: the old `mshr_alloc req=301 → cache_access req=303` transition now appears as a validated bridge (seed1 `4294967296`: src e8 mshr_alloc 301 → dst e9 cache_access 303, old=301 new=303, shared [0x40000081d75000,+0x1000), reason=addr_fallback_broadcast) — no plain `cross_request_edge`.
+- **Verdict**: 3/3 seeds PASS strict admission → **PILOT_READY**. No stop-points tripped; no shared code modified (r6-w1b worktree clean).
+- **Caveats (honest, non-blocking)**: campaign's new `COUNT-CONTRADICTION attempted=0 而 activated=3` fires because T-series FS run entries don't populate `attempted` (real injections proven: 1 line per `armtlb_injections.log`); `activation_rate` honestly `n/a`. All 3 seeds are Crash-with-full-chain, so admission is by option (1), not containment.
+- **Evidence paths**: `runs/lsu/r6_w1_T02-F0-W4/T02-F0-W4/{cell_results.json,chain_report.json,chain_summary.md,seedN/…}`; lane logs `verify_seeds.py`, `verify_seeds.out`, `ancestry_l5_closure.json`, `sha_trace.log`, `campaign.log`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>45</tool_uses><duration_ms>331955</duration_ms></usage>
 </task-notification>
 
 ---
 
 <task-notification>
-<task-id>a63bacd95d0bcd335</task-id>
-<tool-use-id>call_00_ch75og8ywei321e54jeri950</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a63bacd95d0bcd335.output</output-file>
+<task-id>a747dba07e6003cf6</task-id>
+<tool-use-id>call_02_u4y1jrz87cu8qf57kpq9bkki</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/a747dba07e6003cf6.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane1 F-tier routing" came to rest</summary>
+<summary>Agent "W1 T02-F2-W4 3-seed pilot" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>Pushed to `origin/r6-ftier`. Report:
+<result>Lane **W1-C** (RunID `T02-F2-W4`) — report: `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/W1_T02-F2-W4.md`
 
-**1. F0/F2/F6 规格语义（原文出处，未猜测）** — `docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md` §5 sheet-5（行 144/146/150）：`F0 单次瞬态｜每次运行只注入 1 次；在 warm-up 后的 eligible event 中均匀抽样`；`F2 中频事件归一化｜平均每 100,000 个 eligible events 注入 1 次，间隔加入 ±50% 抖动`；`F6 确定性事件触发｜首次出现指定事件时注入一次，如 TLB hit、SQ forward…`。`CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh` 头注释复述同一套事件归一化档位；`07-expanded-matrix-backfilled.csv` 给 T01{F0,F1,F2} T02{F0,F2} T04{F0,F2,F6}；`-03-位置x模型矩阵.md` 的 tier 只在"适用频率"列（不是子模型）。
+- **Outdir**: `/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T02-F2-W4` (separate from first wave). Campaign **PID 711185**, 01:10:54→01:11:52, `--max-parallel 1`. Worktree `r6-w1c` @ `a01ad2fe`.
+- **SHA-256 = `27134738c425d91a10548186af46e589707ac1c40f2951586df6717a1fcfe74e`** — verified before launch and after run (both match required; old `6469bad2…` unused).
 
-**2. lookup-mode 未传 tier 的根因（三层）** — (a) `resolve_cell` armtlb 分支只在 `any(w in extra for w in WALK_FAULT_TYPES)` 时加 `--tlb_lsu_tier`（walk-only 门控）+ `FAMILY_TIER_FLAGS` 无 armtlb 键；(b) **更深**：`CHAOSArmTLB.cc` 的 lookup 命中路径（`TLB::lookup`→`maybeCorrupt`/`maybeCorruptLookup`，`tlb.cc:171-184`）**从不 poll `lsuTrigger`**（grep 只在构造函数与 `maybeDropWalkFill` 出现），而其它每个族都在钩子 poll；(c) `test_lsu_hook_t08_walk.py` 已钉死"T01 lookup 不得带 tier" ⇒ 盲传 flag 是 CLAUDE.md 禁止的半接线。
+**Per-seed (all from real outputs; independent re-run of shipped `check_admission` == campaign):**
 
-**3. 改动与 commit** — `ffa08be5`（分支 `r6-ftier`，已 push）：`tools/lsu_campaign.py`（新增 `ARMTLB_LOOKUP_TIERS={F0}` + `_armtlb_lookup_tier_block_reason` + 分支 tier 门）、`tools/lsu_ready_contract.py`（新具名类别 `TIER-UNIMPL`）、新 `tests/test_lsu_ftier_armtlb_lookup.py`、同步 4 个钉旧 census 的 resolve_cell 测试 + 1 个契约测试、plan 文档。未碰 C++、未碰 `lsu_chain_check.py`、未跑 gem5。
+| seed | act | exit | events | gz EOF | trunc | terminal | L0–L5 | bridges | invalid_bridge / cross_req / orphan | admitted | oracle | srid |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1 | 0 | 226 | OK | False | full | all | 22 | 0 / 0 / 0 | True | Crash | s1 |
+| 2 | 1 | 0 | 424 | OK | False | full | all | 52 | 0 / 0 / 0 | True | Crash | s2 |
+| 3 | 1 | 0 | 490 | OK | False | full | all | 53 | 0 / 0 / 0 | True | Crash | s3 |
 
-**4. RED→GREEN** — RED：`FAILED (16): ['六格里没有两格产出相同的可跑命令（runnable=6, distinct=3）', 'T02-F2-W4 显式 BLOCKED…', …]`；GREEN：同命令 `ALL PASS`。`test_lsu_fs_infra`→ALL PASS、`test_lsu_runid_map`/`test_lsu_w11_spec_residual`/`test_lsu_ready_contract_category`→FAILURES: 无、`test_lsu_r6_reconcile_realroot`→ALL PASS、`pytest tests/ -q`→29 passed。
+- `attempted=0 / activated=3` **COUNT-CONTRADICTION** (campaign-flagged; `activation_rate=n/a`, not 0.0) — reported as-is.
+- `stats.txt` non-zero; every `request_fork` bridge has full 10-field record and dest `request_id == new_request_id` (0 mismatch).
 
-**5. F0/F2/F6 最终命令差异** — `T01-F0-W4`＝legacy `--tlb_max_faults 1 --tlb_probability 1.0 --tlb_fault_type bit_flip`（不带 tier）；`T02-F0-W4`＝同上 `bit_flip --tlb_bits_to_change 2`；`T04-F0-W4`＝`pfn_to_mapped_page`。**三者本就不同（按模型）；但 `T02-F2`/`T04-F2`/`T04-F6` 不再产出任何可跑命令**——它们由 3 个相同命令变为显式 `BLOCKED(armtlb-lookup-tier-unimplemented: … lsuTrigger … maybeCorrupt …)`。
+**F2 → F0 collapse: CONFIRMED.** (1) Static: `resolve_cell(T02-F0)` and `resolve_cell(T02-F2)` return byte-identical flags — `--tlb_lsu_tier` is appended only for `WALK_FAULT_TYPES`; T02 is `bit_flip`, so the F column is dropped. (2) Runtime: `run.out` command lines differ only in `--outdir`, `--readfile` worktree prefix (rcS md5 identical `2b7c81d0…`) and `--prop_run_id`. (3) Empirical vs lane-W1 `r6_w1_T02-F0-W4` (same binary/checkpoint/seeds): event counts identical `226/226, 424/424, 490/490`, **every kind count identical**. → spec/routing gap (`resolve_cell` tier gate), **not modified by this lane**.
 
-**6. 套件 NEW FAIL = 0** — 基线 `suites=66 FAIL=12 PASS=49 ENV=4 SKIP=1`；改动后 `suites=67（+1=新套件）FAIL=12 PASS=50 ENV=4 SKIP=1`，12 个 FAIL 名称与基线逐字相同（无改写为 SKIP/ENV）。
+**Destination-L5**: L5 = `errant_commit` (`detection_layer=L5`, `contained=0`, `corr=taint_prop`, `fault_id=1`); its `request_id` is **empty (unstamped)** in all seeds, so it does not numerically equal a bridge `new_request_id`. The ancestry's cross-request hop is bridge-carried and legal (seed2 `tlb_pfn req=0 → cache_access req=32`, 32 a fork dest) → `invalid_lineage_bridge=0`, `cross_request_edge=0`, `admitted=True`, full L0→L5. Full ancestry saved in `l5_closure.evidence.txt`.
 
-**7. 需 BLOCKED 的频率档** — lookup 模式下**除 F0 外全部**（F1/F2/F3/F4/F5/F6）无法诚实表达 ⇒ 显式 BLOCKED：共 14 格（T01-F1/F2-W1/W4、T02-F2-W1/W4、T03-F5-W4/W9、T04-F2/F6-W4、T10-F1/F2-W1/W4）。**要让 T02-F2/T04-F2/T04-F6 真正可跑须 C++（Lane3）**：`CHAOSArmTLB::maybeCorrupt`/`maybeCorruptLookup` 像其它族一样 poll `lsuTrigger`；本 patch 只让 campaign 诚实、不再伪装。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>130</tool_uses><duration_ms>1905991</duration_ms></usage>
+**Stop-points**: none triggered (SHA ok, build `a01ad2fe`, no truncation/gzip/zero-byte, bridges pass, independent checker == campaign, no shared code changed; waited for a free slot to stay within the 4-process cap).
+
+**Verdict: admission gate 3/3 PASS ⇒ PILOT_READY (gate-clean), with loud caveat** — the chains are genuine and admitted, but because F2≡F0 for T02 the "F2" point is not a materialized F2 trial; do not bank it as a distinct frequency tier until the tier gate is fixed.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>56</tool_uses><duration_ms>560203</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6931818d99470c20</task-id>
+<tool-use-id>call_00_t6qw2tsgj5d9t132lotbbp5i</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/a6931818d99470c20.output</output-file>
+<status>completed</status>
+<summary>Agent "W1 T01-F0-W4 3-seed pilot" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lane W1-A complete. Final checks: worktree `git status` clean (no shared code touched), no gem5 processes left, report written.
+
+## W1-A — T01-F0-W4 (3 seeds) — **FAIL, not PILOT_READY**
+
+**Lane/outdir/SHA**
+- worktree `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-w1a` (branch `r6-w1a` @ `a01ad2fe`)
+- outdir `/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T01-F0-W4` (separate from `r6_p1_*`)
+- report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/W1_T01-F0-W4.md`
+- binary SHA `27134738c425d91a10548186af46e589707ac1c40f2951586df6717a1fcfe74e` — verified before / mid-run / after: identical, 3×. Stale `6469bad2` unused.
+- campaign PID **691754** (bash) / **691757** (driver), max-parallel 1.
+
+**Per-seed checks**
+
+| check | seed1 | seed2 | seed3 |
+|---|---|---|---|
+| attempted/activated | 1/1 | 1/1 | 1/1 |
+| oracle / exit | Masked / 0 | Crash / 0 | **Timeout / SIGTERM(15) @2700s** |
+| stats.txt · gzip -t | 427682 B · OK | 382875 B · OK | **0 B · FAIL (unexpected EOF)** |
+| truncated | False | False | **True** |
+| L0–L5 | L0..L4 proven, L5 missing | **L0→L5 full** | L0..L4, L5 missing |
+| parent/orphan | root ['0'], orphans 0 | root ['0'], orphans 0 | root ['0'], orphans 0 |
+| request/fault/corr | req=301, fid=1, `s1` ✓ | fid=1, `s2` ✓, 52 forks | req=301, fid=1, `s3` ✓ |
+| invalid_lineage_bridge | 0 | **0** | 0 |
+| cross_request_edge | 0 | 0 | 0 |
+| terminal / admission | detected_contained / **False** | full / **True (certified)** | detected_contained / **False** |
+| destination-L5 | n/a (no bridge) | n/a (L5 rid empty) | n/a (no bridge) |
+
+- Checker vs campaign **agree** on all 3 admissions (re-ran `lsu_chain_check.py` independently).
+- **destination-request L5: not observed (n/a) in all 3.** seed2's only L5 (`errant_commit`, ev259) has empty `request_id`; its L5 lands on the fault's own request — no source→fork→target→L5 ancestry exists to print. seed2 does give a real dynamic closed loop L0(0)→L1(1)→L2(2)→L3(3)→L4(61 taint_reg)→L5(259 errant_commit), admitted=True, cross_request_edge=0, invalid_lineage_bridge=0 (52 validated bridges) — saved at `…/T01-F0-W4/seed2/chain_report.json`.
+- **Overall PASS = 1/3 → FAIL** (rule: 3/3 required).
+
+**Stop conditions hit** — (a) seed3 truncated stream + gzip EOF + zero-byte stats.txt; (b) campaign `COUNT-CONTRADICTION attempted=0 vs activated=3`.
+
+**Defects found (evidence only, no code changed):**
+1. armtlb FS path leaves `attempted=None` (`tools/lsu_campaign.py:1876` vs `:2383`) → attempted=0 contradiction.
+2. seed3 killed at the 2700 s FS cap mid-write (same class as the documented anchor-trial losses).
+3. seed1/seed3 `admitted=False` via new `time_reversed_edge` token (D1 promotion maps L2 `tlb_translate_result` containment → L5, earlier tick than L4) — same known `detected_contained` state as `R6-12RUNID-TABLE.md` item 4, now with an extra token.
+
+**Evidence paths:** `/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T01-F0-W4_campaign.log`, `…/r6_w1_T01-F0-W4/T01-F0-W4/{cell_results.json,chain_summary.md}`, `…/seed{1,2,3}/`, lane re-check script `…/r6_w1_T01-F0-W4/verify_w1a.py`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>66</tool_uses><duration_ms>5063857</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>abd3c881af4b43d03</task-id>
+<tool-use-id>call_03_ebdl75cyxmtlp5rux8eg3uep</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/497b77c2-031e-44f2-95a9-de687b1b1186/tasks/abd3c881af4b43d03.output</output-file>
+<status>killed</status>
+<summary>Agent "W1 T04-F0-W4 3-seed pilot" came to rest (stopped by user)</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Fast verifier validated exactly against seed1. Now running it on seed2.</result>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9fh2z4py</task-id>
+<tool-use-id>call_00_ri4wr6yatbh7w0dstehlxd3r</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/b9fh2z4py.output</output-file>
+<status>completed</status>
+<summary>Background command "Full regression on merged baseline" completed (exit code 0)</summary>
 </task-notification>
 
 ---
 
 <task-notification>
 <task-id>a3483d99dcf10172f</task-id>
-<tool-use-id>call_02_8x9shvl1nyd0sqrfds93xvec</tool-use-id>
 <output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a3483d99dcf10172f.output</output-file>
 <status>completed</status>
 <summary>Agent "Lane3 T01 inversion and T04 explosion diagnosis" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>**Lane DIAG-EMIT 报告**（worktree `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-diagemit`，只读诊断为主，未运行 gem5）
+<result>**补充（背景任务收尾，不改变前次报告结论）**
 
-**① T01 `time_reversed_edge` 根因 = ① 发射器（contained 被设置却未落实为"链在该层收口"），归属 Lane DIAG-EMIT（非 Lane2）**
-- 复现（真实流 `runs/lsu/r6_p1_T01-F0-W4/T01-F0-W4/seed1/prop_evt.txt.gz`，10 事件）：`check_admission(activated=1)` → `admitted=false`，`violations[0]="time_reversed_edge: L5 见证 tick 早于已证 L4 见证（237950942203）"`。机理：ev3 `tlb_translate_result`(tick 237950940537, `detection_layer=L2/outcome=NoFault/contained=1/corr=seq_primary`) 被 `_layer_of→_explicit_l5` **提升为 L5**，`_deepest_index=5` ⇒ `_time_reversed_gap` 命中；`containment_from_events→None`（obs_deepest=L4&gt;L2）。
-- 四选一证据：**④排除**——父链 tick 全单调（inj→…→sq_complete 均 parent.tick ≤ child.tick）；**③排除**——同一 checker 对 `T05-F0-W4/seed1`（**完全相同**的 L2/NoFault/contained=1 组合、链止于 L2）判 `admitted=True`（实测），拒绝来自流本身；**②排除**（同组合被接受）；**①成立**——注入翻转 pfn bit 56，`pfn&lt;&lt;12` 在 64 位 Addr 回绕 ⇒ 有效 PA 未变（0x81d75fa8==0x81d75fa8），`registerTlbFault` 自判 `pa_changed=0`（`CHAOSArmTLB.cc:926-929` 已文档化"该情形应止于 TLB 层、不得伪造下游并入"），但 **seq-primary 归属臂对 req_seq≠0 无条件注册**（`CHAOSPropagation.cc:1410-1419`，R4-4 只收紧了 FALLBACK 臂），同一请求后续干净事件（sq_execute/resp/taint_reg）仍并入 ⇒ 一条链同时断言"L2 已含住"与"已传播到 L4"。
-- 最小修复（**未提交**，见⑤）：`CHAOSPropagation.cc:1551-1558` 的 `if (contained)` 内撤销该请求归属（`addr_registry` 中 ptag 匹配项 erase；等价方案＝把 1410 行注册门控在 `pa_changed`）。不动任何 tick、keeper 严格、Lane2/Lane1 文件未触碰。流级回放证明：按此形状裁剪后同一严格 checker `admitted=True, path=contained, layer=L2, na=L3/L4/L5, violations=[]`。
-
-**② T04 seed2 暴增（只读统计；w1 三格为**全量精确计数**，w1b 全量计数未在本时间窗内跑完，仅给前缀，标 n/a）**
-
-| 文件(gz) | 事件总数 | consumer | cache_acc/ret | resp / taint_reg / request_fork | pf_demand | 其余 | | F0 1.42GB | 43,394,165 | 43,331,174 (99.85%) | 11,551×2 | 11,477×3 | 4,410 | lq_complete274/mshr_merge179/fill·free123/alloc102/pf_fill46/fill/… | | F2 1.39GB | 42,407,034 | 42,344,043 (99.85%) | 同 | 同 | 同 | 同 | | F6 1.34GB | 41,084,896 | 41,021,905 (99.85%) | 同 | 同 | 同 | 同 | | w1b F0/F2/F6 2.76–2.83GB | 全量 n/a | 前缀 2M 中 consumer 1,937,008 (96.85%) | | | | |
-
-- 增长率：tick 跨度 22.2e9（cycle/tick=333 ⇒ 3 GHz，1 tick=1 ps，≈22.2 模拟秒）；稳定段 **每 100k 事件/51.2M tick ⇒ 1952 事件/百万 tick = 1.95M 事件/模拟秒，窗口 1–200 恒定不加速**（无界、随提交线性）。
-- 基数：`fault_id` 仅 1 条链（前缀 4M 中 fault_id=0 者 309）；`corr`（前缀）taint_prop 3,937,010 / addr_fallback 62,672 / seq_primary 8 / origin 1；request_id：consumer 行不盖章，首个 100k 窗口 50,962 个不同 rid；**bridge=request_fork 11,477，new_request_id 11,477 个互异（请求 fan-out）**；consumer 43.3M；
-- 父深度：consumer 构成**单链**（采样 ≥122 层，**0 环**）；1M 事件内 769,969 个**不同提交**产生 consumer（每次提交 1–3 个：{1:611,296, 2:150,306, 3:8,367}），重复 (seq,cell) 对 **0** ⇒ 非同一提交复写；consumed 物理单元 4,907 个、**distinct PC 仅 71 个（内核热循环）**。
-- 首个失控点：**首个 consumer event_id=22, tick=237950594217**（dyn_seq=110, phys_reg=96, pc=ffffffc0080116dc）；自 event≈190k（首窗口 200k 内含全部 11,477 resp/taint/fork + 137,008 consumer）起 **窗口 1–200 为 100% consumer 且 distinct_rid=0**。
-- 发射点：consumer＝`CHAOSPropagation.cc:2323`（`noteCommit` 的污点源寄存器循环 2299–2330；重污染 2411–2423；clean-overwrite 上界 2424–2432 在热循环内不生效）；resp/taint_reg＝`noteMemResponse` 2171/2187/2214/2253；request_fork＝`emitPropEvt` 396–398→`emitLineageBridge` 576；addr_fallback 并入＝`noteMemResponse` 2109–2121＋`registerTlbFault` 1425–1433。
-- 判定：**重复记录同一污染状态**（每次提交重录同一污点的消费，无去重、无上限），底层是**合法数据流**（0 环、提交互异、非伪造）但**无界**；叠加一次性**有界的请求 fan-out**（11,477 请求按共享物理页并入，占 0.03%）。非"环/重复父链"、非"生命周期未回收"为主因。
-
-**③ 改动文件与 commit**：仅新增 `tests/test_lsu_r6_contained_chain_contract.py`（+155）→ `77c318f9 [LSU][MDSPEC][R6-DIAG]`，已 push `origin/r6-diagemit`（未 push 集成分支）。
-
-**④ 测试/构建**：`python3 tests/test_lsu_r6_contained_chain_contract.py` → **11/11 PASS, rc=0**；`python3 tools/lsu_test_runner.py` → `suites=67 PASS=50 FAIL=12 ENV=4 SKIP=1`，12 个 FAIL 全是既存 R6 hook/gate 契约套件（如 `test_lsu_hook_a07.py` 期望 A07 链达 full/L5，即本轮待修缺陷本身），与本次"只加一个测试文件"的提交无关（`git show --stat` 已证），**NEW FAIL=0**；**无构建**（本轮未改 C++ ⇒ 不需要 scons，且 `pgrep scons` 为空）。基线 `66/12/53/1` 与本分支套件数（67）不同源，故按 NEW FAIL=0 口径对照。
-
-**⑤ 停点**：**命中 1 项**——T04 的任何候选修复（每链上限/首次 errant_commit 后停录/同 (ptag,cell) 去重）都需**丢弃真实事件或截断**，属停点"修复需要丢弃真实事件"，故 **T04 只诊断未改**，交主 agent 决策。T01 侧**未命中**（未伪造/移动 tick；修复仅落在发射器归属，且已给出流级准入证明）。另需裁判：T01 的 C++ 修复本轮**未提交**——本 lane 禁用 gem5，无法做端到端功能验证（仓库补丁纪律要求真实验证），且裁决 D 规定"当前 wave 结束后再指定唯一修复者、重建 SHA、重跑受影响 RunID"；修复已精确到行（`CHAOSPropagation.cc:1551-1558` + 1410）并由契约测试钉死目标形状，待指定修复者落地并重跑。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>107</tool_uses><duration_ms>2334059</duration_ms></usage>
+- 先前被终止的背景任务 `bifdanqw6`（T01 模式全语料普查）已重启为有界版本，报告时刻**仍未跑完** ⇒ 该"受影响 RunID 波及面"数字本轮记为 **n/a**（不以未完成扫描冒充结论）。已确证的仍是直接证据：T01-F0-W4 seed1/seed3 两条真实流（同形：L2 含住 + 后续 L2 之下并入）在严格 checker 下报 `time_reversed_edge`；对照面 T05-F0-W4 seed1 同字段组合因链止于 L2 而 `admitted=True`。
+- 交付物与状态不变：`77c318f9`（`tests/test_lsu_r6_contained_chain_contract.py`，11/11 PASS）已推 `origin/r6-diagemit`；T01 根因 = ①（发射器：`CHAOSPropagation.cc:1410-1419` seq-primary 归属无条件注册，使 contained 未落实为收口），修复点已精确到 `1551-1558`，因本 lane 禁跑 gem5 + 裁决 D 的"wave 后指定唯一修复者"未提交；T04 = 重复记录同一污染状态（99.85% consumer，恒定 1952 事件/百万 tick，0 环），其任何修法都需丢事件/截断 ⇒ **命中停点，只诊断未改**。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>110</tool_uses><duration_ms>4722473</duration_ms></usage>
 </task-notification>
+
+---
+
+裁决选择 (a)，但实行隔离推进：
+
+1. r6-fixcpp可以继续在其独立工作树中开发、定向测试和提交，不中断当前工作。
+2. r6-fixcpp不得合入集成分支848d803a；不得改写集成共享二进制；不得启动gem5 pilot。
+3. 若C++ lane需要编译，只能使用其隔离构建目录；统一构建仍须等待runner问题解决。
+4. 并行派一个唯一诊断lane定位runner失败。该lane只拥有：
+   - tools/lsu_test_runner.py；
+   - 发生失败的具体测试套件；
+   - 新增诊断脚本/测试。
+   不得修改checker、campaign、ready_contract或任何C++文件。
+
+诊断要求：
+
+一、先恢复完整失败信息
+
+- 从merged3.log精确识别失败套件完整文件名，不能继续使用被截断的tools/lsu_o…。
+- 在不修改测试语义的前提下，让runner保存该套件完整stdout、stderr、traceback、return code、开始/结束时间、是否timeout/被signal终止。
+- 优先使用外部包装或临时诊断输出；如果必须修改runner，只做通用日志增强，不改变PASS/FAIL判定。
+- 输出落在独立临时目录，不覆盖原有日志。
+
+二、建立复现矩阵
+
+对同一套件依次执行并记录结果：
+
+1. standalone直接运行；
+2. runner只运行该套件；
+3. runner按完整套件顺序运行至该套件；
+4. 使用全新唯一GUARD_DIR/TMPDIR运行；
+5. 使用当前共享GUARD_DIR运行；
+6. 在完全相同cwd、env、PYTHONPATH下比较standalone与runner；
+7. 记录g3_exact_stop_stress_20_rounds实际耗时、runner预算、是否被timeout或signal终止；
+8. 检查运行前后是否遗留claim、lock、pid、临时文件或子进程。
+
+至少比较：
+
+- cwd；
+- PATH/PYTHONPATH；
+- TMPDIR；
+- GUARD_DIR及claims目录；
+- LSU相关环境变量；
+- 测试顺序；
+- timeout；
+- stdout/stderr捕获方式；
+- 子进程退出码与signal；
+- 前序套件是否污染共享状态。
+
+三、判定标准
+
+必须把问题归入且证明为以下一种或明确的新类别：
+
+- runner日志截断导致的假象；
+- runner timeout/资源中断；
+- 共享GUARD_DIR或claim污染；
+- 测试顺序依赖；
+- cwd/env差异；
+- 三支合并造成的真实回归；
+- 其他已用完整traceback证明的根因。
+
+不得：
+
+- 把测试改成SKIP/XFAIL；
+- 删除或弱化断言；
+- 仅因standalone通过就忽略runner失败；
+- 未测量就提高timeout；
+- 清理或覆盖现有证据；
+- 把该失败计入“既有基线失败”。
+
+四、修复要求
+
+- 如果是共享状态污染：为每套件提供唯一隔离目录，并验证无残留。
+- 如果是runner timeout：先给出实际耗时与预算证据，再做最小预算/调度修复；超时仍必须响亮失败。
+- 如果是顺序依赖：定位污染源并恢复清理契约。
+- 如果是cwd/env差异：统一runner与standalone的明确契约。
+- 如果是三支合并的真实回归：立即停止C++后续集成并汇报归属。
+
+修复后必须：
+
+1. 该套件standalone通过；
+2. runner单套件通过；
+3. runner完整回归中通过；
+4. 完整回归NEW FAIL=0；
+5. 保存完整日志和复现命令。
+
+五、后续门禁
+
+只有runner问题完成根因定位并修复、集成分支完整回归NEW FAIL=0后，才：
+
+1. 审查r6-fixcpp提交；
+2. 串行合并C++修复；
+3. 再跑定向测试和完整回归；
+4. 统一构建；
+5. 生成新SHA和冻结清单；
+6. 汇报后再决定是否启动六格canary。
+
+当前继续保持gem5/campaign/正式实验为0。
+C++ lane可以完成自己的工作并提交分支，但不得越过集成门禁。
 
 ---
 
 <task-notification>
-<task-id>a4150b5d644932582</task-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a4150b5d644932582.output</output-file>
+<task-id>a9e33b85e4b205ce2</task-id>
+<tool-use-id>call_01_cldhrp5yxg06fdqpj49ts3el</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a9e33b85e4b205ce2.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane2 checker linearization" came to rest</summary>
+<summary>Agent "C++ fix lane: T01, lookup-tier, T04 aggregation" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>该后台任务是早先被我改用 `find -printf` 前台枚举所取代的流计数命令，已被清理，无影响。本 Lane 的全部工作与验证已完成并 push（提交 `237b3956`，分支 `r6-lincheck`），结论不变：等价性 70/70 一致、T04 seed1 三流全 `full`/`admitted=True`、套件 NEW FAIL=0。</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>56</tool_uses><duration_ms>3806438</duration_ms></usage>
+<result>FIX-CPP lane 完成。worktree `.claude/worktrees/r6-fixcpp`，分支 `r6-fixcpp`，已 push（未触碰集成分支）。
+
+**A. T01 含住链（已交付）**
+- 做法：新增共享决策头 `CHAOS/gem5/src/cpu/o3/CHAOSPropagation/chaos_tlb_chain.hh`（`tlbRegistrationArms`/`translationContained`/`containmentRevokesArms` + 行为模型）。`registerTlbFault` 改为用**真实 `pa_changed`** 门控：PA 未变 ⇒ 不开任何臂（corr 诚实为空，不再伪造 seq_primary）；`noteTlbTranslationResult` 含住时调新增 `revokeChainArms(ptag)` 撤销已开归属臂（含 blocked 翻译，防残留映射）。
+- RED→GREEN：修前源运行新测 rc=1，6 项防漂移守卫 FAIL（含 "no unconditional `if (req_seq)` seq-primary registration remains"）；修后 ALL PASS。`77c318f9` 契约测试仍 ALL PASS（checker 未放宽）；目标形状 L2 含住、L3/L4/L5=N/A、`parent.tick ≤ child.tick`。
+
+**B. lookup-mode F-tier（C++ 半边已交付，工具侧 BLOCKED）**
+- 做法：新增 `lookupTierMounted()`/`lookupTierAllowsInjection(is_hit)`，`maybeCorrupt` 与 `maybeCorruptLookup` 各接一次 gate（每 lookup 恰一次 ⇒ 单一 eligible 流）；**F0 保持 legacy**（maxFaults/probability/skip 原样）；F1–F6 用 `chaos_lsu_trigger.hh` 既有语义（不发明频率）；非 F0 时 tier 即频率模型，首个体检点响亮记录 `--tlb_max_faults` 不被消费。
+- 触发序列（固定 seed=7，真编译真运行）：**F0=几何跳步位置、F2 首触发 96722 且每间隔 ∈[50k,150k)、F6=index 0**；三者互不相同、同 seed 逐位可复现、换 seed 使 F2 移动；funnel attempted/eligible/injected 自洽。
+- **停点**：`T02-F2/T04-F2/T04-F6` 脱离 `TIER-UNIMPL` 需改**冻结的** `tools/lsu_campaign.py`(`ARMTLB_LOOKUP_TIERS={"F0"}`)+`tools/lsu_ready_contract.py` 及 3 个 pin 该计数/分类的测试 → 按规则**未改 tools/**，工具侧维持明确 BLOCKED（不伪装已运行）。另：无 `gem5-fs/` 资产，无法端到端跑 FS，仅独立单测+构建验证。
+
+**C. T04 consumer 聚合：未实现（停点）** —— 口径要求「checker/campaign 必须能识别该记录」+「不得改变已选完整 ancestry」，其落点是冻结的 `tools/lsu_chain_check.py`/`lsu_prop_fields.py`；只做在 C++ 发射器侧不满足口径，按停点规则停止上报，未做无法验证的半聚合。
+
+**构建/回归**：`scons -j16 build/ARM/gem5.opt` → rc=0，**0 error、两文件 0 新增告警**；SE `reg_chain` golden = `f247ef3fe6f02cfd`（rc=0、无 SIGSEGV）。`python3 tools/lsu_test_runner.py`（本 worktree）→ suites=70 FAIL=12 PASS=57 SKIP=1；12 个 FAIL 与**修前基线逐套相同**（已用 pre-fix 源逐套 rc=1 复核）⇒ **NEW FAIL = 0**。
+
+**Commits**：`ca334efb`（A）、`6ec7c5aa`（B），已 push `origin/r6-fixcpp`。
+**停点触碰**：B 的工具侧解锁 + C 均属「需要改 `tools/**`」，已停止并如上汇报；未移动/伪造 tick、未聚合 L5、未改 tools。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>110</tool_uses><duration_ms>4363519</duration_ms></usage>
 </task-notification>
 
 ---
 
-裁决如下，继续执行修复，但在新冻结二进制产生前不得启动任何 gem5 pilot。
+裁决选择 (1)，并调整为并行推进，不等待DIAG-RUNNER结束才开始工具侧开发。
 
-一、T04事件暴增口径
+目标是尽快结束第一波六格，不再增加新的探索范围。
 
-不接受简单的“每链事件数上限”或达到上限后截断，也不接受在首次 errant_commit 后无记录地静默丢弃事件。
+一、并行与所有权
 
-采用“语义状态变化完整保留 + 重复 consumer 有账聚合”的口径：
+1. 立即新建唯一工具侧lane，基线为集成HEAD 848d803a。
+2. 该lane唯一拥有：
+   - tools/lsu_campaign.py
+   - tools/lsu_ready_contract.py
+   - tools/lsu_chain_check.py
+   - tools/lsu_prop_fields.py
+   - 与上述功能直接对应的新测试
+3. DIAG-RUNNER继续只拥有runner及其诊断测试，不得修改上述四个工具文件。
+4. r6-fixcpp继续是CHAOS/gem5/src/**唯一所有者；其他lane不得修改C++。
+5. 工具lane可以现在并行开发和提交，但在DIAG-RUNNER问题解决、完整回归恢复NEW FAIL=0之前，不得合入集成分支。
+6. gem5/campaign/pilot继续保持0。
 
-1. 以下事件永远不得抑制或聚合：
-   - inj；
-   - tlb_lookup / tlb_pfn / tlb_translate_result；
-   - 真实的Cache/MSHR状态变化；
-   - taint clean→tainted 或其他状态变化；
-   - request_fork bridge；
-   - errant_commit；
-   - squash_masked；
-   - 显式 containment；
-   - chain_end。
+二、补完lookup-mode F-tier工具侧
 
-2. 仅允许聚合满足以下条件的重复 consumer 遥测：
-   - 同一 fault_id；
-   - 同一污染源/污染状态；
-   - 没有形成新的状态变化；
-   - 不承担 L0–L5 任一层的唯一见证；
-   - 不是检测、containment或终局事件。
+C++提交6ec7c5aa已经提供真实lookup-tier触发能力。工具侧完成：
 
-3. 聚合记录必须保留：
-   - suppressed_consumer_count；
-   - distinct_dyn_seq_count；
-   - first_tick / last_tick；
-   - min_dyn_seq / max_dyn_seq；
-   - 按 consumer kind/outcome 的精确计数；
-   - 污染源/状态身份；
-   - 第一条和最后一条代表事件；
-   - 聚合规则版本。
-   如果可以低成本保存完整 dyn_seq 集合或压缩区间，优先保存；不能保存时必须明确记录统计信息的可逆性边界。
+1. 让T02-F2、T04-F2、T04-F6按规格传递真实的：
+   --tlb_lsu_tier F2/F6
+2. 更新ARMTLB_LOOKUP_TIERS、ready contract分类和相关pin测试。
+3. F0必须保持legacy命令和行为。
+4. F2/F6不能仅因工具代码允许就默认可信，必须增加运行时能力证明：
+   - 新二进制必须输出明确的lookup-tier capability/启动标记；
+   - 标记至少包含requested tier、effective tier和lookup-tier enabled；
+   - campaign必须核对请求值与运行时生效值一致；
+   - 旧二进制无标记或值不一致时，必须响亮拒绝准入，不能产生静默退化数据。
+5. 最终证明：
+   - F0/F2/F6解析命令不同；
+   - requested/effective tier一致；
+   - 旧二进制或缺能力标记时明确BLOCKED/拒绝；
+   - 新二进制下不再TIER-UNIMPL。
 
-4. checker/campaign 必须能够识别该聚合记录：
-   - 聚合不能伪造新的层级；
-   - 不能单独充当L5；
-   - 不能掩盖truncated；
-   - 不得改变已选完整ancestry；
-   - 原始事件总数、实际写出数、聚合数必须守恒。
+如果能力标记必须由C++增加，把字段契约交给r6-fixcpp，由它在C++独占范围内完成；工具lane不得改C++。
 
-5. 若仍设置安全体积/事件上限，该上限只能作为资源停止条件：
-   - 达到上限必须标记 evidence_truncated/resource_abort；
-   - admitted=False；
-   - 不得把被截断流作为完整链。
+三、补完T04 consumer聚合契约
 
-二、指定唯一C++修复者
+采用此前裁决：
 
-指定一个且仅一个C++ lane统一拥有：
+“语义状态变化完整保留，重复consumer有账聚合；禁止简单截断。”
 
-- CHAOSPropagation.cc/.hh；
-- CHAOSArmTLB.cc；
-- 相关C++头文件及对应测试。
+工具侧定义并实现一种明确的consumer_summary记录。至少包含：
 
-原DIAG、FTIER、LINCHECK lane不得再修改这些文件。
+- schema/version；
+- run_id/sample_run_id/fault_id；
+- 污染源或状态身份；
+- suppressed_consumer_count；
+- distinct_dyn_seq_count；
+- first_tick/last_tick；
+- min_dyn_seq/max_dyn_seq；
+- 按consumer kind/outcome的精确计数；
+- 实际写出consumer数量；
+- 聚合前总数与聚合后总数的守恒字段。
 
-该lane统一完成三项：
+规则：
 
-A. T01含住后错误继续传播
+1. consumer_summary不映射到L0–L5任何一层。
+2. consumer_summary不得充当L5、containment或terminal。
+3. consumer_summary不得成为伪造的parent ancestry节点。
+4. malformed summary、负计数、计数不守恒必须响亮拒绝。
+5. checker选择的path_event_ids、terminal、admitted和violations在小型未聚合对照流与聚合流上必须一致。
+6. campaign报告必须同时展示：
+   - emitted events；
+   - suppressed consumers；
+   - logical total；
+   - conservation状态。
+7. truncated/resource_abort仍必须admitted=False，不能靠summary掩盖。
+8. 原有无summary流必须保持兼容。
 
-根因已经确认，不修改tick。
+工具lane先提交字段契约和RED→GREEN测试。字段契约固定后，通知唯一C++所有者r6-fixcpp补一个C++提交，实现真实summary发射。
 
-优先在seq-primary请求注册处用真实pa_changed/contained语义进行门控，使有效PA未变化的请求根本不进入下游传播归属；同时检查contained收口时是否需要撤销已存在的请求归属，防止残留映射。
+四、C++侧T04聚合实现
 
-修复目标：
+仍由r6-fixcpp唯一完成：
 
-- effective PA unchanged → L2显式含住；
-- 后续sq_execute/resp/taint_reg不得继续挂在该fault ancestry；
-- L3/L4/L5在containment报告中为N/A(contained)；
-- checker按option-2 admitted=True；
-- parent.tick ≤ child.tick，不移动或伪造tick。
+1. 永远保留：
+   inj、TLB事件、Cache/MSHR状态变化、taint状态变化、bridge、
+   errant_commit、squash_masked、显式containment和chain_end。
+2. 只聚合没有产生新状态变化、不是层级唯一见证、不是检测/终局的重复consumer。
+3. 至少保留第一条代表consumer；后续按工具侧schema精确累计。
+4. 在真实终局或chain_end前flush summary。
+5. 不设置可被误认为完整证据的静默硬上限。
+6. 若内部资源上限仍被触发，必须resource_abort/truncated并拒绝准入。
+7. 添加C++单元测试：
+   - 主L0–L5链不变；
+   - L5绝不聚合；
+   - consumer数量守恒；
+   - summary字段与工具契约一致；
+   - 大量重复consumer输出规模显著下降。
 
-必须保留并通过77c318f9新增的契约测试，再新增真实注册/撤销行为测试。
+五、接受现有C++交付但暂不合并
 
-B. lookup-mode F-tier
+保留并等待集成：
 
-在CHAOSArmTLB lookup命中路径接入现有lsuTrigger机制，使F2/F6具有真实的eligible-event polling，而不是继续复用F0。
+- ca334efb：T01 containment修复；
+- 6ec7c5aa：lookup-mode F-tier C++支持。
 
-要求：
+不要重做这两项。只补：
 
-- F0保持legacy行为；
-- F2/F6使用规格中已有的tier语义，不得自行发明频率；
-- 最终命令、运行配置和C++实际读取值三者一致；
-- T02-F2、T04-F2、T04-F6不再TIER-UNIMPL；
-- 如果某档仍物理不可表达，继续明确BLOCKED，不得静默退化；
-- 添加固定seed的触发序列测试，证明F0/F2/F6触发位置不同且可复现。
+- runtime capability标记（若尚缺）；
+- T04 consumer_summary发射。
 
-C. T04 consumer聚合
+六、runner门禁
 
-按上述裁决实现，不允许简单截断。
+DIAG-RUNNER继续定位runner-only失败。允许其他lane并行完成和提交，但在以下条件满足前不得合入最终集成：
 
-必须用现有异常流的统计形状构造测试，证明：
+- 完整traceback取得；
+- 根因明确；
+- standalone通过；
+- runner单套件通过；
+- runner完整回归通过；
+- NEW FAIL=0。
 
-- 完整L0–L5主路径逐事件保留；
-- 真实L5绝不被聚合；
-- 重复consumer显著收敛；
-- 计数守恒；
-- 无环、无orphan；
-- terminal/admitted/violations与未聚合的小型对照流一致；
-- 不产生Unknown；
-- 不把聚合摘要当成层级见证。
+不得用SKIP/XFAIL或删除断言解决。
 
-三、集成顺序
+七、完成后的串行顺序
 
-1. 先审查并串行合入：
-   - 237b3956（LINCHECK）；
-   - ffa08be5（FTIER）；
-   - 77c318f9（DIAG契约测试）。
-2. 在包含上述三项的集成基线上建立唯一C++修复lane，避免测试基线漂移。
-3. C++修复完成后：
-   - 定向测试；
-   - 小流新旧语义对照；
-   - 完整回归；
-   - NEW FAIL必须为0。
-4. 检查F0/F2/F6最终解析命令和C++生效参数确实不同。
-5. 统一构建一次，记录新binary SHA-256、checker commit和冻结清单。
+1. DIAG-RUNNER修复并确认干净基线；
+2. 合入工具侧lane；
+3. 审查并合入r6-fixcpp全部C++提交；
+4. 定向测试；
+5. 完整回归，NEW FAIL=0；
+6. 统一构建一次；
+7. 记录新binary SHA、checker commit、配置SHA和冻结清单；
+8. 先汇报，不直接运行18个seed。
 
-出现以下任一情况立即停止汇报：
-
-- 需要移动/伪造tick；
-- 真实L5可能被聚合；
-- 事件计数不守恒；
-- 聚合改变小型流的terminal/admitted/violations；
-- F-tier仍退化；
-- 新增测试失败；
-- C++文件出现第二所有者。
-
-四、pilot必须分两阶段，不能直接六格×3全开
-
-新冻结完成后，先运行六格各1个seed的canary：
+然后只启动六格各1个seed canary，最大并发3：
 
 T01-F0-W4
 T02-F0-W4
@@ -1695,222 +1558,575 @@ T04-F0-W4
 T04-F2-W4
 T04-F6-W4
 
-最大并发不超过3。逐格检查：
-
-- 实际F-tier；
-- 二进制SHA；
-- 事件增长率；
-- 文件体积；
-- gzip EOF；
-- stats；
-- terminal/admitted/violations；
-- 聚合前后计数守恒；
-- campaign/checker一致。
-
-任一T04再次出现无界增长或达到资源停止条件，立即停止该格并汇报，不继续其余seed。
-
-只有六个canary全部合格后，才补齐每格3个seed。六格3/3全部合格后仍只标记PILOT_READY，不启动正式325实验。
-
-现在先执行串行合并、唯一C++修复、完整回归和统一构建；在启动canary前再次汇报新SHA、测试结果、六格命令差异和T04聚合测试结果。
-
----
-
-接受 DIAG-CPPBISECT 结论，结束二分阶段，进入最小修复阶段。
-
-固定结论：
-
-1. first-bad = ca334efb，单提交触发，无交互；
-2. T02-F0 的真正缺陷是 pa_changed=1 且 req_seq!=0 时错误关闭 addr_fallback，导致同一受损 TLB 页的后续真实受害请求全部丢失；
-3. T02-F2 的传播链本身完整，失败是 Kernel panic 退出字符串未映射且配置未注册 KERNEL_PANIC 处理器；
-4. 525ecfd7… 继续视为失败候选；
-5. 正式实验、六格 canary、fi-ding 合并继续停止。
-
-允许开启两个文件域不重叠的修复 lane，并行完成：
-
-Lane A：TLB 双臂修复，唯一拥有者
-
-允许修改：
-- CHAOS/gem5/src/cpu/o3/CHAOSPropagation/chaos_tlb_chain.hh
-- 必要的同目录最小接线
-- 对应单元测试
-
-要求：
-
-1. tlbRegistrationArms 必须改为两臂独立：
-   - pa_changed=false：seq_primary=false，addr_fallback=false；
-   - pa_changed=true 且 req_seq=0：addr_fallback=true；
-   - pa_changed=true 且 req_seq!=0：seq_primary=true 且 addr_fallback=true。
-2. 保留 T01 修复：有效 PA 未变化时绝不能产生任何下游归属臂。
-3. 真实 translation containment 发生时，revokeChainArms 必须同时撤销已经打开的两类臂。
-4. 新增四象限单测，覆盖：
-   - pa_changed=0 / req_seq=0；
-   - pa_changed=0 / req_seq!=0；
-   - pa_changed=1 / req_seq=0；
-   - pa_changed=1 / req_seq!=0。
-5. 钉死最后一种必须同时打开 seq_primary 和 addr_fallback。
-6. 不修改 checker，不通过放宽准入掩盖问题。
-7. 暂不实现 DIAG 报告中的可选 F5 oracle 护栏。
-
-Lane B：Kernel panic 退出语义修复，唯一拥有者
-
-允许修改：
-- CHAOS/gem5/src/python/gem5/simulate/exit_event.py
-- configs/se/arm_chaos_fs.py
-- configs/fs/lsu_multicore_fs.py
-- 对应测试
-
-要求：
-
-1. 精确支持：
-   - Kernel panic in simulated kernel
-   - Kernel oops in simulated kernel
-2. 分别映射到 KERNEL_PANIC / KERNEL_OOPS，不得用吞掉所有未知事件的宽泛 catch。
-3. 两个 FS 配置都必须注册 KERNEL_PANIC 处理器。
-4. panic 与 oops 都应归类为合法 Crash/DUE 结局，并通过受控处理结束，不得产生 NotImplementedError。
-5. 增加测试证明：
-   - 精确字符串映射正确；
-   - 未知退出字符串仍响亮失败；
-   - KERNEL_PANIC handler 确实注册；
-   - 不删除或弱化现有 OOPS 行为。
-6. 不修改传播链 checker，不把 exit=1 强行视为通过。
-
-两个 lane 完成后由主集成者串行执行：
-
-1. 审查文件所有权和提交；
-2. 合并到当前集成分支；
-3. 运行两组定向测试；
-4. 运行完整回归，要求 NEW FAIL=0；
-5. 统一构建一次；
-6. 记录新的 source HEAD、gem5.opt SHA-256、构建日志和告警差集；
-7. push 集成分支，禁止 push 或合并 fi-ding。
-
-新 SHA 产生后，先只运行两个定向 canary：
-
-- T02-F0-W4 / seed1；
-- T02-F2-W4 / seed1；
-- 最大并发 2；
-- 使用全新目录，不覆盖旧证据。
-
-T02-F0 必须满足：
-
-- pa_changed=1；
-- seq_primary 和 addr_fallback 均有真实事件；
-- 同页后续请求重新进入传播链；
-- cache/MSHR/request_fork 路径存在；
-- 真实 L5 errant_commit；
-- terminal=full；
+六个canary全部满足：
+- tier身份正确；
+- SHA一致；
+- 正常EOF；
+- stats非零；
+- 事件量受控；
+- 聚合计数守恒；
+- full或真实containment；
 - admitted=True；
 - violations=[]；
-- 不得再出现假的 store_discarded_not_retired containment。
+- campaign/checker一致；
 
-T02-F2 必须满足：
+才补齐每格3个seed。正式实验仍不启动。
 
-- requested=F2、effective=F2、enabled=1；
-- 不退化为 F0；
-- 真实 L5 和 chain_end；
-- Kernel panic 被归类为 Crash/DUE；
-- 不出现 NotImplementedError；
-- 运行退出状态符合 campaign 的成功执行口径；
-- checker 与 campaign 一致。
-
-任一失败立即停止，不运行剩余四格。
-
-只有这两个定向 canary 都通过，才继续：
-
-- T01-F0-W4 seed1；
-- T04-F0/F2/F6-W4 seed1。
-
-六格 seed1 全部通过后，才补 seed2、seed3。正式实验仍不得启动，fi-ding 仍不得合并。
+任何新FAIL、tier身份不一致、summary计数不守恒、T04再次无界增长，立即停止汇报。
 
 ---
 
 <task-notification>
-<task-id>a4028883b82b3bd5a</task-id>
-<tool-use-id>call_00_wu6atna3c3f1itip7ml3hphr</tool-use-id>
-<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/84aa6258-4b23-41bb-85a2-3ce828b188db/tasks/a4028883b82b3bd5a.output</output-file>
+<task-id>a795f5e1a031a9fff</task-id>
+<tool-use-id>call_00_m6v32szeurcv6molb1fyojpt</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a795f5e1a031a9fff.output</output-file>
 <status>completed</status>
-<summary>Agent "Lane A: TLB dual-arm fix" came to rest</summary>
+<summary>Agent "Diagnose runner failure of obs_driver_workers" came to rest</summary>
 <note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
-<result>**STOPPED — hard permission block. Nothing was changed; no code, no worktree, no commit.**
+<result>24/24 burst runs PASS (d-real ran every time), zero residue. Work complete.
 
-Bash is restricted in this subagent session: every mutating/executable step of my lane is denied at the tool-permission layer, so none of the mandated TDD loop (build → run → commit → push) can be performed. Real observed outputs:
+## DIAG-RUNNER 结论
 
-| command | result |
-|---|---|
-| `git worktree add .claude/worktrees/r6-arms -b r6-arms 3bad2ddc` (also with `dangerouslyDisableSandbox`) | **denied** |
-| `scons --version` | **denied** |
-| `python3 tools/lsu_test_runner.py` | **denied** |
-| `python3 -c 'print(1+1)'` | **denied** |
-| `mkdir -p /tmp/r6_probe` | **denied** |
-| `git status --porcelain` / `git worktree list` / `ls` / `echo` / `pwd` / `pgrep -a scons` / `python3 --version` | allowed |
+**① 完整失败信息（截断为假象，真实 traceback 已复现）**
+merged3.log:74 的 80 字符截断 `File ".../lsu-mdspec-20261019/tools/lsu_o` **逐字节等于**我用真实调用复现出的 traceback 的 `detail[:80]`（脚本化比对 `MATCH: True`）。复现出的真实 traceback 尾 3 行：
+`  File "…/tools/lsu_obs_driver.py", line 187, in _guard_run` / `    raise UP.GuardFailure(` / `lsu_unit_pilot.GuardFailure: guard 周期未完成（F-023 同款）；guard_out=…`
+（证据：`/tmp/diagrunner_1792820249/mech/out.txt`）
 
-So only read-only commands run. Note `pgrep -a scons` → exit 1 (no build running), and `ls -l build/ARM/gem5.opt` → `No such file or directory` (repo-root gem5 binary is **not** currently built).
+**② 复现矩阵**（全部落盘于 `/tmp/diagrunner_1792820249/`）
 
-Facts I could establish read-only (from the sibling worktree already at 3bad2ddc, `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/`):
-- Defect confirmed verbatim at `CHAOS/gem5/src/cpu/o3/CHAOSPropagation/chaos_tlb_chain.hh:61-72`: `tlbRegistrationArms` returns after `if (!pa_changed)` (correct, T01 fix), then makes the two arms **mutually exclusive** (`if (req_seq != 0) seq_primary = true; else addr_fallback = true;`) — so `pa_changed=1, req_seq!=0` opens only `seq_primary`.
-- Wiring confirmed at `CHAOSPropagation.cc:1455-1483`: `addr_fallback` gates the `blk_registry[new_page]` arm — exactly the described "no address fallback arm" path.
-- The in-lane test `tests/chaos_tlb_chain_containment_test.cc` currently **pins the buggy behaviour**: line 85 `a.seq_primary &amp;&amp; !a.addr_fallback` and lines 92-93 `"no PA-page fallback arm when req_seq != 0"`. A four-quadrant RED test asserting `seq_primary &amp;&amp; addr_fallback` will additionally require updating those two assertions in the same file (inside my lane).
-- Required change (not applied): in `tlbRegistrationArms`, keep the `!pa_changed` early return, set `a.seq_primary = (req_seq != 0)`, and set `a.addr_fallback = true` for **both** `req_seq==0` and `req_seq!=0` when `pa_changed`.
+| # | 条件 | 结果 |
+|---|---|---|
+| ① | standalone（gate 阻断） | rc=0，30.8s，SKIP（1 项诚实 ENV） |
+| ①b | standalone × 24，gate 开 | **24/24 rc=0 PASS**（52–53s；d-real wall=27.5s gates=4 finishes=2） |
+| ② | runner 单套件 `--only` | gate 阻→SKIP；gate 开→**PASS 52.8s**（meta rc=0 signal=null timeout=false） |
+| ③ | runner 完整顺序（集成 WT） | 该套件 SKIP；FAIL=13（12 项既有 hook/campaign 基线 + pytest::collect flake） |
+| ④⑤ | 唯一/共享 GUARD_DIR | 套件硬隔离（R6-MERGEFIX）；主树 `guard/claims` 前后 = 0 |
+| ⑥ | cwd/env 对齐 | 判定一致（SKIP↔SKIP、PASS↔PASS） |
+| ⑦ | g3/预算/signal | 30.8s / 52.8s vs 预算 900s；timeout=false signal=null ⇒ **timeout 无关**（17–29× 余量） |
+| ⑧ | 残留 | 无 temp 目录/claim/孤儿 guard 进程 |
 
-I deliberately did **not** write the edit into the main worktree or into another lane's worktree (both violate lane ownership / repo discipline), and did not attempt any workaround of the git denial.
+**③ 根因判定 + 证明 —— 归入「runner 资源中断」，非三支回归**
+- **非回归**：`git diff 184c1a92..848d803a` 对本套件运行期导入链（lsu_obs_driver→lsu_runner/obs_core/l3_propagation/unit_pilot/guard）改动 = ∅；测试文件字节相同；40+ 次执行（三种宿主状态）从未复现 FAIL。
+- **触发点唯一**：套件唯一宿主耦合段 `(d-real)` 真槽探针在 **ThreadPoolExecutor 之外的 try/except 之外**调 `_guard_run`，`fa.result()` 重抛；其门禁只在段首**一次性**检查（gate 阻断时才诚实跳过）。gate 检查通过后资源态变化（MemAvailable 跌破 10 GiB 的 STOP_DISPATCH / 陈旧槽）→ 未捕获 `GuardFailure` → 崩溃。
+- **旁证**：13:04（merged3 时刻）lane `r6-fixcpp` 正在跑 gem5（`runs/` 12:58–13:12）与 scons 构建；同类宿主敏感的可复现例子：`pytest::collect` 在 scons 链接负载下 `test_claim_concurrency.py::{test_d_run_concurrency_cap,test_e_heartbeat}` 2 failed，单独跑 2/2 通过。
+- **诚实边界**：merged3 那次事件本身今日未复现（需 13:04 那段的宿主资源窗口）；`lsu_o` 前缀无法用字节区分 driver/core，core 的 raise 只有 finalize RuntimeError（确定性，40+ 次全绿已排除）与 file_lock 7200s（&gt;900s 预算，无法以 traceback 形式出现）。
 
-To proceed I need Bash permission for at least: `git worktree add|commit|push` (or the `EnterWorktree` tool plus git write access), `scons -j16 build/ARM/gem5.opt`, `g++` for the standalone test, `python3 tools/lsu_test_runner.py`, and the FS `LSU_GEM5_BIN` run — please grant it (or run this lane from a session that has it). **Stop points touched: none of the substantive ones (no test run, no golden run, no build), but the lane is blocked before step 1; T02-F0-W4 sha is untested (`n/a`) — I have no evidence it returns to `8c7ce8a9…`.**</result>
-<usage><subagent_tokens>0</subagent_tokens><tool_uses>32</tool_uses><duration_ms>121339</duration_ms></usage>
+**④ 修复**：`tools/lsu_test_runner.py`（提交 `1d12af12`，已 push `r6-diagrunner`）——通用日志增强 `--log-dir`（逐套件 stdout/stderr/meta.json：rc/signal/timeout/起止/耗时）+ `--only` 诊断过滤；**`classify()` 逐字节未改**（机械核验 `identical: True`），print/退出码不变。计划：`docs/superpowers/plans/2026-10-24-lsu-r6-diagrunner-runner-log-capture.md`。**未改测试语义、未改 timeout**（实测 52.8s vs 900s 预算，无据可改）。
+
+**⑤ 四项验收（真实输出）**：① standalone `rc=0` / gate 开 24/24 `FAILURES: 无`；② runner 单套件 `[PASS] … FAILURES: 无` `runner_status=PASS seconds=52.82`；③ 完整回归中该套件 `SKIP`（gate 阻断期）；④ **NEW FAIL = 0**——原 runner vs 增强 runner 同环境各跑一次完整回归，FAIL 集合仅差 `pytest::collect`（外部 churn、与本改动无关，本改动不触碰 pytest 执行）。
+
+**⑥ 是否指向三支回归：否。** 无需停止 C++ 后续集成。
+
+残留限制：`/tmp/merged3.log` 等既有证据未改动；输出全部落独立临时目录 `/tmp/diagrunner_1792820249/`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>67</tool_uses><duration_ms>3539073</duration_ms></usage>
 </task-notification>
 
 ---
 
-当前修复方向接受，但调整冻结顺序。
+<task-notification>
+<task-id>ab5178bd1eebf2493</task-id>
+<tool-use-id>call_00_oid48aiam6stqs78e4fy2x61</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/ab5178bd1eebf2493.output</output-file>
+<status>completed</status>
+<summary>Agent "Tool-side lane: F-tier + consumer_summary contract" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Done. Report:
 
-正在运行的 R6_UNIFIED_BUILD_4 不要中断，让它自然完成；但它是在未提交工作树上产生的，只能记为 provisional compile-check，不得作为冻结候选，不得用它启动 canary。
+**① F-tier 工具侧（任务一）**
+- `tools/lsu_campaign.py`：`ARMTLB_LOOKUP_TIERS={F0..F6}`（+`ARMTLB_LOOKUP_LEGACY_TIERS={F0}`/`ARMTLB_LOOKUP_TIERED_TIERS={F1..F6}`/`_armtlb_lookup_tier_flags`）。armtlb **lookup** 分支：F0→legacy（无 tier flag）；F1–F6→真实 `--tlb_lsu_tier &lt;F&gt;`；未知档位→响亮 BLOCKED。walk（T08）路径不变。
+- 实测六格解析差异（`resolve_cell`，归一化）：
+  - `T01-F0-W4`: `--tlb_fault_type bit_flip --tlb_max_faults 1`
+  - `T02-F0-W4`: `…bit_flip --tlb_bits_to_change 2 --tlb_max_faults 1`
+  - `T02-F2-W4`: `…bit_flip --tlb_bits_to_change 2 --tlb_lsu_tier F2 --tlb_max_faults 1`
+  - `T04-F0-W4`: `--tlb_fault_type pfn_to_mapped_page --tlb_max_faults 1`
+  - `T04-F2-W4`: `…pfn_to_mapped_page --tlb_lsu_tier F2 …` · `T04-F6-W4`: `…--tlb_lsu_tier F6 …` → 六格两两互异。
+- **能力标记字段契约（交 r6-fixcpp；我未改 C++）**：启动时向 stdout 打印一次 `CHAOS_LSU_TIER_CAP: requested=&lt;F0..F6|off&gt; effective=&lt;F0..F6|off&gt; lookup_tier_enabled=&lt;0|1&gt;`。campaign `lookup_tier_capability_gate` 核对 `effective==requested==请求值` 且 `enabled==1`。
+- 一致性/拒绝实测：present+一致→`ok=True`；`effective=F0≠requested=F2`→`capability-mismatch`；`enabled=0`→`capability-disabled`；缺字段→`capability-malformed`；**旧二进制无标记→`capability-missing`，ok=False**，campaign 置 `blocked=True` 且 `write_chain_report` 强制 `admitted/certified=False`。ready contract：TIER-UNIMPL 类别对 325 格归零（CHAIN-EVIDENCE-MISSING 235→241），未知档位仍响亮命名。
 
-构建结束后按以下顺序执行：
+**② consumer_summary 完整字段契约（交 r6-fixcpp 发射；我未改 C++）**
+`CONSUMER-SUMMARY: schema=1 version=1 run_id=… sample_run_id=… fault_id=… source_id=… suppressed_consumer_count=… distinct_dyn_seq_count=… emitted_consumer_count=… first_tick=… last_tick=… min_dyn_seq=… max_dyn_seq=… by_kind=&lt;k:n,…&gt; by_outcome=&lt;k:n,…&gt; total_before=… total_after=…`；守恒 `total_before==total_after==emitted+suppressed`、`sum(by_kind)==sum(by_outcome)==total_before`、`total&gt;0⇒emitted≥1`（禁全抑无出）。实现在 `lsu_prop_fields`（parse/validate/read_stream）+ `lsu_chain_check`（`malformed_consumer_summary` token、`consumer_summary_accounting`）+ `lsu_campaign.write_chain_report`。8 条规则全部 RED→GREEN：①不占层 ②非 L5/containment/terminal ③非 parent 节点 ④malformed/负计数/不守恒/截断响亮拒绝 ⑤小流 vs 聚合流 `path_event_ids/terminal/admitted/violations` 逐位一致 ⑥报告展示 emitted/suppressed/logical_total/conservation ⑦截断流仍 `admitted=False`（summary 不成 chain_end）⑧`read_events` 兼容无 summary 流。
 
-1. 核对 BUILD_4：
-   - 编译成功；
-   - 无新增相关告警；
-   - 只作为修复代码可编译的证据。
+**③ 套件** `lsu_test_runner`（本 worktree 基线 FAIL=15/PASS=47）：after FAIL=13/PASS=51，**NEW FAIL=0**，NEW SKIP/ENV=0；两个基线 FAIL（ftier_armtlb_lookup、r6_reconcile_realroot）转绿，新增 2 套件 PASS。（注：本 worktree 实测基线为 FAIL=15/PASS=47，与任务书给的 70/12/57 不同。）
 
-2. 将改动拆成两个原子提交：
-   A. TLB 双臂修复：
-      - chaos_tlb_chain.hh
-      - chaos_tlb_chain_containment_test.cc
-   B. Kernel panic 退出修复：
-      - exit_event.py
-      - arm_chaos_fs.py
-      - lsu_multicore_fs.py
-      - test_lsu_r6_fixexit_contract.py
+**④ 提交**（分支 `r6-fixtools`，已 push）：`ea17e3c9` F-tier 传参+能力门；`4c74e3ac` consumer_summary 契约+门禁；`58363e01` 计划勾选。
 
-3. 不得提交两个现有的 R6-STATUS-TABLE 未跟踪文件。
+**⑤ 停点**：均未触碰——0 个 `CHAOS/**` C++ 改动；未改 `tools/lsu_test_runner.py` / `tests/test_lsu_obs_driver_workers.py`；F-tier 身份一致；summary 计数守恒；小流/聚合流 checker 一致；新增测试全绿；旧二进制/缺标记被响亮拒绝（未静默接受）。未合入集成分支，未跑 gem5 pilot。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>89</tool_uses><duration_ms>1086419</duration_ms></usage>
+</task-notification>
 
-4. 提交后检查：
-   - 除上述两个状态表外工作树干净；
-   - HEAD 包含两个修复提交；
-   - git diff HEAD 为空；
-   - 重新运行两组定向契约测试，必须全部通过。
+---
 
-5. 在已提交的干净 HEAD 上运行完整回归：
-   - 保存逐套件日志；
-   - 与 3bad2ddc 基线比较；
-   - 要求 NEW FAIL=0；
-   - 若有新增失败，立即停止，不构建候选、不跑 canary。
+<task-notification>
+<task-id>bp8kkytbg</task-id>
+<tool-use-id>call_00_4yxcb8j5epq0bbprzwu6zswo</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/bp8kkytbg.output</output-file>
+<status>completed</status>
+<summary>Background command "Merge diagrunner and confirm clean baseline" completed (exit code 0)</summary>
+</task-notification>
 
-6. 完整回归通过后，从干净 HEAD 再执行一次统一构建：
-   - 新日志命名为 R6_UNIFIED_BUILD_5.log；
-   - 不得把 BUILD_4 的二进制直接改名冒充；
-   - 记录 source HEAD、二进制 SHA-256、大小、时间；
-   - 核对告警差集为零；
-   - 构建前后确认 tracked source 没有变化。
+---
 
-7. push 更新后的集成分支，核对远端 SHA 等于本地 HEAD；
-   - 禁止 push/merge fi-ding；
-   - 禁止 force push。
+<task-notification>
+<task-id>b6glbueps</task-id>
+<tool-use-id>call_00_t2x4f9oth9rlc3fu9yjh26df</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/b6glbueps.output</output-file>
+<status>completed</status>
+<summary>Background command "Merge fix-tools and run regression" completed (exit code 0)</summary>
+</task-notification>
 
-8. 只有 BUILD_5 产生的、与干净已提交 HEAD 对应的二进制，才允许用于：
-   - T02-F0-W4 seed1；
-   - T02-F2-W4 seed1。
-   两格最多并发 2，使用全新目录。
+---
 
-9. 两格逐项按既定判据核验。任一失败立即停止；两格都通过才继续剩余四格 seed1。
+确认授权：由你在集成分支直接完成这一次最小 test-only reconciliation，不必退回 FIX-TOOLS owner，也不要新开重叠修改 lane。
 
-正式实验继续保持停止，旧证据不得删除或覆盖。
+只修改 tests/test_lsu_runid_map.py（允许同步更新对应结果记录，但不得修改实现代码），把陈旧的旧策略断言改为以下强断言：
+
+1. T-model/W1 行总数必须仍为 8。
+2. F0 行必须恰好为 3：
+   - 全部能够解析；
+   - 全部使用 TLB-probe golden；
+   - 命令中不得含 --tlb_lsu_tier；
+   - 不得错误路由到 MiBench SE。
+3. F!=F0 行必须恰好为 5：
+   - 全部能够解析，不再要求 BLOCKED；
+   - 全部使用 TLB-probe golden；
+   - 每行命令必须且只能携带一个 --tlb_lsu_tier；
+   - tier 值必须与该行 RunID 的 F 档位一致；
+   - 不得错误路由到 MiBench SE。
+4. 不得删除、弱化断言，不得使用 SKIP/XFAIL。
+5. 运行时能力门仍必须响亮拒绝 capability 缺失、格式错误、禁用或档位不匹配；请运行现有能力门测试证明这一点，不要仅凭静态命令解析宣称可运行。
+6. 先单独运行 test_lsu_runid_map.py，再运行 lookup-F-tier 相关定向套件，最后运行完整 runner，并保存完整日志。
+7. 只有完整回归 NEW FAIL=0 才可继续；否则立即停止并汇报完整 traceback。
+
+r6-fixcpp 的隔离构建可以继续，但在本次完整回归干净之前：
+- 不得合并其 C++ 改动；
+- 不得统一构建或冻结新 SHA；
+- 不得启动 gem5 pilot/canary/正式实验。
+
+本测试修正通过后，继续既定关键路径：
+审查 r6-fixcpp 完整交付（T01 containment、lookup F-tier、T04 consumer summary）
+→ 串行合并
+→ 完整回归 NEW FAIL=0
+→ 统一构建
+→ 记录新 SHA-256
+→ 汇报后再启动六个 RunID 的 canary。
+
+---
+
+<task-notification>
+<task-id>b1g3822rv</task-id>
+<tool-use-id>call_00_yt8kvxx6oh1iz81wi6rzpwva</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/b1g3822rv.output</output-file>
+<status>completed</status>
+<summary>Background command "Full regression after test fix" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+继续执行，不需要等待新的裁决。
+
+当前陈旧 pin 测试修复 12c21ae1 已经定向验证通过。现在按顺序完成：
+
+1. 在集成 HEAD 12c21ae1 上运行完整 lsu_test_runner，并保存逐套件完整日志。
+2. 与修复前基线比较，必须 NEW FAIL=0；如有新增失败立即停止汇报。
+3. 若回归通过，完成并提交 r6-fixcpp 当前尚未提交的 tier capability + T04 consumer_summary 改动，报告文件清单、提交 SHA 和定向测试。
+4. 审查后串行合并 r6-fixcpp 的：
+   - ca334efb：T01 containment；
+   - 6ec7c5aa：lookup F-tier；
+   - 新的 consumer_summary/tier capability 提交。
+5. 合并后再次运行完整回归，要求 NEW FAIL=0。
+6. 统一构建一次，记录集成 HEAD、二进制 SHA-256、构建日志和告警差集。
+7. 到此先汇报，不自动启动六个 RunID canary，等我确认。
+
+不得启动正式实验，不得删除旧证据，不得把 r6-fixcpp 工作树里的未提交改动遗漏或覆盖。
+
+---
+
+<task-notification>
+<task-id>b7y2b54zx</task-id>
+<tool-use-id>call_00_2mduxzcci6qz268bl6ftxqrl</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/b7y2b54zx.output</output-file>
+<status>completed</status>
+<summary>Background command "Full regression on 12c21ae1 with logs; check r6-fixcpp state" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+选择 (a)：等待 r6-fixcpp lane 自然收尾，不中断、不杀 scons，不触碰或代为提交它的未提交工作树。
+
+请主动等待并监控该 lane；构建结束后检查它是否完成：
+1. tier capability 与 T04 consumer_summary 改动均已提交；
+2. 分支已 push；
+3. 定向测试通过；
+4. 构建成功；
+5. NEW FAIL=0；
+6. 工作树除明确的 build 产物外干净。
+
+lane 一旦交付，不需要再次等待我裁决，直接按既定顺序继续：
+- 审查提交与文件所有权；
+- 确认未遗漏当前工作树中的任何改动；
+- 串行合并 ca334efb、6ec7c5aa 及新的续作提交；
+- 运行定向测试；
+- 运行完整回归，要求 NEW FAIL=0；
+- 统一构建一次；
+- 记录集成 HEAD、二进制 SHA-256、构建日志及新增告警差集。
+
+完成上述步骤后停止并汇报，暂不启动六个 RunID canary。
+
+只有出现以下情况才提前停止：
+- lane 构建或测试失败；
+- lane 长时间结束但仍未提交；
+- 工作树内容与交付声明不一致；
+- 合并冲突；
+- 完整回归出现新增 FAIL；
+- 统一构建失败或出现新的相关告警。
+
+gem5/campaign/正式实验继续保持 0，不删除任何旧证据。
+
+---
+
+<task-notification>
+<task-id>ae645a57fa5372da1</task-id>
+<tool-use-id>call_00_3hxtcjz92ha45jfc5cmsze6c</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/ae645a57fa5372da1.output</output-file>
+<status>completed</status>
+<summary>Agent "C++ follow-up: capability marker + consumer_summary" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Done. All three units committed and pushed to `r6-fixcpp` (`6ec7c5aa..cdad06ac`).
+
+**① 能力标记实现位置与真实打印样例**
+- 位置：`CHAOS/gem5/src/cpu/o3/chaos_lsu_tier_cap.hh`（`resolve()`/`marker()`，依赖无关，injector 与单测共用同一份定义）+ `CHAOSArmTLB.cc` 构造期打印一次并 `fflush(stdout)`（abort 样本也带标记）。mounted 取自真实 `lsuTrigger-&gt;tier`（-1=无 trigger⇒legacy F0）；只有非 F0 触发才 `enabled=1`。
+- 实际打印（`tests/chaos_lsu_tier_cap_test.cc` 真编译真运行，23 PASS）：
+  `CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0`
+  `CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1`
+  `CHAOS_LSU_TIER_CAP: requested=F6 effective=F6 lookup_tier_enabled=1`
+  **诚实边界**：`gem5-fs/` 为空（3 GB submodule 未拉），FS armtlb 跑不起来，故**没有**真实 FS 二进制的标记样例；取证靠"同一函数"的独立单测 + 源码防漂移守卫，不声称跑过 FS。
+
+**② consumer_summary 发射点 / flush / 守恒 / 规模**
+- 发射点：`CHAOSPropagation.cc::noteCommit` 的 consumer 走 `consumer_agg`（分组键 `(fault_id, source_id)`；首条代表必出，其后同一 source 的重复消费折叠）；**exit 回调在 `chain_end` 之前**逐行 flush；resource 上限触发时 printf + 落 `CONSUMER-SUMMARY-ABORT:`（suppressed=0，绝不静默丢证据）。汇编器只聚合 `consumer` 一种 kind。
+- 守恒 C++ 单测（`chaos_consumer_summary_test.cc`，30 PASS）：1000 重复 → 2 行，`emitted+suppressed==observed`；50 重复行逐字对照契约。
+- 真机实测（`--chaos_l1d --chaos_propagation`）：reg_chain 62 逻辑 → 44 事件 + 11 summary（em11+su18==tb29==ta29 守恒）；mini_check 17 → 8+6（consumer 条数降 53%）；gap_bfs 2→2（诚实 0 聚合）；非 consumer 75 条逐字不变，`errant_commit` 仍 `detection_layer=L5 outcome=errant_commit contained=0`。
+
+**③ 构建/告警/golden/套件**：`scons -j16` → `scons: done building targets.` **零新增告警**；reg_chain golden `f247ef3fe6f02cfd` rc=0 零 SIGSEGV；`lsu_test_runner.py` suites=73 **FAIL=12 PASS=60 SKIP=1**，失败集合与基线（70/12/57/1）逐条相同 ⇒ **NEW FAIL=0**，新增 3 套件全 PASS。
+
+**④ 提交**：`6a82fe74`(任务1 能力标记) · `3d6b1260`(任务2 聚合逻辑+单测) · `cdad06ac`(任务3 接入发射)。
+
+**⑤ 停点**：未触发。未移动/伪造 tick；L5/终局/含住绝不聚合；计数守恒；summary 字段逐字对齐；**未改 `tools/**`**、未改 `lsu_test_runner.py`/`test_lsu_obs_driver_workers.py`；无新增失败；无新增告警；未合入集成分支。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>149</tool_uses><duration_ms>3831824</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bufcjjapd</task-id>
+<tool-use-id>call_00_tsx7dyusi8mk7flfm1mra9bi</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/bufcjjapd.output</output-file>
+<status>completed</status>
+<summary>Background command "Targeted tests and full regression after merging r6-fixcpp" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b1rycmn37</task-id>
+<tool-use-id>call_00_7zwilnmyalorrrp4cge6308r</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/b1rycmn37.output</output-file>
+<status>completed</status>
+<summary>Background command "Tracked watcher for r6-fixcpp lane completion" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bji697y6i</task-id>
+<tool-use-id>call_00_83bgpv8rt1w6mdlka4s2cjvs</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/bji697y6i.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for build and compute SHA and warning diff" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+进入下一阶段。执行顺序固定如下，不再等待额外裁决。
+
+一、先备份集成分支
+
+1. 当前候选必须保持：
+   - source HEAD：
+     3bad2ddcd6ac63ae9bc6c9aab8d2455bb0758667
+   - binary SHA-256：
+     525ecfd71793d08f69092945367f36daa9af69f4817e64414c92fe43c057e47c
+2. 将 lsu-mdspec-20261019 推送到 origin。
+3. 推送后重新读取远端引用，必须确认：
+   origin/lsu-mdspec-20261019 == 3bad2ddcd6ac63ae9bc6c9aab8d2455bb0758667
+4. 禁止 force push。
+5. 不得修改或提交当前两个未跟踪的 R6-STATUS-TABLE 产物。
+6. 暂时不得合并或推送 fi-ding。
+
+二、六格 1-seed canary
+
+使用上述冻结二进制，最多并发 3 个：
+
+- T01-F0-W4
+- T02-F0-W4
+- T02-F2-W4
+- T04-F0-W4
+- T04-F2-W4
+- T04-F6-W4
+
+每格使用全新的输出目录，不覆盖旧证据。启动前和结束后均计算二进制 SHA-256，必须与 525ecfd7… 完全一致。
+
+逐格必须核验：
+
+1. 命令与 RunID 匹配；
+2. F0 不携带 --tlb_lsu_tier；
+3. F2/F6 携带正确档位；
+4. CHAOS_LSU_TIER_CAP 中 requested/effective/enabled 完整且一致；
+5. T02-F2 不得退化成 T02-F0；
+6. T04-F2/F6 不得退化成 T04-F0；
+7. 正常 EOF，gzip 完整，stats 非零；
+8. 不得出现异常 GB 级无界事件流；
+9. consumer_summary 可被 checker/campaign 识别；
+10. 聚合前后计数守恒，且不得改变已选择的完整 ancestry；
+11. T01 的 PA 未变化情形必须形成真实 L2 containment，不得再伪造 L3/L4/L5；
+12. 传播结果必须是 full 或真实、显式、闭合的 containment；
+13. admitted=True、violations=[]；
+14. campaign 与独立 checker 结论一致；
+15. cross_request_edge、invalid_lineage_bridge、time_reversed_edge 均为 0；
+16. 输出每格简化故障传播路径和最终结局。
+
+任何一格失败、截断、超时、身份退化、能力标记缺失、事件量再次失控或 SHA 漂移：
+立即停止全部 canary，保留现场并汇报；不得补跑、不得合并 fi-ding。
+
+三、补齐 3 seed
+
+只有六格 seed1 全部通过，才继续每格 seed2、seed3，仍保持总并发 ≤3，并执行同一套核验。
+
+不得把 seed1 的字段、路径或地址复制到其他 seed；每个 seed 必须独立从其原始 prop_evt 流生成报告。
+
+四、满足条件后提升到 fi-ding
+
+只有六格全部达到 3/3 合格，即 18/18 通过后，才允许合入 fi-ding。
+
+注意：/home/sdc/gem5-fi-ding 当前主工作树存在大量未提交删除，禁止在该工作树 checkout、merge、reset、clean 或修改这些文件。
+
+必须使用干净的临时 worktree/临时提升分支执行：
+
+1. fetch origin；
+2. 核对 origin/fi-ding 未出现未知的新提交；
+3. 确认 origin/fi-ding 是 3bad2ddc 的祖先；
+4. 只允许 fast-forward，禁止普通 merge commit、rebase 和 force push；
+5. 将验证通过的 3bad2ddc fast-forward 推送到 origin/fi-ding；
+6. 推送后确认 origin/fi-ding 精确指向 3bad2ddc；
+7. 不得触碰原主工作树的未提交删除。
+
+如果 fi-ding 已发生分叉或无法 fast-forward，立即停止汇报，不得自行解决历史。
+
+五、最终停点
+
+完成 push、18/18 pilot 核验和 fi-ding fast-forward 后停下汇报：
+
+- 每个 RunID × seed 的结果；
+- 每条传播路径；
+- tier 身份；
+- containment/full 结局；
+- 事件数和聚合计数；
+- checker/campaign 一致性；
+- source HEAD 和 binary SHA；
+- 远端集成分支及 fi-ding 的最终 SHA。
+
+正式实验仍不得启动。
+
+---
+
+<task-notification>
+<task-id>a5e1e504e3c5a2f92</task-id>
+<tool-use-id>call_02_8crz0dzobik0iq5n53bw7icf</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a5e1e504e3c5a2f92.output</output-file>
+<status>completed</status>
+<summary>Agent "Canary T02-F2-W4 seed1" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>LANE CANARY-3 (`T02-F2-W4`, seed1) — done, no stop point triggered.
+
+- SHA-256 pre = post = `525ecfd71793d08f69092945367f36daa9af69f4817e64414c92fe43c057e47c` (no drift). Worktree `r6-canary3@3bad2ddc`, git clean (0 changes; no source/tool/test edits). Concurrency 1.
+- Capability marker (item 4, verbatim): `CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1`; `lookup_tier_capability={requested:F2,effective:F2,enabled:1,ok:true}`. Trigger: `CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F2 attempted=110149 eligible=110149 injected=1 …(activated=W3-L0-layer)`.
+- 16 items: 1 PASS, 3 PASS (`--tlb_lsu_tier F2`), 4 PASS, 5 PASS, 7 PASS (gzip -t OK ×2, stats.txt ends `End Simulation Statistics`), 8 PASS (dir 828K, max 388KB), 9 PASS (`emitted=0 suppressed=0 logical_total=0 conservation=n/a`, issues=[]), 10 PASS* (`conservation=OK`, ancestry single-path; *cell `attempted=0/activated=2` → tool self-reports COUNT-CONTRADICTION, same as F0 evidence, not a fake 0.0), 11 n/a, 12 PASS (`terminal=full`), 13 PASS (`admitted=true violations=[]`), 14 PASS (campaign ≡ independent `lsu_r6_rejudge.py`: `terminal=full; provable_to=L5; admitted=True; violations=[]`), 15 PASS (all four READY-crutch tokens = 0 occurrences), 16 below.
+- F2 vs F0 measured diff (vs `runs/lsu/r6_p1_T02-F0-W4/…/seed1`): cmdline F2 adds `--tlb_lsu_tier F2` (F0 legacy, none); F2 inj-log has extra `Site: arm_tlb_lookup_tier` arming (tick 237950233578) + `CHAOS_LSU_TRIGGER tier=F2 attempted=110149 injected=1` line, F0 has neither; injected value F2 `0x81362→0x800400000081362 mask=0x800400000000000 tick=238085259417 VA=0xffffff8001362708` vs F0 `0x81d75→0x100040000081d75 mask=0x100040000000000 tick=237950940537 VA=0xffffffc009483fa8`; propagation F2 = L3:lq_read, 11 events, exit=1; F0 = L3:sq_execute, 204 events, exit=0. -&gt; F2 is NOT degenerate; it polls the tier lookup path and lands a different draw.
+- Simplified path + outcome (item 16): single cell / 1 seed, stop `seed-cap(1)`; oracle=Crash, `exit_code=1`, chain `full` L0→L5, `admitted=True certified=True blocked=False`.
+- Anomaly: guest hit **Kernel panic**; config only classifies `Kernel oops`, so gem5 aborted via `NotImplementedError` (exit 1, no chain_end). Tool side `truncated=false/evidence_truncated=false`, chain still `full` — i.e. not tool-defined truncation. This is the only noteworthy anomaly (F0's lane produced the milder handled `Kernel oops`, exit 0). Reported as-is, not repaired, no re-run.
+- Report written to `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/CANARY_T02-F2-W4.md`; run dir `/home/sdc/gem5-fi-ding/runs/lsu/r6_canary_T02-F2-W4` untouched otherwise. (F0 companion lane `r6_canary_T02-F0-W4` was still running, so I compared against the existing `r6_p1_T02-F0-W4` evidence.)</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>45</tool_uses><duration_ms>187329</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a85a44aa90c75b653</task-id>
+<tool-use-id>call_01_x1tm7jvz28faqscgayyoyvso</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a85a44aa90c75b653.output</output-file>
+<status>completed</status>
+<summary>Agent "Canary T02-F0-W4 seed1" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>CANARY-2 完成 — 命中停点。
+
+**SHA-256** 前=后=`525ecfd71793d08f69092945367f36daa9af69f4817e64414c92fe43c057e47c`（无漂移；编译戳 15:50:01）。campaign EXIT=0，无超时/截断。
+
+**能力标记原文**：`CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0`
+
+**16 项**：1 PASS（cmdline --prop_run_id T02-F0-W4）·2 PASS（`grep -c tlb_lsu_tier`=0）·4 PASS（F0/F0/0）·5/6/11 n/a·7 PASS（gzip -t 双 OK，truncated=false，simTicks=932580153，commitInsts=384717）·8 PASS（1165 B / 347 B；event_count=10）·9 PASS（chain_report 含 consumer_summary + accounting）·10 PASS-空（各计数 0，conservation=n/a；path_event_ids 全为真实事件）·**12 FAIL**（`L0→L4 proven`，`L4→L5 missing`）·**13 FAIL**（`admitted=false`，violations 4 条）·14 PASS（自跑 `lsu_chain_check.py` 复现同 verdict）·15 PASS（cross_request_edge / invalid_lineage_bridge / time_reversed_edge 全 0）·16 见下。
+
+**violations**：`no_closed_chain_and_no_containment`、`ready_by_activated_only`、`ready_by_rc0`、`ready_by_chain_end_only`；`admission_gate_status=GATE-REFUSED`。
+
+**简化路径（item 16）**：inj(pfn bit_flip 0x81d75→0x100040000081d75, pa 0x81d75fa8→0x40000081d75fa8, pa_changed=1) → tlb_lookup → tlb_pfn → tlb_translate_result → sq_execute → sq_writeback → resp → taint_reg → sq_complete → chain_end(contained=1, detection_layer=L4, reason=store_discarded_not_retired)。结局 **Crash**（`KERNEL OOPS under fault — exiting`）；terminal=`provable_to_L4_then_unknown`。
+
+**停点证据**：同输入基线 `runs/lsu/r6_w1_T02-F0-W4/.../seed1`（二进制 00:31:28）→ event_count=226、含 errant_commit、**terminal=full / admitted=True / violations=[]**；本格（冻结二进制 15:50:01）→ event_count=10、无 errant_commit、GATE-REFUSED。两次 rcS 与 `lsu_b0_fs.py` `diff` 一致，注入 tick/VA/pfn/mask 一致，simTicks 同为 932580153。另 campaign 报 `COUNT-CONTRADICTION: attempted=0 而 activated=1`（诚实标注）。
+
+未补跑、未改码、未 push、未删数据。报告已写 `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/CANARY_T02-F0-W4.md`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>32</tool_uses><duration_ms>258905</duration_ms></usage>
+</task-notification>
+
+---
+
+选择 (b)：先做有界的 C++ 提交二分诊断，定位后再修。继续保持所有正式实验和六格 canary 停止，不合并 fi-ding。
+
+当前结论固定如下：
+
+- T02-F0-W4 = FAIL；
+- T02-F2-W4 不能按 PASS 计算：虽然传播链和 tier 身份名义通过，但 exit=1、Kernel panic、无 chain_end；
+- T01 未完成；
+- T04 三格未运行；
+- 当前合格 canary 数为 0/6；
+- 525ecfd7… 仅为失败候选，不得标为最终冻结 SHA。
+
+一、先做离线首分歧分析
+
+只读比较旧的 T02-F0/seed1 完整流与新 canary 流：
+
+1. 按 event_id、parent_event_id、corr、request_id、tick、kind 做归一化差分；
+2. 找出第一条真实行为分歧，不要只比较最终 terminal；
+3. 列出第一处分歧前后各 10 条事件；
+4. 核对 pa_changed=1 是否始终成立；
+5. 核对 translationContained/containmentRevokesArms/revokeChainArms 是否曾对该链执行；
+6. 核对 chain_end(store_discarded_not_retired) 的真实来源、父事件及关闭对象；
+7. 核对 consumer_summary 是否只改变记录表示，还是改变了 taint/commit/chain 状态；
+8. 不得把“旧版 full”预设为正确答案：需要判断旧 errant_commit 是真实传播，还是旧版误报；同样不能因新版声称 containment 就默认新版正确。
+
+二、在隔离 worktree 做 C++ 提交二分
+
+不得修改集成分支，不得 push 诊断分支，不得覆盖现有 canary。
+
+以 12c21ae1 作为 pre-FIXCPP 基线，按以下累计 C++ 提交形成版本序列：
+
+V0 = 12c21ae1
+V1 = V0 + ca334efb
+V2 = V1 + 6ec7c5aa
+V3 = V2 + 6a82fe74
+V4 = V3 + 3d6b1260
+V5 = V4 + cdad06ac（等价当前 C++ 候选）
+
+使用同一个隔离诊断 worktree和同一构建目录顺序构建，避免创建多份大体积 build。每次记录：
+
+- 源码 commit 组合；
+- gem5.opt SHA-256；
+- 构建日志；
+- 完全相同的 T02-F0-W4/seed1 命令；
+- rcS、lsu_b0_fs.py、seed、注入 tick/VA/PFN/mask；
+- simTicks；
+- terminal、admitted、violations；
+- errant_commit、chain_end、revoke/containment 事件。
+
+已知 V5 为 bad。先确认 V0 能复现旧的 full；若 V0 也不能复现，立即停止，说明此前“输入完全相同”的比较仍存在隐藏差异，不得继续归因。
+
+若 V0=good、V5=bad，采用二分顺序减少重建：
+
+- 先测 V2；
+- V2 bad → 测 V1；
+- V2 good → 测 V4；
+- 再按结果测 V3 或确认 V5。
+
+最终必须给出 first-bad commit；如果只有提交组合才触发，也要明确报告 interaction，不得强行归因单个提交。
+
+诊断运行最多并发 1，避免资源和日志混淆。不得补跑其他 canary。
+
+三、单独离线诊断 T02-F2 的 Kernel panic
+
+不重跑，只读现有现场：
+
+1. 提取完整 traceback，定位 NotImplementedError 的具体文件和行；
+2. 判断 Kernel panic 是合法 Crash 结局，还是运行基础设施错误；
+3. 解释为何 checker 在无 chain_end、exit=1 时仍给 full；
+4. 判断 campaign/checker 是否出现结论矛盾；
+5. 不得把“16 项名义通过”记为 canary PASS；
+6. 暂不修改分类器或放宽准入规则。
+
+四、完成后的停点
+
+完成首分歧分析、提交二分和 Kernel panic 离线诊断后停止汇报，内容必须包括：
+
+- V0–V5 实际测试矩阵；
+- first-bad commit 或最小触发组合；
+- T02-F0 从 full 变为 L4 未闭合的真实机制；
+- 新旧哪个行为符合实验语义；
+- T02-F2 的 NotImplementedError 根因；
+- 建议的最小修复文件和测试；
+- 修复后哪些 RunID 必须重跑。
+
+本轮只诊断，不修改集成代码，不生成新冻结 SHA，不恢复六格 canary，不合并 fi-ding。
+
+---
+
+<task-notification>
+<task-id>a8bfb559c6a9dac02</task-id>
+<tool-use-id>call_00_7y6cadlw0cv3qls5v8xim6ld</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a8bfb559c6a9dac02.output</output-file>
+<status>completed</status>
+<summary>Agent "Canary T01-F0-W4 seed1" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**CANARY-1 · T01-F0-W4 · seed1 — 结果：命中停点（item 12/13 FAIL）。** 报告 `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/CANARY_T01-F0-W4.md`；outdir `/home/sdc/gem5-fi-ding/runs/lsu/r6_canary_T01-F0-W4`；worktree 0 改动、未 push、未删数据。
+
+- SHA 前/后：`525ecfd7…5e47c` / `525ecfd7…5e47c`（一致，无漂移）。
+- 能力标记原文：`CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0`。
+- **尝试 1 被外部信号杀死**（非本格失败）：gem5 健康（100% CPU、172s CPU=172s 墙钟）运行 4 min 时被外部 kill（父 shell 未及 echo `EXIT=`、log 为空=块缓冲未 flush）；同输入历史基线本格正常需 ~33 min，工具自带同型标签 `EVIDENCE-TRUNCATED … run killed mid-write`。现场存于 `runs/lsu/r6_canary_T01-F0-W4_attempt1_aborted/`（未删）；随后同 outdir 重跑一次（本次即其证据，~2220s 完成）。
+
+**16 项**：1 PASS · 2 PASS(`grep -c tlb_lsu_tier=0`) · 3 PASS(n/a，无 tier flag) · 4 PASS(F0/F0/0 三字段齐) · 5 n/a · 6 n/a · 7 PASS(两 gz `gzip -t` OK；stats 427682B 以 `End Simulation Statistics` 收尾；`truncated=false`/`exit=0`) · 8 PASS(`prop_evt.txt.gz`=887B/5 事件，无 GB 级流) · 9 PASS(`consumer_summary_accounting{n:0,conservation:"n/a",issues:[]}` 可识别) · 10 PASS(空守恒、`path_event_ids=[0,1,2]` 单祖先未改) · **11 FAIL** · **12 FAIL** · **13 FAIL** · 14 PASS(独立 checker 复现同判) · 15 PASS(三类 token 计数 0) · 16 见下。
+
+- **item 11 FAIL**：未伪造 L3/L4/L5（edges L2→L3/L3→L4/L4→L5 全 `missing`），且带 L2 含住元数据（`tlb_translate_result`: field=`effective_pa_unchanged` detection_layer=L2 contained=1 outcome=NoFault containment_layer=L2）；**但含住未被采信**——该事件 `corr=` 空、不满足 `_explicit_l5`，另一元数据源 `chain_end` 是生命周期（corr=none）被 D1 结构性排除 ⇒ `containment_from_events=None` ⇒ 未形成"可证的"真实 L2 containment。
+- **item 12 FAIL**：`terminal=provable_to_L2_then_unknown`（provable_to=L2, beyond=Unknown），非 full、非闭合 containment。**item 13 FAIL**：`admitted=false`，violations=4（`no_closed_chain_and_no_containment`/`ready_by_activated_only`/`ready_by_rc0`/`ready_by_chain_end_only`），`GATE-REFUSED`。cell：`attempted=0 activated=1`（`COUNT-CONTRADICTION` 诚实标注）、`{Masked:1}`、`stop=seed-cap(1)`、`conservation=OK`。
+
+**简化路径**（逐 kind，5 事件）：`inj`(arm_tlb_lookup_hit, VA 0xffffffc009483fa8, pfn 0x81d75→0x100000000081d75, bit48, tick 237950940537) → `tlb_lookup` → `tlb_pfn` → `tlb_translate_result`(effective_pa_unchanged, L2, contained=1, NoFault) → `chain_end`(L2, detected_contained, corr=none)。**结局**：oracle=`Masked`、`exit=0`——bit48 在物理地址位宽之上 ⇒ PA 恒 81d75fa8、无错误提交；链在 L2 后无事件 ⇒ 判 `provable_to_L2_then_unknown`（未推断 Masked）。
+
+**停点**：item 11/12/13 未达预期，按规则停止、保留现场、不补跑、不改码。旁证：同批 CANARY-2/3 亦见冻结二进制（编译戳 15:50:01）事件流较旧二进制明显收缩。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>69</tool_uses><duration_ms>3072603</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a30bad02a54e0aa23</task-id>
+<tool-use-id>call_00_6eb563er1kqgpxl0zmbz9e1n</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/071bc7d5-2903-4bad-8b8c-30046a41e41f/tasks/a30bad02a54e0aa23.output</output-file>
+<status>completed</status>
+<summary>Agent "C++ commit bisect and divergence diagnosis" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>DIAG-CPPBISECT 完成（仅诊断）。报告：`/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/DIAG-CPPBISECT.md`
+
+**V0–V5 实测矩阵**（同一构建目录顺序构建，`tools/`+`configs/` 冻结于 12c21ae1；T02-F0-W4/seed1 命令与参数完全一致）
+
+| V | 源码 | gem5.opt SHA-256(前16) | 事件 | errant_commit | terminal | admitted | 流sha256(前16) |
+|---|---|---|---|---|---|---|---|
+|V0|12c21ae1|`630eeb9c70039e20`|**226**|**有**|**full/L5**|**True**|`8c7ce8a96f5cb260`|
+|V1|+ca334efb|`80da66a4e48e19ab`|10|无|provable_to_L4_then_unknown|False|`f991f0884a122d37`|
+|V2|+6ec7c5aa|`44a37fd5734da050`|10|无|同上|False|同上|
+|V3|+6a82fe74|`47316a6b1c983862`|10|无|同上|False|同上|
+|V4|+3d6b1260|`bb489f1b974884d0`|10|无|同上|False|同上|
+|V5|+cdad06ac|`6bed830819d22644`|10|无|同上|False|同上|
+
+- **first-bad = `ca334efb`**（单提交，无交互）。停点前提成立：我的 V0 流与旧候选**逐字节相同**（`8c7ce8a9…`）；V1–V5 流与冻结 canary **逐字节相同**（`f991f088…`）。用 canary 期 checker 复判 V0=full / V5=L4，工具无关。全部构建 0 error/0 warning，`simTicks` 恒为 932580153，注入点一致。
+- **首分歧**：index 6（OLD `cache_access@addr_fallback` vs NEW `resp@seq_primary`）。
+- **机制**：`chaos_tlb_chain.hh:65-71` 把两臂改成二选一，`CHAOSPropagation.cc:1475` 由 `if(pa_changed)` 改成 `if(arms.addr_fallback)`；`req_seq!=0 &amp;&amp; pa_changed=1` ⇒ 不再开地址回退臂 ⇒ 同一受损 TLB 表项服务的**同页后续请求**（seq 303/304/307/308/310/…/391，PA 全在伪造页 `0x40000081d75xxx`）失去归属 ⇒ `errant_commit(seq391)` 消失 ⇒ A7 规则（`CHAOSPropagation.cc:161`）改判 L4 含住。提交信息所述"有效 PA 未变"在本格不成立。`consumer_summary` 只改表示（本格 logical_total=0）；`revokeChainArms` 未执行（`contained=0`）。
+- **谁对**：**旧（V0）正确**。被丢弃的全是同 VA 页真实受害者（干净页表不可能映射该伪造页）；V5 声称含住，但同一次仿真的 guest 仍 kernel oops（Crash/DUE）——自相矛盾，属假含住。
+- **T02-F2 panic 根因**：`CHAOS/gem5/src/python/gem5/simulate/exit_event.py:131` — C++ 在 `arch/arm/linux/fs_workload.cc:234` 写入 `"Kernel panic in simulated kernel"`，而表只匹配 `"…simulated system."/"…in guest"` ⇒ `NotImplementedError`，进程 exit=1。**更正任务前提：该格有 `chain_end`**（id=10, L5, `errant_commit_seen`；C++ 退出回调先于 Python 异常执行），`full` 由真实 L5 `errant_commit`(corr=taint_prop) + L4 祖先链给出，**与 exit_code 无关**；链与 oracle(Crash) 自洽。panic 结局本身是合法 Crash(DUE)，缺陷在基础设施（退出字符串未入表 + FS 配置只注册 KERNEL_OOPS）。故不计为干净 canary PASS（另有 cell 级 `attempted=0/activated=2` 计数矛盾）。
+- **最小修复**：① `chaos_tlb_chain.hh` 两臂独立（`pa_changed` 决定 addr 臂，`req_seq!=0` 另加 seq 臂）；② 补 `exit_event.py` 表 + 配置注册 `KERNEL_PANIC`；③（可选）A7 加 DUE 护栏。测试：单测补 "pa_changed=1 且 req_seq≠0 ⇒ 双臂" 一条，端到端以 V0 流 `8c7ce8a9…` 为 golden。
+- **须重跑 RunID**：`T01-F0-W4`、`T02-F0-W4`、`T02-F2-W4`（canary，编译戳 15:50:01）；及任何 V1–V5 二进制产出的 T 系列样本。非 T 系列不受 F1 影响。
+- 未 push、未改集成分支、未动 canary 产物；worktree 已还原干净，`pgrep scons` 为空。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>88</tool_uses><duration_ms>5365108</duration_ms></usage>
+</task-notification>
