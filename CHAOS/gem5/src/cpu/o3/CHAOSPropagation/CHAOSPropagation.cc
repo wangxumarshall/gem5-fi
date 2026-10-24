@@ -1652,9 +1652,31 @@ namespace gem5
                              reason && *reason ? reason : field_reason);
         }
 
+        // [R6-FIXCORR 2026-10-25] A CONTAINED translation is the chain's real
+        // terminus. When the effective PA did not change, registerTlbFault
+        // deliberately opens no correlation arm (comment block above: "the
+        // chain honestly stops at the TLB layer (containment)"), so
+        // pending.corr is empty — and the terminus inherited that emptiness.
+        // The chain checker accepts explicit containment only from a REAL
+        // detection event (chaos::chain::_explicit_l5: non-lifecycle kind +
+        // detection_layer + outcome + a chain-correlation `corr`), so a
+        // legitimate L2 containment could never be certified.
+        //
+        // The event already belongs to the original injection through its
+        // real parent_event_id ancestry (notePropEvt links it through ptag);
+        // labelling it `origin` states exactly that and invents nothing:
+        //  * no registry arm is re-opened (revokeChainArms above already
+        //    dropped every arm for this ptag);
+        //  * no later L3/L4/L5 event can join (there is no open arm to join);
+        //  * chain_end keeps corr=none and still cannot serve as the terminus.
+        // Non-contained events keep whatever corr they had (empty stays
+        // empty) — only the containment terminus is labelled.
+        const char *evt_corr = (contained && pending.corr.empty())
+            ? CORR_ORIGIN : pending.corr.c_str();
+
         notePropEvt("tlb_translate_result", {
             {"fault_id", std::to_string(pending.ptag)},
-            {"corr", pending.corr},
+            {"corr", evt_corr},
             {"dyn_inst_seq", std::to_string(req_seq)},
             {"request_id", std::to_string(req_seq)},
             {"walk_id", std::to_string(pending.walk_id)},
