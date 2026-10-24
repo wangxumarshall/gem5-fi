@@ -93,12 +93,27 @@ def main():
                and e["workload"]["binary"]]
     check("w1_rows_total_is_27", len(_w1_all) == 27, f"n={len(_w1_all)}")
     t_rows = [e for e in _w1_all if e["model_id"] in lc.ARMTLB_MODELS]
-    check("T-model W1 rows (8) resolve to the armtlb FS flag set, not to the "
-          "MiBench SE carrier",
+    # [MDSPEC][R6-FTIER] F0 rows still resolve to the armtlb FS flag set
+    # (TLB-probe golden); F!=F0 lookup rows are now honestly BLOCKED by the
+    # tier gate. The invariant here is "neither may route to the MiBench SE
+    # carrier". See tests/test_lsu_ftier_armtlb_lookup.py.
+    _tr = {e["run_id"]: lc.resolve_cell(_cell(e)) for e in t_rows}
+    check("T-model W1 rows (8) never route to the MiBench SE carrier",
           len(t_rows) == 8 and all(
-              _g == lc.TLB_PROBE_GOLDEN and "--cmd" not in f
-              for f, _g, _k in (lc.resolve_cell(_cell(e)) for e in t_rows)),
+              f is None or "--cmd" not in f for f, _g, _k in _tr.values()),
           str([e["run_id"] for e in t_rows]))
+    check("T-model W1 F0 rows (3) resolve to the armtlb FS flag set "
+          "(TLB-probe golden)",
+          sum(1 for f, g, _k in _tr.values()
+              if f is not None and g == lc.TLB_PROBE_GOLDEN) == 3
+          and all(f is not None and g == lc.TLB_PROBE_GOLDEN
+                  for r, (f, g, _k) in _tr.items() if r.endswith("F0-W1")),
+          str({r: f for r, (f, _g, _k) in _tr.items()}))
+    check("T-model W1 F!=F0 rows (5) are BLOCKED by the R6-FTIER tier gate",
+          all(f is None and k.startswith("BLOCKED(armtlb-lookup-tier")
+              for r, (f, _g, k) in _tr.items() if not r.endswith("F0-W1")),
+          str({r: k for r, (_f, _g, k) in _tr.items()
+               if not r.endswith("F0-W1")}))
     w1 = [e for e in _w1_all if e["model_id"] not in lc.ARMTLB_MODELS]
     check("w1_audit_scope_is_19_rows", len(w1) == 19, f"n={len(w1)}")
     wl_blocked_rows, runnable, span_rows, other = [], [], [], []

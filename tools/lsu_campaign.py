@@ -523,6 +523,46 @@ WALK_FAULT_TYPES = ("walk_pairing", "walk_fill_dup", "walk_done_early",
 ARMTLB_T08_WARMUP_EVENTS = 0
 ARMTLB_T08_SPAN_EVENTS = 1000
 
+# [MDSPEC][R6-FTIER] The armtlb (TLB) family's F-tier contract, split by fault
+# type — the defect this closes (measured 2026-10-24): the six first-wave
+# RunIDs T01-F0-W4 / T02-F0-W4 / T02-F2-W4 / T04-F0-W4 / T04-F2-W4 /
+# T04-F6-W4 produced pairwise-IDENTICAL normalized command lines and so
+# collapsed to THREE independent experimental conditions.
+#
+#   * WALK family (WALK_FAULT_TYPES: T08-a/b/c/d) — the walk-ISSUE point
+#     (TableWalker::walk -> CHAOSArmTLB::maybeDropWalkFill) polls the
+#     event-normalized trigger, so the tier flags below ride the walk-issue
+#     stream (unchanged; R4-5.9).
+#   * LOOKUP modes (T01-T04/T10 / T05-T07; every other fault type) — the
+#     lookup-hit path (TLB::lookup -> CHAOSArmTLB::maybeCorrupt /
+#     maybeCorruptLookup, arch/arm/tlb.cc:171-184) NEVER polls `lsuTrigger`
+#     (source fact: `lsuTrigger` appears in CHAOSArmTLB.cc only in the
+#     constructor and in maybeDropWalkFill), unlike every other injector
+#     family, which polls its trigger at its hook. The lookup path's ONLY
+#     lever is the legacy chain --tlb_max_faults / --tlb_probability +
+#     the seed-varied eligible-event skip, which implements exactly the F0
+#     semantics ("每次运行只注入 1 次；warm-up 后的 eligible event 中均匀
+#     抽样", 方案.md §5 sheet-5). No interval (F1/F2/F3), burst (F4),
+#     fixed-mask-permanent (F5) or first-event (F6) knob is consumed there.
+#     Those tiers therefore resolve to a LOUD BLOCKED reason instead of a
+#     silent F0 re-label (which is the R6-FTIER defect, and the "half-wired
+#     component must be rejected loudly" rule in CLAUDE.md). Making them
+#     runnable needs a C++ change to CHAOSArmTLB (out of this lane).
+ARMTLB_LOOKUP_TIERS = frozenset({"F0"})
+
+
+def _armtlb_lookup_tier_block_reason(model, tier):
+    """resolve_cell 的 loud block 理由（与 ARMTLB_LOOKUP_TIERS 同源，不漂移）。"""
+    return ("BLOCKED(armtlb-lookup-tier-unimplemented: model %s tier %s — the "
+            "TLB lookup-hit path (TLB::lookup -> CHAOSArmTLB::maybeCorrupt / "
+            "maybeCorruptLookup) never polls lsuTrigger; only the walk path "
+            "(maybeDropWalkFill) does, so the event-normalized interval "
+            "(F1/F2/F3), burst (F4), fixed-mask-permanent (F5) and first-event "
+            "(F6) tiers have no landed knob on this path. Only F0 is "
+            "expressible (legacy --tlb_max_faults 1). Refusing rather than "
+            "silently re-labelling the F0 run as %s (R6-FTIER)" % (model,
+                                                                    tier, tier))
+
 # ---- FS carrier (M3 plan Task 5/6 decision tree) ----
 # T-cell design workloads (MiBench/TLB-AliasPerm/GAP) have no binaries on the
 # stock ubuntu image; SPEC stays license-blocked. Runnable T-cells execute on
@@ -1404,6 +1444,17 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False):
                       "--tlb_lsu_warmup_events",
                       str(ARMTLB_T08_WARMUP_EVENTS),
                       "--tlb_lsu_span_events", str(ARMTLB_T08_SPAN_EVENTS)]
+        elif freq not in ARMTLB_LOOKUP_TIERS:
+            # [MDSPEC][R6-FTIER] the lookup path does not consume the tier
+            # (see ARMTLB_LOOKUP_TIERS above): refuse LOUDLY instead of
+            # emitting the F0 flags under an F1-F6 label — the six first-wave
+            # RunIDs used to collapse to three conditions exactly this way.
+            return None, None, _armtlb_lookup_tier_block_reason(model, freq)
+        # F0 lookup modes fall through with the legacy F0 implementation
+        # already in `flags`: --tlb_max_faults 1 (single transient) +
+        # --tlb_probability 1.0 + the injector's seed-varied eligible-event
+        # skip. NO --tlb_lsu_tier here: the lookup path never polls it
+        # (tests/test_lsu_hook_t08_walk.py pins "T01 lookup 模式不带 tier").
         return flags, TLB_PROBE_GOLDEN, "fs:tlb_probe"
 
     # 3a2. [MDSPEC][R4-9-FSMC-A] FS family: 2-core Ruby/CHI + litmus_free 载体。

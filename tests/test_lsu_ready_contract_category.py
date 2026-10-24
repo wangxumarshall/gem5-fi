@@ -33,8 +33,14 @@ XLSX = ROOT / "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
 # [R6-GATE] 追加链准入门禁：本测试以 `pilots={}`（无链证据）构建，故原 241 行
 # READY 全部降为 BLOCKED/CHAIN-EVIDENCE-MISSING —— READY 不再仅凭 coverage
 # PASS 得出，须真链准入。原 84 阻塞行分类不变。
+# [MDSPEC][R6-FTIER] 追加具名类别 TIER-UNIMPL：armtlb lookup 路径无法表达
+# F1-F6（TLB::lookup 不 poll lsuTrigger），resolve_cell 现在响亮拒绝这些格；
+# 台账给它们自己的类别，UNRESOLVED 保持订正后的 4（不回流成"无法解释"）。
+# 随之 6 行（T01-F1/F2-W1、T02-F2-W1、T03-F5-W9、T10-F1/F2-W1 —— 非
+# TLB-AliasPerm 载体的 armtlb 行）从 CHAIN-EVIDENCE-MISSING 241 转出 → 235。
 EXPECTED = {"RULING": 6, "FS-INFRA": 24, "MODE-UNIMPL": 3, "UNRESOLVED": 4,
-            "FS-MULTICORE": 35, "LICENSE": 12, "CHAIN-EVIDENCE-MISSING": 241}
+            "TIER-UNIMPL": 6, "FS-MULTICORE": 35, "LICENSE": 12,
+            "CHAIN-EVIDENCE-MISSING": 235}
 
 
 def main():

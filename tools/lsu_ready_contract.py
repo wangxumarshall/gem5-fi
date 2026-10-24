@@ -140,6 +140,13 @@ def _classify(entry, cov_status, flags, reason=None):
             cat = "UNCLASSIFIED"
         return "BLOCKED", cat, joined
     if flags is None:
+        # [MDSPEC][R6-FTIER] a named tier-missing refusal is NOT an unresolved
+        # mystery: the armtlb lookup path cannot express F1-F6 (no lsuTrigger
+        # poll on TLB::lookup) and resolve_cell says exactly that. Keeping it
+        # in UNRESOLVED would re-inflate a counter this repo explicitly drove
+        # down to 4 (see the module comment above), so give it its own name.
+        if reason and "armtlb-lookup-tier-unimplemented" in reason:
+            return "BLOCKED", "TIER-UNIMPL", reason
         # [R5-U5] 此前返回 cov_status（多为 "PASS"），使被拒绝的行在 why 字段里
         # 自报 "PASS" —— 一条 BLOCKED 行声称通过，属误导性陈述。改为如实引用
         # resolve_cell 的拒绝理由。

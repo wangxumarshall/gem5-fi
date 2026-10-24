@@ -390,17 +390,24 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
           and "T06-F0-W4" not in cg["blocked_upstream_admitted"]
           and "T08-F0-W4" not in cg["blocked_upstream_admitted"],
           str(cg["blocked_upstream_admitted"]))
-    check("已评估=64 / 未准入(有样本)=44 / 无样本=197",
+    # [MDSPEC][R6-FTIER] the armtlb lookup-tier gate moves 6 rows (the
+    # non-TLB-AliasPerm armtlb rows: T01-F1/F2-W1, T02-F2-W1, T03-F5-W9,
+    # T10-F1/F2-W1) from the chain gate (no sample) to an upstream named
+    # block. They are classified TIER-UNIMPL, so UNRESOLVED stays 4 and only
+    # the chain-gate counters move: evidence_missing 197 → 191, and the
+    # upstream-blocked total 84 → 90.
+    check("已评估=64 / 未准入(有样本)=44 / 无样本=191",
           cg["evaluated"] == 64 and cg["unproven"] == 44
-          and cg["evidence_missing"] == 197
-          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 197
+          and cg["evidence_missing"] == 191
+          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 191
           and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 44,
           str({k: cg[k] for k in ("evaluated", "unproven", "evidence_missing")}))
-    check("上游独立阻塞 84 行分类不变（RULING6/FS-INFRA24/MODE-UNIMPL3/"
-          "UNRESOLVED4/FS-MULTICORE35/LICENSE12）",
+    check("上游独立阻塞 90 行分类（RULING6/FS-INFRA24/MODE-UNIMPL3/"
+          "TIER-UNIMPL6/UNRESOLVED4/FS-MULTICORE35/LICENSE12）",
           all(doc["blocked_by_category"].get(k) == v for k, v in
               (("RULING", 6), ("FS-INFRA", 24), ("MODE-UNIMPL", 3),
-               ("UNRESOLVED", 4), ("FS-MULTICORE", 35), ("LICENSE", 12))),
+               ("TIER-UNIMPL", 6), ("UNRESOLVED", 4), ("FS-MULTICORE", 35),
+               ("LICENSE", 12))),
           str(doc["blocked_by_category"]))
     # 任一 admitted 行都不得因链准入而变 READY（variant 2 containment ≠ 全局准入）
     check("无任何行因 containment 而 READY",

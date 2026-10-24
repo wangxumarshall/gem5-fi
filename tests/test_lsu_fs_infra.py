@@ -199,7 +199,7 @@ def main():
     check("every FS-INFRA row is present in the matrix",
           all(r in _byid for r in FS_INFRA),
           str([r for r in FS_INFRA if r not in _byid]))
-    _fs_run, _fs_modeblk, _fs_modelblk, _fs_other = [], [], [], []
+    _fs_run, _fs_modeblk, _fs_modelblk, _fs_tierblk, _fs_other = [], [], [], [], []
     for r in FS_INFRA:
         f, g, k = _lc.resolve_cell(_byid[r])
         if f is not None and k == "fs:tlb_probe":
@@ -208,13 +208,27 @@ def main():
             _fs_modeblk.append(r)
         elif f is None and _lc.MODEL_BLOCKED.get(r.split("-")[0]) == k:
             _fs_modelblk.append(r)   # T05/T06/T07/T08: MODEL_BLOCKED, opt-in
+        elif f is None and k.startswith("BLOCKED(armtlb-lookup-tier"):
+            # [MDSPEC][R6-FTIER] the lookup path never polls lsuTrigger, so a
+            # lookup-mode cell with F != F0 is a loud BLOCKED, not a silent
+            # F0 run (six first-wave RunIDs used to collapse to three
+            # conditions this way). See tests/test_lsu_ftier_armtlb_lookup.py.
+            _fs_tierblk.append(r)
         else:
             _fs_other.append((r, k))
-    check("T01/T02/T03/T04/T10 W4 rows resolve to FS flag sets (12 rows)",
-          _fs_run == ["T01-F0-W4", "T01-F1-W4", "T01-F2-W4", "T02-F0-W4",
-                      "T02-F2-W4", "T03-F5-W4", "T04-F0-W4", "T04-F2-W4",
-                      "T04-F6-W4", "T10-F0-W4", "T10-F1-W4", "T10-F2-W4"],
+    # [MDSPEC][R6-FTIER] F0-only: the tier column now DECIDES runnability.
+    check("T01/T02/T04/T10 W4 rows resolve to FS flag sets (F0 only, 4 rows)",
+          _fs_run == ["T01-F0-W4", "T02-F0-W4", "T04-F0-W4", "T10-F0-W4"],
           str(_fs_run))
+    check("lookup-mode F!=F0 W4 rows are BLOCKED by the R6-FTIER tier gate "
+          "(8 rows: T01-F1/F2, T02-F2, T03-F5, T04-F2/F6, T10-F1/F2)",
+          _fs_tierblk == ["T01-F1-W4", "T01-F2-W4", "T02-F2-W4",
+                          "T03-F5-W4", "T04-F2-W4", "T04-F6-W4",
+                          "T10-F1-W4", "T10-F2-W4"],
+          str(_fs_tierblk))
+    check("runnable 4 + tier-blocked 8 + MODEL_BLOCKED 12 == the 24 FS-INFRA rows",
+          len(_fs_run) + len(_fs_tierblk) + len(_fs_modelblk) == 24,
+          f"{len(_fs_run)}+{len(_fs_tierblk)}+{len(_fs_modelblk)}")
     check("no FS-INFRA row is still refused with 'mode unimplemented' "
           "(R4-10 landed T05/T06/T07 modes)", not _fs_modeblk,
           str(_fs_modeblk))
@@ -310,12 +324,25 @@ def main():
           str(_w1_span_block))
     check("no W1 row is workload-blocked or otherwise unexplained",
           not _w1_other, str(_w1_other))
-    check("T-model W1 rows are UNCHANGED: still resolve to the armtlb FS flag "
-          "set (the MiBench-key removal must not re-route them to SE)",
+    # [MDSPEC][R6-FTIER] the invariant that matters here is "the MiBench-key
+    # removal must not re-route T-cell W1 rows to SE": F0 rows still resolve
+    # to the armtlb FS flag set; F!=F0 rows are now honestly BLOCKED by the
+    # lookup-tier gate — neither may become an SE --cmd flag set.
+    _tw1 = ("T01-F0-W1", "T01-F1-W1", "T01-F2-W1", "T02-F0-W1",
+            "T02-F2-W1", "T10-F0-W1", "T10-F1-W1", "T10-F2-W1")
+    check("T-model W1 rows are never re-routed to SE (no --cmd)",
+          all(_lc.resolve_cell(_byid[r])[0] is None
+              or "--cmd" not in _lc.resolve_cell(_byid[r])[0] for r in _tw1))
+    check("T-model W1 F0 rows still resolve to the armtlb FS flag set",
           all(_lc.resolve_cell(_byid[r])[0] is not None
               and "--cmd" not in _lc.resolve_cell(_byid[r])[0]
-              for r in ("T01-F0-W1", "T01-F1-W1", "T01-F2-W1", "T02-F0-W1",
-                        "T02-F2-W1", "T10-F0-W1", "T10-F1-W1", "T10-F2-W1")))
+              for r in ("T01-F0-W1", "T02-F0-W1", "T10-F0-W1")))
+    check("T-model W1 F!=F0 rows are BLOCKED by the R6-FTIER tier gate",
+          all(_lc.resolve_cell(_byid[r])[0] is None
+              and _lc.resolve_cell(_byid[r])[2].startswith(
+                  "BLOCKED(armtlb-lookup-tier")
+              for r in ("T01-F1-W1", "T01-F2-W1", "T02-F2-W1",
+                        "T10-F1-W1", "T10-F2-W1")))
     check("W1 SE runs get lsu_runner's frozen SE_W1 budget (not --timeout 300, "
           "which would fabricate a Timeout at 7.4h golden)",
           _lc.SE_W1_TIMEOUT == 43200)
