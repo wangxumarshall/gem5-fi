@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5PA2JCGCY1FB2C3N7FFQX4A",
+  "strategy": "manual-commit",
+  "branch": "r6-fixtools",
+  "checkpoints_count": 21,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2463707,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 114228352,
+    "output_tokens": 373129,
+    "api_call_count": 255,
+    "subagent_tokens": {
+      "input_tokens": 2129734,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 74602368,
+      "output_tokens": 312528,
+      "api_call_count": 587
+    }
+  }
+}
