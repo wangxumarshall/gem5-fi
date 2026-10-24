@@ -119,6 +119,38 @@ class CHAOSArmTLB : public SimObject
                                 uint64_t walk_start_tick, unsigned level,
                                 ArmISA::TlbEntry *te);
 
+    // [MDSPEC][R6-FIXCPP/B] lookup-mode F-tier polling, the C++ half of the
+    // R6-FTIER defect (the campaign's ARMTLB_LOOKUP_TIERS block names this
+    // exact gap: "Making them runnable needs a C++ change to CHAOSArmTLB").
+    //
+    // Pre-fix: the lookup-HIT path (TLB::lookup -> maybeCorrupt /
+    // maybeCorruptLookup) NEVER polled lsuTrigger — it appeared only in the
+    // constructor and in maybeDropWalkFill — so F1-F6 had no landed knob
+    // there and every tier silently degraded to F0. These two hooks give the
+    // lookup path a REAL eligible-event stream (one eligible event per
+    // TLB-hit lookup), consumed with the tier semantics of
+    // src/cpu/o3/chaos_lsu_trigger.hh (the same event-normalized trigger the
+    // walk path and every other LSU injector uses — no new frequency is
+    // invented here):
+    //   * F0 — NOT tiered: the legacy chain (--tlb_max_faults /
+    //     --tlb_probability + the seed-varied eligible-event skip) is
+    //     byte-equivalent to the pre-R6 tree. `lookupTierMounted()` returns
+    //     false for it, so the legacy gates below run unchanged.
+    //   * F1/F2/F3 — mean interval 1e6/1e5/1e4 eligible lookups, ±50% jitter
+    //     (chaos_lsu_trigger.hh intervalEvents + scheduleNext).
+    //   * F4 — burst: every 1e5 eligible lookups fire once, then 2-4
+    //     consecutive lookups.
+    //   * F5 — permanent: every eligible lookup from warm-up on.
+    //   * F6 — once, at the first TlbHit event. TLB::lookup notifies the F6
+    //     source BEFORE the injection hooks (see arch/arm/tlb.cc) so the
+    //     injection happens AT that event, not one lookup later.
+    // When a non-F0 tier is mounted it IS the frequency model for this path:
+    // --tlb_max_faults is NOT consumed (the tier decides how many times),
+    // and the mismatch is reported LOUDLY at the first eligible lookup
+    // instead of silently capping the tier back to a single shot.
+    bool lookupTierMounted() const;
+    bool lookupTierAllowsInjection(bool is_hit);
+
   private:
     // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit
     // entry's pfn with another MAPPED entry's pfn (legal domain -> silent
@@ -250,6 +282,16 @@ class CHAOSArmTLB : public SimObject
                                       Addr old_pfn, FaultType ft);
 
     uint64_t generateRandomMask(int bits_to_change);
+
+    // [MDSPEC][R6-FIXCPP/B] one-shot lookup-tier reachability/budget notice.
+    // Printed to armtlb_injections.log at the FIRST eligible lookup of a
+    // tiered (non-F0) run: it records that the lookup path really polls the
+    // event-normalized trigger, and — when --tlb_max_faults is also set — that
+    // the legacy cap is NOT consumed by a tiered run (the tier is the
+    // frequency model). Silent-zero discipline: a tiered lookup run whose
+    // eligible stream never reaches the tier's first fire is visible in the
+    // trigger summary (attempted/eligible/injected), never assumed.
+    bool tier_lookup_notice = false;
 
     struct CHAOSArmTLBStats : public statistics::Group {
         statistics::Scalar numFaultsInjected;

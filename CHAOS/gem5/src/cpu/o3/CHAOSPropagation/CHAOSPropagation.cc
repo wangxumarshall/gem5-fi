@@ -13,7 +13,9 @@
 // (checklist in docs/gem5-fi/lsu/evidence/P4/obs_l3_propagation_design.md).
 
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include "cpu/o3/CHAOSPropagation/chaos_tlb_chain.hh"
 
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -111,6 +113,39 @@ namespace gem5
                 // outcome=unknown means "pending offline join" — the honest
                 // default, never guessed (spec: 不得推断).
                 if (evt_gz_file && write_log) {
+                    // [MDSPEC][R6-FIXCPP/T3] Flush the consumer_summary
+                    // accounting to the stream BEFORE the chain_end
+                    // terminators: a real terminal / chain_end must precede
+                    // the accounting, and a summary never stands in for a
+                    // terminal (rules ②/⑦). Each row is written raw and
+                    // Z_SYNC_FLUSH-ed like every other node.
+                    for (const std::string &sl :
+                             consumer_agg.flush(run_id, sample_run_id)) {
+                        const std::string row = sl + "\n";
+                        if (gzwrite(evt_gz_file, row.data(),
+                                    (unsigned)row.size())
+                                != (int)row.size())
+                            panic("CHAOSPropagation: CONSUMER-SUMMARY write "
+                                  "failed");
+                        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+                    }
+                    // Resource bound hit: LOUD on stdout AND in the stream,
+                    // never silent. The abort path emitted every further
+                    // consumer (suppressed=0), so no evidence was dropped and
+                    // the run must not be read as complete (rules ⑦).
+                    if (consumer_agg.resourceAborted()) {
+                        const std::string ab =
+                            chaos_consumer::Aggregator::resourceAbortLine(
+                                consumer_agg.groupCount());
+                        printf("%s\n", ab.c_str());
+                        const std::string row = ab + "\n";
+                        if (gzwrite(evt_gz_file, row.data(),
+                                    (unsigned)row.size())
+                                != (int)row.size())
+                            panic("CHAOSPropagation: resource-abort marker "
+                                  "write failed");
+                        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+                    }
                     // [MDSPEC][R6-EMIT2/A7] Store chains whose fault-carrying
                     // store NEVER retired. A store taints itself at its
                     // response (noteMemResponse) and the taint is erased by
@@ -1405,9 +1440,24 @@ namespace gem5
                       d.str(), CORR_ORIGIN);
         }
 
+        // [MDSPEC][R6-FIXCPP/A] Admission is gated by the REAL physical
+        // redirect verdict (chaos_chain::tlbRegistrationArms — the single
+        // source of truth shared with tests/chaos_tlb_chain_containment_test.cc).
+        // Pre-fix defect (measured T01-F0-W4/seed1): the seq arm opened for
+        // EVERY req_seq != 0, so a fault whose corrupted pfn never redirected
+        // the PA — pfn bit 56 wraps out of the 64-bit Addr, effective PA
+        // unchanged, pa_changed == 0 — still captured the SAME request's later
+        // CLEAN events (sq_execute/sq_writeback/resp/taint_reg) and the chain
+        // simultaneously asserted "L2 contained" and "propagated to L4" (the
+        // checker correctly rejected that shape with time_reversed_edge).
+        // A translation that is not redirected has nothing downstream to
+        // attribute: NO arm opens and the chain stops at the TLB layer.
+        const chaos_chain::Arms arms =
+            chaos_chain::tlbRegistrationArms(req_seq, pa_changed);
+
         // PRIMARY (seq-bound): the request whose translation consumed the
         // corrupted entry — its later seq-keyed events join by seq.
-        if (req_seq) {
+        if (arms.seq_primary) {
             sweepExpired();
             AddrEntry e;
             e.ptag = ptag;
@@ -1422,7 +1472,7 @@ namespace gem5
         // when the corrupted pfn actually redirects the PA. No VA-page
         // registration anymore (that was the pre-R4-4 mis-association
         // source: every later same-VA request joined regardless of seq).
-        if (pa_changed) {
+        if (arms.addr_fallback) {
             sweepExpired();
             BlkEntry b;
             b.ptag = ptag;
@@ -1435,14 +1485,18 @@ namespace gem5
         // corr label: which arm downstream events join this chain by.
         //   seq_primary  — the seq-bound primary arm is registered
         //   addr_fallback — only the PA-page fallback exists (req_seq==0)
-        //   ""           — no correlation surface at all (req_seq==0 AND
-        //                  the PA page unchanged): the chain honestly
-        //                  stops at this event.
-        const char *corr = nullptr;
-        if (req_seq)
-            corr = CORR_SEQ_PRIMARY;
-        else if (pa_changed)
-            corr = CORR_ADDR_FALLBACK;
+        //   ""           — no correlation surface at all. Two honest cases:
+        //                  (a) req_seq==0 AND the PA page unchanged (the
+        //                  pre-R6 contract); (b) [R6-FIXCPP/A] a Request
+        //                  identity exists but the effective PA did NOT
+        //                  change — the translation the MMU performs is the
+        //                  CLEAN one, so there is no downstream event of THIS
+        //                  fault to attribute. L1/L2 carry an empty corr
+        //                  instead of a fabricated seq_primary, and the chain
+        //                  honestly stops at the TLB layer (containment).
+        const char *corr = arms.seq_primary ? CORR_SEQ_PRIMARY
+                        : arms.addr_fallback ? CORR_ADDR_FALLBACK
+                        : nullptr;
 
         // T-series L1: the faulted request has completed TLB lookup. The
         // snapshot preserves the selected entry's identity and every field
@@ -1497,6 +1551,33 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R6-FIXCPP/A] Drop every correlation arm of `ptag` from both
+    // registries. Called when a chain's translation completes CONTAINED
+    // (effective PA unchanged / refused / lost walk) so the chain has no
+    // residual mapping a later, unrelated event could join — the chain's
+    // terminal state is "absorbed at the TLB layer", and a chain that is
+    // closed must not also be reachable from live traffic (the exact
+    // contradiction R6-FIXCPP/A removes at registration time, here closed
+    // for the in-flight case). Idempotent: revoking no arms is a no-op.
+    void
+    CHAOSPropagation::revokeChainArms(uint64_t ptag)
+    {
+        if (ptag == 0)
+            return;
+        for (auto it = addr_registry.begin(); it != addr_registry.end(); ) {
+            if (it->second.ptag == ptag)
+                it = addr_registry.erase(it);
+            else
+                ++it;
+        }
+        for (auto it = blk_registry.begin(); it != blk_registry.end(); ) {
+            if (it->second.ptag == ptag)
+                it = blk_registry.erase(it);
+            else
+                ++it;
+        }
+    }
+
     void
     CHAOSPropagation::noteTlbTranslationResult(uint64_t req_seq, Addr va,
                                                bool has_pa, Addr pa,
@@ -1517,8 +1598,11 @@ namespace gem5
         // the real PA/fault honestly, but never claim containment for a
         // completed walk on the strength of an unknown baseline.
         const bool pa_unchanged = has_pa && pa == pending.clean_pa;
-        const bool contained = translation_blocked
-            || (!pending.walk_fault && pa_unchanged);
+        // [MDSPEC][R6-FIXCPP/A] the verdict itself is the shared decision
+        // function (chaos_chain::translationContained), so the containment
+        // rule the unit test pins is the rule that runs here.
+        const bool contained = chaos_chain::translationContained(
+            translation_blocked, pending.walk_fault, has_pa, pa_unchanged);
         std::ostringstream h_va, h_before, h_after;
         h_va << std::hex << va;
         // The walk family has no clean-PA baseline (the corrupted object is
@@ -1550,6 +1634,17 @@ namespace gem5
         const char *reason = contained ? field_reason : "";
         if (contained) {
             containment_ptags[pending.ptag] = {"L2", reason};
+            // [MDSPEC][R6-FIXCPP/A] Containment REVOCATION. Whatever
+            // correlation arm this chain opened at registration is dropped
+            // now: its terminal state is "absorbed at L2", so a residual
+            // mapping would let a LATER event join a chain that is already
+            // closed — the same "contained AND propagated" contradiction the
+            // registration gate closes, merely relocated in time. This is
+            // unconditional (idempotent: revoking no arm is a no-op) and it
+            // covers the blocked-translation case (permission/alignment
+            // fault) as well as the unchanged-PA case, including the labeled
+            // addr_fallback page arm a seq-less lookup may have opened.
+            revokeChainArms(pending.ptag);
             // [MDSPEC][R6-EMIT2/oracle] the translation absorbed the fault
             // (effective PA unchanged / refused / lost walk): hardware
             // detection + containment → stdout signal.
@@ -2308,25 +2403,49 @@ namespace gem5
             any_consumer = true;
             if (!first_consumed_ptag)
                 first_consumed_ptag = it->second.ptag;
-            std::ostringstream d;
-            d << "class=" << regClassName(phys->classValue())
-              << ";src_idx=" << i
-              // [MDSPEC][R6/A6] A consumer does NOT descend from the previous
-              // event of the chain: it descends from the event that
-              // established the taint it consumed. Naming that event is what
-              // turns the chain into a real DAG (one source → many
-              // consumers) instead of the degenerate linear list the single
-              // ptag_last_event cursor produced. parent_event_id is a
-              // registry field, so the dual-emit honours this override.
-              << ";parent_event_id=" << it->second.src_event
-              << ";pc=" << std::hex << pc << std::dec;
-            writeNode(it->second.ptag, "consumer", head_inst->seqNum, true,
-                      0, false, 0, false, phys->index(), true,
-                      head_inst->srcRegIdx(i).index(), true, d.str(),
-                      CORR_TAINT_PROP, (int)tid);
-            // The just-emitted consumer node is the taint source for any
-            // dest it re-taints below.
-            last_consumer_evt = next_node_id - 1;
+            // [MDSPEC][R6-FIXCPP/T3] Route the consumer through the summary
+            // aggregator. The group's FIRST member (and any member with a NEW
+            // dyn_inst_seq = a new semantic state) is emitted as its own
+            // PROP-EVT; an exact duplicate is folded into the group's
+            // CONSUMER-SUMMARY accounting (see chaos_consumer_summary.hh).
+            // The `consumer` kind is the ONLY aggregatable kind — L5 /
+            // containment / terminal / every state-change event is emitted
+            // unchanged below and elsewhere.
+            const uint64_t cptag = it->second.ptag;
+            const std::string csrc = chaos_consumer::sourceIdOf(phys->index());
+            if (consumer_agg.observe("consumer", cptag, csrc,
+                                     head_inst->seqNum, curTick())) {
+                std::ostringstream d;
+                d << "class=" << regClassName(phys->classValue())
+                  << ";src_idx=" << i
+                  // [MDSPEC][R6/A6] A consumer does NOT descend from the
+                  // previous event of the chain: it descends from the event
+                  // that established the taint it consumed. Naming that event
+                  // is what turns the chain into a real DAG (one source → many
+                  // consumers) instead of the degenerate linear list the
+                  // single ptag_last_event cursor produced. parent_event_id is
+                  // a registry field, so the dual-emit honours this override.
+                  << ";parent_event_id=" << it->second.src_event
+                  << ";pc=" << std::hex << pc << std::dec;
+                writeNode(cptag, "consumer", head_inst->seqNum, true,
+                          0, false, 0, false, phys->index(), true,
+                          head_inst->srcRegIdx(i).index(), true, d.str(),
+                          CORR_TAINT_PROP, (int)tid);
+                // The just-emitted consumer node is the taint source for any
+                // dest it re-taints below.
+                last_consumer_evt = next_node_id - 1;
+                consumer_agg.noteEmitted("consumer", cptag, csrc,
+                                         last_consumer_evt);
+            } else {
+                // Suppressed duplicate: no event is fabricated. Keep the DAG
+                // connected by naming the group's representative (the emitted
+                // first member) as the taint source for the dests re-tained
+                // below.
+                const uint64_t rep = consumer_agg.representativeEvent(
+                    "consumer", cptag, csrc);
+                if (rep)
+                    last_consumer_evt = rep;
+            }
         }
 
         // Dests: is this the faulting load itself committing its tainted
