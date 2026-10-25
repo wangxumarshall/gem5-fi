@@ -368,3 +368,39 @@ SDCSHIELD_FAILS=4，四类比较全部活。
 正确性由构造保证（缓冲移出共享 data），kernel 验证的是同一计算逻辑的数值
 正确性与输出指针形态；gem5 SE 不传播 guest 退出码（既有实证）。
 
+### sve_arith_bounds_dual 16-run 实证——PR #294 四类算术越界修复四档验证（2026-10-25，feat/pr294-hardening-dual 分支，sdcshield PR #294 检视 round 1）
+
+PR #294 检视 round 1 掘出的四类算术越界/残留（均宿主无 SVE，必须 gem5）：
+
+- **A. sve_bigint_mul512**（bigint_mulx_sve.cpp + gmp_bignum_sve.cpp 逐字节
+  重复函数）：原版 svptrue 全宽 svld1_u64(pg, b) 在 VL=1024 越界读 8 元素
+  堆缓冲 64B；且 (void)lo 丢弃 SVE 低半积——SVE 乘法器故障不可传播到被
+  比较输出（乘法器 SDC 盲区）。修复：svcntd() 分块 + svwhilelt_b64 限定
+  NUM_WORDS，lo_row[j] 直接参与累加（健康硬件逐位不变）。
+- **B. sve_mul_words**（operand_space_sve.cpp）：svptrue 在 VL>256 时
+  svld1/svst1 越界读写 4 元素栈数组（1024-bit 档 16 lane）。修复：谓词
+  钳制 4-lane 行宽，out[0] 消费语义不变。
+- **C. phase 派发**（neon_rot_2src_sve.cpp）：phase[8] 在 1024-bit 档
+  n=svcntd()=16 时越界写读栈。修复：phase[SVE_MAX_VECTOR_BYTES/8]（家族
+  同款 #ifndef 守卫）。
+- **D. movmskps/pd 谓词钳制**（movmskpspd_sve.cpp，f7716fcf 引入但仅等价
+  论证从未执行）：本轮 kernel 首次四档真实执行钳制后形态。
+
+**16-run 实录**（O3 CPU，四档 × 输入集 {seed 1,2,3}；seed-1 行 fixed/
+random 同输入故 checksum 相同，矩阵有效维度 = 4 档 × 3 输入集 = 12 组，
+全部 gem5 退出码 0、SDCSHIELD_FAILS=0）：
+
+| 档位 | seed 1 | seed 2 | seed 3 |
+|------|--------|--------|--------|
+| 128-bit (--sve_vl 1) | 87accea6e20b7e99 | a9843eb6328f291a | 23e868549b5c5760 |
+| 256-bit (--sve_vl 2) | 40053e122128b8e7 | ca9cbee16f817961 | ca5397482c06a294 |
+| 512-bit (--sve_vl 4) | 9da259670097204d | fa08b7756b25cc16 | 6a41f4f55a038141 |
+| 1024-bit (--sve_vl 8) | dca0dd8030ab0efa | 0e5ae0f4d53bd0a6 | 306ffb7833de5f2a |
+
+（checksum 档间互异为设计预期——C 节元素数随 lanes 缩放。）**阴性对照
+（J1'）**：poison 模式四节 golden 各毒化一处 → SDCSHIELD_FAILS=5（A/B/C/D
+全部检出，D 两形态各一）——四节比较全部活。
+
+诚实边界：gem5 无 ASAN，被移除的越界访问以"镜像源码谓词/容量有界"构造性
+证明而非检测性证明；kernel 证明的是修复后逻辑在全部档位（含旧代码越界的
+512/1024-bit 档）计算正确；单发 kernel 边界同上。
