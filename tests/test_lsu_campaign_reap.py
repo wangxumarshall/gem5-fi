@@ -6,10 +6,15 @@
 TimeoutExpired 路径不落盘信号，kill 后语义不可审计）。
 
 钉死：
-  1. run_gem5() 超时时对**进程组**发 SIGTERM，grace 内不退则 SIGKILL；
+  1. run_gem5() 超时时先对**进程组**发 SIGINT（gem5 的 finalize 请求），
+     sigint_grace 内不退则 SIGTERM，grace 内仍不退才 SIGKILL；
   2. 进程确实被 reap（pid 不再存在）；exit_code / signal 被记录；
   3. 非超时路径正常返回 exit_code/stdout；
   4. run_single_cell 的 FS 超时分支把 timeout_signal 折进结果（可审计）。
+
+[R6-GRACEEXIT 2026-10-25] [3]/[4] 的子进程必须**忽略 SIGINT**，否则它们
+会在升级之前就死于 SIGINT 请求（该分支由
+tests/test_lsu_campaign_graceful_timeout.py 覆盖）。
 
 用法：python3 tests/test_lsu_campaign_reap.py   （退出码 0=全 PASS）
 """
@@ -68,23 +73,31 @@ def main():
         check("stdout 落盘", (td / "o.txt").read_text().strip() == "hello",
               (td / "o.txt").read_text())
 
-        print("[3] 超时 + 服从 SIGTERM：SIGTERM 回收并 reap")
+        print("[3] 超时 + 忽略 SIGINT、服从 SIGTERM：SIGTERM 回收并 reap")
         r = LC.run_gem5([sys.executable, "-c",
-                         "import time; time.sleep(30)"], 1,
-                        td / "o2.txt", td / "e2.txt")
+                         "import signal,time; "
+                         "signal.signal(signal.SIGINT, signal.SIG_IGN); "
+                         "time.sleep(30)"], 1,
+                        td / "o2.txt", td / "e2.txt", sigint_grace=0.3)
         check("timed_out=True", r["timed_out"] is True, str(r))
+        check("escalation_signal=SIGTERM",
+              r.get("escalation_signal") == int(signal.SIGTERM), str(r))
         check("signal=SIGTERM", r["signal"] == int(signal.SIGTERM), str(r))
         check("exit_code=-15（被 SIGTERM 杀）", r["exit_code"] == -15,
               str(r.get("exit_code")))
         check("子进程已 reap（pid 不存在）", not _alive(r["pid"]), str(r["pid"]))
 
-        print("[4] 超时 + 忽略 SIGTERM：升级 SIGKILL 并 reap")
+        print("[4] 超时 + 忽略 SIGINT/SIGTERM：升级 SIGKILL 并 reap")
         r = LC.run_gem5([sys.executable, "-c",
                          "import signal,time; "
+                         "signal.signal(signal.SIGINT, signal.SIG_IGN); "
                          "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
                          "time.sleep(60)"], 1,
-                        td / "o3.txt", td / "e3.txt", grace=0.3)
+                        td / "o3.txt", td / "e3.txt",
+                        sigint_grace=0.3, grace=0.3)
         check("timed_out=True", r["timed_out"] is True, str(r))
+        check("escalation_signal=SIGKILL（升级）",
+              r.get("escalation_signal") == int(signal.SIGKILL), str(r))
         check("signal=SIGKILL（升级）", r["signal"] == int(signal.SIGKILL),
               str(r))
         check("exit_code=-9", r["exit_code"] == -9, str(r.get("exit_code")))

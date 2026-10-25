@@ -117,6 +117,14 @@ SE_W1_TIMEOUT = 43200
 # result (timeout_budget / timeout_seconds) and prints on the cell line.
 FS_TIMEOUT_DEFAULT = 2700
 SE_TIMEOUT_DEFAULT = 300
+# [R6-GRACEEXIT] How long gem5 is given to FINALIZE after the wall-clock
+# budget is exhausted and SIGINT has been sent (drain + statistics::dump() +
+# exit callbacks + gzip close). Only after this bounded window does the
+# escalation go to SIGTERM, then SIGKILL. Measured on this platform: a real
+# FS sample's finalize writes a ~430 KB stats.txt and closes a multi-MB
+# propagation gzip, so a couple of minutes of headroom is generous without
+# stalling a batch (the run is done simulating at this point).
+FS_SIGINT_GRACE = 120
 
 
 def require_fs_assets():
@@ -2325,48 +2333,93 @@ def classify_fsmc_run(outdir, run_stdout, exit_code):
     return out
 
 
-# [LSU][R6-CAMPAIGN] A timed-out gem5 child must actually be KILLED and REAPED
-# (no orphans holding the checkpoint/outdir), with exit code / signal recorded.
-# subprocess.run's TimeoutExpired path killed but left the signal unrecorded;
-# this Popen-based helper makes the kill auditable and reaps unconditionally.
-# The child leads its own process group (start_new_session=True) so SIGTERM /
-# SIGKILL reach any grandchildren too.
-def run_gem5(cmd, timeout, out_file, err_file, grace=10):
+# [LSU][R6-GRACEEXIT] A timed-out gem5 child must first be asked to FINALIZE
+# (not killed outright), because an abrupt kill destroys the evidence the
+# campaign is supposed to judge: the propagation gzip is left without its
+# end-of-stream marker and statistics::dump() never runs, so stats.txt stays
+# 0 bytes and the exit callbacks (the authoritative CHAOS_LSU_TRIGGER
+# summary) never fire. The run is then unjudgeable even though the chain it
+# executed may be perfectly complete.
+#
+# Measured root cause (2026-10-25, runs/lsu/r6_c8_T04-F6-W4_s1): the old path
+# sent SIGTERM straight away. gem5 installs a handler ONLY for SIGINT
+# (src/sim/init_signals.cc initSigInt, armed by src/sim/simulate.cc:195 ->
+# exitNowHandler -> async_exit -> exitSimLoop("user interrupt received")),
+# which is exactly the clean-shutdown entry point; SIGTERM/SIGKILL take the
+# default action and kill the process mid-write.
+#
+# Escalation, each step bounded:
+#   SIGINT -> wait sigint_grace -> SIGTERM -> wait grace -> SIGKILL.
+# `graceful` is True only when the child finished by itself after SIGINT.
+# The child leads its own process group (start_new_session=True) so every
+# step reaches any grandchildren too, and it is always reaped.
+def run_gem5(cmd, timeout, out_file, err_file, grace=10, sigint_grace=120):
     """Run gem5, capturing stdout/stderr to files.
 
-    Returns {timed_out, exit_code, signal, stdout, stderr, pid}.
-    On timeout: SIGTERM the process group, wait `grace` s, then SIGKILL if it
-    survives; wait() to reap either way. `signal` is the signum actually sent
-    (None on a clean run); `exit_code` is the (negative) wait status when killed.
+    Returns {timed_out, exit_code, signal, graceful, sigint_sent, stdout,
+             stderr, pid}.
+    On timeout the child is asked to exit cleanly with SIGINT (gem5's own
+    controller handler: drain + stats + exit callbacks); only if it is still
+    alive after `sigint_grace` seconds is SIGTERM sent, and only after a
+    further `grace` seconds SIGKILL. `signal` is the signum that actually
+    terminated it (None when it finalized by itself); `exit_code` is the wait
+    status (negative when a signal killed it). `timed_out` records that the
+    wall-clock budget was exhausted — which stays true even on a graceful
+    exit, because a Timeout is a real experimental outcome.
     """
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, start_new_session=True)
-    timed_out, used_sig = False, None
+    timed_out, escalation, graceful, sigint_sent = False, None, False, False
     try:
         out, err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         timed_out = True
-        used_sig = int(signal.SIGTERM)
+        sigint_sent = True
+        # (1) ask gem5 to finalize normally; a clean exit leaves signal=None.
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            os.killpg(os.getpgid(proc.pid), signal.SIGINT)
         except (ProcessLookupError, PermissionError):
             pass
         try:
-            out, err = proc.communicate(timeout=grace)
+            out, err = proc.communicate(timeout=sigint_grace)
         except subprocess.TimeoutExpired:
-            used_sig = int(signal.SIGKILL)
+            # (2) still alive: escalate to SIGTERM (bounded).
+            escalation = int(signal.SIGTERM)
             try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except (ProcessLookupError, PermissionError):
                 pass
-            out, err = proc.communicate()
+            try:
+                out, err = proc.communicate(timeout=grace)
+            except subprocess.TimeoutExpired:
+                # (3) last resort: SIGKILL. Evidence is expected to be
+                # truncated from here on, and the caller must say so.
+                escalation = int(signal.SIGKILL)
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+                out, err = proc.communicate()
+        else:
+            # SIGINT was enough: the child finalized and exited on its own.
+            graceful = timed_out and proc.returncode == 0
     if proc.returncode is None:          # never leave it unreaped
         proc.wait()
     Path(out_file).write_text(out or "")
     Path(err_file).write_text(err or "")
+    # `signal` = the signal that TERMINATED the child (from the wait status),
+    # so it is whatever is recorded as `gem5_exit_signal` downstream; None
+    # means it exited with a status of its own. `escalation_signal` is the
+    # strongest signal WE had to send (None = the SIGINT request sufficed).
+    term_sig = (-proc.returncode
+                if isinstance(proc.returncode, int) and proc.returncode < 0
+                else None)
     return {"timed_out": timed_out, "exit_code": proc.returncode,
-            "signal": used_sig, "stdout": out or "", "stderr": err or "",
-            "pid": proc.pid}
+            "signal": term_sig, "escalation_signal": escalation,
+            "graceful": graceful, "sigint_sent": sigint_sent,
+            "stdout": out or "", "stderr": err or "", "pid": proc.pid}
+
+
 
 
 def run_single_cell(cell, args, seed, outdir):
@@ -2428,7 +2481,8 @@ def run_single_cell(cell, args, seed, outdir):
             i = cmd.index("--tlb_fault_type")
             cmd[i + 1] = "stuck_at_zero" if seed % 2 else "stuck_at_one"
         _r = run_gem5(cmd, args.fs_timeout, outdir / "run.out",
-                      outdir / "run.err")
+                      outdir / "run.err",
+                      sigint_grace=getattr(args, "fs_grace", FS_SIGINT_GRACE))
         # [MDSPEC][R6-FIXTOOLS] runtime lookup-tier capability proof. An F1-F6
         # lookup run is only trustworthy if the binary itself printed the
         # CHAOS_LSU_TIER_CAP startup marker with effective == requested and the
@@ -2439,9 +2493,20 @@ def run_single_cell(cell, args, seed, outdir):
                 if _cap_required else None)
         _cap_block = bool(_cap and not _cap["ok"])
         if _r["timed_out"]:
+            # [R6-GRACEEXIT] The wall-clock budget was exhausted. Whether the
+            # child then FINALIZED on the SIGINT request (stats written, gzip
+            # closed with its end-of-stream marker, exit callbacks run) or had
+            # to be killed is a fact about this run and is recorded verbatim;
+            # the campaign's own rc must never stand in for it.
+            _graceful = bool(_r.get("graceful"))
             (outdir / "run.err").write_text(
-                "TIMEOUT signal=%d exit=%s (process group killed + reaped)"
-                % (_r["signal"], _r["exit_code"]))
+                "TIMEOUT triggered=True graceful=%s signal=%s exit=%s "
+                "(budget %ss exhausted; %s)"
+                % (_graceful, _r["signal"], _r["exit_code"], args.fs_timeout,
+                   "child finalized on SIGINT — evidence complete"
+                   if _graceful else
+                   "child did NOT finalize; SIGTERM/SIGKILL escalation — "
+                   "evidence expected truncated"))
             # Evidence-preserving timeout (the 6e0dcd52 family): a killed
             # run may already carry injections — read the log and classify
             # Timeout WITH the activated count. The T01 anchor trial hid
@@ -2464,15 +2529,26 @@ def run_single_cell(cell, args, seed, outdir):
             _to = {"outcome": "Timeout", "injected": inj, "activated": inj,
                    "classes": classes, "mode": "FS",
                    "timeout_seconds": args.fs_timeout,
-                   # auditable reap record: which signal killed it, its status
+                   # [R6-GRACEEXIT] auditable exit facts. `graceful` says the
+                   # child finalized on SIGINT (evidence complete); signal/
+                   # exit_code say what actually terminated it. Kept under
+                   # both the new names and the historical timeout_* names so
+                   # existing consumers keep working.
+                   "timeout_triggered": True,
+                   "graceful": _graceful,
+                   "gem5_exit_code": _r["exit_code"],
+                   "gem5_exit_signal": _r["signal"],
                    "timeout_signal": _r["signal"],
                    "timeout_exit_code": _r["exit_code"]}
             _to["lookup_tier_capability"] = _cap
             if _cap_block:
                 _to["blocked"] = True
                 _to["blocked_reason"] = _cap["reason"]
+            # [R6-GRACEEXIT] hand the REAL exit status to the checker instead
+            # of a blanket None: a graceful finalize exits 0, a kill reports
+            # its signal, and `rc` therefore stops being a fiction.
             _to["chain_report"] = write_chain_report(
-                outdir, runid, seed, _to, exit_code=None)
+                outdir, runid, seed, _to, exit_code=_r["exit_code"])
             return _to
         exit_code = _r["exit_code"]
         _fsres = (classify_fs_run(outdir, _r["stdout"], exit_code)
@@ -2506,18 +2582,32 @@ def run_single_cell(cell, args, seed, outdir):
     # budget; every other SE carrier keeps the operator's --timeout.
     _se_timeout = (SE_W1_TIMEOUT if str(_binary).endswith("w1_all")
                    else args.timeout)
-    _r = run_gem5(cmd, _se_timeout, stdout_file, stderr_file)
+    _r = run_gem5(cmd, _se_timeout, stdout_file, stderr_file,
+                  sigint_grace=getattr(args, "fs_grace", FS_SIGINT_GRACE))
     if _r["timed_out"]:
+        # [R6-GRACEEXIT] same contract as the FS path: SIGINT-first finalize,
+        # and the exit facts recorded rather than hidden.
+        _graceful = bool(_r.get("graceful"))
         stderr_file.write_text(
-            "TIMEOUT signal=%d exit=%s (process group killed + reaped)"
-            % (_r["signal"], _r["exit_code"]))
+            "TIMEOUT triggered=True graceful=%s signal=%s exit=%s "
+            "(budget %ss exhausted; %s)"
+            % (_graceful, _r["signal"], _r["exit_code"], _se_timeout,
+               "child finalized on SIGINT — evidence complete"
+               if _graceful else
+               "child did NOT finalize; SIGTERM/SIGKILL escalation — "
+               "evidence expected truncated"))
         # [MDSPEC][C1] a killed run keeps its flushed prefix: build the chain
         # report BEFORE returning, so a Timeout is not evidence loss.
         _to = {"outcome": "Timeout", "injected": 0, "activated": 0,
                "timeout_seconds": _se_timeout,
+               "timeout_triggered": True,
+               "graceful": _graceful,
+               "gem5_exit_code": _r["exit_code"],
+               "gem5_exit_signal": _r["signal"],
                "timeout_signal": _r["signal"],
                "timeout_exit_code": _r["exit_code"]}
-        _crep = write_chain_report(outdir, runid, seed, _to, exit_code=None)
+        _crep = write_chain_report(outdir, runid, seed, _to,
+                                   exit_code=_r["exit_code"])
         _to["chain_report"] = _crep
         return _to
     exit_code = _r["exit_code"]
@@ -2616,6 +2706,13 @@ def build_parser():
                         "2700 s = the KNOWN-GOOD budget (1800 s silently killed "
                         "runs that needed longer; runs given 2700 terminated "
                         "cleanly with a complete stream + stats.txt)")
+    p.add_argument("--fs-grace", type=int, default=FS_SIGINT_GRACE,
+                   help="[R6-GRACEEXIT] seconds gem5 is given to FINALIZE "
+                        "after --fs-timeout triggers the SIGINT request "
+                        "(drain + stats.txt + exit callbacks + gzip close), "
+                        "before escalating to SIGTERM then SIGKILL. A graceful "
+                        "exit keeps a Timeout run's evidence complete; an "
+                        "escalation is recorded as truncated.")
     return p
 
 
