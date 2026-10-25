@@ -454,6 +454,148 @@ def test_counts_unchanged():
           sum(1 for _, r in items if r.split("-")[1] == "F6") == 64,
           str(sum(1 for _, r in items if r.split("-")[1] == "F6")))
 
+# ---------------------------------------------------------------------------
+# [Task 10] The ruled 16-assertion contract, completed. #1/#4/#7-strength/
+# #8/#11/#15/#16 live here; #2 #3 #5 #6 #9 #10 #12 #13 #14 are pinned by the
+# Task 1-9 tests above (mapping recorded in the Task-10 report), plus the
+# Task-2 review carry-forward: the matrix is fully governed.
+# ---------------------------------------------------------------------------
+
+def test_checklist_no_deletion():
+    """#1: the checklist still carries ITEM-001..325 with unique RunIDs and
+    none deleted — numbering contiguous, and the RunID set is EXACTLY the
+    authoritative runid_map set (a deleted or renumbered ITEM cannot hide)."""
+    txt = (REPO / "docs/gem5-fi/lsu/完整任务执行清单.md").read_text("utf-8")
+    items = re.findall(r'^### ITEM-(\d+) — (\S+)\s*$', txt, re.M)
+    nums = [int(n) for n, _ in items]
+    rids = [r for _, r in items]
+    check("checklist_items_numbered_001_325",
+          nums == list(range(1, 326)),
+          f"n={len(nums)} first={nums[:1]} last={nums[-1:]}")
+    check("checklist_runids_unique",
+          len(rids) == len(set(rids)) == 325, str(len(set(rids))))
+    rm = json.loads((REPO / "docs/gem5-fi/lsu/mdspec/runid_map.json").read_text("utf-8"))
+    rmids = {e["run_id"] for e in rm["entries"]}
+    check("checklist_runids_none_deleted",
+          set(rids) == rmids, str(sorted(set(rids) ^ rmids)[:5]))
+
+def test_t04_f6_w4_stress_only_entry():
+    """#4: the pinned representative F6 is STRESS_ONLY with required_seeds=1
+    — asserted on the policy ENTRY itself, not only via query()/manifest."""
+    e = next(x for x in P.load_policy()["entries"] if x["run_id"] == "T04-F6-W4")
+    check("policy_t04_f6_w4_stress_only",
+          e["run_policy"] == "STRESS_ONLY", e["run_policy"])
+    check("policy_t04_f6_w4_required_seeds_1",
+          e["required_seeds"] == 1, str(e["required_seeds"]))
+
+def test_redundant_refused_any_seed():
+    """#7 (strengthened): STRESS_REDUNDANT refuses for ANY seed, not just
+    seed1 — all 25 redundant F6 RunIDs × seeds 1..3."""
+    pol = P.load_policy()
+    red = [e["run_id"] for e in pol["entries"]
+           if e["run_policy"] == "STRESS_REDUNDANT" and not e.get("legacy")]
+    bad = [(r, s) for r in red for s in (1, 2, 3)
+           if P.query(pol, r, s)["decision"] != "REFUSE_STRESS_REDUNDANT"]
+    check("redundant_any_seed_refused", len(red) == 25 and not bad, str(bad[:5]))
+
+def test_f0_f5_normal_three_seeds():
+    """#8: every F0-F5 entry is NORMAL with required_seeds=3."""
+    bad = [e["run_id"] for e in P.load_policy()["entries"]
+           if e["frequency"] != "F6"
+           and (e["run_policy"] != "NORMAL" or e["required_seeds"] != 3)]
+    check("f0_f5_required_seeds_3", not bad, str(bad[:5]))
+
+def test_f6_excluded_from_statistics():
+    """#11: F6 never enters the main-statistics denominator — every F6 entry
+    carries include_in_statistics=false, in the authoritative entries (64)
+    AND in the legacy non-authoritative section (4)."""
+    pol = P.load_policy()
+    f6 = [e for e in pol["entries"] if e["frequency"] == "F6"]
+    check("f6_not_in_stats",
+          len(f6) == 64 and all(not e["include_in_statistics"] for e in f6),
+          f"n={len(f6)}")
+    leg = [e for e in pol.get("legacy_f6_non_authoritative", [])
+           if e["frequency"] == "F6"]
+    check("f6_legacy_not_in_stats",
+          len(leg) == 4 and all(not e["include_in_statistics"] for e in leg),
+          f"n={len(leg)}")
+
+def test_csv_runid_map_retain_325():
+    """#15: the CSV still carries every one of the 325 authoritative RunIDs
+    (337 CSV rows = 325 authoritative + 4 legacy F6 + 8 resolve_cell-blocked
+    rows; nothing dropped)."""
+    import csv
+    rm = json.loads((REPO / "docs/gem5-fi/lsu/mdspec/runid_map.json").read_text("utf-8"))
+    rmids = {e["run_id"] for e in rm["entries"]}
+    rows = list(csv.reader(open(REPO / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv",
+                                encoding="utf-8")))
+    cids = {r[1] for r in rows[1:] if len(r) > 1 and r[1].strip()}
+    check("csv_retains_all_325", rmids <= cids, str(sorted(rmids - cids)[:5]))
+
+def test_matrix_fully_governed():
+    """[Task-2 review carry-forward] every authoritative-matrix RunID is
+    either governed by the policy (325 entries + 4 legacy F6) or
+    resolve_cell-blocked. A future matrix extension therefore cannot slip an
+    ungated runnable cell through: a new row must join the policy or arrive
+    blocked (loudly), never run ungoverned."""
+    import csv
+    import lsu_campaign as LC
+    pol = P.load_policy()
+    known = ({e["run_id"] for e in pol["entries"]}
+             | {e["run_id"] for e in pol.get("legacy_f6_non_authoritative", [])})
+    rows = list(csv.reader(open(REPO / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv",
+                                encoding="utf-8")))
+    ungated = []
+    for r in rows[1:]:
+        if len(r) <= 1 or not r[1].strip() or r[1] in known:
+            continue
+        flags, _golden, _reason = LC.resolve_cell(r)
+        if flags is not None:               # runnable yet ungoverned
+            ungated.append(r[1])
+    check("matrix_all_governed_or_blocked", not ungated, str(ungated[:5]))
+
+def test_running_seeds_untouched():
+    """#16: the normal seed2/seed3 chains were unaffected — the policy work
+    launched nothing and deleted nothing under runs/.
+
+    Plan drift, disclosed: the plan's literal `gem5_still_running >= 1` was
+    written while the r6c9-s2/s3 chains were still running. They have since
+    COMPLETED on their own (per Task 11 the chains self-kill on completion;
+    measured now: `pgrep -cf 'gem5\\.opt --outdir'` == 0 and no r6c9 tmux
+    session remains), so asserting a live gem5 would assert a falsehood.
+    The honest form is the plan's own other arm — "the policy did not touch
+    runs/":
+      * all 15 NORMAL seed dirs + the certified T04-F6-W4_s1 still exist;
+      * no ungated F6 seed>1 outdir was ever created;
+      * every wrapper policy record is a non-launch refusal (both wrapper
+        generations: decision=POLICY_NOT_REQUIRED, or the older
+        action=refuse_launch + policy_state=POLICY_NOT_REQUIRED);
+      * no gem5 is running on a gated F6 seed>1 outdir right now."""
+    import subprocess
+    RUNS = Path("/home/sdc/gem5-fi-ding/runs/lsu")
+    NORMAL = ["T01-F0-W4", "T02-F0-W4", "T02-F2-W4", "T04-F0-W4", "T04-F2-W4"]
+    missing = [f"r6_c9_{r}_s{s}" for r in NORMAL for s in (1, 2, 3)
+               if not (RUNS / f"r6_c9_{r}_s{s}").is_dir()]
+    if not (RUNS / "r6_c9_T04-F6-W4_s1").is_dir():
+        missing.append("r6_c9_T04-F6-W4_s1")
+    check("runs_normal_and_rep_evidence_present", not missing, str(missing))
+    check("runs_no_f6_seed23_outdirs",
+          not any((RUNS / f"r6_c9_T04-F6-W4_s{s}").exists() for s in (2, 3)))
+    log = RUNS / "r6_c9_policy_decisions.jsonl"
+    recs = [json.loads(l) for l in
+            log.read_text("utf-8").splitlines() if l.strip()] if log.exists() else []
+    nonlaunch = all(
+        r.get("decision") == "POLICY_NOT_REQUIRED"
+        or (r.get("action") == "refuse_launch"
+            and r.get("policy_state") == "POLICY_NOT_REQUIRED")
+        for r in recs)
+    check("runs_policy_log_nonlaunch_only",
+          bool(recs) and nonlaunch, f"n={len(recs)}")
+    gated = subprocess.run(
+        ["bash", "-c", "pgrep -af 'gem5\\.opt --outdir.*T04-F6-W4_s[23]' || true"],
+        capture_output=True, text=True).stdout.strip()
+    check("runs_no_gem5_on_gated_f6", not gated, gated[:120])
+
 def main():
     test_policy_covers_all_runids()
     test_entries_exactly_325_authoritative()
@@ -465,6 +607,14 @@ def main():
     test_status_table_policy_axis()
     test_immutable_inputs_unchanged()
     test_counts_unchanged()
+    test_checklist_no_deletion()
+    test_t04_f6_w4_stress_only_entry()
+    test_redundant_refused_any_seed()
+    test_f0_f5_normal_three_seeds()
+    test_f6_excluded_from_statistics()
+    test_csv_runid_map_retain_325()
+    test_matrix_fully_governed()
+    test_running_seeds_untouched()
     print(f"\n{'ALL PASS' if not fails else 'FAILED (%d): %s' % (len(fails), fails)}")
     return 0 if not fails else 1
 
