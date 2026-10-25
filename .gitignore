@@ -25,3 +25,7 @@ runs/
 artifacts/
 __pycache__/
 cpts/
+
+# FS-mode sdcshield disk artifacts (tools/fs_mk_sdcshield_disk.sh outputs)
+gem5-fs-work/sdcshield.img
+gem5-fs-work/diskroot/
