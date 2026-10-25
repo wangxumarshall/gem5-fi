@@ -156,12 +156,13 @@ namespace gem5
         fflush(stdout);
     }
 
-    // One eligible event = one TLB lookup on the mounted lookup path. Books
-    // the funnel attempt, emits a one-shot reachability/budget notice, and
-    // asks the tier. F0 is NOT tiered (the legacy gates run unchanged, so F0
-    // stays byte-equivalent to the pre-R6 tree).
-    bool
-    CHAOSArmTLB::lookupTierAllowsInjection(bool is_hit)
+    // [R6-F6APP] The funnel ATTEMPT half of the lookup-tier poll. One TLB-hit
+    // lookup books one attempted, unconditionally: the hook really ran. The
+    // one-shot reachability/budget notice is emitted here (at the first
+    // lookup of a tiered run), so the proof line lands in
+    // armtlb_injections.log even when no candidate ever appears.
+    void
+    CHAOSArmTLB::lookupTierBookAttempt()
     {
         lsuTrigger->onAttempt();
         if (!tier_lookup_notice) {
@@ -178,12 +179,53 @@ namespace gem5
                     << std::endl;
             }
         }
+    }
+
+    // [R6-F6APP] The tier's inject-now decision for one ELIGIBLE lookup.
+    // Callers must have established model applicability first (for
+    // pfn_to_mapped_page that means a non-empty legal-candidate scan): this
+    // is the only place a tier consumes its fire opportunity — F6 sets
+    // `spent`, F1-F4 advance `next_fire` — so it must never be reached by a
+    // lookup the model cannot act on. F0 is NOT tiered (the legacy gates run
+    // unchanged, so F0 stays byte-equivalent to the pre-R6 tree).
+    bool
+    CHAOSArmTLB::lookupTierFires(bool is_hit)
+    {
         if (lsuTrigger->tier == ChaOSLsuTier::F6) {
             // The F6 event source for the lookup path IS a TLB hit
             // (09 §2.1 map): a miss never consumes the arm.
             return is_hit ? lsuTrigger->onF6Event(false) : false;
         }
         return lsuTrigger->onEligible();
+    }
+
+    // [R6-F6APP] Read-only candidate scan (see the header). Deterministic
+    // entryTable() order; the legality test is the shared predicate
+    // chaos_tlb::isSelectablePfnTarget (chaos_tlb_pfn.hh).
+    void
+    CHAOSArmTLB::collectPfnCandidates(
+        const ArmISA::TlbEntry *entry,
+        std::vector<std::pair<const ArmISA::TlbEntry *, int>> &out) const
+    {
+        out.clear();
+        if (!tlb || !entry) return;
+        const auto &tbl = tlb->entryTable();
+        chaos_tlb::PfnCandidateView hit_view{};
+        hit_view.valid = entry->valid;
+        hit_view.pfn = entry->pfn;
+        hit_view.page_size_bits = entry->N;
+        hit_view.is_hit_entry = false;
+        int table_idx = 0;
+        for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+            chaos_tlb::PfnCandidateView cand{};
+            cand.valid = it->valid;
+            cand.pfn = it->pfn;
+            cand.page_size_bits = it->N;
+            cand.is_hit_entry = (&(*it) == entry);
+            if (chaos_tlb::isSelectablePfnTarget(hit_view, cand))
+                out.emplace_back(&(*it), table_idx);
+            ++table_idx;
+        }
     }
 
     CHAOSArmTLB::FaultType
@@ -481,13 +523,37 @@ namespace gem5
         // eligible-event skip) — the latter would silently cap every tier
         // back to a single F0 shot, which is exactly the R6-FTIER defect.
         // F0 / no tier mounted: legacy path, byte-equivalent to pre-R6.
+        //
+        // [R6-F6APP] Model applicability is part of ELIGIBILITY. The pfn
+        // substitution model can only act on a hit that has a legal
+        // substitute, so for it the read-only candidate scan runs BEFORE the
+        // tier is polled (no RNG, no TLB write, no state change): a hit with
+        // an empty candidate set books the funnel ATTEMPT and returns — it
+        // never books eligible/injected and never consumes a tier's fire
+        // opportunity (F6's one shot, an F1-F4 interval slot). Without this,
+        // F6 spent its shot on the first TLB hit of the restored checkpoint
+        // (T04-F6-W4 seed1: trigger injected=1, numFaultsInjected=0).
+        std::vector<std::pair<const ArmISA::TlbEntry *, int>> pfn_candidates;
+        bool pfn_scanned = false;
         if (lookupTierMounted()) {
-            if (!lookupTierAllowsInjection(/*is_hit=*/true)) return;
+            lookupTierBookAttempt();      // attempted, for every TLB hit
+            if (fault_type_enum == FaultType::PfnToMappedPage) {
+                collectPfnCandidates(entry, pfn_candidates);
+                pfn_scanned = true;
+                if (chaos_tlb::pfnHookAction(pfn_candidates.size())
+                        == chaos_tlb::PfnHookAction::AttemptOnly)
+                    return;               // honest no-op, nothing else consumed
+            }
+            if (!lookupTierFires(/*is_hit=*/true)) return;
         } else {
             // [R6-F0FUNNEL 2026-10-25] PASSIVE observation, legacy F0 path.
             // One attempted per F0 lookup-hook call that reaches the legacy
             // chain (walk/CAM models returned above, so nothing is double
             // counted across hooks). Increment only — no draw, no branch.
+            // [R6-F6APP] BYTE-EQUIVALENT: the legacy path does NOT consult
+            // the applicability gate — its gate order (attempted -> fault
+            // cap -> probability draw -> eligible -> skip budget) is the
+            // pre-R6 sequence verbatim.
             ++legacy_attempted;
 
             if (max_faults != 0 && faults_injected_count >= max_faults) return;
@@ -536,9 +602,12 @@ namespace gem5
         // FS-only by construction (the hook fires under the MMU).
         if (chosen == FaultType::PfnToMappedPage) {
             if (!tlb) return;
-            // [R6-FIXC] Collect candidate entries, retaining their
-            // deterministic table index so the observation says which legal
-            // alternative won. The legality test is the shared predicate
+            // [R6-F6APP] Tiered runs already scanned read-only, before the
+            // tier was polled (and are guaranteed non-empty here); the legacy
+            // F0 path scans now, at exactly the pre-R6 point in the sequence,
+            // so its RNG stream and injection site are byte-identical.
+            //
+            // [R6-FIXC] The legality test is the shared predicate
             // chaos_tlb::isSelectablePfnTarget (chaos_tlb_pfn.hh): it requires
             // the candidate to be a LIVE (valid) mapping of the SAME page size
             // and a DIFFERENT, non-zero physical frame. The pre-R6 filter
@@ -548,22 +617,10 @@ namespace gem5
             // translation fault -> kernel Oops ("wrong page + crash"), not the
             // spec §2.10 F5 silent wrong-LIVE-page read.
             std::vector<std::pair<const ArmISA::TlbEntry *, int>> candidates;
-            const auto &tbl = tlb->entryTable();
-            chaos_tlb::PfnCandidateView hit_view{};
-            hit_view.valid = entry->valid;
-            hit_view.pfn = entry->pfn;
-            hit_view.page_size_bits = entry->N;
-            hit_view.is_hit_entry = false;
-            int table_idx = 0;
-            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
-                chaos_tlb::PfnCandidateView cand{};
-                cand.valid = it->valid;
-                cand.pfn = it->pfn;
-                cand.page_size_bits = it->N;
-                cand.is_hit_entry = (&(*it) == entry);
-                if (chaos_tlb::isSelectablePfnTarget(hit_view, cand))
-                    candidates.emplace_back(&(*it), table_idx);
-                ++table_idx;
+            if (pfn_scanned) {
+                candidates.swap(pfn_candidates);
+            } else {
+                collectPfnCandidates(entry, candidates);
             }
             if (candidates.empty()) return;  // no legal substitute (honest no-op)
             Addr old_pfn = entry->pfn;
@@ -918,8 +975,12 @@ namespace gem5
         // both outcomes count; the F6 arm consumes only a real TLB hit
         // (is_hit = entry != nullptr), matching the 09 §2.1 TlbHit source.
         if (lookupTierMounted()) {
-            if (!lookupTierAllowsInjection(/*is_hit=*/entry != nullptr))
-                return entry;
+            // [R6-F6APP] The CAM family's eligible stream is the lookup
+            // itself, and false_hit's premise IS a miss: the model has no
+            // separate applicability scan, so attempt and fire are the two
+            // adjacent halves here (unchanged semantics for this family).
+            lookupTierBookAttempt();
+            if (!lookupTierFires(/*is_hit=*/entry != nullptr)) return entry;
         } else {
             if (max_faults != 0 && faults_injected_count >= max_faults)
                 return entry;

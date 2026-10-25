@@ -5,6 +5,8 @@
 #include <bitset>
 #include <memory>
 #include <string>
+#include <utility>   // [R6-F6APP] std::pair in collectPfnCandidates
+#include <vector>    // [R6-F6APP] the read-only candidate scan output
 
 #include "base/output.hh"
 #include "base/statistics.hh"
@@ -149,7 +151,15 @@ class CHAOSArmTLB : public SimObject
     // and the mismatch is reported LOUDLY at the first eligible lookup
     // instead of silently capping the tier back to a single shot.
     bool lookupTierMounted() const;
-    bool lookupTierAllowsInjection(bool is_hit);
+    // [R6-F6APP] The tier poll is SPLIT so model applicability can sit
+    // between its two halves: `lookupTierBookAttempt` runs for every TLB-hit
+    // lookup (funnel: attempted) and is the only half the candidate-less case
+    // may reach; `lookupTierFires` is the tier's inject-now decision for one
+    // ELIGIBLE lookup and must only be called once a legal candidate is known
+    // to exist (F6 spends its one shot here; F1-F4 advance their interval
+    // slot here). See the ruling in chaos_tlb_pfn.hh.
+    void lookupTierBookAttempt();
+    bool lookupTierFires(bool is_hit);
     // [R6-F0FUNNEL] Exit-time authoritative funnel summary for the F0 legacy
     // path (the tier path prints its own via ChaOSLsuTrigger::summary). Same
     // line format the campaign / L5 / obs-core parsers already accept.
@@ -222,6 +232,14 @@ class CHAOSArmTLB : public SimObject
     // by the T-series L1/L2 observation events. -1 means no applicable way.
     int entryIndex(const ArmISA::TlbEntry *entry) const;
     std::string snapshotEntry(const ArmISA::TlbEntry *entry, Addr pa) const;
+    // [R6-F6APP] Read-only collection of the legal pfn-substitute candidates
+    // for `entry`, in deterministic entryTable() order, paired with their
+    // table index. Pure scan: no RNG draw, no TLB mutation, no member state
+    // change — this IS the applicability test the tier gate must consult
+    // BEFORE consuming a fire opportunity.
+    void collectPfnCandidates(
+        const ArmISA::TlbEntry *entry,
+        std::vector<std::pair<const ArmISA::TlbEntry *, int>> &out) const;
 
     ArmISA::TLB *tlb;
     // [R4-5.9] T08 target walker (optional; nullptr unless the FS config

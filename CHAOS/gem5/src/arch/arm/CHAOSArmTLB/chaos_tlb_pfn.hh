@@ -66,6 +66,40 @@ selectPfnCandidateIndex(size_t count, uint64_t draw)
     return count ? static_cast<size_t>(draw % count) : 0;
 }
 
+// [R6-F6APP] Model-applicability is part of ELIGIBILITY.
+//
+// Root cause this encodes the fix for (measured 2026-10-25, T04-F6-W4 seed1,
+// binary a9b2c236): the substitution hook polled the tier BEFORE it looked
+// for a legal substitute, so the F6 one-shot was consumed by the very FIRST
+// TLB hit — a hit with no other live same-page-size frame. F6 recorded
+// spent/eligible=1/injected=1 while the model applied nothing
+// (numFaultsInjected=0, no injection log, no prop_evt): exactly the
+// count_contradiction the campaign raised. F1-F4 had the same shape — a
+// fired interval slot on a candidate-less lookup advanced next_fire and
+// counted an injection that was never written.
+//
+// The rule: one TLB-hit lookup on this model books the funnel ATTEMPT (it
+// reached the hook) unconditionally; it is ELIGIBLE only when the read-only
+// candidate scan found at least one legal substitute; the tier fires — and
+// therefore consumes RNG/state — only for an eligible lookup, and the
+// mutation is applied iff the tier fired.
+enum class PfnHookAction
+{
+    // No legal substitute: book `attempted`, then stop. No onEligible /
+    // onF6Event call, no eligible/injected increment, no F6 `spent`.
+    AttemptOnly,
+    // A legal substitute exists: the lookup is eligible; poll the tier and
+    // apply the substitution iff it fires.
+    PollTier,
+};
+
+inline PfnHookAction
+pfnHookAction(std::size_t candidate_count)
+{
+    return candidate_count ? PfnHookAction::PollTier
+                           : PfnHookAction::AttemptOnly;
+}
+
 } // namespace chaos_tlb
 } // namespace gem5
 

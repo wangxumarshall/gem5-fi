@@ -68,17 +68,29 @@ def main():
 
     print("[2] 防漂移守卫：lookup 的**两个** hook 都真正 poll tier")
     arm = ARM_CC.read_text(encoding="utf-8")
-    check("CHAOSArmTLB.cc 定义 lookupTierMounted / lookupTierAllowsInjection",
+    # [R6-F6APP] The poll is SPLIT into book-attempt (every TLB hit) and
+    # fires (one ELIGIBLE lookup), so model applicability can sit between the
+    # two halves. The guard keeps its intent: both lookup hooks really poll
+    # the tier, exactly once each per lookup (a single eligible stream, no
+    # double counting), and the lookup path is not legacy-only.
+    check("CHAOSArmTLB.cc defines lookupTierMounted / lookupTierBookAttempt "
+          "/ lookupTierFires",
           "CHAOSArmTLB::lookupTierMounted()" in arm
-          and "CHAOSArmTLB::lookupTierAllowsInjection(" in arm)
-    check("lookupTierAllowsInjection 读 tier（onEligible / onF6Event）",
+          and "CHAOSArmTLB::lookupTierBookAttempt()" in arm
+          and "CHAOSArmTLB::lookupTierFires(" in arm)
+    check("lookupTierFires 读 tier（onEligible / onF6Event）",
           "lsuTrigger->onEligible()" in arm
           and "lsuTrigger->onF6Event(false)" in arm)
+    check("lookupTierBookAttempt 记 attempt",
+          "lsuTrigger->onAttempt();" in arm)
     # maybeCorrupt 与 maybeCorruptLookup 都必须调用该 gate（每个 lookup 恰好
     # 一次 → 单一 eligible 流，不重复计数）。
-    n_gate = len(re.findall(r"lookupTierAllowsInjection\(", arm))
-    check("两个 lookup hook 各有一处 gate 调用（+定义 1 处 = 3）",
-          n_gate == 3, f"n={n_gate}")
+    n_book = len(re.findall(r"lookupTierBookAttempt\(\);", arm))
+    check("两个 lookup hook 各有一处 attempt 记账（定义不带分号）",
+          n_book == 2, f"n={n_book}")
+    n_fire = len(re.findall(r"if \(!lookupTierFires\(", arm))
+    check("两个 lookup hook 各有一处 tier 放行判定",
+          n_fire == 2, f"n={n_fire}")
     check("F0 仍走 legacy（maxFaults/probability/events_to_skip 仍在）",
           "faults_injected_count >= max_faults" in arm
           and "events_to_skip > 0" in arm)
@@ -86,7 +98,7 @@ def main():
           "if (lookupTierMounted()) {" in arm)
     # 旧缺陷形状不得复活：lookup 路径不得只靠 legacy（无 tier 调用）。
     check("lookup 路径不再完全无视 tier",
-          "lookupTierAllowsInjection" in arm)
+          "lookupTierFires(" in arm and "lookupTierBookAttempt(" in arm)
 
     print("[3] 频率取自 chaos_lsu_trigger.hh（不自行发明）")
     trig = TRIGGER_HH.read_text(encoding="utf-8")

@@ -32,6 +32,8 @@
 using gem5::chaos_tlb::PfnCandidateView;
 using gem5::chaos_tlb::isSelectablePfnTarget;
 using gem5::chaos_tlb::selectPfnCandidateIndex;
+using gem5::chaos_tlb::PfnHookAction;
+using gem5::chaos_tlb::pfnHookAction;
 
 static int failed = 0;
 
@@ -104,6 +106,14 @@ main()
           selectPfnCandidateIndex(3, 0) == 0 &&
           selectPfnCandidateIndex(3, 1) == 1 &&
           selectPfnCandidateIndex(3, 2) == 2);
+
+    std::printf("[6] [R6-F6APP] model applicability is part of eligibility\n");
+    check("no legal candidate -> AttemptOnly (nothing may be consumed)",
+          pfnHookAction(0) == PfnHookAction::AttemptOnly);
+    check("one legal candidate -> PollTier",
+          pfnHookAction(1) == PfnHookAction::PollTier);
+    check("many legal candidates -> PollTier",
+          pfnHookAction(31) == PfnHookAction::PollTier);
 
     std::printf("\n");
     if (failed) {
