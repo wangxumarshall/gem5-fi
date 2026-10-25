@@ -404,3 +404,40 @@ random 同输入故 checksum 相同，矩阵有效维度 = 4 档 × 3 输入集 
 诚实边界：gem5 无 ASAN，被移除的越界访问以"镜像源码谓词/容量有界"构造性
 证明而非检测性证明；kernel 证明的是修复后逻辑在全部档位（含旧代码越界的
 512/1024-bit 档）计算正确；单发 kernel 边界同上。
+
+### sve_movbe_kreg_fpcr_dual（2026-10-25，feat/pr288-r2-dual 分支，PR #288 检视 round 2）
+
+sdcshield PR #288 round 2 三个值相关修复的镜像验证（宿主 0xd01 无 SVE）：
+
+- **A. movbe 族 13 文件全宽 bswap 往返**（movbe_sve + movbe_dump_sve +
+  movbe_dump_probe_{a..xn}）：vidx_bytes 定容 SVE_MAX_VECTOR_BYTES + 索引
+  循环/pg_batch 去 16-lane/64B 截断 + 暂存缓冲 256B 定容。镜像核额外把
+  swap 结果对 __builtin_bswap32 比对（抓"错但可逆"的索引表），含尾批
+  n<lanes。
+- **B. arm0102_kreg_mask 旋转谓词比较扩展**：相位 = 子块序号
+  (base+sub)/4（原 (base+sub)%4 恒 0，gt/eq-u/tst 三路死代码）+
+  svcntw() 尾批松弛下的 asm ldr z / str z→ldr z→str z 放大器，含尾批。
+- **C. sve_fpcr_cartesian tie 块**：操作数/结果从 [2] 栈数组迁 vl_w 向量
+  （原任意 VL≥128 全宽越界）；fma(1,1,2^-24) lane0 + lanes 1+ 的
+  fma(0,0,0)=+0 全 lane 断言。诚实边界：FPCR 4 模式轮转是测试自身未触碰
+  语义，本节在环境 RNE 模式验证修复后几何。
+
+**16-run 实录**（O3 CPU，四档 × 输入集 {seed 1,2,3}，全部 gem5 退出码 0、
+SDCSHIELD_FAILS=0）：
+
+| 档位 | seed 1 | seed 2 | seed 3 |
+|------|--------|--------|--------|
+| 128-bit (--sve_vl 1) | dcddd19603c0f048 | 232fdb9995b4e49d | 76e96e5fc7468289 |
+| 256-bit (--sve_vl 2) | 3fe8f6c7ea192d84 | 08087aef5331e0fd | 1ddf9e550d6b13fa |
+| 512-bit (--sve_vl 4) | 4ea22096c44341f9 | 16daa139fd98b1d5 | 89696504cb926d79 |
+| 1024-bit (--sve_vl 8) | 8b80fc59c02e2d4d | f3bbae586f466379 | 9e75e811466733dc |
+
+（checksum 档间/seed 间互异为设计预期——A/B 节元素数随 svcntw() 缩放且
+输入随机。）**阴性对照（J1'）**：poison 模式三节各毒化一处（A swap 结果
+xor 0xff / B golden xor 1 / C lane0 期望改 0x1.000002p0）→ 四档均
+SDCSHIELD_FAILS=3——三节比较全部活。
+
+**工具性发现（J1' 纪律再现）**：C 节字面量操作数的 svmla 链被 clang 17
+-O2 常量折叠消隐（首轮 objdump fmla=0），fpcr_tie_compute 双侧 noinline
+后恢复（fmad z0.s, p0/m, z1.s, z2.s 实测在位）；A 节 tbl×5、B 节
+cmpeq/cmpgt/cmpne+and 谓词与 ldr z×6 同轮 objdump 实证在位。
