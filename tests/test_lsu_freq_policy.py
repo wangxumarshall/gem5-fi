@@ -84,10 +84,107 @@ def test_policy_decision_gate_semantics():
     check("unknown_f6_refused", refused(lambda: LC.policy_decision("X09-F6-W1", 1)))
     check("unknown_nonf6_allow", LC.policy_decision("X01-F0-W1", 1) == "ALLOW")
 
+def test_scheduler_all_excludes_redundant():
+    """[R6-FREQPOLICY] lsu_r6_schedule.sh must drop schedule_enabled=false cells
+    from --cells all AND from an explicit --cells list, with one visible drop
+    line per RunID, while schedule_enabled=true cells stay selected.
+
+    The live ready_contract.json (post R6-RECONCILE 110b96aa) has gate={} and 0
+    READY rows, so --cells all against it dies at the binary check before any
+    selection exists. The scheduler is therefore driven through a fixture
+    contract built from REAL contract rows whose statuses mirror the
+    pre-RECONCILE READY set (A04-F6-W3 — STRESS_REDUNDANT, schedule_enabled=
+    false — was genuinely READY then and leaked into --cells all). Without a
+    selectable disabled cell this test would be vacuous."""
+    import subprocess, tempfile, os, shutil
+    pol = P.load_policy()
+    sched = {e["run_id"]: e for e in pol["entries"]}
+    con = json.loads((REPO / "docs/gem5-fi/lsu/mdspec/ready_contract.json").read_text("utf-8"))
+    rows = {e["run_id"]: e for e in con["entries"]}
+
+    KEEP = ["A01-F0-W3", "T04-F6-W4"]   # NORMAL / STRESS_ONLY rep -> schedule_enabled=true
+    DROP = ["A04-F6-W3", "A06-F6-W5"]   # STRESS_REDUNDANT -> schedule_enabled=false
+    HELD = ["T01-F0-W4"]                # contract-BLOCKED control (policy would allow it)
+    check("sched_fixture_policy_keeps",
+          all(sched[r].get("schedule_enabled") is True for r in KEEP),
+          str([(r, sched[r].get("schedule_enabled")) for r in KEEP]))
+    check("sched_fixture_policy_drops",
+          all(sched[r].get("schedule_enabled") is False for r in DROP),
+          str([(r, sched[r].get("schedule_enabled")) for r in DROP]))
+
+    binpath = REPO / "CHAOS" / "gem5" / "build" / "ARM" / "gem5.opt"
+    if not (binpath.exists() and os.access(binpath, os.X_OK)):
+        check("sched_fixture_binary", False, "missing executable %s" % binpath)
+        return
+    binsha = subprocess.run(["sha256sum", str(binpath)],
+                            capture_output=True, text=True).stdout.split()[0]
+    entries = []
+    for rid in KEEP + DROP:
+        e = dict(rows[rid]); e["status"] = "READY"; entries.append(e)
+    for rid in HELD:                      # stays contract-BLOCKED
+        entries.append(dict(rows[rid]))
+    fixture = {
+        "source": "tests/test_lsu_freq_policy.py::test_scheduler_all_excludes_redundant "
+                  "(REAL contract rows; READY set mirrors pre-R6-RECONCILE state)",
+        "total": len(entries),
+        "status": {"READY": len(KEEP) + len(DROP), "BLOCKED": len(HELD)},
+        "seeds_per_cell": 1, "max_parallel": 1,
+        "formal_outdir": "runs/lsu/r6_freqpolicy_t3_fixture",
+        "fs_checkpoint": con["fs_checkpoint"],
+        "gate": {"binary": str(binpath), "binary_sha256": binsha},
+        "verdict": {"formal_phase": "screening", "screening_target": 385,
+                    "focus_target": 2401, "focus_runids": []},
+        "entries": entries,
+    }
+    RUNROOT = "/home/sdc/gem5-fi-ding/runs/lsu/r6_freqpolicy_t3_fixture"  # script refuses runroot outside runs/lsu
+
+    def sched_dry(cells):
+        shutil.rmtree(RUNROOT, ignore_errors=True)   # no stale plan.tsv can mask a failure
+        with tempfile.TemporaryDirectory() as td:
+            cpath = os.path.join(td, "fixture_contract.json")
+            with open(cpath, "w") as f:
+                json.dump(fixture, f, ensure_ascii=False)
+            r = subprocess.run(["bash", str(REPO / "tools" / "lsu_r6_schedule.sh"),
+                                "--contract", cpath, "--runroot", RUNROOT,
+                                "--cells", cells, "--dry-run"],
+                               capture_output=True, text=True, cwd=str(REPO))
+        plan = os.path.join(RUNROOT, "plan.tsv")
+        plan_ids = ([l.split("\t")[0] for l in open(plan).read().splitlines() if l.strip()]
+                    if os.path.isfile(plan) else None)
+        return r, plan_ids
+
+    r, plan_ids = sched_dry("all")
+    check("scheduler_all_dryrun_ok", r.returncode == 0, (r.stderr or r.stdout)[-300:])
+    if r.returncode != 0:
+        return
+    check("scheduler_all_excludes_disabled",
+          plan_ids is not None and not (set(DROP) & set(plan_ids)),
+          str(sorted(set(DROP) & set(plan_ids or []))))
+    check("scheduler_all_drop_lines_visible",
+          all(("[R6-FREQPOLICY] drop %s: schedule_enabled=false" % rid) in r.stdout
+              for rid in DROP),
+          r.stdout[-400:])
+    check("scheduler_all_keeps_enabled",
+          set(KEEP) <= set(plan_ids or []), str(plan_ids))
+    check("scheduler_all_blocked_still_held",
+          not (set(HELD) & set(plan_ids or [])), str(plan_ids))
+
+    # ruling: a MANUALLY listed schedule_enabled=false cell is dropped, not silently run
+    r2, plan_ids2 = sched_dry(",".join(["A01-F0-W3"] + DROP))
+    check("scheduler_explicit_dryrun_ok", r2.returncode == 0, (r2.stderr or r2.stdout)[-300:])
+    if r2.returncode != 0:
+        return
+    check("scheduler_explicit_drops_disabled", plan_ids2 == ["A01-F0-W3"], str(plan_ids2))
+    check("scheduler_explicit_drop_line_visible",
+          all(("[R6-FREQPOLICY] drop %s: schedule_enabled=false" % rid) in r2.stdout
+              for rid in DROP),
+          r2.stdout[-400:])
+
 def main():
     test_policy_covers_all_runids()
     test_campaign_refuses_redundant_and_seed2()
     test_policy_decision_gate_semantics()
+    test_scheduler_all_excludes_redundant()
     print(f"\n{'ALL PASS' if not fails else 'FAILED (%d): %s' % (len(fails), fails)}")
     return 0 if not fails else 1
 

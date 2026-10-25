@@ -12,6 +12,11 @@
 #   Guarantees encoded here (each is a requirement, not a nicety):
 #     * FORMAL only: --phase screening (NEVER --phase trial). trial is refused
 #       unless --allow-trial is passed explicitly.
+#     * [R6-FREQPOLICY] selection filter: cells the frequency-policy overlay
+#       (docs/gem5-fi/lsu/mdspec/R6-FREQUENCY-POLICY.json) marks
+#       schedule_enabled=false (STRESS_REDUNDANT F6) are dropped from the
+#       selection — including manually listed --cells / --cells-file entries —
+#       each with one visible [R6-FREQPOLICY] drop line (no silent caps).
 #     * Seeds per cell: screening target 385; the 21 focus RunIDs
 #       (contract verdict.focus_runids) get focus_target 2401. Both are read
 #       from the contract; --max-seeds-per-cell 100000 is the compute bound
@@ -113,7 +118,8 @@ FLAGS
   --bin PATH           gem5.opt (default: contract gate.binary)
   --fs-checkpoint DIR  default: contract fs_checkpoint
   --fs-dir DIR         FS images dir (default /home/sdc/gem5-fi-ding/gem5-fs)
-  --cells LIST|all     comma-separated RunIDs (default all READY)
+  --cells LIST|all     comma-separated RunIDs (default all READY; policy
+                       schedule_enabled=false cells are always dropped, loudly)
   --cells-file FILE    one RunID per line ('#' comments allowed)
   --phase NAME         screening|main (default screening). trial needs --allow-trial
   --screening-target N default from contract (385)
@@ -209,6 +215,8 @@ REPO="$(cd "$SELF_DIR/.." && pwd)"
 [ -n "$CONTRACT" ] || CONTRACT="$REPO/docs/gem5-fi/lsu/mdspec/ready_contract.json"
 [ -n "$MATRIX" ]   || MATRIX="$REPO/artifacts/lsu-trial/07-expanded-matrix-backfilled.csv"
 [ -n "$FS_DIR" ]   || FS_DIR="$FS_DIR_DEFAULT"
+# [R6-FREQPOLICY] authoritative frequency-policy overlay (schedule_enabled gate)
+POL_JSON="$REPO/docs/gem5-fi/lsu/mdspec/R6-FREQUENCY-POLICY.json"
 
 command -v python3 >/dev/null || die "python3 not found"
 [ -f "$CONTRACT" ] || die "contract not found: $CONTRACT"
@@ -282,9 +290,9 @@ echo "[r6-batch] contract totals: total=$C_TOTAL ready=$C_READY blocked=$C_BLOCK
 SELECTED_FILE="$RUNROOT/selected_cells.txt"
 FOCUS_FILE="$RUNROOT/focus_cells.txt"
 
-python3 - "$CONTRACT" "$CELLS" "$CELLS_FILE" "$SELECTED_FILE" "$FOCUS_FILE" <<'PY'
-import json,sys
-cpath, cells_arg, cells_file, out, fout = sys.argv[1:6]
+python3 - "$CONTRACT" "$CELLS" "$CELLS_FILE" "$SELECTED_FILE" "$FOCUS_FILE" "$POL_JSON" <<'PY'
+import json,sys,os
+cpath, cells_arg, cells_file, out, fout, pol_path = sys.argv[1:7]
 d=json.load(open(cpath))
 ready=[e for e in d["entries"] if e.get("status")=="READY"]
 by_id={e["run_id"]:e for e in ready}
@@ -300,10 +308,31 @@ else:
     if missing:
         raise SystemExit("unknown/not-READY RunIDs requested: %s" % ",".join(missing))
     sel=[w for w in want]
+# [R6-FREQPOLICY] drop cells the frequency policy marks schedule_enabled=false.
+# Applies to --cells all AND to explicit lists / --cells-file: a manually listed
+# disabled cell is dropped loudly, never silently run. A missing overlay means
+# no filter (optional overlay — same degradation as the campaign's gate).
+dropped=[]
+if pol_path and os.path.isfile(pol_path):
+    pol=json.load(open(pol_path))
+    off={e["run_id"]:e for e in pol.get("entries",[])
+         if not e.get("schedule_enabled", True)}
+    dropped=[r for r in sel if r in off]
+    for r in dropped:
+        print("[R6-FREQPOLICY] drop %s: schedule_enabled=false (run_policy=%s, exclusion_reason=%s)"
+              % (r, off[r].get("run_policy","?"),
+                 off[r].get("exclusion_reason") or "policy_excluded"))
+    if dropped:
+        sel=[r for r in sel if r not in off]
+elif pol_path:
+    print("[R6-FREQPOLICY] WARN policy overlay %s not found — selection is NOT policy-filtered"
+          % pol_path, file=sys.stderr)
+if not sel and dropped:
+    raise SystemExit("[R6-FREQPOLICY] every requested RunID is schedule_enabled=false — nothing to schedule")
 open(out,"w").write("\n".join(sel)+("\n" if sel else ""))
 open(fout,"w").write("\n".join(d["verdict"].get("focus_runids",[]))+"\n")
-print("[r6-batch] selected %d RunIDs (%d READY eligible, %d focus)" %
-      (len(sel), len(ready), len(d["verdict"].get("focus_runids",[]))))
+print("[r6-batch] selected %d RunIDs (%d READY eligible, %d focus, %d policy-disabled dropped)" %
+      (len(sel), len(ready), len(d["verdict"].get("focus_runids",[])), len(dropped)))
 PY
 [ $? -eq 0 ] || die "cell selection failed"
 
