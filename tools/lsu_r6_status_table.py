@@ -79,6 +79,7 @@ import os
 import re
 import sys
 import time
+import zlib
 from collections import Counter
 from pathlib import Path
 
@@ -188,10 +189,14 @@ class Sample:
           * 同一 parse_line（CONSUMER-SUMMARY 行不以 PROP-EVT 开头 ⇒ 同被
             parse_line 判 None；read_events 本就丢弃 summary 行，且
             parse/validate_consumer_summary 均为全函数、无 raise 路径）；
-          * truncated ≡ read_events 的 (EOFError,BadGzipFile,OSError) 截断
-            标记 ∨ _gzip_eof 的 EOF 复核——两者是对同一文件的同一整遍迭代、
-            同一异常集合（UnicodeDecodeError 在 errors="replace" 下不可
-            触发），故单遍异常标记即两者的析取（省去旧实现的两遍解压）；
+          * truncated ≡ read_events 的 (EOFError,BadGzipFile,OSError,
+            zlib.error) 截断标记 ∨ _gzip_eof 的 EOF 复核——两者是对同一
+            文件的同一整遍迭代、同一异常集合（UnicodeDecodeError 在
+            errors="replace" 下不可触发），故单遍异常标记即两者的析取
+            （省去旧实现的两遍解压）。zlib.error（deflate 载荷损坏，
+            **非 OSError 子类**）显式入集 = 恢复 4dd4e8b0 之前旧外层
+            except Exception 的截断韧性：腐蚀流 ⇒ 诚实 TRUNCATED（保留
+            已解析前缀），绝不 exit-1 杀死全根再生成；
           * activated/has_unknown 用与旧 any() **完全相同**的谓词逐事件累计；
           * 事件列表仅在未超 EVENT_CAP 时保留（超限样本本就不进
             check_admission——oversized——事件无需驻留）；EVENT_CAP 判定改用
@@ -225,7 +230,15 @@ class Sample:
                         if len(events) > EVENT_CAP:
                             oversized = True
                             events = []   # 超大流：不进检查器，事件不再驻留
-        except (EOFError, gzip.BadGzipFile, OSError, UnicodeDecodeError):
+        # [R6-FREQPOLICY-fix] zlib.error（deflate 载荷损坏，Error -3）
+        # **不是 OSError 子类**，必须显式列出：gzip 头完好但压缩数据不可
+        # 解码同样是 "读不到 EOF" 的磁盘事实 ⇒ 诚实 TRUNCATED（保留已解析
+        # 前缀），绝不令一条腐蚀流以 exit 1 杀死 ~35 分钟的全根再生成
+        # （write_outputs 在最后，崩溃 = 全部输出丢失）。刻意保持显式异常
+        # 元组而非恢复宽泛 except Exception——解析/判定逻辑 bug 必须响亮
+        # 崩溃，不得被静默吞成截断。
+        except (EOFError, gzip.BadGzipFile, OSError, UnicodeDecodeError,
+                zlib.error):
             trunc = True
         self.events = events
         self.event_count = (EVENT_CAP + 1) if oversized else len(events)

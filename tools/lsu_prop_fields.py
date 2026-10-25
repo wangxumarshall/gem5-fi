@@ -16,6 +16,7 @@ Unknown 语义（Review Focus #3）：provable_to 只按在场事件的最大可
 判定；更高层一律 beyond=Unknown——绝不推断 Masked。
 """
 import gzip
+import zlib
 from pathlib import Path
 
 # 与 CHAOSPropagation.hh 的 PROP_EVT_FIELDS[] 同名同序。
@@ -531,7 +532,12 @@ def read_stream(path):
                 evt = parse_line(line)
                 if evt is not None:
                     events.append(evt)
-    except (EOFError, gzip.BadGzipFile, OSError):
+    # [R6-FREQPOLICY-fix] zlib.error（deflate 载荷损坏，Error -3）**不是
+    # OSError 子类**，必须显式列出：gzip 头完好但压缩数据不可解码同样是
+    # "读不到 EOF" 的磁盘事实 ⇒ 按截断诚实标记（保留已解析前缀），绝不令
+    # 调用方崩溃。刻意保持显式异常元组而非宽泛 except Exception——
+    # 解析逻辑 bug 必须响亮失败，不得被吞成截断。
+    except (EOFError, gzip.BadGzipFile, OSError, zlib.error):
         truncated = True
     return events, truncated, summaries, issues
 

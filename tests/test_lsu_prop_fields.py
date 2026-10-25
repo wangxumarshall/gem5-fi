@@ -120,6 +120,28 @@ def main():
         check("truncated gz salvaged + flagged",
               trunc2 is True and len(evts2) >= 1,
               f"trunc={trunc2} n={len(evts2)}")
+        # [R6-FREQPOLICY-fix] deflate 载荷损坏（zlib.error，**非 OSError
+        # 子类**）同样按截断诚实处理：保留可解析前缀 + truncated=True，
+        # 绝不崩溃（4dd4e8b0 流式重写后 Sample.read/read_stream 曾漏 catch，
+        # 单条腐蚀流即 exit 1 杀死整表再生成）。
+        import zlib
+        payload = "\n".join([line, partial] * 50) + "\n"
+        good = gzip.compress(payload.encode())
+        gzp.write_bytes(good)
+        evg, trg = P.read_events(gzp)
+        check("good gz of same payload parses clean",
+              len(evg) == 100 and trg is False, f"n={len(evg)} tr={trg}")
+        bad = bytearray(good)
+        bad[30] ^= 0xFF     # gzip 头 10 字节之后 = deflate 载荷中部
+        gzp.write_bytes(bytes(bad))
+        try:
+            evb, trb = P.read_events(gzp)
+            check("corrupt-deflate gz -> honest truncation (no crash)",
+                  trb is True and isinstance(evb, list),
+                  f"tr={trb} n={len(evb)}")
+        except zlib.error as e:
+            check("corrupt-deflate gz -> honest truncation (no crash)",
+                  False, f"uncaught zlib.error: {e}")
 
     # ---- 6. [R4-4-review-I1] corr 全事件覆盖契约 ------------------------
     # 评审 Important-1：writeNode 双发事件（resp/taint_reg/consumer/

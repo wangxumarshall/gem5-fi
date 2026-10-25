@@ -346,6 +346,36 @@ def test_real_root_two_axes():
     assert "BLOCKED=0" in sumry["blocker_code_zero_note"]
 
 
+def test_corrupt_deflate_stream_is_truncated_not_crash():
+    """[R6-FREQPOLICY-fix] deflate 载荷损坏（zlib.error，非 OSError 子类）：
+    Sample.read 不得 exit-1 崩溃（4dd4e8b0 流式重写移除旧外层 except
+    Exception 的韧性后，单条腐蚀流曾以未捕获 zlib.error 杀死全根再生成）；
+    磁盘事实 = 诚实 TRUNCATED（保留已解析前缀，绝无输出丢失）。
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        root = tmp / "root"
+        runs = root / "runs/lsu"
+        seed = runs / "r6_x08" / "X08-F0-W1" / "seed1"
+        seed.mkdir(parents=True)
+        raw = gzip.compress(
+            ("\n".join(admitted_chain("X08-F0-W1")) + "\n").encode())
+        bad = bytearray(raw)
+        bad[30] ^= 0xFF          # gzip 头 10 字节之后 = deflate 载荷中部
+        (seed / "prop_evt.txt.gz").write_bytes(bytes(bad))
+        (seed / "stats.txt").write_text("simTicks 1\n")
+        contract = _contract(tmp, [_entry("X08-F0-W1")], root)
+        pilots = tmp / "pilot_evidence.json"
+        pilots.write_text(json.dumps({"pilots": {}}))
+        meta, rows, _ = T.build(contract, pilots, root, runs)  # 不得 raise
+        r = {x["run_id"]: x for x in rows}["X08-F0-W1"]
+        assert r["samples"] == 1, r
+        assert r["conditions"]["truncated"] is True, r
+        assert r["evidence_state"] == "TRUNCATED", r
+        assert r["truncated_streams"] == 1, r
+        assert r["evidence_state"] != "PILOT_READY", r
+
+
 if __name__ == "__main__":
     fails = 0
     for fn in (test_six_states_reachable_and_not_overriding,
@@ -355,7 +385,8 @@ if __name__ == "__main__":
                test_two_axes_present_and_disjoint,
                test_blocked_row_keeps_disk_fact_two_axes,
                test_summary_reports_both_axes,
-               test_real_root_two_axes):
+               test_real_root_two_axes,
+               test_corrupt_deflate_stream_is_truncated_not_crash):
         try:
             fn()
             print(f"PASS {fn.__name__}")
