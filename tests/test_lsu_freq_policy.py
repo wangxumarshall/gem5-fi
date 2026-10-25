@@ -180,11 +180,57 @@ def test_scheduler_all_excludes_redundant():
               for rid in DROP),
           r2.stdout[-400:])
 
+def test_runner_manifest_carries_policy():
+    """[R6-FREQPOLICY] lsu_runner.build_manifest must carry the frequency
+    policy (run_policy/required_seeds/include_in_statistics) read from the
+    overlay — the runner never re-derives the rule. Real signature is
+    build_manifest(item_id, phase, sample_index, ...): ITEM-054 -> T04-F6-W4
+    (representative F6), ITEM-041 -> T01-F0-W4 (NORMAL)."""
+    import lsu_runner as LR
+    m = LR.build_manifest("ITEM-054", "pilot", 0)          # T04-F6-W4
+    check("manifest_stress_run_id", m.get("run_id") == "T04-F6-W4", str(m.get("run_id")))
+    check("manifest_run_policy", m.get("run_policy") == "STRESS_ONLY", str(m.get("run_policy")))
+    check("manifest_required_seeds", m.get("required_seeds") == 1, str(m.get("required_seeds")))
+    check("manifest_stress_not_in_stats", m.get("include_in_statistics") is False,
+          str(m.get("include_in_statistics")))
+    m2 = LR.build_manifest("ITEM-041", "pilot", 0)         # T01-F0-W4
+    check("manifest_normal_run_id", m2.get("run_id") == "T01-F0-W4", str(m2.get("run_id")))
+    check("manifest_normal_policy", m2.get("run_policy") == "NORMAL", str(m2.get("run_policy")))
+    check("manifest_normal_seeds", m2.get("required_seeds") == 3, str(m2.get("required_seeds")))
+    check("manifest_normal_in_stats", m2.get("include_in_statistics") is True,
+          str(m2.get("include_in_statistics")))
+    # UNKNOWN_RUNID: query() returns a SHORT dict with no run_policy key —
+    # the manifest must degrade to "UNKNOWN" and still freeze, never crash.
+    _orig_query = P.query
+    try:
+        P.query = lambda pol, rid, seed: {"run_id": rid, "seed": seed,
+                                          "decision": "UNKNOWN_RUNID"}
+        m3 = LR.build_manifest("ITEM-054", "pilot", 0)
+        check("manifest_unknown_runid_degrades",
+              m3.get("run_policy") == "UNKNOWN", str(m3.get("run_policy")))
+    finally:
+        P.query = _orig_query
+    # overlay unavailable (policy JSON missing): the manifest must still be
+    # produced (no run_policy key, or "UNKNOWN") — never an exception.
+    _orig_load = P.load_policy
+    try:
+        def _no_json(*a, **k):
+            raise FileNotFoundError("R6-FREQUENCY-POLICY.json")
+        P.load_policy = _no_json
+        m4 = LR.build_manifest("ITEM-054", "pilot", 0)
+        check("manifest_overlay_optional",
+              m4.get("run_id") == "T04-F6-W4"
+              and ("run_policy" not in m4 or m4.get("run_policy") == "UNKNOWN"),
+              str(m4.get("run_policy")))
+    finally:
+        P.load_policy = _orig_load
+
 def main():
     test_policy_covers_all_runids()
     test_campaign_refuses_redundant_and_seed2()
     test_policy_decision_gate_semantics()
     test_scheduler_all_excludes_redundant()
+    test_runner_manifest_carries_policy()
     print(f"\n{'ALL PASS' if not fails else 'FAILED (%d): %s' % (len(fails), fails)}")
     return 0 if not fails else 1
 

@@ -181,6 +181,20 @@ def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None):
                           else "n/a")),
         "guard": "tools/lsu_guard.py experiment 锁单实例 + 60s 采样 + max-seconds",
     }
+    # [R6-FREQPOLICY] 频率策略 overlay：run_policy/required_seeds/include_in_
+    # statistics 只读自带（tools/lsu_freq_policy.py 为唯一来源），runner 绝不
+    # 重推导规则。overlay 可选——模块/JSON 缺失（异常）时跳过、键缺失；run_id
+    # 不在 overlay（query 返回 SHORT dict、无 run_policy 键）时降级 "UNKNOWN"：
+    # 两种情况都不阻塞 manifest 冻结。查询 seed 恒为 1——所携带三字段均为
+    # run_id 级属性，与 seed 无关。
+    try:
+        import lsu_freq_policy as _FP
+        _q = _FP.query(_FP.load_policy(), run_id, 1)
+        manifest["run_policy"] = _q.get("run_policy", "UNKNOWN")
+        manifest["required_seeds"] = _q.get("required_seeds")
+        manifest["include_in_statistics"] = _q.get("include_in_statistics")
+    except Exception:
+        pass                                          # overlay optional; never block manifest freeze
     if extra:
         manifest.update(extra)
     return manifest
