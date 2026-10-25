@@ -276,10 +276,11 @@
   }
  },
  "counts": {
-  "total": 329,
+  "total": 325,
   "normal": 261,
   "stress_only": 39,
-  "stress_redundant": 29
+  "stress_redundant": 25,
+  "legacy_non_authoritative": 4
  },
  "entries": [
   {
@@ -4181,7 +4182,9 @@
    "exclusion_reason": null,
    "existing_evidence": null,
    "legacy": false
-  },
+  }
+ ],
+ "legacy_f6_non_authoritative": [
   {
    "run_id": "C13-F6-W6",
    "frequency": "F6",
@@ -4192,7 +4195,8 @@
    "representative_for": null,
    "exclusion_reason": "covered_by_representative_F6",
    "existing_evidence": null,
-   "legacy": true
+   "legacy": true,
+   "authoritative": false
   },
   {
    "run_id": "O08-F6-W7",
@@ -4204,7 +4208,8 @@
    "representative_for": null,
    "exclusion_reason": "covered_by_representative_F6",
    "existing_evidence": null,
-   "legacy": true
+   "legacy": true,
+   "authoritative": false
   },
   {
    "run_id": "S12-F6-W5",
@@ -4216,7 +4221,8 @@
    "representative_for": null,
    "exclusion_reason": "covered_by_representative_F6",
    "existing_evidence": null,
-   "legacy": true
+   "legacy": true,
+   "authoritative": false
   },
   {
    "run_id": "T09-F6-W4",
@@ -4228,7 +4234,8 @@
    "representative_for": null,
    "exclusion_reason": "covered_by_representative_F6",
    "existing_evidence": null,
-   "legacy": true
+   "legacy": true,
+   "authoritative": false
   }
  ]
 }

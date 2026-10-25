@@ -18,6 +18,38 @@ def test_policy_covers_all_runids():
     check("policy_covers_325", len(rm["entries"]) == 325 and all(e["run_id"] in ids for e in rm["entries"]))
     check("f6_is_64", sum(1 for e in pol["entries"] if e["frequency"]=="F6" and not e.get("legacy")) == 64)
 
+def test_entries_exactly_325_authoritative():
+    """[A4 2026-10-25b] entries == EXACTLY the 325 authoritative runid_map RunIDs:
+    no duplicates, no hidden aliases, no legacy rows. The 4 CSV-only V2.0-deleted
+    F6 rows (T09-F6-W4, S12-F6-W5, C13-F6-W6, O08-F6-W7) live in a separate
+    explicit legacy_f6_non_authoritative section that query() still refuses."""
+    pol = P.load_policy()
+    ent = pol["entries"]
+    check("entries_len_325", len(ent) == 325, str(len(ent)))
+    check("entries_unique_325", len({e["run_id"] for e in ent}) == 325,
+          str(len({e["run_id"] for e in ent})))
+    check("counts_authoritative_only",
+          pol["counts"] == {"total": 325, "normal": 261, "stress_only": 39,
+                            "stress_redundant": 25, "legacy_non_authoritative": 4},
+          str(pol["counts"]))
+    leg = pol.get("legacy_f6_non_authoritative", [])
+    check("legacy_section_len_4", len(leg) == 4, str(len(leg)))
+    check("legacy_runids_expected",
+          {e["run_id"] for e in leg} == {"T09-F6-W4", "S12-F6-W5", "C13-F6-W6", "O08-F6-W7"},
+          str(sorted(e["run_id"] for e in leg)))
+    check("legacy_flags_explicit",
+          all(e.get("legacy") is True and e.get("authoritative") is False for e in leg),
+          str([(e["run_id"], e.get("legacy"), e.get("authoritative")) for e in leg]))
+    ids, lids = {e["run_id"] for e in ent}, {e["run_id"] for e in leg}
+    check("legacy_disjoint_from_entries", not (ids & lids), str(sorted(ids & lids)))
+    # query() must still find & refuse every legacy row (campaign gate depends on it)
+    bad = [r for r in sorted(lids)
+           if P.query(pol, r, 1)["decision"] != "REFUSE_STRESS_REDUNDANT"]
+    check("legacy_query_refuses", not bad, str(bad))
+    # a runid that is neither authoritative nor legacy stays UNKNOWN_RUNID
+    check("unknown_still_unknown",
+          P.query(pol, "X09-F6-W1", 1)["decision"] == "UNKNOWN_RUNID")
+
 def test_campaign_refuses_redundant_and_seed2():
     import lsu_campaign as LC
     pol = P.load_policy()
@@ -66,6 +98,10 @@ def test_policy_decision_gate_semantics():
           refused(lambda: LC.policy_decision("T04-F6-W4", 2, allow_stress_only=True)))
     check("redundant_refused_even_with_flag",
           refused(lambda: LC.policy_decision(red, 1, allow_stress_only=True)))
+    # [A4] a legacy CSV-only F6 row (legacy_f6_non_authoritative section, not in
+    # entries) still refuses through the campaign gate — never UNKNOWN, never run
+    check("legacy_refused_even_with_flag",
+          refused(lambda: LC.policy_decision("C13-F6-W6", 1, allow_stress_only=True)))
     # overlay optional: missing module / missing JSON never block a NORMAL run
     _orig = LC._FP
     try:
@@ -288,6 +324,7 @@ def test_ready_contract_policy_axis():
 
 def main():
     test_policy_covers_all_runids()
+    test_entries_exactly_325_authoritative()
     test_campaign_refuses_redundant_and_seed2()
     test_policy_decision_gate_semantics()
     test_scheduler_all_excludes_redundant()

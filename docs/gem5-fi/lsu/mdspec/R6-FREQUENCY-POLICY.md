@@ -3,7 +3,7 @@
 - schema_version: `r6-frequency-policy/1`
 - decision_date: 2026-10-25
 - decision_source: user-ruling-2026-10-25:R6-frequency-policy-overlay
-- counts: {"total": 329, "normal": 261, "stress_only": 39, "stress_redundant": 29}
+- counts: {"total": 325, "normal": 261, "stress_only": 39, "stress_redundant": 25, "legacy_non_authoritative": 4}
 
 ## Representative F6 groups
 
@@ -117,7 +117,17 @@
 | P09-F6-W6 | STRESS_REDUNDANT | 0 | False | False | P09-F6-W13 | covered_by_representative_F6 |
 | P09-F6-W8 | STRESS_REDUNDANT | 0 | False | False | P09-F6-W13 | covered_by_representative_F6 |
 | P09-F6-W13 | STRESS_ONLY | 1 | True | False | P09-F6-W13 |  |
-| C13-F6-W6 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 |
-| O08-F6-W7 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 |
-| S12-F6-W5 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 |
-| T09-F6-W4 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 |
+
+## Legacy F6 rows — CSV-only, NON-AUTHORITATIVE (never part of the 325)
+
+The rows below exist only in `07-expanded-matrix-backfilled.csv` (models deleted
+in V2.0; absent from `runid_map.json`). They are **not** part of the authoritative
+325 `entries` (counts above are authoritative-only), and `query()` refuses each
+of them as `REFUSE_STRESS_REDUNDANT` — explicit, never hidden.
+
+| RunID | policy | req_seeds | sched | in_stats | representative | reason | legacy | authoritative |
+|---|---|---|---|---|---|---|---|---|
+| C13-F6-W6 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 | True | False |
+| O08-F6-W7 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 | True | False |
+| S12-F6-W5 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 | True | False |
+| T09-F6-W4 | STRESS_REDUNDANT | 0 | False | False |  | covered_by_representative_F6 | True | False |

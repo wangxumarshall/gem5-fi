@@ -10,6 +10,13 @@ T04-F6-W4 pinned; tie-break prefers certified existing evidence, else lexicograp
 
 Emits R6-FREQUENCY-POLICY.json (machine) and R6-FREQUENCY-POLICY.md (audit) from the SAME dict.
 `--check` re-emits in memory and byte-compares against disk (drift = failure).
+
+[A4 2026-10-25b] `entries` is EXACTLY the 325 authoritative runid_map.json RunIDs —
+no hidden aliases, no duplicates. The 4 CSV-only F6 rows of V2.0-deleted models
+(T09-F6-W4, S12-F6-W5, C13-F6-W6, O08-F6-W7) live in a separate explicit
+`legacy_f6_non_authoritative` section (legacy=true, authoritative=false); they are
+never part of the authoritative 325, yet query() still finds and refuses them as
+REFUSE_STRESS_REDUNDANT so no consumer can run them ungoverned.
 """
 import argparse, csv, hashlib, json, sys
 from pathlib import Path
@@ -72,12 +79,14 @@ def build_policy(runid_map_path=RUNID_MAP, matrix_path=MATRIX):
                 required_seeds=3, schedule_enabled=True, include_in_statistics=True,
                 representative_for=None, exclusion_reason=None, existing_evidence=None, legacy=False))
 
+    # [A4] the 4 CSV-only F6 rows of V2.0-deleted models: kept EXPLICITLY out of
+    # entries (authoritative = runid_map.json only); query() still refuses them.
     known = {e["run_id"] for e in entries}
-    for rid in sorted(set(_f6_rows_from_matrix()) - known):   # 4 legacy V2.0-deleted F6 rows
-        entries.append(dict(run_id=rid, frequency="F6", run_policy="STRESS_REDUNDANT",
-            required_seeds=0, schedule_enabled=False, include_in_statistics=False,
-            representative_for=None, exclusion_reason="covered_by_representative_F6",
-            existing_evidence=None, legacy=True))
+    legacy = [dict(run_id=rid, frequency="F6", run_policy="STRESS_REDUNDANT",
+                   required_seeds=0, schedule_enabled=False, include_in_statistics=False,
+                   representative_for=None, exclusion_reason="covered_by_representative_F6",
+                   existing_evidence=None, legacy=True, authoritative=False)
+              for rid in sorted(set(_f6_rows_from_matrix()) - known)]
 
     return {
         "schema_version": SCHEMA_VERSION, "decision_date": DECISION_DATE,
@@ -91,8 +100,10 @@ def build_policy(runid_map_path=RUNID_MAP, matrix_path=MATRIX):
         "counts": {"total": len(entries),
                    "normal": sum(1 for e in entries if e["run_policy"] == "NORMAL"),
                    "stress_only": sum(1 for e in entries if e["run_policy"] == "STRESS_ONLY"),
-                   "stress_redundant": sum(1 for e in entries if e["run_policy"] == "STRESS_REDUNDANT")},
+                   "stress_redundant": sum(1 for e in entries if e["run_policy"] == "STRESS_REDUNDANT"),
+                   "legacy_non_authoritative": len(legacy)},
         "entries": entries,
+        "legacy_f6_non_authoritative": legacy,
     }
 
 def render_md(pol):
@@ -113,6 +124,18 @@ def render_md(pol):
             L.append(f"| {e['run_id']} | {e['run_policy']} | {e['required_seeds']} | "
                      f"{e['schedule_enabled']} | {e['include_in_statistics']} | "
                      f"{e['representative_for'] or ''} | {e['exclusion_reason'] or ''} |")
+    L += ["", "## Legacy F6 rows — CSV-only, NON-AUTHORITATIVE (never part of the 325)", "",
+          "The rows below exist only in `07-expanded-matrix-backfilled.csv` (models deleted",
+          "in V2.0; absent from `runid_map.json`). They are **not** part of the authoritative",
+          f"325 `entries` (counts above are authoritative-only), and `query()` refuses each",
+          "of them as `REFUSE_STRESS_REDUNDANT` — explicit, never hidden.", "",
+          "| RunID | policy | req_seeds | sched | in_stats | representative | reason | legacy | authoritative |",
+          "|---|---|---|---|---|---|---|---|---|"]
+    for e in pol.get("legacy_f6_non_authoritative", []):
+        L.append(f"| {e['run_id']} | {e['run_policy']} | {e['required_seeds']} | "
+                 f"{e['schedule_enabled']} | {e['include_in_statistics']} | "
+                 f"{e['representative_for'] or ''} | {e['exclusion_reason'] or ''} | "
+                 f"{e['legacy']} | {e['authoritative']} |")
     return "\n".join(L) + "\n"
 
 def load_policy(path=POLICY_JSON):
@@ -120,6 +143,9 @@ def load_policy(path=POLICY_JSON):
 
 def query(pol, run_id, seed):
     e = next((x for x in pol["entries"] if x["run_id"] == run_id), None)
+    if e is None:   # [A4] legacy CSV-only F6 rows stay findable & refused, never UNKNOWN
+        e = next((x for x in pol.get("legacy_f6_non_authoritative", [])
+                  if x["run_id"] == run_id), None)
     if e is None:
         return {"run_id": run_id, "seed": seed, "decision": "UNKNOWN_RUNID"}
     if e["run_policy"] == "STRESS_REDUNDANT":
