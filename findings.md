@@ -326,3 +326,45 @@ SDCSHIELD_FAILS=0）：
 dual kernel 同一边界，数值契约与 asm 语义同源）；slots knob >1024 的放大路径
 以 max_byte_off ≥ 65536 的换算断言覆盖而非逐一实测；gem5 SE 不传播 guest 退出
 码（既有实证），kernel 退出码经 SDCSHIELD_FAILS 行记录。
+
+### sve512_fma_dual 四档实证——PR #294 孤儿接线测试同源四负载首证 + scatter worker 私有化验证（2026-10-25，feat/pr294-hardening-dual 分支，sdcshield PR #294 检视 round 1）
+
+sdcshield PR #294（feat/allvl2-hardening）把孤儿 sve512_fma_arm 接线进构建
+（3b293d9b），检视 round 1 掘出两问题：(a) local-claude #31——该文件自身
+init/golden/比较逻辑从未在任何硬件或 gem5 执行过，验证仅凭"家族级 kernel
+形态"外推，违背 PR #242 先例的同源实证标准；(b) coderabbit——scatter_dst/
+scatter_golden 位于 worker 共享的 test->data，-n>1 时一个 worker 的比较后
+std::fill 清零与另一 worker 的 scatter/比较竞争，产生软件性假 SDC。修复：
+scatter scratch 移入 test_run 为 worker 私有（sve512_gather_scatter_arm
+同款输出指针模式）。宿主无 SVE，按 CLAUDE.md 规则 2 补齐四档实证。
+
+**验证对象 = 修复后测试全链（同源镜像）**：init（splitmix64 种子 + 模式表
+流 + Fisher-Yates 置换索引）→ 三 golden（标量 fma/fmaf 逐操作同序）→ 四
+工作负载（f64 512 步 FMLA 依赖链 / f64 特殊值类别链 / f32 512 步链 /
+gather-scatter 往返——输出指针形态 + 迭代间 fill 复位）→ 逐 lane memcmp/
+类别比较。通道 B = 四结果缓冲 FNV-1a。
+
+**工具性发现（clang 17.0.6 -O2）**：hw 链不加 noinline 时被内联后整体消隐
+（.s 实测零 fmla，四档 FAILS=192 全零——比较读的是 malloc 零页）；hw/golden
+双侧 noinline 后恢复（.s 9 条 fmla/fmad）。与 sleef_vla_dual 的
+golden_pass/compute_out 双 noinline 纪律同源——后续 dual kernel 凡含
+确定性重复计算的工作负载一律双 noinline。
+
+**4-run 实录**（O3 CPU，configs/se/arm_chaos.py，全部 gem5 进程退出码 0、
+SDCSHIELD_FAILS=0）：
+
+| 档位 | vl_d×vl_w | SDCSHIELD_FAILS | FNV-1a |
+|------|-----------|-----------------|--------|
+| 128-bit (--sve_vl 1) | 2×4 | 0 | a21f58a169e67cd5 |
+| 256-bit (--sve_vl 2) | 4×8 | 0 | 5d99e539781bfd32 |
+| 512-bit (--sve_vl 4) | 8×16 | 0 | 7053636920f1b997 |
+| 1024-bit (--sve_vl 8) | 16×32 | 0 | 153eb39bbb6c0d30 |
+
+（checksum 档间互异为设计预期——lane 数随档变化；测试全确定性，无随机
+变体维。）**阴性对照（J1'）**：poison 模式四负载 golden 各毒化一处 →
+SDCSHIELD_FAILS=4，四类比较全部活。
+
+诚实边界：单发 kernel ≠ 框架 fork/多 worker 共享 data 形态——竞态修复的
+正确性由构造保证（缓冲移出共享 data），kernel 验证的是同一计算逻辑的数值
+正确性与输出指针形态；gem5 SE 不传播 guest 退出码（既有实证）。
+
