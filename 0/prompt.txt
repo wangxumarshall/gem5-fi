@@ -1,0 +1,362 @@
+这是上一会话因上下文耗尽后的续接任务。请直接接管服务器现有现场，不要重新开展已经完成的传播链根因调查，也不要询问一般性确认。
+
+首先只读核验以下状态是否仍成立：
+
+- 集成工作树：
+  /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019
+- 集成 HEAD：
+  5ab37bc8ce9d8ee8c005e17025cf7bd068f696c9
+- 远端集成分支与该 HEAD 一致；
+- 冻结 gem5 二进制 SHA-256：
+  3b9a43a4fd54233bcc49a80df6ec6a7ab8535dd5771f1efff1af6fe245cdcb88
+- gem5、campaign、scons 和正式实验进程均为 0；
+- origin/fi-ding 仍为 47ed7ae9，未合并；
+- 工作树中没有上一会话留下的半成品修改。
+
+若 HEAD、二进制 SHA、进程状态或工作树状态不符，立即停止并汇报差异；不得覆盖现有改动。
+
+一、当前已经确认的实验状态
+
+- T02-F0-W4：canary PASS。
+- T02-F2-W4：观测链本身 PASS，但 campaign 工具层 FAIL。
+- T01-F0-W4、T04-F0-W4、T04-F2-W4、T04-F6-W4：尚未运行本轮 canary。
+- 正式实验保持停止。
+- 不合并 fi-ding。
+- 不删除、覆盖或改写任何旧证据。
+
+T02-F2-W4 已确认的原始事实：
+
+- exit_code=0；
+- event_count=1100；
+- terminal=full；
+- provable_to=L5；
+- L0→L5 全部 proven；
+- 存在真实 errant_commit；
+- admitted=True；
+- violations=[]；
+- certified=True；
+- requested=F2、effective=F2、lookup_tier_enabled=1；
+- consumer summary：
+  emitted_events=18、
+  suppressed_consumers=19、
+  logical_total=37、
+  distinct_dyn_seq=37、
+  conservation=ok；
+- stdout 权威触发摘要：
+  attempted=110149 eligible=110149 injected=1；
+- stats：
+  numFaultsInjected=1；
+- stdout 精确包含：
+  [arm_chaos_fs] KERNEL PANIC under fault — exiting (classify: Crash/DUE per fs_mode)
+
+因此，当前的 attempted=0、activated=2、outcome=Unclassified、conservation=VIOLATION 是 campaign 工具错误，不是传播链失败。
+
+二、已经定位的三个工具缺陷
+
+1. 注入计数错误
+
+位置主要在：
+
+- tools/lsu_campaign.py 约 2024–2029；
+- 约 2054 的 activated/injected 汇总逻辑。
+
+arm_tlb_lookup_tier 是能力/档位诊断行，却被误计为实际注入。该格只有一条真实 arm_tlb_lookup_hit 注入，因此 activated 应为 1，不是 2。
+
+2. CHAOS_LSU_TRIGGER 权威摘要没有进入最终结果，或被后续逻辑覆盖
+
+相关位置：
+
+- tools/lsu_obs_core.py:177,212,292,680；
+- tools/lsu_l5_classify.py:60；
+- tools/lsu_campaign.py 的单格汇总路径。
+
+现有正则已经能识别：
+
+attempted=(\d+) eligible=(\d+) injected=(\d+)
+
+但最终 cell_results.json 仍得到 attempted=0。必须定位是调用路径未执行还是结果被覆盖，修复真实原因；不得只在输出末端硬编码。
+
+3. 新的受控 Kernel panic 文本未被 campaign 分类器识别
+
+tools/lsu_campaign.py 当前只识别旧 Kernel oops 口径，没有精确识别：
+
+[arm_chaos_fs] KERNEL PANIC under fault — exiting (classify: Crash/DUE per fs_mode)
+
+因此它错误地产生 Unclassified，并进一步触发 conservation=VIOLATION。
+
+三、实施最小工具修复
+
+只允许修改 tools/** 和对应测试。
+
+禁止：
+
+- 修改任何 C++；
+- 修改 gem5 二进制；
+- 重跑或重建 gem5；
+- 修改原始 prop_evt、stats、stdout、stderr；
+- 覆盖旧报告；
+- 放宽 admission 或 conservation；
+- 将所有含 panic/oops 的文本宽泛分类为 Crash；
+- 用 SKIP、XFAIL、删除断言或弱化断言解决失败。
+
+注入计数必须满足：
+
+1. arm_tlb_lookup_tier 不计入 activated；
+2. 真实 arm_tlb_lookup_hit 必须具有实际应用字段，如 VA、old_pfn、new_pfn；
+3. 对以下三个来源进行交叉核对：
+   - 实际注入日志；
+   - CHAOS_LSU_TRIGGER.injected；
+   - stats.numFaultsInjected；
+4. 三者不一致时必须响亮失败，不得静默选择某一个来源；
+5. 不得破坏其他 ARM TLB 注入模式和既有 RunID。
+
+TRIGGER 摘要必须满足：
+
+- 本格解析为 attempted=110149；
+- eligible=110149；
+- injected=1；
+- 缺失权威摘要时不得默认为 attempted=0；
+- 必须修复真实数据流，而不是只针对本格写死数值。
+
+退出分类必须满足：
+
+- 精确识别上述受控 KERNEL PANIC 行；
+- outcome=Crash；
+- crash_kind=kernel_panic；
+- 同步精确支持对应的受控 KERNEL OOPS 行；
+- 未知退出仍保持 Unclassified；
+- 不得仅因普通日志中出现 panic 字样就判 Crash。
+
+四、测试要求
+
+新增或强化测试，至少证明：
+
+1. 一条 arm_tlb_lookup_tier 诊断行加一条真实 arm_tlb_lookup_hit，只得到 activated=1；
+2. 能解析 attempted=110149、eligible=110149、injected=1；
+3. 精确受控 Kernel panic 行且 exit_code=0 时得到 Crash/kernel_panic；
+4. 对应受控 Kernel oops 仍正确分类；
+5. 未知正常退出仍为 Unclassified；
+6. 最终单格结果为：
+   attempted=110149、
+   activated=1、
+   Crash=1、
+   conservation=OK、
+   count_contradiction=false；
+7. 三方注入计数不一致会响亮失败；
+8. 既有 F0、其他 TLB 模式和非 TLB 模式不发生回归。
+
+先运行定向测试，再运行完整回归。完整回归要求 NEW FAIL=0。若出现新增失败，立即停止并汇报，不得继续离线复判或启动 canary。
+
+五、离线复判 T02-F2
+
+测试通过后，使用现有 T02-F2-W4/seed1 原始证据离线重新生成报告。
+
+要求：
+
+- 不运行 gem5；
+- 不覆盖旧报告；
+- 将旧报告完整保留；
+- 新报告输出到单独、明确命名的目录；
+- 生成字段级旧/新 diff。
+
+复判结果必须同时满足：
+
+- terminal=full；
+- provable_to=L5；
+- L0→L5 全 proven；
+- L5 为真实 errant_commit；
+- admitted=True；
+- violations=[]；
+- requested=F2；
+- effective=F2；
+- lookup_tier_enabled=1；
+- attempted=110149；
+- eligible=110149；
+- injected/activated=1；
+- Crash=1；
+- conservation=OK；
+- count_contradiction=false；
+- consumer summary 仍为 conservation=ok。
+
+diff 中应只有统计和结局分类相关字段发生预期变化。若传播路径、事件身份、ancestry、terminal、admission 或 violations 意外变化，立即停止并汇报。
+
+六、提交和版本身份
+
+工具修复使用独立提交，并推送当前集成分支。
+
+分别记录：
+
+- binary_source_head=
+  5ab37bc8ce9d8ee8c005e17025cf7bd068f696c9
+- binary_sha256=
+  3b9a43a4fd54233bcc49a80df6ec6a7ab8535dd5771f1efff1af6fe245cdcb88
+- analysis_tool_head=
+  <本轮工具修复后的提交>
+
+本轮是纯工具修改：
+
+- 不需要重建 gem5；
+- 冻结二进制 SHA 保持不变；
+- 不得声称该二进制由新的 analysis_tool_head 构建；
+- 报告中必须明确区分二进制来源提交和分析工具提交。
+
+七、继续剩余四格 canary
+
+只有在 T02-F2 离线复判全部通过后，才将其记为 canary PASS。
+
+届时六格状态应先更新为：
+
+- T02-F0-W4：PASS；
+- T02-F2-W4：PASS；
+- T01-F0-W4：待运行；
+- T04-F0-W4：待运行；
+- T04-F2-W4：待运行；
+- T04-F6-W4：待运行。
+
+然后继续运行剩余四格各 1 个 seed：
+
+- T01-F0-W4；
+- T04-F0-W4；
+- T04-F2-W4；
+- T04-F6-W4。
+
+运行约束：
+
+- 继续使用冻结二进制 3b9a43a4…；
+- 每格使用全新目录；
+- 禁止覆盖任何旧 canary；
+- gem5 并发不超过 3；
+- 启动前再次核对二进制 SHA；
+- 结束后再次核对 SHA；
+- 每格核验正常 EOF、stats 非零、tier 身份、事件量、聚合守恒、terminal、admitted、violations、campaign/checker 一致性；
+- 任一格失败，立即停止仍在运行的其余 canary，保留现场并汇报；
+- 六格 seed1 未全部通过前，不运行 seed2/seed3；
+- 不启动正式实验；
+- 不合并 fi-ding。
+
+八、最终汇报
+
+完成后汇报：
+
+1. 修改的文件和提交 SHA；
+2. 三个工具缺陷各自的真实根因；
+3. 定向测试结果；
+4. 完整回归结果及 NEW FAIL 差集；
+5. T02-F2 旧/新报告字段级 diff；
+6. binary_source_head、binary_sha256、analysis_tool_head；
+7. 六个 RunID 当前逐格状态；
+8. 是否达到 6/6 seed1 canary PASS；
+9. 如果未达到，明确是哪一格、哪一条判据失败；
+10. 下一步是否可以补齐六格 seed2/seed3。
+
+除非发生以下停点，否则不要中途请求一般性确认：
+
+- 服务器状态与上述固定身份不一致；
+- 工作树存在无法安全保留的未知修改；
+- 定向测试或完整回归出现新增失败；
+- T02-F2 离线复判改变了传播链或 admission 结论；
+- 任一剩余 canary 失败；
+- 必须修改 C++、原始证据或放宽门禁才能继续。
+
+---
+
+增加一项运行可靠性要求：0101 此前多次发生 connection reset。后续构建及 canary 必须与当前 AI/SSH 会话解耦，SSH 断开不得导致任务退出，也不得在重连后重复启动。
+
+一、启动方式
+
+任何预计超过 5 分钟的 scons、gem5 或 campaign 都不得以前台 SSH 子进程方式运行。
+
+启动前依次检查：
+
+1. `tmux` 是否可用；
+2. 若 tmux 可用，每个构建批次或 RunID 使用独立的 detached tmux session；
+3. 若 tmux 不可用，使用 `setsid + nohup`，stdin 必须来自 `/dev/null`，stdout/stderr 必须写入明确日志；
+4. 不得只使用普通后台 `&`，不得让长任务依赖当前 shell 或 subagent 存活。
+
+禁止同时使用多个重复 watcher。状态由落盘文件和真实 PID/PGID判断，不依赖聊天会话。
+
+二、每个任务必须建立运行清单
+
+每个 RunID 的新输出目录必须包含或配套记录：
+
+- run_id；
+- seed；
+- 完整启动命令；
+- binary_path；
+- binary_sha256；
+- source_head；
+- analysis_tool_head；
+- start_time；
+- launcher_pid；
+- campaign_pid；
+- gem5_pid；
+- process_group_id；
+- stdout/stderr 日志路径；
+- status=STARTING/RUNNING/FINISHED/FAILED/INTERRUPTED；
+- exit_code；
+- end_time；
+- `.done` 或等价完成标志。
+
+状态文件采用临时文件写完后原子 rename，避免断线时留下半行 JSON。
+
+三、并发与资源
+
+为降低 connection reset、内存和 I/O 峰值：
+
+- gem5 最大并发改为 2；
+- scons 构建期间 gem5 并发必须为 0；
+- 每次启动前检查 MemAvailable、swap 和已有 gem5；
+- 不因 CPU 核数多而提高 gem5 并发；
+- 不把 prop_evt、完整 traceback 或长日志持续输出到 SSH；
+- 只定期读取短状态摘要和日志末尾，不持续 tail -f。
+
+四、断线恢复协议
+
+每次新会话或 connection reset 后，严格执行：
+
+1. 检查记录的 PID 是否仍存在；
+2. 核对 `/proc/<pid>/cmdline` 与清单命令；
+3. 核对 PGID；
+4. 核对二进制绝对路径和 SHA；
+5. 检查目标输出目录；
+6. 检查 stats、prop_evt、run.out、run.err 的大小和更新时间；
+7. 检查 `.done` 与 exit_code；
+8. 只有确认原任务已经退出且没有完整结果时，才允许讨论是否重跑。
+
+如果任务仍在运行：
+
+- 不得重复启动；
+- 不得因为聊天会话丢失而杀掉；
+- 只恢复监控并继续等待。
+
+如果 PID 不存在但没有 `.done`：
+
+- 标记 INTERRUPTED；
+- 保存现场；
+- 不自动覆盖或重跑；
+- 先报告退出原因和现有证据。
+
+五、重复启动防护
+
+每个 RunID+seed 使用独占锁，例如 flock 锁文件。锁已被活动进程持有时必须拒绝第二次启动。
+
+重新启动前必须同时确认：
+
+- 没有对应 campaign；
+- 没有对应 gem5；
+- 没有活动进程持有锁；
+- 旧目录不会被覆盖；
+- 新运行使用全新目录。
+
+六、当前六格任务的附加要求
+
+本轮最终修复、构建和六格验证继续按原提示语执行，但：
+
+- 最多同时运行 2 个 gem5；
+- 新统一构建也必须放入 detached tmux 或 setsid/nohup 包装；
+- 每格必须有上述运行清单；
+- connection reset 本身不构成实验失败；
+- 重连后先恢复，不得盲目补跑；
+- 六格 3/3 完成前不得启动下一批或正式实验。
+
+先核验 tmux/systemd/nohup 能力并报告最终采用的持久化方式，然后继续原任务；这项检查不需要停下来等待我的一般性确认。
