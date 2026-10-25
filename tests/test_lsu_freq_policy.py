@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Frequency-policy overlay contract test."""
-import json, sys
+import hashlib, json, re, sys
 from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
@@ -394,6 +394,66 @@ def test_status_table_policy_axis():
     check("adjudicate_legacy_not_normal", row3["policy_state"] == "UNKNOWN",
           str(row3["policy_state"]))
 
+# ---------------------------------------------------------------------------
+# [Task 9] Immutable-input integrity — the frequency policy is an OVERLAY:
+# the XLSX, the 5 generated MDs, the CSV and runid_map.json must stay
+# byte-identical, and the measured counts on every surface must not drift.
+# ---------------------------------------------------------------------------
+
+BASE = {
+ "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx":
+   "389546f0f8f3d0c6ece2ed33d3a8cfd1426faa9bbc101f7ad7d9612159e273e0",
+ "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md":
+   "1c1cefae05bafb86966e0dfc8477c4866480bac93ce785b8a1c5710476ee0f28",
+ "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案-03-位置x模型矩阵.md":
+   "33b3a0576ad9150238d04bc2382930d8e9572934536bb1f9c55507e28ec15c37",
+ "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案-07-展开执行矩阵.md":
+   "a5859486fef054344dad6d594594f28b489de8f5a088519b4687dd8904b4ff75",
+ "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案-09-逐RunID传播监控.md":
+   "2e71b37fe5a3d8cde7a2f93221500fdaa68a5ae185d40ef16c12c66e81025125",
+ "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案-10-源码监控映射.md":
+   "d1b92b03502cf68bc5241fc5051485cb61ffadfc7deec3d32cccd1a57919b63f",
+ "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv":
+   "4eb13ba483d3b8a67f017c154e955efaed24f87b358e3729ae6b9d5333e26ffc",
+ "docs/gem5-fi/lsu/mdspec/runid_map.json":
+   "7ae61acceb0dab04de90f189cc56cb17ec30db9179ea444dd5579bd88a108ff5",
+}
+
+def sha(p):
+    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+
+def test_immutable_inputs_unchanged():
+    """[Task 9] the 8 immutable inputs stay byte-identical (XLSX + 5 generated
+    MDs + CSV + runid_map.json) — the policy overlay may never edit them."""
+    for rel, want in BASE.items():
+        check(f"sha_unchanged::{rel}", sha(REPO / rel) == want, sha(REPO / rel))
+
+def test_counts_unchanged():
+    """[Task 9] measured counts on every surface: CSV 337 data rows / 68 F6
+    (authoritative 64 + 4 legacy V2.0-deleted F6 rows — the documented
+    64-vs-68 delta), runid_map 325 entries / 64 F6, checklist 325 ITEMs /
+    64 F6. The policy entries==325-unique / legacy==4 / disjoint contract
+    is pinned by test_entries_exactly_325_authoritative."""
+    import csv
+    rows = list(csv.reader(open(REPO / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv",
+                                encoding="utf-8")))
+    data = [r for r in rows[1:] if len(r) > 1 and r[1].strip()]
+    check("csv_rows_337", len(data) == 337, str(len(data)))
+    check("csv_f6_68", sum(1 for r in data if r[1].split("-")[1] == "F6") == 68,
+          str(sum(1 for r in data if r[1].split("-")[1] == "F6")))
+    check("csv_runids_superset_325", len({r[1] for r in data}) >= 325,
+          str(len({r[1] for r in data})))
+    rm = json.loads((REPO / "docs/gem5-fi/lsu/mdspec/runid_map.json").read_text("utf-8"))
+    check("runid_map_entries_325", len(rm["entries"]) == 325, str(len(rm["entries"])))
+    check("runid_map_f6_64", sum(1 for e in rm["entries"] if e["freq"] == "F6") == 64,
+          str(sum(1 for e in rm["entries"] if e["freq"] == "F6")))
+    txt = (REPO / "docs/gem5-fi/lsu/完整任务执行清单.md").read_text("utf-8")
+    items = re.findall(r'^### ITEM-(\d+) — (\S+)\s*$', txt, re.M)
+    check("checklist_items_325", len(items) == 325, str(len(items)))
+    check("checklist_f6_64",
+          sum(1 for _, r in items if r.split("-")[1] == "F6") == 64,
+          str(sum(1 for _, r in items if r.split("-")[1] == "F6")))
+
 def main():
     test_policy_covers_all_runids()
     test_entries_exactly_325_authoritative()
@@ -403,6 +463,8 @@ def main():
     test_runner_manifest_carries_policy()
     test_ready_contract_policy_axis()
     test_status_table_policy_axis()
+    test_immutable_inputs_unchanged()
+    test_counts_unchanged()
     print(f"\n{'ALL PASS' if not fails else 'FAILED (%d): %s' % (len(fails), fails)}")
     return 0 if not fails else 1
 
