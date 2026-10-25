@@ -154,6 +154,75 @@ def propagation_flags(runid, seed):
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wilson import wilson_ci  # repo's single Wilson impl (no drift)
 
+# [R6-FREQPOLICY 2026-10-25] frequency-policy overlay (tools/lsu_freq_policy.py,
+# docs/gem5-fi/lsu/mdspec/R6-FREQUENCY-POLICY.json). Optional at import time:
+# a missing module or missing policy JSON must NEVER block a NORMAL run —
+# policy_decision below degrades to ALLOW in exactly those two cases. Same
+# sibling-module idiom as `wilson` above (sys.path already holds tools/).
+try:
+    import lsu_freq_policy as _FP
+except Exception:                                    # policy overlay optional
+    _FP = None
+
+
+def policy_decision(run_id, seed, allow_stress_only=False):
+    """[R6-FREQPOLICY] gate one (run_id, seed) sample before it runs.
+
+    Returns 'ALLOW' (NORMAL cell, seed within the policy's required_seeds) or
+    'ALLOW_STRESS_ONLY' (representative F6 seed1, loud opt-in via
+    --allow-stress-only). Every policy exclusion raises SystemExit with a
+    message beginning '[R6-FREQPOLICY]' so a policy refusal can never be
+    conflated with a technical block:
+      - STRESS_REDUNDANT F6: always refused — no flag unblocks it;
+      - representative F6 seed1 without --allow-stress-only: refused (the
+        opt-in is loud by design; STRESS_ONLY cells are excluded from
+        statistics);
+      - representative F6 seed>1: POLICY_NOT_REQUIRED, refused even WITH the
+        flag (--allow-stress-only never permits seed>1);
+      - F6 runid absent from the overlay: refused — the overlay enumerates
+        every F6 cell of the authoritative grid, so no F6 runs ungoverned.
+    Non-F6 runids outside the overlay (synthetic/toy grids, unit-test
+    fixtures) run ungated with a stderr note: refusing them would conflate
+    'outside the overlay' with 'refused by the overlay'.
+    """
+    if _FP is None:
+        return "ALLOW"
+    try:
+        pol = _FP.load_policy()
+    except FileNotFoundError:
+        return "ALLOW"
+    d = _FP.query(pol, run_id, seed)["decision"]
+    if d == "ALLOW":
+        return "ALLOW"
+    if d == "ALLOW_STRESS_ONLY":
+        if allow_stress_only:
+            return "ALLOW_STRESS_ONLY"
+        raise SystemExit(
+            "[R6-FREQPOLICY] %s seed%d is the representative F6 (STRESS_ONLY, "
+            "include_in_statistics=false); running it is a loud opt-in — pass "
+            "--allow-stress-only. That flag never permits seed>1 and never "
+            "unblocks STRESS_REDUNDANT." % (run_id, seed))
+    if d == "REFUSE_STRESS_REDUNDANT":
+        raise SystemExit(
+            "[R6-FREQPOLICY] %s is STRESS_REDUNDANT (covered_by_representative_F6); "
+            "refusing to run. Requires a separate explicit human ruling to restore." % run_id)
+    if d == "POLICY_NOT_REQUIRED":
+        raise SystemExit(
+            "[R6-FREQPOLICY] %s seed%d is POLICY_NOT_REQUIRED "
+            "(required_seeds reached / STRESS_ONLY cap)." % (run_id, seed))
+    # UNKNOWN_RUNID: query's unknown-runid dict has ONLY 3 keys (no
+    # run_policy), so never index it — branch on the tier parsed from the
+    # RunID itself (same idiom as lsu_freq_policy._f6_rows_from_matrix).
+    if str(run_id).strip().split("-")[1:2] == ["F6"]:
+        raise SystemExit(
+            "[R6-FREQPOLICY] %s seed%d: F6 runid absent from the frequency-"
+            "policy overlay (the overlay enumerates every F6 cell); refusing "
+            "to run ungoverned." % (run_id, seed))
+    print("[R6-FREQPOLICY] %s seed%d: runid not in the policy overlay; "
+          "running ungated (the overlay governs the authoritative grid)."
+          % (run_id, seed), file=sys.stderr)
+    return "ALLOW"
+
 # Expanded matrix column indices (0-based; col 0 = "Excel行")
 COL_RUNID = 1     # RunID like A01-F0-W3
 COL_MODEL = 2     # Model ID like A01
@@ -2697,6 +2766,10 @@ def build_parser():
                         "model_blocked_reason; this flag never unblocks "
                         "anything, it only lets the operator produce the "
                         "evidence.")
+    p.add_argument("--allow-stress-only", action="store_true",
+                   help="[R6-FREQPOLICY] permit a representative STRESS_ONLY F6 "
+                        "at seed1 only; never permits seed>1 and never "
+                        "unblocks STRESS_REDUNDANT")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--phase", default="trial", choices=["trial", "screening", "main"])
     p.add_argument("--max-seeds-per-cell", type=int, default=10,
@@ -2838,6 +2911,14 @@ def run_cell_adaptive(cell, args, outroot):
                 stop_reason = "wilson-halfwidth(%.4f<=%.2f)" % (hw,
                                                             args.wilson_stop_hw)
                 break
+        # [R6-FREQPOLICY] gate the seed BEFORE it runs: a direct campaign
+        # invocation cannot bypass the frequency policy. Raises before
+        # run_single_cell, so a policy refusal spawns no gem5 process at
+        # all (the [R6-FREQPOLICY] message can never be conflated with a
+        # technical block mid-run).
+        policy_decision(runid, seed + 1,
+                        allow_stress_only=getattr(args, "allow_stress_only",
+                                                  False))
         seed += 1
         r = run_single_cell(cell, args, seed, cell_out / f"seed{seed}")
         act = int(r.get("activated", 0) or 0)
@@ -2935,8 +3016,22 @@ def run_cell_adaptive(cell, args, outroot):
         rate_note = ((rate_note + "；") if rate_note else "") + \
             "activated=0 → sdc_rate 不适用（n/a），非 0.0"
     cons = (activated == sum(classes.values()))
+    # [R6-FREQPOLICY] the policy row this cell ran under, rolled up into the
+    # cell result. "UNKNOWN" when the overlay itself is absent (module or
+    # JSON missing — never blocks a NORMAL run); "UNKNOWN_RUNID" when the
+    # runid sits outside the overlay (query's unknown-runid dict has no
+    # run_policy key, hence .get — never a KeyError).
+    if _FP is None:
+        _policy_row = "UNKNOWN"
+    else:
+        try:
+            _policy_row = _FP.query(_FP.load_policy(), runid, 1).get(
+                "run_policy", "UNKNOWN_RUNID")
+        except FileNotFoundError:
+            _policy_row = "UNKNOWN"
     result = {
         "runid": runid, "phase": args.phase, "seed_batches": seed,
+        "policy_decision": _policy_row,
         "clustered": clustered, "n_runs": len(runs),
         "attempted": attempted_reported, "activated": activated,
         "classes": classes, "sdc_rate": sdc_rate,
