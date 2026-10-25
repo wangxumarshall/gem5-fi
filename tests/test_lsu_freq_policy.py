@@ -322,6 +322,78 @@ def test_ready_contract_policy_axis():
           str([r.get("policy_state") for r in no_pol
                if r.get("policy_state") != "UNKNOWN"][:5]))
 
+def test_status_table_policy_axis():
+    """[R6-FREQPOLICY] R6-STATUS-TABLE 第三条正交只读轴 policy_state。
+
+    真实顶层形状（tools/lsu_r6_status_table.py 产物）：{meta, summary, rows}，
+    rows=325 契约 RunID。政策轴只报告、不裁决：STRESS_REDUNDANT（政策不
+    要求）的行绝不因政策被计为 failure/BLOCKED/EVIDENCE_MISSING——
+    evidence_state/eligibility 照实报告磁盘与上游事实；overlay 缺失或
+    RunID 不在权威 325 entries（legacy CSV-only F6）⇒ UNKNOWN（不可治理，
+    响亮），绝不静默等于 NORMAL。"""
+    VALID = {"NORMAL", "STRESS_ONLY", "STRESS_REDUNDANT"}
+    doc = json.loads((REPO / "docs/gem5-fi/lsu/mdspec/R6-STATUS-TABLE.json")
+                     .read_text("utf-8"))
+    rows = doc["rows"]                      # 真实形状：doc 本身就是 dict+rows
+    check("status_rows_325", len(rows) == 325, str(len(rows)))
+    check("policy_axis_present", all("policy_state" in r for r in rows))
+    bad = [r["run_id"] for r in rows
+           if r.get("policy_state") not in VALID | {"UNKNOWN"}]
+    check("policy_axis_enum", not bad, str(bad[:5]))
+    check("policy_axis_no_unknown",
+          all(r.get("policy_state") in VALID for r in rows),
+          "overlay 缺失或存在不受管 RunID（policy_state=UNKNOWN）")
+    # 政策不要求的 F6：无任何流 ⇒ NOT_RUN（绝不是 EVIDENCE_MISSING/TRUNCATED）
+    bad = [r["run_id"] for r in rows
+           if r.get("policy_state") == "STRESS_REDUNDANT"
+           and r.get("evidence_state") in ("EVIDENCE_MISSING", "TRUNCATED")]
+    check("redundant_not_counted_missing", not bad, str(bad[:5]))
+    bad = [r["run_id"] for r in rows
+           if r.get("policy_state") == "STRESS_REDUNDANT"
+           and r.get("samples", 0) == 0
+           and r.get("evidence_state") != "NOT_RUN"]
+    check("redundant_no_runs_stays_not_run", not bad, str(bad[:5]))
+    # 逐行 tally == summary.policy_states（同源，Σ == 325）
+    tally = {}
+    for r in rows:
+        tally[r["policy_state"]] = tally.get(r["policy_state"], 0) + 1
+    ps = doc["summary"].get("policy_states")
+    check("policy_states_tally", ps == tally, f"doc={ps} recount={tally}")
+    check("policy_states_sum_325", ps is not None and sum(ps.values()) == 325,
+          str(ps))
+    # T04-F6-W4（钉死的代表 F6）：STRESS_ONLY 且既有证据保留（样本+准入在场）
+    t04 = next((r for r in rows if r["run_id"] == "T04-F6-W4"), None)
+    check("t04_f6_w4_stress_only",
+          t04 is not None and t04.get("policy_state") == "STRESS_ONLY",
+          str(t04 and t04.get("policy_state")))
+    check("t04_f6_w4_evidence_preserved",
+          t04 is not None and t04.get("samples", 0) > 0
+          and t04.get("admitted_samples", 0) > 0,
+          str(t04 and {k: t04.get(k) for k in
+                       ("samples", "activated_samples", "admitted_samples",
+                        "evidence_state", "eligibility")}))
+    # 降级与不受管（直接调 adjudicate，无流样本，快）：
+    #   无 overlay ⇒ UNKNOWN；legacy CSV-only F6（不在权威 entries）⇒ UNKNOWN
+    import lsu_r6_status_table as ST
+    idx = ST._load_policy_index()
+    check("policy_index_loaded", idx is not None and len(idx) == 325,
+          str(idx and len(idx)))
+    pilots = json.loads((REPO / "docs/gem5-fi/lsu/mdspec/pilot_evidence.json")
+                        .read_text("utf-8")).get("pilots", {})
+    main_root = Path("/home/sdc/gem5-fi-ding")
+    row = ST.adjudicate("T04-F6-W4", [], None, pilots,
+                        main_root, main_root / "runs/lsu", idx)
+    check("adjudicate_stress_only", row["policy_state"] == "STRESS_ONLY",
+          str(row["policy_state"]))
+    row2 = ST.adjudicate("T04-F6-W4", [], None, pilots,
+                         main_root, main_root / "runs/lsu", {})
+    check("adjudicate_no_overlay_unknown", row2["policy_state"] == "UNKNOWN",
+          str(row2["policy_state"]))
+    row3 = ST.adjudicate("T09-F6-W4", [], None, pilots,
+                         main_root, main_root / "runs/lsu", idx)
+    check("adjudicate_legacy_not_normal", row3["policy_state"] == "UNKNOWN",
+          str(row3["policy_state"]))
+
 def main():
     test_policy_covers_all_runids()
     test_entries_exactly_325_authoritative()
@@ -330,6 +402,7 @@ def main():
     test_scheduler_all_excludes_redundant()
     test_runner_manifest_carries_policy()
     test_ready_contract_policy_axis()
+    test_status_table_policy_axis()
     print(f"\n{'ALL PASS' if not fails else 'FAILED (%d): %s' % (len(fails), fails)}")
     return 0 if not fails else 1
 
