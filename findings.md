@@ -342,3 +342,50 @@ random (xs32()%7)+1/(xs32()%5)+1 同域。每步外积 a·b≤35（精确 f32 �
 交叉引用：sdcshield feat/sme-fmopa-za-allvl（将建）；spec
 docs/superpowers/specs/2026-10-23-sve-sme-all-vl2-design.md §7（sdcshield 仓）；
 先例 PR #242（sme_za_tileview_dual）。
+
+## PR #280 检视处置 R2：FNV 基数修正 + asm 约束/clobber 同步加固，16 run 重锚（2026-10-25，feat/pr280-r2-dual 分支，基 ebe08632）
+
+sdcshield PR #280（feat/sme-fmopa-za-allvl）检视处置承载两项 kernel 侧修正：
+
+1. **FNV 基数 typo（PR #279 移交项 28）**：`fnv` 初值
+   1469598103934665603 → **14695981039346656037**（0xcbf29ce484222325，
+   FNV-1a 规范 offset basis；掉尾 7 的 typo 源自 sdcshield 计划模板）。
+   通道 B 为纯复现 oracle（同基数比较），比较性结论（axis/FAILS）不受
+   影响；上表 16 checksum 均为 typo 基数所计，本次重锚为新基值。
+2. **asm 约束/clobber 同步加固（sdcshield 侧 coderabbit 意见）**：
+   `[a]/[b]/[n]` `"+r"`→`"+&r"`（in-out 输出在循环内先于 `[o]` 消费被
+   写——按 GCC 文档契约声明 early-clobber；等价性依据：in-out 入口值
+   与 `[o]/[s]` 在 asm 边界同时活跃，分配器本就无法让不同值的输入共享
+   寄存器，`&` 是文档化契约的防御性声明而非行为变更）；clobber 列表
+   z0-z2/p0 → **全 Z0-Z31/P0-P15/FFR**（SMSTART SM/SMSTOP SM 使整个
+   Z/P/FFR 文件内容 UNKNOWN——AAPCS-SME；GPR 不受影响）。约束修饰符
+   从不改变 asm 模板字节，只影响寄存器分配。
+
+### 16 run 重锚全绿（O3，configs/se/arm_chaos.py，--sve_vl/--sme_vl 同档同值）
+
+| tier | SVL 标称 | mode | cols | axis | checksum | FAILS | exit |
+|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | fixed 1 | 4 | COLUMN | 3da6ba4b7bd5ae4c | 0 | 0 |
+| 1 | 128-bit | random 1 | 4 | COLUMN | 2cfcecf4d6ff7892 | 0 | 0 |
+| 1 | 128-bit | random 2 | 4 | COLUMN | 287df182c2121927 | 0 | 0 |
+| 1 | 128-bit | random 3 | 4 | COLUMN | dac9dde427f26ce1 | 0 | 0 |
+| 2 | 256-bit | fixed 1 | 8 | COLUMN | 4265660ef2ef95d1 | 0 | 0 |
+| 2 | 256-bit | random 1 | 8 | COLUMN | 6a2dca87259027c3 | 0 | 0 |
+| 2 | 256-bit | random 2 | 8 | COLUMN | 65952e8d402e97f4 | 0 | 0 |
+| 2 | 256-bit | random 3 | 8 | COLUMN | be77cb77c45f4d1c | 0 | 0 |
+| 4 | 512-bit | fixed 1 | 16 | COLUMN | 639e68d53446a7f1 | 0 | 0 |
+| 4 | 512-bit | random 1 | 16 | COLUMN | a8da1c6813a3a28f | 0 | 0 |
+| 4 | 512-bit | random 2 | 16 | COLUMN | 3b18aa9f40f97e01 | 0 | 0 |
+| 4 | 512-bit | random 3 | 16 | COLUMN | 1480ed8b0e5f5317 | 0 | 0 |
+| 8 | 1024-bit | fixed 1 | 32 | COLUMN | 9d8d758252b7e1f0 | 0 | 0 |
+| 8 | 1024-bit | random 1 | 32 | COLUMN | 530223b16d467936 | 0 | 0 |
+| 8 | 1024-bit | random 2 | 32 | COLUMN | 2f2faa58cc542482 | 0 | 0 |
+| 8 | 1024-bit | random 3 | 32 | COLUMN | b8f9be639be1acd6 | 0 | 0 |
+
+（完整日志 /tmp/p280r2_sve{1,2,4,8}_{fixed_1,random_1,random_2,random_3}.log；
+16 checksum 互异，均为修正后基数所计。）判据全过：cols=SVL/4 逐档精确
+（4/8/16/32）；axis=COLUMN ×16（与 ebe08632 裁决一致）；SDCSHIELD_FAILS=0
+×16；gem5 exit 0 ×16。加固形态（"+&r" + 全 Z/P/FFR clobber，gcc 12.3.1
+-Wall -Wextra 零告警编译）在四档字节级复现原裁决——约束加固为等价性
+变更的实证。交叉引用：sdcshield PR #280 检视处置报告
+（/tmp/pr280-resolution.md）。

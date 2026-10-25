@@ -47,7 +47,15 @@ static uint32_t xs32(void)
 }
 
 static unsigned g_fails = 0;
-static uint64_t fnv = 1469598103934665603ULL;
+/* FNV-1a canonical offset basis 0xcbf29ce484222325 (= 14695981039346656037).
+ * The original form dropped the trailing 7 (1469598103934665603, a typo
+ * inherited from the sdcshield plan template — PR #279 review item 28);
+ * all 16 checksums in the ebe08632 findings.md table were computed with
+ * the typo'd basis. Channel B is a pure reproducibility oracle (compare
+ * same-basis runs), so the comparative conclusions are unaffected; the
+ * fix re-anchors the table to the standard basis (this commit's 16-run
+ * rerun). Prime multiplier 1099511628211 was always correct. */
+static uint64_t fnv = 14695981039346656037ULL;
 static void fnv_u32(uint32_t v)
 {
     fnv ^= v & 0xFF;         fnv *= 1099511628211ULL;
@@ -100,7 +108,22 @@ int main(int argc, char **argv)
         }
 
     /* Same-source mirror of the reworked test asm: the window stride
-       (cols * 4 bytes) is a REGISTER operand; element size stays fixed. */
+       (cols * 4 bytes) is a REGISTER operand; element size stays fixed.
+       Constraint contract (hardened in lockstep with the sdcshield test,
+       PR #280 review): [a]/[b]/[n] are in-out operands whose outputs are
+       written inside the loop BEFORE input [o] is consumed by the final
+       st1w, so they carry the early-clobber modifier ("+&r") per the GCC
+       extended-asm contract — belt-and-braces, since as in-outs their
+       entry values are simultaneously live with [o]/[s] at the asm
+       boundary and the allocator cannot alias distinct-valued inputs;
+       the '&' documents the write-before-read contract rather than
+       relying on allocator internals. Constraints never change the asm
+       template bytes, only register allocation.
+       Clobber contract: SMSTART SM / SMSTOP SM transitions make the
+       ENTIRE Z0-Z31 / P0-P15 / FFR contents UNKNOWN (AAPCS-SME), not
+       just the registers this template names — the full file is declared
+       so the compiler never keeps live vector state across the streaming
+       window. GPRs are preserved by streaming mode. */
     static float out[COLS_MAX];
     {
         const float *pa = a, *pb = b;
@@ -125,9 +148,15 @@ int main(int argc, char **argv)
             "mova z2.s, p0/m, za0v.s[w12, 0]\n\t"
             "st1w {z2.s}, p0, [%[o]]\n\t"
             "smstop za\n\t" "smstop sm\n\t"
-            : [a] "+r"(pa), [b] "+r"(pb), [n] "+r"(steps)
+            : [a] "+&r"(pa), [b] "+&r"(pb), [n] "+&r"(steps)
             : [o] "r"(po), [s] "r"(stride)
-            : "z0", "z1", "z2", "p0", "w12", "memory", "cc");
+            : "z0", "z1", "z2", "z3", "z4", "z5", "z6", "z7",
+              "z8", "z9", "z10", "z11", "z12", "z13", "z14", "z15",
+              "z16", "z17", "z18", "z19", "z20", "z21", "z22", "z23",
+              "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31",
+              "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7",
+              "p8", "p9", "p10", "p11", "p12", "p13", "p14", "p15",
+              "ffr", "w12", "memory", "cc");
     }
 
     for (int i = 0; i < cols; ++i) {
