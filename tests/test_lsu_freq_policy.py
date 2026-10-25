@@ -225,12 +225,74 @@ def test_runner_manifest_carries_policy():
     finally:
         P.load_policy = _orig_load
 
+def test_ready_contract_policy_axis():
+    """[R6-FREQPOLICY] ready_contract 报告政策轴，但政策 ≠ 技术 BLOCKED。
+
+    live 契约 325 行全 BLOCKED 是 R6-RECONCILE 110b96aa 的真实技术状态
+    （runid_map 阻塞 + 链门禁降级），与频率政策无关 —— 因此断言的不是
+    "无 BLOCKED"，而是**两轴互不干涉**：
+      1) 每行 policy_state ∈ {NORMAL, STRESS_ONLY, STRESS_REDUNDANT}；
+      2) 顶层 policy_counts 恰为逐行 tally（Σ == 325）；
+      3) T04-F6-W4（钉死的代表 F6）为 STRESS_ONLY；
+      4) 独立轴：同一输入，有/无 overlay 两次 build_contract 的
+         (run_id, status, category) 逐行相同 —— 政策绝不改写技术判定
+         （overlay 缺失时该轴降级 UNKNOWN 并响亮计数，同样不改写）。"""
+    VALID = {"NORMAL", "STRESS_ONLY", "STRESS_REDUNDANT"}
+    doc = json.loads((REPO / "docs/gem5-fi/lsu/mdspec/ready_contract.json")
+                     .read_text("utf-8"))
+    ent = doc["entries"]
+    check("contract_rows_325", doc["total"] == 325 == len(ent),
+          f"total={doc['total']} len={len(ent)}")
+    check("policy_state_present", all("policy_state" in e for e in ent))
+    bad = [e["run_id"] for e in ent if e.get("policy_state") not in VALID]
+    check("policy_state_valid_enum", not bad, str(bad[:5]))
+    tally = {}
+    for e in ent:
+        tally[e.get("policy_state")] = tally.get(e.get("policy_state"), 0) + 1
+    pc = doc.get("policy_counts")
+    check("policy_counts_tally_entries", pc == tally, f"doc={pc} recount={tally}")
+    check("policy_counts_sum_total", pc is not None and sum(pc.values()) == 325,
+          str(pc))
+    t04 = next((e for e in ent if e["run_id"] == "T04-F6-W4"), None)
+    check("t04_f6_w4_stress_only",
+          t04 is not None and t04.get("policy_state") == "STRESS_ONLY",
+          str(t04 and t04.get("policy_state")))
+    # 独立轴：同一输入（契约记录的真证据根）下，有/无 overlay 的重建
+    # status/category 必须逐行相同。
+    import lsu_ready_contract as RC
+    root = doc["chain_gate"]["evidence_root"]
+    args = (str(RC.DEFAULT_MAP), str(RC.DEFAULT_MATRIX),
+            str(REPO / "docs/gem5-fi/lsu/mdspec/coverage_matrix.md"))
+    try:
+        with_pol = RC.build_contract(*args, evidence_root=root)
+        no_pol = RC.build_contract(*args, evidence_root=root, policy={})
+    except Exception as ex:                    # 实现前：build_contract 无 policy 形参
+        check("policy_axis_rebuild", False, repr(ex))
+        return
+    check("policy_axis_rebuild", True)
+
+    def cols(rows):
+        return [(r["run_id"], r["status"], r["category"]) for r in rows]
+    check("rebuild_rows_325", len(with_pol) == len(no_pol) == 325,
+          f"{len(with_pol)}/{len(no_pol)}")
+    diffs = [(a, b) for a, b in zip(cols(with_pol), cols(no_pol)) if a != b]
+    check("policy_never_rewrites_status_category", not diffs, str(diffs[:3]))
+    check("rebuild_with_policy_enum",
+          all(r["policy_state"] in VALID for r in with_pol),
+          str([r["policy_state"] for r in with_pol
+               if r["policy_state"] not in VALID][:5]))
+    check("rebuild_without_policy_loud_unknown",
+          all(r["policy_state"] == "UNKNOWN" for r in no_pol),
+          str([r.get("policy_state") for r in no_pol
+               if r.get("policy_state") != "UNKNOWN"][:5]))
+
 def main():
     test_policy_covers_all_runids()
     test_campaign_refuses_redundant_and_seed2()
     test_policy_decision_gate_semantics()
     test_scheduler_all_excludes_redundant()
     test_runner_manifest_carries_policy()
+    test_ready_contract_policy_axis()
     print(f"\n{'ALL PASS' if not fails else 'FAILED (%d): %s' % (len(fails), fails)}")
     return 0 if not fails else 1
 

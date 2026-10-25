@@ -24,6 +24,13 @@
   **独立**阻塞，门 2 准入**不得**解除它；但门 2 的判定仍如实记录（否则
   "链已准入"这一事实在契约里不可见，即 L28 实测的"结构性不可达"）。
 
+**政策轴（R6-FREQPOLICY，独立只读）**：每行附带 `policy_state`
+（NORMAL / STRESS_ONLY / STRESS_REDUNDANT；唯一裁决源 = `lsu_freq_policy` +
+R6-FREQUENCY-POLICY.json），顶层 `policy_counts` 汇总。政策**只报告、不
+裁决**：绝不改写任何行的 status/category —— 政策排除（STRESS_REDUNDANT）
+≠ 技术 BLOCKED；overlay 缺失时该轴整体降级 UNKNOWN 并在 policy_counts
+响亮计数，技术判定同样不受影响。
+
 同时产出**构建门禁**与**资源准入**（7.2/7.3）：二进制 sha256、构建日志 exit、
 `pytest tests/ -q` 结果、CPU/内存/磁盘、4 并发 gem5 上限，以及**唯一正式启动命令**。
 
@@ -48,6 +55,13 @@ import lsu_campaign as lc        # noqa: E402  唯一路由来源（resolve_cell
 import lsu_coverage_matrix as cm  # noqa: E402  唯一节点级判据来源
 import lsu_chain_check as chain   # noqa: E402  R6-GATE：链准入门禁（唯一判定源）
 import lsu_prop_fields as P       # noqa: E402  PROP-EVT 解析（门禁输入）
+# [R6-FREQPOLICY] 频率政策 overlay（可选依赖）：只读报告轴，绝不参与
+# status/category 裁决（政策排除 ≠ 技术 BLOCKED）。与 lsu_campaign 同一
+# 兄弟模块习语：模块/JSON 缺失 ⇒ 该轴降级 UNKNOWN，绝不崩。
+try:
+    import lsu_freq_policy as FPOL  # noqa: E402
+except Exception:                   # pragma: no cover - overlay optional
+    FPOL = None
 
 MDS = REPO / "docs/gem5-fi/lsu/mdspec"
 # [R6-GATE] 链准入门禁（Agent B）：READY 不再仅凭 coverage PASS 得出——须由
@@ -58,6 +72,8 @@ MDS = REPO / "docs/gem5-fi/lsu/mdspec"
 PILOT_EVIDENCE = MDS / "pilot_evidence.json"
 CHAIN_EVENT_CAP = 4000   # 单样本事件上限：超出→响亮不判（绝不默认通过）
 DEFAULT_MAP = MDS / "runid_map.json"
+# [R6-FREQPOLICY] 频率政策 overlay（run_policy 唯一裁决源 = lsu_freq_policy）
+POLICY_OVERLAY = MDS / "R6-FREQUENCY-POLICY.json"
 DEFAULT_MATRIX = REPO / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv"
 DEFAULT_CKPT = Path("/home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015")
 # 唯一正式启动命令的固定出口（R4-7.4：GO 前只此一条）
@@ -352,12 +368,34 @@ def _load_pilots(path=None):
         return {}
 
 
+def _load_policy_index(path=None):
+    """[R6-FREQPOLICY] run_id -> run_policy 索引（唯一来源 lsu_freq_policy）。
+
+    模块/JSON 缺失或损坏 → None：政策轴整体降级 UNKNOWN（policy_counts
+    响亮计数），status/category 不受任何影响 —— 政策不是技术门禁。
+    """
+    if FPOL is None:
+        return None
+    try:
+        pol = FPOL.load_policy(path) if path is not None else FPOL.load_policy()
+    except Exception:
+        return None
+    return {e["run_id"]: e["run_policy"] for e in pol.get("entries", [])}
+
+
 def build_contract(map_path, matrix_path, cov_path, pilots=None,
-                   evidence_root=None):
+                   evidence_root=None, policy=None):
+    """policy: run_id -> run_policy 索引。[R6-FREQPOLICY] 该轴**只报告**：
+    None = 自动加载默认 overlay；{} = 显式无 overlay（每行 policy_state=
+    UNKNOWN）；dict = 直接使用。无论取值如何，status/category 的判定路径
+    （_classify + 链门禁）分毫不变 —— 政策排除 ≠ 技术 BLOCKED。"""
     rid_map = json.loads(Path(map_path).read_text())
     cov = _row_ids(Path(cov_path))
     header, cells = lc.load_matrix(matrix_path)
     by_runid = {c[lc.COL_RUNID].strip(): c for c in cells}
+    if policy is None:
+        policy = _load_policy_index()
+    pol_idx = policy or {}
 
     rows = []
     for e in rid_map["entries"]:
@@ -403,7 +441,12 @@ def build_contract(map_path, matrix_path, cov_path, pilots=None,
             # "链已准入但被独立阻塞挡下"与"上游放行但链未证"两类不同的洞。
             "upstream_status": upstream_status,
             "upstream_category": upstream_cat,
-            "freq": e.get("freq", ""), "status": status, "category": cat,
+            "freq": e.get("freq", ""),
+            # [R6-FREQPOLICY] 独立只读轴：只取自 overlay（lsu_freq_policy），
+            # 绝不参与上面的 status/category 裁决；overlay 无此 RunID ⇒
+            # UNKNOWN（policy_counts 响亮计数，不静默）。
+            "policy_state": pol_idx.get(runid, "UNKNOWN"),
+            "status": status, "category": cat,
             "family": fam, "why": why,
             "precondition": ("FS 资产 (LSU_FS_DIR) + B0 checkpoint "
                              f"{DEFAULT_CKPT.name}" if fam == "armtlb"
@@ -494,13 +537,18 @@ def main():
     counts = Counter(r["status"] for r in rows)
     total = sum(counts.values())
     cats = Counter(r["category"] for r in rows if r["status"] == "BLOCKED")
+    pcounts = Counter(r["policy_state"] for r in rows)
     cg = chain_gate_summary(rows, a.evidence_root)
 
     doc = {
-        "source": "runid_map.json + coverage_matrix.md + lsu_campaign.resolve_cell",
+        "source": "runid_map.json + coverage_matrix.md + lsu_campaign.resolve_cell"
+                  " + R6-FREQUENCY-POLICY.json (policy_state 轴)",
         "total": total,
         "status": dict(counts),
         "blocked_by_category": dict(cats),
+        # [R6-FREQPOLICY] 政策轴汇总：与逐行 policy_state 同源 tally（Σ==total）。
+        # 独立轴 —— 政策排除（STRESS_REDUNDANT）不改写任何行的 status/category。
+        "policy_counts": dict(pcounts),
         "self_consistent": total == counts["READY"] + counts["PARTIAL"]
         + counts["BLOCKED"],
         # [R6-GATE / L29] 链准入门禁记录：证据根 + 判定口径（可复现）。
@@ -530,6 +578,13 @@ def main():
           f" / BLOCKED={counts['BLOCKED']}**）",
           f"- 自洽：{'✅' if doc['self_consistent'] else '❌ 计数不自洽'}",
           f"- BLOCKED 分类：{dict(cats)}",
+          f"- **频率政策（R6-FREQPOLICY，独立轴）**：{dict(pcounts)} —— "
+          f"`policy_state`（NORMAL/STRESS_ONLY/STRESS_REDUNDANT，来源 "
+          f"`R6-FREQUENCY-POLICY.json`）只报告不裁决：政策排除"
+          f"（STRESS_REDUNDANT）≠ 技术 BLOCKED，status/category 完全由技术门"
+          f"（台账/覆盖/链）决定"
+          + (f"；⚠️ UNKNOWN={pcounts['UNKNOWN']} 行政策不可得（overlay 缺失）"
+             if pcounts.get("UNKNOWN") else ""),
           f"- **链准入门禁（R6-GATE）**：READY 须经 "
           f"`lsu_chain_check.check_admission` 准入（完整 family-specific "
           f"L0→L5 链，或显式 containment 且后续层全 N/A(contained)）。"
@@ -551,12 +606,13 @@ def main():
           f"`--max-parallel {MAX_PARALLEL}`（禁止 trial/3-seed 与 Wilson 序贯）",
           f"- FS checkpoint：`{DEFAULT_CKPT}`",
           ""]
-    md.append("| RunID | 单元 | 模型 | F | 状态 | 类别 | 覆盖 | 链门禁 | "
+    md.append("| RunID | 单元 | 模型 | F | 政策 | 状态 | 类别 | 覆盖 | 链门禁 | "
               "命令(READY/PARTIAL) |")
-    md.append("|---|---|---|---|---|---|---|---|---|")
+    md.append("|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         c = r.get("chain") or {}
         md.append(f"| {r['run_id']} | {r['unit']} | {r['model']} | {r['freq']} | "
+                  f"{r['policy_state']} | "
                   f"{r['status']} | {r['category']} | {r['coverage']} | "
                   f"admitted={c.get('admitted')}"
                   f"{'/' + str(c.get('terminal')) if c.get('terminal') else ''}"
@@ -568,6 +624,7 @@ def main():
           f"READY={counts['READY']} PARTIAL={counts['PARTIAL']} "
           f"BLOCKED={counts['BLOCKED']} self_consistent={doc['self_consistent']}")
     print(f"[ready_contract] blocked_by_category={dict(cats)}")
+    print(f"[ready_contract] policy_counts={dict(pcounts)}")
     print(f"[ready_contract] chain_gate recorded={cg['recorded']}/"
           f"{cg['rows_total']} admitted={cg['admitted']} "
           f"evaluated={cg['evaluated']} unproven={cg['unproven']} "
