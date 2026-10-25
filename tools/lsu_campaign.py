@@ -2526,9 +2526,34 @@ def run_single_cell(cell, args, seed, outdir):
             # report is written BEFORE returning (user instruction §一.3: a
             # Timeout must still yield prop_evt.txt.gz + chain_report.json;
             # losing it because there is no chain_end is evidence loss).
+            # [R6-GRACEEXIT] A gracefully-closed Timeout has COMPLETE evidence,
+            # so the same three-source funnel cross-check the natural-exit path
+            # runs must run here too: otherwise attempted/eligible/injected and
+            # count_contradiction come out as None for exactly the samples whose
+            # evidence is intact — the funnel facts would be missing precisely
+            # where they are knowable. The ORACLE stays Timeout (the budget
+            # ended the run); only the accounting is harvested.
+            _funnel = {}
+            try:
+                _base = (classify_fs_run(outdir, _r.get("stdout", ""),
+                                         _r["exit_code"]) if family == "armtlb"
+                         else classify_fsmc_run(outdir, _r.get("stdout", ""),
+                                                _r["exit_code"]))
+                _funnel = {k: _base.get(k) for k in
+                           ("attempted", "eligible", "funnel_source",
+                            "funnel_missing", "count_sources",
+                            "count_contradiction", "lookup_tier_capability")
+                           if k in _base}
+            except Exception as exc:
+                # never silent: a failed cross-check is recorded loudly
+                (outdir / "run.err").write_text(
+                    (outdir / "run.err").read_text()
+                    + "\nCLASSIFY-FAILED (funnel cross-check unavailable on "
+                      "the Timeout path): %r\n" % (exc,))
             _to = {"outcome": "Timeout", "injected": inj, "activated": inj,
                    "classes": classes, "mode": "FS",
                    "timeout_seconds": args.fs_timeout,
+                   **_funnel,
                    # [R6-GRACEEXIT] auditable exit facts. `graceful` says the
                    # child finalized on SIGINT (evidence complete); signal/
                    # exit_code say what actually terminated it. Kept under
@@ -2841,6 +2866,14 @@ def run_cell_adaptive(cell, args, outroot):
                   "count_contradiction": r.get("count_contradiction"),
                   # effective wall-clock budget this sample actually got
                   "timeout_seconds": r.get("timeout_seconds"),
+                  # [R6-GRACEEXIT] per-sample exit facts, surfaced so the cell
+                  # record distinguishes "gem5 finalized on the SIGINT request"
+                  # from "the campaign had to kill it" — never collapsed into
+                  # the campaign's own rc.
+                  "timeout_triggered": r.get("timeout_triggered"),
+                  "graceful": r.get("graceful"),
+                  "gem5_exit_code": r.get("gem5_exit_code"),
+                  "gem5_exit_signal": r.get("gem5_exit_signal"),
                   "trigger_alarm": r.get("trigger_alarm")}
         _model = cell[COL_MODEL].strip()
         _evidence_pilot = (getattr(args, "phase", None) == "trial" and

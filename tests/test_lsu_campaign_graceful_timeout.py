@@ -21,10 +21,12 @@
 
 用法：python3 tests/test_lsu_campaign_graceful_timeout.py   （退出码 0=全 PASS）
 """
+import json
 import signal
 import subprocess
 import sys
 import tempfile
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -186,6 +188,71 @@ def main():
               and r_panic.get("crash_kind") == "kernel_panic",
               repr(r_panic.get("outcome")) + "/"
               + repr(r_panic.get("crash_kind")))
+
+    print("[8] 优雅收口的 Timeout 也要给出漏斗与退出事实（不得留 None）")
+    import os
+    os.environ["LSU_GEM5_BIN"] = sys.executable   # the Popen below is faked
+    captured = {}
+
+    def fake_run_gem5(cmd, timeout, out_file, err_file, **kw):
+        captured["sigint_grace"] = kw.get("sigint_grace")
+        # a gracefully finalized run: the TRIGGER summary, the applied-fault log
+        # and stats.txt all exist and AGREE (three sources, one truth).
+        txt = ("CHAOS_LSU_TIER_CAP: requested=F6 effective=F6 "
+               "lookup_tier_enabled=1\n"
+               "CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F6 attempted=100 "
+               "eligible=1 injected=1 first_eligible_tick=5 last_eligible_tick=5 "
+               "(activated=W3-L0-layer)\n")
+        Path(out_file).write_text(txt)
+        Path(err_file).write_text("")
+        d = Path(out_file).parent
+        (d / "armtlb_injections.log").write_text(
+            "Tick: 5, Site: arm_tlb_lookup_hit, VA: 0x1000, old_pfn: 0x1, "
+            "new_pfn: 0x2, FaultType: pfn_to_mapped_page, candidates: 1\n")
+        (d / "stats.txt").write_text(
+            "board.chaos_armtlb.numFaultsInjected 1\n")
+        return {"timed_out": True, "exit_code": 0, "signal": None,
+                "escalation_signal": None, "graceful": True,
+                "sigint_sent": True, "stdout": txt, "stderr": "", "pid": 4242}
+
+    orig_rg, orig_assets = LC.run_gem5, LC.require_fs_assets
+    LC.run_gem5 = fake_run_gem5
+    LC.require_fs_assets = lambda: None
+    try:
+        cell = [""] * 12
+        cell[LC.COL_RUNID] = "T04-F6-W4"
+        cell[LC.COL_MODEL] = "T04"
+        cell[LC.COL_UNIT] = "L1d-TLB"
+        cell[LC.COL_FREQ] = "F6"
+        args = types.SimpleNamespace(phase="trial", timeout=300, fs_timeout=5400,
+                                     fs_grace=300, fs_checkpoint="/tmp/fake_cpt")
+        out = ROOT / "runs/lsu/_test_grace/seed1"
+        res = LC.run_single_cell(cell, args, 1, out)
+    finally:
+        LC.run_gem5, LC.require_fs_assets = orig_rg, orig_assets
+    check("--fs-grace reaches run_gem5", captured.get("sigint_grace") == 300,
+          repr(captured.get("sigint_grace")))
+    check("oracle stays Timeout (never rewritten to Crash/Contained)",
+          res.get("outcome") == "Timeout", repr(res.get("outcome")))
+    for k, want in (("attempted", 100), ("eligible", 1),
+                    ("count_contradiction", False), ("timeout_triggered", True),
+                    ("graceful", True), ("gem5_exit_code", 0),
+                    ("gem5_exit_signal", None)):
+        check(f"Timeout result carries {k}=={want!r}", res.get(k) == want,
+              repr(res.get(k)))
+    check("funnel provenance recorded",
+          res.get("funnel_source") == "stdout:CHAOS_LSU_TRIGGER",
+          repr(res.get("funnel_source")))
+    # The cell-level roll-up must SURFACE those facts, otherwise the manifest
+    # and the cell record can only see the campaign's own rc. The roll-up runs
+    # inside main(), which may fork a worker pool, so this is pinned as a
+    # source contract and proven end-to-end by the real FS sample's
+    # cell_results.json (see the R6-GRACEEXIT commit evidence).
+    _src = (ROOT / "tools/lsu_campaign.py").read_text()
+    for k in ("timeout_triggered", "graceful", "gem5_exit_code",
+              "gem5_exit_signal", "count_contradiction", "attempted"):
+        check(f"cell roll-up copies {k} into the per-sample record",
+              '"%s": r.get("%s")' % (k, k) in _src)
 
     print()
     if failed:
