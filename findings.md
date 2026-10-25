@@ -270,3 +270,59 @@ checksum 改变（通道 B 灵敏度）。
 kernel 退出码 = FAILS?1:0，经 FAILS 行记录；单发 kernel ≠ 框架 fork/多线程/定时循环
 形态（与既有全部 dual kernel 同一边界，数值契约与循环语义同源）；宿主无 SVE，四档
 向量执行仅在 gem5 实证，硬件锚经标量路径间接闭合。
+
+### sve_rot k7pattern GPS tag 32 位拆分 gem5-fi 16-run 实证（2026-10-25，feat/sve-rot-vla-dual 分支，sdcshield PR #286 检视 round 1）
+
+sdcshield PR #286 检视 round 1（local-claude，当前 head 11cdd2c5）发现
+sve_rot_ldr_at_top_rowmajor_k7pattern 的 GPS tag 16-bit byte_off 字段在 1024-bit
+档默认几何（1024 slots）溢出：max byte_off = 1023×128+120 = 131064 > 65535，
+tag 按 mod 65536 混叠——两个相距恰 64 KiB 的位置字逐位相同（错位读不可检），
+dump 分类器解码出的 byte_off 全部失真；头注自述的 "fits up to 512b inclusive"
+边界（512-bit/1024 slots 恰为 65528）随 P5 门放宽到 1024-bit 失效未调和。修复
+（sdcshield 侧）：byte_off 32 位拆分——低 16 位保留经典字段（补码校验不变），
+高 16 位占用 NEON tag 预留的恒 0 generation 字段；覆盖全部 knob 域（1M slots ×
+128B = 128 MiB < 4 GiB）零混叠。宿主无 SVE，fill 位型变化按 CLAUDE.md 规则 2
+必须 gem5-fi 验证；本矩阵同时收口 progress-log 2026-10-24 预登记的
+"sve_rot_vla_dual（z-ldr/str + 整数算子 × 四档）" 后续工作项。
+
+**验证对象 = 修复后的 k7pattern 链本身**：sve_rot_vla_dual 镜像测试默认几何
+（1024 VL slots）全链——pattern fill（四 cell：zero/one/rand/hiham；rand 用修复
+后 32 位拆分 tag，其余三 cell 位型与修复前逐位相同，不经 tag）→ init 形 golden
+（asm z-ldr + rot_alu i%4 add/eor/and/orr _x）→ 升/降双 sweep run（asm
+z-ldr/str + scratch 丢弃读，镜像 sweep&1 交替）→ memcmp。通道 B = dst 全量
+FNV-1a（fill 是位置函数，checksum 档间依赖是设计预期，不主张跨档同一性——与
+sleef_vla_dual 的 per-lane 纯度口径不同，如实记录）。通道 C = tag 唯一性：
+rand cell 全部 (slot,lane) srcA tag 排序查重，fixed 编码断言零重复；legacy
+16 位编码（对照）按 max_byte_off ≥ 65536 精确换算碰撞出现性——阴性对照纪律
+（J1'），使缺陷可测而非断言。
+
+**16-run 实录**（O3 CPU，configs/se/arm_chaos.py，全部 gem5 进程退出码 0、
+SDCSHIELD_FAILS=0）：
+
+| 档位 | max_byte_off | fixed dups | legacy dups | zero | one | rand | hiham |
+|------|--------------|-----------|-------------|------|-----|------|-------|
+| 128-bit (--sve_vl 1) | 16376 | 0 | 0 | be7fb0911be00383 | 801fc26c514f7383 | 993a95b123258583 | 9416e605859a3383 |
+| 256-bit (--sve_vl 2) | 32760 | 0 | 0 | 1d08ce74c4230383 | 36b581ca63fde383 | 90e15c44c1ba8e83 | cd84dc76ee9b6383 |
+| 512-bit (--sve_vl 4) | 65528 | 0 | 0 | fe72814514a90383 | 3cad51ef494ec383 | f95c0571d99d0083 | 25fc998a2fa9c383 |
+| 1024-bit (--sve_vl 8) | 131064 | 0 | **8192** | 83f7c309b5b50383 | 9f7098e59dc08383 | 7bfa4122e8792d83 | 5badf02392f68383 |
+
+（cell 列为 FNV-1a checksum，档间/pattern 间互异为设计预期。）
+
+**核心读数**：
+- **缺陷实证**：1024-bit 档 legacy dups = 8192 = 512 slots × 16 lanes——slot i 与
+  i+512 同 lane 的 byte_off 恰差 512×128 = 65536，tag 完全相同；16384 字仅 8192
+  个 distinct。检视意见的混叠数学在四档真实执行中得到逐位验证。
+- **边界精确吻合**：512-bit 档 max_byte_off = 65528 < 65536，legacy dups = 0——
+  与原头注 "fits up to 512b inclusive" 的边界声明一致，交叉验证 kernel 对测试
+  几何的镜像保真度；128/256-bit 同理无碰撞（slots knob 放大溢出路径不在默认
+  几何内，由 max_byte_off ≥ 65536 换算断言覆盖）。
+- **修复生效**：fixed 32 位拆分编码四档 dups = 0（含 1024-bit 档 131064 >
+  65535 的原溢出域），全 16 run memcmp 零失配。
+- **非 tag cell 回归佐证**：zero/one/hiham 十二 run 全绿——三 cell 不经
+  sve_gps_tag（P_HIHAM 只读 byte_off 奇偶，绝对偏移恒偶不变），fill 位型与
+  修复前逐位相同，本轮改动对它们是纯回归确认。
+
+诚实边界：单发 kernel ≠ 框架 fork/多线程/TEST_LOOP 定时循环形态（与既有全部
+dual kernel 同一边界，数值契约与 asm 语义同源）；slots knob >1024 的放大路径
+以 max_byte_off ≥ 65536 的换算断言覆盖而非逐一实测；gem5 SE 不传播 guest 退出
+码（既有实证），kernel 退出码经 SDCSHIELD_FAILS 行记录。
