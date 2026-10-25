@@ -2,6 +2,7 @@
 # Static aarch64 builds; see plan 2026-10-13-sve-sme-fi-eval.md.
 CC = clang
 GCC = gcc
+GXX = g++
 CFLAGS = -static -O2 -march=armv9-a+sve+sme -Wall -Wextra
 GCCFLAGS = -static -O2 -march=armv9-a+sve -Wall -Wextra
 # sme_fmopa_dual REQUIRES -ffp-contract=off: its scalar golden must stay
@@ -11,7 +12,7 @@ FP_OFF = -ffp-contract=off
 BINS = sve_sme_semantics fpu_special_sve_dual stencil_axis_dual
 BINS += sme_fmopa_dual sme_za_tileview_dual
 
-all: $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sve_sha_dual
+all: $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sve_sha_dual sve_hmac_dual
 
 %: %.c
 	$(CC) $(CFLAGS) $(if $(filter sme_fmopa_dual,$@),$(FP_OFF),) -o $@ $< -lm
@@ -44,7 +45,16 @@ stencil_axis_dual: stencil_axis_dual.c
 sve_sha_dual: sve_sha_dual.c
 	$(GCC) $(GCCFLAGS) -o $@ $< -lm
 
+# all-VL Phase 2 P4 review round 2 — TRUE same-source kernel (PR #284
+# local-claude Important-1): #includes the sdcshield repository's ACTUAL
+# tests/cpu/sve/ipsec/sve_hmac.h (+ sve_sha_kernels.h) via -I, not a
+# mirrored copy. C++ (<cstring>/<cstdint> in the headers) but zero C++
+# runtime symbols — static-links fine with g++.
+SDCSHIELD_IPSEC = /home/sdc/wangxu/operator/sdcshield/tests/cpu/sve/ipsec
+sve_hmac_dual: sve_hmac_dual.cpp
+	$(GXX) $(GCCFLAGS) -I$(SDCSHIELD_IPSEC) -o $@ $< -lm
+
 clean:
-	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sve_sha_dual
+	rm -f $(BINS) vl_api_probe sme_fmopa_za_dual sve512_chain_dual sve512_gather_dual sve_sha_dual sve_hmac_dual
 
 .PHONY: all clean

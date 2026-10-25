@@ -547,3 +547,48 @@ checksum；16 个日志零 mismatch 行、零 unsupported。）
 记录入档 —— dual-kernel 验证纪律（失配即止步上报、修复后同矩阵
 复验）的价值实录。交叉引用：sdcshield 侧 ipsec HMAC×17（流数参数
 化镜像源）。
+
+## all-VL Phase 2 P4 评审二轮 — sve_hmac_dual（真同源 include，非镜像）
+
+PR #284 终审轮 local-claude Important-1 指出：P4 的 gem5 证据载体
+sve_sha_dual.c 是 kernel 的**镜像副本**（自述 "mirrors the PARAMETERIZED
+form"），非同源 include——17 个测试实际编译的 sve_hmac.h/sve_sha_kernels.h
+从未在任何 VL 下执行。本轮新增 **sve_hmac_dual.cpp**：`#include` sdcshield
+仓库真实头文件（-I /home/sdc/wangxu/operator/sdcshield/tests/cpu/sve/
+ipsec，被测机器码与 17 测试同源），覆盖五 hmac_* 入口 + 全部容量守卫 +
+17 测试 init 侧依赖的 lanes 不变式（svl/4==svcntw(), svl/8==svcntd()）。
+
+**锚点**：6 条 RFC 2202/4231 已知答案向量（hex 经本机 python3 hmac 与
+openssl 双独立生成核验，2026-10-25）——oracle 与 SVE 双侧对齐公开值；
+首跑曾暴露一处 harness 自身的嵌入抄写误差（sha224 向量多抄一个 'b'，
+双侧一致违错值——恰好证明 oracle 与 SVE 都是对的），修正后全绿。
+
+**矩阵**：4 档 × {fixed 1, random 1..3} = 16 run，CHAOS/SE O3：
+
+| tier | VL | svcntw/svcntd | KAT | 五族 sweep | 守卫探测 | SDCSHIELD_FAILS | checksum (fixed1) | 时长 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 128-bit | 4/2 | 6/6 | 5×8 长度×逐流 | 21+14+6+4 全 -1 | 0 | 0380718eea3219ca | 43-67s |
+| 2 | 256-bit | 8/4 | 6/6 | 同上 | 全 -1 | 0 | c467990ff45509d9 | 72-76s |
+| 4 | 512-bit | 16/8 | 6/6 | 同上 | 全 -1 | 0 | 9fb61b13c46351cf | 128-136s |
+| 8 | 1024-bit | 32/16 | 6/6 | 同上 | 全 -1 | 0 | 96a4c91b113d61f7 | 244-258s |
+
+sweep 长度含 0/1、块跨界、1900/1830（测试 knob 钳制上限）、1975/1903
+（装配精确边界）；16 个 checksum 互异（fixed/random 各 seed 独立）。
+
+**守卫阴性对照**（回绕缺口实证，PR #282 移交项）：临时还原补丁前
+sve_hmac.h（无 msg_len 前置守卫）重建同 harness，同矩阵 vl=1 运行在
+msg_len=SIZE_MAX 探针（PROBE32 i=3, ml=18446744073709551615）处
+`panic: Page table fault when accessing virtual address 0x7fffff0000`
+中止（gem5 exit 134，前序 1976/2048/65536 探针由旧 padded 后置单检
+拦截返回 -1）——body=64+SIZE_MAX 回绕 63、padded=128 ≤ 2048 通过旧检
+后 memcpy 巨量溢出。补丁形态（前置 SVE_HMAC_MSG_MAX_32/64 守卫）同探
+针干净返回 -1。守卫的负载性（load-bearing）经正反双向实证。
+
+**结论**：sdcshield PR #284 的 HMAC 共享层（五入口 + 流数/key_len/
+msg_len/padded 四类守卫）在 128..1024-bit 四档经**真同源** dual 16-run
+全绿 + 阴性对照证明回绕守卫必要；KAT 向量把 oracle 与 SVE 双侧锚定到
+RFC 公开值。验证边界（如实）：17 测试文件的框架胶水（fork/TEST_LOOP/
+arm64_require_sve_vl 的 log_skip 类别）仍为宿主编译+SKIP 验证——完整
+sdcshield 二进制（fork+96 线程+OpenSSL）不可入 SE 单进程配置；胶水所
+依赖的算术不变式（lanes 换算、[4,32]/[2,16] 范围、漂移比较的操作数）
+已由本 harness 逐档执行。
