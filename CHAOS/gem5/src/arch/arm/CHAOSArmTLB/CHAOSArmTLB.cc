@@ -642,7 +642,7 @@ namespace gem5
                        "mode=F5_NONPFN_MODEL fault_type=%s (F5 outcome "
                        "accounting covers pfn-mutating models only; this run's "
                        "fires are not fully accounted)\n",
-                       faultTypeToString(chosen).c_str());
+                       faultTypeToString(chosen));
             return;
         }
 
