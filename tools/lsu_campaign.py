@@ -2777,6 +2777,17 @@ def build_parser():
                         "the cap bounds compute when activation is sparse)")
     p.add_argument("--n-seeds", type=int, default=None,
                    help="[deprecated alias] sets --max-seeds-per-cell")
+    p.add_argument("--seed-start", type=int, default=1,
+                   help="[R6-NEXT6] first seed number to run (default 1). Seeds "
+                        "are then drawn as seed_start .. seed_start+"
+                        "max_seeds_per_cell-1 into <outdir>/<runid>/seed<N>/. "
+                        "With the default seed_start=1 the enumeration is "
+                        "byte-identical to the historical 1..N loop (same dirs, "
+                        "same stop_reason, same RNG draws); a nonzero base lets "
+                        "one seed run ALONE into its own dir (e.g. --seed-start 2 "
+                        "--max-seeds-per-cell 1 runs seed 2 only) so each "
+                        "(RunID,seed) gets its own authoritative directory with "
+                        "no cumulative re-run of lower seeds.")
     # Adaptive-sampling knobs (05 r13-r15). Defaults are the spec values;
     # toy-grid verification lowers them explicitly.
     p.add_argument("--trial-target", type=int, default=30,
@@ -2895,15 +2906,25 @@ def run_cell_adaptive(cell, args, outroot):
                               "Crash", "Timeout")}
     runs, attempted, activated = [], 0, 0
     attempted_missing = False
-    seed, stop_reason = 0, None
+    # [R6-NEXT6] seed base. Seeds run seed_base .. seed_base+cap-1 into
+    # <outdir>/<runid>/seed<N>/. seed_base=1 (the default) reproduces the
+    # historical 1..N enumeration exactly — same dirs, same `seed-cap(N)`
+    # stop_reason, same RNG draws — so every existing caller/test is
+    # unchanged. A non-default base isolates a single seed into its own
+    # directory without re-running (and re-spending compute on) lower seeds.
+    seed_base = max(1, int(getattr(args, "seed_start", 1) or 1))
+    seed_cap = seed_base - 1 + args.max_seeds_per_cell
+    seed, stop_reason = seed_base - 1, None
     cell_out = outroot / runid
 
     while True:
         if activated >= target:
             stop_reason = "%s-target-met" % args.phase
             break
-        if seed >= args.max_seeds_per_cell:
-            stop_reason = "seed-cap(%d)" % args.max_seeds_per_cell
+        if seed >= seed_cap:
+            stop_reason = ("seed-cap(%d)" % args.max_seeds_per_cell
+                           if seed_base == 1 else
+                           "seed-cap(%d@%d)" % (args.max_seeds_per_cell, seed_base))
             break
         if args.phase == "main" and activated > 0:
             hw, _lo, _hi = _wilson_stats(classes, activated, runs, clustered)
