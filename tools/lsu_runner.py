@@ -129,6 +129,18 @@ def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None,
         sys.exit(f"BLOCKED: {model} NOT-MAPPED（47 可运行模型之外）")
     family, extra_flags = LC.MODEL_FLAGS[model]
 
+    # [0202-REBUILD][R6-FTIER] F 档路由：armtlb lookup 家族 F1–F6 必须真实挂载
+    # lookup tier，否则该次运行在物理上退化为 F0——把 F0 结果标成 F2/F6 是禁止的
+    # （实测：修复前 T02-F2-W4 / T04-F2-W4 / T04-F6-W4 的 injector_flags 与各自
+    # F0 兄弟逐字节相同，即经 runner 必然坍缩）。映射复用 campaign 的唯一来源
+    # （`_armtlb_lookup_tier_flags`，One mapping, no drift）；未知档位 → 响亮拒绝，
+    # 绝不静默改档。
+    if family == "armtlb":
+        _tier_flags = LC._armtlb_lookup_tier_flags(freq)
+        if _tier_flags is None:
+            sys.exit("BLOCKED: " + LC._armtlb_lookup_tier_block_reason(model, freq))
+        extra_flags = list(extra_flags) + _tier_flags
+
     # workload 解析
     if family == "armtlb":
         carrier = "fs:tlb_probe"
