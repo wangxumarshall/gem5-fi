@@ -158,6 +158,25 @@ namespace gem5
                     // the cell's oracle is clean). Record it explicitly so
                     // the chain closes as detected_contained instead of an
                     // Unknown terminal.
+                    // [0202-T02F2-MSHR] Audit trail: what the tracer still
+                    // holds as LIVE taint at exit, and whether each such ptag
+                    // already has a terminal. Pure observation (no RNG / tick /
+                    // packet / cache-decision effect); it answers "is an
+                    // unresolved chain merely missing its emission channel, or
+                    // genuinely without a terminal?" without another run.
+                    for (const auto &kv : taint_set) {
+                        const uint64_t tp = kv.second.ptag;
+                        std::cout << "CHAOS_TAINT_AT_EXIT: ptag=" << tp
+                                  << " taintor_seq=" << kv.second.taintor_seq
+                                  << " src_event=" << kv.second.src_event
+                                  << " has_chain="
+                                  << (ptag_last_event.count(tp) ? 1 : 0)
+                                  << " errant="
+                                  << (errant_ptags.count(tp) ? 1 : 0)
+                                  << " contained="
+                                  << (containment_ptags.count(tp) ? 1 : 0)
+                                  << std::endl;
+                    }
                     for (const auto &st : store_taint) {
                         const uint64_t p = st.second.ptag;
                         if (errant_ptags.count(p)
@@ -167,6 +186,33 @@ namespace gem5
                                                 "store_discarded_not_retired"};
                         emitDetectSignal("Hardware RAS", true, p,
                                          "store_discarded_not_retired");
+                        // [0202-T02F2-MSHR] Symmetry fix. The live squash path
+                        // (noteMemResponse, `inst->isSquashed()`) records its
+                        // containment as a REAL non-lifecycle chain event
+                        // (`squash_masked`, detection_layer=L4, contained=1).
+                        // This exit-time judgement used to report only on
+                        // stdout + the lifecycle chain_end, so the strict
+                        // chain checker — which by rule accepts detection /
+                        // containment evidence only from NON-lifecycle events —
+                        // could not verify a真实 containment that the tracer
+                        // had in fact detected (measured: T02-F2-W4 explicit
+                        // seed 1, ptag 2/4/5). Emit the same evidence shape
+                        // here. parent_event_id / tick are auto-filled from
+                        // this chain's own cursor, so the node lands on the
+                        // chain's real ancestry.
+                        notePropEvt("squash_masked", {
+                            {"fault_id", std::to_string(p)},
+                            {"corr", "taint_prop"},
+                            {"dyn_inst_seq",
+                             std::to_string(st.second.taintor_seq)},
+                            {"field", "store_discarded_not_retired"},
+                            {"outcome", "masked"},
+                            {"detection_layer", "L4"},
+                            {"contained", "1"},
+                            {"containment_layer", "L4"},
+                            {"containment_reason",
+                             "store_discarded_not_retired"},
+                        });
                     }
                     for (const auto &kv : ptag_last_event) {
                         const uint64_t ptag = kv.first;
