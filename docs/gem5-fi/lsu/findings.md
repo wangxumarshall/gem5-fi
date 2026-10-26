@@ -277,3 +277,43 @@
   事件**：R6-GRACEEXIT 只覆盖超时（SIGINT）收口，未覆盖 SIGABRT。本次第 3 个 activated
   fault 在流里**零事件**，违反"每个 activated fault 都应可核查"的 L0 完备性。
   彻底修复需 CHAOSPropagation 侧周期 flush/收口（C++）——本轮未改 C++，列为候选裁决。
+
+## 2026-10-27 T02-F2-W4 gem5 `assert(mshr)` 根因修复（`0202-T02F2-MSHR`）
+
+- **F-076（事实，根因，三方印证）** gem5 `BaseCache::recvTimingResp`
+  （`src/mem/cache/base.cc:782-783`）对**UnCacheable 写的「错误响应」**分类错误：
+  ① 断言处 `MSHR *mshr = dynamic_cast<MSHR*>(pkt->popSenderState()); assert(mshr);`，
+  其上一分支（`:752-757`）只在 `pkt->isWrite()` 为真时处理 UC 写；
+  ② **真实 debug 日志**（`runs/lsu/0202_t02f2_mshr_diag1_20261027T010327/logs/debug2.txt`，
+  tick 240017009067）给出完整链路：L1D/L2 `sendWriteQueuePacket: write WriteReq
+  [1c191000:1c191001] UC` → `board.iobridge.cpu_side_port: recvTimingReq: WriteReq addr
+  0x1c191000` → `iobridge.mem_side_port: recvTimingResp: BadAddressError addr 0x1c191000`
+  → `l2-cache-0: recvTimingResp: Cache received BadAddressError [1c191000:1c191001] UC
+  with error` → 断言；
+  ③ `src/mem/packet.cc:216` 定义 `BadAddressError` flags = `{IsResponse, IsError}` —— **不含
+  IsWrite** ⇒ `pkt->isWrite()` 为假 ⇒ 跳过 `handleUncacheableWriteResp` ⇒ 落到 `assert(mshr)`；
+  而 UC 写走 write buffer（`base.cc:2365` 是 MSHR 唯一入栈点；`sendWriteQueuePacket` 对 UC 写
+  「forward as is」不 push sender state）⇒ **永不分配 MSHR** ⇒ 必然失败。
+  ⇒ 这是 **gem5 自身的协议处理缺口**，与 CHAOS 注入器无关（注入器从不触碰 cache 协议内部
+  ；本 run 四个 CHAOS cache 钩子全为 nullptr，`config.ini` 仅挂 `chaos_armtlb chaos_propagation`）。
+- **F-077（事实）故障走到此处是 T02 fault model 的正常后果，非缺陷**：T02 只翻 TLB 表项
+  `pfn`（`CHAOSArmTLB.cc:679`）且**不重算属性**（符合「PPN 双 bit 翻转」定义，不得修改）。
+  本次被翻的是 **UART0 的 D-TLB 表项**（`old_pfn 0x1c090` = PA `0x1C090000` = PL011 UART0），
+  翻成 `0x1c191000`：仍落在 `board.iobridge` range `0x0C000000–0x20000000` 内，但 iobus 上
+  无对应设备 ⇒ 命中 iobus default `badaddr_responder`（IsaFake, `ret_bad_addr`）；属性保留
+  Device/nonCacheable ⇒ 请求标 UNCACHEABLE ⇒ 走 UC 写路径。
+- **F-078（事实，更正）先前诊断报告的「第 3 次注入事件丢失」不成立**：
+  `tools/lsu_l5_classify.py:83` 的 abort 回退用 `len(re.findall(r"Site: ", text))` 计数，把
+  `arm_tlb_lookup_tier` **诊断行**计入 ⇒ `injected=3`/`activated=3`；按
+  `armtlb_line_applied`（排除 `arm_tlb_lookup_tier`/`..._skipped`/`..._walk_issue_probe`）
+  真实应用注入为 **2** 次，与流内 fault 1/2 一致。**该流未丢失任何已激活 fault 的事件。**
+  `R0202-T02F2-SEED1-DIAG.md` §8-L1 相应表述作废（原文保留不删）。
+- **F-079（事实+修复，阶段2）失败测试先行**：新增
+  `CHAOS/gem5/src/mem/cache/chaos_cache_resp.hh`（把 `recvTimingResp` 的响应分类抽为纯函数
+  `classifyCacheTimingResp`，本版为**当前生产行为的忠实提取**）+ `tests/chaos_cache_resp_test.cc`
+  （standalone harness）+ `tests/test_lsu_cache_resp_classify.py`（从**权威源**
+  `packet.cc` commandTable 解析真实 flags 后经 `-D` 注入，非日志字符串）。
+  首跑**红**，唯一失败项 `BadAddressError/UC/no-mshr ⇒ WriteBuffer`（got MshrPath）——
+  正是本缺陷；其余（不得误路由 UC 读的 error、非 UC 无 MSHR 仍走 MSHR 保持严格、无故障路径
+  不变）全部 PASS。红线守卫（`assert(mshr)` 未被删/注释、无「无 MSHR 即静默返回」、未改
+  `setBadAddress`）亦 PASS。
