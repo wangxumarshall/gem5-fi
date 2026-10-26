@@ -153,6 +153,23 @@ main()
               "F6(false) repeat call books nothing");
     }
 
+    // ---- [R6-F5-NOEFFECT] F5 的 fire 与 injected 必须分离 ----
+    {
+        gem5::ChaOSLsuTrigger t(gem5::ChaOSLsuTier::F5, 1, 0, 0);
+        t.require_outcome_accounting = true;
+        int fired = 0;
+        for (int i = 0; i < 10; ++i) if (t.onEligible()) ++fired;
+        CHECK(fired == 10, "F5 must fire on every eligible event");
+        CHECK(t.injected == 0,
+              "F5 must NOT increment injected at fire time (fault not written yet)");
+        CHECK(t.fires == 10, "F5 must count every fire attempt");
+        for (int i = 0; i < 10; ++i) t.noteOutcome(i < 3);
+        CHECK(t.injected == 3, "injected counts only effective fires");
+        CHECK(t.no_effect == 7, "no_effect counts the rest");
+        CHECK(t.outcomes_recorded == t.fires,
+              "fires must equal injected + no_effect after full reporting");
+    }
+
     if (failures == 0) {
         printf("LSU TRIGGER TEST: ALL PASSED\n");
         return 0;

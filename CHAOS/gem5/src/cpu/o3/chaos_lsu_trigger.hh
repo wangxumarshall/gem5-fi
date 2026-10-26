@@ -182,6 +182,17 @@ struct ChaOSLsuTrigger
     uint64_t eligible  = 0;
     uint64_t injected  = 0;
 
+    // [R6-F5-NOEFFECT] F5 永久卡死的 fire/outcome 分离计数。
+    // F5 在 warm-up 后的每个 eligible event 上都会"发射"（fire），但只有真正
+    // 改写注入状态的 fire 才算一次注入。`fires` 计发射机会，`no_effect` 计
+    // 未写任何东西的发射，`outcomes_recorded` 让汇总能对"注入器漏报结果"
+    // 发出响亮告警（必须 fires == injected + no_effect）。
+    uint64_t fires = 0;
+    uint64_t no_effect = 0;
+    uint64_t outcomes_recorded = 0;
+    // 该 tier 是否要求注入器逐次回报结果（仅 F5 路径置 true）
+    bool require_outcome_accounting = false;
+
     // [LSU][OBS-3] eligible-event window diagnostics (B/E-class): tick of the
     // first / last eligible event — observation only, no semantic effect.
     uint64_t first_eligible_tick = 0;
@@ -240,8 +251,8 @@ struct ChaOSLsuTrigger
           case ChaOSLsuTier::F5: {
               if (!armed && eligible > warmup_events) armed = true;
               if (!armed) return false;
-              ++injected;                 // every eligible event from warm-up on
-              return true;
+              ++fires;        // 发射机会；是否写入了故障由注入器经
+              return true;    // noteOutcome() 回报（见下）
           }
           case ChaOSLsuTier::F0: {
               if (spent) return false;
@@ -281,6 +292,16 @@ struct ChaOSLsuTrigger
         return false;
     }
 
+    // [R6-F5-NOEFFECT] 注入器对每一次从 onEligible()/onF6Event() 收到的
+    // fire 回报"是否真的写入了故障"。`injected` 因此对**所有** tier 都保持
+    // 头文件里声明的语义："fault written"。
+    void
+    noteOutcome(bool effective)
+    {
+        ++outcomes_recorded;
+        if (effective) ++injected; else ++no_effect;
+    }
+
     // The F6 event source calls this when the configured event occurs.
     // Returns true => inject at this event, once ever.
     // book_attempt — two caller shapes, [MDSPEC][R4-5.1-review-I1]:
@@ -313,12 +334,14 @@ struct ChaOSLsuTrigger
     {
         printf("CHAOS_LSU_TRIGGER: injector=%s tier=F%d attempted=%lu "
                "eligible=%lu injected=%lu first_eligible_tick=%lu "
-               "last_eligible_tick=%lu (activated=W3-L0-layer)\n",
+               "last_eligible_tick=%lu fires=%lu no_effect=%lu "
+               "(activated=W3-L0-layer)\n",
                injector, static_cast<int>(tier),
                (unsigned long)attempted, (unsigned long)eligible,
                (unsigned long)injected,
                (unsigned long)first_eligible_tick,
-               (unsigned long)last_eligible_tick);
+               (unsigned long)last_eligible_tick,
+               (unsigned long)fires, (unsigned long)no_effect);
         chaosLsuF6EventsReport();   // [LSU][OBS-1] event-supply observation
 
         // [MDSPEC][R4-1-review-I2] LOUD F0 span diagnostics — the two
@@ -370,6 +393,19 @@ struct ChaOSLsuTrigger
                        (unsigned long)warmup_events,
                        (unsigned long)(draw_end - 1));
         }
+
+        // [R6-F5-NOEFFECT] F5 的发射必须 100% 被回报；漏一条即会让汇总与
+        // stats / 注入日志三方对不上。响亮点名，绝不静默。
+        if (require_outcome_accounting && tier == ChaOSLsuTier::F5
+                && outcomes_recorded != fires)
+            printf("CHAOS_LSU_TRIGGER_ALARM: injector=%s "
+                   "mode=F5_UNREPORTED_OUTCOME fires=%lu "
+                   "outcomes_recorded=%lu injected=%lu no_effect=%lu "
+                   "(injector did not report every F5 fire's outcome; the "
+                   "fire accounting is incomplete)\n",
+                   injector, (unsigned long)fires,
+                   (unsigned long)outcomes_recorded,
+                   (unsigned long)injected, (unsigned long)no_effect);
     }
 };
 
