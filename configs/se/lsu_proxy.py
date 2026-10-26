@@ -178,12 +178,52 @@ p.add_argument("--l1d_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--l1d_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1d_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--l1d_target_field", default="data",
-               choices=["data","tag","valid","dirty","coh","data_shift"])
+               choices=["data","tag","valid","dirty","coh","data_shift",
+                        "mshr_merge","mshr_fill_timing","mshr_busy_leak",
+                        "mshr_occupancy",
+                        # [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW
+                        # modes (SwapReq commit site; same trigger
+                        # discipline via --l1d_lsu_tier).
+                        "rmw_mux","rmw_latch","rmw_order"])
+p.add_argument("--l1d_rmw_rule", default="swap_oldnew",
+               choices=["swap_oldnew","result_old","lost","dup"],
+               help="MDSPEC R4-9-FSMC RMW sub-rule: swap_oldnew = O04-a "
+                    "old/new exchange (targetField=rmw_mux); result_old = "
+                    "O09-a result/old-value latch bit flip "
+                    "(targetField=rmw_latch); lost / dup = O05-a/b RMW "
+                    "dropped / applied-twice (targetField=rmw_order). A "
+                    "mode/rule mismatch is rejected loudly by the injector.")
 p.add_argument("--l1d_protection_model", default="none",
                choices=["none","sed","secded_poison","secded"])
 p.add_argument("--l1d_lsu_tier", default="off",
                choices=["off","F0","F1","F2","F3","F4","F5","F6"],
-               help="W6: LSU trigger tier on CHAOSCache (05 r2-r8)")
+               help="W6: LSU trigger tier on CHAOSCache (05 r2-r8). "
+                    "REQUIRED for targetField=mshr_merge (MDSPEC C11: "
+                    "event-normalized merge-corruption trigger), "
+                    "targetField=mshr_fill_timing (MDSPEC C12: "
+                    "event-normalized fill-timing-offset trigger) and "
+                    "targetField=mshr_busy_leak (MDSPEC C14-a: "
+                    "event-normalized MSHR release point) and "
+                    "targetField=mshr_occupancy (MDSPEC C15-b: "
+                    "event-normalized MSHR capacity arbitration; 'off' "
+                    "panics loudly)")
+p.add_argument("--l1d_warmup_events", type=lambda x: int(x,0), default=0,
+               help="MDSPEC C11 mshr_merge / C12 mshr_fill_timing: eligible "
+                    "events skipped before arming (LSU trigger "
+                    "warmup_events; C11 stream = demand-read merges, "
+                    "C12 stream = read fills on the mounted L1D)")
+p.add_argument("--l1d_span_events", type=lambda x: int(x,0), default=1000,
+               help="MDSPEC C11 mshr_merge / C12 mshr_fill_timing: F0 "
+                    "uniform window size in eligible events (LSU trigger "
+                    "span_events)")
+p.add_argument("--l1d_fill_delay_cycles", type=lambda x: int(x,0),
+               default=100,
+               help="MDSPEC C12 mshr_fill_timing: the fill-timing offset "
+                    "in cache cycles — the deferred fill's processing "
+                    "(handleFill + target service + MSHR free) runs at "
+                    "curTick() + this many clock edges of the mounted "
+                    "cache. >=1 required in that mode (0 panics loudly); "
+                    "inert in every other targetField mode")
 # W8: P-series prefetcher injector (CHAOSPrefetch hooks the L2
 # StridePrefetcher via the Stride registry — self-attaching, no target
 # param; 03-design-matrix P-rows. A tier is REQUIRED: this injector is
@@ -192,8 +232,11 @@ p.add_argument("--chaos_prefetch", action="store_true",
                help="attach CHAOSPrefetch (W8 P-series, 03 P-rows)")
 p.add_argument("--prefetch_mode", default="p01_stride_bitflip",
                choices=["p01_stride_bitflip","p02_confidence_corrupt",
-                        "p03_addr_subst","p05_drop_dup","p08_stride_stuck"],
-               help="W8 P-series fault mode")
+                        "p03_addr_subst","p05_drop_dup","p08_stride_stuck",
+                        "p06_as_demand"],
+               help="W8 P-series fault mode (p06_as_demand = P06-a "
+                    "prefetch-as-demand fill-classification marking, "
+                    "R4-5.4)")
 p.add_argument("--prefetch_lsu_tier", default="F0",
                choices=["F0","F1","F2","F3","F4","F5","F6"],
                help="W8: LSU event-normalized trigger tier (05 r2-r8)")
@@ -265,6 +308,38 @@ p.add_argument("--lsqfwd_span_events", type=lambda x: int(x,0), default=1000)
 # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
 p.add_argument("--lsqfwd_l03", action="store_true",
                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
+# [MDSPEC][R4-5.3] W5 L04: response-pairing target exchange (rides lsqfwd
+# LSU trigger; requires --lsqfwd_lsu_tier != off — the injector panics
+# otherwise). The pairing-point stream (LSQUnit::completeDataAccess) is the
+# trigger's event source; the SQ-forward data-path hook is split off.
+p.add_argument("--lsqfwd_l04", action="store_true",
+               help="W5 L04: exchange two in-flight loads' response-pairing "
+                    "targets (lsqfwd trigger, completeDataAccess site)")
+# [MDSPEC][R4-5.7] W5 S10: StoreSet SSIT-ID 换值 (rides lsqfwd LSU trigger;
+# requires --lsqfwd_lsu_tier != off and the standard mount — the injector
+# panics otherwise, trigger-native model). The StoreSet training stream
+# (StoreSet::violation's new-SSID assignment arm) is the trigger's event
+# source; the SQ-forward data-path hook is split off.
+p.add_argument("--lsqfwd_s10", action="store_true",
+               help="W5 S10: substitute the load's freshly assigned SSIT "
+                    "SSID with another legal live store-set ID (lsqfwd "
+                    "trigger, StoreSet::violation site)")
+# [MDSPEC][R4-9-FSMC] O06/O07 barrier-completion / order-tag family (rides the
+# lsqfwd LSU trigger; requires --lsqfwd_lsu_tier != off — the injector panics
+# otherwise, trigger-native model). Node = MemDepUnit's barrier-SN bookkeeping
+# (cpu/o3/chaos_barrier_hook.hh); the SQ-forward data-path hook is split off.
+p.add_argument("--lsqfwd_o06", action="store_true",
+               help="R4-9-FSMC O06: barrier-completion tracking fault "
+                    "(--lsqfwd_o06_done early|stuck)")
+p.add_argument("--lsqfwd_o06_done", default="early",
+               choices=["early","stuck"],
+               help="O06 sub-rule: early = O06-a 提前 done (barrier released "
+                    "before the preceding memory ops drained; later accesses "
+                    "pass the barrier -> litmus violation/SDC); stuck = O06-b "
+                    "延后/丢失 done (the barrier never completes -> Timeout)")
+p.add_argument("--lsqfwd_o07", action="store_true",
+               help="R4-9-FSMC O07: order-tag 换值 (HONEST PROXY: another "
+                    "live barrier SN is released in this one's place)")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active
@@ -464,15 +539,68 @@ p.add_argument("--addrpath_span_events", type=lambda x: int(x,0), default=1000,
 p.add_argument("--addrpath_f6_event", default="sq_forward",
                choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
                help="W2: F6 event source (tlb_hit is FS-only in SE)")
+p.add_argument("--addrpath_f6_mode", default="early_stress",
+               choices=["early_stress","steady_state"],
+               help="P4-F6 dual-track: early_stress = first occurrence (legacy, stress); "
+                    "steady_state = warm-up (golden profiling) + random occurrence in span "
+                    "(RunID suffixes F6E/F6S — the two tracks never merge)")
 # W4: AGU A-series. Bit-level family (A01-A03) rides the sendFragment hook
 # via --addrpath_mode; the PRE family (A04/A05/A06/A08) rides the
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
 # registers on the PRE pointer instead).
 p.add_argument("--agu_pre_mode", default="off",
                choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
-               help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08)")
+               help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08). "
+                    "a06_size = A06-a access-size substitution: stores take any legal "
+                    "target, loads only a contract-safe WIDEN (see --agu_size_to_load). "
+                    "(MDSPEC 2026-10-19 ruling: spec defines A06, not A06S.) "
+                    "a06s_store_size REMOVED (rejected alias — no silent model-ID rewrite)")
 p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
-               help="W4 a06_size: target access size 1|2|4|8|16")
+               help="W4 a06_size STORE leg: target access size 1|2|4|8|16")
+# [MDSPEC][R4-6-A06 / R4-8-A06] A06-a LOAD leg: another legal access size
+# (1|2|4|8|16), widen OR shrink. The fixed-width load completion contract
+# (LoadCompleteAcc getMemLE(pkt, Mem) reads sizeof(Mem) STATIC bytes) is
+# satisfied by flooring the load's destination buffer at the pre-fault
+# static width (DynInst::chaosA06BufBytes, set in LSQ::pushRequest for a
+# shrunk load) + zero-filling it, so a shrink completes as a faithful
+# zero-extended truncation instead of a heap over-read.
+p.add_argument("--agu_size_to_load", type=lambda x: int(x,0), default=0,
+               help="W4 a06_size LOAD leg: target access size 1|2|4|8|16 "
+                    "(another legal value, widen or shrink; must differ from "
+                    "the original size and fit one 64B line; "
+                    "0 = load leg disabled, loads are declined + counted)")
+# [MDSPEC][R4-6-A06] A06-b byte-enable. Carrier finding: every AArch64
+# load/store path in this tree passes std::vector<bool>(size, true), so the
+# ISA mask domain is {all-ones}; the only functional lever is the
+# inactive-TAIL trim in LSQRequest::addReq (== a size change). shift_mid
+# clears an INTERIOR byte (no tail run => size unchanged => the load
+# contract is untouched) and is applied to stores only.
+p.add_argument("--agu_be_mode", default="off",
+               choices=["off","observe","shift_mid"],
+               help="[MDSPEC][R4-6-A06] A06-b byte-enable: off | observe "
+                    "(census the faulted request's mask) | shift_mid "
+                    "(substitute a middle-cleared mask; stores only, "
+                    "requires --agu_pre_mode a06_size)")
+# [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake family (03 sheet A07:
+# "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"). Hook =
+# IEW::executeInsts' isMemRef branch — THE ready point (the IQ hands a
+# ready mem inst to the LSQ to calculate its address; the AGU =
+# initiateAcc inside executeLoad/executeStore); BEFORE the EA exists,
+# which is why the PRE (pushRequest = AGU raw output) and POST
+# (sendFragment = DTLB input) hooks cannot express the ready-timing
+# model. Landed sub-model: a07b_ready_delay (A07-b bounded ready delay,
+# spec "延后1周期"; data payload stays correct). A07-a (ready early +
+# stale latched EA) / A07-c (ready lost) pending — MDSPEC
+# SPEC_IMPL_LANDED. LSU-trigger-native + one-hook-per-run (W1-⑦).
+p.add_argument("--agu_ready_mode", default="off",
+               choices=["off","a07b_ready_delay"],
+               help="[MDSPEC][R4-5.8] A07 AGU clean-ready/handshake hook "
+                    "(IEW executeInsts memRef branch). a07b_ready_delay = "
+                    "A07-b bounded ready delay; requires --addrpath_lsu_tier; "
+                    "mutually exclusive with --agu_pre_mode")
+p.add_argument("--agu_ready_delay_cycles", type=lambda x: int(x,0), default=1,
+               help="A07-b: ready handshake delayed by N CPU clock edges "
+                    "(bounded, >=1; spec default 1 = 延后1周期)")
 # §2.14 CHAOSDecode (O3 decode-unit injector). SELF-ATTACHES at startup()
 # to cpu.chaosDecode. Hooks rename.cc:1137 post-flattenedDestIdx; dest_reg_sub
 # F5 (per-inst, safe — _flatDestIdx is per-DynInst, not shared staticInst).
@@ -583,6 +711,12 @@ p.add_argument("--chaos_propagation", action="store_true",
                help="attach CHAOSPropagation (L3 propagation trace, [LSU][OBS-L3])")
 p.add_argument("--prop_trace_file", default="prop_trace.csv.gz",
                help="propagation trace output (relative to --outdir)")
+# [MDSPEC][H0] PROP-EVT unified stream identity (spec sheet 11: run_id /
+# sample_run_id must be written into every event; empty = honest unset)
+p.add_argument("--prop_run_id", default="",
+               help="campaign RunID stamped into every PROP-EVT event")
+p.add_argument("--prop_sample_run_id", default="",
+               help="sample index within the RunID (sample_run_id)")
 args = p.parse_args()
 
 # C4-LSU cache hierarchy: stdlib 骨架只为 board 布线; 全部几何在下方
@@ -707,9 +841,15 @@ def _lsu_b0_caches(root):
             maxFaults=args.l1d_max_faults,
             targetField=args.l1d_target_field,
             protectionModel=args.l1d_protection_model,
+            lsuRmwRule=args.l1d_rmw_rule,
+            lsuTier=args.l1d_lsu_tier,
+            lsuWarmupEvents=args.l1d_warmup_events,
+            lsuSpanEvents=args.l1d_span_events,
+            lsuFillDelayCycles=args.l1d_fill_delay_cycles,
             writeLog=True)
         print(f"[lsu_proxy] CHAOSCache attached to l1d-cache-0 "
-              f"(field={args.l1d_target_field}, protection={args.l1d_protection_model})")
+              f"(field={args.l1d_target_field}, protection={args.l1d_protection_model}, "
+              f"tier={args.l1d_lsu_tier})")
 
     print(f"[lsu_proxy] B0 caches applied (variant={args.variant}): L1D "
           f"{'64KiB/4' if args.variant == 'S2' else '32KiB/2'}-way lat222 "
@@ -828,6 +968,12 @@ if args.chaos_lsqfwd:
         lsuWarmupEvents=args.lsqfwd_warmup_events,
         lsuSpanEvents=args.lsqfwd_span_events,
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
+        l04Mode=args.lsqfwd_l04,   # [MDSPEC][R4-5.3] W5 L04 接线
+        s10Mode=args.lsqfwd_s10,   # [MDSPEC][R4-5.7] W5 S10 接线
+        # [MDSPEC][R4-9-FSMC] O06/O07 barrier-completion / order-tag wiring.
+        o06Mode=args.lsqfwd_o06,
+        o06BarrierDone=args.lsqfwd_o06_done,
+        o07Mode=args.lsqfwd_o07,
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
@@ -1010,6 +1156,27 @@ if args.chaos_bpu:
 if args.chaos_addrpath:
     # §2.4 CHAOSAddrPath: O3-only. SELF-ATTACHES at startup() to
     # cpu.chaosAddrPath (sendFragmentToTranslation calls maybeCorrupt).
+    # [MDSPEC][R4-5.8] A07 config-time validation (the injector's ctor
+    # panics too — this fails BEFORE SimObject construction, A06-ruling
+    # style): agu_ready_mode is LSU-trigger-native, one-hook-per-run
+    # (W1-⑦), and a positive bounded delay.
+    if args.agu_ready_mode != "off":
+        if args.addrpath_lsu_tier == "off":
+            p.error("--agu_ready_mode requires --addrpath_lsu_tier "
+                    "(A07 is LSU-trigger-native; the legacy cycle-window "
+                    "path is not offered at the ready hook)")
+        if args.agu_pre_mode != "off":
+            p.error("--agu_ready_mode and --agu_pre_mode are mutually "
+                    "exclusive (one hook per run, W1-⑦)")
+        if args.agu_ready_delay_cycles < 1:
+            p.error("--agu_ready_delay_cycles must be >= 1 (A07-b bounded "
+                    "delay; 0 is a no-op)")
+    # [MDSPEC][R4-6-A06] A06-b config-time validation (the injector's ctor
+    # panics too — loud refusal, never a silent no-op).
+    if args.agu_be_mode != "off" and args.agu_pre_mode != "a06_size":
+        p.error("--agu_be_mode requires --agu_pre_mode a06_size (A06-b is a "
+                "sub-fault of the same A06 model; one sample carries one "
+                "fault — 03 sheet: 不在同一样本叠加)")
     ap = CHAOSAddrPath(
         cpu=cpu0,
         mode=args.addrpath_mode,
@@ -1022,8 +1189,13 @@ if args.chaos_addrpath:
         lsuWarmupEvents=args.addrpath_warmup_events,
         lsuSpanEvents=args.addrpath_span_events,
         lsuF6Event=args.addrpath_f6_event,
+        f6Mode=args.addrpath_f6_mode,
         preMode=args.agu_pre_mode,
         aguSizeTo=args.agu_size_to,
+        aguSizeToLoad=args.agu_size_to_load,
+        beMode=args.agu_be_mode,
+        aguReadyMode=args.agu_ready_mode,
+        aguReadyDelayCycles=args.agu_ready_delay_cycles,
     )
     board.chaos_addrpath = ap
 
@@ -1135,10 +1307,13 @@ if args.chaos_propagation:
         cpu=cpu0,
         traceFile=args.prop_trace_file,
         writeLog=True,
+        runId=args.prop_run_id,
+        sampleRunId=args.prop_sample_run_id,
     )
     board.chaos_propagation = prop
     print(f"[lsu_proxy] CHAOSPropagation attached "
-          f"(trace={args.prop_trace_file})")
+          f"(trace={args.prop_trace_file}, run_id={args.prop_run_id!r}, "
+          f"sample_run_id={args.prop_sample_run_id!r})")
 
 if args.maxinsts:
     # W1.5b followup fix: BaseCPU's real param is max_insts_any_thread

@@ -46,6 +46,89 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // F6 event sources (09 §2.1 W1 map). TlbHit is FS-only — SE never calls
 // TLB::lookup (arm/mmu.cc:323-365 translateSe); the enum value exists so the
 // config surface is uniform, and an SE run selecting it logs zero events.
+//
+// [MDSPEC][R4-5.1] FIFTH source, recorded ruling: the L1D MSHR merge
+// (BaseCache::handleTimingReqMiss coalescing branch — CHAOSCache
+// targetField=mshr_merge, model C11) is treated as an F6 event source: C11's
+// specified event IS the merge, and the matrix F6 row reads "如…" (e.g., not
+// an exhaustive enumeration). It does NOT ride chaosLsuF6Observe/Notify
+// (typed to the W1 enum above) — the merge hook calls onF6Event(false)
+// directly at the merge site (early_stress first-occurrence, A5 ruling).
+//
+// [MDSPEC][R4-5.2] SIXTH source, same ruling shape: the L1D miss fill
+// (BaseCache::recvTimingResp read-fill arrival at the mounted cache —
+// CHAOSCache targetField=mshr_fill_timing, model C12) is an F6 event
+// source: C12's specified event IS the miss fill (the model's trigger
+// column reads "miss fill或dirty writeback"; the landed mode defers the
+// miss fill). Same non-ride: the fill-timing hook calls onF6Event(false)
+// directly at the fill site (the fillResponse-arrival hook is the attempt
+// stream, R4-5.1-review-I1 accounting).
+//
+// [MDSPEC][R4-5.3] SEVENTH source, same ruling shape: the LQ
+// response-pairing point (LSQUnit::completeDataAccess — CHAOSLSQFwd
+// --lsqfwd_l04, model L04) is an F6 event source: L04's specified event
+// IS the load response arriving while another same-shape load is in
+// flight (the model's trigger condition "同时存在至少两个在途load且发生
+// cache response"). Same non-ride: the pairing hook calls onF6Event(false)
+// directly at the eligible response (the completeDataAccess hook is the
+// attempt stream; store/atomic/squashed responses and no-candidate
+// arrivals return before the event — attempted, never the F6 event).
+//
+// [MDSPEC][R4-5.7] EIGHTH source, same ruling shape: the StoreSet
+// SSID-assignment training event (StoreSet::violation's new-SSID arm —
+// CHAOSLSQFwd --lsqfwd_s10, model S10; the workbook trigger "load/store
+// alias训练后" IS the violation retrain that assigns a fresh SSID) is an
+// F6 event source. Same non-ride: the S10 subst hook calls onF6Event(false)
+// directly at the eligible assignment (the StoreSet::violation top is the
+// attempt stream — s10ViolationCb; violations that retrain existing sets
+// and assignment events with no other live store set return before the
+// event — attempted, never the F6 event). NOTE: the S10 matrix rows carry
+// no F6 cells (F0/F2/F5 only); this ruling records the event-source shape
+// for completeness. HISTORICAL CONFLATION, kept deliberately: the W5
+// commit 7af6eed4 also calls chaosLsuF6Observe(SqForward) at this site —
+// SSIT-training events are counted into the SqForward supply counter (the
+// true W1 SqForward source is the lsq_unit.cc forward branch). Removing
+// it would change the event supply of already-landed F6 cells; recorded
+// here and in the R4-5.7 report, not silently altered.
+//
+// [MDSPEC][R4-5.8] NINTH source, same ruling shape: the AGU
+// clean-ready/handshake point (IEW::executeInsts' isMemRef branch —
+// CHAOSAddrPath agu_ready_mode=a07b_ready_delay, model A07) is an F6
+// event source: A07's specified event IS the address-ready handshake of
+// an eligible plain load/store (the model's trigger "连续相关访存" is
+// realized by the W3/W5 dependent-chase workloads). Same non-ride: the
+// ready hook calls onF6Event(false) directly at the eligible ready event
+// (the ready hook is the attempt stream; atomic/prefetch arrivals return
+// before the event on the op-class gate — attempted, never the F6
+// event). A07 runs do NOT register the W1 four-source thunk
+// (CHAOSAddrPath::startup gates it on agu_ready_mode == off).
+// NOTE (merge-order): the R4-5.7 S10 block above already claimed the
+// ordinal "EIGHTH"; S10 landed into the integration branch first
+// (55b89900), A07 second — so A07 is renumbered NINTH here. The set of
+// sources is unchanged (no source added or removed by the merge).
+// [MDSPEC][R4-5.5] TENTH source, same ruling shape: the L1D MSHR
+// completing-and-should-release point (BaseCache::recvTimingResp's
+// mshrQueue.deallocate site — CHAOSCache targetField=mshr_busy_leak, model
+// C14-a) is an F6 event source: C14's specified event IS the MSHR that has
+// finished its fill and should return to the free list (the 03 sheet's
+// "目标MSHR首次完成并应释放"). Same non-ride: the release hook calls
+// onF6Event(false) directly at the release site (the release hook itself is
+// the attempt stream — R4-5.1-review-I1 accounting; the W1 thunk sites keep
+// the default true).
+//
+// NOTE (merge-order): A07 (R4-5.8) landed into the integration
+// branch before C14/C15, so it keeps NINTH and C14 is renumbered
+// TENTH here (C15, which follows, becomes ELEVENTH). The set of F6
+// event sources is unchanged by the merge — only the ordinals.
+//
+// [MDSPEC][R4-5.6] ELEVENTH source, same ruling shape: the L1D MSHR
+// capacity-arbitration point (BaseCache::allocateMissBuffer's isFull()
+// decision — CHAOSCache targetField=mshr_occupancy, model C15-b) is an F6
+// event source: C15's specified event IS a new miss allocation at the MSHR
+// capacity limit (the 03 sheet's "MSHR接近或达到容量上限时发生新miss分配").
+// Same non-ride: the arbitration hook calls onF6Event(false) directly at
+// the allocation site (the arbitration hook itself is the attempt stream).
+
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 
@@ -107,6 +190,7 @@ struct ChaOSLsuTrigger
   private:
     uint64_t next_fire = 0;       // eligible-count threshold (F1-F4)
     uint64_t burst_left = 0;      // F4: remaining burst shots (this shot incl.)
+    uint64_t fired_at = 0;        // [R4-1-review-I2] F0: eligible count at fire
     bool spent  = false;          // F0/F6 fired once
     bool armed  = false;
 
@@ -167,7 +251,8 @@ struct ChaOSLsuTrigger
                   rng = chaosSampleLCG(rng);
                   next_fire = warmup_events + rng % span;
               }
-              if (eligible >= next_fire) { spent = true; ++injected; return true; }
+              if (eligible >= next_fire) { spent = true; fired_at = eligible;
+                                          ++injected; return true; }
               return false;
           }
           case ChaOSLsuTier::F1:
@@ -198,12 +283,25 @@ struct ChaOSLsuTrigger
 
     // The F6 event source calls this when the configured event occurs.
     // Returns true => inject at this event, once ever.
+    // book_attempt — two caller shapes, [MDSPEC][R4-5.1-review-I1]:
+    //   true (default): the W1 thunk sites (CHAOSAddrPath/CHAOSPrefetch
+    //     f6Thunk) have no attempt stream at the event-notification site —
+    //     there the event occurrence IS the attempt, so it is booked here
+    //     (pinned by tests/chaos_lsu_trigger_test.cc "100 stream + 1
+    //     event"). The same-invocation double-count is impossible there:
+    //     onF6Event() runs in the thunk, not inside a hook call that
+    //     already did onAttempt().
+    //   false: a hook-based caller that ALREADY counted this invocation via
+    //     onAttempt() (CHAOSCache mshr_merge: the merge hook itself is the
+    //     attempt stream). Booking attempted again here would count the
+    //     firing hook invocation twice.
     bool
-    onF6Event()
+    onF6Event(bool book_attempt = true)
     {
         if (tier != ChaOSLsuTier::F6 || spent) return false;
         spent = true;
-        ++attempted; ++eligible; ++injected;
+        if (book_attempt) ++attempted;
+        ++eligible; ++injected;
         if (!first_eligible_tick) first_eligible_tick = curTick();
         last_eligible_tick = curTick();   // [LSU][OBS-3]
         return true;
@@ -222,6 +320,56 @@ struct ChaOSLsuTrigger
                (unsigned long)first_eligible_tick,
                (unsigned long)last_eligible_tick);
         chaosLsuF6EventsReport();   // [LSU][OBS-1] event-supply observation
+
+        // [MDSPEC][R4-1-review-I2] LOUD F0 span diagnostics — the two
+        // silent failure modes of a static span vs. the workload's real
+        // eligible stream (the S01 root cause class). Printed right after
+        // the summary line so it lands in the same stdout log the campaign
+        // captures; NEVER buried:
+        //   SPAN_UNREACHABLE — the hook fired (attempted>0) but the F0 draw
+        //     landed beyond the observed eligible stream → injected=0
+        //     (span larger than the stream, or the stream truncated).
+        //   EARLY_BIAS — an injection happened AND the observed eligible
+        //     stream ran past the draw window [warmup, warmup+span). Two
+        //     readings, honestly both named: (a) span UNDER-COVERS the
+        //     golden (uninjected) eligible stream — golden events beyond
+        //     the window were unreachable, the "fires, looks healthy" bias
+        //     mode; (b) span == the measured golden size and the injected
+        //     FAULT ITSELF extended the stream (post-injection events) —
+        //     not a sampling bias. fired_at (= eligible count at fire,
+        //     always ≤ warmup+span-1) + the uninjected golden measurement
+        //     adjudicate: excess events all post-date fired_at.
+        if (tier == ChaOSLsuTier::F0) {
+            const uint64_t eff_span = span_events ? span_events : 1;
+            const uint64_t draw_end = warmup_events + eff_span;
+            if (attempted > 0 && injected == 0)
+                printf("CHAOS_LSU_TRIGGER_ALARM: injector=%s "
+                       "mode=SPAN_UNREACHABLE attempted=%lu eligible=%lu "
+                       "injected=%lu draw_next_fire=%lu span=%lu warmup=%lu "
+                       "(F0 draw never landed inside the observed eligible "
+                       "stream; no injection though the hook fired)\n",
+                       injector, (unsigned long)attempted,
+                       (unsigned long)eligible, (unsigned long)injected,
+                       (unsigned long)next_fire,
+                       (unsigned long)span_events,
+                       (unsigned long)warmup_events);
+            else if (injected > 0 && eligible >= draw_end)
+                printf("CHAOS_LSU_TRIGGER_ALARM: injector=%s mode=EARLY_BIAS "
+                       "attempted=%lu eligible=%lu injected=%lu fired_at=%lu "
+                       "span=%lu warmup=%lu (observed eligible ran past the "
+                       "F0 draw window [%lu,%lu): span under-covers the "
+                       "golden stream = silent early bias, OR span == "
+                       "measured golden and the fault extended the stream "
+                       "past fired_at — adjudicate vs the uninjected golden "
+                       "measurement)\n",
+                       injector, (unsigned long)attempted,
+                       (unsigned long)eligible, (unsigned long)injected,
+                       (unsigned long)fired_at,
+                       (unsigned long)span_events,
+                       (unsigned long)warmup_events,
+                       (unsigned long)warmup_events,
+                       (unsigned long)(draw_end - 1));
+        }
     }
 };
 

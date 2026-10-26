@@ -48,6 +48,22 @@ class CHAOSLSQFwd(SimObject):
         "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
         "data-path hook is excluded from the trigger stream (hook split); without "
         "it, the violation hook stays silent (data-path structMode models only)")
+    l04Mode = Param.Bool(False,
+        "[MDSPEC][R4-5.3] W5 L04: response-pairing target exchange (L04-b) — "
+        "the injector's stream is the response-pairing point "
+        "(LSQUnit::completeDataAccess, maybeSwapResponseTarget); the SQ-forward "
+        "data-path hook is excluded (hook split, L03 discipline). Requires "
+        "lsuTier != off (the ctor panics otherwise — trigger-native model).")
+    s10Mode = Param.Bool(False,
+        "[MDSPEC][R4-5.7] W5 S10: StoreSet SSIT-ID 换值 (S10-a) — the "
+        "injector's stream is the StoreSet SSIT-training point "
+        "(StoreSet::violation's new-SSID assignment arm, via the chaosS10* "
+        "hooks); the substituted value is ANOTHER LEGAL live store-set ID "
+        "(candidates = valid SSIT entries' SSIDs, no random bit strings — "
+        "workbook 07 实施细则). The SQ-forward data-path hook is excluded "
+        "(hook split, L03/L04 discipline). Requires lsuTier != off AND the "
+        "standard mount (probability > 0) — the ctor panics otherwise "
+        "(trigger-native model).")
 
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")
@@ -63,6 +79,30 @@ class CHAOSLSQFwd(SimObject):
     countOnly = Param.Bool(False,
         "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
         "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
+    # [MDSPEC][R4-9-FSMC] O06 barrier-completion / O07 order-tag modes. Node =
+    # the O3 MemDepUnit's barrier-SN bookkeeping (the ONLY barrier-completion
+    # structure on this platform; DMB/DSB themselves carry no memory access —
+    # see cpu/o3/chaos_barrier_hook.hh). Requires lsuTier != off (the ctor
+    # panics otherwise — trigger-native model, L04/S10 discipline).
+    o06Mode = Param.Bool(False,
+        "MDSPEC R4-9-FSMC O06: barrier-completion tracking fault. The "
+        "injector hooks MemDepUnit::insertBarrierSN / completeInst and, on "
+        "the trigger's consent, either releases the barrier early "
+        "(o06BarrierDone=early) or never releases it (stuck). The SQ-forward "
+        "data-path hook is NOT part of this stream.")
+    o06BarrierDone = Param.String("early",
+        "O06 sub-rule: early (O06-a 提前 done — the barrier SN is not "
+        "tracked, so later memory ops issue past the barrier; a litmus "
+        "violation => SDC) | stuck (O06-b 延后/丢失 done — the SN is never "
+        "released, every later memory op waits forever => Timeout). Inert "
+        "unless o06Mode.")
+    o07Mode = Param.Bool(False,
+        "MDSPEC R4-9-FSMC O07: order-tag 换值. HONEST PROXY — gem5 O3 has "
+        "no explicit ordering queue; the barrier-SN set is the structural "
+        "analogue (InstSeqNum = the order tag, the release point = the "
+        "handoff). On consent the injector releases ANOTHER live barrier SN "
+        "in this one's place (always a legal live value, never fabricated); "
+        "with no other live SN the injection is honestly skipped.")
     # LSU W2/W5 (05 r2-r8): event-normalized trigger tier; "off" = legacy
     # cycle-window + geometric-skip path (byte-identical).
     lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")

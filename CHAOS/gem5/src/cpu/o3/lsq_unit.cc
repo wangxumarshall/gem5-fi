@@ -165,6 +165,72 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
 
     cpu->ppDataAccessComplete->notify(std::make_pair(inst, pkt));
 
+    // [MDSPEC][R4-5.3] L04 response-pairing target: the load this response
+    // is DELIVERED to. Normally `inst` (the request's own instruction —
+    // the correct pairing); with --lsqfwd_l04 the injector may substitute
+    // another in-flight load (L04-b target exchange — the 09 sheet's
+    // "response配对点" injection hook; the substitution applies to the
+    // delivery below: squash check, resp/lq_complete/taint_reg observation
+    // and the writeback. The HTM block above and the ppDataAccessComplete
+    // probe stay bound to the REQUEST's own instruction — request-side
+    // semantics, unchanged).
+    DynInstPtr target = inst;
+    if (cpu->lsqFwd) {
+        CHAOSLSQFwd::RespPairKeys l04_keys;
+        l04_keys.seq = inst->seqNum;
+        l04_keys.lq_idx = inst->lqIdx;
+        l04_keys.request_id =
+            (request->req() && request->req()->hasInstSeqNum())
+                ? request->req()->getReqInstSeqNum() : 0;
+        l04_keys.vaddr = request->getVaddr();
+        l04_keys.size = request->_size;
+        l04_keys.eligible_shape =
+            request->needWBToRegister() && inst->isLoad() &&
+            !inst->isAtomic() && !inst->isStoreConditional() &&
+            !inst->isSquashed();
+        target = cpu->lsqFwd->maybeSwapResponseTarget(
+            inst, l04_keys,
+            [this, &inst, request](std::vector<CHAOSLSQFwd::RespPairCand> &out) {
+                // In-flight candidates: valid LQ entries holding a plain
+                // register-writeback load whose request has a packet
+                // already outstanding (a response WILL return — a load
+                // still waiting to issue may be satisfied by forwarding
+                // and never respond), with the SAME size and byte-enable
+                // (completeAcc reads the packet per the substitute's own
+                // static inst; a mismatch would read out of bounds).
+                for (auto &e : loadQueue) {
+                    if (!e.valid())
+                        continue;
+                    const DynInstPtr &c = e.instruction();
+                    if (!c || c == inst || c->isSquashed() ||
+                        c->isExecuted())
+                        continue;
+                    if (!c->isLoad() || c->isAtomic() ||
+                        c->isStoreConditional())
+                        continue;
+                    LSQ::LSQRequest *cr = c->savedRequest;
+                    if (!cr || cr->_numOutstandingPackets == 0)
+                        continue;
+                    if (cr->_size != request->_size)
+                        continue;
+                    if (cr->_byteEnable != request->_byteEnable)
+                        continue;
+                    if (!cr->needWBToRegister())
+                        continue;
+                    CHAOSLSQFwd::RespPairCand cand;
+                    cand.inst = c;
+                    cand.seq = c->seqNum;
+                    cand.lq_idx = c->lqIdx;
+                    cand.request_id =
+                        (cr->req() && cr->req()->hasInstSeqNum())
+                            ? cr->req()->getReqInstSeqNum() : 0;
+                    cand.vaddr = cr->_addr;
+                    cand.size = cr->_size;
+                    out.push_back(cand);
+                }
+            });
+    }
+
     // [LSU][OBS-L3] response node (+ load taint): the packet just returned
     // from the memory system — if it delivers a registered fault (addrpath
     // addr registry / cache faulted-byte registry), record the resp node
@@ -175,17 +241,19 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
     // is ALSO attached, its corruption inside the needWB branch happens
     // AFTER this snapshot — the L3 chain is not combined-injector-aware in
     // v1 (the campaign runs one injector per sample). nullptr = no tracer.
+    // [MDSPEC][R4-5.3] `target`: the delivered-to load (L04 exchange) —
+    // the resp/lq_complete/taint_reg nodes carry the CONSUMER's identity.
     if (cpu->chaosPropagation)
-        cpu->chaosPropagation->noteMemResponse(inst.get(), pkt,
+        cpu->chaosPropagation->noteMemResponse(target.get(), pkt,
                                                request->needWBToRegister());
 
     assert(!cpu->switchedOut());
-    if (!inst->isSquashed()) {
+    if (!target->isSquashed()) {
         if (request->needWBToRegister()) {
             // Only loads, store conditionals and atomics perform the writeback
             // after receving the response from the memory
-            assert(inst->isLoad() || inst->isStoreConditional() ||
-                   inst->isAtomic());
+            assert(target->isLoad() || target->isStoreConditional() ||
+                   target->isAtomic());
 
             // hardware transactional memory
             if (pkt->htmTransactionFailedInCache()) {
@@ -200,12 +268,12 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
                 cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket());
             }
 
-            writeback(inst, request->mainPacket());
-            if (inst->isStore() || inst->isAtomic()) {
+            writeback(target, request->mainPacket());
+            if (target->isStore() || target->isAtomic()) {
                 request->writebackDone();
                 completeStore(request->instruction()->sqIt);
             }
-        } else if (inst->isStore()) {
+        } else if (target->isStore()) {
             // This is a regular store (i.e., not store conditionals and
             // atomics), so it can complete without writing back
             completeStore(request->instruction()->sqIt);
@@ -729,6 +797,61 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
 
     Fault store_fault = store_inst->initiateAcc();
 
+    // [MDSPEC][H3/R4-2] unified sq_execute event (spec sheet 9: SQ
+    // lifecycle — the store executes in the SQ; L3). Correlated by
+    // dyn-seq (correlateRequestBySeq); va from the addr registry entry;
+    // sq_idx from DynInst::sqIdx — the R4-1 keys. nullptr tracer / no
+    // chain = no event.
+    //
+    // [R4-2 root cause, measured 2026-10-20] this hook USED to sit at the
+    // top of executeStore, BEFORE initiateAcc(), and could never see a
+    // chain opened for THIS store: the store-side AGU-pre family
+    // (S04-S07/S11/S13) registers its chain inside
+    // initiateAcc -> DynInst::writeMem -> LSQ::pushRequest (PRE hook) —
+    // i.e. AFTER the old hook position but within the SAME executeStore
+    // call. Measured (S04-F0-W5 s1, binary 14a1c7fe3418a3d8,
+    // --debug-flags=LSQUnit): "Executing store [sn:3998]" at tick
+    // 5920530, the pushRequest_PRE injection (0x4903e8 -> 0x490250,
+    // isStore=1) at the SAME tick, then "Doing write to store idx 338,
+    // addr 0x75250" with the already-substituted address; the store's
+    // sq_writeback (5929385) / sq_complete (5930155) correlated, but the
+    // pre-hook lookup at the top returned 0. Placing the hook BELOW
+    // initiateAcc lets a store polluted at pushRequest join its own chain
+    // at execute time.
+    //
+    // Honest boundary (measured, S01-F0-W5 s2): a store->load FORWARD
+    // fault (lsqfwd S01/S02/S03/S08/S09) corrupts the LOAD's forwarded
+    // data during the load's read(); the producing store executed BEFORE
+    // the forward (sn 9901 executed at tick 12631465; corrupt + forward
+    // at tick 12631850; "Executing store [sn:9904]" count = 0 — the
+    // victim is a load and never reaches executeStore), so the producer's
+    // seq registration postdates its executeStore — sq_execute
+    // legitimately STAYS ABSENT for that carrier (emitting it would
+    // back-date the chain before its inj root). A deferred-translation
+    // re-issue (IEW deferMemInst path) re-enters executeStore and emits
+    // one event per actual execute pass (SE campaign stores execute once
+    // — verified in the same traces: exactly one "Executing store" line
+    // per sn).
+    if (cpu->chaosPropagation) {
+        Addr h3_base = 0;
+        const char *h3_corr = nullptr;   // [R4-1-review-I1]
+        const uint64_t h3_ptag =
+            cpu->chaosPropagation->correlateRequestBySeq(store_inst->seqNum,
+                                                         &h3_base, &h3_corr);
+        if (h3_ptag) {
+            std::ostringstream h3_hex;
+            h3_hex << std::hex << h3_base;
+            cpu->chaosPropagation->notePropEvt("sq_execute", {
+                {"fault_id", std::to_string(h3_ptag)},
+                {"corr", h3_corr ? h3_corr : ""},
+                {"dyn_inst_seq", std::to_string(store_inst->seqNum)},
+                {"sq_idx", std::to_string((long long)store_idx)},
+                {"va", h3_hex.str()},
+                {"state_before", "issued"},
+            });
+        }
+    }
+
     if (store_inst->isTranslationDelayed() &&
         store_fault == NoFault)
         return store_fault;
@@ -917,6 +1040,35 @@ LSQUnit::writebackStores()
                 storeWBIt.idx(), inst->pcState(),
                 request->mainReq()->getPaddr(), (int)*(inst->memData),
                 inst->seqNum);
+
+        // [MDSPEC][H3] unified sq_writeback event (spec sheet 9: SQ
+        // lifecycle — the store's packet is BUILT and about to be sent to
+        // the cache; L3). This fires EARLIER than sq_complete (which is the
+        // writeback-ACK path) — it is the L2→L3 evidence for the A01
+        // pilot's startup store whose ACK-path completeStore does not
+        // appear (empirical: a01_bit 5/5 samples; a04 1/1 fires both).
+        // Correlated by dyn-seq via the addr registry.
+        if (cpu->chaosPropagation) {
+            Addr h3wb_base = 0;
+            const char *h3wb_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h3wb_ptag =
+                cpu->chaosPropagation->correlateRequestBySeq(inst->seqNum,
+                                                         &h3wb_base,
+                                                         &h3wb_corr);
+            if (h3wb_ptag) {
+                std::ostringstream h3wb_hex;
+                h3wb_hex << std::hex
+                         << request->mainReq()->getPaddr();
+                cpu->chaosPropagation->notePropEvt("sq_writeback", {
+                    {"fault_id", std::to_string(h3wb_ptag)},
+                    {"corr", h3wb_corr ? h3wb_corr : ""},
+                    {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                    {"sq_idx", std::to_string((long long)inst->sqIdx)},
+                    {"pa", h3wb_hex.str()},
+                    {"state_after", "packet_built"},
+                });
+            }
+        }
 
         // @todo: Remove this SC hack once the memory system handles it.
         if (inst->isStoreConditional()) {
@@ -1209,6 +1361,31 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     /* We 'need' a copy here because we may clear the entry from the
      * store queue. */
     DynInstPtr store_inst = store_idx->instruction();
+
+    // [MDSPEC][H3] unified sq_complete event (spec sheet 9: SQ lifecycle —
+    // the store drained to memory, SQ entry released; L3). Same
+    // correlation as sq_execute; state_after = completed.
+    if (cpu->chaosPropagation) {
+        Addr h3_base = 0;
+        const char *h3_corr = nullptr;   // [R4-1-review-I1]
+        const uint64_t h3_ptag =
+            cpu->chaosPropagation->correlateRequestBySeq(store_inst->seqNum,
+                                                         &h3_base, &h3_corr);
+        if (h3_ptag) {
+            std::ostringstream h3_hex;
+            h3_hex << std::hex << h3_base;
+            cpu->chaosPropagation->notePropEvt("sq_complete", {
+                {"fault_id", std::to_string(h3_ptag)},
+                {"corr", h3_corr ? h3_corr : ""},
+                {"dyn_inst_seq", std::to_string(store_inst->seqNum)},
+                {"sq_idx", std::to_string((long long)
+                    store_inst->sqIdx)},
+                {"va", h3_hex.str()},
+                {"state_after", "completed"},
+            });
+        }
+    }
+
     if (store_idx == storeQueue.begin()) {
         do {
             storeQueue.front().clear();
@@ -1381,6 +1558,40 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     load_entry.setRequest(request);
     assert(load_inst);
 
+    // [MDSPEC][H7] unified lq_read event (spec sheet 9: LQ lifecycle — the
+    // load's memory read issues; L3). Correlated by dyn-seq (the addr
+    // registry's dyn_seq binding); va from the registry entry. nullptr
+    // tracer / no chain = no event.
+    if (cpu->chaosPropagation) {
+        Addr h7_base = 0;
+        const char *h7_corr = nullptr;   // [R4-1-review-I1]
+        const uint64_t h7_ptag =
+            cpu->chaosPropagation->correlateRequestBySeq(load_inst->seqNum,
+                                                         &h7_base, &h7_corr);
+        if (h7_ptag) {
+            std::ostringstream h7_hex;
+            h7_hex << std::hex << h7_base;
+            // [MDSPEC][R6-EMIT2/A9] request_id: the L3 read must name the
+            // request that issues it, or the L2->L3 request chain breaks
+            // (measured: lq_read carried no request_id). Source = the
+            // Request-stamped seq (lsq_sendfrag convention: the same value
+            // the mem_req/lsq_sendfrag nodes carry); fall back to the
+            // instruction's own seq when the request is not yet stamped.
+            const uint64_t h7_req =
+                (request->mainReq() && request->mainReq()->hasInstSeqNum())
+                    ? request->mainReq()->getReqInstSeqNum()
+                    : load_inst->seqNum;
+            cpu->chaosPropagation->notePropEvt("lq_read", {
+                {"fault_id", std::to_string(h7_ptag)},
+                {"corr", h7_corr ? h7_corr : ""},
+                {"dyn_inst_seq", std::to_string(load_inst->seqNum)},
+                {"request_id", std::to_string(h7_req)},
+                {"lq_idx", std::to_string((long long)load_idx)},
+                {"va", h7_hex.str()},
+            });
+        }
+    }
+
     assert(!load_inst->isExecuted());
 
     // Make sure this isn't a strictly ordered load
@@ -1514,8 +1725,21 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
                 // Allocate memory if this is the first time a load is issued.
                 if (!load_inst->memData) {
-                    load_inst->memData =
-                        new uint8_t[request->mainReq()->getSize()];
+                    // [MDSPEC][R4-8-A06] A06-a load-shrink carrier: floor the
+                    // destination buffer at the pre-fault STATIC width
+                    // (DynInst::chaosA06BufBytes, set by LSQ::pushRequest)
+                    // and zero-fill, so the fixed-width completeAcc readback
+                    // (sizeof(Mem) bytes) stays in bounds and a shrunk load
+                    // completes as a faithful zero-extended truncation.
+                    // chaosA06BufBytes == 0 for every non-shrunk load, so the
+                    // allocation is then exactly the pre-A06 one
+                    // (byte-identical baseline).
+                    unsigned a06_buf = request->mainReq()->getSize();
+                    if (load_inst->chaosA06BufBytes > a06_buf)
+                        a06_buf = load_inst->chaosA06BufBytes;
+                    load_inst->memData = new uint8_t[a06_buf];
+                    if (a06_buf > request->mainReq()->getSize())
+                        memset(load_inst->memData, 0, a06_buf);
                 }
                 if (store_it->isAllZeros())
                     memset(load_inst->memData, 0,
@@ -1560,10 +1784,32 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // reproduce-method2 v3 mechanism on core 179). Hot-path:
                 // when no injector is attached (lsqFwd==nullptr) or its
                 // probability is 0, corrupt() returns immediately.
+                // [MDSPEC][R4-1] the producer store's and consuming load's
+                // dyn_inst_seq / sq_idx / lq_idx / request_id ride along as
+                // the PRIMARY correlation keys (sq_idx from DynInst::sqIdx
+                // — the same source as the sq_execute/sq_writeback/
+                // sq_complete events; lq_idx = the read() load_idx, the
+                // same source as the lq_read events, so the keys join 1:1).
                 if (cpu->lsqFwd) {
+                    CHAOSLSQFwd::FwdCorrelKeys fwd_keys;
+                    fwd_keys.store_dyn_inst_seq =
+                        store_it->instruction()->seqNum;
+                    fwd_keys.sq_idx =
+                        (long long)store_it->instruction()->sqIdx;
+                    const auto &st_req = store_it->request()->mainReq();
+                    if (st_req && st_req->hasInstSeqNum())
+                        fwd_keys.store_request_id =
+                            st_req->getReqInstSeqNum();
+                    fwd_keys.load_dyn_inst_seq = load_inst->seqNum;
+                    fwd_keys.lq_idx = (long long)load_idx;
+                    const auto &ld_req = request->mainReq();
+                    if (ld_req && ld_req->hasInstSeqNum())
+                        fwd_keys.load_request_id =
+                            ld_req->getReqInstSeqNum();
                     cpu->lsqFwd->corrupt(load_inst->memData,
                                          request->mainReq()->getSize(),
-                                         request->mainReq()->getVaddr());
+                                         request->mainReq()->getVaddr(),
+                                         fwd_keys);
                 }
 
                 // LSU W2 F6 event source (09 §2.1 map): a store-to-load
@@ -1691,7 +1937,18 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
     // Allocate memory if this is the first time a load is issued.
     if (!load_inst->memData) {
-        load_inst->memData = new uint8_t[request->mainReq()->getSize()];
+        // [MDSPEC][R4-8-A06] A06-a load-shrink carrier (see the forwarding
+        // allocation above): floor at the pre-fault static width and
+        // zero-fill so a shrunk load completes as a faithful zero-extended
+        // truncation instead of the fixed-width completeAcc readback
+        // running past the heap. chaosA06BufBytes == 0 (every non-shrunk
+        // load) reproduces the pre-A06 allocation byte-for-byte.
+        unsigned a06_buf = request->mainReq()->getSize();
+        if (load_inst->chaosA06BufBytes > a06_buf)
+            a06_buf = load_inst->chaosA06BufBytes;
+        load_inst->memData = new uint8_t[a06_buf];
+        if (a06_buf > request->mainReq()->getSize())
+            memset(load_inst->memData, 0, a06_buf);
     }
 
 

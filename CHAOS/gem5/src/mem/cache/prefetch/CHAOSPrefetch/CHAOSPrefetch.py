@@ -19,9 +19,19 @@
 #                          queue-content effect; documented approximation)
 #   p08_stride_stuck       P08: stride stuck-at-0, re-applied on every
 #                          eligible event (F5 nature; tier decides)
+#   p06_as_demand          P06-a [MDSPEC][R4-5.4]: prefetch-as-demand FILL
+#                          CLASSIFICATION marking — one prefetch-owned fill
+#                          classified demand (CacheBlk::Prefetched not set;
+#                          the line enters the cache exactly as a demand
+#                          fill). NOT a generation-site mode: the hook is
+#                          maybeMarkFillAsDemand at Cache::serviceMSHRTargets'
+#                          setPrefetched gate (fillMarkHook registry);
+#                          maybeCorrupt is inert in this mode.
 #
 # HONEST BOUNDARY (not in this injector, routed/documented elsewhere):
-#   P06 (mark prefetch as demand / wrong permissions)  — no clean hook, deferred
+#   P06-b/c/d (wrong dirty/ownership/allocate fill permissions) and the
+#                          P06-a REVERSE arm (demand marked prefetch) —
+#                          not implemented (see SPEC_IMPL_LANDED pending)
 #   P07 (fill way/tag mismatch)  — cache-side, CHAOSCache tag-field approximation
 #   P09 (prefetch-caused dirty-eviction writeback loss) — cache-side,
 #        CHAOSCache dirty/victim approximation
@@ -35,7 +45,8 @@ class CHAOSPrefetch(SimObject):
 
     mode = Param.String("p01_stride_bitflip",
         "p01_stride_bitflip | p02_confidence_corrupt | p03_addr_subst | "
-        "p05_drop_dup | p08_stride_stuck (LSU 03 P-rows)")
+        "p05_drop_dup | p08_stride_stuck | p06_as_demand (LSU 03 P-rows; "
+        "p06_as_demand = P06-a fill-classification marking, R4-5.4)")
 
     # LSU W2 trigger tier (docs/gem5-fi/lsu/05 r2-r8). This injector is
     # LSU-track-native: a tier is REQUIRED (no legacy cycle-window path —

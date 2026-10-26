@@ -45,6 +45,7 @@
 
 #include <algorithm>
 #include <list>
+#include <sstream>
 #include <string>
 
 #include "base/compiler.hh"
@@ -447,10 +448,17 @@ LSQ::sendRetryResp()
 bool
 LSQ::recvTimingResp(PacketPtr pkt)
 {
-    // LSU W5 L04: response-pairing corruption — when a cache response
-    // arrives and the F6 CAS-success event notify fires (proxy), redirect
-    // the response to the WRONG LSQ unit (simulating a transaction-ID
-    // mismatch where the response goes to the wrong load).
+    // [LSU W5 L04] response-arrival observation: every cache response
+    // counts as a CasSuccess-tagged F6 event supply (the W1 four-source
+    // enum has no load-response member; this proxy counts every response).
+    // [MDSPEC][R4-5.3] the L04 INJECTION decision no longer lives here —
+    // it moved to the real pairing point (LSQUnit::completeDataAccess →
+    // CHAOSLSQFwd::maybeSwapResponseTarget, the request->instruction()
+    // binding), where the eligibility gates (plain register-WB load +
+    // live same-shape in-flight candidate) and the trigger's
+    // onF6Event(false) first-eligible-occurrence semantics apply. This
+    // observe stays as the event-supply counter (chaos_lsu_trigger.hh
+    // chaosLsuF6EventsSeen, [LSU][OBS-1]) — counting only, no injection.
     chaosLsuF6Observe(ChaOSLsuEvent::CasSuccess);
 
     if (pkt->isError())
@@ -773,14 +781,25 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // LSU W4 A-series PRE hook (W1 ⑦ ruling): pushRequest entry = the AGU's
     // raw output, the single mandatory pass-through point BEFORE split
     // decision and Request construction. Mutates the by-value addr/size
-    // copies so every downstream consumer sees the fault. byte_enable is a
-    // const ref here — BE mutation is NOT offered at this hook (A06 does
-    // size only; documented in 09 §3-W4).
+    // copies so every downstream consumer sees the fault.
+    // [MDSPEC][R4-6-A06] A06-b: the hook now also receives a MUTABLE copy
+    // of the byte-enable mask (A06-b = "byte-enable 改为另一合法掩码").
+    // The mask is size-indexed, so the hook substitutes it against the
+    // PRE-substitution size; the `_byteEnable` rebuild below then keeps
+    // (mask, size) consistent. Consequence (documented, R4-6-A06 report):
+    // when the size changed the mask is rebuilt all-true, i.e. size and
+    // mask substitution are mutually exclusive at the request level.
+    std::vector<bool> pre_byte_enable(byte_enable);
     if (cpu->chaosAddrPathPre) {
         const Addr pre_old_addr = addr;
         const unsigned int pre_old_size = size;
+        // [MDSPEC][R4-5.8] dyn_inst_seq: the A07 ready-delay mode uses this
+        // hook ONLY as the EA observation point (late binding of the fault
+        // chain to the delayed instruction's real address range); the PRE
+        // value modes ignore it.
         size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
-                                                      flags);
+                                                      flags, inst->seqNum,
+                                                      pre_byte_enable);
         // [LSU][OBS-L3] register the PRE-family injection with the L3
         // propagation tracer (inj + addr_form nodes + addr registry).
         // lastPreHookInjected() also covers the flag-only modes (S06/L02
@@ -792,6 +811,73 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
             cpu->chaosPropagation->registerInjection(
                 "lsq_pushRequest_PRE", inst->seqNum, pre_old_addr, addr,
                 isLoad, pre_old_size, size);
+        }
+        // [MDSPEC][R4-8-A06] A06-a load-shrink carrier (fixed-width
+        // completion contract). A load's request `size` here IS its static
+        // memory-operand width (initiateMemRead passes sizeof(Mem),
+        // arch/generic/memhelpers.hh:74-83). If the hook SHRANK it, hand the
+        // original width to the LSQUnit so the destination buffer (sized by
+        // the faulted `size` at lsq_unit.cc read()) is floored at the static
+        // readback width and zero-filled — the shrunk load then completes as
+        // a faithful zero-extended truncation instead of reading past the
+        // heap. A widen/touch leaves the field 0 (byte-identical baseline).
+        if (isLoad && size < pre_old_size)
+            inst->chaosA06BufBytes = pre_old_size;
+    }
+
+    // [MDSPEC][H1] unified lsq_push event (spec sheet 9, 39-RunID family:
+    // L1 = EA/size/flags enter the LSQRequest; correlation keys
+    // lq_idx/sq_idx/PC/opcode). Emitted ONLY for fault-correlated requests
+    // (PROP-EVT is a fault-propagation stream, spec sheet 11). Placed after
+    // the PRE hook so a fresh injection's registry entry correlates the
+    // very same request. nullptr tracer / no chain = no event.
+    if (cpu->chaosPropagation) {
+        const char *h1_corr = nullptr;   // [R4-1-review-I1]
+        const uint64_t h1_ptag = cpu->chaosPropagation->correlateRequest(
+            inst->seqNum, addr, size, &h1_corr);
+        if (h1_ptag) {
+            std::ostringstream h1_hex;
+            h1_hex << std::hex << addr;
+            const std::string h1_va = h1_hex.str();
+            h1_hex.str(""); h1_hex.clear();
+            h1_hex << inst->pcState().instAddr();
+            cpu->chaosPropagation->notePropEvt("lsq_push", {
+                {"fault_id", std::to_string(h1_ptag)},
+                {"corr", h1_corr ? h1_corr : ""},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"pc", h1_hex.str()},
+                {"opcode", inst->staticInst->getName()},
+                // 不适用侧显式 -1（DynInst 的 lqIdx/sqIdx 对非本侧指令是
+                // 池复用残留值——sq_forward dyn133 store 带残留 lq_idx=3
+                // 实证；-1 = 本请求类型不占用该队列）
+                {"lq_idx", std::to_string((long long)(isLoad
+                    ? inst->lqIdx : (ssize_t)-1))},
+                {"sq_idx", std::to_string((long long)(isLoad
+                    ? (ssize_t)-1 : inst->sqIdx))},
+                {"va", h1_va},
+                {"field", isLoad ? "load" : "store"},
+            });
+        }
+    }
+
+    // [MDSPEC][H6] unified atomic_op event (spec sheet 9: atomic/sync
+    // chain — the atomic request enters the LSQ; L2). Same correlation as
+    // lsq_push; isAtomic = non-null amo functor (pushRequest:772). The
+    // exclusive-monitor side (LDXR/STXR) is covered by CHAOSExMon.
+    if (cpu->chaosPropagation && isAtomic) {
+        const char *h6_corr = nullptr;   // [R4-1-review-I1]
+        const uint64_t h6_ptag = cpu->chaosPropagation->correlateRequest(
+            inst->seqNum, addr, size, &h6_corr);
+        if (h6_ptag) {
+            std::ostringstream h6_hex;
+            h6_hex << std::hex << addr;
+            cpu->chaosPropagation->notePropEvt("atomic_op", {
+                {"fault_id", std::to_string(h6_ptag)},
+                {"corr", h6_corr ? h6_corr : ""},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"va", h6_hex.str()},
+                {"field", "amo"},
+            });
         }
     }
 
@@ -830,8 +916,13 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // W4 A06: the PRE hook may substitute the access size; keep the
         // byte-enable consistent (all-true at the new size) or the
         // Request::setByteEnable assert fires downstream.
-        request->_byteEnable = (byte_enable.size() == size)
-            ? byte_enable : std::vector<bool>(size, true);
+        // [MDSPEC][R4-6-A06] source = the hook's mutable copy
+        // (pre_byte_enable): unchanged when A06-b is off / declined,
+        // substituted when the A06-b mask fault fired. A size change wins
+        // over a mask substitution by construction (mask size mismatch =>
+        // all-true rebuild).
+        request->_byteEnable = (pre_byte_enable.size() == size)
+            ? pre_byte_enable : std::vector<bool>(size, true);
         inst->setRequest();
         request->taskId(cpu->taskId());
 
@@ -1191,9 +1282,34 @@ LSQ::LSQRequest::sendFragmentToTranslation(int i)
     // above) or its range covers a registered faulted cache byte, record
     // the request node. Placed AFTER the corruption block so both families
     // are covered by one call. nullptr tracer = no-op.
-    if (_inst && _inst->cpu && _inst->cpu->chaosPropagation)
-        _inst->cpu->chaosPropagation->noteMemRequest(
-            "lsq_sendFragmentToTranslation", _inst->seqNum, req(i));
+    if (_inst && _inst->cpu && _inst->cpu->chaosPropagation) {
+        const char *h1_corr = nullptr;   // [R4-1-review-I1]
+        const uint64_t h1_ptag = _inst->cpu->chaosPropagation->noteMemRequest(
+            "lsq_sendFragmentToTranslation", _inst->seqNum, req(i), &h1_corr);
+        // [MDSPEC][H1] unified lsq_sendfrag event (L2: the fragment Request
+        // leaves the LSQ for translation/memory). Same correlation as the
+        // v1 mem_req node; H1 keys = PC/opcode/request_id.
+        if (h1_ptag) {
+            std::ostringstream h1_hex;
+            h1_hex << std::hex << req(i)->getVaddr();
+            const std::string h1_va = h1_hex.str();
+            h1_hex.str(""); h1_hex.clear();
+            h1_hex << _inst->pcState().instAddr();
+            const bool h1_stamped = req(i)->hasInstSeqNum();
+            _inst->cpu->chaosPropagation->notePropEvt("lsq_sendfrag", {
+                {"fault_id", std::to_string(h1_ptag)},
+                {"corr", h1_corr ? h1_corr : ""},
+                {"dyn_inst_seq", std::to_string(_inst->seqNum)},
+                {"pc", h1_hex.str()},
+                {"opcode", _inst->staticInst->getName()},
+                {"request_id", h1_stamped
+                    ? std::to_string(req(i)->getReqInstSeqNum())
+                    : std::string("0")},
+                {"va", h1_va},
+                {"field", isLoad() ? "load" : "store"},
+            });
+        }
+    }
     _port.getMMUPtr()->translateTiming(req(i), _inst->thread->getTC(),
             this, isLoad() ? BaseMMU::Read : BaseMMU::Write);
 }

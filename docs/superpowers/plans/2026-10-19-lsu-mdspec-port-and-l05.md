@@ -139,10 +139,10 @@
 
 **Files:** 无仓库文件改动（worktree 建立 + 构建产物）
 
-- [ ] **Step A0.1** `git worktree add .claude/worktrees/lsu-mdspec-20261019 -b lsu-mdspec-20261019 fi-ding`；在 worktree 内确认 `git log --oneline -1` = 7d2bb8ca。
-- [ ] **Step A0.2** 首装构建：worktree 内 `cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt`（预计 30–60 分钟，首配置 ~2 分钟/项为正常）。记录 gem5.opt sha256 + HEAD 于台账。
-- [ ] **Step A0.3** 基线冒烟：worktree 内 `build/ARM/gem5.opt --outdir=/tmp/mdspec_a0_golden configs/se/lsu_proxy.py --cmd workloads/directed/agu_addrmodes --cpu O3`（无注入 golden）正常退出；此 golden 留作 Phase C 对照。
-- [ ] **Step A0.4** 规格门禁：worktree 内跑 `--validate` ALL PASS（worktree 的 docs/ 与 xlsx 与主树同源）。
+- [x] **Step A0.1** `git worktree add .claude/worktrees/lsu-mdspec-20261019 -b lsu-mdspec-20261019 fi-ding`；在 worktree 内确认 `git log --oneline -1` = 7d2bb8ca。
+- [x] **Step A0.2** 首装构建：worktree 内 `cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt`（预计 30–60 分钟，首配置 ~2 分钟/项为正常）。记录 gem5.opt sha256 + HEAD 于台账。
+- [x] **Step A0.3** 基线冒烟：worktree 内 `build/ARM/gem5.opt --outdir=/tmp/mdspec_a0_golden configs/se/lsu_proxy.py --cmd workloads/directed/agu_addrmodes --cpu O3`（无注入 golden）正常退出；此 golden 留作 Phase C 对照。
+- [x] **Step A0.4** 规格门禁：worktree 内跑 `--validate` ALL PASS（worktree 的 docs/ 与 xlsx 与主树同源）。
 
 > 以下 A1–A6 全部在 worktree 内执行；每个 cherry-pick 任务的模式统一为：**先写失败测试（RED）→ cherry-pick → 测试转绿（GREEN）→ 全套件回归 → commit（若 pick 本身即构成 commit，则测试以紧随 commit 的验证步骤呈现，测试文件单独 commit）**。cherry-pick 保留原作者信息；测试提交独立。
 
@@ -154,7 +154,7 @@
 
 **Interfaces:** 产出 `_CACHE_FIELD_INJ_RE`（格式 `Tick: <t>, Cache Block Addr: <addr>, Field: <spec>[, <detail>]`）；C04/C05/C09 注入行 → 合法 L0 fault_applied 记录。
 
-- [ ] **Step A1.1（RED）** 追加测试（fixture 行取自 469429f4 提交信息中的实测隔离证据格式）：
+- [x] **Step A1.1（RED）** 追加测试（fixture 行取自 469429f4 提交信息中的实测隔离证据格式）：
 
 ```python
 # ---------- OBS-FIX-5 port: cache Field-series injection lines (C04-C09) ----------
@@ -180,27 +180,27 @@ def test_cache_field_inj_lines_parse_to_l0_fault_applied():
 ```
 
 （`C.parse_l0(funnel_text, inj_log_text)` 与 `FUNNEL` 均为 `tests/test_lsu_obs_core.py` 既有符号——:123 `C.parse_l0(FUNNEL + …, real_inj_line() + …)` 实测模式；Field 子键名执行时对照 pick 后代码补精确断言。）
-- [ ] **Step A1.2** 运行确认 RED（Field 行不被现行 `_CACHE_INJ_RE` 解析）。
-- [ ] **Step A1.3** `git cherry-pick 469429f4`（在 worktree 分支上）。
-- [ ] **Step A1.4** GREEN：Field 四格式全解析 + Byte Offset 回归全绿；全套件 `python3 -m pytest tests/test_lsu_obs_core.py tests/test_lsu_obs_driver_workers.py -q` exit 0。
-- [ ] **Step A1.5** commit 测试文件（`[LSU][MDSPEC][A1] OBS-FIX-5 移植验证测试：C04-C09 Field 行→合法 L0 fault_applied`）并 push。
+- [x] **Step A1.2** 运行确认 RED（Field 行不被现行 `_CACHE_INJ_RE` 解析）。
+- [x] **Step A1.3** `git cherry-pick 469429f4`（在 worktree 分支上）。
+- [x] **Step A1.4** GREEN：Field 四格式全解析 + Byte Offset 回归全绿；全套件 `python3 -m pytest tests/test_lsu_obs_core.py tests/test_lsu_obs_driver_workers.py -q` exit 0。
+- [x] **Step A1.5** commit 测试文件（`[LSU][MDSPEC][A1] OBS-FIX-5 移植验证测试：C04-C09 Field 行→合法 L0 fault_applied`）并 push。
 
 ### Task A2: 移植 dd6714c4（reclass_v2，原样入库）
 
 **Files:** Create（经 cherry-pick）`tools/lsu_reclass_v2.py`（+422 行，独立新文件）
 
-- [ ] **Step A2.1** `git cherry-pick dd6714c4`（无依赖，先于 AddrPath 链）。
-- [ ] **Step A2.2** 冒烟：`python3 tools/lsu_reclass_v2.py --help` exit 0；若有旧 P4 批次数据（runs/ 只读）跑一次 `--dry-run` 验证守恒输出格式（只读纪律：不写 runs/）。
-- [ ] **Step A2.3** 回归：全套件绿；push。（适配改造在 Task A5。）
+- [x] **Step A2.1** `git cherry-pick dd6714c4`（无依赖，先于 AddrPath 链）。
+- [x] **Step A2.2** 冒烟：`python3 tools/lsu_reclass_v2.py --help` exit 0；若有旧 P4 批次数据（runs/ 只读）跑一次 `--dry-run` 验证守恒输出格式（只读纪律：不写 runs/）。
+- [x] **Step A2.3** 回归：全套件绿；push。（适配改造在 Task A5。）
 
 ### Task A3: 移植 83ff9265（AddrPath 链 1/3）
 
 **Files:** Modify（经 cherry-pick）`CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/{.cc,.hh,.py}`、`configs/se/lsu_proxy.py`、`tools/lsu_campaign.py`
 
-- [ ] **Step A3.1** `git cherry-pick 83ff9265`（worktree 分支）。
-- [ ] **Step A3.2** 重建（-j126 增量）零新警告；记录 gem5.opt sha256。
-- [ ] **Step A3.3** 行为验证（暂按其原语义，A6 将改造）：跑一个 store-only 小样本（`--agu_pre_mode a06s_store_size --agu_size_to 2`，`workloads/directed/sq_forward`，n=2）确认注入行含 `isLoad/isStore/reject_reason` 且 load 候选产生 REJECT 日志；`a06_size` 字符串被 lsu_proxy 拒绝（config-time error）。
-- [ ] **Step A3.4** 全套件回归 + push。
+- [x] **Step A3.1** `git cherry-pick 83ff9265`（worktree 分支）。
+- [x] **Step A3.2** 重建（-j126 增量）零新警告；记录 gem5.opt sha256。
+- [x] **Step A3.3** 行为验证（暂按其原语义，A6 将改造）：跑一个 store-only 小样本（`--agu_pre_mode a06s_store_size --agu_size_to 2`，`workloads/directed/sq_forward`，n=2）确认注入行含 `isLoad/isStore/reject_reason` 且 load 候选产生 REJECT 日志；`a06_size` 字符串被 lsu_proxy 拒绝（config-time error）。
+- [x] **Step A3.4** 全套件回归 + push。
 
 ### Task A4: 移植 35ccda91（GEOM）+ 分布守恒测试（Review Focus #5）
 
@@ -210,11 +210,11 @@ def test_cache_field_inj_lines_parse_to_l0_fault_applied():
 
 **Interfaces:** 产出 `obs_post_geomreject` 计数（phantom decline 不计 injected）；`a04/a08` 翻译位翻转的 64B 合法性检查 + 固定位一次检查/随定位 16 次重采样。
 
-- [ ] **Step A4.1（RED）** 新建 `tests/test_lsu_geom_distribution.py`：
+- [x] **Step A4.1（RED）** 新建 `tests/test_lsu_geom_distribution.py`：
   - 用固定 rngSeed 的合成 EA 位翻转向量（含同 64B 行内翻转与跨行翻转各若干）跑 GEOM 判定纯函数（若 cherry-pick 后判定逻辑在 .cc 内不可独立调用，则以真实 gem5 小跑 + 日志统计替代：两种 mode 各 n=2），断言：① 跨行位被拒斥且 `obs_post_geomreject` 递增；② 同行位全部按原分布注入（**A01/A02 目标分布逐位不变**）；③ 拒斥行含真实 mode 标签。
-- [ ] **Step A4.2** `git cherry-pick 35ccda91`；重建零警告。
-- [ ] **Step A4.3** GREEN + 真实小跑（`a04_subst` 模式，`workloads/directed/agu_addrmodes`，n=2）：日志中 geomreject 可见、无分布漂移；`a01`（`low_bit_flip`）n=2 注入 old/new EA 与移植前基线一致（用 A0.3 golden 同 seed 对照）。
-- [ ] **Step A4.4** 全套件回归 + push。
+- [x] **Step A4.2** `git cherry-pick 35ccda91`；重建零警告。
+- [x] **Step A4.3** GREEN + 真实小跑（`a04_subst` 模式，`workloads/directed/agu_addrmodes`，n=2）：日志中 geomreject 可见、无分布漂移；`a01`（`low_bit_flip`）n=2 注入 old/new EA 与移植前基线一致（用 A0.3 golden 同 seed 对照）。
+- [x] **Step A4.4** 全套件回归 + push。
 
 ### Task A5: 移植 dd755d7e（F6）+ F6 单语义门禁 + reclass 适配（Review Focus #3/#4）
 
@@ -224,7 +224,7 @@ def test_cache_field_inj_lines_parse_to_l0_fault_applied():
 
 **Interfaces:** `f6Mode` 参数（`early_stress` 默认 | `steady_state` 显式）；campaign 级 `track=mdspec` 门禁函数 `assert_formal_f6_mode(mode)`；reclass 适配输出含 `evidence_status`。
 
-- [ ] **Step A5.1（RED）** `tests/test_lsu_f6_gate.py`：
+- [x] **Step A5.1（RED）** `tests/test_lsu_f6_gate.py`：
 
 ```python
 import pytest, sys
@@ -246,9 +246,9 @@ def test_f6_default_is_early_stress():
     assert lc.F6_DEFAULT_MODE == "early_stress"
 ```
 
-- [ ] **Step A5.2** RED 确认（函数不存在）。
-- [ ] **Step A5.3** `git cherry-pick dd755d7e`；重建零警告。在 `tools/lsu_campaign.py` 增 `F6_DEFAULT_MODE = "early_stress"` 与 `assert_formal_f6_mode()`（mdspec track 下非 early_stress → SystemExit，理由写入 stderr）；GREEN。
-- [ ] **Step A5.4（reclass 适配，独立 commit）** `tests/test_lsu_reclass_v2_adapt.py`：
+- [x] **Step A5.2** RED 确认（函数不存在）。
+- [x] **Step A5.3** `git cherry-pick dd755d7e`；重建零警告。在 `tools/lsu_campaign.py` 增 `F6_DEFAULT_MODE = "early_stress"` 与 `assert_formal_f6_mode()`（mdspec track 下非 early_stress → SystemExit，理由写入 stderr）；GREEN。
+- [x] **Step A5.4（reclass 适配，独立 commit）** `tests/test_lsu_reclass_v2_adapt.py`：
 
 ```python
 def test_missing_evidence_yields_unknown_not_masked():
@@ -263,7 +263,7 @@ def test_reclass_output_carries_version_and_readonly():
 ```
 
 RED → 在 `tools/lsu_reclass_v2.py` 增适配层（输出结构含 `evidence_status`；缺事件→`Unknown`）→ GREEN。
-- [ ] **Step A5.5** 全套件回归 + push（F6 提交与适配提交分开）。
+- [x] **Step A5.5** 全套件回归 + push（F6 提交与适配提交分开）。
 
 ### Task A6: A06 安全化改造（§2 裁决落地；Review Focus #2）
 
@@ -273,7 +273,7 @@ RED → 在 `tools/lsu_reclass_v2.py` 增适配层（输出结构含 `evidence_s
 
 **Interfaces:** 合法模式名 `a06_size`（store-only 安全路径 + load 候选 REJECT 日志）；`a06s_store_size` 为 config 层拒绝别名；campaign `A06` 条目状态 `BLOCKED`。
 
-- [ ] **Step A6.1（RED）** `tests/test_lsu_a06_ruling.py`：
+- [x] **Step A6.1（RED）** `tests/test_lsu_a06_ruling.py`：
 
 ```python
 def test_a06_mode_name_is_legal_and_store_only():
@@ -300,14 +300,14 @@ def test_no_a06s_runid_in_map():
     ...
 ```
 
-- [ ] **Step A6.2** RED 确认 → 改造（一个 commit）：① `.cc`：现 `a06s_store_size` 分支改名 `a06_size`（保留 store-only + REJECT 日志 + isLoad/isStore/reject_reason）；删除"retired a06_size"空壳块；新增 `a06s_store_size` 一次性 warn + REJECT（防旧 manifest 误用）。② `lsu_proxy.py`：choices 含 `a06_size`、拒 `a06s_store_size`。③ `lsu_campaign.py`：`A06` 条目指向 `a06_size` + `MODEL_STATUS["A06"]="BLOCKED"`（理由注释引用 §2）；删除 `A06S` 条目。④ 重建零警告。
-- [ ] **Step A6.3** GREEN + 真实小跑（`a06_size` store-only，sq_forward，n=2）：store 注入行正常、load 候选 REJECT 日志在案。
-- [ ] **Step A6.4** 全套件回归 + push。**A06 裁决状态记录**：BLOCKED（load 侧 + byte-enable 待 §2.c spike）。
+- [x] **Step A6.2** RED 确认 → 改造（一个 commit）：① `.cc`：现 `a06s_store_size` 分支改名 `a06_size`（保留 store-only + REJECT 日志 + isLoad/isStore/reject_reason）；删除"retired a06_size"空壳块；新增 `a06s_store_size` 一次性 warn + REJECT（防旧 manifest 误用）。② `lsu_proxy.py`：choices 含 `a06_size`、拒 `a06s_store_size`。③ `lsu_campaign.py`：`A06` 条目指向 `a06_size` + `MODEL_STATUS["A06"]="BLOCKED"`（理由注释引用 §2）；删除 `A06S` 条目。④ 重建零警告。
+- [x] **Step A6.3** GREEN + 真实小跑（`a06_size` store-only，sq_forward，n=2）：store 注入行正常、load 候选 REJECT 日志在案。
+- [x] **Step A6.4** 全套件回归 + push。**A06 裁决状态记录**：BLOCKED（load 侧 + byte-enable 待 §2.c spike）。
 
 ### Task A7: Phase A 门禁（构建 + 全量回归 + 覆盖矩阵基线快照）
 
-- [ ] **Step A7.1** worktree 内全套件 + `pytest tests/ --collect-only` 对照 + `manifest_validate --help` + 无注入 golden 复跑（与 A0.3 二进制哈希一致或差异可解释）。
-- [ ] **Step A7.2** 记录 Phase A 完成态：HEAD、gem5.opt sha256、移植清单（6 提交 + 2 改造）、测试计数。写入计划文件进度节并 commit。
+- [x] **Step A7.1** worktree 内全套件 + `pytest tests/ --collect-only` 对照 + `manifest_validate --help` + 无注入 golden 复跑（与 A0.3 二进制哈希一致或差异可解释）。
+- [x] **Step A7.2** 记录 Phase A 完成态：HEAD、gem5.opt sha256、移植清单（6 提交 + 2 改造）、测试计数。写入计划文件进度节并 commit。
 
 ---
 

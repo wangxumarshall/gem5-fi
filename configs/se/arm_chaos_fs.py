@@ -25,6 +25,13 @@ from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
                         VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg,
                         CHAOSPTW, CHAOSPhysReg, CHAOSAddrPath)
 from gem5.components.boards.arm_board import ArmBoard
+# [MDSPEC][H0] CHAOSPropagation may be absent from an older binary — import
+# on demand so the FS path degrades loudly only when the flag is requested
+# (same discipline as configs/se/lsu_proxy.py).
+try:
+    from m5.objects import CHAOSPropagation
+except ImportError:
+    CHAOSPropagation = None
 from gem5.simulate.exit_event import ExitEvent
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -103,9 +110,31 @@ p.add_argument("--tlb_probability", type=float, default=0.0,
                help="CHAOSArmTLB per-lookup injection probability")
 p.add_argument("--tlb_fault_type", default="bit_flip",
                choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
-                        "random", "pfn_to_mapped_page"],
+                        "random", "pfn_to_mapped_page", "walk_pairing",
+                        # [R4-10-T08-b/c/d] walk/refill pairing sub-models
+                        "walk_fill_dup", "walk_done_early", "walk_stale_result",
+                        # [R4-10-T05] entry identity / lifecycle state
+                        "valid_clear", "valid_set", "global_flip", "asid_subst",
+                        # [R4-10-T06] access-attribute legal substitution
+                        "perm_subst", "memtype_subst", "pagesize_subst",
+                        # [R4-10-T07] CAM compare / way select
+                        "false_hit", "double_hit", "wrong_way"],
                help="CHAOSArmTLB fault type; pfn_to_mapped_page = §2.10 F5 "
-                    "(substitute with another mapped entry's pfn)")
+                    "(substitute with another mapped entry's pfn); "
+                    "walk_pairing = T08-a FS walk/fill lost (R4-5.9; needs "
+                    "--tlb_lsu_tier); valid_clear/valid_set/global_flip/"
+                    "asid_subst = T05 entry state; perm_subst/memtype_subst/"
+                    "pagesize_subst = T06 legal attribute substitution; "
+                    "false_hit/double_hit/wrong_way = T07 CAM/way select")
+# [R4-5.9] T08 walk/fill pairing trigger tier (event-normalized on the
+# page-table-walk issue stream). "off" = no trigger; walk_pairing panics
+# without a tier (loud refusal, L04/S10 discipline).
+p.add_argument("--tlb_lsu_tier", default="off",
+               choices=["off", "F0", "F1", "F2", "F3", "F4", "F5", "F6"],
+               help="CHAOSArmTLB event-normalized trigger tier (T08)")
+p.add_argument("--tlb_lsu_warmup_events", type=lambda x:int(x,0), default=0)
+p.add_argument("--tlb_lsu_span_events", type=lambda x:int(x,0), default=1000,
+               help="F0 uniform window size over the walk-issue stream")
 p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
                help="CHAOSArmTLB max faults; 1 for single-fault")
 p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
@@ -150,6 +179,17 @@ p.add_argument("--ptw_max_faults", type=lambda x:int(x,0), default=1)
 p.add_argument("--ptw_fault_mask", type=lambda x:int(x,0), default=0,
                help="PTE XOR bitmask; 0 = random single bit")
 p.add_argument("--ptw_rng_seed", type=lambda x:int(x,0), default=20260825)
+# [MDSPEC][H0] CHAOSPropagation unified propagation stream (FS side). The
+# campaign passes these on every sample; without parsing them here the
+# SystemConfig rejected the FS command line (argparse: unrecognized
+# arguments) or silently dropped the trace. run_id / sample_run_id are
+# stamped on every PROP-EVT line (spec sheet 11); prop_evt.txt.gz lands in
+# gem5 --outdir (= the sample's seed dir).
+p.add_argument("--chaos_propagation", action="store_true",
+               help="attach CHAOSPropagation (L0-L5 propagation trace)")
+p.add_argument("--prop_trace_file", default="prop_trace.csv.gz")
+p.add_argument("--prop_run_id", default="")
+p.add_argument("--prop_sample_run_id", default="")
 p.add_argument("--ptw_events_to_skip", type=lambda x: int(x,0), default=0,
                help="v1.2 Phase 17 H7: fixed eligible-walk skip (0 = legacy "
                     "first-eligible — 60/60 seeds hit the same dead event).")
@@ -191,6 +231,35 @@ p.add_argument("--sysreg_target_regs", default="",
                     "from misc.hh miscRegName[]), e.g. "
                     "sctlr_el1,ttbr0_el1,tcr_el1,mair_el1,vbar_el1")
 args = p.parse_args()
+
+# [MDSPEC][R4-6-T08] T08 walk_pairing pre-flight refusal. The C++ ctor
+# already panics when the mode lacks a tier or a walker (CHAOSArmTLB.cc
+# "[R4-5.9] ... panics loudly"), but that panic costs a full gem5 startup and
+# names the SimObject param, not the CLI flag. The R4-5.9 pilot showed how
+# expensive a silently half-wired T08 run is (a 1500 s FS run that produced
+# no walk evidence), so refuse here, first, with the flag names. Same
+# discipline as L04/S10: a mode that needs X must not run without X.
+# [R4-10] the walk/refill family: all four ride the walk-ISSUE event stream
+# (need --chaos_armtlb + --tlb_lsu_tier + walker=). T08-a drops the walk at
+# issue; T08-b/c/d are applied at the refill completion point.
+WALK_FAULT_TYPES = ("walk_pairing", "walk_fill_dup", "walk_done_early",
+                    "walk_stale_result")
+if args.tlb_fault_type in WALK_FAULT_TYPES:
+    if not args.chaos_armtlb:
+        raise SystemExit(
+            f"[arm_chaos_fs] --tlb_fault_type {args.tlb_fault_type} requires "
+            "--chaos_armtlb: without it no CHAOSArmTLB SimObject exists, so "
+            "neither the walk hook (TableWalker) nor the lookup hook (TLB) "
+            "is mounted and the run would silently inject nothing. "
+            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md")
+    if args.tlb_lsu_tier == "off":
+        raise SystemExit(
+            f"[arm_chaos_fs] --tlb_fault_type {args.tlb_fault_type} requires "
+            "an event-normalized tier (--tlb_lsu_tier F0/F4/F6): the "
+            "page-table-walk ISSUE stream is this model's eligible stream, "
+            "so a tierless run has no sampling rule. "
+            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md and the "
+            "R4-10 report (T08-b/c/d sub-models).")
 
 cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
            "Atomic": CPUTypes.ATOMIC}
@@ -251,7 +320,23 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
         core0 = processor.get_cores()[0]
         cpu0 = core0.core
         dtb = cpu0.mmu.dtb  # the data TLB (ArmISA::TLB)
-        arm_tlb = CHAOSArmTLB(
+        # [R4-5.9] T08 walk_pairing attaches to the ArmTableWalker
+        # (cpu0.mmu.walker) instead of (well, in addition to) the TLB: the
+        # fault is on the page-table walk issue, not the lookup hit.
+        # walk_pairing also arms an event-normalized tier (--tlb_lsu_tier);
+        # without it the ctor panics loudly (the mode cannot run tierless).
+        # [R4-6][FS-INFRA] SimObject params MUST NOT be passed python None:
+        # gem5's param conversion turns a non-SimObject value into
+        # Class(value), so `walker=None` died with
+        #   TypeError: SimObject.__init__() takes 1 positional argument
+        #              but 2 were given
+        #   Error setting param CHAOSArmTLB.walker to None
+        # during _pre_instantiate — i.e. EVERY FS T-cell run (T01..T10) died
+        # at instantiate time, before the sim ever started (this is the real
+        # reason the T-series was recorded as "FS-INFRA blocked": the FS
+        # pipeline crashed, not merely "needed hours"). Omit the kwarg for
+        # the lookup modes instead — Param.ArmTableWalker's default is NULL.
+        _tlb_kwargs = dict(
             tlb=dtb,
             probability=args.tlb_probability,
             firstClock=args.tlb_first_clock,
@@ -261,8 +346,14 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
             maxFaults=args.tlb_max_faults,
             rngSeed=args.tlb_rng_seed,
             protectionModel=args.tlb_protection_model,
+            lsuTier=args.tlb_lsu_tier,
+            lsuWarmupEvents=args.tlb_lsu_warmup_events,
+            lsuSpanEvents=args.tlb_lsu_span_events,
             writeLog=True,
         )
+        if args.tlb_fault_type in WALK_FAULT_TYPES:
+            _tlb_kwargs["walker"] = cpu0.mmu.walker
+        arm_tlb = CHAOSArmTLB(**_tlb_kwargs)
         board.chaos_armtlb = arm_tlb
         # CHAOSArmTLB SELF-ATTACHES (constructor sets tlb->chaosTLB = this),
         # same pattern as CHAOSLSQFwd — no setChaosTLB call (no python binding).
@@ -433,6 +524,17 @@ def _kernel_oops_exit():
           "Crash/DUE per fs_mode)")
     return True  # exit the simulation loop
 
+
+# [R6-FIXEXIT 2026-10-24] A fault-induced PANIC reaches Python as
+# "Kernel panic in simulated kernel" (fs_workload.cc:234) and had NO handler
+# registered, so it aborted with NotImplementedError (exit=1). Same outcome
+# class as the Oops: a legitimate Crash/DUE, ended through controlled
+# handling instead of an infrastructure error.
+def _kernel_panic_exit():
+    print("[arm_chaos_fs] KERNEL PANIC under fault — exiting (classify: "
+          "Crash/DUE per fs_mode)")
+    return True  # exit the simulation loop
+
 # ---- Platform preset application (M3 T4 fix, 2026-09-28) ----
 # In-body, BEFORE the Simulator is constructed (the only window where CPU/
 # TLB params provably reach instantiate — see the --v110_params/--lsu_b0
@@ -474,9 +576,36 @@ if args.v110_params or args.lsu_b0:
             print("[arm_chaos_fs] C2-KP V110 skipped (boot CPU: params "
                   "apply on the O3 restore)")
 
+# [MDSPEC][H0] CHAOSPropagation (FS path). O3-only: it self-attaches at
+# startup() to cpu.chaosPropagation (the LSQ-side hooks) and
+# cpu.commit.chaosPropagation — a TIMING/Atomic core has neither, so asking
+# for a trace on a non-O3 run is a hard error, not a silent empty file.
+if args.chaos_propagation:
+    if CHAOSPropagation is None:
+        raise SystemExit(
+            "[arm_chaos_fs] FATAL: --chaos_propagation needs a gem5 binary "
+            "built with CHAOSPropagation (the worktree binary has it).")
+    if cpu_map[args.cpu] is not CPUTypes.O3:
+        raise SystemExit(
+            "[arm_chaos_fs] FATAL: --chaos_propagation is O3-only (got "
+            "--cpu %s). The CP roadmap is TIMING boot -> O3 restore; set "
+            "--cpu O3." % args.cpu)
+    _prop_cpu = processor.get_cores()[0].core
+    board.chaos_propagation = CHAOSPropagation(
+        cpu=_prop_cpu,
+        traceFile=args.prop_trace_file,
+        writeLog=True,
+        runId=args.prop_run_id,
+        sampleRunId=args.prop_sample_run_id,
+    )
+    print("[arm_chaos_fs] CHAOSPropagation attached (trace=%s, run_id=%r, "
+          "sample_run_id=%r)" % (args.prop_trace_file, args.prop_run_id,
+                                 args.prop_sample_run_id))
+
 simulator = Simulator(
     board=board, full_system=True,
-    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit},
+    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit,
+                   ExitEvent.KERNEL_PANIC: _kernel_panic_exit},
 )
 if args.early_checkpoint:
     # §2.10 H7 boot-phase checkpoint: run only up to <ticks> mid-boot, save,

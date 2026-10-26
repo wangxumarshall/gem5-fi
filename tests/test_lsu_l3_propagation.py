@@ -26,8 +26,17 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 WT = HERE.parent
-MT = Path("/home/sdc/gem5-fi-ding")   # 主树（只读：冻结 gem5.opt）
 DRIVER = WT / "tools" / "lsu_obs_driver.py"
+
+
+def gem5_bin():
+    """gem5 二进制：$LSU_GEM5_BIN 覆盖 → worktree <WT>/CHAOS/gem5/build/ARM/
+    gem5.opt（与 tools/lsu_runner.g5_path / lsu_campaign.resolve_g5 同约定；主树
+    repo 根 build/ 已由 R4-10 磁盘审计删除）。dry-run 首元素须与此同值。"""
+    env = os.environ.get("LSU_GEM5_BIN")
+    return Path(env) if env else WT / "CHAOS/gem5/build/ARM/gem5.opt"
+
+
 sys.path.insert(0, str(WT / "tools"))
 import lsu_l3_propagation as LP  # noqa: E402
 
@@ -288,7 +297,7 @@ def main():
         if mode:
             cmd += ["--obs-mode", mode]
         env = {**os.environ,
-               "LSU_GEM5_BIN": str(MT / "build/ARM/gem5.opt"),
+               "LSU_GEM5_BIN": str(gem5_bin()),
                "LSU_GUARD_DIR": "/tmp/l3_prop_test_guard_unused"}
         r = subprocess.run(cmd, capture_output=True, text=True, env=env,
                            cwd=str(WT))

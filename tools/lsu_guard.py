@@ -8,7 +8,9 @@ v2（用户指令 2026-10-12，LSU OBS 计划 T1）：
   * 锁记录 pid_start（/proc/<pid>/stat 字段22）+ monitor 每 60s 心跳重写；
     陈旧判定 = PID 不存活 **或** pid_start 不符（PID 复用免疫）。
   * claim 锁：(campaign, RunID, sample) 三元组 O_EXCL 原子认领，防重调度。
-  * 磁盘红线：GUARD_DIR 所在盘 free < max(50GiB, 20%) → gate 阻断。
+  * 磁盘：2026-10-23 用户裁决两次豁免（「去掉 /home 存储的约束」→「不再把
+    50 GiB 作为停止条件」）→ **磁盘不再是 gate 阻断条件**；仍测量并在 gate JSON
+    中如实输出 disk_free_gib/disk_total_gib（豁免，非隐藏）。
   * STOP_DISPATCH：MemAvailable < 10GiB → 拒绝新 experiment acquire。
 
 子命令：
@@ -38,7 +40,7 @@ v2（用户指令 2026-10-12，LSU OBS 计划 T1）：
 
 阈值（总方针 §8.3/§8.4 + 用户指令 2026-10-12 三.3，GiB=2^30）：
   GATE 阻断: MemAvailable < 12 或 SwapFree < 4 或存在编译进程或锁被占
-             或磁盘 free < max(50GiB, 20%×total)
+             （磁盘**不**参与阻断 —— 2026-10-23 用户裁决豁免）
   STOP_DISPATCH: MemAvailable < 10 → 拒绝新 experiment acquire（已持锁运行不受影响）
   WARNING  : MemAvailable < 10
   TRIP     : MemAvailable < 8 连续两次，或任一次 < 6，或 SwapFree < 2
@@ -73,8 +75,13 @@ GATE_MEM_MIN_GIB = 12.0
 GATE_SWAP_MIN_GIB = 4.0
 WARN_MEM_GIB = 10.0
 STOP_DISPATCH_MEM_GIB = 10.0   # 用户指令 2026-10-12 三.3：MemAvailable<10GiB 停止加任务
-DISK_MIN_FREE_GIB = 50.0       # 0101 保留红线：/home 至少 50GiB 且至少 20%（取大者）
-DISK_MIN_FREE_PCT = 0.20
+# 用户裁决 2026-10-23（两次）：「去掉 /home 存储的约束」→「不再把 50 GiB 作为停止条件」。
+# 原判据 floor = max(50 GiB, 20% x total) 在 353 GiB 的 /home 上 = 70.6 GiB，长期无法满足，
+# 曾是批量启动的阻塞条件。现两个分项均置 0：floor = max(0, 0) = 0，磁盘**不再拒绝任何任务**。
+# 磁盘仍由 snapshot() 测量并在每次 gate 报告中如实输出 —— 是豁免，不是隐藏，也不是删除检查。
+# 恢复方式：把 DISK_MIN_FREE_GIB / DISK_MIN_FREE_PCT 改回 50.0 / 0.20。
+DISK_MIN_FREE_GIB = 0.0        # 2026-10-23 用户授权：不再是停止条件
+DISK_MIN_FREE_PCT = 0.0        # 2026-10-23 用户授权：不再是停止条件
 TRIP_MEM_GIB = 8.0
 TRIP_MEM_HARD_GIB = 6.0
 TRIP_SWAP_GIB = 2.0
@@ -126,7 +133,21 @@ def _proc_fields(pid):
 
 
 def snapshot():
-    """资源快照：内存/swap/load/blocked/编译进程/磁盘。"""
+    """资源快照：内存/swap/load/blocked/编译进程/磁盘。
+
+    R6-GUARD（2026-10-23）：GUARD_DIR 缺失时先创建再测盘（与 acquire/_log_event
+    一致）。此前 GUARD_DIR 不存在 → disk_free_gib/disk_total_gib 双双为 None →
+    _disk_guard_reason 在 None 判定前先算 `DISK_MIN_FREE_PCT * total_gib` →
+    TypeError（lane L15-v2 实测崩溃）。创建失败（如只读盘）退化为 None，
+    由 _disk_guard_reason 返回可读阻断理由。
+    """
+    try:
+        os.makedirs(GUARD_DIR, exist_ok=True)
+        du = shutil.disk_usage(GUARD_DIR)
+        disk_free_gib = round(du.free / GIB, 1)
+        disk_total_gib = round(du.total / GIB, 1)
+    except OSError:
+        disk_free_gib = disk_total_gib = None
     mi = _meminfo()
     l1, l5, l15 = _loadavg()
     blocked, compile_pids = [], []
@@ -150,10 +171,8 @@ def snapshot():
         "load_1_5_15": [l1, l5, l15],
         "blocked": blocked,
         "compile_processes": compile_pids,
-        "disk_free_gib": round(shutil.disk_usage(GUARD_DIR).free / GIB, 1)
-        if os.path.isdir(GUARD_DIR) else None,
-        "disk_total_gib": round(shutil.disk_usage(GUARD_DIR).total / GIB, 1)
-        if os.path.isdir(GUARD_DIR) else None,
+        "disk_free_gib": disk_free_gib,
+        "disk_total_gib": disk_total_gib,
     }
 
 
@@ -290,10 +309,14 @@ def _stop_dispatch(snap):
 
 
 def _disk_guard_reason(free_gib, total_gib):
-    """0101 磁盘红线：free < max(50GiB, 20%×total) → 阻断理由（None=通过）。"""
-    floor = max(DISK_MIN_FREE_GIB, DISK_MIN_FREE_PCT * total_gib)
+    """0101 磁盘红线：free < max(50GiB, 20%×total) → 阻断理由（None=通过）。
+
+    R6-GUARD：None 检查**必须先于** floor 算术——否则 total_gib=None 时
+    `DISK_MIN_FREE_PCT * total_gib` 抛 TypeError（lane L15-v2 实测）。
+    """
     if free_gib is None or total_gib is None:
         return "磁盘用量不可读（GUARD_DIR 所在盘）"
+    floor = max(DISK_MIN_FREE_GIB, DISK_MIN_FREE_PCT * total_gib)
     if free_gib < floor:
         return (f"磁盘 free {free_gib:.1f} GiB < 红线 {floor:.1f} GiB "
                 f"(=max(50, 20%×{total_gib:.0f}))")

@@ -121,7 +121,39 @@ def run_cli(*argv):
                            *argv], capture_output=True, text=True, cwd=str(WT))
 
 
+def _external_deps_missing():
+    """本套件主体依赖的**真实外部产物**是否缺席（缺则诚实 SKIP，绝不谎报 PASS）。
+
+    1) 主树真实 pilot verdict 树 runs/lsu/pilot/AGU(±pilot_w1)：--select 段
+       只有它才有 Masked/SDC/Crash 候选；
+    2) 冻结 gem5.opt（sha256=FROZEN_GEM5_SHA）：report 段环境指纹的复核对象。
+    二者均非任何 checkout 内的可再生内容：pilot 树与主树 repo 根 build/ 同名件
+    已由 R4-10 磁盘审计移除。缺任一个都无法判定 → 返回缺失物清单。"""
+    missing = []
+    for name, p in (("PILOT_CHECKLIST_ROOT", E2E.PILOT_CHECKLIST_ROOT),
+                    ("PILOT_W1_ROOT", E2E.PILOT_W1_ROOT)):
+        if not p.is_dir():
+            missing.append(f"{name}={p}（目录不存在）")
+    try:
+        got = E2E._sha256_file(E2E.gem5_bin())
+    except SystemExit as e:      # 解析到的 gem5 二进制本身缺席（高声失败）
+        missing.append(f"冻结 gem5.opt 不可达：{e}")
+        return missing
+    if got != E2E.FROZEN_GEM5_SHA:
+        missing.append(f"冻结 gem5.opt sha256={E2E.FROZEN_GEM5_SHA[:16]}… 与"
+                       f"解析件 sha256={got[:16]}… 不一致")
+    return missing
+
+
 def main():
+    missing = _external_deps_missing()
+    if missing:
+        for m in missing:
+            print(f"[SKIP-reason] {m}")
+        print(f"SKIPPED (honest, external data dependency missing): "
+              f"{len(missing)} 项缺失 → 无法判定")
+        return 0
+
     tmp = Path(tempfile.mkdtemp(prefix="lsu_e2e_test_"))
     fails = []
 

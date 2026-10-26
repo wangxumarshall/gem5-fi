@@ -51,6 +51,16 @@
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (DirtyEviction)
+// [MDSPEC][H4] cache structural events reach the tracer through the static
+// instance (CHAOSCache precedent — BaseCache has no tracer pointer).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+// [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill marking: the
+// setPrefetched gate in serviceMSHRTargets consults the registered
+// CHAOSPrefetch (mode p06_as_demand) via the fillMarkHook single-
+// consumer registry (CHAOSCache chaosVictimHook precedent). Inert
+// (null) for every non-P06 run.
+#include "mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.hh"
+#include <sstream>
 #include "base/trace.hh"
 #include "base/types.hh"
 #include "debug/Cache.hh"
@@ -163,6 +173,43 @@ bool
 Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
               PacketList &writebacks)
 {
+    // [MDSPEC][H4] unified cache_access event (spec sheet 9: L1 — cache
+    // tag lookup on a faulted block). Fault-correlated only (blk registry
+    // overlap; the propagation stream is a fault stream, spec sheet 11).
+    // Static instance (CHAOSCache precedent — BaseCache has no tracer ptr).
+    {
+        CHAOSPropagation *h4 = CHAOSPropagation::instance();
+        if (h4 && pkt) {
+            Addr h4_base = 0;
+            const char *h4_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h4_ptag = h4->correlateBlock(
+                pkt->getAddr(), pkt->getSize(), &h4_base, &h4_corr);
+            if (h4_ptag) {
+                std::ostringstream h4_hex;
+                h4_hex << std::hex << pkt->getAddr();
+                const std::string h4_pa = h4_hex.str();
+                h4_hex.str(""); h4_hex.clear();
+                if (pkt->req && pkt->req->hasVaddr())
+                    h4_hex << pkt->req->getVaddr();
+                // [MDSPEC][R6-EMIT2/A3] request identity: the L1 lookup must
+                // name the instruction whose access is being looked up —
+                // without it the L2->L3 request chain breaks (T04 measured
+                // empty request_id/dyn_inst_seq on every cache structural
+                // event). Source = the Request-stamped seq (lsq_sendfrag
+                // convention: 0 = unstamped), never a guess.
+                const uint64_t h4_seq = (pkt->req && pkt->req->hasInstSeqNum())
+                    ? pkt->req->getReqInstSeqNum() : 0;
+                h4->notePropEvt("cache_access", {
+                    {"fault_id", std::to_string(h4_ptag)},
+                    {"corr", h4_corr ? h4_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4_seq)},
+                    {"request_id", std::to_string(h4_seq)},
+                    {"va", h4_hex.str()},
+                    {"pa", h4_pa},
+                });
+            }
+        }
+    }
 
     if (pkt->req->isUncacheable()) {
         assert(pkt->isRequest());
@@ -185,7 +232,73 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         return false;
     }
 
-    return BaseCache::access(pkt, blk, lat, writebacks);
+    // [MDSPEC][H4] cache_return event (spec sheet 9 C-chain: L2 = "hit
+    // 返回 / miss→fill"——cache 故障的 L2 节点是访问结果而非翻译：故障
+    // 注册在访问时、load 翻译结构性先于注册（C01 实证：tlb_translate
+    // 对 cache 链恒不关联），这是规格 C 路径 L2 的正确落点）。
+    const bool h4_result = BaseCache::access(pkt, blk, lat, writebacks);
+    {
+        CHAOSPropagation *h4r = CHAOSPropagation::instance();
+        if (h4r && pkt) {
+            Addr h4_base = 0;
+            const char *h4r_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h4r_ptag = h4r->correlateBlock(
+                pkt->getAddr(), pkt->getSize(), &h4_base, &h4r_corr);
+            if (h4r_ptag) {
+                std::ostringstream h4r_hex;
+                h4r_hex << std::hex << pkt->getAddr();
+                // [MDSPEC][R6-EMIT2/A3] request identity (see cache_access).
+                const uint64_t h4r_seq =
+                    (pkt->req && pkt->req->hasInstSeqNum())
+                        ? pkt->req->getReqInstSeqNum() : 0;
+                h4r->notePropEvt("cache_return", {
+                    {"fault_id", std::to_string(h4r_ptag)},
+                    {"corr", h4r_corr ? h4r_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4r_seq)},
+                    {"request_id", std::to_string(h4r_seq)},
+                    {"pa", h4r_hex.str()},
+                    {"field", h4_result ? "hit" : "miss"},
+                });
+            }
+        }
+    }
+
+    // [MDSPEC][H5] unified pf_demand event (spec sheet 9 P-chain: L4 =
+    // "后续demand命中该line或受污染/错误驱逐影响"). A NON-prefetch access on
+    // a line that a prefetch request registered → the demand consuming the
+    // prefetched line. Carries the prefetch's request-level
+    // pf_request_id (same id as that request's pf_queue/pf_issue/pf_fill)
+    // plus the demand's own request identity. Scope honesty: matched by
+    // line overlap (the spec's VA/PA/cache_line key), never tick/addr-only.
+    {
+        CHAOSPropagation *h5d = CHAOSPropagation::instance();
+        if (h5d && pkt && pkt->req && !pkt->req->isPrefetch()) {
+            Addr h5d_base = 0;
+            const uint64_t h5d_pfid = h5d->prefetchRequestId(
+                pkt->getAddr(), pkt->getSize(), &h5d_base);
+            if (h5d_pfid) {
+                Addr h5d_ptag_base = 0;
+                const char *h5d_corr = nullptr;   // [R4-1-review-I1]
+                const uint64_t h5d_ptag = h5d->correlateBlock(
+                    pkt->getAddr(), pkt->getSize(), &h5d_ptag_base, &h5d_corr);
+                std::ostringstream h5d_hex;
+                h5d_hex << std::hex << pkt->getAddr();
+                const uint64_t h5d_seq = pkt->req->hasInstSeqNum()
+                    ? pkt->req->getReqInstSeqNum() : 0;
+                h5d->notePropEvt("pf_demand", {
+                    {"fault_id", std::to_string(h5d_ptag)},
+                    {"corr", h5d_corr ? h5d_corr : ""},
+                    {"pf_request_id", std::to_string(h5d_pfid)},
+                    {"dyn_inst_seq", std::to_string(h5d_seq)},
+                    {"request_id", std::to_string(h5d_seq)},
+                    {"pa", h5d_hex.str()},
+                    {"cache_line", h5d_hex.str()},
+                    {"field", h4_result ? "demand_hit" : "demand_miss"},
+                });
+            }
+        }
+    }
+    return h4_result;
 }
 
 void
@@ -940,7 +1053,28 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
         }
     }
 
-    if (blk && !from_core && from_pref) {
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill marking hook. This
+    // gate is where a fill's demand/prefetch classification becomes the
+    // durable line state (CacheBlk::Prefetched) — the attribute the
+    // downstream classification consumers read (replacement fill data
+    // hwPrefetched, wasPrefetched useful/unused accounting,
+    // hasBeenPrefetched probes). The registered CHAOSPrefetch (mode
+    // p06_as_demand) may mark ONE eligible prefetch-owned fill as demand:
+    // the caller then skips setPrefetched and the line enters the cache
+    // exactly as a demand fill. Called for EVERY prefetch-involving fill
+    // (from_pref) — demand-merged fills book attempted inside the hook
+    // but are not eligible (already demand-classified; a mark would be a
+    // void value). Null hook (every non-P06 run): byte-identical to the
+    // original gate. Only the cache owning the mounted prefetcher ever
+    // reaches here with from_pref (HardPFReq never leaves its owning
+    // cache — see CHAOSPrefetch.hh fillMarkHook note).
+    bool p06_demand_marked = false;
+    if (from_pref && CHAOSPrefetch::fillMarkHook) {
+        p06_demand_marked =
+            CHAOSPrefetch::fillMarkHook->maybeMarkFillAsDemand(
+                mshr->blkAddr, blkSize, from_core, blk != nullptr);
+    }
+    if (blk && !from_core && from_pref && !p06_demand_marked) {
         blk->setPrefetched();
     }
 
@@ -967,6 +1101,38 @@ Cache::evictBlock(CacheBlk *blk)
     // (writebackClean-driven writebacks of clean lines do NOT count — W1 ④).
     if (blk->isSet(CacheBlk::DirtyBit))
         chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
+
+    // [MDSPEC][H4] unified cache_evict event (spec sheet 9: L2 — a faulted
+    // block is evicted; dirty eviction = the fault PERSISTS to the next
+    // level via writeback). Fault-correlated only (blk registry overlap).
+    {
+        CHAOSPropagation *h4 = CHAOSPropagation::instance();
+        if (h4) {
+            const Addr h4_blk_addr = regenerateBlkAddr(blk);
+            Addr h4_base = 0;
+            const char *h4_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h4_ptag = h4->correlateBlock(
+                h4_blk_addr, blkSize, &h4_base, &h4_corr);
+            if (h4_ptag) {
+                std::ostringstream h4_hex, h4_tag;
+                h4_hex << std::hex << h4_blk_addr;
+                h4_tag << std::hex << blk->getTag();
+                // victim evidence (spec sheet 9 C01: "victim tag/data/
+                // dirty、writeback addr/data"): set/way + victim tag +
+                // dirty state + the evicted line address.
+                h4->notePropEvt("cache_evict", {
+                    {"fault_id", std::to_string(h4_ptag)},
+                    {"corr", h4_corr ? h4_corr : ""},
+                    {"cache_line", h4_hex.str()},
+                    {"set", std::to_string(blk->getSet())},
+                    {"way", std::to_string(blk->getWay())},
+                    {"before", h4_tag.str()},
+                    {"field", blk->isSet(CacheBlk::DirtyBit)
+                        ? "dirty_evict_writeback" : "clean_evict"},
+                });
+            }
+        }
+    }
 
     PacketPtr pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean) ?
         writebackBlk(blk) : cleanEvictBlk(blk);

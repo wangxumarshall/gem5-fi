@@ -48,6 +48,8 @@
 #include <queue>
 
 #include "cpu/checker/cpu.hh"
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // [MDSPEC][R4-5.8] A07
+                                    // AGU ready hook full definition
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/limits.hh"
@@ -1193,6 +1195,28 @@ IEW::executeInsts()
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
+            // [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake hook — THE
+            // ready point of this microarchitecture: the scheduler (IQ)
+            // has just handed a READY memory instruction to the LSQ to
+            // calculate its address (the AGU = initiateAcc inside
+            // executeLoad/executeStore below). The 03-sheet A07 model
+            // ("AGU 结果的 address-ready 握手信号与 EA 流水锁存器",
+            // 时序) lives exactly here — BEFORE the EA exists, so neither
+            // the pushRequest PRE hook (the AGU's raw OUTPUT) nor the
+            // sendFragment POST hook (DTLB input) could express it.
+            // maybeDelayAguReady returns true only when the A07-b
+            // bounded ready delay fires: skip the normal execute path
+            // this cycle; the injector's aguResumeEvent re-enters it via
+            // chaosAguResumeInst at the delayed clock edge (values
+            // unchanged, only the timing shifts — spec "数据载荷保持
+            // 正确"). ppExecute already fired above, so the probe stream
+            // sees the execute start at the original tick and the AGU at
+            // the delayed one — honest. nullptr = zero regression.
+            if (cpu->chaosAguReady &&
+                cpu->chaosAguReady->maybeDelayAguReady(inst)) {
+                continue;
+            }
+
             // Tell the LDSTQ to execute this instruction (if it is a load).
             if (inst->isAtomic()) {
                 // AMOs are treated like store requests
@@ -1374,6 +1398,88 @@ IEW::executeInsts()
     // spot in the queue.
     wbNumInst = 0;
 
+}
+
+// [MDSPEC][R4-5.8] A07-b AGU-ready delay resume (see iew.hh). Mirrors the
+// isMemRef() branch of executeInsts VERBATIM for this one instruction — the
+// delayed instruction must follow the exact path an on-time one takes
+// (squash handling, atomic/load/store dispatch, translation-delay defer,
+// store executed/commit bookkeeping, stats, activity) so only the TIMING
+// differs. The A07 eligibility gate excludes atomics/prefetches, so the
+// atomic branch is structurally unreachable today — kept for parity with
+// executeInsts so widening the gate later cannot silently skip the
+// bookkeeping.
+void
+IEW::chaosAguResumeInst(const DynInstPtr &inst)
+{
+    if (inst->isSquashed()) {
+        // Same handling as executeInsts' squashed branch: consider it
+        // executed so commit can retire it (the delay window can straddle
+        // a squash — the fault then stays Injected-not-activated, the
+        // injector's honest accounting).
+        inst->setExecuted();
+        inst->setCanCommit();
+        return;
+    }
+
+    Fault fault = NoFault;
+
+    if (inst->isAtomic()) {
+        // AMOs are treated like store requests
+        fault = ldstQueue.executeStore(inst);
+
+        if (inst->isTranslationDelayed() && fault == NoFault) {
+            // A hw page table walk is currently going on; the
+            // instruction must be deferred.
+            instQueue.deferMemInst(inst);
+            return;
+        }
+    } else if (inst->isLoad()) {
+        // Loads will mark themselves as executed, and their writeback
+        // event adds the instruction to the queue to commit
+        fault = ldstQueue.executeLoad(inst);
+
+        if (inst->isTranslationDelayed() && fault == NoFault) {
+            // A hw page table walk is currently going on; the
+            // instruction must be deferred.
+            instQueue.deferMemInst(inst);
+            return;
+        }
+
+        if (inst->isDataPrefetch() || inst->isInstPrefetch()) {
+            inst->fault = NoFault;
+        }
+    } else if (inst->isStore()) {
+        fault = ldstQueue.executeStore(inst);
+
+        if (inst->isTranslationDelayed() && fault == NoFault) {
+            // A hw page table walk is currently going on; the
+            // instruction must be deferred.
+            instQueue.deferMemInst(inst);
+            return;
+        }
+
+        // If the store had a fault then it may not have a mem req
+        if (fault != NoFault || !inst->readPredicate() ||
+                !inst->isStoreConditional()) {
+            // If the instruction faulted, then we need to send it
+            // along to commit without the instruction completing.
+            // Send this instruction to commit, also make sure iew stage
+            // realizes there is activity.
+            inst->setExecuted();
+            instToCommit(inst);
+            activityThisCycle();
+        }
+
+        // Store conditionals will mark themselves as
+        // executed, and their writeback event will add the
+        // instruction to the queue to commit.
+    } else {
+        panic("chaosAguResumeInst: unexpected memory type!\n");
+    }
+
+    updateExeInstStats(inst);
+    activityThisCycle();
 }
 
 void

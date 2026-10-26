@@ -121,6 +121,107 @@ class BaseCache : public ClockedObject
     // nullptr = zero regression. PUBLIC: the injector sets it from its ctor.
     static class CHAOSCache *chaosVictimHook;
 
+    // [MDSPEC][R4-5.1] C11 MSHR-merge corruption registry (same pattern as
+    // chaosVictimHook). handleTimingReqMiss's coalescing branch consults it
+    // BEFORE mshr->allocateTarget: the registered CHAOSCache (mounted on
+    // this cache) may bit-flip the MERGING TARGET's address so the merged
+    // request carries the wrong address downstream (the fill's readout
+    // serves the block at the corrupted offset — BaseCache::satisfyRequest
+    // setDataFromBlock uses pkt->getOffset(blkSize)). The injector checks
+    // `cache == targetCache`, so only the mounted cache (L1D) is affected.
+    // nullptr = zero regression. PUBLIC: the injector sets it from its ctor.
+    static class CHAOSCache *chaosMergeHook;
+
+    // [MDSPEC][R4-5.2] C12 fill-timing offset registry (same pattern as
+    // chaosVictimHook/chaosMergeHook). BaseCache::recvTimingResp consults it
+    // at the TOP, BEFORE popSenderState: the registered CHAOSCache
+    // (targetField=mshr_fill_timing, mounted on this cache) may DEFER a
+    // fill response to a later tick — it stashes the packet (MSHR sender
+    // state intact, so the MSHR stays outstanding and later same-line
+    // requests keep merging into it) and schedules a resume event at
+    // curTick() + lsuFillDelayCycles cache cycles that re-enters
+    // recvTimingResp via chaosResumeDeferredResp (public trampoline —
+    // recvTimingResp itself is protected). The whole fill path (handleFill,
+    // serviceMSHRTargets, MSHR deallocation) then runs at the shifted
+    // tick: the consumer sees the same data delivered at a shifted time.
+    // The injector checks `cache == targetCache`, so only the mounted
+    // cache (L1D) is affected. nullptr = zero regression. PUBLIC: the
+    // injector sets it from its ctor.
+    static class CHAOSCache *chaosFillTimingHook;
+
+    // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 registry (same
+    // pattern as chaosVictimHook/chaosMergeHook/chaosFillTimingHook).
+    // BaseCache::recvTimingResp consults it IMMEDIATELY BEFORE
+    // mshrQueue.deallocate(mshr): the registered CHAOSCache
+    // (targetField=mshr_busy_leak, mounted on this cache) may SKIP the
+    // deallocation — the serviced MSHR entry stays in the queue's
+    // allocated list and never returns to the free list (busy/occupied
+    // stuck-at-1, sub-model C14-a). The miss itself already completed (the
+    // fill was delivered by serviceMSHRTargets before this point) so the
+    // consumer got its data; only the SLOT is lost. Once the leaked slot
+    // is the last free-demand entry isFull() stays true, the CPU side
+    // stays blocked and prefetch is starved (the 03 sheet's "容量退化和
+    // Timeout"). The injector checks `cache == targetCache`, so only the
+    // mounted cache (L1D) is affected. nullptr = zero regression. PUBLIC:
+    // the injector sets it from its ctor.
+    static class CHAOSCache *chaosMshrBusyHook;
+
+    // [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration registry (same
+    // pattern as the other CHAOSCache hooks). BaseCache::allocateMissBuffer
+    // consults it at its TAIL, right after the new miss allocation ran the
+    // queue's capacity arbitration: the registered CHAOSCache
+    // (targetField=mshr_occupancy, mounted on this cache) may FABRICATE A
+    // FREE SLOT when the queue is full — the caller clears the
+    // Blocked_NoMSHRs block so exactly one further allocation consumes a
+    // reserve entry BEYOND the arbitration's capacity (the arbitration's
+    // allow/deny decision is genuinely wrong; sub-model C15-b "在容量已满
+    // 时伪造空位"). The injector's read-back (noteMshrAllocAttempt) then
+    // observes the over-capacity allocation. The injector checks
+    // `cache == targetCache`, so only the mounted cache (L1D) is affected.
+    // nullptr = zero regression (no hook call, no clearBlocked). PUBLIC:
+    // the injector sets it from its ctor.
+    static class CHAOSCache *chaosMshrOccHook;
+
+    // [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW registry (same pattern
+    // as the other CHAOSCache hooks). BaseCache::satisfyRequest's SwapReq
+    // branch consults it IMMEDIATELY AFTER (*(pkt->getAtomicOp()))(blk_data)
+    // — i.e. after the RMW's data-select MUX has produced the NEW memory
+    // value in `blk_data` and pkt->setData(blk_data) has already copied the
+    // OLD value into the packet's return buffer. Both read-modify-write
+    // latches are then materialized (old = packet data, new = blk_data) —
+    // exactly the node the spec's models describe:
+    //   O04 "LSE 原子读改写的数据选择与返回 MUX"        -> data-select mis-route
+    //   O09 "compare/replacement/addend/old-value/result 数据锁存器" -> 1-bit
+    //   O05 "RMW request/done 通路与线性化"             -> lost / duplicate
+    // The registered CHAOSCache (mounted on this cache) applies its mode's
+    // corruption; nullptr = zero regression. Only the mounted cache (L1D)
+    // is affected (the injector checks `cache == targetCache`). PUBLIC:
+    // the injector sets it from its ctor.
+    static class CHAOSCache *chaosRmwHook;
+
+    // [MDSPEC][R4-9-FSMC] O04/O05/O09 drain-through: the out-of-line body of
+    // the SwapReq hook (in base.cc — it must call CHAOSCache methods, and
+    // base.hh cannot include CHAOSCache.hh without a cycle). A no-op when
+    // chaosRmwHook is null. `blk_data` points at the block's data window for
+    // this access (blk->data + pkt->getOffset(blkSize)).
+    void chaosRmwCommit(PacketPtr pkt, uint8_t *blk_data);
+
+    // [MDSPEC][R4-5.6] C15-b drain-through: the out-of-line body of the
+    // allocateMissBuffer tail hook (in base.cc — it must call CHAOSCache
+    // methods, and base.hh cannot include CHAOSCache.hh without a cycle).
+    // Reads the C15 read-back state, fires the fabricated-free slot and
+    // clears the full block when the injector consents. A no-op when
+    // chaosMshrOccHook is null.
+    void chaosMshrOccArbitrate(PacketPtr pkt, MSHR *mshr);
+
+    // [MDSPEC][R4-5.2] C12 public trampoline: re-enter the (protected)
+    // recvTimingResp with a previously deferred fill-response packet. Only
+    // the C12 resume event calls this (single deferred slot on the
+    // injector); the injector's re-entry guard (pkt == its pending slot)
+    // makes the deferred packet process normally instead of deferring
+    // again, independent of tier/maxFaults.
+    void chaosResumeDeferredResp(PacketPtr pkt);
+
     /**
      * Reasons for caches to be blocked.
      */
@@ -1189,6 +1290,14 @@ class BaseCache : public ClockedObject
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);
         }
+
+        // [MDSPEC][R4-5.6] C15-b capacity-arbitration hook (out-of-line in
+        // base.cc): reads back a pending fabricated-free slot (the
+        // over-capacity allocation) and, when the queue is full and the
+        // injector consents, fabricates a new one by clearing the block
+        // just set above. A no-op when no C15 injector is mounted, so the
+        // normal path is byte-for-byte unchanged.
+        chaosMshrOccArbitrate(pkt, mshr);
 
         if (sched_send) {
             // schedule the send

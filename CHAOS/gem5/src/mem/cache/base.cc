@@ -46,6 +46,10 @@
 #include "mem/cache/base.hh"
 #include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (CasSuccess)
+// [MDSPEC][H4] cache fill events reach the tracer through the static
+// instance (CHAOSCache precedent — BaseCache has no tracer pointer).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <sstream>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -72,6 +76,24 @@ namespace gem5
 
 // v1.2 Phase 14: the CHAOSCache victim-fault registry (declared in base.hh).
 CHAOSCache *BaseCache::chaosVictimHook = nullptr;
+
+// [MDSPEC][R4-5.1] C11 MSHR-merge corruption registry (declared in base.hh).
+CHAOSCache *BaseCache::chaosMergeHook = nullptr;
+
+// [MDSPEC][R4-5.2] C12 fill-timing offset registry (declared in base.hh).
+CHAOSCache *BaseCache::chaosFillTimingHook = nullptr;
+
+// [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 registry
+// (declared in base.hh).
+CHAOSCache *BaseCache::chaosMshrBusyHook = nullptr;
+
+// [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration registry (declared in
+// base.hh).
+CHAOSCache *BaseCache::chaosMshrOccHook = nullptr;
+
+// [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW registry (declared in
+// base.hh).
+CHAOSCache *BaseCache::chaosRmwHook = nullptr;
 
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
@@ -402,11 +424,59 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // buffer and to schedule an event to the queued
                 // port and also takes into account the additional
                 // delay of the xbar.
-                // LSU W6 C11: MSHR merge corruption — when the F6 dirty-
-                // eviction event fires (proxy cadence), flip a low bit of the
-                // merging target's address BEFORE the merge. The coalesced
-                // request then carries the wrong address downstream.
+                // LSU W2 F6 event-source observation (09 §2.1 map): a merge
+                // site coalesces demand traffic — observed here as a
+                // DirtyEviction-cadence proxy event (W6 wiring, unchanged).
                 chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
+                // [MDSPEC][R4-5.1] C11 MSHR merge corruption: the registered
+                // CHAOSCache (targetField=mshr_merge) may flip ONE bit of the
+                // merging target's address BEFORE the merge — the flip is
+                // confined to the block-offset domain at/above log2(size), so
+                // the target stays same-line (the merge remains legal,
+                // "merge needs same-line requests" holds) and alignment- and
+                // bounds-safe (satisfyRequest's offset+size<=blkSize assert).
+                // The coalesced target then carries the wrong address
+                // downstream: the fill's readout (setDataFromBlock uses
+                // pkt->getOffset(blkSize)) serves the block at the corrupted
+                // offset, and the response returns on the corrupted address.
+                // The injector registers the fault BEFORE the H4 mshr_merge
+                // event below, so that event (correlateBlock on the corrupted
+                // address) joins the C11 chain. nullptr = zero regression.
+                if (chaosMergeHook)
+                    chaosMergeHook->maybeCorruptMergeTarget(this, pkt);
+                // [MDSPEC][H4] mshr_merge event (spec sheet 9 C-chain L2:
+                // "miss→MSHR merge" — a second request coalesces into the
+                // existing MSHR for the faulted block). mshr_id is the id
+                // allocated when this line's MSHR was created (real id, not
+                // the block address).
+                {
+                    CHAOSPropagation *h4m = CHAOSPropagation::instance();
+                    if (h4m) {
+                        Addr h4m_base = 0;
+                        const char *h4m_corr = nullptr;   // [R4-1-review-I1]
+                        const uint64_t h4m_ptag = h4m->correlateBlock(
+                            pkt->getAddr(), blkSize, &h4m_base, &h4m_corr);
+                        if (h4m_ptag) {
+                            std::ostringstream h4m_hex;
+                            h4m_hex << std::hex << pkt->getAddr();
+                            // [MDSPEC][R6-EMIT2/A3] request identity.
+                            const uint64_t h4m_seq =
+                                (pkt->req && pkt->req->hasInstSeqNum())
+                                    ? pkt->req->getReqInstSeqNum() : 0;
+                            h4m->notePropEvt("mshr_merge", {
+                                {"fault_id", std::to_string(h4m_ptag)},
+                                {"corr", h4m_corr ? h4m_corr : ""},
+                                {"dyn_inst_seq", std::to_string(h4m_seq)},
+                                {"request_id", std::to_string(h4m_seq)},
+                                {"cache_line", h4m_hex.str()},
+                                {"mshr_id", std::to_string(
+                                    h4m->noteMshrLookup(
+                                        pkt->getBlockAddr(blkSize)))},
+                                {"state_after", "merged_into_mshr"},
+                            });
+                        }
+                    }
+                }
                 mshr->allocateTarget(pkt, forward_time, order++,
                                      allocOnFill(pkt->cmd));
                 if (mshr->getNumTargets() >= numTarget) {
@@ -455,6 +525,54 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
             // Here we are using forward_time, modelling the latency of
             // a miss (outbound) just as forwardLatency, neglecting the
             // lookupLatency component.
+            // [MDSPEC][H4] mshr_alloc event (spec sheet 9 C-chain L2:
+            // "miss→MSHR allocate"). mshr_id is a freshly allocated real id
+            // for this miss line (kept until the fill frees it); set/way are
+            // reported when the target block is already known.
+            // Fault-correlated only (blk registry overlap).
+            // [MDSPEC][R4-3] hasData() guard removed: in gem5, REQUEST
+            // packets carry no payload — ReadReq's MemCmd attributes are
+            // {IsRead, IsRequest, NeedsResponse} with NO HasData (packet.cc
+            // command table; only responses and write requests carry data).
+            // The old `pkt->hasData()` guard therefore structurally dropped
+            // every demand-READ miss — the canonical miss→MSHR-allocate
+            // case — which is why mshr_alloc was never observed on any
+            // load-driven carrier (W6/W10/C09 pilots) even when the
+            // faulted line was verifiably evicted and re-fetched
+            // (--debug-flags=Cache: "access for ReadReq [...] miss" +
+            // "sendMSHRQueuePacket: MSHR ReadReq" on the faulted line,
+            // mshr_merge/fill/free firing, mshr_alloc silent). Evictions
+            // and WriteClean never reach this point (allocateWriteBuffer
+            // branch above), so every packet here is a miss allocating an
+            // MSHR — read, write, or prefetch alike.
+            {
+                CHAOSPropagation *h4a = CHAOSPropagation::instance();
+                if (h4a && pkt) {
+                    Addr h4a_base = 0;
+                    const char *h4a_corr = nullptr;   // [R4-1-review-I1]
+                    const uint64_t h4a_ptag = h4a->correlateBlock(
+                        pkt->getAddr(), blkSize, &h4a_base, &h4a_corr);
+                    if (h4a_ptag) {
+                        std::ostringstream h4a_hex;
+                        h4a_hex << std::hex << pkt->getAddr();
+                        const Addr h4a_line = pkt->getBlockAddr(blkSize);
+                        // [MDSPEC][R6-EMIT2/A3] request identity.
+                        const uint64_t h4a_seq =
+                            (pkt->req && pkt->req->hasInstSeqNum())
+                                ? pkt->req->getReqInstSeqNum() : 0;
+                        h4a->notePropEvt("mshr_alloc", {
+                            {"fault_id", std::to_string(h4a_ptag)},
+                            {"corr", h4a_corr ? h4a_corr : ""},
+                            {"dyn_inst_seq", std::to_string(h4a_seq)},
+                            {"request_id", std::to_string(h4a_seq)},
+                            {"cache_line", h4a_hex.str()},
+                            {"mshr_id", std::to_string(
+                                h4a->noteMshrAlloc(h4a_line))},
+                            {"state_after", "mshr_allocated"},
+                        });
+                    }
+                }
+            }
             allocateMissBuffer(pkt, forward_time);
         }
     }
@@ -545,6 +663,71 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
+// [MDSPEC][R4-5.2] C12 public trampoline (declared in base.hh): re-enter
+// the protected recvTimingResp with a previously DEFERRED fill-response
+// packet. Only the C12 resume event on the registered CHAOSCache calls
+// this; the injector's re-entry guard (pkt == its pending slot) makes the
+// deferred packet process normally instead of deferring again, regardless
+// of tier/maxFaults. The packet's MSHR sender state was never popped, so
+// the normal path (is_fill / handleFill / serviceMSHRTargets / MSHR free)
+// runs unchanged — just at the shifted tick.
+void
+BaseCache::chaosResumeDeferredResp(PacketPtr pkt)
+{
+    recvTimingResp(pkt);
+}
+
+// [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration hook (declared in
+// base.hh). Called from the TAIL of the inline allocateMissBuffer, after
+// the new miss allocation ran the queue's capacity arbitration. Two jobs,
+// in this order:
+//   1. READ-BACK: if the mounted CHAOSCache has a fabricated free slot
+//      pending, this allocation is the over-capacity (reserve) one it
+//      allowed — noteMshrAllocAttempt consumes it (registers the fault,
+//      bumps `activated`) when the queue is still full, or drops it
+//      (honest Inject-not-activated) when the queue drained in between.
+//   2. FIRE: when the queue is full (the allocation reached the capacity
+//      limit) and the injector consents, fabricate a free slot by
+//      clearing the block just set above, so the CPU side retries and one
+//      further allocation runs beyond capacity.
+// nullptr hook = nothing happens: the normal path is byte-for-byte
+// unchanged (zero regression).
+void
+BaseCache::chaosMshrOccArbitrate(PacketPtr pkt, MSHR *mshr)
+{
+    if (!chaosMshrOccHook)
+        return;
+    if (chaosMshrOccHook->noteMshrAllocAttempt(
+            this, pkt, mshr, mshrQueue.isFull(),
+            mshrQueue.numInService())) {
+        return;   // this allocation WAS the over-commit one
+    }
+    if (mshrQueue.isFull() &&
+        chaosMshrOccHook->maybeFakeFreeSlot(this, pkt, mshr,
+                                            mshrQueue.numInService())) {
+        // The fabricated free slot: unblock the CPU side so exactly one
+        // further miss allocation consumes a reserve entry beyond the
+        // arbitration's capacity. isFull() is still true, so the next
+        // allocateMissBuffer re-blocks (and stops iterating) — the
+        // widening is bounded to one allocation per fabrication.
+        clearBlocked((BlockedCause)MSHRQueue_MSHRs);
+    }
+}
+
+// [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW hook (declared in base.hh).
+// Called from satisfyRequest's SwapReq branch right after the atomic op
+// functor ran, so `blk_data` holds the NEW memory value and the packet's
+// data buffer holds the OLD (returned) value. Pure delegation — the
+// injector decides whether this access is its eligible event. nullptr hook
+// = nothing happens (zero regression).
+void
+BaseCache::chaosRmwCommit(PacketPtr pkt, uint8_t *blk_data)
+{
+    if (!chaosRmwHook)
+        return;
+    chaosRmwHook->maybeCorruptRmw(this, pkt, blk_data);
+}
+
 void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
@@ -571,6 +754,27 @@ BaseCache::recvTimingResp(PacketPtr pkt)
         assert(pkt->req->isUncacheable());
         handleUncacheableWriteResp(pkt);
         return;
+    }
+
+    // [MDSPEC][R4-5.2] C12 fill-timing offset: the registered CHAOSCache
+    // (targetField=mshr_fill_timing) may DEFER this response to a later
+    // tick — it stashes the packet BEFORE the sender state is popped (the
+    // MSHR stays outstanding; later same-line requests keep merging) and
+    // schedules a resume event at curTick() + lsuFillDelayCycles cache
+    // cycles that re-enters recvTimingResp via chaosResumeDeferredResp.
+    // The whole fill path below (miss-latency stat, handleFill + H4
+    // mshr_fill/cache_fill/mshr_free events, serviceMSHRTargets, MSHR
+    // deallocation) then runs at the SHIFTED tick — the consumer gets the
+    // same data at a shifted time, and the injector registered the fault
+    // (inj node corr=origin + the whole fill line in the faulted-byte
+    // registry) so those delayed events join the C12 chain (corr=
+    // addr_fallback). The injector checks `cache == targetCache`, so only
+    // the mounted cache (L1D) is affected; its eligibility gate mirrors
+    // this function's is_fill (a non-error READ on a non-forward MSHR).
+    // nullptr / false = zero regression (processing proceeds normally).
+    if (chaosFillTimingHook &&
+        chaosFillTimingHook->maybeDeferFillTiming(this, pkt)) {
+        return;   // deferred: the scheduled resume event owns the packet
     }
 
     // we have dealt with any (uncacheable) writes above, from here on
@@ -615,8 +819,13 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
-        // LSU W6 C12: fill/writeback timing corruption — the event hook
-        // lets the injector delay or drop this fill (data never arrives).
+        // LSU W2 F6 event-source observation (09 §2.1 map): a fill site
+        // installs new data — observed here as an SqForward-cadence proxy
+        // event (W6 wiring, unchanged). [MDSPEC][R4-5.2] C12 note: the
+        // actual fill-timing OFFSET is implemented upstream at the top of
+        // recvTimingResp (chaosFillTimingHook, BEFORE popSenderState) —
+        // this observe call is only the W1 event-source counter, it does
+        // not itself delay anything.
         chaosLsuF6Observe(ChaOSLsuEvent::SqForward);
         blk = handleFill(pkt, blk, writebacks, allocate);
         assert(blk != nullptr);
@@ -668,9 +877,27 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             // lets the injector decide whether to prevent this deallocation
             // (MSHR stays allocated = permanent stall for that block).
             chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
-            mshrQueue.deallocate(mshr);
-            if (was_full && !mshrQueue.isFull()) {
-                clearBlocked(Blocked_NoMSHRs);
+            // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1: the
+            // registered CHAOSCache (targetField=mshr_busy_leak) may SKIP
+            // this deallocation — the serviced entry stays in the queue's
+            // allocated list and never returns to the free list. The miss
+            // already completed (the fill was delivered by
+            // serviceMSHRTargets above), so the consumer got its data;
+            // only the slot is lost and the queue ultimately stays full
+            // (capacity degradation -> the CPU side stays blocked ->
+            // Timeout). When the leak fires the caller must ALSO skip the
+            // clearBlocked below: the queue is in fact still full, and
+            // clearing would be a lie that hides the leak. nullptr/false =
+            // zero regression (the deallocation runs unchanged).
+            const bool mshr_leaked = chaosMshrBusyHook &&
+                chaosMshrBusyHook->maybeStickMshrBusy(
+                    this, mshr, pkt->getBlockAddr(blkSize),
+                    mshrQueue.numInService(), was_full);
+            if (!mshr_leaked) {
+                mshrQueue.deallocate(mshr);
+                if (was_full && !mshrQueue.isFull()) {
+                    clearBlocked(Blocked_NoMSHRs);
+                }
             }
 
             // Request the bus for a prefetch if this deallocation freed enough
@@ -1203,6 +1430,17 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
             // match/miss verdict is internal to cmpAndSwap) — recorded.
             chaosLsuF6Observe(ChaOSLsuEvent::CasSuccess);
 
+            // [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW node. At this
+            // point BOTH read-modify-write latches exist: the packet's data
+            // buffer holds the OLD value (set by pkt->setData above, before
+            // the functor ran) and `blk_data` holds the NEW memory value the
+            // RMW just wrote. The registered injector (mounted on this
+            // cache) may mis-route the data-select MUX (O04), flip a bit of
+            // the result/old-value latch (O09) or corrupt the RMW's
+            // completion -- drop it / apply it twice (O05). No-op when no
+            // rmw-mode injector is mounted (chaosRmwHook == nullptr).
+            chaosRmwCommit(pkt, blk_data);
+
             // Inform of this block's data contents update
             if (ppDataUpdate->hasListeners()) {
                 data_update.newData = std::vector<uint64_t>(blk->data,
@@ -1600,6 +1838,98 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     const bool has_old_data = blk && blk->isValid();
     const std::string old_state = (debug::Cache && blk) ? blk->print() : "";
 
+    // [MDSPEC][H4] unified cache_fill / mshr_fill / mshr_free events
+    // (spec sheet 9 C-chain: L2 = "miss→fill"; C01 requires
+    // "mshr_id/fill_id/victim_id 及 event 父子关系"). Fault-correlated only
+    // (blk registry). One fill_id is allocated for this fill and reused by
+    // the cache_fill and pf_fill nodes of the same fill.
+    uint64_t h4_fill_id = 0;
+    {
+        CHAOSPropagation *h4f = CHAOSPropagation::instance();
+        if (h4f) {
+            Addr h4f_base = 0;
+            const char *h4f_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h4f_ptag = h4f->correlateBlock(
+                addr, blkSize, &h4f_base, &h4f_corr);
+            if (h4f_ptag) {
+                std::ostringstream h4f_hex;
+                h4f_hex << std::hex << addr;
+                const Addr h4f_line = addr;
+                h4_fill_id = h4f->noteFill(h4f_line);
+                // [MDSPEC][R6-EMIT2/A3] request identity on the fill triplet
+                // (the fill response's own packet request — same convention
+                // as the access/return/mshr sites).
+                const uint64_t h4f_seq =
+                    (pkt->req && pkt->req->hasInstSeqNum())
+                        ? pkt->req->getReqInstSeqNum() : 0;
+                // mshr_fill: the miss completes (fill_id + the mshr it
+                // serviced), then mshr_free releases that mshr id.
+                h4f->notePropEvt("mshr_fill", {
+                    {"fault_id", std::to_string(h4f_ptag)},
+                    {"corr", h4f_corr ? h4f_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4f_seq)},
+                    {"request_id", std::to_string(h4f_seq)},
+                    {"cache_line", h4f_hex.str()},
+                    {"mshr_id", std::to_string(
+                        h4f->noteMshrLookup(h4f_line))},
+                    {"fill_id", std::to_string(h4_fill_id)},
+                    {"state_after", "filled"},
+                });
+                h4f->notePropEvt("cache_fill", {
+                    {"fault_id", std::to_string(h4f_ptag)},
+                    {"corr", h4f_corr ? h4f_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4f_seq)},
+                    {"request_id", std::to_string(h4f_seq)},
+                    {"pa", h4f_hex.str()},
+                    {"cache_line", h4f_hex.str()},
+                    {"fill_id", std::to_string(h4_fill_id)},
+                });
+                h4f->notePropEvt("mshr_free", {
+                    {"fault_id", std::to_string(h4f_ptag)},
+                    {"corr", h4f_corr ? h4f_corr : ""},
+                    {"dyn_inst_seq", std::to_string(h4f_seq)},
+                    {"request_id", std::to_string(h4f_seq)},
+                    {"cache_line", h4f_hex.str()},
+                    {"mshr_id", std::to_string(
+                        h4f->noteMshrFree(h4f_line))},
+                    {"state_after", "mshr_freed"},
+                });
+            }
+        }
+    }
+
+    // [MDSPEC][H5] unified pf_fill event (spec sheet 9 P-chain: L3 =
+    // "cache接收响应、fill set/way/tag/data ... merge MSHR"——the prefetch
+    // request's line is filled). Carries the SAME request-level
+    // pf_request_id as the pf_queue/pf_issue nodes of this prefetch (from
+    // the tracer's prefetch-request registry), plus the fill_id. Only
+    // emitted for lines a prefetch request registered — never guessed.
+    {
+        CHAOSPropagation *h5f = CHAOSPropagation::instance();
+        if (h5f) {
+            Addr h5f_base = 0;
+            const uint64_t h5f_pfid = h5f->prefetchRequestId(
+                addr, blkSize, &h5f_base);
+            if (h5f_pfid) {
+                Addr h5f_ptag_base = 0;
+                const char *h5f_corr = nullptr;   // [R4-1-review-I1]
+                const uint64_t h5f_ptag = h5f->correlateBlock(
+                    addr, blkSize, &h5f_ptag_base, &h5f_corr);
+                std::ostringstream h5f_hex;
+                h5f_hex << std::hex << addr;
+                h5f->notePropEvt("pf_fill", {
+                    {"fault_id", std::to_string(h5f_ptag)},
+                    {"corr", h5f_corr ? h5f_corr : ""},
+                    {"pf_request_id", std::to_string(h5f_pfid)},
+                    {"pa", h5f_hex.str()},
+                    {"cache_line", h5f_hex.str()},
+                    {"fill_id", std::to_string(h4_fill_id)},
+                    {"state_after", "filled"},
+                });
+            }
+        }
+    }
+
     // When handling a fill, we should have no writes to this line.
     assert(addr == pkt->getBlockAddr(blkSize));
     assert(!writeBuffer.findMatch(addr, is_secure));
@@ -1782,6 +2112,31 @@ BaseCache::writebackBlk(CacheBlk *blk)
                 "Writeback from read-only cache");
     assert(blk && blk->isValid() &&
         (blk->isSet(CacheBlk::DirtyBit) || writebackClean));
+
+    // [MDSPEC][H4] cache_writeback event (spec sheet 9 C-chain: dirty
+    // victim's data persists to the next level via writeback). Fault-
+    // correlated only (blk registry overlap on the written-back line).
+    {
+        CHAOSPropagation *h4w = CHAOSPropagation::instance();
+        if (h4w) {
+            Addr h4w_base = 0;
+            const char *h4w_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h4w_ptag = h4w->correlateBlock(
+                regenerateBlkAddr(blk), blkSize, &h4w_base, &h4w_corr);
+            if (h4w_ptag) {
+                std::ostringstream h4w_hex;
+                h4w_hex << std::hex << regenerateBlkAddr(blk);
+                h4w->notePropEvt("cache_writeback", {
+                    {"fault_id", std::to_string(h4w_ptag)},
+                    {"corr", h4w_corr ? h4w_corr : ""},
+                    {"cache_line", h4w_hex.str()},
+                    {"pa", h4w_hex.str()},
+                    {"state_before", "dirty"},
+                    {"state_after", "written_back"},
+                });
+            }
+        }
+    }
 
     stats.writebacks[Request::wbRequestorId]++;
 

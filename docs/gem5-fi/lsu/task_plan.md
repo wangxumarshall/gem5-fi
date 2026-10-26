@@ -24,6 +24,14 @@ P3
 - 采样数量在 campaign 开始前按本清单固定，不依据中途点估计或普通置信区间半宽序贯停止；本政策版本自 2026-10-08 起生效。
 - F1–F4 以一次运行为独立 cluster；单次运行内多个事件只用于传播分析。
 
+## 修订（2026-10-25 用户裁决）：F6 频率政策与 per-RunID seed 完成条件
+
+- **seed 维度完成条件**：单个 RunID 的完成条件 = 频率政策的 `required_seeds`，读取自 `docs/gem5-fi/lsu/mdspec/R6-FREQUENCY-POLICY.json`（生成器 `tools/lsu_freq_policy.py`，schema_version `r6-frequency-policy/1`，decision_date 2026-10-25）：NORMAL（全部 F0–F5，261 项）= 3；STRESS_ONLY（代表性 F6，每模型组 1 个代表共 39 项，`T04-F6-W4` 为其所在组钉定代表）= 1（仅 seed1）；STRESS_REDUNDANT（其余 F6，25 项）= 0（不调度）。
+- **废除统一 seed 数假设**：不再假设所有 RunID 使用相同 seed 数；本文件前文任何"全部 RunID × 同一 seed 数"式合计（如按 325×N 外推）一律按 per-RunID `required_seeds` 逐项重算，且 F6 计数按 `(RunID, seed)` 去重（见 findings F-056/A1）。
+- **统计口径**：F6 为独立压力测试，`include_in_statistics=false`，不进入 F0–F5 主统计分母；非 required 的 F6 seed 记 `POLICY_NOT_REQUIRED`，不算 FAIL/BLOCKED/SKIP/NOT_RUN/EVIDENCE_MISSING/TRUNCATED。
+- **审计覆盖不变**：仍为 325 个 ITEM/RunID（含 64 个 F6 条目）全部有可追溯状态；政策 `entries` 恰为 325 唯一 RunID，4 条 V2.0 删除的 legacy F6 行（`T09-F6-W4`、`S12-F6-W5`、`C13-F6-W6`、`O08-F6-W7`）在政策显式非权威节 `legacy_f6_non_authoritative`，`query()` 仍拒绝为其调度。
+- **激活样本维度规则不受影响**：2026-10-08 采样政策（pilot 30 activated、累计 385/2401）仍按原口径执行；本修订只改变 seed 维度的每 RunID 完成条件。
+
 ## 清单调度协议
 
 1. `完整任务执行清单.md` 中的 `ITEM-001` 至 `ITEM-325` 是唯一实验项集合；每个 ITEM 对应一个 RunID 和一个 Excel 行范围。
@@ -165,6 +173,7 @@ P3
 
 | ID | 时间 | 决定 | 理由 | 影响范围 | 批准/证据 |
 |---|---|---|---|---|---|
+| D-2026-10-25-F6频率政策 | 2026-10-25 | **F6 为独立压力测试，不纳入 F0–F5 主统计；本裁决取代此前一切 F6 多种子要求**。per-RunID 完成条件 = 政策 `required_seeds`（NORMAL=3 / STRESS_ONLY=1 / STRESS_REDUNDANT=0）；政策 `entries` 恰为 325 唯一 RunID，另 4 条 V2.0 删除的 legacy F6 行记入显式非权威节 `legacy_f6_non_authoritative`；非 required 的 F6 seed 记 `POLICY_NOT_REQUIRED`（不算 FAIL/BLOCKED/SKIP/NOT_RUN/EVIDENCE_MISSING/TRUNCATED）；F6 计数按 (RunID, seed) 去重 | F6 的注入语义不构成统计重复的独立样本来源，多种子跑 F6 只重复同一确定性路径；统计分母须与频率语义一致 | 全部 325 RunID 的种子数/调度/统计纳入；39 个代表性 F6 组；F6 永不进入主统计分母 | 用户 2026-10-25 R6 频率政策裁决（含修订 A1–A4）；`docs/gem5-fi/lsu/mdspec/R6-FREQUENCY-POLICY.json`/`.md`（`tools/lsu_freq_policy.py` 生成，schema `r6-frequency-policy/1`，entries=325 于 commit f680bbc2 落地）；本文件"修订（2026-10-25）"节；findings F-055/F-056 |
 | D-2026-10-10-Overlay口径 | 2026-10-10 16:55 | **不扩充 L5 终类**（五类闭集不变）；幻影/noop 以**正交注入有效性字段**记入 correction overlay：raw_class（永久保留）/trigger_observed/fault_write_attempted/fault_effective/valid_for_l5/exclusion_reason（≥5 枚举：pre_filter_rejected_after_trigger、fault_write_not_applied、fault_write_noop、missing_effective_write_evidence、other_invalid_injection）/evidence_path/corrected_class（仅 valid_for_l5=true 填写否则 null）；统计规则：仅 fault_effective=true 且证据闭环计 activated，仅 valid_for_l5=true 进 L5 分母，invalid 无新终类 corrected_class=null，raw_class 不删不覆盖，报告六元组 attempted/triggered/write_attempted/effective_activated/invalid_excluded/valid_L5_denominator，禁 Masked→Inactive 绕过、禁 noop 计有效 Masked；当前暂定：ITEM-271=16/30、ITEM-279=19/33、ITEM-019=31/33、ITEM-022=32/33（逐样本证据确认后方可转最终）；共享 schema 不在 golden 期间修改——本轮只在 overlay 实现，oracle 冻结后单独提最小向后兼容只增字段方案，改共享 runner/campaign/classify/schema 前再次汇报范围 | NoInjection/InvalidInjection/NoEffect 是注入有效性维度而非程序执行终态，混入 L5 会破坏统计口径 | F-049 污染审计 4 项 + 未来所有幻影/noop 处置 | 用户裁决原文 2026-10-10 |
 | D-2026-10-10-ITEM285撤销 | 2026-10-10 16:55 | **ITEM-285（L03-F0-W5）撤销 L03 模型身份**：33/33 全部不得作为"L03-F0"科学结果；状态标记 model_identity_invalid / quarantined / rerun_required；不得改标签后纳入原 L03 结果；原始结果与日志保留作接线缺陷证据与工程调试；仅当精确证明实际配置对应另一已定义模型时可在独立审计中讨论作辅助工程证据，不得自动转归正式数据；**全库搜索 --lsqfwd_l03 已执行（2026-10-10）：仅 L03 家族 3 项命中（ITEM-285 含 census 34 文件、ITEM-287 300、ITEM-289 300），det/engineering/manifests 零命中——失真范围封闭**；SEM-B 修复后 ITEM-285 须重走完整准入（config.ini 确认 l03 实传 → count-only>0 → 正/负对照 → n=5 真实有效注入 → pilot 30 → 确定性重放 → golden+不受影响回归 → 再决 formal）；ITEM-287/289 同样使用 --lsqfwd_l03，其重跑亦以 SEM-B 接线修复为前置 | --lsqfwd_l03 参数未接线，实际执行模型（byte_flip）与声明 L03 模型不一致——数据有效但模型身份失真 | ITEM-285 全部 33 样本；ITEM-287/289 重跑前置条件；L03 家族统计口径 | 用户裁决原文 2026-10-10；F-047(b)/F-049 审计；全库 grep 实证 |
 | D-2026-10-10-SEM-F6管理 | 2026-10-10 16:55 | F-048 MemoryOrderViolation 设计方向**批准**，但仍按独立语义变更管理：ITEM-289 继续 capability-gap/design-blocked，新事件源通过守恒/count-only/正负对照/n=5/pilot/重放全部准入门之前不得宣称已解决；不得用该事件源挽救 F4 或 ITEM-287；ITEM-287 等 W1 census 实测后再裁决 | 语义变更须全门禁验证；事件源与档位需求不匹配时不得挪用 | [LSU][SEM-F6] 实施全程；ITEM-287 裁决时点 | 用户裁决原文 2026-10-10 |

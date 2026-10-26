@@ -186,6 +186,17 @@ _FUNNEL_LOG_RE = re.compile(
 _CACHE_INJ_RE = re.compile(
     r"Tick:\s*(\d+),\s*Cache Block Addr:\s*([0-9a-fA-F]+),"
     r"\s*Byte Offset:\s*(\d+),\s*FaultType:\s*(\w+),\s*Mask:\s*([0-9a-fA-F]+)")
+# OBS-FIX-5（2026-10-14，中央扩容指令解锁 C04-C09）：CHAOSCache 对
+# tag/valid/dirty/data_shift/toggle 等**字段目标**（非数据字节）发出的明细行：
+#   Tick: 1000000, Cache Block Addr: 576640, Field: tag (F5 alias),
+#   old_tag=0x23 -> new_tag=0x0          （C04/C05，p6_c04_f0 隔离证据实测）
+#   Field: valid (invalidate) / data_shift (C09 rotate by 1 byte) /
+#   Field: <field> (toggle bit N)        （CHAOSCache.cc:422-514 全系列）
+# 旧解析只认 Byte Offset 数据位格式 → injection_line_unparsed → finalize
+# 拒绝 → driver 确定性崩溃（C04-F0/F1-W6 两 worker 实证）。
+_CACHE_FIELD_INJ_RE = re.compile(
+    r"Tick:\s*(\d+),\s*Cache Block Addr:\s*([0-9a-fA-F]+),"
+    r"\s*Field:\s*([^,]+?)(?:,\s*(.+))?\s*$")
 # 注入行契约（addrpath/lsqfwd 等家族共用日志格式，见 s319 实测行）：
 #   Tick: 887040, Site: lsq_sendFragmentToTranslation, mode=low_bit_flip,
 #   old_vaddr=0x7ffffefd00, new_vaddr=0x87ffffefd00, faults_injected: 1 ...
@@ -236,6 +247,19 @@ def parse_l0(stdout_text, injlog_text, source_names=("stdout", "injections.log")
                     "site": f"cache_block:0x{cm.group(2)}+{cm.group(3)}",
                     "mode": cm.group(4), "faults": 1,
                     "field": f"mask:{cm.group(5)}",
+                    "old": None, "new": None,
+                    "dynamic_target": "cache_block",
+                    "raw": line,
+                })
+                continue
+            # OBS-FIX-5：字段目标系列（tag/valid/dirty/data_shift/toggle）
+            fm = _CACHE_FIELD_INJ_RE.search(line)
+            if fm:
+                out["injections"].append({
+                    "tick": int(fm.group(1)),
+                    "site": f"cache_block:0x{fm.group(2)}",
+                    "mode": f"field:{fm.group(3).strip()}", "faults": 1,
+                    "field": (fm.group(4) or "").strip(),
                     "old": None, "new": None,
                     "dynamic_target": "cache_block",
                     "raw": line,

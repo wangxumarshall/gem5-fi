@@ -165,8 +165,24 @@ TLB::lookup(Lookup lookup_data)
     // Phase 3 §六.4 item 3: CHAOSArmTLB hook. On a TLB HIT, corrupt the
     // entry's pfn before returning it to the MMU — models a defective TLB
     // cell (address-translation-path fault). nullptr = no injector.
+    // [MDSPEC][R4-4] chaosLookupReqSeq/Size carry the Request identity of
+    // the translation in flight (set by MMU::getTe around this lookup) so
+    // the fault chain registers SEQ-PRIMARY instead of address-only.
     if (retval && chaosTLB) {
-        chaosTLB->maybeCorrupt(retval, lookup_data.va);
+        chaosTLB->maybeCorrupt(retval, lookup_data.va,
+                               chaosLookupReqSeq, chaosLookupReqSize);
+    }
+
+    // [MDSPEC][R4-10-T07] CAM-compare / way-select hook. Runs for BOTH
+    // outcomes: false_hit fabricates a hit on a MISS (retval == nullptr),
+    // wrong_way returns a different valid way, double_hit observes a
+    // fabricated double match. For every non-T07 model this is a strict
+    // no-op returning `retval` unchanged (zero budget), so T01-T06/T08/T10
+    // stay byte-equivalent. See CHAOSArmTLB::maybeCorruptLookup.
+    if (chaosTLB) {
+        retval = chaosTLB->maybeCorruptLookup(retval, lookup_data.va,
+                                              chaosLookupReqSeq,
+                                              chaosLookupReqSize);
     }
 
     // LSU W2 F6 event source (09 §2.1 map): TLB hit. FS-only by construction

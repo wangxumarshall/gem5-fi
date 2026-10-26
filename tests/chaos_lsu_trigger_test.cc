@@ -12,6 +12,17 @@
 
 #include "cpu/o3/chaos_lsu_trigger.hh"
 
+// [MDSPEC][R4-5.1-review-I1] standalone link fix (pre-existing break since
+// the [LSU][OBS-3] commit e370bb7c gave chaos_lsu_trigger.hh a cur_tick.hh
+// dependency): the header's curTick() dereferences the gem5 TLS pointer
+// maintained by the event queue — outside the gem5 build nothing defines
+// it. Define it here, pointed at a static tick, so the documented one-line
+// build below works again.
+namespace gem5 { namespace Gem5Internal {
+__thread Tick *_curTickPtr;   // the definition a standalone TU lacks
+} }
+static gem5::Tick standalone_tick = 0;
+
 using gem5::ChaOSLsuTier;
 using gem5::ChaOSLsuEvent;
 using gem5::ChaOSLsuTrigger;
@@ -24,6 +35,8 @@ static int failures = 0;
 int
 main()
 {
+    gem5::Gem5Internal::_curTickPtr = &standalone_tick;  // TLS shim (above)
+
     // ---- F0: single uniform shot after warm-up (05 r2) ----
     {
         ChaOSLsuTrigger t(ChaOSLsuTier::F0, /*seed*/42, /*warmup*/100,
@@ -116,6 +129,28 @@ main()
         CHECK(t.injected == 1, "F6 still 1 after repeat");
         CHECK(t.attempted == 101 && t.eligible == 101,
               "F6 funnel: 100 stream + 1 event");
+    }
+
+    // ---- F6 book_attempt=false: hook-based caller shape ([MDSPEC]
+    //      [R4-5.1-review-I1]) — CHAOSCache mshr_merge counts the hook
+    //      invocation itself via onAttempt(), so its event gate must NOT
+    //      re-book attempted (the merge-site double-count fix). The
+    //      firing merge books attempted exactly once (onAttempt) and
+    //      eligible+injected once (onF6Event(false)).
+    {
+        ChaOSLsuTrigger t(ChaOSLsuTier::F6, 11, 0, 0,
+                          gem5::ChaOSLsuEvent::SqForward);
+        // the merge hook shape: onAttempt per invocation, onF6Event(false)
+        // at the (first) eligible merge — no onEligible on the F6 path
+        for (int i = 0; i < 26; ++i) t.onAttempt();
+        CHECK(t.onF6Event(false), "F6(false) fires on the first event");
+        CHECK(t.attempted == 26,
+              "F6(false) does not re-book attempted (26 hook calls = 26)");
+        CHECK(t.eligible == 1 && t.injected == 1,
+              "F6(false) books eligible+injected at the firing event");
+        CHECK(!t.onF6Event(false), "F6(false) fires once ever");
+        CHECK(t.attempted == 26 && t.injected == 1,
+              "F6(false) repeat call books nothing");
     }
 
     if (failures == 0) {

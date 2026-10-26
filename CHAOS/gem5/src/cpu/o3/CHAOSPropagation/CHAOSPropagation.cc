@@ -13,8 +13,11 @@
 // (checklist in docs/gem5-fi/lsu/evidence/P4/obs_l3_propagation_design.md).
 
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include "cpu/o3/CHAOSPropagation/chaos_tlb_chain.hh"
 
+#include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -38,7 +41,10 @@ namespace gem5
           cpu(p.cpu),
           trace_file(p.traceFile),
           write_log(p.writeLog),
-          addr_expiry_ticks(p.addrExpiryTicks)
+          addr_expiry_ticks(p.addrExpiryTicks),
+          evt_trace_file(p.evtTraceFile),
+          run_id(p.runId),
+          sample_run_id(p.sampleRunId)
     {
         // CHAOSCache (no CPU pointer) reaches the tracer through the static
         // instance (single-core campaign; BaseCache::chaosVictimHook static
@@ -66,6 +72,32 @@ namespace gem5
                       path.c_str());
             gzflush(gz_file, Z_SYNC_FLUSH);
 
+            // PROP-EVT unified stream (H0): same crash-durability contract
+            // (raw gzFile + per-node Z_SYNC_FLUSH). The '#' header line
+            // carries the registry; the Python parser rejects it as a
+            // non-PROP-EVT line.
+            const std::string epath = simout.resolve(evt_trace_file);
+            evt_gz_file = gzopen(epath.c_str(), "wb");
+            if (!evt_gz_file)
+                panic("CHAOSPropagation: Could not open PROP-EVT file %s",
+                      epath.c_str());
+            std::ostringstream eh;
+            eh << "# prop-evt v1:";
+            for (int i = 0; i < N_PROP_EVT_FIELDS; ++i)
+                eh << " " << PROP_EVT_FIELDS[i];
+            // [R6] the family-extension columns are part of the row contract
+            // too, so the header must list them (else the row would carry
+            // keys the documented schema does not name).
+            for (int i = 0; i < N_PROP_EVT_EXT_FIELDS; ++i)
+                eh << " " << PROP_EVT_EXT_FIELDS[i];
+            eh << "\n";
+            const std::string ehs = eh.str();
+            if (gzwrite(evt_gz_file, ehs.data(), (unsigned)ehs.size())
+                    != (int)ehs.size())
+                panic("CHAOSPropagation: PROP-EVT header write failed on %s",
+                      epath.c_str());
+            gzflush(evt_gz_file, Z_SYNC_FLUSH);
+
             // Normal-exit trailer: gzclose writes the gzip trailer. MUST be
             // an exit callback, not the destructor — gem5's exit path does
             // not reliably run SimObject destructors (CHAOSMicroSnap
@@ -73,9 +105,137 @@ namespace gem5
             // never get here: they keep the Z_SYNC_FLUSH-ed truncated
             // stream, which tools/lsu_l3_propagation.py salvages.
             registerExitCallback([this]() {
+                // [MDSPEC][L5] chain_end events: one per fault chain at
+                // exit. The observable state (errant_commit seen or not,
+                // outcome) is what gem5 alone knows; the FINAL checksum /
+                // exit-code classification is the offline reclass join
+                // (spec sheet 9: L5 = 检测与最终结局, joined offline).
+                // outcome=unknown means "pending offline join" — the honest
+                // default, never guessed (spec: 不得推断).
+                if (evt_gz_file && write_log) {
+                    // [MDSPEC][R6-FIXCPP/T3] Flush the consumer_summary
+                    // accounting to the stream BEFORE the chain_end
+                    // terminators: a real terminal / chain_end must precede
+                    // the accounting, and a summary never stands in for a
+                    // terminal (rules ②/⑦). Each row is written raw and
+                    // Z_SYNC_FLUSH-ed like every other node.
+                    for (const std::string &sl :
+                             consumer_agg.flush(run_id, sample_run_id)) {
+                        const std::string row = sl + "\n";
+                        if (gzwrite(evt_gz_file, row.data(),
+                                    (unsigned)row.size())
+                                != (int)row.size())
+                            panic("CHAOSPropagation: CONSUMER-SUMMARY write "
+                                  "failed");
+                        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+                    }
+                    // Resource bound hit: LOUD on stdout AND in the stream,
+                    // never silent. The abort path emitted every further
+                    // consumer (suppressed=0), so no evidence was dropped and
+                    // the run must not be read as complete (rules ⑦).
+                    if (consumer_agg.resourceAborted()) {
+                        const std::string ab =
+                            chaos_consumer::Aggregator::resourceAbortLine(
+                                consumer_agg.groupCount());
+                        printf("%s\n", ab.c_str());
+                        const std::string row = ab + "\n";
+                        if (gzwrite(evt_gz_file, row.data(),
+                                    (unsigned)row.size())
+                                != (int)row.size())
+                            panic("CHAOSPropagation: resource-abort marker "
+                                  "write failed");
+                        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+                    }
+                    // [MDSPEC][R6-EMIT2/A7] Store chains whose fault-carrying
+                    // store NEVER retired. A store taints itself at its
+                    // response (noteMemResponse) and the taint is erased by
+                    // its own commit (noteCommit); an entry still present at
+                    // exit therefore means that store instance was squashed/
+                    // discarded and never reached architectural state — a
+                    // same-PC replay retires instead. That is containment by
+                    // squash/replay (measured S04-F0-W5: the injected store
+                    // sn:4001 never commits while a same-PC replay does, and
+                    // the cell's oracle is clean). Record it explicitly so
+                    // the chain closes as detected_contained instead of an
+                    // Unknown terminal.
+                    for (const auto &st : store_taint) {
+                        const uint64_t p = st.second.ptag;
+                        if (errant_ptags.count(p)
+                                || containment_ptags.count(p))
+                            continue;
+                        containment_ptags[p] = {"L4",
+                                                "store_discarded_not_retired"};
+                        emitDetectSignal("Hardware RAS", true, p,
+                                         "store_discarded_not_retired");
+                    }
+                    for (const auto &kv : ptag_last_event) {
+                        const uint64_t ptag = kv.first;
+                        // [MDSPEC][R6] Per-chain evidence, not a run-global
+                        // guess: the errant_commit node carries the faulting
+                        // chain's own ptag, so this chain's L5 can say
+                        // "the wrong value reached the architectural state"
+                        // instead of falling back to the bare lifecycle
+                        // marker (outcome=run_end) that the chain checker
+                        // rejects as L5 evidence. Chains that did not commit
+                        // errantly keep run_end — still honest.
+                        const bool seen_errant = errant_ptags.count(ptag) > 0;
+                        const auto cit = containment_ptags.find(ptag);
+                        const bool contained = cit != containment_ptags.end();
+                        // [R6] This node is a LIFECYCLE terminus, not L5
+                        // evidence on its own: it never invents a detection
+                        // layer. It REPORTS what the chain's own events
+                        // proved — the errant commit (real L5 detection, the
+                        // chain's `errant_commit` node) or the explicit
+                        // containment recorded at L2 (Masked / refused /
+                        // lost walk). A chain with neither stays honestly
+                        // empty (no layer, outcome=run_end): a bare
+                        // lifecycle marker must never be read as L5.
+                        const char *outcome = seen_errant ? "errant_commit_seen"
+                            : contained ? "detected_contained" : "run_end";
+                        const char *layer = seen_errant ? "L5"
+                            : contained ? cit->second.first.c_str() : "";
+                        // [MDSPEC][R6-EMIT2/oracle] L18 contract item 3: the
+                        // L5 outcome join needs the detection point. When the
+                        // chain reached an errant commit we have it (pc /
+                        // DynInst seq / commit ordinal / tick); a chain that
+                        // never detected keeps them empty (honest — no
+                        // invented values).
+                        const auto dit = errant_detect.find(ptag);
+                        std::string ce_pc, ce_seq, ce_commit;
+                        if (dit != errant_detect.end()) {
+                            std::ostringstream p;
+                            p << std::hex << dit->second.pc;
+                            ce_pc = p.str();
+                            ce_seq = std::to_string(dit->second.dyn_seq);
+                            ce_commit = std::to_string(dit->second.commit_seq);
+                        }
+                        notePropEvt("chain_end", {
+                            {"fault_id", std::to_string(ptag)},
+                            {"commit_seq", ce_commit},
+                            {"pc", ce_pc},
+                            {"dyn_inst_seq", ce_seq},
+                            {"outcome", outcome},
+                            {"detection_layer", layer},
+                            {"contained", (seen_errant || contained)
+                                ? "1" : "0"},
+                            {"containment_layer",
+                                contained ? cit->second.first : ""},
+                            {"containment_reason",
+                                contained ? cit->second.second : ""},
+                            // [R4-4-review-I1] explicit non-join marker:
+                            // the exit summary correlates nothing (the
+                            // per-event corr fields carry provenance).
+                            {"corr", CORR_NONE},
+                        });
+                    }
+                }
                 if (gz_file) {
                     gzclose(gz_file);
                     gz_file = nullptr;
+                }
+                if (evt_gz_file) {
+                    gzclose(evt_gz_file);
+                    evt_gz_file = nullptr;
                 }
             });
         }
@@ -87,6 +247,10 @@ namespace gem5
         if (gz_file) {
             gzclose(gz_file);
             gz_file = nullptr;
+        }
+        if (evt_gz_file) {
+            gzclose(evt_gz_file);
+            evt_gz_file = nullptr;
         }
         if (chaos_instance == this)
             chaos_instance = nullptr;
@@ -102,6 +266,8 @@ namespace gem5
             return;
         }
         o3cpu = o3;
+        // PROP-EVT cycle field: tick / clockPeriod (integer division).
+        clock_period = o3cpu->clockPeriod();
         // CHAOSCommitTrace/CHAOSMicroSnap setter pattern, both consumers:
         // (a) the CPU pointer the LSQ-side hooks (lsq.cc / lsq_unit.cc)
         //     read via cpu->chaosPropagation;
@@ -160,6 +326,388 @@ namespace gem5
             else
                 ++it;
         }
+        // [MDSPEC][H5] prefetch requests share the same lifetime policy as
+        // the other address registries (no expiry when addr_expiry_ticks=0).
+        for (auto it = pf_registry.begin(); it != pf_registry.end(); ) {
+            if (now > it->second.registered &&
+                now - it->second.registered > (Tick)addr_expiry_ticks)
+                it = pf_registry.erase(it);
+            else
+                ++it;
+        }
+    }
+
+    // ------------------------------------------------------ PROP-EVT (H0)
+
+    void
+    CHAOSPropagation::parseDetail(const std::string &detail,
+                                  std::map<std::string, std::string> &out)
+    {
+        // v1 detail contract: "k=v;k=v", no commas. Keys that match a
+        // unified field name (pc/field) land directly; others are lifted by
+        // the caller where the schema has a home.
+        size_t pos = 0;
+        while (pos < detail.size()) {
+            const size_t semi = detail.find(';', pos);
+            const std::string tok = detail.substr(
+                pos, semi == std::string::npos ? std::string::npos : semi - pos);
+            const size_t eq = tok.find('=');
+            if (eq != std::string::npos)
+                out[tok.substr(0, eq)] = tok.substr(eq + 1);
+            if (semi == std::string::npos)
+                break;
+            pos = semi + 1;
+        }
+    }
+
+    void
+    CHAOSPropagation::emitPropEvt(const std::string &kind, uint64_t ptag,
+                                  uint64_t event_id,
+                                  std::map<std::string, std::string> fields,
+                                  int tid)
+    {
+        if (!write_log || !evt_gz_file)
+            return;
+        // Auto fields: caller-supplied non-empty values win.
+        const Tick now = curTick();
+        if (fields["tick"].empty())
+            fields["tick"] = std::to_string(now);
+        if (fields["cycle"].empty())
+            fields["cycle"] = clock_period
+                ? std::to_string(now / clock_period) : std::string("0");
+        if (fields["core_id"].empty())
+            fields["core_id"] = std::to_string(cpu ? cpu->cpuId() : 0);
+        if (tid >= 0 && fields["thread_id"].empty())
+            fields["thread_id"] = std::to_string(tid);
+        fields["fault_id"] = std::to_string(ptag);
+        fields["event_id"] = std::to_string(event_id);
+        // [MDSPEC][R6-FIXA] Request-scoped chain cursor (see .hh).  The event's
+        // branch key is its own stamped request_id; an un-stamped (lifecycle)
+        // event rides the chain's OWNER request (= the first stamped request of
+        // this ptag, i.e. the faulting request).  A later, different request is
+        // therefore a SIBLING sub-chain, never a cross-request parent edge.
+        uint64_t branch_key = 0;
+        {
+            const std::string &reqs = fields["request_id"];
+            const bool stamped = !reqs.empty() && reqs != "0";
+            if (stamped) {
+                branch_key = strtoull(reqs.c_str(), nullptr, 10);
+                if (ptag != 0 && ptag_owner_request.find(ptag)
+                        == ptag_owner_request.end()) {
+                    ptag_owner_request[ptag] = branch_key;
+                    // Carry the pre-owner un-stamped cursor (e.g. an un-stamped
+                    // L0 inj) onto the owner's branch so the owner's first
+                    // stamped event still descends from it (byte-identical to
+                    // the old single cursor for a single-request chain).
+                    const auto pit = ptag_branch_last.find({ptag, 0});
+                    if (pit != ptag_branch_last.end())
+                        ptag_branch_last[{ptag, branch_key}] = pit->second;
+                }
+            } else if (ptag != 0) {
+                const auto oit = ptag_owner_request.find(ptag);
+                branch_key = (oit == ptag_owner_request.end()) ? 0
+                                                              : oit->second;
+            }
+        }
+        // [MDSPEC][R6-FIXA2] Explicit lineage bridge.  The request-scoped
+        // cursor below would leave a NEW request's first event with NO parent
+        // at all — which drops the real cross-request pollution propagation
+        // out of the causal graph (user ruling 2026-10-23).  Instead the new
+        // request's first event is joined to the pollution source by exactly
+        // one explicit `request_fork` bridge; when no real source event /
+        // shared object is verifiable, NO bridge is fabricated and the event
+        // keeps no parent (the chain stays honestly per-request).
+        uint64_t bridge_id = 0;
+        {
+            const std::string &reqs0 = fields["request_id"];
+            const bool stamped0 = !reqs0.empty() && reqs0 != "0"
+                                  && reqs0 != "0x0";
+            const auto oit = ptag_owner_request.find(ptag);
+            const bool is_owner = (oit != ptag_owner_request.end()
+                                   && oit->second == branch_key);
+            const bool first_of_branch =
+                ptag_branch_last.find({ptag, branch_key})
+                    == ptag_branch_last.end();
+            if (ptag != 0 && stamped0 && !is_owner && first_of_branch)
+                bridge_id = emitLineageBridge(kind, ptag, branch_key,
+                                              event_id, fields);
+        }
+        if (fields["parent_event_id"].empty()) {
+            if (bridge_id) {
+                fields["parent_event_id"] = std::to_string(bridge_id);
+            } else {
+                const auto it = ptag_branch_last.find({ptag, branch_key});
+                if (it != ptag_branch_last.end() && it->second != event_id)
+                    fields["parent_event_id"] = std::to_string(it->second);
+            }
+        }
+        if (!run_id.empty() && fields["run_id"].empty())
+            fields["run_id"] = run_id;
+        if (!sample_run_id.empty() && fields["sample_run_id"].empty())
+            fields["sample_run_id"] = sample_run_id;
+        if (fields["evidence_status"].empty())
+            fields["evidence_status"] = "observed";   // spec sheet 11 default
+        // kind is forced — the caller cannot retype an event.
+        fields["kind"] = kind;
+
+        writePropEvtRow(fields);
+        if (ptag != 0) {
+            ptag_last_event[ptag] = event_id;
+            // Advance the request-scoped cursor for this event's branch, so
+            // the NEXT event of the same (ptag, request) descends from it.
+            ptag_branch_last[{ptag, branch_key}] = event_id;
+            // [R6-FIXA2] Remember the last STAMPED event of this branch with
+            // the addresses it carried — the only admissible, verifiable
+            // pollution source for a later lineage bridge (an un-stamped
+            // lifecycle event carries no request identity and is never used).
+            const std::string &rq = fields["request_id"];
+            if (!rq.empty() && rq != "0") {
+                auto hex = [&](const char *k) -> uint64_t {
+                    const auto it = fields.find(k);
+                    return (it == fields.end() || it->second.empty())
+                        ? 0 : strtoull(it->second.c_str(), nullptr, 16);
+                };
+                ptag_branch_src[{ptag, branch_key}] =
+                    LineageSrc{event_id, hex("va"), hex("pa"),
+                               hex("cache_line")};
+            }
+        }
+    }
+
+    // [MDSPEC][R6-FIXA2] Serialize + flush one PROP-EVT row.  Shared by the
+    // normal emitter and the explicit lineage-bridge emitter so the bridge is
+    // byte-shaped exactly like every other event (registry order + family
+    // extension columns).
+    void
+    CHAOSPropagation::writePropEvtRow(std::map<std::string, std::string> &fields)
+    {
+        std::ostringstream row;
+        row << "PROP-EVT:";
+        for (int i = 0; i < N_PROP_EVT_FIELDS; ++i) {
+            const auto it = fields.find(PROP_EVT_FIELDS[i]);
+            row << ' ' << PROP_EVT_FIELDS[i] << '='
+                << (it == fields.end() ? "" : it->second);
+        }
+        // [R6] family-extension columns follow the shared registry (same
+        // key=value shape; parser keeps them for the family that owns them).
+        for (int i = 0; i < N_PROP_EVT_EXT_FIELDS; ++i) {
+            const char *k = PROP_EVT_EXT_FIELDS[i];
+            const auto it = fields.find(k);
+            row << ' ' << k << '=' << (it == fields.end() ? "" : it->second);
+        }
+        row << '\n';
+        const std::string s = row.str();
+        if (gzwrite(evt_gz_file, s.data(), (unsigned)s.size()) != (int)s.size())
+            panic("CHAOSPropagation: PROP-EVT write failed");
+        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+    }
+
+    // [MDSPEC][R6-FIXA2] Observation layer of a kind for the chain's unit
+    // family, mirroring tools/lsu_prop_fields.KIND_LAYER (generic) and the
+    // checker's T-series table.  Deliberately NOT a general table: a kind the
+    // fork actually lands on must be listed, and the chain checker re-derives
+    // the layer and REJECTS a bridge whose declared layer disagrees — so any
+    // drift between this map and the checker is loud, never silent.
+    static const char *
+    bridgeLayerOf(const std::string &kind, char family)
+    {
+        if (family == 'T') {
+            if (kind == "tlb_lookup") return "L1";
+            if (kind == "tlb_pfn" || kind == "tlb_state"
+                    || kind == "tlb_walk" || kind == "tlb_refill"
+                    || kind == "tlb_translate" || kind == "tlb_translate_result"
+                    || kind == "tlb_fault")
+                return "L2";
+            if (kind == "taint_reg" || kind == "consumer"
+                    || kind == "errant_commit")
+                return "L4";
+            return "L3";            // lookup/request/cache/memory side
+        }
+        if (kind == "inj") return "L0";
+        if (kind == "addr_form" || kind == "lsq_push"
+                || kind == "cache_access")
+            return "L1";
+        if (kind == "mem_req" || kind == "lsq_sendfrag"
+                || kind == "tlb_translate" || kind == "cache_return"
+                || kind == "mshr_alloc" || kind == "mshr_merge"
+                || kind == "mshr_fill" || kind == "mshr_free")
+            return "L2";
+        if (kind == "resp" || kind == "lq_complete" || kind == "sq_execute"
+                || kind == "sq_writeback" || kind == "sq_complete"
+                || kind == "cache_fill" || kind == "cache_evict"
+                || kind == "cache_writeback")
+            return "L3";
+        if (kind == "taint_reg" || kind == "consumer"
+                || kind == "errant_commit")
+            return "L4";
+        return "";                  // unmapped -> checker rejects it loudly
+    }
+
+    uint64_t
+    CHAOSPropagation::emitLineageBridge(
+        const std::string &kind, uint64_t ptag, uint64_t dest_request,
+        uint64_t dest_event_id,
+        const std::map<std::string, std::string> &fields)
+    {
+        if (!write_log || !evt_gz_file || ptag == 0)
+            return 0;
+        const auto oit = ptag_owner_request.find(ptag);
+        if (oit == ptag_owner_request.end() || oit->second == dest_request)
+            return 0;
+        const uint64_t src_request = oit->second;
+        // A REAL, VERIFIABLE source event is mandatory: the last request-
+        // stamped event of the owner request (an un-stamped lifecycle event
+        // carries no identity and is never used as a pollution source).  With
+        // no such source there is NO bridge (never fabricated).
+        const auto sit = ptag_branch_src.find({ptag, src_request});
+        if (sit == ptag_branch_src.end() || sit->second.event_id == 0)
+            return 0;               // no source -> no bridge
+
+        // The SHARED propagation object: the registered corrupted byte range
+        // that BOTH requests really address.  Requiring both sides here (not
+        // only the destination) is what makes the bridge source-verifiable —
+        // and it is exactly what the chain checker re-checks offline.
+        auto addr_of = [&](const char *k) -> uint64_t {
+            const auto it = fields.find(k);
+            if (it == fields.end() || it->second.empty())
+                return 0;
+            return strtoull(it->second.c_str(), nullptr, 16);
+        };
+        LineageSrc dstsrc;
+        dstsrc.va = addr_of("va");
+        dstsrc.pa = addr_of("pa");
+        dstsrc.line = addr_of("cache_line");
+        const LineageSrc &src = sit->second;
+        Addr base = 0, size = 0;
+        const char *reason = nullptr;
+        for (const auto &kv : blk_registry) {
+            const BlkEntry &e = kv.second;
+            if (e.byte_end > e.byte_begin
+                    && dstsrc.touches(e.byte_begin, e.byte_end)
+                    && src.touches(e.byte_begin, e.byte_end)) {
+                base = e.byte_begin; size = e.byte_end - e.byte_begin;
+                reason = "addr_fallback_broadcast";
+                break;
+            }
+        }
+        if (!reason) {
+            for (const auto &kv : addr_registry) {
+                const AddrEntry &e = kv.second;
+                if (e.size && dstsrc.touches(e.base, e.base + e.size)
+                        && src.touches(e.base, e.base + e.size)) {
+                    base = e.base; size = e.size;
+                    reason = "request_handoff";
+                    break;
+                }
+            }
+        }
+        if (!reason)
+            return 0;               // no verifiable object -> no bridge
+
+        const uint64_t bridge_id = next_bridge_id++;
+        const std::string layer =
+            bridgeLayerOf(kind, run_id.empty() ? '\0' : run_id[0]);
+        std::map<std::string, std::string> b;
+        b["kind"] = "request_fork";
+        b["fault_id"] = std::to_string(ptag);
+        b["event_id"] = std::to_string(bridge_id);
+        b["parent_event_id"] = std::to_string(src.event_id);
+        b["tick"] = std::to_string(curTick());
+        b["cycle"] = clock_period ? std::to_string(curTick() / clock_period)
+                                  : std::string("0");
+        b["core_id"] = std::to_string(cpu ? cpu->cpuId() : 0);
+        if (!run_id.empty())
+            b["run_id"] = run_id;
+        if (!sample_run_id.empty())
+            b["sample_run_id"] = sample_run_id;
+        b["evidence_status"] = "observed";
+        // request_id follows the registry convention: the SOURCE (old)
+        // request — the bridge is the transition carrier, so the parent edge
+        // (source -> bridge) stays request-consistent while (bridge -> dest)
+        // is the single whitelisted transition.
+        b["request_id"] = std::to_string(src_request);
+        b["old_request_id"] = std::to_string(src_request);
+        b["new_request_id"] = std::to_string(dest_request);
+        b["source_event_id"] = std::to_string(src.event_id);
+        b["dest_event_id"] = std::to_string(dest_event_id);
+        const auto cit = fields.find("corr");
+        b["corr"] = cit == fields.end() ? "" : cit->second;
+        b["bridge_layer"] = layer;
+        b["bridge_reason"] = reason;
+        {
+            std::ostringstream sa, ss;
+            sa << std::hex << base;
+            ss << std::hex << size;
+            b["shared_addr"] = sa.str();
+            b["shared_size"] = ss.str();
+        }
+        writePropEvtRow(b);
+        ptag_bridge_event[{ptag, dest_request}] = bridge_id;
+        return bridge_id;
+    }
+
+    void
+    CHAOSPropagation::notePropEvt(
+        const std::string &kind,
+        const std::vector<std::pair<std::string, std::string>> &kv)
+    {
+        if (!write_log || !evt_gz_file)
+            return;
+        std::map<std::string, std::string> fields;
+        uint64_t ptag = 0;
+        for (const auto &pair : kv) {
+            bool known = false;
+            for (int i = 0; i < N_PROP_EVT_FIELDS; ++i) {
+                if (pair.first == PROP_EVT_FIELDS[i]) {
+                    known = true;
+                    break;
+                }
+            }
+            // [R6] family-extension keys (containment_layer/_reason) are
+            // legitimately emitted but live outside the shared registry.
+            for (int i = 0; !known && i < N_PROP_EVT_EXT_FIELDS; ++i) {
+                if (pair.first == PROP_EVT_EXT_FIELDS[i])
+                    known = true;
+            }
+            if (!known) {
+                if (!evt_unknown_key_warned) {
+                    warn("CHAOSPropagation: PROP-EVT unknown field '%s' "
+                         "(dropped; further drops are silent)\n",
+                         pair.first.c_str());
+                    evt_unknown_key_warned = true;
+                }
+                continue;
+            }
+            fields[pair.first] = pair.second;
+        }
+        const auto fp = fields.find("fault_id");
+        if (fp != fields.end() && !fp->second.empty())
+            ptag = strtoull(fp->second.c_str(), nullptr, 10);
+        emitPropEvt(kind, ptag, next_node_id++, std::move(fields), -1);
+    }
+
+    // ------------------------------------------------------------------ util
+
+    // [MDSPEC][R6-EMIT2/oracle] Hardware-detector stdout signal (see .hh).
+    void
+    CHAOSPropagation::emitDetectSignal(const char *layer, bool contained,
+                                       uint64_t ptag, const char *reason)
+    {
+        if (!write_log)
+            return;
+        // The four-value detection-layer vocabulary is
+        // Hardware RAS | OS | Application | None; "None" = nothing detected
+        // (an escape). Contained faults are detected by the hardware
+        // (Hardware RAS). stdout, not the gz stream: a crash/abort sample
+        // never reaches the exit callback, so the gz chain_end is absent —
+        // this line is the oracle's only detection input in that case.
+        std::cout << "CHAOS_DETECT: layer="
+                  << (layer && *layer ? layer : "None")
+                  << " contained=" << (contained ? 1 : 0)
+                  << " tick=" << curTick()
+                  << " ptag=" << ptag
+                  << " reason=" << (reason && *reason ? reason : "unknown")
+                  << std::endl;
     }
 
     void
@@ -169,7 +717,8 @@ namespace gem5
                                 Addr addr, bool has_addr,
                                 uint64_t phys_reg, bool has_phys,
                                 uint64_t arch_reg, bool has_arch,
-                                const std::string &detail)
+                                const std::string &detail, const char *corr,
+                                int tid)
     {
         if (!write_log || !gz_file)
             return;
@@ -195,6 +744,50 @@ namespace gem5
         // Crash durability (W2.1 contract): one flush per node — an aborted
         // run keeps every completed node readable (trailer-less prefix).
         gzflush(gz_file, Z_SYNC_FLUSH);
+
+        // PROP-EVT dual-emit (H0): same event in the unified sheet-11
+        // schema; event_id == this node_id (1:1 join with the v1 CSV row).
+        // Funnel rows are not propagation events — no dual-emit.
+        if (strcmp(kind, "funnel") != 0) {
+            std::map<std::string, std::string> f;
+            parseDetail(detail, f);
+            // [R4-4-review-I1] every dual-emitted event carries an explicit
+            // corr provenance marker (join arm, or a non-join marker saying
+            // HOW it belongs to the chain). nullptr = the caller forgot —
+            // warn once and emit corr= so the gap is visible, never silent.
+            if (!corr && !evt_corr_missing_warned) {
+                warn("CHAOSPropagation: writeNode kind '%s' dual-emitted "
+                     "without a corr label (corr= written; further "
+                     "occurrences are silent)\n", kind);
+                evt_corr_missing_warned = true;
+            }
+            f["corr"] = corr ? corr : "";
+            if (has_seq)
+                f["dyn_inst_seq"] = std::to_string(dyn_seq);
+            if (has_req_id)
+                f["request_id"] = std::to_string(request_id);
+            if (has_addr) {
+                std::ostringstream a;
+                a << std::hex << addr;
+                f["va"] = a.str();
+            }
+            if (has_phys)
+                f["phys_reg"] = std::to_string(phys_reg);
+            if (has_arch)
+                f["arch_reg"] = std::to_string(arch_reg);
+            // detail lifts: old_addr/new_addr → before/after; block_addr →
+            // cache_line; pc=/field= already land on their unified names.
+            const auto oa = f.find("old_addr");
+            if (oa != f.end())
+                f["before"] = oa->second;
+            const auto na = f.find("new_addr");
+            if (na != f.end())
+                f["after"] = na->second;
+            const auto ba = f.find("block_addr");
+            if (ba != f.end())
+                f["cache_line"] = ba->second;
+            emitPropEvt(kind, ptag, next_node_id, std::move(f), tid);
+        }
         ++next_node_id;
     }
 
@@ -219,7 +812,8 @@ namespace gem5
               << ";old_addr=" << std::hex << old_addr
               << ";new_addr=" << new_addr << std::dec;
             writeNode(ptag, "inj", dyn_seq, true, 0, false,
-                      old_addr, true, 0, false, 0, false, d.str());
+                      old_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
         }
         // addr_form node: the erroneous address (addr column = NEW addr).
         {
@@ -227,7 +821,8 @@ namespace gem5
             d << "site=" << site << ";old_addr=" << std::hex << old_addr
               << ";new_addr=" << new_addr << std::dec;
             writeNode(ptag, "addr_form", dyn_seq, true, 0, false,
-                      new_addr, true, 0, false, 0, false, d.str());
+                      new_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
         }
         // Addr registry: [new_addr, new_addr+size). size==0 (s11 lost-store
         // substitution) registers an address-only marker that never
@@ -258,7 +853,8 @@ namespace gem5
               << ";byte_offset=" << byte_offset
               << ";block_addr=" << std::hex << block_addr << std::dec;
             writeNode(ptag, "inj", 0, false, 0, false,
-                      block_addr, true, 0, false, 0, false, d.str());
+                      block_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
         }
         if (byte_offset >= 0) {
             // Single faulted byte (data faults).
@@ -284,6 +880,1057 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.1] C11 MSHR merge corruption (see .hh for the full
+    // contract). Address-only registration (the labeled addr_fallback arm):
+    // this site has no Request seq binding for the MSHR entry itself — the
+    // seq of the merging load belongs to the response side, which joins by
+    // packet-address overlap instead.
+    uint64_t
+    CHAOSPropagation::registerMshrMergeFault(Addr line, Addr old_addr,
+                                             Addr new_addr, unsigned size)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the corrupted target address; detail
+        // keys old_addr/new_addr/block_addr are lifted by the writeNode
+        // dual-emit into before/after/cache_line).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_merge"
+              << ";old_addr=" << std::hex << old_addr
+              << ";new_addr=" << new_addr
+              << ";size=" << std::dec << size
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      new_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // faulted-byte (blk) registry: the CORRUPTED target range. The
+        // fill's readout serves the block at the corrupted offset and the
+        // response returns on the corrupted address, so noteMemResponse's
+        // cache arm (pkt->getAddr()) fires there; the H4 mshr_merge event
+        // (correlateBlock on the corrupted address, same line) and the
+        // line-level mshr_fill/cache_fill/mshr_free events join by overlap.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = new_addr;
+            b.byte_end = new_addr + (size ? (Addr)size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.2] C12 fill-timing offset (see .hh for the full
+    // contract). Address-only registration (the labeled addr_fallback arm):
+    // the fill-response site has no Request seq binding — the delayed
+    // fill's consumers join by line overlap instead.
+    uint64_t
+    CHAOSPropagation::registerFillTimingFault(Addr line, Addr block_size,
+                                              Tick arrival_tick,
+                                              Tick deferred_tick,
+                                              uint64_t delay_cycles)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the deferred fill's line). before/after
+        // carry the faulted VALUE for this model — the fill's delivery
+        // tick before/after the offset (registered fields, so the pair is
+        // stream-visible on the dual-emit; delay_cycles stays in the
+        // detail for the v1 CSV node and is derivable as after-before).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_fill_timing"
+              << ";before=" << arrival_tick
+              << ";after=" << deferred_tick
+              << ";delay_cycles=" << delay_cycles
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // faulted-byte (blk) registry: the WHOLE fill line. The delayed
+        // mshr_fill/cache_fill/mshr_free events (correlateBlock on the
+        // line), cache_access on later lookups, and noteMemResponse's
+        // cache arm (the response delivery on this very line) all join by
+        // overlap — at the shifted tick, so the trace itself witnesses the
+        // offset (mshr_fill.tick - inj.tick = the delay + the normal fill
+        // pipeline latency).
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 (see .hh for the
+    // full contract). Address-only registration (the labeled addr_fallback
+    // arm): the release-point site has no Request seq binding — later
+    // events on the leaked entry's line join by overlap instead.
+    uint64_t
+    CHAOSPropagation::registerMshrBusyFault(Addr line, Addr block_size,
+                                            uint64_t occ_before,
+                                            uint64_t occ_after, bool was_full)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the leaked entry's line). before/after =
+        // the occupancy pair — this model's faulted VALUE: the in-service
+        // occupancy that the correct release would have left (before) vs.
+        // the occupancy with the release SKIPPED (after).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_busy_leak"
+              << ";before=" << occ_before
+              << ";after=" << occ_after
+              << ";was_full=" << (was_full ? 1 : 0)
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // model-specific mshr_busy node (the stuck occupied state itself).
+        // mshr_id: the propagator's line-keyed MSHR registry id for this
+        // entry — looked up, and minted when it did not exist yet (the
+        // fault is registered at the release point, which may precede any
+        // H4 mshr_alloc observation of this line). Deliberately NOT
+        // released here (no noteMshrFree): the leak is the point.
+        {
+            uint64_t mid = noteMshrLookup(line);
+            if (!mid)
+                mid = noteMshrAlloc(line);
+            std::ostringstream h;
+            h << std::hex << line;
+            notePropEvt("mshr_busy", {
+                {"fault_id", std::to_string(ptag)},
+                {"corr", CORR_ORIGIN},
+                {"mshr_id", std::to_string(mid)},
+                {"entry_index", std::to_string(mid)},
+                {"cache_line", h.str()},
+                {"field", "busy"},
+                {"state_before", "should_release"},
+                {"state_after", "stuck_busy"},
+            });
+        }
+        // faulted-byte (blk) registry: the WHOLE leaked line. Later events
+        // on that line (a re-miss' mshr_alloc/mshr_merge, cache_access, a
+        // response delivery) join by overlap — corr=addr_fallback.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration fake-free (see .hh
+    // for the full contract). Address-only registration (the labeled
+    // addr_fallback arm): the arbitration site has no Request seq binding —
+    // later events on the over-committed request's line join by overlap.
+    uint64_t
+    CHAOSPropagation::registerMshrArbFault(Addr line, Addr block_size,
+                                           uint64_t occ_before,
+                                           uint64_t occ_after,
+                                           bool materialized)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the over-committed request's line).
+        // before/after = the occupancy pair — this model's faulted VALUE:
+        // the in-service occupancy at the fire (before) vs. at the
+        // over-capacity allocation (after).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_occupancy"
+              << ";before=" << occ_before
+              << ";after=" << occ_after
+              << ";materialized=" << (materialized ? 1 : 0)
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // model-specific mshr_arb node (the arbitration observation: the
+        // arbitration genuinely ALLOWED an allocation beyond capacity).
+        {
+            std::ostringstream h;
+            h << std::hex << line;
+            notePropEvt("mshr_arb", {
+                {"fault_id", std::to_string(ptag)},
+                {"corr", CORR_ORIGIN},
+                {"mshr_id", std::to_string(noteMshrAlloc(line))},
+                {"entry_index", std::to_string(occ_after)},
+                {"cache_line", h.str()},
+                {"field", "capacity"},
+                {"state_before", "full_blocked"},
+                {"state_after", "over_commit_alloc"},
+            });
+        }
+        // faulted-byte (blk) registry: the over-committed request's line.
+        // Later events on that line (cache_access, mshr_merge/fill/free,
+        // the response delivery) join by overlap — corr=addr_fallback.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
+    // (see .hh for the full contract). Address-only registration (the
+    // labeled addr_fallback arm): the fill-classification site has no
+    // Request seq binding — the marked line's later consumers join by
+    // line overlap instead.
+    uint64_t
+    CHAOSPropagation::registerPfFillClassFault(Addr line, Addr block_size)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the marked line). before/after carry
+        // the faulted VALUE for this model — the fill's demand/prefetch
+        // classification before/after the marking (registered fields, so
+        // the pair is stream-visible on the dual-emit; the string values
+        // are the third per-model value type after C12's tick pair and
+        // L04's seq pair — read them together with field=pf_fill_class).
+        {
+            std::ostringstream d;
+            d << "family=prefetch;field=pf_fill_class"
+              << ";before=prefetch"
+              << ";after=demand"
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // faulted-byte (blk) registry: the WHOLE marked line. cache_access
+        // on later lookups, cache_fill/mshr_fill/mshr_free on refetches,
+        // cache_evict on eviction, and noteMemResponse's cache arm (a
+        // demand load served on this line -> resp/lq_complete/taint_reg)
+        // all join by overlap, each carrying corr=addr_fallback (the
+        // labeled over-approximation: a correct response on the same
+        // line also joins — C11 §5.1.6 precedent; the oracle adjudicates).
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
+
+    // [MDSPEC][R4-5.8] A07-b AGU-ready delay (see .hh for the full
+    // contract — the late-binding design and why NO registry entry is
+    // made here). inj node only; the address binding arrives with the
+    // delayed instruction's EA at LSQ::pushRequest (bindAguFaultAddr).
+    uint64_t
+    CHAOSPropagation::registerAguReadyFault(uint64_t dyn_seq,
+                                            long long lq_idx,
+                                            long long sq_idx,
+                                            Tick ready_tick,
+                                            Tick delayed_tick,
+                                            uint64_t delay_cycles,
+                                            bool is_load, Addr pc)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (dyn_seq = the delayed instruction — the fault IS its
+        // ready timing). before/after carry the faulted VALUE for this
+        // model: the ready tick before/after the bounded delay (the C12
+        // delivery-tick precedent; value type is per-model, documented at
+        // the registration point and lifted by the writeNode dual-emit).
+        // delay_cycles / lq_idx / sq_idx / pc stay in the v1 detail.
+        {
+            std::ostringstream d;
+            d << "family=addrpath;field=agu_ready_delay"
+              << ";before=" << ready_tick
+              << ";after=" << delayed_tick
+              << ";delay_cycles=" << delay_cycles
+              << ";is_load=" << (is_load ? 1 : 0)
+              << ";lq_idx=" << lq_idx
+              << ";sq_idx=" << sq_idx
+              << ";pc=0x" << std::hex << pc << std::dec;
+            writeNode(ptag, "inj", dyn_seq, true,
+                      0, false, 0, false, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // NO registry entry: the EA does not exist at the ready point.
+        // bindAguFaultAddr (called from the pushRequest PRE hook at the
+        // delayed tick) binds the chain to the real address range.
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.8] A07 late address binding: attach the ptag from
+    // registerAguReadyFault to [addr, addr+size) bound to dyn_seq (the
+    // seq-primary arm — same entry shape as registerLSQForwardFault's
+    // PRIMARY, but the range is the DELAYED instruction's own access:
+    // only its requests/events match, never another instruction's).
+    void
+    CHAOSPropagation::bindAguFaultAddr(uint64_t ptag, uint64_t dyn_seq,
+                                       Addr addr, unsigned size)
+    {
+        if (!write_log || ptag == 0 || dyn_seq == 0)
+            return;
+        sweepExpired();
+        AddrEntry e;
+        e.ptag = ptag;
+        e.dyn_seq = dyn_seq;
+        e.base = addr;
+        e.size = size ? size : 1;
+        e.registered = curTick();
+        addr_registry[addr] = e;
+    }
+
+    // [MDSPEC][R4-1] SQ store->load forwarding fault (seq-primary).
+    uint64_t
+    CHAOSPropagation::registerLSQForwardFault(
+        uint64_t store_seq, long long sq_idx, uint64_t store_req_id,
+        uint64_t load_seq, long long lq_idx, uint64_t load_req_id,
+        Addr vaddr, Addr size, const char *field)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        const Addr span = size ? size : 1;
+
+        // inj node: the consuming load's seq (the instruction whose
+        // architectural state receives the corrupted data) + both sides'
+        // keys in the detail for the v1 CSV.
+        {
+            std::ostringstream d;
+            d << "family=lsqfwd;field=" << field
+              << ";store_dyn_inst_seq=" << store_seq
+              << ";sq_idx=" << sq_idx
+              << ";store_request_id=" << store_req_id
+              << ";load_dyn_inst_seq=" << load_seq
+              << ";lq_idx=" << lq_idx
+              << ";load_request_id=" << load_req_id
+              << ";fwd_addr=" << std::hex << vaddr << std::dec;
+            writeNode(ptag, "inj", load_seq, true,
+                      load_req_id, load_req_id != 0,
+                      vaddr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+
+        // PRIMARY: addr-registry entry bound to the producer store's
+        // dyn_inst_seq. The store is definitionally still in the SQ at
+        // forward time (the scan window ends at storeWBIt), so its
+        // sq_writeback / sq_complete fire AFTER this registration and join
+        // the chain by seq (correlateRequestBySeq).
+        if (store_seq) {
+            sweepExpired();
+            AddrEntry e;
+            e.ptag = ptag;
+            e.dyn_seq = store_seq;
+            e.base = vaddr;
+            e.size = span;
+            e.registered = curTick();
+            addr_registry[vaddr] = e;
+        }
+
+        // FALLBACK (labeled, address-only): the forwarded byte range in
+        // the faulted-byte registry for seq-less sites (correlateBlock /
+        // noteMemResponse's cache branch). Same registration the pre-R4
+        // registerCacheFault path made — now explicitly secondary.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = vaddr;
+            b.byte_end = vaddr + span;
+            b.registered = curTick();
+            blk_registry[vaddr] = b;
+        }
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.3] L04-b response-pairing target exchange (see .hh for
+    // the ruling and the exchanged-pairing-table correlation design).
+    uint64_t
+    CHAOSPropagation::registerRespPairFault(
+        uint64_t src_seq, long long src_lq_idx, uint64_t src_req_id,
+        Addr src_va, unsigned src_size,
+        uint64_t tgt_seq, long long tgt_lq_idx, uint64_t tgt_req_id,
+        Addr tgt_va, unsigned tgt_size)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        const Addr src_span = src_size ? src_size : 1;
+        const Addr tgt_span = tgt_size ? tgt_size : 1;
+
+        // inj node (v1 CSV + dual-emit): dyn_inst_seq = the TARGET load (the
+        // wrong consumer whose writeback materializes the fault — its
+        // resp/lq_complete/taint_reg share this seq, so the L0->L1 edge
+        // witness keys fault_id+dyn_inst_seq match); addr = the response's
+        // own vaddr; before/after = the pairing mapping (source seq ->
+        // target seq — the faulted VALUE of this model; value type is
+        // per-model, interpreted with `field`, C12 tick-pair precedent).
+        {
+            std::ostringstream d;
+            d << "family=lsqfwd;field=resp_pairing"
+              << ";source_dyn_inst_seq=" << src_seq
+              << ";source_lq_idx=" << src_lq_idx
+              << ";source_request_id=" << src_req_id
+              << ";source_va=" << std::hex << src_va
+              << ";target_dyn_inst_seq=" << tgt_seq
+              << ";target_lq_idx=" << tgt_lq_idx
+              << ";target_request_id=" << tgt_req_id
+              << ";target_va=" << tgt_va << std::dec
+              << ";old_addr=" << src_seq      // lifted -> before
+              << ";new_addr=" << tgt_seq;     // lifted -> after
+            writeNode(ptag, "inj", tgt_seq, true,
+                      tgt_req_id, tgt_req_id != 0,
+                      src_va, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+
+        // PRIMARY (seq-bound), the exchanged pairing table. Entry 1:
+        // [src_va, +src_span) -> tgt_seq — half 1 joins here (the packet
+        // IS src's response, noteMemResponse's inst is the target).
+        {
+            sweepExpired();
+            AddrEntry e;
+            e.ptag = ptag;
+            e.dyn_seq = tgt_seq;
+            e.base = src_va;
+            e.size = src_span;
+            e.registered = curTick();
+            addr_registry[src_va] = e;
+        }
+        // Entry 2: [tgt_va, +tgt_span) -> src_seq — half 2 joins here (the
+        // packet is tgt's response, inst is the source). Skipped on
+        // address collision (one map key; the half-1 binding wins and half
+        // 2 keeps no seq-bound surface — honest gap, see .hh).
+        if (tgt_va != src_va) {
+            sweepExpired();
+            AddrEntry e2;
+            e2.ptag = ptag;
+            e2.dyn_seq = src_seq;
+            e2.base = tgt_va;
+            e2.size = tgt_span;
+            e2.registered = curTick();
+            addr_registry[tgt_va] = e2;
+        }
+        // NO blk-registry (address-only) fallback by design — L04's joins
+        // are seq-bound only (the 09 sheet forbids address single-key
+        // chains; stricter than the labeled-fallback minimum).
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.7] S10-a StoreSet SSIT-ID 换值 (see .hh for the ruling:
+    // inj node only, no correlate surface — PC-keyed predictor state).
+    uint64_t
+    CHAOSPropagation::registerStoreSetFault(Addr store_pc, Addr load_pc,
+                                            uint64_t true_ssid,
+                                            uint64_t new_ssid,
+                                            size_t candidate_count)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (v1 CSV + dual-emit): no seq, no addr — the faulted
+        // structure is the PC-indexed SSIT mapping. pc lifts to the
+        // unified pc field (the corrupted LOAD's PC — the chain's key);
+        // before/after = the faulted VALUE of this model, the SSID
+        // assignment (true -> substituted; both legal live store-set IDs,
+        // workbook 07 实施细则). store_pc and the candidate-set size stay
+        // in the detail (the workbook's "保存 source/target 及候选集合").
+        {
+            std::ostringstream d;
+            d << "family=lsqfwd;field=ssid"
+              << ";pc=" << std::hex << load_pc << std::dec
+              << ";store_pc=" << std::hex << store_pc << std::dec
+              << ";ssid_candidates=" << candidate_count
+              << ";old_addr=" << true_ssid      // lifted -> before
+              << ";new_addr=" << new_ssid;      // lifted -> after
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      0, false, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // NO addr/seq registry registration by design (see .hh): the
+        // downstream chain members (ssit_consult / ssit_violation) are the
+        // injector's own PC-keyed emissions, pf_train precedent.
+        return ptag;
+    }
+
+    // [MDSPEC][R4-4] ArmTLB pfn fault (seq-primary; see .hh for the ruling
+    // and the measured pre-R4-4 mis-association this replaces).
+    uint64_t
+    CHAOSPropagation::registerTlbFault(uint64_t req_seq, Addr va, Addr size,
+                                       Addr old_pfn, Addr new_pfn,
+                                       Addr old_pa, Addr new_pa,
+                                       Addr pa_span, const char *mode,
+                                       int entry_way, int candidate_way,
+                                       uint64_t walk_id,
+                                       const std::string &entry_before,
+                                       const std::string &entry_after)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        const Addr span = size ? size : 1;
+        // pa_span = the entry's page size (entry->size + 1 at the site);
+        // pa_mask = its page mask. Fall back to 4 KiB when 0 (defensive —
+        // the site always passes entry->size + 1, which is >= 0x1000).
+        const Addr pa_span_eff = pa_span ? pa_span : (Addr)0x1000;
+        const Addr pa_mask = pa_span_eff - 1;
+        const Addr old_page = old_pa & ~pa_mask;
+        const Addr new_page = new_pa & ~pa_mask;
+        const bool pa_changed = new_page != old_page;
+
+        // inj node (v1 CSV): the L0 injection. addr column = the VA whose
+        // translation consumed the corrupted entry; seq columns carry the
+        // in-flight request's identity ("" when unstamped).
+        {
+            std::ostringstream d;
+            // [R6-C/GAP-1] The L0 node must say WHAT the injection changed,
+            // not only name it. The faulted VALUE of the pfn model is the
+            // pfn pair, and the unified emitter's documented lift is
+            // old_addr/new_addr -> before/after (registerStoreSetFault /
+            // registerInjection convention). Measured before this fix:
+            //   kind=inj ... field=pfn_to_mapped_page before= after=
+            // — an L0 that cannot say before/after is not evidence that an
+            // injection happened. The pfn hex pair now rides BOTH the native
+            // old_pfn/new_pfn keys and the lifted old_addr/new_addr keys.
+            d << "family=tlb;field=" << mode
+              << ";req_seq=" << req_seq
+              << ";old_pfn=" << std::hex << old_pfn
+              << ";new_pfn=" << new_pfn
+              << ";old_addr=" << old_pfn
+              << ";new_addr=" << new_pfn
+              << ";old_pa=" << old_pa
+              << ";new_pa=" << new_pa
+              << ";pa_span=" << pa_span_eff
+              << ";pa_changed=" << (pa_changed ? 1 : 0) << std::dec;
+            writeNode(ptag, "inj", req_seq, req_seq != 0,
+                      req_seq, req_seq != 0, va, true, 0, false, 0, false,
+                      d.str(), CORR_ORIGIN);
+        }
+
+        // [MDSPEC][R6-FIXCPP/A] Admission is gated by the REAL physical
+        // redirect verdict (chaos_chain::tlbRegistrationArms — the single
+        // source of truth shared with tests/chaos_tlb_chain_containment_test.cc).
+        // Pre-fix defect (measured T01-F0-W4/seed1): the seq arm opened for
+        // EVERY req_seq != 0, so a fault whose corrupted pfn never redirected
+        // the PA — pfn bit 56 wraps out of the 64-bit Addr, effective PA
+        // unchanged, pa_changed == 0 — still captured the SAME request's later
+        // CLEAN events (sq_execute/sq_writeback/resp/taint_reg) and the chain
+        // simultaneously asserted "L2 contained" and "propagated to L4" (the
+        // checker correctly rejected that shape with time_reversed_edge).
+        // A translation that is not redirected has nothing downstream to
+        // attribute: NO arm opens and the chain stops at the TLB layer.
+        const chaos_chain::Arms arms =
+            chaos_chain::tlbRegistrationArms(req_seq, pa_changed);
+
+        // PRIMARY (seq-bound): the request whose translation consumed the
+        // corrupted entry — its later seq-keyed events join by seq.
+        if (arms.seq_primary) {
+            sweepExpired();
+            AddrEntry e;
+            e.ptag = ptag;
+            e.dyn_seq = req_seq;
+            e.base = va;
+            e.size = span;
+            e.registered = curTick();
+            addr_registry[va] = e;
+        }
+
+        // FALLBACK (labeled, address-only): the WRONG physical page, only
+        // when the corrupted pfn actually redirects the PA. No VA-page
+        // registration anymore (that was the pre-R4-4 mis-association
+        // source: every later same-VA request joined regardless of seq).
+        if (arms.addr_fallback) {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = new_page;
+            b.byte_end = new_page + pa_span_eff;
+            b.registered = curTick();
+            blk_registry[new_page] = b;
+        }
+
+        // corr label: which arm downstream events join this chain by.
+        //   seq_primary  — the seq-bound primary arm is registered
+        //   addr_fallback — only the PA-page fallback exists (req_seq==0)
+        //   ""           — no correlation surface at all. Two honest cases:
+        //                  (a) req_seq==0 AND the PA page unchanged (the
+        //                  pre-R6 contract); (b) [R6-FIXCPP/A] a Request
+        //                  identity exists but the effective PA did NOT
+        //                  change — the translation the MMU performs is the
+        //                  CLEAN one, so there is no downstream event of THIS
+        //                  fault to attribute. L1/L2 carry an empty corr
+        //                  instead of a fabricated seq_primary, and the chain
+        //                  honestly stops at the TLB layer (containment).
+        const char *corr = arms.seq_primary ? CORR_SEQ_PRIMARY
+                        : arms.addr_fallback ? CORR_ADDR_FALLBACK
+                        : nullptr;
+
+        // T-series L1: the faulted request has completed TLB lookup. The
+        // snapshot preserves the selected entry's identity and every field
+        // needed to explain why the translation did (or did not) change.
+        // notePropEvt links parent_event_id through this ptag.
+        std::ostringstream h_va, h_pfn_old, h_pfn_new, h_pa_old, h_pa_new;
+        h_va << std::hex << va;
+        h_pfn_old << std::hex << old_pfn;
+        h_pfn_new << std::hex << new_pfn;
+        h_pa_old << std::hex << old_pa;
+        h_pa_new << std::hex << new_pa;
+        notePropEvt("tlb_lookup", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", corr ? corr : ""},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"entry_index", std::to_string(entry_way)},
+            {"way", std::to_string(candidate_way)},
+            {"field", "post_lookup"},
+            {"before", h_pfn_old.str()},
+            {"after", h_pfn_new.str()},
+            {"state_before", entry_before},
+            {"state_after", entry_after},
+        });
+
+        // Do not guess the post-translation outcome here: permission and
+        // alignment checks run later in MMU::translateMmuOn. Keep the lookup
+        // evidence until that completion point reports the actual PA/Fault.
+        tlb_pending[{req_seq, va}] = TlbPending{
+            ptag, corr ? corr : "", walk_id, entry_way, candidate_way,
+            old_pa, new_pa, entry_before, entry_after};
+
+        // Unified L2 event (tlb_pfn): full pfn/pa old-new state. Address
+        // fields are bare lowercase hex (registry convention); pfn values
+        // hex; dyn_inst_seq/request_id "0" = unstamped (lsq_sendfrag
+        // convention).
+        notePropEvt("tlb_pfn", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", corr ? corr : ""},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"va", h_va.str()},
+            {"pa", h_pa_new.str()},
+            {"before", h_pfn_old.str()},
+            {"after", h_pfn_new.str()},
+            {"field", mode},
+            {"state_before", h_pa_old.str()},
+            {"state_after", h_pa_new.str()},
+        });
+        return ptag;
+    }
+
+    // [MDSPEC][R6-FIXCPP/A] Drop every correlation arm of `ptag` from both
+    // registries. Called when a chain's translation completes CONTAINED
+    // (effective PA unchanged / refused / lost walk) so the chain has no
+    // residual mapping a later, unrelated event could join — the chain's
+    // terminal state is "absorbed at the TLB layer", and a chain that is
+    // closed must not also be reachable from live traffic (the exact
+    // contradiction R6-FIXCPP/A removes at registration time, here closed
+    // for the in-flight case). Idempotent: revoking no arms is a no-op.
+    void
+    CHAOSPropagation::revokeChainArms(uint64_t ptag)
+    {
+        if (ptag == 0)
+            return;
+        for (auto it = addr_registry.begin(); it != addr_registry.end(); ) {
+            if (it->second.ptag == ptag)
+                it = addr_registry.erase(it);
+            else
+                ++it;
+        }
+        for (auto it = blk_registry.begin(); it != blk_registry.end(); ) {
+            if (it->second.ptag == ptag)
+                it = blk_registry.erase(it);
+            else
+                ++it;
+        }
+    }
+
+    void
+    CHAOSPropagation::noteTlbTranslationResult(uint64_t req_seq, Addr va,
+                                               bool has_pa, Addr pa,
+                                               const char *fault)
+    {
+        if (!write_log)
+            return;
+        auto it = tlb_pending.find({req_seq, va});
+        if (it == tlb_pending.end())
+            return;
+        const TlbPending pending = it->second;
+        tlb_pending.erase(it); // exactly one completion per injected lookup
+
+        const std::string fault_name = fault ? fault : "NoFault";
+        const bool translation_blocked = fault_name != "NoFault";
+        // A walk-family fault corrupts the walk handshake, not the entry's
+        // pfn, so there is no clean-PA baseline to compare against. Report
+        // the real PA/fault honestly, but never claim containment for a
+        // completed walk on the strength of an unknown baseline.
+        const bool pa_unchanged = has_pa && pa == pending.clean_pa;
+        // [MDSPEC][R6-FIXCPP/A] the verdict itself is the shared decision
+        // function (chaos_chain::translationContained), so the containment
+        // rule the unit test pins is the rule that runs here.
+        const bool contained = chaos_chain::translationContained(
+            translation_blocked, pending.walk_fault, has_pa, pa_unchanged);
+        std::ostringstream h_va, h_before, h_after;
+        h_va << std::hex << va;
+        // The walk family has no clean-PA baseline (the corrupted object is
+        // the walk handshake, not an entry pfn). Leave the baseline EMPTY
+        // rather than printing a fabricated 0 that would read as a real PA.
+        if (!pending.walk_fault)
+            h_before << std::hex << pending.clean_pa;
+        if (has_pa)
+            h_after << std::hex << pa;
+
+        // [R6-A] The fault name rides `outcome` (the tlb_fault convention)
+        // and the outcome reason rides `field`. Both are registry fields;
+        // notePropEvt DROPS any key outside the emittable registry, so a
+        // bespoke `fault=`/`detail=` key would be silently lost from the
+        // stream (measured: the L2 Fault and the reason were invisible to
+        // the pilot's chain checker before this fix).
+        const char *field_reason = translation_blocked
+            ? "translation_blocked"
+            : pending.walk_fault ? "walk_result_reported"
+            : pa_unchanged ? "effective_pa_unchanged"
+                           : "effective_pa_changed";
+
+        // [R6] A contained translation is the Masked case: the injected
+        // fault was absorbed (effective PA unchanged), refused
+        // (permission/alignment fault) or its walk never arrived. Record
+        // WHERE (L2) and WHY explicitly, and remember it per chain so the
+        // terminus can justify every later layer as N/A(contained) instead
+        // of leaving the chain at an unresolvable terminal state.
+        const char *reason = contained ? field_reason : "";
+        if (contained) {
+            containment_ptags[pending.ptag] = {"L2", reason};
+            // [MDSPEC][R6-FIXCPP/A] Containment REVOCATION. Whatever
+            // correlation arm this chain opened at registration is dropped
+            // now: its terminal state is "absorbed at L2", so a residual
+            // mapping would let a LATER event join a chain that is already
+            // closed — the same "contained AND propagated" contradiction the
+            // registration gate closes, merely relocated in time. This is
+            // unconditional (idempotent: revoking no arm is a no-op) and it
+            // covers the blocked-translation case (permission/alignment
+            // fault) as well as the unchanged-PA case, including the labeled
+            // addr_fallback page arm a seq-less lookup may have opened.
+            revokeChainArms(pending.ptag);
+            // [MDSPEC][R6-EMIT2/oracle] the translation absorbed the fault
+            // (effective PA unchanged / refused / lost walk): hardware
+            // detection + containment → stdout signal.
+            emitDetectSignal("Hardware RAS", true, pending.ptag,
+                             reason && *reason ? reason : field_reason);
+        }
+
+        // [R6-FIXCORR 2026-10-25] A CONTAINED translation is the chain's real
+        // terminus. When the effective PA did not change, registerTlbFault
+        // deliberately opens no correlation arm (comment block above: "the
+        // chain honestly stops at the TLB layer (containment)"), so
+        // pending.corr is empty — and the terminus inherited that emptiness.
+        // The chain checker accepts explicit containment only from a REAL
+        // detection event (chaos::chain::_explicit_l5: non-lifecycle kind +
+        // detection_layer + outcome + a chain-correlation `corr`), so a
+        // legitimate L2 containment could never be certified.
+        //
+        // The event already belongs to the original injection through its
+        // real parent_event_id ancestry (notePropEvt links it through ptag);
+        // labelling it `origin` states exactly that and invents nothing:
+        //  * no registry arm is re-opened (revokeChainArms above already
+        //    dropped every arm for this ptag);
+        //  * no later L3/L4/L5 event can join (there is no open arm to join);
+        //  * chain_end keeps corr=none and still cannot serve as the terminus.
+        // Non-contained events keep whatever corr they had (empty stays
+        // empty) — only the containment terminus is labelled.
+        const char *evt_corr = (contained && pending.corr.empty())
+            ? CORR_ORIGIN : pending.corr.c_str();
+
+        notePropEvt("tlb_translate_result", {
+            {"fault_id", std::to_string(pending.ptag)},
+            {"corr", evt_corr},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"walk_id", std::to_string(pending.walk_id)},
+            {"va", h_va.str()},
+            {"pa", h_after.str()},
+            {"entry_index", std::to_string(pending.entry_way)},
+            {"way", std::to_string(pending.candidate_way)},
+            {"field", field_reason},
+            {"before", h_before.str()},
+            {"after", h_after.str()},
+            {"state_before", pending.entry_before},
+            {"state_after", pending.entry_after},
+            {"outcome", fault_name},
+            {"detection_layer", contained ? "L2" : ""},
+            {"contained", contained ? "1" : "0"},
+            {"containment_layer", contained ? "L2" : ""},
+            {"containment_reason", reason},
+        });
+    }
+
+    // [MDSPEC][R4-5.9] T08 walk/fill pairing. Two PROP-EVT nodes for ONE
+    // [MDSPEC][R4-10-T05/T06/T07] TLB entry-state / attribute fault. One L0
+    // `inj` anchor + one L2 `tlb_state` node. The pfn/PA are not the fault
+    // surface here (the mutated field is valid/global/asid/ap/mtype/page-size),
+    // so the node carries field + state_before/state_after text instead of the
+    // tlb_pfn before/after-pfn payload. corr = seq_primary when the in-flight
+    // request is published (the request's later seq-keyed events join by seq);
+    // else "" — no correlation surface, the chain honestly stops here (mirrors
+    // registerTlbFault's no-surface arm; NO PA-page fallback is invented
+    // because this fault does not change the PA).
+    uint64_t
+    CHAOSPropagation::registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
+                                            const char *field,
+                                            const std::string &before,
+                                            const std::string &after,
+                                            Addr old_pa, Addr new_pa,
+                                            int entry_way, int candidate_way,
+                                            uint64_t walk_id,
+                                            const std::string &entry_before,
+                                            const std::string &entry_after)
+    {
+        if (!write_log)
+            return 0;
+        (void)size;
+        const uint64_t ptag = ++next_ptag;
+
+        std::ostringstream d_inj;
+        d_inj << "family=tlb;field=" << field << ";req_seq=" << req_seq
+              << ";state_before=" << before << ";state_after=" << after;
+        notePropEvt("inj", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"field", field},
+            // [R6-C/GAP-1] L0 must record WHAT changed, not only what was
+            // injected. The faulted VALUE of the T05/T06/T07 state model is
+            // the mutated entry field: `before`/`after` are that field's
+            // text before/after the mutation (the injector computed them at
+            // the site). Measured before this fix: before= after=.
+            {"before", before},
+            {"after", after},
+            {"evidence_status", "observed"},
+            {"detail", d_inj.str()},
+        });
+
+        std::ostringstream h_va;
+        h_va << std::hex << va;
+        const char *corr = req_seq ? CORR_SEQ_PRIMARY : "";
+        notePropEvt("tlb_lookup", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", corr},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"entry_index", std::to_string(entry_way)},
+            {"way", std::to_string(candidate_way)},
+            {"field", "post_lookup"},
+            {"before", before},
+            {"after", after},
+            {"state_before", entry_before},
+            {"state_after", entry_after},
+        });
+        notePropEvt("tlb_state", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", corr},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"va", h_va.str()},
+            {"field", field},
+            {"state_before", before},
+            {"state_after", after},
+        });
+        tlb_pending[{req_seq, va}] = TlbPending{
+            ptag, corr, walk_id, entry_way, candidate_way,
+            old_pa, new_pa, entry_before, entry_after};
+        return ptag;
+    }
+
+    // walk, sharing walk_id (the pairing key) and ptag (the chain binding):
+    //   tlb_walk   — tick = the walk's ISSUE tick (walker entry)
+    //   tlb_refill — tick = the refill completion tick; field=lost and
+    //                outcome=lost when the refill never arrived (T08-a)
+    // The walk_id equality + the two distinct ticks are the pairing
+    // evidence; a lost refill is recorded explicitly, never fabricated.
+    uint64_t
+    CHAOSPropagation::registerTlbWalkPair(uint64_t walk_id, Addr va,
+                                          uint64_t req_seq,
+                                          uint64_t walk_start_tick,
+                                          uint64_t refill_tick,
+                                          unsigned level, bool fill_lost,
+                                          const char *mode)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        std::ostringstream h_va;
+        h_va << std::hex << va;
+
+        // [R4-6-T08] L0 anchor for the walk-issue model. The T08 drop IS an
+        // injection performed at the page-table walk-issue decision point, so
+        // the stream must carry its L0 node. Without it the local chain has no
+        // L0 event at all and the chain checker can only report
+        // no_l0_fault_applied even though tlb_walk/tlb_refill are in the
+        // stream (measured on the R4-6 T08-F0-W9 pilot). Emitted first so the
+        // event order is inj -> tlb_walk -> tlb_refill; part of the same
+        // fault_id/ptag, so existing joins are unaffected.
+        std::ostringstream d_inj;
+        d_inj << "family=tlb;site=arm_tlb_walk_issue_drop;field=" << mode
+              << ";walk_id=" << walk_id << ";level=L" << level
+              << ";req_seq=" << req_seq;
+        notePropEvt("inj", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"field", mode},
+            // [R6-C/GAP-1] L0 before/after for the walk-issue model: the
+            // faulted VALUE is the walk handshake itself — the correct
+            // machine issues the walk (before=walk_issued), the corrupted
+            // handshake is named by the injector's own mode (after=<mode>,
+            // e.g. walk_fill_dup / walk_done_early / walk_stale_result).
+            // Measured before this fix: before= after=.
+            {"before", "walk_issued"},
+            {"after", mode},
+            {"evidence_status", "observed"},
+            {"detail", d_inj.str()},
+        });
+
+        // The walk family starts from a real post-lookup miss. There is no
+        // selected entry/way yet, so preserve that absence explicitly.
+        notePropEvt("tlb_lookup", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"entry_index", "-1"},
+            {"way", "-1"},
+            {"field", "post_lookup"},
+            {"state_before", "entry=miss"},
+            {"state_after", "entry=miss"},
+            {"outcome", "miss"},
+        });
+
+        std::ostringstream d_walk;
+        d_walk << "family=tlb;site=tlb_walk;walk_id=" << walk_id
+               << ";level=L" << level << ";start_tick=" << walk_start_tick
+               << ";req_seq=" << req_seq;
+        notePropEvt("tlb_walk", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"tick", std::to_string(walk_start_tick)},
+            {"field", mode},
+        });
+
+        // The refill node. field=lost marks the T08-a lost-refill outcome
+        // (the refill that never arrived) so downstream joins can prove the
+        // walk was unpaired rather than silently absent. [R4-10] the T08-b/c/d
+        // sub-models label their outcome explicitly (duplicated / early_done /
+        // stale) instead of a bare "refilled", so the pairing is self-describing.
+        const std::string mode_s(mode);
+        const char *refill_outcome =
+            fill_lost ? "lost"
+                      : (mode_s == "walk_fill_dup" ? "duplicated"
+                         : mode_s == "walk_done_early" ? "early_done"
+                         : mode_s == "walk_stale_result" ? "stale"
+                                                         : "refilled");
+        const char *refill_field = fill_lost ? "lost" : mode;
+        std::ostringstream d_refill;
+        d_refill << "family=tlb;site=tlb_refill;walk_id=" << walk_id
+                 << ";level=L" << level
+                 << ";outcome=" << refill_outcome
+                 << ";refill_tick=" << refill_tick
+                 << ";req_seq=" << req_seq;
+        notePropEvt("tlb_refill", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"field", refill_field},
+            {"outcome", refill_outcome},
+            {"tick", std::to_string(refill_tick)},
+        });
+        if (fill_lost) {
+            // No MMU completion callback can occur after the walk is dropped;
+            // close the DAG here with an observed translation block. The
+            // reason rides `field` and the outcome rides `outcome` (both
+            // registry fields) — a bespoke detail=/fault= key would be
+            // dropped by notePropEvt before it ever reached the stream.
+            notePropEvt("tlb_translate_result", {
+                {"fault_id", std::to_string(ptag)},
+                {"corr", CORR_ORIGIN},
+                {"walk_id", std::to_string(walk_id)},
+                {"va", h_va.str()},
+                {"dyn_inst_seq", std::to_string(req_seq)},
+                {"request_id", std::to_string(req_seq)},
+                {"entry_index", "-1"},
+                {"way", "-1"},
+                {"field", "walk_refill_lost"},
+                {"pa", ""},
+                // No entry was ever selected and no PA was materialised: the
+                // payload carries the honest empty baseline (same shape as
+                // the MMU-completion L2 node) instead of omitting the keys.
+                {"before", ""},
+                {"after", ""},
+                {"state_before", "entry=miss"},
+                {"state_after", "entry=miss"},
+                {"outcome", "translation_blocked"},
+                {"detection_layer", "L2"},
+                {"contained", "1"},
+            });
+        } else {
+            // [R6-B/T08-bcd] The walk completed (duplicated / done-early /
+            // stale result): the requesting translation still completes in
+            // the MMU, so register the pending lookup exactly like the
+            // pfn/state faults. The real L2 node (effective PA + Fault) is
+            // then emitted by noteTlbTranslationResult at that completion.
+            // Without this, the T08-b/c/d chain had no real-PA L2 node.
+            tlb_pending[{req_seq, va}] = TlbPending{
+                ptag, CORR_ORIGIN, walk_id, -1, -1, 0, 0,
+                "entry=miss", "entry=miss", /*walk_fault=*/true};
+        }
+        return ptag;
+    }
+
     void
     CHAOSPropagation::noteFunnel(const char *site, uint64_t attempted,
                                  uint64_t eligible, uint64_t injected)
@@ -300,12 +1947,198 @@ namespace gem5
 
     // ------------------------------------------------------------ pipeline
 
+    uint64_t
+    CHAOSPropagation::correlateRequest(uint64_t dyn_seq, Addr addr,
+                                       Addr size, const char **corr_out)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr a_end = addr + size;
+        // addrpath registry: range overlap + dyn-inst binding (same
+        // semantics as noteMemRequest's stamped path). Seq-bound arm.
+        for (const auto &kv : addr_registry) {
+            const AddrEntry &e = kv.second;
+            if (e.size == 0)
+                continue;
+            if (addr < e.base + e.size && e.base < a_end
+                    && e.dyn_seq == dyn_seq) {
+                if (corr_out)
+                    *corr_out = CORR_SEQ_PRIMARY;
+                return e.ptag;
+            }
+        }
+        // cache faulted-byte registry: range overlap (SE vaddr==paddr).
+        // Address-only arm: the labeled fallback ([R4-1-review-I1]).
+        for (const auto &kv : blk_registry) {
+            const BlkEntry &e = kv.second;
+            if (addr < e.byte_end && e.byte_begin < a_end) {
+                if (corr_out)
+                    *corr_out = CORR_ADDR_FALLBACK;
+                return e.ptag;
+            }
+        }
+        return 0;
+    }
+
+    uint64_t
+    CHAOSPropagation::correlateRequestBySeq(uint64_t dyn_seq,
+                                            Addr *base_out,
+                                            const char **corr_out)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        for (const auto &kv : addr_registry) {
+            const AddrEntry &e = kv.second;
+            if (e.dyn_seq == dyn_seq) {
+                if (base_out)
+                    *base_out = e.base;
+                if (corr_out)
+                    *corr_out = CORR_SEQ_PRIMARY;
+                return e.ptag;
+            }
+        }
+        return 0;
+    }
+
+    uint64_t
+    CHAOSPropagation::correlateBlock(Addr addr, Addr size, Addr *base_out,
+                                     const char **corr_out)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr a_end = addr + size;
+        for (const auto &kv : blk_registry) {
+            const BlkEntry &e = kv.second;
+            if (addr < e.byte_end && e.byte_begin < a_end) {
+                if (base_out)
+                    *base_out = e.byte_begin;
+                if (corr_out)
+                    *corr_out = CORR_ADDR_FALLBACK;
+                return e.ptag;
+            }
+        }
+        return 0;
+    }
+
+    // ------------------------------------------------ prefetch request id (H5)
+    uint64_t
+    CHAOSPropagation::notePrefetchRequest(Addr addr, Addr size)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr base = addr & ~(Addr)(size ? size - 1 : 0);
+        const uint64_t pfid = PF_ID_BASE + (++next_pf_request_id);
+        PfEntry e;
+        e.pf_request_id = pfid;
+        e.base = base;
+        e.size = size;
+        e.registered = curTick();
+        pf_registry[base] = e;
+        return pfid;
+    }
+
     void
+    CHAOSPropagation::registerPtagPrefetch(uint64_t pfid, Addr addr, Addr size)
+    {
+        if (!write_log || pfid < PF_ID_BASE || size == 0)
+            return;
+        sweepExpired();
+        const Addr base = addr & ~(Addr)(size - 1);
+        PfEntry e;
+        e.pf_request_id = pfid;
+        e.base = base;
+        e.size = size;
+        e.registered = curTick();
+        pf_registry[base] = e;
+    }
+
+    uint64_t
+    CHAOSPropagation::prefetchRequestId(Addr addr, Addr size, Addr *base_out)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr a_end = addr + (size ? size : 1);
+        for (const auto &kv : pf_registry) {
+            const PfEntry &e = kv.second;
+            const Addr e_end = e.base + (e.size ? e.size : 1);
+            if (addr < e_end && e.base < a_end) {
+                if (base_out)
+                    *base_out = e.base;
+                return e.pf_request_id;
+            }
+        }
+        return 0;
+    }
+
+    // ------------------------------------------------- MSHR lifecycle (H4)
+    uint64_t
+    CHAOSPropagation::noteMshrAlloc(Addr line)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t id = ++next_mshr_id;
+        mshr_registry[line] = id;
+        return id;
+    }
+
+    uint64_t
+    CHAOSPropagation::noteMshrLookup(Addr line)
+    {
+        if (!write_log)
+            return 0;
+        const auto it = mshr_registry.find(line);
+        return it == mshr_registry.end() ? 0 : it->second;
+    }
+
+    uint64_t
+    CHAOSPropagation::noteMshrFree(Addr line)
+    {
+        if (!write_log)
+            return 0;
+        const auto it = mshr_registry.find(line);
+        if (it == mshr_registry.end())
+            return 0;
+        const uint64_t id = it->second;
+        mshr_registry.erase(it);
+        return id;
+    }
+
+    uint64_t
+    CHAOSPropagation::noteFill(Addr line)
+    {
+        (void)line;                    // reserved for per-line fill accounting
+        if (!write_log)
+            return 0;
+        return ++next_fill_id;
+    }
+
+    void
+    CHAOSPropagation::registerPtagBlock(uint64_t ptag, Addr byte_begin,
+                                        Addr byte_end)
+    {
+        if (!write_log || ptag == 0 || byte_end <= byte_begin)
+            return;
+        sweepExpired();
+        BlkEntry e;
+        e.ptag = ptag;
+        e.byte_begin = byte_begin;
+        e.byte_end = byte_end;
+        e.registered = curTick();
+        blk_registry[byte_begin] = e;
+    }
+
+    uint64_t
     CHAOSPropagation::noteMemRequest(const char *site, uint64_t dyn_seq,
-                                     const RequestPtr &req)
+                                     const RequestPtr &req,
+                                     const char **corr_out)
     {
         if (!write_log || !req || !req->hasVaddr())
-            return;
+            return 0;
         sweepExpired();
         const Addr v = req->getVaddr();
         const Addr v_end = v + (Addr)req->getSize();
@@ -316,6 +2149,7 @@ namespace gem5
         // (documented: split _mainReq is not seq-stamped).
         const bool stamped = req->hasInstSeqNum();
         const uint64_t req_seq = stamped ? req->getReqInstSeqNum() : 0;
+        uint64_t matched = 0;
         for (const auto &kv : addr_registry) {
             const AddrEntry &e = kv.second;
             if (e.size == 0)
@@ -325,35 +2159,50 @@ namespace gem5
                 continue;                       // no overlap
             if (stamped && req_seq != e.dyn_seq)
                 continue;                       // not the faulting inst
+            if (corr_out && !*corr_out)
+                *corr_out = CORR_SEQ_PRIMARY;   // seq-bound arm
             std::ostringstream d;
             d << "site=" << site << ";family=addrpath;size="
               << req->getSize();
             writeNode(e.ptag, "mem_req", dyn_seq, true,
-                      req_seq, stamped, v, true, 0, false, 0, false, d.str());
+                      req_seq, stamped, v, true, 0, false, 0, false, d.str(),
+                      CORR_SEQ_PRIMARY);
+            if (!matched)
+                matched = e.ptag;
         }
 
         // cache faulted-byte registry: range overlap (SE vaddr==paddr).
+        // Address-only arm: the labeled fallback ([R4-1-review-I1]).
         for (const auto &kv : blk_registry) {
             const BlkEntry &e = kv.second;
             if (v >= e.byte_end || e.byte_begin >= v_end)
                 continue;
+            if (corr_out && !*corr_out)
+                *corr_out = CORR_ADDR_FALLBACK;
             std::ostringstream d;
             d << "site=" << site << ";family=cache;size=" << req->getSize();
             writeNode(e.ptag, "mem_req", dyn_seq, true,
-                      req_seq, stamped, v, true, 0, false, 0, false, d.str());
+                      req_seq, stamped, v, true, 0, false, 0, false, d.str(),
+                      CORR_ADDR_FALLBACK);
+            if (!matched)
+                matched = e.ptag;
         }
+        // [MDSPEC][H1] first matched chain id for the unified lsq_sendfrag
+        // event emitted by the caller (lsq.cc sendFragmentToTranslation).
+        return matched;
     }
 
     void
     CHAOSPropagation::noteMemResponse(o3::DynInst *inst, Packet *pkt,
                                       bool wb_to_reg)
     {
-        if (!write_log || !inst || !pkt || inst->isSquashed())
+        if (!write_log || !inst || !pkt)
             return;
         sweepExpired();
 
         uint64_t hit_ptag = 0;
         const char *hit_family = nullptr;
+        const char *hit_corr = nullptr;   // [R4-1-review-I1] matched arm
 
         // addrpath: the response's own Request vaddr range vs the registry,
         // bound to this instruction (the faulting load itself).
@@ -368,6 +2217,7 @@ namespace gem5
                         && e.dyn_seq == inst->seqNum) {
                     hit_ptag = e.ptag;
                     hit_family = "addrpath";
+                    hit_corr = CORR_SEQ_PRIMARY;
                     break;
                 }
             }
@@ -381,12 +2231,45 @@ namespace gem5
                 if (a < e.byte_end && e.byte_begin < a_end) {
                     hit_ptag = e.ptag;
                     hit_family = "cache";
+                    hit_corr = CORR_ADDR_FALLBACK;
                     break;
                 }
             }
         }
         if (!hit_ptag)
             return;
+
+        // [MDSPEC][R6/A10] A load that received the wrong response but is
+        // then SQUASHED has its result discarded and the instruction
+        // replayed: the corruption is contained by the squash/replay
+        // mechanism. This case used to emit NOTHING at all (the old
+        // `isSquashed()` early-return fired before any emission), so a
+        // contain-by-squash outcome could never fire and the chain looked
+        // like it silently vanished. Record the containment explicitly.
+        if (inst->isSquashed()) {
+            std::ostringstream h_va, h_pa;
+            if (pkt->req && pkt->req->hasVaddr())
+                h_va << std::hex << pkt->req->getVaddr();
+            h_pa << std::hex << pkt->getAddr();
+            notePropEvt("squash_masked", {
+                {"fault_id", std::to_string(hit_ptag)},
+                {"corr", hit_corr ? hit_corr : ""},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"va", h_va.str()},
+                {"pa", h_pa.str()},
+                {"field", "squashed_load"},
+                {"outcome", "masked"},
+                {"detection_layer", "L4"},
+                {"contained", "1"},
+                {"containment_layer", "L4"},
+                {"containment_reason", "squash_replay"},
+            });
+            containment_ptags[hit_ptag] = {"L4", "squash_replay"};
+            // [MDSPEC][R6-EMIT2/oracle] the hardware squash/replay detected
+            // and contained the fault: signal it on stdout too.
+            emitDetectSignal("Hardware RAS", true, hit_ptag, "squash_replay");
+            return;
+        }
 
         // resp node: the memory response delivering the fault.
         const uint64_t req_seq =
@@ -404,7 +2287,58 @@ namespace gem5
                 d << ";fault=" << inst->getFault()->name();
             writeNode(hit_ptag, "resp", inst->seqNum, true,
                       req_seq, req_seq != 0, pkt->getAddr(), true,
-                      0, false, 0, false, d.str());
+                      0, false, 0, false, d.str(), hit_corr);
+        }
+
+        // [MDSPEC][H7] unified lq_complete event (spec sheet 9: LQ
+        // lifecycle — the response returned for LQ entry lqIdx; L3).
+        // Load-side discriminator = wb_to_reg (needWBToRegister — the SAME
+        // condition gating taint_reg below). lqIdx alone is UNSOUND: stores
+        // keep a stale lqIdx from DynInst-pool reuse (empirically hit on
+        // sq_forward dyn133 store with residual lq_idx=3).
+        if (wb_to_reg && inst->lqIdx >= 0) {
+            std::ostringstream h7_va, h7_pa;
+            if (pkt->req && pkt->req->hasVaddr())
+                h7_va << std::hex << pkt->req->getVaddr();
+            h7_pa << std::hex << pkt->getAddr();
+            notePropEvt("lq_complete", {
+                {"fault_id", std::to_string(hit_ptag)},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"lq_idx", std::to_string((long long)inst->lqIdx)},
+                {"va", h7_va.str()},
+                {"pa", h7_pa.str()},
+                {"request_id", req_seq ? std::to_string(req_seq)
+                                       : std::string("0")},
+                // [R4-1-review-I1] which correlate arm joined this event
+                {"corr", hit_corr ? hit_corr : ""},
+            });
+        }
+
+        // [MDSPEC][R6/A7] Store chains: a STORE's response carries the
+        // wrong value/address to memory, but a store has no register
+        // writeback (needWBToRegister() is false), so the load-only taint
+        // path below returned before anything was tainted and the chain used
+        // to stop at L3 (measured: S04-F0-W5, verdict
+        // provable_to_L3_then_unknown, 11 events, no L4 node). A store's
+        // architectural materialization IS its commit (the wrong memory side
+        // effect), so taint the store BY DYN SEQ: the store's own later
+        // commit (noteCommit) then fires the errant commit and the chain
+        // closes at L4->L5. The taint_reg node is the L4 anchor the chain
+        // checker needs (L3->L4 witness = this store's resp/sq_complete).
+        if (!wb_to_reg && inst->isStore()) {
+            std::ostringstream sd;
+            sd << "class=store;dest_idx=0;old_addr=clean;new_addr=tainted";
+            writeNode(hit_ptag, "taint_reg", inst->seqNum, true,
+                      req_seq, req_seq != 0, pkt->getAddr(), true,
+                      0, false, 0, false, sd.str(), hit_corr);
+            TaintEntry ste;
+            ste.ptag = hit_ptag;
+            ste.taintor_seq = inst->seqNum;
+            // [R6/A6] the event that established this taint = the node just
+            // written (writeNode's dual-emit used event_id == next_node_id).
+            ste.src_event = next_node_id - 1;
+            store_taint[inst->seqNum] = ste;
+            return;
         }
 
         // taint_reg: exactly the condition under which LSQUnit::writeback
@@ -422,14 +2356,26 @@ namespace gem5
             TaintEntry te;
             te.ptag = hit_ptag;
             te.taintor_seq = inst->seqNum;
-            taint_set[key] = te;
             std::ostringstream d;
             d << "class=" << regClassName(phys->classValue())
-              << ";dest_idx=" << i;
+              << ";dest_idx=" << i
+              // [MDSPEC][R6/A4] The faulted VALUE of this node is the
+              // physical cell's taint state: the cell held a legitimate
+              // (clean) value and now holds fault-delivered data. The pair
+              // rides the documented old_addr/new_addr → before/after lift
+              // so the T-series stream can show WHAT changed (C12 tick pair
+              // / L04 seq pair precedent). Measured before this fix:
+              // kind=taint_reg ... before= after=.
+              << ";old_addr=clean;new_addr=tainted";
             writeNode(hit_ptag, "taint_reg", inst->seqNum, true,
                       req_seq, req_seq != 0, pkt->getAddr(), true,
                       phys->index(), true,
-                      inst->destRegIdx(i).index(), true, d.str());
+                      inst->destRegIdx(i).index(), true, d.str(), hit_corr);
+            // [MDSPEC][R6/A6] Remember WHICH event established this taint:
+            // writeNode's dual-emit used event_id == next_node_id (pre-
+            // increment), so the node just written is next_node_id - 1.
+            te.src_event = next_node_id - 1;
+            taint_set[key] = te;
         }
     }
 
@@ -439,11 +2385,31 @@ namespace gem5
         if (!write_log || !head_inst)
             return;
 
+        // [MDSPEC][R6-EMIT2/oracle] tracer commit ordinal (counts every
+        // commit observed, CHAOSMicroSnap semantic). The L5 detection node
+        // and chain_end carry it as commit_seq (L18 contract item 3).
+        ++commit_seq_counter;
+
         const uint64_t pc = head_inst->pcState().instAddr();
         uint64_t first_consumed_ptag = 0;
         bool any_consumer = false;
         bool self_taint = false;
         uint64_t self_taint_ptag = 0;
+        // [MDSPEC][R6/A7] A STORE whose own response carried the fault: its
+        // commit is the architectural materialization (the wrong memory side
+        // effect). Keyed by dyn seq (see store_taint / noteMemResponse).
+        bool self_store_taint = false;
+        uint64_t self_store_ptag = 0;
+        {
+            const auto stit = store_taint.find(head_inst->seqNum);
+            if (stit != store_taint.end()) {
+                self_store_taint = true;
+                self_store_ptag = stit->second.ptag;
+            }
+        }
+        // [MDSPEC][R6/A6] event_id of the last consumer node emitted above —
+        // the taint source for the dests it re-taints (see below).
+        uint64_t last_consumer_evt = 0;
 
         // Sources: a tainted source phys reg = this commit consumes a
         // fault-delivered value → consumer node.
@@ -459,12 +2425,49 @@ namespace gem5
             any_consumer = true;
             if (!first_consumed_ptag)
                 first_consumed_ptag = it->second.ptag;
-            std::ostringstream d;
-            d << "class=" << regClassName(phys->classValue())
-              << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec;
-            writeNode(it->second.ptag, "consumer", head_inst->seqNum, true,
-                      0, false, 0, false, phys->index(), true,
-                      head_inst->srcRegIdx(i).index(), true, d.str());
+            // [MDSPEC][R6-FIXCPP/T3] Route the consumer through the summary
+            // aggregator. The group's FIRST member (and any member with a NEW
+            // dyn_inst_seq = a new semantic state) is emitted as its own
+            // PROP-EVT; an exact duplicate is folded into the group's
+            // CONSUMER-SUMMARY accounting (see chaos_consumer_summary.hh).
+            // The `consumer` kind is the ONLY aggregatable kind — L5 /
+            // containment / terminal / every state-change event is emitted
+            // unchanged below and elsewhere.
+            const uint64_t cptag = it->second.ptag;
+            const std::string csrc = chaos_consumer::sourceIdOf(phys->index());
+            if (consumer_agg.observe("consumer", cptag, csrc,
+                                     head_inst->seqNum, curTick())) {
+                std::ostringstream d;
+                d << "class=" << regClassName(phys->classValue())
+                  << ";src_idx=" << i
+                  // [MDSPEC][R6/A6] A consumer does NOT descend from the
+                  // previous event of the chain: it descends from the event
+                  // that established the taint it consumed. Naming that event
+                  // is what turns the chain into a real DAG (one source → many
+                  // consumers) instead of the degenerate linear list the
+                  // single ptag_last_event cursor produced. parent_event_id is
+                  // a registry field, so the dual-emit honours this override.
+                  << ";parent_event_id=" << it->second.src_event
+                  << ";pc=" << std::hex << pc << std::dec;
+                writeNode(cptag, "consumer", head_inst->seqNum, true,
+                          0, false, 0, false, phys->index(), true,
+                          head_inst->srcRegIdx(i).index(), true, d.str(),
+                          CORR_TAINT_PROP, (int)tid);
+                // The just-emitted consumer node is the taint source for any
+                // dest it re-taints below.
+                last_consumer_evt = next_node_id - 1;
+                consumer_agg.noteEmitted("consumer", cptag, csrc,
+                                         last_consumer_evt);
+            } else {
+                // Suppressed duplicate: no event is fabricated. Keep the DAG
+                // connected by naming the group's representative (the emitted
+                // first member) as the taint source for the dests re-tained
+                // below.
+                const uint64_t rep = consumer_agg.representativeEvent(
+                    "consumer", cptag, csrc);
+                if (rep)
+                    last_consumer_evt = rep;
+            }
         }
 
         // Dests: is this the faulting load itself committing its tainted
@@ -490,17 +2493,55 @@ namespace gem5
         // "first wrong architectural commit" stays L2 commit_diff's
         // first_errant_commit (authoritative); this node is the
         // propagation-view alignment point (same seqNum space).
-        if (!errant_commit_seen && (any_consumer || self_taint)) {
+        if (!errant_commit_seen
+                && (any_consumer || self_taint || self_store_taint)) {
             const uint64_t ptag = any_consumer ? first_consumed_ptag
-                                               : self_taint_ptag;
+                : self_taint ? self_taint_ptag : self_store_ptag;
             std::ostringstream d;
+            // [R6-C/GAP-2] This IS the observable L5 detection: the wrong
+            // value reached architectural state (a committed instruction
+            // consumed the tainted value, or the faulting load committed its
+            // tainted dest). Measured before this fix:
+            //   kind=errant_commit corr=taint_prop dyn_inst_seq=391
+            //   detection_layer= outcome=
+            // — the real detection event named neither its layer nor its
+            // outcome, while the lifecycle chain_end node carried the only
+            // (non-evidentiary) L5-ish fields. The ruling: L5 evidence must
+            // be THIS event, so it must name its layer and outcome. Both keys
+            // are registry fields, so the dual-emit lifts them verbatim.
             d << "trigger=" << (any_consumer ? "first_consumer"
-                                             : "faulting_load_commit")
+                                 : self_taint ? "faulting_load_commit"
+                                              : "faulting_store_commit")
+              << ";detection_layer=L5"
+              << ";outcome=errant_commit"
+              // [MDSPEC][R6-EMIT2/oracle] the escape is NOT contained, and
+              // the detection point is named (L18 contract items 1+3): a
+              // crash/abort sample that never reaches the exit callback must
+              // still carry contained=0 and the commit point.
+              << ";contained=0"
+              << ";commit_seq=" << commit_seq_counter
               << ";pc=" << std::hex << pc << std::dec;
             writeNode(ptag, "errant_commit", head_inst->seqNum, true,
-                      0, false, 0, false, 0, false, 0, false, d.str());
+                      0, false, 0, false, 0, false, 0, false, d.str(),
+                      CORR_TAINT_PROP, (int)tid);
+            // Remember the detection point for the chain's L5 chain_end.
+            errant_detect[ptag] = DetectPoint{pc, head_inst->seqNum,
+                                              commit_seq_counter, curTick()};
+            // Hardware-detector stdout signal: the wrong value reached
+            // architectural state and NOTHING contained it → layer None,
+            // contained 0. This is the escape the oracle records as SDC.
+            emitDetectSignal("None", false, ptag, "errant_commit");
             errant_commit_seen = true;
+            // [MDSPEC][R6] Bind the observed errant commit to its own chain
+            // so the L5 chain_end node can report it (see .hh).
+            errant_ptags.insert(ptag);
         }
+        // [MDSPEC][R6/A7] Bound the store taint: the store's commit has now
+        // been observed (it either fired the errant commit above or the run
+        // already had its first one) — drop the entry so a recycled dyn seq
+        // cannot re-fire later.
+        if (self_store_taint)
+            store_taint.erase(head_inst->seqNum);
 
         // Propagation rules (see .hh):
         //  - consumer commits → its dests now carry the wrong value
@@ -516,10 +2557,12 @@ namespace gem5
                 TaintEntry te;
                 te.ptag = first_consumed_ptag;
                 te.taintor_seq = head_inst->seqNum;
+                // [R6/A6] the re-taint is established by the consumer node.
+                te.src_event = last_consumer_evt;
                 taint_set[std::make_pair(phys->classValue(),
                                          phys->index())] = te;
             }
-        } else if (!self_taint) {
+        } else if (!self_taint && !self_store_taint) {
             for (int i = 0; i < ndest; ++i) {
                 const PhysRegIdPtr phys = head_inst->renamedDestIdx(i);
                 if (!phys)

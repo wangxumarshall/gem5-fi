@@ -47,6 +47,10 @@
 #include "arch/arm/stage2_lookup.hh"
 #include "arch/arm/table_walker.hh"
 #include "arch/arm/tlb.hh"
+// [MDSPEC][H2] TLB translate unified event: reached through the static
+// instance (CHAOSCache precedent — the MMU has no CPU pointer).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <sstream>
 #include "arch/arm/tlbi_op.hh"
 #include "arch/arm/types.hh"
 #include "debug/MMU.hh"
@@ -1129,7 +1133,7 @@ MMU::translateMmuOn(ThreadContext* tc, const RequestPtr &req, Mode mode,
                 // abort regardless of sctlr.a
                 stats.alignFaults++;
                 bool is_write  = (mode == Write);
-                return std::make_shared<DataAbort>(
+                fault = std::make_shared<DataAbort>(
                     vaddr_tainted,
                     DomainType::NoAccess, is_write,
                     ArmFault::AlignmentFault, state.isStage2,
@@ -1140,6 +1144,19 @@ MMU::translateMmuOn(ThreadContext* tc, const RequestPtr &req, Mode mode,
             fault = testAndFinalize(req, tc, mode, te, state);
     }
 
+    // [MDSPEC][T-series] Close an injected lookup only after the MMU has
+    // materialized the effective PA and run permission/alignment checks.
+    // A delayed walk is intentionally left pending; T08-a closes itself at
+    // the observed drop point because no completion callback can follow.
+    if (!delay) {
+        CHAOSPropagation *tlb_prop = CHAOSPropagation::instance();
+        if (tlb_prop && req && req->hasVaddr()) {
+            tlb_prop->noteTlbTranslationResult(
+                req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0,
+                vaddr, req->hasPaddr(), req->hasPaddr() ? req->getPaddr() : 0,
+                fault != NoFault ? fault->name() : "NoFault");
+        }
+    }
     return fault;
 }
 
@@ -1293,8 +1310,75 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
 
     assert(translation);
 
-    translateComplete(req, tc, translation, mode, tran_type,
-        stage2, state);
+    // [MDSPEC][H2] unified tlb_translate event (spec sheet 9, 39-RunID
+    // family: L2 — the fragment leaves for VA→PA translation). THIS is the
+    // SE+FS funnel (lsq.cc sendFragmentToTranslation calls it directly);
+    // SE translates via translateSe and NEVER reaches TLB::lookup
+    // (tlb.cc:173 comment) — so this is the only translate node an SE run
+    // can see. Emitted ONLY for fault-correlated requests (spec sheet 11:
+    // propagation stream). pa stays empty at entry (translation not yet
+    // done — honest pending; PA materialization is covered by the resp
+    // node). tlb.cc lookup / table_walker.cc walk+refill nodes are FS-only
+    // paths — deferred to the FS TLB track (W4 workload BLOCKED), NOT
+    // silently skipped.
+    {
+        CHAOSPropagation *h2_prop = CHAOSPropagation::instance();
+        if (h2_prop && req && req->hasVaddr() && req->hasInstSeqNum()) {
+            const char *h2_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h2_ptag = h2_prop->correlateRequest(
+                req->getReqInstSeqNum(), req->getVaddr(),
+                req->getSize(), &h2_corr);
+            if (h2_ptag) {
+                std::ostringstream h2_hex;
+                h2_hex << std::hex << req->getVaddr();
+                h2_prop->notePropEvt("tlb_translate", {
+                    {"fault_id", std::to_string(h2_ptag)},
+                    {"corr", h2_corr ? h2_corr : ""},
+                    {"dyn_inst_seq", std::to_string(req->getReqInstSeqNum())},
+                    {"request_id", std::to_string(req->getReqInstSeqNum())},
+                    {"va", h2_hex.str()},
+                });
+            }
+        }
+    }
+
+    // [MDSPEC][H2-fix] Capture the translation fault — A01 POST pilot
+    // root cause: a01_bit corrupts the startup store's vaddr to an
+    // UNMAPPED address in 5/5 samples → translation faults → write()
+    // never called → SQ entry empty ("Fault on Store, Size = 0" debug
+    // evidence) → store never reaches L3. The translation fault IS the
+    // detection/containment point — emit tlb_fault so the chain gets
+    // L2 detection evidence instead of an honest but uninformative
+    // "unknown beyond L2".
+    const Fault h2_fault = translateComplete(req, tc, translation, mode,
+        tran_type, stage2, state);
+    if (h2_fault != NoFault) {
+        CHAOSPropagation *h2f = CHAOSPropagation::instance();
+        if (h2f && req && req->hasVaddr() && req->hasInstSeqNum()) {
+            const char *h2f_corr = nullptr;   // [R4-1-review-I1]
+            const uint64_t h2f_ptag = h2f->correlateRequest(
+                req->getReqInstSeqNum(), req->getVaddr(),
+                req->getSize(), &h2f_corr);
+            if (h2f_ptag) {
+                std::ostringstream h2f_hex;
+                h2f_hex << std::hex << req->getVaddr();
+                h2f->notePropEvt("tlb_fault", {
+                    {"fault_id", std::to_string(h2f_ptag)},
+                    {"corr", h2f_corr ? h2f_corr : ""},
+                    {"dyn_inst_seq", std::to_string(req->getReqInstSeqNum())},
+                    {"request_id", std::to_string(req->getReqInstSeqNum())},
+                    {"va", h2f_hex.str()},
+                    {"outcome", h2_fault->name()},
+                    // detection_layer=Hardware：MMU 检测到无效地址。
+                    // contained 不在此预定——终局（Contained/Crash/Handled）
+                    // 由 chain_end + runner/oracle 离线 join 决定（规格：
+                    // 不得推断）。空 = pending offline join。
+                    {"detection_layer", "Hardware"},
+                    {"contained", ""},
+                });
+            }
+        }
+    }
 }
 
 Fault
@@ -1700,8 +1784,27 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
         vaddr = vaddr_tainted;
     }
 
+    // [MDSPEC][R4-4] Publish this translation's Request identity to the
+    // target TLB for the duration of the lookup so the CHAOSArmTLB hook
+    // inside TLB::lookup can bind the fault chain to the request whose
+    // translation consumed the corrupted entry (seq-PRIMARY correlation).
+    // Cleared right after — every other TLB::lookup path (table walker's
+    // mmu->lookup, MMU::translateFunctional) has no RequestPtr and must
+    // honestly see 0. getTE is the only lookup caller that owns the req.
+    TLB *const chaos_lookup_tlb = getTlb(mode, state.isStage2);
+    if (chaos_lookup_tlb) {
+        chaos_lookup_tlb->chaosLookupReqSeq =
+            req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
+        chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+    }
+
     *te = lookup(vaddr, state.asid, state.vmid, ss, false,
                  false, regime, state.isStage2, mode);
+
+    if (chaos_lookup_tlb) {
+        chaos_lookup_tlb->chaosLookupReqSeq = 0;
+        chaos_lookup_tlb->chaosLookupReqSize = 0;
+    }
 
     if (!isCompleteTranslation(*te)) {
         if (req->isPrefetch()) {
@@ -1730,8 +1833,18 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
             return fault;
         }
 
+        // [MDSPEC][R4-4] same bracket for the post-walk re-lookup
+        if (chaos_lookup_tlb) {
+            chaos_lookup_tlb->chaosLookupReqSeq =
+                req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
+            chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+        }
         *te = lookup(vaddr, state.asid, state.vmid, ss,
                      true, false, regime, state.isStage2, mode);
+        if (chaos_lookup_tlb) {
+            chaos_lookup_tlb->chaosLookupReqSeq = 0;
+            chaos_lookup_tlb->chaosLookupReqSize = 0;
+        }
         assert(*te);
     }
     return NoFault;
