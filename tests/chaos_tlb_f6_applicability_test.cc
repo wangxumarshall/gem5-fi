@@ -19,6 +19,19 @@
  * unconditionally; it is ELIGIBLE only when the read-only candidate scan
  * found >= 1 legal substitute; the tier fires (consuming RNG/state) only for
  * an eligible lookup, and the mutation is applied iff the tier fired.
+ *
+ * [R6-F5-NOEFFECT 2026-10-26] Task 8 (354af1a3) split F5's FIRE from its
+ * INJECTION. onEligible() now increments `fires` (a fire opportunity) and
+ * returns true for F5; the injector then reports each fire's outcome through
+ * noteOutcome(effective) — ++injected on a real write, ++no_effect otherwise.
+ * So for F5 the funnel's `injected` is written ONLY via noteOutcome (never
+ * inside onEligible), and the phantom-injection class is removed by that
+ * per-fire accounting REGARDLESS of the gate order — the gate is no longer
+ * the only thing standing between a candidate-less fire and a bogus
+ * `injected`. This test's drive() mirrors the contract for F5 only (F0/F2/F6
+ * still ++injected inside onEligible()/onF6Event(), so calling noteOutcome
+ * for them would double-count). Both gate orders pin the Task 8 invariant
+ * fires == injected + no_effect.
  */
 #include <cstdint>
 #include <cstdio>
@@ -86,10 +99,12 @@ countCandidates(const std::vector<PfnCandidateView> &tbl, std::size_t hit_idx)
 //     exists) — that is the phantom-injection shape.
 //   eligibility_gate=true is the FIXED order.
 // `fires` = times the tier said "inject now"; `applied` = fires that also had
-// a legal candidate (the only ones the model can actually write).
+// a legal candidate (the only ones the model can actually write); `no_effect`
+// = F5 fires whose outcome the injector reported as a no-write (the new
+// [R6-F5-NOEFFECT] noteOutcome accounting, fires == injected + no_effect).
 struct Run
 {
-    uint64_t attempted = 0, eligible = 0, injected = 0;
+    uint64_t attempted = 0, eligible = 0, injected = 0, no_effect = 0;
     std::size_t fires = 0, applied = 0;
     long first_fire = -1, first_applied = -1;
 };
@@ -99,6 +114,10 @@ drive(ChaOSLsuTier tier, uint64_t seed, uint64_t warmup, uint64_t span,
       bool eligibility_gate, const std::vector<std::size_t> &cands)
 {
     ChaOSLsuTrigger tr(tier, seed, warmup, span);
+    // [R6-F5-NOEFFECT] F5 fires on every eligible event but counts as injected
+    // only when the injector reports a real write; arm the same contract flag
+    // the real injector sets. F0/F2/F6 keep their own ++injected.
+    if (tier == ChaOSLsuTier::F5) tr.require_outcome_accounting = true;
     Run r;
     for (std::size_t i = 0; i < cands.size(); ++i) {
         tr.onAttempt();                       // (1) every TLB-hit lookup
@@ -111,15 +130,20 @@ drive(ChaOSLsuTier tier, uint64_t seed, uint64_t warmup, uint64_t span,
         if (fire) {
             if (r.first_fire < 0) r.first_fire = (long)i;
             ++r.fires;
-            if (cands[i]) {
+            const bool applied = (cands[i] != 0);
+            if (applied) {
                 if (r.first_applied < 0) r.first_applied = (long)i;
                 ++r.applied;
             }
+            // F5 only: report THIS fire's outcome exactly once, as the real
+            // injector does — it is what moves injected / no_effect.
+            if (tier == ChaOSLsuTier::F5) tr.noteOutcome(applied);
         }
     }
     r.attempted = tr.attempted;
     r.eligible = tr.eligible;
     r.injected = tr.injected;
+    r.no_effect = tr.no_effect;
     return r;
 }
 
@@ -216,15 +240,34 @@ main()
                                 /*gate=*/true, cands);
         check("F5+gate: eligible == the candidate-bearing hits",
               fixed.eligible == N - EPOCH, std::to_string(fixed.eligible));
+        check("F5+gate: fires on every eligible hit (fires == eligible)",
+              fixed.fires == fixed.eligible,
+              std::to_string(fixed.fires) + "/" + std::to_string(fixed.eligible));
         check("F5+gate: injected == applied == eligible",
               fixed.injected == fixed.applied && fixed.applied == fixed.eligible,
               std::to_string(fixed.injected) + "/" + std::to_string(fixed.applied));
+        check("F5+gate: fires == injected + no_effect (task-8 invariant)",
+              fixed.fires == fixed.injected + fixed.no_effect,
+              std::to_string(fixed.fires) + "/" + std::to_string(fixed.injected) +
+                  "+" + std::to_string(fixed.no_effect));
 
         const Run pre = drive(ChaOSLsuTier::F5, seed, 0, 0,
                               /*gate=*/false, cands);
-        check("pre-fix F5: injected == stream length, applied < injected",
-              pre.injected == N && pre.applied == N - EPOCH,
+        check("pre-fix F5: fires == N (fires on every eligible event after warm-up)",
+              pre.fires == N, std::to_string(pre.fires));
+        check("pre-fix F5: noteOutcome accounting is HONEST, not phantom — "
+              "injected == applied (no phantom-injection class, either gate order)",
+              pre.injected == pre.applied,
               std::to_string(pre.injected) + "/" + std::to_string(pre.applied));
+        check("pre-fix F5: no_effect == fires - applied (every candidate-less "
+              "fire is booked as a no-write)",
+              pre.no_effect == pre.fires - pre.applied,
+              std::to_string(pre.no_effect) + "/" +
+                  std::to_string(pre.fires - pre.applied));
+        check("pre-fix F5: fires == injected + no_effect (task-8 invariant)",
+              pre.fires == pre.injected + pre.no_effect,
+              std::to_string(pre.fires) + "/" + std::to_string(pre.injected) +
+                  "+" + std::to_string(pre.no_effect));
     }
 
     std::printf("[4] the gate is a pure read (no state, no RNG)\n");
