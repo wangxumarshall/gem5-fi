@@ -239,3 +239,41 @@
   prop_evt gzip 无 EOF（EVIDENCE-TRUNCATED），与仓库既有事故
   `runs/lsu/r6_c8_T04-F6-W4_s1` 同型。仓库既有 `lsu_campaign.run_gem5` 的
   SIGINT→SIGTERM→SIGKILL 顺序，守卫缺此 ⇒ 补 `graceful_terminate()`（U5）。
+
+## 2026-10-27 T02-F2-W4：seed 身份 + F2 多 fault 一致性 + 整数 seed1 诊断（`0202-T02F2`）
+
+- **F-071（事实）0101 与 0202 的 seed 是两条不同轴**：0101 R6 campaign 传**整数** seed
+  （`lsu_campaign.py:2884/2923/2536`，实测证据 `mdspec/R4-8-SPEC-residual-report.md:170`
+  的 `--tlb_rng_seed 1` 落在 `.../seed1/`）；0202 runner 传**哈希** seed
+  （`lsu_runner.py` `lsu_seed(run_id,phase,sample_index)`）。T02-F2-W4 的 0202 运行用
+  `14201167915699637708`（= `lsu_seed(...,0)`），与整数 `1` 不同 ⇒ **两个不同样本**，
+  结论不可互相替代。0101 记录该 RunID seed1 = `full`/L5/`certified=True`/`admitted=True`。
+- **F-072（事实+修复）U6：runner 支持显式整数 seed**。新增 `--explicit-seed`（与
+  `--sample-index` 互斥）；manifest 增记 `seed_source=derived|explicit` 与
+  `explicit_seed`；运行目录标签派生 `s<idx>` / 显式 `x<seed>` 分流；显式 seed 贯通
+  `--prop_sample_run_id s<整数>`（与 campaign 惯例一致）；负数/非整数/两轴同给/都不给
+  一律响亮失败。未给显式 seed 时派生行为**逐字节不变**。
+  测试 `tests/test_lsu_runner_explicit_seed.py`（20 项）ALL PASS。
+- **F-073（事实+修复）U7：F2 多 fault 准入统一为保守 `all()`**。修复前三处选择器不一致
+  （`check_admission` 取最长可证路径、`containment_from_events` 取事件数最多、
+  `lsu_campaign` 顶层 terminal 取 sorted 第一），且**多 fault 样本的准入口径在仓库中
+  无定义**。改为：每个 activated fault 必须独立闭合（完整 L0→L5 或真实非-lifecycle
+  含住），样本 `admitted = all(...)`；三个消费者消费同一份 `evaluate_sample` 结果；
+  多 fault 下 `containment_from_events(fault_id=None)` 返回 `None`（拒绝静默重选）。
+  实现零规则复制（原 `check_admission` 主体原样更名为 `_adjudicate_single_fault`，
+  逐 fault 切片调用）。测试 `tests/test_lsu_multifault_admission.py`（26 项）ALL PASS。
+  **对现有六项 raw evidence 离线复判：admitted/path/terminal 零变化**（无升级、无降级）。
+- **F-074（事实）显式整数 seed 1 诊断复现：0101 主 fault 轨迹可复现，但样本仍
+  NOT-ACCEPTED（情况 B）**。单进程、同一 binary/checkpoint/golden、命令含
+  `--tlb_rng_seed 1`（标 `DIAGNOSTIC_REPLICATION_ONLY`）：`injected=3=activated=3`；
+  **fault 1 形成完整连续父链 L0→L5 至 `errant_commit`**（与 0101 seed1 的 `full` 一致），
+  **按修复前规则该样本 `admitted=True/full_chain/violations=[]`**（= 0101 的认证结果）；
+  fault 2 止于 L4。运行以 **gem5 断言**结束（`src/mem/cache/base.cc:783
+  BaseCache::recvTimingResp: Assertion 'mshr' failed`，SIGABRT，exit −6），
+  第 3 次注入（把 PL011 UART 区 `0x1c090000` 的映射翻成 `0x1c191000`）的事件随之丢失
+  ⇒ `truncated=True`、无 `chain_end`、`attempted/eligible=null`（funnel 缺失，不得填 0）。
+  故按保守规则样本不 admitted；**不是** parent-event 发射器确定性错误（非情况 C）。
+- **F-075（事实，候选 DECISION REQUEST）仿真器断言中止会丢失已 activated fault 的全部
+  事件**：R6-GRACEEXIT 只覆盖超时（SIGINT）收口，未覆盖 SIGABRT。本次第 3 个 activated
+  fault 在流里**零事件**，违反"每个 activated fault 都应可核查"的 L0 完备性。
+  彻底修复需 CHAOSPropagation 侧周期 flush/收口（C++）——本轮未改 C++，列为候选裁决。

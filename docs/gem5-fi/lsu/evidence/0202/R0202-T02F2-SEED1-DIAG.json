@@ -1,0 +1,336 @@
+{
+ "schema": "0202-t02f2-seed1-diag/1",
+ "diagnostic_tag": "DIAGNOSTIC_REPLICATION_ONLY",
+ "run_id": "T02-F2-W4",
+ "item": "ITEM-049",
+ "frequency": "F2",
+ "seed": {
+  "value": 1,
+  "source": "explicit",
+  "explicit_seed": 1,
+  "sample_index": null,
+  "rule": "显式整数 seed（--explicit-seed）：直接作为 --tlb_rng_seed 下发，不派生；用于复现 0101 campaign 的整数 seed 系列（seed1==1）"
+ },
+ "manifest_path": "runs/lsu/0202_t02f2_legacy_seed1_diag_20261027T000814/manifest/ITEM-049_explicit_seed1.json",
+ "outdir": "runs/lsu/0202_t02f2_legacy_seed1_diag_20261027T000814/runs/engineering/ITEM-049_engineering_x1",
+ "identity": {
+  "git_commit": "fa40428aa4687432ef378dc3139920072f869d8d",
+  "gem5_opt_sha256": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+  "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727"
+ },
+ "golden": "b6d81b360a5672d80c27430f39153e2c",
+ "termination": {
+  "exit_code": -6,
+  "signal": "SIGABRT",
+  "monitor_reason": "target-exited",
+  "assert": "src/mem/cache/base.cc:783 BaseCache::recvTimingResp Assertion `mshr' failed",
+  "abort_tick": 240017009067
+ },
+ "stream": {
+  "truncated": true,
+  "n_events": 2620,
+  "chain_end": false,
+  "fault_ids": [
+   "1",
+   "2"
+  ],
+  "unknown_events": 0
+ },
+ "counts": {
+  "injected": 3,
+  "activated": 3,
+  "attempted": null,
+  "eligible": null,
+  "conservation": "OK",
+  "funnel_present": false
+ },
+ "tier_cap": "CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1",
+ "per_fault": {
+  "1": {
+   "fault_id": "1",
+   "activated": true,
+   "n_events": 2597,
+   "terminal": "full",
+   "provable_to": "L5",
+   "beyond": "",
+   "edges": {
+    "L0->L1": "proven",
+    "L1->L2": "proven",
+    "L2->L3": "proven",
+    "L3->L4": "proven",
+    "L4->L5": "proven"
+   },
+   "family": "tlb",
+   "n_path": 6,
+   "path_event_ids": [
+    "0",
+    "1",
+    "2",
+    "4",
+    "28",
+    "44"
+   ],
+   "selected_ancestry": [
+    {
+     "event_id": "0",
+     "kind": "inj",
+     "parent_event_id": "",
+     "request_id": "357685",
+     "corr": "origin"
+    },
+    {
+     "event_id": "1",
+     "kind": "tlb_lookup",
+     "parent_event_id": "0",
+     "request_id": "357685",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "2",
+     "kind": "tlb_pfn",
+     "parent_event_id": "1",
+     "request_id": "357685",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "3",
+     "kind": "tlb_translate_result",
+     "parent_event_id": "2",
+     "request_id": "357685",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "4",
+     "kind": "sq_execute",
+     "parent_event_id": "3",
+     "request_id": "",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "5",
+     "kind": "sq_writeback",
+     "parent_event_id": "4",
+     "request_id": "",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "6",
+     "kind": "cache_access",
+     "parent_event_id": "5",
+     "request_id": "357685",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "7",
+     "kind": "cache_return",
+     "parent_event_id": "6",
+     "request_id": "357685",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "8",
+     "kind": "mshr_alloc",
+     "parent_event_id": "7",
+     "request_id": "357685",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "9",
+     "kind": "cache_access",
+     "parent_event_id": "8",
+     "request_id": "357685",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "10",
+     "kind": "cache_return",
+     "parent_event_id": "9",
+     "request_id": "357685",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "11",
+     "kind": "mshr_alloc",
+     "parent_event_id": "10",
+     "request_id": "357685",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "27",
+     "kind": "resp",
+     "parent_event_id": "11",
+     "request_id": "357685",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "28",
+     "kind": "taint_reg",
+     "parent_event_id": "27",
+     "request_id": "357685",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "29",
+     "kind": "sq_complete",
+     "parent_event_id": "28",
+     "request_id": "",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "44",
+     "kind": "errant_commit",
+     "parent_event_id": "29",
+     "request_id": "",
+     "corr": "taint_prop"
+    }
+   ],
+   "ancestry_root_is_own_inj": true,
+   "contained": false,
+   "containment": null,
+   "admission": true,
+   "path": "full_chain",
+   "path_layers": [
+    "L0",
+    "L1",
+    "L2",
+    "L3",
+    "L4",
+    "L5"
+   ],
+   "violations": [],
+   "reasons": []
+  },
+  "2": {
+   "fault_id": "2",
+   "activated": true,
+   "n_events": 23,
+   "terminal": "provable_to_L4_then_unknown",
+   "provable_to": "L4",
+   "beyond": "Unknown",
+   "edges": {
+    "L0->L1": "proven",
+    "L1->L2": "proven",
+    "L2->L3": "proven",
+    "L3->L4": "proven",
+    "L4->L5": "missing"
+   },
+   "family": "tlb",
+   "n_path": 5,
+   "path_event_ids": [
+    "2296",
+    "2297",
+    "2298",
+    "2300",
+    "2305"
+   ],
+   "selected_ancestry": [
+    {
+     "event_id": "2296",
+     "kind": "inj",
+     "parent_event_id": "",
+     "request_id": "654725",
+     "corr": "origin"
+    },
+    {
+     "event_id": "2297",
+     "kind": "tlb_lookup",
+     "parent_event_id": "2296",
+     "request_id": "654725",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "2298",
+     "kind": "tlb_pfn",
+     "parent_event_id": "2297",
+     "request_id": "654725",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "2299",
+     "kind": "tlb_translate_result",
+     "parent_event_id": "2298",
+     "request_id": "654725",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "2300",
+     "kind": "lq_read",
+     "parent_event_id": "2299",
+     "request_id": "654725",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "2301",
+     "kind": "cache_access",
+     "parent_event_id": "2300",
+     "request_id": "654725",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "2302",
+     "kind": "cache_access",
+     "parent_event_id": "2301",
+     "request_id": "654725",
+     "corr": "addr_fallback"
+    },
+    {
+     "event_id": "2303",
+     "kind": "resp",
+     "parent_event_id": "2302",
+     "request_id": "654725",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "2304",
+     "kind": "lq_complete",
+     "parent_event_id": "2303",
+     "request_id": "654725",
+     "corr": "seq_primary"
+    },
+    {
+     "event_id": "2305",
+     "kind": "taint_reg",
+     "parent_event_id": "2304",
+     "request_id": "654725",
+     "corr": "seq_primary"
+    }
+   ],
+   "ancestry_root_is_own_inj": true,
+   "contained": false,
+   "containment": null,
+   "admission": false,
+   "path": null,
+   "path_layers": [
+    "L0",
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+   ],
+   "violations": [
+    "no_closed_chain_and_no_containment: T02-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+    "ready_by_activated_only: T02-F2-W4 activated=1 本身不是 READY 依据（须完整链或 containment）"
+   ],
+   "reasons": []
+  }
+ },
+ "sample_post_u7": {
+  "admitted": false,
+  "path": null,
+  "terminal": "full",
+  "violations": [
+   "no_closed_chain_and_no_containment: T02-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "ready_by_activated_only: T02-F2-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "ready_by_rc0: T02-F2-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+  ],
+  "all_activated_faults_closed": false
+ },
+ "sample_pre_u7": {
+  "admitted": true,
+  "path": "full_chain",
+  "terminal": "full",
+  "violations": []
+ },
+ "reproduces_0101_full_chain": true,
+ "verdict": "NOT-ACCEPTED"
+}

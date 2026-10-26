@@ -1,0 +1,11 @@
+group,run_id,seed_axis,seed_value,fault_id,activated,terminal,provable_to,contained,fault_admission,sample_admitted,sample_path,truncated,note
+hash-seed six,T01-F0-W4,derived,,1,True,full,L5,False,True,True,full_chain,,U7 offline re-judge; verdict identical to pre-U7
+hash-seed six,T02-F0-W4,derived,,1,True,full,L5,False,True,True,full_chain,,U7 offline re-judge; verdict identical to pre-U7
+hash-seed six,T02-F2-W4,derived,,1,True,provable_to_L4_then_unknown,L4,False,False,False,,,U7 offline re-judge; verdict identical to pre-U7
+hash-seed six,T02-F2-W4,derived,,2,True,provable_to_L4_then_unknown,L4,False,False,False,,,U7 offline re-judge; verdict identical to pre-U7
+hash-seed six,T04-F0-W4,derived,,1,True,full,L5,False,True,True,full_chain,,U7 offline re-judge; verdict identical to pre-U7
+hash-seed six,T04-F2-W4,derived,,1,True,full,L5,False,True,True,full_chain,,U7 offline re-judge; verdict identical to pre-U7
+hash-seed six,T04-F2-W4,derived,,2,True,detected_contained,L5,True,True,True,full_chain,,U7 offline re-judge; verdict identical to pre-U7
+hash-seed six,T04-F6-W4,derived,,1,True,full,L5,False,True,True,full_chain,,U7 offline re-judge; verdict identical to pre-U7
+seed1 diagnostic (0101 replication),T02-F2-W4,explicit,1,1,True,full,L5,False,True,False,,True,pre-U7 admitted=True; SIGABRT mshr assert
+seed1 diagnostic (0101 replication),T02-F2-W4,explicit,1,2,True,provable_to_L4_then_unknown,L4,False,False,False,,True,pre-U7 admitted=True; SIGABRT mshr assert

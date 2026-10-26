@@ -1,0 +1,1050 @@
+{
+ "schema": "0202-t02f2-diagnostic-baseline/1",
+ "verify_root": "/home/sdc/gem5-fi-ding/runs/lsu/0202_verify6_20261026T221213",
+ "six": [
+  {
+   "item": "ITEM-041",
+   "run_id": "T01-F0-W4",
+   "n_events": 5017,
+   "truncated": false,
+   "activated_faults": [
+    "1"
+   ],
+   "selector_check_admission_longest_path": "1",
+   "selector_containment_most_events": "1",
+   "selector_top_level_sorted_first": "1",
+   "selectors_all_agree": true,
+   "containment_from_events": null,
+   "sample_admitted": true,
+   "sample_path": "full_chain",
+   "sample_terminal": "full",
+   "violations": [],
+   "per_fault": {
+    "1": {
+     "n_events": 5017,
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "n_path": 6,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "last_path_event": "236",
+     "full_ancestry": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "parent_event_id": "0"
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "parent_event_id": "1"
+      },
+      {
+       "event_id": "3",
+       "kind": "tlb_translate_result",
+       "parent_event_id": "2"
+      },
+      {
+       "event_id": "4",
+       "kind": "lsq_push",
+       "parent_event_id": "3"
+      },
+      {
+       "event_id": "5",
+       "kind": "sq_execute",
+       "parent_event_id": "4"
+      },
+      {
+       "event_id": "6",
+       "kind": "sq_writeback",
+       "parent_event_id": "5"
+      },
+      {
+       "event_id": "7",
+       "kind": "cache_access",
+       "parent_event_id": "6"
+      },
+      {
+       "event_id": "8",
+       "kind": "cache_return",
+       "parent_event_id": "7"
+      },
+      {
+       "event_id": "9",
+       "kind": "mshr_alloc",
+       "parent_event_id": "8"
+      },
+      {
+       "event_id": "10",
+       "kind": "cache_access",
+       "parent_event_id": "9"
+      },
+      {
+       "event_id": "11",
+       "kind": "cache_return",
+       "parent_event_id": "10"
+      },
+      {
+       "event_id": "12",
+       "kind": "mshr_alloc",
+       "parent_event_id": "11"
+      },
+      {
+       "event_id": "64",
+       "kind": "resp",
+       "parent_event_id": "12"
+      },
+      {
+       "event_id": "65",
+       "kind": "taint_reg",
+       "parent_event_id": "64"
+      },
+      {
+       "event_id": "66",
+       "kind": "sq_complete",
+       "parent_event_id": "65"
+      },
+      {
+       "event_id": "236",
+       "kind": "errant_commit",
+       "parent_event_id": "66"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "item": "ITEM-047",
+   "run_id": "T02-F0-W4",
+   "n_events": 2628,
+   "truncated": false,
+   "activated_faults": [
+    "1"
+   ],
+   "selector_check_admission_longest_path": "1",
+   "selector_containment_most_events": "1",
+   "selector_top_level_sorted_first": "1",
+   "selectors_all_agree": true,
+   "containment_from_events": null,
+   "sample_admitted": true,
+   "sample_path": "full_chain",
+   "sample_terminal": "full",
+   "violations": [],
+   "per_fault": {
+    "1": {
+     "n_events": 2628,
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "n_path": 6,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "last_path_event": "277",
+     "full_ancestry": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "parent_event_id": "0"
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "parent_event_id": "1"
+      },
+      {
+       "event_id": "3",
+       "kind": "cache_access",
+       "parent_event_id": "2"
+      },
+      {
+       "event_id": "4",
+       "kind": "cache_return",
+       "parent_event_id": "3"
+      },
+      {
+       "event_id": "5",
+       "kind": "mshr_alloc",
+       "parent_event_id": "4"
+      },
+      {
+       "event_id": "6",
+       "kind": "cache_access",
+       "parent_event_id": "5"
+      },
+      {
+       "event_id": "7",
+       "kind": "cache_return",
+       "parent_event_id": "6"
+      },
+      {
+       "event_id": "8",
+       "kind": "mshr_alloc",
+       "parent_event_id": "7"
+      },
+      {
+       "event_id": "66",
+       "kind": "mshr_fill",
+       "parent_event_id": "8"
+      },
+      {
+       "event_id": "67",
+       "kind": "cache_fill",
+       "parent_event_id": "66"
+      },
+      {
+       "event_id": "68",
+       "kind": "mshr_free",
+       "parent_event_id": "67"
+      },
+      {
+       "event_id": "71",
+       "kind": "mshr_fill",
+       "parent_event_id": "68"
+      },
+      {
+       "event_id": "72",
+       "kind": "cache_fill",
+       "parent_event_id": "71"
+      },
+      {
+       "event_id": "73",
+       "kind": "mshr_free",
+       "parent_event_id": "72"
+      },
+      {
+       "event_id": "88",
+       "kind": "resp",
+       "parent_event_id": "73"
+      },
+      {
+       "event_id": "89",
+       "kind": "taint_reg",
+       "parent_event_id": "88"
+      },
+      {
+       "event_id": "277",
+       "kind": "errant_commit",
+       "parent_event_id": "89"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "item": "ITEM-049",
+   "run_id": "T02-F2-W4",
+   "n_events": 3288,
+   "truncated": false,
+   "activated_faults": [
+    "1",
+    "2"
+   ],
+   "selector_check_admission_longest_path": "1",
+   "selector_containment_most_events": "1",
+   "selector_top_level_sorted_first": "1",
+   "selectors_all_agree": true,
+   "containment_from_events": null,
+   "sample_admitted": false,
+   "sample_path": null,
+   "sample_terminal": "provable_to_L4_then_unknown",
+   "violations": [
+    "cross_branch_edge: T02-F2-W4 fault 1 成对拼接比单 DAG 路径多证出边——边见证分散在多个分支，禁止跨分支拼接",
+    "no_closed_chain_and_no_containment: T02-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+    "ready_by_activated_only: T02-F2-W4 activated=2 本身不是 READY 依据（须完整链或 containment）",
+    "ready_by_rc0: T02-F2-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
+    "ready_by_chain_end_only: T02-F2-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+   ],
+   "per_fault": {
+    "1": {
+     "n_events": 3001,
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "beyond": "Unknown",
+     "n_path": 5,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "missing"
+     },
+     "last_path_event": "22",
+     "full_ancestry": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "parent_event_id": "0"
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "parent_event_id": "1"
+      },
+      {
+       "event_id": "3",
+       "kind": "tlb_translate_result",
+       "parent_event_id": "2"
+      },
+      {
+       "event_id": "4294967296",
+       "kind": "request_fork",
+       "parent_event_id": "3"
+      },
+      {
+       "event_id": "5",
+       "kind": "cache_access",
+       "parent_event_id": "4294967296"
+      },
+      {
+       "event_id": "6",
+       "kind": "cache_return",
+       "parent_event_id": "5"
+      },
+      {
+       "event_id": "7",
+       "kind": "mshr_alloc",
+       "parent_event_id": "6"
+      },
+      {
+       "event_id": "14",
+       "kind": "cache_access",
+       "parent_event_id": "7"
+      },
+      {
+       "event_id": "15",
+       "kind": "cache_return",
+       "parent_event_id": "14"
+      },
+      {
+       "event_id": "16",
+       "kind": "mshr_alloc",
+       "parent_event_id": "15"
+      },
+      {
+       "event_id": "20",
+       "kind": "resp",
+       "parent_event_id": "16"
+      },
+      {
+       "event_id": "21",
+       "kind": "lq_complete",
+       "parent_event_id": "20"
+      },
+      {
+       "event_id": "22",
+       "kind": "taint_reg",
+       "parent_event_id": "21"
+      }
+     ]
+    },
+    "2": {
+     "n_events": 287,
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "beyond": "Unknown",
+     "n_path": 5,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "missing"
+     },
+     "last_path_event": "2678",
+     "full_ancestry": [
+      {
+       "event_id": "2665",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "2666",
+       "kind": "tlb_lookup",
+       "parent_event_id": "2665"
+      },
+      {
+       "event_id": "2667",
+       "kind": "tlb_pfn",
+       "parent_event_id": "2666"
+      },
+      {
+       "event_id": "2668",
+       "kind": "tlb_translate_result",
+       "parent_event_id": "2667"
+      },
+      {
+       "event_id": "2669",
+       "kind": "lq_read",
+       "parent_event_id": "2668"
+      },
+      {
+       "event_id": "2670",
+       "kind": "cache_access",
+       "parent_event_id": "2669"
+      },
+      {
+       "event_id": "2671",
+       "kind": "cache_return",
+       "parent_event_id": "2670"
+      },
+      {
+       "event_id": "2672",
+       "kind": "mshr_alloc",
+       "parent_event_id": "2671"
+      },
+      {
+       "event_id": "2673",
+       "kind": "cache_access",
+       "parent_event_id": "2672"
+      },
+      {
+       "event_id": "2674",
+       "kind": "cache_return",
+       "parent_event_id": "2673"
+      },
+      {
+       "event_id": "2675",
+       "kind": "mshr_alloc",
+       "parent_event_id": "2674"
+      },
+      {
+       "event_id": "2676",
+       "kind": "resp",
+       "parent_event_id": "2675"
+      },
+      {
+       "event_id": "2677",
+       "kind": "lq_complete",
+       "parent_event_id": "2676"
+      },
+      {
+       "event_id": "2678",
+       "kind": "taint_reg",
+       "parent_event_id": "2677"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "item": "ITEM-052",
+   "run_id": "T04-F0-W4",
+   "n_events": 57599,
+   "truncated": false,
+   "activated_faults": [
+    "1"
+   ],
+   "selector_check_admission_longest_path": "1",
+   "selector_containment_most_events": "1",
+   "selector_top_level_sorted_first": "1",
+   "selectors_all_agree": true,
+   "containment_from_events": null,
+   "sample_admitted": true,
+   "sample_path": "full_chain",
+   "sample_terminal": "full",
+   "violations": [],
+   "per_fault": {
+    "1": {
+     "n_events": 57290,
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "n_path": 6,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "last_path_event": "21",
+     "full_ancestry": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "parent_event_id": "0"
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "parent_event_id": "1"
+      },
+      {
+       "event_id": "3",
+       "kind": "tlb_translate_result",
+       "parent_event_id": "2"
+      },
+      {
+       "event_id": "4",
+       "kind": "lsq_push",
+       "parent_event_id": "3"
+      },
+      {
+       "event_id": "5",
+       "kind": "lq_read",
+       "parent_event_id": "4"
+      },
+      {
+       "event_id": "6",
+       "kind": "cache_access",
+       "parent_event_id": "5"
+      },
+      {
+       "event_id": "7",
+       "kind": "cache_return",
+       "parent_event_id": "6"
+      },
+      {
+       "event_id": "8",
+       "kind": "mshr_alloc",
+       "parent_event_id": "7"
+      },
+      {
+       "event_id": "9",
+       "kind": "cache_access",
+       "parent_event_id": "8"
+      },
+      {
+       "event_id": "10",
+       "kind": "cache_return",
+       "parent_event_id": "9"
+      },
+      {
+       "event_id": "11",
+       "kind": "mshr_alloc",
+       "parent_event_id": "10"
+      },
+      {
+       "event_id": "12",
+       "kind": "mshr_fill",
+       "parent_event_id": "11"
+      },
+      {
+       "event_id": "13",
+       "kind": "cache_fill",
+       "parent_event_id": "12"
+      },
+      {
+       "event_id": "14",
+       "kind": "mshr_free",
+       "parent_event_id": "13"
+      },
+      {
+       "event_id": "15",
+       "kind": "mshr_fill",
+       "parent_event_id": "14"
+      },
+      {
+       "event_id": "16",
+       "kind": "cache_fill",
+       "parent_event_id": "15"
+      },
+      {
+       "event_id": "17",
+       "kind": "mshr_free",
+       "parent_event_id": "16"
+      },
+      {
+       "event_id": "18",
+       "kind": "resp",
+       "parent_event_id": "17"
+      },
+      {
+       "event_id": "19",
+       "kind": "lq_complete",
+       "parent_event_id": "18"
+      },
+      {
+       "event_id": "20",
+       "kind": "taint_reg",
+       "parent_event_id": "19"
+      },
+      {
+       "event_id": "21",
+       "kind": "errant_commit",
+       "parent_event_id": "20"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "item": "ITEM-053",
+   "run_id": "T04-F2-W4",
+   "n_events": 11976,
+   "truncated": false,
+   "activated_faults": [
+    "1",
+    "2"
+   ],
+   "selector_check_admission_longest_path": "1",
+   "selector_containment_most_events": "1",
+   "selector_top_level_sorted_first": "1",
+   "selectors_all_agree": true,
+   "containment_from_events": null,
+   "sample_admitted": true,
+   "sample_path": "full_chain",
+   "sample_terminal": "full",
+   "violations": [],
+   "per_fault": {
+    "1": {
+     "n_events": 9864,
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "n_path": 6,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "last_path_event": "51",
+     "full_ancestry": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "parent_event_id": "0"
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "parent_event_id": "1"
+      },
+      {
+       "event_id": "3",
+       "kind": "tlb_translate_result",
+       "parent_event_id": "2"
+      },
+      {
+       "event_id": "4",
+       "kind": "sq_execute",
+       "parent_event_id": "3"
+      },
+      {
+       "event_id": "5",
+       "kind": "sq_writeback",
+       "parent_event_id": "4"
+      },
+      {
+       "event_id": "6",
+       "kind": "cache_access",
+       "parent_event_id": "5"
+      },
+      {
+       "event_id": "7",
+       "kind": "cache_return",
+       "parent_event_id": "6"
+      },
+      {
+       "event_id": "8",
+       "kind": "mshr_alloc",
+       "parent_event_id": "7"
+      },
+      {
+       "event_id": "9",
+       "kind": "cache_access",
+       "parent_event_id": "8"
+      },
+      {
+       "event_id": "10",
+       "kind": "cache_return",
+       "parent_event_id": "9"
+      },
+      {
+       "event_id": "11",
+       "kind": "mshr_alloc",
+       "parent_event_id": "10"
+      },
+      {
+       "event_id": "24",
+       "kind": "mshr_fill",
+       "parent_event_id": "11"
+      },
+      {
+       "event_id": "25",
+       "kind": "cache_fill",
+       "parent_event_id": "24"
+      },
+      {
+       "event_id": "26",
+       "kind": "mshr_free",
+       "parent_event_id": "25"
+      },
+      {
+       "event_id": "27",
+       "kind": "mshr_fill",
+       "parent_event_id": "26"
+      },
+      {
+       "event_id": "28",
+       "kind": "cache_fill",
+       "parent_event_id": "27"
+      },
+      {
+       "event_id": "29",
+       "kind": "mshr_free",
+       "parent_event_id": "28"
+      },
+      {
+       "event_id": "33",
+       "kind": "resp",
+       "parent_event_id": "29"
+      },
+      {
+       "event_id": "34",
+       "kind": "taint_reg",
+       "parent_event_id": "33"
+      },
+      {
+       "event_id": "35",
+       "kind": "sq_complete",
+       "parent_event_id": "34"
+      },
+      {
+       "event_id": "51",
+       "kind": "errant_commit",
+       "parent_event_id": "35"
+      }
+     ]
+    },
+    "2": {
+     "n_events": 2112,
+     "terminal": "detected_contained",
+     "provable_to": "L5",
+     "beyond": "",
+     "n_path": 6,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "last_path_event": "8683",
+     "full_ancestry": [
+      {
+       "event_id": "8345",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "8346",
+       "kind": "tlb_lookup",
+       "parent_event_id": "8345"
+      },
+      {
+       "event_id": "8347",
+       "kind": "tlb_pfn",
+       "parent_event_id": "8346"
+      },
+      {
+       "event_id": "8348",
+       "kind": "tlb_translate_result",
+       "parent_event_id": "8347"
+      },
+      {
+       "event_id": "8349",
+       "kind": "lq_read",
+       "parent_event_id": "8348"
+      },
+      {
+       "event_id": "8350",
+       "kind": "cache_access",
+       "parent_event_id": "8349"
+      },
+      {
+       "event_id": "8351",
+       "kind": "cache_return",
+       "parent_event_id": "8350"
+      },
+      {
+       "event_id": "8352",
+       "kind": "mshr_alloc",
+       "parent_event_id": "8351"
+      },
+      {
+       "event_id": "8356",
+       "kind": "cache_access",
+       "parent_event_id": "8352"
+      },
+      {
+       "event_id": "8357",
+       "kind": "cache_return",
+       "parent_event_id": "8356"
+      },
+      {
+       "event_id": "8358",
+       "kind": "mshr_alloc",
+       "parent_event_id": "8357"
+      },
+      {
+       "event_id": "4294968822",
+       "kind": "request_fork",
+       "parent_event_id": "8358"
+      },
+      {
+       "event_id": "8386",
+       "kind": "cache_access",
+       "parent_event_id": "4294968822"
+      },
+      {
+       "event_id": "8387",
+       "kind": "cache_return",
+       "parent_event_id": "8386"
+      },
+      {
+       "event_id": "8388",
+       "kind": "mshr_merge",
+       "parent_event_id": "8387"
+      },
+      {
+       "event_id": "8430",
+       "kind": "resp",
+       "parent_event_id": "8388"
+      },
+      {
+       "event_id": "8431",
+       "kind": "lq_complete",
+       "parent_event_id": "8430"
+      },
+      {
+       "event_id": "8432",
+       "kind": "taint_reg",
+       "parent_event_id": "8431"
+      },
+      {
+       "event_id": "8442",
+       "kind": "consumer",
+       "parent_event_id": "8432"
+      },
+      {
+       "event_id": "8451",
+       "kind": "consumer",
+       "parent_event_id": "8442"
+      },
+      {
+       "event_id": "8452",
+       "kind": "consumer",
+       "parent_event_id": "8451"
+      },
+      {
+       "event_id": "8460",
+       "kind": "consumer",
+       "parent_event_id": "8452"
+      },
+      {
+       "event_id": "8667",
+       "kind": "consumer",
+       "parent_event_id": "8460"
+      },
+      {
+       "event_id": "8668",
+       "kind": "consumer",
+       "parent_event_id": "8667"
+      },
+      {
+       "event_id": "8677",
+       "kind": "consumer",
+       "parent_event_id": "8668"
+      },
+      {
+       "event_id": "8683",
+       "kind": "squash_masked",
+       "parent_event_id": "8677"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "item": "ITEM-054",
+   "run_id": "T04-F6-W4",
+   "n_events": 57599,
+   "truncated": false,
+   "activated_faults": [
+    "1"
+   ],
+   "selector_check_admission_longest_path": "1",
+   "selector_containment_most_events": "1",
+   "selector_top_level_sorted_first": "1",
+   "selectors_all_agree": true,
+   "containment_from_events": null,
+   "sample_admitted": true,
+   "sample_path": "full_chain",
+   "sample_terminal": "full",
+   "violations": [],
+   "per_fault": {
+    "1": {
+     "n_events": 57290,
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "n_path": 6,
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "last_path_event": "21",
+     "full_ancestry": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "parent_event_id": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "parent_event_id": "0"
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "parent_event_id": "1"
+      },
+      {
+       "event_id": "3",
+       "kind": "tlb_translate_result",
+       "parent_event_id": "2"
+      },
+      {
+       "event_id": "4",
+       "kind": "lsq_push",
+       "parent_event_id": "3"
+      },
+      {
+       "event_id": "5",
+       "kind": "lq_read",
+       "parent_event_id": "4"
+      },
+      {
+       "event_id": "6",
+       "kind": "cache_access",
+       "parent_event_id": "5"
+      },
+      {
+       "event_id": "7",
+       "kind": "cache_return",
+       "parent_event_id": "6"
+      },
+      {
+       "event_id": "8",
+       "kind": "mshr_alloc",
+       "parent_event_id": "7"
+      },
+      {
+       "event_id": "9",
+       "kind": "cache_access",
+       "parent_event_id": "8"
+      },
+      {
+       "event_id": "10",
+       "kind": "cache_return",
+       "parent_event_id": "9"
+      },
+      {
+       "event_id": "11",
+       "kind": "mshr_alloc",
+       "parent_event_id": "10"
+      },
+      {
+       "event_id": "12",
+       "kind": "mshr_fill",
+       "parent_event_id": "11"
+      },
+      {
+       "event_id": "13",
+       "kind": "cache_fill",
+       "parent_event_id": "12"
+      },
+      {
+       "event_id": "14",
+       "kind": "mshr_free",
+       "parent_event_id": "13"
+      },
+      {
+       "event_id": "15",
+       "kind": "mshr_fill",
+       "parent_event_id": "14"
+      },
+      {
+       "event_id": "16",
+       "kind": "cache_fill",
+       "parent_event_id": "15"
+      },
+      {
+       "event_id": "17",
+       "kind": "mshr_free",
+       "parent_event_id": "16"
+      },
+      {
+       "event_id": "18",
+       "kind": "resp",
+       "parent_event_id": "17"
+      },
+      {
+       "event_id": "19",
+       "kind": "lq_complete",
+       "parent_event_id": "18"
+      },
+      {
+       "event_id": "20",
+       "kind": "taint_reg",
+       "parent_event_id": "19"
+      },
+      {
+       "event_id": "21",
+       "kind": "errant_commit",
+       "parent_event_id": "20"
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "selectors": {
+  "check_admission": "max by len(path_event_ids)",
+  "containment_from_events": "max by len(chain)",
+  "campaign_top_level_terminal": "sorted(faults)[0]"
+ }
+}
