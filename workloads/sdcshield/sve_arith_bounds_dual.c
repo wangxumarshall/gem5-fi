@@ -1,6 +1,7 @@
 /* sve_arith_bounds_dual.c — dual-channel extraction of the four PR #294
  * review-round hardening fixes in sdcshield (branch
- * feat/allvl2-hardening, review round 1) for CHAOS/gem5 SE-O3:
+ * feat/allvl2-hardening, review round 1; section A re-synced to the
+ * round-2/3 head form in PR #294 review round 3) for CHAOS/gem5 SE-O3:
  *
  *   A. sve_bigint_mul512 (tests/cpu/sve/arithmetic/bigint_mulx_sve.cpp +
  *      gmp_bignum_sve.cpp, byte-identical duplicates): reworked to chunk
@@ -75,10 +76,27 @@ static void fnv_u64(uint64_t v)
 
 static unsigned g_fails = 0;
 
-/* ---- Section A: fixed sve_bigint_mul512 (verbatim, PR #294 form) ---- */
-static void sve_bigint_mul512(const uint64_t *a, const uint64_t *b, uint64_t *out_lo) {
+/* ---- Section A: sve_bigint_mul512 (verbatim, PR #294 head form after
+ * review rounds 2+3: bool return — every SVE low-half product is compared
+ * per-lane against the __int128 reference BEFORE accumulation, with a
+ * cold-path first-mismatch + failing-lane-histogram diag; kernel poison
+ * plumbing (g_poison_lane) simulates a multiplier SDC on one lane of a
+ * high word pair (i+j >= NUM_WORDS) that out_lo's memcmp can never see). */
+static int g_poison_lane;   /* poison mode: flip one svmul lane, i == 7 */
+
+struct Mul512LaneDiag {
+    int      first_i, first_j;
+    uint64_t first_actual, first_expected, first_xor;
+    uint32_t lane_hist[16];
+    uint32_t total;
+};
+
+static bool sve_bigint_mul512(const uint64_t *a, const uint64_t *b, uint64_t *out_lo,
+                              struct Mul512LaneDiag *diag) {
     uint64_t acc[NUM_WORDS * 2];
     memset(acc, 0, sizeof(acc));
+    memset(diag, 0, sizeof(*diag));
+    bool sve_ok = true;
 
     for (int i = 0; i < NUM_WORDS; ++i) {
         uint64_t lo_row[NUM_WORDS];
@@ -88,10 +106,29 @@ static void sve_bigint_mul512(const uint64_t *a, const uint64_t *b, uint64_t *ou
             svuint64_t vb = svld1_u64(pgj, b + j0);
             svst1_u64(pgj, lo_row + j0, svmul_u64_x(pgj, va, vb));
         }
+        /* kernel-only poison plumbing: multiplier SDC on lane 7 of the
+         * i == 7 row — enters acc[14] (not in out_lo) so the memcmp
+         * channel stays clean and ONLY the per-lane channel can catch it */
+        if (g_poison_lane && i == 7)
+            lo_row[7] ^= 1ULL;
 
         uint64_t carry = 0;
         for (int j = 0; j < NUM_WORDS; ++j) {
             unsigned __int128 prod = (unsigned __int128)a[i] * b[j];
+            if (lo_row[j] != (uint64_t)prod) {
+                sve_ok = false;
+                if (!diag->total) {
+                    diag->first_i = i;
+                    diag->first_j = j;
+                    diag->first_actual = lo_row[j];
+                    diag->first_expected = (uint64_t)prod;
+                    diag->first_xor = lo_row[j] ^ (uint64_t)prod;
+                }
+                const int lane = (int)((unsigned)j % (unsigned)svcntd());
+                if (lane < 16)
+                    diag->lane_hist[lane]++;
+                diag->total++;
+            }
             unsigned __int128 s = (unsigned __int128)acc[i + j] + lo_row[j] + carry;
             acc[i + j] = (uint64_t)s;
             carry = (uint64_t)(prod >> 64) + (uint64_t)(s >> 64);
@@ -99,6 +136,7 @@ static void sve_bigint_mul512(const uint64_t *a, const uint64_t *b, uint64_t *ou
         acc[i + NUM_WORDS] += carry;
     }
     memcpy(out_lo, acc, NUM_WORDS * sizeof(uint64_t));
+    return sve_ok;
 }
 
 static void sw_bigint_mul512(const uint64_t *a, const uint64_t *b, uint64_t *out_lo) {
@@ -169,6 +207,7 @@ int main(int argc, char **argv)
     }
 
     /* ---------- Section A: 512-bit multiplies, SVE vs schoolbook ---------- */
+    g_poison_lane = poison;   /* per-lane channel poison (round 3) */
     for (int rep = 0; rep < 4; ++rep) {
         uint64_t a[NUM_WORDS], b[NUM_WORDS];
         for (int i = 0; i < NUM_WORDS; ++i) {
@@ -176,10 +215,11 @@ int main(int argc, char **argv)
             b[i] = sm64();
         }
         uint64_t sve_lo[NUM_WORDS], sw_lo[NUM_WORDS];
-        sve_bigint_mul512(a, b, sve_lo);
+        struct Mul512LaneDiag diag;
+        const bool lanes_ok = sve_bigint_mul512(a, b, sve_lo, &diag);
         sw_bigint_mul512(a, b, sw_lo);
         if (poison && rep == 0)
-            sw_lo[0] ^= 1ULL;                  /* negative control */
+            sw_lo[0] ^= 1ULL;                  /* negative control (memcmp channel) */
         for (int i = 0; i < NUM_WORDS; ++i) {
             fnv_u64(sve_lo[i]);
             if (sve_lo[i] != sw_lo[i]) {
@@ -188,6 +228,21 @@ int main(int argc, char **argv)
                         (unsigned long long)sw_lo[i]);
                 ++g_fails;
             }
+        }
+        /* per-lane channel (mirrors the test's run-side report_fail):
+         * catches word pairs whose products never reach out_lo */
+        if (!lanes_ok) {
+            fprintf(stderr, "A mul512 rep %d per-lane mismatch at (i=%d, j=%d): "
+                    "sve=%016llx ref=%016llx xor=%016llx (%u pairs, lanes:",
+                    rep, diag.first_i, diag.first_j,
+                    (unsigned long long)diag.first_actual,
+                    (unsigned long long)diag.first_expected,
+                    (unsigned long long)diag.first_xor, diag.total);
+            for (int l = 0; l < 16; ++l)
+                if (diag.lane_hist[l])
+                    fprintf(stderr, " %d=%u", l, diag.lane_hist[l]);
+            fprintf(stderr, ")\n");
+            ++g_fails;
         }
     }
 

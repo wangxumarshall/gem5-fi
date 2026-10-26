@@ -404,3 +404,54 @@ random 同输入故 checksum 相同，矩阵有效维度 = 4 档 × 3 输入集 
 诚实边界：gem5 无 ASAN，被移除的越界访问以"镜像源码谓词/容量有界"构造性
 证明而非检测性证明；kernel 证明的是修复后逻辑在全部档位（含旧代码越界的
 512/1024-bit 档）计算正确；单发 kernel 边界同上。
+
+### PR #294 检视 round 3 实证——A 节 head 形态同步 + agu_2src_dual 新 kernel（2026-10-26，feat/pr294-r3-dual 分支）
+
+sdcshield PR #294 检视 round 3（head 028cf3af）两件行为变更的四档验证：
+
+- **sve_arith_bounds_dual A 节同步**：sdcshield round 2 给 sve_bigint_mul512 加了
+  per-lane 低半积比对（bool 返回，79542f9d）、round 3 再加冷路径诊断
+  （Mul512LaneDiag：首个失配 (i,j)/actual/expected/xor + lane 直方图）——kernel A 节
+  同步为 head 形态，新增 per-lane 阴性对照（g_poison_lane：i=7 行 lane 7 的 svmul
+  积 ^1，进 acc[14] 高位词，out_lo 的 memcmp 通道不可见）。
+- **agu_2src_dual 新 kernel**：镜像修复后的 agu_stress_2src_sve（kreg 家族
+  count+lanes 尾批 slack + run 侧 VL 漂移 fail-closed 守卫 + phase[
+  SVE_MAX_VECTOR_BYTES/8]）；count 故意取 4*lanes+(lanes+1)/2（非 lanes 整倍数），
+  每档都过尾批全宽 ldr z/str z。
+
+**24-run 健康路径实录**（O3，全部 gem5 退出码 0、SDCSHIELD_FAILS=0）：
+
+sve_arith_bounds_dual（A 节同步后）——12 格 checksum 与 round 1 表**逐字一致**
+（回归锚：per-lane 通道/诊断不改任何计算输出）：
+
+| 档位 | seed 1 | seed 2 | seed 3 |
+|------|--------|--------|--------|
+| 128-bit | 87accea6e20b7e99 | a9843eb6328f291a | 23e868549b5c5760 |
+| 256-bit | 40053e122128b8e7 | ca9cbee16f817961 | ca5397482c06a294 |
+| 512-bit | 9da259670097204d | fa08b7756b25cc16 | 6a41f4f55a038141 |
+| 1024-bit | dca0dd8030ab0efa | 0e5ae0f4d53bd0a6 | 306ffb7833de5f2a |
+
+agu_2src_dual（新 kernel；count 随档缩放故档间 checksum 互异为设计预期）：
+
+| 档位 | seed 1 | seed 2 | seed 3 |
+|------|--------|--------|--------|
+| 128-bit (count=9) | 674bdb139b9ddea1 | a290f7e533c62441 | 40201261e950d1cc |
+| 256-bit (count=18) | 647b53d28788cb90 | 4be8eb8b103f5ac6 | a90707f37030c346 |
+| 512-bit (count=36) | db7fed6fc65f2efc | 612e5037432ab318 | aee313b3a3f80615 |
+| 1024-bit (count=72) | 5581e8640365cf45 | ad8b23bb1dff233a | 4deeb2f203226bde |
+
+**阴性对照（J1'）**：
+- sve_arith_bounds_dual poison（vl=8 与 vl=1 同）：SDCSHIELD_FAILS=9 = A-memcmp 1 +
+  **A-per-lane 4**（每 rep 一处）+ B 1 + C 1 + D 2；per-lane 通道 stderr 实录
+  `(i=7, j=7): sve=…167 ref=…166 xor=1 (1 pairs, lanes: 7=1)`（vl=8，svcntd()=16 →
+  lane 7）与 `lanes: 1=1`（vl=1，svcntd()=2 → j%svcntd()=1）——直方图跨档数学验证；
+  毒化词对 i+j=14 ≥ NUM_WORDS，out_lo 八字全对（memcmp 通道零命中）——**盲区消除
+  由对照直接证明**。
+- agu_2src_dual poison（vl=8 与 vl=1 同）：SDCSHIELD_FAILS=3（3 轮 × golden[1] 毒化
+  1 元素），冷路径 dump golden/actual/xor + 总数镜像测试形态。
+
+诚实边界：gem5 无 ASAN，agu 被移除的尾批越界以"镜像源码 count+lanes slack 有界"
+构造性证明；kernel 证明的是修复后逻辑（含尾批路径）在全部档位计算正确。
+（round 2 的 sdcshield 侧验证边界声明称"gem5-fi 本机不可用"系失实——真实 checkout
+在 /home/sdc/wangxu/operator/gem5-fi，本分支即其上第 N 次四档实证；勘误见
+sdcshield 侧 progress-log。）
