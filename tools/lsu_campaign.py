@@ -2050,12 +2050,24 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
         rep.update({"stream_present": True, "truncated": truncated,
                     "event_count": len(events), "faults": verdict["faults"]})
         if verdict["faults"]:
-            # single-fault campaign: surface the (first) chain at top level
-            fid = sorted(verdict["faults"])[0]
-            f = verdict["faults"][fid]
-            rep.update({"terminal": f["terminal"],
-                        "provable_to": f["provable_to"],
-                        "beyond": f["beyond"]})
+            # [0202-T02F2] 顶层 terminal 与准入**同源**：消费同一份 per-fault 结果
+            # （evaluate_sample；取已证有序路径最长的那个 fault）。此前是
+            # `sorted(faults)[0]` —— 与准入排序键不同，三处选择器不一致之一。
+            # 传入线性 check_chain_fast 以保住大流性能（R6-SCAL）。
+            _ev = CHAIN.evaluate_sample(events, str(runid), truncated=truncated,
+                                        oracle_outcome=oracle,
+                                        chain_fn=check_chain_fast)
+            rep.update({"terminal": _ev["terminal"],
+                        "provable_to": _ev["provable_to"],
+                        "beyond": _ev["beyond"],
+                        "top_fault_id": _ev["top_fault_id"],
+                        "activated_faults": _ev["activated_faults"],
+                        "all_activated_faults_closed": _ev["all_activated_faults_closed"],
+                        "per_fault": {k: {kk: vv for kk, vv in v.items()
+                                          if kk in ("fault_id", "activated", "terminal",
+                                                    "provable_to", "contained",
+                                                    "admission", "n_path", "violations")}
+                                      for k, v in _ev["per_fault"].items()}})
         rep["summary"] = (_loud +
             "%s s%s oracle=%s exit=%s stream=%s truncated=%s events=%d "
             "faults=%d terminal=%s provable_to=%s beyond=%s | "

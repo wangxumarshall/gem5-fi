@@ -1081,13 +1081,26 @@ def containment_from_events(events, run_id="?", fault_id=None, truncated=False):
     "chain_end 制造含住"由构造堵死；截断/未收口流一律返回 None。
     返回 {layer, reason, metrics, na_layers} 或 None（无证据/主张不成立）。
     """
+    return _containment_for_fault(events, run_id, fault_id, truncated)
+
+
+def _containment_for_fault(events, run_id, fault_id=None, truncated=False):
+    """[0202-T02F2] **单 fault** 的显式含住束（唯一实现）。
+
+    取证只在本 fault 自己的链上进行，绝不跨 fault 取用证据。`fault_id=None` 仅在
+    流内**恰有一个** activated fault 时可用；多 fault 时返回 None ——"事件数最多"
+    的选择在多 fault 下无定义，调用方必须显式给出 fault_id（禁止静默重选，这正是
+    本轮修掉的三处不一致之一）。
+    """
     faults = _group_by_fault(events)
     if not faults:
         return None
     if fault_id is not None and fault_id in faults:
         fid, chain = fault_id, faults[fault_id]
+    elif fault_id is None and len(faults) == 1:
+        fid, chain = next(iter(faults.items()))
     else:
-        fid, chain = max(faults.items(), key=lambda kv: len(kv[1]))
+        return None          # 多 fault 且未指明 ⇒ 拒绝静默重选
     family = _family_of(chain)
     if truncated or not _stream_closed(chain):
         return None
@@ -1147,15 +1160,24 @@ def _crutch_violations(res, bundle, events):
                  f"不构成 L5 结终局证据——不得据此判 READY")
 
 
-def check_admission(bundle):
-    """Hard gate verdict for ONE activated sample.
+def _adjudicate_single_fault(bundle):
+    """**单一 fault** 的准入裁决（内部核；不做样本级聚合）。
+
+    [0202-T02F2] 原 `check_admission` 的主体原样保留在此 —— 它的全部逐路径检查
+    （L1 冒充 / bridge / 跨 request / 逆时 / 必录指标 / 含住束校验）都建立在
+    "这一个 fault 的链与路径"上，因此对**单 fault 切片**调用即得到该 fault 的
+    独立裁决，无需重写任何规则。样本级 `check_admission` 在此之上做保守 `all()`。
 
     bundle = {run_id, activated, events (PROP-EVT list), [rc],
-              [oracle_outcome], [containment]}
-    Returns {run_id, applicable, admitted, path, terminal, family,
-             path_layers, violations, reasons, n_events}.  `admitted` is True
-    only when option (1) or (2) holds AND no violation token fired.
+              [oracle_outcome], [containment], [summary_issues],
+              [consumer_summary_accounting]}
     """
+    run_id = str(bundle.get("run_id", "?"))
+    try:
+        act = int(bundle.get("activated") or 0)
+    except (TypeError, ValueError):
+        act = 0
+    events = list(bundle.get("events") or [])
     run_id = str(bundle.get("run_id", "?"))
     try:
         act = int(bundle.get("activated") or 0)
@@ -1320,6 +1342,189 @@ def check_admission(bundle):
         _crutch_violations(res, bundle, events)
     res["admitted"] = bool((opt1 or opt2) and not viol)
     return res
+
+
+def evaluate_faults(events, run_id="?", truncated=False, oracle_outcome=None,
+                    summary_issues=None, consumer_summary_accounting=None,
+                    chain_fn=None, containment_override=None, rc=None):
+    """[0202-T02F2] **逐个 activated fault 独立评估**（唯一来源）。
+
+    对一个运行里出现的每个 `fault_id`（≠0），**只切出该 fault 自己的事件**评估：
+      - `terminal` / `provable_to` / `edges`（来自 check_chain 的逐 fault 判定）；
+      - `selected_ancestry`：从该 fault 自己的 `inj` 到最深可证事件的连续父链；
+      - `containment`：只由该 fault 自己的链派生的显式含住束（`_containment_for_fault`）；
+      - `admission`：该 fault 独立成立（完整 L0→L5 **或** 合法显式含住）且自身无违规；
+      - `violations`。
+    绝不跨 fault 取用证据（切片即隔离）。
+    """
+    _chain = chain_fn or check_chain
+    groups = _group_by_fault(events)
+    # [兼容] 调用方显式提供的单一含住束只在**单 fault** 流上生效（历史行为逐字节
+    # 保持）；多 fault 下它二义，`evaluate_sample` 会改用逐 fault 派生并留痕。
+    _single = len(groups) == 1
+    out = {}
+    for fid in sorted(groups, key=lambda k: int(k) if str(k).isdigit() else 1 << 30):
+        chain = groups[fid]
+        verdict = _chain(chain, oracle_outcome=oracle_outcome)
+        f = verdict["faults"].get(fid, {})
+        family = f.get("family") or _family_of(chain)
+        if _single and isinstance(containment_override, dict):
+            cont = containment_override
+        else:
+            cont = _containment_for_fault(chain, run_id, fid, truncated)
+        r = _adjudicate_single_fault({
+            "run_id": run_id, "activated": 1, "events": chain,
+            "oracle_outcome": oracle_outcome, "containment": cont,
+            # 截断旗标与 rc 必须传进**单 fault 核**：两者都是历史响亮违规
+            # （containment_on_truncated_stream / ready_by_rc0）的触发条件。
+            "truncated": bool(truncated), "rc": rc,
+            "summary_issues": summary_issues,
+            "consumer_summary_accounting": consumer_summary_accounting})
+        by_id = {e.get("event_id", ""): e for e in chain if e.get("event_id", "") != ""}
+        # 祖先链取自**判定所用的那条路径**（path_event_ids 的末事件回溯），因此
+        # 与顶层 terminal 同源，且自动继承调用方选定的路径实现（如 campaign 的
+        # 线性 check_chain_fast），不再重复跑一遍 _best_ordered_path。
+        pids = list(f.get("path_event_ids") or [])
+        last = pids[-1] if pids else None
+        anc = _ancestry(by_id[last], by_id) if (last and last in by_id) else []
+        out[str(fid)] = {
+            "fault_id": str(fid),
+            "activated": any(e.get("kind") == "inj" for e in chain),
+            "n_events": len(chain),
+            "terminal": f.get("terminal"),
+            "provable_to": f.get("provable_to"),
+            "beyond": f.get("beyond"),
+            "edges": {k: v for k, v in (f.get("edges") or {}).items()
+                      if not k.endswith("_witness")},
+            "family": family,
+            # 历史准入排序键：已证有序路径长度（path_event_ids），保留以让顶层
+            # 选择与旧行为逐字节一致（祖先链深度是另一个量，不可混用）。
+            "n_path": len(f.get("path_event_ids") or []),
+            "path_event_ids": list(f.get("path_event_ids") or []),
+            "selected_ancestry": [
+                {"event_id": e.get("event_id", ""), "kind": e.get("kind", ""),
+                 "parent_event_id": e.get("parent_event_id", ""),
+                 "request_id": e.get("request_id", ""),
+                 "corr": e.get("corr", "")} for e in anc],
+            "ancestry_root_is_own_inj": bool(anc) and anc[0].get("kind") == "inj",
+            "contained": cont is not None,
+            "containment": cont,
+            "admission": bool(r.get("admitted")),
+            "path": r.get("path"),
+            "path_layers": r.get("path_layers") or [],
+            "violations": list(r.get("violations") or []),
+            "reasons": list(r.get("reasons") or []),
+        }
+    return out
+
+
+def evaluate_sample(events, run_id="?", truncated=False, oracle_outcome=None,
+                    summary_issues=None, consumer_summary_accounting=None,
+                    caller_containment=None, chain_fn=None, rc=None):
+    """[0202-T02F2] 样本级裁决 = **所有 activated fault 的 `all()`**。
+
+    保守口径（用户 2026-10-27 规则）：任一个实际 activated fault 既未形成连续
+    parent-event 的完整 L0→L5，也未形成真实、非 lifecycle、字段完整的提前含住，
+    则整个样本 **不得 admitted**。禁止"任选一条通过即可"。
+
+    顶层 `terminal` 取**最长可证路径那个 fault** 的 terminal（一条固定的、写明的
+    规则，与准入排序同源），不再使用 `sorted(faults)[0]` 那种与准入不同的选择器。
+    """
+    per = evaluate_faults(events, run_id=run_id, truncated=truncated,
+                          oracle_outcome=oracle_outcome,
+                          summary_issues=summary_issues,
+                          consumer_summary_accounting=consumer_summary_accounting,
+                          chain_fn=chain_fn,
+                          containment_override=caller_containment, rc=rc)
+    act = [f for f in per.values() if f["activated"]]
+    viol, reasons = [], []
+    for f in act:
+        viol.extend(f["violations"])
+        reasons.extend(f["reasons"])
+    # 样本级检查（与单 fault 时代一致，作用于整条流）
+    u = _has_unknown(events)
+    if u is not None:
+        viol.append(f"unknown_in_activated_chain: {run_id} 存在 Unknown 事件 "
+                    f"kind={u.get('kind')!r} event_id={u.get('event_id')!r}——"
+                    f"activated 样本中任何 Unknown 一律不得 READY")
+    for msg in (summary_issues or []):
+        viol.append(f"malformed_consumer_summary: {run_id} {msg}")
+    if isinstance(consumer_summary_accounting, dict) and \
+            consumer_summary_accounting.get("conservation") == "violation":
+        for msg in (consumer_summary_accounting.get("issues") or ["计数不守恒"]):
+            viol.append(f"malformed_consumer_summary: {run_id} {msg}")
+    # 有事件却没有 inj 的 fault 组：不正常，响亮记录（不静默忽略）
+    for f in per.values():
+        if not f["activated"] and f["n_events"]:
+            viol.append(f"fault_without_inj: {run_id} fault {f['fault_id']} 有 "
+                        f"{f['n_events']} 条事件但无 inj（非 activated fault 却出现在链里）")
+    if len(act) > 1 and isinstance(caller_containment, dict):
+        reasons.append("caller_containment_ignored_multifault: 多 fault 样本下调用方"
+                       "提供的单一含住束二义，已改用逐 fault 派生（禁止静默重选）")
+    admitted = bool(act) and all(f["admission"] for f in act) and not viol
+    if not act:
+        admitted = False
+        reasons.append("no_activated_fault: 流内没有 activated fault")
+    # 顶层选择：**已证有序路径最长**的 activated fault —— 与历史准入排序键逐字一致
+    # （旧代码：max(faults.items(), key=len(path_event_ids))；平局取先出现者）。
+    ranked = sorted(act, key=lambda f: (-f.get("n_path", 0), f["fault_id"]))
+    top = ranked[0] if ranked else None
+    # 顶层 `path` 与 `terminal` 同源（最长可证路径那个 fault），不使用与准入不同的
+    # 选择器；逐 fault 的真实闭合方式在 `per_fault`（mixed 情况下顶层只是一个抓手）。
+    if admitted and top is not None:
+        path = "full_chain" if top["terminal"] == "full" else "contained"
+    else:
+        path = None
+    return {
+        "run_id": run_id,
+        "n_events": len(events),
+        "activated_faults": [f["fault_id"] for f in act],
+        "per_fault": per,
+        "admitted": admitted,
+        "path": path,
+        "terminal": (top or {}).get("terminal"),
+        "provable_to": (top or {}).get("provable_to"),
+        "beyond": (top or {}).get("beyond"),
+        "top_fault_id": (top or {}).get("fault_id"),
+        "family": (top or {}).get("family"),
+        "path_layers": (top or {}).get("path_layers") or [],
+        "violations": viol,
+        "reasons": reasons,
+        "all_activated_faults_closed": bool(act) and all(f["admission"] for f in act),
+    }
+
+
+def check_admission(bundle):
+    """Hard gate verdict for ONE activated sample（**保守 `all()`** 版本）。
+
+    [0202-T02F2] 改为消费 `evaluate_sample` 的 per-fault 结果：样本 admitted 当且仅当
+    **每个 activated fault** 都独立闭合（完整 L0→L5 或合法显式含住）且无违规。
+    返回键集与历史一致（run_id/applicable/admitted/path/terminal/family/
+    path_layers/violations/reasons/n_events）；per-fault 细节在 `evaluate_sample`。
+    """
+    run_id = str(bundle.get("run_id", "?"))
+    try:
+        act = int(bundle.get("activated") or 0)
+    except (TypeError, ValueError):
+        act = 0
+    events = list(bundle.get("events") or [])
+    if act <= 0:
+        return {"run_id": run_id, "applicable": False, "admitted": None,
+                "path": None, "terminal": None, "family": None,
+                "path_layers": [], "violations": [],
+                "reasons": ["activated=0：非 activated 样本，门禁不适用"],
+                "n_events": len(events)}
+    ev = evaluate_sample(events, run_id=run_id,
+                         truncated=_truncated_flag(bundle),
+                         oracle_outcome=bundle.get("oracle_outcome"),
+                         summary_issues=bundle.get("summary_issues"),
+                         consumer_summary_accounting=bundle.get("consumer_summary_accounting"),
+                         caller_containment=bundle.get("containment"),
+                         rc=bundle.get("rc"))
+    return {"run_id": run_id, "applicable": True, "admitted": ev["admitted"],
+            "path": ev["path"], "terminal": ev["terminal"], "family": ev["family"],
+            "path_layers": ev["path_layers"], "violations": ev["violations"],
+            "reasons": ev["reasons"], "n_events": ev["n_events"]}
 
 
 def main():
