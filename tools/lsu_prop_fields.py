@@ -518,22 +518,30 @@ def validate_consumer_summary(rec):
     return errs
 
 
-def read_stream(path):
+def read_stream(path, detail=None):
     """读整条流：PROP-EVT 事件 + consumer_summary 记录分离。
 
     返回 (events, truncated, summaries, summary_issues)。summary 行**不**进入
     events（规则 ①③：不占层、不进 DAG）；其校验问题单独返回供调用方关闭准入。
     read_events 保持原签名/行为（规则 ⑧ 兼容无 summary 流）。
+
+    [0202-T02F2-DURABILITY] `detail`（可选 dict）：给定则填入**截断详情**——
+    "最后一个已完整提交的数据块"的边界（最后一条已解析事件的 event_id / tick /
+    kind / 行号）与截断原因。异常中止（SIGABRT）的流没有 gzip trailer，其最后
+    一个 Z_SYNC_FLUSH 边界即最后完整块；该信息让调用方能**指出截断位置**，而非
+    只拿到一个布尔值。纯观测：不改变 events / truncated 的既有语义。
     """
     path = Path(path)
     truncated = False
     events = []
     summaries = []
     issues = []
+    n_lines = 0
     opener = gzip.open if path.suffix == ".gz" else open
     try:
         with opener(path, "rt", errors="replace") as f:
             for line in f:
+                n_lines += 1
                 summ = parse_consumer_summary(line)
                 if summ is not None:
                     summaries.append(summ)
@@ -547,8 +555,27 @@ def read_stream(path):
     # "读不到 EOF" 的磁盘事实 ⇒ 按截断诚实标记（保留已解析前缀），绝不令
     # 调用方崩溃。刻意保持显式异常元组而非宽泛 except Exception——
     # 解析逻辑 bug 必须响亮失败，不得被吞成截断。
-    except (EOFError, gzip.BadGzipFile, OSError, zlib.error):
+    except (EOFError, gzip.BadGzipFile, OSError, zlib.error) as exc:
         truncated = True
+        _exc_name = type(exc).__name__
+    else:
+        _exc_name = None
+    if detail is not None:
+        last = events[-1] if events else None
+        detail.update({
+            "truncated": truncated,
+            "reason": _exc_name,
+            "n_events": len(events),
+            "n_lines": n_lines,
+            "n_summaries": len(summaries),
+            # 最后一个完整块的边界（截断位置 = 该事件之后）
+            "last_event_id": (last or {}).get("event_id"),
+            "last_event_kind": (last or {}).get("kind"),
+            "last_tick": (last or {}).get("tick"),
+            "last_complete_boundary": (
+                f"event_id={last.get('event_id')} tick={last.get('tick')}"
+                if last else None),
+        })
     return events, truncated, summaries, issues
 
 

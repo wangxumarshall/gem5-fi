@@ -1540,10 +1540,16 @@ def main():
         oracle = argv[i + 1]
         del argv[i:i + 2]
     path = Path(argv[0])
-    events, truncated = P.read_events(path)
+    # [0202-T02F2-DURABILITY] 读取时同时取得**截断详情**：异常中止（SIGABRT）
+    # 的流没有 gzip trailer，但最后一个 Z_SYNC_FLUSH 边界是完整可核查的。把
+    # 该边界（最后一条已解析事件）报出来，使调用方能**指出截断位置**，而不是
+    # 只看到一个 truncated=true（需求 6）。
+    truncation = {}
+    events, truncated, _summaries, _issues = P.read_stream(path, detail=truncation)
     verdict = check_chain(events, oracle_outcome=oracle)
     verdict["truncated_stream"] = truncated
     verdict["total_events"] = len(events)
+    verdict["truncation"] = truncation
     print(json.dumps(verdict, indent=1, ensure_ascii=False))
     return 0
 

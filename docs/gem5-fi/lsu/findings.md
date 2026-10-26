@@ -317,3 +317,17 @@
   正是本缺陷；其余（不得误路由 UC 读的 error、非 UC 无 MSHR 仍走 MSHR 保持严格、无故障路径
   不变）全部 PASS。红线守卫（`assert(mshr)` 未被删/注释、无「无 MSHR 即静默返回」、未改
   `setBadAddress`）亦 PASS。
+- **F-080（事实+修复，阶段4）异常中止的证据耐久性**：实测发射器已满足需求 1–5 ——
+  ①`registerTrace`（写 `inj` + `gzflush(Z_SYNC_FLUSH)`）在 `maybeCorruptLookup`
+  末尾、**返回 MMU 之前**执行（`CHAOSArmTLB.cc:1151`），故 L0 事件先于任何下游失败落盘；
+  ②正常退出由退出回调的 `gzclose` 写 trailer；③SIGINT 优雅退出同样走退出回调；
+  ④SIGABRT 时进程直接死亡 ⇒ 无 trailer/无 chain_end/无 funnel 摘要，但**每个
+  `Z_SYNC_FLUSH` 边界的数据块都在盘上**（真实证据：旧失败流 2620 事件可读）；
+  ⑤异常流 `truncated=True`、无伪造 chain_end/terminal、缺失字段为空串（不填 0）。
+  **缺口（需求 6）**：`read_stream` 只回一个布尔 `truncated`，无法**指出截断位置**。
+  修复：`read_stream(path, detail=None)` 新增可选详情（截断原因、最后一条已解析事件的
+  event_id/kind/tick/行号与 `last_complete_boundary`），`lsu_chain_check` CLI 输出
+  `truncation` 字段。**性能开销（需求 9）**：实测每行同步 flush 额外 ≈ **3.81 µs/行**
+  （4000 行 21.8 ms vs 批量 6.5 ms），整轮 5178 行 ≈ 0.02 s —— 且 gem5 的注入 **tick
+  由事件队列决定、与 wall time 无关**，故不扰动注入时序。测试
+  `tests/test_lsu_evidence_durability.py`（25 项，含真实 SIGABRT 产物）ALL PASS。
