@@ -19,7 +19,7 @@ SLEEF_LDFLAGS = -L$(SDCSHIELD_SLEEF)/lib -l:libsleef.a
 BINS = sve_sme_semantics fpu_special_sve_dual stencil_axis_dual
 BINS += sme_fmopa_dual sme_za_tileview_dual
 BINS += sleef_vla_dual sleef_vla_semantics sve_rot_vla_dual
-BINS += sve512_fma_dual sve_arith_bounds_dual
+BINS += sve512_fma_dual sve_arith_bounds_dual mrn_reload_rmw_dual
 
 all: $(BINS)
 
