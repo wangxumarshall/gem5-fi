@@ -49,6 +49,25 @@ int main() {
     CHECK(applyStuckMask(0x4ull, 0x10ull, StuckKind::BitFlip).new_pfn == 0x14ull,
           "bit_flip must be an exact xor");
 
+    // (10) physical-bit latch: the drawn bit always lies INSIDE the frame
+    { uint64_t latch = 0;
+      const uint64_t m = latchStuckMaskForFrame(0, latch, 63, 0x81d75ull);
+      CHECK(m != 0, "physical latch must produce a non-zero mask");
+      CHECK(m <= (1ULL << 19),
+            "physical latch bit must lie inside the observed 20-bit frame");
+      CHECK(latchStuckMaskForFrame(0, latch, 0, 0x1ull) == m,
+            "physical latch is fixed for the whole run"); }
+    // (11) physical latch honours an explicit user mask
+    { uint64_t latch = 0;
+      CHECK(latchStuckMaskForFrame(0x8ull, latch, 5, 0x81d75ull) == 0x8ull,
+            "explicit fault_mask wins in the physical latch too"); }
+    // (12) draw%width picks the expected bit, and a SET physical bit is effective
+    { uint64_t latch = 0;
+      const uint64_t m = latchStuckMaskForFrame(0, latch, 3, 0x8ull);
+      CHECK(m == 0x8ull, "draw%width must pick the expected physical bit");
+      CHECK(applyStuckMask(m, 0x8ull, StuckKind::StuckAtZero).effective,
+            "first application on a set physical bit must be effective"); }
+
     printf(failures ? "chaos_tlb_stuck_test: %d FAILURE(S)\n"
                     : "chaos_tlb_stuck_test: ALL PASS\n", failures);
     return failures ? 1 : 0;

@@ -489,11 +489,11 @@ namespace gem5
             outcome = ProtectionOutcome::Raw;  // unknown model -> raw
         }
 
-        if (write_log) {
-            *(log_stream->stream()) << "    protection: model=" << protection_model
-                << " bits=" << bits << " -> " << protectionOutcomeToString(outcome)
-                << std::endl;
-        }
+        // [R6-F5-NOEFFECT] 日志不再在此处打印：本函数在**每一次** eligible
+        // lookup 都被调用，无条件打印曾把 armtlb_injections.log 撑到 610MB
+        // （实测 8 分钟，全部内容都是这一行，0 条注入行）。调用点只在真正
+        // 写入故障（effective）时打印，与注入行同生共死。
+        (void)bits;
         return outcome;
     }
 
@@ -729,8 +729,9 @@ namespace gem5
         if (fault_mask) {
             mask = fault_mask;               // 显式掩码优先（且同样被 latch）
         } else if (permanent) {
-            mask = chaos_tlb::latchStuckMask(0, f5_stuck_mask,
-                        generateRandomMask(num_bits_to_change));
+            mask = chaos_tlb::latchStuckMaskForFrame(
+                        0, f5_stuck_mask,
+                        generateRandomMask(num_bits_to_change), entry->pfn);
         } else {
             // F0-F4/F6/legacy：保持既有"每次发射重抽掩码"的行为不变
             // （transient 模型每发一次抽一次是原语义，不在本修复范围内）。
@@ -767,7 +768,8 @@ namespace gem5
         // §1.2 注入后保护（N1 TRM Table 9-1 PROXY）。在条目返回 MMU **之前**
         // 运行 —— 1-bit parity_interleaved 检测会把 clean pfn 还原（Corrected）。
         // 因此"是否 effective"必须在它**之后**判定。
-        applyProtection(entry, mask, old_pfn, chosen);
+        const ProtectionOutcome prot =
+            applyProtection(entry, mask, old_pfn, chosen);
 
         const bool effective = (entry->pfn != old_pfn);
         if (permanent) lsuTrigger->noteOutcome(effective);
@@ -800,6 +802,11 @@ namespace gem5
         ++faults_injected_count;
 
         if (write_log) {
+            // [R6-F5-NOEFFECT] protection 行与注入行同生共死（仅在 effective
+            // 路径），反映本条目真正落地的保护结论。
+            *(log_stream->stream()) << "    protection: model=" << protection_model
+                << " bits=" << __builtin_popcountll(mask) << " -> "
+                << protectionOutcomeToString(prot) << std::endl;
             *(log_stream->stream())
                 << "Tick: " << curTick()
                 << ", Site: arm_tlb_lookup_hit"

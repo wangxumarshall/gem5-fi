@@ -995,6 +995,23 @@ git commit -m "[LSU][MDSPEC][R6-F5-NOEFFECT] CHAOSArmTLB：F5 固定掩码 latch
 - [x] 前述 `lsu_tier_string` 在树中不存在，已新增该成员并由 `p.lsuTier` 赋值，使聚合摘要与启动
       `CHAOS_LSU_TIER_CAP` 走**同一个** `chaos_lsu_tier_cap::resolve()`，构造上不可能互相矛盾。
 
+### Task 9d: （计划外，真机 run #1 暴露的两处遗漏）
+
+**Files:** Modify `CHAOSArmTLB.cc`、`chaos_tlb_stuck.hh`、`tests/chaos_tlb_stuck_test.cc`
+
+- [x] **真机实测（T03-F5-W4 seed1 run #1，8 分钟 610MB）**：`armtlb_injections.log` 里
+      `Site: arm_tlb_lookup_hit` 行数 = **0**、`effective: 1` 行数 = **0**；全部内容是第一行 tier
+      通知 + 无数行 `    protection: model=none bits=1 -> Raw`。`prop_evt.txt.gz` 仅 **289 B、事件 0**。
+      ⇒ **no_effect 抑制与传播爆炸消除均已生效**；体积来源是**被 Task 9 漏 gate 的 protection 行**。
+- [x] 修复 A：`applyProtection()` 内的无条件 `protection:` 日志移除，改由调用点在 **effective
+      分支**（与注入行同生共死）打印其返回值。该函数全树仅 1 个调用点，改动面极小。
+- [x] 修复 B：F5 掩码 latch 由 `latchStuckMask`（uniform 0..63）改为 **`latchStuckMaskForFrame`**
+      —— 把抽取限制在该帧**实际存在的物理位**内。规范 07:60 要求"固定一个**物理** bit"；实测
+      pfn≈20 位而 uniform 取 0..63 有约 **69%** 概率落在物理宽度之外，使整个运行恒为 no_effect。
+- [x] 验证：`g++ -std=c++17 -Wall -Wextra -Werror -I CHAOS/gem5/src tests/chaos_tlb_stuck_test.cc -o /tmp/t && /tmp/t`
+      → `ALL PASS`（10 条断言组）；8 个独立单测全过。
+- [x] Commit（见链）。
+
 ### Task 10: 工具侧四方一致合同测试
 
 **Files:**

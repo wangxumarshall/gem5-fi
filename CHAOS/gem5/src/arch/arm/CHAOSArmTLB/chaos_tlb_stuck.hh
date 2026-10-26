@@ -53,6 +53,22 @@ latchStuckMask(uint64_t user_mask, uint64_t &latched, uint64_t draw)
     return latched;
 }
 
+// F5 永久卡死：把抽取限制在该帧**实际存在**的物理位内。
+// 规范 07:60 要求"固定一个**物理** bit"；uniform 取 0..63 会以约 72% 的概率
+// 落在物理地址宽度之外（实测 pfn≈19 位、PA≈2^30），使整个运行恒为 no_effect
+// —— 这是真机实测 610MB 日志里 0 条 effective 行的直接原因。
+inline uint64_t
+latchStuckMaskForFrame(uint64_t user_mask, uint64_t &latched, uint64_t draw,
+                       uint64_t old_pfn)
+{
+    if (latched != 0) return latched;
+    if (user_mask) { latched = user_mask; return latched; }
+    const unsigned width = old_pfn
+        ? (64u - static_cast<unsigned>(__builtin_clzll(old_pfn))) : 1u;
+    latched = 1ULL << (draw % width);
+    return latched;
+}
+
 } // namespace chaos_tlb
 } // namespace gem5
 
