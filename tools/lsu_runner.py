@@ -39,7 +39,21 @@ LSU_PROXY = REPO / "configs/se/lsu_proxy.py"
 GUARD = REPO / "tools/lsu_guard.py"
 FS_CONFIG = LC.FS_CONFIG
 FS_CARRIER_RC = LC.FS_CARRIER_RC
-CPT = REPO / "runs/lsu/fs_cpt_boot/cpt.237949797015"  # G0-06 固化的 B0 FS checkpoint
+CPT = REPO / "runs/lsu/fs_cpt_boot/cpt.237949797015"  # G0-06 固化的 B0 FS checkpoint（历史默认）
+# [0202-REBUILD] checkpoint 身份唯一解析入口。重建后的 B0 checkpoint 是新生成的
+# 真实 `cpt.<tick>`；**绝不**把新 cpt 改名/软链成旧名来冒充身份。
+FS_CHECKPOINT_ENV = "LSU_FS_CHECKPOINT"
+
+
+def resolve_fs_checkpoint(explicit=None):
+    """[0202-REBUILD] B0 FS checkpoint 解析（唯一来源）。
+
+    优先级：显式参数（`--fs-checkpoint`）→ 环境变量 `LSU_FS_CHECKPOINT` → 历史默认
+    (`CPT`)。解析结果写进 `manifest.identity.checkpoint`，并由 `build_guard_cmd`
+    直接消费——身份与命令同源，不会静默分歧。
+    """
+    cand = explicit or os.environ.get(FS_CHECKPOINT_ENV)
+    return Path(cand) if cand else CPT
 
 
 def g5_path():
@@ -94,7 +108,8 @@ def detect_workload_key(fields):
     return m.group(1) if m else None
 
 
-def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None):
+def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None,
+                   fs_checkpoint=None):
     blocks = parse_items()
     hit = [b for b in blocks if b[0] == item_id]
     if not hit:
@@ -165,7 +180,8 @@ def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None):
             "lsu_proxy_sha256": _sha(LSU_PROXY),
             "lsu_campaign_sha256": _sha(REPO / "tools/lsu_campaign.py"),
             "workload_sha256": _sha(_wl_path(wl_binary)) if wl_binary else None,
-            "checkpoint": str(CPT) if family == "armtlb" else "none (SE)",
+            "checkpoint": (str(resolve_fs_checkpoint(fs_checkpoint))
+                           if family == "armtlb" else "none (SE)"),
         },
         "config": {"cpu": "O3", "variant": "B0", "maxinsts": 0},
         "family": family,
@@ -209,13 +225,22 @@ def _sha(p):
     return h.hexdigest()
 
 
-def build_guard_cmd(manifest, outdir, span=None):
+def build_guard_cmd(manifest, outdir, span=None, fs_checkpoint=None):
     """manifest → 守卫 gem5 命令参数（不含守卫包装层）。"""
     fam, freq = manifest["family"], manifest["frequency"]
     if fam == "armtlb":
+        # [0202-REBUILD] checkpoint 取自 manifest 身份（冻结时写入的真实路径）；
+        # 命令行 `--fs-checkpoint` 只在身份缺失时补位，且不得与已冻结身份分歧。
+        ckpt = manifest.get("identity", {}).get("checkpoint")
+        if not ckpt or ckpt == "none (SE)":
+            ckpt = str(resolve_fs_checkpoint(fs_checkpoint))
+        elif fs_checkpoint is not None and str(resolve_fs_checkpoint(fs_checkpoint)) != ckpt:
+            sys.exit("ERROR: --fs-checkpoint %s 与 manifest identity.checkpoint %s 不一致"
+                     "（不得用命令行覆盖已冻结的 checkpoint 身份）"
+                     % (resolve_fs_checkpoint(fs_checkpoint), ckpt))
         args = ["--kernel", str(LC.FS_KERNEL), "--disk", str(LC.FS_DISK),
                 "--bootloader", str(LC.FS_BOOTLOADER), "--cpu", "O3",
-                "--restore-checkpoint", str(CPT),
+                "--restore-checkpoint", str(ckpt),
                 "--readfile", str(FS_CARRIER_RC), "--ckpt-first-clock",
                 "--chaos_armtlb", "--tlb_first_clock", "1000",
                 "--tlb_probability", "1.0", "--tlb_max_faults", "1"] + manifest["injector_flags"]
@@ -258,12 +283,17 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--execute", action="store_true")
     ap.add_argument("--outdir-root", default="runs/lsu")
+    ap.add_argument("--fs-checkpoint", default=None,
+                    help="[0202-REBUILD] 本次运行真实的 B0 FS checkpoint 目录 "
+                         "(cpt.<tick>)。缺省时取 env LSU_FS_CHECKPOINT，再无则历史默认。"
+                         "冻结进 manifest.identity，执行时不得与身份分歧。")
     args = ap.parse_args()
 
     if args.item:
         if not (args.phase and args.sample_index is not None and args.output):
             ap.error("--item 需要 --phase --sample-index --output")
-        m = build_manifest(args.item, args.phase, args.sample_index)
+        m = build_manifest(args.item, args.phase, args.sample_index,
+                           fs_checkpoint=args.fs_checkpoint)
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         Path(args.output).write_text(json.dumps(m, ensure_ascii=False, indent=1))
         print(f"manifest 冻结: {args.output}")
@@ -281,7 +311,8 @@ def main():
         print(f"[dry-run] {tag} family={m['family']} carrier={m['carrier']} "
               f"golden={m['golden']} timeout={m['timeout_seconds']}s "
               f"two_pass={two_pass}")
-        cfg, c = build_guard_cmd(m, outdir, span="<N:计数pass实测>" if two_pass else None)
+        cfg, c = build_guard_cmd(m, outdir, span="<N:计数pass实测>" if two_pass else None,
+                                 fs_checkpoint=args.fs_checkpoint)
         print(f"[dry-run] 守卫命令: gem5.opt --outdir={outdir} {cfg} " + " ".join(c))
         return
 
@@ -292,7 +323,8 @@ def main():
     span = None
     if two_pass:
         cnt_dir = outdir.parent / (tag + "_count")
-        cfg, c = build_guard_cmd(m, cnt_dir, span=2**63 - 1)
+        cfg, c = build_guard_cmd(m, cnt_dir, span=2**63 - 1,
+                                 fs_checkpoint=args.fs_checkpoint)
         r = subprocess.run(["python3", str(GUARD), "run", "--type", "experiment",
                             "--desc", f"COUNT {tag}", "--log",
                             str(outdir.parent / (tag + "_count_rsrc.log")),
@@ -306,7 +338,7 @@ def main():
         span = int(n.group(1))
         print(f"[two-pass] 全流 eligible N={span} → 正式 span={span}")
 
-    cfg, c = build_guard_cmd(m, outdir, span=span)
+    cfg, c = build_guard_cmd(m, outdir, span=span, fs_checkpoint=args.fs_checkpoint)
     guard_out = outdir.parent / (tag + "_guard.out")
     with open(guard_out, "w") as gf:
         r = subprocess.run(["python3", str(GUARD), "run", "--type", "experiment",
