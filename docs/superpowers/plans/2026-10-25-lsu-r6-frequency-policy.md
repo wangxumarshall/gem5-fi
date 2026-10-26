@@ -922,3 +922,24 @@ These override any conflicting plan text below. The user supplied all four as *v
 - **Task 1b (new):** restructure `tools/lsu_freq_policy.py` so `entries` == exactly 325; move the 4 legacy rows to a separate key; regenerate JSON+MD; update `tests/test_lsu_freq_policy.py` (`policy_covers_325`, `f6_is_64`) and add an explicit assertion that `len(entries) == 325` and `len({e["run_id"] for e in entries}) == 325`. Re-verify the campaign gate still refuses legacy F6.
 - **Task 11 (revised):** the 16/16 count is over **distinct `(RunID, seed)` pairs**, produced by a dedup pass that writes an excluded-directories list; and the merge gate includes A3's graceful-exit check on `T04-F0-W4` seed2.
 - **Task 8** must record A1–A4 in `progress.md`/`findings.md`.
+
+### Task 11b (added 2026-10-25c) — guarded fix for the missing `squash_masked` containment kind
+
+**Origin:** the Task 11 dedup verification returned **15/16**, with `T02-F2-W4` seed2 not admitted. Read-only diagnosis
+(`.superpowers/sdd/2026-10-25-lsu-r6-frequency-policy/task-11-diagnosis.md`, confidence ~95%) found a **classifier gap**,
+not a data fluke: seed2's chain does close L0→L5 at a `squash_masked` containment event, but that kind is absent from
+`_TLB_KIND_LAYER` (`tools/lsu_chain_check.py:111`) and `P.KIND_LAYER`, so `_event_has_prefix` (`:335`) rejects it and the
+`detected_contained` (`:437`), `squash_replay_masked` (`:442`) and `containment_from_events` (`:975/:1000`) closure paths
+are dead for this kind.
+
+**Authorized by explicit user ruling (2026-10-25c): implement the GUARDED fix.** Requirements:
+1. Register `squash_masked` → L4 in both layering maps.
+2. Guard against READY inflation: an explicit `errant_commit` terminal (genuine escape) must take PRECEDENCE over
+   containment-by-squash; the squash path may only produce `detected_contained` when no higher-priority explicit uncontained
+   terminal is present. (Note: `oracle=Crash` alone is NOT disqualifying — siblings with `Crash` are already admitted via a
+   `full` chain.)
+3. **Regrade audit (mandatory):** re-run the classifier over ALL existing evidence (no new gem5), and list every sample
+   whose `terminal`/`provable_to`/`admitted` changes, with justification that no genuinely-escaping sample is promoted.
+4. Add a regression test pinning the contain-by-squash path.
+5. Acceptance: `T02-F2-W4` seed2 → `detected_contained`, admitted; full regression `NEW FAIL=0`; immutable inputs unchanged.
+6. One unit per commit; the merge stays BLOCKED until 16/16 is re-verified.

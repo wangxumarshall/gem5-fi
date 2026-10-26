@@ -141,6 +141,16 @@ KIND_LAYER = {
     # [MDSPEC][H6] exmon（独占监视器）链：LDXR 置（损坏的）monitor(L1) →
     # 保留比较决定 match/mismatch(L2) → STXR 状态消费/重试(L3)
     "exmon_monitor": "L1", "exmon_rmw": "L2", "exmon_stxr": "L3",
+    # [MDSPEC][R6-T11B] R6/A10 contain-by-squash 显式检测事件（发射端
+    # CHAOSPropagation.cc notePropEvt("squash_masked", … detection_layer=L4
+    # contained=1 outcome=masked containment_reason=squash_replay)——squash/
+    # replay 把收到错误响应的 load 结果丢弃重放，containment 由机制显式
+    # 记录，链不再"凭空消失"）。观测层 L4 与发射端声明一致；此前未注册 ⇒
+    # validate_event 报 unknown kind，且 chain checker 的三条收口路径
+    # （detected_contained / squash_replay_masked / containment_from_events）
+    # 对该 kind 全部死路。不设 REQUIRED_FIELDS：本登记是**工具侧缺口修复**
+    # （发射端早已存在），不是新钩子契约。
+    "squash_masked": "L4",
     # [MDSPEC][L5] 链终局（退出回调发射；outcome=detection_layer/contained）
     "chain_end": "L5",
 }

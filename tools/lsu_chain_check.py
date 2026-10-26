@@ -89,6 +89,18 @@ def _explicit_l5(evt):
 
 _L4_TERMINAL_KINDS = {"errant_commit"}  # L4 终局：首个错误提交（v1/H0）
 
+# [MDSPEC][R6-T11B] "squash 类"收口证据的 kind 标记：R6/A10 的
+# contain-by-squash（`squash_masked`：收到错误响应的 load 被 squash 丢弃并
+# 重放）与任何 squash/replay/mask 收口共享同一语义类别。errant_commit 逃逸
+# 优先权护栏**只**对这一类生效（见 `_terminal` / `containment_from_events`）。
+_SQUASH_KIND_MARKERS = ("squash", "replay", "mask")
+
+
+def _is_squash_witness(evt):
+    """该事件是否属于 squash/replay/mask 类收口证据（contain-by-squash）。"""
+    kind = str(evt.get("kind", ""))
+    return any(k in kind for k in _SQUASH_KIND_MARKERS)
+
 # 闭合终局（链已收敛 → beyond=""）。其余（provable_to_*_then_unknown /
 # detected_translation_outcome_pending / no_l0_fault_applied）为开放终局，
 # beyond="Unknown"。此集合与 _terminal 的返回值必须一致——
@@ -122,6 +134,14 @@ _TLB_KIND_LAYER = {
     "mshr_alloc": "L3", "mshr_merge": "L3", "mshr_fill": "L3",
     "mshr_free": "L3", "cache_writeback": "L3",
     "taint_reg": "L4", "consumer": "L4", "errant_commit": "L4",
+    # [MDSPEC][R6-T11B] R6/A10 contain-by-squash 显式检测事件
+    # （CHAOSPropagation.cc notePropEvt("squash_masked", … detection_layer=L4
+    # contained=1 outcome=masked containment_reason=squash_replay)）。观测层
+    # = 发射端声明的 detection_layer=L4（与 errant_commit 的观测角色同层）。
+    # 此前未注册 ⇒ `_event_has_prefix` 对该 kind 恒拒 ⇒ detected_contained
+    # / squash_replay_masked / containment_from_events 三条收口路径全部死路
+    # （T02-F2-W4 seed2 被误判 provable_to_L5_then_unknown 而拒准入）。
+    "squash_masked": "L4",
     "chain_end": "L5",
 }
 
@@ -357,6 +377,40 @@ def _event_has_prefix(chain_events, target, family):
     return _tick(target) >= _tick(selected[target_idx - 1])
 
 
+def _errant_commit_escape(chain_events, family, by_id, path):
+    """[MDSPEC][R6-T11B] 同一链上是否存在"以 errant_commit 收口的可证连续
+    L0→L5 单祖先路径"（真逃逸终局，规格终局 (1)）。
+
+    用户裁决 2026-10-25c：errant_commit 逃逸证据**压过** contain-by-squash
+    证据（终局 (2)/(3)）——否则错误提交的样本会被 squash_masked 事件改标
+    detected_contained 并经 containment 准入（READY 虚增）。两类等价证据：
+
+      * (a) 所选最佳路径自身经 errant_commit 收口（与 `_terminal` 的 full
+        判据同源：path[-1] 是显式 L5 检测事件，且其单祖先上含 errant_commit）；
+      * (b) 任一 errant_commit 检测事件把一条单祖先连续 L0→L5 前缀收口
+        （其祖先含 L0..L4 见证）——不依赖路径选择的先到先得，防止并列
+        长度下 squash 支路抢先掩住真逃逸支路。
+
+    悬空 errant_commit（死分支、祖先无 L4 见证 ⇒ 前缀止于 L0..L3，
+    T02-F2-W4 seed2 的 event 83）不收口任何链 ⇒ 不阻断 squash 路径。
+    oracle=Crash 单独不构成否决：Crash 姐妹样本经 full 链正常准入，
+    oracle 结局本身不是逃逸证据。
+    """
+    # (a) 所选最佳路径的 full 判据（与下方 deepest=="L5" 分支同源）
+    if path and len(path) == len(LAYERS):
+        chosen = _ancestry(path[-1], by_id)
+        if (any(e.get("kind") in _L4_TERMINAL_KINDS for e in chosen)
+                and _explicit_l5(path[-1])):
+            return True
+    # (b) 任一 errant_commit 检测事件收口一条连续 L0→L5 前缀
+    for e in chain_events:
+        if e.get("kind", "") != "errant_commit" or not _explicit_l5(e):
+            continue
+        if len(_ordered_prefix(_ancestry(e, by_id), family)) == len(LAYERS):
+            return True
+    return False
+
+
 def _edges_for(chain_events, family):
     """Prove edges only from one contiguous, tick-monotone DAG path."""
     path = _best_ordered_path(chain_events, family)
@@ -430,16 +484,30 @@ def _terminal(chain_events, edges, by_layer, path, family,
     # T01-F0-W4/seed2 里 errant_commit(dl=L5 outcome=errant_commit corr=taint_prop)
     # 已足以证明 full，却被 chain_end(contained=1) 拉低成 detected_contained；
     # 删除 chain_end 即翻回 full。生命周期标记绝不参与终局判定。
+    # [MDSPEC][R6-T11B] errant_commit 优先权护栏（用户裁决 2026-10-25c）：
+    # 同一链上存在"以 errant_commit 收口的可证 L0→L5 路径"（真逃逸）时，
+    # **squash 类**含住证据（squash/replay/mask，即 contain-by-squash）让位
+    # ——逃逸证据压过 contain-by-squash，防 READY 虚增。悬空 errant_commit
+    # 不收口任何链、不触发本护栏（见 _errant_commit_escape）。
+    # 作用域**只限 squash 类**：其它收口证据（如 tlb_fault/tlb_translate_result
+    # 的翻译阻断、walk_refill_lost 等）与逃逸证据互不隶属，行为保持原样，
+    # 不做无根据地扩大（避免把合法含住样本一并拉下）。
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    errant_escape = _errant_commit_escape(chain_events, family, by_id, path)
     for e in chain_events:
         if (str(e.get("contained", "")).strip() in _CONTAINED_VALUES
                 and _explicit_l5(e)
                 and _event_has_prefix(chain_events, e, family)):
+            if errant_escape and _is_squash_witness(e):
+                continue          # squash 含住让位于真逃逸（见上）
             return "detected_contained"
-    # 显式 squash/replay/mask（L5 证据事件）
-    for e in chain_events:
-        if (any(k in e.get("kind", "") for k in ("squash", "replay", "mask"))
-                and _event_has_prefix(chain_events, e, family)):
-            return "squash_replay_masked"
+    # 显式 squash/replay/mask（L5 证据事件）—— 真逃逸在场时整体让位
+    if not errant_escape:
+        for e in chain_events:
+            if (_is_squash_witness(e)
+                    and _event_has_prefix(chain_events, e, family)):
+                return "squash_replay_masked"
     # 逐边最深可证层级
     deepest = LAYERS[len(path) - 1] if path else None
     if deepest is None:
@@ -454,8 +522,6 @@ def _terminal(chain_events, edges, by_layer, path, family,
     l4_terminal = False
     explicit_l5 = False
     if deepest == "L5":
-        by_id = {e.get("event_id", ""): e for e in chain_events
-                 if e.get("event_id", "") != ""}
         chosen_ancestry = _ancestry(path[-1], by_id)
         l4_terminal = any(e.get("kind") in _L4_TERMINAL_KINDS
                           for e in chosen_ancestry)
@@ -528,6 +594,10 @@ GATE_VIOLATIONS = (
     # 的 prop_evt 流被 abort 截断，却据此判含住准入）。
     "containment_on_unclosed_stream",
     "containment_on_truncated_stream",
+    # [MDSPEC][R6-T11B] 真 errant_commit 逃逸压过 contain-by-squash：同一链另有
+    # "以 errant_commit 收口的可证 L0→L5 路径"时，squash 类含住不得据此准入
+    # （防 READY 虚增；见用户裁决 2026-10-25c）。
+    "errant_escape_outranks_containment",
     # [MDSPEC][R6-FIXA2] cross-request lineage bridge missing/malformed/
     # unverifiable — the ONLY legal carrier of a request transition, so a bad
     # one is a named hard-gate failure (never a silent pass, never a loosened
@@ -1024,6 +1094,16 @@ def containment_from_events(events, run_id="?", fault_id=None, truncated=False):
     e = _containment_candidate(chain, family)
     if e is None:
         return None
+    # [MDSPEC][R6-T11B] contain-by-squash 让位于真逃逸（用户裁决 2026-10-25c）：
+    # 同一链另有"以 errant_commit 收口的可证 L0→L5 路径"时，squash 类含住
+    # 束一律不产出——否则该样本会被贴着 `contained` 路径准入（READY 虚增）。
+    # 悬空 errant_commit 不触发（见 `_errant_commit_escape`）。
+    if _is_squash_witness(e):
+        by_id = {x.get("event_id", ""): x for x in chain
+                 if x.get("event_id", "") != ""}
+        path = _best_ordered_path(chain, family)
+        if _errant_commit_escape(chain, family, by_id, path):
+            return None
     layer = _obs_layer_of(e, family)
     return {
         "layer": layer,
@@ -1201,7 +1281,24 @@ def check_admission(bundle):
     # 不给 full 链添此限制（full 由真实检测事件 + 全边可证给出，与收口无关）。
     if not opt1 and (claimed or _containment_candidate(chain, family)
                      is not None):
-        if _truncated_flag(bundle):
+        # [MDSPEC][R6-T11B] 真逃逸压过 contain-by-squash（用户裁决
+        # 2026-10-25c）：同一链存在"以 errant_commit 收口的可证 L0→L5 路径"
+        # 时，**squash 类**含住不得充当准入依据（否则错误提交的样本被贴着
+        # `contained` 路径准入 = READY 虚增）。opt1（full）不受影响——真逃逸
+        # 样本经 full 链正常准入。悬空 errant_commit 不触发（见
+        # `_errant_commit_escape`）；非 squash 类含住（翻译阻断等）保持原状。
+        _cand = _containment_candidate(chain, family)
+        _esc = None
+        if _cand is not None and _is_squash_witness(_cand):
+            _by_id = {e.get("event_id", ""): e for e in chain
+                      if e.get("event_id", "") != ""}
+            _esc = _errant_commit_escape(chain, family, _by_id, path)
+        if _esc:
+            cont_issues.append(
+                f"errant_escape_outranks_containment: {run_id} fault {fid} 同一链"
+                f"存在以 errant_commit 收口的可证 L0→L5 逃逸路径——逃逸证据压过"
+                f" contain-by-squash，squash 含住不得据此准入")
+        elif _truncated_flag(bundle):
             cont_issues.append(
                 f"containment_on_truncated_stream: {run_id} 证据流被标记为截断"
                 f"（gzip EOF / 零字节关键证据）——含住是对'该层之后无传播'的"

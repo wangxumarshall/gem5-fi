@@ -1071,6 +1071,277 @@ def main():
           n_mismatch == 0, f"{n_mismatch}/{len(small)} 条不一致")
 
     print()
+    print("[21] [R6-T11B] squash_masked（contain-by-squash）kind 登记 + "
+          "errant_commit 逃逸优先权护栏")
+    # 缺口（T02-F2-W4 seed2 实证）：发射端 CHAOSPropagation.cc 在"收到错误响应
+    # 的 load 随后被 squash（结果丢弃、重放）"时发
+    #   kind=squash_masked detection_layer=L4 contained=1 outcome=masked
+    #   corr=addr_fallback containment_reason=squash_replay
+    # 此前该 kind 既不在 `_TLB_KIND_LAYER` 也不在 `P.KIND_LAYER` ⇒
+    # `_obs_layer_of` 返回 None ⇒ `_event_has_prefix` 恒 False ⇒
+    # detected_contained / squash_replay_masked / containment_from_events
+    # 三条收口路径全部死路：真实的 contain-by-squash 证据被当成"没有含住"，
+    # 样本被误判 provable_to_L5_then_unknown 并拒绝准入。
+    check("(21) _TLB_KIND_LAYER 登记 squash_masked -> L4（发射端声明层）",
+          CC._TLB_KIND_LAYER.get("squash_masked") == "L4",
+          str(CC._TLB_KIND_LAYER.get("squash_masked")))
+    check("(21) P.KIND_LAYER 登记 squash_masked -> L4（非 TLB 族同层）",
+          P.KIND_LAYER.get("squash_masked") == "L4",
+          str(P.KIND_LAYER.get("squash_masked")))
+    check("(21) 登记后 validate_event 不再报 unknown kind",
+          not any("unknown kind" in e
+                  for e in P.validate_event({"kind": "squash_masked"})),
+          str(P.validate_event({"kind": "squash_masked"})))
+
+    def _sq(eid, parent, **kw):
+        d = {"event_id": eid, "parent_event_id": parent, "kind": kw.pop(
+            "kind", "squash_masked"), "fault_id": "1", "tick": kw.pop("tick")}
+        d.update({k: str(v) for k, v in kw.items()})
+        return d
+
+    def _tlb_l0_l4(rid, extra_parent="4"):
+        """L0→L4 可证前缀（TLB 族：inj/tlb_lookup/tlb_pfn/lq_read/taint_reg）。"""
+        base = _evts([
+            f"PROP-EVT: kind=inj run_id={rid} fault_id=1 event_id=0 "
+            f"parent_event_id= tick=1 corr=origin",
+            f"PROP-EVT: kind=tlb_lookup run_id={rid} fault_id=1 event_id=1 "
+            f"parent_event_id=0 tick=2 dyn_inst_seq=7 request_id=7 va=1000 "
+            f"entry_index=1 field=post_lookup state_before=x state_after=y "
+            f"corr=origin",
+            f"PROP-EVT: kind=tlb_pfn run_id={rid} fault_id=1 event_id=2 "
+            f"parent_event_id=1 tick=3 dyn_inst_seq=7 request_id=7 va=1000 "
+            f"pa=2000 corr=origin",
+            f"PROP-EVT: kind=lq_read run_id={rid} fault_id=1 event_id=3 "
+            f"parent_event_id=2 tick=4 dyn_inst_seq=7 request_id=7 va=1000 "
+            f"pa=2000 corr=origin",
+            f"PROP-EVT: kind=taint_reg run_id={rid} fault_id=1 event_id=4 "
+            f"parent_event_id=3 tick=5 dyn_inst_seq=7 request_id=7 "
+            f"corr=origin",
+        ])
+        return base, extra_parent
+
+    def _ce(rid, eid, parent, tick):
+        return P.parse_line(
+            f"PROP-EVT: kind=chain_end run_id={rid} fault_id=1 event_id={eid} "
+            f"parent_event_id={parent} tick={tick} outcome=run_end "
+            f"detection_layer=None contained=0 corr=none")
+
+    def _adm(rid, evts, containment=None, truncated=False, oracle=None):
+        return CC.check_admission({
+            "run_id": rid, "activated": 1, "events": evts, "rc": 0,
+            "truncated": truncated, "oracle_outcome": oracle,
+            "containment": (CC.containment_from_events(evts, rid,
+                                                       truncated=truncated)
+                            if containment is None else containment)})
+
+    # ---- (21a) 合法 L0→L4 + 真 squash_masked 含住 ⇒ detected_contained + 准入
+    rid = "T90-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    sq_ok = base + [
+        _sq("5", "4", tick=6, dyn_inst_seq=7, request_id=7, va=1000, pa=2000,
+            field="squashed_load", outcome="masked", detection_layer="L4",
+            contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+        _ce(rid, 6, 5, 7),
+    ]
+    v = CC.check_chain(sq_ok, oracle_outcome="Crash")
+    f = max(v["faults"].values(), key=lambda x: len(x["path_event_ids"]))
+    check("(21a) 真 contain-by-squash ⇒ terminal=detected_contained",
+          f["terminal"] == "detected_contained", f["terminal"])
+    check("(21a) 该事件确实是所选 L0→L5 路径的 L5 见证（同一事件两头都认）",
+          f["path_event_ids"][-1] == "5"
+          and CC._layer_of(sq_ok[5], "tlb") == "L5",
+          str(f["path_event_ids"]))
+    b = CC.containment_from_events(sq_ok, rid)
+    check("(21a) 显式含住束合法（layer=L4 / na_layers=['L5']）",
+          bool(b) and b["layer"] == "L4" and b["na_layers"] == ["L5"],
+          str(b))
+    r = _adm(rid, sq_ok)
+    check("(21a) 合法 contain-by-squash ⇒ admitted=True（path=contained）",
+          r["admitted"] is True and r["path"] == "contained",
+          str(r["violations"]))
+
+    # ---- (21b) 同一链另有**可证完整** errant_commit 逃逸 ⇒ 逃逸优先，绝不改判
+    #           detected_contained（用户裁决 2026-10-25c：防 READY 虚增）。
+    #           构造：squash 支路排在列表前面（并列长度下先到先得选它），
+    #           errant_commit 支路同样满足 L0→L5 完整前缀。
+    rid = "T91-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    esc = base + [
+        _sq("5", "4", tick=6, dyn_inst_seq=7, request_id=7, va=1000, pa=2000,
+            field="squashed_load", outcome="masked", detection_layer="L4",
+            contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+        _evts([f"PROP-EVT: kind=errant_commit run_id={rid} fault_id=1 "
+               f"event_id=6 parent_event_id=4 tick=6 dyn_inst_seq=7 "
+               f"request_id=7 detection_layer=L5 outcome=errant_commit "
+               f"contained=0 corr=taint_prop"])[0],
+        _ce(rid, 7, 5, 8),
+    ]
+    by_id = {e["event_id"]: e for e in esc}
+    path = CC._best_ordered_path(esc, "tlb")
+    check("(21b) 并列长度下所选路径落在 squash 支路（护栏的必要前提）",
+          path and path[-1]["kind"] == "squash_masked",
+          str([e["kind"] for e in path]))
+    check("(21b) _errant_commit_escape 认定存在真逃逸收口",
+          CC._errant_commit_escape(esc, "tlb", by_id, path) is True)
+    v = CC.check_chain(esc, oracle_outcome="Crash")
+    f = max(v["faults"].values(), key=lambda x: len(x["path_event_ids"]))
+    check("(21b) 有真逃逸 ⇒ 绝不改判 detected_contained",
+          f["terminal"] != "detected_contained", f["terminal"])
+    check("(21b) 有真逃逸 ⇒ 不得凭 squash 含住准入",
+          _adm("T91-F0-W4", esc)["admitted"] is False)
+
+    # ---- (21c) 悬空 errant_commit（祖先无 L4 见证 ⇒ 前缀止于 L0..L3）不得
+    #           阻止合法 squash 含住（T02-F2-W4 seed2 的真实形状）。
+    rid = "T92-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    dangling = base + [
+        _sq("5", "4", tick=6, dyn_inst_seq=7, request_id=7, va=1000, pa=2000,
+            field="squashed_load", outcome="masked", detection_layer="L4",
+            contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+        _evts([f"PROP-EVT: kind=errant_commit run_id={rid} fault_id=1 "
+               f"event_id=6 parent_event_id=3 tick=6 dyn_inst_seq=7 "
+               f"request_id=7 detection_layer=L5 outcome=errant_commit "
+               f"contained=0 corr=taint_prop"])[0],
+        _ce(rid, 7, 5, 8),
+    ]
+    by_id = {e["event_id"]: e for e in dangling}
+    path = CC._best_ordered_path(dangling, "tlb")
+    check("(21c) 悬空 errant_commit 不收口完整前缀 ⇒ 不算逃逸",
+          CC._errant_commit_escape(dangling, "tlb", by_id, path) is False)
+    v = CC.check_chain(dangling, oracle_outcome="Crash")
+    f = max(v["faults"].values(), key=lambda x: len(x["path_event_ids"]))
+    check("(21c) 悬空 errant_commit 不阻止合法 squash 含住",
+          f["terminal"] == "detected_contained", f["terminal"])
+    check("(21c) 悬空 errant_commit 不阻止准入",
+          _adm(rid, dangling)["admitted"] is True)
+
+    # ---- (21d) squash_masked 的 parent/corr/ancestry 不合法 ⇒ 必须拒绝
+    #  (i) 父事件不存在（悬挂）：L0→L4 前缀不可证
+    rid = "T93-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    bad_parent = base + [
+        _sq("5", "999", tick=6, dyn_inst_seq=7, request_id=7, va=1000,
+            pa=2000, field="squashed_load", outcome="masked",
+            detection_layer="L4", contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+        _ce(rid, 6, 4, 7),
+    ]
+    check("(21d) 悬挂父事件 ⇒ _event_has_prefix 拒（不认伪链）",
+          CC._event_has_prefix(bad_parent, bad_parent[5], "tlb") is False)
+    check("(21d) 悬挂父事件 ⇒ 不得产出含住束",
+          CC.containment_from_events(bad_parent, rid) is None)
+    check("(21d) 悬挂父事件 ⇒ 不准入",
+          _adm(rid, bad_parent)["admitted"] is False)
+    #  (ii) corr 非链关联值（corr=none）⇒ 不是真实检测事件、不得含住
+    rid = "T94-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    bad_corr = base + [
+        _sq("5", "4", tick=6, dyn_inst_seq=7, request_id=7, va=1000, pa=2000,
+            field="squashed_load", outcome="masked", detection_layer="L4",
+            contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="none"),
+        _ce(rid, 6, 5, 7),
+    ]
+    check("(21d) corr=none ⇒ _explicit_l5 拒（无链关联语义）",
+          CC._explicit_l5(bad_corr[5]) is False)
+    check("(21d) corr=none ⇒ 不得产出含住束",
+          CC.containment_from_events(bad_corr, rid) is None)
+    check("(21d) corr=none ⇒ 不准入",
+          _adm(rid, bad_corr)["admitted"] is False)
+
+    # ---- (21e) 截断流上的 squash_masked 仍不得准入（含住是对"之后无传播"的
+    #           断言，只在完整收口流上可证）。
+    rid = "T95-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    sq_trunc = base + [
+        _sq("5", "4", tick=6, dyn_inst_seq=7, request_id=7, va=1000, pa=2000,
+            field="squashed_load", outcome="masked", detection_layer="L4",
+            contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+        _ce(rid, 6, 5, 7),
+    ]
+    check("(21e) truncated=True ⇒ 不得产出含住束",
+          CC.containment_from_events(sq_trunc, rid, truncated=True) is None)
+    r = _adm(rid, sq_trunc, truncated=True)
+    check("(21e) truncated=True ⇒ 不准入且响亮点名截断流",
+          r["admitted"] is False
+          and "containment_on_truncated_stream"
+          in " ".join(r["violations"]), str(r["violations"]))
+    # 未收口（无 chain_end，abort 样本）同样不得准入
+    rid = "T96-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    sq_unclosed = base + [
+        _sq("5", "4", tick=6, dyn_inst_seq=7, request_id=7, va=1000, pa=2000,
+            field="squashed_load", outcome="masked", detection_layer="L4",
+            contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+    ]
+    check("(21e) 未收口流 ⇒ 不得产出含住束",
+          CC.containment_from_events(sq_unclosed, rid) is None)
+    r = _adm(rid, sq_unclosed, containment={
+        "layer": "L4", "reason": "squash", "na_layers": ["L5"],
+        "metrics": {"L4": {"event_id": "5"}}})
+    check("(21e) 未收口流 ⇒ 不准入且响亮点名未收口",
+          r["admitted"] is False
+          and "containment_on_unclosed_stream"
+          in " ".join(r["violations"]), str(r["violations"]))
+
+    # ---- (21f) chain_end 伪 L5 + 悬空 squash_masked 不得绕过既有终局门禁
+    rid = "T97-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    ce_l5 = P.parse_line(
+        f"PROP-EVT: kind=chain_end run_id={rid} fault_id=1 event_id=5 "
+        f"parent_event_id=4 tick=6 outcome=errant_commit_seen "
+        f"detection_layer=L5 contained=1 corr=none")
+    pseudo = base + [
+        ce_l5,
+        _sq("6", "999", tick=7, dyn_inst_seq=7, request_id=7, va=1000,
+            pa=2000, field="squashed_load", outcome="masked",
+            detection_layer="L4", contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+    ]
+    check("(21f) chain_end 仍是生命周期标记（不占层 / 非真实检测事件）",
+          CC._layer_of(ce_l5, "tlb") is None
+          and CC._explicit_l5(ce_l5) is False)
+    check("(21f) chain_end 不制造含住",
+          CC.containment_from_events(pseudo, rid) is None)
+    r = _adm(rid, pseudo)
+    check("(21f) chain_end 伪 L5 + 悬空 squash ⇒ 不准入",
+          r["admitted"] is False, str(r["violations"]))
+
+    # ---- (21g) 既有终局/族行为不变：无 squash 的正常链照旧，且**悬空**
+    #           squash_masked 不影响一条已完整的 errant 链（仍 full）。
+    rid = "T98-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    full_plain = base + [
+        _evts([f"PROP-EVT: kind=errant_commit run_id={rid} fault_id=1 "
+               f"event_id=5 parent_event_id=4 tick=6 dyn_inst_seq=7 "
+               f"request_id=7 detection_layer=L5 outcome=errant_commit "
+               f"contained=0 corr=taint_prop"])[0],
+        _ce(rid, 6, 5, 7),
+    ]
+    v = CC.check_chain(full_plain)
+    f = max(v["faults"].values(), key=lambda x: len(x["path_event_ids"]))
+    check("(21g) 普通 full 链行为不变（terminal=full）",
+          f["terminal"] == "full", f["terminal"])
+    check("(21g) 普通 full 链仍准入（path=full_chain）",
+          _adm(rid, full_plain)["admitted"] is True
+          and _adm(rid, full_plain)["path"] == "full_chain")
+    full_dangling = full_plain + [
+        _sq("7", "999", tick=8, dyn_inst_seq=7, request_id=7, va=1000,
+            pa=2000, field="squashed_load", outcome="masked",
+            detection_layer="L4", contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+    ]
+    v = CC.check_chain(full_dangling)
+    f = max(v["faults"].values(), key=lambda x: len(x["path_event_ids"]))
+    check("(21g) full 链旁的悬空 squash_masked 不改判（仍 full）",
+          f["terminal"] == "full", f["terminal"])
+
+    print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
         return 1
