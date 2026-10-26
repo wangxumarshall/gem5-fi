@@ -1,5 +1,6 @@
 #include "arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh"
 #include "arch/arm/CHAOSArmTLB/chaos_tlb_pfn.hh"  // [R6-FIXC] T04 candidate rule
+#include "arch/arm/CHAOSArmTLB/chaos_tlb_stuck.hh"  // [R6-F5-NOEFFECT] F5 latch
 #include "cpu/o3/chaos_lsu_tier_cap.hh"  // [MDSPEC][R6-FIXCPP] tier-cap marker
 #include "params/CHAOSArmTLB.hh"
 #include "arch/arm/tlb.hh"
@@ -44,7 +45,16 @@ namespace gem5
             lsuTrigger = std::make_unique<ChaOSLsuTrigger>(
                 tier, rng_seed ? rng_seed : 1,
                 p.lsuWarmupEvents, p.lsuSpanEvents);
+            // [R6-F5-NOEFFECT] F5 的每次发射都必须被回报（见
+            // chaos_lsu_trigger.hh 的 require_outcome_accounting）：onEligible()
+            // 对 F5 只计 fires，真注入由 lookup 侧的 noteOutcome() 记账，漏报
+            // 会在 summary 里亮成 F5_UNREPORTED_OUTCOME。
+            if (lsuTrigger->tier == ChaOSLsuTier::F5)
+                lsuTrigger->require_outcome_accounting = true;
         }
+        // [R6-F5-NOEFFECT] Keep the raw --tlb_lsu_tier spelling for the
+        // exit-time CHAOS_LSU_NOEFFECT summary (see .hh).
+        lsu_tier_string = p.lsuTier;
         // [MDSPEC][R6-FIXCPP] Runtime lookup-tier capability marker: printed
         // ONCE at startup so the campaign's lookup_tier_capability_gate can
         // PROVE this run really mounted the requested tier on the lookup path
@@ -86,6 +96,7 @@ namespace gem5
             registerExitCallback([this]() {
                 if (lsuTrigger)
                     lsuTrigger->summary("CHAOSArmTLB");
+                printNoEffectSummary();      // [R6-F5-NOEFFECT]
             });
         } else {
             // [R6-F0FUNNEL 2026-10-25] F0 / no tier mounted: no
@@ -153,6 +164,37 @@ namespace gem5
                (unsigned long)legacy_last_eligible_tick);
         // Crash durability: keep the marker in the same flushed window the
         // tier path uses, so an aborted run still carries it.
+        fflush(stdout);
+    }
+
+    // [R6-F5-NOEFFECT] lookup 侧 no_effect 聚合摘要（任务书要求的最小字段集：
+    // attempted / eligible / fires / effective_injected / no_effect /
+    // first_tick / last_tick / requested+effective tier）。只打印聚合，绝不
+    // 逐事件 —— 与 CHAOS_LSU_TRIGGER 同一 stdout 窗口、同样 flush，供
+    // Task 10/12/17 的四方一致性合同复用。
+    void
+    CHAOSArmTLB::printNoEffectSummary() const
+    {
+        if (!lsuTrigger) return;
+        // Same resolve() the startup CHAOS_LSU_TIER_CAP marker uses: requested
+        // = the raw --tlb_lsu_tier spelling, effective = the mounted tier. The
+        // two agree for a healthy run and disagree loudly for a stale/wrong
+        // mount (the campaign's capability gate already refuses those).
+        const auto cap = chaos_lsu_tier_cap::resolve(lsu_tier_string,
+                                                     static_cast<int>(lsuTrigger->tier));
+        printf("CHAOS_LSU_NOEFFECT: injector=CHAOSArmTLB tier=F%d "
+               "requested=%s effective=%s attempted=%lu eligible=%lu "
+               "fires=%lu effective_injected=%lu no_effect=%lu "
+               "first_no_effect_tick=%lu last_no_effect_tick=%lu\n",
+               static_cast<int>(lsuTrigger->tier),
+               cap.requested.c_str(), cap.effective.c_str(),
+               (unsigned long)lsuTrigger->attempted,
+               (unsigned long)lsuTrigger->eligible,
+               (unsigned long)lsuTrigger->fires,
+               (unsigned long)lookup_effective,
+               (unsigned long)lookup_no_effect,
+               (unsigned long)lookup_no_effect_first_tick,
+               (unsigned long)lookup_no_effect_last_tick);
         fflush(stdout);
     }
 
@@ -592,6 +634,15 @@ namespace gem5
         // no-op (no legal candidate) registers and counts nothing.
         if (isEntryStateFault(chosen) || isAttrSubstFault(chosen)) {
             applyEntryFieldFault(entry, chosen, va, req_seq, req_size);
+            // [R6-F5-NOEFFECT] F5 的 outcome 记账目前只覆盖 pfn 改写模型。
+            // 若某次 F5 运行选了 entry-state/attr 模型，必须响亮说明"本格未
+            // 计入 no_effect 记账"，绝不静默当作已覆盖。
+            if (lookupTierMounted() && lsuTrigger->tier == ChaOSLsuTier::F5)
+                printf("CHAOS_LSU_TRIGGER_ALARM: injector=CHAOSArmTLB "
+                       "mode=F5_NONPFN_MODEL fault_type=%s (F5 outcome "
+                       "accounting covers pfn-mutating models only; this run's "
+                       "fires are not fully accounted)\n",
+                       faultTypeToString(chosen).c_str());
             return;
         }
 
@@ -656,48 +707,97 @@ namespace gem5
             return;
         }
 
-        uint64_t mask = fault_mask ? fault_mask : generateRandomMask(
-            num_bits_to_change);
-        if (mask == 0) return;
+        // [R6-F5-NOEFFECT] Only the pfn-MUTATING stuck models use the mask
+        // path. WalkPairing (returned at the top), the entry-state/attr
+        // family (returned just above) and pfn_to_mapped_page (returned just
+        // above) never reach here, so `chosen` is one of the three below when
+        // Random's draw is resolved — {BitFlip, StuckAtZero, StuckAtOne}.
+        const bool pfn_model = (chosen == FaultType::StuckAtZero
+                             || chosen == FaultType::StuckAtOne
+                             || chosen == FaultType::BitFlip);
+        if (!pfn_model) return;
+
+        // [R6-F5-NOEFFECT] F5 是**永久**卡死：规范 07:60 要求"warm-up 后固定
+        // 一个物理 bit…之后每次读出/写入都施加同一掩码直到运行结束"。在这里
+        // latch 抽取值即实现了"永久"；修复前每次 lookup 重抽，实测
+        // armtlb_injections.log 每行 Mask 都不同，并把命中条目的 pfn 逐位
+        // 摧毁到 0（0x81d75→0x81d74→0x81c74→…→0x0）。
+        const bool permanent =
+            lookupTierMounted() && lsuTrigger->tier == ChaOSLsuTier::F5;
+
+        uint64_t mask;
+        if (fault_mask) {
+            mask = fault_mask;               // 显式掩码优先（且同样被 latch）
+        } else if (permanent) {
+            mask = chaos_tlb::latchStuckMask(0, f5_stuck_mask,
+                        generateRandomMask(num_bits_to_change));
+        } else {
+            // F0-F4/F6/legacy：保持既有"每次发射重抽掩码"的行为不变
+            // （transient 模型每发一次抽一次是原语义，不在本修复范围内）。
+            mask = generateRandomMask(num_bits_to_change);
+        }
+        if (mask == 0) {
+            // 抽不到位 = 这一次没有写任何东西；F5 是一次发射，必须回报。
+            if (permanent) lsuTrigger->noteOutcome(false);
+            return;
+        }
+
+        chaos_tlb::StuckKind sk;
+        switch (chosen) {
+            case FaultType::StuckAtZero: sk = chaos_tlb::StuckKind::StuckAtZero; break;
+            case FaultType::StuckAtOne:  sk = chaos_tlb::StuckKind::StuckAtOne;  break;
+            case FaultType::BitFlip:     sk = chaos_tlb::StuckKind::BitFlip;     break;
+            // [MDSPEC][R4-6-T08] Structurally unreachable: WalkPairing was
+            // returned at the top of maybeCorrupt, and Random's draw support
+            // is {BitFlip, StuckAtZero, StuckAtOne}. Kept as an explicit loud
+            // no-op so a future edit cannot silently fall back to mutating
+            // the lookup entry with a non-mask model.
+            default: return;
+        }
 
         Addr old_pfn = entry->pfn;
-        // [R4-4] gem5's own PA arithmetic, before/after the mutation —
-        // captures the 64-bit wrap that leaves high pfn bits inert.
+        // [R4-4] gem5 自身的 PA 运算，在改写前后各取一次 —— 捕捉 64 位回绕
+        // 导致高位 pfn 失效的情形。
         const Addr old_pa = entry->pAddr(va);
         const int entry_way = entryIndex(entry);
         const std::string entry_before = snapshotEntry(entry, old_pa);
+
+        entry->pfn = chaos_tlb::applyStuckMask(mask, old_pfn, sk).new_pfn;
+
+        // §1.2 注入后保护（N1 TRM Table 9-1 PROXY）。在条目返回 MMU **之前**
+        // 运行 —— 1-bit parity_interleaved 检测会把 clean pfn 还原（Corrected）。
+        // 因此"是否 effective"必须在它**之后**判定。
+        applyProtection(entry, mask, old_pfn, chosen);
+
+        const bool effective = (entry->pfn != old_pfn);
+        if (permanent) lsuTrigger->noteOutcome(effective);
+
+        // [R6-F5-NOEFFECT] no_effect：卡死值本来就等于正确值（07:60
+        // "若某次事件的正确值本来就等于卡死值，该次不增加 activated"）。
+        // 不建 fault identity、不建 ptag、不注册传播链、不写注入日志、
+        // 不计 stats、不发 CHAOS_DETECT / prop_evt —— 只进聚合。
+        //
+        // 只对 permanent(F5) 生效：F0-F4/F6 的每一次发射都照旧计数/写日志/
+        // 建 ptag（既有行为逐字保留），否则一次"掩码未改变 pfn"的 transient
+        // 发射会让 trigger.injected 与 stats/log 三方对不上，把 F1-F4 的
+        // armtlb_count_sources 一致性检查打红。
+        if (permanent && !effective) {
+            ++lookup_no_effect;
+            if (lookup_no_effect_first_tick == 0)
+                lookup_no_effect_first_tick = curTick();
+            lookup_no_effect_last_tick = curTick();
+            return;
+        }
+
         switch (chosen) {
-            case FaultType::StuckAtZero:
-                entry->pfn &= ~mask;
-                stats->numStuckAtZero++;
-                break;
-            case FaultType::StuckAtOne:
-                entry->pfn |= mask;
-                stats->numStuckAtOne++;
-                break;
-            case FaultType::BitFlip:
-                entry->pfn ^= mask;
-                stats->numBitFlips++;
-                break;
-            case FaultType::WalkPairing:
-                // [MDSPEC][R4-6-T08] Structurally unreachable: the guard at
-                // the top of maybeCorrupt returns for fault_type_enum ==
-                // WalkPairing, and the Random draw's support is
-                // {BitFlip, StuckAtZero, StuckAtOne}. Kept as an explicit
-                // loud no-op so a future edit cannot silently fall back to
-                // mutating the lookup entry with this model.
-                return;
+            case FaultType::StuckAtZero: stats->numStuckAtZero++; break;
+            case FaultType::StuckAtOne:  stats->numStuckAtOne++;  break;
+            case FaultType::BitFlip:     stats->numBitFlips++;    break;
             default: break;
         }
+        if (effective) ++lookup_effective;
         stats->numFaultsInjected++;
         ++faults_injected_count;
-
-        // §1.2 post-injection protection (N1 TRM Table 9-1 PROXY). Runs
-        // BEFORE the entry is returned to the MMU — a 1-bit parity_interleaved
-        // detection RESTORES the clean pfn (Corrected) so translation proceeds
-        // without a wrong-PA access. Default protection_model="none" = Raw
-        // (no-op, zero regression — the §0.1 FS TLB DUE anchor reproduces).
-        applyProtection(entry, mask, old_pfn, chosen);
 
         if (write_log) {
             *(log_stream->stream())
@@ -708,7 +808,7 @@ namespace gem5
                 << ", new_pfn: 0x" << entry->pfn
                 << ", FaultType: " << faultTypeToString(chosen)
                 << ", Mask: 0x" << mask << std::dec
-                << std::endl;
+                << ", effective: 1" << std::endl;
         }
         const Addr new_pa = entry->pAddr(va);
         registerTrace(va, old_pfn, entry->pfn, old_pa, new_pa,

@@ -297,6 +297,23 @@ class CHAOSArmTLB : public SimObject
     uint64_t legacy_eligible = 0;
     uint64_t legacy_first_eligible_tick = 0;
     uint64_t legacy_last_eligible_tick = 0;
+
+    // [R6-F5-NOEFFECT] F5 固定掩码 latch + lookup 侧 no_effect 聚合。
+    // 规范 07:60 要求"warm-up 后固定一个物理 bit"且"每次读出施加同一掩码"，
+    // 故掩码在本次运行内只抽一次；"正确值本来就等于卡死值"的那些读出只进
+    // 聚合，不建 fault identity、不写日志、不发事件、不计 stats。
+    uint64_t f5_stuck_mask = 0;                 // 0 = 尚未抽取
+    uint64_t lookup_no_effect = 0;
+    uint64_t lookup_effective = 0;
+    uint64_t lookup_no_effect_first_tick = 0;
+    uint64_t lookup_no_effect_last_tick = 0;
+    // [R6-F5-NOEFFECT] The raw `--tlb_lsu_tier` spelling, kept so the exit-time
+    // CHAOS_LSU_NOEFFECT summary derives requested/effective from the SAME
+    // chaos_lsu_tier_cap::resolve(param, mounted_tier) the startup marker uses
+    // — no second spelling convention invented at exit time.
+    std::string lsu_tier_string;
+    void printNoEffectSummary() const;
+
     bool write_log;
     std::string protection_model;  // §1.2 protection-aware layer
 
