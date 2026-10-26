@@ -74,8 +74,13 @@ def g5_path():
 #   SE 短流（W0/W2/W3/W5/W9 等）golden ≤61s → 600s（10×）不变；
 #   W1 w1_all 长流 golden 实测 7.44-7.51h（F-050 三副本，规范哈希五方全等）
 #   → 600s 会把每个 W1 运行判为伪 Timeout——SE_W1=43200s（12h 预算，
-#   与 golden 链式控制器 --max-seconds 一致）；FS 1800s 不变。
-TIMEOUTS = {"SE": 600, "SE_W1": 43200, "FS": 1800}
+#   与 golden 链式控制器 --max-seconds 一致）。
+#   [0202-REBUILD] FS 由 1800 → **2700**：实测 0202 无注入 golden（同一 checkpoint +
+#   tlb_probe.rcS 全 10 轮载荷）wall = 2274 s（19:54:47 → 20:32:41），**> 1800** ——
+#   1800 会把干净跑完的整载荷 run 判成 Timeout 并截断证据。2700 是仓库既定
+#   "已知良好预算"（campaign FS_TIMEOUT_DEFAULT=2700，测试
+#   tests/test_lsu_campaign_timeout.py 钉死），此处与之对齐，不静默降低。
+TIMEOUTS = {"SE": 600, "SE_W1": 43200, "FS": 2700}
 
 def _wl_path(wl_binary):
     """[LSU][W1-REG] 负载二进制路径：9 个 directed 载体在 workloads/directed/，
