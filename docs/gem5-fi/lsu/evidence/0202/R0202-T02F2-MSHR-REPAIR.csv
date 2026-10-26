@@ -1,0 +1,16 @@
+state,verdict
+ROOT_CAUSE_CONFIRMED,PASS
+CACHE_PROTOCOL_FIXED,PASS
+EVIDENCE_DURABILITY_FIXED,PASS
+NO_NEW_REGRESSION,PASS
+T02_STRICT_PASS,FAIL
+SIX_RUN_STRICT_PASS,BLOCKED
+FORMAL_NOT_STARTED,PASS
+
+fault_id,terminal,provable_to,contained,fault_admission
+1,full,L5,False,True
+2,detected_contained,L5,True,True
+3,detected_contained,L5,True,True
+4,detected_contained,L5,True,True
+5,detected_contained,L5,True,True
+6,provable_to_L4_then_unknown,L4,False,False

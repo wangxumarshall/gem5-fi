@@ -1,6 +1,6 @@
 # 0202 FREEZE MANIFEST — six-chain rebuild
 
-**Frozen at**: 2026-10-26 (host `cathelper-k8s-worker2`). Patch units U1–U5 landed before this freeze; all six canaries ran under it.
+**Frozen at**: 2026-10-27 (host `cathelper-k8s-worker2`)。**演进记录**：U1–U5 为 2026-10-26 六链 freeze（binary `a99031a8…`）；2026-10-27 的 U6（显式整数 seed 身份）/U7（多 fault 保守 all()）/阶段4（证据耐久性）+ cache 协议修复（策略1/2）**改变了工具 SHA 与二进制**，故本 freeze 刷新为 binary `b501de2c…` + 下表工具 SHA。旧 `a99031a8…` 下的六项哈希 seed 结果**不得**与新 freeze 混用。
 **Rule**: every one of the six seed-1 canaries must reference exactly this manifest. Any C++
 or run-semantics change invalidates this freeze → rebuild, re-hash, and restart from the
 first canary. Mixing binaries across the six is forbidden.
@@ -12,7 +12,7 @@ first canary. Mixing binaries across the six is forbidden.
 | remote | `git@github.com:wangxumarshall/gem5-fi.git` |
 | base branch | `origin/lsu-mdspec-20261019` = `de81266c` |
 | working branch | `fix/0202-six-chain-20261026` |
-| HEAD at freeze | `0b8afd0fd6da8c9aa94c5a9cf3d25d9b43280db3` |
+| HEAD at freeze | **以 `R0202-T02F2-MSHR-REPAIR.md` 所在提交为准**（U6/U7/阶段4 之后的 HEAD） |
 | baseline contained | `3f3eb617` is an ancestor of HEAD (verified) |
 | working tree | clean |
 
@@ -21,15 +21,15 @@ first canary. Mixing binaries across the six is forbidden.
 | Item | Value |
 |---|---|
 | path | `CHAOS/gem5/build/ARM/gem5.opt` |
-| SHA256 | `a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a` |
-| size | 1,245,098,072 bytes |
+| SHA256 | `b501de2cca321a9abe92d75a5ae303d8ac3a72041afaaeb12dcb92cedf5b2320` |
+| size | (见构建日志；`20261027T015021`) |
 | mtime | 2026-10-26 19:19:06 +0800 |
 | `file` | ELF 64-bit LSB executable, ARM aarch64, dynamically linked, with debug_info, not stripped |
 | links | `libpython3.11.so.1.0` → `/opt/python3.11/lib/libpython3.11.so.1.0` |
 | build cmd | `cd CHAOS/gem5 && PYTHON_CONFIG=/opt/python3.11/bin/python3.11-config scons -j8 build/ARM/gem5.opt` |
 | exit code | 0 (`scons: done building targets.`) |
 | warnings/errors | 15 warnings (all optional-feature: protoc/png/hdf5/capstone/tcmalloc), 0 errors |
-| superseded | SHA `70aab844…` (built against Python 3.8; **cannot run any config** — PEP 604. Never used for any canary.) |
+| superseded | `70aab844…`（Python 3.8 构建，无法运行任何配置，从未用于 canary）；`a99031a8…`（0202-REBUILD 六链用，T02-F2-W4 explicit seed 1 触发 gem5 `assert(mshr)` ⇒ 失效）；`843d0e94…`（策略1 中间态，仅用于验证 SIGABRT 消失）。 |
 
 ## Toolchain
 
@@ -45,9 +45,9 @@ first canary. Mixing binaries across the six is forbidden.
 
 | File | SHA256 |
 |---|---|
-| tools/lsu_runner.py | `96c3f5caa99c0d7db0c1e5c9e5b9bac2dfab454bcdf74e9bd08f556a1a137614` |
-| tools/lsu_campaign.py | `7fc7f1d2602972216c30342599186c1c8f6ffef57e0205f142ef93164ddc02ef` |
-| tools/lsu_chain_check.py | `f47ea902067d6d20aa1e3605fe3208204cf97fb95251d040f52ab3f4f11b7390` |
+| tools/lsu_runner.py | `50d239964a1daf3a0fe183e73aae4063ff3c4a4047011c271cf8f66ac47d93b8` |
+| tools/lsu_campaign.py | `e5195793a8a23b114479c831508ecc0c16166fb0f8daf4fdd21a9a493d1f809a` |
+| tools/lsu_chain_check.py | `d6a3e742a050da3a116f9f2d5b44b601669bbb30a3805087497f6cc0f7cb1a5e` |
 | tools/lsu_ready_contract.py | `958f0e4b254df49027349bbfdf1817e60d8e5f0167bbfe12bf829854e8ed381f` |
 | tools/lsu_seed.py | `b1270f4415a214ca4e81f57a396c05bc6f472b9f3e6866b3be555413a99ef665` |
 | tools/lsu_guard.py | `04be4e8a9ca265cbcd5854420657c6188645f1a3383cdbccc6a7022916c3e75f` |
@@ -55,7 +55,7 @@ first canary. Mixing binaries across the six is forbidden.
 | tools/lsu_gem5_bin.py | `0ea568afbbe157da3988dfcfbde86edd4999fcd0e4efee625a90da300b337fd1` |
 | tools/classify.py | `16c686ac67dc715cd1ebb5bbce4c61cd400010f5c5b60a8d30cf36ca9328b2f2` |
 | tools/lsu_l5_classify.py | `80084a68acf9944f99633aaddac28ba9002fdcdb82b18c0683af41875e9529d3` |
-| tools/lsu_prop_fields.py | `9ab09a5204c014bf670bf6163d3b8e1f78a75a6156e902f09ea6b56dae5bfe9c` |
+| tools/lsu_prop_fields.py | `fea200fe18bd2e27852f38c33ac501ea5f87e802dd5b79d7ffd58ba8248f8c11` |
 | tools/lsu_r6_golden_control.py | `f9ed530edaf96e3ee6a19a9b703e1d3e9c4ecf09dc8a7e6f49c14c54eba8d818` |
 | configs/fs/lsu_b0_fs.py | `5762df1ffee5cdff2c0ca0fe92b770acebcbe440a7aead7a78d7164f5638c9c3` |
 | configs/fs/tlb_probe.rcS | `54798b7d0557b29e48a16767beaf24d3255acda72b16cc3e14cdc0bf88157cfc` |

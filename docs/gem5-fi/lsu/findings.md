@@ -331,3 +331,25 @@
   （4000 行 21.8 ms vs 批量 6.5 ms），整轮 5178 行 ≈ 0.02 s —— 且 gem5 的注入 **tick
   由事件队列决定、与 wall time 无关**，故不扰动注入时序。测试
   `tests/test_lsu_evidence_durability.py`（25 项，含真实 SIGABRT 产物）ALL PASS。
+- **F-081（事实+修复，策略2）退出时含住判定未落到链上事件（不对称缺陷）**：修复 cache 断言后
+  guest 不再早崩，F2 按周期继续注入 ⇒ T02-F2-W4 explicit seed 1 实测 **6 个 activated fault**。
+  发射器对 fault 2/4/5 **判定**了 `store_discarded_not_retired` 含住（stdout `CHAOS_DETECT:
+  layer=Hardware RAS contained=1`、chain_end 标 detected_contained），但该判定**只走 stdout +
+  生命周期 chain_end**，链上无非 lifecycle 事件 ⇒ 严格 checker 无法核查**发射器确实已检测到**
+  的含住。而该 tracer 的 **live squash 路径**（`noteMemResponse` 中 `inst->isSquashed()` →
+  `notePropEvt("squash_masked", detection_layer=L4, contained=1)`）是发链上事件的 —— 故按
+  **对称补齐**修复（退出时同一判定也发同形链上事件）。**未新增判定类别、未放宽 checker、
+  未改 fault model/oracle**。实测：fault 2/3/4/5 转为 `detected_contained`（链尾
+  `squash_masked`），**5/6 闭合**。
+- **F-082（事实）T02-F2-W4 explicit seed 1 仍 NOT-ACCEPTED：fault 6 按规则不可闭合**。
+  其链 173 个 `taint_reg`、**0 个 `consumer`**（污染建立但从未被消费；注入在退出前 ~1e12
+  ticks，影响来不及产生架构效果）；新增的可审计诊断 `CHAOS_TAINT_AT_EXIT` 证明其 ptag
+  **不在**退出时的 `taint_set`（污染已被 **clean overwrite** 清除）⇒ **既无逃逸也无任何检测
+  事件**。样本 `all()` ⇒ `admitted=False`。**主动拒绝的策略3**（把「污染被覆盖」记为
+  containment）属用户红线所禁的**伪造 containment**（它不是检测，只是影响自然消失）。
+- **F-083（事实）修复崩溃改变了 T02 的 fault 集合**：修复前 2 次注入（guest 被 gem5 缺陷早断），
+  修复后 6 次（按 F2 周期）。这是**正确**行为（模拟器不再崩溃），但意味着旧证据与新运行不可
+  直接比较，且 `all()` 下的通过条件随之变严。
+- **F-084（事实）全量回归无新增失败**：`lsu_test_runner` **92 suites / PASS 74 / FAIL 15 /
+  SKIP 3**，**新增失败 0**；15 个既有失败与基线**逐名相同**（pytest::collect、campaign_propagation、
+  hook_a07/c11/c12/c14/c15/cpf/l04/o0x/p06/s10/sq、r6_status_table、xlsx_to_md）。

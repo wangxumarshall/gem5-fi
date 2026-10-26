@@ -1,0 +1,250 @@
+{
+ "schema": "0202-t02f2-mshr-repair/1",
+ "states": {
+  "ROOT_CAUSE_CONFIRMED": "PASS",
+  "CACHE_PROTOCOL_FIXED": "PASS",
+  "EVIDENCE_DURABILITY_FIXED": "PASS",
+  "NO_NEW_REGRESSION": "PASS",
+  "T02_STRICT_PASS": "FAIL",
+  "SIX_RUN_STRICT_PASS": "BLOCKED",
+  "FORMAL_NOT_STARTED": "PASS"
+ },
+ "verdict": "PARTIAL",
+ "t02": {
+  "run_id": "T02-F2-W4",
+  "item": "ITEM-049",
+  "explicit_seed": 1,
+  "raw_evidence": "runs/lsu/0202_t02f2_mshr_fix2_20261027T020020/runs/engineering/ITEM-049_engineering_x1",
+  "truncated": false,
+  "n_events": 33885,
+  "activated_faults": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6"
+  ],
+  "sample_admitted": false,
+  "all_activated_faults_closed": false,
+  "counts": {
+   "injected": 6,
+   "activated": 6,
+   "attempted": 605830,
+   "eligible": 605830,
+   "conservation": "OK",
+   "gem5_exit": 0
+  },
+  "per_fault": {
+   "1": {
+    "terminal": "full",
+    "provable_to": "L5",
+    "contained": false,
+    "admission": true,
+    "n_path": 6,
+    "ancestry_kinds": [
+     "inj",
+     "tlb_lookup",
+     "tlb_pfn",
+     "tlb_translate_result",
+     "sq_execute",
+     "sq_writeback",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "resp",
+     "taint_reg",
+     "sq_complete",
+     "errant_commit"
+    ]
+   },
+   "2": {
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "contained": true,
+    "admission": true,
+    "n_path": 6,
+    "ancestry_kinds": [
+     "inj",
+     "tlb_lookup",
+     "tlb_pfn",
+     "tlb_translate_result",
+     "lq_read",
+     "cache_access",
+     "cache_access",
+     "resp",
+     "lq_complete",
+     "taint_reg",
+     "request_fork",
+     "cache_access",
+     "cache_access",
+     "resp",
+     "lq_complete",
+     "taint_reg",
+     "consumer",
+     "consumer",
+     "squash_masked"
+    ]
+   },
+   "3": {
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "contained": true,
+    "admission": true,
+    "n_path": 6,
+    "ancestry_kinds": [
+     "inj",
+     "tlb_lookup",
+     "tlb_pfn",
+     "tlb_translate_result",
+     "sq_execute",
+     "sq_writeback",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "mshr_fill",
+     "cache_fill",
+     "mshr_free",
+     "mshr_fill",
+     "cache_fill",
+     "mshr_free",
+     "resp",
+     "taint_reg",
+     "request_fork",
+     "cache_access",
+     "cache_return",
+     "mshr_merge",
+     "resp",
+     "lq_complete",
+     "taint_reg",
+     "taint_reg",
+     "consumer",
+     "consumer",
+     "consumer",
+     "consumer",
+     "consumer",
+     "consumer",
+     "squash_masked"
+    ]
+   },
+   "4": {
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "contained": true,
+    "admission": true,
+    "n_path": 6,
+    "ancestry_kinds": [
+     "inj",
+     "tlb_lookup",
+     "tlb_pfn",
+     "tlb_translate_result",
+     "sq_execute",
+     "sq_writeback",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "mshr_fill",
+     "cache_fill",
+     "mshr_free",
+     "mshr_fill",
+     "cache_fill",
+     "mshr_free",
+     "resp",
+     "taint_reg",
+     "sq_complete",
+     "squash_masked"
+    ]
+   },
+   "5": {
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "contained": true,
+    "admission": true,
+    "n_path": 6,
+    "ancestry_kinds": [
+     "inj",
+     "tlb_lookup",
+     "tlb_pfn",
+     "tlb_translate_result",
+     "sq_execute",
+     "sq_writeback",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "resp",
+     "taint_reg",
+     "sq_complete",
+     "squash_masked"
+    ]
+   },
+   "6": {
+    "terminal": "provable_to_L4_then_unknown",
+    "provable_to": "L4",
+    "contained": false,
+    "admission": false,
+    "n_path": 5,
+    "ancestry_kinds": [
+     "inj",
+     "tlb_lookup",
+     "tlb_pfn",
+     "tlb_translate_result",
+     "lq_read",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "cache_access",
+     "cache_return",
+     "mshr_alloc",
+     "resp",
+     "lq_complete",
+     "taint_reg"
+    ]
+   }
+  },
+  "violations": [
+   "no_closed_chain_and_no_containment: T02-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "ready_by_activated_only: T02-F2-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "ready_by_rc0: T02-F2-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
+   "ready_by_chain_end_only: T02-F2-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+  ]
+ },
+ "fixes": {
+  "strategy1_cache_protocol": {
+   "commit": null,
+   "binary": "843d0e94f02708723e3773193b91697ce5f317734cb2b5e5a1ab1cc69c953221",
+   "files": [
+    "CHAOS/gem5/src/mem/cache/chaos_cache_resp.hh",
+    "CHAOS/gem5/src/mem/cache/base.cc"
+   ]
+  },
+  "strategy2_evidence_channel": {
+   "binary": "b501de2cca321a9abe92d75a5ae303d8ac3a72041afaaeb12dcb92cedf5b2320",
+   "files": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc"
+   ]
+  },
+  "durability": {
+   "files": [
+    "tools/lsu_prop_fields.py",
+    "tools/lsu_chain_check.py",
+    "tests/test_lsu_evidence_durability.py"
+   ]
+  }
+ },
+ "binary_sha256_new": "b501de2cca321a9abe92d75a5ae303d8ac3a72041afaaeb12dcb92cedf5b2320",
+ "binary_sha256_old": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+ "checkpoint": "runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727",
+ "golden": "b6d81b360a5672d80c27430f39153e2c"
+}
