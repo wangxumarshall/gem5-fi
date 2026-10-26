@@ -159,7 +159,8 @@ state；`base.cc:2365` 是 MSHR 唯一入栈点）⇒ **永不分配 MSHR** ⇒ 
 
 | 项 | 值 |
 |---|---|
-| 分支 / HEAD | `fix/0202-six-chain-20261026` |
+| 分支 | `fix/0202-six-chain-20261026` |
+| **本报告内容冻结于提交** | `e38d937f9214dc6669a89ae6305dba211abe1e84`（`R0202-T02F2-MSHR-REPAIR.{md,json,csv}` 首发于该提交；其后仅回填本行/上表 HEAD 字段） |
 | 二进制（**新 freeze**） | `CHAOS/gem5/build/ARM/gem5.opt`，SHA256 `b501de2cca321a9abe92d75a5ae303d8ac3a72041afaaeb12dcb92cedf5b2320` |
 | 旧二进制（失效） | `a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a` |
 | 中间二进制（策略1） | `843d0e94f02708723e3773193b91697ce5f317734cb2b5e5a1ab1cc69c953221` |

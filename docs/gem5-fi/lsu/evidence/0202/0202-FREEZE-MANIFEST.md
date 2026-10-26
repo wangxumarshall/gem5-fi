@@ -12,7 +12,7 @@ first canary. Mixing binaries across the six is forbidden.
 | remote | `git@github.com:wangxumarshall/gem5-fi.git` |
 | base branch | `origin/lsu-mdspec-20261019` = `de81266c` |
 | working branch | `fix/0202-six-chain-20261026` |
-| HEAD at freeze | **以 `R0202-T02F2-MSHR-REPAIR.md` 所在提交为准**（U6/U7/阶段4 之后的 HEAD） |
+| HEAD at freeze | `e38d937f9214dc6669a89ae6305dba211abe1e84`（= `R0202-T02F2-MSHR-REPAIR.md` 首发提交；U6/U7/阶段4 之后的 HEAD） |
 | baseline contained | `3f3eb617` is an ancestor of HEAD (verified) |
 | working tree | clean |
 
