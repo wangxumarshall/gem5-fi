@@ -56,15 +56,19 @@ def kind_counts(path):
     if not p.exists():
         return {}
     op = gzip.open if p.name.endswith(".gz") else open
+    counts = {}
     try:
         with op(p, "rt", errors="replace") as fh:
-            text = fh.read()
+            # [R6-STREAM] 逐行流式；禁止整体 read() 解压流（超大流会 OOM）。
+            # 正则 `kind=([A-Za-z_]+)` 不含换行，逐行 finditer 与整串
+            # finditer 的匹配集合完全一致（语义等价，见 Task 13 报告）。
+            for line in fh:
+                for m in re.finditer(r"kind=([A-Za-z_]+)", line):
+                    k = m.group(1)
+                    counts[k] = counts.get(k, 0) + 1
     except (OSError, EOFError):
+        # 与旧实现一致：整串读取失败 → 空 dict（由调用方按"未完成"处理）。
         return {}
-    counts = {}
-    for m in re.finditer(r"kind=([A-Za-z_]+)", text):
-        k = m.group(1)
-        counts[k] = counts.get(k, 0) + 1
     return counts
 
 
@@ -118,7 +122,11 @@ def stream_status(path):
     op = gzip.open if p.name.endswith(".gz") else open
     try:
         with op(p, "rt", errors="replace") as fh:
-            fh.read()
+            # [R6-STREAM] 逐行流式消费以触达 gzip 收尾标记；禁止整体 read()
+            # （超大流会 OOM，而本函数只关心"能否读到 EOF"）。迭代到文件末尾
+            # 同样会触发截断流的 EOFError，故 readable/truncated 语义不变。
+            for _ in fh:
+                pass
         st["readable"] = True
     except EOFError as e:
         st["truncated"] = True

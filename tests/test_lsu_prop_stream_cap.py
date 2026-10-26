@@ -47,7 +47,35 @@ def test_peak_rss_bounded_on_huge_stream():
         assert growth_mb < 400, f"peak RSS grew {growth_mb:.0f} MB (>400 MB bound)"
 
 
+def test_golden_control_bounded_on_huge_stream():
+    """lsu_r6_golden_control 的流探测/计数不得整体 read() 解压流。
+
+    覆盖两处旧的 `fh.read()`：`stream_status`（完整性探测）与 `kind_counts`
+    （kind 计数）。二者都必须逐行流式，峰值 RSS 有界。
+    """
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "prop_evt.txt.gz"
+        _write_stream(p, 12_000_000)
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+        import lsu_r6_golden_control as GC
+
+        before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        st = GC.stream_status(p)
+        after = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        g1 = (after - before) / 1024.0
+        assert st["readable"] is True and st["truncated"] is False
+        assert g1 < 400, f"stream_status must not load the whole stream ({g1:.0f} MB)"
+
+        before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        counts = GC.kind_counts(p)
+        after = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        g2 = (after - before) / 1024.0
+        assert counts.get("probe") == 12_000_000
+        assert g2 < 400, f"kind_counts must not load the whole stream ({g2:.0f} MB)"
+
+
 if __name__ == "__main__":
     test_cap_is_200k(); test_under_cap_is_not_truncated()
     test_over_cap_is_flagged_not_silently_truncated(); test_peak_rss_bounded_on_huge_stream()
+    test_golden_control_bounded_on_huge_stream()
     print("test_lsu_prop_stream_cap: ALL PASS")
