@@ -57,6 +57,13 @@ CORR_VALUES = {
 
 _PREFIX = "PROP-EVT:"
 
+# [R6-STREAM] 权威事件上限：超过即 OVER_CAP（响亮），绝不静默截断后继续
+# 认证。与 lsu_r6_status_table.py 的既有语义一致。
+# read_stream/read_events 至多保留 EVENT_CAP 条事件；超限时置 truncated=True
+# 且**继续流式计数**（不保留超额事件、不把整条流读入内存），保证峰值内存
+# 与流大小无关——见 tests/test_lsu_prop_stream_cap.py。
+EVENT_CAP = 200000
+
 # kind → 观测层级（v1 kinds 先行；H1-H7 钩子族经 register_kind_layer 注册
 # 自己的映射——发射端 kind 命名与层级语义由各族任务定义）。
 KIND_LAYER = {
@@ -518,18 +525,25 @@ def validate_consumer_summary(rec):
     return errs
 
 
-def read_stream(path):
+def read_stream(path, cap=EVENT_CAP):
     """读整条流：PROP-EVT 事件 + consumer_summary 记录分离。
 
     返回 (events, truncated, summaries, summary_issues)。summary 行**不**进入
     events（规则 ①③：不占层、不进 DAG）；其校验问题单独返回供调用方关闭准入。
     read_events 保持原签名/行为（规则 ⑧ 兼容无 summary 流）。
+
+    [R6-STREAM] 有界流式：events 至多保留 cap 条（默认 EVENT_CAP）。逐行迭代
+    （绝不整体 read()/解压进内存），第 cap+1 条起的 PROP-EVT 只**计数不保留**，
+    并置 truncated=True（=OVER_CAP：流不完整，调用方据此判未证，绝不静默
+    截断后仍认证通过）。故峰值内存与流大小无关。返回元组仍是 4 元（既有
+    调用方 PF.read_stream(evt) 解 4 元不变）。
     """
     path = Path(path)
     truncated = False
     events = []
     summaries = []
     issues = []
+    seen = 0
     opener = gzip.open if path.suffix == ".gz" else open
     try:
         with opener(path, "rt", errors="replace") as f:
@@ -538,6 +552,13 @@ def read_stream(path):
                 if summ is not None:
                     summaries.append(summ)
                     issues.extend(validate_consumer_summary(summ))
+                    continue
+                if not line.lstrip().startswith(_PREFIX):
+                    continue
+                seen += 1
+                if seen > cap:
+                    # 超出上限：只计数，不解析、不保留（有界内存的关键）
+                    truncated = True
                     continue
                 evt = parse_line(line)
                 if evt is not None:
@@ -569,12 +590,13 @@ def provable_to(events):
     return {"provable_to": deepest, "beyond": "Unknown"}
 
 
-def read_events(path):
+def read_events(path, cap=EVENT_CAP):
     """读 PROP-EVT 流（.gz 或普通文件）。返回 (events, truncated)。
 
     规则 ⑧：原签名/行为不变——CONSUMER-SUMMARY 行与 PROP-EVT 一样被 parse_line
     忽略（它不是 PROP-EVT），故无 summary 的旧流逐位兼容；需要 summary 的调用方
     用 read_stream（额外返回 summaries + issues）。
+    [R6-STREAM] 单参调用不变（cap 缺省 EVENT_CAP）；有界语义见 read_stream。
     """
-    events, truncated, _summaries, _issues = read_stream(path)
+    events, truncated, _summaries, _issues = read_stream(path, cap)
     return events, truncated
