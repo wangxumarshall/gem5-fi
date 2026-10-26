@@ -262,6 +262,12 @@ def build_guard_cmd(manifest, outdir, span=None, fs_checkpoint=None):
                 "--chaos_armtlb", "--tlb_first_clock", "1000",
                 "--tlb_probability", "1.0", "--tlb_max_faults", "1"] + manifest["injector_flags"]
         args += ["--tlb_rng_seed", str(manifest["seed"])]
+        # [0202-REBUILD][H0] 传播流必须挂载：不挂 CHAOSPropagation 就没有
+        # prop_evt.txt.gz → 无 L0→L5 链证据（实测缺陷：T01-F0-W4 首跑只有
+        # funnel/分类，无任何事件流）。复用 campaign 的唯一实现
+        # `LC.propagation_flags(runid, seed)`（每事件带 run_id + sample_run_id，
+        # One source, no drift）。
+        args += LC.propagation_flags(manifest["run_id"], manifest["seed"])
         config = str(FS_CONFIG)
     else:
         args = ["--cmd", str(_wl_path(manifest["carrier"].split(":")[1])),
