@@ -113,8 +113,22 @@ def detect_workload_key(fields):
     return m.group(1) if m else None
 
 
+SEED_RULE_DERIVED = "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）"
+SEED_RULE_EXPLICIT = ("显式整数 seed（--explicit-seed）：直接作为 --tlb_rng_seed 下发，"
+                      "不派生；用于复现 0101 campaign 的整数 seed 系列（seed1==1）")
+
+
+def run_tag(manifest):
+    """运行目录标签。derived 用 sample_index（`s<idx>`），explicit 用 seed 原值
+    （`x<seed>`）——两者是**不同的身份轴**，不得混用同一个标签（避免把
+    `sample_index=0` 误读成"数值 seed1"）。"""
+    if manifest.get("seed_source") == "explicit":
+        return f"{manifest['item']}_{manifest['phase']}_x{manifest['explicit_seed']}"
+    return f"{manifest['item']}_{manifest['phase']}_s{manifest['sample_index']}"
+
+
 def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None,
-                   fs_checkpoint=None):
+                   fs_checkpoint=None, explicit_seed=None):
     blocks = parse_items()
     hit = [b for b in blocks if b[0] == item_id]
     if not hit:
@@ -172,7 +186,29 @@ def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None,
         golden = LC.GOLDENS[wl_binary]
         carrier = f"se:{wl_binary}"
 
-    seed = lsu_seed(run_id, phase, sample_index)
+    # [0202-T02F2] seed 身份：derived（sample_index → 哈希）与 explicit（整数原值）
+    # 是**互斥**的两条轴。同时给出即冲突（响亮失败），不能一边说 sample_index
+    # 一边让别人以为是那个数值 seed。
+    if explicit_seed is not None and sample_index is not None:
+        sys.exit("ERROR: --sample-index 与 --explicit-seed 互斥（前者派生哈希 seed，"
+                 "后者直接指定整数 RNG seed；0101 campaign 的整数 seed1 == 1，"
+                 "而 0202 sample_index=0 派生出的是 64 位哈希，二者不是同一个 seed）")
+    if explicit_seed is not None:
+        try:
+            explicit_seed = int(explicit_seed)
+        except (TypeError, ValueError):
+            sys.exit(f"ERROR: --explicit-seed 必须为整数，收到 {explicit_seed!r}")
+        if explicit_seed < 0:
+            sys.exit(f"ERROR: --explicit-seed 不得为负（收到 {explicit_seed}）")
+        seed = explicit_seed
+        seed_source = "explicit"
+        seed_rule = SEED_RULE_EXPLICIT
+    else:
+        if sample_index is None:
+            sys.exit("ERROR: 需要 --sample-index（派生 seed）或 --explicit-seed（显式整数 seed）之一")
+        seed = lsu_seed(run_id, phase, sample_index)
+        seed_source = "derived"
+        seed_rule = SEED_RULE_DERIVED
     manifest = {
         "immutable": True,
         "item": item_id,
@@ -189,7 +225,9 @@ def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None,
         "phase": phase,
         "sample_index": sample_index,
         "seed": seed,
-        "seed_rule": "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）",
+        "seed_source": seed_source,
+        "seed_rule": seed_rule,
+        "explicit_seed": (int(explicit_seed) if explicit_seed is not None else None),
         "identity": {
             "git_commit": subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
                                          capture_output=True, text=True).stdout.strip(),
@@ -301,7 +339,13 @@ def main():
     g.add_argument("--item")
     g.add_argument("--manifest")
     ap.add_argument("--phase", choices=PHASES)
-    ap.add_argument("--sample-index", type=int)
+    ap.add_argument("--sample-index", type=int,
+                    help="派生 seed 轴：seed = lsu_seed(run_id, phase, sample_index)。"
+                         "注意 sample_index=0 **不是**「数值 seed1」。")
+    ap.add_argument("--explicit-seed", type=int, default=None,
+                    help="[0202-T02F2] 显式整数 RNG seed（直接作为 --tlb_rng_seed 下发），"
+                         "用于复现 0101 campaign 的整数 seed 系列（seed1==1）。"
+                         "与 --sample-index 互斥。")
     ap.add_argument("--output")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--execute", action="store_true")
@@ -313,10 +357,15 @@ def main():
     args = ap.parse_args()
 
     if args.item:
-        if not (args.phase and args.sample_index is not None and args.output):
-            ap.error("--item 需要 --phase --sample-index --output")
+        if not (args.phase and args.output):
+            ap.error("--item 需要 --phase --output")
+        if args.sample_index is None and args.explicit_seed is None:
+            ap.error("--item 需要 --sample-index（派生 seed）或 --explicit-seed（显式整数 seed）")
+        if args.sample_index is not None and args.explicit_seed is not None:
+            ap.error("--sample-index 与 --explicit-seed 互斥（seed 身份只能有一条轴）")
         m = build_manifest(args.item, args.phase, args.sample_index,
-                           fs_checkpoint=args.fs_checkpoint)
+                           fs_checkpoint=args.fs_checkpoint,
+                           explicit_seed=args.explicit_seed)
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         Path(args.output).write_text(json.dumps(m, ensure_ascii=False, indent=1))
         print(f"manifest 冻结: {args.output}")
@@ -326,7 +375,7 @@ def main():
         return
 
     m = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
-    tag = f"{m['item']}_{m['phase']}_s{m['sample_index']}"
+    tag = run_tag(m)
     outdir = Path(args.outdir_root) / m["phase"] / tag
     two_pass = m["frequency"] == "F0" and m["family"] in ("addrpath", "lsqfwd", "prefetch")
 
