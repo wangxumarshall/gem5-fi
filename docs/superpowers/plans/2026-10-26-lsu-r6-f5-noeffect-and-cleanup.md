@@ -1567,6 +1567,26 @@ PY
 
 ---
 
+### Task 15b: （计划外，用户裁定 escape-first + 一次我方误操作）
+
+- [x] **验收卡点**：seed1 run #2 得 `admitted=False`。只读根因调查（用户裁定「先调查」）**推翻**了我
+      「chain_end 分歧」的假设：`chain_end` 两侧一致视为惰性事件。真实根因是 `lsu_chain_check.py` 内
+      **三条互不一致的选 fault 规则**（`:1195` 按路径长 / `:1090` 按原始事件数 / `lsu_campaign.py:2054`
+      按 id 序）；13 条 fault 下三者选出不同 fault，事件数最大者恰非含住者 ⇒ containment 推导为 `None`
+      ⇒ 拒绝。该缺陷在 `origin/fi-ding` **既已存在**（相关文件与本分支逐字节相同，已 diff 实证）。
+- [x] **用户裁定：escape-first** —— 样本内任一 fault 达 `full` ⇒ 头条报 `full` 并据 `full_chain` 准入；
+      含住仅在无逃逸时作终局；三处规则统一为一个共享助手。**非放宽**（`opt1` 先于 `opt2`）。
+- [x] 实施（commit `720f2c84`）：`lsu_chain_check.select_representative_fault` 共享规则 + 三处统一 +
+      `containment_from_events` 优先选确有含住候选者 + `tests/test_lsu_escape_first_selection.py`（6 项）。
+- [x] **关键回归**：16 条权威样本离线重判**逐条不变、整份 JSON 逐字节相等** ⇒ 证明不放宽。
+- [x] **我方误操作（如实记录）**：曾手工驱动 `write_chain_report` 写就地重判结果，产出**结构不完整**报告
+      （缺 `samples`）。**已从备份完整恢复**。教训：应用仓库自带 `lsu_r6_rejudge.py`（不触碰证据文件）。
+- [x] **处置**：改为**用最终工具链重跑 seed1**（Python-only 改动，无需重建），使 9/9 自洽、不做证据手术；
+      原目录移存 `runs/lsu/r6_n7_T03-F5-W4_s1.RUN1_STALE_REPORT/`。
+- [x] seed1（最终工具链）**21/21 PASS**：`terminal=full / admitted=True / certified=True / path=full_chain /
+      violations=[]`；四方计数 `13 + 226252272 = 226252285` 精确自洽；掩码唯一 `0x10`；**0 条 old_pfn==new_pfn**。
+- [x] 附带修复 `r6_n7_mkmanifest.py` 硬编码身份路径（manifest 曾记旧 SHA `e8052842…`）→ 现记 `8a229009…`。
+
 ## Phase E — 统一二进制批次
 
 ### Task 16: T01-F1-W4 ×3 + T01-F2-W4 ×3（新 SHA，全新目录，并发 ≤2）
