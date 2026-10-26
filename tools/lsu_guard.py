@@ -86,6 +86,16 @@ TRIP_MEM_GIB = 8.0
 TRIP_MEM_HARD_GIB = 6.0
 TRIP_SWAP_GIB = 2.0
 TRIP_TERM_GRACE_S = 30
+# [0202-REBUILD][R6-GRACEEXIT] 超时**先** SIGINT、再升级的宽限期。gem5 只为
+# SIGINT 安装处理器（src/sim/init_signals.cc:initSigInt → exitNowHandler →
+# async_exit → exitSimLoop），SIGTERM/SIGKILL 走默认动作 ⇒ 进程立即死亡 ⇒
+# **不写 stats.txt、prop_evt gzip 无 EOF、退出回调（CHAOS_LSU_TRIGGER 摘要）
+# 不运行** ⇒ 证据被判截断。实测（0202）：T04-F0-W4 / T04-F6-W4 超时时
+# stats.txt 0 字节、gzip 无 EOF；仓库既有同型事故
+# runs/lsu/r6_c8_T04-F6-W4_s1（见 tests/test_lsu_campaign_graceful_timeout.py
+# 头注）。lsu_campaign.run_gem5 已有该升级顺序；本守卫此前只发 SIGTERM，
+# 故补上同一顺序（One behavior, no drift）。
+SIGINT_GRACE_S = 120
 # OBS-SLOT-RELEASE（中央指令 2026-10-13）：monitor 的资源采样保持 --interval
 # 节拍，但目标 PGID 存活改为快轮询——目标退出后槽位须在 ~2×POLL_TARGET_S 内
 # 释放（此前 time.sleep(interval) 整段睡眠导致最长 interval 秒延迟）。
@@ -741,7 +751,52 @@ def _pgid_alive(pgid):
     return False
 
 
-def monitor(pgid, log_path, interval, max_seconds=None, lock_path=None, lock=None):
+def graceful_terminate(pgid, sigint_grace=SIGINT_GRACE_S,
+                       term_grace=TRIP_TERM_GRACE_S):
+    """[0202-REBUILD][R6-GRACEEXIT] 超时收口：SIGINT → (宽限) → SIGTERM →
+    (宽限) → SIGKILL。SIGINT 让 gem5 走 drain + 退出回调，从而把 stats.txt 与
+    prop_evt gzip 正常收口（消除证据截断）；只有不响应时才升级。
+
+    返回 {"sigint_sent": bool, "signal": "SIGTERM"|"SIGKILL"|None,
+          "graceful": bool}。graceful=True ⇔ 子进程在 SIGINT 后自行退出。
+    """
+    out = {"sigint_sent": False, "signal": None, "graceful": False}
+    if not _pgid_alive(pgid):
+        out["graceful"] = True          # 已在收口前自行结束
+        return out
+    try:
+        os.killpg(pgid, signal.SIGINT)
+        out["sigint_sent"] = True
+        _log_event({"action": "timeout-sigint", "pgid": pgid})
+    except ProcessLookupError:
+        out["graceful"] = True
+        return out
+    deadline = time.time() + sigint_grace
+    while time.time() < deadline and _pgid_alive(pgid):
+        time.sleep(POLL_TARGET_S)
+    if not _pgid_alive(pgid):
+        out["graceful"] = True
+        return out
+    for sig, name, grace in ((signal.SIGTERM, "SIGTERM", term_grace),
+                             (signal.SIGKILL, "SIGKILL", 0)):
+        try:
+            os.killpg(pgid, sig)
+            out["signal"] = name
+            _log_event({"action": "timeout-" + name.lower(), "pgid": pgid})
+        except ProcessLookupError:
+            out["graceful"] = True
+            out["signal"] = None
+            return out
+        deadline = time.time() + grace
+        while time.time() < deadline and _pgid_alive(pgid):
+            time.sleep(POLL_TARGET_S)
+        if not _pgid_alive(pgid):
+            return out
+    return out
+
+
+def monitor(pgid, log_path, interval, max_seconds=None, lock_path=None, lock=None,
+            escalation=None):
     """采样循环：写资源日志，检测 WARNING/TRIP；TRIP 时只终止锁内 PGID。
 
     v2：每轮采样顺带原子重写自己的锁文件 heartbeat 字段（lock_path/lock 给定
@@ -800,10 +855,13 @@ def monitor(pgid, log_path, interval, max_seconds=None, lock_path=None, lock=Non
             break
         if max_seconds and time.time() - start > max_seconds:
             reason = "max-seconds-reached"
-            try:
-                os.killpg(pgid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            # [0202-REBUILD][R6-GRACEEXIT] SIGINT 优先：让 gem5 drain 并运行退出
+            # 回调，收口 stats.txt 与 prop_evt gzip（此前直接 SIGTERM ⇒ 证据截断）。
+            term_info = graceful_terminate(pgid)
+            _log_event({"action": "timeout-escalation", "pgid": pgid,
+                        **term_info})
+            if escalation is not None:
+                escalation.update(term_info)
             break
         # OBS-SLOT-RELEASE：快轮询窗口（≤interval）——每 POLL_TARGET_S 秒查
         # 目标存活，一退出立即 break 出外层循环（wait/reap+release 在调用方）
@@ -848,13 +906,17 @@ def cmd_run(args):
         print(f"SPAWNED pid={proc.pid} pgid={pgid}"
               f"{' slot=' + str(slot) if slot is not None else ''} log={args.log}")
         # 4) 采样监控（v2：带心跳）
+        _esc = {}
         reason = monitor(pgid, args.log, args.interval, args.max_seconds,
-                         lock_path=_lock_path(args.type, slot), lock=lock)
+                         lock_path=_lock_path(args.type, slot), lock=lock,
+                         escalation=_esc)
         # 5) 收割与总结
         rc = proc.wait()
         summary = {"action": "run-finish", "cmd": args.command, "pgid": pgid,
                    "exit_code": rc, "monitor_reason": reason,
                    "time": time.strftime("%Y-%m-%d %H:%M:%S")}
+        if _esc:                       # [R6-GRACEEXIT] 超时收口事实（可审计）
+            summary["timeout_escalation"] = _esc
         _log_event(summary)
         print(json.dumps(summary, ensure_ascii=False))
         return rc
