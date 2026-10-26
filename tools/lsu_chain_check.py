@@ -565,6 +565,82 @@ def check_chain(events, spec_nodes=None, oracle_outcome=None):
     return result
 
 
+# ---------------------------------------------------------------------------
+# [MDSPEC][R6-F5-NOEFFECT] ESCAPE-FIRST fault selection (user ruling 2026-10-26c)
+#
+# A multi-injection sample carries several faults at once.  Three separate
+# places used to pick the sample's "representative fault" by three different
+# rules (longest proven path / raw event count / lexicographically-first id),
+# so the same raw stream could be read three ways.  Real n7 sample
+# (T03-F5-W4 seed1, 13 faults): the escape-bearing fault and the containing
+# faults disagree, so `check_admission` selected a containment and refused a
+# sample that actually contains a genuine errant-commit escape.
+#
+# Ruling: the cell-level verdict is ESCAPE-FIRST — if ANY fault reaches
+# `full` (a genuine errant-commit escape) the sample headline is `full` and it
+# admits via `full_chain`; a `detected_contained` containment is the terminus
+# ONLY when no fault escapes.  One deterministic rule, used by every selection
+# site so it cannot drift:
+#
+#   1. terminal rank first:  full (2) > detected_contained (1) > everything
+#      else, incl. every `provable_to_*` (0);
+#   2. tie-break by proven path length (longer wins);
+#   3. tie-break by fault id (deterministic).
+#
+# This is a CONSISTENCY fix, NOT a loosening: `check_admission` evaluates
+# option 1 (`full`) BEFORE option 2 (`contained`), so with escape-first
+# selection a sample that contains an escape can never be admitted via a
+# sibling squash containment (see the `errant_escape_outranks_containment`
+# guard, which additionally keeps the two evidence kinds from being confused
+# *within* one chain).
+_TERMINAL_RANK = {"full": 2, "detected_contained": 1}
+
+
+def _terminal_rank(terminal):
+    """Escape-first terminal rank (higher = preferred). `provable_to_*` = 0."""
+    return _TERMINAL_RANK.get(str(terminal), 0)
+
+
+def _fault_id_key(fid):
+    """Deterministic fault-id tie-break: numeric ids numerically, then text."""
+    s = str(fid)
+    return (0, int(s)) if s.lstrip("-").isdigit() else (1, s)
+
+
+def select_representative_fault(faults, prefer=None):
+    """The ONE fault-selection rule (escape-first, user ruling 2026-10-26c).
+
+    `faults` = ``check_chain(...)["faults"]``  (fault_id -> record carrying at
+    least ``terminal`` and ``path_event_ids``).  Returns ``(fault_id,
+    fault_record)`` or ``(None, None)`` when there are no faults.
+
+    `prefer` (optional predicate ``fid -> bool``) restricts the candidate pool
+    to the faults satisfying it **when at least one does** — this is how
+    ``containment_from_events`` lands on a fault that actually yields a
+    containment candidate.  It only narrows the pool; it never relaxes the
+    escape-first ordering, and when `prefer` admits a `full` fault that fault
+    still wins the ranking (so an escaping sample can never be read as
+    contained).
+    """
+    if not faults:
+        return None, None
+    ids = list(faults)
+    if prefer is not None:
+        pref = [f for f in ids if prefer(f)]
+        if pref:
+            ids = pref
+
+    def key(fid):
+        rec = faults[fid]
+        return (_terminal_rank(rec.get("terminal")),
+                len(rec.get("path_event_ids") or []))
+
+    best = max(key(fid) for fid in ids)
+    tied = [fid for fid in ids if key(fid) == best]
+    fid = min(tied, key=_fault_id_key)
+    return fid, faults[fid]
+
+
 # ==================================================================== R6-GATE
 # Formal-admission HARD GATE (Agent B, R6).  `check_chain` proves edges and
 # reports an honest terminal; `check_admission` turns that into a binding
@@ -1087,7 +1163,35 @@ def containment_from_events(events, run_id="?", fault_id=None, truncated=False):
     if fault_id is not None and fault_id in faults:
         fid, chain = fault_id, faults[fault_id]
     else:
-        fid, chain = max(faults.items(), key=lambda kv: len(kv[1]))
+        # [MDSPEC][R6-F5-NOEFFECT] escape-first selection, but land on a fault
+        # that ACTUALLY yields a containment candidate when one exists (fall
+        # back to the shared escape-first ranking otherwise).  Previously this
+        # picked the raw-event-count-max fault; on a multi-injection sample
+        # (real n7: 13 faults) that fault is often NOT a container, so the
+        # honest containment was missed and `None` returned — a false negative
+        # for no-escape samples.
+        #
+        # NOT a loosening: this method only *derives the option-2 bundle*.
+        # Admission is decided by `check_admission`, which evaluates option 1
+        # (`full`) before option 2 (`contained`) and selects the fault on the
+        # same escape-first rule — so a sample that carries an escape is
+        # admitted via `full_chain` regardless of which fault's bundle appears
+        # here, and no sample is admitted that the stricter reading refuses.
+        # (One `check_chain` pass to obtain the per-fault terminals the shared
+        # rule needs; it is the same O(n) linear scan used everywhere else.)
+        recs = check_chain(events)["faults"]
+
+        def _yields_candidate(cand_fid):
+            if cand_fid not in faults:
+                return False
+            fam = _family_of(faults[cand_fid])
+            return _containment_candidate(faults[cand_fid], fam) is not None
+
+        sel_fid, _ = select_representative_fault(recs, prefer=_yields_candidate)
+        if sel_fid is None:                       # no fault records (defensive)
+            fid, chain = max(faults.items(), key=lambda kv: len(kv[1]))
+        else:
+            fid, chain = sel_fid, faults[sel_fid]
     family = _family_of(chain)
     if truncated or not _stream_closed(chain):
         return None
@@ -1192,8 +1296,13 @@ def check_admission(bundle):
         _crutch_violations(res, bundle, events)
         res["admitted"] = False
         return res
-    fid, f = max(faults.items(),
-                 key=lambda kv: len(kv[1]["path_event_ids"]))
+    # [MDSPEC][R6-F5-NOEFFECT] escape-first representative-fault selection
+    # (user ruling 2026-10-26c): if ANY fault reaches `full` the sample is
+    # judged `full` (admits via `full_chain`); a containment is the terminus
+    # only when no fault escapes.  `opt1` (full) is evaluated before `opt2`
+    # (contained) below, so escape-first selection can never admit a sample
+    # via a sibling squash containment.
+    fid, f = select_representative_fault(faults)
     family = f["family"]
     res["terminal"] = f["terminal"]
     res["family"] = family

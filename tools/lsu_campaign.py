@@ -2050,9 +2050,14 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
         rep.update({"stream_present": True, "truncated": truncated,
                     "event_count": len(events), "faults": verdict["faults"]})
         if verdict["faults"]:
-            # single-fault campaign: surface the (first) chain at top level
-            fid = sorted(verdict["faults"])[0]
-            f = verdict["faults"][fid]
+            # [MDSPEC][R6-F5-NOEFFECT] surface the representative chain at top
+            # level with THE shared escape-first rule (user ruling 2026-10-26c)
+            # — `lsu_chain_check.select_representative_fault`.  Previously this
+            # took `sorted(faults)[0]` (lexicographically-first id), which on a
+            # multi-injection sample could hide a `full` escape behind a
+            # sibling containment.  The rule lives in lsu_chain_check so it can
+            # never drift from `check_admission` / `containment_from_events`.
+            fid, f = CHAIN.select_representative_fault(verdict["faults"])
             rep.update({"terminal": f["terminal"],
                         "provable_to": f["provable_to"],
                         "beyond": f["beyond"]})
