@@ -153,3 +153,66 @@
 - **裁决：** F6 为独立压力测试，不纳入 F0–F5 主统计；本裁决取代此前一切 F6 多种子要求。三类 `run_policy`（NORMAL=3 seeds 入主统计 / STRESS_ONLY=1 seed / STRESS_REDUNDANT=0 不调度）；政策 `entries` 恰为 325 唯一 RunID（另 4 条 legacy F6 在显式非权威节）。详见 Findings Log F-055（裁决、计数、64-vs-68 实测、不可变输入）与 F-056（用户核验 A1–A4）。
 - **机器可读唯一来源：** `docs/gem5-fi/lsu/mdspec/R6-FREQUENCY-POLICY.json`（`tools/lsu_freq_policy.py` 生成，schema `r6-frequency-policy/1`）。任何消费方（wrapper/campaign/scheduler/runner/ready_contract/status-table）不得重新推导规则，只读该 JSON。
 - **权威文档同步：** 完整任务执行清单"Amendment 2026-10-25 (frequency policy)"节、总方针 §3 F6 频率政策条、task_plan"修订（2026-10-25）"节 + D-2026-10-25-F6频率政策、progress.md"2026-10-25 R6 频率政策裁决记录"节。
+
+## 2026-10-26 0202 六链重建（分支 `fix/0202-six-chain-20261026`）
+
+- **F-057（事实）基线包含关系成立**：克隆 `origin/lsu-mdspec-20261019`（HEAD `de81266c`，非旧的
+  `3f3eb617`）后 `git merge-base --is-ancestor 3f3eb617 HEAD` 返回 0，且工作树 clean。旧的
+  `fi-ding@8aec2a8` 未使用。分支远端此前不存在 `fix/0202-six-chain-20261026`，已从当前
+  `origin/lsu-mdspec-20261019` 新建。证据：`git rev-parse HEAD`、`git status --short`（0 行）。
+- **F-058（事实）两个已知阻塞点在 3f3eb617..HEAD 内已修复，无需重复改码**：
+  ①`f2893b0b` R6-FIXCORR 在 `CHAOSPropagation.cc:1674-1675` 对**仅有真实连续父链、无开放下游臂**的
+  含住终局事件写 `corr=origin`，grader 未放宽；②`4e61725f` R6-F0FUNNEL 在 `CHAOSArmTLB.cc:548-579`
+  加**纯被动** F0 计数（`attempted` 入口、`eligible` 过 cap+probability 且在消费 skip 之前），
+  summary 复用真实 `faults_injected_count`，RNG/skip/cap 未改。F2 路由（`6ec7c5aa`）、T04 live-page
+  谓词（`37446e7a`+`f77bb0ab`）、F6（`f77bb0ab`）同在 HEAD。→ 按仓库纪律"已解决则不重复改代码"。
+- **F-059（事实+决定）checkpoint 硬编码是一个必修缺陷**：`tools/lsu_runner.py:42` 把 B0
+  checkpoint 硬编码为 `runs/lsu/fs_cpt_boot/cpt.237949797015`。0202 无备份、必须新生成
+  checkpoint，改名/软链冒充身份被任务明确禁止。→ 补丁 U1：`resolve_fs_checkpoint()` 唯一解析
+  （`--fs-checkpoint` > env `LSU_FS_CHECKPOINT` > 历史默认），写进 `manifest.identity.checkpoint`
+  并由 `build_guard_cmd` 消费；命令行与已冻结身份分歧时**响亮拒绝**。测试
+  `tests/test_lsu_runner_fs_checkpoint.py`（6 项）全绿。
+- **F-060（事实+偏离披露）本机 swap 被禁用导致守卫门禁硬阻塞**：接管时 `SwapFree = 0 GiB`
+  （`/etc/fstab` 第 16 行 swap 被注释），`tools/lsu_guard.py gate` 因 "SwapFree 0.0 GiB < 4.0 GiB"
+  拒绝一切运行。**没有绕过门禁**：新开 16 GiB swapfile `/home/swapfile.0202`（未写入 fstab），
+  之后 gate 返回 `"ok": true`。可逆：`sudo swapoff /home/swapfile.0202 && sudo rm ...`。
+- **F-061（事实）工具链与旧记录不同，按实测而非沿用**：本机 openEuler **22.03**（非 24.03）、
+  GCC **10.3.1**（gem5 警告"officially supports GCC 11–14.2"，仅警告）、Python **3.8.18**
+  （scons 与 `python3-config` 同为 3.8，头文件在位）、SCons 4.11.1。`mako` 缺失曾使 gem5 构建
+  直接失败 → `pip --user` 装 mako 1.3.12；另装 jsonschema、`/usr/bin/time`。HTTPS 到 GitHub
+  超时，**SSH 可用**（key 已配置为 wangxumarshall）。`gem5-fs` 子模块以 zstd 分片交付，须
+  `bash gem5-fs/restore.sh` 还原；还原后三件套字节数与 readme 完全一致。
+- **F-062（事实）并发规则冲突**：`CLAUDE.md:18` 要求 clean build 用 `-j16`，LSU 总方针 §8.1
+  与任务均硬上限 `-j8` 且"同一时刻最多 1 个编译任务"。采用更保守的 **`-j8`**（记录冲突与依据）。
+- **F-063（事实，重大）gem5 v25.1 实际要求 Python ≥3.10，本机默认 3.8 使二进制不可用**：
+  第一次 `scons -j8 build/ARM/gem5.opt`（PYTHON_CONFIG 默认 3.8.18）**构建成功**（exit 0，
+  `scons: done building targets.`，aarch64 ELF，SHA256 `70aab844…`），但**无法运行任何配置**：
+  `configs/se/arm_chaos.py` 导入即崩，`TypeError: unsupported operand type(s) for |: 'type'
+  and 'type'` @ `src/python/gem5/simulate/simulator.py:104` —— 该文件**没有**
+  `from __future__ import annotations`，`outdir: Optional[str | Path]` 在 3.8 下运行时求值失败
+  （PEP 604 需 3.10+）。旧机是 Python 3.11.6，故历史上不暴露。本机仅有 3.8/3.9，dnf 无 3.10+ 包。
+  → 从 huaweicloud 镜像源码编译 **CPython 3.11.9** 安装到 `/opt/python3.11`
+  （`--enable-shared`，`ldconfig` 注册 `/opt/python3.11/lib`），以
+  `PYTHON_CONFIG=/opt/python3.11/bin/python3.11-config scons -j8 build/ARM/gem5.opt` 重建。
+  **`70aab844…` 作废**（从未用于任何 canary），权威二进制为重建产物。
+- **F-064（事实）权威二进制 = 重建产物**：`CHAOS/gem5/build/ARM/gem5.opt`，
+  SHA256 `a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a`，
+  大小 1,245,098,072 B，mtime 2026-10-26 19:19:06，`file` = ELF 64-bit ARM aarch64，
+  `ldd` 链接 `libpython3.11.so.1.0`（/opt/python3.11/lib）。构建命令
+  `cd CHAOS/gem5 && PYTHON_CONFIG=/opt/python3.11/bin/python3.11-config scons -j8 build/ARM/gem5.opt`
+  （guard build 锁 + 60s 采样），exit_code=0，`scons: done building targets.`，
+  0 error / 15 warning（全为可选项缺失：protoc/png/hdf5/capstone/tcmalloc）。
+- **F-065（事实）补丁 U1 自验证**：`tests/test_lsu_runner_fs_checkpoint.py` → `ALL PASS`；
+  真实 dry-run 的守卫命令携带 manifest 身份里的**同一** checkpoint
+  `runs/lsu/0202_fs_cpt_boot_DEMO/cpt.243414599076` 与真实 gem5 SHA；
+  未受影响 SE hello（`configs/se/arm_chaos.py --cmd workloads/directed/reg_chain --cpu O3`）
+  exit 0 且 oracle 校验和 `f247ef3fe6f02cfd` == `GOLDEN_IDS['regchain-golden-v1']`。
+- **F-066（事实）旧基线失败清单（有证据，非本轮引入）**：`tools/lsu_test_runner.py` 基线
+  86 套件 = PASS 58 / FAIL 20 / ENV 5 / SKIP 3；装 openpyxl 后 PASS 63 / FAIL 15。
+  剩余 FAIL 分三类：①**陈旧的 hook 合成链**（a07/c11/c12/c14/c15/cpf/l04/o0x/p06/sq）——
+  这些链**没有 `parent_event_id`**，而 R6 收紧后的检查器按 parent-event 祖先路径证边，故
+  全边 missing、`provable_to=L0`（正是本任务所需的严格性，**不放宽**）；②**依赖
+  gitignored `runs/` 状态**（`test_lsu_freq_policy` 要 `runs/lsu/fs_cpt_boot/cpt.237949797015`
+  与 `runs/lsu/r6_c9_*`；`test_lsu_fs_infra` 期待 F2/F6 行被旧 FTIER 门 BLOCKED）；
+  ③**约定不匹配**（`test_lsu_r6_status_table`、`test_lsu_xlsx_to_md` 无 ALL PASS/FAILURES 标记）。
+  已 stash 验证：其中 freq_policy / fs_infra 在**原始 baseline** 上同样 FAILED(3)。
