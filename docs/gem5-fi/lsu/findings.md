@@ -216,3 +216,26 @@
   与 `runs/lsu/r6_c9_*`；`test_lsu_fs_infra` 期待 F2/F6 行被旧 FTIER 门 BLOCKED）；
   ③**约定不匹配**（`test_lsu_r6_status_table`、`test_lsu_xlsx_to_md` 无 ALL PASS/FAILURES 标记）。
   已 stash 验证：其中 freq_policy / fs_infra 在**原始 baseline** 上同样 FAILED(3)。
+- **F-067（事实）0202 六链 seed-1 执行（freeze `b250a6df`→`0b8afd0f`，二进制 SHA `a99031a8…`）**：
+  checkpoint = 本机新生成 `runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727`
+  （真实 cpt.<tick>，**非** legacy `cpt.237949797015`）；无注入 golden 双跑 oracle
+  `b6d81b360a5672d80c27430f39153e2c` 且 `ok=10/10` 两次一致（wall 2274 s / 2299 s）。
+  六 RunID 均由 `tools/lsu_runner.py --item … --phase engineering --sample-index 0` 生成
+  不可变 manifest（seed 由 `tools/lsu_seed.py` 规则派生，非手挑）。
+- **F-068（事实）F2/F6 真实进入二进制并经 summary 自证（非坍缩）**：
+  T02-F2-W4 / T04-F2-W4 打印 `CHAOS_LSU_TIER_CAP: requested=F2 effective=F2
+  lookup_tier_enabled=1` 且 funnel `tier=F2`；T04-F6-W4 打印 `requested=F6 effective=F6
+  lookup_tier_enabled=1`；F0 三例 `effective=F0 lookup_tier_enabled=0`（legacy，带被动
+  F0 funnel `attempted/eligible/injected`）。T02-F2 实测 injected=2（旧轮 5），
+  T04-F2 injected=2 —— 均为多次注入，与 F0 的单次注入语义可区分。
+- **F-069（事实，诚实限制）FS guest 逐次运行**不保证比特级可复现**：同一 manifest
+  （同 seed 14201167915699637708）、同 checkpoint、同配置下，T02-F2-W4 两次运行的前两次
+  注入 tick 与掩码**完全一致**（239515618626 / 239599342818），但第 3 次起分歧
+  （240363866196 vs 240363903159），导致 eligible 566811 vs 258283、injected 5 vs 2。
+  即注入序列确定，但被污染后的 guest 演化受宿主/访客时序影响而发散。无注入 oracle
+  仍稳定（golden 双跑同值）。**结论：FS 观测不应声称 run-to-run 比特复现**。
+- **F-070（事实+修复）守卫超时不优雅 ⇒ 证据截断（U5）**：0202 首轮 T04-F0-W4 / T04-F6-W4
+  因 guest 挂死而超时，`lsu_guard.py` 直接 SIGTERM ⇒ `exit_code=-15`、stats.txt 0 字节、
+  prop_evt gzip 无 EOF（EVIDENCE-TRUNCATED），与仓库既有事故
+  `runs/lsu/r6_c8_T04-F6-W4_s1` 同型。仓库既有 `lsu_campaign.run_gem5` 的
+  SIGINT→SIGTERM→SIGKILL 顺序，守卫缺此 ⇒ 补 `graceful_terminate()`（U5）。

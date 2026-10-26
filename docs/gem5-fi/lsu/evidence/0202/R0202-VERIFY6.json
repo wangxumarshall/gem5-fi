@@ -1,0 +1,2429 @@
+{
+ "schema": "0202-verify6/1",
+ "verify_root": "runs/lsu/0202_verify6_20261026T221213",
+ "runs": [
+  {
+   "item": "ITEM-041",
+   "manifest": {
+    "immutable": true,
+    "item": "ITEM-041",
+    "run_id": "T01-F0-W4",
+    "excel_location": "`7.展开执行矩阵!A42:AQ42`",
+    "model_id": "T01",
+    "unit": "L1d-TLB",
+    "fault_type": "单比特翻转",
+    "submodels": "T01-a VPN tag低位单bit；T01-b VPN tag中位单bit；T01-c VPN tag高位单bit",
+    "frequency": "F0",
+    "workload": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+    "carrier": "fs:tlb_probe",
+    "trigger_condition": "DTLB中存在有效项",
+    "phase": "engineering",
+    "sample_index": 0,
+    "seed": 7626208423775840535,
+    "seed_rule": "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）",
+    "identity": {
+     "git_commit": "0b8afd0fd6da8c9aa94c5a9cf3d25d9b43280db3",
+     "gem5_opt_sha256": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+     "lsu_proxy_sha256": "fe6a105496b3697709d62a905f51dde6063c50cc8da4df0f7df0d1eedca01437",
+     "lsu_campaign_sha256": "7fc7f1d2602972216c30342599186c1c8f6ffef57e0205f142ef93164ddc02ef",
+     "workload_sha256": null,
+     "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727"
+    },
+    "config": {
+     "cpu": "O3",
+     "variant": "B0",
+     "maxinsts": 0
+    },
+    "family": "armtlb",
+    "injector_flags": [
+     "--tlb_fault_type",
+     "bit_flip"
+    ],
+    "golden": "b6d81b360a5672d80c27430f39153e2c",
+    "timeout_seconds": 2700,
+    "f0_span_rule": "legacy 机制（无 span）",
+    "guard": "tools/lsu_guard.py experiment 锁单实例 + 60s 采样 + max-seconds",
+    "run_policy": "NORMAL",
+    "required_seeds": 3,
+    "include_in_statistics": true
+   },
+   "run_finish": {
+    "action": "run-finish",
+    "cmd": [
+     "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt",
+     "--outdir",
+     "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-041_engineering_s0",
+     "/home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py",
+     "--kernel",
+     "/home/sdc/gem5-fi-ding/gem5-fs/vmlinux",
+     "--disk",
+     "/home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img",
+     "--bootloader",
+     "/home/sdc/gem5-fi-ding/gem5-fs/boot.arm64",
+     "--cpu",
+     "O3",
+     "--restore-checkpoint",
+     "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727",
+     "--readfile",
+     "/home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS",
+     "--ckpt-first-clock",
+     "--chaos_armtlb",
+     "--tlb_first_clock",
+     "1000",
+     "--tlb_probability",
+     "1.0",
+     "--tlb_max_faults",
+     "1",
+     "--tlb_fault_type",
+     "bit_flip",
+     "--tlb_rng_seed",
+     "7626208423775840535",
+     "--chaos_propagation",
+     "--prop_run_id",
+     "T01-F0-W4",
+     "--prop_sample_run_id",
+     "s7626208423775840535"
+    ],
+    "pgid": 3844641,
+    "exit_code": 0,
+    "monitor_reason": "target-exited",
+    "time": "2026-10-26 22:12:39"
+   },
+   "command": "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt --outdir runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-041_engineering_s0 /home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727 --readfile /home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type bit_flip --tlb_rng_seed 7626208423775840535 --chaos_propagation --prop_run_id T01-F0-W4 --prop_sample_run_id s7626208423775840535",
+   "funnel": [
+    "CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F0 attempted=133699 eligible=13 injected=1 first_eligible_tick=239515618626 last_eligible_tick=239515620624 (activated=W3-L0-layer)"
+   ],
+   "tier_cap": [
+    "CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0"
+   ],
+   "detect": [
+    "CHAOS_DETECT: layer=None contained=0 tick=239516837073 ptag=1 reason=errant_commit"
+   ],
+   "l5": {
+    "conservation": "OK",
+    "error": null,
+    "crash_kind": "guest_or_unknown",
+    "detected_na": true,
+    "attempted": 133699,
+    "eligible": 13,
+    "injected": 1,
+    "activated": 1,
+    "injected_not_activated": 0,
+    "checksum": null,
+    "outcome": "Crash",
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 1,
+     "Timeout": 0
+    },
+    "gem5_exit": 0
+   },
+   "injection_log": [
+    "    protection: model=none bits=1 -> Raw",
+    "Tick: 239515620624, Site: arm_tlb_lookup_hit, VA: 0xffffffc0094b3ee0, old_pfn: 0x81cf1, new_pfn: 0x200081cf1, FaultType: bit_flip, Mask: 0x200000000"
+   ],
+   "stream": {
+    "path": "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-041_engineering_s0/prop_evt.txt.gz",
+    "exists": true,
+    "truncated": false,
+    "n_events": 5017,
+    "has_chain_end": true,
+    "unknown_events": 0
+   },
+   "stats_bytes": 381366,
+   "chain_per_fault": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "path_events": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "request_id": "40",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "239515620624",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "request_id": "40",
+       "corr": "seq_primary",
+       "parent_event_id": "0",
+       "tick": "239515620624",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "request_id": "40",
+       "corr": "seq_primary",
+       "parent_event_id": "1",
+       "tick": "239515620624",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "5",
+       "kind": "sq_execute",
+       "request_id": "",
+       "corr": "seq_primary",
+       "parent_event_id": "4",
+       "tick": "239515620957",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "65",
+       "kind": "taint_reg",
+       "request_id": "40",
+       "corr": "seq_primary",
+       "parent_event_id": "64",
+       "tick": "239515730847",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "236",
+       "kind": "errant_commit",
+       "request_id": "",
+       "corr": "taint_prop",
+       "parent_event_id": "66",
+       "tick": "239516837073",
+       "detection_layer": "L5",
+       "outcome": "errant_commit"
+      }
+     ]
+    }
+   },
+   "containment_from_events": null,
+   "admission": {
+    "applicable": true,
+    "admitted": true,
+    "path": "full_chain",
+    "terminal": "full",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "violations": []
+   },
+   "gate_fault": "1",
+   "selected_ancestry": [
+    {
+     "event_id": "0",
+     "kind": "inj",
+     "request_id": "40",
+     "corr": "origin",
+     "parent_event_id": ""
+    },
+    {
+     "event_id": "1",
+     "kind": "tlb_lookup",
+     "request_id": "40",
+     "corr": "seq_primary",
+     "parent_event_id": "0"
+    },
+    {
+     "event_id": "2",
+     "kind": "tlb_pfn",
+     "request_id": "40",
+     "corr": "seq_primary",
+     "parent_event_id": "1"
+    },
+    {
+     "event_id": "3",
+     "kind": "tlb_translate_result",
+     "request_id": "40",
+     "corr": "seq_primary",
+     "parent_event_id": "2"
+    },
+    {
+     "event_id": "4",
+     "kind": "lsq_push",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "3"
+    },
+    {
+     "event_id": "5",
+     "kind": "sq_execute",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "4"
+    },
+    {
+     "event_id": "6",
+     "kind": "sq_writeback",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "5"
+    },
+    {
+     "event_id": "7",
+     "kind": "cache_access",
+     "request_id": "40",
+     "corr": "addr_fallback",
+     "parent_event_id": "6"
+    },
+    {
+     "event_id": "8",
+     "kind": "cache_return",
+     "request_id": "40",
+     "corr": "addr_fallback",
+     "parent_event_id": "7"
+    },
+    {
+     "event_id": "9",
+     "kind": "mshr_alloc",
+     "request_id": "40",
+     "corr": "addr_fallback",
+     "parent_event_id": "8"
+    },
+    {
+     "event_id": "10",
+     "kind": "cache_access",
+     "request_id": "40",
+     "corr": "addr_fallback",
+     "parent_event_id": "9"
+    },
+    {
+     "event_id": "11",
+     "kind": "cache_return",
+     "request_id": "40",
+     "corr": "addr_fallback",
+     "parent_event_id": "10"
+    },
+    {
+     "event_id": "12",
+     "kind": "mshr_alloc",
+     "request_id": "40",
+     "corr": "addr_fallback",
+     "parent_event_id": "11"
+    },
+    {
+     "event_id": "64",
+     "kind": "resp",
+     "request_id": "40",
+     "corr": "seq_primary",
+     "parent_event_id": "12"
+    },
+    {
+     "event_id": "65",
+     "kind": "taint_reg",
+     "request_id": "40",
+     "corr": "seq_primary",
+     "parent_event_id": "64"
+    },
+    {
+     "event_id": "66",
+     "kind": "sq_complete",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "65"
+    },
+    {
+     "event_id": "236",
+     "kind": "errant_commit",
+     "request_id": "",
+     "corr": "taint_prop",
+     "parent_event_id": "66"
+    }
+   ],
+   "ancestry_root_is_inj": true,
+   "verdict": "PASS",
+   "verdict_reason": "strict admission + non-truncated stream + activated"
+  },
+  {
+   "item": "ITEM-047",
+   "manifest": {
+    "immutable": true,
+    "item": "ITEM-047",
+    "run_id": "T02-F0-W4",
+    "excel_location": "`7.展开执行矩阵!A48:AQ48`",
+    "model_id": "T02",
+    "unit": "L1d-TLB",
+    "fault_type": "双比特翻转",
+    "submodels": "T02-a 同一PPN相邻双bit；T02-b 同一PPN非相邻双bit",
+    "frequency": "F0",
+    "workload": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+    "carrier": "fs:tlb_probe",
+    "trigger_condition": "有效表项且后续复用",
+    "phase": "engineering",
+    "sample_index": 0,
+    "seed": 1482588217842860401,
+    "seed_rule": "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）",
+    "identity": {
+     "git_commit": "0b8afd0fd6da8c9aa94c5a9cf3d25d9b43280db3",
+     "gem5_opt_sha256": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+     "lsu_proxy_sha256": "fe6a105496b3697709d62a905f51dde6063c50cc8da4df0f7df0d1eedca01437",
+     "lsu_campaign_sha256": "7fc7f1d2602972216c30342599186c1c8f6ffef57e0205f142ef93164ddc02ef",
+     "workload_sha256": null,
+     "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727"
+    },
+    "config": {
+     "cpu": "O3",
+     "variant": "B0",
+     "maxinsts": 0
+    },
+    "family": "armtlb",
+    "injector_flags": [
+     "--tlb_fault_type",
+     "bit_flip",
+     "--tlb_bits_to_change",
+     "2"
+    ],
+    "golden": "b6d81b360a5672d80c27430f39153e2c",
+    "timeout_seconds": 2700,
+    "f0_span_rule": "legacy 机制（无 span）",
+    "guard": "tools/lsu_guard.py experiment 锁单实例 + 60s 采样 + max-seconds",
+    "run_policy": "NORMAL",
+    "required_seeds": 3,
+    "include_in_statistics": true
+   },
+   "run_finish": {
+    "action": "run-finish",
+    "cmd": [
+     "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt",
+     "--outdir",
+     "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-047_engineering_s0",
+     "/home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py",
+     "--kernel",
+     "/home/sdc/gem5-fi-ding/gem5-fs/vmlinux",
+     "--disk",
+     "/home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img",
+     "--bootloader",
+     "/home/sdc/gem5-fi-ding/gem5-fs/boot.arm64",
+     "--cpu",
+     "O3",
+     "--restore-checkpoint",
+     "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727",
+     "--readfile",
+     "/home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS",
+     "--ckpt-first-clock",
+     "--chaos_armtlb",
+     "--tlb_first_clock",
+     "1000",
+     "--tlb_probability",
+     "1.0",
+     "--tlb_max_faults",
+     "1",
+     "--tlb_fault_type",
+     "bit_flip",
+     "--tlb_bits_to_change",
+     "2",
+     "--tlb_rng_seed",
+     "1482588217842860401",
+     "--chaos_propagation",
+     "--prop_run_id",
+     "T02-F0-W4",
+     "--prop_sample_run_id",
+     "s1482588217842860401"
+    ],
+    "pgid": 3844547,
+    "exit_code": 0,
+    "monitor_reason": "target-exited",
+    "time": "2026-10-26 22:12:45"
+   },
+   "command": "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt --outdir runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-047_engineering_s0 /home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727 --readfile /home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type bit_flip --tlb_bits_to_change 2 --tlb_rng_seed 1482588217842860401 --chaos_propagation --prop_run_id T02-F0-W4 --prop_sample_run_id s1482588217842860401",
+   "funnel": [
+    "CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F0 attempted=358838 eligible=6 injected=1 first_eligible_tick=239515618626 last_eligible_tick=239515619625 (activated=W3-L0-layer)"
+   ],
+   "tier_cap": [
+    "CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0"
+   ],
+   "detect": [
+    "CHAOS_DETECT: layer=None contained=0 tick=239516668575 ptag=1 reason=errant_commit",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239516913663 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239534362198 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239534376184 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239534376516 ptag=1 reason=squash_replay"
+   ],
+   "l5": {
+    "conservation": "OK",
+    "error": null,
+    "crash_kind": "guest_or_unknown",
+    "detected_na": true,
+    "attempted": 358838,
+    "eligible": 6,
+    "injected": 1,
+    "activated": 1,
+    "injected_not_activated": 0,
+    "checksum": null,
+    "outcome": "Crash",
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 1,
+     "Timeout": 0
+    },
+    "gem5_exit": 0
+   },
+   "injection_log": [
+    "    protection: model=none bits=2 -> Raw",
+    "Tick: 239515619625, Site: arm_tlb_lookup_hit, VA: 0xffffffc0094b3ec8, old_pfn: 0x81cf1, new_pfn: 0x40000000081ce1, FaultType: bit_flip, Mask: 0x40000000000010"
+   ],
+   "stream": {
+    "path": "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-047_engineering_s0/prop_evt.txt.gz",
+    "exists": true,
+    "truncated": false,
+    "n_events": 2628,
+    "has_chain_end": true,
+    "unknown_events": 0
+   },
+   "stats_bytes": 386397,
+   "chain_per_fault": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "path_events": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "request_id": "",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "239515619625",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "request_id": "0",
+       "corr": "addr_fallback",
+       "parent_event_id": "0",
+       "tick": "239515619625",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "request_id": "0",
+       "corr": "addr_fallback",
+       "parent_event_id": "1",
+       "tick": "239515619625",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "3",
+       "kind": "cache_access",
+       "request_id": "35",
+       "corr": "addr_fallback",
+       "parent_event_id": "2",
+       "tick": "239515621290",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "89",
+       "kind": "taint_reg",
+       "request_id": "35",
+       "corr": "addr_fallback",
+       "parent_event_id": "88",
+       "tick": "239515686558",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "277",
+       "kind": "errant_commit",
+       "request_id": "",
+       "corr": "taint_prop",
+       "parent_event_id": "89",
+       "tick": "239516668575",
+       "detection_layer": "L5",
+       "outcome": "errant_commit"
+      }
+     ]
+    }
+   },
+   "containment_from_events": null,
+   "admission": {
+    "applicable": true,
+    "admitted": true,
+    "path": "full_chain",
+    "terminal": "full",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "violations": []
+   },
+   "gate_fault": "1",
+   "selected_ancestry": [
+    {
+     "event_id": "0",
+     "kind": "inj",
+     "request_id": "",
+     "corr": "origin",
+     "parent_event_id": ""
+    },
+    {
+     "event_id": "1",
+     "kind": "tlb_lookup",
+     "request_id": "0",
+     "corr": "addr_fallback",
+     "parent_event_id": "0"
+    },
+    {
+     "event_id": "2",
+     "kind": "tlb_pfn",
+     "request_id": "0",
+     "corr": "addr_fallback",
+     "parent_event_id": "1"
+    },
+    {
+     "event_id": "3",
+     "kind": "cache_access",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "2"
+    },
+    {
+     "event_id": "4",
+     "kind": "cache_return",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "3"
+    },
+    {
+     "event_id": "5",
+     "kind": "mshr_alloc",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "4"
+    },
+    {
+     "event_id": "6",
+     "kind": "cache_access",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "5"
+    },
+    {
+     "event_id": "7",
+     "kind": "cache_return",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "6"
+    },
+    {
+     "event_id": "8",
+     "kind": "mshr_alloc",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "7"
+    },
+    {
+     "event_id": "66",
+     "kind": "mshr_fill",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "8"
+    },
+    {
+     "event_id": "67",
+     "kind": "cache_fill",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "66"
+    },
+    {
+     "event_id": "68",
+     "kind": "mshr_free",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "67"
+    },
+    {
+     "event_id": "71",
+     "kind": "mshr_fill",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "68"
+    },
+    {
+     "event_id": "72",
+     "kind": "cache_fill",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "71"
+    },
+    {
+     "event_id": "73",
+     "kind": "mshr_free",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "72"
+    },
+    {
+     "event_id": "88",
+     "kind": "resp",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "73"
+    },
+    {
+     "event_id": "89",
+     "kind": "taint_reg",
+     "request_id": "35",
+     "corr": "addr_fallback",
+     "parent_event_id": "88"
+    },
+    {
+     "event_id": "277",
+     "kind": "errant_commit",
+     "request_id": "",
+     "corr": "taint_prop",
+     "parent_event_id": "89"
+    }
+   ],
+   "ancestry_root_is_inj": true,
+   "verdict": "PASS",
+   "verdict_reason": "strict admission + non-truncated stream + activated"
+  },
+  {
+   "item": "ITEM-049",
+   "manifest": {
+    "immutable": true,
+    "item": "ITEM-049",
+    "run_id": "T02-F2-W4",
+    "excel_location": "`7.展开执行矩阵!A50:AQ50`",
+    "model_id": "T02",
+    "unit": "L1d-TLB",
+    "fault_type": "双比特翻转",
+    "submodels": "T02-a 同一PPN相邻双bit；T02-b 同一PPN非相邻双bit",
+    "frequency": "F2",
+    "workload": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+    "carrier": "fs:tlb_probe",
+    "trigger_condition": "有效表项且后续复用",
+    "phase": "engineering",
+    "sample_index": 0,
+    "seed": 14201167915699637708,
+    "seed_rule": "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）",
+    "identity": {
+     "git_commit": "0b8afd0fd6da8c9aa94c5a9cf3d25d9b43280db3",
+     "gem5_opt_sha256": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+     "lsu_proxy_sha256": "fe6a105496b3697709d62a905f51dde6063c50cc8da4df0f7df0d1eedca01437",
+     "lsu_campaign_sha256": "7fc7f1d2602972216c30342599186c1c8f6ffef57e0205f142ef93164ddc02ef",
+     "workload_sha256": null,
+     "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727"
+    },
+    "config": {
+     "cpu": "O3",
+     "variant": "B0",
+     "maxinsts": 0
+    },
+    "family": "armtlb",
+    "injector_flags": [
+     "--tlb_fault_type",
+     "bit_flip",
+     "--tlb_bits_to_change",
+     "2",
+     "--tlb_lsu_tier",
+     "F2"
+    ],
+    "golden": "b6d81b360a5672d80c27430f39153e2c",
+    "timeout_seconds": 2700,
+    "f0_span_rule": "legacy 机制（无 span）",
+    "guard": "tools/lsu_guard.py experiment 锁单实例 + 60s 采样 + max-seconds",
+    "run_policy": "NORMAL",
+    "required_seeds": 3,
+    "include_in_statistics": true
+   },
+   "run_finish": {
+    "action": "run-finish",
+    "cmd": [
+     "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt",
+     "--outdir",
+     "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-049_engineering_s0",
+     "/home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py",
+     "--kernel",
+     "/home/sdc/gem5-fi-ding/gem5-fs/vmlinux",
+     "--disk",
+     "/home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img",
+     "--bootloader",
+     "/home/sdc/gem5-fi-ding/gem5-fs/boot.arm64",
+     "--cpu",
+     "O3",
+     "--restore-checkpoint",
+     "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727",
+     "--readfile",
+     "/home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS",
+     "--ckpt-first-clock",
+     "--chaos_armtlb",
+     "--tlb_first_clock",
+     "1000",
+     "--tlb_probability",
+     "1.0",
+     "--tlb_max_faults",
+     "1",
+     "--tlb_fault_type",
+     "bit_flip",
+     "--tlb_bits_to_change",
+     "2",
+     "--tlb_lsu_tier",
+     "F2",
+     "--tlb_rng_seed",
+     "14201167915699637708",
+     "--chaos_propagation",
+     "--prop_run_id",
+     "T02-F2-W4",
+     "--prop_sample_run_id",
+     "s14201167915699637708"
+    ],
+    "pgid": 3864204,
+    "exit_code": 0,
+    "monitor_reason": "target-exited",
+    "time": "2026-10-26 22:14:45"
+   },
+   "command": "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt --outdir runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-049_engineering_s0 /home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727 --readfile /home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type bit_flip --tlb_bits_to_change 2 --tlb_lsu_tier F2 --tlb_rng_seed 14201167915699637708 --chaos_propagation --prop_run_id T02-F2-W4 --prop_sample_run_id s14201167915699637708",
+   "funnel": [
+    "CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F2 attempted=258283 eligible=258283 injected=2 first_eligible_tick=239515618626 last_eligible_tick=240364928799 (activated=W3-L0-layer)"
+   ],
+   "tier_cap": [
+    "CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1"
+   ],
+   "detect": [
+    "CHAOS_DETECT: layer=None contained=0 tick=239599453707 ptag=1 reason=errant_commit",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=240364928799 ptag=2 reason=store_discarded_not_retired"
+   ],
+   "l5": {
+    "conservation": "OK",
+    "error": null,
+    "crash_kind": "simulator_assert",
+    "detected_na": true,
+    "attempted": 258283,
+    "eligible": 258283,
+    "injected": 2,
+    "activated": 2,
+    "injected_not_activated": 0,
+    "checksum": null,
+    "outcome": "Crash",
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 2,
+     "Timeout": 0
+    },
+    "gem5_exit": 0
+   },
+   "injection_log": [
+    "Tick: 239515618626, Site: arm_tlb_lookup_tier, FaultType: bit_flip (lookup path now polls lsuTrigger; tier=F2; a tiered run does NOT consume --tlb_max_faults=1 — the tier is the frequency model)",
+    "    protection: model=none bits=2 -> Raw",
+    "Tick: 239599342818, Site: arm_tlb_lookup_hit, VA: 0xffffffc0094b3a68, old_pfn: 0x81cf1, new_pfn: 0x80000091cf1, FaultType: bit_flip, Mask: 0x80000010000",
+    "    protection: model=none bits=2 -> Raw",
+    "Tick: 240363903159, Site: arm_tlb_lookup_hit, VA: 0xffffff80018f8008, old_pfn: 0x818f8, new_pfn: 0x4000000081af8, FaultType: bit_flip, Mask: 0x4000000000200"
+   ],
+   "stream": {
+    "path": "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-049_engineering_s0/prop_evt.txt.gz",
+    "exists": true,
+    "truncated": false,
+    "n_events": 3288,
+    "has_chain_end": true,
+    "unknown_events": 0
+   },
+   "stats_bytes": 385442,
+   "chain_per_fault": {
+    "1": {
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "beyond": "Unknown",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "missing"
+     },
+     "path_events": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "request_id": "454840",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "239599342818",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "request_id": "454840",
+       "corr": "seq_primary",
+       "parent_event_id": "0",
+       "tick": "239599342818",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "request_id": "454840",
+       "corr": "seq_primary",
+       "parent_event_id": "1",
+       "tick": "239599342818",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "5",
+       "kind": "cache_access",
+       "request_id": "454774",
+       "corr": "addr_fallback",
+       "parent_event_id": "4294967296",
+       "tick": "239599344483",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "22",
+       "kind": "taint_reg",
+       "request_id": "454774",
+       "corr": "addr_fallback",
+       "parent_event_id": "21",
+       "tick": "239599453041",
+       "detection_layer": "",
+       "outcome": ""
+      }
+     ]
+    },
+    "2": {
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "beyond": "Unknown",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "missing"
+     },
+     "path_events": [
+      {
+       "event_id": "2665",
+       "kind": "inj",
+       "request_id": "997630",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "240363903159",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2666",
+       "kind": "tlb_lookup",
+       "request_id": "997630",
+       "corr": "seq_primary",
+       "parent_event_id": "2665",
+       "tick": "240363903159",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2667",
+       "kind": "tlb_pfn",
+       "request_id": "997630",
+       "corr": "seq_primary",
+       "parent_event_id": "2666",
+       "tick": "240363903159",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2669",
+       "kind": "lq_read",
+       "request_id": "997630",
+       "corr": "seq_primary",
+       "parent_event_id": "2668",
+       "tick": "240363903159",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2678",
+       "kind": "taint_reg",
+       "request_id": "997630",
+       "corr": "seq_primary",
+       "parent_event_id": "2677",
+       "tick": "240364011717",
+       "detection_layer": "",
+       "outcome": ""
+      }
+     ]
+    }
+   },
+   "containment_from_events": null,
+   "admission": {
+    "applicable": true,
+    "admitted": false,
+    "path": null,
+    "terminal": "provable_to_L4_then_unknown",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4"
+    ],
+    "violations": [
+     "cross_branch_edge: T02-F2-W4 fault 1 成对拼接比单 DAG 路径多证出边——边见证分散在多个分支，禁止跨分支拼接",
+     "no_closed_chain_and_no_containment: T02-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+     "ready_by_activated_only: T02-F2-W4 activated=2 本身不是 READY 依据（须完整链或 containment）",
+     "ready_by_rc0: T02-F2-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
+     "ready_by_chain_end_only: T02-F2-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+    ]
+   },
+   "gate_fault": "1",
+   "selected_ancestry": [
+    {
+     "event_id": "0",
+     "kind": "inj",
+     "request_id": "454840",
+     "corr": "origin",
+     "parent_event_id": ""
+    },
+    {
+     "event_id": "1",
+     "kind": "tlb_lookup",
+     "request_id": "454840",
+     "corr": "seq_primary",
+     "parent_event_id": "0"
+    },
+    {
+     "event_id": "2",
+     "kind": "tlb_pfn",
+     "request_id": "454840",
+     "corr": "seq_primary",
+     "parent_event_id": "1"
+    },
+    {
+     "event_id": "3",
+     "kind": "tlb_translate_result",
+     "request_id": "454840",
+     "corr": "seq_primary",
+     "parent_event_id": "2"
+    },
+    {
+     "event_id": "4294967296",
+     "kind": "request_fork",
+     "request_id": "454840",
+     "corr": "addr_fallback",
+     "parent_event_id": "3"
+    },
+    {
+     "event_id": "5",
+     "kind": "cache_access",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "4294967296"
+    },
+    {
+     "event_id": "6",
+     "kind": "cache_return",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "5"
+    },
+    {
+     "event_id": "7",
+     "kind": "mshr_alloc",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "6"
+    },
+    {
+     "event_id": "14",
+     "kind": "cache_access",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "7"
+    },
+    {
+     "event_id": "15",
+     "kind": "cache_return",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "14"
+    },
+    {
+     "event_id": "16",
+     "kind": "mshr_alloc",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "15"
+    },
+    {
+     "event_id": "20",
+     "kind": "resp",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "16"
+    },
+    {
+     "event_id": "21",
+     "kind": "lq_complete",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "20"
+    },
+    {
+     "event_id": "22",
+     "kind": "taint_reg",
+     "request_id": "454774",
+     "corr": "addr_fallback",
+     "parent_event_id": "21"
+    }
+   ],
+   "ancestry_root_is_inj": true,
+   "verdict": "NOT-ACCEPTED",
+   "verdict_reason": "strict admission refused"
+  },
+  {
+   "item": "ITEM-052",
+   "manifest": {
+    "immutable": true,
+    "item": "ITEM-052",
+    "run_id": "T04-F0-W4",
+    "excel_location": "`7.展开执行矩阵!A53:AQ53`",
+    "model_id": "T04",
+    "unit": "L1d-TLB",
+    "fault_type": "换值",
+    "submodels": "T04-a PPN替换为另一合法物理页号",
+    "frequency": "F0",
+    "workload": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+    "carrier": "fs:tlb_probe",
+    "trigger_condition": "同时存在两个已映射数据页",
+    "phase": "engineering",
+    "sample_index": 0,
+    "seed": 957792015410033221,
+    "seed_rule": "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）",
+    "identity": {
+     "git_commit": "0b8afd0fd6da8c9aa94c5a9cf3d25d9b43280db3",
+     "gem5_opt_sha256": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+     "lsu_proxy_sha256": "fe6a105496b3697709d62a905f51dde6063c50cc8da4df0f7df0d1eedca01437",
+     "lsu_campaign_sha256": "7fc7f1d2602972216c30342599186c1c8f6ffef57e0205f142ef93164ddc02ef",
+     "workload_sha256": null,
+     "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727"
+    },
+    "config": {
+     "cpu": "O3",
+     "variant": "B0",
+     "maxinsts": 0
+    },
+    "family": "armtlb",
+    "injector_flags": [
+     "--tlb_fault_type",
+     "pfn_to_mapped_page"
+    ],
+    "golden": "b6d81b360a5672d80c27430f39153e2c",
+    "timeout_seconds": 2700,
+    "f0_span_rule": "legacy 机制（无 span）",
+    "guard": "tools/lsu_guard.py experiment 锁单实例 + 60s 采样 + max-seconds",
+    "run_policy": "NORMAL",
+    "required_seeds": 3,
+    "include_in_statistics": true
+   },
+   "run_finish": {
+    "action": "run-finish",
+    "cmd": [
+     "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt",
+     "--outdir",
+     "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-052_engineering_s0",
+     "/home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py",
+     "--kernel",
+     "/home/sdc/gem5-fi-ding/gem5-fs/vmlinux",
+     "--disk",
+     "/home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img",
+     "--bootloader",
+     "/home/sdc/gem5-fi-ding/gem5-fs/boot.arm64",
+     "--cpu",
+     "O3",
+     "--restore-checkpoint",
+     "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727",
+     "--readfile",
+     "/home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS",
+     "--ckpt-first-clock",
+     "--chaos_armtlb",
+     "--tlb_first_clock",
+     "1000",
+     "--tlb_probability",
+     "1.0",
+     "--tlb_max_faults",
+     "1",
+     "--tlb_fault_type",
+     "pfn_to_mapped_page",
+     "--tlb_rng_seed",
+     "957792015410033221",
+     "--chaos_propagation",
+     "--prop_run_id",
+     "T04-F0-W4",
+     "--prop_sample_run_id",
+     "s957792015410033221"
+    ],
+    "pgid": 3888542,
+    "exit_code": 0,
+    "monitor_reason": "max-seconds-reached",
+    "time": "2026-10-26 23:02:05",
+    "timeout_escalation": {
+     "sigint_sent": true,
+     "signal": null,
+     "graceful": true
+    }
+   },
+   "command": "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt --outdir runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-052_engineering_s0 /home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727 --readfile /home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type pfn_to_mapped_page --tlb_rng_seed 957792015410033221 --chaos_propagation --prop_run_id T04-F0-W4 --prop_sample_run_id s957792015410033221",
+   "funnel": [
+    "CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F0 attempted=88831806 eligible=46 injected=1 first_eligible_tick=239515618626 last_eligible_tick=239515931979 (activated=W3-L0-layer)"
+   ],
+   "tier_cap": [
+    "CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0"
+   ],
+   "detect": [
+    "CHAOS_DETECT: layer=None contained=0 tick=239515978932 ptag=1 reason=errant_commit"
+   ],
+   "l5": {
+    "conservation": "OK",
+    "error": null,
+    "crash_kind": "guest_or_unknown",
+    "detected_na": true,
+    "attempted": 88831806,
+    "eligible": 46,
+    "injected": 1,
+    "activated": 1,
+    "injected_not_activated": 0,
+    "checksum": null,
+    "outcome": "Crash",
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 1,
+     "Timeout": 0
+    },
+    "gem5_exit": 0
+   },
+   "injection_log": [
+    "Tick: 239515931979, Site: arm_tlb_lookup_hit, VA: 0xffffff807fbce090, old_pfn: 0xffbce, new_pfn: 0x81cf1, FaultType: pfn_to_mapped_page, candidates: 1"
+   ],
+   "stream": {
+    "path": "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-052_engineering_s0/prop_evt.txt.gz",
+    "exists": true,
+    "truncated": false,
+    "n_events": 57599,
+    "has_chain_end": true,
+    "unknown_events": 0
+   },
+   "stats_bytes": 360604,
+   "chain_per_fault": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "path_events": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "request_id": "109",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "239515931979",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "0",
+       "tick": "239515931979",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "1",
+       "tick": "239515931979",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "5",
+       "kind": "lq_read",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "4",
+       "tick": "239515932312",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "20",
+       "kind": "taint_reg",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "19",
+       "tick": "239515978266",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "21",
+       "kind": "errant_commit",
+       "request_id": "",
+       "corr": "taint_prop",
+       "parent_event_id": "20",
+       "tick": "239515978932",
+       "detection_layer": "L5",
+       "outcome": "errant_commit"
+      }
+     ]
+    }
+   },
+   "containment_from_events": null,
+   "admission": {
+    "applicable": true,
+    "admitted": true,
+    "path": "full_chain",
+    "terminal": "full",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "violations": []
+   },
+   "gate_fault": "1",
+   "selected_ancestry": [
+    {
+     "event_id": "0",
+     "kind": "inj",
+     "request_id": "109",
+     "corr": "origin",
+     "parent_event_id": ""
+    },
+    {
+     "event_id": "1",
+     "kind": "tlb_lookup",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "0"
+    },
+    {
+     "event_id": "2",
+     "kind": "tlb_pfn",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "1"
+    },
+    {
+     "event_id": "3",
+     "kind": "tlb_translate_result",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "2"
+    },
+    {
+     "event_id": "4",
+     "kind": "lsq_push",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "3"
+    },
+    {
+     "event_id": "5",
+     "kind": "lq_read",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "4"
+    },
+    {
+     "event_id": "6",
+     "kind": "cache_access",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "5"
+    },
+    {
+     "event_id": "7",
+     "kind": "cache_return",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "6"
+    },
+    {
+     "event_id": "8",
+     "kind": "mshr_alloc",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "7"
+    },
+    {
+     "event_id": "9",
+     "kind": "cache_access",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "8"
+    },
+    {
+     "event_id": "10",
+     "kind": "cache_return",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "9"
+    },
+    {
+     "event_id": "11",
+     "kind": "mshr_alloc",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "10"
+    },
+    {
+     "event_id": "12",
+     "kind": "mshr_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "11"
+    },
+    {
+     "event_id": "13",
+     "kind": "cache_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "12"
+    },
+    {
+     "event_id": "14",
+     "kind": "mshr_free",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "13"
+    },
+    {
+     "event_id": "15",
+     "kind": "mshr_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "14"
+    },
+    {
+     "event_id": "16",
+     "kind": "cache_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "15"
+    },
+    {
+     "event_id": "17",
+     "kind": "mshr_free",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "16"
+    },
+    {
+     "event_id": "18",
+     "kind": "resp",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "17"
+    },
+    {
+     "event_id": "19",
+     "kind": "lq_complete",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "18"
+    },
+    {
+     "event_id": "20",
+     "kind": "taint_reg",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "19"
+    },
+    {
+     "event_id": "21",
+     "kind": "errant_commit",
+     "request_id": "",
+     "corr": "taint_prop",
+     "parent_event_id": "20"
+    }
+   ],
+   "ancestry_root_is_inj": true,
+   "verdict": "PASS",
+   "verdict_reason": "strict admission + non-truncated stream + activated"
+  },
+  {
+   "item": "ITEM-053",
+   "manifest": {
+    "immutable": true,
+    "item": "ITEM-053",
+    "run_id": "T04-F2-W4",
+    "excel_location": "`7.展开执行矩阵!A54:AQ54`",
+    "model_id": "T04",
+    "unit": "L1d-TLB",
+    "fault_type": "换值",
+    "submodels": "T04-a PPN替换为另一合法物理页号",
+    "frequency": "F2",
+    "workload": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+    "carrier": "fs:tlb_probe",
+    "trigger_condition": "同时存在两个已映射数据页",
+    "phase": "engineering",
+    "sample_index": 0,
+    "seed": 1505523022015170976,
+    "seed_rule": "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）",
+    "identity": {
+     "git_commit": "0b8afd0fd6da8c9aa94c5a9cf3d25d9b43280db3",
+     "gem5_opt_sha256": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+     "lsu_proxy_sha256": "fe6a105496b3697709d62a905f51dde6063c50cc8da4df0f7df0d1eedca01437",
+     "lsu_campaign_sha256": "7fc7f1d2602972216c30342599186c1c8f6ffef57e0205f142ef93164ddc02ef",
+     "workload_sha256": null,
+     "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727"
+    },
+    "config": {
+     "cpu": "O3",
+     "variant": "B0",
+     "maxinsts": 0
+    },
+    "family": "armtlb",
+    "injector_flags": [
+     "--tlb_fault_type",
+     "pfn_to_mapped_page",
+     "--tlb_lsu_tier",
+     "F2"
+    ],
+    "golden": "b6d81b360a5672d80c27430f39153e2c",
+    "timeout_seconds": 2700,
+    "f0_span_rule": "legacy 机制（无 span）",
+    "guard": "tools/lsu_guard.py experiment 锁单实例 + 60s 采样 + max-seconds",
+    "run_policy": "NORMAL",
+    "required_seeds": 3,
+    "include_in_statistics": true
+   },
+   "run_finish": {
+    "action": "run-finish",
+    "cmd": [
+     "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt",
+     "--outdir",
+     "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-053_engineering_s0",
+     "/home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py",
+     "--kernel",
+     "/home/sdc/gem5-fi-ding/gem5-fs/vmlinux",
+     "--disk",
+     "/home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img",
+     "--bootloader",
+     "/home/sdc/gem5-fi-ding/gem5-fs/boot.arm64",
+     "--cpu",
+     "O3",
+     "--restore-checkpoint",
+     "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727",
+     "--readfile",
+     "/home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS",
+     "--ckpt-first-clock",
+     "--chaos_armtlb",
+     "--tlb_first_clock",
+     "1000",
+     "--tlb_probability",
+     "1.0",
+     "--tlb_max_faults",
+     "1",
+     "--tlb_fault_type",
+     "pfn_to_mapped_page",
+     "--tlb_lsu_tier",
+     "F2",
+     "--tlb_rng_seed",
+     "1505523022015170976",
+     "--chaos_propagation",
+     "--prop_run_id",
+     "T04-F2-W4",
+     "--prop_sample_run_id",
+     "s1505523022015170976"
+    ],
+    "pgid": 3864205,
+    "exit_code": 0,
+    "monitor_reason": "target-exited",
+    "time": "2026-10-26 22:14:43"
+   },
+   "command": "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt --outdir runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-053_engineering_s0 /home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727 --readfile /home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type pfn_to_mapped_page --tlb_lsu_tier F2 --tlb_rng_seed 1505523022015170976 --chaos_propagation --prop_run_id T04-F2-W4 --prop_sample_run_id s1505523022015170976",
+   "funnel": [
+    "CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F2 attempted=182561 eligible=170030 injected=2 first_eligible_tick=239515931979 last_eligible_tick=240295214583 (activated=W3-L0-layer)"
+   ],
+   "tier_cap": [
+    "CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1"
+   ],
+   "detect": [
+    "CHAOS_DETECT: layer=None contained=0 tick=239577892956 ptag=1 reason=errant_commit",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239580579267 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239580840339 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239580849330 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581158354 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581207638 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581403110 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581403111 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581403442 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581596582 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581679166 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581805373 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581810035 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581920591 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581969209 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239581972539 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239582647530 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239582662182 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239582665512 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239582734776 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239582844000 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239582847330 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584212630 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584231944 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584247595 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584407768 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584540636 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584540637 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584562946 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584612563 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584615893 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584622220 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584627881 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239584644864 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239586214627 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239586214959 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239586218623 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239586552621 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587200639 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587210962 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587232607 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587285554 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587290550 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587348825 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587348826 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587368804 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587725781 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587725782 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587726113 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587768738 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587768739 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239587792380 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239588016822 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239588073765 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239588143695 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239589746424 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=239590173663 ptag=1 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=240294783348 ptag=2 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=240295090707 ptag=2 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=240295112685 ptag=2 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=240295144654 ptag=2 reason=squash_replay",
+    "CHAOS_DETECT: layer=Hardware RAS contained=1 tick=240295144655 ptag=2 reason=squash_replay"
+   ],
+   "l5": {
+    "conservation": "OK",
+    "error": null,
+    "crash_kind": "simulator_assert",
+    "detected_na": true,
+    "attempted": 182561,
+    "eligible": 170030,
+    "injected": 2,
+    "activated": 2,
+    "injected_not_activated": 0,
+    "checksum": null,
+    "outcome": "Crash",
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 2,
+     "Timeout": 0
+    },
+    "gem5_exit": 0
+   },
+   "injection_log": [
+    "Tick: 239515618626, Site: arm_tlb_lookup_tier, FaultType: pfn_to_mapped_page (lookup path now polls lsuTrigger; tier=F2; a tiered run does NOT consume --tlb_max_faults=1 — the tier is the frequency model)",
+    "Tick: 239577651864, Site: arm_tlb_lookup_hit, VA: 0xffffffc0094b3a78, old_pfn: 0x81cf1, new_pfn: 0x81ce6, FaultType: pfn_to_mapped_page, candidates: 30",
+    "Tick: 240294650148, Site: arm_tlb_lookup_hit, VA: 0xffffffc0094b3590, old_pfn: 0x81ce6, new_pfn: 0x81cf2, FaultType: pfn_to_mapped_page, candidates: 30"
+   ],
+   "stream": {
+    "path": "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-053_engineering_s0/prop_evt.txt.gz",
+    "exists": true,
+    "truncated": false,
+    "n_events": 11976,
+    "has_chain_end": true,
+    "unknown_events": 0
+   },
+   "stats_bytes": 384876,
+   "chain_per_fault": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "path_events": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "request_id": "234093",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "239577651864",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "request_id": "234093",
+       "corr": "seq_primary",
+       "parent_event_id": "0",
+       "tick": "239577651864",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "request_id": "234093",
+       "corr": "seq_primary",
+       "parent_event_id": "1",
+       "tick": "239577651864",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "4",
+       "kind": "sq_execute",
+       "request_id": "",
+       "corr": "seq_primary",
+       "parent_event_id": "3",
+       "tick": "239577651864",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "34",
+       "kind": "taint_reg",
+       "request_id": "234093",
+       "corr": "seq_primary",
+       "parent_event_id": "33",
+       "tick": "239577891624",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "51",
+       "kind": "errant_commit",
+       "request_id": "",
+       "corr": "taint_prop",
+       "parent_event_id": "35",
+       "tick": "239577892956",
+       "detection_layer": "L5",
+       "outcome": "errant_commit"
+      }
+     ]
+    },
+    "2": {
+     "terminal": "detected_contained",
+     "provable_to": "L5",
+     "beyond": "",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "path_events": [
+      {
+       "event_id": "8345",
+       "kind": "inj",
+       "request_id": "764367",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "240294650148",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "8346",
+       "kind": "tlb_lookup",
+       "request_id": "764367",
+       "corr": "seq_primary",
+       "parent_event_id": "8345",
+       "tick": "240294650148",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "8347",
+       "kind": "tlb_pfn",
+       "request_id": "764367",
+       "corr": "seq_primary",
+       "parent_event_id": "8346",
+       "tick": "240294650148",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "8349",
+       "kind": "lq_read",
+       "request_id": "764367",
+       "corr": "seq_primary",
+       "parent_event_id": "8348",
+       "tick": "240294650148",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "8432",
+       "kind": "taint_reg",
+       "request_id": "764469",
+       "corr": "addr_fallback",
+       "parent_event_id": "8431",
+       "tick": "240294717750",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "8683",
+       "kind": "squash_masked",
+       "request_id": "",
+       "corr": "addr_fallback",
+       "parent_event_id": "8677",
+       "tick": "240294783348",
+       "detection_layer": "L4",
+       "outcome": "masked"
+      }
+     ]
+    }
+   },
+   "containment_from_events": null,
+   "admission": {
+    "applicable": true,
+    "admitted": true,
+    "path": "full_chain",
+    "terminal": "full",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "violations": []
+   },
+   "gate_fault": "1",
+   "selected_ancestry": [
+    {
+     "event_id": "0",
+     "kind": "inj",
+     "request_id": "234093",
+     "corr": "origin",
+     "parent_event_id": ""
+    },
+    {
+     "event_id": "1",
+     "kind": "tlb_lookup",
+     "request_id": "234093",
+     "corr": "seq_primary",
+     "parent_event_id": "0"
+    },
+    {
+     "event_id": "2",
+     "kind": "tlb_pfn",
+     "request_id": "234093",
+     "corr": "seq_primary",
+     "parent_event_id": "1"
+    },
+    {
+     "event_id": "3",
+     "kind": "tlb_translate_result",
+     "request_id": "234093",
+     "corr": "seq_primary",
+     "parent_event_id": "2"
+    },
+    {
+     "event_id": "4",
+     "kind": "sq_execute",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "3"
+    },
+    {
+     "event_id": "5",
+     "kind": "sq_writeback",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "4"
+    },
+    {
+     "event_id": "6",
+     "kind": "cache_access",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "5"
+    },
+    {
+     "event_id": "7",
+     "kind": "cache_return",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "6"
+    },
+    {
+     "event_id": "8",
+     "kind": "mshr_alloc",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "7"
+    },
+    {
+     "event_id": "9",
+     "kind": "cache_access",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "8"
+    },
+    {
+     "event_id": "10",
+     "kind": "cache_return",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "9"
+    },
+    {
+     "event_id": "11",
+     "kind": "mshr_alloc",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "10"
+    },
+    {
+     "event_id": "24",
+     "kind": "mshr_fill",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "11"
+    },
+    {
+     "event_id": "25",
+     "kind": "cache_fill",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "24"
+    },
+    {
+     "event_id": "26",
+     "kind": "mshr_free",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "25"
+    },
+    {
+     "event_id": "27",
+     "kind": "mshr_fill",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "26"
+    },
+    {
+     "event_id": "28",
+     "kind": "cache_fill",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "27"
+    },
+    {
+     "event_id": "29",
+     "kind": "mshr_free",
+     "request_id": "234093",
+     "corr": "addr_fallback",
+     "parent_event_id": "28"
+    },
+    {
+     "event_id": "33",
+     "kind": "resp",
+     "request_id": "234093",
+     "corr": "seq_primary",
+     "parent_event_id": "29"
+    },
+    {
+     "event_id": "34",
+     "kind": "taint_reg",
+     "request_id": "234093",
+     "corr": "seq_primary",
+     "parent_event_id": "33"
+    },
+    {
+     "event_id": "35",
+     "kind": "sq_complete",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "34"
+    },
+    {
+     "event_id": "51",
+     "kind": "errant_commit",
+     "request_id": "",
+     "corr": "taint_prop",
+     "parent_event_id": "35"
+    }
+   ],
+   "ancestry_root_is_inj": true,
+   "verdict": "PASS",
+   "verdict_reason": "strict admission + non-truncated stream + activated"
+  },
+  {
+   "item": "ITEM-054",
+   "manifest": {
+    "immutable": true,
+    "item": "ITEM-054",
+    "run_id": "T04-F6-W4",
+    "excel_location": "`7.展开执行矩阵!A55:AQ55`",
+    "model_id": "T04",
+    "unit": "L1d-TLB",
+    "fault_type": "换值",
+    "submodels": "T04-a PPN替换为另一合法物理页号",
+    "frequency": "F6",
+    "workload": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+    "carrier": "fs:tlb_probe",
+    "trigger_condition": "同时存在两个已映射数据页",
+    "phase": "engineering",
+    "sample_index": 0,
+    "seed": 16867864092875579733,
+    "seed_rule": "tools/lsu_seed.py（sha256('lsu-fi-v1|RunID|phase|idx') 低64位大端）",
+    "identity": {
+     "git_commit": "0b8afd0fd6da8c9aa94c5a9cf3d25d9b43280db3",
+     "gem5_opt_sha256": "a99031a86e8e108b9278af53044d873a8262ea20d73bd7d94c6dba1300b49e0a",
+     "lsu_proxy_sha256": "fe6a105496b3697709d62a905f51dde6063c50cc8da4df0f7df0d1eedca01437",
+     "lsu_campaign_sha256": "7fc7f1d2602972216c30342599186c1c8f6ffef57e0205f142ef93164ddc02ef",
+     "workload_sha256": null,
+     "checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727"
+    },
+    "config": {
+     "cpu": "O3",
+     "variant": "B0",
+     "maxinsts": 0
+    },
+    "family": "armtlb",
+    "injector_flags": [
+     "--tlb_fault_type",
+     "pfn_to_mapped_page",
+     "--tlb_lsu_tier",
+     "F6"
+    ],
+    "golden": "b6d81b360a5672d80c27430f39153e2c",
+    "timeout_seconds": 2700,
+    "f0_span_rule": "legacy 机制（无 span）",
+    "guard": "tools/lsu_guard.py experiment 锁单实例 + 60s 采样 + max-seconds",
+    "run_policy": "STRESS_ONLY",
+    "required_seeds": 1,
+    "include_in_statistics": false
+   },
+   "run_finish": {
+    "action": "run-finish",
+    "cmd": [
+     "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt",
+     "--outdir",
+     "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-054_engineering_s0",
+     "/home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py",
+     "--kernel",
+     "/home/sdc/gem5-fi-ding/gem5-fs/vmlinux",
+     "--disk",
+     "/home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img",
+     "--bootloader",
+     "/home/sdc/gem5-fi-ding/gem5-fs/boot.arm64",
+     "--cpu",
+     "O3",
+     "--restore-checkpoint",
+     "/home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727",
+     "--readfile",
+     "/home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS",
+     "--ckpt-first-clock",
+     "--chaos_armtlb",
+     "--tlb_first_clock",
+     "1000",
+     "--tlb_probability",
+     "1.0",
+     "--tlb_max_faults",
+     "1",
+     "--tlb_fault_type",
+     "pfn_to_mapped_page",
+     "--tlb_lsu_tier",
+     "F6",
+     "--tlb_rng_seed",
+     "16867864092875579733",
+     "--chaos_propagation",
+     "--prop_run_id",
+     "T04-F6-W4",
+     "--prop_sample_run_id",
+     "s16867864092875579733"
+    ],
+    "pgid": 3888543,
+    "exit_code": 0,
+    "monitor_reason": "max-seconds-reached",
+    "time": "2026-10-26 23:02:05",
+    "timeout_escalation": {
+     "sigint_sent": true,
+     "signal": null,
+     "graceful": true
+    }
+   },
+   "command": "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt --outdir runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-054_engineering_s0 /home/sdc/gem5-fi-ding/configs/fs/lsu_b0_fs.py --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/0202_fs_cpt_boot_20261026T193235/cpt.239515184727 --readfile /home/sdc/gem5-fi-ding/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type pfn_to_mapped_page --tlb_lsu_tier F6 --tlb_rng_seed 16867864092875579733 --chaos_propagation --prop_run_id T04-F6-W4 --prop_sample_run_id s16867864092875579733",
+   "funnel": [
+    "CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F6 attempted=85114887 eligible=1 injected=1 first_eligible_tick=239515931979 last_eligible_tick=239515931979 (activated=W3-L0-layer)"
+   ],
+   "tier_cap": [
+    "CHAOS_LSU_TIER_CAP: requested=F6 effective=F6 lookup_tier_enabled=1"
+   ],
+   "detect": [
+    "CHAOS_DETECT: layer=None contained=0 tick=239515978932 ptag=1 reason=errant_commit"
+   ],
+   "l5": {
+    "conservation": "OK",
+    "error": null,
+    "crash_kind": "guest_or_unknown",
+    "detected_na": true,
+    "attempted": 85114887,
+    "eligible": 1,
+    "injected": 1,
+    "activated": 1,
+    "injected_not_activated": 0,
+    "checksum": null,
+    "outcome": "Crash",
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 1,
+     "Timeout": 0
+    },
+    "gem5_exit": 0
+   },
+   "injection_log": [
+    "Tick: 239515618626, Site: arm_tlb_lookup_tier, FaultType: pfn_to_mapped_page (lookup path now polls lsuTrigger; tier=F6; a tiered run does NOT consume --tlb_max_faults=1 — the tier is the frequency model)",
+    "Tick: 239515931979, Site: arm_tlb_lookup_hit, VA: 0xffffff807fbce090, old_pfn: 0xffbce, new_pfn: 0x81cf1, FaultType: pfn_to_mapped_page, candidates: 1"
+   ],
+   "stream": {
+    "path": "runs/lsu/0202_verify6_20261026T221213/runs/engineering/ITEM-054_engineering_s0/prop_evt.txt.gz",
+    "exists": true,
+    "truncated": false,
+    "n_events": 57599,
+    "has_chain_end": true,
+    "unknown_events": 0
+   },
+   "stats_bytes": 360604,
+   "chain_per_fault": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "beyond": "",
+     "edges": {
+      "L0->L1": "proven",
+      "L1->L2": "proven",
+      "L2->L3": "proven",
+      "L3->L4": "proven",
+      "L4->L5": "proven"
+     },
+     "path_events": [
+      {
+       "event_id": "0",
+       "kind": "inj",
+       "request_id": "109",
+       "corr": "origin",
+       "parent_event_id": "",
+       "tick": "239515931979",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "1",
+       "kind": "tlb_lookup",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "0",
+       "tick": "239515931979",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "2",
+       "kind": "tlb_pfn",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "1",
+       "tick": "239515931979",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "5",
+       "kind": "lq_read",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "4",
+       "tick": "239515932312",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "20",
+       "kind": "taint_reg",
+       "request_id": "109",
+       "corr": "seq_primary",
+       "parent_event_id": "19",
+       "tick": "239515978266",
+       "detection_layer": "",
+       "outcome": ""
+      },
+      {
+       "event_id": "21",
+       "kind": "errant_commit",
+       "request_id": "",
+       "corr": "taint_prop",
+       "parent_event_id": "20",
+       "tick": "239515978932",
+       "detection_layer": "L5",
+       "outcome": "errant_commit"
+      }
+     ]
+    }
+   },
+   "containment_from_events": null,
+   "admission": {
+    "applicable": true,
+    "admitted": true,
+    "path": "full_chain",
+    "terminal": "full",
+    "family": "tlb",
+    "path_layers": [
+     "L0",
+     "L1",
+     "L2",
+     "L3",
+     "L4",
+     "L5"
+    ],
+    "violations": []
+   },
+   "gate_fault": "1",
+   "selected_ancestry": [
+    {
+     "event_id": "0",
+     "kind": "inj",
+     "request_id": "109",
+     "corr": "origin",
+     "parent_event_id": ""
+    },
+    {
+     "event_id": "1",
+     "kind": "tlb_lookup",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "0"
+    },
+    {
+     "event_id": "2",
+     "kind": "tlb_pfn",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "1"
+    },
+    {
+     "event_id": "3",
+     "kind": "tlb_translate_result",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "2"
+    },
+    {
+     "event_id": "4",
+     "kind": "lsq_push",
+     "request_id": "",
+     "corr": "seq_primary",
+     "parent_event_id": "3"
+    },
+    {
+     "event_id": "5",
+     "kind": "lq_read",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "4"
+    },
+    {
+     "event_id": "6",
+     "kind": "cache_access",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "5"
+    },
+    {
+     "event_id": "7",
+     "kind": "cache_return",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "6"
+    },
+    {
+     "event_id": "8",
+     "kind": "mshr_alloc",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "7"
+    },
+    {
+     "event_id": "9",
+     "kind": "cache_access",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "8"
+    },
+    {
+     "event_id": "10",
+     "kind": "cache_return",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "9"
+    },
+    {
+     "event_id": "11",
+     "kind": "mshr_alloc",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "10"
+    },
+    {
+     "event_id": "12",
+     "kind": "mshr_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "11"
+    },
+    {
+     "event_id": "13",
+     "kind": "cache_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "12"
+    },
+    {
+     "event_id": "14",
+     "kind": "mshr_free",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "13"
+    },
+    {
+     "event_id": "15",
+     "kind": "mshr_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "14"
+    },
+    {
+     "event_id": "16",
+     "kind": "cache_fill",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "15"
+    },
+    {
+     "event_id": "17",
+     "kind": "mshr_free",
+     "request_id": "109",
+     "corr": "addr_fallback",
+     "parent_event_id": "16"
+    },
+    {
+     "event_id": "18",
+     "kind": "resp",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "17"
+    },
+    {
+     "event_id": "19",
+     "kind": "lq_complete",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "18"
+    },
+    {
+     "event_id": "20",
+     "kind": "taint_reg",
+     "request_id": "109",
+     "corr": "seq_primary",
+     "parent_event_id": "19"
+    },
+    {
+     "event_id": "21",
+     "kind": "errant_commit",
+     "request_id": "",
+     "corr": "taint_prop",
+     "parent_event_id": "20"
+    }
+   ],
+   "ancestry_root_is_inj": true,
+   "verdict": "PASS",
+   "verdict_reason": "strict admission + non-truncated stream + activated"
+  }
+ ]
+}

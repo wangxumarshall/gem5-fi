@@ -1,0 +1,5 @@
+[ready_contract] total=325 READY=0 PARTIAL=0 BLOCKED=325 self_consistent=True
+[ready_contract] blocked_by_category={'CHAIN-UNPROVEN': 44, 'CHAIN-EVIDENCE-MISSING': 197, 'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}
+[ready_contract] policy_counts={'NORMAL': 261, 'STRESS_REDUNDANT': 25, 'STRESS_ONLY': 39}
+[ready_contract] chain_gate recorded=325/325 admitted=0 evaluated=64 unproven=44 evidence_missing=197 blocked_upstream_admitted=0 root=/home/sdc/gem5-fi-ding
+[verdict] NO-GO — BLOCKED=325 > 0（{'CHAIN-UNPROVEN': 44, 'CHAIN-EVIDENCE-MISSING': 197, 'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}）；未运行 --gate 资源/测试门禁

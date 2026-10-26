@@ -1,0 +1,7 @@
+item,runid,freq,seed,attempted,eligible,injected,activated,conservation,outcome,truncated,chain_end,gate_fault_terminal,admitted,path,verdict
+ITEM-041,T01-F0-W4,F0,7626208423775840535,133699,13,1,1,OK,Crash,False,True,full,True,full_chain,PASS
+ITEM-047,T02-F0-W4,F0,1482588217842860401,358838,6,1,1,OK,Crash,False,True,full,True,full_chain,PASS
+ITEM-049,T02-F2-W4,F2,14201167915699637708,258283,258283,2,2,OK,Crash,False,True,provable_to_L4_then_unknown,False,,NOT-ACCEPTED
+ITEM-052,T04-F0-W4,F0,957792015410033221,88831806,46,1,1,OK,Crash,False,True,full,True,full_chain,PASS
+ITEM-053,T04-F2-W4,F2,1505523022015170976,182561,170030,2,2,OK,Crash,False,True,full,True,full_chain,PASS
+ITEM-054,T04-F6-W4,F6,16867864092875579733,85114887,1,1,1,OK,Crash,False,True,full,True,full_chain,PASS
