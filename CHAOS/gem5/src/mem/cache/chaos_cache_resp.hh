@@ -18,9 +18,19 @@
  * 以便用真实的 command flags + senderState 事实做确定性单元测试
  * （tests/chaos_cache_resp_test.cc + tests/test_lsu_cache_resp_classify.py）。
  *
- * 注意：本版本是**当前生产行为的忠实提取**（base.cc:752-757 的判据），
- * 因此它对 BadAddressError 这类 error 响应会返回 MshrPath —— 这正是要修的缺陷，
- * 失败测试 tests/chaos_cache_resp_test.cc 会把它钉住（先红）。
+ * 修复（[0202-T02F2-MSHR]，2026-10-27）：判据从「只看 pkt->isWrite()」补全为
+ * 「写位 **或** （error ∧ uncacheable ∧ senderState 栈中没有 MSHR）」。
+ * 三重限定是必需的：
+ *   - `is_error` 区分 error 响应（BadAddressError/ReadError…）；
+ *   - `is_uncacheable`：UC 写由 write buffer 跟踪；非 UC 的无 MSHR 错误响应属真异常，
+ *     仍应落回 MSHR 路径并响亮 assert（不掩盖）；
+ *   - `!has_mshr_state`：排除 UC **读**的 error 响应（读一律 allocateMissBuffer，
+ *     必然带 MSHR）—— 若把它的响应误当写响应处理，会漏掉 MSHR 回收、破坏协议不变量。
+ * `has_mshr_state` 由 `Packet::findNextSenderState<MSHR>()` 只读取得，**不破坏**
+ * senderState 栈（成功 UC 写响应路径也不 pop 它）。
+ *
+ * 失败测试 tests/chaos_cache_resp_test.cc 在修复前对本函数红（唯一失败项
+ * `BadAddressError/UC/no-mshr ⇒ WriteBuffer`，got MshrPath），修复后绿。
  */
 #ifndef __MEM_CACHE_CHAOS_CACHE_RESP_HH__
 #define __MEM_CACHE_CHAOS_CACHE_RESP_HH__
@@ -42,21 +52,24 @@ enum class CacheRespPath
 };
 
 /**
- * @param pkt_is_write           pkt->isWrite()   （error 响应可能丢失该位）
- * @param pkt_is_error           pkt->isError()
- * @param pkt_is_uncacheable     pkt->req->isUncacheable()
- * @param has_mshr_sender_state  popSenderState() 得到的是否为 MSHR
+ * @param pkt_is_write          pkt->isWrite()   （error 响应可能丢失该位）
+ * @param pkt_is_error          pkt->isError()
+ * @param pkt_is_uncacheable    pkt->req->isUncacheable()
+ * @param has_mshr_state        senderState 栈中是否存在 MSHR
+ *                              （Packet::findNextSenderState<MSHR>() != nullptr）
  */
 inline CacheRespPath
 classifyCacheTimingResp(bool pkt_is_write, bool pkt_is_error,
-                        bool pkt_is_uncacheable, bool has_mshr_sender_state)
+                        bool pkt_is_uncacheable, bool has_mshr_state)
 {
-    (void)pkt_is_error;
-    (void)pkt_is_uncacheable;
-    (void)has_mshr_sender_state;
-
-    // [当前生产判据] base.cc:752「if (pkt->isWrite() && cmd != LockedRMWWriteResp)」
+    // (1) 写响应（WriteResp / WriteError 均带 IsWrite）⇒ 写缓冲路径
     if (pkt_is_write) {
+        return CacheRespPath::WriteBuffer;
+    }
+    // (2) [0202-T02F2-MSHR] UC 写的「错误响应」：BadAddressError 的 flags 只有
+    //     {IsResponse,IsError}，丢掉 IsWrite 因而走不到 (1)；UC 写由 write buffer
+    //     跟踪、从不分配 MSHR ⇒ 这类响应的 senderState 栈里没有 MSHR。
+    if (pkt_is_error && pkt_is_uncacheable && !has_mshr_state) {
         return CacheRespPath::WriteBuffer;
     }
     return CacheRespPath::MshrPath;

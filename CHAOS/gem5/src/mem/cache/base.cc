@@ -45,6 +45,7 @@
 
 #include "mem/cache/base.hh"
 #include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
+#include "mem/cache/chaos_cache_resp.hh"  // [0202-T02F2-MSHR] recvTimingResp 响应分类
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (CasSuccess)
 // [MDSPEC][H4] cache fill events reach the tracer through the static
 // instance (CHAOSCache precedent — BaseCache has no tracer pointer).
@@ -748,9 +749,24 @@ BaseCache::recvTimingResp(PacketPtr pkt)
     DPRINTF(Cache, "%s: Handling response %s\n", __func__,
             pkt->print());
 
-    // if this is a write, we should be looking at an uncacheable
-    // write
-    if (pkt->isWrite() && pkt->cmd != MemCmd::LockedRMWWriteResp) {
+    // [0202-T02F2-MSHR] A response is handled on the write-buffer path when it
+    // answers a request that was issued WITHOUT an MSHR. That is the case for
+    // (a) plain writes (WriteResp / WriteError carry IsWrite), and (b) an
+    // UnCacheable write whose target returned an ERROR: BadAddressError is
+    // defined in packet.cc as {IsResponse, IsError} and therefore LOSES the
+    // IsWrite attribute, so `pkt->isWrite()` alone misses it. UC writes are
+    // tracked by the write buffer and never allocate an MSHR, so such a
+    // response has no MSHR in its sender state. The triple condition
+    // (error && uncacheable && no MSHR) keeps every other case — notably a UC
+    // READ error response, which always has an MSHR — on the MSHR path, and
+    // still lets a genuine non-UC anomaly fall through to the assert below.
+    // Measured failure without this: SIGABRT at the `assert(mshr)` below
+    // (T02-F2-W4 explicit seed 1). See mem/cache/chaos_cache_resp.hh.
+    const bool has_mshr_state = pkt->findNextSenderState<MSHR>() != nullptr;
+    if (chaos::classifyCacheTimingResp(pkt->isWrite(), pkt->isError(),
+            pkt->req->isUncacheable(), has_mshr_state)
+        == chaos::CacheRespPath::WriteBuffer
+        && pkt->cmd != MemCmd::LockedRMWWriteResp) {
         assert(pkt->req->isUncacheable());
         handleUncacheableWriteResp(pkt);
         return;
