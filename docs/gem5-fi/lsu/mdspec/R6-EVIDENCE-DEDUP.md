@@ -54,3 +54,38 @@ verdict, and the four uncounted duplicates in the two columns above behave ident
 authoritative copies. The full-corpus regrade (all 144 readable `prop_evt.txt.gz` under `runs/lsu`,
 6 of them too large to hold in memory probed instead for the one necessary condition) is recorded in
 `.superpowers/sdd/2026-10-25-lsu-r6-frequency-policy/task-11b-report.md`.
+
+## Re-reproduction of the T02-F2-W4 seed2 verdict with the CURRENT tool head (2026-10-27)
+
+The Task 11b table above is a **documented regrade that was never written back** to the on-disk
+`chain_report.json`. To remove the resulting "doc says certified, disk says refused" ambiguity, the
+verdict was **independently re-derived from the original, unmodified stream** with the current tool
+head `a5c2cadc868c5225d7e7c2f52e62dee488b2aaa4` (checker `sha256
+baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`).
+
+- Input: `runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2/prop_evt.txt.gz`,
+  sha256 `13ac3a3c79a09571bb5c3314c32c1e1913c3a922de6c3dcbfea87a419a27b65e`, 314,930 B,
+  gzip `-t` rc=0, 8,599 events, clean EOF, `truncated=False`.
+  The independent duplicate `runs/lsu/r6_c9_T02-F2-W4_s2/…/seed2/prop_evt.txt.gz` is **byte-identical**
+  (same sha256). Task 11b recorded no input sha256; identity is corroborated by these two identical
+  copies, the same two directories it names, and the same event count.
+- Result (current checker **and** `lsu_campaign.admission_gate` agree):
+  `terminal=detected_contained`, `provable_to=L5`, `admitted=True`, `certified=True`, `violations=[]`,
+  `path=contained`.
+- Containment is backed by **real events**, not by `chain_end`/truncation/report prose: 59 events with
+  `kind=squash_masked, detection_layer=L4, contained=1, outcome=masked, corr=addr_fallback,
+  containment_reason=squash_replay` (first: `event_id=68`, `tick=238083244768`).
+- **Authoritative artifact for this sample:**
+  `runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2/chain_report.regrade-20261027T103833.json`
+  (field-level old→new diff: `chain_report.regrade-20261027T103833.diff.md`; the pre-regrade file is
+  preserved verbatim as `chain_report.pre-task11b.20261027T103833.json`).
+- **No original evidence was modified**: `prop_evt.txt.gz`, `stats.txt`, `run.out`, and both
+  `chain_report.json` files keep their 2026-10-25 mtimes. The RunID-level aggregate
+  `T02-F2-W4/chain_report.json` still carries the old `provable_to_L5_then_unknown` in `samples[1]`;
+  **this section supersedes it** for the verdict.
+- No gem5 re-run was needed or performed.
+
+> Side note (not a verdict disagreement): `tools/lsu_ready_contract.py:73` still uses a legacy
+> `CHAIN_EVENT_CAP = 4000`, so it refuses this 8,599-event sample as "too large — not evaluated"
+> both before and after. That is a third, separate admission surface; the campaign path carries no
+> such cap and the current analysis cap is `EVENT_CAP = 200000`.
