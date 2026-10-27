@@ -1127,10 +1127,23 @@ namespace gem5
             lookupTierBookAttempt();
             if (!lookupTierFires(/*is_hit=*/entry != nullptr)) return entry;
         } else {
+            // [R6-V4-T07CHAIN] F0 funnel booking, mirroring maybeCorrupt's
+            // legacy chain. Measured before this fix (T07-F0-W4 seed1): the
+            // CAM path injected while `attempted=0 eligible=0` — the funnel
+            // was never instrumented here, which the campaign correctly
+            // flagged as count_contradiction. Semantic choice (pinned by the
+            // test): attempted = lookups reaching the CAM hook (hit or miss,
+            // since the hook sees both); eligible = past the cap/probability
+            // gates, BEFORE the skip budget.
+            ++legacy_attempted;
             if (max_faults != 0 && faults_injected_count >= max_faults)
                 return entry;
             std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
             if (probDist(rng) > probability) return entry;
+            ++legacy_eligible;
+            if (legacy_eligible == 1)
+                legacy_first_eligible_tick = curTick();
+            legacy_last_eligible_tick = curTick();
             if (events_to_skip > 0) { --events_to_skip; return entry; }
         }
         if (!tlb) return entry;
