@@ -128,3 +128,90 @@ def test_screening_formal_reject_t08a_canary():
         with pytest.raises(SystemExit):
             lc.check_phase_gate(phase, allow_blocked_models=False,
                                 t08a_canary=True)
+
+
+# --- [R6-V4-T08GATE] official T08 seeds, gated on a validated bundle --------
+import json
+import tempfile
+
+
+def _bundle(tmp, submodels=lc.T08_REQUIRED_SUBMODELS, covered=True,
+            fault_type_override=None, empty_evt_for=None):
+    base = os.path.join(tmp, "bundle.json")
+    subs = {}
+    for s in submodels:
+        d = os.path.join(tmp, f"ev-{s}")
+        os.makedirs(d, exist_ok=True)
+        evt = os.path.join(d, "prop_evt.txt.gz")
+        size = 0 if s == empty_evt_for else 1
+        with open(evt, "wb") as f:
+            f.write(b"x" * size)
+        subs[s] = {
+            "covered": covered,
+            "fault_type": (fault_type_override or {}).get(s, s),
+            "evidence_dir": d,
+        }
+    with open(base, "w") as f:
+        json.dump({"submodels": subs}, f)
+    return base
+
+
+def test_t08_official_seed_allowed_only_with_full_bundle():
+    with tempfile.TemporaryDirectory() as tmp:
+        good = _bundle(tmp)
+        for rid in ("T08-F0-W4", "T08-F4-W4"):
+            flags, _g, reason = _resolve(rid,
+                                         t08_submodels_proven=good)
+            assert flags is not None, reason
+            i = flags.index("--tlb_fault_type")
+            assert flags[i + 1] == "walk_pairing"
+            assert reason == "fs:tlb_probe"
+
+
+def test_t08_official_seed_refused_when_bundle_incomplete():
+    with tempfile.TemporaryDirectory() as tmp:
+        partial = _bundle(tmp, submodels=("walk_pairing", "walk_fill_dup"))
+        flags, _g, reason = _resolve("T08-F0-W4",
+                                     t08_submodels_proven=partial)
+        assert flags is None
+        assert "PARTIAL_SUBMODEL_PROVEN" in reason
+        assert "coverage bundle refused" in reason
+
+
+def test_t08_official_seed_refused_when_not_covered_or_empty_evidence():
+    with tempfile.TemporaryDirectory() as tmp:
+        not_cov = _bundle(tmp, covered=False)
+        flags, _g, reason = _resolve("T08-F0-W4",
+                                     t08_submodels_proven=not_cov)
+        assert flags is None and "not dynamically covered" in reason
+    with tempfile.TemporaryDirectory() as tmp:
+        empty = _bundle(tmp, empty_evt_for="walk_done_early")
+        flags, _g, reason = _resolve("T08-F0-W4",
+                                     t08_submodels_proven=empty)
+        assert flags is None and "evidence missing" in reason
+
+
+def test_t08_official_seed_refused_when_fault_type_mismatch():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = _bundle(tmp, fault_type_override={"walk_stale_result":
+                                                "walk_fill_dup"})
+        flags, _g, reason = _resolve("T08-F0-W4", t08_submodels_proven=bad)
+        assert flags is None and "fault_type=" in reason
+
+
+def test_t08_bundle_never_unlocks_f6_or_w9():
+    with tempfile.TemporaryDirectory() as tmp:
+        good = _bundle(tmp)
+        for rid in ("T08-F6-W4", "T08-F0-W9", "T08-F4-W9"):
+            flags, _g, reason = _resolve(rid, t08_submodels_proven=good)
+            assert flags is None, rid
+            assert ("BLOCKED_WORKLOAD_GAP" in reason
+                    or "PARTIAL_SUBMODEL_PROVEN" in reason), (rid, reason)
+
+
+def test_screening_formal_reject_t08_bundle():
+    for phase in ("screening", "main"):
+        with pytest.raises(SystemExit):
+            lc.check_phase_gate(phase, allow_blocked_models=False,
+                                t08a_canary=False,
+                                t08_submodels_proven="/tmp/x.json")

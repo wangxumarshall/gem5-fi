@@ -590,6 +590,50 @@ T08_W4_CANARY_RUNIDS = frozenset({"T08-F0-W4", "T08-F4-W4"})
 T08_W9_WORKLOAD_GAP_RUNIDS = frozenset(
     {"T08-F0-W9", "T08-F4-W9", "T08-F6-W9"})
 T08_A_FAULT_TYPE = "walk_pairing"
+# [R6-V4-T08GATE] The four sub-models the T08 spec fixes.  The official
+# T08-F0/F4-W4 RunID still needs 3 seeds (task brief §7); that becomes
+# admissible only when EVERY sub-model has real dynamic coverage, proven by
+# an evidence bundle passed through --t08-submodels-proven.  The flag is not
+# a bypass: it is validated against the named run dirs' own prop_evt files.
+T08_REQUIRED_SUBMODELS = ("walk_pairing", "walk_fill_dup",
+                          "walk_done_early", "walk_stale_result")
+
+
+def t08_submodel_evidence_ok(path):
+    """(ok, reason) for a T08 sub-model coverage bundle.
+
+    The bundle must be JSON with a ``submodels`` object naming each required
+    sub-model, each with ``covered: true``, a ``fault_type`` equal to the key,
+    and an ``evidence_dir`` that exists and holds a non-empty
+    ``prop_evt.txt.gz``.  Anything missing ⇒ loud refusal (never a warning).
+    """
+    if not path:
+        return False, "no T08 sub-model coverage bundle given"
+    p = Path(path)
+    try:
+        d = json.loads(p.read_text())
+    except OSError:
+        return False, f"T08 coverage bundle missing: {p}"
+    except json.JSONDecodeError as e:
+        return False, f"T08 coverage bundle is not JSON: {p}: {e}"
+    subs = d.get("submodels") or {}
+    missing = [s for s in T08_REQUIRED_SUBMODELS if s not in subs]
+    if missing:
+        return False, f"T08 coverage bundle lacks sub-models {missing}"
+    for s in T08_REQUIRED_SUBMODELS:
+        e = subs[s] or {}
+        if e.get("covered") is not True:
+            return False, f"T08 sub-model {s} is not dynamically covered"
+        if e.get("fault_type") != s:
+            return False, (f"T08 sub-model {s} records fault_type="
+                           f"{e.get('fault_type')!r} (must equal the key)")
+        ev = Path(e.get("evidence_dir") or "")
+        evt = ev / "prop_evt.txt.gz"
+        if not evt.exists() or evt.stat().st_size == 0:
+            return False, f"T08 sub-model {s} evidence missing: {evt}"
+    return True, "all four T08 sub-models dynamically covered"
+
+
 T08_PARTIAL_REASON = (
     "PARTIAL_SUBMODEL_PROVEN: only T08-a (walk_pairing) is allowed, and only "
     "for T08-F0-W4/T08-F4-W4 seed1 via the explicit --t08a-canary trial "
@@ -1520,7 +1564,8 @@ def load_matrix(path):
     return header, cells
 
 
-def check_phase_gate(phase, allow_blocked_models, t08a_canary):
+def check_phase_gate(phase, allow_blocked_models, t08a_canary,
+                     t08_submodels_proven=None):
     """[R6-PROPAGATION-V3] The bypass flags are TRIAL-only.
 
     screening/formal must not use the generic --allow-blocked-models or the
@@ -1536,12 +1581,16 @@ def check_phase_gate(phase, allow_blocked_models, t08a_canary):
             raise SystemExit(
                 "REFUSED: --t08a-canary is trial-only; a screening/formal "
                 "run must not use the T08-a partial-submodel canary")
+        if t08_submodels_proven:
+            raise SystemExit(
+                "REFUSED: --t08-submodels-proven is trial-only; a "
+                "screening/formal run must not rely on a coverage bundle")
         return "formal"
     return "trial"
 
 
 def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
-                 t08a_canary=False):
+                 t08a_canary=False, t08_submodels_proven=None):
     """Cell -> (flags list, golden, binary) or (None, None, blocked_reason).
 
     Every cell resolves to exactly one of: runnable flags, or a blocked/
@@ -1582,8 +1631,21 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
             and freq in ("F0", "F4")
             and T08_A_FAULT_TYPE in MODEL_FLAGS.get("T08", ("", []))[1]
         )
-        if not t08a_selected:
-            return None, None, T08_PARTIAL_REASON
+        # [R6-V4-T08GATE] The official T08-F0/F4-W4 RunID becomes runnable
+        # once all four sub-models have real dynamic coverage.  The bundle is
+        # validated against each sub-model's own prop_evt (see
+        # t08_submodel_evidence_ok); an incomplete bundle keeps the cell
+        # PARTIAL_SUBMODEL_PROVEN and names why.
+        t08_complete = False
+        t08_gate_reason = ""
+        if run_id in T08_W4_CANARY_RUNIDS and freq in ("F0", "F4"):
+            t08_complete, t08_gate_reason = t08_submodel_evidence_ok(
+                t08_submodels_proven)
+        if not (t08a_selected or t08_complete):
+            reason = T08_PARTIAL_REASON
+            if t08_submodels_proven:
+                reason += f" [coverage bundle refused: {t08_gate_reason}]"
+            return None, None, reason
 
     # 1. workload-level block (FS / multicore-FS / SPEC license). SPEC stays
     #    blocked even for FS-family models — the license gap is workload-real
@@ -2572,7 +2634,10 @@ def run_single_cell(cell, args, seed, outdir):
         evidence_pilot=(getattr(args, "phase", None) == "trial" and
                         model in EVIDENCE_PILOT_MODELS),
         t08a_canary=(getattr(args, "phase", None) == "trial" and
-                     getattr(args, "t08a_canary", False)))
+                     getattr(args, "t08a_canary", False)),
+        t08_submodels_proven=(
+            getattr(args, "t08_submodels_proven", None)
+            if getattr(args, "phase", None) == "trial" else None))
     if flags is None:
         return {"outcome": "Blocked", "error": golden}
 
@@ -2839,6 +2904,15 @@ def build_parser():
                         "model_blocked_reason; this flag never unblocks "
                         "anything, it only lets the operator produce the "
                         "evidence.")
+    p.add_argument("--t08-submodels-proven", metavar="BUNDLE.json",
+                   help="[R6-V4-T08GATE] trial-only: path to a T08 sub-model "
+                        "coverage bundle. When it validates (all four of "
+                        "walk_pairing / walk_fill_dup / walk_done_early / "
+                        "walk_stale_result covered=true, fault_type match, "
+                        "and each evidence_dir's prop_evt.txt.gz non-empty), "
+                        "the official T08-F0/F4-W4 RunID is runnable for its "
+                        "3 seeds. An invalid bundle refuses the cell and "
+                        "echoes why; it never silently degrades to a bypass.")
     p.add_argument("--t08a-canary", action="store_true",
                    help="[R6-PROPAGATION-V3] trial-only: allow the T08-a "
                         "(walk_pairing) representative canary on "
@@ -2911,7 +2985,8 @@ def main():
 
     # [R6-PROPAGATION-V3] bypass flags are trial-only.
     check_phase_gate(a.phase, a.allow_blocked_models,
-                     getattr(a, "t08a_canary", False))
+                     getattr(a, "t08a_canary", False),
+                     getattr(a, "t08_submodels_proven", None))
 
     header, cells = load_matrix(a.matrix)
     print(f"Loaded {len(cells)} cells from {a.matrix}")
@@ -2932,7 +3007,9 @@ def main():
             evidence_pilot=(a.phase == "trial" and
                             cell[COL_MODEL].strip() in EVIDENCE_PILOT_MODELS),
             t08a_canary=(a.phase == "trial" and
-                         getattr(a, "t08a_canary", False)))
+                         getattr(a, "t08a_canary", False)),
+            t08_submodels_proven=(getattr(a, "t08_submodels_proven", None)
+                                  if a.phase == "trial" else None))
         if flags is None:
             key = reason.split("(")[0].split(":")[0]
             counts[key] = counts.get(key, 0) + 1
