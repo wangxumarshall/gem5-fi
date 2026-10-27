@@ -1095,7 +1095,8 @@ namespace gem5
             tr->registerTlbStateFault(req_seq, va, req_size, field,
                                       before, after, old_pa, new_pa,
                                       entry_way, candidate_way, 0,
-                                      state_before, state_after);
+                                      state_before, state_after,
+                                      entry->size + 1);
         }
         return true;
     }
@@ -1224,7 +1225,8 @@ namespace gem5
             tr->registerTlbStateFault(req_seq, va, req_size, field,
                                       before, after, old_pa, new_pa,
                                       entry_way, candidate_way, 0,
-                                      state_before, state_after);
+                                      state_before, state_after,
+                                      ret ? (Addr)(ret->size + 1) : (Addr)0);
         }
         return ret;
     }

@@ -501,6 +501,13 @@ class CHAOSPropagation : public SimObject
     // (seq_primary when the in-flight request is published, else "" — honest
     // no-surface: the chain honestly stops at the TLB layer rather than
     // inventing a PA redirect). Returns the ptag (0 = disabled).
+    // [R6-V4-T07CHAIN] `pa_span` = the faulted entry's page size
+    // (entry->size + 1 at the site; 0 ⇒ 4 KiB). It is used ONLY to open
+    // correlation arms when this state/CAM fault actually REDIRECTS the
+    // effective PA (false_hit: miss→fabricated hit, old_pa=0 → forged PA).
+    // A PA-neutral state fault (T05/T06 valid_clear/perm_subst) passes
+    // pa_changed=false and opens NO arm — the translation it performs is the
+    // clean one, so nothing downstream can be attributed to it.
     uint64_t registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
                                    const char *field,
                                    const std::string &before,
@@ -509,7 +516,8 @@ class CHAOSPropagation : public SimObject
                                    int entry_way, int candidate_way,
                                    uint64_t walk_id,
                                    const std::string &entry_before,
-                                   const std::string &entry_after);
+                                   const std::string &entry_after,
+                                   Addr pa_span = 0);
 
     // Close a T-series lookup observation at the real MMU completion point,
     // after permission/alignment checks have produced the final Fault.

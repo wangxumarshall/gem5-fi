@@ -153,6 +153,75 @@ def main():
           "registerTlbStateFault" in src(
               "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc"))
 
+    print("[8] [R6-V4-STATECOUNT] 注入日志写入点必须同时递增统计计数")
+    # 真缺陷（实测 T05-F0-W4 / T06-F0-W4 seed1）：applyEntryFieldFault() 写了
+    # 注入日志、递增了 numStateFaults 与 faults_injected_count（funnel 因此
+    # 报 injected=1），却**漏掉** stats->numFaultsInjected++，于是 stats.txt=0，
+    # campaign 三源交叉核对判 count_contradiction=true。
+    body = cc.split("CHAOSArmTLB::applyEntryFieldFault", 1)
+    check("applyEntryFieldFault definition present", len(body) == 2)
+    body = body[1].split("// [MDSPEC][R4-10-T07] CAM-compare", 1)[0]
+    check("applyEntryFieldFault increments numStateFaults",
+          "stats->numStateFaults++" in body)
+    check("applyEntryFieldFault increments faults_injected_count",
+          "++faults_injected_count" in body)
+    check("applyEntryFieldFault increments numFaultsInjected",
+          "stats->numFaultsInjected++" in body,
+          "missing stats->numFaultsInjected++ (stats/log contradiction)")
+    # 一般不变式（带具名豁免）：写注入日志的函数必须在**本函数内**或
+    # **具名他处**递增 numFaultsInjected。豁免只有三条，且各写明理由：
+    #   CHAOSArmTLB(ctor)      — 只写档位/能力诊断，不是注入；
+    #   lookupTierBookAttempt  — `arm_tlb_lookup_tier` 诊断行；
+    #   maybeCorruptWalkRefill — T08-b/c/d 的一次性故障在 arm 点已计数
+    #                            （见下方 [9] 的“不重复计数”契约）。
+    # 其他任何写日志却不计数的函数（尤其 T07 的 maybeCorruptLookup）都
+    # 必须响亮失败，不得被静默放过。
+    import re as _re
+    EXEMPT = {"CHAOSArmTLB", "lookupTierBookAttempt", "maybeCorruptWalkRefill"}
+    marks = list(_re.finditer(r"CHAOSArmTLB::(\w+)\s*\(", cc))
+    offenders = []
+    scanned = 0
+    for i, m in enumerate(marks):
+        seg = cc[m.start(): marks[i + 1].start() if i + 1 < len(marks) else len(cc)]
+        if "log_stream->stream()" in seg:
+            scanned += 1
+            if "numFaultsInjected++" not in seg and m.group(1) not in EXEMPT:
+                offenders.append(m.group(1))
+    check("至少扫描到一个写注入日志的函数体", scanned > 0, str(scanned))
+    check("每个写注入日志的函数都在本处或具名他处计数", not offenders,
+          str(offenders))
+
+    print("[9] [R6-V4-STATECOUNT] T08-b/c/d 一次性故障只计一次（arm 计数，refill 不再加）")
+    arm_seg = cc.split("if (fault_type_enum != FaultType::WalkPairing) {", 1)
+    check("arm 分支存在", len(arm_seg) == 2)
+    # 尾部标记用 “the walk proceeds” 那条 return（其前的 return 是
+    # stale-no-previous 的诚实 no-op 分支，尚未计数）。
+    arm_body = arm_seg[1].split("return false;   // the walk proceeds", 1)[0]
+    check("arm 点递增 numFaultsInjected",
+          "stats->numFaultsInjected++" in arm_body)
+    check("arm 点消耗 fault budget", "++faults_injected_count" in arm_body)
+    refill = cc.split("CHAOSArmTLB::maybeCorruptWalkRefill", 1)
+    check("maybeCorruptWalkRefill 存在", len(refill) == 2)
+    refill_body = refill[1].split("// Maintain the last-completed-walk record",
+                                 1)[0]
+    check("refill 分支不再重复递增 numFaultsInjected",
+          "stats->numFaultsInjected++" not in refill_body,
+          "double count: arm already counted this one fault")
+
+    print("[10] [R6-V4-T07CHAIN] 状态/CAM 故障在 PA 真重定向时打开关联臂")
+    prop = src("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc")
+    seg = prop.split("CHAOSPropagation::registerTlbStateFault", 1)
+    check("registerTlbStateFault 存在", len(seg) == 2)
+    body = seg[1].split("CHAOSPropagation::registerTlbWalkPair", 1)[0]
+    check("状态故障走共享判据 tlbRegistrationArms",
+          "chaos_chain::tlbRegistrationArms" in body)
+    check("按 pa_changed 判定（PA 未变则不开臂）",
+          "pa_changed" in body and "new_page != old_page" in body)
+    check("seq 主臂登记 addr_registry", "addr_registry[va]" in body)
+    check("PA 页回退臂登记 blk_registry", "blk_registry[new_page]" in body)
+    check("PA 中立时不开臂（arms.seq_primary / addr_fallback 双门）",
+          "if (arms.seq_primary)" in body and "if (arms.addr_fallback)" in body)
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

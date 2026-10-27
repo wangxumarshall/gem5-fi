@@ -1716,16 +1716,34 @@ namespace gem5
                                             int entry_way, int candidate_way,
                                             uint64_t walk_id,
                                             const std::string &entry_before,
-                                            const std::string &entry_after)
+                                            const std::string &entry_after,
+                                            Addr pa_span)
     {
         if (!write_log)
             return 0;
         (void)size;
         const uint64_t ptag = ++next_ptag;
 
+        // [R6-V4-T07CHAIN] A state/CAM fault that REDIRECTS the effective PA
+        // (false_hit fabrizing a hit on a miss: no clean baseline ⇒ forged
+        // PA) must open the same correlation arms as the pfn model; otherwise
+        // no L3+ event can ever join and the chain is unopenable BY
+        // CONSTRUCTION. Measured (T07-F0-W4 seed1, frozen 20fda699…): 5
+        // events, open at L2, no lsq_sendfrag/mem_req/resp ever correlated.
+        // A PA-neutral state fault (T05/T06 valid_clear / perm_subst) has
+        // pa_changed=false ⇒ tlbRegistrationArms opens NOTHING, exactly as
+        // before — its honest L2 containment is unchanged.
+        const Addr pa_span_eff = pa_span ? pa_span : (Addr)0x1000;
+        const Addr pa_mask = pa_span_eff - 1;
+        const Addr old_page = old_pa & ~pa_mask;
+        const Addr new_page = new_pa & ~pa_mask;
+        const bool pa_changed = new_page != old_page;
+
         std::ostringstream d_inj;
         d_inj << "family=tlb;field=" << field << ";req_seq=" << req_seq
-              << ";state_before=" << before << ";state_after=" << after;
+              << ";state_before=" << before << ";state_after=" << after
+              << ";pa_span=" << pa_span_eff
+              << ";pa_changed=" << (pa_changed ? 1 : 0);
         notePropEvt("inj", {
             {"fault_id", std::to_string(ptag)},
             {"corr", CORR_ORIGIN},
@@ -1774,6 +1792,35 @@ namespace gem5
         tlb_pending[{req_seq, va}] = TlbPending{
             ptag, corr, walk_id, entry_way, candidate_way,
             old_pa, new_pa, entry_before, entry_after};
+
+        // [R6-V4-T07CHAIN] Open the correlation arm(s) IFF the effective PA
+        // actually redirects. PA-neutral state faults (T05/T06) fall through
+        // with no arm — unchanged behaviour. A fabricated hit (T07) redirects
+        // 0 (or another page) → forged page, so the in-flight request's own
+        // L3 events (lsq_sendfrag/mem_req/resp, correlated by seq) and any
+        // access to the forged page can join, making the chain observable and
+        // the oracle verdict attributable.
+        const chaos_chain::Arms arms =
+            chaos_chain::tlbRegistrationArms(req_seq, pa_changed);
+        if (arms.seq_primary) {
+            sweepExpired();
+            AddrEntry e;
+            e.ptag = ptag;
+            e.dyn_seq = req_seq;
+            e.base = va;
+            e.size = size ? size : 1;
+            e.registered = curTick();
+            addr_registry[va] = e;
+        }
+        if (arms.addr_fallback) {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = new_page;
+            b.byte_end = new_page + pa_span_eff;
+            b.registered = curTick();
+            blk_registry[new_page] = b;
+        }
         return ptag;
     }
 
