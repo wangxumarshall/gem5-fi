@@ -6,6 +6,34 @@
 
 每个 MD 只使用该 seed 自己未经修改的 `prop_evt.txt.gz` 重建；`chain_report*`、`manifest.json`、`run.out`、`run.err`、`stats.txt`、`armtlb_injections.log` 均为只读引用。
 
+## 文档版本（R6-PROPAGATION-NARRATIVE-V3）
+
+- 51 份正文均为七个一级章节：实验身份与复现信息 / 完整故障传播过程 / SDC 诊断分析 / 完整主链事件表 / 相关旁支 / 最终判定与证据完整性 / 原始证据与文件哈希。
+- 旧版“30 秒结论”和“一行传播图”已删除；本目录不含这两种结构。
+- `analysis tool head` = `4af986f726a6791f441130dee19eca0711e0b38f`（审计工具提交）。运行期 `manifest.analysis_tool_head` 仍是各 seed 自己的历史值，二者不混用。
+- 精确审计：`../r6_reports/R6-PROPAGATION-PATHS-NARRATIVE-AUDIT.{md,json}`（逐文件、逐章、逐事件、逐哈希）。
+
+### 两轴实验状态（chain evidence vs experiment identity）
+
+| 指标 | 数量 |
+|---|---|
+| 文件总数 | **51** |
+| 七章齐全 | **51** |
+| 仍含旧章节 | **0** |
+| 缺主链叙述 / 单元四列表 / SDC 诊断 | **0 / 0 / 0** |
+| chain_evidence_status=PASS | **51** |
+| experiment_identity_status=MATCH | **27** |
+| experiment_identity_status=WORKLOAD_IDENTITY_MISMATCH | **24** |
+| overall_experiment_status=PASS | **27** |
+| overall_experiment_status=NOT_MIBENCH_RESULT | **24** |
+| overall_experiment_status=REVIEW_REQUIRED | **0** |
+
+`WORKLOAD_IDENTITY_MISMATCH` 的 24 份全部来自 8 个 W1 RunID（T01-F0/F1/F2-W1、T02-F0/F2-W1、T10-F0/F1/F2-W1，各 3 seed）：矩阵标签写 `MiBench-TC23`，但每份 `run.out` 的实际 `--readfile` 都是 `configs/fs/tlb_probe.rcS`。因此：
+
+- 这些文件只证明 **`tlb_probe.rcS` 载波下的传播链**，不能证明 MiBench-TC23 条件下的结果；
+- 矩阵标签保持原样，未静默改写为 `tlb_probe`，也没有用“实际载体为准”消除身份差异；
+- 本轮不自动重跑；补跑真实 MiBench FS workload 作为独立 `WORKLOAD_GAP` 记录。
+
 ## 范围与二进制身份
 
 | 二进制 SHA-256 | RunID | 证据根模板 |
@@ -52,8 +80,8 @@
 
 ## 证据不可变性
 
-- 原始 `prop_evt.txt.gz` / `chain_report*` / `manifest.json` / `run.out` / `run.err` / `stats.txt` 均**未被修改**；未启动 gem5/campaign/scons；未改代码、checker、准入或守恒逻辑。
-- 没有 `git commit`。
+- 原始 `prop_evt.txt.gz` / `chain_report*` / `manifest.json` / `run.out` / `run.err` / `stats.txt` 均**未被修改**；本轮未启动 gem5/campaign/scons；未改 checker、准入或守恒逻辑。
+- 本轮文档与审计工具的提交见 `git log`（`R6-PROPAGATION-NARRATIVE-V3` 与 `R6-PROPAGATION-AUDIT-V3`）。
 
 ## 校验
 

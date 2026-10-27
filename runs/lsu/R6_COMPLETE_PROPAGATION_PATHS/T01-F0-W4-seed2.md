@@ -1,379 +1,231 @@
-# T01-F0-W4 seed2 故障传播全过程
-
-> 证据口径：本文件只使用该 seed **自己**未经修改的 `prop_evt.txt.gz` 重建传播路径；代表故障按权威 checker 的 escape-first 规则选择；原始事件流未被修改，gem5 未重跑。
-> `chain_report` 的 `path_event_ids` 只作为层锚点核对，**不是**完整链；本文件按 `parent_event_id` 单祖先逐事件重建。
-
-## 30 秒结论
-
-在 `T01-F0-W4` seed2 中，注入器于 tick=237950233911 在 DTLB 表项（site=arm_tlb_lookup_hit）把 PFN 从 `0x81d75` 改成 `0x800081d75`（VA=`0xffffffc009483eb8`）；故障 PFN 使有效 PA 从 `0x81d75eb8` 变为 `0x800081d75eb8`（祖先中无 `tlb_translate_result`，PA 取自 `tlb_pfn` 的 state_before/state_after），随后沿 TLB 翻译 → L1D/MSHR → `resp` → `taint_reg(clean→tainted)` 一路传播，最终由 `errant_commit`（event_id=259, tick=237951515628）在 L5 形成真实错误提交；运行结局 Crash（KERNEL OOPS under fault（run.out: classify: Crash/DUE per fs_mode））。
-
-## 实验身份与证据来源
-
-- RunID: `T01-F0-W4`
-- seed: `2`；sample_run_id: `s2`
-- 实验模型: 模型ID=`T01`，单元=`L1d-TLB`（RunID 另带频率档位后缀）
-- 故障类型: `单比特翻转`
-- 故障模型: 随机选有效表项的VPN tag翻转1 bit；只在注入后再次命中才计activated。实施细则：每次故障运行只选一个当前有效且可被后续使用的目标，在指定字段内均匀抽取一个 bit 做一次 XOR 翻转；其余字段保持无故障值。保存目标 entry/way、bit 编号、原值和故障值，避免把未使用空项计为有效样本。激活口径：仅当“DTLB中存在有效项”且故障值被下游实际读取、选择或消费时计为 activated；否则归入 Injected-not-activated。
-- 频率档位: `F0` — 每次运行只注入 1 次；在 warm-up 后的 eligible event 中均匀抽样
-- requested tier: `F0`；effective tier: `F0`；tier enabled: `关闭(0)`（来自 run.out `CHAOS_LSU_TIER_CAP`）
-- 负载（矩阵标签）: TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）
-- 负载（run.out 实际命令行）: `--readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS`
-- source head: N/A（该 run 的 manifest 无 binary_source_head 字段；manifest.source_head=bc82f29d8f69410461d18c07a1ee9314f18885a5 只是运行时工作树 HEAD，不等同于二进制构建源）
-- binary path: `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt`
-- binary SHA-256: `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959`
-- analysis tool head: `e45b0a0fc8bfb871e906a6ecef6b16f922ec3d8c`（本次分析）
-- checker SHA-256: `baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`
-- 原始 evidence root: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2`
-- prop_evt: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/prop_evt.txt.gz`
-- prop_evt SHA-256: `8c385db13bfc0a717cd55f1d1749a1c0a329d4e34af067ab21c7d752573fd9de`（本次重算值；字节数 15961）
-- chain_report（权威）: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/chain_report.json`
-- chain_report SHA-256: `9b3a54333722ad6c39fb1ac643cb24881e2e564d14fcdcc680b455a15cfb595a`
-- manifest: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/manifest.json`（SHA-256 `730ca9788c6b0bc12cc4d218eea0758d4dedc9d719eadbe9fdc01aed9c1eca03`）
-- run.out: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.out`（SHA-256 `6aa8706817b21539a8c88c9beefc1d62542a40c845a5ad9daee18cb181070505`）
-- run.err: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.err`（SHA-256 `0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f`）
-- stats.txt: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/stats.txt`（SHA-256 `6eebe8976ef7df1a626234267199bc388d173dbf7041607b76c26a475e15290e`；`board.chaos_armtlb.numFaultsInjected=1`）
-- 正常 EOF: **是**（gzip 解压到 EOF 无错：True）
-- truncated: **False**（本次以 cap=3,000,000 读流；未触发 200k EVENT_CAP）
-- 原始事件总数: 428；代表故障 `fault_id=1` 事件数: 428；权威报告 fault 数: 1
-- 是否经过离线重判: 否
-- 其它同 (RunID, seed) 证据目录的分类见 `../R6-AUTHORITATIVE-EVIDENCE.md`。
-
-## 一行传播图
-
-`VA=0xffffffc009483eb8，PFN 0x81d75→0x800081d75，PA 0x81d75eb8→0x800081d75eb8（无 tlb_translate_result，PA 取自 tlb_pfn） → TLB 地址翻译 → cache lookup → MSHR alloc/fill → response → taint_reg(clean→tainted) → errant_commit(L5) → Kernel OOPS / Crash`
-
-## 第一部分：详细、可读的完整传播过程
-
-### 第 1 步：故障注入
-
-发生了什么：注入器在命中表项上写入故障。目标字段 `bit_flip` 从 `81d75` 变成 `800081d75`（mask=0x800000000；PFN 0x81d75→0x800081d75），被改写的 TLB 表项随后会被真实查找读取。
-
-- **event_id=`0`；parent_event_id=`—`；tick=`237950233911`；fault_id=`1`；corr=`origin`；request_id=`—`；dyn_inst_seq=`—`**
-  - 硬件结构/事件：注入器在被命中的 DTLB 表项写入故障；before→after 即目标字段被改变后的取值。
-  - 地址/身份：VA=`0xffffffc009483eb8`
-  - 值变化：before=`81d75`→after=`800081d75`；field=`bit_flip`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L0**
-  - 注入日志行：`Tick: 237950233911, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483eb8, old_pfn: 0x81d75, new_pfn: 0x800081d75, FaultType: bit_flip, Mask: 0x800000000`
-  - 是否真实改变目标值：**是**（before≠after: True）
-  - 是否真实激活：**是**（run.out 注入器汇总：`CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F0 attempted=150217 eligible=2 injected=1 first_eligible_tick=237950233578 last_eligible_tick=237950233911 (activated=W3-L0-layer)`）
-  - 为什么把故障传给下一步：故障值已经写入目标 TLB 表项；下一次对该表项的查找会读到被改写的字段，因此故障由注入点（L0）传递给 TLB 查询/翻译（L1/L2）。
-
-### 第 2 步：TLB 查询与地址翻译
-
-发生了什么：TLB 查找/翻译路径读取了被污染的表项，并把故障 PFN 物化为物理地址。
-
-- **event_id=`1`；parent_event_id=`0`；tick=`237950233911`；fault_id=`1`；corr=`addr_fallback`；request_id=`0`；dyn_inst_seq=`0`**
-  - 硬件结构/事件：TLB 查找命中并返回（已含故障的）表项；state_before/state_after 对比可见 pfn 与 pa 字段。
-  - 地址/身份：VA=`0xffffffc009483eb8`；PFN=`81d75`→`800081d75`
-  - 值变化：before=`81d75`→after=`800081d75`；field=`post_lookup`；state_before=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75eb8`；state_after=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=800081d75;ap=0;mtype=2;page_size=1000;pa=800081d75eb8`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L1**
-  - state 对比：pfn `81d75`→`800081d75`；pa `81d75eb8`→`800081d75eb8`
-- **event_id=`2`；parent_event_id=`1`；tick=`237950233911`；fault_id=`1`；corr=`addr_fallback`；request_id=`0`；dyn_inst_seq=`0`**
-  - 硬件结构/事件：从 TLB 表项取出的 PFN 已带故障，据此拼出物理地址 PA；故障从结构域进入地址翻译域。
-  - 地址/身份：VA=`0xffffffc009483eb8`；PA=`0x800081d75eb8`；PFN=`81d75`→`800081d75`
-  - 值变化：before=`81d75`→after=`800081d75`；field=`bit_flip`；state_before=`81d75eb8`；state_after=`800081d75eb8`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L2**
-  - 为什么把故障传给下一步：该 seed 的祖先里没有 `tlb_translate_result` 事件；原始流事实是 `tlb_pfn` 的 PA 直接进入 L3 请求，故不据未记录事件推断翻译比对结果（不猜测）。
-
-### 第 3 步：进入 Load Queue 或 Store Queue
-
-N/A：该 seed 的代表链在 `parent_event_id` 上从 L2 事件直接进入 L3 的 cache 访问，原始流没有为该请求记录 `lsq_push`/`lq_read`；本文件不推断未记录的结构。
-
-### 第 4 步：缓存和 MSHR 传播
-
-发生了什么：以错误 PA 访问 L1D，命中/失效决策与 MSHR 分配/合并/填充/释放如实记录；错误地址被 cache/MSHR 状态接受。
-
-- **event_id=`3`；parent_event_id=`2`；tick=`237950235576`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：以错误 PA 访问 L1D（tag 查找/数据访问）。
-  - 地址/身份：VA=`0xffffffc009483eb8`；PA=`0x800081d75eb8`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`4`；parent_event_id=`3`；tick=`237950235576`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：L1D 返回访问结果（field=miss/hit），错误地址已被接受。
-  - 地址/身份：PA=`0x800081d75eb8`
-  - 值变化：field=`miss`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - hit/miss 决策：field=`miss`
-- **event_id=`5`；parent_event_id=`4`；tick=`237950235576`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：为该错误物理地址分配 MSHR（内存级未完成请求登记）。
-  - 地址/身份：cache_line=`0x800081d75eb8`；mshr_id=`1`
-  - 值变化：state_before=`—`；state_after=`mshr_allocated`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`1`；cache_line=`0x800081d75eb8`
-- **event_id=`6`；parent_event_id=`5`；tick=`237950235909`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：以错误 PA 访问 L1D（tag 查找/数据访问）。
-  - 地址/身份：VA=`0xffffffc009483eb8`；PA=`0x800081d75e80`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`7`；parent_event_id=`6`；tick=`237950235909`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：L1D 返回访问结果（field=miss/hit），错误地址已被接受。
-  - 地址/身份：PA=`0x800081d75e80`
-  - 值变化：field=`miss`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - hit/miss 决策：field=`miss`
-- **event_id=`8`；parent_event_id=`7`；tick=`237950235909`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：为该错误物理地址分配 MSHR（内存级未完成请求登记）。
-  - 地址/身份：cache_line=`0x800081d75e80`；mshr_id=`2`
-  - 值变化：state_before=`—`；state_after=`mshr_allocated`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`2`；cache_line=`0x800081d75e80`
-  - 为什么把故障传给下一步：以错误 PA 访问 L1D 得到 miss（并触发 MSHR 分配/合并/填充）；错误地址被 MSHR/cache 接受并完成响应路径，因此污染数据/状态传给返回处理器的响应。
-
-### 第 5 步：错误数据或污染状态返回处理器
-
-发生了什么：响应返回 LSU，污染数据被交付；若出现 `taint_reg`，污染从存储域进入寄存器域。
-
-- **event_id=`60`；parent_event_id=`8`；tick=`237950344134`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：内存/cache 响应返回；该响应对应的数据/地址带故障（或把污染值交付给 LSU）。
-  - 地址/身份：VA=`0x800081d75eb8`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`61`；parent_event_id=`60`；tick=`237950344134`；fault_id=`1`；corr=`addr_fallback`；request_id=`32`；dyn_inst_seq=`32`**
-  - 硬件结构/事件：污染数据写入目标体系结构/物理寄存器，并被打上 taint 标记；传播从存储域进入寄存器域。
-  - 地址/身份：VA=`0x800081d75eb8`
-  - 值变化：before=`clean`→after=`tainted`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L4**
-  - 为什么把故障传给下一步：污染数据已经写入寄存器（`clean→tainted`）；该寄存器随后被下游指令消费，污染从存储域进入寄存器/提交域，故传给 L4/L5 的最终判定。
-
-### 第 6 步：最终传播终局
-
-情况 A：真实 L5 逃逸。
-
-- **event_id=`259`；parent_event_id=`61`；tick=`237951515628`；fault_id=`1`；corr=`taint_prop`；request_id=`—`；dyn_inst_seq=`391`**
-  - 硬件结构/事件：携带污染值的指令错误提交：错误副作用越过重定序/提交边界，构成 L5 逃逸终局（detection_layer=L5, outcome=errant_commit）。
-  - 地址/身份：—（该事件无地址字段）
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`L5`；contained=`0`；outcome=`errant_commit`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L5（检测；观测层 L4）**
-  - 说明：该 `errant_commit` 的 `detection_layer=L5`、`outcome=errant_commit`、`corr=taint_prop`，是**真实检测/结局事件**，不是生命周期 `chain_end`；按 checker 的 `_L4_TERMINAL_KINDS`/`_explicit_l5` 判定构成 `full` 终局。
-  - 为什么这是终局：`errant_commit` 表明携带污染值的指令已经越过提交边界，错误副作用不可撤销；这是真实 L5 终局（不是生命周期 `chain_end`）。
-  - L0–L5：L0 注入 → L1 lookup → L2 PFN/PA → L3 LQ/cache/MSHR → L4 taint_reg → **L5 errant_commit** 全部有事件。
-
-### 第 7 步：仿真运行的最终表现
-
-**传播链终局**：L5 `errant_commit`（event_id=`259`, tick=`237951515628`）——真实错误提交已发生。
-
-**运行结局（与传播链终局分开陈述）**：oracle=`Crash`；实际表现：KERNEL OOPS under fault（run.out: classify: Crash/DUE per fs_mode）。
-
-run.out 的 CHAOS_DETECT 行（共 1 行，节选）：
-- `CHAOS_DETECT: layer=None contained=0 tick=237951515628 ptag=1 reason=errant_commit`
-
-说明：真实 L5 逃逸与 Kernel OOPS/Crash 一致——错误提交已越过提交边界，运行以崩溃收场。
-
-## 第二部分：技术证据与逐事件记录
-
-| 序号 | event_id | parent_event_id | tick | kind | layer | fault_id | corr | request_id | sample_run_id | VA | PA/address | old_pfn/new_pfn | old_value/new_value | mask | contained | detection_layer | outcome | reason | 与上一事件的关系 | 在人话版中的作用 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 0 | — | 237950233911 | `inj` | L0 | 1 | origin | — | s2 | 0xffffffc009483eb8 | — | 0x81d75→0x800081d75 | 81d75→800081d75 | 0x800000000 | — | — | — | — | 起点 | L0 注入 |
-| 2 | 1 | 0 | 237950233911 | `tlb_lookup` | L1 | 1 | addr_fallback | 0 | s2 | 0xffffffc009483eb8 | — | 0x81d75→0x800081d75 | 81d75→800081d75 | — | — | — | — | — | 直接 parent（parent=0）；corr origin→addr_fallback | L1 单元内观察 |
-| 3 | 2 | 1 | 237950233911 | `tlb_pfn` | L2 | 1 | addr_fallback | 0 | s2 | 0xffffffc009483eb8 | 0x800081d75eb8 | 0x81d75→0x800081d75 | 81d75→800081d75 | — | — | — | — | — | 直接 parent（parent=1） | L2 地址物化 |
-| 4 | 3 | 2 | 237950235576 | `cache_access` | L3 | 1 | addr_fallback | 32 | s2 | 0xffffffc009483eb8 | 0x800081d75eb8 | — | —→— | — | — | — | — | — | 直接 parent（parent=2）；request_id 0→32 | L3 cache 查找 |
-| 5 | 4 | 3 | 237950235576 | `cache_return` | L3 | 1 | addr_fallback | 32 | s2 | — | 0x800081d75eb8 | — | —→— | — | — | — | — | — | 直接 parent（parent=3） | L3 hit/miss 决策 |
-| 6 | 5 | 4 | 237950235576 | `mshr_alloc` | L3 | 1 | addr_fallback | 32 | s2 | — | 0x800081d75eb8 | — | —→mshr_allocated | — | — | — | — | — | 直接 parent（parent=4） | L3 MSHR 分配 |
-| 7 | 6 | 5 | 237950235909 | `cache_access` | L3 | 1 | addr_fallback | 32 | s2 | 0xffffffc009483eb8 | 0x800081d75e80 | — | —→— | — | — | — | — | — | 直接 parent（parent=5） | L3 cache 查找 |
-| 8 | 7 | 6 | 237950235909 | `cache_return` | L3 | 1 | addr_fallback | 32 | s2 | — | 0x800081d75e80 | — | —→— | — | — | — | — | — | 直接 parent（parent=6） | L3 hit/miss 决策 |
-| 9 | 8 | 7 | 237950235909 | `mshr_alloc` | L3 | 1 | addr_fallback | 32 | s2 | — | 0x800081d75e80 | — | —→mshr_allocated | — | — | — | — | — | 直接 parent（parent=7） | L3 MSHR 分配 |
-| 10 | 60 | 8 | 237950344134 | `resp` | L3 | 1 | addr_fallback | 32 | s2 | 0x800081d75eb8 | — | — | —→— | — | — | — | — | — | 直接 parent（parent=8） | L3 响应返回 |
-| 11 | 61 | 60 | 237950344134 | `taint_reg` | L4 | 1 | addr_fallback | 32 | s2 | 0x800081d75eb8 | — | — | clean→tainted | — | — | — | — | — | 直接 parent（parent=60） | L4 污染寄存器 |
-| 12 | 259 | 61 | 237951515628 | `errant_commit` | L5（检测；观测层 L4） | 1 | taint_prop | — | s2 | — | — | — | —→— | — | 0 | L5 | errant_commit | — | 直接 parent（parent=61）；corr addr_fallback→taint_prop | L5 错误提交（终局） |
+# T01-F0-W4 seed2 故障传播与最终结局
 
-说明：本表逐条列出代表故障 `fault_id=1` 从 `inj` 到终局见证的**完整单祖先链**（12 条），不是 checker 的六锚点摘要；每一行的 `parent_event_id` 都等于上一行的 `event_id`（第 1 行除外）。`mask` 只对注入事件有意义；`reason` 列是 `containment_reason`。
-## 相关旁支和未进入最终 ancestry 的事件
+## 1. 实验身份与复现信息
 
-本 seed 原始事件总数 **428**；代表故障 `fault_id=1` 的事件数 **428**；进入最终 ancestry 的事件 **12**；未进入最终 ancestry 的同 fault 事件 **416**。
+| 项 | 值 |
+|---|---|
+| RunID | `T01-F0-W4` |
+| seed | `2` |
+| sample_run_id | `s2` |
+| 单元 | `L1d-TLB`（矩阵"单元"；注入器 `CHAOSArmTLB`，位点 `arm_tlb_lookup_hit`） |
+| fault model | 矩阵原文：随机选有效表项的 VPN tag 翻转 1 bit、注入后再次命中才计 activated。**证据实际翻转的是表项 PFN**（注入日志 `old_pfn/new_pfn`；传播状态 `pfn=`）。字段口径差异见 §2.2 与 §6。 |
+| fault type | `单比特翻转`（`bit_flip`） |
+| frequency tier | `F0` |
+| requested tier | `F0` |
+| effective tier | `F0` |
+| tier enabled | `关闭(0)`（run.out `CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0`） |
+| workload 矩阵标签 | `TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）` |
+| run.out 实际 workload/readfile | `--readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS`（与矩阵标签一致） |
+| 完整启动命令 | `gem5.opt --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/lsu_b0_fs.py --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015 --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type bit_flip --tlb_rng_seed 2 --chaos_propagation --prop_run_id T01-F0-W4 --prop_sample_run_id s2` |
+| source head | `bc82f29d8f69410461d18c07a1ee9314f18885a5`（manifest.source_head） |
+| binary source head | `N/A`（manifest 无 `binary_source_head`） |
+| binary path | `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt` |
+| binary SHA-256 | `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959` |
+| analysis tool head | `4af986f726a6791f441130dee19eca0711e0b38f`（本 doc set 引入提交；未重跑 gem5。manifest 运行期记录为 `bc82f29d...`） |
+| checker SHA-256 | `baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44` |
+| evidence root | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2` |
+| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/manifest.json` |
+| 正常 EOF | **是**（gzip 解压到 EOF 无异常，解压后 296123 字节） |
+| exit_code | `0`（manifest.exit_code=0；`.exit_code`=0） |
+| truncated | **False** |
+| stats 是否有效 | **是**：完整 footer；`simTicks=932479587`、`simInsts=382207`、`finalTick=238882276602` |
+| 原始事件数 | `428` |
+| fault_id 数量 | `1`（全部 428 条事件属 `fault_id=1`） |
+| 是否经过离线 regrade | **否** |
 
-以下旁支事件**不参与**主链的单祖先证明，**绝不**合并进主链。判定理由：沿终局见证的 `parent_event_id` 逐级回溯不会经过这些事件——它们是同一 fault 的其它并发请求、其它 load 实例或其它检测点，只有主链上的事件才共享同一条可证祖先路径。
+补充：DTLB=32 / LQ=16 / SQ=16；检查点 `cpt.237949797015`。
 
-| kind | 数量 | event_id 范围 | tick 范围 | 处理方式 | 异常成员检查 |
-|---|---|---|---|---|---|
-| `cache_access` | 65 | 9–361 | 237950235909–237965093370 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `cache_return` | 65 | 10–362 | 237950235909–237965093370 | 不折叠：全量 hit/miss 索引（见下）；分布 {'miss': 65} | 无（outcome/contained 全空） |
-| `consumer` | 65 | 260–374 | 237951515628–237965257206 | 折叠为计数 + 范围（见下） | 无（outcome/contained 全空） |
-| `request_fork` | 52 | 4294967296–4294967347 | 237950235909–237965093037 | 旁支 bridge：计数 + 首尾点名（主链 bridge 已在第二部分逐条） | 无（outcome/contained 全空） |
-| `resp` | 50 | 62–364 | 237950344467–237965201595 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `taint_reg` | 50 | 63–366 | 237950344467–237965201595 | 不折叠：全量身份索引（见下） | 无（outcome/contained 全空） |
-| `mshr_merge` | 39 | 17–288 | 237950236242–237951760383 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-| `mshr_alloc` | 26 | 11–363 | 237950235909–237965093370 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-| `lq_complete` | 3 | 257–365 | 237951514629–237965201595 | 计数 + 范围 | 无（outcome/contained 全空） |
+## 2. 完整故障传播过程：从注入到最终结局
 
-**每层第一个旁支事件（不折叠）**：
+本 seed 的终局是真实 L5：`errant_commit`（`event_id=259`，tick=`237951515628`，`detection_layer=L5`，`contained=0`，`outcome=errant_commit`）。按 `parent_event_id` 回溯得到唯一祖先链：
 
-| 层 | kind | event_id | tick |
-|---|---|---|---|
-| L3 | `request_fork` | 4294967296 | 237950235909 |
-| L4 | `taint_reg` | 63 | 237950344467 |
+`0(inj) → 1(tlb_lookup) → 2(tlb_pfn) → 3(cache_access) → 4(cache_return) → 5(mshr_alloc) → 6(cache_access) → 7(cache_return) → 8(mshr_alloc) → 60(resp) → 61(taint_reg) → 259(errant_commit)`
 
-**`consumer` 折叠说明**（唯一允许折叠的 kind）：kind=`consumer`；count=65；event_id 范围 `260`–`374`；tick 范围 `237951515628`–`237965257206`；corr 分布 {'taint_prop': 65}；outcome 分布 {'': 65}；contained 分布 {'': 65}；可折叠理由：这些是同一故障的重复下游读取（可能跨多个 dyn_inst_seq/寄存器），不承担 L0–L5 任一层的首次见证，不驱动 admission/violation；异常成员：无（原始流中逐条保留，未删除）。
+共 12 条事件。祖先链内 tick 单调不降（同 tick 的连续段分别是 237950233911、237950235576、237950235909、237950344134；最后跨到 237951515628）。这里有一个必须点明的结构事实：**本 seed 的 fault 1 流里根本没有 `tlb_translate_result` 事件**，L2 锚点由 `tlb_pfn` 承担（`chain_report.path_event_ids=['0','1','2','3','61','259']`）；也就是说，本 seed 没有发生"翻译结果比对"这一步，缺失是结构性缺席，不是"比对结果为 0"或"NoFault"。
 
-**`taint_reg` 旁支（不折叠）**：count=50；event_id `63`–`366`；tick `237950344467`–`237965201595`；distinct dyn_inst_seq=50；distinct phys_reg=4；distinct arch_reg=3；corr 分布 {'addr_fallback': 50}；outcome 分布 {'': 50}；contained 分布 {'': 50}；sample_run 分布 {'s2': 50}。
+### 2.1 故障注入前的正常状态
 
-首 8 条 / 末 8 条（身份可回查；其余全部保留在原始流中）：
+被污染的翻译属于一次 `dyn_inst_seq=32`、`request_id=32` 的访问（注入事件本身没有 identity 字段，身份由紧随其后的 `tlb_lookup` 与 `tlb_pfn` 以 `request_id=0`/`dyn_inst_seq=0` 的 `addr_fallback` 记录开路，随后在 `cache_access` 以 `request_id=32`/`dyn_inst_seq=32` 落定；这一身份变化见 §2.4）。VA=`0xffffffc009483eb8`，页内偏移 `0xeb8`。表项在注入前正常：`vpn=ffffffc009483`、`asid=206`、`valid=1`、`global=1`、`pfn=81d75`、`ap=0`、`mtype=2`、`page_size=1000`（4 KiB），正常 PA=`0x81d75eb8`。目标表项 `entry_index=0`，`walk_id=0`。访问类型（load/store）在本链中没有 LQ/SQ 事件，记为 `N/A`。
 
-| event_id | tick | parent | dyn_inst_seq | arch_reg/phys_reg | before→after | corr |
-|---|---|---|---|---|---|---|
-| 63 | 237950344467 | 62 | 34 | —/— | clean→tainted | addr_fallback |
-| 65 | 237950344468 | 64 | 35 | —/— | clean→tainted | addr_fallback |
-| 67 | 237950344469 | 66 | 37 | —/— | clean→tainted | addr_fallback |
-| 69 | 237950344470 | 68 | 38 | —/— | clean→tainted | addr_fallback |
-| 71 | 237950344471 | 70 | 40 | —/— | clean→tainted | addr_fallback |
-| 73 | 237950344472 | 72 | 41 | —/— | clean→tainted | addr_fallback |
-| 75 | 237950344473 | 74 | 43 | —/— | clean→tainted | addr_fallback |
-| 77 | 237950344474 | 76 | 44 | —/— | clean→tainted | addr_fallback |
-| 249 | 237951402744 | 248 | 386 | —/— | clean→tainted | addr_fallback |
-| 258 | 237951514629 | 257 | 391 | 0/142 | clean→tainted | addr_fallback |
-| 274 | 237951708102 | 273 | 496 | —/— | clean→tainted | addr_fallback |
-| 276 | 237951708103 | 275 | 497 | —/— | clean→tainted | addr_fallback |
-| 290 | 237951823986 | 289 | 543 | —/— | clean→tainted | addr_fallback |
-| 292 | 237951823987 | 291 | 544 | —/— | clean→tainted | addr_fallback |
-| 301 | 237957518619 | 300 | 3967 | 0/147 | clean→tainted | addr_fallback |
-| 366 | 237965201595 | 365 | 10559 | 1/231 | clean→tainted | addr_fallback |
+### 2.2 故障具体如何注入
 
-<details><summary><b>taint_reg 全量身份索引（50 条，不折叠，逐条列出）</b></summary>
+`event_id=0`，tick=`237950233911`，`site=arm_tlb_lookup_hit`，`fault_id=1`，`corr=origin`，`field=bit_flip`；该注入事件没有 `request_id`/`dyn_inst_seq` 字段（原文为空）。注入日志：`Mask: 0x800000000`，即 PFN 第 35 位。原 PFN `0x81d75` 异或后得到 `0x800081d75`：把数值变化讲完整——第 35 位由 0 变 1，表项保存的 PFN 从 `0x81d75` 变成 `0x8_0008_1d75`，其余位不变。与 seed1/seed3 不同，这一次翻转位落在物理地址可见宽度以内：PFN 左移 12 位后，第 35 位落在物理地址的第 47 位，仍然属于有效 PA 的一部分。因此有效 PA 从 `0x81d75eb8` 变成 `0x800081d75eb8`，`effective_pa_changed` 为真。这是本 seed 与两个含住 seed 的分水岭。
 
-63@237950344467(—/—) 65@237950344468(—/—) 67@237950344469(—/—) 69@237950344470(—/—) 71@237950344471(—/—) 73@237950344472(—/—) 75@237950344473(—/—) 77@237950344474(—/—)
+同样需要记录：注入符合"单次 XOR、选有效表项、以下游读取为激活口径"，但字段是 PFN 而非矩阵所写的 VPN tag（§6）。
 
-94@237950347131(—/—) 96@237950347132(—/—) 98@237950347133(—/—) 100@237950347134(—/—) 102@237950347135(—/—) 104@237950347136(—/—) 106@237950347137(—/—) 108@237950347138(—/—)
+### 2.3 TLB 查询与地址翻译
 
-140@237950454690(—/—) 142@237950454691(—/—) 144@237950454692(—/—) 146@237950454693(—/—) 148@237950454694(—/—) 150@237950454695(—/—) 152@237950454696(—/—) 154@237950454697(—/—)
+`event_id=1`（`tlb_lookup`，parent=0，tick=`237950233911`）记录 `entry_index=0`、`walk_id=0`、`field=post_lookup`，`before=81d75`、`after=800081d75`；`state_before` 的 `pa=81d75eb8`、`state_after` 的 `pa=800081d75eb8`，同时 `pfn` 变为 `800081d75`。这里查找不仅读到了污染 PFN，而且物化出的 PA 已经改变。
 
-156@237950458353(—/—) 158@237950458354(—/—) 160@237950458355(—/—) 162@237950458356(—/—) 191@237951093717(—/—) 193@237951093718(—/—) 195@237951093719(—/—) 197@237951093720(—/—)
+`event_id=2`（`tlb_pfn`，parent=1）把这个物化结果独立记录一次：`pa=800081d75eb8`、`state_before=81d75eb8`、`state_after=800081d75eb8`。语义上这是"L2 地址物化"：请求从此刻起携带一个错误的物理地址。与 seed1/seed3 的关键差别是，**本 seed 没有 `tlb_translate_result`**，因此没有任何事件去比较 requested/effective PA，也没有任何 `contained=1` 的 L2 记录。下游因此完全信任这个错误 PA——这正是它能够走到 L5 的结构原因。
 
-199@237951094050(—/—) 201@237951094051(—/—) 203@237951094052(—/—) 220@237951239904(—/—) 222@237951239905(—/—) 224@237951239906(—/—) 226@237951239907(—/—) 243@237951402741(—/—)
+### 2.4 错误如何进入 LQ/SQ/LSQ
 
-245@237951402742(—/—) 247@237951402743(—/—) 249@237951402744(—/—) 258@237951514629(0/142) 274@237951708102(—/—) 276@237951708103(—/—) 290@237951823986(—/—) 292@237951823987(—/—)
+本链没有 `lsq_push`/`lq_read`/`sq_execute`/`sq_writeback`/`lq_complete`/`sq_complete`，因此"进入队列"这一步的具体动作记为 `N/A`（证据缺席）。但错误 PA 确实进入了访存路径：`event_id=3`（`cache_access`，parent=2，tick=`237950235576`）以 `request_id=32`、`dyn_inst_seq=32`、`corr=addr_fallback` 携带 `pa=800081d75eb8` 发起第一次访问。这里发生了本链唯一的身份切换：注入与 lookup 记录的是 `request_id=0`/`dyn_inst_seq=0`（未盖戳），而 cache 侧把请求归到真实的 `32/32`；`corr=addr_fallback` 就是这次关联的注记。parent 指针保证它与前一步同属一条祖先链，身份差异是记录口径，不是跨链拼接。
 
-301@237957518619(0/147) 366@237965201595(1/231)
+### 2.5 错误如何经过 cache 和 MSHR
 
-</details>
+错误 PA 在 L1D 侧经历了两次访问、两次未命中、两次 MSHR 分配：
 
-<details><summary><b>cache_return 全量 hit/miss 决策索引（65 条，不折叠）</b></summary>
+第一次，`event_id=3`（`cache_access`）在 `pa=800081d75eb8` 访问，`event_id=4`（`cache_return`，parent=3）记录 `field=miss`，随后 `event_id=5`（`mshr_alloc`，parent=4）记录 `cache_line=800081d75eb8`、`mshr_id=1`、`state_after=mshr_allocated`。这说明首次访问的行地址就是该 PA 本身，且未命中。
 
-10@237950235909:miss 13@237950236242:miss 16@237950236242:miss 19@237950236575:miss 22@237950236908:miss 25@237950237241:miss 28@237950237574:miss 31@237950237907:miss
+第二次，`event_id=6`（`cache_access`，parent=5，tick=`237950235909`）以 `pa=800081d75e80` 访问——这是同一 64 字节行（`0x...eb8 & ~0x3f = 0x...e80`）的行基址；`event_id=7` 记录 `field=miss`，`event_id=8` 记录 `cache_line=800081d75e80`、`mshr_id=2`、`state_after=mshr_allocated`。两次未命中说明该行在 L1D 中不存在；两次 MSHR 分配说明请求被挂起等待下层。
 
-34@237950238240:miss 37@237950238573:miss 40@237950238906:miss 43@237950238906:miss 46@237950239239:miss 49@237950239572:miss 52@237950239905:miss 55@237950240238:miss
+本链的返回发生在 `event_id=60`（`resp`，parent=8，tick=`237950344134`）：它直接以 `mshr_alloc`（event 8）为父，记录 `request_id=32`、`dyn_inst_seq=32`、`va=800081d75eb8`。**注意：本链的祖先里没有 `mshr_fill`/`cache_fill`/`mshr_free`**，这些填充事件存在于同一 fault 的旁支（§5），但不在终局见证的祖先上；因此本条主链只能证明"请求挂入 MSHR 后收到 response"，不能凭空描述 fill 的状态迁移。两次访问仍属同一 fault，因为它们的 `fault_id=1`、`parent_event_path` 连续，且第二次访问的地址是第一次访问同一行的对齐形式。
 
-58@237950297181:miss 79@237950345799:miss 82@237950346132:miss 85@237950346465:miss 88@237950346465:miss 91@237950346798:miss 110@237950347464:miss 113@237950349129:miss
+### 2.6 污染如何返回处理器状态
 
-116@237950349129:miss 119@237950349129:miss 122@237950349129:miss 125@237950349795:miss 128@237950350128:miss 131@237950350128:miss 134@237950350461:miss 137@237950350461:miss
+`event_id=61`（`taint_reg`，parent=60，tick=`237950344134`）把响应携带的污点落到处理器状态：`request_id=32`、`dyn_inst_seq=32`、`va=800081d75eb8`、`field` 记为 `clean→tainted`（`before=clean`、`after=tainted`）。这是存储→CPU 的边界：在此之前的错误都还只是"存储/缓存里的地址与数据"，从此之后被污染的值进入寄存器状态。证据限制：本事件的 `arch_reg`/`phys_reg` 为空，因此**无法从本 seed 的证据给出具体寄存器号**；这条盲点必须保留，不能用猜测补上。
 
-164@237950985159:miss 167@237950985159:miss 170@237950985159:miss 173@237950985159:miss 176@237950985492:miss 179@237950985825:miss 182@237950985825:miss 185@237950985825:miss
+### 2.7 最终传播终局
 
-188@237950986158:miss 205@237951131346:miss 208@237951131346:miss 211@237951131679:miss 214@237951178299:miss 217@237951178299:miss 228@237951294183:miss 231@237951294183:miss
+真实 L5 是 `errant_commit`（`event_id=259`，parent=61，tick=`237951515628`）：`detection_layer=L5`、`contained=0`、`outcome=errant_commit`、`corr=taint_prop`，并且明确记录 `dyn_inst_seq=391`、`pc=ffffffc0087b1000`、`commit_seq=161`。它与上游的关系是"被污染状态在提交端第一次形成架构可见的差异"：被污染的是一个更年轻的指令（`dyn_inst_seq=391`），而不是最初那次访问（`32`），说明污染沿寄存器依赖传播到了后续指令。为什么在提交前没有被消除？因为本 seed 的链上不存在任何拦截机制：没有 `tlb_translate_result`（L2 比对缺席）、没有 `squash_masked`（L4 无 squash 收口）、也没有其它 `contained=1` 事件。错误因此在 L5 直接可见。
 
-234@237951294516:miss 237@237951294516:miss 240@237951294516:miss 251@237951406071:miss 254@237951406404:miss 262@237951599544:miss 265@237951599544:miss 268@237951599877:miss
+`chain_end`（`event_id=375`，tick=`238882276602`，`detection_layer=L5`，`contained=1`，`outcome=errant_commit_seen`）只是流关闭记录，**不是 L5 见证**，不能替代 event 259；L5 的唯一见证是 event 259。
 
-271@237951658485:miss 278@237951715428:miss 281@237951715428:miss 284@237951715761:miss 287@237951760383:miss 294@237957410061:miss 297@237957410394:miss 359@237965093037:miss
+### 2.8 从传播终局到系统表现
 
-362@237965093370:miss
+传播终局是 L5 `errant_commit`（L5）；`provable_to=L5`；运行结局 `Crash`。run.out 中能证明症状的两行是：
 
-</details>
+- `CHAOS_DETECT: layer=None contained=0 tick=237951515628 ptag=1 reason=errant_commit`（错误提交已被记录，且 `contained=0`）
+- `[arm_chaos_fs] KERNEL OOPS under fault — exiting (classify: Crash/DUE per fs_mode)`
 
-<details><summary><b>MSHR alloc/merge/fill/free 全量索引（65 条，不折叠）</b></summary>
+run.err 的证据是 `src/kern/linux/events.cc:64: warn: Kernel oops in guest` 与随后的 `Dumping kernel dmesg buffer to board.workload.dmesg...`；guest dmesg 记录：
 
-11@237950235909:mshr_alloc:mshr=3,fill=— 14@237950236242:mshr_alloc:mshr=4,fill=— 17@237950236242:mshr_merge:mshr=4,fill=— 20@237950236575:mshr_merge:mshr=4,fill=—
+- `[2.160000] Unable to handle kernel paging request at virtual address 0b8542c0087b0c40`
+- `[2.160000] Internal error: Oops: 86000004 [#1] PREEMPT SMP`
+- `[2.160000] Call trace:`
 
-23@237950236908:mshr_merge:mshr=4,fill=— 26@237950237241:mshr_merge:mshr=4,fill=— 29@237950237574:mshr_merge:mshr=4,fill=— 32@237950237907:mshr_merge:mshr=4,fill=—
+注入 tick=`237950233911`，错误提交 tick=`237951515628`，传播延迟 **1,281,717 ticks**。L5→Crash 的因果链是成立的：错误提交发生在崩溃之前，随后 guest 内核在访问一个畸形地址时触发 Oops；本证据不能进一步给出该畸形地址与错误 PA 之间的逐位对应，故只陈述时序与事件类型，不虚构微观机理。链终止（`chain_end`）tick=`238882276602`，即运行结束时刻，晚于错误提交 932,042,691 ticks。
 
-35@237950238240:mshr_merge:mshr=4,fill=— 38@237950238573:mshr_alloc:mshr=5,fill=— 41@237950238906:mshr_alloc:mshr=6,fill=— 44@237950238906:mshr_merge:mshr=6,fill=—
+### 2.9 实际通过的单元（主链）
+
+| 单元 | 输入 | 内部变化 | 输出 | 传播意义 |
+|---|---|---|---|---|
+| L0 注入器 | 有效表项 | PFN bit35 置 1 | 污染 PFN | 故障源 |
+| L1 DTLB lookup | 命中查找（req 未盖戳） | 读到 `pfn=800081d75` | 污染表项，PA 变为 `800081d75eb8` | 激活，且有效 PA 改变 |
+| L2 DTLB→MMU PA | 污染 PFN + 偏移 0xeb8 | 物化出错误 PA | `pa=800081d75eb8` | 错误地址进入下游 |
+| L2 MMU translate result | — | — | — | `N/A`：本 fault 无该事件（比对机制缺席） |
+| L3 L1D | 错误 PA 第一次访问 | 未命中 | `cache_return miss` | 错误地址被真实消费 |
+| L3 MSHR | miss 请求 | 分配 MSHR 1 | `mshr_alloc, line=...eb8` | 挂起等待 |
+| L3 L1D | 同一行基址 `...e80` 再次访问 | 未命中 | `cache_return miss` | 第二次消费同一错误行 |
+| L3 MSHR | 第二次 miss | 分配 MSHR 2 | `mshr_alloc, line=...e80` | 挂起等待 |
+| L3 L1D→core resp | MSHR 2 的返回 | 返回数据/响应 | `resp`（req=32, va=...eb8） | 污染回到核心侧 |
+| L4 taint/regfile | response | clean→tainted | 污染寄存器状态 | 存储→CPU 边界 |
+| L5 ROB/commit | 被污染状态 | 首次错误提交 | `errant_commit, dseq=391, pc=...7b1000` | 架构可见错误 |
+| LQ/SQ | — | — | — | `N/A`（本链无队列事件） |
 
-47@237950239239:mshr_merge:mshr=6,fill=— 50@237950239572:mshr_merge:mshr=6,fill=— 53@237950239905:mshr_merge:mshr=6,fill=— 56@237950240238:mshr_merge:mshr=6,fill=—
-
-59@237950297181:mshr_merge:mshr=6,fill=— 80@237950345799:mshr_merge:mshr=6,fill=— 83@237950346132:mshr_alloc:mshr=7,fill=— 86@237950346465:mshr_alloc:mshr=8,fill=—
-
-89@237950346465:mshr_merge:mshr=8,fill=— 92@237950346798:mshr_merge:mshr=8,fill=— 111@237950347464:mshr_merge:mshr=8,fill=— 114@237950349129:mshr_merge:mshr=8,fill=—
-
-117@237950349129:mshr_merge:mshr=8,fill=— 120@237950349129:mshr_merge:mshr=8,fill=— 123@237950349129:mshr_merge:mshr=8,fill=— 126@237950349795:mshr_alloc:mshr=9,fill=—
-
-129@237950350128:mshr_alloc:mshr=10,fill=— 132@237950350128:mshr_merge:mshr=10,fill=— 135@237950350461:mshr_merge:mshr=10,fill=— 138@237950350461:mshr_merge:mshr=10,fill=—
-
-165@237950985159:mshr_alloc:mshr=11,fill=— 168@237950985159:mshr_merge:mshr=11,fill=— 171@237950985159:mshr_alloc:mshr=12,fill=— 174@237950985159:mshr_merge:mshr=12,fill=—
-
-177@237950985492:mshr_alloc:mshr=13,fill=— 180@237950985825:mshr_alloc:mshr=14,fill=— 183@237950985825:mshr_merge:mshr=13,fill=— 186@237950985825:mshr_merge:mshr=13,fill=—
-
-189@237950986158:mshr_merge:mshr=14,fill=— 206@237951131346:mshr_alloc:mshr=15,fill=— 209@237951131346:mshr_merge:mshr=15,fill=— 212@237951131679:mshr_alloc:mshr=16,fill=—
-
-215@237951178299:mshr_merge:mshr=16,fill=— 218@237951178299:mshr_merge:mshr=16,fill=— 229@237951294183:mshr_alloc:mshr=17,fill=— 232@237951294183:mshr_merge:mshr=17,fill=—
-
-235@237951294516:mshr_alloc:mshr=18,fill=— 238@237951294516:mshr_merge:mshr=18,fill=— 241@237951294516:mshr_merge:mshr=18,fill=— 252@237951406071:mshr_alloc:mshr=19,fill=—
-
-255@237951406404:mshr_alloc:mshr=20,fill=— 263@237951599544:mshr_alloc:mshr=21,fill=— 266@237951599544:mshr_merge:mshr=21,fill=— 269@237951599877:mshr_alloc:mshr=22,fill=—
-
-272@237951658485:mshr_merge:mshr=22,fill=— 279@237951715428:mshr_alloc:mshr=23,fill=— 282@237951715428:mshr_merge:mshr=23,fill=— 285@237951715761:mshr_alloc:mshr=24,fill=—
-
-288@237951760383:mshr_merge:mshr=24,fill=— 295@237957410061:mshr_alloc:mshr=25,fill=— 298@237957410394:mshr_alloc:mshr=26,fill=— 360@237965093037:mshr_alloc:mshr=27,fill=—
-
-363@237965093370:mshr_alloc:mshr=28,fill=—
-
-</details>
-
-**旁支 `request_fork` bridge（计数 + 首尾点名）**：共 52 条；event_id `4294967296`–`4294967347`；tick `237950235909`–`237965093037`。主链上的 bridge 已在第二部分逐条列出（source/dest/shared_addr 可核验）；其余 bridge 属于同一故障的其它请求转交，不参与主链证明。
-
-首 5 条 / 末 5 条：
-
-| event_id | tick | old_request_id | new_request_id | source→dest | shared_addr+size |
-|---|---|---|---|---|---|
-| 4294967296 | 237950235909 | 32 | 34 | 8→9 | 0x800081d75000+1000 |
-| 4294967297 | 237950236242 | 32 | 35 | 8→15 | 0x800081d75000+1000 |
-| 4294967298 | 237950236575 | 32 | 37 | 8→18 | 0x800081d75000+1000 |
-| 4294967299 | 237950236908 | 32 | 38 | 8→21 | 0x800081d75000+1000 |
-| 4294967300 | 237950237241 | 32 | 40 | 8→24 | 0x800081d75000+1000 |
-| 4294967343 | 237951715428 | 32 | 543 | 61→277 | 0x800081d75000+1000 |
-| 4294967344 | 237951715428 | 32 | 544 | 61→280 | 0x800081d75000+1000 |
-| 4294967345 | 237951760383 | 32 | 556 | 61→286 | 0x800081d75000+1000 |
-| 4294967346 | 237957410061 | 32 | 3967 | 61→293 | 0x800081d75000+1000 |
-| 4294967347 | 237965093037 | 32 | 10559 | 61→358 | 0x800081d75000+1000 |
-
-**生命周期终止符 `chain_end`（非传播层、非 L5）**：event_id=`375`；tick=`238882276602`；detection_layer=`L5`；contained=`1`；outcome=`errant_commit_seen`；corr=`none`。它由传播监控退出回调发射，只是运行生命周期标记，不占据 L0–L5 任何层，永不作为 L5，也不构成含住证据。
-
-## 最终验收结论
-
-- CHAIN_DEMONSTRATED: **是**（代表故障链在单祖先上从 `inj` 可证到终局见证）
-- terminal: `full`；provable_to: `L5`；propagation terminal: `L5`
-- witness: `errant_commit` event_id=`259` tick=`237951515628`（parent=`61`）
-- admitted: `True`；certified: `True`；violations: `[]`
-- truncated: `False`；gzip EOF 正常: `True`
-- evidence SHA 一致: `重算值已固定记录；plain chain_report 未内嵌 prop_evt SHA（n/a for cross-check）`
-- **PASS**
-
-### 12 项校验清单
-
-| 项 | 结果 | 证据 |
-|---|---|---|
-| 1_event_ids_exist | PASS | referenced ids=65; missing=none |
-| 2_parent_on_same_ancestry | PASS | contiguous parent chain of 12 events |
-| 3_tick_order | PASS | ticks 237950233911..237951515628 monotone=True |
-| 4_values_from_own_seed | PASS | all displayed event fields re-read from own prop_evt |
-| 5_no_cross_seed_identity_copy | PASS | all fault_id=1; prop_evt SHA unique among the 48 seeds |
-| 6_terminal_matches_authoritative_report | PASS | checker=full/L5 report=full/L5 |
-| 7_full_witness_real_L5_not_chain_end | PASS | witness kind=errant_commit id=259 dl=L5 outcome=errant_commit (kind!=chain_end) |
-| 8_containment_witness_real_contained | PASS | n/a (full escape) |
-| 9_narrative_and_table_agree | PASS | narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (12); witness+inj present in both |
-| 10_only_legitimate_shared_injection | PASS | no intra-RunID shared injection |
-| 11_no_runid_path_reuse | PASS | seed_dir/prop/report all carry T01-F0-W4 and seed2 |
-| 12_tier_matches_evidence | PASS | matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0 |
-
-### 证据表
-
-| 证据 | 绝对路径 | SHA-256 |
-|---|---|---|
-| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/prop_evt.txt.gz` | `8c385db13bfc0a717cd55f1d1749a1c0a329d4e34af067ab21c7d752573fd9de` |
-| chain_report/regrade | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/chain_report.json` | `9b3a54333722ad6c39fb1ac643cb24881e2e564d14fcdcc680b455a15cfb595a` |
-| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/manifest.json` | `730ca9788c6b0bc12cc4d218eea0758d4dedc9d719eadbe9fdc01aed9c1eca03` |
-| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.out` | `6aa8706817b21539a8c88c9beefc1d62542a40c845a5ad9daee18cb181070505` |
-| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.err` | `0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f` |
-| stats.txt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/stats.txt` | `6eebe8976ef7df1a626234267199bc388d173dbf7041607b76c26a475e15290e` |
-
-- 原始事件流是否修改：**NO**
-- 是否重新运行 gem5：**NO**
-- 生成时间：`2026-10-27T17:36:59`；仓库 HEAD `6f98088a7144d7f6fb22d985be3023ac5658e71b`；生成脚本 `/tmp/gen_prop_v2.py`（SHA-256 `f33c3dac7656baf8114ff5c11f4effce1c2f10e7e13303c64ab8d54d6e94b8cb`）
+**整链一句话总结**：本 seed 把 DTLB 表项 PFN 的第 35 位置 1，翻转位落在物理地址宽度内，于是有效 PA 由 `0x81d75eb8` 变成 `0x800081d75eb8`；这条翻译没有产生 `tlb_translate_result` 比对，错误 PA 被 L1D 以两次未命中、两次 MSHR 分配消费，经 `resp` 与 `taint_reg` 进入寄存器状态，最终在 L5 由一条更年轻的指令（`dyn_inst_seq=391`）完成真实错误提交，运行随后以 guest 内核 Oops 结束（Crash）。
+
+## 3. SDC 诊断分析
+
+### 3.1 故障是否被激活
+
+注入日志 1 条；run.out `CHAOS_LSU_TRIGGER: attempted=150217 eligible=2 injected=1`；`stats.txt numFaultsInjected=1`。三处一致（injected=1 = stats=1 = 日志 1 条；attempted>0）。污染值被下游真实读取并由 cache、response、taint_reg 一路消费，属于 activated。
+
+### 3.2 故障传播类型
+
+**address 型**：污染 PFN，直接改变 VA→PA。它进而表现为 **wrong cache line / wrong request routing** 的后果——两次 L1D 访问针对 `0x800081d75eb8`/`0x800081d75e80` 这个错误行，而不是正常行；但这只是 address 型故障的下游表现，不是独立类型。不是 data 型（字节内容未被注入器直接改写）、不是 permission（`ap`/`valid` 未变）、不是 control-state（注入器未改控制位）。
+
+### 3.3 首个不可逆传播点
+
+`event_id=2`（`tlb_pfn`）：在这一步，结构已经把一个错误的物理地址物化给了请求，且本 seed **没有**随后的 `tlb_translate_result` 去撤销它。从此刻起，任何下游单元都只能消费这个错误地址。更严格地说，`event_id=3`（第一个 `cache_access`）是错误地址第一次被外部结构真实使用的位置；两者分别代表"决定已做出"与"后果已发生"，本文把 `event_id=2` 记为不可逆点，并在 §2.5 说明 event 3 首次消费它。
+
+### 3.4 检测与掩蔽机制
+
+可能发现该故障的机制：TLB 翻译结果的 PA 比对（本 seed 缺席）、权限/对齐异常（未触发）、L1D 一致性/ECC（`protection: model=none bits=1 -> Raw`，没有 ECC/parity）、squash/replay（本 seed 无 `squash_masked`）、commit 前的架构检查（没有拦截）。实际观察到的检测只有提交端：`CHAOS_DETECT ... reason=errant_commit` 是"事后记录"，不是拦截。检测盲点因此非常明确：当翻转位改变有效 PA、且该翻译没有触发 `tlb_translate_result` 比对时，整条路径没有任何端到端保护，错误会一路到提交端；guest 内核的 Oops 只是错误提交后的后果，不是对故障本身的检测。
+
+### 3.5 最终 SDC 风险判断
+
+存在真实 errant commit（event 259）与架构可见错误（L5），运行以 Crash 结束。因此本 seed **不判 SDC**：错误最终以内核 Oops 的形式外部可见，不属于"未被发现的静默错误"。但也不能反过来说"没有静默期"：在 event 61（taint_reg）到 event 259 之间，污染值已经进入寄存器并被 65 条 consumer 事件观测（`consumer_summary` 11 条记录、`logical_total=60`、`by_outcome=sd_observed`，见 §5），这段区间内的错误在架构上尚未被拦截，只是最终被崩溃暴露。是否存在"应用级输出已被静默污染"？本 seed 的负载没有跑到应用 oracle 行（terminal 中只有 Oops，没有 `rounds ok=` 行），因此**无法判断最终数据正确性**；绝不能仅凭 errant_commit 就称其为 SDC。
+
+### 3.6 与同 RunID 其他 seed 的关系
+
+- 注入位点相同：`arm_tlb_lookup_hit`。
+- 掩码：seed1=`0x100000000000000`（bit56，PA 之外）、seed2=`0x800000000`（bit35，PA 之内）、seed3=`0x20000000000000`（bit49，PA 之外）。
+- 有效 PA：seed1 不变、seed2 改变（`81d75eb8→800081d75eb8`）、seed3 不变。
+- 终局：seed1/seed3 为 L2 含住；seed2 为 L5 errant_commit（event 259）。
+- 运行结局：seed1/seed3=Masked；seed2=Crash。
+- 决定性差异不在注入点，而在两个结构条件：翻转位是否落在有效 PA 宽度内，以及该翻译是否产生 `tlb_translate_result` 比对。seed2 同时满足"PA 改变"与"比对缺席"，因此逃逸。
+
+## 4. 完整主链事件表
+
+`mask` 取自 `armtlb_injections.log`；`layer` 用 TLB family 层映射；`old_pfn/new_pfn` 只对 PFN 事件有意义。本链 12 条，无需折叠。
+
+| 序号 | event_id | parent_event_id | tick | Δtick | kind | layer | component | fault_id | corr | request_id | dyn_inst_seq | VA | PA/address | cache_line | mshr_id | old_pfn | new_pfn | before | after | mask | state_before | state_after | contained | detection_layer | outcome | reason | 本事件输入 | 本事件输出 | 传播意义 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 0 | — | 237950233911 | — | `inj` | L0 | CHAOSArmTLB | 1 | origin | — | — | ffffffc009483eb8 | — | — | — | 81d75 | 800081d75 | 81d75 | 800081d75 | 0x800000000 | — | — | — | — | — | field=bit_flip | 有效表项、命中位点 | PFN bit35 置 1 | 故障进入存储 |
+| 2 | 1 | 0 | 237950233911 | 0 | `tlb_lookup` | L1 | DTLB lookup | 1 | addr_fallback | 0 | 0 | ffffffc009483eb8 | — | — | — | 81d75 | 800081d75 | 81d75 | 800081d75 | — | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75eb8 | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=800081d75;ap=0;mtype=2;page_size=1000;pa=800081d75eb8 | — | — | — | field=post_lookup | 命中查找 | 污染 PFN + 错误 PA | 激活 |
+| 3 | 2 | 1 | 237950233911 | 0 | `tlb_pfn` | L2 | DTLB→MMU PA | 1 | addr_fallback | 0 | 0 | ffffffc009483eb8 | 800081d75eb8 | — | — | 81d75 | 800081d75 | 81d75 | 800081d75 | — | 81d75eb8 | 800081d75eb8 | — | — | — | field=bit_flip | 污染 PFN | 错误 PA 物化 | 不可逆点 |
+| 4 | 3 | 2 | 237950235576 | 1665 | `cache_access` | L3 | L1D | 1 | addr_fallback | 32 | 32 | ffffffc009483eb8 | 800081d75eb8 | — | — | — | — | — | — | — | — | — | — | — | — | — | 错误 PA + 真实请求 32 | 首次访问错误地址 | 错误被消费 |
+| 5 | 4 | 3 | 237950235576 | 0 | `cache_return` | L3 | L1D | 1 | addr_fallback | 32 | 32 | — | 800081d75eb8 | — | — | — | — | — | — | — | — | — | — | — | — | field=miss | 首次访问未命中 | 需要下层数据 | 未命中，需下层 |
+| 6 | 5 | 4 | 237950235576 | 0 | `mshr_alloc` | L3 | MSHR | 1 | addr_fallback | 32 | 32 | — | — | 800081d75eb8 | 1 | — | — | — | — | — | — | mshr_allocated | — | — | — | — | miss 请求 | 挂入 MSHR 1 | 请求等待 |
+| 7 | 6 | 5 | 237950235909 | 333 | `cache_access` | L3 | L1D | 1 | addr_fallback | 32 | 32 | ffffffc009483eb8 | 800081d75e80 | — | — | — | — | — | — | — | — | — | — | — | — | — | 同一行的行基址 | 第二次访问 | 再次消费错误行 |
+| 8 | 7 | 6 | 237950235909 | 0 | `cache_return` | L3 | L1D | 1 | addr_fallback | 32 | 32 | — | 800081d75e80 | — | — | — | — | — | — | — | — | — | — | — | — | field=miss | — | — | — |
+| 9 | 8 | 7 | 237950235909 | 0 | `mshr_alloc` | L3 | MSHR | 1 | addr_fallback | 32 | 32 | — | — | 800081d75e80 | 2 | — | — | — | — | — | — | mshr_allocated | — | — | — | — | 第二次 miss | 挂入 MSHR 2 | 请求等待 |
+| 10 | 60 | 8 | 237950344134 | 108225 | `resp` | L3 | L1D→core resp | 1 | addr_fallback | 32 | 32 | 800081d75eb8 | — | — | — | — | — | — | — | — | — | — | — | — | — | — | response 返回 | 污染回到核心侧 | 污染回到核心 |
+| 11 | 61 | 60 | 237950344134 | 0 | `taint_reg` | L4 | taint/regfile | 1 | addr_fallback | 32 | 32 | 800081d75eb8 | — | — | — | — | — | clean | tainted | — | — | — | — | — | — | — | 污染 response | 寄存器状态 clean→tainted | 存储→CPU 边界 |
+| 12 | 259 | 61 | 237951515628 | 1171494 | `errant_commit` | L5 | ROB/commit | 1 | taint_prop | — | 391 | — | — | — | — | — | — | — | — | — | — | — | 0 | L5 | errant_commit | — | 被污染状态 | 首次架构可见错误提交 | L5 逃逸 |
+
+## 5. 相关旁支与未进入最终主链的事件
+
+本 seed 共 428 条事件，全部属于 `fault_id=1`；主链 12 条，其余 415 条（另加 `chain_end`）为旁支。旁支的主要形态：
+
+- **`request_fork` 52 条**：全部是 `parent_event_id=8` 出发的 `addr_fallback_broadcast`（`source_event_id=8`，`old_request_id=32`，`new_request_id` 依次为 34、35、37、38、40、41、43、44、46、47、49、50、…），在 L3 层把同一个错误地址广播给兄弟请求。它们从 MSHR 分配处分叉，**没有**回流到终局见证的祖先（终局祖先仍走 8→60）。
+- **兄弟请求的访存事件**：65 条 `cache_access`、65 条 `cache_return`、26 条 `mshr_alloc`、39 条 `mshr_merge`、50 条 `resp`、50 条 `taint_reg`、3 条 `lq_complete`，覆盖 54 个不同 request_id（含 34/35/37/…/3967/10559）。这些旁支说明"同一错误地址被多个兄弟请求消费"，但它们各自有自己的父边，不能并入主链。
+- **65 条 `consumer`**：`consumer_summary` 给出 11 条记录、`emitted_events=11`、`suppressed_consumers=49`、`logical_total=60`、`conservation=ok`；`by_outcome=sd_observed`，即污染值被后续指令观测。它们是主链之后的消费面证据，不是主链事件。
+- **无 `squash_masked`**：本 seed 没有任何 squash/replay 收口，这也是错误能够到达 L5 的直接原因之一。
+
+旁支是否影响 SDC 诊断？它们扩大"被污染值被后续指令观测"的规模（60 个逻辑消费者），但不改变终局：终局由主链 event 259 证明，而旁支不构成另一条可选的终局祖先。`chain_end` 仍是生命周期记录。
+
+## 6. 最终判定与证据完整性
+
+| 项 | 值 |
+|---|---|
+| terminal | `full`（真实 L5） |
+| provable_to | `L5` |
+| propagation terminal event | `errant_commit`，event_id=259，tick=237951515628，L5 |
+| run outcome | `Crash`（oracle_outcome=Crash，exit_code=0；guest 内核 Oops） |
+| admitted | `True`（path=`full_chain`，violations=[]） |
+| certified | `True` |
+| violations | `[]` |
+| truncated | `False` |
+| gzip EOF | 正常 |
+| stats validity | 有效（完整 footer、非零 simTicks/simInsts） |
+| conservation | `ok`（consumer_summary_accounting：emitted 11 + suppressed 49 = logical 60；issues=[]） |
+| count_contradiction | 否（attempted=150217 > 0；injected=1=stats=1） |
+| campaign/checker agreement | 一致（cell_results seed2 outcome=Crash；chain terminal=full；run.out `CHAOS_DETECT reason=errant_commit`） |
+| CHAIN_DEMONSTRATED | 是（`inj`→L5 单祖先连续，L4 终局与显式 L5 见证同时在场） |
+| COMPLETE_3_OF_3 status | 三个 seed 证据齐全且 certified；本 seed `COMPLETE_L5` |
+| verdict | **PASS** |
+
+一致性自检：12 个引用事件全部存在；parent 连续（259←61←60←8←7←6←5←4←3←2←1←0）；parent 先于 child；叙事顺序=ancestry 顺序；tick 单调不降；未混入 seed1/seed3 的身份；VA/PFN/PA/before/after/mask 来自本 seed；request_id/corr/fault_id 一致（并已解释 0→32 的身份变化）；终局与权威报告一致（terminal=`full`，witness=259）；L5 见证是真实 `errant_commit` 而非 `chain_end`；每个单元均给出输入/变化/输出/意义；本章按本 seed 数据写成；无 child 先于 parent；SDC 结论未越界。
+
+**已知不一致/缺口**：
+
+1. 矩阵把被注入字段写作"VPN tag"，证据显示为 PFN 翻转。
+2. 注入事件与 lookup/pfn 的 `request_id`/`dyn_inst_seq` 为空或 0，直到 `cache_access` 才落定 32；本文件已显式解释，不把这一身份切换隐藏掉。
+3. 主链没有 `mshr_fill`/`cache_fill`/`mshr_free`（它们在旁支），因此 §2.5 不描述填充状态迁移。
+4. `taint_reg` 未记录 `arch_reg`/`phys_reg`，无法给出被污染寄存器号。
+
+## 7. 原始证据与文件哈希
+
+| 证据 | 绝对路径 | SHA-256 | 字节 | mtime |
+|---|---|---|---|---|
+| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/prop_evt.txt.gz` | `8c385db13bfc0a717cd55f1d1749a1c0a329d4e34af067ab21c7d752573fd9de` | 15961 | 2026-10-25T15:59:11 |
+| chain_report（权威） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/chain_report.json` | `9b3a54333722ad6c39fb1ac643cb24881e2e564d14fcdcc680b455a15cfb595a` | 11493 | 2026-10-25T15:59:12 |
+| authoritative regrade | `N/A`（无 regrade） | — | — | — |
+| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.out` | `6aa8706817b21539a8c88c9beefc1d62542a40c845a5ad9daee18cb181070505` | 2135 | 2026-10-25T15:59:12 |
+| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.err` | `0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f` | 1833 | 2026-10-25T15:59:12 |
+| stats.txt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/stats.txt` | `6eebe8976ef7df1a626234267199bc388d173dbf7041607b76c26a475e15290e` | 382875 | 2026-10-25T15:59:12 |
+| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/manifest.json` | `730ca9788c6b0bc12cc4d218eea0758d4dedc9d719eadbe9fdc01aed9c1eca03` | 1771 | 2026-10-25T16:31:50 |
+| 启动命令记录 | run.out 的 `command line:` 行（§1） | 同 run.out | — | — |
+| binary | `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt` | `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959` | — | — |
+| source head | `bc82f29d8f69410461d18c07a1ee9314f18885a5`（仅运行时记录） | — | — | — |
+| analysis tool | `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/tools/lsu_chain_check.py` | `baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44` | 69565 | 2026-10-27T00:59 |
+| 症状证据（guest dmesg） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/board.workload.dmesg` | `6fdabf80e1d1c25f0898f2221e1bd70f3fd08b97fce028ba2c4160327e3ee09b` | 13938 | 2026-10-25T15:59:11 |
+| 辅助证据（terminal） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/board.terminal` | `b1776be2415f07fcab3f4ce0879a84c7fa247ca1739d8b1ab978444a4f68a3db` | 1839 | 2026-10-25T15:59:11 |
+
+- 权威目录：`/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2`。
+- 其它副本：`r6_c9_T01-F0-W4_s2`/`_s1` 内的同名 seed（若存在）为 EXACT_DUPLICATE 或未完成 campaign 副本；`r6_c7` 系列为 OLD_BINARY_REFERENCE；分类以 `R6-AUTHORITATIVE-EVIDENCE.md` 为准。
+- 原始事件流未修改；未重跑 gem5；未运行 campaign。

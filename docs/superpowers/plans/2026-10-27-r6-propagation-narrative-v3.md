@@ -62,7 +62,7 @@ python3 -m pytest tests/test_lsu_prop_doc_audit.py -q
 **判定规则**
 - 若仅文档口径混淆 → 修正文档并并列两套口径。
 - 若工具输出在 fault 级语义上自相矛盾 → 保留 `REVIEW_REQUIRED`，出缺陷报告，**不得改判 PASS**。
-- 初步证据：campaign 的 `classes.Crash=5/3` 是把 run 级 Crash 乘以 activated 数，与 checker 的 per-fault 1 full + 2/1 contained + 2/1 open 不同单元；按规则保留 `REVIEW_REQUIRED` 并记录为工具级缺陷（待用户裁决是否修 campaign 聚合语义）。
+- **已完成的判定（2026-10-27）**：`classes.Crash=5/3` 是 `classify_fs_run()` 的 run 级/activated 计数（`tools/lsu_campaign.py:346-395,640`），checker 是 per-fault 终局（seed2 = 1 full + 2 L2 contained + 2 open L4；seed3 = 1 full + 1 L2 contained + 1 open L4）。两者统计单元不同，**不是数据矛盾**；按“仅文档口径混淆”处理：修正文档并列两套口径，`chain_evidence_status=PASS`、`overall_experiment_status=PASS`，同时保留 `taint_reg` 字段覆盖缺口与矩阵 VPN/PFN 字段记录。报告：`runs/lsu/r6_reports/R6-T01-F1-W4-MULTIFAULT-RECHECK.{md,json}`。
 
 **验证**：复核脚本输出与报告表格逐项一致；原始证据哈希不变。
 

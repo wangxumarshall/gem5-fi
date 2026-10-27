@@ -1,1414 +1,199 @@
-# T04-F2-W4 seed3 故障传播全过程
-
-> 证据口径：本文件只使用该 seed **自己**未经修改的 `prop_evt.txt.gz` 重建传播路径；代表故障按权威 checker 的 escape-first 规则选择；原始事件流未被修改，gem5 未重跑。
-> `chain_report` 的 `path_event_ids` 只作为层锚点核对，**不是**完整链；本文件按 `parent_event_id` 单祖先逐事件重建。
-
-## 30 秒结论
-
-在 `T04-F2-W4` seed3 中，注入器于 tick=238100391603 在 DTLB 表项（site=arm_tlb_lookup_hit）把 PFN 从 `0x81d75` 改成 `0x81363`（VA=`0xffffffc009483968`）；故障 PFN 使有效 PA 从 `0x81d75968` 变为 `0x81363968`，随后沿 TLB 翻译 → LQ/SQ 请求 → L1D/MSHR → `resp` → `taint_reg(clean→tainted)` 一路传播，最终由 `errant_commit`（event_id=54, tick=238100456205）在 L5 形成真实错误提交；运行结局 Crash（KERNEL PANIC under fault（run.out: classify: Crash/DUE per fs_mode））。
-
-## 实验身份与证据来源
-
-- RunID: `T04-F2-W4`
-- seed: `3`；sample_run_id: `s3`
-- 实验模型: 模型ID=`T04`，单元=`L1d-TLB`（RunID 另带频率档位后缀）
-- 故障类型: `换值`
-- 故障模型: 将命中项的PPN换成另一个当前合法、相同页大小的PPN；VPN/ASID保持一致。实施细则：不生成任意随机位串，而是从当前运行中选择另一个满足对齐、范围、编码和生命周期约束的合法值；保存 source/target 及候选集合。每次运行只替换一个字段或一个选择结果，非法候选、空闲项和已经释放的事务不得使用。激活口径：仅当“同时存在两个已映射数据页”且故障值被下游实际读取、选择或消费时计为 activated；否则归入 Injected-not-activated。
-- 频率档位: `F2` — 平均每 100,000 个 eligible events 注入 1 次，间隔加入 ±50% 抖动
-- requested tier: `F2`；effective tier: `F2`；tier enabled: `开启(1)`（来自 run.out `CHAOS_LSU_TIER_CAP`）
-- 负载（矩阵标签）: TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）
-- 负载（run.out 实际命令行）: `--readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS`
-- source head: N/A（该 run 的 manifest 无 binary_source_head 字段；manifest.source_head=fcacc958b799c635babd2834cce9da6942322d91 只是运行时工作树 HEAD，不等同于二进制构建源）
-- binary path: `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt`
-- binary SHA-256: `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959`
-- analysis tool head: `e45b0a0fc8bfb871e906a6ecef6b16f922ec3d8c`（本次分析）
-- checker SHA-256: `baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`
-- 原始 evidence root: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3`
-- prop_evt: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/prop_evt.txt.gz`
-- prop_evt SHA-256: `af50e53912fdb35f79240791685576e1e1ae7c5a6bed52c487ba4996263acc93`（本次重算值；字节数 462824）
-- chain_report（权威）: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/chain_report.json`
-- chain_report SHA-256: `281bd163b3774e3c322364f9bfb8343f79a3a3322a93345f440fe713cd1dcebf`
-- manifest: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/manifest.json`（SHA-256 `0f2a7cc4a83aa0e82ba3a5968c02af116a10c2f8a292e8382f4f6343fd503af5`）
-- run.out: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.out`（SHA-256 `2d8f935e87b038299c7c6e0c3f070b86f0f557e20ca4f8ca22951d140b55dad3`）
-- run.err: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.err`（SHA-256 `7ad31bead8127c09ea7cea7a341885ec295e9b2644bd2f109d4e694c7f8bd612`）
-- stats.txt: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/stats.txt`（SHA-256 `e78d97312de629263db522f7238bf781dffa005baca4e36f6dc49346f78bc2cb`；`board.chaos_armtlb.numFaultsInjected=9`）
-- 正常 EOF: **是**（gzip 解压到 EOF 无错：True）
-- truncated: **False**（本次以 cap=3,000,000 读流；未触发 200k EVENT_CAP）
-- 原始事件总数: 11456；代表故障 `fault_id=1` 事件数: 9833；权威报告 fault 数: 9
-- 是否经过离线重判: 否
-- 其它同 (RunID, seed) 证据目录的分类见 `../R6-AUTHORITATIVE-EVIDENCE.md`。
-
-## 一行传播图
-
-`VA=0xffffffc009483968，PFN 0x81d75→0x81363，PA 0x81d75968→0x81363968 → TLB 地址翻译 → cache lookup → MSHR alloc/fill → response → taint_reg(clean→tainted) → errant_commit(L5) → Kernel OOPS / Crash`
-
-## 第一部分：详细、可读的完整传播过程
-
-### 第 1 步：故障注入
-
-发生了什么：注入器在命中表项上写入故障。目标字段 `pfn_to_mapped_page` 从 `81d75` 变成 `81363`（mask=n/a（该故障模型无 Mask 字段）；PFN 0x81d75→0x81363），被改写的 TLB 表项随后会被真实查找读取。
-
-- **event_id=`0`；parent_event_id=`—`；tick=`238100391603`；fault_id=`1`；corr=`origin`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：注入器在被命中的 DTLB 表项写入故障；before→after 即目标字段被改变后的取值。
-  - 地址/身份：VA=`0xffffffc009483968`
-  - 值变化：before=`81d75`→after=`81363`；field=`pfn_to_mapped_page`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L0**
-  - 注入日志行：`Tick: 238100391603, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483968, old_pfn: 0x81d75, new_pfn: 0x81363, FaultType: pfn_to_mapped_page, candidates: 30`
-  - 是否真实改变目标值：**是**（before≠after: True）
-  - 是否真实激活：**是**（run.out 注入器汇总：`CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F2 attempted=943965 eligible=924569 injected=9 first_eligible_tick=237950546931 last_eligible_tick=9751969912689 (activated=W3-L0-layer)`）
-  - 为什么把故障传给下一步：故障值已经写入目标 TLB 表项；下一次对该表项的查找会读到被改写的字段，因此故障由注入点（L0）传递给 TLB 查询/翻译（L1/L2）。
-
-### 第 2 步：TLB 查询与地址翻译
-
-发生了什么：TLB 查找/翻译路径读取了被污染的表项，并把故障 PFN 物化为物理地址。
-
-- **event_id=`1`；parent_event_id=`0`；tick=`238100391603`；fault_id=`1`；corr=`seq_primary`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：TLB 查找命中并返回（已含故障的）表项；state_before/state_after 对比可见 pfn 与 pa 字段。
-  - 地址/身份：VA=`0xffffffc009483968`；PFN=`81d75`→`81363`
-  - 值变化：before=`81d75`→after=`81363`；field=`post_lookup`；state_before=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75968`；state_after=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81363;ap=0;mtype=2;page_size=1000;pa=81363968`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L1**
-  - state 对比：pfn `81d75`→`81363`；pa `81d75968`→`81363968`
-- **event_id=`2`；parent_event_id=`1`；tick=`238100391603`；fault_id=`1`；corr=`seq_primary`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：从 TLB 表项取出的 PFN 已带故障，据此拼出物理地址 PA；故障从结构域进入地址翻译域。
-  - 地址/身份：VA=`0xffffffc009483968`；PA=`0x81363968`；PFN=`81d75`→`81363`
-  - 值变化：before=`81d75`→after=`81363`；field=`pfn_to_mapped_page`；state_before=`81d75968`；state_after=`81363968`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L2**
-- **event_id=`3`；parent_event_id=`2`；tick=`238100391603`；fault_id=`1`；corr=`seq_primary`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：地址翻译结果落地：比对 requested/effective 物理地址，决定该故障是否真正改变有效 PA。
-  - 地址/身份：VA=`0xffffffc009483968`；PA=`0x81363968`
-  - 值变化：before=`81d75968`→after=`81363968`；field=`effective_pa_changed`；state_before=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75968`；state_after=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81363;ap=0;mtype=2;page_size=1000;pa=81363968`
-  - 检测/含住字段：detection_layer=`—`；contained=`0`；outcome=`NoFault`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L2**
-  - 翻译比对结论：`effective_pa_changed`（requested=`81d75968`，effective=`81363968`）
-  - 为什么把故障传给下一步：翻译结果比对显示有效 PA **确实改变**（`effective_pa_changed`），错误 PA 被写入请求，因此故障继续传给 L3 的 LQ/SQ 与 cache 访问。
-
-### 第 3 步：进入 Load Queue 或 Store Queue
-
-发生了什么：错误地址已进入 LSU 的请求结构（LQ/SQ），并沿请求路径发往 cache；跨请求处由 `request_fork` bridge 显式承载。
-
-- **event_id=`4`；parent_event_id=`3`；tick=`238100391603`；fault_id=`1`；corr=`seq_primary`；request_id=`—`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：store 在 LSU 发射，使用被污染的地址。
-  - 地址/身份：VA=`0xffffffc009483968`；sq_idx=`61201`
-  - 值变化：state_before=`issued`；state_after=`—`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - 为什么把故障传给下一步：错误地址已进入 LQ/SQ 请求并被发往 cache；物理请求携带错误 PA，故传给 L1D/MSHR。
-
-### 第 4 步：缓存和 MSHR 传播
-
-发生了什么：以错误 PA 访问 L1D，命中/失效决策与 MSHR 分配/合并/填充/释放如实记录；错误地址被 cache/MSHR 状态接受。
-
-- **event_id=`6`；parent_event_id=`5`；tick=`238100394600`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：以错误 PA 访问 L1D（tag 查找/数据访问）。
-  - 地址/身份：VA=`0xffffffc009483968`；PA=`0x81363968`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`7`；parent_event_id=`6`；tick=`238100394600`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：L1D 返回访问结果（field=miss/hit），错误地址已被接受。
-  - 地址/身份：PA=`0x81363968`
-  - 值变化：field=`miss`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - hit/miss 决策：field=`miss`
-- **event_id=`8`；parent_event_id=`7`；tick=`238100394600`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：为该错误物理地址分配 MSHR（内存级未完成请求登记）。
-  - 地址/身份：cache_line=`0x81363968`；mshr_id=`1`
-  - 值变化：state_before=`—`；state_after=`mshr_allocated`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`1`；cache_line=`0x81363968`
-- **event_id=`9`；parent_event_id=`8`；tick=`238100394933`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：以错误 PA 访问 L1D（tag 查找/数据访问）。
-  - 地址/身份：VA=`0xffffffc009483968`；PA=`0x81363940`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`10`；parent_event_id=`9`；tick=`238100394933`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：L1D 返回访问结果（field=miss/hit），错误地址已被接受。
-  - 地址/身份：PA=`0x81363940`
-  - 值变化：field=`miss`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - hit/miss 决策：field=`miss`
-- **event_id=`11`；parent_event_id=`10`；tick=`238100394933`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：为该错误物理地址分配 MSHR（内存级未完成请求登记）。
-  - 地址/身份：cache_line=`0x81363940`；mshr_id=`2`
-  - 值变化：state_before=`—`；state_after=`mshr_allocated`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`2`；cache_line=`0x81363940`
-- **event_id=`27`；parent_event_id=`11`；tick=`238100453874`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：内存响应填充 MSHR。
-  - 地址/身份：cache_line=`0x81363940`；mshr_id=`2`；fill_id=`1`
-  - 值变化：state_before=`—`；state_after=`filled`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`2`；cache_line=`0x81363940`；fill_id=`1`
-- **event_id=`28`；parent_event_id=`27`；tick=`238100453874`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：cache line 填充到 L1D，污染数据/地址进入 cache 状态。
-  - 地址/身份：PA=`0x81363940`；cache_line=`0x81363940`；fill_id=`1`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`29`；parent_event_id=`28`；tick=`238100453874`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：MSHR 释放，请求完成生命周期。
-  - 地址/身份：cache_line=`0x81363940`；mshr_id=`2`
-  - 值变化：state_before=`—`；state_after=`mshr_freed`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`2`；cache_line=`0x81363940`
-- **event_id=`30`；parent_event_id=`29`；tick=`238100454540`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：内存响应填充 MSHR。
-  - 地址/身份：cache_line=`0x81363940`；mshr_id=`0`；fill_id=`2`
-  - 值变化：state_before=`—`；state_after=`filled`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`0`；cache_line=`0x81363940`；fill_id=`2`
-- **event_id=`31`；parent_event_id=`30`；tick=`238100454540`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：cache line 填充到 L1D，污染数据/地址进入 cache 状态。
-  - 地址/身份：PA=`0x81363940`；cache_line=`0x81363940`；fill_id=`2`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`32`；parent_event_id=`31`；tick=`238100454540`；fault_id=`1`；corr=`addr_fallback`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：MSHR 释放，请求完成生命周期。
-  - 地址/身份：cache_line=`0x81363940`；mshr_id=`0`
-  - 值变化：state_before=`—`；state_after=`mshr_freed`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`0`；cache_line=`0x81363940`
-  - 为什么把故障传给下一步：以错误 PA 访问 L1D 得到 miss（并触发 MSHR 分配/合并/填充）；错误地址被 MSHR/cache 接受并完成响应路径，因此污染数据/状态传给返回处理器的响应。
-
-### 第 5 步：错误数据或污染状态返回处理器
-
-发生了什么：响应返回 LSU，污染数据被交付；若出现 `taint_reg`，污染从存储域进入寄存器域。
-
-- **event_id=`5`；parent_event_id=`4`；tick=`238100394600`；fault_id=`1`；corr=`seq_primary`；request_id=`—`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：store 数据/地址写回存储子系统，错误 PA 随之进入 cache 侧。
-  - 地址/身份：PA=`0x81363968`；sq_idx=`61201`
-  - 值变化：state_before=`—`；state_after=`packet_built`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`36`；parent_event_id=`32`；tick=`238100454873`；fault_id=`1`；corr=`seq_primary`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：内存/cache 响应返回；该响应对应的数据/地址带故障（或把污染值交付给 LSU）。
-  - 地址/身份：VA=`0x81363968`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`37`；parent_event_id=`36`；tick=`238100454873`；fault_id=`1`；corr=`seq_primary`；request_id=`570343`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：污染数据写入目标体系结构/物理寄存器，并被打上 taint 标记；传播从存储域进入寄存器域。
-  - 地址/身份：VA=`0x81363968`
-  - 值变化：before=`clean`→after=`tainted`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L4**
-- **event_id=`38`；parent_event_id=`37`；tick=`238100454873`；fault_id=`1`；corr=`seq_primary`；request_id=`—`；dyn_inst_seq=`570343`**
-  - 硬件结构/事件：store 在 SQ 中完成（错误副作用已发生或已被约束）。
-  - 地址/身份：VA=`0xffffffc009483968`；sq_idx=`61201`
-  - 值变化：state_before=`—`；state_after=`completed`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - 为什么把故障传给下一步：污染数据已经写入寄存器（`clean→tainted`）；该寄存器随后被下游指令消费，污染从存储域进入寄存器/提交域，故传给 L4/L5 的最终判定。
-
-### 第 6 步：最终传播终局
-
-情况 A：真实 L5 逃逸。
-
-- **event_id=`54`；parent_event_id=`38`；tick=`238100456205`；fault_id=`1`；corr=`taint_prop`；request_id=`—`；dyn_inst_seq=`570353`**
-  - 硬件结构/事件：携带污染值的指令错误提交：错误副作用越过重定序/提交边界，构成 L5 逃逸终局（detection_layer=L5, outcome=errant_commit）。
-  - 地址/身份：—（该事件无地址字段）
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`L5`；contained=`0`；outcome=`errant_commit`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L5（检测；观测层 L4）**
-  - 说明：该 `errant_commit` 的 `detection_layer=L5`、`outcome=errant_commit`、`corr=taint_prop`，是**真实检测/结局事件**，不是生命周期 `chain_end`；按 checker 的 `_L4_TERMINAL_KINDS`/`_explicit_l5` 判定构成 `full` 终局。
-  - 为什么这是终局：`errant_commit` 表明携带污染值的指令已经越过提交边界，错误副作用不可撤销；这是真实 L5 终局（不是生命周期 `chain_end`）。
-  - L0–L5：L0 注入 → L1 lookup → L2 PFN/PA → L3 LQ/cache/MSHR → L4 taint_reg → **L5 errant_commit** 全部有事件。
-
-### 第 7 步：仿真运行的最终表现
-
-**传播链终局**：L5 `errant_commit`（event_id=`54`, tick=`238100456205`）——真实错误提交已发生。
-
-**运行结局（与传播链终局分开陈述）**：oracle=`Crash`；实际表现：KERNEL PANIC under fault（run.out: classify: Crash/DUE per fs_mode）。
-
-run.out 的 CHAOS_DETECT 行（共 62 行，节选）：
-- `CHAOS_DETECT: layer=None contained=0 tick=238100456205 ptag=1 reason=errant_commit`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238102880778 ptag=1 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238103039286 ptag=1 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238103103222 ptag=1 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238103112213 ptag=1 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238103421237 ptag=1 reason=squash_replay`
-- …其余 56 行见原始 `run.out`
-
-说明：真实 L5 逃逸与 Kernel OOPS/Crash 一致——错误提交已越过提交边界，运行以崩溃收场。
-
-## 第二部分：技术证据与逐事件记录
-
-| 序号 | event_id | parent_event_id | tick | kind | layer | fault_id | corr | request_id | sample_run_id | VA | PA/address | old_pfn/new_pfn | old_value/new_value | mask | contained | detection_layer | outcome | reason | 与上一事件的关系 | 在人话版中的作用 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 0 | — | 238100391603 | `inj` | L0 | 1 | origin | 570343 | s3 | 0xffffffc009483968 | — | 0x81d75→0x81363 | 81d75→81363 | n/a（无 Mask 字段） | — | — | — | — | 起点 | L0 注入 |
-| 2 | 1 | 0 | 238100391603 | `tlb_lookup` | L1 | 1 | seq_primary | 570343 | s3 | 0xffffffc009483968 | — | 0x81d75→0x81363 | 81d75→81363 | — | — | — | — | — | 直接 parent（parent=0）；corr origin→seq_primary | L1 单元内观察 |
-| 3 | 2 | 1 | 238100391603 | `tlb_pfn` | L2 | 1 | seq_primary | 570343 | s3 | 0xffffffc009483968 | 0x81363968 | 0x81d75→0x81363 | 81d75→81363 | — | — | — | — | — | 直接 parent（parent=1） | L2 地址物化 |
-| 4 | 3 | 2 | 238100391603 | `tlb_translate_result` | L2 | 1 | seq_primary | 570343 | s3 | 0xffffffc009483968 | 0x81363968 | — | 81d75968→81363968 | — | 0 | — | NoFault | — | 直接 parent（parent=2） | L2 翻译结果/含住点 |
-| 5 | 4 | 3 | 238100391603 | `sq_execute` | L3 | 1 | seq_primary | — | s3 | 0xffffffc009483968 | — | — | issued→— | — | — | — | — | — | 直接 parent（parent=3） | L3 store 发射 |
-| 6 | 5 | 4 | 238100394600 | `sq_writeback` | L3 | 1 | seq_primary | — | s3 | — | 0x81363968 | — | —→packet_built | — | — | — | — | — | 直接 parent（parent=4） | L3 store 写回 |
-| 7 | 6 | 5 | 238100394600 | `cache_access` | L3 | 1 | addr_fallback | 570343 | s3 | 0xffffffc009483968 | 0x81363968 | — | —→— | — | — | — | — | — | 直接 parent（parent=5）；corr seq_primary→addr_fallback | L3 cache 查找 |
-| 8 | 7 | 6 | 238100394600 | `cache_return` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363968 | — | —→— | — | — | — | — | — | 直接 parent（parent=6） | L3 hit/miss 决策 |
-| 9 | 8 | 7 | 238100394600 | `mshr_alloc` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363968 | — | —→mshr_allocated | — | — | — | — | — | 直接 parent（parent=7） | L3 MSHR 分配 |
-| 10 | 9 | 8 | 238100394933 | `cache_access` | L3 | 1 | addr_fallback | 570343 | s3 | 0xffffffc009483968 | 0x81363940 | — | —→— | — | — | — | — | — | 直接 parent（parent=8） | L3 cache 查找 |
-| 11 | 10 | 9 | 238100394933 | `cache_return` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→— | — | — | — | — | — | 直接 parent（parent=9） | L3 hit/miss 决策 |
-| 12 | 11 | 10 | 238100394933 | `mshr_alloc` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→mshr_allocated | — | — | — | — | — | 直接 parent（parent=10） | L3 MSHR 分配 |
-| 13 | 27 | 11 | 238100453874 | `mshr_fill` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→filled | — | — | — | — | — | 直接 parent（parent=11） | L3 MSHR 填充 |
-| 14 | 28 | 27 | 238100453874 | `cache_fill` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→— | — | — | — | — | — | 直接 parent（parent=27） | L3 行填充 |
-| 15 | 29 | 28 | 238100453874 | `mshr_free` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→mshr_freed | — | — | — | — | — | 直接 parent（parent=28） | L3 MSHR 释放 |
-| 16 | 30 | 29 | 238100454540 | `mshr_fill` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→filled | — | — | — | — | — | 直接 parent（parent=29） | L3 MSHR 填充 |
-| 17 | 31 | 30 | 238100454540 | `cache_fill` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→— | — | — | — | — | — | 直接 parent（parent=30） | L3 行填充 |
-| 18 | 32 | 31 | 238100454540 | `mshr_free` | L3 | 1 | addr_fallback | 570343 | s3 | — | 0x81363940 | — | —→mshr_freed | — | — | — | — | — | 直接 parent（parent=31） | L3 MSHR 释放 |
-| 19 | 36 | 32 | 238100454873 | `resp` | L3 | 1 | seq_primary | 570343 | s3 | 0x81363968 | — | — | —→— | — | — | — | — | — | 直接 parent（parent=32）；corr addr_fallback→seq_primary | L3 响应返回 |
-| 20 | 37 | 36 | 238100454873 | `taint_reg` | L4 | 1 | seq_primary | 570343 | s3 | 0x81363968 | — | — | clean→tainted | — | — | — | — | — | 直接 parent（parent=36） | L4 污染寄存器 |
-| 21 | 38 | 37 | 238100454873 | `sq_complete` | L3 | 1 | seq_primary | — | s3 | 0xffffffc009483968 | — | — | —→completed | — | — | — | — | — | 直接 parent（parent=37） | L3 store 完成 |
-| 22 | 54 | 38 | 238100456205 | `errant_commit` | L5（检测；观测层 L4） | 1 | taint_prop | — | s3 | — | — | — | —→— | — | 0 | L5 | errant_commit | — | 直接 parent（parent=38）；corr seq_primary→taint_prop | L5 错误提交（终局） |
-
-说明：本表逐条列出代表故障 `fault_id=1` 从 `inj` 到终局见证的**完整单祖先链**（22 条），不是 checker 的六锚点摘要；每一行的 `parent_event_id` 都等于上一行的 `event_id`（第 1 行除外）。`mask` 只对注入事件有意义；`reason` 列是 `containment_reason`。
-## 相关旁支和未进入最终 ancestry 的事件
-
-本 seed 原始事件总数 **11456**；代表故障 `fault_id=1` 的事件数 **9833**；进入最终 ancestry 的事件 **22**；未进入最终 ancestry 的同 fault 事件 **9811**。
-
-以下旁支事件**不参与**主链的单祖先证明，**绝不**合并进主链。判定理由：沿终局见证的 `parent_event_id` 逐级回溯不会经过这些事件——它们是同一 fault 的其它并发请求、其它 load 实例或其它检测点，只有主链上的事件才共享同一条可证祖先路径。
-
-| kind | 数量 | event_id 范围 | tick 范围 | 处理方式 | 异常成员检查 |
-|---|---|---|---|---|---|
-| `taint_reg` | 1667 | 44–8121 | 238100455539–238120385256 | 不折叠：全量身份索引（见下） | 无（outcome/contained 全空） |
-| `cache_access` | 1541 | 12–8118 | 238100395266–238120384923 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `cache_return` | 1541 | 13–8119 | 238100395266–238120384923 | 不折叠：全量 hit/miss 索引（见下）；分布 {'miss': 147, 'hit': 1394} | 无（outcome/contained 全空） |
-| `request_fork` | 1510 | 4294967296–4294968805 | 238100395266–238120384923 | 旁支 bridge：计数 + 首尾点名（主链 bridge 已在第二部分逐条） | 无（outcome/contained 全空） |
-| `resp` | 1416 | 42–8120 | 238100455539–238120385256 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `consumer` | 1270 | 59–8321 | 238100457204–238148603010 | 折叠为计数 + 范围（见下） | 无（outcome/contained 全空） |
-| `lq_complete` | 496 | 43–8111 | 238100455539–238120381596 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `mshr_merge` | 92 | 14–6370 | 238100395266–238109467518 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-| `squash_masked` | 57 | 1636–7816 | 238102880778–238111834815 | 不折叠：全部逐条点名（见下） | 预期非空（检测/含住事件）：outcome={'masked': 57} contained={'1': 57} |
-| `mshr_alloc` | 55 | 20–6353 | 238100395266–238109467185 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-| `mshr_fill` | 55 | 33–6391 | 238100454540–238109471514 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-| `cache_fill` | 55 | 34–6392 | 238100454540–238109471514 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `mshr_free` | 55 | 35–6393 | 238100454540–238109471514 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-
-**每层第一个旁支事件（不折叠）**：
-
-| 层 | kind | event_id | tick |
-|---|---|---|---|
-| L3 | `request_fork` | 4294967296 | 238100395266 |
-| L4 | `taint_reg` | 44 | 238100455539 |
-
-**`consumer` 折叠说明**（唯一允许折叠的 kind）：kind=`consumer`；count=1270；event_id 范围 `59`–`8321`；tick 范围 `238100457204`–`238148603010`；corr 分布 {'taint_prop': 1270}；outcome 分布 {'': 1270}；contained 分布 {'': 1270}；可折叠理由：这些是同一故障的重复下游读取（可能跨多个 dyn_inst_seq/寄存器），不承担 L0–L5 任一层的首次见证，不驱动 admission/violation；异常成员：无（原始流中逐条保留，未删除）。
-
-**`taint_reg` 旁支（不折叠）**：count=1667；event_id `44`–`8121`；tick `238100455539`–`238120385256`；distinct dyn_inst_seq=1416；distinct phys_reg=241；distinct arch_reg=23；corr 分布 {'addr_fallback': 1667}；outcome 分布 {'': 1667}；contained 分布 {'': 1667}；sample_run 分布 {'s3': 1667}。
-
-首 8 条 / 末 8 条（身份可回查；其余全部保留在原始流中）：
-
-| event_id | tick | parent | dyn_inst_seq | arch_reg/phys_reg | before→after | corr |
-|---|---|---|---|---|---|---|
-| 44 | 238100455539 | 43 | 570353 | 19/119 | clean→tainted | addr_fallback |
-| 45 | 238100455539 | 44 | 570353 | 20/133 | clean→tainted | addr_fallback |
-| 48 | 238100455540 | 47 | 570354 | 29/115 | clean→tainted | addr_fallback |
-| 49 | 238100455540 | 48 | 570354 | 30/22 | clean→tainted | addr_fallback |
-| 52 | 238100455872 | 51 | 570358 | 29/84 | clean→tainted | addr_fallback |
-| 53 | 238100455872 | 52 | 570358 | 30/226 | clean→tainted | addr_fallback |
-| 57 | 238100456538 | 56 | 570459 | 19/53 | clean→tainted | addr_fallback |
-| 58 | 238100456538 | 57 | 570459 | 20/33 | clean→tainted | addr_fallback |
-| 8098 | 238119954024 | 8097 | 588008 | 29/109 | clean→tainted | addr_fallback |
-| 8099 | 238119954024 | 8098 | 588008 | 30/131 | clean→tainted | addr_fallback |
-| 8103 | 238119957351 | 8102 | 588022 | —/— | clean→tainted | addr_fallback |
-| 8107 | 238119957684 | 8106 | 588023 | —/— | clean→tainted | addr_fallback |
-| 8112 | 238120381596 | 8111 | 588053 | 29/254 | clean→tainted | addr_fallback |
-| 8113 | 238120381596 | 8112 | 588053 | 30/198 | clean→tainted | addr_fallback |
-| 8117 | 238120384923 | 8116 | 588067 | —/— | clean→tainted | addr_fallback |
-| 8121 | 238120385256 | 8120 | 588068 | —/— | clean→tainted | addr_fallback |
-
-<details><summary><b>taint_reg 全量身份索引（1667 条，不折叠，逐条列出）</b></summary>
-
-44@238100455539(19/119) 45@238100455539(20/133) 48@238100455540(29/115) 49@238100455540(30/22) 52@238100455872(29/84) 53@238100455872(30/226) 57@238100456538(19/53) 58@238100456538(20/33)
-
-122@238100622372(—/—) 124@238100623038(—/—) 126@238100623039(—/—) 128@238100623040(—/—) 130@238100623041(—/—) 132@238100623042(—/—) 134@238100623043(—/—) 136@238100623044(—/—)
-
-144@238100625036(—/—) 146@238100625702(—/—) 148@238100625703(—/—) 150@238100625704(—/—) 152@238100625705(—/—) 154@238100625706(—/—) 156@238100625707(—/—) 158@238100625708(—/—)
-
-217@238100672655(—/—) 219@238100673321(—/—) 221@238100673322(—/—) 223@238100673323(—/—) 225@238100673324(—/—) 227@238100673325(—/—) 229@238100673326(—/—) 231@238100673327(—/—)
-
-239@238100674986(—/—) 241@238100675652(—/—) 243@238100675653(—/—) 245@238100675654(—/—) 247@238100675655(—/—) 249@238100675656(—/—) 259@238100681313(—/—) 265@238100681314(—/—)
-
-267@238100681315(—/—) 269@238100681316(—/—) 271@238100681646(—/—) 273@238100681647(—/—) 290@238100805855(—/—) 292@238100806521(—/—) 298@238100907753(—/—) 300@238100907754(—/—)
-
-308@238100954373(—/—) 310@238100954374(—/—) 312@238100954375(—/—) 328@238101006321(—/—) 342@238101053940(—/—) 345@238101053941(29/117) 346@238101053941(30/136) 348@238101054606(—/—)
-
-350@238101054607(—/—) 353@238101054608(19/190) 358@238101055605(0/223) 368@238101063264(0/239) 376@238101064596(—/—) 386@238101064597(—/—) 388@238101064929(—/—) 390@238101064930(—/—)
-
-392@238101064931(—/—) 394@238101064932(—/—) 399@238101068259(29/17) 400@238101068259(30/169) 407@238101068592(19/179) 408@238101068592(20/219) 411@238101068593(21/250) 412@238101068593(22/10)
-
-442@238101179148(—/—) 444@238101179814(—/—) 446@238101179815(—/—) 448@238101179816(—/—) 450@238101179817(—/—) 452@238101179818(—/—) 457@238101203457(3/163) 485@238101358968(—/—)
-
-487@238101359634(—/—) 489@238101359635(—/—) 491@238101359636(—/—) 497@238101360300(—/—) 499@238101360301(—/—) 528@238101511815(—/—) 530@238101511816(—/—) 532@238101511817(—/—)
-
-534@238101511818(—/—) 542@238101513147(—/—) 544@238101513813(—/—) 568@238101641019(—/—) 581@238101645681(—/—) 585@238101645682(—/—) 587@238101645683(—/—) 589@238101645684(—/—)
-
-591@238101646014(—/—) 620@238101685974(—/—) 625@238101686640(—/—) 629@238101686641(—/—) 631@238101686973(—/—) 633@238101687639(—/—) 635@238101687640(—/—) 637@238101687641(—/—)
+# T04-F2-W4 seed3 故障传播与最终结局
 
-639@238101687642(—/—) 641@238101687643(—/—) 644@238101687644(2/187) 645@238101687644(3/72) 648@238101687972(2/59) 649@238101687972(3/186) 663@238101689970(—/—) 665@238101689971(—/—)
+## 1. 实验身份与复现信息
 
-667@238101689972(—/—) 669@238101689973(—/—) 686@238101818508(—/—) 688@238101819174(—/—) 705@238101879447(—/—) 707@238101880113(—/—) 712@238101888771(8/78) 713@238101888771(9/225)
+- RunID：`T04-F2-W4`；seed：`3`；sample_run_id：`s3`
+- 单元：`L1d-TLB`（L1 d-TLB，注入器 `CHAOSArmTLB`；注入点 site=`arm_tlb_lookup_hit`）
+- fault model：`pfn_to_mapped_page`（故障类型：换值）。将命中项的 PPN 换成另一个当前合法、相同页大小的 PPN；VPN/ASID 保持一致；不生成任意随机位串。
+- frequency tier：`F2` — 平均每 100,000 个 eligible events 注入 1 次，间隔加入 ±50% 抖动
+- requested tier / effective tier / tier enabled：`CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1`
+- workload 矩阵标签：TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）
+- run.out 实际 workload/readfile：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS`（矩阵标签与实际 readfile 的差异如实保留，不推断）
+- 完整启动命令：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/lsu_b0_fs.py --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015 --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type pfn_to_mapped_page --tlb_lsu_tier F2 --tlb_rng_seed 3 --chaos_propagation --prop_run_id T04-F2-W4 --prop_sample_run_id s3`
+- source head：`fcacc958b799c635babd2834cce9da6942322d91`
+- binary source head：`N/A`（该 manifest 不记录 binary_source_head；同 run 的 source_head 见上）
+- binary path：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt`
+- binary SHA-256：`e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959`（本次对同一路径重算一致）
+- analysis tool head：本次文档集分析工具 head=`4af986f726a6791f441130dee19eca0711e0b38f`；run 时 manifest.analysis_tool_head=`fcacc958b799c635babd2834cce9da6942322d91`
+- checker SHA-256：`baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`（`/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/tools/lsu_chain_check.py`，65565 bytes）
+- evidence root：`/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3`
+- manifest：`/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/manifest.json`（SHA-256 `0f2a7cc4a83aa0e82ba3a5968c02af116a10c2f8a292e8382f4f6343fd503af5`；1775 bytes；mtime `2026-10-25T21:08:03+0800`；该 manifest 的 seed 字段为 `3`）
+- 正常 EOF：**是**（gzip 解压到 EOF 无错：True；`chain_report.truncated=False`，`evidence_truncated=False`）
+- exit_code：`0`（gem5/oracle 报告值；manifest.exit_code=`0`，runroot `.done`=存在，`.exit_code`=存在）
+- truncated：**False**
+- stats 是否有效：**是**（stats.txt 以 `End Simulation Statistics` 结束；393356 bytes）
+- 原始事件数：gzip 内 `PROP-EVT` 行 **13769** 条；`chain_report.event_count`=**11456**（不含 consumer 事件），差值为 consumer 摘要数 2313
+- fault_id 数量：**9**（注入日志共 10 条记录，其中 F1/F2 档位首行是 tier 汇总行而非独立故障）
+- 是否经过离线 regrade：**否**（目录内无 `chain_report.regrade-*.json`；唯一离线重判 seed 是 T02-F2-W4 seed2，不属于本文件）
 
-718@238101889104(6/14) 719@238101889104(7/140) 726@238101892768(4/71) 727@238101892768(5/122) 730@238101892769(2/25) 731@238101892769(3/119) 738@238101899095(8/222) 739@238101899095(9/247)
+## 2. 完整故障传播过程：从注入到最终结局
 
-742@238101899427(6/174) 743@238101899427(7/211) 750@238101903423(4/173) 751@238101903423(5/166) 755@238101903424(2/101) 756@238101903424(3/253) 767@238101905421(—/—) 773@238101905422(—/—)
+本章只使用 T04-F2-W4 seed3 自己的流。代表故障 fault_id=1，终局 event 54（`errant_commit`）；祖先为 0,1,2,3,4,5,6,7,8,9,10,11,27,28,29,30,31,32,36,37,38,54（22 个事件）。`path_event_ids=[0,1,2,4,37,54]` 只是层锚点。tick 单调不减；0–4、5–8、9–11、27–29、30–32、36–38 分别同 tick。
 
-775@238101905754(—/—) 777@238101905755(—/—) 784@238101942384(6/192) 785@238101942384(7/73) 788@238101942385(6/61) 789@238101942385(7/66) 795@238101943383(—/—) 799@238101943384(—/—)
+### 2.1 故障注入前的正常状态
 
-807@238101944382(—/—) 813@238101944383(—/—) 815@238101944715(—/—) 817@238101944716(—/—) 834@238102037289(—/—) 840@238102037622(—/—) 842@238102037623(—/—) 844@238102037955(—/—)
+这是一条 **store**：event 4 `sq_execute`（sq_idx=61201，state_before=issued），dyn/request=`570343`，VA=`0xffffffc009483968`。注入前命中项 `vpn=ffffffc009483`、`asid=206`、`valid=1`、`global=1`、`pfn=81d75`、`ap=0`、`mtype=2`、`page_size=1000`、`pa=81d75968`；way=7、entry_index=21，偏移 0x968。正常 PFN=0x81d75、正常 PA=0x81d75968。
 
-851@238102042950(—/—) 860@238102042951(—/—) 862@238102043283(—/—) 870@238102043284(—/—) 878@238102088904(—/—) 880@238102089570(—/—) 887@238102149510(8/142) 888@238102149510(9/109)
+### 2.2 故障具体如何注入
 
-891@238102149511(6/230) 892@238102149511(7/33) 902@238102151508(—/—) 908@238102151509(—/—) 910@238102151841(—/—) 912@238102151842(—/—) 929@238102198128(—/—) 931@238102198794(—/—)
+event 0：`inj`，tick=`238100391603`，`before=81d75`、`after=81363`，`field=pfn_to_mapped_page`，VA=`0xffffffc009483968`，`request_id=570343`，`corr=origin`；注入日志 `old_pfn 0x81d75 → new_pfn 0x81363, candidates: 30`。0x81d75（531829）→0x81363（529251），合法 20 位 PFN；偏移 0x968 不变，PA 81d75968→81363968，effective 变化为真。没有 mask；整页替换。F2 档在本 seed 注入了 9 个 fault（见第 5 章），但代表故障是 fault1（full）。
 
-946@238102202457(—/—) 954@238102202458(—/—) 986@238102248078(—/—) 994@238102248744(—/—) 996@238102248745(—/—) 998@238102248746(—/—) 1000@238102248747(—/—) 1002@238102248748(—/—)
+### 2.3 TLB 查询与地址翻译
 
-1004@238102248749(—/—) 1006@238102248750(—/—) 1008@238102249077(—/—) 1025@238102253073(—/—) 1027@238102253739(—/—) 1048@238102256070(—/—) 1054@238102256071(—/—) 1056@238102256403(—/—)
+event 1 读取命中项 pfn 81d75→81363（way=7/entry=21）；event 2 记录 `state_before=81d75968`、`state_after=81363968`、`pa=81363968`；event 3 `tlb_translate_result` 记录 `effective_pa_changed`、`contained=0`、`outcome=NoFault`。TLB 没有含住：替换页合法、ap=0 未变、4 KiB 未变。TLB 交付 request_id=570343、PA=0x81363968 的 store。
 
-1058@238102256404(—/—) 1066@238102296696(—/—) 1074@238102301025(—/—) 1076@238102301691(—/—) 1078@238102301692(—/—) 1080@238102301693(—/—) 1091@238102303690(19/226) 1092@238102303690(20/51)
+### 2.4 错误如何进入 LQ/SQ/LSQ
 
-1095@238102303691(21/150) 1096@238102303691(22/146) 1099@238102303692(23/28) 1100@238102303692(24/139) 1103@238102304022(29/178) 1104@238102304022(30/233) 1110@238102306686(—/—) 1118@238102310349(6/153)
+event 4 `sq_execute`（sq_idx=61201，state_before=issued）把错误 PA 的 store 置于执行态；event 5 `sq_writeback`（parent=4，tick=`238100394600`）以 `pa=81363968` 构造 packet，state_after=packet_built。本 seed 没有 lq_read；错误走 store 路径，SQ 接受错误地址后进入 cache/MSHR。
 
-1119@238102310349(7/76) 1128@238102462864(—/—) 1130@238102462865(—/—) 1133@238102463196(29/247) 1134@238102463196(30/222) 1140@238102463529(—/—) 1143@238102463530(—/—) 1149@238102464196(—/—)
+### 2.5 错误如何经过 cache 和 MSHR
 
-1151@238102464528(—/—) 1158@238102465194(19/204) 1159@238102465194(20/97) 1162@238102465195(29/211) 1163@238102465195(30/174) 1170@238102466194(6/210) 1171@238102466194(7/62) 1174@238102466195(4/201)
+event 6 `cache_access`（pa=81363968）→event 7 `cache_return field=miss`→event 8 `mshr_alloc`（mshr_id=1，line 81363968）；event 9 `cache_access`（pa=81363940）→event 10 miss→event 11 `mshr_alloc`（mshr_id=2，line 81363940）。event 27 `mshr_fill`（fill_id=1）→28 `cache_fill`→29 `mshr_free`；event 30 `mshr_fill`（mshr 0/fill 2）→31 `cache_fill`→32 `mshr_free`。错误行同属 0x81363 页，`corr=addr_fallback`；两次 fill/free 是既有 MSHR 序列，不是第二次故障。cache_access 无 hit/miss 字段，由 cache_return 判定。
 
-1175@238102466195(5/239) 1197@238102468857(—/—) 1209@238102468858(—/—) 1211@238102468859(—/—) 1213@238102469190(—/—) 1215@238102469191(—/—) 1217@238102469192(—/—) 1219@238102469193(—/—)
+### 2.6 污染如何返回处理器状态
 
-1221@238102469194(—/—) 1241@238102547112(—/—) 1243@238102547778(—/—) 1245@238102547779(—/—) 1247@238102547780(—/—) 1259@238102617042(21/79) 1260@238102617042(0/17) 1263@238102617043(23/145)
+event 36 `resp`（parent=32，tick=`238100454873`）→event 37 `taint_reg`（parent=36，clean→tainted，VA=81363968；`arch_reg`/`phys_reg` 在原始事件中为空，因此不编造寄存器号）→event 38 `sq_complete`（sq_idx=61201，state_after=completed）。event 37 是存储→CPU 边界；event 38 把错误 store 标为完成，event 54 提交。
 
-1273@238102617708(—/—) 1279@238102617709(—/—) 1281@238102617710(—/—) 1283@238102617711(—/—) 1285@238102618041(—/—) 1292@238102618042(—/—) 1298@238102618707(—/—) 1306@238102618708(—/—)
+### 2.7 最终传播终局
 
-1308@238102619040(—/—) 1310@238102619041(—/—) 1312@238102619042(—/—) 1321@238102724934(—/—) 1326@238102738920(0/66) 1352@238102740918(—/—) 1357@238102744581(—/—) 1359@238102745247(—/—)
+终局：event 54，`errant_commit`，`parent_event_id=38`，tick=`238100456205`，`dyn_inst_seq=570353`，`commit_seq=441257`，`pc=ffffffc0087b27c4`，`detection_layer=L5`，`contained=0`，`outcome=errant_commit`，`corr=taint_prop`。chain_end 是 event 9908（tick=`9751969912689`，fault1 的 errant_commit_seen），只是生命周期收口；fault2–9 还有各自的 chain_end 9909–9916。
 
-1361@238102745248(—/—) 1363@238102745249(—/—) 1372@238102814844(2/193) 1374@238102814845(—/—) 1388@238102819840(—/—) 1409@238102820839(—/—) 1418@238102821172(—/—) 1427@238102821505(—/—)
+为什么没有被提前消除：沿 event 54 的祖先没有 squash；57 条 squash_masked 都在祖先之外（例如 event 1636 起的多条 VA ...3730/...3448），它们对应后续请求。为什么架构可见：`errant_commit` 越过提交边界。这里也要解释 dyn 不一致：注入 store 的 dyn=570343，而终局 dyn=570353，相差 10；parent=38 指向被污染 store 的完成，`corr=taint_prop` 指向消费者，trace 用 parent 表达“污染源→消费者”，不是同一指令编号抄错。
 
-1436@238102821838(—/—) 1444@238102822171(—/—) 1453@238102822504(—/—) 1462@238102822837(—/—) 1471@238102823170(—/—) 1479@238102823503(—/—) 1488@238102823836(—/—) 1497@238102824169(—/—)
+### 2.8 从传播终局到系统表现
 
-1505@238102824502(—/—) 1513@238102824835(—/—) 1522@238102825168(—/—) 1531@238102825501(—/—) 1540@238102825834(—/—) 1549@238102826167(—/—) 1557@238102826500(—/—) 1564@238102826833(—/—)
+- 传播终局：L5 event 54，tick=`238100456205`；provable_to=L5。
+- 运行结局：**Crash**（oracle=Crash，exit=0）。`run.out` 有 errant_commit 的 CHAOS_DETECT 与大量 RAS squash_replay，最后 `[arm_chaos_fs] KERNEL PANIC under fault — exiting (classify: Crash/DUE per fs_mode)`；`run.err` 为 `warn: Kernel panic in simulated kernel`。
+- 注入 tick=`238100391603`，终局 tick=`238100456205`，延迟 **64602 ticks**。
+- 因果链：L5 → kernel panic → Crash。fault2–9 多数只到 L4（chain_end 9909–9916，部分 run_end），不改变 fault1 的 full；没有应用级 oracle。
 
-1572@238102827166(—/—) 1581@238102827499(—/—) 1585@238102827832(—/—) 1597@238102828165(—/—) 1599@238102828497(—/—) 1603@238102829163(—/—) 1608@238102830495(2/198) 1616@238102879446(29/212)
+### 2.9 主链单元输入/内部变化/输出/传播意义
 
-1617@238102879446(30/39) 1624@238102879779(19/177) 1625@238102879779(20/143) 1630@238102879780(1/81) 1633@238102880112(0/171) 1661@238103030961(—/—) 1678@238103102556(3/207) 1692@238103103555(—/—)
+| 单元 | 输入 | 内部变化 | 输出 | 传播意义 |
+|---|---|---|---|---|
+| DTLB | VA=ffffffc009483968，way=7/entry=21 | PFN 81d75→81363 | request_id=570343，PA=81363968 | 错误地址进入 LSU |
+| SQ | store sq_idx=61201 | sq_execute→sq_writeback packet_built→sq_complete completed | 错误 store packet | 错误地址被 SQ 接受 |
+| L1D cache | PA=81363968 / line 81363940 | access→miss→fill | miss/fill | 错误行进入 L1D |
+| MSHR | line 81363968/81363940 | alloc(1/2)→fill(1/2)→free | 响应 | 错误行完成生命周期 |
+| response | request_id=570343 | resp 交付 | 可交付污染值 | 回到处理器 |
+| register file（taint） | store 数据 | clean→tainted（arch/phys 未记录） | 被标记状态 | 存储→CPU 边界 |
+| commit/ROB | dyn 570353 | 无 squash | errant_commit（L5） | 架构可见错误 |
 
-1694@238103103556(—/—) 1701@238103107218(0/30) 1710@238103108550(—/—) 1719@238103108551(—/—) 1730@238103109217(—/—) 1732@238103109218(—/—) 1734@238103109219(—/—) 1736@238103109549(—/—)
 
-1741@238103111880(29/218) 1742@238103111880(30/92) 1754@238103114877(2/10) 1758@238103116542(—/—) 1764@238103117208(—/—) 1769@238103165160(0/44) 1780@238103213778(—/—) 1786@238103213779(—/—)
+**一句话总括**：T04-F2-W4 seed3 在 tick 238100391603 把 VA=ffffffc009483968 的 PFN 0x81d75 换成 0x81363，错误 PA=81363968 经 SQ（4/5）→L1D/MSHR（6–32）→resp/taint_reg/sq_complete（36–38）传播，event 54 真实错误提交；同 seed 另有 8 个 fault（多为 L4），运行结局 Crash。
 
-1788@238103213780(—/—) 1796@238103265060(—/—) 1799@238103265061(—/—) 1809@238103318007(—/—) 1814@238103371620(1/241) 1826@238103419905(29/163) 1827@238103419905(30/50) 1833@238103419906(—/—)
+## 3. SDC 诊断分析
 
-1836@238103420238(19/248) 1837@238103420238(20/124) 1842@238103420239(1/134) 1845@238103420571(0/35) 1863@238103524134(1/171) 1870@238103525466(2/130) 1873@238103525467(3/121) 1881@238103527464(—/—)
+### 3.1 故障是否被激活
 
-1883@238103527465(—/—) 1891@238103528130(—/—) 1893@238103528131(—/—) 1895@238103528132(—/—) 1900@238103573418(—/—) 1915@238103621037(—/—) 1923@238103625033(—/—) 1926@238103625034(29/105)
+注入日志有 tier 行加 9 条 hit 记录；`CHAOS_LSU_TRIGGER` 为 `attempted=943965 eligible=924569 injected=9`；`stats.txt` 的 `numFaultsInjected=9`；`chain_report` faults=9。四方一致。代表 fault1 的 PFN 被 event 1/2/3 读取、event 4/5 消费，activated 为真；fault2–9 的 `provable_to_L4_then_unknown` 表明它们只可证到 L4（未形成 full）；其中部分 chain_end 为 L4 detected_contained，部分为 run_end。
 
-1927@238103625034(30/233) 1929@238103625699(—/—) 1938@238103665992(21/51) 1948@238103668989(0/215) 1957@238103717607(—/—) 1959@238103717608(—/—) 2026@238103853471(—/—) 2028@238103853472(—/—)
+### 3.2 故障传播类型
 
-2033@238103857134(29/246) 2034@238103857134(30/53) 2039@238103857467(29/12) 2040@238103857467(30/227) 2053@238103858466(19/38) 2054@238103858466(20/248) 2057@238103858467(21/124) 2060@238103858468(29/79)
+**地址型（wrong physical page）**：PFN 0x81d75→0x81363，错误 PA 0x81363968 经 SQ/cache/MSHR；无 mask，不是 data/位翻转；ap=0 未变，不是 permission；不是 control-state/timing。
 
-2061@238103858468(30/1) 2063@238103858469(—/—) 2065@238103858470(—/—) 2070@238103859132(19/145) 2071@238103859132(20/128) 2083@238103863128(0/225) 2089@238103864460(—/—) 2091@238103864461(—/—)
+### 3.3 首个不可逆传播点
 
-2099@238103865126(—/—) 2107@238103865127(—/—) 2109@238103865128(—/—) 2115@238103866125(—/—) 2124@238103868124(29/147) 2125@238103868124(30/226) 2128@238103868456(19/47) 2129@238103868456(20/23)
+**event 3（`tlb_translate_result`，tick=238100391603）**：错误 PA 离开 TLB 并交付 LSU；之后只有 squash/replay 能撤销，而 fault1 的祖先上没有。event 37 的 `taint_reg`（寄存器号未记录）是寄存器层点；event 54 是架构层点。
 
-2135@238103868457(1/223) 2138@238103868789(0/104) 2151@238103869457(—/—) 2158@238103873785(—/—) 2173@238103874784(—/—) 2180@238103875117(—/—) 2189@238103875450(—/—) 2192@238103875782(19/135)
+### 3.4 检测与掩蔽机制
 
-2193@238103875782(20/118) 2205@238103875783(29/242) 2206@238103875783(30/131) 2208@238103875784(—/—) 2211@238103876115(1/229) 2219@238103876116(0/64) 2221@238103876117(—/—) 2223@238103876448(—/—)
-
-2240@238103876783(—/—) 2242@238103877114(—/—) 2246@238103877780(—/—) 2253@238103881111(—/—) 2267@238103882110(—/—) 2275@238103882443(—/—) 2283@238103882776(—/—) 2290@238103883109(—/—)
-
-2294@238103883442(—/—) 2301@238103883775(—/—) 2303@238103884107(—/—) 2307@238103884773(—/—) 2312@238103886438(29/39) 2313@238103886438(30/244) 2320@238103886771(19/144) 2321@238103886771(20/210)
-
-2328@238103886772(1/233) 2331@238103887104(0/165) 2352@238103895429(0/21) 2358@238103896761(—/—) 2367@238103896762(—/—) 2380@238103897428(—/—) 2382@238103897429(—/—) 2384@238103897430(—/—)
-
-2386@238103897760(—/—) 2391@238103900091(29/206) 2392@238103900091(30/254) 2405@238103903088(2/218) 2410@238103904753(—/—) 2417@238103905419(—/—) 2428@238103911080(0/17) 2433@238103911746(0/83)
-
-2442@238103913744(—/—) 2444@238103913745(—/—) 2449@238103915742(0/195) 2466@238103920738(—/—) 2468@238103920739(—/—) 2470@238103920740(—/—) 2475@238103970354(2/27) 2479@238103972685(—/—)
-
-2486@238104017307(2/50) 2489@238104017308(1/174) 2497@238104021303(2/99) 2502@238104021970(—/—) 2511@238104022968(1/198) 2519@238104024300(—/—) 2521@238104024301(—/—) 2523@238104024302(—/—)
-
-2528@238104027630(1/45) 2532@238104028629(—/—) 2537@238104028962(29/194) 2538@238104028962(30/217) 2547@238104029628(—/—) 2551@238104030294(—/—) 2555@238104030627(—/—) 2560@238104031959(1/182)
-
-2565@238104035289(1/81) 2570@238104036621(29/128) 2571@238104036621(30/145) 2576@238104036954(19/12) 2577@238104036954(20/201) 2581@238104037953(—/—) 2592@238104187803(3/231) 2603@238104321003(0/137)
-
-2610@238104322335(2/84) 2613@238104322336(3/55) 2619@238104324333(—/—) 2621@238104324334(—/—) 2634@238104324999(—/—) 2642@238104325000(—/—) 2644@238104325001(—/—) 2646@238104325002(—/—)
-
-2648@238104325332(—/—) 2652@238104325333(—/—) 2654@238104325334(—/—) 2656@238104325665(—/—) 2660@238104371619(—/—) 2674@238104576414(—/—) 2678@238104576747(—/—) 2682@238104577080(—/—)
-
-2686@238104577413(—/—) 2692@238104578079(—/—) 2696@238104578412(—/—) 2700@238104578745(—/—) 2704@238104579078(—/—) 2708@238104579744(—/—) 2712@238104580077(—/—) 2716@238104580410(—/—)
-
-2720@238104580743(—/—) 2727@238104581409(—/—) 2731@238104581742(—/—) 2759@238104811512(1/86) 2842@238104860463(1/39) 2855@238104860797(19/71) 2856@238104860797(20/1) 2859@238104860798(29/215)
-
-2860@238104860798(30/109) 2863@238104861129(21/138) 2864@238104861129(22/81) 2867@238104861130(23/182) 2868@238104861130(24/175) 2871@238104861131(25/151) 2872@238104861131(26/100) 2886@238104866457(0/142)
-
-2892@238104867789(—/—) 2900@238104867790(—/—) 2908@238104868455(—/—) 2912@238104868456(—/—) 2914@238104868457(—/—) 2916@238104868788(—/—) 2923@238104870120(—/—) 2928@238104871785(29/108)
-
-2929@238104871785(30/44) 2936@238104872118(19/72) 2937@238104872118(20/238) 2940@238104872119(1/98) 2965@238104880776(27/200) 2966@238104880776(28/62) 2974@238104944046(27/177) 2975@238104944046(28/52)
-
-2979@238104945045(—/—) 2984@238104945378(1/240) 2993@238104945711(19/212) 2994@238104945711(20/158) 3001@238104945712(21/227) 3002@238104945712(22/181) 3005@238104945713(29/167) 3006@238104945713(30/31)
-
-3009@238104946044(23/233) 3010@238104946044(24/93) 3013@238104946045(25/226) 3014@238104946045(26/46) 3019@238104946710(0/77) 3033@238105046610(0/20) 3041@238105050939(4/162) 3046@238105096560(7/23)
-
-3054@238105097226(4/239) 3067@238105098891(—/—) 3074@238105101888(0/247) 3077@238105101889(0/216) 3088@238105105551(0/169) 3096@238105108881(3/152) 3107@238105187469(—/—) 3113@238105187470(—/—)
-
-3115@238105187471(—/—) 3117@238105187472(—/—) 3119@238105187802(—/—) 3129@238105187803(—/—) 3131@238105188135(—/—) 3139@238105188136(—/—) 3141@238105188137(—/—) 3143@238105188138(—/—)
-
-3145@238105188468(—/—) 3147@238105188469(—/—) 3149@238105188470(—/—) 3154@238105205784(3/237) 3167@238105254402(—/—) 3169@238105254403(—/—) 3171@238105254404(—/—) 3173@238105254405(—/—)
-
-3177@238105258398(—/—) 3193@238106044278(1/78) 3202@238106066589(—/—) 3204@238106066590(—/—) 3209@238106194461(1/136) 3215@238106258064(—/—) 3223@238106258065(—/—) 3225@238106258397(—/—)
-
-3233@238106258398(—/—) 3235@238106258399(—/—) 3237@238106258730(—/—) 3243@238106258731(—/—) 3245@238106258732(—/—) 3247@238106259063(—/—) 3249@238106259064(—/—) 3253@238106290032(—/—)
-
-3276@238106385270(—/—) 3278@238106385271(—/—) 3280@238106385272(—/—) 3282@238106385273(—/—) 3290@238106444544(—/—) 3292@238106445210(—/—) 3297@238106478843(1/149) 3306@238106479176(19/11)
-
-3307@238106479176(20/170) 3310@238106479177(21/216) 3313@238106479178(29/129) 3314@238106479178(30/139) 3328@238106528127(27/101) 3339@238106528460(19/230) 3340@238106528460(20/75) 3345@238106528461(21/197)
-
-3346@238106528461(22/52) 3349@238106528462(23/169) 3350@238106528462(24/137) 3353@238106528463(29/167) 3354@238106528463(30/215) 3357@238106528793(25/199) 3358@238106528793(26/128) 3363@238106529459(1/181)
-
-3369@238106531124(—/—) 3374@238106532123(—/—) 3381@238106624031(25/9) 3382@238106624031(26/35) 3388@238106624032(27/180) 3389@238106624032(28/53) 3394@238106625030(1/99) 3403@238106625363(19/184)
-
-3404@238106625363(20/248) 3413@238106625364(21/54) 3414@238106625364(22/221) 3417@238106625365(29/48) 3418@238106625365(30/45) 3421@238106625696(23/239) 3422@238106625696(24/79) 3425@238106625697(2/163)
-
-3427@238106625698(—/—) 3435@238106629026(0/78) 3442@238106629359(8/194) 3443@238106629359(9/91) 3446@238106629360(6/143) 3447@238106629360(7/200) 3451@238106631357(—/—) 3459@238106631690(—/—)
-
-3461@238106631691(—/—) 3463@238106631692(—/—) 3469@238106632689(—/—) 3471@238106632690(—/—) 3481@238106633355(—/—) 3483@238106633356(—/—) 3485@238106633357(—/—) 3487@238106633358(—/—)
-
-3494@238106705949(6/198) 3495@238106705949(7/160) 3498@238106705950(4/201) 3499@238106705950(5/235) 3505@238106707947(—/—) 3511@238106707948(—/—) 3513@238106708280(—/—) 3515@238106708281(—/—)
-
-3522@238106767887(6/240) 3523@238106767887(7/183) 3526@238106767888(4/29) 3527@238106767888(5/1) 3533@238106768886(—/—) 3537@238106768887(—/—) 3539@238106769219(—/—) 3545@238106769885(—/—)
-
-3551@238106769886(—/—) 3553@238106770218(—/—) 3555@238106770219(—/—) 3563@238106770885(—/—) 3565@238106770886(—/—) 3568@238106771217(21/138) 3569@238106771217(0/31) 3582@238106771550(23/157)
-
-3592@238106771551(—/—) 3594@238106771552(—/—) 3596@238106771553(—/—) 3598@238106771554(—/—) 3600@238106771883(—/—) 3602@238106771884(—/—) 3604@238106771885(—/—) 3606@238106771886(—/—)
-
-3621@238106772883(—/—) 3623@238106772884(—/—) 3625@238106773215(—/—) 3630@238106773216(—/—) 3632@238106773217(—/—) 3637@238106774214(0/20) 3645@238106775214(—/—) 3647@238106775215(—/—)
-
-3649@238106775546(—/—) 3663@238106775880(—/—) 3665@238106775881(—/—) 3667@238106775882(—/—) 3674@238106776878(—/—) 3678@238106780209(—/—) 3684@238106781208(—/—) 3688@238106781541(—/—)
-
-3692@238106781874(—/—) 3696@238106782207(—/—) 3700@238106782540(—/—) 3704@238106782873(—/—) 3708@238106783206(—/—) 3712@238106783539(—/—) 3716@238106783872(—/—) 3720@238106784205(—/—)
-
-3724@238106784538(—/—) 3728@238106784871(—/—) 3732@238106785204(—/—) 3736@238106785537(—/—) 3740@238106785870(—/—) 3744@238106786203(—/—) 3748@238106786536(—/—) 3752@238106786869(—/—)
-
-3756@238106787202(—/—) 3761@238106787535(—/—) 3767@238106787868(—/—) 3771@238106788201(—/—) 3778@238106788534(—/—) 3780@238106788866(—/—) 3784@238106789532(—/—) 3789@238106790864(2/69)
-
-3794@238106794194(29/142) 3795@238106794194(30/101) 3802@238106794527(19/199) 3803@238106794527(20/128) 3806@238106794528(1/218) 3813@238106800522(—/—) 3818@238106803851(3/234) 3828@238106808513(0/57)
-
-3834@238106809845(—/—) 3836@238106809846(—/—) 3849@238106810511(—/—) 3851@238106810512(—/—) 3853@238106810513(—/—) 3857@238106811177(—/—) 3862@238106812842(2/95) 3866@238106814507(—/—)
-
-3875@238106815173(—/—) 3883@238106819169(—/—) 3885@238106819170(—/—) 3887@238106819171(—/—) 3893@238106820168(—/—) 3895@238106820169(—/—) 3900@238106824164(1/216) 3904@238106825163(—/—)
-
-3909@238106827494(1/152) 3914@238106881773(29/25) 3915@238106881773(30/85) 3920@238106882106(19/135) 3921@238106882106(20/129) 3925@238106883105(—/—) 3933@238106893095(1/52) 3938@238106893428(3/66)
-
-3943@238106894094(2/75) 3953@238106896092(—/—) 3959@238106896093(—/—) 3961@238106896094(—/—) 3963@238106896095(—/—) 3965@238106896425(—/—) 3976@238106896426(—/—) 3990@238106956698(—/—)
-
-3993@238106956699(29/2) 3994@238106956699(30/127) 3996@238106957364(—/—) 3998@238106957365(—/—) 4004@238106959695(—/—) 4008@238106959696(—/—) 4014@238106967354(29/6) 4015@238106967354(30/135)
-
-4028@238106968353(19/16) 4029@238106968353(20/4) 4036@238106968354(21/71) 4039@238106968355(29/163) 4040@238106968355(30/191) 4042@238106968356(—/—) 4044@238106968357(—/—) 4046@238106968687(—/—)
-
-4048@238106968688(—/—) 4055@238106969352(19/114) 4056@238106969352(20/210) 4061@238106969353(29/133) 4062@238106969353(30/108) 4065@238106969685(0/29) 4076@238106973015(—/—) 4086@238106973016(—/—)
-
-4088@238106973348(—/—) 4092@238106973349(—/—) 4094@238106973350(—/—) 4096@238106973681(—/—) 4102@238106976345(—/—) 4106@238106980342(—/—) 4112@238106981341(—/—) 4116@238106981674(—/—)
-
-4121@238106982007(—/—) 4128@238106982340(—/—) 4134@238106982673(—/—) 4141@238106983006(—/—) 4148@238106983339(—/—) 4155@238106983672(—/—) 4162@238106984005(—/—) 4168@238106984338(—/—)
-
-4173@238106984671(—/—) 4177@238106985004(—/—) 4181@238106985337(—/—) 4185@238106985670(—/—) 4189@238106986003(—/—) 4193@238106986336(—/—) 4195@238106986668(—/—) 4199@238106987334(—/—)
-
-4204@238106988666(2/21) 4212@238106991996(29/246) 4213@238106991996(30/167) 4220@238106992329(19/45) 4221@238106992329(20/212) 4224@238106992330(1/92) 4243@238106995327(—/—) 4248@238106996325(0/57)
-
-4262@238106997658(—/—) 4264@238106997659(—/—) 4267@238106997991(—/—) 4269@238106997992(—/—) 4271@238106997993(—/—) 4277@238106998657(—/—) 4279@238106998989(—/—) 4283@238106999322(—/—)
-
-4288@238107001653(0/153) 4294@238107003984(—/—) 4296@238107003985(—/—) 4304@238107007981(—/—) 4306@238107007982(—/—) 4308@238107007983(—/—) 4313@238107010977(2/134) 4318@238107011976(2/25)
-
-4324@238107013309(—/—) 4327@238107013641(1/168) 4332@238107017970(—/—) 4341@238107021633(2/151) 4344@238107021634(1/119) 4349@238107023298(1/77) 4357@238107023964(—/—) 4366@238107023965(—/—)
-
-4368@238107023966(—/—) 4371@238107024297(1/223) 4391@238107026295(—/—) 4401@238107026628(—/—) 4405@238107026961(—/—) 4409@238107027294(—/—) 4414@238107027960(1/239) 4419@238107028293(29/38)
-
-4420@238107028293(30/109) 4427@238107028626(19/58) 4428@238107028626(20/111) 4431@238107028627(1/32) 4435@238107030624(—/—) 4440@238107031956(1/96) 4469@238107041280(0/64) 4474@238107041613(3/173)
-
-4479@238107042279(2/120) 4489@238107044277(—/—) 4495@238107044278(—/—) 4497@238107044279(—/—) 4499@238107044280(—/—) 4501@238107044610(—/—) 4506@238107044611(—/—) 4516@238107045276(—/—)
-
-4520@238107045277(—/—) 4522@238107045278(—/—) 4524@238107045279(—/—) 4526@238107045609(—/—) 4536@238107050938(—/—) 4540@238107051936(—/—) 4544@238107052602(—/—) 4548@238107053268(—/—)
-
-4552@238107053934(—/—) 4556@238107054600(—/—) 4560@238107055266(—/—) 4564@238107055932(—/—) 4568@238107056598(—/—) 4572@238107057264(—/—) 4576@238107057930(—/—) 4580@238107058596(—/—)
-
-4584@238107059262(—/—) 4588@238107059928(—/—) 4610@238107072249(1/219) 4616@238107076245(1/122) 4621@238107076911(1/82) 4626@238107077577(1/213) 4631@238107078243(1/2) 4636@238107082239(1/184)
-
-4641@238107082905(1/151) 4646@238107083571(1/142) 4651@238107084237(1/128) 4656@238107084903(1/156) 4661@238107085569(1/199) 4667@238107086235(1/223) 4678@238107086901(1/176) 4689@238107087567(1/5)
-
-4699@238107088233(1/87) 4705@238107091896(1/99) 4718@238107092230(19/112) 4719@238107092230(20/109) 4722@238107092231(29/14) 4723@238107092231(30/178) 4726@238107092562(21/81) 4727@238107092562(22/234)
-
-4730@238107092563(23/13) 4731@238107092563(24/26) 4734@238107092564(25/46) 4735@238107092564(26/227) 4751@238107097890(0/28) 4757@238107099222(—/—) 4765@238107099223(—/—) 4773@238107099888(—/—)
-
-4780@238107099889(—/—) 4782@238107099890(—/—) 4784@238107100221(—/—) 4788@238107104217(—/—) 4793@238107106548(29/71) 4794@238107106548(30/39) 4801@238107106881(19/152) 4802@238107106881(20/101)
-
-4805@238107106882(1/143) 4820@238107109879(—/—) 4828@238107179142(3/66) 4833@238107180141(0/184) 4843@238107186801(27/5) 4844@238107186801(28/180) 4851@238107188133(1/174) 4860@238107188466(19/179)
-
-4861@238107188466(20/217) 4868@238107188467(21/168) 4869@238107188467(22/203) 4872@238107188468(29/96) 4873@238107188468(30/195) 4876@238107188799(23/211) 4877@238107188799(24/237) 4884@238107188800(25/221)
-
-4885@238107188800(26/245) 4888@238107189132(19/88) 4891@238107189133(29/148) 4892@238107189133(30/165) 4900@238107194127(0/72) 4907@238107196791(—/—) 4923@238107279708(19/149) 4924@238107279708(20/223)
-
-4927@238107279709(21/147) 4928@238107279709(22/199) 4931@238107279710(29/254) 4932@238107279710(30/154) 4941@238107280374(0/35) 4948@238107280375(3/75) 4951@238107280376(1/142) 4954@238107280707(2/124)
-
-4957@238107280708(4/60) 4963@238107380607(—/—) 4965@238107380608(—/—) 4970@238107425895(0/110) 4975@238107426228(5/131) 4980@238107479175(0/71) 4985@238107484170(29/242) 4986@238107484170(30/195)
-
-4991@238107492495(1/73) 5004@238107492829(19/238) 5005@238107492829(20/172) 5008@238107493161(21/136) 5009@238107493161(22/155) 5014@238107493162(23/105) 5015@238107493162(24/64) 5018@238107493163(25/11)
-
-5019@238107493163(26/216) 5022@238107493164(27/109) 5023@238107493164(28/185) 5026@238107493494(29/14) 5027@238107493494(30/92) 5033@238107496158(—/—) 5035@238107496159(—/—) 5041@238107496824(—/—)
-
-5043@238107496825(—/—) 5048@238107506814(29/93) 5049@238107506814(30/190) 5054@238107507147(19/135) 5055@238107507147(20/210) 5061@238107560427(—/—) 5063@238107560428(—/—) 5069@238107612042(—/—)
-
-5071@238107612043(—/—) 5077@238107612708(—/—) 5079@238107612709(—/—) 5085@238107617703(—/—) 5087@238107617704(—/—) 5092@238107666987(29/79) 5093@238107666987(30/132) 5099@238107730257(—/—)
-
-5101@238107730258(—/—) 5107@238107730923(—/—) 5109@238107730924(—/—) 5116@238107731922(—/—) 5118@238107731923(—/—) 5124@238107732588(—/—) 5126@238107732589(—/—) 5132@238107740247(—/—)
-
-5134@238107740248(—/—) 5140@238107740913(—/—) 5142@238107740914(—/—) 5149@238107741579(19/58) 5150@238107741579(20/42) 5153@238107741580(29/86) 5154@238107741580(30/35) 5161@238107745575(19/252)
-
-5162@238107745575(20/85) 5165@238107745576(29/75) 5166@238107745576(30/110) 5172@238107748573(—/—) 5174@238107748574(—/—) 5179@238107766221(29/179) 5180@238107766221(30/92) 5185@238107789864(29/239)
-
-5186@238107789864(30/153) 5191@238107790197(19/76) 5192@238107790197(20/112) 5198@238107793194(—/—) 5200@238107793195(—/—) 5205@238107860127(29/113) 5206@238107860127(30/171) 5211@238107865122(29/229)
-
-5212@238107865122(30/50) 5217@238107865455(19/212) 5218@238107865455(20/103) 5223@238107865788(29/208) 5224@238107865788(30/146) 5230@238107928725(—/—) 5238@238107928726(—/—) 5240@238107929058(—/—)
-
-5244@238107929059(—/—) 5246@238107929060(—/—) 5248@238107929391(—/—) 5259@238107962025(—/—) 5265@238107962026(—/—) 5267@238107962027(—/—) 5269@238107962028(—/—) 5271@238107962358(—/—)
-
-5279@238107962359(—/—) 5281@238107962691(—/—) 5283@238107962692(—/—) 5285@238107962693(—/—) 5290@238108007646(0/12) 5298@238108008978(—/—) 5300@238108008979(—/—) 5302@238108008980(—/—)
-
-5308@238108107546(—/—) 5312@238108107547(—/—) 5314@238108107879(—/—) 5320@238108154832(—/—) 5322@238108154833(—/—) 5332@238108155498(—/—) 5342@238108155499(—/—) 5344@238108155500(—/—)
-
-5346@238108155501(—/—) 5348@238108155831(—/—) 5356@238108155832(—/—) 5358@238108155833(—/—) 5360@238108155834(—/—) 5362@238108156164(—/—) 5364@238108156165(—/—) 5366@238108156166(—/—)
-
-5371@238108200120(27/9) 5377@238108201452(—/—) 5381@238108201453(—/—) 5383@238108201785(—/—) 5391@238108202451(—/—) 5393@238108202452(—/—) 5395@238108202453(—/—) 5401@238108300020(—/—)
-
-5403@238108300021(—/—) 5407@238108346973(—/—) 5415@238108445541(—/—) 5417@238108445542(—/—) 5419@238108445543(—/—) 5430@238108447540(1/5) 5433@238108447541(1/247) 5436@238108447872(1/221)
-
-5441@238108447873(1/31) 5451@238108450203(—/—) 5456@238108451202(1/204) 5463@238108451535(1/161) 5468@238108451536(1/205) 5475@238108451869(29/32) 5476@238108451869(30/56) 5479@238108452201(0/23)
-
-5490@238108455198(1/146) 5493@238108455199(29/93) 5494@238108455199(30/187) 5501@238108455864(0/115) 5504@238108455865(0/139) 5512@238108459527(—/—) 5522@238108459528(—/—) 5524@238108459860(—/—)
-
-5532@238108459861(—/—) 5534@238108459862(—/—) 5536@238108459863(—/—) 5538@238108460193(—/—) 5544@238108460194(—/—) 5546@238108460195(—/—) 5548@238108460526(—/—) 5550@238108460527(—/—)
-
-5559@238108496157(0/104) 5564@238108496158(24/136) 5567@238108496159(9/53) 5572@238108496491(1/16) 5575@238108496823(0/191) 5576@238108496823(2/132) 5580@238108498155(—/—) 5585@238108499820(9/202)
-
-5590@238108500153(1/155) 5595@238108500486(0/145) 5596@238108500486(2/21) 5601@238108500819(5/141) 5606@238108501152(6/91) 5613@238108642011(4/64) 5616@238108642012(2/223) 5620@238108642677(—/—)
-
-5625@238108643010(0/107) 5630@238108645341(—/—) 5635@238108646340(0/86) 5640@238108689630(0/44) 5649@238108691963(—/—) 5655@238108739248(—/—) 5657@238108739249(—/—) 5661@238108740246(—/—)
-
-5667@238108751568(—/—) 5671@238108751569(—/—) 5673@238108751901(—/—) 5684@238108753567(1/129) 5687@238108753568(1/108) 5690@238108753569(1/144) 5693@238108753900(29/123) 5694@238108753900(30/116)
-
-5698@238108756230(—/—) 5703@238108757229(1/204) 5710@238108757895(1/163) 5713@238108757896(29/187) 5714@238108757896(30/74) 5721@238108782870(1/48) 5724@238108782871(2/199) 5735@238108829490(19/212)
-
-5736@238108829490(20/236) 5743@238108829491(21/216) 5744@238108829491(22/178) 5747@238108829492(23/253) 5748@238108829492(24/157) 5751@238108829493(29/12) 5752@238108829493(30/175) 5755@238108829823(25/4)
-
-5756@238108829823(26/198) 5761@238108829824(27/27) 5762@238108829824(28/82) 5765@238108830156(29/59) 5766@238108830156(30/210) 5771@238108830822(1/194) 5778@238108831488(2/191) 5781@238108831489(0/45)
-
-5786@238108835484(0/142) 5792@238108945374(—/—) 5794@238108945375(—/—) 5804@238108946040(—/—) 5806@238108946041(—/—) 5808@238108946042(—/—) 5810@238108946043(—/—) 5815@238109005314(22/231)
-
-5820@238109005647(0/65) 5821@238109005647(28/83) 5834@238109006313(27/155) 5840@238109006314(—/—) 5842@238109006315(—/—) 5844@238109006316(—/—) 5846@238109006317(—/—) 5848@238109006646(—/—)
-
-5850@238109006647(—/—) 5854@238109007645(—/—) 5859@238109103549(4/94) 5865@238109104548(—/—) 5868@238109104549(—/—) 5878@238109105214(—/—) 5880@238109105215(—/—) 5882@238109105216(—/—)
-
-5884@238109105217(—/—) 5890@238109244741(—/—) 5894@238109244742(—/—) 5896@238109245074(—/—) 5902@238109245407(—/—) 5904@238109245408(—/—) 5914@238109291361(—/—) 5916@238109291362(—/—)
-
-5918@238109291363(—/—) 5920@238109291364(—/—) 5930@238109292360(—/—) 5934@238109292361(—/—) 5936@238109292362(—/—) 5938@238109292363(—/—) 5940@238109292693(—/—) 5949@238109293026(4/109)
-
-5950@238109293026(5/202) 5956@238109295024(—/—) 5962@238109295025(—/—) 5964@238109295357(—/—) 5966@238109295358(—/—) 5982@238109339647(21/60) 5983@238109339647(0/44) 5986@238109339648(23/110)
-
-6008@238109340645(—/—) 6010@238109340646(—/—) 6012@238109340647(—/—) 6014@238109340648(—/—) 6020@238109341644(—/—) 6028@238109341645(—/—) 6030@238109341977(—/—) 6032@238109341978(—/—)
-
-6034@238109341979(—/—) 6042@238109385267(—/—) 6044@238109385933(—/—) 6046@238109385934(—/—) 6048@238109385935(—/—) 6050@238109385936(—/—) 6052@238109385937(—/—) 6057@238109387931(0/195)
-
-6062@238109390262(0/80) 6070@238109397255(27/196) 6071@238109397255(28/98) 6076@238109397588(1/182) 6083@238109397921(19/12) 6084@238109397921(20/2) 6087@238109397922(21/210) 6088@238109397922(22/48)
-
-6092@238109401917(—/—) 6110@238109402916(—/—) 6114@238109403249(—/—) 6118@238109403582(—/—) 6124@238109406912(—/—) 6129@238109407245(2/4) 6131@238109407578(—/—) 6133@238109407579(—/—)
-
-6135@238109407580(—/—) 6140@238109410575(29/251) 6141@238109410575(30/145) 6148@238109410908(19/148) 6149@238109410908(20/178) 6154@238109410909(1/82) 6157@238109411241(0/27) 6166@238109420234(—/—)
-
-6174@238109429556(3/129) 6179@238109430555(27/215) 6180@238109430555(28/108) 6191@238109430890(—/—) 6193@238109431221(—/—) 6195@238109431222(—/—) 6200@238109434218(0/135) 6206@238109435550(—/—)
-
-6209@238109435551(—/—) 6222@238109436217(—/—) 6224@238109436218(—/—) 6226@238109436219(—/—) 6228@238109436549(—/—) 6232@238109437215(—/—) 6236@238109437549(—/—) 6240@238109438214(—/—)
-
-6246@238109438880(—/—) 6248@238109438881(—/—) 6253@238109440878(2/39) 6258@238109441877(2/192) 6264@238109443210(—/—) 6267@238109443542(1/183) 6275@238109445540(—/—) 6277@238109445541(—/—)
-
-6279@238109445542(—/—) 6283@238109446206(—/—) 6287@238109446539(—/—) 6292@238109447538(1/223) 6297@238109450535(1/225) 6302@238109450868(29/145) 6303@238109450868(30/180) 6308@238109451201(19/6)
-
-6309@238109451201(20/96) 6314@238109451534(0/141) 6321@238109453199(—/—) 6331@238109461524(2/26) 6340@238109464521(0/86) 6345@238109464854(3/143) 6350@238109465520(2/168) 6380@238109468517(—/—)
-
-6384@238109468518(—/—) 6386@238109468519(—/—) 6388@238109468520(—/—) 6390@238109468850(—/—) 6395@238109471847(—/—) 6397@238109472513(—/—) 6399@238109472514(—/—) 6401@238109472515(—/—)
-
-6403@238109472516(—/—) 6405@238109472517(—/—) 6409@238109476842(—/—) 6413@238109477841(—/—) 6426@238109481837(—/—) 6433@238109482503(—/—) 6440@238109483169(—/—) 6448@238109497821(1/58)
-
-6458@238109499819(—/—) 6463@238109500818(1/177) 6476@238109501152(19/3) 6477@238109501152(20/129) 6480@238109501153(29/138) 6481@238109501153(30/92) 6484@238109501484(21/148) 6485@238109501484(22/178)
-
-6488@238109501485(23/251) 6489@238109501485(24/88) 6492@238109501486(25/9) 6493@238109501486(26/246) 6498@238109502816(27/77) 6499@238109502816(28/6) 6504@238109503149(1/239) 6516@238109506812(0/206)
-
-6522@238109508144(—/—) 6532@238109508145(—/—) 6541@238109508478(29/137) 6542@238109508478(30/65) 6544@238109508810(—/—) 6551@238109508811(—/—) 6553@238109508812(—/—) 6555@238109509143(—/—)
-
-6560@238109509476(19/4) 6561@238109509476(20/195) 6565@238109509809(—/—) 6573@238109512806(0/183) 6583@238109518134(—/—) 6596@238109524128(3/87) 6601@238109525127(27/70) 6602@238109525127(28/179)
-
-6613@238109525462(—/—) 6615@238109525793(—/—) 6617@238109525794(—/—) 6622@238109528790(0/243) 6628@238109530122(—/—) 6634@238109530123(—/—) 6642@238109530788(—/—) 6652@238109530789(—/—)
-
-6654@238109530790(—/—) 6656@238109531122(—/—) 6660@238109531787(—/—) 6664@238109532120(—/—) 6670@238109533119(—/—) 6672@238109533120(—/—) 6677@238109536116(29/58) 6678@238109536116(30/163)
-
-6683@238109536449(19/76) 6684@238109536449(20/55) 6695@238109537115(—/—) 6697@238109537116(—/—) 6699@238109537117(—/—) 6704@238109540112(2/161) 6709@238109541779(2/150) 6713@238109542444(—/—)
-
-6720@238109546106(2/129) 6723@238109546107(1/3) 6728@238109547771(1/204) 6736@238109548437(—/—) 6738@238109548438(—/—) 6740@238109548439(—/—) 6749@238109550435(—/—) 6753@238109550768(—/—)
-
-6758@238109551767(1/247) 6763@238109552100(29/216) 6764@238109552100(30/33) 6771@238109552433(19/169) 6772@238109552433(20/124) 6779@238109553432(0/212) 6783@238109554431(—/—) 6788@238109559426(0/63)
-
-6793@238109559759(3/52) 6798@238109560425(2/39) 6808@238109562423(—/—) 6814@238109562424(—/—) 6816@238109562425(—/—) 6818@238109562426(—/—) 6820@238109562756(—/—) 6822@238109562757(—/—)
-
-6832@238109563422(—/—) 6836@238109563423(—/—) 6838@238109563424(—/—) 6840@238109563425(—/—) 6842@238109563755(—/—) 6846@238109569749(—/—) 6852@238109631354(—/—) 6854@238109631355(—/—)
-
-6858@238109773878(—/—) 6862@238109778873(—/—) 6867@238109867118(29/6) 6868@238109867118(30/72) 6873@238109867451(27/85) 6877@238109868450(—/—) 6882@238109880438(1/212) 6887@238109880771(1/248)
-
-6906@238109882436(—/—) 6911@238109884434(1/0) 6918@238109885100(1/236) 6926@238109886432(—/—) 6931@238109888430(1/25) 6936@238109889096(1/49) 6947@238109890428(—/—) 6952@238109892426(1/136)
-
-6960@238109893092(1/48) 6970@238109894424(—/—) 6975@238109896422(1/161) 6983@238109897088(1/232) 6994@238109898420(—/—) 6999@238109900418(1/98) 7007@238109901084(1/146) 7023@238109901418(19/160)
-
-7024@238109901418(20/90) 7027@238109901419(29/231) 7028@238109901419(30/5) 7031@238109901750(21/135) 7032@238109901750(22/201) 7035@238109901751(23/51) 7036@238109901751(24/194) 7039@238109901752(25/181)
-
-7040@238109901752(26/103) 7044@238109902416(—/—) 7049@238109903082(27/142) 7050@238109903082(28/56) 7055@238109903415(1/54) 7067@238109907078(0/187) 7073@238109908410(—/—) 7075@238109908411(—/—)
-
-7083@238109909076(—/—) 7085@238109909077(—/—) 7087@238109909078(—/—) 7091@238109910075(—/—) 7100@238109912074(29/237) 7101@238109912074(30/88) 7104@238109912406(19/93) 7105@238109912406(20/2)
-
-7110@238109912407(1/158) 7113@238109912739(0/167) 7117@238109913405(—/—) 7122@238109915736(29/184) 7123@238109915736(30/141) 7130@238109916069(19/164) 7131@238109916069(20/157) 7136@238109916070(1/87)
-
-7139@238109916402(0/101) 7148@238109922063(—/—) 7158@238109928057(3/151) 7163@238109929056(27/128) 7164@238109929056(28/154) 7171@238109929389(1/26) 7183@238109929391(—/—) 7186@238109929722(19/213)
-
-7187@238109929722(20/136) 7195@238109929723(21/24) 7196@238109929723(22/161) 7199@238109929724(29/146) 7200@238109929724(30/226) 7202@238109929725(—/—) 7204@238109929726(—/—) 7207@238109930055(23/255)
-
-7208@238109930055(24/238) 7217@238109930056(25/98) 7218@238109930056(26/166) 7221@238109930388(1/102) 7226@238109930390(19/165) 7229@238109930391(29/95) 7230@238109930391(30/81) 7232@238109930721(—/—)
-
-7241@238109931387(19/85) 7242@238109931387(20/193) 7247@238109931388(29/1) 7248@238109931388(30/84) 7251@238109931720(21/185) 7252@238109931720(22/17) 7258@238109933385(—/—) 7260@238109933386(—/—)
-
-7270@238110124860(0/188) 7273@238110124861(0/3) 7288@238110182136(6/60) 7291@238110182137(7/241) 7300@238110184134(0/136) 7303@238110184135(0/24) 7312@238110184800(19/193) 7313@238110184800(20/11)
-
-7322@238110184801(21/6) 7323@238110184801(22/53) 7326@238110184802(23/151) 7327@238110184802(24/54) 7330@238110185133(25/190) 7331@238110185133(26/83) 7334@238110185134(27/209) 7335@238110185134(28/57)
-
-7338@238110185135(29/50) 7339@238110185135(30/220) 7343@238110187797(—/—) 7349@238110193125(—/—) 7351@238110193126(—/—) 7359@238110203448(29/12) 7360@238110203448(30/236) 7368@238110205780(—/—)
-
-7370@238110205781(—/—) 7372@238110206112(—/—) 7378@238110206445(—/—) 7380@238110206446(—/—) 7386@238110207111(—/—) 7388@238110207112(—/—) 7393@238110209442(29/141) 7394@238110209442(30/76)
-
-7399@238110209775(19/176) 7400@238110209775(20/247) 7407@238110214437(19/117) 7410@238110214438(29/43) 7411@238110214438(30/182) 7417@238110219432(—/—) 7419@238110219433(—/—) 7424@238110228758(29/92)
-
-7425@238110228758(30/199) 7435@238110267051(—/—) 7440@238110305680(1/120) 7446@238110369948(—/—) 7450@238110369949(—/—) 7452@238110370281(—/—) 7460@238110370614(—/—) 7464@238110370615(—/—)
-
-7466@238110370616(—/—) 7469@238110370947(1/229) 7478@238110371280(19/225) 7479@238110371280(20/220) 7482@238110371281(29/121) 7483@238110371281(30/72) 7486@238110371282(29/114) 7487@238110371282(30/73)
-
-7492@238110374943(2/222) 7498@238110435882(—/—) 7500@238110435883(—/—) 7510@238110436548(—/—) 7516@238110436549(—/—) 7518@238110436550(—/—) 7520@238110436551(—/—) 7522@238110436881(—/—)
-
-7524@238110436882(—/—) 7530@238110683301(—/—) 7532@238110683302(—/—) 7538@238110818166(—/—) 7546@238110818167(—/—) 7548@238110818499(—/—) 7558@238110818500(—/—) 7560@238110818501(—/—)
-
-7562@238110818832(—/—) 7566@238110818833(—/—) 7568@238110818834(—/—) 7570@238110818835(—/—) 7572@238110819165(—/—) 7578@238110885099(—/—) 7582@238110885100(—/—) 7584@238110885433(—/—)
-
-7590@238110886764(—/—) 7592@238110886765(—/—) 7598@238110887430(—/—) 7600@238110887431(—/—) 7607@238110888096(19/51) 7608@238110888096(20/175) 7611@238110888097(29/96) 7612@238110888097(30/125)
-
-7623@238110957027(19/181) 7628@238110957028(29/133) 7629@238110957028(30/249) 7632@238110957029(19/94) 7633@238110957029(20/232) 7636@238110957030(21/174) 7637@238110957030(22/159) 7640@238110957360(29/199)
-
-7641@238110957360(30/53) 7647@238110996321(—/—) 7649@238110996322(—/—) 7654@238111041942(29/202) 7655@238111041942(30/158) 7661@238111042941(—/—) 7663@238111042942(—/—) 7668@238111043607(19/88)
-
-7669@238111043607(20/144) 7678@238111089896(29/63) 7679@238111089896(30/206) 7682@238111090227(19/66) 7683@238111090227(20/231) 7686@238111090228(29/82) 7687@238111090228(30/251) 7693@238111180137(—/—)
-
-7699@238111180138(—/—) 7701@238111180470(—/—) 7703@238111180471(—/—) 7708@238111185467(29/128) 7709@238111185467(30/238) 7714@238111186131(29/132) 7715@238111186131(30/212) 7720@238111186464(29/89)
-
-7721@238111186464(30/105) 7728@238111186797(19/224) 7729@238111186797(20/178) 7732@238111186798(29/154) 7733@238111186798(30/255) 7741@238111240077(—/—) 7747@238111240078(—/—) 7749@238111240079(—/—)
-
-7751@238111240410(—/—) 7757@238111240411(—/—) 7759@238111240743(—/—) 7761@238111240744(—/—) 7768@238111241409(19/46) 7769@238111241409(20/6) 7772@238111241410(29/230) 7773@238111241410(30/207)
-
-7780@238111305345(19/3) 7783@238111305346(29/91) 7784@238111305346(30/243) 7791@238111833150(—/—) 7799@238111833151(—/—) 7801@238111833483(—/—) 7805@238111833484(—/—) 7807@238111833485(—/—)
-
-7809@238111833816(—/—) 7822@238111839145(—/—) 7824@238111839146(—/—) 7829@238112257395(29/217) 7830@238112257395(30/208) 7834@238112260722(—/—) 7838@238112261055(—/—) 7843@238112684967(29/74)
-
-7844@238112684967(30/193) 7848@238112688294(—/—) 7852@238112688627(—/—) 7857@238113112539(29/225) 7858@238113112539(30/106) 7862@238113115866(—/—) 7866@238113116199(—/—) 7871@238113540111(29/128)
-
-7872@238113540111(30/33) 7876@238113543438(—/—) 7880@238113543771(—/—) 7885@238113967683(29/191) 7886@238113967683(30/20) 7890@238113971010(—/—) 7895@238113971343(—/—) 7900@238114395255(29/84)
-
-7901@238114395255(30/154) 7906@238114398582(—/—) 7910@238114398915(—/—) 7915@238114822827(29/32) 7916@238114822827(30/11) 7920@238114826154(—/—) 7924@238114826487(—/—) 7929@238115250399(29/75)
-
-7930@238115250399(30/3) 7934@238115253726(—/—) 7938@238115254059(—/—) 7943@238115677971(29/48) 7944@238115677971(30/28) 7948@238115681298(—/—) 7952@238115681631(—/—) 7957@238116105543(29/13)
-
-7958@238116105543(30/104) 7962@238116109203(—/—) 7966@238116109536(—/—) 7971@238116533448(29/196) 7972@238116533448(30/27) 7980@238116539773(—/—) 7982@238116539774(—/—) 7987@238116961020(29/127)
-
-7988@238116961020(30/109) 7992@238116964347(—/—) 7996@238116964680(—/—) 8001@238117388592(29/124) 8002@238117388592(30/254) 8006@238117391919(—/—) 8010@238117392252(—/—) 8015@238117816164(29/253)
-
-8016@238117816164(30/106) 8020@238117819491(—/—) 8024@238117819824(—/—) 8029@238118243736(29/165) 8030@238118243736(30/29) 8035@238118247063(—/—) 8040@238118247396(—/—) 8045@238118671308(29/71)
-
-8046@238118671308(30/31) 8052@238118674635(—/—) 8056@238118674968(—/—) 8061@238119098880(29/87) 8062@238119098880(30/187) 8066@238119102207(—/—) 8073@238119102540(—/—) 8078@238119526452(29/27)
-
-8079@238119526452(30/158) 8087@238119529779(—/—) 8093@238119530112(—/—) 8098@238119954024(29/109) 8099@238119954024(30/131) 8103@238119957351(—/—) 8107@238119957684(—/—) 8112@238120381596(29/254)
-
-8113@238120381596(30/198) 8117@238120384923(—/—) 8121@238120385256(—/—)
-
-</details>
-
-<details><summary><b>cache_return 全量 hit/miss 决策索引（1541 条，不折叠）</b></summary>
-
-13@238100395266:miss 16@238100395266:miss 19@238100395266:miss 22@238100395599:miss 25@238100399595:miss 62@238100575752:miss 65@238100575752:miss 68@238100575752:miss
-
-71@238100575752:miss 74@238100576085:miss 77@238100576085:miss 80@238100576085:miss 83@238100576085:miss 86@238100576085:miss 89@238100576418:miss 92@238100576418:miss
-
-95@238100576418:miss 98@238100576418:miss 101@238100576751:miss 104@238100576751:miss 107@238100576751:miss 110@238100576751:miss 113@238100576751:miss 160@238100626701:miss
-
-163@238100627034:miss 167@238100627367:miss 171@238100627700:miss 174@238100627700:miss 177@238100628033:miss 180@238100628699:miss 184@238100629032:miss 187@238100629032:miss
-
-190@238100629032:miss 193@238100629032:miss 196@238100629365:miss 199@238100629365:miss 202@238100629365:miss 205@238100629365:miss 208@238100629365:miss 251@238100680980:hit
-
-253@238100680980:hit 255@238100680980:hit 257@238100680980:hit 261@238100681313:hit 263@238100681313:hit 275@238100743251:miss 278@238100743251:miss 281@238100743584:miss
-
-294@238100907420:hit 296@238100907420:hit 302@238100954040:hit 304@238100954040:hit 306@238100954040:hit 314@238101005655:miss 317@238101005655:miss 320@238101005988:miss
-
-323@238101005988:miss 326@238101005988:hit 330@238101008319:miss 333@238101008319:miss 355@238101055272:hit 365@238101062931:hit 372@238101064263:hit 374@238101064263:hit
-
-378@238101064596:hit 380@238101064596:hit 382@238101064596:hit 384@238101064596:hit 396@238101067926:hit 402@238101068259:hit 404@238101068259:hit 414@238101133194:miss
-
-417@238101133194:miss 420@238101133527:miss 424@238101144183:miss 427@238101144183:miss 430@238101144516:miss 433@238101144516:miss 454@238101203124:hit 463@238101313014:miss
-
-466@238101313014:miss 469@238101313347:miss 472@238101313680:miss 475@238101313680:miss 493@238101359967:hit 495@238101359967:hit 507@238101464862:miss 510@238101464862:miss
-
-513@238101465528:miss 520@238101511482:hit 522@238101511482:hit 524@238101511482:hit 526@238101511482:hit 549@238101640020:miss 552@238101640020:miss 557@238101640353:miss
-
-560@238101640353:miss 563@238101640686:miss 566@238101640686:hit 570@238101641019:miss 573@238101645348:hit 575@238101645348:hit 577@238101645348:hit 579@238101645348:hit
-
-583@238101645681:hit 593@238101646347:miss 596@238101646347:miss 599@238101646347:miss 602@238101646347:miss 605@238101646680:miss 608@238101647013:miss 627@238101686640:hit
-
-655@238101689637:hit 657@238101689637:hit 659@238101689637:hit 661@238101689637:hit 671@238101772554:miss 674@238101772554:miss 677@238101772887:miss 690@238101833493:miss
-
-693@238101833493:miss 696@238101833826:miss 709@238101888438:hit 715@238101888771:hit 721@238101892434:hit 723@238101892434:hit 733@238101898761:hit 735@238101899094:hit
-
-745@238101903090:hit 747@238101903090:hit 763@238101905088:hit 765@238101905088:hit 769@238101905421:hit 771@238101905421:hit 779@238101942051:hit 781@238101942051:hit
-
-791@238101943050:hit 793@238101943050:hit 803@238101944049:hit 805@238101944049:hit 809@238101944382:hit 811@238101944382:hit 819@238101990669:miss 822@238101990669:miss
-
-825@238101991002:miss 836@238102037289:hit 838@238102037289:hit 847@238102042617:hit 849@238102042617:hit 853@238102042950:hit 855@238102042950:hit 857@238102042950:miss
-
-864@238102043283:miss 867@238102043283:miss 882@238102149177:hit 884@238102149177:hit 898@238102151175:hit 900@238102151175:hit 904@238102151508:hit 906@238102151508:hit
-
-914@238102152174:miss 917@238102152174:miss 920@238102152507:miss 933@238102202124:hit 935@238102202124:hit 937@238102202124:miss 940@238102202124:miss 943@238102202457:miss
-
-948@238102202457:miss 951@238102202457:miss 956@238102202790:miss 959@238102202790:miss 962@238102202790:miss 965@238102202790:miss 968@238102202790:miss 971@238102203123:miss
-
-974@238102203123:miss 977@238102203456:miss 1010@238102250742:miss 1013@238102250742:miss 1016@238102251075:miss 1029@238102255071:miss 1032@238102255071:miss 1035@238102255404:miss
-
-1038@238102255737:miss 1041@238102255737:miss 1044@238102255737:hit 1046@238102255737:hit 1050@238102256070:hit 1052@238102256070:hit 1082@238102303356:hit 1084@238102303356:hit
-
-1086@238102303356:hit 1088@238102303689:hit 1108@238102306353:hit 1114@238102310016:hit 1122@238102462530:hit 1124@238102462530:hit 1126@238102462863:hit 1136@238102463196:hit
-
-1138@238102463196:hit 1145@238102463862:hit 1147@238102464195:hit 1153@238102464861:hit 1155@238102464861:hit 1165@238102465860:hit 1167@238102465860:hit 1191@238102468524:hit
-
-1193@238102468524:hit 1195@238102468524:hit 1199@238102468857:hit 1201@238102468857:hit 1203@238102468857:hit 1205@238102468857:hit 1207@238102468857:hit 1224@238102542450:miss
-
-1227@238102542450:miss 1230@238102542783:hit 1232@238102543116:miss 1235@238102543116:miss 1249@238102616709:hit 1251@238102616709:hit 1265@238102617375:hit 1267@238102617375:hit
-
-1269@238102617375:hit 1271@238102617375:hit 1275@238102617708:hit 1277@238102617708:hit 1294@238102618374:hit 1296@238102618374:hit 1300@238102618707:hit 1302@238102618707:hit
-
-1304@238102618707:hit 1319@238102724601:hit 1323@238102738587:hit 1328@238102739919:miss 1331@238102739919:miss 1336@238102740252:hit 1344@238102740585:miss 1347@238102740585:miss
-
-1350@238102740585:hit 1366@238102814511:hit 1368@238102814511:hit 1380@238102819506:hit 1395@238102820505:hit 1402@238102820838:hit 1411@238102821171:hit 1420@238102821504:hit
-
-1429@238102821837:hit 1438@238102822170:hit 1446@238102822503:hit 1455@238102822836:hit 1464@238102823169:hit 1473@238102823502:hit 1481@238102823835:hit 1490@238102824168:hit
-
-1499@238102824501:hit 1507@238102824834:hit 1515@238102825167:hit 1524@238102825500:hit 1533@238102825833:hit 1542@238102826166:hit 1551@238102826499:hit 1559@238102826832:hit
-
-1566@238102827165:hit 1574@238102827498:hit 1583@238102827831:hit 1587@238102828164:hit 1601@238102828830:hit 1605@238102830162:hit 1613@238102879113:hit 1619@238102879446:hit
-
-1621@238102879446:hit 1627@238102879779:hit 1635@238102880445:hit 1659@238103030628:hit 1666@238103038953:hit 1675@238103102223:hit 1683@238103102889:hit 1685@238103102889:hit
-
-1688@238103103222:hit 1690@238103103222:hit 1698@238103106885:hit 1704@238103108217:hit 1706@238103108217:hit 1721@238103108883:hit 1723@238103108883:hit 1725@238103108883:hit
-
-1727@238103109216:hit 1738@238103111547:hit 1744@238103111880:hit 1746@238103111880:hit 1751@238103114544:hit 1756@238103116209:hit 1760@238103116875:hit 1766@238103164827:hit
-
-1773@238103213445:hit 1775@238103213445:hit 1777@238103213445:hit 1790@238103264727:hit 1792@238103264727:hit 1805@238103317674:hit 1811@238103371287:hit 1821@238103419572:hit
-
-1823@238103419572:hit 1829@238103419905:hit 1831@238103419905:hit 1839@238103420238:hit 1847@238103420904:hit 1849@238103420904:hit 1853@238103470188:hit 1860@238103523801:hit
-
-1865@238103525133:hit 1867@238103525133:hit 1875@238103527131:hit 1877@238103527131:hit 1885@238103527797:hit 1887@238103527797:hit 1889@238103527797:hit 1898@238103573085:hit
-
-1903@238103620371:miss 1906@238103620371:miss 1911@238103620704:hit 1913@238103620704:hit 1917@238103621037:miss 1931@238103665659:hit 1933@238103665659:hit 1935@238103665659:hit
-
-1940@238103665992:hit 1945@238103668656:hit 1953@238103717274:hit 1955@238103717274:hit 2022@238103853138:hit 2024@238103853138:hit 2030@238103856801:hit 2036@238103857134:hit
-
-2042@238103858133:hit 2044@238103858133:hit 2046@238103858133:hit 2048@238103858133:hit 2050@238103858133:hit 2067@238103858799:hit 2073@238103859132:hit 2075@238103859132:hit
-
-2079@238103862795:hit 2085@238103864127:hit 2087@238103864127:hit 2093@238103864793:hit 2095@238103864793:hit 2097@238103864793:hit 2113@238103865792:hit 2117@238103867790:hit
-
-2119@238103868123:hit 2121@238103868123:hit 2131@238103868456:hit 2140@238103869122:hit 2142@238103869122:hit 2144@238103869122:hit 2153@238103873451:hit 2163@238103874450:hit
-
-2168@238103874783:hit 2175@238103875116:hit 2182@238103875449:hit 2184@238103875449:hit 2186@238103875449:hit 2195@238103875782:hit 2197@238103875782:hit 2199@238103875782:hit
-
-2213@238103876115:hit 2225@238103876448:hit 2227@238103876448:hit 2229@238103876448:hit 2232@238103876781:hit 2244@238103877447:hit 2248@238103880777:hit 2259@238103881776:hit
-
-2263@238103882109:hit 2269@238103882442:hit 2277@238103882775:hit 2285@238103883108:hit 2292@238103883441:hit 2296@238103883774:hit 2305@238103884440:hit 2309@238103886105:hit
-
-2315@238103886438:hit 2317@238103886438:hit 2323@238103886771:hit 2333@238103887437:hit 2335@238103887437:hit 2349@238103895096:hit 2354@238103896428:hit 2356@238103896428:hit
-
-2369@238103897094:hit 2371@238103897094:hit 2373@238103897094:hit 2375@238103897427:hit 2388@238103899758:hit 2394@238103900091:hit 2396@238103900091:hit 2402@238103902755:hit
-
-2407@238103904420:hit 2412@238103905086:hit 2425@238103910747:hit 2430@238103911413:hit 2438@238103913411:hit 2440@238103913411:hit 2446@238103915409:hit 2457@238103920404:hit
-
-2459@238103920404:hit 2461@238103920404:hit 2472@238103970021:hit 2477@238103972352:hit 2481@238104016974:hit 2483@238104016974:hit 2494@238104020970:hit 2499@238104021636:hit
-
-2504@238104022635:hit 2513@238104023967:hit 2515@238104023967:hit 2517@238104023967:hit 2525@238104027297:hit 2530@238104028296:hit 2534@238104028629:hit 2540@238104028962:hit
-
-2543@238104029295:hit 2549@238104029961:hit 2553@238104030294:hit 2557@238104031626:hit 2562@238104034956:hit 2567@238104036288:hit 2573@238104036621:hit 2579@238104037620:hit
-
-2583@238104135855:hit 2586@238104184473:hit 2589@238104187470:hit 2594@238104187803:hit 2600@238104320670:hit 2605@238104322002:hit 2607@238104322002:hit 2615@238104324000:hit
-
-2617@238104324000:hit 2623@238104324666:hit 2625@238104324666:hit 2627@238104324666:hit 2629@238104324666:hit 2636@238104324999:hit 2638@238104324999:hit 2640@238104324999:hit
-
-2650@238104325332:hit 2658@238104371286:hit 2672@238104576081:hit 2676@238104576414:hit 2680@238104576747:hit 2684@238104577080:hit 2690@238104577746:hit 2694@238104578079:hit
-
-2698@238104578412:hit 2702@238104578745:hit 2706@238104579411:hit 2710@238104579744:hit 2714@238104580077:hit 2718@238104580410:hit 2725@238104581076:hit 2729@238104581409:hit
-
-2756@238104811179:hit 2839@238104860130:hit 2844@238104860463:hit 2846@238104860463:hit 2848@238104860796:hit 2850@238104860796:hit 2852@238104860796:hit 2878@238104862794:hit
-
-2880@238104862794:hit 2883@238104866124:hit 2888@238104867456:hit 2890@238104867456:hit 2902@238104868122:hit 2904@238104868122:hit 2906@238104868122:hit 2910@238104868455:hit
-
-2921@238104869787:hit 2925@238104871452:hit 2931@238104871785:hit 2933@238104871785:hit 2951@238104874116:hit 2957@238104877446:hit 2959@238104877446:hit 2962@238104880443:hit
-
-2971@238104943713:hit 2977@238104944712:hit 2981@238104945045:hit 2986@238104945378:hit 2988@238104945378:hit 2990@238104945378:hit 2996@238104945711:hit 2998@238104945711:hit
-
-3016@238104946377:hit 3021@238104946710:hit 3030@238105046277:hit 3038@238105050606:hit 3043@238105096227:hit 3048@238105096893:hit 3062@238105098558:hit 3069@238105101555:hit
-
-3071@238105101555:hit 3079@238105102221:hit 3085@238105105218:hit 3090@238105105551:hit 3093@238105108548:hit 3099@238105187136:hit 3101@238105187136:hit 3103@238105187136:hit
-
-3105@238105187136:hit 3109@238105187469:hit 3111@238105187469:hit 3121@238105187802:hit 3123@238105187802:hit 3125@238105187802:hit 3127@238105187802:hit 3133@238105188135:hit
-
-3135@238105188135:hit 3137@238105188135:hit 3151@238105205451:hit 3159@238105254069:hit 3161@238105254069:hit 3163@238105254069:hit 3165@238105254069:hit 3175@238105258065:hit
-
-3190@238106043945:hit 3198@238106066256:hit 3200@238106066256:hit 3206@238106194128:hit 3211@238106257731:hit 3213@238106257731:hit 3217@238106258064:hit 3219@238106258064:hit
-
-3221@238106258064:hit 3227@238106258397:hit 3229@238106258397:hit 3231@238106258397:hit 3239@238106258730:hit 3241@238106258730:hit 3251@238106289699:hit 3259@238106384271:miss
-
-3262@238106384271:miss 3265@238106384604:miss 3268@238106384937:hit 3270@238106384937:hit 3272@238106384937:hit 3274@238106384937:hit 3294@238106478510:hit 3299@238106478843:hit
-
-3301@238106478843:hit 3303@238106478843:hit 3325@238106527794:hit 3330@238106528127:hit 3332@238106528127:hit 3334@238106528127:hit 3336@238106528127:hit 3342@238106528460:hit
-
-3360@238106529126:hit 3365@238106530791:hit 3372@238106531790:hit 3376@238106623698:hit 3378@238106623698:hit 3391@238106624697:hit 3396@238106625030:hit 3398@238106625030:hit
-
-3400@238106625030:hit 3406@238106625363:hit 3408@238106625363:hit 3410@238106625363:hit 3432@238106628693:hit 3437@238106629026:hit 3439@238106629026:hit 3449@238106631024:hit
-
-3453@238106631357:hit 3455@238106631357:hit 3457@238106631357:hit 3465@238106632356:hit 3467@238106632356:hit 3473@238106633022:hit 3475@238106633022:hit 3477@238106633022:hit
-
-3479@238106633022:hit 3489@238106705616:hit 3491@238106705616:hit 3501@238106707614:hit 3503@238106707614:hit 3507@238106707947:hit 3509@238106707947:hit 3517@238106767554:hit
-
-3519@238106767554:hit 3529@238106768553:hit 3531@238106768553:hit 3535@238106768886:hit 3541@238106769552:hit 3543@238106769552:hit 3547@238106769885:hit 3549@238106769885:hit
-
-3557@238106770551:hit 3559@238106770551:hit 3561@238106770884:hit 3571@238106771217:hit 3573@238106771217:hit 3575@238106771217:hit 3577@238106771217:hit 3579@238106771217:hit
-
-3584@238106771550:hit 3586@238106771550:hit 3588@238106771550:hit 3590@238106771550:hit 3611@238106772549:hit 3613@238106772549:hit 3615@238106772882:hit 3617@238106772882:hit
-
-3619@238106772882:hit 3634@238106773881:hit 3639@238106774880:hit 3641@238106774880:hit 3643@238106775213:hit 3651@238106775546:hit 3653@238106775546:hit 3655@238106775546:hit
-
-3672@238106776545:hit 3676@238106779875:hit 3680@238106780874:hit 3682@238106781207:hit 3686@238106781540:hit 3690@238106781873:hit 3694@238106782206:hit 3698@238106782539:hit
-
-3702@238106782872:hit 3706@238106783205:hit 3710@238106783538:hit 3714@238106783871:hit 3718@238106784204:hit 3722@238106784537:hit 3726@238106784870:hit 3730@238106785203:hit
-
-3734@238106785536:hit 3738@238106785869:hit 3742@238106786202:hit 3746@238106786535:hit 3750@238106786868:hit 3754@238106787201:hit 3758@238106787534:hit 3763@238106787867:hit
-
-3769@238106788200:hit 3773@238106788533:hit 3782@238106789199:hit 3786@238106790531:hit 3791@238106793861:hit 3797@238106794194:hit 3799@238106794194:hit 3811@238106800188:hit
-
-3815@238106803518:hit 3820@238106804184:hit 3822@238106804184:hit 3825@238106808180:hit 3830@238106809512:hit 3832@238106809512:hit 3838@238106810178:hit 3840@238106810178:hit
-
-3842@238106810178:hit 3855@238106810844:hit 3859@238106812509:hit 3864@238106814174:hit 3868@238106814840:hit 3877@238106818836:hit 3879@238106818836:hit 3881@238106818836:hit
-
-3889@238106819835:hit 3891@238106819835:hit 3897@238106823831:hit 3902@238106824830:hit 3906@238106827161:hit 3911@238106881440:hit 3917@238106881773:hit 3923@238106882772:hit
-
-3927@238106886435:hit 3930@238106892762:hit 3935@238106893095:hit 3940@238106893761:hit 3945@238106895759:hit 3947@238106895759:hit 3949@238106895759:hit 3951@238106895759:hit
-
-3955@238106896092:hit 3957@238106896092:hit 3967@238106896425:miss 3970@238106896425:miss 3973@238106896425:miss 3978@238106896758:miss 3981@238106897091:miss 4000@238106959362:hit
-
-4002@238106959362:hit 4010@238106967021:hit 4017@238106968020:hit 4019@238106968020:hit 4021@238106968020:hit 4023@238106968020:hit 4025@238106968020:hit 4031@238106968353:hit
-
-4033@238106968353:hit 4050@238106969019:hit 4052@238106969019:hit 4058@238106969352:hit 4067@238106972682:hit 4069@238106972682:hit 4078@238106973015:hit 4080@238106973015:hit
-
-4082@238106973015:hit 4090@238106973348:hit 4098@238106976012:hit 4104@238106980008:hit 4108@238106981007:hit 4110@238106981340:hit 4114@238106981673:hit 4118@238106982006:hit
-
-4123@238106982339:hit 4130@238106982672:hit 4136@238106983005:hit 4143@238106983338:hit 4150@238106983671:hit 4157@238106984004:hit 4164@238106984337:hit 4170@238106984670:hit
-
-4175@238106985003:hit 4179@238106985336:hit 4183@238106985669:hit 4187@238106986002:hit 4191@238106986335:hit 4197@238106987001:hit 4201@238106988333:hit 4209@238106991663:hit
-
-4215@238106991996:hit 4217@238106991996:hit 4232@238106994993:hit 4245@238106995992:hit 4250@238106997324:hit 4252@238106997324:hit 4254@238106997657:hit 4256@238106997657:hit
-
-4258@238106997657:hit 4273@238106998323:hit 4275@238106998656:hit 4281@238106998989:hit 4285@238107001320:hit 4290@238107003651:hit 4292@238107003651:hit 4298@238107007647:hit
-
-4300@238107007647:hit 4302@238107007647:hit 4310@238107010644:hit 4315@238107011643:hit 4320@238107012975:hit 4322@238107013308:hit 4330@238107017637:hit 4336@238107021300:hit
-
-4338@238107021300:hit 4346@238107022965:hit 4351@238107023631:hit 4353@238107023631:hit 4355@238107023631:hit 4359@238107023964:hit 4373@238107024630:hit 4386@238107025962:hit
-
-4393@238107026295:hit 4403@238107026628:hit 4407@238107026961:hit 4411@238107027627:hit 4416@238107027960:hit 4422@238107028293:hit 4424@238107028293:hit 4433@238107030291:hit
-
-4437@238107031623:hit 4466@238107040947:hit 4471@238107041280:hit 4476@238107041946:hit 4481@238107043944:hit 4483@238107043944:hit 4485@238107043944:hit 4487@238107043944:hit
-
-4491@238107044277:hit 4493@238107044277:hit 4508@238107044943:hit 4510@238107044943:hit 4512@238107044943:hit 4514@238107044943:hit 4518@238107045276:hit 4534@238107050604:hit
-
-4538@238107051603:hit 4542@238107052269:hit 4546@238107052935:hit 4550@238107053601:hit 4554@238107054267:hit 4558@238107054933:hit 4562@238107055599:hit 4566@238107056265:hit
-
-4570@238107056931:hit 4574@238107057597:hit 4578@238107058263:hit 4582@238107058929:hit 4586@238107059595:hit 4607@238107071916:hit 4613@238107075912:hit 4618@238107076578:hit
-
-4623@238107077244:hit 4628@238107077910:hit 4633@238107081906:hit 4638@238107082572:hit 4643@238107083238:hit 4648@238107083904:hit 4653@238107084570:hit 4658@238107085236:hit
-
-4663@238107085902:hit 4669@238107086568:hit 4680@238107087234:hit 4691@238107087900:hit 4702@238107091563:hit 4707@238107091896:hit 4709@238107091896:hit 4711@238107092229:hit
-
-4713@238107092229:hit 4715@238107092229:hit 4737@238107093228:hit 4739@238107093228:hit 4741@238107093561:hit 4743@238107093561:hit 4748@238107097557:hit 4753@238107098889:hit
-
-4755@238107098889:hit 4767@238107099555:hit 4769@238107099555:hit 4771@238107099555:hit 4775@238107099888:hit 4786@238107103884:hit 4790@238107106215:hit 4796@238107106548:hit
-
-4798@238107106548:hit 4815@238107109545:hit 4822@238107115539:hit 4825@238107178809:hit 4830@238107179808:hit 4835@238107183471:hit 4837@238107183471:hit 4840@238107186468:hit
-
-4848@238107187800:hit 4853@238107188133:hit 4855@238107188133:hit 4857@238107188133:hit 4863@238107188466:hit 4865@238107188466:hit 4879@238107188799:hit 4881@238107188799:hit
-
-4894@238107189798:hit 4897@238107193794:hit 4902@238107195459:hit 4905@238107196458:hit 4913@238107212109:hit 4916@238107279375:hit 4918@238107279375:hit 4920@238107279375:hit
-
-4934@238107280041:hit 4936@238107280041:hit 4938@238107280041:hit 4943@238107280374:hit 4945@238107280374:hit 4959@238107380274:hit 4961@238107380274:hit 4967@238107425562:hit
-
-4972@238107425895:hit 4977@238107478842:hit 4982@238107483837:hit 4988@238107492162:hit 4993@238107492495:hit 4995@238107492828:hit 4997@238107492828:hit 4999@238107492828:hit
-
-5001@238107492828:hit 5011@238107493161:hit 5029@238107495825:hit 5031@238107495825:hit 5037@238107496491:hit 5039@238107496491:hit 5045@238107506481:hit 5051@238107506814:hit
-
-5057@238107560094:hit 5059@238107560094:hit 5065@238107611709:hit 5067@238107611709:hit 5073@238107612375:hit 5075@238107612375:hit 5081@238107617370:hit 5083@238107617370:hit
-
-5089@238107666654:hit 5095@238107729924:hit 5097@238107729924:hit 5103@238107730590:hit 5105@238107730590:hit 5111@238107731589:hit 5113@238107731589:hit 5120@238107732255:hit
-
-5122@238107732255:hit 5128@238107739914:hit 5130@238107739914:hit 5136@238107740580:hit 5138@238107740580:hit 5144@238107741246:hit 5146@238107741246:hit 5156@238107745242:hit
-
-5158@238107745242:hit 5168@238107748239:hit 5170@238107748239:hit 5176@238107765888:hit 5182@238107789531:hit 5188@238107789864:hit 5194@238107792861:hit 5196@238107792861:hit
-
-5202@238107859794:hit 5208@238107864789:hit 5214@238107865122:hit 5220@238107865455:hit 5226@238107928392:hit 5228@238107928392:hit 5232@238107928725:hit 5234@238107928725:hit
-
-5236@238107928725:hit 5242@238107929058:hit 5251@238107961692:hit 5253@238107961692:hit 5255@238107961692:hit 5257@238107961692:hit 5261@238107962025:hit 5263@238107962025:hit
-
-5273@238107962358:hit 5275@238107962358:hit 5277@238107962358:hit 5287@238108007313:hit 5292@238108008645:hit 5294@238108008645:hit 5296@238108008645:hit 5304@238108107213:hit
-
-5306@238108107213:hit 5310@238108107546:hit 5316@238108154499:hit 5318@238108154499:hit 5324@238108155165:hit 5326@238108155165:hit 5328@238108155165:hit 5330@238108155165:hit
-
-5334@238108155498:hit 5336@238108155498:hit 5338@238108155498:hit 5340@238108155498:hit 5350@238108155831:hit 5352@238108155831:hit 5354@238108155831:hit 5368@238108199787:hit
-
-5373@238108201119:hit 5375@238108201119:hit 5379@238108201452:hit 5385@238108202118:hit 5387@238108202118:hit 5389@238108202118:hit 5397@238108299687:hit 5399@238108299687:hit
-
-5405@238108346640:hit 5409@238108445208:hit 5411@238108445208:hit 5413@238108445208:hit 5421@238108447206:hit 5423@238108447206:hit 5425@238108447539:hit 5427@238108447539:hit
-
-5438@238108447872:hit 5443@238108448205:hit 5445@238108448205:hit 5449@238108449870:hit 5453@238108450869:hit 5458@238108451202:hit 5460@238108451202:hit 5465@238108451535:hit
-
-5470@238108451868:hit 5472@238108451868:hit 5485@238108454865:hit 5487@238108454865:hit 5496@238108455531:hit 5498@238108455531:hit 5508@238108459194:hit 5510@238108459194:hit
-
-5514@238108459527:hit 5516@238108459527:hit 5518@238108459527:hit 5520@238108459527:hit 5526@238108459860:hit 5528@238108459860:hit 5530@238108459860:hit 5540@238108460193:hit
-
-5542@238108460193:hit 5552@238108495824:hit 5554@238108495824:hit 5556@238108495824:hit 5561@238108496157:hit 5569@238108496490:hit 5578@238108497822:hit 5582@238108499487:hit
-
-5587@238108499820:hit 5592@238108500153:hit 5598@238108500486:hit 5603@238108500819:hit 5608@238108641678:hit 5610@238108641678:hit 5618@238108642344:hit 5622@238108642677:hit
-
-5628@238108645008:hit 5632@238108646007:hit 5637@238108689297:hit 5642@238108691628:hit 5651@238108738914:hit 5653@238108738914:hit 5659@238108739913:hit 5663@238108751235:hit
-
-5665@238108751235:hit 5669@238108751568:hit 5675@238108753233:hit 5677@238108753233:hit 5679@238108753233:hit 5681@238108753566:hit 5696@238108755897:hit 5700@238108756896:hit
-
-5705@238108757562:hit 5707@238108757562:hit 5716@238108782537:hit 5718@238108782537:hit 5726@238108829157:hit 5728@238108829157:hit 5730@238108829157:hit 5732@238108829157:hit
-
-5738@238108829490:hit 5740@238108829490:hit 5758@238108829823:hit 5768@238108830489:hit 5773@238108831155:hit 5775@238108831155:hit 5783@238108835151:hit 5788@238108945041:hit
-
-5790@238108945041:hit 5796@238108945707:hit 5798@238108945707:hit 5800@238108945707:hit 5802@238108945707:hit 5812@238109004981:hit 5817@238109005314:hit 5823@238109005980:hit
-
-5825@238109005980:hit 5827@238109005980:hit 5829@238109005980:hit 5831@238109005980:hit 5836@238109006313:hit 5838@238109006313:hit 5852@238109007312:hit 5856@238109103216:hit
-
-5861@238109104215:hit 5863@238109104215:hit 5870@238109104881:hit 5872@238109104881:hit 5874@238109104881:hit 5876@238109104881:hit 5886@238109244408:hit 5888@238109244408:hit
-
-5892@238109244741:hit 5898@238109245074:hit 5900@238109245074:hit 5906@238109291028:hit 5908@238109291028:hit 5910@238109291028:hit 5912@238109291028:hit 5922@238109292027:hit
-
-5924@238109292027:hit 5926@238109292027:hit 5928@238109292027:hit 5932@238109292360:hit 5942@238109292693:hit 5944@238109292693:hit 5946@238109292693:hit 5952@238109294691:hit
-
-5954@238109294691:hit 5958@238109295024:hit 5960@238109295024:hit 5968@238109339313:hit 5970@238109339313:hit 5972@238109339313:miss 5975@238109339313:miss 5978@238109339646:miss
-
-5988@238109339979:miss 5991@238109339979:miss 5994@238109339979:miss 5997@238109339979:miss 6000@238109340312:hit 6002@238109340312:hit 6004@238109340312:hit 6006@238109340312:hit
-
-6016@238109341311:hit 6018@238109341311:hit 6022@238109341644:hit 6024@238109341644:hit 6026@238109341644:hit 6054@238109387598:hit 6059@238109389929:hit 6064@238109390595:hit
-
-6067@238109396922:hit 6073@238109397255:hit 6078@238109397588:hit 6080@238109397588:hit 6090@238109401584:hit 6094@238109402250:miss 6097@238109402250:miss 6100@238109402583:hit
-
-6102@238109402583:miss 6105@238109402583:miss 6108@238109402583:hit 6112@238109402916:hit 6116@238109403249:hit 6126@238109406912:hit 6137@238109410242:hit 6143@238109410575:hit
-
-6145@238109410575:hit 6151@238109410908:hit 6159@238109411574:hit 6161@238109411574:hit 6164@238109419899:hit 6168@238109425893:hit 6171@238109429223:hit 6176@238109430222:hit
-
-6182@238109430555:hit 6184@238109430555:hit 6187@238109430888:hit 6189@238109430888:hit 6197@238109433885:hit 6202@238109435217:hit 6204@238109435217:hit 6211@238109435883:hit
-
-6213@238109435883:hit 6215@238109435883:hit 6217@238109436216:hit 6230@238109436882:hit 6234@238109437215:hit 6238@238109437881:hit 6242@238109438547:hit 6244@238109438547:hit
-
-6250@238109440545:hit 6255@238109441544:hit 6260@238109442876:hit 6262@238109443209:hit 6269@238109445207:hit 6271@238109445207:hit 6273@238109445207:hit 6281@238109445873:hit
-
-6285@238109446206:hit 6289@238109447205:hit 6294@238109450202:hit 6299@238109450535:hit 6305@238109450868:hit 6311@238109451201:hit 6316@238109451867:hit 6319@238109452866:hit
-
-6323@238109456196:hit 6326@238109461191:hit 6328@238109461191:hit 6337@238109464188:hit 6342@238109464521:hit 6347@238109465187:hit 6352@238109467185:miss 6355@238109467185:miss
-
-6358@238109467185:miss 6361@238109467185:miss 6364@238109467518:hit 6366@238109467518:miss 6369@238109467518:miss 6372@238109468184:hit 6374@238109468184:hit 6376@238109468184:hit
-
-6378@238109468184:hit 6382@238109468517:hit 6407@238109476509:hit 6411@238109477508:hit 6418@238109481504:hit 6428@238109482170:hit 6435@238109482836:hit 6445@238109497488:hit
-
-6456@238109499486:hit 6460@238109500485:hit 6465@238109500818:hit 6467@238109500818:hit 6469@238109501151:hit 6471@238109501151:hit 6473@238109501151:hit 6495@238109502483:hit
-
-6501@238109502816:hit 6506@238109503149:hit 6508@238109503149:hit 6510@238109503149:hit 6513@238109506479:hit 6518@238109507811:hit 6520@238109507811:hit 6524@238109508144:hit
-
-6534@238109508477:hit 6536@238109508477:hit 6538@238109508477:hit 6546@238109508810:hit 6557@238109509143:hit 6563@238109509476:hit 6570@238109512473:hit 6578@238109517801:hit
-
-6590@238109520465:hit 6593@238109523795:hit 6598@238109524794:hit 6604@238109525127:hit 6606@238109525127:hit 6609@238109525460:hit 6611@238109525460:hit 6619@238109528457:hit
-
-6624@238109529789:hit 6626@238109529789:hit 6636@238109530455:hit 6638@238109530455:hit 6640@238109530455:hit 6644@238109530788:hit 6658@238109531454:hit 6662@238109531787:hit
-
-6666@238109532786:hit 6668@238109532786:hit 6674@238109535783:hit 6680@238109536116:hit 6686@238109536449:hit 6689@238109536782:hit 6691@238109536782:hit 6693@238109536782:hit
-
-6701@238109539779:hit 6706@238109541444:hit 6711@238109542110:hit 6715@238109545773:hit 6717@238109545773:hit 6725@238109547438:hit 6730@238109548104:hit 6732@238109548104:hit
-
-6734@238109548104:hit 6747@238109550102:hit 6751@238109550435:hit 6755@238109551434:hit 6760@238109551767:hit 6766@238109552100:hit 6774@238109553099:hit 6776@238109553099:hit
-
-6781@238109554098:hit 6785@238109559093:hit 6790@238109559426:hit 6795@238109560092:hit 6800@238109562090:hit 6802@238109562090:hit 6804@238109562090:hit 6806@238109562090:hit
-
-6810@238109562423:hit 6812@238109562423:hit 6824@238109563089:hit 6826@238109563089:hit 6828@238109563089:hit 6830@238109563089:hit 6834@238109563422:hit 6844@238109569416:hit
-
-6848@238109631021:hit 6850@238109631021:hit 6856@238109773545:hit 6860@238109778540:hit 6864@238109866785:hit 6870@238109867118:hit 6875@238109868117:hit 6879@238109880105:hit
-
-6884@238109880438:hit 6889@238109880771:hit 6891@238109880771:hit 6895@238109881104:hit 6897@238109881104:hit 6899@238109881104:hit 6904@238109882103:hit 6908@238109884101:hit
-
-6913@238109884767:hit 6920@238109885100:hit 6922@238109885100:hit 6924@238109886099:hit 6928@238109888097:hit 6933@238109888763:hit 6938@238109889096:hit 6940@238109889096:hit
-
-6945@238109890095:hit 6949@238109892093:hit 6954@238109892759:hit 6962@238109893092:hit 6964@238109893092:hit 6968@238109894091:hit 6972@238109896089:hit 6977@238109896755:hit
-
-6985@238109897088:hit 6987@238109897088:hit 6992@238109898087:hit 6996@238109900085:hit 7001@238109900751:hit 7009@238109901084:hit 7011@238109901084:hit 7013@238109901417:hit
-
-7015@238109901417:hit 7017@238109901417:hit 7042@238109902083:hit 7046@238109902749:hit 7052@238109903082:hit 7057@238109903415:hit 7059@238109903415:hit 7061@238109903415:hit
-
-7064@238109906745:hit 7069@238109908077:hit 7071@238109908077:hit 7077@238109908743:hit 7079@238109908743:hit 7081@238109908743:hit 7089@238109909742:hit 7093@238109911740:hit
-
-7095@238109912073:hit 7097@238109912073:hit 7107@238109912406:hit 7115@238109913072:hit 7119@238109915403:hit 7125@238109915736:hit 7127@238109915736:hit 7133@238109916069:hit
-
-7141@238109916735:hit 7143@238109916735:hit 7146@238109921730:hit 7152@238109924394:hit 7155@238109927724:hit 7160@238109928723:hit 7166@238109929056:hit 7168@238109929056:hit
-
-7173@238109929389:hit 7175@238109929389:hit 7177@238109929389:hit 7179@238109929389:hit 7181@238109929389:hit 7189@238109929722:hit 7191@238109929722:hit 7210@238109930055:hit
-
-7212@238109930055:hit 7214@238109930055:hit 7223@238109930388:hit 7234@238109931054:hit 7236@238109931054:hit 7244@238109931387:hit 7254@238109933052:hit 7256@238109933052:hit
-
-7265@238110124527:hit 7267@238110124527:hit 7275@238110125193:hit 7277@238110125193:hit 7279@238110125193:hit 7283@238110181803:hit 7285@238110181803:hit 7295@238110183801:hit
-
-7297@238110183801:hit 7305@238110184467:hit 7307@238110184467:hit 7309@238110184467:hit 7315@238110184800:hit 7317@238110184800:hit 7319@238110184800:hit 7341@238110187464:hit
-
-7345@238110192792:hit 7347@238110192792:hit 7353@238110196788:hit 7356@238110203115:hit 7362@238110205446:hit 7364@238110205446:hit 7366@238110205779:hit 7374@238110206112:hit
-
-7376@238110206112:hit 7382@238110206778:hit 7384@238110206778:hit 7390@238110209109:hit 7396@238110209442:hit 7402@238110214104:hit 7404@238110214104:hit 7413@238110219099:hit
-
-7415@238110219099:hit 7421@238110228423:hit 7433@238110266718:hit 7437@238110305346:hit 7442@238110369615:hit 7444@238110369615:hit 7448@238110369948:hit 7454@238110370281:hit
-
-7456@238110370281:hit 7458@238110370281:hit 7462@238110370614:hit 7471@238110370947:hit 7473@238110370947:hit 7475@238110370947:hit 7489@238110374610:hit 7494@238110435549:hit
-
-7496@238110435549:hit 7502@238110436215:hit 7504@238110436215:hit 7506@238110436215:hit 7508@238110436215:hit 7512@238110436548:hit 7514@238110436548:hit 7526@238110682968:hit
-
-7528@238110682968:hit 7534@238110817833:hit 7536@238110817833:hit 7540@238110818166:hit 7542@238110818166:hit 7544@238110818166:hit 7550@238110818499:hit 7552@238110818499:hit
-
-7554@238110818499:hit 7556@238110818499:hit 7564@238110818832:hit 7574@238110884766:hit 7576@238110884766:hit 7580@238110885099:hit 7586@238110886431:hit 7588@238110886431:hit
-
-7594@238110887097:hit 7596@238110887097:hit 7602@238110887763:hit 7604@238110887763:hit 7614@238110956694:hit 7616@238110956694:hit 7618@238110956694:hit 7620@238110956694:hit
-
-7625@238110957027:hit 7643@238110995988:hit 7645@238110995988:hit 7651@238111041609:hit 7657@238111042608:hit 7659@238111042608:hit 7665@238111043274:hit 7671@238111089561:hit
-
-7673@238111089894:hit 7675@238111089894:hit 7689@238111179804:hit 7691@238111179804:hit 7695@238111180137:hit 7697@238111180137:hit 7705@238111185132:hit 7711@238111185798:hit
-
-7717@238111186131:hit 7723@238111186464:hit 7725@238111186464:hit 7735@238111239744:hit 7737@238111239744:hit 7739@238111239744:hit 7743@238111240077:hit 7745@238111240077:hit
-
-7753@238111240410:hit 7755@238111240410:hit 7763@238111241076:hit 7765@238111241076:hit 7775@238111305012:hit 7777@238111305012:hit 7787@238111832817:hit 7789@238111832817:hit
-
-7793@238111833150:hit 7795@238111833150:hit 7797@238111833150:hit 7803@238111833483:hit 7811@238111834482:hit 7813@238111834482:hit 7815@238111834482:hit 7818@238111838811:hit
-
-7820@238111838811:hit 7826@238112257059:hit 7832@238112260389:hit 7836@238112260722:hit 7840@238112684631:hit 7846@238112687961:hit 7850@238112688294:hit 7854@238113112203:hit
-
-7860@238113115533:hit 7864@238113115866:hit 7868@238113539775:hit 7874@238113543105:hit 7878@238113543438:hit 7882@238113967347:hit 7888@238113970677:hit 7892@238113971010:hit
-
-7897@238114394919:hit 7904@238114398249:hit 7908@238114398582:hit 7912@238114822491:hit 7918@238114825821:hit 7922@238114826154:hit 7926@238115250063:hit 7932@238115253393:hit
-
-7936@238115253726:hit 7940@238115677635:hit 7946@238115680965:hit 7950@238115681298:hit 7954@238116105207:hit 7960@238116108870:hit 7964@238116109203:hit 7968@238116533112:hit
-
-7976@238116539439:hit 7978@238116539439:hit 7984@238116960684:hit 7990@238116964014:hit 7994@238116964347:hit 7998@238117388256:hit 8004@238117391586:hit 8008@238117391919:hit
-
-8012@238117815828:hit 8018@238117819158:hit 8022@238117819491:hit 8026@238118243400:hit 8033@238118246730:hit 8037@238118247063:hit 8042@238118670972:hit 8050@238118674302:hit
-
-8054@238118674635:hit 8058@238119098544:hit 8064@238119101874:hit 8068@238119102207:hit 8075@238119526116:hit 8085@238119529446:hit 8089@238119529779:hit 8095@238119953688:hit
-
-8101@238119957018:hit 8105@238119957351:hit 8109@238120381260:hit 8115@238120384590:hit 8119@238120384923:hit
-
-</details>
-
-<details><summary><b>MSHR alloc/merge/fill/free 全量索引（257 条，不折叠）</b></summary>
-
-14@238100395266:mshr_merge:mshr=2,fill=— 17@238100395266:mshr_merge:mshr=2,fill=— 20@238100395266:mshr_alloc:mshr=3,fill=— 23@238100395599:mshr_alloc:mshr=4,fill=—
-
-26@238100399595:mshr_merge:mshr=4,fill=— 33@238100454540:mshr_fill:mshr=4,fill=3 35@238100454540:mshr_free:mshr=4,fill=— 39@238100455539:mshr_fill:mshr=0,fill=4
-
-41@238100455539:mshr_free:mshr=0,fill=— 63@238100575752:mshr_alloc:mshr=5,fill=— 66@238100575752:mshr_merge:mshr=5,fill=— 69@238100575752:mshr_merge:mshr=5,fill=—
-
-72@238100575752:mshr_merge:mshr=5,fill=— 75@238100576085:mshr_alloc:mshr=6,fill=— 78@238100576085:mshr_merge:mshr=6,fill=— 81@238100576085:mshr_merge:mshr=6,fill=—
-
-84@238100576085:mshr_merge:mshr=6,fill=— 87@238100576085:mshr_merge:mshr=6,fill=— 90@238100576418:mshr_alloc:mshr=7,fill=— 93@238100576418:mshr_merge:mshr=7,fill=—
-
-96@238100576418:mshr_merge:mshr=7,fill=— 99@238100576418:mshr_merge:mshr=7,fill=— 102@238100576751:mshr_alloc:mshr=8,fill=— 105@238100576751:mshr_merge:mshr=8,fill=—
-
-108@238100576751:mshr_merge:mshr=8,fill=— 111@238100576751:mshr_merge:mshr=8,fill=— 114@238100576751:mshr_merge:mshr=8,fill=— 115@238100621373:mshr_fill:mshr=8,fill=5
-
-117@238100621373:mshr_free:mshr=8,fill=— 118@238100622039:mshr_fill:mshr=0,fill=6 120@238100622039:mshr_free:mshr=0,fill=— 137@238100624037:mshr_fill:mshr=6,fill=7
-
-139@238100624037:mshr_free:mshr=6,fill=— 140@238100624703:mshr_fill:mshr=0,fill=8 142@238100624703:mshr_free:mshr=0,fill=— 161@238100626701:mshr_alloc:mshr=9,fill=—
-
-164@238100627034:mshr_alloc:mshr=10,fill=— 168@238100627367:mshr_merge:mshr=10,fill=— 172@238100627700:mshr_merge:mshr=10,fill=— 175@238100627700:mshr_merge:mshr=10,fill=—
-
-178@238100628033:mshr_merge:mshr=10,fill=— 181@238100628699:mshr_merge:mshr=10,fill=— 185@238100629032:mshr_merge:mshr=10,fill=— 188@238100629032:mshr_merge:mshr=10,fill=—
-
-191@238100629032:mshr_alloc:mshr=11,fill=— 194@238100629032:mshr_merge:mshr=11,fill=— 197@238100629365:mshr_alloc:mshr=12,fill=— 200@238100629365:mshr_merge:mshr=12,fill=—
-
-203@238100629365:mshr_merge:mshr=12,fill=— 206@238100629365:mshr_merge:mshr=12,fill=— 209@238100629365:mshr_merge:mshr=12,fill=— 210@238100671656:mshr_fill:mshr=10,fill=9
-
-212@238100671656:mshr_free:mshr=10,fill=— 213@238100672322:mshr_fill:mshr=0,fill=10 215@238100672322:mshr_free:mshr=0,fill=— 232@238100673987:mshr_fill:mshr=12,fill=11
-
-234@238100673987:mshr_free:mshr=12,fill=— 235@238100674653:mshr_fill:mshr=0,fill=12 237@238100674653:mshr_free:mshr=0,fill=— 276@238100743251:mshr_alloc:mshr=13,fill=—
-
-279@238100743251:mshr_merge:mshr=13,fill=— 282@238100743584:mshr_alloc:mshr=14,fill=— 283@238100804856:mshr_fill:mshr=14,fill=13 285@238100804856:mshr_free:mshr=14,fill=—
-
-286@238100805522:mshr_fill:mshr=0,fill=14 288@238100805522:mshr_free:mshr=0,fill=— 315@238101005655:mshr_alloc:mshr=15,fill=— 318@238101005655:mshr_merge:mshr=15,fill=—
-
-321@238101005988:mshr_alloc:mshr=16,fill=— 324@238101005988:mshr_merge:mshr=16,fill=— 331@238101008319:mshr_merge:mshr=16,fill=— 334@238101008319:mshr_merge:mshr=16,fill=—
-
-335@238101052941:mshr_fill:mshr=16,fill=15 337@238101052941:mshr_free:mshr=16,fill=— 338@238101053607:mshr_fill:mshr=0,fill=16 340@238101053607:mshr_free:mshr=0,fill=—
-
-415@238101133194:mshr_alloc:mshr=17,fill=— 418@238101133194:mshr_merge:mshr=17,fill=— 421@238101133527:mshr_alloc:mshr=18,fill=— 425@238101144183:mshr_merge:mshr=18,fill=—
-
-428@238101144183:mshr_merge:mshr=18,fill=— 431@238101144516:mshr_merge:mshr=18,fill=— 434@238101144516:mshr_merge:mshr=18,fill=— 435@238101178149:mshr_fill:mshr=18,fill=17
-
-437@238101178149:mshr_free:mshr=18,fill=— 438@238101178815:mshr_fill:mshr=0,fill=18 440@238101178815:mshr_free:mshr=0,fill=— 464@238101313014:mshr_alloc:mshr=19,fill=—
-
-467@238101313014:mshr_merge:mshr=19,fill=— 470@238101313347:mshr_alloc:mshr=20,fill=— 473@238101313680:mshr_merge:mshr=20,fill=— 476@238101313680:mshr_merge:mshr=20,fill=—
-
-477@238101357969:mshr_fill:mshr=20,fill=19 479@238101357969:mshr_free:mshr=20,fill=— 480@238101358635:mshr_fill:mshr=0,fill=20 482@238101358635:mshr_free:mshr=0,fill=—
-
-508@238101464862:mshr_alloc:mshr=21,fill=— 511@238101464862:mshr_merge:mshr=21,fill=— 514@238101465528:mshr_alloc:mshr=22,fill=— 535@238101512148:mshr_fill:mshr=22,fill=21
-
-537@238101512148:mshr_free:mshr=22,fill=— 538@238101512814:mshr_fill:mshr=0,fill=22 540@238101512814:mshr_free:mshr=0,fill=— 550@238101640020:mshr_alloc:mshr=23,fill=—
-
-553@238101640020:mshr_merge:mshr=23,fill=— 558@238101640353:mshr_alloc:mshr=24,fill=— 561@238101640353:mshr_merge:mshr=24,fill=— 564@238101640686:mshr_alloc:mshr=25,fill=—
-
-571@238101641019:mshr_alloc:mshr=26,fill=— 594@238101646347:mshr_merge:mshr=26,fill=— 597@238101646347:mshr_merge:mshr=26,fill=— 600@238101646347:mshr_merge:mshr=26,fill=—
-
-603@238101646347:mshr_merge:mshr=26,fill=— 606@238101646680:mshr_merge:mshr=26,fill=— 609@238101647013:mshr_merge:mshr=26,fill=— 610@238101684975:mshr_fill:mshr=24,fill=23
-
-612@238101684975:mshr_free:mshr=24,fill=— 613@238101685641:mshr_fill:mshr=0,fill=24 615@238101685641:mshr_free:mshr=0,fill=— 616@238101685641:mshr_fill:mshr=26,fill=25
-
-618@238101685641:mshr_free:mshr=26,fill=— 621@238101686640:mshr_fill:mshr=0,fill=26 623@238101686640:mshr_free:mshr=0,fill=— 672@238101772554:mshr_alloc:mshr=27,fill=—
-
-675@238101772554:mshr_merge:mshr=27,fill=— 678@238101772887:mshr_alloc:mshr=28,fill=— 679@238101817509:mshr_fill:mshr=28,fill=27 681@238101817509:mshr_free:mshr=28,fill=—
-
-682@238101818175:mshr_fill:mshr=0,fill=28 684@238101818175:mshr_free:mshr=0,fill=— 691@238101833493:mshr_alloc:mshr=29,fill=— 694@238101833493:mshr_merge:mshr=29,fill=—
-
-697@238101833826:mshr_alloc:mshr=30,fill=— 698@238101878448:mshr_fill:mshr=30,fill=29 700@238101878448:mshr_free:mshr=30,fill=— 701@238101879114:mshr_fill:mshr=0,fill=30
-
-703@238101879114:mshr_free:mshr=0,fill=— 820@238101990669:mshr_alloc:mshr=31,fill=— 823@238101990669:mshr_merge:mshr=31,fill=— 826@238101991002:mshr_alloc:mshr=32,fill=—
-
-827@238102036290:mshr_fill:mshr=32,fill=31 829@238102036290:mshr_free:mshr=32,fill=— 830@238102036956:mshr_fill:mshr=0,fill=32 832@238102036956:mshr_free:mshr=0,fill=—
-
-858@238102042950:mshr_alloc:mshr=33,fill=— 865@238102043283:mshr_alloc:mshr=34,fill=— 868@238102043283:mshr_merge:mshr=34,fill=— 871@238102087905:mshr_fill:mshr=34,fill=33
-
-873@238102087905:mshr_free:mshr=34,fill=— 874@238102088571:mshr_fill:mshr=0,fill=34 876@238102088571:mshr_free:mshr=0,fill=— 915@238102152174:mshr_alloc:mshr=35,fill=—
-
-918@238102152174:mshr_merge:mshr=35,fill=— 921@238102152507:mshr_alloc:mshr=36,fill=— 922@238102197129:mshr_fill:mshr=36,fill=35 924@238102197129:mshr_free:mshr=36,fill=—
-
-925@238102197795:mshr_fill:mshr=0,fill=36 927@238102197795:mshr_free:mshr=0,fill=— 938@238102202124:mshr_alloc:mshr=37,fill=— 941@238102202124:mshr_merge:mshr=37,fill=—
-
-944@238102202457:mshr_alloc:mshr=38,fill=— 949@238102202457:mshr_merge:mshr=38,fill=— 952@238102202457:mshr_merge:mshr=38,fill=— 957@238102202790:mshr_merge:mshr=38,fill=—
-
-960@238102202790:mshr_merge:mshr=38,fill=— 963@238102202790:mshr_merge:mshr=38,fill=— 966@238102202790:mshr_merge:mshr=38,fill=— 969@238102202790:mshr_alloc:mshr=39,fill=—
-
-972@238102203123:mshr_alloc:mshr=40,fill=— 975@238102203123:mshr_alloc:mshr=41,fill=— 978@238102203456:mshr_alloc:mshr=42,fill=— 979@238102247079:mshr_fill:mshr=38,fill=37
-
-981@238102247079:mshr_free:mshr=38,fill=— 982@238102247745:mshr_fill:mshr=0,fill=38 984@238102247745:mshr_free:mshr=0,fill=— 987@238102248078:mshr_fill:mshr=42,fill=39
-
-989@238102248078:mshr_free:mshr=42,fill=— 990@238102248744:mshr_fill:mshr=0,fill=40 992@238102248744:mshr_free:mshr=0,fill=— 1011@238102250742:mshr_alloc:mshr=43,fill=—
-
-1014@238102250742:mshr_merge:mshr=40,fill=— 1017@238102251075:mshr_alloc:mshr=44,fill=— 1018@238102252074:mshr_fill:mshr=40,fill=41 1020@238102252074:mshr_free:mshr=40,fill=—
-
-1021@238102252740:mshr_fill:mshr=0,fill=42 1023@238102252740:mshr_free:mshr=0,fill=— 1030@238102255071:mshr_alloc:mshr=45,fill=— 1033@238102255071:mshr_merge:mshr=45,fill=—
-
-1036@238102255404:mshr_alloc:mshr=46,fill=— 1039@238102255737:mshr_merge:mshr=46,fill=— 1042@238102255737:mshr_merge:mshr=46,fill=— 1059@238102295697:mshr_fill:mshr=44,fill=43
-
-1061@238102295697:mshr_free:mshr=44,fill=— 1062@238102296363:mshr_fill:mshr=0,fill=44 1064@238102296363:mshr_free:mshr=0,fill=— 1067@238102300026:mshr_fill:mshr=46,fill=45
-
-1069@238102300026:mshr_free:mshr=46,fill=— 1070@238102300692:mshr_fill:mshr=0,fill=46 1072@238102300692:mshr_free:mshr=0,fill=— 1225@238102542450:mshr_alloc:mshr=47,fill=—
-
-1228@238102542450:mshr_merge:mshr=47,fill=— 1233@238102543116:mshr_merge:mshr=47,fill=— 1236@238102543116:mshr_merge:mshr=47,fill=— 1237@238102546779:mshr_fill:mshr=47,fill=47
-
-1239@238102546779:mshr_free:mshr=47,fill=— 1329@238102739919:mshr_alloc:mshr=48,fill=— 1332@238102739919:mshr_merge:mshr=48,fill=— 1345@238102740585:mshr_merge:mshr=48,fill=—
-
-1348@238102740585:mshr_merge:mshr=48,fill=— 1353@238102744248:mshr_fill:mshr=48,fill=48 1355@238102744248:mshr_free:mshr=48,fill=— 1904@238103620371:mshr_alloc:mshr=49,fill=—
-
-1907@238103620371:mshr_merge:mshr=49,fill=— 1918@238103621037:mshr_merge:mshr=49,fill=— 1919@238103624700:mshr_fill:mshr=49,fill=49 1921@238103624700:mshr_free:mshr=49,fill=—
-
-3260@238106384271:mshr_alloc:mshr=50,fill=— 3263@238106384271:mshr_merge:mshr=50,fill=— 3266@238106384604:mshr_alloc:mshr=51,fill=— 3283@238106443545:mshr_fill:mshr=51,fill=50
-
-3285@238106443545:mshr_free:mshr=51,fill=— 3286@238106444211:mshr_fill:mshr=0,fill=51 3288@238106444211:mshr_free:mshr=0,fill=— 3968@238106896425:mshr_alloc:mshr=52,fill=—
-
-3971@238106896425:mshr_merge:mshr=52,fill=— 3974@238106896425:mshr_merge:mshr=52,fill=— 3979@238106896758:mshr_alloc:mshr=53,fill=— 3982@238106897091:mshr_merge:mshr=53,fill=—
-
-3983@238106955699:mshr_fill:mshr=53,fill=52 3985@238106955699:mshr_free:mshr=53,fill=— 3986@238106956365:mshr_fill:mshr=0,fill=53 3988@238106956365:mshr_free:mshr=0,fill=—
-
-5973@238109339313:mshr_alloc:mshr=54,fill=— 5976@238109339313:mshr_merge:mshr=54,fill=— 5979@238109339646:mshr_alloc:mshr=55,fill=— 5989@238109339979:mshr_merge:mshr=55,fill=—
-
-5992@238109339979:mshr_merge:mshr=55,fill=— 5995@238109339979:mshr_merge:mshr=55,fill=— 5998@238109339979:mshr_merge:mshr=55,fill=— 6035@238109384268:mshr_fill:mshr=55,fill=54
-
-6037@238109384268:mshr_free:mshr=55,fill=— 6038@238109384934:mshr_fill:mshr=0,fill=55 6040@238109384934:mshr_free:mshr=0,fill=— 6095@238109402250:mshr_alloc:mshr=56,fill=—
-
-6098@238109402250:mshr_merge:mshr=56,fill=— 6103@238109402583:mshr_merge:mshr=56,fill=— 6106@238109402583:mshr_merge:mshr=56,fill=— 6120@238109406579:mshr_fill:mshr=56,fill=56
-
-6122@238109406579:mshr_free:mshr=56,fill=— 6353@238109467185:mshr_alloc:mshr=57,fill=— 6356@238109467185:mshr_merge:mshr=57,fill=— 6359@238109467185:mshr_merge:mshr=57,fill=—
-
-6362@238109467185:mshr_merge:mshr=57,fill=— 6367@238109467518:mshr_merge:mshr=57,fill=— 6370@238109467518:mshr_merge:mshr=57,fill=— 6391@238109471514:mshr_fill:mshr=57,fill=57
-
-6393@238109471514:mshr_free:mshr=57,fill=—
-
-</details>
-
-**`squash_masked` 旁支（不折叠，全部点名）**：共 57 条，均为同一 fault 的 L4 contain-by-squash 见证；只有主链上的那一条（若 terminal 为 L4 含住）或权威报告 containment.metrics 指定的一条是终局见证。
-
-| event_id | tick | parent | VA | PA | dyn_inst_seq | containment_reason |
-|---|---|---|---|---|---|---|
-| 1636 | 238102880778 | 1611 | 0xffffffc009483730 | 0x81363730 | 571885 | squash_replay |
-| 1667 | 238103039286 | 1664 | 0xffffffc009483448 | 0x81363448 | 571928 | squash_replay |
-| 1686 | 238103103222 | 1681 | 0xffffffc009483420 | 0x81363420 | 571952 | squash_replay |
-| 1747 | 238103112213 | 1728 | 0xffffffc0094833b0 | 0x813633b0 | 572071 | squash_replay |
-| 1850 | 238103421237 | 1819 | 0xffffffc009483730 | 0x81363730 | 572344 | squash_replay |
-| 1854 | 238103470521 | 1851 | 0xffffffc009483450 | 0x81363450 | 572392 | squash_replay |
-| 1941 | 238103665993 | 1909 | 0xffffffc0094833c8 | 0x813633c8 | 572482 | squash_replay |
-| 1942 | 238103665994 | 1941 | 0xffffffc009483390 | 0x81363390 | 572483 | squash_replay |
-| 1943 | 238103666325 | 1942 | 0xffffffc0094833a0 | 0x813633a0 | 572480 | squash_replay |
-| 2076 | 238103859465 | 2020 | 0xffffffc009483420 | 0x81363420 | 572842 | squash_replay |
-| 2145 | 238103869455 | 2132 | 0xffffffc009483730 | 0x81363730 | 572994 | squash_replay |
-| 2230 | 238103876781 | 2216 | 0xffffffc009483730 | 0x81363730 | 573123 | squash_replay |
-| 2336 | 238103887770 | 2325 | 0xffffffc009483730 | 0x81363730 | 573306 | squash_replay |
-| 2397 | 238103900424 | 2378 | 0xffffffc0094833b0 | 0x813633b0 | 573477 | squash_replay |
-| 2541 | 238104029295 | 2508 | 0xffffffc0094833b0 | 0x813633b0 | 573924 | squash_replay |
-| 2584 | 238104136188 | 2545 | 0xffffffc009483730 | 0x81363730 | 574070 | squash_replay |
-| 2587 | 238104184806 | 2584 | 0xffffffc009483730 | 0x81363730 | 574085 | squash_replay |
-| 2595 | 238104188136 | 2587 | 0xffffffc009483730 | 0x81363730 | 574113 | squash_replay |
-| 2881 | 238104863127 | 2876 | 0xffffffc009483420 | 0x81363420 | 574699 | squash_replay |
-| 2952 | 238104874449 | 2949 | 0xffffffc009483450 | 0x81363450 | 574853 | squash_replay |
-| 2960 | 238104877779 | 2955 | 0xffffffc009483420 | 0x81363420 | 574890 | squash_replay |
-| 3022 | 238104947043 | 2969 | 0xffffffc009483514 | 0x81363514 | 575005 | squash_replay |
-| 3080 | 238105102554 | 3065 | 0xffffffc0094834cc | 0x813634cc | 575131 | squash_replay |
-| 3091 | 238105105884 | 3083 | 0xffffffc0094834cc | 0x813634cc | 575155 | squash_replay |
-| 3823 | 238106804517 | 3809 | 0xffffffc009483390 | 0x81363390 | 576305 | squash_replay |
-| 3928 | 238106886768 | 3873 | 0xffffffc0094833c0 | 0x813633c0 | 576713 | squash_replay |
-| 4374 | 238107024963 | 4364 | 0xffffffc009483310 | 0x81363310 | 577983 | squash_replay |
-| 4744 | 238107093562 | 4700 | 0xffffffc009483390 | 0x81363390 | 578869 | squash_replay |
-| 4745 | 238107093563 | 4744 | 0xffffffc0094833c8 | 0x813633c8 | 578871 | squash_replay |
-| 4823 | 238107115872 | 4818 | 0xffffffc0094833b8 | 0x813633b8 | 579148 | squash_replay |
-| 4838 | 238107183804 | 4823 | 0xffffffc009483390 | 0x81363390 | 579237 | squash_replay |
-| 4895 | 238107190131 | 4846 | 0xffffffc009483410 | 0x81363410 | 579322 | squash_replay |
-| 4903 | 238107195792 | 4895 | 0xffffffc009483410 | 0x81363410 | 579361 | squash_replay |
-| 4914 | 238107212442 | 4911 | 0xffffffc009483410 | 0x81363410 | 579546 | squash_replay |
-| 5446 | 238108448206 | 5249 | 0xffffffc009483370 | 0x81363370 | 580695 | squash_replay |
-| 5447 | 238108448538 | 5446 | 0xffffffc0094833fc | 0x813633fc | 580701 | squash_replay |
-| 5480 | 238108452202 | 5447 | 0xffffffc009483508 | 0x81363508 | 580759 | squash_replay |
-| 6065 | 238109390928 | 5866 | 0xffffffc0094833c0 | 0x813633c0 | 581504 | squash_replay |
-| 6162 | 238109411907 | 6119 | 0xffffffc0094833c0 | 0x813633c0 | 581778 | squash_replay |
-| 6169 | 238109426226 | 6162 | 0xffffffc009483308 | 0x81363308 | 581943 | squash_replay |
-| 6185 | 238109430888 | 6169 | 0xffffffc009483318 | 0x81363318 | 581998 | squash_replay |
-| 6317 | 238109452200 | 6220 | 0xffffffc0094833c0 | 0x813633c0 | 582332 | squash_replay |
-| 6324 | 238109456529 | 6317 | 0xffffffc009483310 | 0x81363310 | 582391 | squash_replay |
-| 6332 | 238109461525 | 6324 | 0xffffffc009483310 | 0x81363310 | 582431 | squash_replay |
-| 6511 | 238109503482 | 6454 | 0xffffffc0094832a0 | 0x813632a0 | 583024 | squash_replay |
-| 6591 | 238109520798 | 6588 | 0xffffffc009483308 | 0x81363308 | 583240 | squash_replay |
-| 6607 | 238109525460 | 6591 | 0xffffffc009483318 | 0x81363318 | 583295 | squash_replay |
-| 6687 | 238109536782 | 6650 | 0xffffffc009483314 | 0x81363314 | 583440 | squash_replay |
-| 6900 | 238109881105 | 6893 | 0xffffffc009483220 | 0x81363220 | 584141 | squash_replay |
-| 6901 | 238109881106 | 6900 | 0xffffffc009483210 | 0x81363210 | 584148 | squash_replay |
-| 6902 | 238109881437 | 6901 | 0xffffffc009483230 | 0x81363230 | 584143 | squash_replay |
-| 7062 | 238109903748 | 7020 | 0xffffffc0094832a0 | 0x813632a0 | 584387 | squash_replay |
-| 7144 | 238109917068 | 7062 | 0xffffffc0094833c0 | 0x813633c0 | 584596 | squash_replay |
-| 7153 | 238109924727 | 7150 | 0xffffffc009483308 | 0x81363308 | 584688 | squash_replay |
-| 7280 | 238110125526 | 7263 | 0xffffffc009483400 | 0x81363400 | 585022 | squash_replay |
-| 7354 | 238110197121 | 7293 | 0xffffffc009483470 | 0x81363470 | 585296 | squash_replay |
-| 7816 | 238111834815 | 7785 | 0xffffffc009483420 | 0x81363420 | 586671 | squash_replay |
-
-**旁支 `request_fork` bridge（计数 + 首尾点名）**：共 1510 条；event_id `4294967296`–`4294968805`；tick `238100395266`–`238120384923`。主链上的 bridge 已在第二部分逐条列出（source/dest/shared_addr 可核验）；其余 bridge 属于同一故障的其它请求转交，不参与主链证明。
-
-首 5 条 / 末 5 条：
-
-| event_id | tick | old_request_id | new_request_id | source→dest | shared_addr+size |
-|---|---|---|---|---|---|
-| 4294967296 | 238100395266 | 570343 | 570353 | 11→12 | 0x81363000+1000 |
-| 4294967297 | 238100395266 | 570343 | 570354 | 11→15 | 0x81363000+1000 |
-| 4294967298 | 238100395266 | 570343 | 570358 | 11→18 | 0x81363000+1000 |
-| 4294967299 | 238100399595 | 570343 | 570459 | 11→24 | 0x81363000+1000 |
-| 4294967300 | 238100575752 | 570343 | 570536 | 37→61 | 0x81363000+1000 |
-| 4294968801 | 238119957018 | 570343 | 588022 | 37→8100 | 0x81363000+1000 |
-| 4294968802 | 238119957351 | 570343 | 588023 | 37→8104 | 0x81363000+1000 |
-| 4294968803 | 238120381260 | 570343 | 588053 | 37→8108 | 0x81363000+1000 |
-| 4294968804 | 238120384590 | 570343 | 588067 | 37→8114 | 0x81363000+1000 |
-| 4294968805 | 238120384923 | 570343 | 588068 | 37→8118 | 0x81363000+1000 |
-
-**生命周期终止符 `chain_end`（非传播层、非 L5）**：event_id=`9908`；tick=`9751969912689`；detection_layer=`L5`；contained=`1`；outcome=`errant_commit_seen`；corr=`none`。它由传播监控退出回调发射，只是运行生命周期标记，不占据 L0–L5 任何层，永不作为 L5，也不构成含住证据。
-
-**其它 fault（不在本代表链上的独立故障链）**：权威报告共记录 9 个 fault；本文件的代表故障 `fault_id=1` 由 escape-first 规则选出。其余 fault 的终局分布如下（它们各有独立的 `inj` 与祖先链，**不并入**本代表链）：
-
-- 终局分布：{'full': 1, 'provable_to_L4_then_unknown': 8}
-
-| fault_id | terminal | provable_to | event_count |
-|---|---|---|---|
-| 1（代表） | full | L5 | 9833 |
-| 2 | provable_to_L4_then_unknown | L4 | 1427 |
-| 3 | provable_to_L4_then_unknown | L4 | 27 |
-| 4 | provable_to_L4_then_unknown | L4 | 33 |
-| 5 | provable_to_L4_then_unknown | L4 | 33 |
-| 6 | provable_to_L4_then_unknown | L4 | 27 |
-| 7 | provable_to_L4_then_unknown | L4 | 27 |
-| 8 | provable_to_L4_then_unknown | L4 | 23 |
-| 9 | provable_to_L4_then_unknown | L4 | 26 |
-
-**为什么主链选的是 L5 逃逸而不是这些 L4 含住旁支**：本 seed 的权威判定采用 escape-first 规则——只要**任一** fault 到达 `full`（真实 errant_commit 逃逸），样本 headline 就是 `full`；squash 类含住证据在同一链上存在可证 L0→L5 逃逸路径时必须让位（`errant_escape_outranks_containment`）。这些旁支 `squash_masked` 是同一故障的其它 load 实例，不改变代表故障的逃逸终局。
-
-## 最终验收结论
-
-- CHAIN_DEMONSTRATED: **是**（代表故障链在单祖先上从 `inj` 可证到终局见证）
-- terminal: `full`；provable_to: `L5`；propagation terminal: `L5`
-- witness: `errant_commit` event_id=`54` tick=`238100456205`（parent=`38`）
-- admitted: `True`；certified: `True`；violations: `[]`
-- truncated: `False`；gzip EOF 正常: `True`
-- evidence SHA 一致: `重算值已固定记录；plain chain_report 未内嵌 prop_evt SHA（n/a for cross-check）`
-- **PASS**
-
-### 12 项校验清单
-
-| 项 | 结果 | 证据 |
+TLB 检查全部通过；L1D/MSHR 无地址正确性检查；本 seed 有 57 条 L4 squash（如 event 1636/1667/1686/1747/1850/1854），均在 fault1 祖先之外；fault2–9 的 chain_end 9909–9916 中，部分为 L4 detected_contained，部分是 run_end。RAS 对后续请求有效，但没有覆盖 event 54。检测盲区：合法页替换无法由现有权限/有效位发现。
+
+### 3.5 最终 SDC 风险判断
+
+真实 `errant_commit`（event 54）且架构可见；oracle=Crash；无应用级输出 oracle。不称 SDC；归类为 Crash。silent-error 的可能性不能从提交后到 panic 的窗口排除，但没有外部数据错误证据。
+
+由于没有应用级输出 oracle，最终数据正确性无法判断。
+
+### 3.6 与同 RunID 其他 seed 的关系
+
+seed3 的注入是 tick=238100391603、VA=ffffffc009483968、PFN 81d75→81363、event 54、9 个 fault；seed1 是 238088438901/...3970/81d75→ffbd3/event 40/2 个 fault；seed2 是 238085994681/VA ffffff807fbce008/ffbce→81362/event 42/4 个 fault。三者都 Crash，但注入点、地址方向、fault 数和终局不同；本文件不引用其它 seed 的 x19/x20 或 chain_end。
+
+## 4. 完整主链事件表
+
+> 主链按代表故障（escape-first 选中 fault_id=1）终局见证的 `parent_event_id` 单祖先重建；同 tick 事件保留继承顺序。`path_event_ids` 只作层锚点，不作为完整链。`—` 表示原始事件无该字段。
+
+| 序号 | event_id | parent_event_id | tick | Δtick | kind | layer | component | fault_id | corr | request_id | dyn_inst_seq | VA | PA/address | cache_line | mshr_id | old_pfn | new_pfn | before | after | mask | state_before | state_after | contained | detection_layer | outcome | reason | 本事件输入 | 本事件输出 | 传播意义 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 0 | — | 238100391603 | — | inj | L0 | CHAOSArmTLB | 1 | origin | 570343 | 570343 | ffffffc009483968 | — | — | — | 81d75 | 81363 | 81d75 | 81363 | — | — | — | — | — | — | — | 注入器选定该命中表项（site=arm_tlb_lookup_hit） | 表项 PFN 81d75→81363 | 故障进入 DTLB 表项，下一次命中将读到被改写的 PFN |
+| 2 | 1 | 0 | 238100391603 | 0 | tlb_lookup | L1 | CHAOSArmTLB/DTLB | 1 | seq_primary | 570343 | 570343 | ffffffc009483968 | — | — | — | 81d75 | 81363 | 81d75 | 81363 | — | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75968 | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81363;ap=0;mtype=2;page_size=1000;pa=81363968 | — | — | — | — | VA=ffffffc009483968 的命中查找，request_id=570343 | 命中表项返回 pfn=81363 | 故障 PFN 被 TLB 查询读取，进入翻译路径 |
+| 3 | 2 | 1 | 238100391603 | 0 | tlb_pfn | L2 | DTLB 表项 PFN | 1 | seq_primary | 570343 | 570343 | ffffffc009483968 | 81363968 | — | — | 81d75 | 81363 | 81d75 | 81363 | — | 81d75968 | 81363968 | — | — | — | — | TLB 命中项中的 PFN 字段 | PA=81363968（pfn=81363） | 故障 PFN 与页内偏移拼成错误 PA |
+| 4 | 3 | 2 | 238100391603 | 0 | tlb_translate_result | L2 | DTLB 翻译出口 | 1 | seq_primary | 570343 | 570343 | ffffffc009483968 | 81363968 | — | — | — | — | 81d75968 | 81363968 | — | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75968 | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81363;ap=0;mtype=2;page_size=1000;pa=81363968 | 0 | — | NoFault | — | 已带故障 PFN 的翻译请求 | effective PA=81363968，effective_pa_changed=1 | TLB 把错误 PA 交付 LSU；错误地址正式进入存储管线 |
+| 5 | 4 | 3 | 238100391603 | 0 | sq_execute | L3 | SQ | 1 | seq_primary | — | 570343 | ffffffc009483968 | — | — | — | — | — | — | — | — | issued | — | — | — | — | — | dyn_inst_seq=570343 的请求，VA=ffffffc009483968 | 请求进入 LSU 队列 | 错误 PA 被 LQ/SQ 接受，后续 cache/MSHR 将按此地址访问 |
+| 6 | 5 | 4 | 238100394600 | 2997 | sq_writeback | L3 | SQ | 1 | seq_primary | — | 570343 | — | 81363968 | — | — | — | — | — | — | — | — | packet_built | — | — | — | — | dyn_inst_seq=570343 的请求 | 请求进入 LSU 队列 | 错误 PA 被 LQ/SQ 接受，后续 cache/MSHR 将按此地址访问 |
+| 7 | 6 | 5 | 238100394600 | 0 | cache_access | L3 | L1D cache | 1 | addr_fallback | 570343 | 570343 | ffffffc009483968 | 81363968 | — | — | — | — | — | — | — | — | — | — | — | — | — | PA=81363968 的访问，request_id=570343 | cache_return field=— | L1D 按错误 PA 查找；miss 时进入 MSHR，错误地址被缓存结构接受 |
+| 8 | 7 | 6 | 238100394600 | 0 | cache_return | L3 | L1D return | 1 | addr_fallback | 570343 | 570343 | — | 81363968 | — | — | — | — | — | — | — | — | — | — | — | — | — | PA=81363968 的访问，request_id=570343 | cache_return field=miss | L1D 按错误 PA 查找；miss 时进入 MSHR，错误地址被缓存结构接受 |
+| 9 | 8 | 7 | 238100394600 | 0 | mshr_alloc | L3 | MSHR | 1 | addr_fallback | 570343 | 570343 | — | — | 81363968 | 1 | — | — | — | — | — | — | mshr_allocated | — | — | — | — | cache_line=81363968，mshr_id=1 | state_after=mshr_allocated | 错误 cache line 在 MSHR 中分配/合并/填充/释放，错误数据随响应返回 |
+| 10 | 9 | 8 | 238100394933 | 333 | cache_access | L3 | L1D cache | 1 | addr_fallback | 570343 | 570343 | ffffffc009483968 | 81363940 | — | — | — | — | — | — | — | — | — | — | — | — | — | PA=81363940 的访问，request_id=570343 | cache_return field=— | L1D 按错误 PA 查找；miss 时进入 MSHR，错误地址被缓存结构接受 |
+| 11 | 10 | 9 | 238100394933 | 0 | cache_return | L3 | L1D return | 1 | addr_fallback | 570343 | 570343 | — | 81363940 | — | — | — | — | — | — | — | — | — | — | — | — | — | PA=81363940 的访问，request_id=570343 | cache_return field=miss | L1D 按错误 PA 查找；miss 时进入 MSHR，错误地址被缓存结构接受 |
+| 12 | 11 | 10 | 238100394933 | 0 | mshr_alloc | L3 | MSHR | 1 | addr_fallback | 570343 | 570343 | — | — | 81363940 | 2 | — | — | — | — | — | — | mshr_allocated | — | — | — | — | cache_line=81363940，mshr_id=2 | state_after=mshr_allocated | 错误 cache line 在 MSHR 中分配/合并/填充/释放，错误数据随响应返回 |
+| 13 | 27 | 11 | 238100453874 | 58941 | mshr_fill | L3 | MSHR | 1 | addr_fallback | 570343 | 570343 | — | — | 81363940 | 2 | — | — | — | — | — | — | filled | — | — | — | — | cache_line=81363940，mshr_id=2 | state_after=filled | 错误 cache line 在 MSHR 中分配/合并/填充/释放，错误数据随响应返回 |
+| 14 | 28 | 27 | 238100453874 | 0 | cache_fill | L3 | L1D fill | 1 | addr_fallback | 570343 | 570343 | — | 81363940 | 81363940 | — | — | — | — | — | — | — | — | — | — | — | — | cache_line=81363940 | pa=81363940 的行被填入 L1D | 错误物理行的数据进入 L1D，后续消费可能命中该行 |
+| 15 | 29 | 28 | 238100453874 | 0 | mshr_free | L3 | MSHR | 1 | addr_fallback | 570343 | 570343 | — | — | 81363940 | 2 | — | — | — | — | — | — | mshr_freed | — | — | — | — | cache_line=81363940，mshr_id=2 | state_after=mshr_freed | 错误 cache line 在 MSHR 中分配/合并/填充/释放，错误数据随响应返回 |
+| 16 | 30 | 29 | 238100454540 | 666 | mshr_fill | L3 | MSHR | 1 | addr_fallback | 570343 | 570343 | — | — | 81363940 | 0 | — | — | — | — | — | — | filled | — | — | — | — | cache_line=81363940，mshr_id=0 | state_after=filled | 错误 cache line 在 MSHR 中分配/合并/填充/释放，错误数据随响应返回 |
+| 17 | 31 | 30 | 238100454540 | 0 | cache_fill | L3 | L1D fill | 1 | addr_fallback | 570343 | 570343 | — | 81363940 | 81363940 | — | — | — | — | — | — | — | — | — | — | — | — | cache_line=81363940 | pa=81363940 的行被填入 L1D | 错误物理行的数据进入 L1D，后续消费可能命中该行 |
+| 18 | 32 | 31 | 238100454540 | 0 | mshr_free | L3 | MSHR | 1 | addr_fallback | 570343 | 570343 | — | — | 81363940 | 0 | — | — | — | — | — | — | mshr_freed | — | — | — | — | cache_line=81363940，mshr_id=0 | state_after=mshr_freed | 错误 cache line 在 MSHR 中分配/合并/填充/释放，错误数据随响应返回 |
+| 19 | 36 | 32 | 238100454873 | 333 | resp | L3 | response path | 1 | seq_primary | 570343 | 570343 | 81363968 | — | — | — | — | — | — | — | — | — | — | — | — | — | — | request_id=570343 的内存/cache 响应 | 响应交付 LSU | 错误数据/地址回到处理器侧 |
+| 20 | 37 | 36 | 238100454873 | 0 | taint_reg | L4 | register file (taint) | 1 | seq_primary | 570343 | 570343 | 81363968 | — | — | — | — | — | clean | tainted | — | — | — | — | — | — | — | 完成的 load/store 数据 | 寄存器 clean→tainted（arch_reg/phys_reg 未记录） | 污染跨过存储→CPU 边界，进入架构寄存器状态 |
+| 21 | 38 | 37 | 238100454873 | 0 | sq_complete | L3 | SQ | 1 | seq_primary | — | 570343 | ffffffc009483968 | — | — | — | — | — | — | — | — | — | completed | — | — | — | — | sq_idx=61201 的 store 完成 | store 完成状态 | 错误 store 效果被标记为完成，等待提交 |
+| 22 | 54 | 38 | 238100456205 | 1332 | errant_commit | L5 | commit/ROB | 1 | taint_prop | — | 570353 | — | — | — | — | — | — | — | — | — | — | — | 0 | L5 | errant_commit | — | 携带污染值的指令到达提交边界 | detection_layer=L5，outcome=errant_commit | 错误提交越过重定序边界，成为架构可见的 L5 终局 |
+
+
+## 5. 相关旁支与未进入最终主链的事件
+
+fault_id=1 有 13769 条原始事件（chain_report 11456 非 consumer；consumer 2313）；主链只取 event 54 的 22 个单祖先。旁支事实：
+
+- `request_fork` 1510 条，主链 0 条；从主链节点 11（4 条）与 37（1506 条）分叉，`bridge_layer=L3`、`bridge_reason=addr_fallback_broadcast`、`shared_addr=81363000`、`shared_size=1000`；new_request_id 如 570353/570354/570358/…。它们不进入 54 的祖先。
+- 旁支 `taint_reg` 1668 条（主链 1：37）；`resp` 1417（主链 1）；`lq_complete` 496（主链 0；本 seed 是 store 路径，主链用 sq_complete）；`squash_masked` 57（主链 0）。
+- 57 条 `squash_masked` 均为 L4、contained=1、squash_replay，例如 event 1636（VA=ffffffc009483730）、1667（...3448）、1686（...3420）、1747（...33b0）、1850/1854；它们属于后续请求，不覆盖 event 54。
+- `chain_end`：fault1 event 9908（tick=9751969912689，L5 errant_commit_seen）；fault2/4/5/8 为 9909/9911/9912/9915（run_end 或 L4）；fault3/6/7/9 为 9910/9913/9914/9916（L4 detected_contained，store_discarded_not_retired）。都只是生命周期/其它故障的收口，不是 fault1 的 L5。
+- **其它 fault**：fault2 event 8322（VA=ffffffc008be8af8，PFN 80be8→8138d，lq_read，taint 8341）；fault3 event 9729（VA=...482fb0，PFN 81d74→8138d，sq，taint 9748）；fault4 event 9754（VA=...c730e0，PFN 80c73→80c92，lq，taint 9773）；fault5 event 9784（VA=...c730e0，PFN 80c92→807ea，lq，taint 9803）；fault6 event 9814（VA=...482fb0，PFN 8138d→80c07，sq，taint 9833）；fault7 event 9839（VA=...482fb0，PFN 80c07→ffbce，sq，taint 9858）；fault8 event 9864（VA=...c730e0，PFN 807ea→81363，lq，taint 9873）；fault9 event 9884（VA=...c730e0，PFN 81363→8138d，lq，taint 9903）。它们都是 F2 后续注入，终局均为 L4，不并入 fault1。
+- consumer 2313 条摘要不在主链。
+- 影响：旁支与 8 个其它 fault 说明 F2 的多次注入；fault1 的 event 54 未被 squash 覆盖，终局 full。
+
+
+## 6. 最终判定与证据完整性
+
+- terminal：`full`；provable_to：`L5`；传播终局：event 54（errant_commit，tick=238100456205）。
+- run outcome：`Crash`（oracle=Crash，exit=0）；kernel panic。
+- admitted：`True`；violations：`[]`；certified：`True`；chain_valid：`True`。
+- truncated：`False`；gzip EOF：正常；stats：有效。
+- conservation：`ok`（emitted=2313，suppressed=2817673，logical_total=2819986，issues=[]）。
+- count_contradiction：13769−11456=2313（consumer 摘要），已对账。
+- campaign/checker agreement：oracle=Crash 与 run.out KERNEL PANIC 一致；checker full/L5 与报告一致；fault2–9 的 L4/run_end 不改变 fault1。
+- CHAIN_DEMONSTRATED：**是**；COMPLETE_3_OF_3：**是**。
+- 12 项校验：1✓ 2✓ 3✓ 4✓ 5✓ 6✓ 7✓ 8✓ 9✓ 10✓ 11（含住 N/A）✓ 12✓ 13✓ 14✓ 15✓。
+- 结论：**PASS**。seed3 有 9 个 fault，代表故障按 escape-first 选 fault1（full）；其余 8 个只到 L4，不能替代 fault1 的 L5，也不能把 fault1 说成含住。
+
+## 7. 原始证据与文件哈希
+
+以下 SHA-256 均为本次对权威目录内文件重算的结果；未修改任何原始文件。
+
+| 证据 | 路径 | 校验 |
 |---|---|---|
-| 1_event_ids_exist | PASS | referenced ids=1590; missing=none |
-| 2_parent_on_same_ancestry | PASS | contiguous parent chain of 22 events |
-| 3_tick_order | PASS | ticks 238100391603..238100456205 monotone=True |
-| 4_values_from_own_seed | PASS | all displayed event fields re-read from own prop_evt |
-| 5_no_cross_seed_identity_copy | PASS | all fault_id=1; prop_evt SHA unique among the 48 seeds |
-| 6_terminal_matches_authoritative_report | PASS | checker=full/L5 report=full/L5 |
-| 7_full_witness_real_L5_not_chain_end | PASS | witness kind=errant_commit id=54 dl=L5 outcome=errant_commit (kind!=chain_end) |
-| 8_containment_witness_real_contained | PASS | n/a (full escape) |
-| 9_narrative_and_table_agree | PASS | narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both |
-| 10_only_legitimate_shared_injection | PASS | no intra-RunID shared injection |
-| 11_no_runid_path_reuse | PASS | seed_dir/prop/report all carry T04-F2-W4 and seed3 |
-| 12_tier_matches_evidence | PASS | matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1 |
+| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/prop_evt.txt.gz` | SHA-256 `af50e53912fdb35f79240791685576e1e1ae7c5a6bed52c487ba4996263acc93`；462824 bytes；mtime `2026-10-25T21:07:59+0800` |
+| prop_trace（只读辅助） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/prop_trace.csv.gz` | SHA-256 `142089149f74c03c851a2d3dd86c5650813aafdba8ee22b38640199f3e6463a8`；139398 bytes；mtime `2026-10-25T21:07:59+0800` |
+| chain_report（权威） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/chain_report.json` | SHA-256 `281bd163b3774e3c322364f9bfb8343f79a3a3322a93345f440fe713cd1dcebf`；1992831 bytes；mtime `2026-10-25T21:08:01+0800` |
+| 权威离线 regrade | N/A | 本目录无 `chain_report.regrade-*.json`；未做离线重判 |
+| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.out` | SHA-256 `2d8f935e87b038299c7c6e0c3f070b86f0f557e20ca4f8ca22951d140b55dad3`；7869 bytes；mtime `2026-10-25T21:08:00+0800` |
+| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.err` | SHA-256 `7ad31bead8127c09ea7cea7a341885ec295e9b2644bd2f109d4e694c7f8bd612`；2019 bytes；mtime `2026-10-25T21:08:00+0800` |
+| stats.txt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/stats.txt` | SHA-256 `e78d97312de629263db522f7238bf781dffa005baca4e36f6dc49346f78bc2cb`；393356 bytes；mtime `2026-10-25T21:07:59+0800` |
+| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/manifest.json` | SHA-256 `0f2a7cc4a83aa0e82ba3a5968c02af116a10c2f8a292e8382f4f6343fd503af5`；1775 bytes；mtime `2026-10-25T21:08:03+0800` |
+| 启动命令记录 | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.out` 的 `command line:` 行 | 已在上表 run.out 哈希内；manifest.cmd=`LSU_GEM5_BIN=<bin> LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3 --cells T04-F2-W4 --phase trial --max-seeds-per-cell 3 --max-parallel 1 --allow-blocked-models --fs-timeout 5400 --fs-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015` |
+| binary | `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt` | SHA-256 `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959`；1145673848 bytes；mtime `2026-10-25T09:22:24+0800`；manifest 记录 `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959` |
+| source head | manifest 字段 | `fcacc958b799c635babd2834cce9da6942322d91`；binary_source_head=`N/A`；analysis_tool_head=`fcacc958b799c635babd2834cce9da6942322d91` |
+| 分析/校验工具 | `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/tools/lsu_chain_check.py` | SHA-256 `baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`；65565 bytes；文档集 head=`4af986f726a6791f441130dee19eca0711e0b38f` |
+| 注入日志（只读辅助） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/armtlb_injections.log` | SHA-256 `8ddd6b912eccd540dea3befd63f8bf02db738566f760a9e8f82a4c80b6c10c68`；1582 bytes；mtime `2026-10-25T21:07:59+0800` |
+| board.workload.dmesg（只读辅助） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/board.workload.dmesg` | SHA-256 `20d5f04ce4200e2029235dfe1b20c1f13ee5f2e586329946c02d5fab91f13717`；13299 bytes；mtime `2026-10-25T21:07:59+0800` |
+| board.terminal（只读辅助） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/board.terminal` | SHA-256 `39f26b34aab371e90fc1bd5766f9ee6877601dd40428971100d4bcfba841c4a8`；1145 bytes；mtime `2026-10-25T21:06:04+0800` |
+| config.ini（只读辅助） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/config.ini` | SHA-256 `92cd3b15de82cdd00a6be337e7fec7ed491b90698d4ea1e07d7e9dd15c55c6ea`；97184 bytes；mtime `2026-10-25T21:05:46+0800` |
+| config.json（只读辅助） | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/config.json` | SHA-256 `f3d2fb52c72bada6c74beff04ad13d60e65bd6163da81286b2d375c459bb960f`；277165 bytes；mtime `2026-10-25T21:05:46+0800` |
 
-### 证据表
+**权威证据目录**：`/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3`。
 
-| 证据 | 绝对路径 | SHA-256 |
-|---|---|---|
-| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/prop_evt.txt.gz` | `af50e53912fdb35f79240791685576e1e1ae7c5a6bed52c487ba4996263acc93` |
-| chain_report/regrade | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/chain_report.json` | `281bd163b3774e3c322364f9bfb8343f79a3a3322a93345f440fe713cd1dcebf` |
-| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/manifest.json` | `0f2a7cc4a83aa0e82ba3a5968c02af116a10c2f8a292e8382f4f6343fd503af5` |
-| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.out` | `2d8f935e87b038299c7c6e0c3f070b86f0f557e20ca4f8ca22951d140b55dad3` |
-| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.err` | `7ad31bead8127c09ea7cea7a341885ec295e9b2644bd2f109d4e694c7f8bd612` |
-| stats.txt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/stats.txt` | `e78d97312de629263db522f7238bf781dffa005baca4e36f6dc49346f78bc2cb` |
+**其它副本及分类**（依据 `../R6-AUTHORITATIVE-EVIDENCE.md`）：
 
-- 原始事件流是否修改：**NO**
-- 是否重新运行 gem5：**NO**
-- 生成时间：`2026-10-27T17:36:59`；仓库 HEAD `6f98088a7144d7f6fb22d985be3023ac5658e71b`；生成脚本 `/tmp/gen_prop_v2.py`（SHA-256 `f33c3dac7656baf8114ff5c11f4effce1c2f10e7e13303c64ab8d54d6e94b8cb`）
+- `runs/lsu/r6_p1_T04-F2-W4/T04-F2-W4/seed3` — **INTERRUPTED**；本 seed 的权威目录即 `r6_c9_T04-F2-W4_s3`
+
+未运行 gem5/campaign/scons；未修改 `prop_evt.txt.gz`、`chain_report*.json`、`stats.txt`、`run.out`、`run.err`、`manifest.json`、Excel/工作簿；未执行 `git commit`。

@@ -1,0 +1,464 @@
+{
+  "report": "R6-T-BLOCKED-REVALIDATION",
+  "generated_at": "2026-10-27",
+  "mode": "read-only static revalidation; no gem5/campaign/scons executed",
+  "trees": {
+    "current_tool_tree": {
+      "path": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019",
+      "branch": "lsu-mdspec-20261019",
+      "head": "de81266ccdb9a5248556e6d4d586bf4f6a7f0018"
+    },
+    "evidence_tree": {
+      "path": "/home/sdc/gem5-fi-ding",
+      "branch": "fi-ding",
+      "head": "6f98088a7144d7f6fb22d985be3023ac5658e71b",
+      "note": "runs/lsu evidence root and gem5-fs assets live here"
+    },
+    "fs_assets": {
+      "path": "/home/sdc/gem5-fi-ding/gem5-fs",
+      "vmlinux": 237716656,
+      "ubuntu_img": 2361393152,
+      "boot_arm64": 1432,
+      "worktree_gem5_fs": "empty; LSU_FS_DIR is required (tools/lsu_campaign.py:71-86,130-137)",
+      "b0_checkpoint": "/home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015"
+    }
+  },
+  "binary": {
+    "current_binary_path": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt",
+    "sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "size": 1145680944,
+    "source_head": "d1543872",
+    "identity_file": "runs/lsu/r6_n8_bin_identity.txt",
+    "worktree_own_binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "worktree_binary_note": "the worktree also has a different build (e805...); the authoritative R6 binary named by the task is 20fda...",
+    "strings_command": "timeout 420 strings -a -n 6 .claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt > /tmp/r6bin.strings",
+    "strings_lines": 2128362,
+    "fault_type_names_present": [
+      "valid_clear", "valid_set", "global_flip", "asid_subst",
+      "perm_subst", "memtype_subst", "pagesize_subst",
+      "false_hit", "double_hit", "wrong_way",
+      "walk_pairing", "walk_fill_dup", "walk_done_early", "walk_stale_result",
+      "bit_flip", "stuck_at_zero", "stuck_at_one", "pfn_to_mapped_page"
+    ],
+    "site_strings_present": [
+      "arm_tlb_lookup",
+      "arm_tlb_lookup_hit",
+      "arm_tlb_lookup_hit_skipped",
+      "arm_tlb_lookup_tier",
+      "arm_tlb_walk_issue_drop",
+      "arm_tlb_walk_issue_probe",
+      "arm_tlb_walk_refill",
+      "arm_tlb_walk_refill_armed",
+      "arm_tlb_walk_refill_stale",
+      "arm_tlb_walk_stale_no_previous"
+    ],
+    "capability_marker_present": "CHAOS_LSU_TIER_CAP: requested=",
+    "emitter_source_refs": [
+      "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc:231-256 stringToFaultType",
+      "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc:836-935 T05/T06 applyEntryFieldFault cases",
+      "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc:967-1080 T07 maybeCorruptLookup",
+      "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc:292-395 T08 maybeDropWalkFill",
+      "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc:729+ T08 maybeCorruptWalkRefill",
+      "CHAOS/gem5/src/arch/arm/tlb.cc:172,183 hook call sites",
+      "CHAOS/gem5/src/arch/arm/table_walker.cc:337,2637 hook call sites"
+    ]
+  },
+  "classification_counts": {
+    "ALREADY_RUNNABLE": 3,
+    "CODE_GAP": 0,
+    "TOOLING_GAP": 8,
+    "WORKLOAD_GAP": 2,
+    "OBSERVATION_GAP": 0,
+    "SPEC_DECISION_REQUIRED": 0,
+    "BLOCKED_EXTERNAL": 0,
+    "OUT_OF_SCOPE": 0,
+    "TOTAL": 13
+  },
+  "groups": {
+    "A_T05_entry_state": {
+      "runids": ["T05-F0-W4", "T05-F2-W4"],
+      "root_cause": "stale MODEL_BLOCKED['T05'] + stale runid_map/coverage 'COMPILE-UNVERIFIED' status; emitter exists in 20fda and a real pilot injected valid_clear",
+      "classification": "TOOLING_GAP"
+    },
+    "B_T06_attribute_substitution": {
+      "runids": ["T06-F0-W4", "T06-F2-W4"],
+      "root_cause": "stale MODEL_BLOCKED['T06']; perm_subst implemented and pilot-injected (old_perm_subst 2 -> new_perm_subst 0)",
+      "classification": "TOOLING_GAP"
+    },
+    "C_T07_cam_way_select": {
+      "runids": ["T07-F0-W4", "T07-F4-W4"],
+      "root_cause": "stale MODEL_BLOCKED['T07']; false_hit implemented and pilot-injected (CAM: miss -> hit)",
+      "classification": "TOOLING_GAP"
+    },
+    "D_T08_page_walk": {
+      "runids": ["T08-F0-W4", "T08-F4-W4", "T08-F0-W9", "T08-F4-W9"],
+      "w4_classification": "TOOLING_GAP",
+      "w4_root_cause": "MODEL_BLOCKED['T08'] retained as an integration decision; T08-a walk_pairing implemented, in binary, real-run proven (walk_id=703)",
+      "w9_classification": "WORKLOAD_GAP",
+      "w9_root_cause": "design workload is GAP/Graph500; FS carrier is always tlb_probe.rcS, so W9 flags are byte-identical to W4; current W9 pilot used tlb_probe.rcS, not GAP",
+      "w9_status": "STOP; requires workload/spec decision, no fix proposed"
+    },
+    "E_T10_w4_vs_w1": {
+      "runids": ["T10-F0-W4", "T10-F1-W4", "T10-F2-W4"],
+      "root_cause": "stale route/status only; resolve_cell is RUNNABLE for all three; T10 W1 and W4 both use the same FS tlb_probe carrier (W1 is not MiBench), so W1 completion vs W4 blocking is a scheduling/status artifact",
+      "classification": "ALREADY_RUNNABLE"
+    }
+  },
+  "runids": [
+    {
+      "runid": "T05-F0-W4",
+      "group": "A",
+      "classification": "TOOLING_GAP",
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:110 (Excel row 56)",
+        "model": "T05",
+        "unit": "L1d-TLB",
+        "fault_type": "状态",
+        "fault_model": "valid清零/伪造; global翻转; ASID替换",
+        "freq": "F0",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "fs_vs_se": "FS (armtlb family, configs/fs/lsu_b0_fs.py + B0 checkpoint)",
+      "workload_exists": "TLB-AliasPerm has no executable in workloads/directed; served by configs/fs/tlb_probe.rcS (1623 B, exists)",
+      "route_default": "BLOCKED: deferred(T05 entry-state modes LANDED ... COMPILE-UNVERIFIED ...)",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type valid_clear",
+      "exact_command_template": "<g5> --outdir <out>/seed1 configs/fs/lsu_b0_fs.py --restore-checkpoint runs/lsu/fs_cpt_boot/cpt.237949797015 --kernel <LSU_FS_DIR>/vmlinux --disk <LSU_FS_DIR>/ubuntu.img --bootloader <LSU_FS_DIR>/boot.arm64 --cpu O3 --readfile <REPO>/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type valid_clear --tlb_rng_seed <seed> --chaos_propagation --prop_run_id T05-F0-W4 --prop_sample_run_id s<seed>",
+      "tier_distinct": "F0 = legacy single injection (no --tlb_lsu_tier); distinct from F2 which adds --tlb_lsu_tier F2",
+      "emitter": "FaultType::ValidClear/ValidSet/GlobalFlip/AsidSubst in CHAOSArmTLB.cc:836-867; binary contains all names",
+      "binary_symbols": "valid_clear, valid_set, global_flip, asid_subst; Site: arm_tlb_lookup_hit",
+      "ready_contract": "upstream_status=BLOCKED/FS-INFRA; chain.admitted=true terminal=detected_contained",
+      "historical_evidence": "runs/lsu/r6_tlb_pilot2/T05-F0-W4 (activated=1, Masked=1; armtlb_injections.log has old_valid_clear:1 -> new_valid_clear:0); older binary r6-tlb-hooks; r6_tlb_pilot/out and r6_tlb_verify/out truncated",
+      "root_cause": "MODEL_BLOCKED reason premise (build/FS pilot pending) is falsified by 20fda symbols and the pilot",
+      "fix_domain": "tools/lsu_campaign.py + runid_map/coverage regeneration"
+    },
+    {
+      "runid": "T05-F2-W4",
+      "group": "A",
+      "classification": "TOOLING_GAP",
+      "residual_observation_gap": true,
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:112 (Excel row 57)",
+        "freq": "F2",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: deferred(T05 ... COMPILE-UNVERIFIED ...)",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type valid_clear --tlb_lsu_tier F2",
+      "exact_command_template": "same as T05-F0-W4 but with --tlb_fault_type valid_clear --tlb_lsu_tier F2",
+      "tier_distinct": "yes: F2 emits --tlb_lsu_tier F2 (R6-FTIER); F0 is legacy",
+      "emitter": "same T05 emitters; binary contains names",
+      "ready_contract": "chain.admitted=false n_samples=0",
+      "historical_evidence": "none (R6-STATUS-TABLE NOT_RUN; R6-FSINFRA-EVIDENCE lists it under no per-cell pilot)",
+      "root_cause": "stale MODEL_BLOCKED['T05'] plus no observation yet",
+      "fix_domain": "tools/lsu_campaign.py + schedule"
+    },
+    {
+      "runid": "T06-F0-W4",
+      "group": "B",
+      "classification": "TOOLING_GAP",
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:116 (Excel row 59)",
+        "freq": "F0",
+        "fault_type": "换值",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: deferred(T06 attribute legal-substitution ... COMPILE-UNVERIFIED ...)",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type perm_subst",
+      "exact_command_template": "same FS template with --tlb_fault_type perm_subst (F0, no tier flag)",
+      "tier_distinct": "yes: F0 legacy vs F2 tier",
+      "emitter": "PermSubst/MemTypeSubst/PageSizeSubst cases CHAOSArmTLB.cc:869-935; binary contains names",
+      "ready_contract": "upstream_status=BLOCKED/FS-INFRA; chain.admitted=false (containment_on_unclosed_stream + no_closed_chain)",
+      "historical_evidence": "runs/lsu/r6_tlb_D_T06-F0-W4/T06-F0-W4 (activated=1, Timeout=1, truncated; old_perm_subst:2 -> new_perm_subst:0); older binary",
+      "root_cause": "stale MODEL_BLOCKED['T06']",
+      "fix_domain": "tools/lsu_campaign.py + runid_map/coverage regeneration"
+    },
+    {
+      "runid": "T06-F2-W4",
+      "group": "B",
+      "classification": "TOOLING_GAP",
+      "residual_observation_gap": true,
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:118 (Excel row 60)",
+        "freq": "F2",
+        "fault_type": "换值",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: deferred(T06 ... COMPILE-UNVERIFIED ...)",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type perm_subst --tlb_lsu_tier F2",
+      "exact_command_template": "same FS template with --tlb_fault_type perm_subst --tlb_lsu_tier F2",
+      "tier_distinct": "yes",
+      "emitter": "same T06 emitters; binary contains names",
+      "ready_contract": "chain.admitted=false n_samples=0",
+      "historical_evidence": "none (NOT_RUN; no per-cell pilot)",
+      "root_cause": "stale MODEL_BLOCKED['T06'] plus no observation",
+      "fix_domain": "tools/lsu_campaign.py + schedule"
+    },
+    {
+      "runid": "T07-F0-W4",
+      "group": "C",
+      "classification": "TOOLING_GAP",
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:122 (Excel row 62)",
+        "freq": "F0",
+        "fault_type": "状态",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: deferred(T07 CAM/way-select ... COMPILE-UNVERIFIED ...)",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type false_hit",
+      "exact_command_template": "same FS template with --tlb_fault_type false_hit (F0, no tier flag)",
+      "tier_distinct": "yes: F0 legacy vs F4 tier",
+      "emitter": "maybeCorruptLookup FalseHit/DoubleHit/WrongWay CHAOSArmTLB.cc:967-1080; binary contains names",
+      "ready_contract": "upstream_status=BLOCKED/FS-INFRA; chain.admitted=false terminal=provable_to_L2_then_unknown",
+      "historical_evidence": "runs/lsu/r6_tlb_pilot2/T07-F0-W4 (activated=1, Timeout=1, truncated; armtlb_injections.log CAM: miss -> hit, FaultType: false_hit); older binary",
+      "root_cause": "stale MODEL_BLOCKED['T07']",
+      "fix_domain": "tools/lsu_campaign.py + runid_map/coverage regeneration"
+    },
+    {
+      "runid": "T07-F4-W4",
+      "group": "C",
+      "classification": "TOOLING_GAP",
+      "residual_observation_gap": true,
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:124 (Excel row 63)",
+        "freq": "F4",
+        "fault_type": "状态",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: deferred(T07 ... COMPILE-UNVERIFIED ...)",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type false_hit --tlb_lsu_tier F4",
+      "exact_command_template": "same FS template with --tlb_fault_type false_hit --tlb_lsu_tier F4",
+      "tier_distinct": "yes",
+      "emitter": "same T07 emitters; binary contains names",
+      "ready_contract": "chain.admitted=false n_samples=0",
+      "historical_evidence": "none (NOT_RUN; no per-cell pilot)",
+      "root_cause": "stale MODEL_BLOCKED['T07'] plus no observation",
+      "fix_domain": "tools/lsu_campaign.py + schedule"
+    },
+    {
+      "runid": "T08-F0-W4",
+      "group": "D",
+      "classification": "TOOLING_GAP",
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:128 (Excel row 65)",
+        "freq": "F0",
+        "fault_type": "时序",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: walk_pairing (T08-a) landed AND real-run proven ... deletion is an integration decision",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type walk_pairing --tlb_lsu_tier F0 --tlb_lsu_warmup_events 0 --tlb_lsu_span_events 1000",
+      "exact_command_template": "same FS template with --tlb_fault_type walk_pairing --tlb_lsu_tier F0 --tlb_lsu_warmup_events 0 --tlb_lsu_span_events 1000",
+      "tier_distinct": "yes: walk family emits --tlb_lsu_tier <F>; F4 is a real tier, F0 is pinned uniform single draw",
+      "emitter": "maybeDropWalkFill CHAOSArmTLB.cc:292-395 + table_walker.cc:337; binary contains arm_tlb_walk_issue_drop etc.",
+      "ready_contract": "upstream_status=BLOCKED/FS-INFRA; chain.admitted=false (containment_on_unclosed_stream)",
+      "historical_evidence": "runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4 (activated=1, Timeout=1, truncated; arm_tlb_walk_issue_probe walk_id=1 -> arm_tlb_walk_issue_drop walk_id=703); R4-8-FS-W1-report.md 4.3; older binary",
+      "root_cause": "MODEL_BLOCKED['T08'] retained as an integration decision; T08-a itself landed and real-run proven",
+      "fix_domain": "tools/lsu_campaign.py (admission) + runid_map/coverage regeneration"
+    },
+    {
+      "runid": "T08-F4-W4",
+      "group": "D",
+      "classification": "TOOLING_GAP",
+      "residual_observation_gap": true,
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:132 (Excel row 67)",
+        "freq": "F4",
+        "fault_type": "时序",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: walk_pairing ... real-run proven ...",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type walk_pairing --tlb_lsu_tier F4 --tlb_lsu_warmup_events 0 --tlb_lsu_span_events 1000",
+      "exact_command_template": "same FS template with --tlb_fault_type walk_pairing --tlb_lsu_tier F4 --tlb_lsu_warmup_events 0 --tlb_lsu_span_events 1000",
+      "tier_distinct": "yes",
+      "emitter": "same T08 walk emitters; binary contains names",
+      "ready_contract": "chain.admitted=false n_samples=0",
+      "historical_evidence": "none for F4-W4 (NOT_RUN; no per-cell pilot). Note: runid_map spec_landed mentions an F4-W9 honest-zero, which is not F4-W4 evidence",
+      "root_cause": "same T08 model block plus no observation",
+      "fix_domain": "tools/lsu_campaign.py (admission) + schedule"
+    },
+    {
+      "runid": "T08-F0-W9",
+      "group": "D",
+      "classification": "WORKLOAD_GAP",
+      "stop": true,
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:130 (Excel row 66)",
+        "freq": "F0",
+        "fault_type": "时序",
+        "workload": "GAP/Graph500 子集（BFS、SSSP、PageRank，固定图与结果哈希）",
+        "csv_status": "blocked(fs-infra: TLB::lookup zero-call in SE, W1 ③)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: walk_pairing ... real-run proven ...",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type walk_pairing --tlb_lsu_tier F0 --tlb_lsu_warmup_events 0 --tlb_lsu_span_events 1000 (workload field is ignored)",
+      "exact_command_template": "byte-identical to T08-F0-W4 except --prop_run_id T08-F0-W9",
+      "tier_distinct": "yes (walk family tier)",
+      "emitter": "same T08 walk emitters; binary contains names",
+      "ready_contract": "upstream_category=MODE-UNIMPL; chain.admitted=false terminal=provable_to_L0_then_unknown; no authoritative stream",
+      "historical_evidence": ".claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t6_pilot2/T08-F0-W9/seed1 (activated=1, Timeout=1; config.ini readfile=.../configs/fs/tlb_probe.rcS, faultType=walk_pairing, lsuTier=F0; armtlb_injections.log arm_tlb_walk_issue_drop walk_id=703). NOT in authoritative runs root.",
+      "root_cause": "design workload GAP/Graph500 has no FS executable; T08 TLB injection is FS-only; the route substitutes tlb_probe.rcS, making W9 == W4",
+      "fix_domain": "STOP: spec/workload owner; no minimal fix proposed"
+    },
+    {
+      "runid": "T08-F4-W9",
+      "group": "D",
+      "classification": "WORKLOAD_GAP",
+      "stop": true,
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:134 (Excel row 68)",
+        "freq": "F4",
+        "fault_type": "时序",
+        "workload": "GAP/Graph500 子集（BFS、SSSP、PageRank，固定图与结果哈希）",
+        "csv_status": "blocked(fs-infra: TLB::lookup zero-call in SE, W1 ③)"
+      },
+      "mode": "FS",
+      "route_default": "BLOCKED: walk_pairing ... real-run proven ...",
+      "route_evidence_pilot": "RUNNABLE fs:tlb_probe --tlb_fault_type walk_pairing --tlb_lsu_tier F4 ... (workload ignored)",
+      "exact_command_template": "byte-identical to T08-F4-W4 except --prop_run_id T08-F4-W9",
+      "tier_distinct": "yes",
+      "emitter": "same T08 walk emitters; binary contains names",
+      "ready_contract": "upstream_category=MODE-UNIMPL; chain.admitted=false n_samples=0",
+      "historical_evidence": "none",
+      "root_cause": "same GAP workload gap as T08-F0-W9",
+      "fix_domain": "STOP: spec/workload owner; no minimal fix proposed"
+    },
+    {
+      "runid": "T10-F0-W4",
+      "group": "E",
+      "classification": "ALREADY_RUNNABLE",
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:524 (Excel row 263)",
+        "freq": "F0",
+        "fault_type": "单比特翻转",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "RUNNABLE fs:tlb_probe --tlb_fault_type bit_flip",
+      "route_evidence_pilot": "RUNNABLE (same)",
+      "exact_command_template": "<g5> --outdir <out>/seed1 configs/fs/lsu_b0_fs.py --restore-checkpoint runs/lsu/fs_cpt_boot/cpt.237949797015 --kernel <LSU_FS_DIR>/vmlinux --disk <LSU_FS_DIR>/ubuntu.img --bootloader <LSU_FS_DIR>/boot.arm64 --cpu O3 --readfile <REPO>/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type bit_flip --tlb_rng_seed <seed> --chaos_propagation --prop_run_id T10-F0-W4 --prop_sample_run_id s<seed>",
+      "tier_distinct": "F0 legacy vs F1/F2 tier flags; distinct",
+      "emitter": "BitFlip in CHAOSArmTLB.cc:678-681; binary contains bit_flip and Site: arm_tlb_lookup_hit",
+      "ready_contract": "upstream_status=BLOCKED/FS-INFRA (stale); chain.admitted=false; R6-12RUNID-TABLE T10-F0-W4 COMPLETE/detected_contained/provable_to_L3",
+      "historical_evidence": "runs/lsu/r6_tlb_E_T10-F0-W4 (Timeout=1, truncated) and r6_tlb_F_T10-F0-W4 (Masked=1, complete; old_pfn 0x81d75 -> new_pfn 0x100000000081d75); older binary",
+      "root_cause": "stale route/status only; the runid_map itself marks the workload key refuted",
+      "fix_domain": "status regeneration only; no code change"
+    },
+    {
+      "runid": "T10-F1-W4",
+      "group": "E",
+      "classification": "ALREADY_RUNNABLE",
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:530 (Excel row 266)",
+        "freq": "F1",
+        "fault_type": "单比特翻转",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "RUNNABLE fs:tlb_probe --tlb_fault_type bit_flip --tlb_lsu_tier F1",
+      "route_evidence_pilot": "RUNNABLE (same)",
+      "exact_command_template": "same FS template with --tlb_fault_type bit_flip --tlb_lsu_tier F1",
+      "tier_distinct": "yes; runtime proof from the same model on 20fda: CHAOS_LSU_TIER_CAP requested=F1 effective=F1 lookup_tier_enabled=1 (runs/lsu/r6_n8_T10-F1-W1_s1/T10-F1-W1/seed1/run.out)",
+      "emitter": "BitFlip; binary contains bit_flip and CHAOS_LSU_TIER_CAP",
+      "ready_contract": "chain.admitted=false n_samples=0",
+      "historical_evidence": "R5-FS-PILOT-EVIDENCE.md section 1 (activated=1, Masked); no authoritative stream (R6-12RUNID-TABLE MISSING)",
+      "root_cause": "stale route/status only",
+      "fix_domain": "status regeneration + schedule; no code change"
+    },
+    {
+      "runid": "T10-F2-W4",
+      "group": "E",
+      "classification": "ALREADY_RUNNABLE",
+      "matrix": {
+        "source": "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv:536 (Excel row 269)",
+        "freq": "F2",
+        "fault_type": "单比特翻转",
+        "workload": "TLB-AliasPerm 地址翻译探针",
+        "csv_status": "blocked(fs-infra: TLB workload needs FS)"
+      },
+      "mode": "FS",
+      "route_default": "RUNNABLE fs:tlb_probe --tlb_fault_type bit_flip --tlb_lsu_tier F2",
+      "route_evidence_pilot": "RUNNABLE (same)",
+      "exact_command_template": "same FS template with --tlb_fault_type bit_flip --tlb_lsu_tier F2",
+      "tier_distinct": "yes; runtime proof from the same model on 20fda: CHAOS_LSU_TIER_CAP requested=F2 effective=F2 lookup_tier_enabled=1 (runs/lsu/r6_n8_T10-F2-W1_s1/T10-F2-W1/seed1/run.out)",
+      "emitter": "BitFlip; binary contains bit_flip and CHAOS_LSU_TIER_CAP",
+      "ready_contract": "chain.admitted=false n_samples=0",
+      "historical_evidence": "R5-FS-PILOT-EVIDENCE.md section 1 (activated=1, Masked); no authoritative stream",
+      "root_cause": "stale route/status only",
+      "fix_domain": "status regeneration + schedule; no code change"
+    }
+  ],
+  "minimal_fix_set": [
+    {
+      "id": "FIX-1",
+      "domain": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/tools/lsu_campaign.py",
+      "scope": "T05-F0-W4, T05-F2-W4, T06-F0-W4, T06-F2-W4, T07-F0-W4, T07-F4-W4, T08-F0-W4, T08-F4-W4",
+      "change": "let the already-landed + pilot-proven T05/T06/T07/T08 modes ride the real campaign path in screening/formal (extend the evidence-pilot allowance beyond --phase trial, or delete the falsified MODEL_BLOCKED entries for T05/T06/T07; keep T08 as an explicit integration decision)",
+      "does_not_change": "XLSX definition, FaultType, workload semantics",
+      "evidence": "tools/lsu_campaign.py:1591-1594,2500-2502,581; binary symbols; pilots"
+    },
+    {
+      "id": "FIX-2",
+      "domain": "tools/lsu_runid_map.py -> docs/gem5-fi/lsu/mdspec/{runid_map.json,coverage_matrix.md,ready_contract.json}",
+      "scope": "all 13",
+      "change": "regenerate the ledger after FIX-1 so the stale blocked(fs-infra: TLB workload needs FS) / COMPILE-UNVERIFIED / MODE-UNIMPL text matches resolve_cell; T10-W4 becomes runnable, T05-T08-W4 become landed-with-pilot",
+      "does_not_change": "XLSX definition, FaultType, workload semantics",
+      "evidence": "coverage_matrix.md:65-79,259-267; runid_map status_reasons; resolve_cell output"
+    },
+    {
+      "id": "FIX-3",
+      "domain": "tools/lsu_r6_schedule.sh + docs/gem5-fi/lsu/mdspec/R6-BATCH-PLAN.md",
+      "scope": "T10-F0-W4, T10-F1-W4, T10-F2-W4 + the 8 FIX-1 cells",
+      "change": "schedule the cells on the 20fda binary with LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs, --fs-checkpoint runs/lsu/fs_cpt_boot/cpt.237949797015, --fs-timeout 2700; pass --allow-blocked-models where MODEL_BLOCKED still applies",
+      "does_not_change": "XLSX definition, FaultType, workload semantics",
+      "evidence": "R6-BATCH-PLAN.md section 1; runs/lsu/r6_n8_T10-F0-W1_s1/manifest.json"
+    },
+    {
+      "id": "OPS-1",
+      "domain": "invocation environment (not a code fix)",
+      "scope": "all FS cells",
+      "change": "set LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs (the worktree gem5-fs/ is empty)",
+      "evidence": "tools/lsu_campaign.py:71-86,130-137; ls gem5-fs"
+    }
+  ],
+  "stop_items": [
+    {
+      "id": "STOP-1",
+      "group": "D-W9",
+      "runids": ["T08-F0-W9", "T08-F4-W9"],
+      "reason": "The XLSX design workload is GAP/Graph500. GAP exists only as an SE ELF (workloads/directed/gap_bfs), while T08 TLB injection is FS-only (CHAOSArmTLB.py:56-59; SE never calls TLB::lookup). FS always uses configs/fs/tlb_probe.rcS, so W9 flags are byte-identical to W4; the existing W9 pilot used tlb_probe.rcS, not GAP.",
+      "required_decision": "change the XLSX workload definition, substitute another workload, or provide a GAP FS executable/carrier",
+      "fix_proposed": false
+    },
+    {
+      "id": "STOP-2",
+      "group": "D-W4 submodels",
+      "runids": ["T08-F0-W4", "T08-F4-W4"],
+      "reason": "The matrix T08 timing model has four submodels; the campaign default runs only walk_pairing (T08-a). MODEL_BLOCKED['T08'] says deletion is an integration decision because b/c/d lack real-run coverage.",
+      "required_decision": "accept T08-a-only coverage or add real-run coverage for b/c/d",
+      "fix_proposed": false
+    }
+  ],
+  "honest_boundaries": [
+    "No gem5/campaign run was performed; RUNNABLE/GAP labels are static route + binary symbol + on-disk evidence determinations.",
+    "The W4 TLB-AliasPerm -> tlb_probe.rcS carrier is a pre-existing T-series design (T01-T04 also use it); the proposed fix set does not alter it. If the spec owner considers that pre-existing substitution itself subject to re-decision, the W4 groups must also move to STOP.",
+    "All T05/T06/T07/T08/T10-W4 pilots were produced by older binaries (r6-tlb-hooks / 7d52bc...), not by 20fda...; they prove the emitters fire, not formal results on 20fda.",
+    "The 20fda source head (d1543872) is not an ancestor of the worktree HEAD (de81266c); the FaultType set is identical but byte-equivalence of the whole file was not proven (diff = 231 lines).",
+    "ready_contract.json status.BLOCKED=325 is the upstream ledger axis; chain.admitted is a separate evidence axis. Neither alone is treated as proof of runnability."
+  ]
+}

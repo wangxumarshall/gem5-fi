@@ -1,0 +1,408 @@
+{
+ "generated_at": "2026-10-27",
+ "scope": "T01-F1-W4 seed2/seed3 (+ T01-F1-W1 seed2/seed3 cross-check)",
+ "runs": {
+  "T01-F1-W4|seed2": {
+   "authoritative_dir": "runs/lsu/r6_n7_T01-F1-W4_s2/T01-F1-W4/seed2",
+   "report_terminal": "full",
+   "report_provable_to": "L5",
+   "oracle_outcome": "Crash",
+   "admitted": true,
+   "certified": true,
+   "chain_valid": true,
+   "violations": [],
+   "event_count": 30172,
+   "faults": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "event_count": 370,
+     "path_event_ids": [
+      "0",
+      "1",
+      "2",
+      "4",
+      "19",
+      "20"
+     ]
+    },
+    "2": {
+     "terminal": "detected_contained",
+     "provable_to": "L2",
+     "event_count": 5,
+     "path_event_ids": [
+      "313",
+      "314",
+      "315"
+     ]
+    },
+    "3": {
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "event_count": 26735,
+     "path_event_ids": [
+      "317",
+      "318",
+      "319",
+      "321",
+      "342"
+     ]
+    },
+    "4": {
+     "terminal": "detected_contained",
+     "provable_to": "L2",
+     "event_count": 5,
+     "path_event_ids": [
+      "24805",
+      "24806",
+      "24807"
+     ]
+    },
+    "5": {
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "event_count": 2425,
+     "path_event_ids": [
+      "24809",
+      "24810",
+      "24811",
+      "24813",
+      "24870"
+     ]
+    }
+   },
+   "representative_fault": "1",
+   "representative_terminal": "full",
+   "per_fault_counts": {
+    "full": 1,
+    "detected_contained": 2,
+    "open": 2
+   },
+   "cell_results": {
+    "n_runs": 1,
+    "attempted": 5530941,
+    "activated": 5,
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 5,
+     "Timeout": 0
+    },
+    "outcome": "Crash",
+    "count_contradiction": false,
+    "conservation": "OK",
+    "stop_reason": "seed-cap(1@2)"
+   },
+   "stats_numFaultsInjected": 5,
+   "taint_reg": {
+    "total": 3214,
+    "empty_arch_reg": 274,
+    "empty_phys_reg": 274,
+    "main_chain_taint_reg": [
+     {
+      "event_id": "19",
+      "arch_reg": "12",
+      "phys_reg": "110",
+      "fault_id": "1"
+     },
+     {
+      "event_id": "342",
+      "arch_reg": "1",
+      "phys_reg": "248",
+      "fault_id": "3"
+     },
+     {
+      "event_id": "24870",
+      "arch_reg": "",
+      "phys_reg": "",
+      "fault_id": "5"
+     }
+    ]
+   }
+  },
+  "T01-F1-W4|seed3": {
+   "authoritative_dir": "runs/lsu/r6_n7_T01-F1-W4_s3/T01-F1-W4/seed3",
+   "report_terminal": "full",
+   "report_provable_to": "L5",
+   "oracle_outcome": "Crash",
+   "admitted": true,
+   "certified": true,
+   "chain_valid": true,
+   "violations": [],
+   "event_count": 3445,
+   "faults": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "event_count": 1353,
+     "path_event_ids": [
+      "0",
+      "1",
+      "2",
+      "4",
+      "37",
+      "39"
+     ]
+    },
+    "2": {
+     "terminal": "detected_contained",
+     "provable_to": "L2",
+     "event_count": 5,
+     "path_event_ids": [
+      "1345",
+      "1346",
+      "1347"
+     ]
+    },
+    "3": {
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "event_count": 2087,
+     "path_event_ids": [
+      "1349",
+      "1350",
+      "1351",
+      "1353",
+      "1368"
+     ]
+    }
+   },
+   "representative_fault": "1",
+   "representative_terminal": "full",
+   "per_fault_counts": {
+    "full": 1,
+    "detected_contained": 1,
+    "open": 1
+   },
+   "cell_results": {
+    "n_runs": 1,
+    "attempted": 3527639,
+    "activated": 3,
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 3,
+     "Timeout": 0
+    },
+    "outcome": "Crash",
+    "count_contradiction": false,
+    "conservation": "OK",
+    "stop_reason": "seed-cap(1@3)"
+   },
+   "stats_numFaultsInjected": 3,
+   "taint_reg": {
+    "total": 138,
+    "empty_arch_reg": 41,
+    "empty_phys_reg": 41,
+    "main_chain_taint_reg": [
+     {
+      "event_id": "37",
+      "arch_reg": "4",
+      "phys_reg": "68",
+      "fault_id": "1"
+     },
+     {
+      "event_id": "1368",
+      "arch_reg": "19",
+      "phys_reg": "29",
+      "fault_id": "3"
+     }
+    ]
+   }
+  },
+  "T01-F1-W1|seed2": {
+   "authoritative_dir": "runs/lsu/r6_n8_T01-F1-W1_s2/T01-F1-W1/seed2",
+   "report_terminal": "full",
+   "report_provable_to": "L5",
+   "oracle_outcome": "Crash",
+   "admitted": true,
+   "certified": true,
+   "chain_valid": true,
+   "violations": [],
+   "event_count": 2279,
+   "faults": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "event_count": 370,
+     "path_event_ids": [
+      "0",
+      "1",
+      "2",
+      "4",
+      "19",
+      "20"
+     ]
+    },
+    "2": {
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "event_count": 1909,
+     "path_event_ids": [
+      "313",
+      "314",
+      "315",
+      "317",
+      "362"
+     ]
+    }
+   },
+   "representative_fault": "1",
+   "representative_terminal": "full",
+   "per_fault_counts": {
+    "full": 1,
+    "detected_contained": 0,
+    "open": 1
+   },
+   "cell_results": {
+    "n_runs": 1,
+    "attempted": 1901753,
+    "activated": 2,
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 2,
+     "Timeout": 0
+    },
+    "outcome": "Crash",
+    "count_contradiction": false,
+    "conservation": "OK",
+    "stop_reason": "seed-cap(1@2)"
+   },
+   "stats_numFaultsInjected": 2,
+   "taint_reg": {
+    "total": 146,
+    "empty_arch_reg": 42,
+    "empty_phys_reg": 42,
+    "main_chain_taint_reg": [
+     {
+      "event_id": "19",
+      "arch_reg": "12",
+      "phys_reg": "110",
+      "fault_id": "1"
+     },
+     {
+      "event_id": "362",
+      "arch_reg": "4",
+      "phys_reg": "118",
+      "fault_id": "2"
+     }
+    ]
+   }
+  },
+  "T01-F1-W1|seed3": {
+   "authoritative_dir": "runs/lsu/r6_n8_T01-F1-W1_s3/T01-F1-W1/seed3",
+   "report_terminal": "full",
+   "report_provable_to": "L5",
+   "oracle_outcome": "Crash",
+   "admitted": true,
+   "certified": true,
+   "chain_valid": true,
+   "violations": [],
+   "event_count": 25388,
+   "faults": {
+    "1": {
+     "terminal": "full",
+     "provable_to": "L5",
+     "event_count": 1382,
+     "path_event_ids": [
+      "0",
+      "1",
+      "2",
+      "4",
+      "43",
+      "45"
+     ]
+    },
+    "2": {
+     "terminal": "detected_contained",
+     "provable_to": "L5",
+     "event_count": 15733,
+     "path_event_ids": [
+      "1371",
+      "1372",
+      "1373",
+      "1375",
+      "1408",
+      "1615"
+     ]
+    },
+    "3": {
+     "terminal": "detected_contained",
+     "provable_to": "L5",
+     "event_count": 8273,
+     "path_event_ids": [
+      "14621",
+      "14622",
+      "14623",
+      "14625",
+      "14670",
+      "14678"
+     ]
+    }
+   },
+   "representative_fault": "1",
+   "representative_terminal": "full",
+   "per_fault_counts": {
+    "full": 1,
+    "detected_contained": 2,
+    "open": 0
+   },
+   "cell_results": {
+    "n_runs": 1,
+    "attempted": 3442472,
+    "activated": 3,
+    "classes": {
+     "Masked": 0,
+     "Detected/Contained": 0,
+     "SDC": 0,
+     "Crash": 3,
+     "Timeout": 0
+    },
+    "outcome": "Crash",
+    "count_contradiction": false,
+    "conservation": "OK",
+    "stop_reason": "seed-cap(1@3)"
+   },
+   "stats_numFaultsInjected": 3,
+   "taint_reg": {
+    "total": 4561,
+    "empty_arch_reg": 2328,
+    "empty_phys_reg": 2328,
+    "main_chain_taint_reg": [
+     {
+      "event_id": "43",
+      "arch_reg": "4",
+      "phys_reg": "68",
+      "fault_id": "1"
+     },
+     {
+      "event_id": "1408",
+      "arch_reg": "",
+      "phys_reg": "",
+      "fault_id": "2"
+     },
+     {
+      "event_id": "14670",
+      "arch_reg": "19",
+      "phys_reg": "232",
+      "fault_id": "3"
+     }
+    ]
+   }
+  }
+ },
+ "conclusion": {
+  "campaign_unit": "run-level: classify_fs_run() sets classes[run_outcome]=injected (tools/lsu_campaign.py:346-395), aggregation adds activated per run (tools/lsu_campaign.py:640). classes.Crash=5/3 means \"5/3 activated faults occurred in a run whose overall oracle outcome was Crash\", NOT 5/3 per-fault L5 chains.",
+  "checker_unit": "per-fault: chain_report.faults[fid].terminal/provable_to; escape-first representative selection.",
+  "contradiction": "NO. The two numbers are different statistical units, not conflicting measurements of the same quantity.",
+  "representative_fault": "fault 1 is the only full/L5 chain in T01-F1-W4 seed2 and seed3; escape-first selects it.",
+  "count_contradiction": "false is supported: attempted>0 and injected == stats.board.chaos_armtlb.numFaultsInjected (5/5, 3/3).",
+  "taint_reg_gap": "Main-chain taint_reg for representative fault 1 carries arch_reg/phys_reg in both seeds (seed2 event19 arch=12 phys=110; seed3 event37 arch=4 phys=68). The stream still has taint_reg rows with empty arch_reg/phys_reg (seed2 274/3214; seed3 41/138), including sibling-fault main-chain event 24870 (fault5). This is an evidence-field coverage gap, not a chain inconsistency.",
+  "doc_action": "Correct the two seed documents to report run-level and per-fault calibers side by side; do not delete sibling faults, do not modify raw streams, do not re-run gem5.",
+  "verdict_effect": "chain evidence PASS; identity MATCH (tlb_probe carrier); overall PASS with the two calibrated counts and the taint_reg coverage gap recorded."
+ }
+}

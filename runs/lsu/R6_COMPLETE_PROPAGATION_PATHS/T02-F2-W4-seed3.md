@@ -1,781 +1,217 @@
-# T02-F2-W4 seed3 故障传播全过程
+# T02-F2-W4 seed3 故障传播与最终结局
 
-> 证据口径：本文件只使用该 seed **自己**未经修改的 `prop_evt.txt.gz` 重建传播路径；代表故障按权威 checker 的 escape-first 规则选择；原始事件流未被修改，gem5 未重跑。
-> `chain_report` 的 `path_event_ids` 只作为层锚点核对，**不是**完整链；本文件按 `parent_event_id` 单祖先逐事件重建。
+## 1. 实验身份与复现信息
 
-## 30 秒结论
+- RunID：`T02-F2-W4`；seed：`3`；sample_run_id：`s3`
+- 单元：L1d-TLB（DTLB）（故障模型 `T02`）
+- fault model：PPN 内同时翻转 2 bit，邻近/非邻近各半；权限位不动。实施细则：每次故障运行只选一个有效结构项，在同一字段内同时异或两个不同 bit；相邻位与非相邻位分层各占一半，并记录两个 bit 的编号、距离、原值和故障值。两个 bit 必须在同一个微架构事件生效，不与其他字段故障叠加。激活口径：仅当“有效表项且后续复用”且故障值被下游实际读取、选择或消费时计为 activated；否则归入 Injected-not-activated。
+- fault type：`双比特翻转`（本 seed 的实际注入记录见第 2、7 章；逐次 FaultType 取自 `armtlb_injections.log`）
+- frequency tier：F2 — 平均每 100,000 个 eligible events 注入 1 次，间隔加入 ±50% 抖动
+- requested tier：`F2`；effective tier：`F2`；tier enabled：`1`（来自 run.out `CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1`）
+- workload 矩阵标签：TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）
+- run.out 实际 workload/readfile：`--readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS`
+- 完整启动命令：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/lsu_b0_fs.py --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015 --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type bit_flip --tlb_bits_to_change 2 --tlb_lsu_tier F2 --tlb_rng_seed 3 --chaos_propagation --prop_run_id T02-F2-W4 --prop_sample_run_id s3`
+- source head：N/A（manifest 无 binary_source_head 字段；manifest.source_head=fcacc958b799c635babd2834cce9da6942322d91 只是运行时工作树 HEAD，不等同二进制构建源）
+- binary source head：N/A（manifest 无 binary_source_head 字段；manifest.source_head=fcacc958b799c635babd2834cce9da6942322d91 只是运行时工作树 HEAD，不等同二进制构建源）
+- binary path：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt`
+- binary SHA-256：`e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959`
+- analysis tool head：`4af986f726a6791f441130dee19eca0711e0b38f`（上一版文档集提交 `7065459c`；本版审计工具头为 `4af986f726a6791f441130dee19eca0711e0b38f`）
+- checker SHA-256：`baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`（`lsu_chain_check.py`）
+- evidence root：`/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3`
+- manifest：`/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/manifest.json`（SHA-256 `b44315cdb65e033dc441ffb3528233868bc74b87ea0b3afe76c7777e9b2aa9e9`；run 根 manifest（seed 字段=3，artifacts 尺寸对应最后一个 seed；不按它推断本 seed 的逐 seed 事实）；manifest.status=`FINISHED`，manifest.exit_code=`0`，manifest.seed=`3`）
+- 正常 EOF：**是**（gzip 解压到 EOF 无错：True）
+- exit_code：chain_report.exit_code=`0`；manifest.exit_code=`0`（见上）
+- truncated：**False**（以 cap=3,000,000 读流，未触顶；`truncated=false`、`evidence_truncated=false`）
+- stats 是否有效：**是**（`stats.txt` 可解析，`board.chaos_armtlb.numFaultsInjected` 与本 seed 的注入次数三方一致，见 3.1）
+- 原始事件数：358302（与 `chain_report.event_count` 相同）
+- fault_id 数量：228（权威报告登记的真实故障数；流内 `inj` 事件数与之相同）
+- 是否经过离线 regrade：否
 
-在 `T02-F2-W4` seed3 中，注入器于 tick=238095582084 在 DTLB 表项（site=arm_tlb_lookup_hit）把 PFN 从 `0x81d75` 改成 `0x20200000081d75`（VA=`0xffffffc009483950`）；故障 PFN 使有效 PA 从 `0x81d75950` 变为 `0x200000081d75950`，随后沿 TLB 翻译 → LQ/SQ 请求 → L1D/MSHR → `resp` → `taint_reg(clean→tainted)` 一路传播，最终由 `errant_commit`（event_id=96, tick=238095695637）在 L5 形成真实错误提交；运行结局 Timeout（受控 Timeout（TIMEOUT triggered=True graceful=True signal=None exit=0 (budget 5400s exhausted; child finalized on SIGINT — evidence complete)））。
 
-## 实验身份与证据来源
+## 2. 完整故障传播过程：从注入到最终结局
 
-- RunID: `T02-F2-W4`
-- seed: `3`；sample_run_id: `s3`
-- 实验模型: 模型ID=`T02`，单元=`L1d-TLB`（RunID 另带频率档位后缀）
-- 故障类型: `双比特翻转`
-- 故障模型: PPN内同时翻转2 bit，邻近/非邻近各半；权限位不动。实施细则：每次故障运行只选一个有效结构项，在同一字段内同时异或两个不同 bit；相邻位与非相邻位分层各占一半，并记录两个 bit 的编号、距离、原值和故障值。两个 bit 必须在同一个微架构事件生效，不与其他字段故障叠加。激活口径：仅当“有效表项且后续复用”且故障值被下游实际读取、选择或消费时计为 activated；否则归入 Injected-not-activated。
-- 频率档位: `F2` — 平均每 100,000 个 eligible events 注入 1 次，间隔加入 ±50% 抖动
-- requested tier: `F2`；effective tier: `F2`；tier enabled: `开启(1)`（来自 run.out `CHAOS_LSU_TIER_CAP`）
-- 负载（矩阵标签）: TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）
-- 负载（run.out 实际命令行）: `--readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS`
-- source head: N/A（该 run 的 manifest 无 binary_source_head 字段；manifest.source_head=fcacc958b799c635babd2834cce9da6942322d91 只是运行时工作树 HEAD，不等同于二进制构建源）
-- binary path: `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt`
-- binary SHA-256: `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959`
-- analysis tool head: `e45b0a0fc8bfb871e906a6ecef6b16f922ec3d8c`（本次分析）
-- checker SHA-256: `baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`
-- 原始 evidence root: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3`
-- prop_evt: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/prop_evt.txt.gz`
-- prop_evt SHA-256: `937b99606969ce077c93f110215f83a17ed78c93a78671550c6f3d66c7905063`（本次重算值；字节数 11390937）
-- chain_report（权威）: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/chain_report.json`
-- chain_report SHA-256: `ca08630e64dad7470ae30ad21dafa1e6c8d321b5362688b3a6929327d9858693`
-- manifest: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/manifest.json`（SHA-256 `b44315cdb65e033dc441ffb3528233868bc74b87ea0b3afe76c7777e9b2aa9e9`）
-- run.out: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/run.out`（SHA-256 `9fdfc3fd1fbca48fe971bd27771a42c849ecbede2d49780ee8e82e5a50ad2a93`）
-- run.err: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/run.err`（SHA-256 `d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900`）
-- stats.txt: `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/stats.txt`（SHA-256 `780eb40447fcbd56b5bcb2952807061b268f13bc56659d30af6368fec12cd76e`；`board.chaos_armtlb.numFaultsInjected=228`）
-- 正常 EOF: **是**（gzip 解压到 EOF 无错：True）
-- truncated: **False**（本次以 cap=3,000,000 读流；事件数 358302 超过 checker 默认 200k cap，本文件显式提高 cap 到 3M 后完整读取（截断标记仍为 False））
-- 原始事件总数: 358302；代表故障 `fault_id=1` 事件数: 2791；权威报告 fault 数: 228
-- 是否经过离线重判: 否
-- 其它同 (RunID, seed) 证据目录的分类见 `../R6-AUTHORITATIVE-EVIDENCE.md`。
+本 seed 的代表故障由 escape-first 规则选出为 `fault_id=1`（该 seed 共 228 个真实故障，其中仅 fault 1 走到 `full`；其余为含住或只到 L4 的未知终局）。终局见证是 `errant_commit`（event_id=96），其单祖先链为 `0 → 1 → 2 → 3 → 4 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 68 → 69 → 70 → 96`，共 16 个事件。这条链走的是 **store** 路径（`sq_execute`/`sq_writeback`/`sq_complete`），与同 RunID 的 seed1（load 路径）不同；本文件只使用 seed3 自己的事实。
 
-## 一行传播图
+### 2.1 故障注入前的正常状态
 
-`VA=0xffffffc009483950，PFN 0x81d75→0x20200000081d75，PA 0x81d75950→0x200000081d75950 → TLB 地址翻译 → cache lookup → MSHR alloc/fill → response → taint_reg(clean→tainted) → errant_commit(L5) → 受控 Timeout（预算耗尽）`
+注入目标是 DTLB 第 21 号 entry（`event_id=1` 的 `entry_index=21`、`way=-1`）。`state_before` 为 `vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950`：VPN=`0xffffffc009483`，ASID=206，`valid=1`、`global=1`，权限 `ap=0`，4 KiB 页，正常 PFN=`0x81d75`。触发翻译的访存指令 `dyn_inst_seq=520906`（`request_id=520906`）使用 VA=`0xffffffc009483950`；页内偏移 `0x950`，正常物理地址 `(0x81d75 << 12) | 0x950 = 0x81d75950`，与 `state_before` 的 `pa` 相同。该指令在本 seed 的后续事件里被证明是 store（`sq_idx=54806`、`sq_writeback` → `sq_complete`）。
 
-## 第一部分：详细、可读的完整传播过程
+### 2.2 故障具体如何注入
 
-### 第 1 步：故障注入
+注入组件 `CHAOSArmTLB`、站点 `arm_tlb_lookup_hit`，tick=238095582084（cycle=715001748），`event_id=0`，`fault_id=1`，`request_id=520906`，`field=bit_flip`，FaultType=`bit_flip`，`corr=origin`。`armtlb_injections.log` 记录：
+`Tick: 238095582084, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483950, old_pfn: 0x81d75, new_pfn: 0x20200000081d75, FaultType: bit_flip, Mask: 0x20200000000000`。
+`before=0x81d75`、`after=0x20200000081d75`，异或 `0x20200000000000`，即翻转 PFN 的第 45 位与第 53 位；同为 T02 双比特模型，权限位与页大小字段未动。
 
-发生了什么：注入器在命中表项上写入故障。目标字段 `bit_flip` 从 `81d75` 变成 `20200000081d75`（mask=0x20200000000000；PFN 0x81d75→0x20200000081d75），被改写的 TLB 表项随后会被真实查找读取。
+数值上：`new_pfn << 12 = 0x20200000081d75000`，64 位截断后第 53 位（左移 12 位后落在第 65 位）被丢掉，得到 `0x200000081d75000`；或上页内偏移 `0x950` 得 `0x200000081d75950`。因此第 53 位对有效 PA 没有贡献，第 45 位使有效 PA 的第 57 位由 0 变 1：`0x81d75950 → 0x200000081d75950`。`event_id=3` 的 `tlb_translate_result` 记录 `field=effective_pa_changed`、`before=81d75950`、`after=200000081d75950`、`contained=0`、`outcome=NoFault`，说明翻译层没有含住。
 
-- **event_id=`0`；parent_event_id=`—`；tick=`238095582084`；fault_id=`1`；corr=`origin`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：注入器在被命中的 DTLB 表项写入故障；before→after 即目标字段被改变后的取值。
-  - 地址/身份：VA=`0xffffffc009483950`
-  - 值变化：before=`81d75`→after=`20200000081d75`；field=`bit_flip`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L0**
-  - 注入日志行：`Tick: 238095582084, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483950, old_pfn: 0x81d75, new_pfn: 0x20200000081d75, FaultType: bit_flip, Mask: 0x20200000000000`
-  - 是否真实改变目标值：**是**（before≠after: True）
-  - 是否真实激活：**是**（run.out 注入器汇总：`CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F2 attempted=22963727 eligible=22963727 injected=228 first_eligible_tick=237950233578 last_eligible_tick=3515175101205 (activated=W3-L0-layer)`）
-  - 为什么把故障传给下一步：故障值已经写入目标 TLB 表项；下一次对该表项的查找会读到被改写的字段，因此故障由注入点（L0）传递给 TLB 查询/翻译（L1/L2）。
+### 2.3 TLB 查询与地址翻译
 
-### 第 2 步：TLB 查询与地址翻译
+`event_id=1` 的 `tlb_lookup`（tick=238095582084）命中第 21 号 entry，`field=post_lookup`，`before=81d75`、`after=20200000081d75`，`state_after` 的 `pfn=20200000081d75`、`pa=200000081d75950`。`event_id=2` 的 `tlb_pfn` 把命中值写成翻译用的 PFN（`state_before=81d75950`、`state_after=200000081d75950`，`pa=200000081d75950`）。`event_id=3` 的 `tlb_translate_result` 是翻译结论：`effective_pa_changed`、`contained=0`、`outcome=NoFault`、无 detection_layer、无 containment_reason。TLB 在 tick 238095582084 把错误有效 PA `0x200000081d75950` 连同 `request_id=520906` 交给 LSU；请求 VA=`0xffffffc009483950`，请求 PA=`0x200000081d75950`，未含住。
 
-发生了什么：TLB 查找/翻译路径读取了被污染的表项，并把故障 PFN 物化为物理地址。
+### 2.4 错误如何进入 LQ/SQ/LSQ
 
-- **event_id=`1`；parent_event_id=`0`；tick=`238095582084`；fault_id=`1`；corr=`seq_primary`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：TLB 查找命中并返回（已含故障的）表项；state_before/state_after 对比可见 pfn 与 pa 字段。
-  - 地址/身份：VA=`0xffffffc009483950`；PFN=`81d75`→`20200000081d75`
-  - 值变化：before=`81d75`→after=`20200000081d75`；field=`post_lookup`；state_before=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950`；state_after=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=20200000081d75;ap=0;mtype=2;page_size=1000;pa=200000081d75950`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L1**
-  - state 对比：pfn `81d75`→`20200000081d75`；pa `81d75950`→`200000081d75950`
-- **event_id=`2`；parent_event_id=`1`；tick=`238095582084`；fault_id=`1`；corr=`seq_primary`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：从 TLB 表项取出的 PFN 已带故障，据此拼出物理地址 PA；故障从结构域进入地址翻译域。
-  - 地址/身份：VA=`0xffffffc009483950`；PA=`0x200000081d75950`；PFN=`81d75`→`20200000081d75`
-  - 值变化：before=`81d75`→after=`20200000081d75`；field=`bit_flip`；state_before=`81d75950`；state_after=`200000081d75950`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L2**
-- **event_id=`3`；parent_event_id=`2`；tick=`238095582084`；fault_id=`1`；corr=`seq_primary`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：地址翻译结果落地：比对 requested/effective 物理地址，决定该故障是否真正改变有效 PA。
-  - 地址/身份：VA=`0xffffffc009483950`；PA=`0x200000081d75950`
-  - 值变化：before=`81d75950`→after=`200000081d75950`；field=`effective_pa_changed`；state_before=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950`；state_after=`vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=20200000081d75;ap=0;mtype=2;page_size=1000;pa=200000081d75950`
-  - 检测/含住字段：detection_layer=`—`；contained=`0`；outcome=`NoFault`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L2**
-  - 翻译比对结论：`effective_pa_changed`（requested=`81d75950`，effective=`200000081d75950`）
-  - 为什么把故障传给下一步：翻译结果比对显示有效 PA **确实改变**（`effective_pa_changed`），错误 PA 被写入请求，因此故障继续传给 L3 的 LQ/SQ 与 cache 访问。
+本 seed 走 **store** 路径：`event_id=4` 的 `sq_execute`（tick=238095582084，`sq_idx=54806`，VA=`0xffffffc009483950`，`state_before=issued`）把该 store 送入执行；它的输入是错误翻译，内部变化是 store 操作开始执行，输出是写回阶段的地址包。`event_id=11` 的 `sq_writeback`（tick=238095585414）记录 `sq_idx=54806`、`pa=200000081d75950`、`state_after=packet_built`，即写回阶段用错误 PA 构造了数据包。随后 `event_id=68` 的 `resp`、`event_id=69` 的 `taint_reg`、`event_id=70` 的 `sq_complete`（`sq_idx=54806`、`state_after=completed`）完成写路径闭环。本 fault 的祖先上没有 `lsq_push`/`lq_read`/`mem_req`/`lsq_sendfrag`（这些 kind 在同 seed 的其它 fault 或旁支出现），因此 load 侧字段为 N/A；可证的 store 事实是 `sq_execute → sq_writeback → … → sq_complete` 全部使用同一个错误 PA。
 
-### 第 3 步：进入 Load Queue 或 Store Queue
+### 2.5 错误如何经过 cache 和 MSHR
 
-发生了什么：错误地址已进入 LSU 的请求结构（LQ/SQ），并沿请求路径发往 cache；跨请求处由 `request_fork` bridge 显式承载。
+store 的两次 cache 访问都未命中：`event_id=12` 的 `cache_access`（tick=238095585414，PA=`0x200000081d75950`）后接 `event_id=13` 的 `cache_return`（`field=miss`），并分配 `mshr_id=3`（`event_id=14`，`cache_line=0x200000081d75950`，`state_after=mshr_allocated`）；第二次访问 `event_id=15`（tick=238095585747，PA=`0x200000081d75940`）同样 `miss`（`event_id=16`），分配 `mshr_id=4`（`event_id=17`，`cache_line=0x200000081d75940`，`state_after=mshr_allocated`）。两次 PA 仅低位 `0x10` 之差，仍是同一错误 4 KiB 页内的相邻子访问。与 seed1 类似，本 fault 在 `event_id=17` 之后直接到 `event_id=68` 的 `resp`，祖先上没有 `mshr_fill`/`cache_fill`/`mshr_free`；因此“错误行被填进 cache”在本链上不可证（N/A），只能证明两次错误行都已在 MSHR 中分配并等待数据。fault 1 的全部 2791 个事件中都不含 fill/free 事件；流内确有 68 组 fill/free，但它们属于其它故障（见第 5 章），不能拼进本链。
 
-- **event_id=`4`；parent_event_id=`3`；tick=`238095582084`；fault_id=`1`；corr=`seq_primary`；request_id=`—`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：store 在 LSU 发射，使用被污染的地址。
-  - 地址/身份：VA=`0xffffffc009483950`；sq_idx=`54806`
-  - 值变化：state_before=`issued`；state_after=`—`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - 为什么把故障传给下一步：错误地址已进入 LQ/SQ 请求并被发往 cache；物理请求携带错误 PA，故传给 L1D/MSHR。
+本链出现的 kind 集合为 `cache_access、cache_return、errant_commit、inj、mshr_alloc、resp、sq_complete、sq_execute、sq_writeback、taint_reg、tlb_lookup、tlb_pfn、tlb_translate_result`；本 seed 主链**未出现**的 kind（mshr_merge、mshr_fill、cache_fill、mshr_free、lsq_push、mem_req、lsq_sendfrag、lq_complete）一律 N/A——该发射器在本次运行中未发射它们，绝不以旁支补齐。事件流没有 `size` 字段，因此本节的 size=N/A（只有 `request_fork` 旁支携带 `shared_size`）。
 
-### 第 4 步：缓存和 MSHR 传播
+### 2.6 污染如何返回处理器状态
 
-发生了什么：以错误 PA 访问 L1D，命中/失效决策与 MSHR 分配/合并/填充/释放如实记录；错误地址被 cache/MSHR 状态接受。
+`event_id=68` 的 `resp`（tick=238095693972，`request_id=520906`，`va=200000081d75950`，原始字段把 PA 写进 `va`）把数据回送；`event_id=69` 的 `taint_reg`（同 tick）把状态从 `clean` 改成 `tainted`；`event_id=70` 的 `sq_complete`（同 tick，`sq_idx=54806`，`state_after=completed`）完成 SQ 条目。需要注意：event 69 的原始记录**没有**填写 `arch_reg`/`phys_reg`（两个字段为空），因此本文件不能指名具体被污染的寄存器，只能证明“该 store 的返回值已被登记为 tainted”。这仍然是存储→CPU 的边界事件：污染集从存储响应扩展到指令结果；`sq_complete` 之后，该 store 在架构上完成，错误地址写路径已走完。
 
-- **event_id=`12`；parent_event_id=`11`；tick=`238095585414`；fault_id=`1`；corr=`addr_fallback`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：以错误 PA 访问 L1D（tag 查找/数据访问）。
-  - 地址/身份：VA=`0xffffffc009483950`；PA=`0x200000081d75950`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`13`；parent_event_id=`12`；tick=`238095585414`；fault_id=`1`；corr=`addr_fallback`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：L1D 返回访问结果（field=miss/hit），错误地址已被接受。
-  - 地址/身份：PA=`0x200000081d75950`
-  - 值变化：field=`miss`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - hit/miss 决策：field=`miss`
-- **event_id=`14`；parent_event_id=`13`；tick=`238095585414`；fault_id=`1`；corr=`addr_fallback`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：为该错误物理地址分配 MSHR（内存级未完成请求登记）。
-  - 地址/身份：cache_line=`0x200000081d75950`；mshr_id=`3`
-  - 值变化：state_before=`—`；state_after=`mshr_allocated`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`3`；cache_line=`0x200000081d75950`
-- **event_id=`15`；parent_event_id=`14`；tick=`238095585747`；fault_id=`1`；corr=`addr_fallback`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：以错误 PA 访问 L1D（tag 查找/数据访问）。
-  - 地址/身份：VA=`0xffffffc009483950`；PA=`0x200000081d75940`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`16`；parent_event_id=`15`；tick=`238095585747`；fault_id=`1`；corr=`addr_fallback`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：L1D 返回访问结果（field=miss/hit），错误地址已被接受。
-  - 地址/身份：PA=`0x200000081d75940`
-  - 值变化：field=`miss`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - hit/miss 决策：field=`miss`
-- **event_id=`17`；parent_event_id=`16`；tick=`238095585747`；fault_id=`1`；corr=`addr_fallback`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：为该错误物理地址分配 MSHR（内存级未完成请求登记）。
-  - 地址/身份：cache_line=`0x200000081d75940`；mshr_id=`4`
-  - 值变化：state_before=`—`；state_after=`mshr_allocated`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - MSHR 身份：mshr_id=`4`；cache_line=`0x200000081d75940`
-  - 为什么把故障传给下一步：以错误 PA 访问 L1D 得到 miss（并触发 MSHR 分配/合并/填充）；错误地址被 MSHR/cache 接受并完成响应路径，因此污染数据/状态传给返回处理器的响应。
+### 2.7 最终传播终局
 
-### 第 5 步：错误数据或污染状态返回处理器
+L5 真实终局是 `event_id=96` 的 `errant_commit`：parent=70，tick=238095695637，`dyn_inst_seq=520923`，`commit_seq=394130`，`pc=0xffffffc0087b27c4`，`detection_layer=L5`，`contained=0`，`outcome=errant_commit`，`corr=taint_prop`。它证明被污染的 store 结果在提交点被消费并以错误状态提交。未被提前消除的原因是：L2 的 `tlb_translate_result` 记录 `effective_pa_changed` 但 `contained=0`；L3 的 cache/MSHR 只按给定 PA 工作，没有地址校验；L4 上该 store 没有遇到 `squash_masked`（fault 1 的全部事件都不含该 kind；同 seed 流内的 175 条 `squash_masked` 全部属于其它故障），所以提交是第一次真实暴露。`chain_end`（event_id=312448，parent=2454，tick=3515175146493，`outcome=errant_commit_seen`、`contained=1`、`corr=none`）只是流收口，不充当 L5。
 
-发生了什么：响应返回 LSU，污染数据被交付；若出现 `taint_reg`，污染从存储域进入寄存器域。
+### 2.8 从传播终局到系统表现
 
-- **event_id=`11`；parent_event_id=`4`；tick=`238095585414`；fault_id=`1`；corr=`seq_primary`；request_id=`—`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：store 数据/地址写回存储子系统，错误 PA 随之进入 cache 侧。
-  - 地址/身份：PA=`0x200000081d75950`；sq_idx=`54806`
-  - 值变化：state_before=`—`；state_after=`packet_built`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`68`；parent_event_id=`17`；tick=`238095693972`；fault_id=`1`；corr=`seq_primary`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：内存/cache 响应返回；该响应对应的数据/地址带故障（或把污染值交付给 LSU）。
-  - 地址/身份：VA=`0x200000081d75950`
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-- **event_id=`69`；parent_event_id=`68`；tick=`238095693972`；fault_id=`1`；corr=`seq_primary`；request_id=`520906`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：污染数据写入目标体系结构/物理寄存器，并被打上 taint 标记；传播从存储域进入寄存器域。
-  - 地址/身份：VA=`0x200000081d75950`
-  - 值变化：before=`clean`→after=`tainted`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L4**
-- **event_id=`70`；parent_event_id=`69`；tick=`238095693972`；fault_id=`1`；corr=`seq_primary`；request_id=`—`；dyn_inst_seq=`520906`**
-  - 硬件结构/事件：store 在 SQ 中完成（错误副作用已发生或已被约束）。
-  - 地址/身份：VA=`0xffffffc009483950`；sq_idx=`54806`
-  - 值变化：state_before=`—`；state_after=`completed`
-  - 检测/含住字段：detection_layer=`—`；contained=`—`；outcome=`—`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L3**
-  - 为什么把故障传给下一步：污染数据已经写入寄存器（`clean→tainted`）；该寄存器随后被下游指令消费，污染从存储域进入寄存器/提交域，故传给 L4/L5 的最终判定。
+传播终局是 `errant_commit`（event 96，tick 238095695637），`provable_to=L5`，权威 `terminal=full`。运行结局是 **Timeout**：`run.out` 没有 panic 行，最后一批输出是 tick=3515175146493 的 `CHAOS_DETECT: layer=Hardware RAS contained=1 … reason=store_discarded_not_retired`（本 seed 共 255 条 `CHAOS_DETECT`，最后几条同 tick），仿真没有在预算内正常结束；权威报告的 `oracle_outcome=Timeout`、`exit_code=0`。因此必须同时说两件事：**传播链本身已经完成**（真实 `errant_commit` 已发生），**但这次运行没有正常终止**（Timeout），二者不互相抹除。注入 tick=238095582084，终局 tick=238095695637，传播延迟 113553 ticks（cycle 715001748→715002089，341 个 CPU cycle）。因果链为：错误 PFN→错误 PA `0x200000081d75950`→store 写路径→MSHR/响应→taint_reg/sq_complete→提交点 `errant_commit`（dyn_inst_seq=520923）；Timeout 是运行层面的终止方式，不是链的终局。
 
-### 第 6 步：最终传播终局
+### 2.9 主链单元辅助表
 
-情况 A：真实 L5 逃逸。
+| 单元 | 输入 | 内部变化 | 输出 | 传播意义 |
+|---|---|---|---|---|
+| CHAOSArmTLB（L0/L1） | 第 21 号 DTLB 表项（PFN=`81d75`） | PFN→`20200000081d75`（bit45、bit53） | 命中读出错误 PFN | 故障值被真实查找读取 |
+| CHAOSArmTLB/MMU（L2） | 错误 PFN + 偏移 `0x950` | PA `81d75950`→`200000081d75950`，`contained=0` | 有效 PA | 翻译层未含住 |
+| SQ（L3） | 错误翻译（`sq_idx=54806`） | `sq_execute`（issued）→`sq_writeback`（packet_built） | 携带错误 PA 的数据包 | 污点进入 store 执行 |
+| L1D（L3） | PA `…950`/`…940` | 两次 `miss` | 转 MSHR | 错误地址进入 cache |
+| MSHR（L3） | 两个错误行 | 分配 `mshr_id=3`、`mshr_id=4` | 等待响应 | 错误行被跟踪 |
+| L1D→LSU（L4） | MSHR 完成 | `resp` 返回数据 | `taint_reg`/`sq_complete` | 污染数据回到处理器 |
+| ROB/PRF 污染集（L4） | store 返回数据 | `clean→tainted`（`arch_reg`/`phys_reg` 未填） | 污染状态 | 存储→CPU 边界 |
+| ROB/Commit（L5） | 污染结果 | `contained=0` | `errant_commit` | 架构可见错误提交（终局） |
 
-- **event_id=`96`；parent_event_id=`70`；tick=`238095695637`；fault_id=`1`；corr=`taint_prop`；request_id=`—`；dyn_inst_seq=`520923`**
-  - 硬件结构/事件：携带污染值的指令错误提交：错误副作用越过重定序/提交边界，构成 L5 逃逸终局（detection_layer=L5, outcome=errant_commit）。
-  - 地址/身份：—（该事件无地址字段）
-  - 值变化：—（该事件无 before/after 载荷）
-  - 检测/含住字段：detection_layer=`L5`；contained=`0`；outcome=`errant_commit`；containment_layer=`—`；containment_reason=`—`
-  - 层级：**L5（检测；观测层 L4）**
-  - 说明：该 `errant_commit` 的 `detection_layer=L5`、`outcome=errant_commit`、`corr=taint_prop`，是**真实检测/结局事件**，不是生命周期 `chain_end`；按 checker 的 `_L4_TERMINAL_KINDS`/`_explicit_l5` 判定构成 `full` 终局。
-  - 为什么这是终局：`errant_commit` 表明携带污染值的指令已经越过提交边界，错误副作用不可撤销；这是真实 L5 终局（不是生命周期 `chain_end`）。
-  - L0–L5：L0 注入 → L1 lookup → L2 PFN/PA → L3 LQ/cache/MSHR → L4 taint_reg → **L5 errant_commit** 全部有事件。
+整条链可概括为：tick=238095582084 的一次 TLB 命中把 PFN 的第 45、53 位同时翻转，第 53 位在 64 位左移 12 位后被截掉、无效，第 45 位把有效 PA 从 `0x81d75950` 推到 `0x200000081d75950`；L2 的 `tlb_translate_result` 记录 `effective_pa_changed` 但 `contained=0`，store 经 `sq_execute`（`sq_idx=54806`）与 `sq_writeback`（`packet_built`，PA=`0x200000081d75950`）进入 L1D，两次相邻访问（`…950` 与 `…940`）均 miss 并分配 `mshr_id=3/4`，`resp` 回送后 `taint_reg`（`clean→tainted`，寄存器字段未填）与 `sq_complete` 完成写路径，最终在 tick=238095695637 形成 `errant_commit`（`dyn_inst_seq=520923`，`commit_seq=394130`），距注入 113553 ticks；链完整走到 L5，但运行以 Timeout 而非正常结束收场。
 
-### 第 7 步：仿真运行的最终表现
+## 3. SDC 诊断分析
 
-**传播链终局**：L5 `errant_commit`（event_id=`96`, tick=`238095695637`）——真实错误提交已发生。
+### 3.1 故障是否被激活
 
-**运行结局（与传播链终局分开陈述）**：oracle=`Timeout`；实际表现：受控 Timeout（TIMEOUT triggered=True graceful=True signal=None exit=0 (budget 5400s exhausted; child finalized on SIGINT — evidence complete)）。
+`CHAOS_LSU_TRIGGER` 记录 `attempted=22963727 eligible=22963727 injected=228`；`stats.txt` 为 `numFaultsInjected=228`；流内 `inj` 事件 228 条；权威报告登记 228 个 fault：三方一致。代表故障 fault 1 的注入值被真实读取并消费：`event_id=1` 的 `tlb_lookup` 读出故障 PFN，`event_id=3` 给出错误 PA，`event_id=12/15` 的 L1D 访问与 `event_id=68/69/70` 的响应/污染/完成都使用了该 PA，最终 event 96 提交。因此 fault 1 是 activated。该 seed 另有 227 个故障，本次不逐个展开；它们的终局分布见 3.6 与第 5 章。
 
-run.out 的 CHAOS_DETECT 行（共 255 行，节选）：
-- `CHAOS_DETECT: layer=None contained=0 tick=238095695637 ptag=1 reason=errant_commit`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238625457678 ptag=2 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238625555580 ptag=2 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238625562906 ptag=2 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238625570232 ptag=2 reason=squash_replay`
-- `CHAOS_DETECT: layer=Hardware RAS contained=1 tick=238625574894 ptag=2 reason=squash_replay`
-- …其余 249 行见原始 `run.out`
+### 3.2 故障传播类型
 
-说明：受控 Timeout（预算耗尽、graceful）是**运行级**结局；代表链的真实 L5 逃逸（若 terminal=`full`）已经发生，不因 Timeout 抹去；两者并列保留。
+这是**地址型**（错误物理地址）传播：VA 与页内偏移不变，PFN 被改写为同一页内的错误值（`0x20200000081d75` 的有效低位部分）。权限字段（`ap=0`）未变，控制流未被改写（提交的 PC 由程序决定），也不是时序注入。由于是 store，错误地址会进入写路径，但它仍然属于“地址错”而不是“数据位错”——数据本身没有翻转，错的是落点。
 
-## 第二部分：技术证据与逐事件记录
+### 3.3 首个不可逆传播点
 
-| 序号 | event_id | parent_event_id | tick | kind | layer | fault_id | corr | request_id | sample_run_id | VA | PA/address | old_pfn/new_pfn | old_value/new_value | mask | contained | detection_layer | outcome | reason | 与上一事件的关系 | 在人话版中的作用 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 0 | — | 238095582084 | `inj` | L0 | 1 | origin | 520906 | s3 | 0xffffffc009483950 | — | 0x81d75→0x20200000081d75 | 81d75→20200000081d75 | 0x20200000000000 | — | — | — | — | 起点 | L0 注入 |
-| 2 | 1 | 0 | 238095582084 | `tlb_lookup` | L1 | 1 | seq_primary | 520906 | s3 | 0xffffffc009483950 | — | 0x81d75→0x20200000081d75 | 81d75→20200000081d75 | — | — | — | — | — | 直接 parent（parent=0）；corr origin→seq_primary | L1 单元内观察 |
-| 3 | 2 | 1 | 238095582084 | `tlb_pfn` | L2 | 1 | seq_primary | 520906 | s3 | 0xffffffc009483950 | 0x200000081d75950 | 0x81d75→0x20200000081d75 | 81d75→20200000081d75 | — | — | — | — | — | 直接 parent（parent=1） | L2 地址物化 |
-| 4 | 3 | 2 | 238095582084 | `tlb_translate_result` | L2 | 1 | seq_primary | 520906 | s3 | 0xffffffc009483950 | 0x200000081d75950 | — | 81d75950→200000081d75950 | — | 0 | — | NoFault | — | 直接 parent（parent=2） | L2 翻译结果/含住点 |
-| 5 | 4 | 3 | 238095582084 | `sq_execute` | L3 | 1 | seq_primary | — | s3 | 0xffffffc009483950 | — | — | issued→— | — | — | — | — | — | 直接 parent（parent=3） | L3 store 发射 |
-| 6 | 11 | 4 | 238095585414 | `sq_writeback` | L3 | 1 | seq_primary | — | s3 | — | 0x200000081d75950 | — | —→packet_built | — | — | — | — | — | 直接 parent（parent=4） | L3 store 写回 |
-| 7 | 12 | 11 | 238095585414 | `cache_access` | L3 | 1 | addr_fallback | 520906 | s3 | 0xffffffc009483950 | 0x200000081d75950 | — | —→— | — | — | — | — | — | 直接 parent（parent=11）；corr seq_primary→addr_fallback | L3 cache 查找 |
-| 8 | 13 | 12 | 238095585414 | `cache_return` | L3 | 1 | addr_fallback | 520906 | s3 | — | 0x200000081d75950 | — | —→— | — | — | — | — | — | 直接 parent（parent=12） | L3 hit/miss 决策 |
-| 9 | 14 | 13 | 238095585414 | `mshr_alloc` | L3 | 1 | addr_fallback | 520906 | s3 | — | 0x200000081d75950 | — | —→mshr_allocated | — | — | — | — | — | 直接 parent（parent=13） | L3 MSHR 分配 |
-| 10 | 15 | 14 | 238095585747 | `cache_access` | L3 | 1 | addr_fallback | 520906 | s3 | 0xffffffc009483950 | 0x200000081d75940 | — | —→— | — | — | — | — | — | 直接 parent（parent=14） | L3 cache 查找 |
-| 11 | 16 | 15 | 238095585747 | `cache_return` | L3 | 1 | addr_fallback | 520906 | s3 | — | 0x200000081d75940 | — | —→— | — | — | — | — | — | 直接 parent（parent=15） | L3 hit/miss 决策 |
-| 12 | 17 | 16 | 238095585747 | `mshr_alloc` | L3 | 1 | addr_fallback | 520906 | s3 | — | 0x200000081d75940 | — | —→mshr_allocated | — | — | — | — | — | 直接 parent（parent=16） | L3 MSHR 分配 |
-| 13 | 68 | 17 | 238095693972 | `resp` | L3 | 1 | seq_primary | 520906 | s3 | 0x200000081d75950 | — | — | —→— | — | — | — | — | — | 直接 parent（parent=17）；corr addr_fallback→seq_primary | L3 响应返回 |
-| 14 | 69 | 68 | 238095693972 | `taint_reg` | L4 | 1 | seq_primary | 520906 | s3 | 0x200000081d75950 | — | — | clean→tainted | — | — | — | — | — | 直接 parent（parent=68） | L4 污染寄存器 |
-| 15 | 70 | 69 | 238095693972 | `sq_complete` | L3 | 1 | seq_primary | — | s3 | 0xffffffc009483950 | — | — | —→completed | — | — | — | — | — | 直接 parent（parent=69） | L3 store 完成 |
-| 16 | 96 | 70 | 238095695637 | `errant_commit` | L5（检测；观测层 L4） | 1 | taint_prop | — | s3 | — | — | — | —→— | — | 0 | L5 | errant_commit | — | 直接 parent（parent=70）；corr seq_primary→taint_prop | L5 错误提交（终局） |
+首个不可逆点是 `event_id=3` 的 `tlb_translate_result`（tick=238095582084）：它记录了 PA 改变却 `contained=0`，等于把错误地址正式交给 LSU；此后 `event_id=4` 的 `sq_execute` 把该地址绑定到 `sq_idx=54806` 并送入执行，`event_id=11` 的 `sq_writeback` 用错误 PA 构造 `packet_built`。从当前结构看，event 3 之后已没有机制能在本链上把地址改回；event 4 是不可逆点的执行落点。event 12/15 的 cache 访问是后果，而不是新的不可逆点。
 
-说明：本表逐条列出代表故障 `fault_id=1` 从 `inj` 到终局见证的**完整单祖先链**（16 条），不是 checker 的六锚点摘要；每一行的 `parent_event_id` 都等于上一行的 `event_id`（第 1 行除外）。`mask` 只对注入事件有意义；`reason` 列是 `containment_reason`。
-## 相关旁支和未进入最终 ancestry 的事件
+### 3.4 检测与掩蔽机制
 
-本 seed 原始事件总数 **358302**；代表故障 `fault_id=1` 的事件数 **2791**；进入最终 ancestry 的事件 **16**；未进入最终 ancestry 的同 fault 事件 **2775**。
+翻译层具备“看见 PA 变化”的能力（`effective_pa_changed`），但本 seed `contained=0`，未阻断；cache/MSHR 没有地址校验；L4 的 RAS 重放在本 fault 的祖先上没有出现（尽管同 seed 存在 175 条 `squash_masked`，它们属于其它 fault 链/旁支）；提交点 `errant_commit` 是首次真实暴露。观察到的盲区与 seed1 相同：翻译层能检测却不阻断，后续层级只负责“访问是否命中/是否需要重放”，不对“PA 是否被故障改写”负责。与 seed1 不同的是本 seed 走 store 路径，错误落点直接进入写路径，直到提交才被记录为错误提交。
 
-以下旁支事件**不参与**主链的单祖先证明，**绝不**合并进主链。判定理由：沿终局见证的 `parent_event_id` 逐级回溯不会经过这些事件——它们是同一 fault 的其它并发请求、其它 load 实例或其它检测点，只有主链上的事件才共享同一条可证祖先路径。
+### 3.5 最终 SDC 风险判断
 
-| kind | 数量 | event_id 范围 | tick 范围 | 处理方式 | 异常成员检查 |
-|---|---|---|---|---|---|
-| `cache_access` | 450 | 5–2475 | 238095585081–238099758903 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `cache_return` | 450 | 6–2476 | 238095585081–238099758903 | 不折叠：全量 hit/miss 索引（见下）；分布 {'miss': 450} | 无（outcome/contained 全空） |
-| `taint_reg` | 322 | 55–2480 | 238095693639–238099867128 | 不折叠：全量身份索引（见下） | 无（outcome/contained 全空） |
-| `request_fork` | 309 | 4294967296–4294967604 | 238095585081–238099758570 | 旁支 bridge：计数 + 首尾点名（主链 bridge 已在第二部分逐条） | 无（outcome/contained 全空） |
-| `resp` | 309 | 54–2479 | 238095693639–238099867128 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `pf_demand` | 261 | 724–2477 | 238097127870–238099758903 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `mshr_merge` | 250 | 20–2466 | 238095585747–238099595067 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-| `mshr_alloc` | 200 | 7–2478 | 238095585081–238099758903 | 不折叠：全量 MSHR 索引（见下）；主链 MSHR 已在第二部分逐条 | 无（outcome/contained 全空） |
-| `pf_queue` | 97 | 694–2309 | 238097127204–238099086243 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `pf_issue` | 84 | 721–2330 | 238097127538–238099086910 | 计数 + 范围 | 无（outcome/contained 全空） |
-| `consumer` | 22 | 97–2454 | 238095695637–238099526136 | 折叠为计数 + 范围（见下） | 无（outcome/contained 全空） |
-| `lq_complete` | 20 | 57–2447 | 238095693640–238099422576 | 计数 + 范围 | 无（outcome/contained 全空） |
+存在真实 `errant_commit`（event 96，`contained=0`、`outcome=errant_commit`、`detection_layer=L5`），所以不是 Masked/Contained；权威 `terminal=full`。但运行结局是 Timeout：仿真没有在预算内正常结束，因此不能把本 seed 说成“正常完成的崩溃”或“已确认的 SDC”。本实验没有应用级输出 oracle，无法证明错误写结果被外部观测为静默错误；只能证明错误地址与错误提交是真实的。因此本 seed 归类为“真实 L5 + 非正常终止（Timeout）”，不称 SDC；最终数据正确性无法判定。Timeout 不抹除已证 L5。
 
-**每层第一个旁支事件（不折叠）**：
+### 3.6 与同 RunID 其他 seed 的关系
 
-| 层 | kind | event_id | tick |
+同 RunID 的 seed1 注入 VA=`0xffffff8001362708`、PFN `81362→800400000081362`（bit46、bit59），有效 PA `81362708→400000081362708`，load 路径，终局 `errant_commit` event 20，结局 Crash；seed2 注入 VA=`0xffffffc009483960`、PFN `81d75→800000000081d77`（bit1、bit59），有效 PA `81d75960→81d77960`，终局 L4 `squash_masked` event 68 含住、L5=N/A，结局 Crash。本 seed 的注入地址/掩码、路径（store）与终局（event 96）都与它们不同；三者只在“注入站点相同”这一点上一致，不能互相引用字段。
+
+## 4. 完整主链事件表
+
+下表按 event 96 的祖先顺序排列（`0→1→2→3→4→11→12→13→14→15→16→17→68→69→70→96`）。`mask` 只在 `inj` 行给出（`0x20200000000000`）；主链 16 个事件，无需折叠；同流的 `consumer`/`request_fork`/`pf_*` 等都在旁支。
+
+<!-- witness=96 representative_fault=1 ancestors=['0', '1', '2', '3', '4', '11', '12', '13', '14', '15', '16', '17', '68', '69', '70', '96'] -->
+| 序号 | event_id | parent_event_id | tick | Δtick | kind | layer | component | fault_id | corr | request_id | dyn_inst_seq | VA | PA/address | cache_line | mshr_id | old_pfn | new_pfn | before | after | mask | state_before | state_after | contained | detection_layer | outcome | reason | 本事件输入 | 本事件输出 | 传播意义 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 0 | — | 238095582084 | — | inj | L0 | CHAOSArmTLB | 1 | origin | 520906 | 520906 | ffffffc009483950 | — | — | — | 81d75 | 20200000081d75 | 81d75 | 20200000081d75 | 0x20200000000000 | — | — | — | — | — | 注入 | DTLB 表项有效（entry_index=—）；dyn_inst_seq=520906 的地址翻译即将使用它 | 被改写后的 PFN=20200000081d75（VA=ffffffc009483950） | L0：故障源注入，后续所有错误都由该表项值派生 |
+| 2 | 1 | 0 | 238095582084 | 0 | tlb_lookup | L1 | CHAOSArmTLB | 1 | seq_primary | 520906 | 520906 | ffffffc009483950 | — | — | — | 81d75 | 20200000081d75 | 81d75 | 20200000081d75 | — | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950 | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=20200000081d75;ap=0;mtype=2;page_size=1000;pa=200000081d75950 | — | — | — | — | DTLB 命中 entry_index=21（way=-1），读取 pfn 字段 | 命中读出 pfn=20200000081d75，AP=0，page_size=1000，PA=200000081d75950 | L1：故障值第一次被真实查找路径读取，错误从存储进入地址翻译 |
+| 3 | 2 | 1 | 238095582084 | 0 | tlb_pfn | L2 | CHAOSArmTLB | 1 | seq_primary | 520906 | 520906 | ffffffc009483950 | 200000081d75950 | — | — | 81d75 | 20200000081d75 | 81d75 | 20200000081d75 | — | 81d75950 | 200000081d75950 | — | — | — | — | lookup 得到的 PFN=81d75 | PFN 记录为 20200000081d75，翻译 PA=200000081d75950 | L2：翻译结果开始使用错误 PFN |
+| 4 | 3 | 2 | 238095582084 | 0 | tlb_translate_result | L2 | CHAOSArmTLB/MMU | 1 | seq_primary | 520906 | 520906 | ffffffc009483950 | 200000081d75950 | — | — | — | — | 81d75950 | 200000081d75950 | — | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950 | vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=20200000081d75;ap=0;mtype=2;page_size=1000;pa=200000081d75950 | 0 | — | NoFault | — | PFN=81d75 与页内偏移组合 | 有效 PA 81d75950→200000081d75950；contained=0，outcome=NoFault | L2：翻译结果携带错误有效 PA 交给 LSU |
+| 5 | 4 | 3 | 238095582084 | 0 | sq_execute | L3 | SQ | 1 | seq_primary | — | 520906 | ffffffc009483950 | — | — | — | — | — | — | — | — | issued | — | — | — | — | — | SQ 条目 sq_idx=54806（state_before=issued） | 执行阶段生成 store 操作（VA=ffffffc009483950） | L3：store 进入执行，地址来自故障翻译 |
+| 6 | 11 | 4 | 238095585414 | 3330 | sq_writeback | L3 | SQ | 1 | seq_primary | — | 520906 | — | 200000081d75950 | — | — | — | — | — | — | — | — | packet_built | — | — | — | — | SQ 条目 sq_idx=54806 的执行结果 | packet_built，PA=200000081d75950 | L3：store 数据包成形，携带错误地址 |
+| 7 | 12 | 11 | 238095585414 | 0 | cache_access | L3 | L1D | 1 | addr_fallback | 520906 | 520906 | ffffffc009483950 | 200000081d75950 | — | — | — | — | — | — | — | — | — | — | — | — | — | request_id=520906 访问 L1D（PA=200000081d75950） | 命中/未命中结果交给 cache_return 或 MSHR | L3：错误地址进入 cache 层级 |
+| 8 | 13 | 12 | 238095585414 | 0 | cache_return | L3 | L1D | 1 | addr_fallback | 520906 | 520906 | — | 200000081d75950 | — | — | — | — | — | — | — | — | — | — | — | — | — | L1D 访问 PA=200000081d75950 | field=miss（miss），转入 MSHR | L3：cache 未命中，错误地址被送到 MSHR 取数 |
+| 9 | 14 | 13 | 238095585414 | 0 | mshr_alloc | L3 | MSHR | 1 | addr_fallback | 520906 | 520906 | — | — | 200000081d75950 | 3 | — | — | — | — | — | — | mshr_allocated | — | — | — | — | miss 请求 PA/cache_line=200000081d75950 | mshr_id=3 分配，state_after=mshr_allocated | L3：MSHR 为该错误行建立跟踪，等待填充 |
+| 10 | 15 | 14 | 238095585747 | 333 | cache_access | L3 | L1D | 1 | addr_fallback | 520906 | 520906 | ffffffc009483950 | 200000081d75940 | — | — | — | — | — | — | — | — | — | — | — | — | — | request_id=520906 访问 L1D（PA=200000081d75940） | 命中/未命中结果交给 cache_return 或 MSHR | L3：错误地址进入 cache 层级 |
+| 11 | 16 | 15 | 238095585747 | 0 | cache_return | L3 | L1D | 1 | addr_fallback | 520906 | 520906 | — | 200000081d75940 | — | — | — | — | — | — | — | — | — | — | — | — | — | L1D 访问 PA=200000081d75940 | field=miss（miss），转入 MSHR | L3：cache 未命中，错误地址被送到 MSHR 取数 |
+| 12 | 17 | 16 | 238095585747 | 0 | mshr_alloc | L3 | MSHR | 1 | addr_fallback | 520906 | 520906 | — | — | 200000081d75940 | 4 | — | — | — | — | — | — | mshr_allocated | — | — | — | — | miss 请求 PA/cache_line=200000081d75940 | mshr_id=4 分配，state_after=mshr_allocated | L3：MSHR 为该错误行建立跟踪，等待填充 |
+| 13 | 68 | 17 | 238095693972 | 108225 | resp | L4 | L1D→LSU | 1 | seq_primary | 520906 | 520906 | 200000081d75950 | — | — | — | — | — | — | — | — | — | — | — | — | — | — | MSHR 取数完成（request_id=520906） | 响应数据返回（该事件 va 字段记录 PA=200000081d75950） | L4：污染数据返回处理器 |
+| 14 | 69 | 68 | 238095693972 | 0 | taint_reg | L4 | ROB/PRF(污染集) | 1 | seq_primary | 520906 | 520906 | 200000081d75950 | — | — | — | — | — | clean | tainted | — | — | — | — | — | — | — | lq_complete/sq_complete 返回的数据（request_id=520906） | arch_reg= / phys_reg=：clean→tainted | L4：存储→CPU 边界，错误值进入寄存器污染集 |
+| 15 | 70 | 69 | 238095693972 | 0 | sq_complete | L4 | SQ | 1 | seq_primary | — | 520906 | ffffffc009483950 | — | — | — | — | — | — | — | — | — | completed | — | — | — | — | SQ 条目 sq_idx=54806 的写回完成 | state_after=completed，PA/VA=ffffffc009483950 | L4：store 完成，错误地址已写入存储路径 |
+| 16 | 96 | 70 | 238095695637 | 1665 | errant_commit | L5 | ROB/Commit | 1 | taint_prop | — | 520923 | — | — | — | — | — | — | — | — | — | — | — | 0 | L5 | errant_commit | errant_commit | 污染寄存器在提交点（dyn_inst_seq=520923，commit_seq=394130） | contained=0，outcome=errant_commit，PC=ffffffc0087b27c4 | L5：错误提交成为架构可见结果，链终局 |
+
+
+**单位说明**：`before/after` 为原始值；`taint_reg`（event 69）的 `arch_reg`/`phys_reg` 在原始流中为空，表中如实为 `—`；`sq_execute` 只有 `state_before=issued`，`sq_writeback` 只有 `state_after=packet_built`，另一侧字段为 `—`，不补造。
+
+## 5. 相关旁支与未进入最终主链的事件
+
+以下各类旁支都只从其分叉点派生，**没有一条重新并回第 2 章的主链**（主链的 parent 链固定，见第 4 章）；它们不改变终局 ancestry，只在诊断上提供扩散/含住证据。
+
+本 seed 共 358302 个事件、228 个真实故障。fault 1 有 2791 个事件，主链 16 个，其余 2775 个是旁支；其余 227 个故障的事件（约 35.5 万条）属于独立故障链，不并入本链。
+
+1. **请求分叉（`request_fork` 309 条）**：`event_id=4294967296`（parent=3）把请求 520906 分叉出 520896（`bridge_reason=addr_fallback_broadcast`、`shared_addr=0x200000081d75000`、`shared_size=0x1000`）；另有 11 条挂在主链 `mshr_alloc`（event 17）上；其余 297 条挂在主链 `taint_reg`（event 69）上，最晚一条 `event_id=4294967604`（parent=69，tick=238099758570，new_request_id=522407）。它们都是同页内由污染值派生的再访问，没有一条成为 event 96 的祖先。
+2. **污染消费（`consumer` 22 条、`taint_reg` 322 条）**：consumer 覆盖 `arch_reg` 29/30 等，最早 tick=238095695637（event 97，dyn_inst_seq=520926），最晚 tick=238099526136（event 2454，dyn_inst_seq=522339），但没有进入主链；它们证明污染结果被少量指令继续消费。
+3. **预取事件（`pf_queue` 97、`pf_issue` 84、`pf_demand` 261）**：最早 `pf_queue` event_id=694（parent=675，tick=238097127204，`pf_request_id=4294967297`），最晚 `pf_demand` event_id=2477（tick=238099758903，request_id=522407）。这些是同一错误页被预取器访问的记录，说明错误地址扩散到预取路径；它们不在主链祖先上，不能当作 L3 中间步，也不改变终局。
+4. **MSHR/填充事件**：fault 1 的 2791 个事件里没有任何 `mshr_fill`/`cache_fill`/`mshr_free`；流内 68 组 fill/free（以及 175 条 `squash_masked`）都属于其它 227 个故障链。因此本链不以“填充/含住”作任何断言。
+5. **生命周期收口（1 条）**：`event_id=312448`（parent=2454，tick=3515175146493，`outcome=errant_commit_seen`、`contained=1`、`corr=none`），仅收口。
+6. **其它 227 个故障**：例如 fault 2 的路径 `2481,2482,2483,2485,2506,3335` 被判 `detected_contained`；fault 3–228 多为 `provable_to_L4_then_unknown`（见报告 `faults` 表）。它们各有自己的注入点/VA/掩码，不属于本文件的主链；本文件只在 3.1 与第 6 章引用其数量。
+
+这些旁支对 SDC 诊断的影响是：它们显示错误地址被同页访问与预取器多次消费（309 条 fork、22 个 consumer、261 条 pf_demand），但终局仍由 event 96 证明；fault 1 的整个事件集合不含 `squash_masked`，因此不能把本故障说成“被含住”；流内其它故障的 175 条 `squash_masked` 与本链无关。
+
+## 6. 最终判定与证据完整性
+
+| 检查项 | 结果 |
+|---|---|
+| terminal | `full`（权威 `chain_report.json`） |
+| provable_to | `L5` |
+| 传播终局事件 | `errant_commit` event_id=96，tick=238095695637，`detection_layer=L5`，`contained=0`，`outcome=errant_commit` |
+| 运行结局 | `Timeout`（`run.out` 无 panic，最后一组 `CHAOS_DETECT … store_discarded_not_retired` 于 tick=3515175146493；仿真未在预算内正常结束） |
+| admitted | `true`（`admission.path=full_chain`，`violations=[]`） |
+| certified | `true` |
+| violations | `[]` |
+| truncated | `false`；`evidence_truncated=false` |
+| gzip EOF | 正常（解压到 EOF 无错） |
+| stats 有效性 | 有效（`numFaultsInjected=228`，与触发器 injected=228、inj 事件 228 条一致） |
+| conservation | `ok`（consumer_summary：emitted=1296、suppressed=90965003、logical_total=90966299、conservation=ok、issues=[]） |
+| count_contradiction | 无：`event_count=358302` 与实际解析事件数 358302 相同；injected/stats/inj 均为 228 |
+| campaign/checker 一致性 | 一致（`chain_valid=true`、`admitted=true`、`certified=true`、`blocked=false`） |
+| CHAIN_DEMONSTRATED | 是（L0→L5 单祖先连续路径，L5 为真实 `errant_commit`） |
+| COMPLETE_3_OF_3 | 本 RunID 三 seed 均已完成；本 seed 状态 `COMPLETE_L5` |
+| 判定 | **PASS** |
+
+判定说明：传播终局（event 96 的真实错误提交）与运行结局（Timeout）分别陈述；Timeout 是非正常终止，但不能据此把 L5 改写成 Unknown 或 Masked，也不能把 `chain_end` 当终局。`chain_end` 312448 的 `contained=1` 是生命周期字段，未被使用。所有 15 项一致性检查均通过：事件都在本 seed 流内、父子先于子、tick 单调、地址/掩码/corr/fault_id 均取自本 seed、终局与权威报告一致（`full`，L5）。
+
+## 7. 原始证据与哈希
+
+### 7.1 本 seed 权威证据
+
+- 权威证据目录：`/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3`（`../R6-AUTHORITATIVE-EVIDENCE.md` 指定；未经修改）
+- 权威判定报告：`chain_report.json`
+
+| 文件 | SHA-256 | 字节数 | mtime |
 |---|---|---|---|
-| L3 | `request_fork` | 4294967296 | 238095585081 |
-| L4 | `taint_reg` | 55 | 238095693639 |
-
-**`consumer` 折叠说明**（唯一允许折叠的 kind）：kind=`consumer`；count=22；event_id 范围 `97`–`2454`；tick 范围 `238095695637`–`238099526136`；corr 分布 {'taint_prop': 22}；outcome 分布 {'': 22}；contained 分布 {'': 22}；可折叠理由：这些是同一故障的重复下游读取（可能跨多个 dyn_inst_seq/寄存器），不承担 L0–L5 任一层的首次见证，不驱动 admission/violation；异常成员：无（原始流中逐条保留，未删除）。
-
-**`taint_reg` 旁支（不折叠）**：count=322；event_id `55`–`2480`；tick `238095693639`–`238099867128`；distinct dyn_inst_seq=309；distinct phys_reg=34；distinct arch_reg=11；corr 分布 {'addr_fallback': 322}；outcome 分布 {'': 322}；contained 分布 {'': 322}；sample_run 分布 {'s3': 322}。
-
-首 8 条 / 末 8 条（身份可回查；其余全部保留在原始流中）：
-
-| event_id | tick | parent | dyn_inst_seq | arch_reg/phys_reg | before→after | corr |
-|---|---|---|---|---|---|---|
-| 55 | 238095693639 | 54 | 520896 | —/— | clean→tainted | addr_fallback |
-| 58 | 238095693640 | 57 | 520991 | 29/197 | clean→tainted | addr_fallback |
-| 59 | 238095693640 | 58 | 520991 | 30/153 | clean→tainted | addr_fallback |
-| 62 | 238095693641 | 61 | 520928 | 29/55 | clean→tainted | addr_fallback |
-| 63 | 238095693641 | 62 | 520928 | 30/166 | clean→tainted | addr_fallback |
-| 66 | 238095693642 | 65 | 520985 | 19/252 | clean→tainted | addr_fallback |
-| 67 | 238095693642 | 66 | 520985 | 20/10 | clean→tainted | addr_fallback |
-| 72 | 238095693973 | 71 | 520907 | —/— | clean→tainted | addr_fallback |
-| 2443 | 238099422574 | 2442 | 522211 | —/— | clean→tainted | addr_fallback |
-| 2445 | 238099422575 | 2444 | 522214 | —/— | clean→tainted | addr_fallback |
-| 2448 | 238099422576 | 2447 | 522221 | 29/58 | clean→tainted | addr_fallback |
-| 2449 | 238099422576 | 2448 | 522221 | 30/131 | clean→tainted | addr_fallback |
-| 2451 | 238099422906 | 2450 | 522217 | —/— | clean→tainted | addr_fallback |
-| 2468 | 238099703292 | 2467 | 522348 | —/— | clean→tainted | addr_fallback |
-| 2470 | 238099703293 | 2469 | 522349 | —/— | clean→tainted | addr_fallback |
-| 2480 | 238099867128 | 2479 | 522407 | —/— | clean→tainted | addr_fallback |
-
-<details><summary><b>taint_reg 全量身份索引（322 条，不折叠，逐条列出）</b></summary>
-
-55@238095693639(—/—) 58@238095693640(29/197) 59@238095693640(30/153) 62@238095693641(29/55) 63@238095693641(30/166) 66@238095693642(19/252) 67@238095693642(20/10) 72@238095693973(—/—)
-
-74@238095693974(—/—) 76@238095693975(—/—) 79@238095693976(19/151) 80@238095693976(20/17) 83@238095693977(29/5) 84@238095693977(30/92) 87@238095694638(25/146) 90@238095694639(21/12)
-
-91@238095694639(22/120) 94@238095694640(23/237) 95@238095694640(24/45) 154@238095922743(—/—) 156@238095922744(—/—) 158@238095922745(—/—) 160@238095922746(—/—) 162@238095922747(—/—)
-
-164@238095922748(—/—) 166@238095922749(—/—) 168@238095922750(—/—) 170@238095923409(—/—) 172@238095923410(—/—) 174@238095923411(—/—) 176@238095923412(—/—) 178@238095923413(—/—)
-
-180@238095923414(—/—) 182@238095923415(—/—) 184@238095923416(—/—) 237@238096032966(—/—) 239@238096032967(—/—) 241@238096032968(—/—) 243@238096032969(—/—) 245@238096032970(—/—)
-
-247@238096032971(—/—) 249@238096032972(—/—) 251@238096032973(—/—) 253@238096034631(—/—) 255@238096034632(—/—) 257@238096034633(—/—) 259@238096034634(—/—) 261@238096034635(—/—)
-
-263@238096034636(—/—) 298@238096148517(—/—) 300@238096148518(—/—) 302@238096148850(—/—) 304@238096148851(—/—) 306@238096148852(—/—) 308@238096148853(—/—) 310@238096210788(—/—)
-
-312@238096210789(—/—) 332@238096420578(—/—) 334@238096420579(—/—) 336@238096420580(—/—) 338@238096420581(—/—) 340@238096420582(—/—) 366@238096533798(—/—) 368@238096533799(—/—)
-
-370@238096533800(—/—) 373@238096533801(19/214) 376@238096533802(29/43) 377@238096533802(30/127) 379@238096534131(—/—) 440@238096657341(—/—) 442@238096657342(—/—) 444@238096657674(—/—)
-
-446@238096657675(—/—) 448@238096657676(—/—) 450@238096657677(—/—) 452@238096657678(—/—) 454@238096657679(—/—) 456@238096657680(—/—) 458@238096657681(—/—) 460@238096658007(—/—)
-
-462@238096658008(—/—) 464@238096658009(—/—) 466@238096658010(—/—) 468@238096658011(—/—) 470@238096658012(—/—) 525@238096768563(—/—) 527@238096768564(—/—) 529@238096769229(—/—)
-
-531@238096769230(—/—) 533@238096769231(—/—) 535@238096769232(—/—) 537@238096769233(—/—) 539@238096769234(—/—) 541@238096769235(—/—) 543@238096769236(—/—) 545@238096770228(—/—)
-
-547@238096770229(—/—) 549@238096770230(—/—) 551@238096770231(—/—) 586@238096884114(—/—) 588@238096884115(—/—) 590@238096884116(—/—) 592@238096884117(—/—) 594@238096884447(—/—)
-
-596@238096884448(—/—) 598@238096885446(—/—) 600@238096885447(—/—) 623@238096998333(—/—) 625@238096998334(—/—) 627@238096998999(—/—) 629@238096999000(—/—) 631@238096999001(—/—)
-
-661@238097111553(0/76) 663@238097111886(—/—) 665@238097111887(—/—) 667@238097111888(—/—) 670@238097111889(29/42) 671@238097111889(30/175) 673@238097112219(—/—) 770@238097235429(—/—)
-
-772@238097235430(—/—) 774@238097235431(—/—) 776@238097235432(—/—) 778@238097235762(—/—) 780@238097235763(—/—) 782@238097235764(—/—) 784@238097235765(—/—) 786@238097235766(—/—)
-
-788@238097235767(—/—) 790@238097235768(—/—) 792@238097235769(—/—) 794@238097236761(—/—) 796@238097236762(—/—) 798@238097236763(—/—) 800@238097236764(—/—) 897@238097346651(—/—)
-
-899@238097346652(—/—) 901@238097346653(—/—) 903@238097346654(—/—) 905@238097347317(—/—) 907@238097347318(—/—) 909@238097347319(—/—) 911@238097347320(—/—) 913@238097347321(—/—)
-
-915@238097347322(—/—) 917@238097347323(—/—) 919@238097347324(—/—) 921@238097348649(—/—) 923@238097348650(—/—) 1042@238097462535(—/—) 1044@238097462536(—/—) 1046@238097462537(—/—)
-
-1048@238097462538(—/—) 1050@238097462868(—/—) 1052@238097462869(—/—) 1054@238097464200(—/—) 1056@238097464201(—/—) 1102@238097577087(—/—) 1104@238097577088(—/—) 1106@238097577089(—/—)
-
-1108@238097577090(—/—) 1110@238097577753(—/—) 1169@238097689974(0/229) 1171@238097690307(—/—) 1173@238097690308(—/—) 1175@238097690309(—/—) 1178@238097690310(29/221) 1179@238097690310(30/147)
-
-1181@238097690640(—/—) 1285@238097813850(—/—) 1287@238097813851(—/—) 1289@238097813852(—/—) 1291@238097813853(—/—) 1293@238097813854(—/—) 1295@238097813855(—/—) 1297@238097814183(—/—)
-
-1299@238097814184(—/—) 1301@238097814185(—/—) 1303@238097814186(—/—) 1305@238097814187(—/—) 1307@238097814188(—/—) 1309@238097814189(—/—) 1311@238097814190(—/—) 1313@238097815182(—/—)
-
-1315@238097815183(—/—) 1394@238097925072(—/—) 1396@238097925073(—/—) 1398@238097925074(—/—) 1400@238097925075(—/—) 1402@238097925076(—/—) 1404@238097925077(—/—) 1406@238097926071(—/—)
-
-1408@238097926072(—/—) 1410@238097926073(—/—) 1412@238097926074(—/—) 1414@238097926075(—/—) 1416@238097926076(—/—) 1418@238097926077(—/—) 1420@238097926078(—/—) 1526@238098039957(—/—)
-
-1528@238098039958(—/—) 1530@238098039959(—/—) 1532@238098039960(—/—) 1534@238098040290(—/—) 1536@238098040291(—/—) 1538@238098041622(—/—) 1540@238098041623(—/—) 1566@238098154509(—/—)
-
-1568@238098154510(—/—) 1570@238098154511(—/—) 1572@238098154512(—/—) 1574@238098154513(—/—) 1647@238098267063(0/106) 1649@238098267396(—/—) 1651@238098267397(—/—) 1654@238098267398(29/99)
-
-1655@238098267398(30/78) 1657@238098267729(—/—) 1659@238098268062(—/—) 1747@238098390939(—/—) 1749@238098390940(—/—) 1751@238098390941(—/—) 1753@238098390942(—/—) 1755@238098390943(—/—)
-
-1757@238098390944(—/—) 1759@238098390945(—/—) 1761@238098390946(—/—) 1763@238098391605(—/—) 1765@238098391606(—/—) 1767@238098391607(—/—) 1769@238098391608(—/—) 1771@238098391609(—/—)
-
-1773@238098391610(—/—) 1775@238098391611(—/—) 1777@238098391612(—/—) 1859@238098502161(—/—) 1861@238098502162(—/—) 1863@238098502163(—/—) 1865@238098502164(—/—) 1867@238098502165(—/—)
-
-1869@238098502166(—/—) 1871@238098502167(—/—) 1873@238098502168(—/—) 1875@238098503160(—/—) 1877@238098503161(—/—) 1879@238098503162(—/—) 1881@238098503163(—/—) 1883@238098503164(—/—)
-
-1885@238098503165(—/—) 1958@238098617046(—/—) 1960@238098617047(—/—) 1962@238098617379(—/—) 1964@238098617380(—/—) 1966@238098617381(—/—) 1968@238098617382(—/—) 1970@238098618711(—/—)
-
-1972@238098618712(—/—) 2005@238098731598(—/—) 2007@238098731599(—/—) 2009@238098731600(—/—) 2011@238098731601(—/—) 2013@238098731602(—/—) 2078@238098844152(0/248) 2080@238098844485(—/—)
-
-2082@238098844486(—/—) 2084@238098844487(—/—) 2087@238098844488(29/20) 2088@238098844488(30/241) 2090@238098844818(—/—) 2169@238098968028(—/—) 2171@238098968029(—/—) 2173@238098968361(—/—)
-
-2175@238098968362(—/—) 2177@238098968363(—/—) 2179@238098968364(—/—) 2181@238098968365(—/—) 2183@238098968366(—/—) 2185@238098968367(—/—) 2187@238098968368(—/—) 2189@238098968694(—/—)
-
-2191@238098968695(—/—) 2193@238098968696(—/—) 2195@238098968697(—/—) 2197@238098968698(—/—) 2199@238098968699(—/—) 2270@238099079250(—/—) 2272@238099079251(—/—) 2274@238099079916(—/—)
-
-2276@238099079917(—/—) 2278@238099079918(—/—) 2280@238099079919(—/—) 2282@238099079920(—/—) 2284@238099079921(—/—) 2286@238099079922(—/—) 2288@238099079923(—/—) 2290@238099080915(—/—)
-
-2292@238099080916(—/—) 2294@238099080917(—/—) 2296@238099080918(—/—) 2348@238099194801(—/—) 2350@238099194802(—/—) 2352@238099194803(—/—) 2354@238099194804(—/—) 2356@238099195134(—/—)
-
-2358@238099195135(—/—) 2360@238099196133(—/—) 2362@238099196134(—/—) 2392@238099309020(—/—) 2394@238099309021(—/—) 2396@238099309686(—/—) 2398@238099309687(—/—) 2400@238099309688(—/—)
-
-2439@238099422240(0/183) 2441@238099422573(—/—) 2443@238099422574(—/—) 2445@238099422575(—/—) 2448@238099422576(29/58) 2449@238099422576(30/131) 2451@238099422906(—/—) 2468@238099703292(—/—)
-
-2470@238099703293(—/—) 2480@238099867128(—/—)
-
-</details>
-
-<details><summary><b>cache_return 全量 hit/miss 决策索引（450 条，不折叠）</b></summary>
-
-6@238095585081:miss 9@238095585414:miss 19@238095585747:miss 22@238095585747:miss 25@238095585747:miss 28@238095586080:miss 31@238095586080:miss 34@238095586413:miss
-
-37@238095586413:miss 40@238095586413:miss 43@238095586413:miss 46@238095586746:miss 49@238095586746:miss 52@238095586746:miss 100@238095814185:miss 103@238095814185:miss
-
-106@238095814185:miss 109@238095814185:miss 112@238095814518:miss 115@238095814518:miss 118@238095814518:miss 121@238095814518:miss 124@238095814518:miss 127@238095814851:miss
-
-130@238095814851:miss 133@238095814851:miss 136@238095814851:miss 139@238095815184:miss 142@238095815184:miss 145@238095815184:miss 148@238095815184:miss 151@238095815184:miss
-
-186@238095924408:miss 191@238095924741:miss 194@238095924741:miss 197@238095925074:miss 200@238095925074:miss 203@238095925074:miss 206@238095925740:miss 209@238095926073:miss
-
-212@238095926073:miss 215@238095926073:miss 219@238095926406:miss 222@238095926406:miss 225@238095926739:miss 228@238095926739:miss 231@238095926739:miss 234@238095926739:miss
-
-265@238096039959:miss 268@238096039959:miss 271@238096039959:miss 274@238096039959:miss 277@238096040292:miss 280@238096040292:miss 283@238096040292:miss 286@238096040625:miss
-
-289@238096102230:miss 292@238096102230:miss 295@238096102563:miss 314@238096312020:miss 317@238096312020:miss 320@238096312353:miss 323@238096358640:miss 326@238096358640:miss
-
-329@238096358640:miss 342@238096425240:miss 345@238096425240:miss 348@238096425573:miss 351@238096425573:miss 354@238096425573:miss 357@238096425906:miss 360@238096427904:miss
-
-363@238096427904:miss 383@238096548783:miss 386@238096548783:miss 389@238096548783:miss 392@238096548783:miss 395@238096549116:miss 398@238096549116:miss 401@238096549116:miss
-
-404@238096549116:miss 407@238096549116:miss 410@238096549449:miss 413@238096549449:miss 416@238096549449:miss 419@238096549449:miss 422@238096549449:miss 425@238096549782:miss
-
-428@238096549782:miss 431@238096549782:miss 434@238096549782:miss 437@238096549782:miss 472@238096660005:miss 476@238096660338:miss 479@238096660338:miss 482@238096660671:miss
-
-485@238096660671:miss 488@238096661004:miss 491@238096661004:miss 494@238096661004:miss 497@238096661004:miss 500@238096661004:miss 503@238096661337:miss 506@238096661337:miss
-
-510@238096661670:miss 513@238096661670:miss 516@238096662003:miss 519@238096662003:miss 522@238096662003:miss 553@238096775556:miss 556@238096775556:miss 559@238096775556:miss
-
-562@238096775889:miss 565@238096775889:miss 568@238096776222:miss 571@238096776222:miss 574@238096776222:miss 577@238096776888:miss 580@238096777221:miss 583@238096777221:miss
-
-602@238096889775:miss 605@238096890108:miss 608@238096890108:miss 611@238096890441:miss 614@238096890441:miss 617@238096890441:miss 620@238096890774:miss 633@238097002995:miss
-
-636@238097002995:miss 639@238097003328:miss 642@238097003328:miss 645@238097003328:miss 648@238097003328:miss 651@238097003661:miss 654@238097003994:miss 657@238097003994:miss
-
-677@238097126871:miss 680@238097126871:miss 683@238097126871:miss 686@238097126871:miss 689@238097127204:miss 692@238097127204:miss 698@238097127204:miss 701@238097127204:miss
-
-704@238097127204:miss 707@238097127537:miss 710@238097127537:miss 713@238097127537:miss 716@238097127537:miss 719@238097127537:miss 723@238097127870:miss 727@238097127870:miss
-
-733@238097127870:miss 736@238097127870:miss 739@238097127870:miss 743@238097128203:miss 747@238097128536:miss 751@238097128869:miss 756@238097129202:miss 761@238097129535:miss
-
-766@238097129868:miss 802@238097238093:miss 805@238097238426:miss 808@238097238426:miss 811@238097238759:miss 814@238097238759:miss 817@238097238759:miss 823@238097238759:miss
-
-826@238097239092:miss 829@238097239092:miss 832@238097239092:miss 835@238097239092:miss 838@238097239092:miss 843@238097239425:miss 847@238097239425:miss 850@238097239425:miss
-
-854@238097239758:miss 858@238097239758:miss 865@238097239758:miss 869@238097240091:miss 873@238097240424:miss 877@238097240757:miss 882@238097241090:miss 887@238097241423:miss
-
-893@238097241756:miss 925@238097353977:miss 932@238097353977:miss 935@238097353977:miss 942@238097354310:miss 949@238097354310:miss 952@238097354643:miss 960@238097354643:miss
-
-963@238097354643:miss 968@238097354976:miss 974@238097355309:miss 978@238097355309:miss 986@238097355642:miss 991@238097355642:miss 995@238097355975:miss 1000@238097356308:miss
-
-1006@238097356641:miss 1012@238097356974:miss 1017@238097357307:miss 1023@238097357640:miss 1028@238097357973:miss 1033@238097358306:miss 1038@238097358639:miss 1058@238097468529:miss
-
-1062@238097468862:miss 1066@238097468862:miss 1070@238097469195:miss 1074@238097469195:miss 1078@238097469195:miss 1084@238097469528:miss 1088@238097469861:miss 1093@238097470194:miss
-
-1098@238097470527:miss 1112@238097581416:miss 1115@238097581416:miss 1122@238097581749:miss 1125@238097581749:miss 1129@238097581749:miss 1133@238097581749:miss 1136@238097582082:miss
-
-1143@238097582415:miss 1147@238097582415:miss 1153@238097582748:miss 1159@238097583081:miss 1164@238097583414:miss 1185@238097705292:miss 1189@238097705292:miss 1193@238097705292:miss
-
-1197@238097705292:miss 1201@238097705625:miss 1205@238097705625:miss 1209@238097705625:miss 1213@238097705625:miss 1219@238097705625:miss 1223@238097705958:miss 1227@238097705958:miss
-
-1231@238097705958:miss 1235@238097705958:miss 1239@238097705958:miss 1244@238097706291:miss 1248@238097706291:miss 1252@238097706291:miss 1256@238097706291:miss 1262@238097706291:miss
-
-1267@238097706624:miss 1271@238097706957:miss 1276@238097707290:miss 1281@238097707623:miss 1317@238097816514:miss 1321@238097816847:miss 1325@238097816847:miss 1329@238097817180:miss
-
-1333@238097817180:miss 1337@238097817180:miss 1341@238097817180:miss 1345@238097817513:miss 1351@238097817513:miss 1355@238097817513:miss 1359@238097817513:miss 1364@238097817846:miss
-
-1368@238097817846:miss 1372@238097817846:miss 1377@238097818179:miss 1381@238097818179:miss 1385@238097818179:miss 1390@238097818512:miss 1422@238097931399:miss 1429@238097931399:miss
-
-1433@238097931399:miss 1440@238097931732:miss 1447@238097931732:miss 1451@238097932065:miss 1456@238097932065:miss 1460@238097932065:miss 1466@238097932398:miss 1473@238097932731:miss
-
-1478@238097932731:miss 1486@238097933064:miss 1490@238097933064:miss 1494@238097933397:miss 1499@238097933730:miss 1506@238097934063:miss 1512@238097934396:miss 1517@238097934729:miss
-
-1522@238097935062:miss 1542@238098045951:miss 1546@238098046284:miss 1550@238098046284:miss 1554@238098046617:miss 1558@238098046617:miss 1562@238098046617:miss 1576@238098158505:miss
-
-1583@238098158505:miss 1587@238098158838:miss 1594@238098158838:miss 1598@238098158838:miss 1604@238098158838:miss 1608@238098159171:miss 1614@238098159504:miss 1618@238098159504:miss
-
-1622@238098159837:miss 1627@238098160170:miss 1632@238098160503:miss 1637@238098160836:miss 1642@238098161169:miss 1662@238098282381:miss 1667@238098282381:miss 1671@238098282381:miss
-
-1675@238098282381:miss 1679@238098282714:miss 1684@238098282714:miss 1688@238098282714:miss 1692@238098282714:miss 1696@238098282714:miss 1701@238098283047:miss 1705@238098283047:miss
-
-1710@238098283047:miss 1714@238098283047:miss 1718@238098283047:miss 1722@238098283380:miss 1726@238098283380:miss 1730@238098283380:miss 1734@238098283380:miss 1738@238098283380:miss
-
-1743@238098283713:miss 1779@238098393603:miss 1784@238098393936:miss 1789@238098393936:miss 1794@238098394269:miss 1798@238098394269:miss 1803@238098394269:miss 1807@238098394269:miss
-
-1811@238098394269:miss 1816@238098394602:miss 1820@238098394602:miss 1824@238098394602:miss 1829@238098394602:miss 1833@238098394935:miss 1839@238098395268:miss 1843@238098395268:miss
-
-1847@238098395268:miss 1851@238098395601:miss 1855@238098395601:miss 1887@238098508488:miss 1892@238098508488:miss 1896@238098508488:miss 1902@238098508821:miss 1907@238098508821:miss
-
-1911@238098509154:miss 1916@238098509154:miss 1920@238098509154:miss 1925@238098509487:miss 1930@238098509820:miss 1935@238098509820:miss 1941@238098510153:miss 1945@238098510153:miss
-
-1949@238098510486:miss 1954@238098510819:miss 1974@238098623040:miss 1979@238098623373:miss 1984@238098623373:miss 1989@238098623706:miss 1993@238098623706:miss 1997@238098623706:miss
-
-2001@238098623706:miss 2015@238098735594:miss 2021@238098735594:miss 2025@238098735927:miss 2031@238098735927:miss 2035@238098735927:miss 2039@238098735927:miss 2045@238098736260:miss
-
-2050@238098736593:miss 2056@238098736593:miss 2061@238098736926:miss 2068@238098737259:miss 2073@238098737592:miss 2093@238098859470:miss 2097@238098859470:miss 2101@238098859470:miss
-
-2105@238098859470:miss 2109@238098859803:miss 2113@238098859803:miss 2117@238098859803:miss 2121@238098859803:miss 2125@238098859803:miss 2129@238098860136:miss 2133@238098860136:miss
-
-2137@238098860136:miss 2141@238098860136:miss 2145@238098860136:miss 2149@238098860469:miss 2153@238098860469:miss 2157@238098860469:miss 2161@238098860469:miss 2165@238098860469:miss
-
-2201@238098970692:miss 2205@238098971025:miss 2209@238098971025:miss 2213@238098971358:miss 2217@238098971358:miss 2221@238098971691:miss 2225@238098971691:miss 2229@238098971691:miss
-
-2233@238098971691:miss 2237@238098971691:miss 2241@238098972024:miss 2245@238098972024:miss 2250@238098972357:miss 2254@238098972357:miss 2258@238098972690:miss 2262@238098972690:miss
-
-2266@238098972690:miss 2298@238099086243:miss 2302@238099086243:miss 2306@238099086243:miss 2311@238099086576:miss 2315@238099086576:miss 2319@238099086909:miss 2323@238099086909:miss
-
-2327@238099086909:miss 2332@238099087242:miss 2336@238099087575:miss 2340@238099087908:miss 2344@238099087908:miss 2364@238099200462:miss 2368@238099200795:miss 2372@238099200795:miss
-
-2376@238099201128:miss 2380@238099201128:miss 2384@238099201128:miss 2388@238099201461:miss 2402@238099313682:miss 2406@238099313682:miss 2410@238099314015:miss 2414@238099314015:miss
-
-2418@238099314015:miss 2422@238099314015:miss 2426@238099314348:miss 2430@238099314681:miss 2434@238099314681:miss 2456@238099594734:miss 2460@238099595067:miss 2464@238099595067:miss
-
-2472@238099758570:miss 2476@238099758903:miss
-
-</details>
-
-<details><summary><b>MSHR alloc/merge/fill/free 全量索引（450 条，不折叠）</b></summary>
-
-7@238095585081:mshr_alloc:mshr=1,fill=— 10@238095585414:mshr_alloc:mshr=2,fill=— 20@238095585747:mshr_merge:mshr=4,fill=— 23@238095585747:mshr_merge:mshr=4,fill=—
-
-26@238095585747:mshr_merge:mshr=4,fill=— 29@238095586080:mshr_alloc:mshr=5,fill=— 32@238095586080:mshr_merge:mshr=2,fill=— 35@238095586413:mshr_alloc:mshr=6,fill=—
-
-38@238095586413:mshr_merge:mshr=4,fill=— 41@238095586413:mshr_merge:mshr=4,fill=— 44@238095586413:mshr_merge:mshr=2,fill=— 47@238095586746:mshr_merge:mshr=2,fill=—
-
-50@238095586746:mshr_merge:mshr=6,fill=— 53@238095586746:mshr_merge:mshr=6,fill=— 101@238095814185:mshr_alloc:mshr=7,fill=— 104@238095814185:mshr_merge:mshr=7,fill=—
-
-107@238095814185:mshr_merge:mshr=7,fill=— 110@238095814185:mshr_merge:mshr=7,fill=— 113@238095814518:mshr_alloc:mshr=8,fill=— 116@238095814518:mshr_merge:mshr=8,fill=—
-
-119@238095814518:mshr_merge:mshr=8,fill=— 122@238095814518:mshr_merge:mshr=8,fill=— 125@238095814518:mshr_merge:mshr=8,fill=— 128@238095814851:mshr_alloc:mshr=9,fill=—
-
-131@238095814851:mshr_merge:mshr=9,fill=— 134@238095814851:mshr_merge:mshr=9,fill=— 137@238095814851:mshr_merge:mshr=9,fill=— 140@238095815184:mshr_alloc:mshr=10,fill=—
-
-143@238095815184:mshr_merge:mshr=10,fill=— 146@238095815184:mshr_merge:mshr=10,fill=— 149@238095815184:mshr_merge:mshr=10,fill=— 152@238095815184:mshr_merge:mshr=10,fill=—
-
-187@238095924408:mshr_alloc:mshr=11,fill=— 192@238095924741:mshr_alloc:mshr=12,fill=— 195@238095924741:mshr_merge:mshr=12,fill=— 198@238095925074:mshr_merge:mshr=12,fill=—
-
-201@238095925074:mshr_merge:mshr=12,fill=— 204@238095925074:mshr_merge:mshr=12,fill=— 207@238095925740:mshr_merge:mshr=12,fill=— 210@238095926073:mshr_merge:mshr=12,fill=—
-
-213@238095926073:mshr_merge:mshr=12,fill=— 216@238095926073:mshr_alloc:mshr=13,fill=— 220@238095926406:mshr_alloc:mshr=14,fill=— 223@238095926406:mshr_merge:mshr=14,fill=—
-
-226@238095926739:mshr_merge:mshr=14,fill=— 229@238095926739:mshr_merge:mshr=14,fill=— 232@238095926739:mshr_merge:mshr=14,fill=— 235@238095926739:mshr_merge:mshr=14,fill=—
-
-266@238096039959:mshr_alloc:mshr=15,fill=— 269@238096039959:mshr_merge:mshr=15,fill=— 272@238096039959:mshr_alloc:mshr=16,fill=— 275@238096039959:mshr_merge:mshr=16,fill=—
-
-278@238096040292:mshr_alloc:mshr=17,fill=— 281@238096040292:mshr_merge:mshr=16,fill=— 284@238096040292:mshr_merge:mshr=16,fill=— 287@238096040625:mshr_alloc:mshr=18,fill=—
-
-290@238096102230:mshr_alloc:mshr=19,fill=— 293@238096102230:mshr_merge:mshr=19,fill=— 296@238096102563:mshr_alloc:mshr=20,fill=— 315@238096312020:mshr_alloc:mshr=21,fill=—
-
-318@238096312020:mshr_merge:mshr=21,fill=— 321@238096312353:mshr_alloc:mshr=22,fill=— 324@238096358640:mshr_merge:mshr=22,fill=— 327@238096358640:mshr_merge:mshr=22,fill=—
-
-330@238096358640:mshr_merge:mshr=22,fill=— 343@238096425240:mshr_alloc:mshr=23,fill=— 346@238096425240:mshr_merge:mshr=23,fill=— 349@238096425573:mshr_alloc:mshr=24,fill=—
-
-352@238096425573:mshr_merge:mshr=24,fill=— 355@238096425573:mshr_alloc:mshr=25,fill=— 358@238096425906:mshr_alloc:mshr=26,fill=— 361@238096427904:mshr_merge:mshr=24,fill=—
-
-364@238096427904:mshr_merge:mshr=24,fill=— 384@238096548783:mshr_alloc:mshr=27,fill=— 387@238096548783:mshr_merge:mshr=27,fill=— 390@238096548783:mshr_alloc:mshr=28,fill=—
-
-393@238096548783:mshr_merge:mshr=28,fill=— 396@238096549116:mshr_alloc:mshr=29,fill=— 399@238096549116:mshr_merge:mshr=28,fill=— 402@238096549116:mshr_merge:mshr=28,fill=—
-
-405@238096549116:mshr_merge:mshr=28,fill=— 408@238096549116:mshr_merge:mshr=28,fill=— 411@238096549449:mshr_alloc:mshr=30,fill=— 414@238096549449:mshr_merge:mshr=30,fill=—
-
-417@238096549449:mshr_merge:mshr=30,fill=— 420@238096549449:mshr_alloc:mshr=31,fill=— 423@238096549449:mshr_merge:mshr=31,fill=— 426@238096549782:mshr_alloc:mshr=32,fill=—
-
-429@238096549782:mshr_merge:mshr=32,fill=— 432@238096549782:mshr_merge:mshr=32,fill=— 435@238096549782:mshr_merge:mshr=32,fill=— 438@238096549782:mshr_merge:mshr=32,fill=—
-
-473@238096660005:mshr_alloc:mshr=33,fill=— 477@238096660338:mshr_alloc:mshr=34,fill=— 480@238096660338:mshr_merge:mshr=34,fill=— 483@238096660671:mshr_alloc:mshr=35,fill=—
-
-486@238096660671:mshr_merge:mshr=35,fill=— 489@238096661004:mshr_alloc:mshr=36,fill=— 492@238096661004:mshr_merge:mshr=36,fill=— 495@238096661004:mshr_merge:mshr=36,fill=—
-
-498@238096661004:mshr_merge:mshr=36,fill=— 501@238096661004:mshr_merge:mshr=36,fill=— 504@238096661337:mshr_merge:mshr=36,fill=— 507@238096661337:mshr_merge:mshr=36,fill=—
-
-511@238096661670:mshr_alloc:mshr=37,fill=— 514@238096661670:mshr_merge:mshr=37,fill=— 517@238096662003:mshr_alloc:mshr=38,fill=— 520@238096662003:mshr_merge:mshr=38,fill=—
-
-523@238096662003:mshr_merge:mshr=38,fill=— 554@238096775556:mshr_alloc:mshr=39,fill=— 557@238096775556:mshr_merge:mshr=39,fill=— 560@238096775556:mshr_alloc:mshr=40,fill=—
-
-563@238096775889:mshr_alloc:mshr=41,fill=— 566@238096775889:mshr_merge:mshr=40,fill=— 569@238096776222:mshr_alloc:mshr=42,fill=— 572@238096776222:mshr_merge:mshr=41,fill=—
-
-575@238096776222:mshr_merge:mshr=41,fill=— 578@238096776888:mshr_alloc:mshr=43,fill=— 581@238096777221:mshr_alloc:mshr=44,fill=— 584@238096777221:mshr_merge:mshr=44,fill=—
-
-603@238096889775:mshr_alloc:mshr=45,fill=— 606@238096890108:mshr_alloc:mshr=46,fill=— 609@238096890108:mshr_merge:mshr=46,fill=— 612@238096890441:mshr_alloc:mshr=47,fill=—
-
-615@238096890441:mshr_merge:mshr=47,fill=— 618@238096890441:mshr_merge:mshr=47,fill=— 621@238096890774:mshr_alloc:mshr=48,fill=— 634@238097002995:mshr_alloc:mshr=49,fill=—
-
-637@238097002995:mshr_alloc:mshr=50,fill=— 640@238097003328:mshr_alloc:mshr=51,fill=— 643@238097003328:mshr_merge:mshr=50,fill=— 646@238097003328:mshr_merge:mshr=50,fill=—
-
-649@238097003328:mshr_alloc:mshr=52,fill=— 652@238097003661:mshr_alloc:mshr=53,fill=— 655@238097003994:mshr_alloc:mshr=54,fill=— 658@238097003994:mshr_merge:mshr=53,fill=—
-
-678@238097126871:mshr_alloc:mshr=55,fill=— 681@238097126871:mshr_merge:mshr=55,fill=— 684@238097126871:mshr_merge:mshr=55,fill=— 687@238097126871:mshr_merge:mshr=55,fill=—
-
-690@238097127204:mshr_alloc:mshr=56,fill=— 693@238097127204:mshr_alloc:mshr=57,fill=— 699@238097127204:mshr_merge:mshr=57,fill=— 702@238097127204:mshr_merge:mshr=57,fill=—
-
-705@238097127204:mshr_merge:mshr=57,fill=— 708@238097127537:mshr_alloc:mshr=58,fill=— 711@238097127537:mshr_merge:mshr=58,fill=— 714@238097127537:mshr_merge:mshr=58,fill=—
-
-717@238097127537:mshr_merge:mshr=58,fill=— 720@238097127537:mshr_merge:mshr=58,fill=— 725@238097127870:mshr_alloc:mshr=59,fill=— 728@238097127870:mshr_alloc:mshr=60,fill=—
-
-734@238097127870:mshr_merge:mshr=60,fill=— 737@238097127870:mshr_merge:mshr=60,fill=— 740@238097127870:mshr_merge:mshr=60,fill=— 745@238097128203:mshr_alloc:mshr=61,fill=—
-
-748@238097128536:mshr_alloc:mshr=62,fill=— 753@238097128869:mshr_alloc:mshr=63,fill=— 758@238097129202:mshr_alloc:mshr=64,fill=— 763@238097129535:mshr_alloc:mshr=65,fill=—
-
-768@238097129868:mshr_alloc:mshr=66,fill=— 803@238097238093:mshr_alloc:mshr=67,fill=— 806@238097238426:mshr_alloc:mshr=68,fill=— 809@238097238426:mshr_merge:mshr=68,fill=—
-
-812@238097238759:mshr_merge:mshr=68,fill=— 815@238097238759:mshr_merge:mshr=68,fill=— 818@238097238759:mshr_alloc:mshr=69,fill=— 824@238097238759:mshr_merge:mshr=69,fill=—
-
-827@238097239092:mshr_alloc:mshr=70,fill=— 830@238097239092:mshr_merge:mshr=70,fill=— 833@238097239092:mshr_merge:mshr=70,fill=— 836@238097239092:mshr_merge:mshr=70,fill=—
-
-839@238097239092:mshr_merge:mshr=70,fill=— 845@238097239425:mshr_alloc:mshr=71,fill=— 848@238097239425:mshr_merge:mshr=70,fill=— 851@238097239425:mshr_merge:mshr=70,fill=—
-
-856@238097239758:mshr_alloc:mshr=72,fill=— 859@238097239758:mshr_alloc:mshr=73,fill=— 866@238097239758:mshr_merge:mshr=73,fill=— 871@238097240091:mshr_alloc:mshr=74,fill=—
-
-874@238097240424:mshr_alloc:mshr=75,fill=— 879@238097240757:mshr_alloc:mshr=76,fill=— 884@238097241090:mshr_alloc:mshr=77,fill=— 889@238097241423:mshr_alloc:mshr=78,fill=—
-
-895@238097241756:mshr_alloc:mshr=79,fill=— 926@238097353977:mshr_alloc:mshr=80,fill=— 933@238097353977:mshr_merge:mshr=80,fill=— 936@238097353977:mshr_alloc:mshr=81,fill=—
-
-943@238097354310:mshr_alloc:mshr=82,fill=— 950@238097354310:mshr_merge:mshr=81,fill=— 953@238097354643:mshr_alloc:mshr=83,fill=— 961@238097354643:mshr_merge:mshr=82,fill=—
-
-964@238097354643:mshr_merge:mshr=82,fill=— 970@238097354976:mshr_merge:mshr=76,fill=— 976@238097355309:mshr_merge:mshr=77,fill=— 979@238097355309:mshr_alloc:mshr=84,fill=—
-
-988@238097355642:mshr_merge:mshr=78,fill=— 992@238097355642:mshr_merge:mshr=84,fill=— 996@238097355975:mshr_alloc:mshr=85,fill=— 1002@238097356308:mshr_merge:mshr=79,fill=—
-
-1008@238097356641:mshr_merge:mshr=0,fill=— 1014@238097356974:mshr_merge:mshr=0,fill=— 1019@238097357307:mshr_merge:mshr=0,fill=— 1025@238097357640:mshr_merge:mshr=0,fill=—
-
-1030@238097357973:mshr_alloc:mshr=86,fill=— 1035@238097358306:mshr_alloc:mshr=87,fill=— 1040@238097358639:mshr_alloc:mshr=88,fill=— 1060@238097468529:mshr_alloc:mshr=89,fill=—
-
-1064@238097468862:mshr_alloc:mshr=90,fill=— 1068@238097468862:mshr_merge:mshr=90,fill=— 1072@238097469195:mshr_merge:mshr=90,fill=— 1076@238097469195:mshr_merge:mshr=90,fill=—
-
-1079@238097469195:mshr_alloc:mshr=91,fill=— 1085@238097469528:mshr_alloc:mshr=92,fill=— 1090@238097469861:mshr_alloc:mshr=93,fill=— 1095@238097470194:mshr_alloc:mshr=94,fill=—
-
-1100@238097470527:mshr_alloc:mshr=95,fill=— 1113@238097581416:mshr_alloc:mshr=96,fill=— 1117@238097581416:mshr_alloc:mshr=97,fill=— 1123@238097581749:mshr_alloc:mshr=98,fill=—
-
-1127@238097581749:mshr_merge:mshr=97,fill=— 1131@238097581749:mshr_merge:mshr=97,fill=— 1134@238097581749:mshr_alloc:mshr=99,fill=— 1138@238097582082:mshr_alloc:mshr=100,fill=—
-
-1144@238097582415:mshr_alloc:mshr=101,fill=— 1149@238097582415:mshr_merge:mshr=100,fill=— 1155@238097582748:mshr_merge:mshr=0,fill=— 1161@238097583081:mshr_merge:mshr=0,fill=—
-
-1166@238097583414:mshr_merge:mshr=0,fill=— 1187@238097705292:mshr_alloc:mshr=102,fill=— 1191@238097705292:mshr_merge:mshr=102,fill=— 1195@238097705292:mshr_merge:mshr=102,fill=—
-
-1199@238097705292:mshr_merge:mshr=102,fill=— 1203@238097705625:mshr_alloc:mshr=103,fill=— 1207@238097705625:mshr_merge:mshr=103,fill=— 1211@238097705625:mshr_merge:mshr=103,fill=—
-
-1215@238097705625:mshr_alloc:mshr=104,fill=— 1221@238097705625:mshr_merge:mshr=104,fill=— 1225@238097705958:mshr_alloc:mshr=105,fill=— 1229@238097705958:mshr_merge:mshr=105,fill=—
-
-1233@238097705958:mshr_merge:mshr=105,fill=— 1237@238097705958:mshr_merge:mshr=105,fill=— 1241@238097705958:mshr_merge:mshr=105,fill=— 1246@238097706291:mshr_alloc:mshr=106,fill=—
-
-1250@238097706291:mshr_merge:mshr=105,fill=— 1254@238097706291:mshr_merge:mshr=105,fill=— 1258@238097706291:mshr_alloc:mshr=107,fill=— 1264@238097706291:mshr_merge:mshr=107,fill=—
-
-1269@238097706624:mshr_alloc:mshr=108,fill=— 1273@238097706957:mshr_alloc:mshr=109,fill=— 1278@238097707290:mshr_alloc:mshr=110,fill=— 1283@238097707623:mshr_alloc:mshr=111,fill=—
-
-1319@238097816514:mshr_alloc:mshr=112,fill=— 1323@238097816847:mshr_alloc:mshr=113,fill=— 1327@238097816847:mshr_merge:mshr=113,fill=— 1331@238097817180:mshr_merge:mshr=113,fill=—
-
-1335@238097817180:mshr_merge:mshr=113,fill=— 1339@238097817180:mshr_merge:mshr=113,fill=— 1343@238097817180:mshr_merge:mshr=113,fill=— 1347@238097817513:mshr_alloc:mshr=114,fill=—
-
-1353@238097817513:mshr_merge:mshr=114,fill=— 1357@238097817513:mshr_merge:mshr=114,fill=— 1361@238097817513:mshr_merge:mshr=114,fill=— 1366@238097817846:mshr_alloc:mshr=115,fill=—
-
-1370@238097817846:mshr_merge:mshr=115,fill=— 1374@238097817846:mshr_merge:mshr=115,fill=— 1379@238097818179:mshr_alloc:mshr=116,fill=— 1383@238097818179:mshr_merge:mshr=115,fill=—
-
-1387@238097818179:mshr_merge:mshr=115,fill=— 1392@238097818512:mshr_alloc:mshr=117,fill=— 1424@238097931399:mshr_alloc:mshr=118,fill=— 1431@238097931399:mshr_merge:mshr=118,fill=—
-
-1435@238097931399:mshr_alloc:mshr=119,fill=— 1442@238097931732:mshr_alloc:mshr=120,fill=— 1449@238097931732:mshr_merge:mshr=119,fill=— 1453@238097932065:mshr_alloc:mshr=121,fill=—
-
-1458@238097932065:mshr_merge:mshr=120,fill=— 1462@238097932065:mshr_merge:mshr=120,fill=— 1468@238097932398:mshr_merge:mshr=77,fill=— 1475@238097932731:mshr_merge:mshr=78,fill=—
-
-1480@238097932731:mshr_alloc:mshr=122,fill=— 1488@238097933064:mshr_merge:mshr=79,fill=— 1492@238097933064:mshr_merge:mshr=122,fill=— 1496@238097933397:mshr_alloc:mshr=123,fill=—
-
-1501@238097933730:mshr_alloc:mshr=124,fill=— 1508@238097934063:mshr_alloc:mshr=125,fill=— 1514@238097934396:mshr_merge:mshr=0,fill=— 1519@238097934729:mshr_alloc:mshr=126,fill=—
-
-1524@238097935062:mshr_alloc:mshr=127,fill=— 1544@238098045951:mshr_alloc:mshr=128,fill=— 1548@238098046284:mshr_alloc:mshr=129,fill=— 1552@238098046284:mshr_merge:mshr=129,fill=—
-
-1556@238098046617:mshr_merge:mshr=129,fill=— 1560@238098046617:mshr_merge:mshr=129,fill=— 1564@238098046617:mshr_merge:mshr=129,fill=— 1578@238098158505:mshr_alloc:mshr=130,fill=—
-
-1585@238098158505:mshr_alloc:mshr=131,fill=— 1589@238098158838:mshr_alloc:mshr=132,fill=— 1596@238098158838:mshr_merge:mshr=131,fill=— 1600@238098158838:mshr_alloc:mshr=133,fill=—
-
-1606@238098158838:mshr_alloc:mshr=134,fill=— 1610@238098159171:mshr_alloc:mshr=135,fill=— 1616@238098159504:mshr_alloc:mshr=136,fill=— 1620@238098159504:mshr_merge:mshr=135,fill=—
-
-1624@238098159837:mshr_alloc:mshr=137,fill=— 1629@238098160170:mshr_merge:mshr=78,fill=— 1634@238098160503:mshr_merge:mshr=79,fill=— 1639@238098160836:mshr_alloc:mshr=138,fill=—
-
-1644@238098161169:mshr_alloc:mshr=139,fill=— 1664@238098282381:mshr_alloc:mshr=140,fill=— 1669@238098282381:mshr_merge:mshr=140,fill=— 1673@238098282381:mshr_merge:mshr=140,fill=—
-
-1677@238098282381:mshr_merge:mshr=140,fill=— 1681@238098282714:mshr_alloc:mshr=141,fill=— 1686@238098282714:mshr_merge:mshr=141,fill=— 1690@238098282714:mshr_merge:mshr=141,fill=—
-
-1694@238098282714:mshr_merge:mshr=141,fill=— 1698@238098282714:mshr_merge:mshr=141,fill=— 1703@238098283047:mshr_alloc:mshr=142,fill=— 1707@238098283047:mshr_alloc:mshr=143,fill=—
-
-1712@238098283047:mshr_merge:mshr=143,fill=— 1716@238098283047:mshr_merge:mshr=143,fill=— 1720@238098283047:mshr_merge:mshr=143,fill=— 1724@238098283380:mshr_alloc:mshr=144,fill=—
-
-1728@238098283380:mshr_merge:mshr=144,fill=— 1732@238098283380:mshr_merge:mshr=144,fill=— 1736@238098283380:mshr_merge:mshr=144,fill=— 1740@238098283380:mshr_merge:mshr=144,fill=—
-
-1745@238098283713:mshr_alloc:mshr=145,fill=— 1781@238098393603:mshr_alloc:mshr=146,fill=— 1786@238098393936:mshr_alloc:mshr=147,fill=— 1791@238098393936:mshr_merge:mshr=147,fill=—
-
-1796@238098394269:mshr_alloc:mshr=148,fill=— 1800@238098394269:mshr_merge:mshr=147,fill=— 1805@238098394269:mshr_merge:mshr=147,fill=— 1809@238098394269:mshr_merge:mshr=147,fill=—
-
-1813@238098394269:mshr_merge:mshr=147,fill=— 1818@238098394602:mshr_merge:mshr=147,fill=— 1822@238098394602:mshr_merge:mshr=147,fill=— 1826@238098394602:mshr_alloc:mshr=149,fill=—
-
-1831@238098394602:mshr_merge:mshr=149,fill=— 1835@238098394935:mshr_alloc:mshr=150,fill=— 1841@238098395268:mshr_alloc:mshr=151,fill=— 1845@238098395268:mshr_merge:mshr=150,fill=—
-
-1849@238098395268:mshr_merge:mshr=150,fill=— 1853@238098395601:mshr_merge:mshr=150,fill=— 1857@238098395601:mshr_merge:mshr=150,fill=— 1889@238098508488:mshr_alloc:mshr=152,fill=—
-
-1894@238098508488:mshr_merge:mshr=152,fill=— 1898@238098508488:mshr_alloc:mshr=153,fill=— 1904@238098508821:mshr_alloc:mshr=154,fill=— 1909@238098508821:mshr_merge:mshr=153,fill=—
-
-1913@238098509154:mshr_alloc:mshr=155,fill=— 1918@238098509154:mshr_merge:mshr=155,fill=— 1922@238098509154:mshr_merge:mshr=155,fill=— 1927@238098509487:mshr_merge:mshr=151,fill=—
-
-1932@238098509820:mshr_alloc:mshr=156,fill=— 1937@238098509820:mshr_alloc:mshr=157,fill=— 1943@238098510153:mshr_alloc:mshr=158,fill=— 1947@238098510153:mshr_merge:mshr=157,fill=—
-
-1951@238098510486:mshr_alloc:mshr=159,fill=— 1956@238098510819:mshr_alloc:mshr=160,fill=— 1976@238098623040:mshr_alloc:mshr=161,fill=— 1981@238098623373:mshr_alloc:mshr=162,fill=—
-
-1986@238098623373:mshr_merge:mshr=162,fill=— 1991@238098623706:mshr_alloc:mshr=163,fill=— 1995@238098623706:mshr_merge:mshr=162,fill=— 1999@238098623706:mshr_merge:mshr=162,fill=—
-
-2003@238098623706:mshr_merge:mshr=162,fill=— 2017@238098735594:mshr_alloc:mshr=164,fill=— 2023@238098735594:mshr_alloc:mshr=165,fill=— 2027@238098735927:mshr_alloc:mshr=166,fill=—
-
-2033@238098735927:mshr_merge:mshr=165,fill=— 2037@238098735927:mshr_merge:mshr=165,fill=— 2041@238098735927:mshr_alloc:mshr=167,fill=— 2047@238098736260:mshr_alloc:mshr=168,fill=—
-
-2052@238098736593:mshr_alloc:mshr=169,fill=— 2058@238098736593:mshr_merge:mshr=168,fill=— 2063@238098736926:mshr_merge:mshr=158,fill=— 2070@238098737259:mshr_merge:mshr=162,fill=—
-
-2075@238098737592:mshr_merge:mshr=163,fill=— 2095@238098859470:mshr_alloc:mshr=170,fill=— 2099@238098859470:mshr_merge:mshr=170,fill=— 2103@238098859470:mshr_alloc:mshr=171,fill=—
-
-2107@238098859470:mshr_merge:mshr=171,fill=— 2111@238098859803:mshr_alloc:mshr=172,fill=— 2115@238098859803:mshr_merge:mshr=171,fill=— 2119@238098859803:mshr_merge:mshr=171,fill=—
-
-2123@238098859803:mshr_merge:mshr=171,fill=— 2127@238098859803:mshr_merge:mshr=171,fill=— 2131@238098860136:mshr_alloc:mshr=173,fill=— 2135@238098860136:mshr_merge:mshr=173,fill=—
-
-2139@238098860136:mshr_merge:mshr=173,fill=— 2143@238098860136:mshr_alloc:mshr=174,fill=— 2147@238098860136:mshr_merge:mshr=174,fill=— 2151@238098860469:mshr_alloc:mshr=175,fill=—
-
-2155@238098860469:mshr_merge:mshr=175,fill=— 2159@238098860469:mshr_merge:mshr=175,fill=— 2163@238098860469:mshr_merge:mshr=175,fill=— 2167@238098860469:mshr_merge:mshr=175,fill=—
-
-2203@238098970692:mshr_alloc:mshr=176,fill=— 2207@238098971025:mshr_alloc:mshr=177,fill=— 2211@238098971025:mshr_merge:mshr=177,fill=— 2215@238098971358:mshr_alloc:mshr=178,fill=—
-
-2219@238098971358:mshr_merge:mshr=178,fill=— 2223@238098971691:mshr_alloc:mshr=179,fill=— 2227@238098971691:mshr_merge:mshr=179,fill=— 2231@238098971691:mshr_merge:mshr=179,fill=—
-
-2235@238098971691:mshr_merge:mshr=179,fill=— 2239@238098971691:mshr_merge:mshr=179,fill=— 2243@238098972024:mshr_merge:mshr=179,fill=— 2247@238098972024:mshr_merge:mshr=179,fill=—
-
-2252@238098972357:mshr_alloc:mshr=180,fill=— 2256@238098972357:mshr_merge:mshr=180,fill=— 2260@238098972690:mshr_alloc:mshr=181,fill=— 2264@238098972690:mshr_merge:mshr=181,fill=—
-
-2268@238098972690:mshr_merge:mshr=181,fill=— 2300@238099086243:mshr_alloc:mshr=182,fill=— 2304@238099086243:mshr_merge:mshr=182,fill=— 2308@238099086243:mshr_alloc:mshr=183,fill=—
-
-2313@238099086576:mshr_alloc:mshr=184,fill=— 2317@238099086576:mshr_merge:mshr=183,fill=— 2321@238099086909:mshr_alloc:mshr=185,fill=— 2325@238099086909:mshr_merge:mshr=184,fill=—
-
-2329@238099086909:mshr_merge:mshr=184,fill=— 2334@238099087242:mshr_alloc:mshr=186,fill=— 2338@238099087575:mshr_alloc:mshr=187,fill=— 2342@238099087908:mshr_alloc:mshr=188,fill=—
-
-2346@238099087908:mshr_merge:mshr=188,fill=— 2366@238099200462:mshr_alloc:mshr=189,fill=— 2370@238099200795:mshr_alloc:mshr=190,fill=— 2374@238099200795:mshr_merge:mshr=190,fill=—
-
-2378@238099201128:mshr_alloc:mshr=191,fill=— 2382@238099201128:mshr_merge:mshr=191,fill=— 2386@238099201128:mshr_merge:mshr=191,fill=— 2390@238099201461:mshr_alloc:mshr=192,fill=—
-
-2404@238099313682:mshr_alloc:mshr=193,fill=— 2408@238099313682:mshr_alloc:mshr=194,fill=— 2412@238099314015:mshr_alloc:mshr=195,fill=— 2416@238099314015:mshr_merge:mshr=194,fill=—
-
-2420@238099314015:mshr_merge:mshr=194,fill=— 2424@238099314015:mshr_alloc:mshr=196,fill=— 2428@238099314348:mshr_alloc:mshr=197,fill=— 2432@238099314681:mshr_alloc:mshr=198,fill=—
-
-2436@238099314681:mshr_merge:mshr=197,fill=— 2458@238099594734:mshr_alloc:mshr=199,fill=— 2462@238099595067:mshr_alloc:mshr=200,fill=— 2466@238099595067:mshr_merge:mshr=200,fill=—
-
-2474@238099758570:mshr_alloc:mshr=201,fill=— 2478@238099758903:mshr_alloc:mshr=202,fill=—
-
-</details>
-
-**旁支 `request_fork` bridge（计数 + 首尾点名）**：共 309 条；event_id `4294967296`–`4294967604`；tick `238095585081`–`238099758570`。主链上的 bridge 已在第二部分逐条列出（source/dest/shared_addr 可核验）；其余 bridge 属于同一故障的其它请求转交，不参与主链证明。
-
-首 5 条 / 末 5 条：
-
-| event_id | tick | old_request_id | new_request_id | source→dest | shared_addr+size |
-|---|---|---|---|---|---|
-| 4294967296 | 238095585081 | 520906 | 520896 | 3→5 | 0x200000081d75000+1000 |
-| 4294967297 | 238095585747 | 520906 | 520907 | 17→18 | 0x200000081d75000+1000 |
-| 4294967298 | 238095585747 | 520906 | 520912 | 17→21 | 0x200000081d75000+1000 |
-| 4294967299 | 238095585747 | 520906 | 520913 | 17→24 | 0x200000081d75000+1000 |
-| 4294967300 | 238095586080 | 520906 | 520990 | 17→27 | 0x200000081d75000+1000 |
-| 4294967600 | 238099314015 | 520906 | 522217 | 69→2421 | 0x200000081d75000+1000 |
-| 4294967601 | 238099314681 | 520906 | 522221 | 69→2433 | 0x200000081d75000+1000 |
-| 4294967602 | 238099594734 | 520906 | 522348 | 69→2455 | 0x200000081d75000+1000 |
-| 4294967603 | 238099595067 | 520906 | 522349 | 69→2463 | 0x200000081d75000+1000 |
-| 4294967604 | 238099758570 | 520906 | 522407 | 69→2471 | 0x200000081d75000+1000 |
-
-**生命周期终止符 `chain_end`（非传播层、非 L5）**：event_id=`312448`；tick=`3515175146493`；detection_layer=`L5`；contained=`1`；outcome=`errant_commit_seen`；corr=`none`。它由传播监控退出回调发射，只是运行生命周期标记，不占据 L0–L5 任何层，永不作为 L5，也不构成含住证据。
-
-**其它 fault（不在本代表链上的独立故障链）**：权威报告共记录 228 个 fault；本文件的代表故障 `fault_id=1` 由 escape-first 规则选出。其余 fault 的终局分布如下（它们各有独立的 `inj` 与祖先链，**不并入**本代表链）：
-
-- 终局分布：{'full': 1, 'detected_contained': 5, 'provable_to_L4_then_unknown': 222}
-
-fault 数过多（228），逐条清单见权威 `chain_report`/`regrade` 的 `faults` 字段；本文件只逐条展开代表故障。
-
-## 最终验收结论
-
-- CHAIN_DEMONSTRATED: **是**（代表故障链在单祖先上从 `inj` 可证到终局见证）
-- terminal: `full`；provable_to: `L5`；propagation terminal: `L5`
-- witness: `errant_commit` event_id=`96` tick=`238095695637`（parent=`70`）
-- admitted: `True`；certified: `True`；violations: `[]`
-- truncated: `False`；gzip EOF 正常: `True`
-- evidence SHA 一致: `重算值已固定记录；plain chain_report 未内嵌 prop_evt SHA（n/a for cross-check）`
-- **PASS**
-
-### 12 项校验清单
-
-| 项 | 结果 | 证据 |
-|---|---|---|
-| 1_event_ids_exist | PASS | referenced ids=326; missing=none |
-| 2_parent_on_same_ancestry | PASS | contiguous parent chain of 16 events |
-| 3_tick_order | PASS | ticks 238095582084..238095695637 monotone=True |
-| 4_values_from_own_seed | PASS | all displayed event fields re-read from own prop_evt |
-| 5_no_cross_seed_identity_copy | PASS | all fault_id=1; prop_evt SHA unique among the 48 seeds |
-| 6_terminal_matches_authoritative_report | PASS | checker=full/L5 report=full/L5 |
-| 7_full_witness_real_L5_not_chain_end | PASS | witness kind=errant_commit id=96 dl=L5 outcome=errant_commit (kind!=chain_end) |
-| 8_containment_witness_real_contained | PASS | n/a (full escape) |
-| 9_narrative_and_table_agree | PASS | narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both |
-| 10_only_legitimate_shared_injection | PASS | no intra-RunID shared injection |
-| 11_no_runid_path_reuse | PASS | seed_dir/prop/report all carry T02-F2-W4 and seed3 |
-| 12_tier_matches_evidence | PASS | matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1 |
-
-### 证据表
-
-| 证据 | 绝对路径 | SHA-256 |
-|---|---|---|
-| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/prop_evt.txt.gz` | `937b99606969ce077c93f110215f83a17ed78c93a78671550c6f3d66c7905063` |
-| chain_report/regrade | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/chain_report.json` | `ca08630e64dad7470ae30ad21dafa1e6c8d321b5362688b3a6929327d9858693` |
-| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/manifest.json` | `b44315cdb65e033dc441ffb3528233868bc74b87ea0b3afe76c7777e9b2aa9e9` |
-| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/run.out` | `9fdfc3fd1fbca48fe971bd27771a42c849ecbede2d49780ee8e82e5a50ad2a93` |
-| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/run.err` | `d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900` |
-| stats.txt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/stats.txt` | `780eb40447fcbd56b5bcb2952807061b268f13bc56659d30af6368fec12cd76e` |
-
-- 原始事件流是否修改：**NO**
-- 是否重新运行 gem5：**NO**
-- 生成时间：`2026-10-27T17:36:59`；仓库 HEAD `6f98088a7144d7f6fb22d985be3023ac5658e71b`；生成脚本 `/tmp/gen_prop_v2.py`（SHA-256 `f33c3dac7656baf8114ff5c11f4effce1c2f10e7e13303c64ab8d54d6e94b8cb`）
+| `prop_evt.txt.gz` | `937b99606969ce077c93f110215f83a17ed78c93a78671550c6f3d66c7905063` | 11390937 | 2026-10-25T21:04:11 |
+| `chain_report.json` | `ca08630e64dad7470ae30ad21dafa1e6c8d321b5362688b3a6929327d9858693` | 1437808 | 2026-10-25T21:04:36 |
+| `run.out` | `9fdfc3fd1fbca48fe971bd27771a42c849ecbede2d49780ee8e82e5a50ad2a93` | 26601 | 2026-10-25T21:04:13 |
+| `run.err` | `d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900` | 129 | 2026-10-25T21:04:13 |
+| `stats.txt` | `780eb40447fcbd56b5bcb2952807061b268f13bc56659d30af6368fec12cd76e` | 391769 | 2026-10-25T21:04:12 |
+| `armtlb_injections.log` | `f539628d2f134f5816f78e3a9ee2db9dc01dca6b34f95dbc86dee3f1f6fb0c8d` | 48117 | 2026-10-25T21:04:09 |
+| manifest `manifest.json` | `b44315cdb65e033dc441ffb3528233868bc74b87ea0b3afe76c7777e9b2aa9e9` | 1778 | 2026-10-25T21:04:38 |
+| binary `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt` | `e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959` | 由 manifest 记录（未在本机重算二进制尺寸） | — |
+| binary source head | N/A（manifest 无该字段） | — | — |
+| analysis tool head | `4af986f726a6791f441130dee19eca0711e0b38f` | — | — |
+| checker `tools/lsu_chain_check.py` | `baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44` | 69565 | 见工具目录 |
+
+### 7.2 启动命令记录
+
+- `run.out` 内 `command line:`：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/lsu_b0_fs.py --restore-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015 --kernel /home/sdc/gem5-fi-ding/gem5-fs/vmlinux --disk /home/sdc/gem5-fi-ding/gem5-fs/ubuntu.img --bootloader /home/sdc/gem5-fi-ding/gem5-fs/boot.arm64 --cpu O3 --readfile /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS --ckpt-first-clock --chaos_armtlb --tlb_first_clock 1000 --tlb_probability 1.0 --tlb_max_faults 1 --tlb_fault_type bit_flip --tlb_bits_to_change 2 --tlb_lsu_tier F2 --tlb_rng_seed 3 --chaos_propagation --prop_run_id T02-F2-W4 --prop_sample_run_id s3`
+- `manifest.json` 的 campaign `cmd`：`LSU_GEM5_BIN=<bin> LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3 --cells T02-F2-W4 --phase trial --max-seeds-per-cell 3 --max-parallel 1 --allow-blocked-models --fs-timeout 5400 --fs-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015`
+
+### 7.3 二进制与工具身份
+
+- binary path：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt`
+- binary SHA-256：`e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959`
+- analysis tool head：`4af986f726a6791f441130dee19eca0711e0b38f`
+- checker SHA-256：`baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44`
+
+### 7.4 其它副本及其分类
+
+- `runs/lsu/r6_p1_T02-F2-W4/T02-F2-W4/seed3` — **INTERRUPTED（无 .done/.exit_code 标记）**
+- `runs/lsu/r6_w1_T02-F2-W4/T02-F2-W4/seed3` — **INTERRUPTED（无 .done/.exit_code 标记）**
+
+以上 SHA-256、字节数与 mtime 均为本次只读重算/读取值；原始文件未被修改，未运行 gem5、campaign 或 scons。
