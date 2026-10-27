@@ -165,6 +165,16 @@ git -C <worktree> diff --stat
 - 11 格 seed1 全部达到各自允许状态前，不补 seed2/seed3、不启动正式实验、不进入下一个 LSU 单元。
 - 某组失败只停该组，如实报告。
 
+**实测结果（2026-10-27）**
+- T10-F0-W4 / T10-F1-W4 / T10-F2-W4：**PASS**（真实注入 + 激活 + 完整 L5，admitted/certified，violations=[]）。
+- T05-F0-W4 valid_clear：**FAIL_NO_ACTIVATION**（injected=1，activated=0；L2 containment 存在；stats.numFaultsInjected=0，count_contradiction）。
+- T06-F0-W4 perm_subst：**FAIL_NO_ACTIVATION**（同上）。
+- T07-F0-W4 false_hit：**FAIL_TIMEOUT_OPEN_CHAIN**（injected=1；5400s Timeout；开放 L2，admitted=False）。
+- T08-F0-W4 T08-a：**PASS（仅 T08-a）→ PARTIAL_SUBMODEL_PROVEN**；walk_id=703，tlb_walk/tlb_refill shared walk_id，refill field=lost。
+- T08-W9：未运行，保持 BLOCKED_WORKLOAD_GAP。
+- 未补 seed2/seed3；未启动正式实验；未修改 C++/构建输入，复用冻结二进制 `20fda699…`。
+- 证据：`runs/lsu/r6_reports/R6-V3-CANARY-STATUS.{md,json}` + 每格 `R6-V3-CANARY-<RunID>-seed1.json`。
+
 ## 最终汇报清单
 
 51 份精确审计；结构失败具体文件名；两轴状态；W1 mismatch 完整清单；T01-F1-W4 复核结论；索引更新；文档提交 SHA；工具修复文件与提交；定向/完整回归；二进制 provenance；5 canary 状态；11 格逐格状态；W9 阻塞原因；T08-W4 是否仅 PARTIAL；待裁决事项。
