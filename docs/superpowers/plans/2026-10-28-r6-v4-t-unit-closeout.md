@@ -69,25 +69,25 @@ Lane A（T05/T06）、Lane B（T07）、Lane C（T08 + W9）各自写报告：
 
 **验收**：真实命令输出证明 count_contradiction 归零，且没有把"日志存在"当作 activated。
 
-## Task 3 — 根因修复 2：T07 false_hit 终局/计数（按 Lane B 结论）
+## Task 3 — 根因修复 2：T07 false_hit 终局/计数（按 Lane B 结论）**DONE**
 
-- [ ] 失败测试 → 最小修复 → 定向测试 → 完整回归
+- [x] 失败测试（[8]/[10] 源码契约）→ 最小修复（CAM 计数 + 关联臂）→ 定向测试通过；完整回归见 Task 8
 - [x] 独立提交 a0250d51
 
 **验收**：注入后第一处真实分歧可定位；终止/分类逻辑自洽；不得把超时强杀算 PASS。
 
-## Task 4 — T08 子模型覆盖（按 Lane C 结论）
+## Task 4 — T08 子模型覆盖（按 Lane C 结论）**DONE**
 
-- [ ] T08-b/c/d 各取得 ≥1 次真实动态覆盖（有界 canary，辅助证据，不冒充第 4 个正式 seed）
-- [ ] 若某子模型当前实现不可动态触达：保留真实阻塞，写不可执行证明
-- [ ] W9：复核 BLOCKED_WORKLOAD_GAP 是否成立；不成立则解锁最小路径
+- [x] T08-b/c/d 各取得 1 次真实动态覆盖（runs/lsu/r6_v4_canary_T08{b,c,d}-*；签名见 R6-V4-T08-SUBMODEL-COVERAGE.md）
+- [x] 四子模型均可动态触达；T08-c 如实记为“变体执行、按设计零硬件效应”
+- [x] W9：Lane C 用 debugfs 证据复核 FS 镜像无 GAP/Graph500，BLOCKED_WORKLOAD_GAP 成立；拒绝用 W4 替代
 
 **验收**：每子模型给出事件签名（event_id/kind/字段）作为覆盖证据。
 
-## Task 5 — 统一构建（仅当 Task 2–4 改了 C++）
+## Task 5 — 统一构建（仅当 Task 2–4 改了 C++）**DONE（两次）**
 
-- [ ] 所有 C++ 修复合并后**一次**构建：`cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt`
-- [ ] 记录新 binary source head、完整 SHA-256、大小、构建日志、告警差集
+- [x] 第一次统一构建（b13a60ab…，source head e2eccdec）覆盖 Task 2–4 的首次 C++ 修复；第二轮（e379cc5b…，source head 0501a00f）覆盖运行中发现的 R6-V4-ATTRIB 修复；第二次首建因 `field` 作用域错误 BUILD_EXIT=2，修正后 0 error/0 warning 通过
+- [x] 记录在 runs/lsu/r6_v4_bin_identity.txt 与各 manifest（含构建日志、exit、告警=0）
 - [ ] 若只改 tools：不重建，明确区分 binary_source_head / binary_sha256 / analysis_tool_head
 
 ## Task 6 — 受影响 RunID 的 seed 运行（30 个 seed）
