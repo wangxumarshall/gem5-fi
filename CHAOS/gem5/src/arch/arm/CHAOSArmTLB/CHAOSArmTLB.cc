@@ -1070,6 +1070,13 @@ namespace gem5
         }
 
         stats->numStateFaults++;
+        // [R6-V4-STATECOUNT] T05/T06/T07 state/attr faults are injected HERE
+        // (this block writes the injection log and mutates a live entry), so
+        // the generic total must move too. Omitting it made stats.txt report
+        // numFaultsInjected=0 while the log/funnel reported 1 — an artefact
+        // that the campaign correctly flagged as count_contradiction
+        // (measured: T05-F0-W4 / T06-F0-W4 seed1, frozen 20fda699…).
+        stats->numFaultsInjected++;
         ++faults_injected_count;
         if (write_log && log_stream) {
             *(log_stream->stream())
@@ -1182,6 +1189,10 @@ namespace gem5
         }
 
         stats->numStateFaults++;
+        // [R6-V4-T07CHAIN] Same omission as the T05/T06 site: this block
+        // writes the applied-injection record, so the generic total must move
+        // too (measured T07-F0-W4 seed1: numFaultsInjected=0 vs log/funnel=1).
+        stats->numFaultsInjected++;
         ++faults_injected_count;
         if (write_log && log_stream) {
             *(log_stream->stream())
