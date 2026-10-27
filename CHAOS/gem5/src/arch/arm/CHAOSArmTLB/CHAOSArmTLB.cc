@@ -578,6 +578,28 @@ namespace gem5
         // ineligible site. Every other fault type is byte-equivalent.
         if (isCamFault(fault_type_enum)) return;
 
+        // [R6-V4-ATTRIB] Early gate for the explicit state/attr models: a
+        // lookup with no Request identity (req_seq == 0) cannot be attributed
+        // downstream (the completion node is keyed by (req_seq, va)), so the
+        // draw must not be spent on it. Placed BEFORE the legacy F0 gate so no
+        // RNG draw / skip budget is consumed. The dispatch-point gate below
+        // keeps the same rule for the Random fault type.
+        if ((isEntryStateFault(fault_type_enum) ||
+             isAttrSubstFault(fault_type_enum)) && req_seq == 0) {
+            if (write_log && log_stream && !no_request_notice) {
+                no_request_notice = true;
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_lookup_no_request"
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << ", FaultType: " << faultTypeToString(fault_type_enum)
+                    << " (lookup carries no Request identity: not "
+                       "attributable, budget NOT consumed)"
+                    << std::endl;
+            }
+            return;
+        }
+
         // TLB has no direct curCycle(); use curTick() vs the clock domain.
         // The first/last clock window is checked via curTick (tick-based,
         // approximate — a TLB SimObject has access to its own clock).
@@ -658,6 +680,31 @@ namespace gem5
         // entry). They do not use the pfn mask and bypass applyProtection
         // (which models pfn-parity), so they are dispatched here. An honest
         // no-op (no legal candidate) registers and counts nothing.
+        // [R6-V4-ATTRIB] A lookup with NO Request identity (req_seq == 0) is
+        // not attributable: the tracer keys the translation-completion node by
+        // (req_seq, va), so such a fault can only ever produce an open chain
+        // at L2. Measured (T05-F0-W4 s2, binary b13a60ab…): the draw landed on
+        // a req_seq=0 kernel lookup -> inj/tlb_lookup/tlb_state + chain_end,
+        // no completion, not admissible. Such lookups are counted as
+        // attempted/eligible (they really reached the gate) but the fault is
+        // NOT applied and NO budget is consumed, so the draw stays available
+        // for an attributable lookup. This narrows the sampling DOMAIN (state
+        // /attr models only); pfn models (T01/T02/T10) are untouched.
+        if ((isEntryStateFault(chosen) || isAttrSubstFault(chosen)) &&
+            req_seq == 0) {
+            if (write_log && log_stream && !no_request_notice) {
+                no_request_notice = true;
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_lookup_no_request"
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << ", FaultType: " << faultTypeToString(chosen)
+                    << " (lookup carries no Request identity: not "
+                       "attributable, budget NOT consumed)"
+                    << std::endl;
+            }
+            return;
+        }
         if (isEntryStateFault(chosen) || isAttrSubstFault(chosen)) {
             applyEntryFieldFault(entry, chosen, va, req_seq, req_size);
             // [R6-F5-NOEFFECT] F5 的 outcome 记账目前只覆盖 pfn 改写模型。
@@ -1137,6 +1184,22 @@ namespace gem5
             // since the hook sees both); eligible = past the cap/probability
             // gates, BEFORE the skip budget.
             ++legacy_attempted;
+            // [R6-V4-ATTRIB] Same attribution rule for the CAM family: a
+            // req_seq=0 lookup cannot be attributed, so no draw is spent.
+            if (req_seq == 0) {
+                if (write_log && log_stream && !no_request_notice) {
+                    no_request_notice = true;
+                    *(log_stream->stream())
+                        << "Tick: " << curTick()
+                        << ", Site: arm_tlb_lookup_no_request"
+                        << ", VA: 0x" << std::hex << va << std::dec
+                        << ", FaultType: " << faultTypeToString(fault_type_enum)
+                        << " (lookup carries no Request identity: not "
+                           "attributable, budget NOT consumed)"
+                        << std::endl;
+                }
+                return entry;
+            }
             if (max_faults != 0 && faults_injected_count >= max_faults)
                 return entry;
             std::uniform_real_distribution<float> probDist(0.0f, 1.0f);

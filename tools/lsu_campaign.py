@@ -2218,7 +2218,12 @@ _ARMTLB_DIAG_SITES = ("arm_tlb_walk_issue_probe",
                       # `arm_tlb_walk_refill_stale`). The armed line is the
                       # handshake, not the application — counting both made a
                       # one-fault run read log=2 vs trigger=1.
-                      "arm_tlb_walk_refill_armed")
+                      "arm_tlb_walk_refill_armed",
+                      # [R6-V4-ATTRIB] one-shot notice: a state/attr/CAM draw
+                      # hit a lookup with no Request identity and was NOT
+                      # applied (budget not consumed) — a decision record, not
+                      # an injection.
+                      "arm_tlb_lookup_no_request")
 # A real lookup-hit fault MUST record the physical effect it applied; a
 # lookup_hit line without these fields is malformed evidence, not an injection.
 _ARMTLB_HIT_APPLIED_FIELDS = ("VA:", "old_pfn:", "new_pfn")

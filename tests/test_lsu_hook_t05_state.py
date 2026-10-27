@@ -222,6 +222,21 @@ def main():
     check("PA 中立时不开臂（arms.seq_primary / addr_fallback 双门）",
           "if (arms.seq_primary)" in body and "if (arms.addr_fallback)" in body)
 
+    print("[11] [R6-V4-ATTRIB] 无 Request 身份的 lookup 不消费故障预算")
+    # 真缺陷（实测 T05-F0-W4 seed2）：抽签落到 req_seq=0 的 lookup，注入了
+    # 真实故障，但翻译完成节点按 (req_seq, va) 关联，永远无法归因 → 链只能
+    # 止于 L2（4 个事件，无可准入结局）。修复：state/attr/CAM 抽签前先拒绝
+    # 无 Request 身份的 lookup（计 attempted、不消费预算、一次性写明原因）。
+    check("hit 钩子有 req_seq==0 早退门", "req_seq == 0" in cc)
+    check("早退门在 state/attr 分派之前",
+          cc.index("req_seq == 0") < cc.index("applyEntryFieldFault(entry"))
+    check("CAM 钩子同样拒绝无 Request 身份",
+          cc.count("R6-V4-ATTRIB") >= 2, str(cc.count("R6-V4-ATTRIB")))
+    check("一次性说明站点 arm_tlb_lookup_no_request",
+          "arm_tlb_lookup_no_request" in cc)
+    check("campaign 把该站点视为诊断（不计注入）",
+          "arm_tlb_lookup_no_request" in LC._ARMTLB_DIAG_SITES)
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

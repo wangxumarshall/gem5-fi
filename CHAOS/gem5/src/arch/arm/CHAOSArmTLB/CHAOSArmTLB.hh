@@ -284,6 +284,9 @@ class CHAOSArmTLB : public SimObject
     Addr last_walk_vpn = 0;
     bool have_last_walk = false;
     bool stale_no_previous_notice = false;
+    // [R6-V4-ATTRIB] one-shot notice: a state/attr/CAM draw hit a lookup with
+    // no Request identity (req_seq == 0) and was therefore not applied.
+    bool no_request_notice = false;
     // [R6-F0FUNNEL 2026-10-25] PASSIVE F0-legacy funnel observation.
     // F0 mounts no ChaOSLsuTrigger (the tier object exists only when
     // --tlb_lsu_tier != "off"), so the legacy lookup path had NO authority to
