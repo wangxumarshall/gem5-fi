@@ -1,0 +1,3222 @@
+{
+ "generated_at": "2026-10-27T17:53:48",
+ "scope": "17 COMPLETE_3_OF_3 RunIDs x 3 seeds = 51 seeds",
+ "rules": [
+  "Exactly one authoritative evidence directory per RunID+seed.",
+  "Classify by key-file hashes and identity, never by directory name.",
+  "EXACT_DUPLICATE = prop_evt byte-identical + chain_report JSON semantically identical + run.out identical after stripping start-time/pid/outdir.",
+  "OLD_BINARY_REFERENCE = manifest binary_sha256 differs from the authoritative binary.",
+  "TRUNCATED = prop_evt gzip stream not at EOF although a done marker exists.",
+  "INTERRUPTED = no done marker, no live writer (stale mtime) and/or gzip not at EOF.",
+  "ACTIVE = no done marker, gzip not at EOF, fresh mtime (live writer).",
+  "FAILED = manifest exit_code non-zero.",
+  "REVIEW_REQUIRED = same/unknown binary with differing evidence and no classifying identity evidence."
+ ],
+ "seeds": {
+  "T01-F0-W4|seed1": {
+   "run_id": "T01-F0-W4",
+   "seed": 1,
+   "status": "COMPLETE_CONTAINED_L2",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed1",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "bc82f29d8f69410461d18c07a1ee9314f18885a5",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed1/prop_evt.txt.gz",
+      "sha256": "b1e54428677e75ce589e35b932e79ea05d6de5fe30bf104ef10e9dc3cad70701"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed1/chain_report.json",
+      "sha256": "df1d9cac7209035508cad3f43446c282689482642cafa4a399c0669d1f4d01ab",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed1/stats.txt",
+      "sha256": "6b13b88ea7c7be2b2d9e407b552500d2755b68dc4cc530c747cb31b00fb76206"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed1/run.out",
+      "sha256": "c0b948ea4a177d03f5109d00ee9dd2ae8d9ef7e7d8cf9545b63736fd38e8d05c"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed1/run.err",
+      "sha256": "482bd31fcaaa688cce6887ea0f09d70b62637376b742d7161649bcefc386b41e"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/manifest.json",
+      "sha256": "730ca9788c6b0bc12cc4d218eea0758d4dedc9d719eadbe9fdc01aed9c1eca03"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F0-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c6_T01-F0-W4/T01-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "4417e69ca3b0047d5cb96379343af8af30f4571d068f5e8129134e7e1ec1bab0",
+     "chain_report_sha256": "ea20c1c07b5203cdee307414e1df2a1d7669a88840708a787f4c9484a5abedb3",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c7_T01-F0-W4_s1/T01-F0-W4/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 a9b2c23618fc6c7a != authoritative e80528423fec4af3",
+     "binary_sha256": "a9b2c23618fc6c7a513f32d05f6b0a55d53d4486a273dcb60432675f3c327fd8",
+     "prop_evt_sha256": "b1e54428677e75ce589e35b932e79ea05d6de5fe30bf104ef10e9dc3cad70701",
+     "chain_report_sha256": "df1d9cac7209035508cad3f43446c282689482642cafa4a399c0669d1f4d01ab",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T01-F0-W4_s1/T01-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "b1e54428677e75ce589e35b932e79ea05d6de5fe30bf104ef10e9dc3cad70701",
+     "chain_report_sha256": "df1d9cac7209035508cad3f43446c282689482642cafa4a399c0669d1f4d01ab",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T01-F0-W4_s2/T01-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "b1e54428677e75ce589e35b932e79ea05d6de5fe30bf104ef10e9dc3cad70701",
+     "chain_report_sha256": "df1d9cac7209035508cad3f43446c282689482642cafa4a399c0669d1f4d01ab",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_canary_T01-F0-W4/T01-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "4417e69ca3b0047d5cb96379343af8af30f4571d068f5e8129134e7e1ec1bab0",
+     "chain_report_sha256": "ea20c1c07b5203cdee307414e1df2a1d7669a88840708a787f4c9484a5abedb3",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_canary_T01-F0-W4_attempt1_aborted/T01-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "prop_evt gzip not at EOF + no done marker + mtime 71.8h old (abandoned/interrupted write)",
+     "binary_sha256": null,
+     "prop_evt_sha256": "9a2d96723a5071b93a11cec688feff113e7ef488e280cecad827bad14df73aa1",
+     "chain_report_sha256": null,
+     "prop_gzip_ok": false,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_p1_T01-F0-W4/T01-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "5150212c9890b94785142b7236833c1432726d2515e437880af2f483ac2f1f57",
+     "chain_report_sha256": "638be6449fde15b002249461ea743de671895d9e1d35e40da73c8d0badd903e0",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "de579336f26b2c6d9e810eaacd9e9e6ec575e0e43a83901bf1f87af13ac2693b",
+     "chain_report_sha256": "491dcb04104a34e1b63990c5efe882868d342202aa1c308a96a6c57b951cbecd",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T01-F0-W4/T01-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "867bc71aed0d73b03050c9127d0f6f3c45076d2a8fd0010897cc94650eb65ed0",
+     "chain_report_sha256": "e24318001ad209010ed5c0eb0fe802dd057351ad038e7a762816a6e980b24e6f",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T01-F0-W4|seed2": {
+   "run_id": "T01-F0-W4",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "bc82f29d8f69410461d18c07a1ee9314f18885a5",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/prop_evt.txt.gz",
+      "sha256": "8c385db13bfc0a717cd55f1d1749a1c0a329d4e34af067ab21c7d752573fd9de"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/chain_report.json",
+      "sha256": "9b3a54333722ad6c39fb1ac643cb24881e2e564d14fcdcc680b455a15cfb595a",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/stats.txt",
+      "sha256": "6eebe8976ef7df1a626234267199bc388d173dbf7041607b76c26a475e15290e"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.out",
+      "sha256": "6aa8706817b21539a8c88c9beefc1d62542a40c845a5ad9daee18cb181070505"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed2/run.err",
+      "sha256": "0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/manifest.json",
+      "sha256": "730ca9788c6b0bc12cc4d218eea0758d4dedc9d719eadbe9fdc01aed9c1eca03"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F0-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c9_T01-F0-W4_s2/T01-F0-W4/seed2",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "8c385db13bfc0a717cd55f1d1749a1c0a329d4e34af067ab21c7d752573fd9de",
+     "chain_report_sha256": "c523885f1f82bc04b1e8e2c30ca16ec6c88c01c1cd89294b600cccacabbbf82c",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_p1_T01-F0-W4/T01-F0-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "cb865d8bd2946ed17ebefa1828d774c968f7590a5dba127d57dce28d2ba27298",
+     "chain_report_sha256": "39ac94c506bc584077d153608adb73b16617d0de07184939b80127b8452b62fc",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T01-F0-W4/T01-F0-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "3ecc0741be69875cc60cf9d195a9b597a79a78d85f8f8a7d17e18809e94eed87",
+     "chain_report_sha256": "f78ba1057250c0d7f75ea3ee935b9f076d532993dc5000229a4e52ccdfa5c98e",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T01-F0-W4|seed3": {
+   "run_id": "T01-F0-W4",
+   "seed": 3,
+   "status": "COMPLETE_CONTAINED_L2",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed3",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "bc82f29d8f69410461d18c07a1ee9314f18885a5",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed3/prop_evt.txt.gz",
+      "sha256": "1db3d9275cfb56a0ca13007c9a009ac987f514d9d49c9ed14e0430dcbcc1aa92"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed3/chain_report.json",
+      "sha256": "2240b159cf91856dfabd62429831e898260382f236a30b21b74afc5f6c41114e",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed3/stats.txt",
+      "sha256": "05fc4895e060abd97487d112dd6d740ac15279bed656f22bd06b94da9c54d198"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed3/run.out",
+      "sha256": "25506842d89af7d85f3df1213179a3bbb361373878411c958f1f95fea071decd"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/T01-F0-W4/seed3/run.err",
+      "sha256": "482bd31fcaaa688cce6887ea0f09d70b62637376b742d7161649bcefc386b41e"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T01-F0-W4_s3/manifest.json",
+      "sha256": "730ca9788c6b0bc12cc4d218eea0758d4dedc9d719eadbe9fdc01aed9c1eca03"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F0-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_p1_T01-F0-W4/T01-F0-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "748155db0f6f61deb767908a12ddf9af72fd7fed702fa2b9b8ea239a9423dafd",
+     "chain_report_sha256": "c4e619a642e919109c1e56707c08a0248471aa732cd118b8af49017a768a2183",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T01-F0-W4/T01-F0-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "prop_evt gzip not at EOF + no done marker + mtime 88.2h old (abandoned/interrupted write)",
+     "binary_sha256": null,
+     "prop_evt_sha256": "cdcfd6775109c4a5bcdc02be36cd9f5d09df48b10365fdeae937e858994302f3",
+     "chain_report_sha256": "95ee6fe1febbe019faab8b9dfd5d3b9698bbc5f5d563ec5c1e90634436cb49bf",
+     "prop_gzip_ok": false,
+     "done": false
+    }
+   ]
+  },
+  "T02-F0-W4|seed1": {
+   "run_id": "T02-F0-W4",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed1",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "bc82f29d8f69410461d18c07a1ee9314f18885a5",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed1/prop_evt.txt.gz",
+      "sha256": "4fadb9e9fd6768f63b1125f2a9f5eb2c6cb0ca8707092c46424841ce61e0770a"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed1/chain_report.json",
+      "sha256": "e06393ed8010bdc23f473174423ad97101d749aecd9c87c3d1519031b3b45016",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed1/stats.txt",
+      "sha256": "d57b9ce5a0be2764e334a82915714ed98801c6a0e7f6744cea79ccc73212b181"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed1/run.out",
+      "sha256": "2f095e9493fa90a69a9a44128ffa3a349e19460a6ec7fc9eb2e494269221701e"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed1/run.err",
+      "sha256": "0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/manifest.json",
+      "sha256": "f90691e295fb2369039940878ffa273d79ed39316ecaafffa89461dede282fef"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F0-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_bisect_v0/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "8c7ce8a96f5cb260555c70a59f6b665deb59eb965eb462d22684384ab4ed9ab9",
+     "chain_report_sha256": "ecde354fed0b3d43bd22452fd379492ec56d33898c66f3e7db862e5c5fcf7959",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_bisect_v1/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "f991f0884a122d37148f4abe87e287bfc083e314ba42cbc2096e6d66cd44787e",
+     "chain_report_sha256": "ed52800b57ed8978362974623a3596ea3d53bbf5d8ddc754bf73645a0f486e05",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_bisect_v2/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "f991f0884a122d37148f4abe87e287bfc083e314ba42cbc2096e6d66cd44787e",
+     "chain_report_sha256": "ed52800b57ed8978362974623a3596ea3d53bbf5d8ddc754bf73645a0f486e05",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_bisect_v3/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "f991f0884a122d37148f4abe87e287bfc083e314ba42cbc2096e6d66cd44787e",
+     "chain_report_sha256": "ed52800b57ed8978362974623a3596ea3d53bbf5d8ddc754bf73645a0f486e05",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_bisect_v4/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "f991f0884a122d37148f4abe87e287bfc083e314ba42cbc2096e6d66cd44787e",
+     "chain_report_sha256": "ed52800b57ed8978362974623a3596ea3d53bbf5d8ddc754bf73645a0f486e05",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_bisect_v5/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "f991f0884a122d37148f4abe87e287bfc083e314ba42cbc2096e6d66cd44787e",
+     "chain_report_sha256": "ed52800b57ed8978362974623a3596ea3d53bbf5d8ddc754bf73645a0f486e05",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c5_T02-F0-W4/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "4fadb9e9fd6768f63b1125f2a9f5eb2c6cb0ca8707092c46424841ce61e0770a",
+     "chain_report_sha256": "a83067e2b4451e15460e766dbde55d26d530e215ea0f8831cdd0e4cda4df3f08",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c7_T02-F0-W4_s1/T02-F0-W4/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 a9b2c23618fc6c7a != authoritative e80528423fec4af3",
+     "binary_sha256": "a9b2c23618fc6c7a513f32d05f6b0a55d53d4486a273dcb60432675f3c327fd8",
+     "prop_evt_sha256": "4fadb9e9fd6768f63b1125f2a9f5eb2c6cb0ca8707092c46424841ce61e0770a",
+     "chain_report_sha256": "b823581206b50c72fc7c601dcad63b97cd3b22b6333bceb1a6f005704dbf3c5c",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T02-F0-W4_s1/T02-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "4fadb9e9fd6768f63b1125f2a9f5eb2c6cb0ca8707092c46424841ce61e0770a",
+     "chain_report_sha256": "8cf4a5ccad2b945251742cac4dfd02b8710cf7fc75ccdf153c9ddefe4e4ab40f",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T02-F0-W4_s2/T02-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "4fadb9e9fd6768f63b1125f2a9f5eb2c6cb0ca8707092c46424841ce61e0770a",
+     "chain_report_sha256": "0ebf8701ce8f94921d4624a044c4ef51de932d0750b80de7d3aa93fabcdcae95",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_gracecheck2_T02-F0-W4/T02-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": null,
+     "prop_evt_sha256": "4fadb9e9fd6768f63b1125f2a9f5eb2c6cb0ca8707092c46424841ce61e0770a",
+     "chain_report_sha256": "1d9fc408d4f5a7c6c060611758734516476108f6fd03bd10ad6730b59db53e13",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c9_gracecheck3_T02-F0-W4/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "65da7c7b8debc6b0d294a8b557022ee6e981fab1c3b80a5916547607b524e176",
+     "chain_report_sha256": "4c2efd553a6aeee144a5201cdf2f05dc0be2636aa2d21facb94d1efe9424c0a8",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c9_gracecheck_T02-F0-W4/T02-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": null,
+     "prop_evt_sha256": "4fadb9e9fd6768f63b1125f2a9f5eb2c6cb0ca8707092c46424841ce61e0770a",
+     "chain_report_sha256": "c82bfdbc5a5d996a22e00e3445e4871ad68af8bc3337e67c6eabbcf1e8f7aa46",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_canary_T02-F0-W4/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "f991f0884a122d37148f4abe87e287bfc083e314ba42cbc2096e6d66cd44787e",
+     "chain_report_sha256": "ed52800b57ed8978362974623a3596ea3d53bbf5d8ddc754bf73645a0f486e05",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_p1_T02-F0-W4/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "349356d2453de6d47175d91404733c652e2359be25f7ae3f6ba1225b13dc9f53",
+     "chain_report_sha256": "57022121757d358492e3742b0ca9c2494cfde52af2a3b6f9b77e4c979c870d8a",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_H2_T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "72d960a3c5c5029a39aae1772d61b21ebc0910926a650ccaa34ca49199ad4871",
+     "chain_report_sha256": null,
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_H_T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "2a19033229cdf39000ddf5ac3715b4def3f2e330eb90826cd525f9290a68ee54",
+     "chain_report_sha256": null,
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "a1189be7577fa7ae00aaf37d6d2e869f3161f26d2628976dd2f0d16edfd6db55",
+     "chain_report_sha256": "9dffb697cd3bd744efbaf474fd1a91f0515f913ff97fc7a46ea743ee41499c1c",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T02-F0-W4/T02-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "8c7ce8a96f5cb260555c70a59f6b665deb59eb965eb462d22684384ab4ed9ab9",
+     "chain_report_sha256": "0d414a1c0501ecb7426bbfc254419b98e10088327f6df4adc5ef3b191ba9725a",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T02-F0-W4|seed2": {
+   "run_id": "T02-F0-W4",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed2",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "bc82f29d8f69410461d18c07a1ee9314f18885a5",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed2/prop_evt.txt.gz",
+      "sha256": "32f66098c484fac18b93665c2ecd58384369a69f748f5756f441d85b2cedcfd6"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed2/chain_report.json",
+      "sha256": "073ec6dfc2fcc16eddc9d3ca9f1bb3158756fa0c2e33e6195faa8cec8e04fb36",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed2/stats.txt",
+      "sha256": "0a9943e163783f88a1b030ad7eae1bcac6b2113a13b070d9c76d1d1ad80b8184"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed2/run.out",
+      "sha256": "d91d34058b355d731df75688f98ffffde3b3083b5836d124e7c3315593ec955a"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed2/run.err",
+      "sha256": "0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/manifest.json",
+      "sha256": "f90691e295fb2369039940878ffa273d79ed39316ecaafffa89461dede282fef"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F0-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c9_T02-F0-W4_s2/T02-F0-W4/seed2",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "32f66098c484fac18b93665c2ecd58384369a69f748f5756f441d85b2cedcfd6",
+     "chain_report_sha256": "2512efe0bd38d7db499a664328033cfb0ea05208d96161a05dd0c1f78380ae4e",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_p1_T02-F0-W4/T02-F0-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "a08d7d4295a2444d72a4b4b30eda28a98d224029fe7cdde9a8891759a4ac98af",
+     "chain_report_sha256": "be260e583580564a74581b6a630d3487dc3735ee1ccc8e5b428a68afb70404ea",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T02-F0-W4/T02-F0-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "c208347818ff7418574dbef74d7341d4581c2dec5c3db11221362e0ab105b6f1",
+     "chain_report_sha256": "a0181979fc58a3a24fdfdf1c360a645161e3054330f2ebb27b6fd8d88788f8c8",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T02-F0-W4|seed3": {
+   "run_id": "T02-F0-W4",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed3",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "bc82f29d8f69410461d18c07a1ee9314f18885a5",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed3/prop_evt.txt.gz",
+      "sha256": "b75d9bf97fbf6476f137af49a1612a1e1a205c42db0c3df5bfb29a51cf54e8d4"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed3/chain_report.json",
+      "sha256": "a41ec6417187630ba0ae9f6d1f2d92501dbb5e18f01699aef0bc6284d99aceb2",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed3/stats.txt",
+      "sha256": "ab734396d9c85ed527ef651dbeb0cfdad4d3e003719a7c558aed4e7087ae732b"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed3/run.out",
+      "sha256": "0fe79af194bdfda02059e68b105d8eefbf060561681607861bf1508b885b71d4"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/T02-F0-W4/seed3/run.err",
+      "sha256": "0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T02-F0-W4_s3/manifest.json",
+      "sha256": "f90691e295fb2369039940878ffa273d79ed39316ecaafffa89461dede282fef"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F0-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_p1_T02-F0-W4/T02-F0-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "c58d887dd710b0e7476b361aa005005340674ad49c4fcbd2189cb5052662a2f7",
+     "chain_report_sha256": "519c03f84b04c5dc8157f79c8b3fbc493e819644e0b2fc61a49925f983a4387b",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T02-F0-W4/T02-F0-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "fdc2cdf14768932ba98243e25a16cbee3a37addc1c3300f84c009284e2f1a7bd",
+     "chain_report_sha256": "728a6c7252a77306cc2af36e6683d2a13c929ad7a17c9f7f1a127108fcf8b3bb",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T02-F2-W4|seed1": {
+   "run_id": "T02-F2-W4",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed1",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "fcacc958b799c635babd2834cce9da6942322d91",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed1/prop_evt.txt.gz",
+      "sha256": "6caf97eea470984bce9fb11068a7721618c1abfb626686617219f1aedfb2521e"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed1/chain_report.json",
+      "sha256": "8307a11250c09a6f9787885b31f6738dc7c42a014ce4918adc24c6c5e3384490",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed1/stats.txt",
+      "sha256": "63782326dc21ea434a3618d624dd488f15275268940fb27e8c2e493336f7c59b"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed1/run.out",
+      "sha256": "8f1b06fab788211e5c9f07a4f8ce3f466f9bcb3dd330480d4103da14aee125fc"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed1/run.err",
+      "sha256": "542053f2316e00845e96acb4d0f3b335c76fdc87803a2c67dc0821aa4c8332a0"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/manifest.json",
+      "sha256": "b44315cdb65e033dc441ffb3528233868bc74b87ea0b3afe76c7777e9b2aa9e9"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F2-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c5_T02-F2-W4/T02-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "6caf97eea470984bce9fb11068a7721618c1abfb626686617219f1aedfb2521e",
+     "chain_report_sha256": "daa649c44cc2d9720df994c53a9557d9987e12f4b2ec964e6fa96f6d55f4291b",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c7_T02-F2-W4_s1/T02-F2-W4/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 a9b2c23618fc6c7a != authoritative e80528423fec4af3",
+     "binary_sha256": "a9b2c23618fc6c7a513f32d05f6b0a55d53d4486a273dcb60432675f3c327fd8",
+     "prop_evt_sha256": "6caf97eea470984bce9fb11068a7721618c1abfb626686617219f1aedfb2521e",
+     "chain_report_sha256": "f03d338263150651ae2231b945d6b9fe1fdbdf1c3eab30a4ec5534571a2d29e4",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T02-F2-W4_s1/T02-F2-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "6caf97eea470984bce9fb11068a7721618c1abfb626686617219f1aedfb2521e",
+     "chain_report_sha256": "e25fc9c7ffba8ff5e37bb64f941f1e9a7b0372c2f0412a1ef436642994943571",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T02-F2-W4_s2/T02-F2-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "6caf97eea470984bce9fb11068a7721618c1abfb626686617219f1aedfb2521e",
+     "chain_report_sha256": "886000d0b7633871adab2516c3ae32e8438073b9176ac9683452a4227c1cfd98",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_canary_T02-F2-W4/T02-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "3e72c332022c864f50aaad8ad5b12567cd6ea2a535dfb47dbbd0bf66fc761e0b",
+     "chain_report_sha256": "6799dfc7dfbb0653f911e6315b140b320ea16d2bcd94552dcd7743dcb79ede6c",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_p1_T02-F2-W4/T02-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "d88ea7a00418e96073fcdb2c7ed29a4a34eb1b6eb75a6afaeedbb01deccbb39e",
+     "chain_report_sha256": "ef466ce6b8dfb63003e33bc5f914b3821fc1ea90448306c6e6fb42741ccbc7f9",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_rejudge_T02-F2-W4_toolfix/T02-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "6caf97eea470984bce9fb11068a7721618c1abfb626686617219f1aedfb2521e",
+     "chain_report_sha256": "db9523485a9d44f097d44e81c6be95c82a3c54ea7c6d0874736f22ffc2a48a1d",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T02-F2-W4/T02-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "cbce74173db82c7cf17ac47a2cfdbbf8d21963256ebf675604cf3c2a852142ab",
+     "chain_report_sha256": "395986881d09b128f3540c576b348f2a2d2aa27e38248a52846cbc83b19d2f8e",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T02-F2-W4|seed2": {
+   "run_id": "T02-F2-W4",
+   "seed": 2,
+   "status": "COMPLETE_CONTAINED_L4",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "fcacc958b799c635babd2834cce9da6942322d91",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2/prop_evt.txt.gz",
+      "sha256": "13ac3a3c79a09571bb5c3314c32c1e1913c3a922de6c3dcbfea87a419a27b65e"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2/chain_report.regrade-20261027T103833.json",
+      "sha256": "823cc582a333a45e3b054f476c565332924e1ef5fc8518db954f0f42c8cfbba1",
+      "kind": "regrade"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2/stats.txt",
+      "sha256": "e5fef9ee649eef4540bc5119fcb596ee963d8b5eab88c526d83db62ae93d6e65"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2/run.out",
+      "sha256": "f07c0f93c6cad294a5712ac3125f1d6ee35bc86e3eb68ad2bb60d225d09e337c"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed2/run.err",
+      "sha256": "542053f2316e00845e96acb4d0f3b335c76fdc87803a2c67dc0821aa4c8332a0"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/manifest.json",
+      "sha256": "b44315cdb65e033dc441ffb3528233868bc74b87ea0b3afe76c7777e9b2aa9e9"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F2-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c9_T02-F2-W4_s2/T02-F2-W4/seed2",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "13ac3a3c79a09571bb5c3314c32c1e1913c3a922de6c3dcbfea87a419a27b65e",
+     "chain_report_sha256": "a466fc3fd0d78f77913dc50ac2270abb53524342b756574d3533333b6b750a6a",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_p1_T02-F2-W4/T02-F2-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "6655a275b9a0083ba19d319b0f6c74020f0b11caacc9cc34406f478e043179e9",
+     "chain_report_sha256": "405ef80aa566404e7d4fde9d646a6eb16ff84cccfc9385e3549e8ebcee0d8c25",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T02-F2-W4/T02-F2-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "4b345ad7936032e5a7f85c1db21d78e2282a28bcbf734ef07ba42b5817f872bc",
+     "chain_report_sha256": "47ed81482f63aa7f5bf95cbb50c85917c1ea0b70ca9fb9cc75e6c57a2696bc88",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T02-F2-W4|seed3": {
+   "run_id": "T02-F2-W4",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "fcacc958b799c635babd2834cce9da6942322d91",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/prop_evt.txt.gz",
+      "sha256": "937b99606969ce077c93f110215f83a17ed78c93a78671550c6f3d66c7905063"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/chain_report.json",
+      "sha256": "ca08630e64dad7470ae30ad21dafa1e6c8d321b5362688b3a6929327d9858693",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/stats.txt",
+      "sha256": "780eb40447fcbd56b5bcb2952807061b268f13bc56659d30af6368fec12cd76e"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/run.out",
+      "sha256": "9fdfc3fd1fbca48fe971bd27771a42c849ecbede2d49780ee8e82e5a50ad2a93"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/T02-F2-W4/seed3/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T02-F2-W4_s3/manifest.json",
+      "sha256": "b44315cdb65e033dc441ffb3528233868bc74b87ea0b3afe76c7777e9b2aa9e9"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F2-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_p1_T02-F2-W4/T02-F2-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "4783e483c5e7c8a538c955c878845cd122989c9912e60b3d0466a70b34521b13",
+     "chain_report_sha256": "b02d163397a03266df18d22a731b8c3f31361bf12c6987757578059e6e466a55",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T02-F2-W4/T02-F2-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "cbbea8cf3bba74709b9fa5d2497dc1ca321ce47e3daa90fea96b7678b783634d",
+     "chain_report_sha256": "0fab6db643cee889204a8d488203e7b5a2c3afb9ca9e07219791f7e4fa305711",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T04-F0-W4|seed1": {
+   "run_id": "T04-F0-W4",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed1",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "f680bbc274d0ab2dde8fd1b494dc795b9f544f2d",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed1/prop_evt.txt.gz",
+      "sha256": "7b807c1aecf149c0487a454a609a1fe366bbd27d8121c047759214886179d9fb"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed1/chain_report.json",
+      "sha256": "dd6491e6a70ccb25588b8255bd73ad6dcc94d0a7d3da0d49892b5e8a1b0daa49",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed1/stats.txt",
+      "sha256": "e9b3825d497bff6beb8673942f3f696e61e7c34ed1e81f22e6f9c43e8487171c"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed1/run.out",
+      "sha256": "03fd149dcfbe83083a7a7c48309ee2c5db1306107351153f32172b04831bdb89"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed1/run.err",
+      "sha256": "0bf115890ff85c49b6663e49525e43b1456d301c349787c7d511e415d424e46f"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/manifest.json",
+      "sha256": "8c51599c7fc95522b54c4a5d7d7aa593feee9897a86d4ef89dd85eac2a877e1d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T04-F0-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c6_T04-F0-W4/T04-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "7b807c1aecf149c0487a454a609a1fe366bbd27d8121c047759214886179d9fb",
+     "chain_report_sha256": "a9510b8e4dd44a39074aa9abc96ee6e7c49f81e22ed73274790bf95d8a803cc3",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c7_T04-F0-W4_s1/T04-F0-W4/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 a9b2c23618fc6c7a != authoritative e80528423fec4af3",
+     "binary_sha256": "a9b2c23618fc6c7a513f32d05f6b0a55d53d4486a273dcb60432675f3c327fd8",
+     "prop_evt_sha256": "7b807c1aecf149c0487a454a609a1fe366bbd27d8121c047759214886179d9fb",
+     "chain_report_sha256": "9815ea04608a5ed1053109f486c2dbeb1f269c7a766f78ba8c3240736ef37e22",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T04-F0-W4_s1/T04-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "7b807c1aecf149c0487a454a609a1fe366bbd27d8121c047759214886179d9fb",
+     "chain_report_sha256": "0b049cb05a7fd3677055d3411cbd106a646b66920da4c432ee6223e0a87892d6",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T04-F0-W4_s2/T04-F0-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "7b807c1aecf149c0487a454a609a1fe366bbd27d8121c047759214886179d9fb",
+     "chain_report_sha256": "b077492b8d3fa4cab133464eaf68a58194ff7cea729baa4da6bf8eef9f40983b",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_p1_T04-F0-W4/T04-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "bea5353eb6ba65c746a7d292a2b707a59a8ad276e2af0ec0f277359ed468fcc4",
+     "chain_report_sha256": "7d244a142534da3e9f49b82b4cb52b7de240a4a01ea39450b85d4621a1716d29",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_pilot/out/T04-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "a36f9c163b16b1448d43127eceaedb490fa9e4913dab44b8844bbca5d77af2ee",
+     "chain_report_sha256": "e76f01f57eef74bb7ddd1ad54650c0e3b369061d3c64467196cb9016b6686620",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "2232f4de78e49a68b99fb8c4df9b05db332e6346f2b9966091ddcafe61ac1f71",
+     "chain_report_sha256": "e76f01f57eef74bb7ddd1ad54650c0e3b369061d3c64467196cb9016b6686620",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_verify/out/T04-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "bd2a4b37ad3e2d799dfef31755e5f672e280ddb17b49e0916c75f33e0d156612",
+     "chain_report_sha256": "e76f01f57eef74bb7ddd1ad54650c0e3b369061d3c64467196cb9016b6686620",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T04-F0-W4/T04-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "e8c4748dec1c7aa7a6022d81a994bcd5da2436267eb1f1b4384c02636b5e9431",
+     "chain_report_sha256": "17665a77f88ff6b2f285471d6021d7ce3a3a4187bbc58fc7109fa5ffe0b0f757",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1b_T04-F0-W4/T04-F0-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "e8c4748dec1c7aa7a6022d81a994bcd5da2436267eb1f1b4384c02636b5e9431",
+     "chain_report_sha256": "17665a77f88ff6b2f285471d6021d7ce3a3a4187bbc58fc7109fa5ffe0b0f757",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T04-F0-W4|seed2": {
+   "run_id": "T04-F0-W4",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed2",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "f680bbc274d0ab2dde8fd1b494dc795b9f544f2d",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed2/prop_evt.txt.gz",
+      "sha256": "f7580db92194d2e21531630ab9676590cbe65ac05678031eea00647d792641ae"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed2/chain_report.json",
+      "sha256": "46e9fbe79d22c263e1986c06702e049e4dc2faa2160499e131ea3df73b49a1c8",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed2/stats.txt",
+      "sha256": "e4aae66c420569f7162b06d227b7b9f586839315e36bd9f24a1ba843de875f4a"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed2/run.out",
+      "sha256": "5dfae375e7cfbd5fa13ecaab1b3103f3b70c6d09f442e348ecf61c8c0891053f"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed2/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/manifest.json",
+      "sha256": "8c51599c7fc95522b54c4a5d7d7aa593feee9897a86d4ef89dd85eac2a877e1d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T04-F0-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": false,
+   "cleaning_reason": "manual review required for: runs/lsu/r6_c9_T04-F0-W4_s2/T04-F0-W4/seed2 (TRUNCATED)",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c9_T04-F0-W4_s2/T04-F0-W4/seed2",
+     "classification": "TRUNCATED",
+     "why": "prop_evt gzip stream truncated (EOFError/zlib.error)",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "da5a03e2eb26956e6fe634460475e9422a4088937612e8dc251e6d1851f24411",
+     "chain_report_sha256": "8f1e2dc8fd5f2b35c51e2e49255d146799196b29db1e7b4549918ad1222e6f66",
+     "prop_gzip_ok": false,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_p1_T04-F0-W4/T04-F0-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "b0748e5d6933a004cad321c54bbcdd79bf724fd4cf98a136b4d86b8e22158ce9",
+     "chain_report_sha256": "a859e06cff337d6febd9947bd8b9395978158751f0f70d7410e8dcbc1dbed23f",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T04-F0-W4|seed3": {
+   "run_id": "T04-F0-W4",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed3",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "f680bbc274d0ab2dde8fd1b494dc795b9f544f2d",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed3/prop_evt.txt.gz",
+      "sha256": "850f6d6d20b21e8064d813397745d929448973cc913c48ee979be9392223d025"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed3/chain_report.json",
+      "sha256": "e6cb219978b8117d779b5e3b203c7095c97575eb26bdeafcedf099198edb0701",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed3/stats.txt",
+      "sha256": "4c6134798421843fbcfaa96bb69f145ba468dbe16b5725553cfdda97df4339ed"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed3/run.out",
+      "sha256": "0734bb99d055d6d719546124571cf8f30ecc560328aed62333e5dcca01761500"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/T04-F0-W4/seed3/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T04-F0-W4_s3/manifest.json",
+      "sha256": "8c51599c7fc95522b54c4a5d7d7aa593feee9897a86d4ef89dd85eac2a877e1d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T04-F0-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_p1_T04-F0-W4/T04-F0-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "ea1c2844de55d5a19937e5ebfe7bac583cf170f339361ad5a20011a543f95e4e",
+     "chain_report_sha256": "f0ec03bf34fdddfa4f5b8328d176287291d0d5c01f1ddd03f8a6ac100d15ac71",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T04-F2-W4|seed1": {
+   "run_id": "T04-F2-W4",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed1",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "fcacc958b799c635babd2834cce9da6942322d91",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed1/prop_evt.txt.gz",
+      "sha256": "00827d400f4677d740fe9b29db7943d4d33cba2900d875eed4eabd9cc7241d09"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed1/chain_report.json",
+      "sha256": "50ac66c6998e67bec9d111d4f7a9adde4ed9f2a78f91fd55748f28aceec140c5",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed1/stats.txt",
+      "sha256": "9252638a86f5d441854a19abfa13bf6bb1bd216bdc91160e15a6db2e762c8ce8"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed1/run.out",
+      "sha256": "9c00a2cce1514120e50efbc8ab6d922d726f27288858e15ade0a9824f60ca6ad"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed1/run.err",
+      "sha256": "542053f2316e00845e96acb4d0f3b335c76fdc87803a2c67dc0821aa4c8332a0"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/manifest.json",
+      "sha256": "0f2a7cc4a83aa0e82ba3a5968c02af116a10c2f8a292e8382f4f6343fd503af5"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T04-F2-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c6_T04-F2-W4/T04-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "1518acf48558f43f83fed8f83ba9f5fc0eba35c16aecb9cf79f86fc345e502cd",
+     "chain_report_sha256": "015cb147fe2100febc7227b7c406db1eec130ef906671adfd80b55bae51a93ff",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_c7_T04-F2-W4_s1/T04-F2-W4/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 a9b2c23618fc6c7a != authoritative e80528423fec4af3",
+     "binary_sha256": "a9b2c23618fc6c7a513f32d05f6b0a55d53d4486a273dcb60432675f3c327fd8",
+     "prop_evt_sha256": "1518acf48558f43f83fed8f83ba9f5fc0eba35c16aecb9cf79f86fc345e502cd",
+     "chain_report_sha256": "b52e8fc3581c178567743b6443322d2ce5d50c8379507a2c2c8a4306f7f01e66",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T04-F2-W4_s1/T04-F2-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "00827d400f4677d740fe9b29db7943d4d33cba2900d875eed4eabd9cc7241d09",
+     "chain_report_sha256": "9de0c5b67a6e851f5ce522ffdaa1741cd1ef117b4454e522a78283d0d4850c04",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_c9_T04-F2-W4_s2/T04-F2-W4/seed1",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "00827d400f4677d740fe9b29db7943d4d33cba2900d875eed4eabd9cc7241d09",
+     "chain_report_sha256": "b94481785371dd78e54d1a607716eb2f75a85a7e9e88ca07e8d1a918c3c37d72",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_p1_T04-F2-W4/T04-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "fa9832c1d7a27d25cc9cb78d484fe5a30c42a890d9c03d4468ac9475bc2abc8c",
+     "chain_report_sha256": "3736154b13c18eab090e592e43c7704c7accf74012c2e465c6d15b1fa1b76eef",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "f195010367564d61836d369236acc5c1ae30ff7b258221b480895f192287dc0f",
+     "chain_report_sha256": "23dc8571a2d27b1019466c60005a26e3817792710e9af09a58af24e395f57557",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1_T04-F2-W4/T04-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "87553edde892d9311060f69b989b499c60de48847826f927a16194926b32ea89",
+     "chain_report_sha256": "61f8920f48e102847ba3d7b6b5397eec7a9ee402f4c41bc7a0eeb5709b81cb08",
+     "prop_gzip_ok": true,
+     "done": false
+    },
+    {
+     "path": "runs/lsu/r6_w1b_T04-F2-W4/T04-F2-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "87553edde892d9311060f69b989b499c60de48847826f927a16194926b32ea89",
+     "chain_report_sha256": "61f8920f48e102847ba3d7b6b5397eec7a9ee402f4c41bc7a0eeb5709b81cb08",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T04-F2-W4|seed2": {
+   "run_id": "T04-F2-W4",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed2",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "fcacc958b799c635babd2834cce9da6942322d91",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed2/prop_evt.txt.gz",
+      "sha256": "723dd0245c219f0ce96b1e3ae074039a6b3efbcd3f171da7970a294764017b00"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed2/chain_report.json",
+      "sha256": "42d254ec24c20ac19b91b361f8282ca181fe3537a55301e982bfa41a9e0ab155",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed2/stats.txt",
+      "sha256": "70ea5f44210552067b909d844cf895269b24c3ed9a4a6676d9d9477a6408b63c"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed2/run.out",
+      "sha256": "d1c6f37085be42b8dfb321f57a41cfdb6baedbfaaff1a73be8788e0d4cb7e595"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed2/run.err",
+      "sha256": "7ad31bead8127c09ea7cea7a341885ec295e9b2644bd2f109d4e694c7f8bd612"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/manifest.json",
+      "sha256": "0f2a7cc4a83aa0e82ba3a5968c02af116a10c2f8a292e8382f4f6343fd503af5"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T04-F2-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_c9_T04-F2-W4_s2/T04-F2-W4/seed2",
+     "classification": "EXACT_DUPLICATE",
+     "why": "prop_evt byte-identical + chain_report JSON semantically identical (sorted-key SHA) + run.out identical after stripping start-time/pid/outdir metadata",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "723dd0245c219f0ce96b1e3ae074039a6b3efbcd3f171da7970a294764017b00",
+     "chain_report_sha256": "fa87f580b6e6ab3ed48dc4aff2e86e808276210ad8ddaa4e36eeb3522a8f82d5",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_p1_T04-F2-W4/T04-F2-W4/seed2",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "8084e599f5ca97b202b1de0e3d92dd6ecd2db2c34210419dc2069bdc9d6baf26",
+     "chain_report_sha256": "9bc9af20e2a9d56574a6cd9306e2363d2c42553be39868a30469c2398b2ffd75",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T04-F2-W4|seed3": {
+   "run_id": "T04-F2-W4",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3",
+    "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+    "binary_source_head": null,
+    "manifest_source_head": "fcacc958b799c635babd2834cce9da6942322d91",
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/prop_evt.txt.gz",
+      "sha256": "af50e53912fdb35f79240791685576e1e1ae7c5a6bed52c487ba4996263acc93"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/chain_report.json",
+      "sha256": "281bd163b3774e3c322364f9bfb8343f79a3a3322a93345f440fe713cd1dcebf",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/stats.txt",
+      "sha256": "e78d97312de629263db522f7238bf781dffa005baca4e36f6dc49346f78bc2cb"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.out",
+      "sha256": "2d8f935e87b038299c7c6e0c3f070b86f0f557e20ca4f8ca22951d140b55dad3"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/T04-F2-W4/seed3/run.err",
+      "sha256": "7ad31bead8127c09ea7cea7a341885ec295e9b2644bd2f109d4e694c7f8bd612"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_c9_T04-F2-W4_s3/manifest.json",
+      "sha256": "0f2a7cc4a83aa0e82ba3a5968c02af116a10c2f8a292e8382f4f6343fd503af5"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T04-F2-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_p1_T04-F2-W4/T04-F2-W4/seed3",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "77bc02675d8db35bcc1513d805dd1ec1b129f087ee19d62b281506baac50da65",
+     "chain_report_sha256": "d6ef6daa8f4ed4b590cd74d158c44fcbe26d8434fa09467d37fb388e7a192f75",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T01-F1-W4|seed1": {
+   "run_id": "T01-F1-W4",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T01-F1-W4_s1/T01-F1-W4/seed1",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s1/T01-F1-W4/seed1/prop_evt.txt.gz",
+      "sha256": "c0828cb4f9aac064a04e38d8700fb76e080842f3f106bf931bb4868447b390a2"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s1/T01-F1-W4/seed1/chain_report.json",
+      "sha256": "0cefdbcb2760d05259c02c7d7b9faef453cfbf6075ac14918508bba71eb00273",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s1/T01-F1-W4/seed1/stats.txt",
+      "sha256": "16ef492372fae25f3732f39de6115d3da1b68ca3a63d4b0a1ca71365a682dee2"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s1/T01-F1-W4/seed1/run.out",
+      "sha256": "a052c13615df251f0817f0e98490355d924d48d379275cddf3b443a7d54ea2a1"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s1/T01-F1-W4/seed1/run.err",
+      "sha256": "aa5dc7ea7b8182029ceb4ca56fc7d72541ed6064d3353724646f72abd1543a36"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s1/manifest.json",
+      "sha256": "ae4fa31b5e26d7dcdde01fd700fff123707247e5de27b353109f811acc9eaf13"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F1-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n6_T01-F1-W4_s1/T01-F1-W4/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 e80528423fec4af3 != authoritative 8a229009c933a6dc",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "c0828cb4f9aac064a04e38d8700fb76e080842f3f106bf931bb4868447b390a2",
+     "chain_report_sha256": "7c7eb485aceaa50fbb01096c1fefe274b780024c5ed191b08183a4f4fbed1bd7",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_tlb_I_T01-F1-W4/T01-F1-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "prop_evt gzip not at EOF + no done marker + mtime 101.2h old (abandoned/interrupted write)",
+     "binary_sha256": null,
+     "prop_evt_sha256": "e50948c8076308bd26b6fe77f9df55d8ba65a271307f557fafce22a3158a52f4",
+     "chain_report_sha256": "b948c76406aff8b0ca4cda3e349e91cace810c5e9574899688346319e89306fc",
+     "prop_gzip_ok": false,
+     "done": false
+    }
+   ]
+  },
+  "T01-F1-W4|seed2": {
+   "run_id": "T01-F1-W4",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T01-F1-W4_s2/T01-F1-W4/seed2",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s2/T01-F1-W4/seed2/prop_evt.txt.gz",
+      "sha256": "21417fbd5166ff021aa84145fb67b38245bf56147389f7dde333f5bb5192f394"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s2/T01-F1-W4/seed2/chain_report.json",
+      "sha256": "e95718e5a1528e861640b65f750148bba5d8271426c552c52b9341ab01e022de",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s2/T01-F1-W4/seed2/stats.txt",
+      "sha256": "ece2481c5ce96a7ec3c44af62ad4b9b70cb6e0f1735760080897cb7555f447a4"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s2/T01-F1-W4/seed2/run.out",
+      "sha256": "8056e4edee172757e838e1eb97acd0d8e7cb9830e74e79137795e0aadee6ec01"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s2/T01-F1-W4/seed2/run.err",
+      "sha256": "aa5dc7ea7b8182029ceb4ca56fc7d72541ed6064d3353724646f72abd1543a36"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s2/manifest.json",
+      "sha256": "0c88f33c972735354d34344cc2db0463ac4220c25f9e89ce42d1144d5a37902e"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F1-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n6_T01-F1-W4_s2/T01-F1-W4/seed2",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 e80528423fec4af3 != authoritative 8a229009c933a6dc",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "21417fbd5166ff021aa84145fb67b38245bf56147389f7dde333f5bb5192f394",
+     "chain_report_sha256": "2c3e85aa45bf0c3726d6236d57a6628949352fac006ebd62dfb38525ea53583a",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T01-F1-W4|seed3": {
+   "run_id": "T01-F1-W4",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T01-F1-W4_s3/T01-F1-W4/seed3",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s3/T01-F1-W4/seed3/prop_evt.txt.gz",
+      "sha256": "381505282524dd5ff1e6fcd0c460373b7b0c1100cc5362977f90e8ecd746b148"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s3/T01-F1-W4/seed3/chain_report.json",
+      "sha256": "14ec8e317af555b62a5518ed6c0c6e5b8b15ed54db3ccf2ac65ed375c1fecd1c",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s3/T01-F1-W4/seed3/stats.txt",
+      "sha256": "be44142668df0e3b72b9d51653e465df9795563198c5aefc22d7fae44a34b4c6"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s3/T01-F1-W4/seed3/run.out",
+      "sha256": "e24668260bd66b71cd57a97854e2ce68def402496e6d9056b72c29ca9f5360ed"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s3/T01-F1-W4/seed3/run.err",
+      "sha256": "88189a144966053141dc15fda8084d3651396edd970718c52fcc9c807f716b17"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T01-F1-W4_s3/manifest.json",
+      "sha256": "454a07ea4c876dba80411859e79c22855717f67a61a451df58253afdaf3bf20d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F1-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n6_T01-F1-W4_s3/T01-F1-W4/seed3",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 e80528423fec4af3 != authoritative 8a229009c933a6dc",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "ef5a311de9490928122b367534be5d2b2f010e5d4377a22ce4b50ad1fb0f11fe",
+     "chain_report_sha256": "d901294897e8f7010d6cd2a778dbf76988fc4d7190cbf7681347c65127b5f122",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T01-F2-W4|seed1": {
+   "run_id": "T01-F2-W4",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T01-F2-W4_s1/T01-F2-W4/seed1",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s1/T01-F2-W4/seed1/prop_evt.txt.gz",
+      "sha256": "feaa5ebf6df37bf9438bc7e024e30089812e9a7b87117040badb7f91b38efdfc"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s1/T01-F2-W4/seed1/chain_report.json",
+      "sha256": "bd04a71abac4374c5407b41ba54a63561e0e0c348253118d27e5296dea1cd08b",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s1/T01-F2-W4/seed1/stats.txt",
+      "sha256": "18ca3bd46d79a1ed82143b894e981003ad17fab206a59d64b415dc072ba6e03b"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s1/T01-F2-W4/seed1/run.out",
+      "sha256": "275b1e58a19d9b6af1813839f6b723c56bd7e05a62138f9bf96366b62a5fafbe"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s1/T01-F2-W4/seed1/run.err",
+      "sha256": "7a1330e20fb7778733f12c6460b3c22084fd40bf86f1a114fee02156ded9bbb6"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s1/manifest.json",
+      "sha256": "4bc8b3afdd83c5f784d00f7c9f1f3a579c9e8a4fa25fd4b51c4f2d3036a94c31"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F2-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n6_T01-F2-W4_s1/T01-F2-W4/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 e80528423fec4af3 != authoritative 8a229009c933a6dc",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "feaa5ebf6df37bf9438bc7e024e30089812e9a7b87117040badb7f91b38efdfc",
+     "chain_report_sha256": "7bdd7d0c64de880c310a86a83146b300e07e151faa1dd34770c9e91df7994339",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T01-F2-W4|seed2": {
+   "run_id": "T01-F2-W4",
+   "seed": 2,
+   "status": "COMPLETE_CONTAINED_L4",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T01-F2-W4_s2/T01-F2-W4/seed2",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s2/T01-F2-W4/seed2/prop_evt.txt.gz",
+      "sha256": "3a3ea87997a147ab913aa2950fea7fb3c11017132938ce8da528b89434ff852a"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s2/T01-F2-W4/seed2/chain_report.json",
+      "sha256": "342806364ec5eb35aa2c12fb3468b5c4138f04ee846f33f7332a45b85a832f27",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s2/T01-F2-W4/seed2/stats.txt",
+      "sha256": "071ba1c1dc5fd587988ae4c0128d5b7e7a77ee47f8812404819ef1cf70fb63e9"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s2/T01-F2-W4/seed2/run.out",
+      "sha256": "d77b16173e4b98f708bf9094a3485ea299f332137a78369b1c1de3cd2d42130a"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s2/T01-F2-W4/seed2/run.err",
+      "sha256": "de8403ca5671675b258d5cc2e9d99a733336eef03c49490bb0d383150eb6e549"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s2/manifest.json",
+      "sha256": "d5c08c43293f3cc1f785d224cdfe0085dbdbf9409b49fa740bc120ed318a8a9d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F2-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n6_T01-F2-W4_s2/T01-F2-W4/seed2",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 e80528423fec4af3 != authoritative 8a229009c933a6dc",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "3a3ea87997a147ab913aa2950fea7fb3c11017132938ce8da528b89434ff852a",
+     "chain_report_sha256": "28d627fa93ba448011e1fd65bca1ba094fa676d7ef8fcc2ea1d8ab295ddd1cab",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T01-F2-W4|seed3": {
+   "run_id": "T01-F2-W4",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T01-F2-W4_s3/T01-F2-W4/seed3",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s3/T01-F2-W4/seed3/prop_evt.txt.gz",
+      "sha256": "9ad34b1cdac2c26ffba02a237a657d40a21a9d41306e3ba27a7aa99470dd5062"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s3/T01-F2-W4/seed3/chain_report.json",
+      "sha256": "e41ee815fe42db1262f67355df997bead052ec0b4b91fa0366ee1c8dbb9aa6bc",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s3/T01-F2-W4/seed3/stats.txt",
+      "sha256": "fb99f3b3fa972c3bdf66f78f2280155fcea8644c45a1c32de9a147c8ed08e147"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s3/T01-F2-W4/seed3/run.out",
+      "sha256": "4b09a646a3ed1db15cb8b63b6595bab140b6ec123253da615a05775a1e77d010"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s3/T01-F2-W4/seed3/run.err",
+      "sha256": "de8403ca5671675b258d5cc2e9d99a733336eef03c49490bb0d383150eb6e549"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T01-F2-W4_s3/manifest.json",
+      "sha256": "18df850d6742b884fed7fea5a9a3b529c150849cd9625544cb0b06e6b2858ad7"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F2-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n6_T01-F2-W4_s3/T01-F2-W4/seed3",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 e80528423fec4af3 != authoritative 8a229009c933a6dc",
+     "binary_sha256": "e80528423fec4af35b9e82d0d2672895de214d01bd3974437546558c5faf6959",
+     "prop_evt_sha256": "9ad34b1cdac2c26ffba02a237a657d40a21a9d41306e3ba27a7aa99470dd5062",
+     "chain_report_sha256": "0a7e1d0ad4c4eb70780a7b28bd3786afe992309958fd7178a06218e2fb56884f",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T03-F5-W4|seed1": {
+   "run_id": "T03-F5-W4",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T03-F5-W4_s1/T03-F5-W4/seed1",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s1/T03-F5-W4/seed1/prop_evt.txt.gz",
+      "sha256": "478530d46202e0d935d8876b2c7ff127a3e5830d9a159ff66d29c709f89fa7ab"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s1/T03-F5-W4/seed1/chain_report.json",
+      "sha256": "535c63546e52ae889d7e3b239b02472921bddf510ee1fad567219cad9086d60e",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s1/T03-F5-W4/seed1/stats.txt",
+      "sha256": "b37a0b817a51a21b85a210e3d81405b60ae96995e37f0c5ee5f1070a852dfdfa"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s1/T03-F5-W4/seed1/run.out",
+      "sha256": "811b070ab12af7a53264530ece4c07a7e0fe2241d2899a230ed49d14a808cce0"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s1/T03-F5-W4/seed1/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s1/manifest.json",
+      "sha256": "edc14fcff3c1a38574b01efff323627fd35ed08016ad70811e7e257a707ed504"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T03-F5-W4-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": false,
+   "cleaning_reason": "manual review required for: runs/lsu/r6_n7_T03-F5-W4_s1.RUN1_STALE_REPORT/T03-F5-W4/seed1 (REVIEW_REQUIRED)",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n7_T03-F5-W4_s1.RUN1_STALE_REPORT/T03-F5-W4/seed1",
+     "classification": "REVIEW_REQUIRED",
+     "why": "same/unknown binary but evidence differs from authoritative and no classifying identity evidence",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "70713f00bc853f9ad422472090dd6c05ec8cbd04077fcb6f32461e8498212473",
+     "chain_report_sha256": "909129293b7c63e6691b6c7fe0e5b11227eeb5687931eac07cf1bf5f69b1b2b6",
+     "prop_gzip_ok": true,
+     "done": true
+    },
+    {
+     "path": "runs/lsu/r6_tlb_I_T03-F5-W4/T03-F5-W4/seed1",
+     "classification": "INTERRUPTED",
+     "why": "no .done/.exit_code marker for this run root",
+     "binary_sha256": null,
+     "prop_evt_sha256": "55b093879de800ff014eaad55e2fbea85de90d37aaabfdb56edc42c081926332",
+     "chain_report_sha256": "f7882c8715375441b610acfac5be898a761dcae82786c4e8be8301f985ce59e2",
+     "prop_gzip_ok": true,
+     "done": false
+    }
+   ]
+  },
+  "T03-F5-W4|seed2": {
+   "run_id": "T03-F5-W4",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T03-F5-W4_s2/T03-F5-W4/seed2",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s2/T03-F5-W4/seed2/prop_evt.txt.gz",
+      "sha256": "24af59b714fef58de59e9b9d1084d2828f3ad37f51fb27ad22e2caac0d72a26f"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s2/T03-F5-W4/seed2/chain_report.json",
+      "sha256": "efcf3e78cf316758a1c7012a5d74d74714d0f78d721df6bc456c76ea2aa2dd42",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s2/T03-F5-W4/seed2/stats.txt",
+      "sha256": "1511491e101ee8f4eee64c8550fe6b9e8a7af046cd51cc9d6cd4a0ee6a689f68"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s2/T03-F5-W4/seed2/run.out",
+      "sha256": "311615823fb7199600b4c382bbe3572332a8d0ea3b008c3998680550fd3b3d04"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s2/T03-F5-W4/seed2/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s2/manifest.json",
+      "sha256": "02bae551fd1170b70f780ebdb4ecb0827863591cd3f3f606c91a5c8e3e567d8d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T03-F5-W4-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T03-F5-W4|seed3": {
+   "run_id": "T03-F5-W4",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n7_T03-F5-W4_s3/T03-F5-W4/seed3",
+    "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+    "binary_source_head": "38122675b91e05aaa0d636d14a89b6c6a90ea53c",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s3/T03-F5-W4/seed3/prop_evt.txt.gz",
+      "sha256": "c7a6c9db723699168efe49f93fcfb3c69226233d35d9b79ece06bd10d712c311"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s3/T03-F5-W4/seed3/chain_report.json",
+      "sha256": "de50ba8aa457adee94afce981791f8c293be98e393ea37a55aa287dc075c42bf",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s3/T03-F5-W4/seed3/stats.txt",
+      "sha256": "87de06d8bef633225660924e06bc260333bd9a71b38f2e45bbbcfeae17384172"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s3/T03-F5-W4/seed3/run.out",
+      "sha256": "618bd851d83d8e3cf77b04c13bd5c047a5b9e7dd1b346312a2fb846cbb76a329"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s3/T03-F5-W4/seed3/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n7_T03-F5-W4_s3/manifest.json",
+      "sha256": "3a980e721f8b452f8161afa110a1ee4bf620f54f7c264fd2d862a8c007c07d6d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T03-F5-W4-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T01-F0-W1|seed1": {
+   "run_id": "T01-F0-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F0-W1_s1/T01-F0-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s1/T01-F0-W1/seed1/prop_evt.txt.gz",
+      "sha256": "719627235933cd49b0ff99c0c5391dba2b98de6ef6d4d8d9709c2355001b57d5"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s1/T01-F0-W1/seed1/chain_report.json",
+      "sha256": "e8aae326190b1f8bb56c2138bcdf4722f5cc7551288d19f0e6d3a75baf93c6a5",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s1/T01-F0-W1/seed1/stats.txt",
+      "sha256": "3ab3efcc04c6d8471ab992ded96755ca14ac5e46e3737e733566554db5b8bab5"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s1/T01-F0-W1/seed1/run.out",
+      "sha256": "b2e1c85d092d26dfcb21d5a03a331a0b4d2d002816a62040f63488f75d993bf1"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s1/T01-F0-W1/seed1/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s1/manifest.json",
+      "sha256": "2acc7a13d593c90a2cb5dcd688698c3e5a01db1678e5e569f260deec485ccabb"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F0-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T01-F0-W1_s1.sha8a229009/T01-F0-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "4070035d9f7d0f439bba5d1af9919ce3f11c46f71d6cd4bf34882c328c7eaf07",
+     "chain_report_sha256": "6781dc634009bfc85f74863fb2bc7162236aed58a217a0b501dce22e6b4d23e6",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T01-F0-W1|seed2": {
+   "run_id": "T01-F0-W1",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F0-W1_s2/T01-F0-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s2/T01-F0-W1/seed2/prop_evt.txt.gz",
+      "sha256": "af4babc5751b56243804819d52aeb6c8bb252deee27beda928f58684c73a6b29"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s2/T01-F0-W1/seed2/chain_report.json",
+      "sha256": "f77590258aaab8f3a4455f0e3606071eab29197f7bf9869e12273cb5505f97c8",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s2/T01-F0-W1/seed2/stats.txt",
+      "sha256": "6c87f9e6f55b20f05c906834134c37cf4fac6d1f4544de1098922ab459172934"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s2/T01-F0-W1/seed2/run.out",
+      "sha256": "752c52df7c5ec783ba983119b13da3e75465c5d0c29c90d6a0d34e9b6ceb0c35"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s2/T01-F0-W1/seed2/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s2/manifest.json",
+      "sha256": "2ba5d6ec1f1fe0a7263e29335f2153c35e26960b63f82d500842e1cbc1c997b0"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F0-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T01-F0-W1|seed3": {
+   "run_id": "T01-F0-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F0-W1_s3/T01-F0-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s3/T01-F0-W1/seed3/prop_evt.txt.gz",
+      "sha256": "7ab6e9550997eef1fb1bd52e91cd49c73d1f2bb64a4d3b53ef27643e5bbe9a59"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s3/T01-F0-W1/seed3/chain_report.json",
+      "sha256": "a0e96a0be89b31ef27edc0e8ec263eb470d25277a96669c49c32cd6e72b8cd83",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s3/T01-F0-W1/seed3/stats.txt",
+      "sha256": "5f6e8272ca7bb20b6d8d0b923e7e5da41c2ccfca2c80d723b23a5db2322c8a06"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s3/T01-F0-W1/seed3/run.out",
+      "sha256": "b8a3017852aaa110fd47929c7de107d972b582a92b5f6955c50792fa80406d0e"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s3/T01-F0-W1/seed3/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F0-W1_s3/manifest.json",
+      "sha256": "79bda76f6c8fb1a7e6d337bc843c1a998717a386d2fae0ae6e22f5c1c0fdca8d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F0-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T01-F1-W1|seed1": {
+   "run_id": "T01-F1-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F1-W1_s1/T01-F1-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s1/T01-F1-W1/seed1/prop_evt.txt.gz",
+      "sha256": "90b713c7a597bf29985cd9087eae6353dd5a10978c08f960af38cdf282dc528b"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s1/T01-F1-W1/seed1/chain_report.json",
+      "sha256": "bd4850988fe8fa69ed5baee876cc7ba1c74c589f7df949dc9db27d012f1d032d",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s1/T01-F1-W1/seed1/stats.txt",
+      "sha256": "5ee0283ba5491de374f07fa0a83b57e3b73d80a30149336b99cb5bf357558e46"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s1/T01-F1-W1/seed1/run.out",
+      "sha256": "20c59a5a8190b5d4cec34b9807302e0b5fb9b053c0d20390f76bfd68ed304e1f"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s1/T01-F1-W1/seed1/run.err",
+      "sha256": "aa5dc7ea7b8182029ceb4ca56fc7d72541ed6064d3353724646f72abd1543a36"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s1/manifest.json",
+      "sha256": "adc17de4455fc090d7727af5d17a2219d92aa380c6eb23481f78de58618b759e"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F1-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T01-F1-W1_s1.sha8a229009/T01-F1-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "8c4f7c96e165fff152ac5f5f16f995061f3281ecb62d22d4944feb54c50a29c6",
+     "chain_report_sha256": "4541e8da31295194e3a3a108f60c0bf74e64513a1d5aabb296c9fb467e4e9f3d",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T01-F1-W1|seed2": {
+   "run_id": "T01-F1-W1",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F1-W1_s2/T01-F1-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s2/T01-F1-W1/seed2/prop_evt.txt.gz",
+      "sha256": "74105cde9ab7949a4dcd124dc862c2762c7375c040080e62135d7298772c90a4"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s2/T01-F1-W1/seed2/chain_report.json",
+      "sha256": "b4c4133996b7152fc5b091c4f9600973d8945da7aab5c21ddf4ff2b183733d0d",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s2/T01-F1-W1/seed2/stats.txt",
+      "sha256": "766c92cc0f74b8074dee6ff9fac2d234f94e7f93e09abf3b66beff4086e157c0"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s2/T01-F1-W1/seed2/run.out",
+      "sha256": "f684c1a5d8c06079c218b6ab593ba7dd3d20f818b6b925210f31b746048c290d"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s2/T01-F1-W1/seed2/run.err",
+      "sha256": "88189a144966053141dc15fda8084d3651396edd970718c52fcc9c807f716b17"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s2/manifest.json",
+      "sha256": "887ccefbc5caed3999108c41b776a57fa6d9edfb57bd40cf46d5d7303ff70d49"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F1-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T01-F1-W1|seed3": {
+   "run_id": "T01-F1-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F1-W1_s3/T01-F1-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s3/T01-F1-W1/seed3/prop_evt.txt.gz",
+      "sha256": "c88d6b2bd6d52f34311f9e5c0135ae521686e1eadaead497b6b0fa5cc215f3d1"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s3/T01-F1-W1/seed3/chain_report.json",
+      "sha256": "1e7af3ffd779bcd1f9da37092d867fda2845ce9e9a7728935d290cf3747f8ed0",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s3/T01-F1-W1/seed3/stats.txt",
+      "sha256": "e47b3b271fdf0b4df379598ae47c973daa5bff3d2c3c30903e77286bc7676f43"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s3/T01-F1-W1/seed3/run.out",
+      "sha256": "a5035845b619acbe6673266bf2be32270e0558d88068026f35c4c0fb30f5b130"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s3/T01-F1-W1/seed3/run.err",
+      "sha256": "aa5dc7ea7b8182029ceb4ca56fc7d72541ed6064d3353724646f72abd1543a36"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F1-W1_s3/manifest.json",
+      "sha256": "123e99193c06a841d1864a85726531251785fc80c4c118f567ec9937a95414f4"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F1-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T01-F2-W1|seed1": {
+   "run_id": "T01-F2-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F2-W1_s1/T01-F2-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s1/T01-F2-W1/seed1/prop_evt.txt.gz",
+      "sha256": "bce3150a0d452c422248d6698c3f41ceb21fcaf3d87011f0ab741428a39aa97e"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s1/T01-F2-W1/seed1/chain_report.json",
+      "sha256": "7941fb2fff9611292565452266b1b6fb14bd696dd288bf4da02fcc7c7e22953c",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s1/T01-F2-W1/seed1/stats.txt",
+      "sha256": "276af53d391adfe6cd9f3f2977e061eaf299c14f39c3575031614fd004993b1d"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s1/T01-F2-W1/seed1/run.out",
+      "sha256": "9a93a73c73af17424cbd6f6b85d169ad6553c6ae7e89a47672457629c2899b9d"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s1/T01-F2-W1/seed1/run.err",
+      "sha256": "672b40ab5f50c462f0243e22e65c05c2d3938b0d990d0753e0b60674d2a14f27"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s1/manifest.json",
+      "sha256": "a9adbed51c71a59a29834b7ce4a3f9c24da01581b70652a5b3e4b9bc95260804"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F2-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T01-F2-W1_s1.sha8a229009/T01-F2-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "d440dd2e59ab091dfba98982573c165d7f6e43e20058b46a0080f05d4ae1c059",
+     "chain_report_sha256": "1007e68849f52923811ec0f9c88a5ecc4068e58589b6f555a163352559dc8488",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T01-F2-W1|seed2": {
+   "run_id": "T01-F2-W1",
+   "seed": 2,
+   "status": "COMPLETE_CONTAINED_L4",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F2-W1_s2/T01-F2-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s2/T01-F2-W1/seed2/prop_evt.txt.gz",
+      "sha256": "c83d89fd9f64ded18ef3cffa85c6e1453075dfd96aeef74228ff680db783eaf7"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s2/T01-F2-W1/seed2/chain_report.json",
+      "sha256": "73cda7ecfea43e1631f2717f378cdb46ba888f81b7641d7020be36bbfa955ad3",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s2/T01-F2-W1/seed2/stats.txt",
+      "sha256": "4fc67a27cc7c8e6e17f5076c5867921d9637a82abc58f3a4cb8ee71ec061d62b"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s2/T01-F2-W1/seed2/run.out",
+      "sha256": "4fa0ea2ec92839694f07615e9f5cdc1dcfe1764a99095b5743116604fb541ebe"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s2/T01-F2-W1/seed2/run.err",
+      "sha256": "17db81ed631aa13198beb85b2a55b70862d3f35789a6e64ac32805456268ba1d"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s2/manifest.json",
+      "sha256": "2da337f583fbdfb5cd3b8615d9fb254a30e011b4debf24a6bee7845ee19cf319"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F2-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T01-F2-W1|seed3": {
+   "run_id": "T01-F2-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T01-F2-W1_s3/T01-F2-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s3/T01-F2-W1/seed3/prop_evt.txt.gz",
+      "sha256": "6a65d25d31f1e9f9f9965d4b24fb33ac9619654ef6417ff4544da668d358119d"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s3/T01-F2-W1/seed3/chain_report.json",
+      "sha256": "f0b6cc6a2956cc05fd1fdd9bbb3e6de9fc0fcb91577bd8e6c89ce8c04508ddab",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s3/T01-F2-W1/seed3/stats.txt",
+      "sha256": "b67d1c225545d2044dd00cb990aacee36883ab5139264362ecb2d14a83e29755"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s3/T01-F2-W1/seed3/run.out",
+      "sha256": "ac39928d73bd8f83e09f701df0bf67e040f4ec7cb8591b52692c75eada032469"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s3/T01-F2-W1/seed3/run.err",
+      "sha256": "de8403ca5671675b258d5cc2e9d99a733336eef03c49490bb0d383150eb6e549"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T01-F2-W1_s3/manifest.json",
+      "sha256": "1a53ac5d8d7121c52b506802a30d956043a27c4c344fff5b52a22cdf2f175927"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T01-F2-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T02-F0-W1|seed1": {
+   "run_id": "T02-F0-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T02-F0-W1_s1/T02-F0-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s1/T02-F0-W1/seed1/prop_evt.txt.gz",
+      "sha256": "dbfd7e829f852464ce7d0869a53de5dcb1bcac513c98d44e3ce81e95baf7510a"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s1/T02-F0-W1/seed1/chain_report.json",
+      "sha256": "017e76d88eb1379e1cf3e1e80dd8578dfd21342f7924ea8e5027a3514d9a307e",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s1/T02-F0-W1/seed1/stats.txt",
+      "sha256": "3f5b73bc6cb6f7019f56878612c55a1c30da9048e7b80ac1c36d7835f3764878"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s1/T02-F0-W1/seed1/run.out",
+      "sha256": "ad966044519ca70bada85ebecc99f4864adabf313774ccd8c8c4c596b17e28df"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s1/T02-F0-W1/seed1/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s1/manifest.json",
+      "sha256": "aeb0ea2269ca78792bf5b308e0ffad6f2f3a00606dc21c97e883e5b09530024c"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F0-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T02-F0-W1_s1.sha8a229009/T02-F0-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "97a7efbc0dc1c87945af94b86a26db92503ce2a94dab9b3909b52f301898f998",
+     "chain_report_sha256": "ff3f7241e63d7f2026427665356f9017a6c1e888fbddde64ed6fc8a2dec3fd5d",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T02-F0-W1|seed2": {
+   "run_id": "T02-F0-W1",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T02-F0-W1_s2/T02-F0-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s2/T02-F0-W1/seed2/prop_evt.txt.gz",
+      "sha256": "95ca3830975997f705573966779b4b03efd8d9eeddb85e5179658b2844923db8"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s2/T02-F0-W1/seed2/chain_report.json",
+      "sha256": "168c05bc7f7e1558ed2006b07c0d752b19efcdcb25fccc0ea84dd2d7f75ecfd7",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s2/T02-F0-W1/seed2/stats.txt",
+      "sha256": "270cf724fccb584568d36372fc6194501323d633d469e1850d0bfb2e5106d738"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s2/T02-F0-W1/seed2/run.out",
+      "sha256": "17ccd0f01b461a2356cb5c136045d4577bb489debab6ed5af4cc0c0fc1d5404a"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s2/T02-F0-W1/seed2/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s2/manifest.json",
+      "sha256": "8d43c17339b4ca3e55a7cd8f792b2dc862d25b7457efa916ccb808eebe1954b4"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F0-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T02-F0-W1|seed3": {
+   "run_id": "T02-F0-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T02-F0-W1_s3/T02-F0-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s3/T02-F0-W1/seed3/prop_evt.txt.gz",
+      "sha256": "5d143e22edf81bd0038428fbebe53d8a326931e8b113d4524a4f40194d5da02d"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s3/T02-F0-W1/seed3/chain_report.json",
+      "sha256": "52509402c0e504e9fe749722b80aa1bf4db3e8264ab39715d8ffeeeb2f97032b",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s3/T02-F0-W1/seed3/stats.txt",
+      "sha256": "1fa6499bfd338bbeae2f063bac7467af21b786806d0e881c81b9b16738c037ab"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s3/T02-F0-W1/seed3/run.out",
+      "sha256": "6f664898dcba9434cf73c7ffed9d4a1af0b948e6680c81d80c9e21b10defc4f7"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s3/T02-F0-W1/seed3/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T02-F0-W1_s3/manifest.json",
+      "sha256": "c85fa038ff83203232ee0d6d61e7dc621e0fd51c01b1c207ff097fd0892b89b2"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F0-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T02-F2-W1|seed1": {
+   "run_id": "T02-F2-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T02-F2-W1_s1/T02-F2-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s1/T02-F2-W1/seed1/prop_evt.txt.gz",
+      "sha256": "09123a77e98c32503b479e026ff8dc43ad0eb3aefa4de349ae4010003f9a212c"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s1/T02-F2-W1/seed1/chain_report.json",
+      "sha256": "85c328179d1847d316c81aa30d1c42f12592caf154d7c514cf1a14bf867e3def",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s1/T02-F2-W1/seed1/stats.txt",
+      "sha256": "8b5284423283c9ee642c6443f2818f4eec633b0f092437b8e2e4ac72bedebef6"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s1/T02-F2-W1/seed1/run.out",
+      "sha256": "ecd786ebbd64e990c68c99c0473c490349284258b374111b82bd96fb86854cf8"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s1/T02-F2-W1/seed1/run.err",
+      "sha256": "17db81ed631aa13198beb85b2a55b70862d3f35789a6e64ac32805456268ba1d"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s1/manifest.json",
+      "sha256": "5e351346f7a7002e9f05f26b3e26bd0e4b8909d8ecf10402e2fd5c0a9b0ed04b"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F2-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T02-F2-W1_s1.sha8a229009/T02-F2-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "c6537e1131cc22f16b68bf16230002fc26edf52c92073999c90d850feaa6f5fb",
+     "chain_report_sha256": "1d17204dcb17e9e1868b58299cab93c2ece7a561aabdc1e8ad396a39285421f9",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T02-F2-W1|seed2": {
+   "run_id": "T02-F2-W1",
+   "seed": 2,
+   "status": "COMPLETE_CONTAINED_L4",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T02-F2-W1_s2/T02-F2-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s2/T02-F2-W1/seed2/prop_evt.txt.gz",
+      "sha256": "5a4fe3777e4f177e0f7e7dcd87faf2d57ac0b0064f49cf2d2749e316b0168eac"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s2/T02-F2-W1/seed2/chain_report.json",
+      "sha256": "94fbe7356da0e76b859f451d447945bda1da3dd6e798171942b4e851807fd40d",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s2/T02-F2-W1/seed2/stats.txt",
+      "sha256": "1950525eb54831c7818deb120078914670ec135ffe4704319601ddc9d0f48538"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s2/T02-F2-W1/seed2/run.out",
+      "sha256": "a0ba87f5af9eef7820716d46cec13a643da9c39464d81a90cbea5b3852ee5049"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s2/T02-F2-W1/seed2/run.err",
+      "sha256": "17db81ed631aa13198beb85b2a55b70862d3f35789a6e64ac32805456268ba1d"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s2/manifest.json",
+      "sha256": "a7048f8b298cc7b1863bd7f1ec0b740f47f39bd6987812f776d9259335d8ddfe"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F2-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T02-F2-W1|seed3": {
+   "run_id": "T02-F2-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T02-F2-W1_s3/T02-F2-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s3/T02-F2-W1/seed3/prop_evt.txt.gz",
+      "sha256": "7a928291cd3e1554fe7a814a66ef8c87d89f9906bf74028a9f57716cc6275988"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s3/T02-F2-W1/seed3/chain_report.json",
+      "sha256": "20ed29de287f2dd26b7c61a08ec0539edee3f45790240363738d6efefca710dc",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s3/T02-F2-W1/seed3/stats.txt",
+      "sha256": "a510f741d61b633befd007138e74984a9bd41b4b105cc4d981c47e9c0ab67d56"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s3/T02-F2-W1/seed3/run.out",
+      "sha256": "65e1b1444d1e84125d846fb875722f21bec041f4f61c25e25c8213212df87705"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s3/T02-F2-W1/seed3/run.err",
+      "sha256": "7a1330e20fb7778733f12c6460b3c22084fd40bf86f1a114fee02156ded9bbb6"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T02-F2-W1_s3/manifest.json",
+      "sha256": "f77b28677f274ad98525df52b98937be433f59fc6286a4cda22768320f8870d2"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T02-F2-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T10-F0-W1|seed1": {
+   "run_id": "T10-F0-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F0-W1_s1/T10-F0-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s1/T10-F0-W1/seed1/prop_evt.txt.gz",
+      "sha256": "342e552a20f0121321a8941f90151934f87140c1b166d6061ebece5e6624a2da"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s1/T10-F0-W1/seed1/chain_report.json",
+      "sha256": "71603a0b34978d0547e016780c54f121f42b73d54f4df9f0d4506d8688afc2d5",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s1/T10-F0-W1/seed1/stats.txt",
+      "sha256": "555ca143149b3e47c983c8bade030e9017ab69a35f19e7239af23a3db5d95296"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s1/T10-F0-W1/seed1/run.out",
+      "sha256": "78a3d6cd7f16dedb0598bee56cc1eb2310fe5814ec11903ea545aa930946988e"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s1/T10-F0-W1/seed1/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s1/manifest.json",
+      "sha256": "68afe2c0d1bb4c7c8114756cd6863c05ad7a0ef313f0c7428e7f72b285a1599b"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F0-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T10-F0-W1_s1.sha8a229009/T10-F0-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "3a56de66762501c3b90e4dd7fec4f3aa6182fb0ec7b350b10cd91db2250613e9",
+     "chain_report_sha256": "5a4d8d76ae00810e7c0c30086175f5881f7099be9b71b1b2e6dcb234bd8447e1",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T10-F0-W1|seed2": {
+   "run_id": "T10-F0-W1",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F0-W1_s2/T10-F0-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s2/T10-F0-W1/seed2/prop_evt.txt.gz",
+      "sha256": "5a92c75ee16b72ad0f5b08787781f8f77713631f4d61b4fa0600dfa57869e4af"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s2/T10-F0-W1/seed2/chain_report.json",
+      "sha256": "42bb8ea5918c6799d5c55593b1a9631db9777112f7c8a36370fe94dc6b6201b6",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s2/T10-F0-W1/seed2/stats.txt",
+      "sha256": "b305018005e9d4017b9c36caadb5b96a7adec6c5fd30177a1afddaaf3c673783"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s2/T10-F0-W1/seed2/run.out",
+      "sha256": "45dd1cbb11e8b64052d05ddc96500a1c6bf38f95e2c5e07d7ab2f3787e73b63d"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s2/T10-F0-W1/seed2/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s2/manifest.json",
+      "sha256": "b54954004584f1ba115dafe63a3f8520706326f08455c88901319c2b1f656b4f"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F0-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T10-F0-W1|seed3": {
+   "run_id": "T10-F0-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F0-W1_s3/T10-F0-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s3/T10-F0-W1/seed3/prop_evt.txt.gz",
+      "sha256": "bce2b4519a0ff6b4de29793ee7bcc6bb36a17632a16cb53050ccbc273a135526"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s3/T10-F0-W1/seed3/chain_report.json",
+      "sha256": "9d5e1ae477ceec8ef6c8d4ad225302f4463de40e76d71fb9e694b0a7ecb5d494",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s3/T10-F0-W1/seed3/stats.txt",
+      "sha256": "02f59dea9d110e964ce3a6f9ce92811be79da318020b1f9d7367d7455abc96b2"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s3/T10-F0-W1/seed3/run.out",
+      "sha256": "6f0f4df61045d7fe667409b9be7fbf53757656860e14f9658a2c963437e16d41"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s3/T10-F0-W1/seed3/run.err",
+      "sha256": "e21be1f4c25d72f1e8f2b2ac20c742d8d01ad0d1b327608d5c362afb83958e74"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F0-W1_s3/manifest.json",
+      "sha256": "233944c091b3ee48965623449ead0e98b4ca4ba12ef98d87caf2f9b08f541f1d"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F0-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T10-F1-W1|seed1": {
+   "run_id": "T10-F1-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F1-W1_s1/T10-F1-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s1/T10-F1-W1/seed1/prop_evt.txt.gz",
+      "sha256": "0038e158450d045d4c7aa09e7532cdd3a80f7fefce2883be2afb88adc5817fb8"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s1/T10-F1-W1/seed1/chain_report.json",
+      "sha256": "b076dd772f5175b71378dc37cfcf92a7cc41738c21adfd9f3a36e0ce544fe875",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s1/T10-F1-W1/seed1/stats.txt",
+      "sha256": "fbce23e26076a360f340deecfb24c5f03c5aa417228b410c10a7605b25dc6321"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s1/T10-F1-W1/seed1/run.out",
+      "sha256": "305c2e252c382dff061ee77ee7168fa6e226a510697e30fbe9256e0d703ad26b"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s1/T10-F1-W1/seed1/run.err",
+      "sha256": "aa5dc7ea7b8182029ceb4ca56fc7d72541ed6064d3353724646f72abd1543a36"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s1/manifest.json",
+      "sha256": "7c965ce3475e6898b006fb6c25ea4c8ead41b714f362b9901806c16e99109ce4"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F1-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T10-F1-W1_s1.sha8a229009/T10-F1-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "4d9587f2dc73897247fd3e0a44724a7d7525d282c0854a4ea001613645a170b5",
+     "chain_report_sha256": "3e5792369597ccb19c48ff8c7e02e3cbbfd00f19633e90e5fff06843f1c0b9b0",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T10-F1-W1|seed2": {
+   "run_id": "T10-F1-W1",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F1-W1_s2/T10-F1-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s2/T10-F1-W1/seed2/prop_evt.txt.gz",
+      "sha256": "5680f0a4e26d16433434a5bbc146cd8d073167668a964a8cff97626561cd5c01"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s2/T10-F1-W1/seed2/chain_report.json",
+      "sha256": "214430c01a30fcdcdbbf76f9e0001070c8679aaaa46fb07328dbce98d91d2f75",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s2/T10-F1-W1/seed2/stats.txt",
+      "sha256": "652d4f46d0e65b462544ef4892eba6172c0b90970ccfefff8fafadd9a8671e91"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s2/T10-F1-W1/seed2/run.out",
+      "sha256": "418bc61b8c11c1f018632381ab5870ef795186d8c78cc6b245e20d932ba14939"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s2/T10-F1-W1/seed2/run.err",
+      "sha256": "88189a144966053141dc15fda8084d3651396edd970718c52fcc9c807f716b17"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s2/manifest.json",
+      "sha256": "069e0cb462608bc0227860deec73e5dac2efba623a414a67a71c581b752287eb"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F1-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T10-F1-W1|seed3": {
+   "run_id": "T10-F1-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F1-W1_s3/T10-F1-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s3/T10-F1-W1/seed3/prop_evt.txt.gz",
+      "sha256": "0d2226c687af26db4300db1abf5f6c25470840852147d052f22f8a6e1675ffea"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s3/T10-F1-W1/seed3/chain_report.json",
+      "sha256": "c05a65bbcca8077f4c628584d32cc83d0af13c74cd608cf230370b74dd0c460b",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s3/T10-F1-W1/seed3/stats.txt",
+      "sha256": "593814dd596ff5efe16cd963181a2bab3ac26554487ba420a71a8cc352451650"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s3/T10-F1-W1/seed3/run.out",
+      "sha256": "4341f68f84a80fdaa9785da799d86c0fce1e6f752d7c47f567009c985a80291c"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s3/T10-F1-W1/seed3/run.err",
+      "sha256": "aa5dc7ea7b8182029ceb4ca56fc7d72541ed6064d3353724646f72abd1543a36"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F1-W1_s3/manifest.json",
+      "sha256": "fbdb8f8ecafc25313a304ab1c7f0b69f0c6301d76a0df6d9abf1adb1be965c10"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F1-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T10-F2-W1|seed1": {
+   "run_id": "T10-F2-W1",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F2-W1_s1/T10-F2-W1/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s1/T10-F2-W1/seed1/prop_evt.txt.gz",
+      "sha256": "60728ff9263a073d0b6376295ed1bc3e7d96d08e79f60c8fd6234ff7e8ec2da0"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s1/T10-F2-W1/seed1/chain_report.json",
+      "sha256": "fd4f201a31020d0af88169e285026596a5e483dadde5aa9e53b535f546219653",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s1/T10-F2-W1/seed1/stats.txt",
+      "sha256": "497232bff119b8659f7401c7efb2fd2214f8a2a5e7a620cb28a69ed153c771fc"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s1/T10-F2-W1/seed1/run.out",
+      "sha256": "11aa1ed71f05b10361c933805d70e655119c02f2394e85d3a8c7bcf184deceab"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s1/T10-F2-W1/seed1/run.err",
+      "sha256": "672b40ab5f50c462f0243e22e65c05c2d3938b0d990d0753e0b60674d2a14f27"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s1/manifest.json",
+      "sha256": "24598850c17d49d5e4c4ee27c6995ff918b9c758df08753db89a119f7c28c938"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F2-W1-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T10-F2-W1_s1.sha8a229009/T10-F2-W1/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "da38dc3706709422e5335205f9edc72807278839f12475794845bb89839cda98",
+     "chain_report_sha256": "24b9a2cfd688e3cc1a34a4e3c0621f3b96f348f994c46d40694b8c8d5ecf207e",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T10-F2-W1|seed2": {
+   "run_id": "T10-F2-W1",
+   "seed": 2,
+   "status": "COMPLETE_CONTAINED_L4",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F2-W1_s2/T10-F2-W1/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s2/T10-F2-W1/seed2/prop_evt.txt.gz",
+      "sha256": "19abb053dfa3b960f7c545cbb74b4acf1670c60e3a76099d2de8a74b7ae1b20b"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s2/T10-F2-W1/seed2/chain_report.json",
+      "sha256": "6fa079e5cc3424fc344408b80d390aae70ff7079ea23af50811274ab2b9c724d",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s2/T10-F2-W1/seed2/stats.txt",
+      "sha256": "4759e37f773628f0fa90929efd45c3acc1c69db7031f067567aeaa5e492e07b5"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s2/T10-F2-W1/seed2/run.out",
+      "sha256": "85bbb48787bad953fa9b41c531cabad3301ae358e90e786db348e44c0fa094cc"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s2/T10-F2-W1/seed2/run.err",
+      "sha256": "17db81ed631aa13198beb85b2a55b70862d3f35789a6e64ac32805456268ba1d"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s2/manifest.json",
+      "sha256": "af81b336c125f952c59b0cc34e185b9eb4030c342fba893d15c683561cc3b09f"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F2-W1-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T10-F2-W1|seed3": {
+   "run_id": "T10-F2-W1",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T10-F2-W1_s3/T10-F2-W1/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s3/T10-F2-W1/seed3/prop_evt.txt.gz",
+      "sha256": "97e0b0a092a6464904b89f51c701e7e698f3008e53abc6cbede65fd47c8738ab"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s3/T10-F2-W1/seed3/chain_report.json",
+      "sha256": "4aaa8c4d46e290cb589079268f8a9ebb45fb7096e56d40c05727a0b741dc8f21",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s3/T10-F2-W1/seed3/stats.txt",
+      "sha256": "e8e5f423524ad10474f9c3ec4571ea734bdb1f8ffcbb91f0532d3e022b97c47e"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s3/T10-F2-W1/seed3/run.out",
+      "sha256": "b324dd7990e7daa87d35485a316b8231ef874ed747b81cb618f1bfee8389d600"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s3/T10-F2-W1/seed3/run.err",
+      "sha256": "de8403ca5671675b258d5cc2e9d99a733336eef03c49490bb0d383150eb6e549"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T10-F2-W1_s3/manifest.json",
+      "sha256": "58db0c380218d55c7d9bb69a388ff398f23e51028a16cf7b75ba1fd5d3782ba6"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T10-F2-W1-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T03-F5-W9|seed1": {
+   "run_id": "T03-F5-W9",
+   "seed": 1,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T03-F5-W9_s1/T03-F5-W9/seed1",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s1/T03-F5-W9/seed1/prop_evt.txt.gz",
+      "sha256": "ee3cd490a470a2322407506ae0468c6b83cc95003461cd5bc54da8c336db6d80"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s1/T03-F5-W9/seed1/chain_report.json",
+      "sha256": "647a4eb7fc82cd8152a32cf5d49d1975c88aaef67880ccaaf1ee75b5ba43b27b",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s1/T03-F5-W9/seed1/stats.txt",
+      "sha256": "35cbe23d9e885304c5d29d0db18384eadcc093d92c25361b6b38cbbb574073de"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s1/T03-F5-W9/seed1/run.out",
+      "sha256": "de34d89143a913a73a8fe8c9f2e4e84b08b10f70efdd346e27bd29be5bb5ff48"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s1/T03-F5-W9/seed1/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s1/manifest.json",
+      "sha256": "ecd7cc518f077fa96b5d65254a92da7bcdf7b154c9b4e4b2ec750abdb476da1f"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T03-F5-W9-seed1.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": [
+    {
+     "path": "runs/lsu/r6_n8_T03-F5-W9_s1.sha8a229009/T03-F5-W9/seed1",
+     "classification": "OLD_BINARY_REFERENCE",
+     "why": "manifest binary_sha256 8a229009c933a6dc != authoritative 20fda6994ee257e6",
+     "binary_sha256": "8a229009c933a6dc08c13903a78adf53e8967c933088fdbaa66e08d2d7a076e4",
+     "prop_evt_sha256": "ac4b808e93c8f778064731e3c3c7b41c88a102b98b3de935ab8ae41d9cc5cefa",
+     "chain_report_sha256": "996738b4715bf510f07725795011343436109f94e9ada6b175065a992698c92d",
+     "prop_gzip_ok": true,
+     "done": true
+    }
+   ]
+  },
+  "T03-F5-W9|seed2": {
+   "run_id": "T03-F5-W9",
+   "seed": 2,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T03-F5-W9_s2/T03-F5-W9/seed2",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s2/T03-F5-W9/seed2/prop_evt.txt.gz",
+      "sha256": "11b38ce82e052647e198a9cf276d9607325b4d7989d50d4094c6c83e63497eec"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s2/T03-F5-W9/seed2/chain_report.json",
+      "sha256": "a00d7138dd203c4ddebf11eb79e426707b33550fc716374f962726fabd98b7d9",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s2/T03-F5-W9/seed2/stats.txt",
+      "sha256": "fc48a9ef784db977225eda2193dc363b50c3ebc71374a260b7387c74c4d10deb"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s2/T03-F5-W9/seed2/run.out",
+      "sha256": "3b67d30eb5549aa30d2a24309a5866603cd53d6658d60d1a8a090db7064d5a9b"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s2/T03-F5-W9/seed2/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s2/manifest.json",
+      "sha256": "235af047536bc72ad7360fbf7b3c815f8adcbe9d86f5362c80ce0f16dd18ae6b"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T03-F5-W9-seed2.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  },
+  "T03-F5-W9|seed3": {
+   "run_id": "T03-F5-W9",
+   "seed": 3,
+   "status": "COMPLETE_L5",
+   "authoritative": {
+    "dir": "runs/lsu/r6_n8_T03-F5-W9_s3/T03-F5-W9/seed3",
+    "binary_sha256": "20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d",
+    "binary_source_head": "d1543872e155943893fdd6d18a489ff7c372d97d",
+    "manifest_source_head": null,
+    "files": {
+     "prop_evt": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s3/T03-F5-W9/seed3/prop_evt.txt.gz",
+      "sha256": "7cdc2fd4c88fa45e94e5635b23a529c99aebf4913e16ae1a25a6ba9d696c098b"
+     },
+     "chain_report_or_regrade": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s3/T03-F5-W9/seed3/chain_report.json",
+      "sha256": "5ddfab7b2758b2f20c7ed96be2b5bd1a26332f7d8bafddf2a13730e50a8ad91e",
+      "kind": "plain"
+     },
+     "stats": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s3/T03-F5-W9/seed3/stats.txt",
+      "sha256": "53b07212959acb238a5fdc08be687e849c28aa2f21030dc5ab68c12380e15a8e"
+     },
+     "run_out": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s3/T03-F5-W9/seed3/run.out",
+      "sha256": "1b9249278869142bac4e29d21984292455ef57a2b1773f5ab646e9b9aba0962e"
+     },
+     "run_err": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s3/T03-F5-W9/seed3/run.err",
+      "sha256": "d8eadc88d063f55bdc2cf17b0eac6cd23f83205039ff3c8f3b96088c9ef6d900"
+     },
+     "manifest": {
+      "path": "runs/lsu/r6_n8_T03-F5-W9_s3/manifest.json",
+      "sha256": "ff4b9d8a0f32dffebe8a12b7d1032cb3d1063eadaa9fa92b71462bedd10df7da"
+     },
+     "md": {
+      "path": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/T03-F5-W9-seed3.md"
+     }
+    }
+   },
+   "cleaning_others_allowed": true,
+   "cleaning_reason": "all other copies are EXACT_DUPLICATE / OLD_BINARY_REFERENCE / INTERRUPTED",
+   "other_directories": []
+  }
+ }
+}

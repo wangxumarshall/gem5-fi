@@ -1,0 +1,1419 @@
+{
+ "generated_at": "2026-10-27T17:55:56",
+ "root": "/home/sdc/gem5-fi-ding/runs/lsu",
+ "note": "PLAN ONLY - nothing deleted",
+ "authoritative_dirs": 51,
+ "counts": {
+  "KEEP_SUPPORT": 9,
+  "REVIEW_REQUIRED": 106,
+  "KEEP_AUTHORITATIVE": 41
+ },
+ "reclaim_bytes": {},
+ "reclaim_total": 0,
+ "dirs": [
+  {
+   "path": "runs/lsu/R6_COMPLETE_PROPAGATION_PATHS",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS",
+   "bytes": 6125531,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/det",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/det",
+   "bytes": 6654295,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/engineering",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/engineering",
+   "bytes": 31701188,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/formal_325",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/formal_325",
+   "bytes": 9636,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/fs_cpt_boot",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot",
+   "bytes": 29744991,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/golden",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/golden",
+   "bytes": 22505438,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/guard",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/guard",
+   "bytes": 11285533,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/manifests",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/manifests",
+   "bytes": 1504,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/r6_arms_test",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_arms_test",
+   "bytes": 95192,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_bisect_v0",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_bisect_v0",
+   "bytes": 807961,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_bisect_v1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_bisect_v1",
+   "bytes": 800136,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_bisect_v2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_bisect_v2",
+   "bytes": 800136,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_bisect_v3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_bisect_v3",
+   "bytes": 800204,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_bisect_v4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_bisect_v4",
+   "bytes": 800204,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_bisect_v5",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_bisect_v5",
+   "bytes": 800204,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c5_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c5_T02-F0-W4",
+   "bytes": 828107,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c5_T02-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c5_T02-F2-W4",
+   "bytes": 893520,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c6_T01-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c6_T01-F0-W4",
+   "bytes": 828365,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c6_T04-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c6_T04-F0-W4",
+   "bytes": 4349196,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c6_T04-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c6_T04-F2-W4",
+   "bytes": 18035331,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c6_T04-F6-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c6_T04-F6-W4",
+   "bytes": 386018,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c7_T01-F0-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c7_T01-F0-W4_s1",
+   "bytes": 827088,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c7_T02-F0-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c7_T02-F0-W4_s1",
+   "bytes": 829803,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c7_T02-F2-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c7_T02-F2-W4_s1",
+   "bytes": 894981,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c7_T04-F0-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c7_T04-F0-W4_s1",
+   "bytes": 4350601,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c7_T04-F2-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c7_T04-F2-W4_s1",
+   "bytes": 18036893,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c7_T04-F6-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c7_T04-F6-W4_s1",
+   "bytes": 825269,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c7_manifest",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c7_manifest",
+   "bytes": 0,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c8_T04-F6-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c8_T04-F6-W4_s1",
+   "bytes": 3036471,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T01-F0-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s1",
+   "bytes": 827466,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T01-F0-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s2",
+   "bytes": 1672311,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T01-F0-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T01-F0-W4_s3",
+   "bytes": 2497123,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T02-F0-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F0-W4_s1",
+   "bytes": 830181,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T02-F0-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F0-W4_s2",
+   "bytes": 1667867,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T02-F0-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F0-W4_s3",
+   "bytes": 2510025,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T02-F2-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s1",
+   "bytes": 895359,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T02-F2-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s2",
+   "bytes": 4984948,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T02-F2-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T02-F2-W4_s3",
+   "bytes": 24857476,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T04-F0-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F0-W4_s1",
+   "bytes": 4350979,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T04-F0-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F0-W4_s2",
+   "bytes": 7384135,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T04-F0-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F0-W4_s3",
+   "bytes": 18285737,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T04-F2-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s1",
+   "bytes": 4527401,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T04-F2-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s2",
+   "bytes": 25574230,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T04-F2-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F2-W4_s3",
+   "bytes": 33193829,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_c9_T04-F6-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_T04-F6-W4_s1",
+   "bytes": 6976553,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_gracecheck2_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_gracecheck2_T02-F0-W4",
+   "bytes": 826385,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_gracecheck3_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_gracecheck3_T02-F0-W4",
+   "bytes": 811014,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9_gracecheck_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9_gracecheck_T02-F0-W4",
+   "bytes": 826382,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_c9b_T04-F6-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_c9b_T04-F6-W4_s1",
+   "bytes": 6978303,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_canary_T01-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_canary_T01-F0-W4",
+   "bytes": 828048,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_canary_T01-F0-W4_attempt1_aborted",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_canary_T01-F0-W4_attempt1_aborted",
+   "bytes": 386249,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_canary_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_canary_T02-F0-W4",
+   "bytes": 800240,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_canary_T02-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_canary_T02-F2-W4",
+   "bytes": 802020,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_census_S01",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_census_S01",
+   "bytes": 167185,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_freqpolicy_t3_fixture",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_freqpolicy_t3_fixture",
+   "bytes": 41,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_golden_dryrun",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_golden_dryrun",
+   "bytes": 0,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_golden_verify",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_golden_verify",
+   "bytes": 815046,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_lq_L01-F0-W5",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_lq_L01-F0-W5",
+   "bytes": 435220,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_lq_L01-F0-W5_s6",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_lq_L01-F0-W5_s6",
+   "bytes": 1846179,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_mc_O01-F0-W7",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_mc_O01-F0-W7",
+   "bytes": 14676393,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_mc_O02-F0-W7",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_mc_O02-F0-W7",
+   "bytes": 14748854,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_mc_O02-F5-W7",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_mc_O02-F5-W7",
+   "bytes": 15288958,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_mc_O03-F0-W7",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_mc_O03-F0-W7",
+   "bytes": 2073446,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_mc_clean_control",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_mc_clean_control",
+   "bytes": 3261721,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_A05-F0-W3_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_A05-F0-W3_s1",
+   "bytes": 445294,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_T01-F1-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_T01-F1-W4_s1",
+   "bytes": 1007288,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_T01-F1-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_T01-F1-W4_s2",
+   "bytes": 5566652,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_T01-F1-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_T01-F1-W4_s3",
+   "bytes": 7660652,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_T01-F2-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_T01-F2-W4_s1",
+   "bytes": 894998,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_T01-F2-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_T01-F2-W4_s2",
+   "bytes": 4049690,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_T01-F2-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_T01-F2-W4_s3",
+   "bytes": 958678,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n6_report",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n6_report",
+   "bytes": 1029918,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T01-F1-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T01-F1-W4_s1",
+   "bytes": 1007507,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T01-F1-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T01-F1-W4_s2",
+   "bytes": 5566927,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T01-F1-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T01-F1-W4_s3",
+   "bytes": 8107881,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T01-F2-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T01-F2-W4_s1",
+   "bytes": 895215,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T01-F2-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T01-F2-W4_s2",
+   "bytes": 4049921,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T01-F2-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T01-F2-W4_s3",
+   "bytes": 958909,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T03-F5-W4_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T03-F5-W4_s1",
+   "bytes": 9466315,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T03-F5-W4_s1.RUN1_STALE_REPORT",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T03-F5-W4_s1.RUN1_STALE_REPORT",
+   "bytes": 12212735,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T03-F5-W4_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T03-F5-W4_s2",
+   "bytes": 3348246,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n7_T03-F5-W4_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n7_T03-F5-W4_s3",
+   "bytes": 6460470,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F0-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F0-W1_s1",
+   "bytes": 836525,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F0-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F0-W1_s1.sha8a229009",
+   "bytes": 827150,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F0-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F0-W1_s2",
+   "bytes": 844040,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F0-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F0-W1_s3",
+   "bytes": 844401,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F1-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F1-W1_s1",
+   "bytes": 4760347,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F1-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F1-W1_s1.sha8a229009",
+   "bytes": 1007508,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F1-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F1-W1_s2",
+   "bytes": 4496863,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F1-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F1-W1_s3",
+   "bytes": 9033801,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F2-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F2-W1_s1",
+   "bytes": 5443927,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F2-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F2-W1_s1.sha8a229009",
+   "bytes": 895216,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F2-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F2-W1_s2",
+   "bytes": 4262045,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T01-F2-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T01-F2-W1_s3",
+   "bytes": 5719826,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F0-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F0-W1_s1",
+   "bytes": 836556,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F0-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F0-W1_s1.sha8a229009",
+   "bytes": 829863,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F0-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F0-W1_s2",
+   "bytes": 844067,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F0-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F0-W1_s3",
+   "bytes": 844409,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F2-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F2-W1_s1",
+   "bytes": 1628959,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F2-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F2-W1_s1.sha8a229009",
+   "bytes": 895254,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F2-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F2-W1_s2",
+   "bytes": 4262113,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T02-F2-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T02-F2-W1_s3",
+   "bytes": 5722153,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T03-F5-W9_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T03-F5-W9_s1",
+   "bytes": 9466294,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T03-F5-W9_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T03-F5-W9_s1.sha8a229009",
+   "bytes": 9466295,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T03-F5-W9_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T03-F5-W9_s2",
+   "bytes": 6648152,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T03-F5-W9_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T03-F5-W9_s3",
+   "bytes": 6986937,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F0-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F0-W1_s1",
+   "bytes": 836525,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F0-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F0-W1_s1.sha8a229009",
+   "bytes": 827150,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F0-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F0-W1_s2",
+   "bytes": 844040,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F0-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F0-W1_s3",
+   "bytes": 844401,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F1-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F1-W1_s1",
+   "bytes": 4760347,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F1-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F1-W1_s1.sha8a229009",
+   "bytes": 1007508,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F1-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F1-W1_s2",
+   "bytes": 4496863,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F1-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F1-W1_s3",
+   "bytes": 9033801,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F2-W1_s1",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F2-W1_s1",
+   "bytes": 5443927,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F2-W1_s1.sha8a229009",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F2-W1_s1.sha8a229009",
+   "bytes": 895216,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F2-W1_s2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F2-W1_s2",
+   "bytes": 4262045,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_n8_T10-F2-W1_s3",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T10-F2-W1_s3",
+   "bytes": 5719826,
+   "classifications": [],
+   "is_authoritative": true,
+   "action": "KEEP_AUTHORITATIVE",
+   "reason": "包含或等于权威证据目录"
+  },
+  {
+   "path": "runs/lsu/r6_p1_T01-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T01-F0-W4",
+   "bytes": 2462094,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_p1_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T02-F0-W4",
+   "bytes": 2431878,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_p1_T02-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T02-F2-W4",
+   "bytes": 2427536,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_p1_T04-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T04-F0-W4",
+   "bytes": 2650972,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_p1_T04-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T04-F2-W4",
+   "bytes": 2655809,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_p1_T04-F6-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T04-F6-W4",
+   "bytes": 2651511,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_rejudge_T02-F2-W4_toolfix",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_rejudge_T02-F2-W4_toolfix",
+   "bytes": 963327,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_reports",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_reports",
+   "bytes": 10306955,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "KEEP_SUPPORT",
+   "reason": "脚本/报告/checkpoint/矩阵等支持资产"
+  },
+  {
+   "path": "runs/lsu/r6_sq2_S04-F0-W5",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_sq2_S04-F0-W5",
+   "bytes": 430184,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_sq_S01-F0-W5",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S01-F0-W5",
+   "bytes": 1305989,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_sq_S04-F0-W5",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S04-F0-W5",
+   "bytes": 436052,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_sq_S04-F0-W5_s6",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_sq_S04-F0-W5_s6",
+   "bytes": 2613992,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_C_T08-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_C_T08-F0-W4",
+   "bytes": 390399,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_D_T06-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_D_T06-F0-W4",
+   "bytes": 389320,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_E_T10-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_E_T10-F0-W4",
+   "bytes": 390141,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_F_T01-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T01-F0-W4",
+   "bytes": 821786,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_F_T10-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_F_T10-F0-W4",
+   "bytes": 821786,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_G_T04-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F2-W4",
+   "bytes": 874729,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_G_T04-F6-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_G_T04-F6-W4",
+   "bytes": 874730,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_H2_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_H2_T02-F0-W4",
+   "bytes": 796563,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_H_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_H_T02-F0-W4",
+   "bytes": 796400,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_I_T01-F1-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_I_T01-F1-W4",
+   "bytes": 390465,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_I_T03-F5-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_I_T03-F5-W4",
+   "bytes": 821672,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_negative",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_negative",
+   "bytes": 387664,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_negative2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_negative2",
+   "bytes": 387626,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_pilot",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot",
+   "bytes": 1261773,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_pilot2",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_pilot2",
+   "bytes": 2886499,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_tlb_verify",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_verify",
+   "bytes": 1657624,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1_T01-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T01-F0-W4",
+   "bytes": 2052106,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1_T02-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T02-F0-W4",
+   "bytes": 2436450,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1_T02-F0-W4_logs",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T02-F0-W4_logs",
+   "bytes": 86976,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1_T02-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T02-F2-W4",
+   "bytes": 2490700,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1_T04-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T04-F0-W4",
+   "bytes": 31379300,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1_T04-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T04-F2-W4",
+   "bytes": 31386928,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1_T04-F6-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1_T04-F6-W4",
+   "bytes": 31379299,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1b_T04-F0-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1b_T04-F0-W4",
+   "bytes": 31377406,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1b_T04-F2-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1b_T04-F2-W4",
+   "bytes": 31396739,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  },
+  {
+   "path": "runs/lsu/r6_w1b_T04-F6-W4",
+   "abs": "/home/sdc/gem5-fi-ding/runs/lsu/r6_w1b_T04-F6-W4",
+   "bytes": 31377405,
+   "classifications": [],
+   "is_authoritative": false,
+   "action": "REVIEW_REQUIRED",
+   "reason": "未在权威索引中明确分类"
+  }
+ ]
+}

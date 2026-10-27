@@ -1,0 +1,20 @@
+{
+ "generated_at": "2026-10-27T17:56:12",
+ "deleted": [],
+ "deleted_bytes": 0,
+ "reason": "清理计划中 DELETE_DUPLICATE / DELETE_INTERRUPTED 均为 0：权威索引只对 seed 级路径做了重复判定，runs/lsu 下的顶层遗留目录无法按第 9 节条件证明可安全删除，故全部标 REVIEW_REQUIRED 并保留。",
+ "plan_counts": {
+  "KEEP_SUPPORT": 9,
+  "REVIEW_REQUIRED": 106,
+  "KEEP_AUTHORITATIVE": 41
+ },
+ "reclaim_total_bytes": 0,
+ "ghz_before_after": {
+  "before": "/dev/mapper/openeuler-home  354G  266G   70G   80% /home",
+  "runs_lsu_bytes": 820423234
+ },
+ "integrity": {
+  "authoritative_16": "see R6-AUTHORITATIVE-EVIDENCE.json (51 seeds AUTHORITATIVE)",
+  "propagation_mds": 51
+ }
+}

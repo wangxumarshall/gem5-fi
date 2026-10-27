@@ -1,0 +1,3504 @@
+{
+ "generated_at": "2026-10-27T17:53:48",
+ "analysis_tool_head": "e45b0a0fc8bfb871e906a6ecef6b16f922ec3d8c",
+ "checker_sha256": "baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44",
+ "items": [
+  "every referenced event_id exists in that seed's own prop_evt",
+  "parent_event_id exists and is on the same legitimate ancestry",
+  "tick order legal",
+  "VA/PFN/PA/old/new/mask all from that seed",
+  "no request_id/corr/fault_id copied across seeds",
+  "terminal/outcome match that seed's authoritative report",
+  "full => terminal witness is a real L5, never chain_end",
+  "containment => terminal witness is a real contained event",
+  "human narrative and technical table reference the same key events",
+  "the only legitimate shared injection is T04-F0-W4 seed2/seed3",
+  "no RunID's path template reused for another RunID",
+  "requested/effective tier matches the actual evidence"
+ ],
+ "per_seed": {
+  "T01-F0-W4|seed1": {
+   "key": "T01-F0-W4|seed1",
+   "run_id": "T01-F0-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=5; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 4 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950940537..237950940537 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=detected_contained/L2 report=detected_contained/L2"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "n/a (not full)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "witness kind=tlb_translate_result id=3 dl=L2 contained=1 outcome=NoFault"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (4); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F0-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F0-W4|seed2": {
+   "key": "T01-F0-W4|seed2",
+   "run_id": "T01-F0-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=65; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 12 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233911..237951515628 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=259 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (12); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F0-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F0-W4|seed3": {
+   "key": "T01-F0-W4|seed3",
+   "run_id": "T01-F0-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=5; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 4 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233578..237950233578 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=detected_contained/L2 report=detected_contained/L2"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "n/a (not full)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "witness kind=tlb_translate_result id=3 dl=L2 contained=1 outcome=NoFault"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (4); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F0-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F0-W4|seed1": {
+   "key": "T02-F0-W4|seed1",
+   "run_id": "T02-F0-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=39; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 16 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950940537..237951472338 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=98 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F0-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F0-W4|seed2": {
+   "key": "T02-F0-W4|seed2",
+   "run_id": "T02-F0-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=65; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 12 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233911..237951515628 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=259 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (12); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F0-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F0-W4|seed3": {
+   "key": "T02-F0-W4|seed3",
+   "run_id": "T02-F0-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=78; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 23 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233578..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=293 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F0-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F2-W4|seed1": {
+   "key": "T02-F2-W4|seed1",
+   "run_id": "T02-F2-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=140; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 15 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238085259417..238085368641 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=20 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (15); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F2-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F2-W4|seed2": {
+   "key": "T02-F2-W4|seed2",
+   "run_id": "T02-F2-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 11 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238083182163..238083244768 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=detected_contained/L5 report=detected_contained/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "n/a (not full)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "witness kind=squash_masked id=68 dl=L4 contained=1 outcome=masked"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F2-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F2-W4|seed3": {
+   "key": "T02-F2-W4|seed3",
+   "run_id": "T02-F2-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=326; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 16 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238095582084..238095695637 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=96 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F2-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T04-F0-W4|seed1": {
+   "key": "T04-F0-W4|seed1",
+   "run_id": "T04-F0-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=94; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950940537..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=118 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "intra-RunID shared injection={\"('237950546931', 'ffffff807fbce090', '0xffbce', '0x81d75')\": [2, 3]} (expected only seeds 2/3)"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T04-F0-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T04-F0-W4|seed2": {
+   "key": "T04-F0-W4|seed2",
+   "run_id": "T04-F0-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=11500; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950546931..237950593884 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=21 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "intra-RunID shared injection={\"('237950546931', 'ffffff807fbce090', '0xffbce', '0x81d75')\": [2, 3]} (expected only seeds 2/3); seed3 raw injection line identical=True; prop_evt SHA differs=True"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T04-F0-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T04-F0-W4|seed3": {
+   "key": "T04-F0-W4|seed3",
+   "run_id": "T04-F0-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=11500; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950546931..237950593884 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=21 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "intra-RunID shared injection={\"('237950546931', 'ffffff807fbce090', '0xffbce', '0x81d75')\": [2, 3]} (expected only seeds 2/3)"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T04-F0-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T04-F2-W4|seed1": {
+   "key": "T04-F2-W4|seed1",
+   "run_id": "T04-F2-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=1565; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238088438901..238088499840 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=40 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T04-F2-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T04-F2-W4|seed2": {
+   "key": "T04-F2-W4|seed2",
+   "run_id": "T04-F2-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=12331; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 21 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238085994681..238086055620 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=42 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T04-F2-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T04-F2-W4|seed3": {
+   "key": "T04-F2-W4|seed3",
+   "run_id": "T04-F2-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=1590; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238100391603..238100456205 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=54 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T04-F2-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F1-W4|seed1": {
+   "key": "T01-F1-W4|seed1",
+   "run_id": "T01-F1-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=366; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 16 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239595855309..239595975522 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=69 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F1-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F1-W4|seed2": {
+   "key": "T01-F1-W4|seed2",
+   "run_id": "T01-F1-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=79; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 21 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239345234181..239345295120 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=20 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F1-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F1-W4|seed3": {
+   "key": "T01-F1-W4|seed3",
+   "run_id": "T01-F1-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=24; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 16 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239629862268..239629971492 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=39 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F1-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F2-W4|seed1": {
+   "key": "T01-F2-W4|seed1",
+   "run_id": "T01-F2-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=140; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 15 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238085259417..238085368641 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=20 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (15); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F2-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F2-W4|seed2": {
+   "key": "T01-F2-W4|seed2",
+   "run_id": "T01-F2-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 11 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238083182163..238083244768 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=detected_contained/L5 report=detected_contained/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "n/a (not full)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "witness kind=squash_masked id=68 dl=L4 contained=1 outcome=masked"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F2-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F2-W4|seed3": {
+   "key": "T01-F2-W4|seed3",
+   "run_id": "T01-F2-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=326; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 16 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238095582084..238095695637 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=96 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F2-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T03-F5-W4|seed1": {
+   "key": "T03-F5-W4|seed1",
+   "run_id": "T03-F5-W4",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=23; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237951174969..237951250227 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=2; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=280 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T03-F5-W4 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F5 run.out=CHAOS_LSU_TIER_CAP: requested=F5 effective=F5 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T03-F5-W4|seed2": {
+   "key": "T03-F5-W4|seed2",
+   "run_id": "T03-F5-W4",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=319; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950747064..237950808669 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=21 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T03-F5-W4 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F5 run.out=CHAOS_LSU_TIER_CAP: requested=F5 effective=F5 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T03-F5-W4|seed3": {
+   "key": "T03-F5-W4|seed3",
+   "run_id": "T03-F5-W4",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=3011; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950546931..237950608203 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=2; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=224 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T03-F5-W4 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F5 run.out=CHAOS_LSU_TIER_CAP: requested=F5 effective=F5 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F0-W1|seed1": {
+   "key": "T01-F0-W1|seed1",
+   "run_id": "T01-F0-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=46; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950940537..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=118 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F0-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F0-W1|seed2": {
+   "key": "T01-F0-W1|seed2",
+   "run_id": "T01-F0-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 18 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233911..237951341802 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=283 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (18); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F0-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F0-W1|seed3": {
+   "key": "T01-F0-W1|seed3",
+   "run_id": "T01-F0-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=78; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 23 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233578..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=293 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F0-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F1-W1|seed1": {
+   "key": "T01-F1-W1|seed1",
+   "run_id": "T01-F1-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=1585; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239595855309..239595941223 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=87 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F1-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F1-W1|seed2": {
+   "key": "T01-F1-W1|seed2",
+   "run_id": "T01-F1-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=79; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 21 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239345234181..239345295120 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=20 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F1-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F1-W1|seed3": {
+   "key": "T01-F1-W1|seed3",
+   "run_id": "T01-F1-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=36; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239629862268..239629923207 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=45 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F1-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F2-W1|seed1": {
+   "key": "T01-F2-W1|seed1",
+   "run_id": "T01-F2-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=329; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 21 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238085259417..238085320689 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=26 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F2-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F2-W1|seed2": {
+   "key": "T01-F2-W1|seed2",
+   "run_id": "T01-F2-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 11 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238083182163..238083244768 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=detected_contained/L5 report=detected_contained/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "n/a (not full)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "witness kind=squash_masked id=68 dl=L4 contained=1 outcome=masked"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F2-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T01-F2-W1|seed3": {
+   "key": "T01-F2-W1|seed3",
+   "run_id": "T01-F2-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=1587; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238095582084..238095648018 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=97 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T01-F2-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F0-W1|seed1": {
+   "key": "T02-F0-W1|seed1",
+   "run_id": "T02-F0-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=46; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950940537..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=118 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F0-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F0-W1|seed2": {
+   "key": "T02-F0-W1|seed2",
+   "run_id": "T02-F0-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 18 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233911..237951341802 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=283 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (18); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F0-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F0-W1|seed3": {
+   "key": "T02-F0-W1|seed3",
+   "run_id": "T02-F0-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=78; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 23 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233578..237951288189 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=293 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F0-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F2-W1|seed1": {
+   "key": "T02-F2-W1|seed1",
+   "run_id": "T02-F2-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=329; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 21 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238085259417..238085320689 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=26 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F2-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F2-W1|seed2": {
+   "key": "T02-F2-W1|seed2",
+   "run_id": "T02-F2-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 11 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238083182163..238083244768 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=detected_contained/L5 report=detected_contained/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "n/a (not full)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "witness kind=squash_masked id=68 dl=L4 contained=1 outcome=masked"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F2-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T02-F2-W1|seed3": {
+   "key": "T02-F2-W1|seed3",
+   "run_id": "T02-F2-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=1587; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238095582084..238095648018 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=97 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T02-F2-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F0-W1|seed1": {
+   "key": "T10-F0-W1|seed1",
+   "run_id": "T10-F0-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=46; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950940537..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=118 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F0-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F0-W1|seed2": {
+   "key": "T10-F0-W1|seed2",
+   "run_id": "T10-F0-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 18 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233911..237951341802 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=283 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (18); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F0-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F0-W1|seed3": {
+   "key": "T10-F0-W1|seed3",
+   "run_id": "T10-F0-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=78; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 23 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233578..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=293 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F0-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F0 run.out=CHAOS_LSU_TIER_CAP: requested=F0 effective=F0 lookup_tier_enabled=0 expected_enabled=0"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F1-W1|seed1": {
+   "key": "T10-F1-W1|seed1",
+   "run_id": "T10-F1-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=1585; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239595855309..239595941223 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=87 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F1-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F1-W1|seed2": {
+   "key": "T10-F1-W1|seed2",
+   "run_id": "T10-F1-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=79; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 21 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239345234181..239345295120 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=20 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F1-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F1-W1|seed3": {
+   "key": "T10-F1-W1|seed3",
+   "run_id": "T10-F1-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=36; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 239629862268..239629923207 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=45 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F1-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F1 run.out=CHAOS_LSU_TIER_CAP: requested=F1 effective=F1 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F2-W1|seed1": {
+   "key": "T10-F2-W1|seed1",
+   "run_id": "T10-F2-W1",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=329; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 21 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238085259417..238085320689 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=26 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F2-W1 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F2-W1|seed2": {
+   "key": "T10-F2-W1|seed2",
+   "run_id": "T10-F2-W1",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=72; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 11 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238083182163..238083244768 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=detected_contained/L5 report=detected_contained/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "n/a (not full)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "witness kind=squash_masked id=68 dl=L4 contained=1 outcome=masked"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F2-W1 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T10-F2-W1|seed3": {
+   "key": "T10-F2-W1|seed3",
+   "run_id": "T10-F2-W1",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=1587; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 238095582084..238095648018 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=97 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T10-F2-W1 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F2 run.out=CHAOS_LSU_TIER_CAP: requested=F2 effective=F2 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T03-F5-W9|seed1": {
+   "key": "T03-F5-W9|seed1",
+   "run_id": "T03-F5-W9",
+   "seed": 1,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=23; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237951174969..237951250227 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=2; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=280 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T03-F5-W9 and seed1"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F5 run.out=CHAOS_LSU_TIER_CAP: requested=F5 effective=F5 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T03-F5-W9|seed2": {
+   "key": "T03-F5-W9|seed2",
+   "run_id": "T03-F5-W9",
+   "seed": 2,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=76; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 23 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950233578..237951302175 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=293 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T03-F5-W9 and seed2"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F5 run.out=CHAOS_LSU_TIER_CAP: requested=F5 effective=F5 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  },
+  "T03-F5-W9|seed3": {
+   "key": "T03-F5-W9|seed3",
+   "run_id": "T03-F5-W9",
+   "seed": 3,
+   "checks": [
+    {
+     "item": "1_event_ids_exist",
+     "ok": true,
+     "evidence": "referenced ids=9993; missing=none"
+    },
+    {
+     "item": "2_parent_on_same_ancestry",
+     "ok": true,
+     "evidence": "contiguous parent chain of 22 events"
+    },
+    {
+     "item": "3_tick_order",
+     "ok": true,
+     "evidence": "ticks 237950546931..237950608203 monotone=True"
+    },
+    {
+     "item": "4_values_from_own_seed",
+     "ok": true,
+     "evidence": "all displayed event fields re-read from own prop_evt"
+    },
+    {
+     "item": "5_no_cross_seed_identity_copy",
+     "ok": true,
+     "evidence": "all fault_id=1; prop_evt SHA unique among the 51 seeds"
+    },
+    {
+     "item": "6_terminal_matches_authoritative_report",
+     "ok": true,
+     "evidence": "checker=full/L5 report=full/L5"
+    },
+    {
+     "item": "7_full_witness_real_L5_not_chain_end",
+     "ok": true,
+     "evidence": "witness kind=errant_commit id=21 dl=L5 outcome=errant_commit (kind!=chain_end)"
+    },
+    {
+     "item": "8_containment_witness_real_contained",
+     "ok": true,
+     "evidence": "n/a (full escape)"
+    },
+    {
+     "item": "9_narrative_and_table_agree",
+     "ok": true,
+     "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+    },
+    {
+     "item": "10_only_legitimate_shared_injection",
+     "ok": true,
+     "evidence": "no intra-RunID shared injection"
+    },
+    {
+     "item": "11_no_runid_path_reuse",
+     "ok": true,
+     "evidence": "seed_dir/prop/report all carry T03-F5-W9 and seed3"
+    },
+    {
+     "item": "12_tier_matches_evidence",
+     "ok": true,
+     "evidence": "matrix=F5 run.out=CHAOS_LSU_TIER_CAP: requested=F5 effective=F5 lookup_tier_enabled=1 expected_enabled=1"
+    }
+   ],
+   "verdict": "PASS"
+  }
+ },
+ "summary": {
+  "seeds": 51,
+  "PASS": 51,
+  "REVIEW_REQUIRED": 0,
+  "failures": []
+ },
+ "non_blocking_notes": [
+  "W1 RunIDs: the matrix workload label is MiBench, but every run.out command line uses --readfile configs/fs/tlb_probe.rcS; both are recorded, neither is inferred away.",
+  "Old frozen binary (e8052842): the run-level manifest has no binary_source_head field; manifest.source_head is the run-time worktree HEAD, not a binary build source. Recorded as N/A + explanation.",
+  "T01-F2-W4 seed2 authoritative report is the Task-11b regrade, not the plain chain_report.json.",
+  "T03-F5-W4 seed1: r6_n7_T03-F5-W4_s1.RUN1_STALE_REPORT carries a pre-escape-first verdict and a different raw stream; it is REVIEW_REQUIRED-by-classification (stale superseded report) and is never used.",
+  "T03-F5-W9: F5 is a permanent model — each run latches exactly one mask after warm-up (seed1 Mask 0x10, seed2 Mask 0x2, seed3 Mask 0x20000) and applies it to every subsequent TLB read; no_effect fires are aggregated in run.out CHAOS_LSU_NOEFFECT and are not logged per event.",
+  "T03-F5-W9: matrix workload label is GAP/Graph500, but every run.out --readfile points to configs/fs/tlb_probe.rcS; both are recorded, neither is inferred away.",
+  "T03-F5-W9 seed1 and T03-F5-W4 seed1 share the same deterministic injection point (tick=237951174969, VA=0xffffffc008a16868, old_pfn=0x80a16 -> new_pfn=0x80a06, Mask 0x10) across different RunIDs; evidence streams are independent (prop_evt SHA-256 differs; trigger counts differ), not a copy."
+ ]
+}
