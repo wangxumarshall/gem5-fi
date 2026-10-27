@@ -69,7 +69,8 @@ def main():
           f"got={w11_rids}")
     bad = [r for r in W11
            if not (m[r]["status"] == "BLOCKED"
-                   and any("spec-license: SPEC CPU2017 needs a license" in x
+                   and any(("spec-license: SPEC CPU2017 needs a license" in x
+                            or "BLOCKED_SPEC: SPEC CPU2017 needs a license" in x)
                            for x in m[r]["status_reasons"]))]
     check("A2_w11_all_blocked_with_spec_license_reason", not bad, str(bad))
     check("A3_w11_models_are_the_four",
@@ -141,18 +142,22 @@ def main():
     unexplained = [(r, w, y) for r, w, y in unresolved
                    if not (y and ("F0-span-unmeasured" in y
                                   or "interval-tier-unreachable" in y
-                                  or "armtlb-lookup-tier-unimplemented" in y))]
+                                  or "armtlb-lookup-tier-unimplemented" in y
+                                  or "PARTIAL_SUBMODEL_PROVEN" in y))]
     check("C1_unresolved_is_explained_by_precise_refusals",
           not unexplained, str(unexplained))
     # C2: 残余集合里没有 W11（许可证阻塞走的是 BLOCKED 通道，不进 UNRESOLVED）。
     check("C2_no_w11_in_unresolved",
           not any(r.endswith("-W11") for r, _w, _wh in unresolved),
           str([r for r, _w, _wh in unresolved]))
-    # C3: T08-W9 三行的残余理由**不含负载级阻塞**（其载体 gap_bfs 有 SE 二进制）
-    # ——即 W9 的缺口是模型级，不是载体级。
+    # C3: [R6-PROPAGATION-V3] T08-W9 is now an explicit hard workload gap —
+    # the GAP/Graph500 FS carrier is absent.  Assert the precise label rather
+    # than the obsolete "no workload-level block" claim.
     wl_level = [r for r in T08_W9
-                if any("workload:" in x for x in m[r]["status_reasons"])]
-    check("C3_t08_w9_has_no_workload_level_block", not wl_level, str(wl_level))
+                if not any("BLOCKED_WORKLOAD_GAP" in x
+                           for x in m[r]["status_reasons"])]
+    check("C3_t08_w9_is_explicit_BLOCKED_WORKLOAD_GAP", not wl_level,
+          str(wl_level))
     check("C4_t08_w9_resolves_to_se_carrier",
           all(m[r]["workload"]["binary"] == "gap_bfs" for r in T08_W9),
           str({r: m[r]["workload"]["binary"] for r in T08_W9}))

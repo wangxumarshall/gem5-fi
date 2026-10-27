@@ -136,10 +136,17 @@ def _classify(entry, cov_status, flags, reason=None):
     并计数（响亮的未知，绝不冒充某个具体类别）。
     """
     reasons = entry.get("status_reasons") or []
+    cap = entry.get("capability_status")
     if reasons:
         joined = " ; ".join(reasons)
         if "platform-defect" in joined:
             cat = "PLATFORM-DEFECT"
+        elif "BLOCKED_WORKLOAD_GAP" in joined:
+            cat = "WORKLOAD-GAP"
+        elif "OUT_OF_SCOPE_BACKFILL_ARTIFACT" in joined:
+            cat = "OUT-OF-SCOPE"
+        elif "BLOCKED_SPEC" in joined:
+            cat = "LICENSE"
         elif "multicore-fs" in joined:
             cat = "FS-MULTICORE"
         elif "spec-license" in joined:
@@ -155,6 +162,12 @@ def _classify(entry, cov_status, flags, reason=None):
         else:
             cat = "UNCLASSIFIED"
         return "BLOCKED", cat, joined
+    if cap == "PARTIAL_SUBMODEL_PROVEN":
+        # [R6-PROPAGATION-V3] T08-a canary is runnable, but the whole T08
+        # model is not.  Keep the upstream row PARTIAL (not BLOCKED/READY) so
+        # the chain gate still applies and no one reads it as COMPLETE.
+        return ("PARTIAL", "PARTIAL-SUBMODEL",
+                entry.get("capability_note") or "PARTIAL_SUBMODEL_PROVEN")
     if flags is None:
         # [MDSPEC][R6-FTIER] a named tier-missing refusal is NOT an unresolved
         # mystery: the armtlb lookup path cannot express F1-F6 (no lsuTrigger

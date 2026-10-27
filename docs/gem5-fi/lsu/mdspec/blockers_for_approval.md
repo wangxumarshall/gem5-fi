@@ -67,7 +67,7 @@
 | P09-F4-W13 |
 | P09-F6-W13 |
 
-## FS-INFRA（24 项）
+## FS-INFRA（13 项）
 
 - **阻塞机理**：**并非缺 FS 基础设施**（该旧措辞已被本轮真机证据反驳）：载体/checkpoint 齐备，本集成二进制下 T01-F0-W4 产出真实注入（arm_tlb_lookup_hit，pfn 0x81d75→0x100000000081d75），T04-F0-W4 activated=1 / outcome=Crash / 链 L0→L5 full（1572 事件）。真正的阻塞是**逐格 campaign 入口 pilot 未完成**——T05/T06/T07/T08为本轮新实现模式、T10 PPN 分层未参数化，均无真机 pilot；且 runid_map 的 workload 级静态键 TLB-AliasPerm 仍整批拒绝该负载。
 - **解除条件**：逐格（含 T05–T08 新模式）真机 30 activated pilot 后，解除 TLB-AliasPerm 键并重生成 runid_map → 契约
@@ -84,21 +84,22 @@
 | T04-F0-W4 |
 | T04-F2-W4 |
 | T04-F6-W4 |
-| T05-F0-W4 |
-| T05-F2-W4 |
 | T05-F6-W4 |
-| T06-F0-W4 |
-| T06-F2-W4 |
 | T06-F6-W4 |
-| T07-F0-W4 |
-| T07-F4-W4 |
 | T07-F6-W4 |
-| T08-F0-W4 |
-| T08-F4-W4 |
 | T08-F6-W4 |
-| T10-F0-W4 |
-| T10-F1-W4 |
-| T10-F2-W4 |
+
+## WORKLOAD-GAP（3 项）
+
+- **阻塞机理**：**规格负载在 FS 下不可得**：T08-W9 要求 GAP/Graph500；当前只有 SE 版 gap_bfs，FS 镜像内没有 GAP/Graph500，armtlb 载体固定为 tlb_probe.rcS——在 W9 上跑 tlb_probe 会静默改变实验身份。
+- **解除条件**：取得合法 AArch64 GAP/Graph500 并装入 FS 镜像（或不改变语义的 FS 载体），验证 guest 真执行、oracle 哈希与 walk hook 可观测；否则保持 BLOCKED_WORKLOAD_GAP。
+- **建议处置**：批准延期，或按上述条件解除
+
+| RunID |
+|---|
+| T08-F0-W9 |
+| T08-F4-W9 |
+| T08-F6-W9 |
 
 ## RULING（6 项）
 
@@ -128,7 +129,7 @@
 | S10-F2-W5 |
 | S10-F2-W9 |
 
-## CHAIN-UNPROVEN（44 项）
+## CHAIN-UNPROVEN（49 项）
 
 - **阻塞机理**：**非范围性延期——链准入门禁（R6-GATE）**：该 cell 的 pilot PROP-EVT 未过 `lsu_chain_check.check_admission`（无 family-specific 完整 L0→L5 链，也无显式 containment 且后续层 N/A(contained)）；此前仅凭 coverage PASS 即判 READY 是假象。
 - **解除条件**：为该 cell 产出真实 activated pilot，其链须满足：完整 L0→L5 链（同 parent-event DAG、无 Unknown、无跨分支/跨请求/逆时拼接、逐层必录指标齐），或显式 containment 路径。解除后重生成契约。
@@ -180,8 +181,13 @@
 | S10-F0-W9 |
 | S10-F5-W5 |
 | S10-F5-W9 |
+| T05-F0-W4 |
+| T06-F0-W4 |
+| T07-F0-W4 |
+| T08-F0-W4 |
+| T10-F0-W4 |
 
-## CHAIN-EVIDENCE-MISSING（197 项）
+## CHAIN-EVIDENCE-MISSING（203 项）
 
 - **阻塞机理**：**非范围性延期——链准入门禁（R6-GATE）**：契约无该 cell 的 pilot PROP-EVT 证据（或证据根不可达）——链不可证，故不得判 READY（绝不因缺证据默认通过）。
 - **解除条件**：为该 cell 运行 pilot 并把 prop_evt 纳入 pilot_evidence.json （或设 LSU_CHAIN_EVIDENCE_ROOT 指向证据根），再重生成契约。
@@ -383,9 +389,15 @@
 | T02-F0-W1 |
 | T02-F2-W1 |
 | T03-F5-W9 |
+| T05-F2-W4 |
+| T06-F2-W4 |
+| T07-F4-W4 |
+| T08-F4-W4 |
 | T10-F0-W1 |
 | T10-F1-W1 |
+| T10-F1-W4 |
 | T10-F2-W1 |
+| T10-F2-W4 |
 
-**合计 322 项**（其余 3 项为可自行实现，见 `blocked_triage.md`）。
+**合计 325 项**（其余 0 项为可自行实现，见 `blocked_triage.md`）。
 

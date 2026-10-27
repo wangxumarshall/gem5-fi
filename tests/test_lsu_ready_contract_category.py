@@ -40,9 +40,13 @@ XLSX = ROOT / "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
 # 6 行（T01-F1/F2-W1、T02-F2-W1、T03-F5-W9、T10-F1/F2-W1）不再落 TIER-UNIMPL
 # （类别消失）而回到链门禁（无样本）——CHAIN-EVIDENCE-MISSING 235 → 241。
 # TIER-UNIMPL 现只在**未知**档位（F7/off）时出现，325 行内无此格。
-EXPECTED = {"RULING": 6, "FS-INFRA": 24, "MODE-UNIMPL": 3, "UNRESOLVED": 4,
-            "FS-MULTICORE": 35, "LICENSE": 12,
-            "CHAIN-EVIDENCE-MISSING": 241}
+# [R6-PROPAGATION-V3 2026-10-27] T05/T06/T07 leave the upstream block (6
+# FS-INFRA rows), T08 W4 becomes PARTIAL-SUBMODEL (2 rows), and T08-W9 x3
+# become the explicit WORKLOAD-GAP class.  MODE-UNIMPL disappears.  With
+# pilots={} every runnable/PARTIAL row still lands in the chain gate.
+EXPECTED = {"RULING": 6, "FS-INFRA": 13, "UNRESOLVED": 4,
+            "FS-MULTICORE": 35, "LICENSE": 12, "WORKLOAD-GAP": 3,
+            "CHAIN-EVIDENCE-MISSING": 252}
 
 
 def main():
@@ -83,8 +87,8 @@ def main():
           and all(r["category"] == "RULING" for r in a06),
           str([(r["run_id"], r["category"]) for r in a06]))
     t08w9 = ["T08-F0-W9", "T08-F4-W9", "T08-F6-W9"]
-    check("t08_w9_is_mode_unimpl_3",
-          all(cat_of(r) == "MODE-UNIMPL" for r in t08w9),
+    check("t08_w9_is_workload_gap_3",
+          all(cat_of(r) == "WORKLOAD-GAP" for r in t08w9),
           str([(r, cat_of(r)) for r in t08w9]))
     w11 = [r["run_id"] for r in rows if r["run_id"].endswith("-W11")]
     check("w11_is_license_12",

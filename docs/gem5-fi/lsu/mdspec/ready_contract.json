@@ -5,11 +5,11 @@
   "BLOCKED": 325
  },
  "blocked_by_category": {
-  "CHAIN-UNPROVEN": 44,
-  "CHAIN-EVIDENCE-MISSING": 197,
+  "CHAIN-UNPROVEN": 49,
+  "CHAIN-EVIDENCE-MISSING": 203,
   "RULING": 6,
-  "FS-INFRA": 24,
-  "MODE-UNIMPL": 3,
+  "FS-INFRA": 13,
+  "WORKLOAD-GAP": 3,
   "UNRESOLVED": 4,
   "FS-MULTICORE": 35,
   "LICENSE": 12
@@ -22,17 +22,15 @@
  "self_consistent": true,
  "chain_gate": {
   "rule": "READY requires lsu_chain_check.check_admission admission on this RunID's pilot PROP-EVT (complete family-specific L0→L5 chain, or explicit containment with later layers N/A(contained)); the gate is evaluated for EVERY RunID and its verdict is recorded on the row, independent of the upstream (ledger/coverage) category",
-  "evidence_root": "/home/sdc/gem5-fi-ding",
+  "evidence_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026",
   "event_cap": 4000,
   "recorded": 325,
   "rows_total": 325,
-  "admitted": 1,
+  "admitted": 0,
   "evaluated": 64,
-  "unproven": 44,
-  "evidence_missing": 197,
-  "blocked_upstream_admitted": [
-   "T05-F0-W4"
-  ]
+  "unproven": 49,
+  "evidence_missing": 203,
+  "blocked_upstream_admitted": []
  },
  "seeds_per_cell": 3,
  "max_parallel": 1,
@@ -45,11 +43,9 @@
    "model": "A01",
    "chain": {
     "admitted": false,
-    "terminal": "detected_translation_outcome_pending",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A01-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A01-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A01-F0-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: A01-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10/A01-F0-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -62,7 +58,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A01-F0-W3 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: A01-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A01-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A01-F0-W3 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A01-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10/A01-F0-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -361,12 +357,9 @@
    "model": "A04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A04-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A04-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A04-F0-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A04-F0-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: A04-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/A04-F0-W3/s1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -379,7 +372,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A04-F0-W3 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: A04-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A04-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A04-F0-W3 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A04-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/A04-F0-W3/s1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -600,12 +593,9 @@
    "model": "A06",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L3_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A06-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A06-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A06-F0-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A06-F0-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: A06-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_a06/A06-F0-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -631,12 +621,9 @@
    "model": "A06",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L3_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A06-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A06-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A06-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A06-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: A06-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_a06/A06-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -766,20 +753,11 @@
    "model": "A07",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L3_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A07-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F0-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F0-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F0-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F0-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F0-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F0-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: A07-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -792,7 +770,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A07-F0-W3 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: A07-F0-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A07-F0-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A07-F0-W3 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A07-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: A07-F0-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W3/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -805,20 +783,11 @@
    "model": "A07",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L3_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A07-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: A07-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -831,7 +800,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A07-F0-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: A07-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A07-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A07-F0-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A07-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: A07-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -846,15 +815,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A07-F4-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F4-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F4-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: A07-F4-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F4-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F4-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: A07-F4-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F4-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F4-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: A07-F4-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F4-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F4-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -867,7 +830,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A07-F4-W3 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: A07-F4-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A07-F4-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A07-F4-W3 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A07-F4-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: A07-F4-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W3/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -882,15 +845,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A07-F4-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F4-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F4-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: A07-F4-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F4-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F4-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: A07-F4-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F4-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F4-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: A07-F4-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F4-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F4-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -903,7 +860,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A07-F4-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: A07-F4-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A07-F4-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A07-F4-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A07-F4-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: A07-F4-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F4-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -916,20 +873,11 @@
    "model": "A07",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A07-F6-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F6-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F6-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F6-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F6-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F6-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F6-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F6-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F6-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F6-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F6-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F6-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: A07-F6-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F6-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F6-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -942,7 +890,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A07-F6-W3 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: A07-F6-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A07-F6-W3 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A07-F6-W3 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A07-F6-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: A07-F6-W3 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W3/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -955,20 +903,11 @@
    "model": "A07",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: A07-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F6-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F6-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F6-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F6-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: A07-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: A07-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: A07-F6-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: A07-F6-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: A07-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: A07-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -981,7 +920,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "A07-F6-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: A07-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: A07-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "A07-F6-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: A07-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: A07-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_a07_pilot/A07-F6-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -1176,12 +1115,9 @@
    "model": "T01",
    "chain": {
     "admitted": false,
-    "terminal": "detected_contained",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: T01-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T01-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T01-F0-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: T01-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: T01-F0-W4 证据文件缺 runs/lsu/r6_tlb_F_T01-F0-W4/T01-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -1337,13 +1273,9 @@
    "model": "T02",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "cross_request_edge: T02-F0-W4 fault 1 所选祖先上 10 处相邻见证 request_id 不一致（首例 event 32:resp req='307' → event 33:resp req='308'）——整条祖先禁止跨请求拼接",
-     "no_closed_chain_and_no_containment: T02-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T02-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T02-F0-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: T02-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: T02-F0-W4 证据文件缺 runs/lsu/r6_tlb_pilot2/T02-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -1421,12 +1353,9 @@
    "model": "T03",
    "chain": {
     "admitted": false,
-    "terminal": "detected_contained",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: T03-F5-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T03-F5-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T03-F5-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: T03-F5-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: T03-F5-W4 证据文件缺 runs/lsu/r6_tlb_I_T03-F5-W4/T03-F5-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -1478,13 +1407,9 @@
    "model": "T04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "cross_request_edge: T04-F0-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
-     "no_closed_chain_and_no_containment: T04-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T04-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T04-F0-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: T04-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: T04-F0-W4 证据文件缺 runs/lsu/r6_tlb_pilot2/T04-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -1510,13 +1435,9 @@
    "model": "T04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "cross_request_edge: T04-F2-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
-     "no_closed_chain_and_no_containment: T04-F2-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T04-F2-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T04-F2-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: T04-F2-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: T04-F2-W4 证据文件缺 runs/lsu/r6_tlb_G_T04-F2-W4/T04-F2-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -1542,13 +1463,9 @@
    "model": "T04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "cross_request_edge: T04-F6-W4 fault 1 所选祖先上 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → event 39:resp req='308'）——整条祖先禁止跨请求拼接",
-     "no_closed_chain_and_no_containment: T04-F6-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T04-F6-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T04-F6-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: T04-F6-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: T04-F6-W4 证据文件缺 runs/lsu/r6_tlb_G_T04-F6-W4/T04-F6-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -1573,26 +1490,28 @@
    "unit": "L1d-TLB",
    "model": "T05",
    "chain": {
-    "admitted": true,
-    "terminal": "detected_contained",
-    "violations": [],
+    "admitted": false,
+    "terminal": null,
+    "violations": [
+     "chain_evidence_missing: T05-F0-W4 证据文件缺 runs/lsu/r6_tlb_pilot2/T05-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
+    ],
     "n_samples": 1,
     "evaluated": 1,
     "note": ""
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F0",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：valid/global/ASID模式未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: per-cell pilot breadth — unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed); FS pilot evidence (activated=1): runs/lsu/r6_tlb_pilot2",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "category": "CHAIN-UNPROVEN",
+   "family": "armtlb",
+   "why": "T05-F0-W4 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: T05-F0-W4 证据文件缺 runs/lsu/r6_tlb_pilot2/T05-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "coverage": "PASS",
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T05-F2-W4",
@@ -1606,19 +1525,19 @@
     "evaluated": 0,
     "note": "无 T05-F2-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F2",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：valid/global/ASID模式未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "category": "CHAIN-EVIDENCE-MISSING",
+   "family": "armtlb",
+   "why": "无 T05-F2-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "coverage": "PASS",
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T05-F6-W4",
@@ -1638,13 +1557,13 @@
    "policy_state": "STRESS_ONLY",
    "status": "BLOCKED",
    "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：valid/global/ASID模式未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "family": "armtlb",
+   "why": "workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T06-F0-W4",
@@ -1652,30 +1571,27 @@
    "model": "T06",
    "chain": {
     "admitted": false,
-    "terminal": "detected_contained",
+    "terminal": null,
     "violations": [
-     "containment_on_unclosed_stream: T06-F0-W4 fault 1 存在显式含住检测证据，但证据流未经生命周期 chain_end 收口（崩溃/截断样本：exit 回调未运行 ⇒ chain_end 缺失）——'之后无传播'不可证，不得据此准入",
-     "no_closed_chain_and_no_containment: T06-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T06-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T06-F0-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: T06-F0-W4 证据文件缺 runs/lsu/r6_tlb_D_T06-F0-W4/T06-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
     "note": ""
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F0",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：permission/attribute合法替换未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: per-cell pilot breadth — unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed); FS pilot evidence (activated=1): runs/lsu/r6_tlb_D_T06-F0-W4",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "category": "CHAIN-UNPROVEN",
+   "family": "armtlb",
+   "why": "T06-F0-W4 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: T06-F0-W4 证据文件缺 runs/lsu/r6_tlb_D_T06-F0-W4/T06-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "coverage": "PASS",
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T06-F2-W4",
@@ -1689,19 +1605,19 @@
     "evaluated": 0,
     "note": "无 T06-F2-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F2",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：permission/attribute合法替换未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "category": "CHAIN-EVIDENCE-MISSING",
+   "family": "armtlb",
+   "why": "无 T06-F2-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "coverage": "PASS",
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T06-F6-W4",
@@ -1721,13 +1637,13 @@
    "policy_state": "STRESS_ONLY",
    "status": "BLOCKED",
    "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：permission/attribute合法替换未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "family": "armtlb",
+   "why": "workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T07-F0-W4",
@@ -1735,29 +1651,27 @@
    "model": "T07",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L2_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: T07-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T07-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T07-F0-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: T07-F0-W4 证据文件缺 runs/lsu/r6_tlb_pilot2/T07-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
     "note": ""
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F0",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：hit fabrication/way select未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: per-cell pilot breadth — unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed); FS pilot evidence (activated=1): runs/lsu/r6_tlb_pilot2",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "category": "CHAIN-UNPROVEN",
+   "family": "armtlb",
+   "why": "T07-F0-W4 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: T07-F0-W4 证据文件缺 runs/lsu/r6_tlb_pilot2/T07-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "coverage": "PASS",
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T07-F4-W4",
@@ -1771,19 +1685,19 @@
     "evaluated": 0,
     "note": "无 T07-F4-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F4",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：hit fabrication/way select未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "category": "CHAIN-EVIDENCE-MISSING",
+   "family": "armtlb",
+   "why": "无 T07-F4-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "coverage": "PASS",
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T07-F6-W4",
@@ -1803,13 +1717,13 @@
    "policy_state": "STRESS_ONLY",
    "status": "BLOCKED",
    "category": "FS-INFRA",
-   "family": null,
-   "why": "campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10) ; spec:需新增（当前阻塞：hit fabrication/way select未实现） ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
-   "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
+   "family": "armtlb",
+   "why": "workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
+   "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"
+   "resolve_reason": "fs:tlb_probe"
   },
   {
    "run_id": "T08-F0-W4",
@@ -1817,30 +1731,27 @@
    "model": "T08",
    "chain": {
     "admitted": false,
-    "terminal": "detected_contained",
+    "terminal": null,
     "violations": [
-     "containment_on_unclosed_stream: T08-F0-W4 fault 1 存在显式含住检测证据，但证据流未经生命周期 chain_end 收口（崩溃/截断样本：exit 回调未运行 ⇒ chain_end 缺失）——'之后无传播'不可证，不得据此准入",
-     "no_closed_chain_and_no_containment: T08-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T08-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T08-F0-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: T08-F0-W4 证据文件缺 runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
     "note": ""
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "PARTIAL",
+   "upstream_category": "PARTIAL-SUBMODEL",
    "freq": "F0",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
+   "category": "CHAIN-UNPROVEN",
    "family": null,
-   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: per-cell pilot breadth — unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed); FS pilot evidence (activated=1): runs/lsu/r6_tlb_C_T08-F0-W4",
+   "why": "T08-F0-W4 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: T08-F0-W4 证据文件缺 runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
+   "coverage": "PASS",
+   "resolve_reason": "PARTIAL_SUBMODEL_PROVEN: only T08-a (walk_pairing) is allowed, and only for T08-F0-W4/T08-F4-W4 seed1 via the explicit --t08a-canary trial opt-in; T08-b walk_fill_dup / T08-c walk_done_early / T08-d walk_stale_result have static code but no dynamic coverage, so the whole T08 model is NOT COMPLETE"
   },
   {
    "run_id": "T08-F0-W9",
@@ -1848,30 +1759,27 @@
    "model": "T08",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L0_then_unknown",
+    "terminal": null,
     "violations": [
-     "tlb_l1_missing: T08-F0-W9 TLB 族缺 tlb_lookup L1（实际 L1=None）",
-     "no_closed_chain_and_no_containment: T08-F0-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T08-F0-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T08-F0-W9 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: T08-F0-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t6_pilot2/T08-F0-W9/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
     "note": ""
    },
    "upstream_status": "BLOCKED",
-   "upstream_category": "MODE-UNIMPL",
+   "upstream_category": "WORKLOAD-GAP",
    "freq": "F0",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "MODE-UNIMPL",
+   "category": "WORKLOAD-GAP",
    "family": null,
-   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision",
+   "why": "workload:BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no GAP/Graph500, and the armtlb carrier is tlb_probe.rcS. Running W9 on tlb_probe would silently change the experiment identity; no generic flag can unblock this.",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
+   "resolve_reason": "BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no GAP/Graph500, and the armtlb carrier is tlb_probe.rcS. Running W9 on tlb_probe would silently change the experiment identity; no generic flag can unblock this."
   },
   {
    "run_id": "T08-F4-W4",
@@ -1885,19 +1793,19 @@
     "evaluated": 0,
     "note": "无 T08-F4-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "PARTIAL",
+   "upstream_category": "PARTIAL-SUBMODEL",
    "freq": "F4",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
+   "category": "CHAIN-EVIDENCE-MISSING",
    "family": null,
-   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
+   "why": "无 T08-F4-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
-   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
+   "coverage": "PASS",
+   "resolve_reason": "PARTIAL_SUBMODEL_PROVEN: only T08-a (walk_pairing) is allowed, and only for T08-F0-W4/T08-F4-W4 seed1 via the explicit --t08a-canary trial opt-in; T08-b walk_fill_dup / T08-c walk_done_early / T08-d walk_stale_result have static code but no dynamic coverage, so the whole T08 model is NOT COMPLETE"
   },
   {
    "run_id": "T08-F4-W9",
@@ -1912,18 +1820,18 @@
     "note": "无 T08-F4-W9 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
    "upstream_status": "BLOCKED",
-   "upstream_category": "MODE-UNIMPL",
+   "upstream_category": "WORKLOAD-GAP",
    "freq": "F4",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "MODE-UNIMPL",
+   "category": "WORKLOAD-GAP",
    "family": null,
-   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision",
+   "why": "workload:BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no GAP/Graph500, and the armtlb carrier is tlb_probe.rcS. Running W9 on tlb_probe would silently change the experiment identity; no generic flag can unblock this.",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
+   "resolve_reason": "BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no GAP/Graph500, and the armtlb carrier is tlb_probe.rcS. Running W9 on tlb_probe would silently change the experiment identity; no generic flag can unblock this."
   },
   {
    "run_id": "T08-F6-W4",
@@ -1944,12 +1852,12 @@
    "status": "BLOCKED",
    "category": "FS-INFRA",
    "family": null,
-   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision ; workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
+   "why": "workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: NO per-cell FS pilot artifact for this cell (逐格 campaign 入口 pilot 未完成); unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
+   "resolve_reason": "PARTIAL_SUBMODEL_PROVEN: only T08-a (walk_pairing) is allowed, and only for T08-F0-W4/T08-F4-W4 seed1 via the explicit --t08a-canary trial opt-in; T08-b walk_fill_dup / T08-c walk_done_early / T08-d walk_stale_result have static code but no dynamic coverage, so the whole T08 model is NOT COMPLETE"
   },
   {
    "run_id": "T08-F6-W9",
@@ -1964,18 +1872,18 @@
     "note": "无 T08-F6-W9 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
    "upstream_status": "BLOCKED",
-   "upstream_category": "MODE-UNIMPL",
+   "upstream_category": "WORKLOAD-GAP",
    "freq": "F6",
    "policy_state": "STRESS_REDUNDANT",
    "status": "BLOCKED",
-   "category": "MODE-UNIMPL",
+   "category": "WORKLOAD-GAP",
    "family": null,
-   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision",
+   "why": "workload:BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no GAP/Graph500, and the armtlb carrier is tlb_probe.rcS. Running W9 on tlb_probe would silently change the experiment identity; no generic flag can unblock this.",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
+   "resolve_reason": "BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no GAP/Graph500, and the armtlb carrier is tlb_probe.rcS. Running W9 on tlb_probe would silently change the experiment identity; no generic flag can unblock this."
   },
   {
    "run_id": "S01-F0-W1",
@@ -2009,23 +1917,11 @@
    "model": "S01",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L2_then_unknown",
+    "terminal": null,
     "violations": [
-     "time_reversed_edge: L3 见证 tick 早于已证 L2 见证（13274030）——逆时拼接禁止（S01-F0-W5 fault 1）",
-     "no_closed_chain_and_no_containment: S01-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S01-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S01-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S01-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "time_reversed_edge: L3 见证 tick 早于已证 L2 见证（12700380）——逆时拼接禁止（S01-F0-W5 fault 1）",
-     "no_closed_chain_and_no_containment: S01-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S01-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S01-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S01-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "time_reversed_edge: L3 见证 tick 早于已证 L2 见证（16119950）——逆时拼接禁止（S01-F0-W5 fault 1）",
-     "no_closed_chain_and_no_containment: S01-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S01-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S01-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S01-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: S01-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S01-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S01-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -2038,7 +1934,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "S01-F0-W5 链未准入（违规规则 ['time_reversed_edge', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: time_reversed_edge: L3 见证 tick 早于已证 L2 见证（13274030）——逆时拼接禁止（S01-F0-W5 fault 1） ; no_closed_chain_and_no_containment: S01-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "why": "S01-F0-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S01-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S01-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S01-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -2155,23 +2051,11 @@
    "model": "S02",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L2_then_unknown",
+    "terminal": null,
     "violations": [
-     "time_reversed_edge: L3 见证 tick 早于已证 L2 见证（13274030）——逆时拼接禁止（S02-F0-W5 fault 1）",
-     "no_closed_chain_and_no_containment: S02-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S02-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S02-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S02-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "time_reversed_edge: L3 见证 tick 早于已证 L2 见证（12700380）——逆时拼接禁止（S02-F0-W5 fault 1）",
-     "no_closed_chain_and_no_containment: S02-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S02-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S02-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S02-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "time_reversed_edge: L3 见证 tick 早于已证 L2 见证（16119950）——逆时拼接禁止（S02-F0-W5 fault 1）",
-     "no_closed_chain_and_no_containment: S02-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S02-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S02-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S02-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: S02-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S02-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S02-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -2184,7 +2068,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "S02-F0-W5 链未准入（违规规则 ['time_reversed_edge', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: time_reversed_edge: L3 见证 tick 早于已证 L2 见证（13274030）——逆时拼接禁止（S02-F0-W5 fault 1） ; no_closed_chain_and_no_containment: S02-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "why": "S02-F0-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S02-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S02-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t1_i2_fixed/S02-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -2327,19 +2211,11 @@
    "model": "S04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L3_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: S04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: S04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S04-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: S04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S04-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: S04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -2352,7 +2228,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "S04-F0-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: S04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: S04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "S04-F0-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/S04-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -2495,15 +2371,10 @@
    "model": "S05",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L3_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: S05-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S05-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S05-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: S05-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S05-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S05-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S05-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: S05-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S05-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 2,
     "evaluated": 2,
@@ -2516,7 +2387,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "addrpath",
-   "why": "S05-F0-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: S05-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: S05-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "S05-F0-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S05-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S05-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -3049,20 +2920,11 @@
    "model": "S10",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L1_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: S10-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: S10-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: S10-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: S10-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -3075,7 +2937,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "S10-F0-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: S10-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: S10-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "S10-F0-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S10-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S10-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -3088,20 +2950,11 @@
    "model": "S10",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L1_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: S10-F0-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F0-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F0-W9 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F0-W9 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: S10-F0-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F0-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F0-W9 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F0-W9 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: S10-F0-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F0-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F0-W9 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F0-W9 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: S10-F0-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F0-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F0-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -3114,7 +2967,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "S10-F0-W9 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: S10-F0-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: S10-F0-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "S10-F0-W9 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S10-F0-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S10-F0-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F0-W9/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -3129,15 +2982,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: S10-F2-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F2-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F2-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: S10-F2-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F2-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F2-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: S10-F2-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F2-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F2-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: S10-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -3165,15 +3012,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: S10-F2-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F2-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F2-W9 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: S10-F2-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F2-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F2-W9 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: S10-F2-W9 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F2-W9 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F2-W9 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: S10-F2-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W9/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F2-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W9/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F2-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F2-W9/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -3199,20 +3040,11 @@
    "model": "S10",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L1_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: S10-F5-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F5-W5 activated=3 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F5-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F5-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: S10-F5-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F5-W5 activated=3 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F5-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F5-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: S10-F5-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: S10-F5-W5 activated=3 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: S10-F5-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: S10-F5-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: S10-F5-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F5-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F5-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -3225,7 +3057,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "S10-F5-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: S10-F5-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: S10-F5-W5 activated=3 本身不是 READY 依据（须完整链或 containment）",
+   "why": "S10-F5-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S10-F5-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S10-F5-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/trial_r48_s10/S10-F5-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -3240,9 +3072,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "chain_evidence_too_large: S10-F5-W9 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed1/prop_evt.txt.gz 事件 46087 > 上限 4000——未评估，绝不默认通过",
-     "chain_evidence_too_large: S10-F5-W9 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed2/prop_evt.txt.gz 事件 46087 > 上限 4000——未评估，绝不默认通过",
-     "chain_evidence_too_large: S10-F5-W9 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed3/prop_evt.txt.gz 事件 46087 > 上限 4000——未评估，绝不默认通过"
+     "chain_evidence_missing: S10-F5-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F5-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: S10-F5-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -3255,7 +3087,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "S10-F5-W9 链未准入（违规规则 ['chain_evidence_too_large']）: chain_evidence_too_large: S10-F5-W9 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed1/prop_evt.txt.gz 事件 46087 > 上限 4000——未评估，绝不默认通过 ; chain_evidence_too_large: S10-F5-W9 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed2/prop_evt.txt.gz 事件 46087 > 上限 4000——未评估，绝不默认通过",
+   "why": "S10-F5-W9 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: S10-F5-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: S10-F5-W9 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_s10_pilot/S10-F5-W9/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -3450,12 +3282,9 @@
    "model": "C01",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C01-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C01-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C01-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C01-F0-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: C01-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10/C01-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -3468,7 +3297,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C01-F0-W6 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: C01-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C01-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C01-F0-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C01-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_6_regress_s10/C01-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -4365,22 +4194,11 @@
    "model": "C09",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C09-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C09-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C09-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C09-F0-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "cache_l1_missing: C09-F0-W6 cache 族 L1 必须为 cache_access（lookup），实际 L1='lsq_push'",
-     "missing_mandatory_metric: C09-F0-W6 fault 1 L5 见证 kind='tlb_fault' 缺必录指标 'contained'——逐层指标缺失必须响亮失败",
-     "no_closed_chain_and_no_containment: C09-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C09-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C09-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C09-F0-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: C09-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C09-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C09-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C09-F0-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: C09-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C09-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C09-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -4393,7 +4211,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C09-F0-W6 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only', 'cache_l1_missing', 'missing_mandatory_metric']）: no_closed_chain_and_no_containment: C09-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C09-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C09-F0-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C09-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C09-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t3_c09w6/C09-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -4406,17 +4224,10 @@
    "model": "C09",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C09-F0-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C09-F0-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C09-F0-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C09-F0-W10 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "cache_l1_missing: C09-F0-W10 cache 族 L1 必须为 cache_access（lookup），实际 L1='lsq_push'",
-     "no_closed_chain_and_no_containment: C09-F0-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C09-F0-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C09-F0-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C09-F0-W10 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: C09-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C09-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 2,
     "evaluated": 2,
@@ -4429,7 +4240,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C09-F0-W10 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only', 'cache_l1_missing']）: no_closed_chain_and_no_containment: C09-F0-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C09-F0-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C09-F0-W10 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C09-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C09-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -4704,9 +4515,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "chain_evidence_too_large: C11-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed1/prop_evt.txt.gz 事件 11221 > 上限 4000——未评估，绝不默认通过",
-     "chain_evidence_too_large: C11-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed2/prop_evt.txt.gz 事件 8939 > 上限 4000——未评估，绝不默认通过",
-     "chain_evidence_too_large: C11-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed3/prop_evt.txt.gz 事件 8905 > 上限 4000——未评估，绝不默认通过"
+     "chain_evidence_missing: C11-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C11-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C11-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -4719,7 +4530,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C11-F0-W6 链未准入（违规规则 ['chain_evidence_too_large']）: chain_evidence_too_large: C11-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed1/prop_evt.txt.gz 事件 11221 > 上限 4000——未评估，绝不默认通过 ; chain_evidence_too_large: C11-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed2/prop_evt.txt.gz 事件 8939 > 上限 4000——未评估，绝不默认通过",
+   "why": "C11-F0-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C11-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C11-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5_c11w6/C11-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -4862,13 +4673,9 @@
    "model": "C11",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "cross_request_edge: C11-F6-W6 fault 1 所选祖先上 1 处相邻见证 request_id 不一致（首例 event 7:resp req='183' → event 8:resp req='260'）——整条祖先禁止跨请求拼接",
-     "no_closed_chain_and_no_containment: C11-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C11-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C11-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C11-F6-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: C11-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5i1_f6_postfix/C11-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -4881,7 +4688,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C11-F6-W6 链未准入（违规规则 ['cross_request_edge', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: cross_request_edge: C11-F6-W6 fault 1 所选祖先上 1 处相邻见证 request_id 不一致（首例 event 7:resp req='183' → event 8:resp req='260'）——整条祖先禁止跨请求拼接 ; no_closed_chain_and_no_containment: C11-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "why": "C11-F6-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C11-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t5i1_f6_postfix/C11-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -4920,15 +4727,11 @@
    "model": "C12",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "chain_evidence_too_large: C12-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed1/prop_evt.txt.gz 事件 6040 > 上限 4000——未评估，绝不默认通过",
-     "chain_evidence_too_large: C12-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed2/prop_evt.txt.gz 事件 8124 > 上限 4000——未评估，绝不默认通过",
-     "cross_request_edge: C12-F0-W6 fault 1 所选祖先上 1 处相邻见证 request_id 不一致（首例 event 7:taint_reg req='105629' → event 8:resp req='105636'）——整条祖先禁止跨请求拼接",
-     "no_closed_chain_and_no_containment: C12-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C12-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C12-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C12-F0-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: C12-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C12-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C12-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -4941,7 +4744,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C12-F0-W6 链未准入（违规规则 ['chain_evidence_too_large', 'cross_request_edge', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: chain_evidence_too_large: C12-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed1/prop_evt.txt.gz 事件 6040 > 上限 4000——未评估，绝不默认通过 ; chain_evidence_too_large: C12-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed2/prop_evt.txt.gz 事件 8124 > 上限 4000——未评估，绝不默认通过",
+   "why": "C12-F0-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C12-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C12-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t58_regr/C12-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -5032,12 +4835,9 @@
    "model": "C12",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C12-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C12-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C12-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: C12-F6-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: C12-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t52_c12f6w6/C12-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -5050,7 +4850,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C12-F6-W6 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: C12-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C12-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C12-F6-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C12-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t52_c12f6w6/C12-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -5091,7 +4891,7 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "chain_evidence_too_large: O01-F0-W7 runs/lsu/r6_mc_O01-F0-W7/O01-F0-W7/seed1/prop_evt.txt.gz 事件 222056 > 上限 4000——未评估，绝不默认通过"
+     "chain_evidence_missing: O01-F0-W7 证据文件缺 runs/lsu/r6_mc_O01-F0-W7/O01-F0-W7/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -5103,13 +4903,13 @@
    "policy_state": "NORMAL",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": "exmon-fsmc",
+   "family": null,
    "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "fs:fsmc-litmus"
+   "resolve_reason": "blocked(fsmc-infra: 2 核 Ruby/CHI 检查点 /tmp/r4-8-fsmc/mc_boot/cpt.243414599076 不在；按 R4-8-FSMC §3 的启动臂重新生成（约 16 min）后设 LSU_FS_MC_CHECKPOINT 指向它)"
   },
   {
    "run_id": "O01-F2-W7",
@@ -5171,7 +4971,7 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "chain_evidence_too_large: O02-F0-W7 runs/lsu/r6_mc_O02-F0-W7/O02-F0-W7/seed1/prop_evt.txt.gz 事件 222056 > 上限 4000——未评估，绝不默认通过"
+     "chain_evidence_missing: O02-F0-W7 证据文件缺 runs/lsu/r6_mc_O02-F0-W7/O02-F0-W7/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -5183,13 +4983,13 @@
    "policy_state": "NORMAL",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": "exmon-fsmc",
+   "family": null,
    "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "fs:fsmc-litmus"
+   "resolve_reason": "blocked(fsmc-infra: 2 核 Ruby/CHI 检查点 /tmp/r4-8-fsmc/mc_boot/cpt.243414599076 不在；按 R4-8-FSMC §3 的启动臂重新生成（约 16 min）后设 LSU_FS_MC_CHECKPOINT 指向它)"
   },
   {
    "run_id": "O02-F2-W7",
@@ -5225,7 +5025,7 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "chain_evidence_too_large: O02-F5-W7 runs/lsu/r6_mc_O02-F5-W7/O02-F5-W7/seed1/prop_evt.txt.gz 事件 224700 > 上限 4000——未评估，绝不默认通过"
+     "chain_evidence_missing: O02-F5-W7 证据文件缺 runs/lsu/r6_mc_O02-F5-W7/O02-F5-W7/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -5237,13 +5037,13 @@
    "policy_state": "NORMAL",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": "exmon-fsmc",
+   "family": null,
    "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "fs:fsmc-litmus"
+   "resolve_reason": "blocked(fsmc-infra: 2 核 Ruby/CHI 检查点 /tmp/r4-8-fsmc/mc_boot/cpt.243414599076 不在；按 R4-8-FSMC §3 的启动臂重新生成（约 16 min）后设 LSU_FS_MC_CHECKPOINT 指向它)"
   },
   {
    "run_id": "O02-F6-W7",
@@ -5279,9 +5079,7 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: O03-F0-W7 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: O03-F0-W7 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: O03-F0-W7 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: O03-F0-W7 证据文件缺 runs/lsu/r6_mc_O03-F0-W7/O03-F0-W7/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
@@ -5293,13 +5091,13 @@
    "policy_state": "NORMAL",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": "exmon-fsmc",
+   "family": null,
    "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "fs:fsmc-litmus"
+   "resolve_reason": "blocked(fsmc-infra: 2 核 Ruby/CHI 检查点 /tmp/r4-8-fsmc/mc_boot/cpt.243414599076 不在；按 R4-8-FSMC §3 的启动臂重新生成（约 16 min）后设 LSU_FS_MC_CHECKPOINT 指向它)"
   },
   {
    "run_id": "O03-F2-W7",
@@ -5697,24 +5495,12 @@
    "model": "P01",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: P01-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P01-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P01-F0-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P01-F0-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: P01-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P01-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P01-F0-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P01-F0-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: P01-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P01-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P01-F0-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P01-F0-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: P01-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P01-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P01-F0-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P01-F0-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: P01-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/P01-F0-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P01-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/P01-F0-W8/s2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P01-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/P01-F0-W8/s3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P01-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/P01-F0-W8/s4/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 4,
     "evaluated": 4,
@@ -5727,7 +5513,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "prefetch",
-   "why": "P01-F0-W8 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: P01-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: P01-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "P01-F0-W8 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: P01-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_campaign_smoke/P01-F0-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: P01-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/mdspec_pilot/P01-F0-W8/s2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -6468,15 +6254,11 @@
    "model": "P06",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "chain_evidence_too_large: P06-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed1/prop_evt.txt.gz 事件 24780 > 上限 4000——未评估，绝不默认通过",
-     "chain_evidence_too_large: P06-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed2/prop_evt.txt.gz 事件 24612 > 上限 4000——未评估，绝不默认通过",
-     "cache_access_faked_l1: P06-F0-W6 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F0-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: P06-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -6489,7 +6271,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "prefetch",
-   "why": "P06-F0-W6 链未准入（违规规则 ['chain_evidence_too_large', 'cache_access_faked_l1', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: chain_evidence_too_large: P06-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed1/prop_evt.txt.gz 事件 24780 > 上限 4000——未评估，绝不默认通过 ; chain_evidence_too_large: P06-F0-W6 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed2/prop_evt.txt.gz 事件 24612 > 上限 4000——未评估，绝不默认通过",
+   "why": "P06-F0-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: P06-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: P06-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -6502,22 +6284,11 @@
    "model": "P06",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: P06-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F0-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "cache_access_faked_l1: P06-F0-W8 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F0-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F0-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "cache_access_faked_l1: P06-F0-W8 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "cross_request_edge: P06-F0-W8 fault 1 所选祖先上 7 处相邻见证 request_id 不一致（首例 event 47:resp req='13081' → event 48:resp req='13082'）——整条祖先禁止跨请求拼接",
-     "no_closed_chain_and_no_containment: P06-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F0-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F0-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: P06-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -6530,7 +6301,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "prefetch",
-   "why": "P06-F0-W8 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'cache_access_faked_l1', 'ready_by_chain_end_only', 'cross_request_edge']）: no_closed_chain_and_no_containment: P06-F0-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: P06-F0-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "P06-F0-W8 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: P06-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: P06-F0-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F0-W8/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -6545,15 +6316,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: P06-F2-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F2-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F2-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: P06-F2-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F2-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F2-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: P06-F2-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F2-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F2-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: P06-F2-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F2-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F2-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -6566,7 +6331,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "prefetch",
-   "why": "P06-F2-W6 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: P06-F2-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: P06-F2-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "P06-F2-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: P06-F2-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: P06-F2-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -6581,15 +6346,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: P06-F2-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F2-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F2-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: P06-F2-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F2-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F2-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: P06-F2-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F2-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F2-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: P06-F2-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F2-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F2-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -6602,7 +6361,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "prefetch",
-   "why": "P06-F2-W8 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: P06-F2-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: P06-F2-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "P06-F2-W8 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: P06-F2-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: P06-F2-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F2-W8/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -6615,23 +6374,11 @@
    "model": "P06",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "cache_access_faked_l1: P06-F6-W6 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F6-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "cache_access_faked_l1: P06-F6-W6 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F6-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "cache_access_faked_l1: P06-F6-W6 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F6-W6 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: P06-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -6644,7 +6391,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "prefetch",
-   "why": "P06-F6-W6 链未准入（违规规则 ['cache_access_faked_l1', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: cache_access_faked_l1: P06-F6-W6 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点 ; no_closed_chain_and_no_containment: P06-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "why": "P06-F6-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: P06-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: P06-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -6657,23 +6404,11 @@
    "model": "P06",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L4_then_unknown",
+    "terminal": null,
     "violations": [
-     "cache_access_faked_l1: P06-F6-W8 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F6-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F6-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F6-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F6-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "cache_access_faked_l1: P06-F6-W8 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F6-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F6-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F6-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F6-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "cache_access_faked_l1: P06-F6-W8 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点",
-     "no_closed_chain_and_no_containment: P06-F6-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: P06-F6-W8 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: P06-F6-W8 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: P06-F6-W8 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: P06-F6-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F6-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: P06-F6-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -6686,7 +6421,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "prefetch",
-   "why": "P06-F6-W8 链未准入（违规规则 ['cache_access_faked_l1', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: cache_access_faked_l1: P06-F6-W8 pf 族 L1 不得由 cache 结构事件冒充（实际 L1='cache_access'）——表 9 该族 L1 是单元自身观察点 ; no_closed_chain_and_no_containment: P06-F6-W8 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "why": "P06-F6-W8 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: P06-F6-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: P06-F6-W8 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t54_p06/P06-F6-W8/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -6933,29 +6668,26 @@
    "model": "T10",
    "chain": {
     "admitted": false,
-    "terminal": "detected_contained",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: T10-F0-W4 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: T10-F0-W4 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: T10-F0-W4 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: T10-F0-W4 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: T10-F0-W4 证据文件缺 runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 1,
     "evaluated": 1,
     "note": ""
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F0",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
+   "category": "CHAIN-UNPROVEN",
    "family": "armtlb",
-   "why": "workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: per-cell pilot breadth — unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed); FS pilot evidence (activated=1): runs/lsu/r6_tlb_E_T10-F0-W4",
+   "why": "T10-F0-W4 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: T10-F0-W4 证据文件缺 runs/lsu/r6_tlb_F_T10-F0-W4/T10-F0-W4/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
+   "coverage": "PASS",
    "resolve_reason": "fs:tlb_probe"
   },
   {
@@ -6977,7 +6709,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -7022,18 +6754,18 @@
     "evaluated": 0,
     "note": "无 T10-F1-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F1",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
+   "category": "CHAIN-EVIDENCE-MISSING",
    "family": "armtlb",
-   "why": "workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: per-cell pilot breadth — unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed); FS pilot evidence (activated=1): R5-FS-PILOT-EVIDENCE.md §1",
+   "why": "无 T10-F1-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入",
    "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
+   "coverage": "PASS",
    "resolve_reason": "fs:tlb_probe"
   },
   {
@@ -7055,7 +6787,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -7100,18 +6832,18 @@
     "evaluated": 0,
     "note": "无 T10-F2-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入"
    },
-   "upstream_status": "BLOCKED",
-   "upstream_category": "FS-INFRA",
+   "upstream_status": "READY",
+   "upstream_category": "OK",
    "freq": "F2",
    "policy_state": "NORMAL",
    "status": "BLOCKED",
-   "category": "FS-INFRA",
+   "category": "CHAIN-EVIDENCE-MISSING",
    "family": "armtlb",
-   "why": "workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves this workload; see docs/gem5-fi/lsu/mdspec/R6-FSINFRA-EVIDENCE.md); residual blocker: per-cell pilot breadth — unlock condition = 30 activated/cell not met (blockers_for_approval.md §FS-INFRA; all pilots are 1 seed); FS pilot evidence (activated=1): R5-FS-PILOT-EVIDENCE.md §1",
+   "why": "无 T10-F2-W4 的 pilot 证据（pilot_evidence.json 中无该 RunID 或其 seed 样本）——链不可证，故不准入",
    "precondition": "FS 资产 (LSU_FS_DIR) + B0 checkpoint cpt.237949797015",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
-   "coverage": "BLOCKED",
+   "coverage": "PASS",
    "resolve_reason": "fs:tlb_probe"
   },
   {
@@ -7133,7 +6865,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -7211,7 +6943,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -7315,7 +7047,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -7419,7 +7151,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8004,18 +7736,11 @@
    "model": "L04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L0_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: L04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: L04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F0-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: L04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F0-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: L04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8028,7 +7753,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "L04-F0-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: L04-F0-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: L04-F0-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "L04-F0-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: L04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: L04-F0-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8054,7 +7779,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8067,20 +7792,11 @@
    "model": "L04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L0_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: L04-F0-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F0-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F0-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F0-W12 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: L04-F0-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F0-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F0-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F0-W12 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: L04-F0-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F0-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F0-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F0-W12 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: L04-F0-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F0-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F0-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8093,7 +7809,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "L04-F0-W12 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: L04-F0-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: L04-F0-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "L04-F0-W12 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: L04-F0-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: L04-F0-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F0-W12/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8108,15 +7824,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: L04-F2-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F2-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F2-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: L04-F2-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F2-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F2-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: L04-F2-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F2-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F2-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: L04-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8129,7 +7839,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "L04-F2-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: L04-F2-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: L04-F2-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "L04-F2-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: L04-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: L04-F2-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8155,7 +7865,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8170,15 +7880,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: L04-F2-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F2-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F2-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: L04-F2-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F2-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F2-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: L04-F2-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F2-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F2-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: L04-F2-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F2-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F2-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8191,7 +7895,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "L04-F2-W12 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: L04-F2-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: L04-F2-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "L04-F2-W12 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: L04-F2-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: L04-F2-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F2-W12/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8204,20 +7908,11 @@
    "model": "L04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L0_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: L04-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F6-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F6-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: L04-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F6-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F6-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: L04-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F6-W5 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F6-W5 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: L04-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8230,7 +7925,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "L04-F6-W5 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: L04-F6-W5 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: L04-F6-W5 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "L04-F6-W5 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: L04-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: L04-F6-W5 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W5/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8256,7 +7951,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8269,20 +7964,11 @@
    "model": "L04",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L0_then_unknown",
+    "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: L04-F6-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F6-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F6-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F6-W12 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: L04-F6-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F6-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F6-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F6-W12 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY",
-     "no_closed_chain_and_no_containment: L04-F6-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: L04-F6-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: L04-F6-W12 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "ready_by_chain_end_only: L04-F6-W12 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY"
+     "chain_evidence_missing: L04-F6-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F6-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: L04-F6-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8295,7 +7981,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "lsqfwd",
-   "why": "L04-F6-W12 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0', 'ready_by_chain_end_only']）: no_closed_chain_and_no_containment: L04-F6-W12 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: L04-F6-W12 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "L04-F6-W12 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: L04-F6-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: L04-F6-W12 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t53_l04rest/L04-F6-W12/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8308,20 +7994,11 @@
    "model": "C14",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L0_then_unknown",
+    "terminal": null,
     "violations": [
-     "cache_l1_missing: C14-F5-W6 cache 族 L1 必须为 cache_access（lookup），实际 L1=None",
-     "no_closed_chain_and_no_containment: C14-F5-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C14-F5-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C14-F5-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "cache_l1_missing: C14-F5-W6 cache 族 L1 必须为 cache_access（lookup），实际 L1=None",
-     "no_closed_chain_and_no_containment: C14-F5-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C14-F5-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C14-F5-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "cache_l1_missing: C14-F5-W6 cache 族 L1 必须为 cache_access（lookup），实际 L1=None",
-     "no_closed_chain_and_no_containment: C14-F5-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C14-F5-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C14-F5-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C14-F5-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C14-F5-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C14-F5-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8334,7 +8011,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C14-F5-W6 链未准入（违规规则 ['cache_l1_missing', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: cache_l1_missing: C14-F5-W6 cache 族 L1 必须为 cache_access（lookup），实际 L1=None ; no_closed_chain_and_no_containment: C14-F5-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "why": "C14-F5-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C14-F5-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C14-F5-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8347,20 +8024,11 @@
    "model": "C14",
    "chain": {
     "admitted": false,
-    "terminal": "provable_to_L0_then_unknown",
+    "terminal": null,
     "violations": [
-     "cache_l1_missing: C14-F5-W10 cache 族 L1 必须为 cache_access（lookup），实际 L1=None",
-     "no_closed_chain_and_no_containment: C14-F5-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C14-F5-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C14-F5-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "cache_l1_missing: C14-F5-W10 cache 族 L1 必须为 cache_access（lookup），实际 L1=None",
-     "no_closed_chain_and_no_containment: C14-F5-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C14-F5-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C14-F5-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "cache_l1_missing: C14-F5-W10 cache 族 L1 必须为 cache_access（lookup），实际 L1=None",
-     "no_closed_chain_and_no_containment: C14-F5-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C14-F5-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C14-F5-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C14-F5-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C14-F5-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C14-F5-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8373,7 +8041,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C14-F5-W10 链未准入（违规规则 ['cache_l1_missing', 'no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: cache_l1_missing: C14-F5-W10 cache 族 L1 必须为 cache_access（lookup），实际 L1=None ; no_closed_chain_and_no_containment: C14-F5-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
+   "why": "C14-F5-W10 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C14-F5-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C14-F5-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C14-F5-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8388,15 +8056,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C15-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F0-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C15-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8409,7 +8071,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C15-F0-W6 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: C15-F0-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C15-F0-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C15-F0-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C15-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C15-F0-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8424,15 +8086,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C15-F0-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F0-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F0-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F0-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F0-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F0-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F0-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F0-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F0-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C15-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8445,7 +8101,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C15-F0-W10 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: C15-F0-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C15-F0-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C15-F0-W10 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C15-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C15-F0-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F0-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8471,7 +8127,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8486,15 +8142,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C15-F4-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F4-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F4-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F4-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F4-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F4-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F4-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F4-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F4-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C15-F4-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F4-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F4-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8507,7 +8157,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C15-F4-W6 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: C15-F4-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C15-F4-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C15-F4-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C15-F4-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C15-F4-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8522,15 +8172,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C15-F4-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F4-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F4-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F4-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F4-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F4-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F4-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F4-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F4-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C15-F4-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F4-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F4-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8543,7 +8187,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C15-F4-W10 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: C15-F4-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C15-F4-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C15-F4-W10 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C15-F4-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C15-F4-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F4-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8569,7 +8213,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8584,15 +8228,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C15-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F6-W6 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C15-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8605,7 +8243,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C15-F6-W6 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: C15-F6-W6 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C15-F6-W6 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C15-F6-W6 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C15-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C15-F6-W6 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W6/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8620,15 +8258,9 @@
     "admitted": false,
     "terminal": null,
     "violations": [
-     "no_closed_chain_and_no_containment: C15-F6-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F6-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F6-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F6-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F6-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F6-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）",
-     "no_closed_chain_and_no_containment: C15-F6-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY",
-     "ready_by_activated_only: C15-F6-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
-     "ready_by_rc0: C15-F6-W10 RC=0 不是 READY 依据（进程正常退出≠链完整）"
+     "chain_evidence_missing: C15-F6-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F6-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
+     "chain_evidence_missing: C15-F6-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed3/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）"
     ],
     "n_samples": 3,
     "evaluated": 3,
@@ -8641,7 +8273,7 @@
    "status": "BLOCKED",
    "category": "CHAIN-UNPROVEN",
    "family": "cache",
-   "why": "C15-F6-W10 链未准入（违规规则 ['no_closed_chain_and_no_containment', 'ready_by_activated_only', 'ready_by_rc0']）: no_closed_chain_and_no_containment: C15-F6-W10 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY ; ready_by_activated_only: C15-F6-W10 activated=1 本身不是 READY 依据（须完整链或 containment）",
+   "why": "C15-F6-W10 链未准入（违规规则 ['chain_evidence_missing']）: chain_evidence_missing: C15-F6-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed1/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026） ; chain_evidence_missing: C15-F6-W10 证据文件缺 .claude/worktrees/lsu-mdspec-20261019/runs/lsu/r4_t56_pilot/C15-F6-W10/seed2/prop_evt.txt.gz（root=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026）",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -8667,7 +8299,7 @@
    "status": "BLOCKED",
    "category": "LICENSE",
    "family": null,
-   "why": "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)",
+   "why": "BLOCKED_SPEC: SPEC CPU2017 needs a license",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
@@ -9094,7 +8726,7 @@
    "T10-F0-W4"
   ],
   "reasons": [
-   "BLOCKED=325 > 0（{'CHAIN-UNPROVEN': 44, 'CHAIN-EVIDENCE-MISSING': 197, 'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}）",
+   "BLOCKED=325 > 0（{'CHAIN-UNPROVEN': 49, 'CHAIN-EVIDENCE-MISSING': 203, 'RULING': 6, 'FS-INFRA': 13, 'WORKLOAD-GAP': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}）",
    "未运行 --gate 资源/测试门禁"
   ]
  }

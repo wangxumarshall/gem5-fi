@@ -1,10 +1,10 @@
 # Markdown→实现覆盖矩阵（MDSPEC Phase B，**节点级证据化**）
 
 - 总数：325（RunID 唯一，表7∩表9 集合相等——B1 已证）
-- **PASS=245 / PARTIAL=0 / BLOCKED=80**
+- **PASS=256 / PARTIAL=0 / BLOCKED=69**
 - 判定口径（2026-10-20 证据化）：PASS = 该单元规格所需**全部节点**既已实现（kind ∈ 发射端注册表）**又**在真实 pilot 运行中出现；缺任一节点 = PARTIAL 并逐项列出。注册表布尔值**不再**作为判据。
 - 节点级证据取**全部 pilot 的 kind 并集**（节点=钩子能力级证据，与注入单元解耦）；逐单元归属索引见 pilot_evidence.json 的 kinds_observed_by_unit（RunID→单元解析：精确匹配 → 行标签，见 tools/lsu_pilot_evidence.py unit_of）。
-- 真实运行观测到的 kind（36）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_push, lsq_sendfrag, mem_req, mshr_alloc, mshr_busy, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_queue, pf_train, resp, sq_complete, sq_execute, sq_writeback, ssit_consult, taint_reg, tlb_fault, tlb_translate
+- 真实运行观测到的 kind（45）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_fwd, lsq_push, lsq_sendfrag, mem_req, mshr_alloc, mshr_busy, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_probe, pf_queue, pf_train, resp, sq_complete, sq_execute, sq_writeback, ssit_consult, ssit_violation, taint_reg, tlb_fault, tlb_lookup, tlb_pfn, tlb_refill, tlb_state, tlb_translate, tlb_translate_result, tlb_walk
 
 | RunID | 模型 | 单元 | 频率 | 状态 | 原因 |
 |---|---|---|---|---|---|
@@ -48,35 +48,35 @@
 | A08-F6-W3 | A08 | AGU | F6 | PASS |  |
 | A08-F6-W5 | A08 | AGU | F6 | PASS |  |
 | T01-F0-W1 | T01 | L1d-TLB | F0 | PASS |  |
-| T01-F0-W4 | T01 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
+| T01-F0-W4 | T01 | L1d-TLB | F0 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
 | T01-F1-W1 | T01 | L1d-TLB | F1 | PASS |  |
-| T01-F1-W4 | T01 | L1d-TLB | F1 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
+| T01-F1-W4 | T01 | L1d-TLB | F1 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
 | T01-F2-W1 | T01 | L1d-TLB | F2 | PASS |  |
-| T01-F2-W4 | T01 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
+| T01-F2-W4 | T01 | L1d-TLB | F2 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
 | T02-F0-W1 | T02 | L1d-TLB | F0 | PASS |  |
-| T02-F0-W4 | T02 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
+| T02-F0-W4 | T02 | L1d-TLB | F0 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
 | T02-F2-W1 | T02 | L1d-TLB | F2 | PASS |  |
-| T02-F2-W4 | T02 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T03-F5-W4 | T03 | L1d-TLB | F5 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
+| T02-F2-W4 | T02 | L1d-TLB | F2 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T03-F5-W4 | T03 | L1d-TLB | F5 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
 | T03-F5-W9 | T03 | L1d-TLB | F5 | PASS |  |
-| T04-F0-W4 | T04 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T04-F2-W4 | T04 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T04-F6-W4 | T04 | L1d-TLB | F6 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T05-F0-W4 | T05 | L1d-TLB | F0 | BLOCKED | campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新 |
-| T05-F2-W4 | T05 | L1d-TLB | F2 | BLOCKED | campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新 |
-| T05-F6-W4 | T05 | L1d-TLB | F6 | BLOCKED | campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新 |
-| T06-F0-W4 | T06 | L1d-TLB | F0 | BLOCKED | campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4- |
-| T06-F2-W4 | T06 | L1d-TLB | F2 | BLOCKED | campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4- |
-| T06-F6-W4 | T06 | L1d-TLB | F6 | BLOCKED | campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4- |
-| T07-F0-W4 | T07 | L1d-TLB | F0 | BLOCKED | campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新增（当前阻塞：hit  |
-| T07-F4-W4 | T07 | L1d-TLB | F4 | BLOCKED | campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新增（当前阻塞：hit  |
-| T07-F6-W4 | T07 | L1d-TLB | F6 | BLOCKED | campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新增（当前阻塞：hit  |
-| T08-F0-W4 | T08 | L1d-TLB | F0 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
-| T08-F0-W9 | T08 | L1d-TLB | F0 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
-| T08-F4-W4 | T08 | L1d-TLB | F4 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
-| T08-F4-W9 | T08 | L1d-TLB | F4 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
-| T08-F6-W4 | T08 | L1d-TLB | F6 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
-| T08-F6-W9 | T08 | L1d-TLB | F6 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
+| T04-F0-W4 | T04 | L1d-TLB | F0 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T04-F2-W4 | T04 | L1d-TLB | F2 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T04-F6-W4 | T04 | L1d-TLB | F6 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T05-F0-W4 | T05 | L1d-TLB | F0 | PASS |  |
+| T05-F2-W4 | T05 | L1d-TLB | F2 | PASS |  |
+| T05-F6-W4 | T05 | L1d-TLB | F6 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T06-F0-W4 | T06 | L1d-TLB | F0 | PASS |  |
+| T06-F2-W4 | T06 | L1d-TLB | F2 | PASS |  |
+| T06-F6-W4 | T06 | L1d-TLB | F6 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T07-F0-W4 | T07 | L1d-TLB | F0 | PASS |  |
+| T07-F4-W4 | T07 | L1d-TLB | F4 | PASS |  |
+| T07-F6-W4 | T07 | L1d-TLB | F6 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T08-F0-W4 | T08 | L1d-TLB | F0 | PASS |  |
+| T08-F0-W9 | T08 | L1d-TLB | F0 | BLOCKED | workload:BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no |
+| T08-F4-W4 | T08 | L1d-TLB | F4 | PASS |  |
+| T08-F4-W9 | T08 | L1d-TLB | F4 | BLOCKED | workload:BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no |
+| T08-F6-W4 | T08 | L1d-TLB | F6 | BLOCKED | workload:fs-infra: refuted(stale workload-level claim 'TLB workload needs FS' — the FS carrier fs:tlb_probe (golden b6d81b360a5672d80c27430f39153e2c) serves thi |
+| T08-F6-W9 | T08 | L1d-TLB | F6 | BLOCKED | workload:BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS image has no |
 | S01-F0-W1 | S01 | Store Queue | F0 | PASS |  |
 | S01-F0-W5 | S01 | Store Queue | F0 | PASS |  |
 | S01-F1-W1 | S01 | Store Queue | F1 | PASS |  |
@@ -257,25 +257,25 @@
 | P08-F5-W8 | P08 | 数据预取器 | F5 | PASS |  |
 | P08-F5-W10 | P08 | 数据预取器 | F5 | PASS |  |
 | T10-F0-W1 | T10 | L1d-TLB | F0 | PASS |  |
-| T10-F0-W4 | T10 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T10-F0-W11 | T10 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| T10-F0-W4 | T10 | L1d-TLB | F0 | PASS |  |
+| T10-F0-W11 | T10 | L1d-TLB | F0 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | T10-F1-W1 | T10 | L1d-TLB | F1 | PASS |  |
-| T10-F1-W4 | T10 | L1d-TLB | F1 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T10-F1-W11 | T10 | L1d-TLB | F1 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| T10-F1-W4 | T10 | L1d-TLB | F1 | PASS |  |
+| T10-F1-W11 | T10 | L1d-TLB | F1 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | T10-F2-W1 | T10 | L1d-TLB | F2 | PASS |  |
-| T10-F2-W4 | T10 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T10-F2-W11 | T10 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| T10-F2-W4 | T10 | L1d-TLB | F2 | PASS |  |
+| T10-F2-W11 | T10 | L1d-TLB | F2 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | S13-F0-W1 | S13 | Store Queue | F0 | PASS |  |
 | S13-F0-W5 | S13 | Store Queue | F0 | PASS |  |
-| S13-F0-W11 | S13 | Store Queue | F0 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| S13-F0-W11 | S13 | Store Queue | F0 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | S13-F0-W12 | S13 | Store Queue | F0 | PASS |  |
 | S13-F1-W1 | S13 | Store Queue | F1 | PASS |  |
 | S13-F1-W5 | S13 | Store Queue | F1 | PASS |  |
-| S13-F1-W11 | S13 | Store Queue | F1 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| S13-F1-W11 | S13 | Store Queue | F1 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | S13-F1-W12 | S13 | Store Queue | F1 | PASS |  |
 | S13-F2-W1 | S13 | Store Queue | F2 | PASS |  |
 | S13-F2-W5 | S13 | Store Queue | F2 | PASS |  |
-| S13-F2-W11 | S13 | Store Queue | F2 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| S13-F2-W11 | S13 | Store Queue | F2 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | S13-F2-W12 | S13 | Store Queue | F2 | PASS |  |
 | L01-F0-W1 | L01 | Load Queue | F0 | PASS |  |
 | L01-F0-W5 | L01 | Load Queue | F0 | PASS |  |
@@ -299,25 +299,25 @@
 | L03-F6-W5 | L03 | Load Queue | F6 | PASS |  |
 | L03-F6-W12 | L03 | Load Queue | F6 | PASS |  |
 | L04-F0-W5 | L04 | Load Queue | F0 | PASS |  |
-| L04-F0-W11 | L04 | Load Queue | F0 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| L04-F0-W11 | L04 | Load Queue | F0 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | L04-F0-W12 | L04 | Load Queue | F0 | PASS |  |
 | L04-F2-W5 | L04 | Load Queue | F2 | PASS |  |
-| L04-F2-W11 | L04 | Load Queue | F2 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| L04-F2-W11 | L04 | Load Queue | F2 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | L04-F2-W12 | L04 | Load Queue | F2 | PASS |  |
 | L04-F6-W5 | L04 | Load Queue | F6 | PASS |  |
-| L04-F6-W11 | L04 | Load Queue | F6 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| L04-F6-W11 | L04 | Load Queue | F6 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | L04-F6-W12 | L04 | Load Queue | F6 | PASS |  |
 | C14-F5-W6 | C14 | L1d-Cache | F5 | PASS |  |
 | C14-F5-W10 | C14 | L1d-Cache | F5 | PASS |  |
 | C15-F0-W6 | C15 | L1d-Cache | F0 | PASS |  |
 | C15-F0-W10 | C15 | L1d-Cache | F0 | PASS |  |
-| C15-F0-W11 | C15 | L1d-Cache | F0 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| C15-F0-W11 | C15 | L1d-Cache | F0 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | C15-F4-W6 | C15 | L1d-Cache | F4 | PASS |  |
 | C15-F4-W10 | C15 | L1d-Cache | F4 | PASS |  |
-| C15-F4-W11 | C15 | L1d-Cache | F4 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| C15-F4-W11 | C15 | L1d-Cache | F4 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | C15-F6-W6 | C15 | L1d-Cache | F6 | PASS |  |
 | C15-F6-W10 | C15 | L1d-Cache | F6 | PASS |  |
-| C15-F6-W11 | C15 | L1d-Cache | F6 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| C15-F6-W11 | C15 | L1d-Cache | F6 | BLOCKED | BLOCKED_SPEC: SPEC CPU2017 needs a license |
 | O09-F0-W7 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pendin |
 | O09-F0-W13 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pendin |
 | O09-F1-W7 | O09 | 原子与同步 | F1 | BLOCKED | campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pendin |

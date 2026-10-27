@@ -25,7 +25,7 @@ from pathlib import Path
 
 # 优先级序（先匹配者胜）——类别名保持稳定，下游脚本按名引用。
 CLASS_ORDER = ["RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
-               "MODE-UNIMPL", "HOOK-UNIMPL", "UNRESOLVED",
+               "WORKLOAD-GAP", "MODE-UNIMPL", "HOOK-UNIMPL", "UNRESOLVED",
                "PLATFORM-DEFECT", "CHAIN-UNPROVEN", "CHAIN-EVIDENCE-MISSING",
                "UNCLASSIFIED", "OK"]
 
@@ -35,7 +35,7 @@ CLASS_ORDER = ["RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
 # 相互矛盾（同一台账三处总数 126/100/106）。按 CLAUDE.md「One classifier,
 # no drift」，改为**从契约产物读取已判定的 category**，不再自行重判。
 CONTRACT_CATS = {"RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
-                 "MODE-UNIMPL", "UNRESOLVED", "PLATFORM-DEFECT",
+                 "WORKLOAD-GAP", "MODE-UNIMPL", "UNRESOLVED", "PLATFORM-DEFECT",
                  # [R6-GATE] 链准入门禁新增的两类阻塞（契约 _classify 产出）
                  "CHAIN-UNPROVEN", "CHAIN-EVIDENCE-MISSING",
                  "UNCLASSIFIED"}
@@ -126,6 +126,7 @@ def main():
          "| LICENSE | SPEC CPU2017 授权缺失（W11） | 取得授权 |",
          "| FS-MULTICORE | 需多核 FS（litmus/PARSEC 语义） | 多核 FS 基础设施落地 |",
          "| FS-INFRA | 需 FS 基础设施（TLB 翻译负载） | FS checkpoint 流水线 |",
+         "| WORKLOAD-GAP | 规格负载在 FS 下不可得（GAP/Graph500 等） | 取得并装入合法 FS 载体，或规格裁决 |",
          "| MODE-UNIMPL | 规格表 10 标注『先实现』的子模型模式 | 实现该模式 + 测试 |",
          "| HOOK-UNIMPL | 钩子/载体缺口（无模式标注） | 补钩子或补 SE 载体映射 |",
          "| OK | 无上述阻塞（应为 0） | — |", "",
@@ -135,7 +136,8 @@ def main():
     # [R6-GATE] CHAIN-* 也列入本清单：它们不是范围性延期，而是**证据门**——
     # 只能由该 cell 产出「过 check_admission 的 activated pilot」解除（见 MECH）。
     deferrable = [c for c in ("LICENSE", "FS-MULTICORE", "FS-INFRA",
-                              "RULING", "UNRESOLVED", "CHAIN-UNPROVEN",
+                              "WORKLOAD-GAP", "RULING", "UNRESOLVED",
+                              "CHAIN-UNPROVEN",
                               "CHAIN-EVIDENCE-MISSING") if cnt[c]]
     for c in deferrable:
         ids = per_class[c]
@@ -172,6 +174,13 @@ def main():
                          "且 runid_map 的 workload 级静态键 TLB-AliasPerm 仍整批拒绝该负载。",
                          "逐格（含 T05–T08 新模式）真机 30 activated pilot 后，"
                          "解除 TLB-AliasPerm 键并重生成 runid_map → 契约"),
+            "WORKLOAD-GAP": (
+                "**规格负载在 FS 下不可得**：T08-W9 要求 GAP/Graph500；当前只有 "
+                "SE 版 gap_bfs，FS 镜像内没有 GAP/Graph500，armtlb 载体固定为 "
+                "tlb_probe.rcS——在 W9 上跑 tlb_probe 会静默改变实验身份。",
+                "取得合法 AArch64 GAP/Graph500 并装入 FS 镜像（或不改变语义的 "
+                "FS 载体），验证 guest 真执行、oracle 哈希与 walk hook 可观测；"
+                "否则保持 BLOCKED_WORKLOAD_GAP。"),
             "UNRESOLVED": ("S10-F2 为规格结构性拒绝（F2 首抽下界 ≫ 实测流长）；"
                            "S01/S02-F0-W1 待 span census 收敛",
                            "规格级重划 cell（长载体）或接受拒绝；census 收敛后写入 span"),

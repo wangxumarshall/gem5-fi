@@ -372,49 +372,70 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
           cg["recorded"] == 325 and cg["rows_total"] == 325, str(cg))
     check("chain_gate.evidence_root == 真证据根",
           cg["evidence_root"] == str(RD), cg["evidence_root"])
-    check("READY == 0（无链证据即不准入；硬门生效）",
-          st.get("READY", 0) == 0 and st.get("BLOCKED", 0) == 325
-          and st.get("PARTIAL", 0) == 0, str(st))
-    check("链已准入的行全部仍被上游独立阻塞（准入≠解锁）",
-          cg["admitted"] == len(cg["blocked_upstream_admitted"])
+    # [R6-PROPAGATION-V3 2026-10-27] T05/T06/T07 MODEL_BLOCKED entries were
+    # deleted (modes are in the frozen binary).  T05-F0-W4 now has both a
+    # READY upstream row (coverage PASS + runnable) and a real-containment
+    # chain admission, so it is the ONE legitimate READY row.  Everything else
+    # with an admitted chain is still upstream-blocked; no other row may be
+    # READY.  READY==1 is therefore a fact of the new ledger, not a relaxation.
+    check("READY == 1 且仅 T05-F0-W4（真实含住 + upstream READY）",
+          st.get("READY", 0) == 1 and st.get("BLOCKED", 0) == 324
+          and st.get("PARTIAL", 0) == 0
+          and [r["run_id"] for r in rows if r["status"] == "READY"]
+          == ["T05-F0-W4"], str(st))
+    check("除 T05 外，链已准入的行仍被上游独立阻塞（准入≠解锁）",
+          cg["admitted"] == 1
+          and not cg["blocked_upstream_admitted"]
           and all((r.get("chain") or {}).get("admitted") is not True
-                  or r["status"] == "BLOCKED" for r in rows),
+                  or r["status"] != "READY" or r["run_id"] == "T05-F0-W4"
+                  for r in rows),
           str(cg["blocked_upstream_admitted"]))
     # [R6-FIXB] 旧值 = [T06-F0-W4, T08-F0-W4]：两行都是**截断流**上的含住准入
     # （缺陷 #5）。收口后二者一律不准入；当前 325 行里唯一凭真实含住准入的是
-    # T05-F0-W4（完整运行：truncated=False + chain_end 收口），且它同样被上游
-    # FS-INFRA 独立阻塞 —— 准入 ≠ 解锁这一性质不变。
+    # T05-F0-W4（完整运行：truncated=False + 真实检测事件收口）。
     check("准入行 = T05-F0-W4（完整运行的显式含住；T06/T08 截断流不再准入）",
-          sorted(cg["blocked_upstream_admitted"]) == ["T05-F0-W4"]
-          and cg["admitted"] == 1
-          and "T06-F0-W4" not in cg["blocked_upstream_admitted"]
-          and "T08-F0-W4" not in cg["blocked_upstream_admitted"],
+          cg["admitted"] == 1
+          and sorted(r["run_id"] for r in rows
+                     if (r.get("chain") or {}).get("admitted") is True)
+          == ["T05-F0-W4"]
+          and "T06-F0-W4" not in [r["run_id"] for r in rows
+                                  if (r.get("chain") or {}).get("admitted") is True]
+          and "T08-F0-W4" not in [r["run_id"] for r in rows
+                                  if (r.get("chain") or {}).get("admitted") is True],
           str(cg["blocked_upstream_admitted"]))
     # [MDSPEC][R6-FTIER] the armtlb lookup-tier gate moved 6 rows (the
     # non-TLB-AliasPerm armtlb rows: T01-F1/F2-W1, T02-F2-W1, T03-F5-W9,
     # T10-F1/F2-W1) from the chain gate to an upstream named block.
     # [MDSPEC][R6-FIXTOOLS] the C++ half (6ec7c5aa) landed the real lookup-
     # path tier, so the tool side no longer refuses F1-F6: those 6 rows return
-    # to the chain gate (TIER-UNIMPL class disappears). Net: evidence_missing
-    # 197 (back to the pre-FTIER counter), upstream-blocked total back to 84.
-    check("已评估=64 / 未准入(有样本)=44 / 无样本=197",
-          cg["evaluated"] == 64 and cg["unproven"] == 44
-          and cg["evidence_missing"] == 197
-          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 197
-          and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 44,
+    # to the chain gate (TIER-UNIMPL class disappears).
+    # [R6-PROPAGATION-V3] T05/T06/T07 MODEL_BLOCKED removal moves 6 rows from
+    # upstream-blocked to the chain gate (T05-F0-W4 evaluates and is admitted;
+    # its 5 siblings become evidence-missing/unproven).  11 rows leave the
+    # upstream block; 3 T08-W9 rows become the explicit WORKLOAD-GAP class.
+    check("已评估=64 / 未准入(有样本)=48 / 无样本=203",
+          cg["evaluated"] == 64 and cg["unproven"] == 48
+          and cg["evidence_missing"] == 203
+          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 203
+          and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 48,
           str({k: cg[k] for k in ("evaluated", "unproven", "evidence_missing")}))
-    check("上游独立阻塞 84 行分类（RULING6/FS-INFRA24/MODE-UNIMPL3/"
-          "UNRESOLVED4/FS-MULTICORE35/LICENSE12；无 TIER-UNIMPL）",
-          all(doc["blocked_by_category"].get(k) == v for k, v in
-              (("RULING", 6), ("FS-INFRA", 24), ("MODE-UNIMPL", 3),
-               ("UNRESOLVED", 4), ("FS-MULTICORE", 35), ("LICENSE", 12)))
+    check("上游独立阻塞分类（RULING6/FS-INFRA13/MODE-UNIMPL0/"
+          "UNRESOLVED4/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
+          all(doc["blocked_by_category"].get(k, 0) == v for k, v in
+              (("RULING", 6), ("FS-INFRA", 13), ("MODE-UNIMPL", 0),
+               ("UNRESOLVED", 4), ("FS-MULTICORE", 35), ("LICENSE", 12),
+               ("WORKLOAD-GAP", 3)))
           and doc["blocked_by_category"].get("TIER-UNIMPL", 0) == 0,
           str(doc["blocked_by_category"]))
-    # 任一 admitted 行都不得因链准入而变 READY（variant 2 containment ≠ 全局准入）
-    check("无任何行因 containment 而 READY",
-          not any(r["status"] == "READY" for r in rows))
+    # 唯一 READY 行必须同时满足：真实含住准入 + upstream READY。
+    check("唯一 READY 来自真实含住准入（T05-F0-W4），非全局限定",
+          [r["run_id"] for r in rows if r["status"] == "READY"]
+          == ["T05-F0-W4"]
+          and (next(r for r in rows if r["run_id"] == "T05-F0-W4")["chain"]
+               or {}).get("admitted") is True)
     check("无行因 activated/RC0 判 READY（禁入门槛）",
-          all(r["category"] != "OK" for r in rows))
+          all(r["category"] != "OK" or r["run_id"] == "T05-F0-W4"
+              for r in rows))
 
 print()
 if FAILED:

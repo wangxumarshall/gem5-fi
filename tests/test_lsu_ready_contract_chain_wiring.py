@@ -80,7 +80,10 @@ NO_TAIL = FULL[:6] + [
 ]
 
 RID_READY = "A04-F0-W3"      # 契约中上游可跑（coverage PASS）的真实行
-RID_FSINFRA = "T08-F0-W4"    # 上游 FS-INFRA 阻塞的真实行
+# [R6-PROPAGATION-V3] T08-F0-W4 left FS-INFRA (now PARTIAL-SUBMODEL).  Use a
+# row that is still upstream FS-INFRA blocked (T05-F6-W4, policy-excluded F6)
+# to keep testing "independent upstream block is not removed by chain access".
+RID_FSINFRA = "T05-F6-W4"
 
 # [R6-FIXB] 已收口的合法含住流（含住主张须建立在完整收口的证据流上）：
 # tlb_lookup L1 → tlb_translate_result(dl=L2 contained=1) → chain_end 收口。
@@ -116,37 +119,32 @@ def main():
     check("每一行都带链门禁判定（无 chain=null）", not missing,
           f"{len(missing)} 行 chain=null，例：{missing[:8]}")
 
-    # [2] 上游 FS-INFRA 阻塞 + 链证据可准入：status/category 不变，chain 如实准入
-    if not T08_SRC.is_file():
-        print(f"  SKIP 真实 T08 流不在（{T08_SRC}）——[2] 未验证")
-    else:
-        d = tmp / "e2"
-        dst = d / RID_FSINFRA / "seed1" / "prop_evt.txt.gz"
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(T08_SRC, dst)
-        pl = {RID_FSINFRA: {"unit": "L1d-TLB",
-                            "path": f"{RID_FSINFRA}/seed1/prop_evt.txt.gz",
-                            "faults": 1, "truncated": True}}
-        e2 = build(pl, d)
-        row = next(r for r in e2 if r["run_id"] == RID_FSINFRA)
-        check("[2] 上游阻塞 + 链判定在案 ⇒ status 仍 BLOCKED",
-              row["status"] == "BLOCKED", f"{row['status']}")
-        check("[2] category 仍为上游独立阻塞 FS-INFRA",
-              row["category"] == "FS-INFRA", f"{row['category']}")
-        # [R6-FIXB] 真实 T08 流是**截断**的（gzip EOF，无 chain_end 收口）：
-        # 含住主张不可证 ⇒ chain.admitted=False。门禁**确实运行过**这一性质由
-        # chain 判定非 null + terminal 如实记录来钉（不再以 admitted=True 表达）。
-        check("[2] 门禁确实运行过且如实记录（chain 判定非 null）",
-              (row.get("chain") or {}).get("admitted") is not None,
-              str(row.get("chain")))
-        check("[2] 截断流 ⇒ chain.admitted=False（缺陷 #5 修正）",
-              (row.get("chain") or {}).get("admitted") is False
-              and "containment_on_unclosed_stream"
-              in " ".join((row.get("chain") or {}).get("violations") or []),
-              str(row.get("chain")))
-        check("[2] chain.terminal=detected_contained",
-              (row.get("chain") or {}).get("terminal") == "detected_contained",
-              str((row.get("chain") or {}).get("terminal")))
+    # [2] 上游 FS-INFRA 阻塞 + 链判定在案：status/category 不变
+    d = tmp / "e2"
+    # A truncated (no chain_end) containment stream: the containment claim is
+    # not closed, so the chain is not admitted.
+    write_evt(d / RID_FSINFRA / "seed1" / "prop_evt.txt.gz",
+              CLOSED_CONTAINED[:-1])
+    pl = {RID_FSINFRA: {"unit": "L1d-TLB",
+                        "path": f"{RID_FSINFRA}/seed1/prop_evt.txt.gz",
+                        "faults": 1, "truncated": True}}
+    e2 = build(pl, d)
+    row = next(r for r in e2 if r["run_id"] == RID_FSINFRA)
+    check("[2] 上游阻塞 + 链判定在案 ⇒ status 仍 BLOCKED",
+          row["status"] == "BLOCKED", f"{row['status']}")
+    check("[2] category 仍为上游独立阻塞 FS-INFRA",
+          row["category"] == "FS-INFRA", f"{row['category']}")
+    check("[2] 门禁确实运行过且如实记录（chain 判定非 null）",
+          (row.get("chain") or {}).get("admitted") is not None,
+          str(row.get("chain")))
+    check("[2] 截断流 ⇒ chain.admitted=False（缺陷 #5 修正）",
+          (row.get("chain") or {}).get("admitted") is False
+          and "containment_on_unclosed_stream"
+          in " ".join((row.get("chain") or {}).get("violations") or []),
+          str(row.get("chain")))
+    check("[2] chain.terminal=detected_contained",
+          (row.get("chain") or {}).get("terminal") == "detected_contained",
+          str((row.get("chain") or {}).get("terminal")))
 
     # [3] 对照组：上游阻塞 + 链不可准入 ⇒ admitted=False，category 不变
     d3 = tmp / "e3"

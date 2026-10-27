@@ -63,8 +63,14 @@ def main():
     check("agu_addrmodes_resolved",
           any(e["workload"]["binary"] == "agu_addrmodes" for e in entries))
     unknown_wl = [e for e in entries if not e["workload"]["binary"]]
+    # [R6-PROPAGATION-V3] An armtlb row with no SE binary is still honestly
+    # routable via the FS tlb_probe carrier (T05/T06/T07 W4).  Non-FS rows
+    # must remain BLOCKED and every unknown workload must carry its note.
     check("unknown_workloads_marked_not_guessed",
-          all(e["workload"]["note"] and e["status"] == "BLOCKED"
+          all(e["workload"]["note"] and (
+              e["status"] == "BLOCKED"
+              or (e["model_id"] in M.lc.ARMTLB_MODELS
+                  and e["status"] == "PARTIAL"))
               for e in unknown_wl),
           f"n_unknown={len(unknown_wl)} "
           f"names={sorted({e['workload']['spec_name'][:20] for e in unknown_wl})}")
@@ -174,14 +180,25 @@ def main():
                and "TLB-AliasPerm" in e["workload"]["spec_name"]
                and "fs-infra" in " ".join(e["status_reasons"])]
     fs_ids = sorted(e["run_id"] for e in fs_rows)
-    check("fs-infra family is exactly the 24 TLB-AliasPerm rows",
-          len(fs_rows) == 24, f"n={len(fs_rows)} {fs_ids}")
+    # [R6-PROPAGATION-V3] 11 of the original 24 left FS-INFRA via the
+    # current-fact overlay (9 runnable W4 + 2 T08-a-canary W4); the remaining
+    # 13 are the F6/policy-excluded rows.  This is a generator fact, not a
+    # mass-clear: every one of the 11 carries a capability_status.
+    check("fs-infra family is exactly the 13 remaining F6/policy rows",
+          len(fs_rows) == 13, f"n={len(fs_rows)} {fs_ids}")
+    cleared = [e for e in entries
+               if e["model_id"] in lc.ARMTLB_MODELS
+               and e.get("capability_status")
+               in ("RUNNABLE_EVIDENCE_PENDING", "PARTIAL_SUBMODEL_PROVEN")]
+    check("11 current-fact rows left FS-INFRA with an explicit capability",
+          len(cleared) == 11 and all(e["status"] == "PARTIAL" for e in cleared),
+          str([(e["run_id"], e["capability_status"]) for e in cleared]))
     STALE = "blocked(fs-infra: TLB workload needs FS)"
     bad = [e["run_id"] for e in fs_rows
            if STALE in " ".join(e["status_reasons"])]
     check("the stale fabricated claim is gone from every fs-infra row",
           not bad, str(bad))
-    check("no fs-infra row was mass-cleared (24/24 stay BLOCKED)",
+    check("all 13 remaining fs-infra rows stay BLOCKED",
           all(e["status"] == "BLOCKED" for e in fs_rows),
           str([(e["run_id"], e["status"]) for e in fs_rows
                if e["status"] != "BLOCKED"]))
@@ -208,15 +225,14 @@ def main():
     check("evidence manifest exists (durable, committed)",
           (ROOT / MANIFEST).exists(), MANIFEST)
     check("evidence-covered FS rows record a manifest anchor",
-          len(ev_rows) == 16 and all(
+          len(ev_rows) == 9 and all(
               e["fs_workload"]["evidence"].startswith(MANIFEST + "#")
               and e["fs_workload"]["run_artifact"]
               for e in ev_rows),
           f"n_ev={len(ev_rows)}")
     check("rows with no per-cell FS pilot say so (no silent claim)",
-          sorted(no_ev) == ["T05-F2-W4", "T05-F6-W4", "T06-F2-W4",
-                            "T06-F6-W4", "T07-F4-W4", "T07-F6-W4",
-                            "T08-F4-W4", "T08-F6-W4"],
+          sorted(no_ev) == ["T05-F6-W4", "T06-F6-W4", "T07-F6-W4",
+                            "T08-F6-W4"],
           str(sorted(no_ev)))
     check("every evidenced row is named in the manifest section it cites",
           all(e["run_id"] in (ROOT / MANIFEST).read_text()

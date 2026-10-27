@@ -66,6 +66,24 @@ FS_PILOT_EVIDENCE = {
 }
 
 
+# [R6-PROPAGATION-V3 2026-10-27] Current-fact ledger overlay.
+#
+# The old FS-INFRA residual ("per-cell pilot breadth / 30 activated not met")
+# was emitted for every armtlb row, including the cells this round explicitly
+# unblocks.  For these 11 cells the workload-level blocker is stale and must be
+# removed; the only remaining fact is "runnable, evidence pending" (T05/06/07/
+# T10) or "T08-a canary allowed, whole model partial" (T08-W4).  T08-W9 is a
+# real workload gap and stays blocked with that exact label.
+CURRENT_FACT_RUNNABLE = frozenset({
+    "T05-F0-W4", "T05-F2-W4",
+    "T06-F0-W4", "T06-F2-W4",
+    "T07-F0-W4", "T07-F4-W4",
+    "T10-F0-W4", "T10-F1-W4", "T10-F2-W4",
+})
+CURRENT_FACT_T08_W4 = frozenset({"T08-F0-W4", "T08-F4-W4"})
+CURRENT_FACT_T08_W9 = frozenset({"T08-F0-W9", "T08-F4-W9", "T08-F6-W9"})
+
+
 def _correct_fs_infra_key(rid, wl_note):
     """(corrected_note, fs_record) for an armtlb FS-family row.
 
@@ -141,6 +159,20 @@ def generate_map(xlsx_path):
     # （解除记录在每 entry 的 spec_landed 字段，可审计）。未登记模型保持
     # 规格阻塞原样（不得静默解除）。
     SPEC_IMPL_LANDED = {
+        # [R6-PROPAGATION-V3 2026-10-27] T05/T06/T07 modes are IN the frozen
+        # binary d1543872/20fda699 (CHAOSArmTLB faultType strings), so the
+        # xlsx sheet-9 "需新增" premise is factually obsolete.  Dynamic
+        # 3-seed evidence is still pending (canary/ledger status), but the
+        # spec-level block no longer applies.
+        "T05": ("implemented(valid_clear / valid_set / global_flip / "
+                "asid_subst in CHAOSArmTLB; modes present in frozen binary "
+                "d1543872/20fda699; dynamic 3-seed evidence pending)"),
+        "T06": ("implemented(perm_subst / memtype_subst / pagesize_subst in "
+                "CHAOSArmTLB; modes present in frozen binary "
+                "d1543872/20fda699; dynamic 3-seed evidence pending)"),
+        "T07": ("implemented(false_hit / double_hit / wrong_way in "
+                "CHAOSArmTLB; modes present in frozen binary "
+                "d1543872/20fda699; dynamic 3-seed evidence pending)"),
         # C11（8 RunID，阻塞短语 "consumer-side: MSHR merge event source
         # only"）：targetField=mshr_merge（CHAOSCache 合并钩子 @
         # BaseCache::handleTimingReqMiss），campaign C11-F0-W6 3 seed
@@ -528,6 +560,12 @@ def generate_map(xlsx_path):
         fs_workload = None
         if model in lc.ARMTLB_MODELS and wl_note and "fs-infra" in wl_note:
             wl_note, fs_workload = _correct_fs_infra_key(rid, wl_note)
+        # [R6-PROPAGATION-V3] remove the stale FS-INFRA residual for the cells
+        # this round ruled runnable (T05/06/07/T10 W4) or T08-a-canary-only.
+        if rid in CURRENT_FACT_RUNNABLE or rid in CURRENT_FACT_T08_W4 \
+                or rid in CURRENT_FACT_T08_W9:
+            wl_note = None
+            fs_workload = None
         s9 = rid9[rid]
         impl_status = _txt(s9[i9["实现状态"]])
         reasons = []
@@ -538,25 +576,60 @@ def generate_map(xlsx_path):
             reasons.append(f"spec:{impl_status}")
         if wl_note:
             reasons.append(f"workload:{wl_note}")
-        pilot_routable = model in lc.EVIDENCE_PILOT_MODELS
+        # [R6-PROPAGATION-V3] exact current-fact labels.
+        capability_status = None
+        capability_note = ""
+        if rid in CURRENT_FACT_T08_W9:
+            reasons = [f"workload:{lc.T08_W9_WORKLOAD_GAP_REASON}"]
+            capability_status = "BLOCKED_WORKLOAD_GAP"
+            capability_note = lc.T08_W9_WORKLOAD_GAP_REASON
+        elif rid in CURRENT_FACT_T08_W4:
+            capability_status = "PARTIAL_SUBMODEL_PROVEN"
+            capability_note = lc.T08_PARTIAL_REASON
+        elif rid in CURRENT_FACT_RUNNABLE:
+            capability_status = "RUNNABLE_EVIDENCE_PENDING"
+            capability_note = ("runnable in the frozen binary; 3-seed chain "
+                               "evidence pending (no formal claim yet)")
+        # W11 SPEC stays a license block, labelled explicitly.
+        if "-W11" in rid and any("spec-license" in r for r in reasons):
+            reasons = [f"BLOCKED_SPEC: {lc.SPEC_WL_IDENTITY} needs a license"]
+        pilot_routable = (model in lc.EVIDENCE_PILOT_MODELS
+                          or rid in CURRENT_FACT_RUNNABLE
+                          or rid in CURRENT_FACT_T08_W4)
+        if rid in CURRENT_FACT_T08_W4:
+            pilot_status = "PARTIAL_SUBMODEL_PROVEN"
+        elif rid in CURRENT_FACT_RUNNABLE:
+            pilot_status = "RUNNABLE_EVIDENCE_PENDING"
+        else:
+            pilot_status = "BLOCKED" if pilot_routable else None
         entries.append(dict(
             run_id=rid, model_id=model,
             unit=_txt(r[i7["单元"]]), freq=_txt(r[i7["频率"]]),
             fault_type=_txt(r[i7["故障类型"]]),
             submodels=_txt(s9[i9["故障子模型"]]),
             trigger=_txt(s9[i9["触发条件"]]),
-            workload=dict(spec_name=spec_name, binary=binary,
-                          golden=lc.GOLDENS.get(binary) if binary else None,
-                          note=wl_note or ""),
+            workload=dict(
+                spec_name=spec_name, binary=binary,
+                golden=lc.GOLDENS.get(binary) if binary else None,
+                # A current-fact row has no workload-level blocker but still
+                # has no SE binary: keep the factual note (never a silent
+                # "no mapping").
+                note=(wl_note
+                      or (capability_note
+                          if capability_status in (
+                              "RUNNABLE_EVIDENCE_PENDING",
+                              "PARTIAL_SUBMODEL_PROVEN",
+                              "BLOCKED_WORKLOAD_GAP") else ""))),
             pilot=dict(
                 routable=pilot_routable,
                 phase="trial" if pilot_routable else None,
                 carrier="fs:tlb_probe" if pilot_routable else None,
                 golden=(lc.TLB_PROBE_GOLDEN if pilot_routable else None),
-                formal_status="BLOCKED" if pilot_routable else None,
-                note=("evidence collection only; MODEL_BLOCKED retained"
-                      if pilot_routable else ""),
+                formal_status=pilot_status,
+                note=capability_note if pilot_routable else "",
             ),
+            capability_status=capability_status,
+            capability_note=capability_note,
             path_raw=_txt(s9[i9["完整传播路径（按顺序）"]]),
             path_nodes=re.findall(r"L\d", _txt(s9[i9["完整传播路径（按顺序）"]])),
             monitors=_txt(s9[i9["必监控单元/事件/指标"]]),
