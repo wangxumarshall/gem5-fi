@@ -209,6 +209,39 @@ def main():
           v8.get("count_contradiction") is False,
           str(v8.get("count_contradiction")))
 
+    print("[9] [R6-V4-STATECOUNT] T08-b/c/d armed+refill 记一次应用注入")
+    # 形状取自 CHAOSArmTLB.cc:414-422（armed，握手）与 :893-902 / :924-932
+    # （refill，真正应用）。一次故障写两行，但只应计一次。
+    T08B_ARMED = ("Tick: 238044000000, Site: arm_tlb_walk_refill_armed, "
+                  "walk_id: 703, VA: 0xffffffc00801e240, "
+                  "FaultType: walk_fill_dup")
+    T08B_REFILL = ("Tick: 238044463587, Site: arm_tlb_walk_refill, "
+                   "walk_id: 703, VA: 0xffffffc00801e240, "
+                   "FaultType: walk_fill_dup")
+    T08D_STALE = ("Tick: 238044463587, Site: arm_tlb_walk_refill_stale, "
+                  "walk_id: 703, VA: 0xffffffc00801e240, "
+                  "old_pfn: 0x81d75, stale_pfn: 0x80a16, "
+                  "FaultType: walk_stale_result")
+    d9, t9 = _outdir([T08B_ARMED, T08B_REFILL],
+                     trigger=TRIGGER_1.replace("tier=F2", "tier=F0"),
+                     stats=STATS_1)
+    s9 = LC.armtlb_count_sources(d9, TRIGGER_1.replace("tier=F2", "tier=F0"))
+    check("armed+refill → log=1", s9["log"] == 1, str(s9["log"]))
+    check("armed+refill 三源一致 → 无 contradiction",
+          s9["contradiction"] is False, s9["detail"])
+    check("armed 行本身 applied=False",
+          LC.armtlb_line_applied(T08B_ARMED) is False)
+    check("refill 行 applied=True",
+          LC.armtlb_line_applied(T08B_REFILL) is True)
+    check("stale refill 行 applied=True",
+          LC.armtlb_line_applied(T08D_STALE) is True)
+    d9b, _ = _outdir([T08B_ARMED], trigger=TRIGGER_1.replace("tier=F2",
+                                                             "tier=F0"),
+                     stats=STATS_1)
+    s9b = LC.armtlb_count_sources(d9b, TRIGGER_1.replace("tier=F2", "tier=F0"))
+    check("只有 armed（walk 未到 refill）→ log=0 且如实报矛盾",
+          s9b["log"] == 0 and s9b["contradiction"] is True, s9b["detail"])
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

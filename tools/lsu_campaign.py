@@ -2148,7 +2148,15 @@ def classify_run(outdir, stdout_file, golden, exit_code, stderr_file=None):
 # this diagnostic (measured 2026-10-24, seed1/armtlb_injections.log).
 _ARMTLB_DIAG_SITES = ("arm_tlb_walk_issue_probe",
                       "arm_tlb_lookup_hit_skipped",
-                      "arm_tlb_lookup_tier")
+                      "arm_tlb_lookup_tier",
+                      # [R6-V4-STATECOUNT] T08-b/c/d write TWO records for ONE
+                      # fault: `arm_tlb_walk_refill_armed` at the walk-issue
+                      # point (budget/one-shot arm) and the applied record at
+                      # the refill point (`arm_tlb_walk_refill` /
+                      # `arm_tlb_walk_refill_stale`). The armed line is the
+                      # handshake, not the application — counting both made a
+                      # one-fault run read log=2 vs trigger=1.
+                      "arm_tlb_walk_refill_armed")
 # A real lookup-hit fault MUST record the physical effect it applied; a
 # lookup_hit line without these fields is malformed evidence, not an injection.
 _ARMTLB_HIT_APPLIED_FIELDS = ("VA:", "old_pfn:", "new_pfn")
