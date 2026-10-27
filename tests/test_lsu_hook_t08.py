@@ -78,26 +78,34 @@ def main():
     check("beyond is Unknown (no fabrication of higher layers)",
           P.provable_to(pair)["beyond"] == "Unknown")
 
-    print("[3] 路由：MODEL_FLAGS 落地 / MODEL_BLOCKED 诚实保留")
+    print("[3] 路由：MODEL_FLAGS 落地 / T08-a 显式 canary（整模型仍 PARTIAL）")
     check("MODEL_FLAGS['T08'] is armtlb walk_pairing",
           lc.MODEL_FLAGS.get("T08") == ("armtlb", ["--tlb_fault_type", "walk_pairing"]),
           str(lc.MODEL_FLAGS.get("T08")))
-    blk = lc.MODEL_BLOCKED.get("T08", "")
-    check("MODEL_BLOCKED['T08'] KEPT (not silently unblocked)",
-          "T08" in lc.MODEL_BLOCKED)
-    # [LSU][MDSPEC][R4-8-SPEC] the phrase is updated to the MEASURED truth:
-    # the C++ was built on the integration binary and the FS pilots ran
-    # (F0-W9 R4-6-T08, F6-W9 R4-8-SPEC), so "compile-unverified / pilot
-    # pending" became false. The invariant pinned here: the block is KEPT and
-    # its reason names the landed arm + the still-pending sub-models.
-    check("blocked phrase is honest (T08-a real-run proven + pending b/c/d)",
-          "walk_pairing" in blk and "T08-a" in blk and "T08-b" in blk
-          and "real-run proven" in blk
-          and ("sub-model modes" in blk or "mode unimplemented" in blk), blk)
+    # [R6-PROPAGATION-V3] T08 left MODEL_BLOCKED (the generic bypass would
+    # have unlocked W9 and T08-b/c/d).  The narrower gate is in resolve_cell:
+    # only T08-F0/F4-W4 + explicit --t08a-canary, trial only.
+    check("T08 is NOT in MODEL_BLOCKED (narrower RunID gate instead)",
+          "T08" not in lc.MODEL_BLOCKED)
+    blk = lc.T08_PARTIAL_REASON
+    check("partial reason names T08-a and pending b/c/d",
+          "PARTIAL_SUBMODEL_PROVEN" in blk and "T08-a" in blk
+          and "T08-b" in blk and "T08-c" in blk and "T08-d" in blk, blk)
     wl = "TLB-AliasPerm 地址翻译探针"
     r = lc.resolve_cell(_cell("T08", "F0", wl, "T08-F0-W4"))
-    check("resolve_cell(T08-F0-W4) -> blocked reason (not silently runnable)",
-          r[0] is None and "walk_pairing" in (r[2] or ""), str(r))
+    check("resolve_cell(T08-F0-W4) default -> blocked PARTIAL reason",
+          r[0] is None and "PARTIAL_SUBMODEL_PROVEN" in (r[2] or ""), str(r))
+    rc = lc.resolve_cell(_cell("T08", "F0", wl, "T08-F0-W4"),
+                         t08a_canary=True)
+    check("explicit T08-a canary resolves to walk_pairing flags",
+          rc[0] is not None and "walk_pairing" in rc[0]
+          and rc[1] == lc.TLB_PROBE_GOLDEN, str(rc))
+    rw9 = lc.resolve_cell(_cell("T08", "F0", "GAP/Graph500 子集",
+                                "T08-F0-W9"), t08a_canary=True,
+                          allow_blocked=True)
+    check("T08-F0-W9 stays hard BLOCKED_WORKLOAD_GAP",
+          rw9[0] is None and rw9[2].startswith("BLOCKED_WORKLOAD_GAP"),
+          str(rw9))
     r2 = lc.resolve_cell(_cell("T01", "F0", wl, "T01-F0-W4"))
     check("T01 lookup mode unchanged (ar mtlb FS flags, no walk path)",
           r2[1] == lc.TLB_PROBE_GOLDEN and "--tlb_fault_type" in r2[0]

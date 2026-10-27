@@ -99,11 +99,14 @@ def main():
     check("T08 defaults to the T08-a arm (walk_pairing)",
           LC.MODEL_FLAGS["T08"][1] == ["--tlb_fault_type", "walk_pairing"],
           str(LC.MODEL_FLAGS["T08"]))
-    check("T08 block reason now names the landed T08-b/c/d sub-models",
-          "walk_fill_dup" in LC.MODEL_BLOCKED["T08"]
-          and "walk_done_early" in LC.MODEL_BLOCKED["T08"]
-          and "walk_stale_result" in LC.MODEL_BLOCKED["T08"],
-          LC.MODEL_BLOCKED["T08"][:80])
+    # [R6-PROPAGATION-V3] T08 left MODEL_BLOCKED; the narrower
+    # partial-submodel gate still names T08-b/c/d explicitly.
+    check("T08 partial gate names the landed T08-b/c/d sub-models",
+          "T08" not in LC.MODEL_BLOCKED
+          and "walk_fill_dup" in LC.T08_PARTIAL_REASON
+          and "walk_done_early" in LC.T08_PARTIAL_REASON
+          and "walk_stale_result" in LC.T08_PARTIAL_REASON,
+          LC.T08_PARTIAL_REASON[:120])
 
     print("[5] C++ 落点（源码 grep）")
     cc = src("CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc")

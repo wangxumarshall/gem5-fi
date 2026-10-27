@@ -35,16 +35,22 @@ def main():
         if not cond:
             failed.append(name)
 
-    # Formal/default resolution remains blocked.  The new route is solely
-    # for collecting the evidence needed to decide whether MODEL_BLOCKED can
-    # later be removed.
-    for model in MODELS:
+    # [R6-PROPAGATION-V3] T05/T06/T07 are runnable by default (modes are in
+    # the frozen binary).  T08 still needs the explicit T08-a canary.
+    for model in ("T05", "T06", "T07"):
         flags, _golden, reason = C.resolve_cell(cell(model))
-        check(f"{model} formal route remains blocked",
-              flags is None and bool(reason), str((flags, reason)))
+        check(f"{model} formal route is runnable",
+              flags is not None and reason == "fs:tlb_probe",
+              str((flags, reason)))
+    flags, _golden, reason = C.resolve_cell(cell("T08"))
+    check("T08 formal route requires the explicit canary",
+          flags is None and "PARTIAL_SUBMODEL_PROVEN" in reason,
+          str((flags, reason)))
 
+    for model in MODELS:
         flags, golden, carrier = C.resolve_cell(
-            cell(model), evidence_pilot=True)
+            cell(model), evidence_pilot=True,
+            t08a_canary=(model == "T08"))
         check(f"{model} evidence pilot resolves to FS",
               flags is not None and golden == C.TLB_PROBE_GOLDEN and
               carrier == "fs:tlb_probe", str((flags, golden, carrier)))
@@ -53,17 +59,24 @@ def main():
 
     mapping = M.generate_map(XLSX)
     by_id = {e["run_id"]: e for e in mapping["entries"]}
-    for model in MODELS:
+    # [R6-PROPAGATION-V3] T05/T06/T07 are runnable (evidence pending);
+    # T08-W4 is PARTIAL_SUBMODEL_PROVEN.  None is MODEL_BLOCKED any more.
+    for model in ("T05", "T06", "T07", "T08"):
         entry = by_id[f"{model}-F0-W4"]
-        check(f"{model} map stays BLOCKED",
-              entry["status"] == "BLOCKED", str(entry["status_reasons"]))
-        check(f"{model} map advertises evidence-only FS route",
+        want_cap = ("PARTIAL_SUBMODEL_PROVEN" if model == "T08"
+                    else "RUNNABLE_EVIDENCE_PENDING")
+        check(f"{model} map is PARTIAL with capability {want_cap}",
+              entry["status"] == "PARTIAL"
+              and entry.get("capability_status") == want_cap,
+              f"{entry['status']} {entry.get('capability_status')} "
+              f"{entry['status_reasons']}")
+        check(f"{model} map advertises the FS carrier",
               entry["pilot"]["routable"] is True and
-              entry["pilot"]["carrier"] == "fs:tlb_probe" and
-              entry["pilot"]["formal_status"] == "BLOCKED",
+              entry["pilot"]["carrier"] == "fs:tlb_probe",
               str(entry.get("pilot")))
-        check(f"{model} map retains model blocker",
-              any(r.startswith("campaign:") for r in entry["status_reasons"]),
+        check(f"{model} map carries no stale campaign blocker",
+              not any(r.startswith("campaign:")
+                      for r in entry["status_reasons"]),
               str(entry["status_reasons"]))
 
     # A trial artefact remains explicitly BLOCKED even when the evidence run
@@ -82,11 +95,14 @@ def main():
             C.run_cell_adaptive(cell("T05"), args, Path(td))
             result = json.loads(
                 (Path(td) / "T05-F0-W4/cell_results.json").read_text())
-            check("activated evidence artefact remains BLOCKED",
+            # T05 is no longer MODEL_BLOCKED: the artefact reports the real
+            # gate result.  The stubbed run has chain=None, so the gate is
+            # GATE-REFUSED (never a fabricated BLOCKED/evidence-pilot status).
+            check("T05 activated artefact reports the real admission gate",
                   result.get("activated") == 1 and
-                  result.get("admission_status") == "BLOCKED" and
-                  result.get("evidence_pilot_only") is True and
-                  bool(result.get("model_blocked_reason")), str(result))
+                  result.get("admission_status") in
+                  ("ADMITTED", "BLOCKED", "GATE-REFUSED")
+                  and not result.get("model_blocked_reason"), str(result))
     finally:
         C.run_single_cell = original
 

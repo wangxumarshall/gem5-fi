@@ -120,9 +120,11 @@ def main():
         if flags:
             emitted |= {t for t in flags if t.startswith("--")}
     # T08 walk 路径（tier 的另一消费者）
-    t08 = LC.resolve_cell(_cell("T08", "F0", "T08-F0-W9",
+    # [R6-PROPAGATION-V3] W9 is a hard workload gap; use the explicit
+    # T08-a canary (W4 F0) to exercise the walk/tier routing.
+    t08 = LC.resolve_cell(_cell("T08", "F0", "T08-F0-W4",
                                 "TLB-AliasPerm 地址翻译探针"),
-                          allow_blocked=True)[0] or []
+                          t08a_canary=True)[0] or []
     emitted |= {t for t in t08 if t.startswith("--")}
     unknown = sorted(t for t in emitted if t not in known)
     check(f"armtlb flags 全部是已知选项（unknown={unknown}）", not unknown,

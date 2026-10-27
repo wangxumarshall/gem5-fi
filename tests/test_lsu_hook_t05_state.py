@@ -118,13 +118,14 @@ def main():
     check("ARMTLB_MODELS contains T05/T06/T07",
           {"T05", "T06", "T07"} <= LC.ARMTLB_MODELS, str(LC.ARMTLB_MODELS))
 
-    print("[6] 阻塞理由已诚实改写（landed / compile-unverified）")
+    print("[6] R6-PROPAGATION-V3：T05/T06/T07 已移出 MODEL_BLOCKED（模式在冻结二进制中）")
     for model in ("T05", "T06", "T07"):
-        r = LC.MODEL_BLOCKED.get(model, "")
-        check(f"{model} block reason mentions LANDED + COMPILE-UNVERIFIED",
-              "LANDED" in r and "COMPILE-UNVERIFIED" in r, repr(r))
-        check(f"{model} block reason no longer says 'mode unimplemented'",
-              "mode unimplemented" not in r, repr(r))
+        check(f"{model} is NOT in MODEL_BLOCKED",
+              model not in LC.MODEL_BLOCKED,
+              repr(LC.MODEL_BLOCKED.get(model)))
+        check(f"{model} stays routed in MODEL_FLAGS",
+              model in LC.MODEL_FLAGS,
+              str(LC.MODEL_FLAGS.get(model)))
 
     print("[7] C++ 落点（源码 grep：注入器 + 钩子 + 配置 choices）")
     cc = src("CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc")

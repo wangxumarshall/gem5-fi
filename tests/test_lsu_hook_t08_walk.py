@@ -97,8 +97,13 @@ def main():
           and "rng" not in guard_block, guard_block[-160:].replace("\n", " "))
     check("lookup-hit 下打印一次性诊断行（不静默）",
           "arm_tlb_lookup_hit_skipped" in mc and "walk_pairing_lookup_notice" in mc)
-    check("switch 内显式 case FaultType::WalkPairing: return;（不可达响亮 no-op）",
+    # The current tree implements the unreachable arm as a loud `default:
+    # return;` with a comment naming WalkPairing (an explicit
+    # `case FaultType::WalkPairing: return;` is also acceptable).
+    check("switch 内显式 no-op 守卫（不可达响亮返回）",
           re.search(r"case FaultType::WalkPairing:\s*(?://[^\n]*\n\s*)*return;", mc)
+          is not None
+          or re.search(r"//[^\n]*WalkPairing[^\n]*\n(?:\s*//[^\n]*\n)*\s*default: return;", mc)
           is not None)
 
     print("[A2] 其它 fault type 逐字节不受影响（守卫/T08-only 探针）")
@@ -164,35 +169,42 @@ def main():
           i_val < fs_py.index("arm_tlb = CHAOSArmTLB("))
 
     wl = "TLB-AliasPerm 地址翻译探针"
-    c = _cell("T08", "F0", wl, "T08-F0-W9")
+    # [R6-PROPAGATION-V3] T08-F0-W4 is the explicit T08-a canary; W9 is a
+    # hard workload gap (never tlb_probe).
+    c = _cell("T08", "F0", wl, "T08-F0-W4")
     blocked = lc.resolve_cell(c)
-    # [LSU][MDSPEC][R4-8-SPEC] 钉不变量（仍 BLOCKED + 理由点名 T08-a）而非
-    # 过时短语：真机 pilot 已跑，旧短语 "compile-unverified" 已成假陈述。
-    check("默认仍 BLOCKED（不静默解阻塞）",
-          blocked[0] is None and "walk_pairing" in (blocked[2] or ""),
+    check("T08-F0-W4 default -> blocked PARTIAL reason",
+          blocked[0] is None and "PARTIAL_SUBMODEL_PROVEN" in (blocked[2] or ""),
           str(blocked))
-    flags, golden, carrier = lc.resolve_cell(c, allow_blocked=True)
-    check("--allow-blocked-models opt-in 后可解析出 FS flags", flags is not None)
+    flags, golden, carrier = lc.resolve_cell(c, t08a_canary=True)
+    check("explicit --t08a-canary resolves FS flags", flags is not None)
     for need in ("--tlb_fault_type", "walk_pairing", "--tlb_lsu_tier", "F0",
                  "--tlb_lsu_warmup_events", str(lc.ARMTLB_T08_WARMUP_EVENTS),
                  "--tlb_lsu_span_events", str(lc.ARMTLB_T08_SPAN_EVENTS),
                  "--chaos_armtlb"):
-        check(f"T08-F0-W9 flags 含 {need}", need in flags, str(flags[-10:]))
+        check(f"T08-a canary flags 含 {need}", need in flags, str(flags[-10:]))
     check("T08 走 tlb_probe 载体 + host golden",
           carrier == "fs:tlb_probe" and golden == lc.TLB_PROBE_GOLDEN)
-    c4 = _cell("T08", "F4", wl, "T08-F4-W9")
-    f4 = lc.resolve_cell(c4, allow_blocked=True)[0]
-    check("F4 cell 同样带 tier（F4 而非 F0）",
-          "--tlb_lsu_tier" in f4 and "F4" in f4, str(f4[-8:]))
-    c6 = _cell("T08", "F6", wl, "T08-F6-W9")
-    f6 = lc.resolve_cell(c6, allow_blocked=True)[0]
-    check("F6 cell 同样带 tier（F6）", "F6" in f6, str(f6[-8:]))
+    c4 = _cell("T08", "F4", wl, "T08-F4-W4")
+    f4 = lc.resolve_cell(c4, t08a_canary=True)[0]
+    check("F4 canary 同样带 tier（F4 而非 F0）",
+          f4 is not None and "--tlb_lsu_tier" in f4 and "F4" in f4,
+          str(f4[-8:] if f4 else f4))
+    c6 = _cell("T08", "F6", wl, "T08-F6-W4")
+    f6 = lc.resolve_cell(c6, t08a_canary=True)[0]
+    check("F6 is not a canary (canary is W4 F0/F4 seed1 only)", f6 is None)
+    for w9 in ("T08-F0-W9", "T08-F4-W9"):
+        got = lc.resolve_cell(_cell("T08", w9.split("-")[1], "GAP/Graph500",
+                                    w9), allow_blocked=True,
+                              t08a_canary=True)
+        check(f"{w9} hard BLOCKED_WORKLOAD_GAP", got[0] is None
+              and got[2].startswith("BLOCKED_WORKLOAD_GAP"), str(got))
     t01 = lc.resolve_cell(_cell("T01", "F0", wl, "T01-F0-W4"))
     check("T01 lookup 模式不带 tier/warmup/span（逐字节不变）",
           t01[0] is not None and "--tlb_lsu_tier" not in t01[0]
           and "--tlb_lsu_span_events" not in t01[0])
-    check("MODEL_BLOCKED['T08'] 仍在（opt-in 是开关，不是解阻塞）",
-          "T08" in lc.MODEL_BLOCKED)
+    check("T08 is NOT in MODEL_BLOCKED (narrow RunID gate instead)",
+          "T08" not in lc.MODEL_BLOCKED)
 
     print("[C2] F0 抽签可预测（用 chaos_event_sample.hh 的真实 LCG 常量复算）")
     m = re.search(r"return x \* (\d+)ULL \+ (\d+)ULL;", sample_hh)

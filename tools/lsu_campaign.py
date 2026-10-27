@@ -575,10 +575,39 @@ MODEL_FLAGS = {
 # workload-level "fs-infra" phrase.
 ARMTLB_MODELS = {"T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T10"}
 
-# These modes are implemented but deliberately remain MODEL_BLOCKED until
-# real evidence is reviewed.  Trial may route them to the FS carrier to
-# collect that evidence; formal/default resolution must stay blocked.
-EVIDENCE_PILOT_MODELS = {"T05", "T06", "T07", "T08"}
+# [R6-PROPAGATION-V3 2026-10-27] T05/T06/T07 are NO LONGER MODEL_BLOCKED:
+# their CHAOSArmTLB modes are in the frozen binary (valid_clear / valid_set /
+# global_flip / asid_subst; perm_subst / memtype_subst / pagesize_subst;
+# false_hit / double_hit / wrong_way), so the stale "COMPILE-UNVERIFIED" gate
+# is factually false.  They resolve runnable by default and remain evidence-
+# pending (no 3-seed chain yet) in the ledger.
+#
+# T08 is a composite model.  Only the T08-a representative canary
+# (walk_pairing, W4 F0/F4) may run, and only through the explicit
+# --t08a-canary opt-in in the trial phase.  T08-b/c/d have static code but no
+# dynamic coverage, so the whole model stays PARTIAL_SUBMODEL_PROVEN.
+T08_W4_CANARY_RUNIDS = frozenset({"T08-F0-W4", "T08-F4-W4"})
+T08_W9_WORKLOAD_GAP_RUNIDS = frozenset(
+    {"T08-F0-W9", "T08-F4-W9", "T08-F6-W9"})
+T08_A_FAULT_TYPE = "walk_pairing"
+T08_PARTIAL_REASON = (
+    "PARTIAL_SUBMODEL_PROVEN: only T08-a (walk_pairing) is allowed, and only "
+    "for T08-F0-W4/T08-F4-W4 seed1 via the explicit --t08a-canary trial "
+    "opt-in; T08-b walk_fill_dup / T08-c walk_done_early / T08-d "
+    "walk_stale_result have static code but no dynamic coverage, so the whole "
+    "T08 model is NOT COMPLETE")
+T08_W9_WORKLOAD_GAP_REASON = (
+    "BLOCKED_WORKLOAD_GAP: T08 W9 requires a GAP/Graph500 FS workload; the "
+    "fetchable GAP binary is SE-only (workloads/directed/gap_bfs), the FS "
+    "image has no GAP/Graph500, and the armtlb carrier is tlb_probe.rcS. "
+    "Running W9 on tlb_probe would silently change the experiment identity; "
+    "no generic flag can unblock this.")
+OUT_OF_SCOPE_T09_REASON = "OUT_OF_SCOPE_BACKFILL_ARTIFACT: 不适用(B0无保护)"
+
+# Kept for backward compatibility with the ledger generator.  T05-T07 are
+# runnable and no longer need an evidence-pilot bypass; T08 has its own
+# explicit T08-a gate above and must never be auto-piloted.
+EVIDENCE_PILOT_MODELS = {"T05", "T06", "T07"}
 
 # [R4-10] the walk/refill family — the four sub-models of T08. All ride the
 # event-normalized tier on the walk-ISSUE stream (the armtlb branch below
@@ -891,50 +920,14 @@ MODEL_BLOCKED = {
     # them, so the block is KEPT on the same discipline as O04/O09 (delete
     # only on real-run evidence). The honest phrase replaces the old
     # "mode unimplemented" gap statement.
-    "T05": ("deferred(T05 entry-state modes LANDED (valid_clear/valid_set/"
-            "global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS "
-            "pilot pending, R4-10)"),
-    "T06": ("deferred(T06 attribute legal-substitution modes LANDED "
-            "(perm_subst/memtype_subst/pagesize_subst) but "
-            "COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"),
-    "T07": ("deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/"
-            "wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, "
-            "R4-10)"),
-    # [MDSPEC][R4-5.9] T08: the walk/fill pairing MODE now exists
-    # (faultType=walk_pairing, T08-a lost walk — TableWalker::walk drops the
-    # walk; registerTlbWalkPair emits the tlb_walk/tlb_refill node pair).
-    # [R4-8-INT 语义合并] 两侧都在订正 T08 的理由文本，事实互补（W4 见
-    # r4-7-fsinfra-w1，W9 见 r4-8-spec-residual），取并集：
-    # T08-a（walk_pairing）**已真机断言**——旧理由 "landed compile-unverified,
-    # pilot pending" 已被证伪（冻结二进制 7d52bc1392a10055 既带修复字符串、
-    # 又能打印只可能由修复后 maybeDropWalkFill 产生的 drop 行；pilot 已实跑）。
-    #   * T08-F0-W4 seed1（R4-8-FS-W1 §4.3）：arm_tlb_walk_issue_probe +
-    #     arm_tlb_lookup_hit_skipped + arm_tlb_walk_issue_drop **walk_id=703**，
-    #     且 prop_evt 的 tlb_walk/tlb_refill 共享 walk_id=703 + fault_id=1、
-    #     tlb_refill field=lost —— R4-6-T08 §4.3 四项验收判据全中。
-    #   * T08-F0-W9（R4-6-T08）与 T08-F6-W9（R4-8-SPEC §B.3，F6=首次 walk 即
-    #     注入，drop walk_id=1 与 probe 同 tick）同样注入成功、activated=1。
-    #   * T08-F4-W9 = **诚实零（结构性）**：F4 burst interval=100000 eligible
-    #     events ≫ 实测 walk-issue 流 ~1e3（probe 行证明钩子到达，无 drop 行）。
-    # 条目**保留**（不删）以免静默解锁：残留理由是未落地的 T08-b/c/d 子模型
-    # 模式（mode 未实现、无真机覆盖）+ 上述 pilot 仅 1 seed（本仓别处删除门槛
-    # 为 3 seed）。删除是一行改动，留给集成方裁决（R4-6-T08 §4.4 /
-    # R4-8-FS-W1 §7.2 / R4-8-SPEC-residual §B）。
-    "T08": ("walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 "
-            "(R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 "
-            "+ tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill "
-            "field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected "
-            "with the same walk_id/field=lost signature, activated=1; F4-W9 "
-            "honest zero (burst interval 1e5 eligible events >> the ~1e3 "
-            "walk-issue stream — hook reached, never fires), binary "
-            "7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes "
-            "(walk_fill_dup / walk_done_early / walk_stale_result) are now "
-            "LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, "
-            "walk_id-paired tlb_walk/tlb_refill with field/outcome per "
-            "sub-model) but COMPILE-UNVERIFIED — build + FS pilot await "
-            "integration. "
-            "Block retained: pilots are 1 seed each and the sub-models have no "
-            "real-run coverage; deletion is an integration decision"),
+    # [R6-PROPAGATION-V3 2026-10-27] T05/T06/T07 MODEL_BLOCKED entries
+    # DELETED: the modes are in the frozen binary (d1543872 / 20fda699) and
+    # the stale "COMPILE-UNVERIFIED" text is factually false.  They now
+    # resolve runnable; evidence breadth stays in the ledger.
+    # T08 is deliberately NOT in MODEL_BLOCKED either: it has a narrower
+    # RunID/sub-model gate in resolve_cell (T08-a W4 canary only).  Keeping it
+    # here would let the generic --allow-blocked-models unlock W9/other
+    # sub-models, which this round explicitly forbids.
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
@@ -1527,7 +1520,28 @@ def load_matrix(path):
     return header, cells
 
 
-def resolve_cell(cell, allow_blocked=False, evidence_pilot=False):
+def check_phase_gate(phase, allow_blocked_models, t08a_canary):
+    """[R6-PROPAGATION-V3] The bypass flags are TRIAL-only.
+
+    screening/formal must not use the generic --allow-blocked-models or the
+    T08-a canary flag.  A formal run has to stand on a model that is fully
+    runnable; partial sub-model coverage is not admissible.
+    """
+    if phase in ("screening", "main"):
+        if allow_blocked_models:
+            raise SystemExit(
+                "REFUSED: --allow-blocked-models is trial-only; screening/"
+                "formal may not use a generic MODEL_BLOCKED bypass")
+        if t08a_canary:
+            raise SystemExit(
+                "REFUSED: --t08a-canary is trial-only; a screening/formal "
+                "run must not use the T08-a partial-submodel canary")
+        return "formal"
+    return "trial"
+
+
+def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
+                 t08a_canary=False):
     """Cell -> (flags list, golden, binary) or (None, None, blocked_reason).
 
     Every cell resolves to exactly one of: runnable flags, or a blocked/
@@ -1551,6 +1565,25 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False):
     model = cell[COL_MODEL].strip()
     freq = cell[COL_FREQ].strip()
     workload = cell[COL_WORKLOAD].strip()
+    run_id = cell[COL_RUNID].strip()
+
+    # 0. [R6-PROPAGATION-V3] hard, non-bypassable capability gates.
+    #    Order matters: these must fire before the generic MODEL_BLOCKED
+    #    bypass so neither --allow-blocked-models nor the evidence pilot can
+    #    turn W9 into a tlb_probe run or unlock T08-b/c/d.
+    if run_id in T08_W9_WORKLOAD_GAP_RUNIDS:
+        return None, None, T08_W9_WORKLOAD_GAP_REASON
+    if model == "T09":
+        return None, None, OUT_OF_SCOPE_T09_REASON
+    if model == "T08":
+        t08a_selected = (
+            run_id in T08_W4_CANARY_RUNIDS
+            and t08a_canary
+            and freq in ("F0", "F4")
+            and T08_A_FAULT_TYPE in MODEL_FLAGS.get("T08", ("", []))[1]
+        )
+        if not t08a_selected:
+            return None, None, T08_PARTIAL_REASON
 
     # 1. workload-level block (FS / multicore-FS / SPEC license). SPEC stays
     #    blocked even for FS-family models — the license gap is workload-real
@@ -2502,9 +2535,13 @@ def run_single_cell(cell, args, seed, outdir):
     model = cell[COL_MODEL].strip()
 
     flags, golden, _binary = resolve_cell(
-        cell, allow_blocked=getattr(args, "allow_blocked_models", False),
+        cell,
+        allow_blocked=(getattr(args, "phase", None) == "trial" and
+                       getattr(args, "allow_blocked_models", False)),
         evidence_pilot=(getattr(args, "phase", None) == "trial" and
-                        model in EVIDENCE_PILOT_MODELS))
+                        model in EVIDENCE_PILOT_MODELS),
+        t08a_canary=(getattr(args, "phase", None) == "trial" and
+                     getattr(args, "t08a_canary", False)))
     if flags is None:
         return {"outcome": "Blocked", "error": golden}
 
@@ -2771,6 +2808,12 @@ def build_parser():
                         "model_blocked_reason; this flag never unblocks "
                         "anything, it only lets the operator produce the "
                         "evidence.")
+    p.add_argument("--t08a-canary", action="store_true",
+                   help="[R6-PROPAGATION-V3] trial-only: allow the T08-a "
+                        "(walk_pairing) representative canary on "
+                        "T08-F0-W4/T08-F4-W4 seed1. It never unlocks T08-b/c/d "
+                        "or T08-W9; screening/formal refuse it (whole T08 is "
+                        "only PARTIAL_SUBMODEL_PROVEN).")
     p.add_argument("--allow-stress-only", action="store_true",
                    help="[R6-FREQPOLICY] permit a representative STRESS_ONLY F6 "
                         "at seed1 only; never permits seed>1 and never "
@@ -2835,6 +2878,10 @@ def main():
     if a.n_seeds is not None:
         a.max_seeds_per_cell = a.n_seeds
 
+    # [R6-PROPAGATION-V3] bypass flags are trial-only.
+    check_phase_gate(a.phase, a.allow_blocked_models,
+                     getattr(a, "t08a_canary", False))
+
     header, cells = load_matrix(a.matrix)
     print(f"Loaded {len(cells)} cells from {a.matrix}")
 
@@ -2849,9 +2896,12 @@ def main():
     runnable = []
     for cell in cells:
         flags, _g, reason = resolve_cell(
-            cell, allow_blocked=a.allow_blocked_models,
+            cell,
+            allow_blocked=(a.phase == "trial" and a.allow_blocked_models),
             evidence_pilot=(a.phase == "trial" and
-                            cell[COL_MODEL].strip() in EVIDENCE_PILOT_MODELS))
+                            cell[COL_MODEL].strip() in EVIDENCE_PILOT_MODELS),
+            t08a_canary=(a.phase == "trial" and
+                         getattr(a, "t08a_canary", False)))
         if flags is None:
             key = reason.split("(")[0].split(":")[0]
             counts[key] = counts.get(key, 0) + 1

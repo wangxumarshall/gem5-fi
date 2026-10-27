@@ -216,63 +216,42 @@ def main():
             _fs_tierblk.append(r)
         else:
             _fs_other.append((r, k))
-    # [MDSPEC][R6-FTIER] F0-only: the tier column now DECIDES runnability.
-    check("T01/T02/T04/T10 W4 rows resolve to FS flag sets (F0 only, 4 rows)",
-          _fs_run == ["T01-F0-W4", "T02-F0-W4", "T04-F0-W4", "T10-F0-W4"],
-          str(_fs_run))
-    check("lookup-mode F!=F0 W4 rows are BLOCKED by the R6-FTIER tier gate "
-          "(8 rows: T01-F1/F2, T02-F2, T03-F5, T04-F2/F6, T10-F1/F2)",
-          _fs_tierblk == ["T01-F1-W4", "T01-F2-W4", "T02-F2-W4",
-                          "T03-F5-W4", "T04-F2-W4", "T04-F6-W4",
-                          "T10-F1-W4", "T10-F2-W4"],
-          str(_fs_tierblk))
-    check("runnable 4 + tier-blocked 8 + MODEL_BLOCKED 12 == the 24 FS-INFRA rows",
-          len(_fs_run) + len(_fs_tierblk) + len(_fs_modelblk) == 24,
-          f"{len(_fs_run)}+{len(_fs_tierblk)}+{len(_fs_modelblk)}")
-    check("no FS-INFRA row is still refused with 'mode unimplemented' "
-          "(R4-10 landed T05/T06/T07 modes)", not _fs_modeblk,
-          str(_fs_modeblk))
-    check("T05/T06/T07/T08 W4 rows (12) are blocked ONLY by MODEL_BLOCKED "
-          "(modes landed; opt-in needed) — not by a workload/FS-infra gap",
-          sorted(_fs_modelblk) == sorted(
-              [r for r in FS_INFRA if r.split("-")[0] in
-               ("T05", "T06", "T07", "T08")]),
-          str(_fs_modelblk))
-    # [R4-8-INT] 合并 r4-8-spec-residual 后 T08 理由取并集（W4 证据来自
-    # r4-7-fsinfra-w1、W9 来自 r4-8-spec-residual），措辞随之变化 —— 故改钉
-    # **语义不变量**而非具体字面：两句被真机证伪的断言必须消失，且必须点名
-    # "real-run proven" 与 F4 的"诚实零"。
-    check("T08's block reason no longer claims 'compile-unverified' / "
-          "'pilot pending'（已被 R4-8 真机证伪）",
-          "compile-unverified" not in _lc.MODEL_BLOCKED["T08"]
-          and "pilot pending" not in _lc.MODEL_BLOCKED["T08"]
-          and "real-run proven" in _lc.MODEL_BLOCKED["T08"]
-          and "honest zero" in _lc.MODEL_BLOCKED["T08"])
-    check("no FS-INFRA row resolves to anything else", not _fs_other,
-          str(_fs_other))
-    check("the FS-INFRA reason is NEVER the bare workload-level fs-infra "
-          "phrase for T05/T06/T07 (the R4-8 precision fix)",
-          all("workload" not in k for _r, k in _fs_other))
-    check("T05/T06/T07 ARE in MODEL_FLAGS (R4-10 landed their modes)",
+    # [R6-PROPAGATION-V3 2026-10-27] The old split (4 runnable + 8 tier-blocked
+    # + 12 MODEL_BLOCKED) is obsolete: the frozen binary carries the real
+    # lookup tier and the T05/T06/T07 modes, so 21 of the 24 rows resolve to
+    # the FS carrier.  The remaining 3 are T08-F0/F4/F6-W4, which are gated
+    # by the explicit T08-a canary (whole model PARTIAL_SUBMODEL_PROVEN).
+    expected_run = [r for r in FS_INFRA
+                    if r not in ("T08-F0-W4", "T08-F4-W4", "T08-F6-W4")]
+    check("21 FS rows resolve to FS flag sets (real tier modes landed)",
+          _fs_run == expected_run,
+          f"{len(_fs_run)} run: {_fs_run}")
+    check("T08 W4/F6 rows are gated by the T08-a partial-submodel rule",
+          sorted([r for r, _k in _fs_other] + _fs_modelblk + _fs_modeblk) ==
+          ["T08-F0-W4", "T08-F4-W4", "T08-F6-W4"],
+          str([r for r, _k in _fs_other] + _fs_modelblk + _fs_modeblk))
+    check("no FS-INFRA row is refused with 'mode unimplemented'",
+          not _fs_modeblk, str(_fs_modeblk))
+    check("T05/T06/T07/T08 removed from MODEL_BLOCKED "
+          "(stale compile-unverified gate deleted)",
+          all(m not in _lc.MODEL_BLOCKED for m in
+              ("T05", "T06", "T07", "T08")))
+    check("T08 gate reason is the explicit PARTIAL_SUBMODEL_PROVEN text",
+          all("PARTIAL_SUBMODEL_PROVEN" in k and "T08-a" in k
+              for r, k in _fs_other if r.startswith("T08")))
+    check("T08-W9 remains a hard workload gap (never tlb_probe)",
+          all(_lc.resolve_cell(_byid[r], allow_blocked=True,
+                               t08a_canary=True)[0] is None
+              and _lc.resolve_cell(_byid[r], allow_blocked=True,
+                                   t08a_canary=True)[2].startswith(
+                                       "BLOCKED_WORKLOAD_GAP")
+              for r in ("T08-F0-W9", "T08-F4-W9")))
+    check("T05/T06/T07 ARE in MODEL_FLAGS (their modes are routed)",
           all(m in _lc.MODEL_FLAGS for m in ("T05", "T06", "T07")))
-    check("T05/T06/T07 MODEL_BLOCKED reason is the honest landed/"
-          "compile-unverified phrase (no 'mode unimplemented')",
-          all("LANDED" in _lc.MODEL_BLOCKED[m]
-              and "COMPILE-UNVERIFIED" in _lc.MODEL_BLOCKED[m]
-              and "mode unimplemented" not in _lc.MODEL_BLOCKED[m]
-              for m in ("T05", "T06", "T07")),
-          {m: _lc.MODEL_BLOCKED[m][:40] for m in ("T05", "T06", "T07")})
-    check("T05/T06/T07/T08 resolve to FS flags under --allow-blocked-models "
-          "(the opt-in that produces the real-run evidence)",
-          all(_lc.resolve_cell(_byid[f"{m}-F0-W4"], allow_blocked=True)[0]
-              is not None for m in ("T05", "T06", "T07", "T08")))
-    check("T05/T06/T07 allow-blocked flags carry their sub-model fault type",
-          "valid_clear" in _lc.resolve_cell(_byid["T05-F0-W4"],
-                                            allow_blocked=True)[0]
-          and "perm_subst" in _lc.resolve_cell(_byid["T06-F0-W4"],
-                                               allow_blocked=True)[0]
-          and "false_hit" in _lc.resolve_cell(_byid["T07-F0-W4"],
-                                              allow_blocked=True)[0])
+    check("T05/T06/T07 default flags carry their sub-model fault type",
+          "valid_clear" in _lc.resolve_cell(_byid["T05-F0-W4"])[0]
+          and "perm_subst" in _lc.resolve_cell(_byid["T06-F0-W4"])[0]
+          and "false_hit" in _lc.resolve_cell(_byid["T07-F0-W4"])[0])
 
     print("[6] W1(MiBench) 19 行口径订正（R4-8）：静态表已精确化")
     # 用户/编排侧裁决：二进制 + golden + 合法 SE 路径都在盘上 ⇒ 过宽的
@@ -337,10 +316,12 @@ def main():
           all(_lc.resolve_cell(_byid[r])[0] is not None
               and "--cmd" not in _lc.resolve_cell(_byid[r])[0]
               for r in ("T01-F0-W1", "T02-F0-W1", "T10-F0-W1")))
-    check("T-model W1 F!=F0 rows are BLOCKED by the R6-FTIER tier gate",
-          all(_lc.resolve_cell(_byid[r])[0] is None
-              and _lc.resolve_cell(_byid[r])[2].startswith(
-                  "BLOCKED(armtlb-lookup-tier")
+    # [R6-FIXTOOLS] The real lookup tier landed (6ec7c5aa), so these rows are
+    # runnable WITH a real --tlb_lsu_tier flag — never re-routed to SE.
+    check("T-model W1 F!=F0 rows carry the real tier (never SE --cmd)",
+          all(_lc.resolve_cell(_byid[r])[0] is not None
+              and "--tlb_lsu_tier" in _lc.resolve_cell(_byid[r])[0]
+              and "--cmd" not in _lc.resolve_cell(_byid[r])[0]
               for r in ("T01-F1-W1", "T01-F2-W1", "T02-F2-W1",
                         "T10-F1-W1", "T10-F2-W1")))
     check("W1 SE runs get lsu_runner's frozen SE_W1 budget (not --timeout 300, "
