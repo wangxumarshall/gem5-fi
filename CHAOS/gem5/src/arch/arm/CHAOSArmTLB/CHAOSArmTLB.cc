@@ -908,7 +908,12 @@ namespace gem5
                                                 level, /*fill_lost=*/false,
                                                 mode);
                     }
-                    stats->numFaultsInjected++;
+                    // [R6-V4-STATECOUNT] NOT counted here: the arm site
+                    // (maybeDropWalkFill) already counted this ONE fault in
+                    // both numFaultsInjected and faults_injected_count. A
+                    // second increment made a one-fault T08-b/c/d run report
+                    // numFaultsInjected=2, contradicting the funnel (1) and
+                    // the single applied-injection log record.
                 }
                 // else: honest no-op (should not happen — the issue point
                 // already refused when there was no previous walk).
@@ -930,7 +935,8 @@ namespace gem5
                         << ", FaultType: " << mode
                         << std::endl;
                 }
-                stats->numFaultsInjected++;
+                // [R6-V4-STATECOUNT] Same as the stale branch above: the arm
+                // site already counted this one fault; do not double count.
             }
         }
 
