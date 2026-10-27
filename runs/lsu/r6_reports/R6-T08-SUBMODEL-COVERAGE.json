@@ -1,0 +1,110 @@
+{
+ "batch": "R6-V4",
+ "submodels": {
+  "walk_pairing": {
+   "covered": true,
+   "fault_type": "walk_pairing",
+   "evidence_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_v3_T08-F0-W4_s1/T08-F0-W4/seed1",
+   "prop_evt_sha256": "5f229e7c0bc2078d406c2e4ed02a907475280ab9333227e48dbad0b014d1e7db",
+   "events": 6,
+   "kinds": [
+    "chain_end",
+    "inj",
+    "tlb_lookup",
+    "tlb_refill",
+    "tlb_translate_result",
+    "tlb_walk"
+   ],
+   "signature": {
+    "fault_id": "1",
+    "walk_id": "703",
+    "tlb_refill_event_id": "3",
+    "tlb_refill_tick": "238044463587",
+    "field": "lost",
+    "outcome": "lost",
+    "inj_event_id": "0",
+    "tlb_translate_result_event_id": "4",
+    "effective_pa": null
+   }
+  },
+  "walk_fill_dup": {
+   "covered": true,
+   "fault_type": "walk_fill_dup",
+   "evidence_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_v4_canary_T08b-fill-dup/seed1",
+   "prop_evt_sha256": "89d19497259fc7914766d923e94f723e520faff07693899df02f2e335a831c2b",
+   "events": 6,
+   "kinds": [
+    "chain_end",
+    "inj",
+    "tlb_lookup",
+    "tlb_refill",
+    "tlb_translate_result",
+    "tlb_walk"
+   ],
+   "signature": {
+    "fault_id": "1",
+    "walk_id": "703",
+    "tlb_refill_event_id": "3",
+    "tlb_refill_tick": "238044468249",
+    "field": "walk_fill_dup",
+    "outcome": "duplicated",
+    "inj_event_id": "0",
+    "tlb_translate_result_event_id": "4",
+    "effective_pa": "8001e240"
+   }
+  },
+  "walk_done_early": {
+   "covered": true,
+   "fault_type": "walk_done_early",
+   "evidence_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_v4_canary_T08c-done-early/seed1",
+   "prop_evt_sha256": "3aad7cb766824506a64382f7c8b339b2bbfb35eee905f3ef8d6060c68b35e8d3",
+   "events": 6,
+   "kinds": [
+    "chain_end",
+    "inj",
+    "tlb_lookup",
+    "tlb_refill",
+    "tlb_translate_result",
+    "tlb_walk"
+   ],
+   "signature": {
+    "fault_id": "1",
+    "walk_id": "703",
+    "tlb_refill_event_id": "3",
+    "tlb_refill_tick": "238044463587",
+    "field": "walk_done_early",
+    "outcome": "early_done",
+    "inj_event_id": "0",
+    "tlb_translate_result_event_id": "4",
+    "effective_pa": "8001e240"
+   }
+  },
+  "walk_stale_result": {
+   "covered": true,
+   "fault_type": "walk_stale_result",
+   "evidence_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_v4_canary_T08d-stale-result/seed1",
+   "prop_evt_sha256": "c495c921c1ece57a08d8e2854d1587a785dbc76d6eaeec2cd5e188d7c54457c8",
+   "events": 6,
+   "kinds": [
+    "chain_end",
+    "inj",
+    "tlb_lookup",
+    "tlb_refill",
+    "tlb_translate_result",
+    "tlb_walk"
+   ],
+   "signature": {
+    "fault_id": "1",
+    "walk_id": "703",
+    "tlb_refill_event_id": "3",
+    "tlb_refill_tick": "238044468249",
+    "field": "walk_stale_result",
+    "outcome": "stale",
+    "inj_event_id": "0",
+    "tlb_translate_result_event_id": "4",
+    "effective_pa": "8002f240"
+   }
+  }
+ },
+ "note": "T08-b/c/d canaries are AUXILIARY coverage evidence; they never count as an official seed and never unlock T08-W9."
+}

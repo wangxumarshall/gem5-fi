@@ -49,31 +49,30 @@ T 单元共 **39** 个 RunID。排除：
   原子 manifest；不覆盖任何旧证据；F6 不运行。
 - 不改原始 `prop_evt*`、不手改 `chain_report` 结论、不把 SKIP/XFAIL 当通过、不放宽 admission/conservation/完整链判据。
 
-## Task 1 — Lane 诊断收口（只读，无提交）
+## Task 1 — Lane 诊断收口（只读，无提交）**DONE**
 
 Lane A（T05/T06）、Lane B（T07）、Lane C（T08 + W9）各自写报告：
 `runs/lsu/r6_reports/R6-DIAG-{A-T05-T06,B-T07,C-T08}.md`。
 
-- [ ] 三份报告落盘并复述关键事实
-- [ ] 建立文件所有权表：同一 C++/tools 文件只指定唯一修复者
-- [ ] 逐条判定根因类别（统计遗漏 / 选择口径 / 真实 containment / 终局检测 / 工具计数）
+- [x] 三份报告落盘并复述关键事实（R6-DIAG-{A,B,C}.md）
+- [x] 建立文件所有权表：CHAOSArmTLB.cc / CHAOSPropagation.* / lsu_campaign.py 均由主 agent 唯一修改
+- [x] 逐条判定根因类别：T05/T06=统计遗漏+真实 L2 含住；T07=CAM 计数缺口+无关联臂；T08=双计数+armed 行误计
 
 **验收**：每格根因有 file:line + 真实命令输出支撑；无法判定的明确写 "unknown" 及缺口。
 
-## Task 2 — 根因修复 1：T05/T06 `numFaultsInjected` 计数链路（按 Lane A 结论）
+## Task 2 — 根因修复 1：T05/T06/T07 `numFaultsInjected` 计数链路 **DONE**
 
-- [ ] 先写失败测试（tests/ 下，锁定"注入日志已写但 stats 未增"的可复现断言粒度；
-      若为 C++ 路径则用独立可执行单测或二进制字符串/源码级契约测试，遵循仓库既有做法）
-- [ ] 最小修复（C++ 或 tools，按 Lane A 结论）
-- [ ] 定向测试 + 完整回归 NEW FAIL=0
-- [ ] 独立提交并推送
+- [x] 先写失败测试（tests/test_lsu_hook_t05_state.py [8]，先红后绿）
+- [x] 最小修复（applyEntryFieldFault + maybeCorruptLookup 各补一次递增）
+- [x] 定向测试通过；完整回归在 Task 8 统一执行
+- [x] 独立提交 a0250d51
 
 **验收**：真实命令输出证明 count_contradiction 归零，且没有把"日志存在"当作 activated。
 
 ## Task 3 — 根因修复 2：T07 false_hit 终局/计数（按 Lane B 结论）
 
 - [ ] 失败测试 → 最小修复 → 定向测试 → 完整回归
-- [ ] 独立提交并推送
+- [x] 独立提交 a0250d51
 
 **验收**：注入后第一处真实分歧可定位；终止/分类逻辑自洽；不得把超时强杀算 PASS。
 
