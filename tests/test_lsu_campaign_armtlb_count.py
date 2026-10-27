@@ -60,6 +60,22 @@ HIT_SKIPPED_LINE = (
     "Tick: 237950233578, Site: arm_tlb_lookup_hit_skipped, "
     "FaultType: bit_flip (walk-issue-only model did NOT consume the hit)")
 
+# ---- 逐字取自 runs/lsu/r6_v3_{T05,T06}-F0-W4_s1/*/seed1/armtlb_injections.log
+# [R6-V4-STATECOUNT] T05/T06/T07 走 applyEntryFieldFault()：真实注入写的是
+# `old_<field>: … new_<field>: …`（valid_clear / perm_subst），**不是** pfn 对。
+# 旧 `armtlb_line_applied` 只认 old_pfn/new_pfn，于是把这些真实注入判成
+# malformed → log=0 → activated=0，与 trigger/stats 形成假矛盾。
+T05_VALID_CLEAR_LINE = (
+    "Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, "
+    "old_valid_clear: 1, new_valid_clear: 0, FaultType: valid_clear")
+T06_PERM_SUBST_LINE = (
+    "Tick: 237951188955, Site: arm_tlb_lookup_hit, VA: 0xffffffc008a16868, "
+    "old_perm_subst: 2, new_perm_subst: 0, FaultType: perm_subst")
+# 看起来像状态行但两半都不成立：既无 pfn 对，也无 old_/new_ 配对 → 仍应 malformed。
+HIT_NO_EFFECT_LINE = (
+    "Tick: 238085259417, Site: arm_tlb_lookup_hit, VA: 0x1234, "
+    "FaultType: valid_clear")
+
 TRIGGER_1 = ("CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F2 attempted=110149 "
              "eligible=110149 injected=1 first_eligible_tick=1 "
              "last_eligible_tick=2 (activated=W3-L0-layer)")
@@ -145,6 +161,53 @@ def main():
     vf = LC.classify_fs_run(d6f, trig6f, 0)
     check("F0 形状仍 activated == 1", vf.get("activated") == 1,
           str(vf.get("activated")))
+
+    print("[7] [R6-V4-STATECOUNT] T05/T06 状态/属性替换行计为已应用注入")
+    d7, trig7 = _outdir([T05_VALID_CLEAR_LINE],
+                        trigger=TRIGGER_1.replace("tier=F2", "tier=F0"),
+                        stats=STATS_1)
+    check("T05 valid_clear 行 applied",
+          LC.armtlb_line_applied(T05_VALID_CLEAR_LINE) is True)
+    check("T05 count == 1",
+          LC.count_armtlb_injections(d7 / "armtlb_injections.log") == 1,
+          str(LC.count_armtlb_injections(d7 / "armtlb_injections.log")))
+    s7 = LC.armtlb_count_sources(d7, TRIGGER_1.replace("tier=F2", "tier=F0"))
+    check("T05 log=1 / trigger=1 / stats=1 → 无 contradiction",
+          (s7["log"], s7["trigger"], s7["stats"]) == (1, 1, 1) and
+          s7["contradiction"] is False, s7["detail"])
+    check("T05 malformed_hit_lines == 0", s7["malformed_hit_lines"] == 0,
+          str(s7["malformed_hit_lines"]))
+
+    d7b, _ = _outdir([T06_PERM_SUBST_LINE],
+                     trigger=TRIGGER_1.replace("tier=F2", "tier=F0"),
+                     stats=STATS_1)
+    s7b = LC.armtlb_count_sources(d7b, TRIGGER_1.replace("tier=F2", "tier=F0"))
+    check("T06 perm_subst 行 applied",
+          LC.armtlb_line_applied(T06_PERM_SUBST_LINE) is True)
+    check("T06 三源一致 → 无 contradiction",
+          s7b["contradiction"] is False and s7b["log"] == 1, s7b["detail"])
+
+    # 放宽必须精确：既无 pfn 对也无 old_/new_ 配对的 hit 行仍是 malformed。
+    check("无效果字段的 hit 行仍 applied=False",
+          LC.armtlb_line_applied(HIT_NO_EFFECT_LINE) is False)
+    d7c, _ = _outdir([HIT_NO_EFFECT_LINE], trigger=TRIGGER_1, stats=STATS_1)
+    s7c = LC.armtlb_count_sources(d7c, TRIGGER_1)
+    check("无效果字段的 hit 行 malformed=1 且 log=0",
+          s7c["log"] == 0 and s7c["malformed_hit_lines"] == 1, s7c["detail"])
+    # 诊断站点即使用 old_/new_ 形状也不得被计入。
+    skipped_state = ("Tick: 1, Site: arm_tlb_lookup_hit_skipped, VA: 0x1, "
+                     "old_valid_clear: 1, new_valid_clear: 0, "
+                     "FaultType: valid_clear")
+    check("hit_skipped + 状态字段仍不计",
+          LC.armtlb_line_applied(skipped_state) is False)
+
+    print("[8] [R6-V4-STATECOUNT] classify_fs_run：真实 T05 形状 → activated=1")
+    v8 = LC.classify_fs_run(d7, TRIGGER_1.replace("tier=F2", "tier=F0"), 0)
+    check("T05 形状 activated == 1", v8.get("activated") == 1,
+          str(v8.get("activated")))
+    check("T05 形状 count_contradiction False",
+          v8.get("count_contradiction") is False,
+          str(v8.get("count_contradiction")))
 
     print()
     if FAILED:

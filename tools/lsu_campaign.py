@@ -2154,6 +2154,25 @@ _ARMTLB_DIAG_SITES = ("arm_tlb_walk_issue_probe",
 _ARMTLB_HIT_APPLIED_FIELDS = ("VA:", "old_pfn:", "new_pfn")
 
 
+def _armtlb_state_pair(ln):
+    """[R6-V4-STATECOUNT] `old_<field>: v, new_<field>: v` pair, or None.
+
+    T05/T06/T07 are applied by `applyEntryFieldFault()`, which mutates entry
+    state/attributes (valid_clear, perm_subst, …) and therefore logs
+    `old_<field>` / `new_<field>` instead of a pfn pair. Such a line IS an
+    applied injection — the same counter/log block runs. The predicate is
+    deliberately exact: both field names must be identical and both values
+    present, so a hit line with neither a pfn pair nor a matching state pair
+    stays malformed (never silently counted).
+    """
+    import re as _re
+    m = _re.search(r"\bold_([a-z0-9_]+):\s*([^,]+?),\s*new_([a-z0-9_]+):\s*"
+                   r"([^,\s]+)", ln)
+    if not m or m.group(1) != m.group(3):
+        return None
+    return (m.group(1), m.group(2).strip(), m.group(4))
+
+
 def armtlb_line_applied(ln):
     """True iff this armtlb log line records an APPLIED fault.
 
@@ -2165,7 +2184,8 @@ def armtlb_line_applied(ln):
     if any(d in ln for d in _ARMTLB_DIAG_SITES):
         return False
     if "arm_tlb_lookup_hit" in ln:
-        return all(k in ln for k in _ARMTLB_HIT_APPLIED_FIELDS)
+        return (all(k in ln for k in _ARMTLB_HIT_APPLIED_FIELDS)
+                or _armtlb_state_pair(ln) is not None)
     return True
 
 
@@ -2220,10 +2240,13 @@ def armtlb_count_sources(outdir, stdout_text):
     lines = (ilog.read_text(errors="replace").splitlines()
              if ilog.exists() else [])
     log_n = sum(1 for ln in lines if armtlb_line_applied(ln))
+    # Malformed = a lookup-hit line that this module refuses to count. Derived
+    # from the SAME predicate as the count, so a newly-accepted shape (state
+    # pair) can never be counted AND flagged malformed at the same time.
     malformed = sum(1 for ln in lines
                     if "arm_tlb_lookup_hit" in ln
                     and not any(d in ln for d in _ARMTLB_DIAG_SITES)
-                    and not all(k in ln for k in _ARMTLB_HIT_APPLIED_FIELDS))
+                    and not armtlb_line_applied(ln))
     trig = _armtlb_trigger_counts(stdout_text)
     present = {"log": log_n, "trigger": trig[2] if trig else None,
                "stats": _armtlb_stats_injected(outdir)}
