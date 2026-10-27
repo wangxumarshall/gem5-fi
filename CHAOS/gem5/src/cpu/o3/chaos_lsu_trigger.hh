@@ -332,16 +332,27 @@ struct ChaOSLsuTrigger
     void
     summary(const char *injector) const
     {
+        // [R6-PHYSBIT] fires/no_effect are F5-only concepts; for every other
+        // tier `injected` is still incremented at fire time, so printing
+        // fires=0 would read as "0 fires but N injections". Print n/a instead.
+        char fires_buf[24], noeff_buf[24];
+        if (tier == ChaOSLsuTier::F5) {
+            snprintf(fires_buf, sizeof fires_buf, "%lu", (unsigned long)fires);
+            snprintf(noeff_buf, sizeof noeff_buf, "%lu", (unsigned long)no_effect);
+        } else {
+            snprintf(fires_buf, sizeof fires_buf, "n/a");
+            snprintf(noeff_buf, sizeof noeff_buf, "n/a");
+        }
         printf("CHAOS_LSU_TRIGGER: injector=%s tier=F%d attempted=%lu "
                "eligible=%lu injected=%lu first_eligible_tick=%lu "
-               "last_eligible_tick=%lu fires=%lu no_effect=%lu "
+               "last_eligible_tick=%lu fires=%s no_effect=%s "
                "(activated=W3-L0-layer)\n",
                injector, static_cast<int>(tier),
                (unsigned long)attempted, (unsigned long)eligible,
                (unsigned long)injected,
                (unsigned long)first_eligible_tick,
                (unsigned long)last_eligible_tick,
-               (unsigned long)fires, (unsigned long)no_effect);
+               fires_buf, noeff_buf);
         chaosLsuF6EventsReport();   // [LSU][OBS-1] event-supply observation
 
         // [MDSPEC][R4-1-review-I2] LOUD F0 span diagnostics — the two

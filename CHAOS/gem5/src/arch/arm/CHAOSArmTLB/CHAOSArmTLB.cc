@@ -182,17 +182,28 @@ namespace gem5
         // mount (the campaign's capability gate already refuses those).
         const auto cap = chaos_lsu_tier_cap::resolve(lsu_tier_string,
                                                      static_cast<int>(lsuTrigger->tier));
+        // [R6-PHYSBIT] `fires`/`no_effect` 只对 F5（permanent）有定义：其余
+        // 档位仍在发射时自增 `injected`，`fires` 恒为 0 —— 打印 0 会读成
+        // "0 次发射却有注入"。非 F5 一律印 n/a（诚实缺省，绝不静默零）。
+        char fires_buf[24], noeff_buf[24];
+        if (lsuTrigger->tier == ChaOSLsuTier::F5) {
+            snprintf(fires_buf, sizeof fires_buf, "%lu", (unsigned long)lsuTrigger->fires);
+            snprintf(noeff_buf, sizeof noeff_buf, "%lu", (unsigned long)lookup_no_effect);
+        } else {
+            snprintf(fires_buf, sizeof fires_buf, "n/a");
+            snprintf(noeff_buf, sizeof noeff_buf, "n/a");
+        }
         printf("CHAOS_LSU_NOEFFECT: injector=CHAOSArmTLB tier=F%d "
                "requested=%s effective=%s attempted=%lu eligible=%lu "
-               "fires=%lu effective_injected=%lu no_effect=%lu "
+               "fires=%s effective_injected=%lu no_effect=%s "
                "first_no_effect_tick=%lu last_no_effect_tick=%lu\n",
                static_cast<int>(lsuTrigger->tier),
                cap.requested.c_str(), cap.effective.c_str(),
                (unsigned long)lsuTrigger->attempted,
                (unsigned long)lsuTrigger->eligible,
-               (unsigned long)lsuTrigger->fires,
+               fires_buf,
                (unsigned long)lookup_effective,
-               (unsigned long)lookup_no_effect,
+               noeff_buf,
                (unsigned long)lookup_no_effect_first_tick,
                (unsigned long)lookup_no_effect_last_tick);
         fflush(stdout);
@@ -505,6 +516,21 @@ namespace gem5
         return mask;
     }
 
+    // [R6-PHYSBIT] 把抽取限制在观测帧的**实际物理位宽**内。
+    // 规范要求对 PFN 注入真实存在的位；uniform 0..63 会以多数概率落在物理
+    // 地址宽度之外，使高位翻转为 PA 空操作（实测 Mask bit56 → 有效 PA 未变
+    // → 在 L2 即被含住、零下游传播，5 事件）。该缺陷对 F0-F4/F6 与 F5 同源；
+    // F5 已由 latchStuckMaskForFrame 处理，此处覆盖其余档位。
+    uint64_t
+    CHAOSArmTLB::generateRandomMaskInFrame(int bits_to_change, uint64_t pfn) {
+        const unsigned width = pfn
+            ? (64u - static_cast<unsigned>(__builtin_clzll(pfn))) : 1u;
+        uint64_t mask = 0;
+        std::uniform_int_distribution<int> bitDist(0, static_cast<int>(width) - 1);
+        while (bits_to_change-- > 0) mask |= (1ULL << bitDist(rng));
+        return mask;
+    }
+
     void
     CHAOSArmTLB::maybeCorrupt(ArmISA::TlbEntry *entry, Addr va,
                               uint64_t req_seq, uint64_t req_size)
@@ -730,12 +756,11 @@ namespace gem5
             mask = fault_mask;               // 显式掩码优先（且同样被 latch）
         } else if (permanent) {
             mask = chaos_tlb::latchStuckMaskForFrame(
-                        0, f5_stuck_mask,
-                        generateRandomMask(num_bits_to_change), entry->pfn);
+                        0, f5_stuck_mask, rng(), entry->pfn);
         } else {
             // F0-F4/F6/legacy：保持既有"每次发射重抽掩码"的行为不变
             // （transient 模型每发一次抽一次是原语义，不在本修复范围内）。
-            mask = generateRandomMask(num_bits_to_change);
+            mask = generateRandomMaskInFrame(num_bits_to_change, entry->pfn);
         }
         if (mask == 0) {
             // 抽不到位 = 这一次没有写任何东西；F5 是一次发射，必须回报。

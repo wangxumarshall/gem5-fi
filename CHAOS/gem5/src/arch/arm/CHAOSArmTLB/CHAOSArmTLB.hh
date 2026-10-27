@@ -334,6 +334,7 @@ class CHAOSArmTLB : public SimObject
                                       Addr old_pfn, FaultType ft);
 
     uint64_t generateRandomMask(int bits_to_change);
+    uint64_t generateRandomMaskInFrame(int bits_to_change, uint64_t pfn);
 
     // [MDSPEC][R6-FIXCPP/B] one-shot lookup-tier reachability/budget notice.
     // Printed to armtlb_injections.log at the FIRST eligible lookup of a
