@@ -32,10 +32,12 @@ PAIRS=(
   A04-F2-W3:1 A04-F2-W3:3 A04-F2-W0:1 A04-F2-W0:3
   A05-F2-W3:1 A05-F2-W3:2 A05-F2-W3:3
   A06-F2-W3:3 A06-F2-W5:3
-  A08-F2-W3:1 A08-F2-W3:2 A08-F2-W3:3
-  A08-F2-W5:1 A08-F2-W5:2 A08-F2-W5:3
-  # A07-b 真实时序终局
+  # A07-b 真实时序终局（快）
   A07-F0-W3:1 A07-F0-W3:2
+  # A08-a（长：W3 R=15706 / W5 R=84418）放最后；A08-b（even）结构性 delta=0，
+  # resolver 会响亮 BLOCKED，仍按清单记录真实结局（不伪造注入）。
+  A08-F2-W3:1 A08-F2-W3:3 A08-F2-W5:1 A08-F2-W5:3
+  A08-F2-W3:2 A08-F2-W5:2
 )
 
 # [R6-A4] per-cell SE budget (seconds).  Census-measured runtime ×2 margin;
@@ -43,7 +45,8 @@ PAIRS=(
 # the historic 300s.  Values are recorded in each manifest (timeout_seconds).
 timeout_for() {
   case "$1" in
-    A08-F2-*) echo 1800 ;;
+    A08-F2-*) echo 3600 ;;   # W5 R=84418: measured ~10 ms/iter -> ~14 min;
+                            # Lane A worst-case extrapolation 44 min < 3600s
     A0[4-6]-F2-*) echo 1200 ;;
     A0[12]-F2-W9) echo 900 ;;
     *) echo 300 ;;

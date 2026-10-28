@@ -272,8 +272,13 @@ def test_census_refuses_config_newer_than_frozen_binary(tmp_path, monkeypatch):
     # 与冻结二进制同源的 config（HEAD pin）可用且不含该参数
     monkeypatch.delenv("LSU_PROXY_CONFIG")
     p = RC.config_proxy(tmp_path)
-    assert "measureEligible" not in p.read_text()
-    assert "chaos_repeat must be in 1..4096" in p.read_text()
+    txt = p.read_text()
+    assert "measureEligible" not in txt
+    # [R6-A4] the config/workload cap was raised to 131072 after the filtered
+    # census; the pinned HEAD config must carry that same explicitly recorded
+    # bound (still finite, still a loud p.error above it).
+    assert "chaos_repeat must be in 1.." in txt
+    assert "CHAOS_REPEAT_CAP = 131072" in txt
 
 
 # ---------------------------------------- [7] REPEAT_MAX 有实测上界依据
