@@ -512,6 +512,12 @@ def _terminal(chain_events, edges, by_layer, path, family,
             if errant_escape and _is_squash_witness(e):
                 continue          # squash 含住让位于真逃逸（见上）
             return "detected_contained"
+    # [R6-A4] A01 翻译 fault 请求的真实 squash/discard：翻译阶段阻断的请求
+    # 天然没有 L3 见证，白名单按字段/同一 request/ancestry/tick 严格证明。
+    if not errant_escape:
+        for e in chain_events:
+            if _a01_translation_squash_witness(chain_events, e, family):
+                return "detected_contained"
     # 显式 squash/replay/mask（L5 证据事件）—— 真逃逸在场时整体让位
     if not errant_escape:
         for e in chain_events:
@@ -1128,6 +1134,89 @@ def _obs_deepest_index(chain_events, family):
                 if l in LAYERS), default=-1)
 
 
+def _a01_translation_squash_witness(chain_events, target, family):
+    """[R6-A4] A01 翻译 fault 请求被真实 squash/discard 的白名单终局。
+
+    真实机制（A01-F1-W3 seed2 等）：注入的 EA 让请求翻译 fault，该请求随后
+    被 LSQ **真实 squash/discard**（squash_discarded，L4，contained=1，
+    outcome=contained，request_id 与 mem_req/lsq_sendfrag 相同）。翻译 fault
+    的请求**天然没有 L3 见证**（它从未进入下游 cache/LSQ 数据通路），旧通用
+    前缀规则（要求 L0→L3）因此误拒。
+
+    这是**窄白名单**，不是通用放宽：
+      * 只对 A01（run_id 前缀 A01）且 kind=squash_discarded；
+      * 字段必须齐全且语义精确（contained/outcome/detection_layer=L4/
+        containment_layer=L4/containment_reason=squash_discarded/corr）；
+      * 同一 request：request_id 与 dyn_inst_seq 必须与祖先 mem_req /
+        lsq_sendfrag 完全一致（禁止跨请求拼接）；
+      * ancestry 必须是真实 inj→addr_form→mem_req→lsq_sendfrag→tlb_fault
+        （Hardware 翻译 fault）；
+      * tick 单调（squash ≥ 所有祖先）；
+      * squash 之后除生命周期 chain_end 外不得有任何更深真实观测；
+      * 流收口/未截断由 containment_from_events / check_admission 继续强制。
+    任何一条不满足 → False（照旧拒绝）。
+    """
+    if family != "agu":
+        return False
+    if target.get("kind", "") != "squash_discarded":
+        return False
+    run_id = str(target.get("run_id", "")).strip()
+    if not run_id:
+        run_id = next((str(e.get("run_id", "")).strip()
+                       for e in chain_events if e.get("run_id")), "")
+    if run_id[:3] != "A01":
+        return False
+    if str(target.get("contained", "")).strip() not in _CONTAINED_VALUES:
+        return False
+    if str(target.get("outcome", "")).strip() != "contained":
+        return False
+    if str(target.get("detection_layer", "")).strip() != "L4":
+        return False
+    if str(target.get("containment_layer", "")).strip() != "L4":
+        return False
+    if (str(target.get("containment_reason", "")).strip()
+            != "squash_discarded"):
+        return False
+    if str(target.get("corr", "")).strip() not in _CHAIN_CORR:
+        return False
+    if not _key_evidence_ok(target):
+        return False
+    req = str(target.get("request_id", "")).strip()
+    seq = str(target.get("dyn_inst_seq", "")).strip()
+    if not req or not seq or req == "0" or seq == "0":
+        return False
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    anc = _ancestry(target, by_id)
+    kinds = {e.get("kind", "") for e in anc}
+    for need in ("inj", "addr_form", "mem_req", "lsq_sendfrag", "tlb_fault"):
+        if need not in kinds:
+            return False
+    req_anc = [e for e in anc if e.get("kind") in ("mem_req", "lsq_sendfrag")]
+    if not req_anc:
+        return False
+    if any(str(e.get("request_id", "")).strip() != req for e in req_anc):
+        return False
+    if any(str(e.get("dyn_inst_seq", "")).strip() not in ("", seq)
+           for e in anc):
+        return False
+    t = _tick(target)
+    if any(_tick(e) > t for e in anc):
+        return False
+    tf = next((e for e in reversed(anc) if e.get("kind") == "tlb_fault"), None)
+    if tf is None or str(tf.get("detection_layer", "")).strip() != "Hardware":
+        return False
+    for e in chain_events:
+        if e is target or e.get("kind", "") in _LIFECYCLE_KINDS:
+            continue
+        if _tick(e) <= t:
+            continue
+        layer = _obs_layer_of(e, family)
+        if layer in LAYERS and LAYERS.index(layer) > LAYERS.index("L2"):
+            return False
+    return True
+
+
 def _containment_candidate(chain_events, family):
     """[R6-FIXB] 返回**本该**支撑含住主张的真实检测事件（或 None）。
 
@@ -1141,7 +1230,8 @@ def _containment_candidate(chain_events, family):
             continue
         if not _explicit_l5(e) or not _key_evidence_ok(e):
             continue
-        if not _event_has_prefix(chain_events, e, family):
+        if not (_event_has_prefix(chain_events, e, family)
+                or _a01_translation_squash_witness(chain_events, e, family)):
             continue
         layer = _obs_layer_of(e, family)
         if layer not in LAYERS:
