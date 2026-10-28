@@ -230,7 +230,15 @@ struct ChaOSLsuTrigger
                     uint64_t span, ChaOSLsuEvent ev = ChaOSLsuEvent::SqForward)
         : tier(t), f6_event(ev), rng(seed ? seed : 1),
           warmup_events(warmup), span_events(span)
-    {}
+    {
+        // [R6-A-F5COUNT 2026-10-28] F5 separates the FIRE from the outcome:
+        // onEligible() only ++fires, and the injector reports whether the
+        // fault was actually written via noteOutcome(). Arm the exit-time
+        // audit on every F5 trigger so an injector that forgets to report is
+        // caught loudly instead of silently reading injected=0 (the
+        // CHAOSAddrPath A03 defect this contract now pins down).
+        require_outcome_accounting = (t == ChaOSLsuTier::F5);
+    }
 
     // The injector calls this once per hook invocation (before any filter).
     void

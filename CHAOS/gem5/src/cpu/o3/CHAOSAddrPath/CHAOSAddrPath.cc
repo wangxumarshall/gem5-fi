@@ -327,9 +327,23 @@ namespace gem5
                     << (new_vaddr ^ vaddr) << std::dec
                     << std::endl;
             }
+            // [R6-A-F5COUNT 2026-10-28] The F5 trigger fired but no fault was
+            // written: report the no-effect outcome so fires == injected +
+            // no_effect holds (pre-fix the trigger's injected stayed 0 even
+            // though fires kept climbing).
+            if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+                lsuTrigger->noteOutcome(false);
             return false;
         }
-        if (new_vaddr == vaddr) { ++obs_post_nochange; return false; }   // [LSU][OBS-2]
+        if (new_vaddr == vaddr) {   // [LSU][OBS-2]
+            ++obs_post_nochange;
+            // F5 no-op application (e.g. A03 stuck-at where the correct bit
+            // already equals the stuck value) — honest no_effect, not an
+            // activation (03 sheet's A03 activated 口径).
+            if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+                lsuTrigger->noteOutcome(false);
+            return false;
+        }
         req->setVaddr(new_vaddr);
         // W3 L0: register the injected item + local funnel accounting. The
         // trigger-mirrored counts are taken at EXIT (see the exit callback)
@@ -340,6 +354,11 @@ namespace gem5
         ++l0_funnel.injected;
         ++l0_funnel.activated;
         faults_injected_count++;
+        // [R6-A-F5COUNT 2026-10-28] F5 fired AND the fault was written: report
+        // the effective outcome so trigger.injected (read by summary,
+        // CHAOS_L0_DECLINE and the L5 classifier) matches the real write.
+        if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
         // [LSU][OBS-L3] abort-survivable funnel row (attempted/eligible/
         // injected as of NOW; the inj/addr_form nodes are registered by the
         // lsq.cc sendFragmentToTranslation call site, which sees the return
