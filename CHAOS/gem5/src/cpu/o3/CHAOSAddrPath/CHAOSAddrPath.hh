@@ -82,6 +82,24 @@ class CHAOSAddrPath : public SimObject
     static void aguOperandThunk(ExecContext *xc, ArmISA::ChaosAguRegView &v);
     void maybeCorruptAguOperands(ExecContext *xc, ArmISA::ChaosAguRegView &v);
 
+    // [R6-A3/A08] Same-tick load/store pairing (A08-a/b). Called from
+    // maybeCorruptPre for a08_channel / a08_pair_swap: registers the
+    // candidate, enforces store-before-load ordering, the same-4KiB-page
+    // constraint and request liveness, runs the trigger on the pair-forming
+    // request, and returns the (possibly swapped) load EA.
+    Addr maybePairA08(Addr addr, unsigned size, bool is_load,
+                      uint64_t dyn_inst_seq, const o3::DynInstPtr &inst);
+    // A08-a: consume the channel fault armed for THIS store (once).
+    bool maybeSwapStoreChannel(const o3::DynInstPtr &inst,
+                               Addr store_va);
+    // A08-b: consume the store-side EA swap armed for THIS store (once).
+    // Same-page and paddr-offset-preservation are re-checked against the
+    // REAL translated paddr before the caller retargets its packets.
+    bool maybeApplyStoreEaSwap(const o3::DynInstPtr &inst, Addr store_va,
+                               Addr store_pa, Addr &new_va, Addr &new_pa,
+                               const char **reason);
+    void a08Summary();
+
     // [MDSPEC][R4-5.8] A07 AGU clean-ready / handshake hook (03 sheet A07:
     // "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"). Called from
     // IEW::executeInsts' isMemRef branch — THE ready/handshake point of
@@ -442,6 +460,52 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_a05_stale_reclaimed = 0; // unclaimed pending reclaimed
     uint64_t obs_a05_no_trigger = 0;    // legacy window path: not offered
     Addr last_pre_fault_old_addr = 0;
+
+    // ------------------------------------------------------------------
+    // [R6-A3/A08] same-tick load/store pairing + channel / EA swap.
+    // ------------------------------------------------------------------
+    // ONE store candidate per (thread, tick): a store may pair at most once,
+    // and only with a load pushed later in the SAME tick (store->load order,
+    // the W5 SQ-forward shape). A candidate older than the current tick is
+    // aged out loudly (never reused across cycles).
+    struct A08StoreCand {
+        bool valid = false;
+        Tick tick = 0;
+        ThreadID tid = 0;
+        uint64_t seq = 0;
+        Addr ea = 0;
+        unsigned size = 0;
+        o3::DynInstPtr inst;
+        bool paired = false;
+    };
+    struct A08Arm {
+        bool valid = false;
+        bool channel = false;    // A08-a
+        bool ea_swap = false;    // A08-b
+        uint64_t load_seq = 0;
+        Addr load_va = 0;
+        unsigned load_size = 0;
+        Tick pair_tick = 0;
+        bool applied = false;
+    };
+    A08StoreCand a08_store;
+    bool a08_load_seen = false;       // a load already ran in this tick
+    Tick a08_load_tick = 0;
+    uint64_t a08_load_seq = 0;
+    std::map<uint64_t, A08Arm> a08_arms;   // store seq -> armed fault
+    uint64_t obs_a08_attempt = 0;
+    uint64_t obs_a08_eligible = 0;
+    uint64_t obs_a08_fired = 0;
+    uint64_t obs_a08_decl_missing = 0;
+    uint64_t obs_a08_decl_order = 0;
+    uint64_t obs_a08_decl_crosspage = 0;
+    uint64_t obs_a08_decl_ended = 0;
+    uint64_t obs_a08_decl_crosscycle = 0;
+    uint64_t obs_a08_decl_paired = 0;
+    uint64_t obs_a08_applied_channel = 0;
+    uint64_t obs_a08_applied_easwap = 0;
+    uint64_t obs_a08_store_side_declined = 0;
+    uint64_t obs_a08_armed_unapplied = 0;
 
     std::mt19937 rng;
     std::random_device rd;

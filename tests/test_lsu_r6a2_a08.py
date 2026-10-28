@@ -51,6 +51,7 @@ def main():
     chh = read("CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh")
     lsq = read("CHAOS/gem5/src/cpu/o3/lsq.cc")
     lsu_unit = read("CHAOS/gem5/src/cpu/o3/lsq_unit.cc")
+    lsqh = read("CHAOS/gem5/src/cpu/o3/lsq.hh")
     proxy = read("configs/se/lsu_proxy.py")
     camp = read("tools/lsu_campaign.py")
 
@@ -69,8 +70,8 @@ def main():
           LC.MODEL_FLAGS["A08"][1][:2] == ["--agu_pre_mode", "a08_channel"],
           str(LC.MODEL_FLAGS["A08"]))
     check("seed parity selects a08_pair_swap",
-          re.search(r'if model == "A08" and seed % 2 == 0:\s*\n\s*'
-                    r'[^\n]*a08_pair_swap', camp) is not None)
+          re.search(r'if model == "A08" and seed % 2 == 0:[\s\S]{0,200}'
+                    r'a08_pair_swap', camp) is not None)
     check("a08_subst is no longer routed by the campaign",
           '"a08_subst"' not in camp)
 
@@ -78,7 +79,7 @@ def main():
     check("channel swap applied to the built packet",
           "maybeSwapStoreChannel" in cpp and "maybeSwapStoreChannel" in chh)
     check("packet command really becomes a read",
-          re.search(r"(ReadReq|MemCmd::ReadReq|createRead)", cpp) is not None)
+          re.search(r"pkt->cmd = MemCmd::ReadReq", lsqh) is not None)
     check("lsq_unit calls the channel hook at writeback",
           "maybeSwapStoreChannel" in lsu_unit)
     check("request/inst identity is NOT rewritten (store stays a store)",
@@ -92,11 +93,13 @@ def main():
     check("same-4KiB-page check present",
           "0xFFF" in cpp and re.search(r">> 12|>>12", cpp) is not None)
     check("paddr offset-preservation check present",
-          re.search(r"getPaddr\(\) & 0xFFF", cpp) is not None)
+          re.search(r"\(store_pa & 0xFFF\) != \(store_va & 0xFFF\)", cpp)
+          is not None)
     check("setPaddr used for the store side",
-          "setPaddr" in cpp)
+          "setPaddr" in lsqh and "chaosRetargetPaddr" in lsqh)
     check("split fragment paddrs adjusted",
-          "for (auto &r : _reqs)" in cpp or "_reqs" in cpp)
+          "for (auto &r : _reqs)" in lsqh,
+          "fragment retarget loop missing from lsq.hh")
 
     print("[5] same-tick pairing registry")
     check("pairing keyed by tick", "curTick()" in cpp and "pair" in cpp.lower())
@@ -107,7 +110,8 @@ def main():
     check("cross-cycle decline", "cross_cycle" in cpp or "pair_missing" in cpp)
     check("cross-page decline", "cross_page" in cpp)
     check("ended-request decline",
-          re.search(r"(declin\w*).*(ended|sent|squash)", cpp, re.I) is not None)
+          "store_ended" in cpp and "store_squashed" in cpp
+          and "store_side_declined" in cpp)
 
     print("[6] evidence fields")
     for fld in ("pair_tick", "load_old_ea", "store_old_ea", "old_cmd",

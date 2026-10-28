@@ -123,6 +123,13 @@ namespace gem5
                       "(A05-a/b/c run in the ISA operand hook); "
                       "--addrpath_lsu_tier is required\n", pre_mode.c_str());
         }
+        // [R6-A3/A08] A08-a/b are LSU-trigger-native pair events.
+        if (pre_mode == "a08_channel" || pre_mode == "a08_pair_swap") {
+            if (p.lsuTier == "off")
+                panic("CHAOSAddrPath: pre_mode=%s requires "
+                      "--addrpath_lsu_tier (A08 pairing is LSU-trigger-"
+                      "native)\n", pre_mode.c_str());
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("addrpath_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -766,6 +773,348 @@ namespace gem5
         }
     }
 
+    // ------------------------------------------------------------------
+    // [R6-A3/A08] Same-tick load/store pairing, channel error and EA swap.
+    //
+    // Semantics (03 sheet A08 + R6-A2-DIAG-C §2):
+    //   A08-a: the store's request goes out on the LOAD access type — the
+    //          packet command is really turned into a read at buildPackets
+    //          time (store data never reaches memory; the read response
+    //          overwrites memData). Identity stays store/store.
+    //   A08-b: the load and store exchange EAs. The load's EA is replaced at
+    //          pushRequest (it then translates/accesses the store's address);
+    //          the store's paddr is retargeted inside the SAME 4 KiB page
+    //          right before buildPackets (paddr offset preservation is
+    //          re-checked against the real translation).
+    // Only a REAL same-tick pair qualifies: store pushed before the load in
+    // the same tick, same thread, exactly one store per pair. Cross-cycle,
+    // cross-page, missing partner, already-paired store and dead requests
+    // are declined loudly and never consume the trigger budget.
+    // ------------------------------------------------------------------
+    Addr
+    CHAOSAddrPath::maybePairA08(Addr addr, unsigned size, bool is_load,
+                                uint64_t dyn_inst_seq,
+                                const o3::DynInstPtr &inst)
+    {
+        const bool channel = (pre_mode == "a08_channel");
+        if (!lsuTrigger || !inst)
+            return addr;
+
+        const Tick now = curTick();
+        const ThreadID tid = inst->threadNumber;
+        lsuTrigger->onAttempt();
+        ++obs_a08_attempt;
+
+        auto logline = [&](const char *why, Addr load_old, Addr load_new,
+                           uint64_t store_seq, Addr store_old,
+                           int page_ok) {
+            if (!write_log || !log_stream || !log_stream->stream())
+                return;
+            *(log_stream->stream()) << "Tick: " << now
+                << ", Site: lsq_pushRequest_A08"
+                << ", mode=" << pre_mode
+                << ", submodel=" << (channel ? "a08a" : "a08b")
+                << ", pair_tick=" << now
+                << ", dyn_inst_seq=" << dyn_inst_seq
+                << ", request_id=" << dyn_inst_seq
+                << ", isLoad=" << (is_load ? 1 : 0)
+                << ", load_seq=" << (is_load ? dyn_inst_seq : 0)
+                << ", store_seq=" << store_seq
+                << ", load_old_ea=0x" << std::hex << load_old
+                << ", load_new_ea=0x" << load_new
+                << ", store_old_ea=0x" << store_old
+                << std::dec
+                << ", size=" << size
+                << ", page_ok=" << page_ok
+                << ", decline_reason=" << why
+                << std::endl;
+        };
+
+        if (!is_load) {
+            if (channel) {
+                // A08-a pairs at the STORE when a load ran EARLIER in this
+                // same tick: the store is then the second element of the
+                // pair, so its OWN chain starts here (injection registered
+                // at this pushRequest) and every layer downstream joins by
+                // the store's own seq. Store-first order would leave the
+                // store's earlier L1/L2 events outside the chain and cannot
+                // be proven end-to-end — decline it loudly instead of
+                // fabricating a cross-request edge.
+                if (a08_load_seen && a08_load_tick == now) {
+                    ++obs_a08_eligible;
+                    if (!lsuTrigger->onEligible())
+                        return addr;
+                    ++obs_a08_fired;
+                    A08Arm arm;
+                    arm.valid = true;
+                    arm.channel = true;
+                    arm.ea_swap = false;
+                    arm.load_seq = a08_load_seq;
+                    arm.load_va = 0;
+                    arm.load_size = size;
+                    arm.pair_tick = now;
+                    a08_arms[dyn_inst_seq] = arm;
+                    // Open the store's chain at its real L0 (pushRequest).
+                    // The packet command flip happens at writeback below.
+                    obs_pre_hook_injected = true;
+                    last_pre_fault_old_addr = addr;
+                    chaosL0Register(l0_item, addr);
+                    ++l0_funnel.injected;
+                    ++l0_funnel.activated;
+                    ++faults_injected_count;
+                    if (lsuTrigger->tier == ChaOSLsuTier::F5)
+                        lsuTrigger->noteOutcome(true);
+                    notifyFunnelAtInjection();
+                    logline("channel_armed_store_second", addr, addr,
+                            dyn_inst_seq, addr, 1);
+                    return addr;
+                }
+                ++obs_a08_decl_order;
+                logline("store_before_load", 0, 0, dyn_inst_seq, addr, 0);
+                return addr;
+            }
+            // A08-b keeps the store-first order: the LOAD is the pair-forming
+            // element and its EA must be swapped at its own pushRequest.
+            if (a08_load_seen && a08_load_tick == now) {
+                ++obs_a08_decl_order;
+                logline("store_after_load", 0, 0, dyn_inst_seq, addr, 0);
+            }
+            if (a08_store.valid && a08_store.tick != now)
+                ++obs_a08_decl_crosscycle;   // aged-out candidate
+            a08_store.valid = true;
+            a08_store.tick = now;
+            a08_store.tid = tid;
+            a08_store.seq = dyn_inst_seq;
+            a08_store.ea = addr;
+            a08_store.size = size;
+            a08_store.inst = inst;
+            a08_store.paired = false;
+            return addr;
+        }
+
+        // A load arrived: remember it for the order check, then look for a
+        // same-tick store pushed EARLIER.
+        a08_load_seen = true;
+        a08_load_tick = now;
+        a08_load_seq = dyn_inst_seq;
+
+        // A08-a pairs at the store (see above); loads only feed the
+        // same-tick order check here and never inject on their own.
+        if (channel)
+            return addr;
+
+        if (!a08_store.valid || a08_store.tick != now
+                || a08_store.tid != tid) {
+            ++obs_a08_decl_missing;
+            logline("pair_missing", addr, addr, 0, 0, 0);
+            return addr;
+        }
+        if (a08_store.paired) {
+            ++obs_a08_decl_paired;
+            logline("store_already_paired", addr, addr, a08_store.seq,
+                    a08_store.ea, 0);
+            return addr;
+        }
+        if (!a08_store.inst || a08_store.inst->isSquashed()) {
+            ++obs_a08_decl_ended;
+            a08_store.paired = true;
+            logline("store_ended", addr, addr, a08_store.seq,
+                    a08_store.ea, 0);
+            return addr;
+        }
+        const bool page_ok = ((a08_store.ea >> 12) == (addr >> 12));
+        if (!page_ok) {
+            // A08-b cannot move a translated store across pages (no
+            // request-level re-translation facility); A08-a's channel fault
+            // keeps the address, so only the swap requires the page match.
+            ++obs_a08_decl_crosspage;
+            if (!channel) {
+                a08_store.paired = true;
+                logline("cross_page", addr, addr, a08_store.seq,
+                        a08_store.ea, 0);
+                return addr;
+            }
+        }
+        // A08-b: the load side must be swapped HERE (its EA is consumed by
+        // this very request), so the trigger runs on the pair event. The
+        // store side is applied at writeback and re-checked there.
+        ++obs_a08_eligible;
+        if (!lsuTrigger->onEligible()) {
+            a08_store.paired = true;
+            return addr;
+        }
+        ++obs_a08_fired;
+
+        A08Arm arm;
+        arm.valid = true;
+        arm.channel = false;
+        arm.ea_swap = true;
+        arm.load_seq = dyn_inst_seq;
+        arm.load_va = addr;
+        arm.load_size = size;
+        arm.pair_tick = now;
+        a08_arms[a08_store.seq] = arm;
+        a08_store.paired = true;
+
+        const Addr load_old = addr;
+        addr = a08_store.ea;   // A08-b load-side EA swap
+        // The load-side injection is registered by the lsq.cc pushRequest
+        // call site through lastPreHookInjected()/lastPreFaultOldAddr().
+        obs_pre_hook_injected = true;
+        last_pre_fault_old_addr = load_old;
+        chaosL0Register(l0_item, addr);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        ++faults_injected_count;
+        if (lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
+        notifyFunnelAtInjection();
+        logline("swap_armed", load_old, addr,
+                a08_store.seq, a08_store.ea, page_ok ? 1 : 0);
+        return addr;
+    }
+
+    bool
+    CHAOSAddrPath::maybeSwapStoreChannel(const o3::DynInstPtr &inst,
+                                         Addr store_va)
+    {
+        if (pre_mode != "a08_channel" || !inst)
+            return false;
+        auto it = a08_arms.find(inst->seqNum);
+        if (it == a08_arms.end() || !it->second.valid
+                || !it->second.channel || it->second.applied)
+            return false;
+        // The trigger already fired at the store's pushRequest (store-second
+        // pair); this is only the application point. If the store died
+        // before writeback, decline loudly — the chain stays honestly open.
+        if (inst->isSquashed()) {
+            it->second.applied = true;
+            ++obs_a08_store_side_declined;
+            return false;
+        }
+        it->second.applied = true;
+        ++obs_a08_applied_channel;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: sq_writeback_channel"
+                << ", mode=a08_channel"
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", request_id=" << inst->seqNum
+                << ", expected_channel=store"
+                << ", actual_channel=load"
+                << ", old_cmd=WriteReq"
+                << ", new_cmd=ReadReq"
+                << ", va=0x" << std::hex << store_va << std::dec
+                << ", pair_load_seq=" << it->second.load_seq
+                << ", pair_tick=" << it->second.pair_tick
+                << ", reason=real_packet_command_swap"
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSAddrPath::maybeApplyStoreEaSwap(const o3::DynInstPtr &inst,
+                                         Addr store_va, Addr store_pa,
+                                         Addr &new_va, Addr &new_pa,
+                                         const char **reason)
+    {
+        *reason = nullptr;
+        if (pre_mode != "a08_pair_swap" || !inst)
+            return false;
+        auto it = a08_arms.find(inst->seqNum);
+        if (it == a08_arms.end() || !it->second.valid
+                || !it->second.ea_swap || it->second.applied)
+            return false;
+        A08Arm &arm = it->second;
+        // The store side is applied at writeback: re-verify liveness and the
+        // REAL translated page before touching the paddr.
+        if (inst->isSquashed()) {
+            arm.applied = true;
+            ++obs_a08_store_side_declined;
+            *reason = "store_squashed";
+            return false;
+        }
+        if ((store_va >> 12) != (arm.load_va >> 12)) {
+            arm.applied = true;
+            ++obs_a08_store_side_declined;
+            *reason = "cross_page_at_writeback";
+            return false;
+        }
+        if ((store_pa & 0xFFF) != (store_va & 0xFFF)) {
+            // Page mapping does not preserve the low 12 bits => a page-relative
+            // paddr rewrite would be a lie. Decline loudly.
+            arm.applied = true;
+            ++obs_a08_store_side_declined;
+            *reason = "pa_offset_not_preserved";
+            return false;
+        }
+        new_va = arm.load_va;
+        new_pa = (store_pa & ~(Addr)0xFFF) | (arm.load_va & 0xFFF);
+        arm.applied = true;
+        ++obs_a08_applied_easwap;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: sq_writeback_ea_swap"
+                << ", mode=a08_pair_swap"
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", request_id=" << inst->seqNum
+                << ", pair_load_seq=" << arm.load_seq
+                << ", pair_tick=" << arm.pair_tick
+                << ", store_old_ea=0x" << std::hex << store_va
+                << ", store_new_ea=0x" << new_va
+                << ", store_old_pa=0x" << store_pa
+                << ", store_new_pa=0x" << new_pa
+                << std::dec
+                << ", reason=real_paddr_retarget_same_page"
+                << std::endl;
+        }
+        return true;
+    }
+
+    void
+    CHAOSAddrPath::a08Summary()
+    {
+        if (pre_mode != "a08_channel" && pre_mode != "a08_pair_swap")
+            return;
+        A08Arm *leak = nullptr;
+        for (auto &kv : a08_arms) {
+            if (kv.second.valid && !kv.second.applied) {
+                ++obs_a08_armed_unapplied;
+                leak = &kv.second;
+            }
+        }
+        if (leak && write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: a08_exit_armed_unapplied"
+                << ", mode=" << pre_mode
+                << ", pair_load_seq=" << leak->load_seq
+                << ", pair_tick=" << leak->pair_tick
+                << ", reason=store_never_reached_writeback"
+                << std::endl;
+        }
+        printf("CHAOS_L0_A08: pre_mode=%s attempted=%lu eligible=%lu "
+               "fired=%lu d_missing=%lu d_order=%lu d_crosspage=%lu "
+               "d_ended=%lu d_crosscycle=%lu d_paired=%lu "
+               "applied_channel=%lu applied_easwap=%lu store_side_declined=%lu "
+               "armed_unapplied=%lu injected=%lu\n",
+               pre_mode.c_str(),
+               (unsigned long)obs_a08_attempt,
+               (unsigned long)obs_a08_eligible,
+               (unsigned long)obs_a08_fired,
+               (unsigned long)obs_a08_decl_missing,
+               (unsigned long)obs_a08_decl_order,
+               (unsigned long)obs_a08_decl_crosspage,
+               (unsigned long)obs_a08_decl_ended,
+               (unsigned long)obs_a08_decl_crosscycle,
+               (unsigned long)obs_a08_decl_paired,
+               (unsigned long)obs_a08_applied_channel,
+               (unsigned long)obs_a08_applied_easwap,
+               (unsigned long)obs_a08_store_side_declined,
+               (unsigned long)obs_a08_armed_unapplied,
+               (unsigned long)faults_injected_count);
+    }
+
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_inst_seq,
@@ -839,6 +1188,13 @@ namespace gem5
             if (obs_pre_hook_injected)
                 return size;
             ++obs_pre_invalid;
+            return size;
+        }
+        // [R6-A3/A08] same-tick load/store pairing (A08-a channel / A08-b EA
+        // swap). Runs entirely here; the store side is applied later at
+        // writeback (buildPackets) through a08Consume*.
+        if (pre_mode == "a08_channel" || pre_mode == "a08_pair_swap") {
+            addr = maybePairA08(addr, size, isLoad, dyn_inst_seq, inst);
             return size;
         }
 
@@ -1994,6 +2350,8 @@ namespace gem5
                 a06Summary();
                 // [R6-A3/A05] A05-a/b/c evidence line (self-guarded).
                 a05Summary();
+                // [R6-A3/A08] A08-a/b evidence line (self-guarded).
+                a08Summary();
                 // [LSU][OBS-L3] final funnel row (final counts; runs only on
                 // normal exit — aborts keep the last injection-time node,
                 // which is exactly why the per-injection rows exist).

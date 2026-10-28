@@ -44,6 +44,8 @@
 #include "arch/generic/debugfaults.hh"
 #include "base/str.hh"
 #include "cpu/checker/cpu.hh"
+// [R6-A3/A08] full definition of the A08 channel/EA-swap hooks.
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
 #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
@@ -1033,7 +1035,34 @@ LSQUnit::writebackStores()
         else
             memcpy(inst->memData, storeWBIt->data(), request->_size);
 
+        // [R6-A3/A08-b] Store-side EA swap: the paired load already runs at
+        // the store's address, so the store must land at the load's address
+        // instead. The injector re-checks liveness, the same-4KiB-page
+        // mapping and paddr offset preservation against the REAL translation;
+        // only then are the fragment paddrs retargeted. Must run BEFORE the
+        // packets are built (they read req->getPaddr()).
+        if (cpu->chaosAddrPathPre) {
+            Addr a08_new_va = 0, a08_new_pa = 0;
+            const char *a08_why = nullptr;
+            const Addr a08_store_va = request->getVaddr();
+            const Addr a08_store_pa = request->req()->getPaddr();
+            if (cpu->chaosAddrPathPre->maybeApplyStoreEaSwap(
+                    inst, a08_store_va, a08_store_pa,
+                    a08_new_va, a08_new_pa, &a08_why)) {
+                request->chaosRetargetPaddr(a08_new_pa - a08_store_pa);
+            }
+        }
+
         request->buildPackets();
+
+        // [R6-A3/A08-a] Channel error: the store's just-built packet(s) go
+        // out as READS (store -> load access type). The request/instruction
+        // stay store-side; the real packet command is what changes.
+        if (cpu->chaosAddrPathPre
+                && cpu->chaosAddrPathPre->maybeSwapStoreChannel(
+                        inst, request->getVaddr())) {
+            request->chaosStoreChannelToRead();
+        }
 
         DPRINTF(LSQUnit, "D-Cache: Writing back store idx:%i PC:%s "
                 "to Addr:%#x, data:%#x [sn:%lli]\n",

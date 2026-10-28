@@ -372,7 +372,13 @@ MODEL_FLAGS = {
     # （待集成构建），解除要 §2.c spike 的**真实 gem5 运行**断言。
     "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2",
                           "--agu_size_to_load", "8"]),
-    "A08": ("addrpath", ["--agu_pre_mode", "a08_subst"]),
+    # [R6-A3/A08] Real model: same-tick load/store pairing. A08-a = the
+    # store's packet really goes out as a READ (channel error); A08-b = the
+    # pair exchanges EAs (load side at pushRequest, store side via a
+    # same-page paddr retarget before buildPackets). Seed parity selects
+    # them (odd = a, even = b). The old a08_subst same-page proxy is no
+    # longer routed.
+    "A08": ("addrpath", ["--agu_pre_mode", "a08_channel"]),
     # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake timing model (03 sheet
     # A07-b "ready延迟"): --agu_ready_mode a07b_ready_delay at the IEW
     # memRef ready point (IEW::executeInsts), bounded delay pinned to the
@@ -2783,6 +2789,10 @@ def run_single_cell(cell, args, seed, outdir):
     if model == "A05" and freq == "F0":
         j = flags.index("--addrpath_span_events")
         flags[j + 1] = "243"     # measured a05_prepost stream on W3
+    # [R6-A3/A08] seed parity: odd = A08-a (channel), even = A08-b (EA swap).
+    if model == "A08" and seed % 2 == 0:
+        i = flags.index("--agu_pre_mode")
+        flags[i + 1] = "a08_pair_swap"
     if model == "A04":
         if seed % 2 == 0:
             i = flags.index("--agu_pre_mode")
