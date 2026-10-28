@@ -337,6 +337,27 @@ class CHAOSAddrPath : public SimObject
     // clockEdge(delay); fires IEW::chaosAguResumeInst for the stashed inst.
     EventFunctionWrapper aguResumeEvent;
 
+    // [R6-A2/A07-a] stale EA captured at the ready point (effAddr from the
+    // instruction's previous execution) and installed at pushRequest.
+    bool agu_stale_valid = false;
+    Addr agu_stale_ea = 0;
+    Addr agu_stale_pa = 0;
+    Tick agu_stale_ready_tick = 0;
+    // Real saved EA of the PREVIOUS memory operation (updated at every
+    // non-fault pushRequest). A07-a uses it as the stale EA.
+    bool agu_prior_valid = false;
+    Addr agu_prior_ea = 0;
+    uint64_t agu_prior_seq = 0;
+    // [R6-A2/A07-c] bounded ready-loss watchdog (never an unbounded hang).
+    uint64_t agu_watchdog_cycles = 4096;
+    uint64_t agu_watchdog_max = 1ULL << 20;
+    o3::DynInstPtr aguWatchdogInst;
+    EventFunctionWrapper aguWatchdogEvent;
+    uint64_t obs_agu_no_stale = 0;        // A07-a: no previous EA
+    uint64_t obs_agu_watchdog = 0;        // A07-c: forced resume
+    uint64_t obs_agu_watchdog_squash = 0; // A07-c: squashed before ready
+    void aguWatchdogFired();
+
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;

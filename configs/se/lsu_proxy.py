@@ -600,8 +600,13 @@ p.add_argument("--agu_be_mode", default="off",
 # spec "延后1周期"; data payload stays correct). A07-a (ready early +
 # stale latched EA) / A07-c (ready lost) pending — MDSPEC
 # SPEC_IMPL_LANDED. LSU-trigger-native + one-hook-per-run (W1-⑦).
+p.add_argument("--agu_watchdog_cycles", type=int, default=4096,
+               help="[R6-A2/A07-c] ready-loss watchdog delay (cycles)")
+p.add_argument("--agu_watchdog_max", type=int, default=(1 << 20),
+               help="[R6-A2/A07-c] hard upper bound (cycles)")
 p.add_argument("--agu_ready_mode", default="off",
-               choices=["off","a07b_ready_delay"],
+               choices=["off","a07a_ready_early","a07b_ready_delay",
+                        "a07c_ready_loss"],
                help="[MDSPEC][R4-5.8] A07 AGU clean-ready/handshake hook "
                     "(IEW executeInsts memRef branch). a07b_ready_delay = "
                     "A07-b bounded ready delay; requires --addrpath_lsu_tier; "
@@ -1208,6 +1213,8 @@ if args.chaos_addrpath:
         beMode=args.agu_be_mode,
         aguObjectSpec=args.agu_object_spec,
         aguReadyMode=args.agu_ready_mode,
+        aguWatchdogCycles=args.agu_watchdog_cycles,
+        aguWatchdogMax=args.agu_watchdog_max,
         aguReadyDelayCycles=args.agu_ready_delay_cycles,
     )
     board.chaos_addrpath = ap

@@ -81,6 +81,8 @@ KIND_LAYER = {
     # [R6-A2/TERMINAL] real LSQUnit::squash discard of the fault-carrying
     # instruction (load or store), observed at the pop point.
     "squash_discarded": "L4",
+    # [R6-A2/A07-c] bounded ready-loss outcomes (real watchdog / real squash).
+    "ready_loss_watchdog": "L4", "ready_loss_squashed": "L4",
     # [MDSPEC][H1] lsq.cc 统一事件（表 9：L1=EA/size/flags 进入 LSQRequest；
     # L2=请求离开 LSQ 去翻译/访存）
     "lsq_push": "L1", "lsq_sendfrag": "L2",

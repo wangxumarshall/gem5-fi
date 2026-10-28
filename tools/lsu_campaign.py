@@ -2773,6 +2773,13 @@ def run_single_cell(cell, args, seed, outdir):
     # [R6-A2/A04] seed parity: odd = A04-a (registered object), even = A04-b
     # (same page, access-width aligned). A04-a refuses loudly without a
     # registry; it never degrades to the same-page proxy.
+    # [R6-A2/A07] seed rotation over the three ready submodels:
+    # seed1=b (delay, existing), seed2=a (stale EA), seed3=c (watchdog).
+    # [R6-A2/A07] Formal A07 seeds use A07-b (bounded delay, deterministic
+    # and qualification-safe). A07-a (stale EA) and A07-c (watchdog) are
+    # exercised by dedicated auxiliary canaries (R6-A2-A07.md); rotating
+    # them into formal seeds would make a squashed-before-ready sample
+    # (A07-c) unfalsifiably OPEN.
     if model == "A04":
         if seed % 2 == 0:
             i = flags.index("--agu_pre_mode")

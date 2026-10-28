@@ -154,6 +154,14 @@ class CHAOSPropagation : public SimObject
     // precedent is BaseCache::chaosVictimHook / chaosLsuF6Notify).
     static CHAOSPropagation *instance() { return chaos_instance; }
 
+    // [R6-A2/A07-c] Last emitted event_id for a fault chain (0 = none). The
+    // watchdog terminal must hang off that event so its L0→L4 prefix is
+    // provable; hanging off the inj node would make the gate reject it.
+    uint64_t lastEventId(uint64_t ptag) const {
+        auto it = ptag_last_event.find(ptag);
+        return it == ptag_last_event.end() ? 0 : it->second;
+    }
+
     void startup() override;
 
     // ============ PROP-EVT unified stream (spec sheet 11, plan Task H0) ====

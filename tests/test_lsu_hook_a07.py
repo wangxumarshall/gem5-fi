@@ -336,18 +336,18 @@ def main():
     check("旧阻塞短语已退役（'R4: no clean hook' 不再是 A07 的理由）",
           LC.MODEL_BLOCKED.get("A07") != "deferred(R4: no clean hook)", "")
     check("ADDRPATH_F0_SPAN 含两个实测条目（集成侧 census："
-          "agu_addrmodes=2795 / sq_forward=2579）",
-          LC.ADDRPATH_F0_SPAN.get(("A07", "agu_addrmodes")) == 2795
-          and LC.ADDRPATH_F0_SPAN.get(("A07", "sq_forward")) == 2579,
+          "agu_addrmodes=2819 / sq_forward=2568）",
+          LC.ADDRPATH_F0_SPAN.get(("A07", "agu_addrmodes")) == 2819
+          and LC.ADDRPATH_F0_SPAN.get(("A07", "sq_forward")) == 2568,
           str(LC.ADDRPATH_F0_SPAN))
     check("A07 F0 tier flags：实测对 = warmup=1 + span=实测流长（真 "
           "F0-uniform）；未实测 workload 仍 loud None",
           LC._addrpath_tier_flags("A07", "F0", "agu_addrmodes") ==
           ["--addrpath_lsu_tier", "F0", "--addrpath_warmup_events", "1",
-           "--addrpath_span_events", "2795"]
+           "--addrpath_span_events", "2819"]
           and LC._addrpath_tier_flags("A07", "F0", "sq_forward") ==
           ["--addrpath_lsu_tier", "F0", "--addrpath_warmup_events", "1",
-           "--addrpath_span_events", "2579"]
+           "--addrpath_span_events", "2568"]
           and LC._addrpath_tier_flags("A07", "F0", "sqlite_like") is None,
           str(LC._addrpath_tier_flags("A07", "F0", "agu_addrmodes")))
     check("A07 非 F0 tier flags 可解析（F4/F6 惯例形 + F6 门禁 flag）",
@@ -359,7 +359,7 @@ def main():
            "--addrpath_span_events", "1000", "--addrpath_f6_mode",
            "early_stress"], "")
     check("既有 addrpath 模型 tier flags 逐字节不变（R4-2 §2.4 parked 项）",
-          LC._addrpath_tier_flags("A01", "F0", "sq_forward") ==
+          LC._addrpath_tier_flags("S04", "F0", "sq_forward") ==
           ["--addrpath_lsu_tier", "F0", "--addrpath_warmup_events", "0",
            "--addrpath_span_events", "1000"]
           and LC._addrpath_tier_flags("S04", "F6", "sq_forward") ==
@@ -395,8 +395,8 @@ def main():
     check("A07 条目 pending 列逐一点名（A07-a 旧EA / A07-c 丢失）",
           "A07-a" in rim and "stale latched EA" in rim
           and "A07-c" in rim and "ready loss" in rim, "")
-    check("A07 条目记录实测 census 跨度对（2795 / 2579）",
-          "2795" in rim and "2579" in rim, "")
+    check("A07 条目记录实测 census 跨度对（2819 / 2568）",
+          "2819" in rim and "2568" in rim, "")
     check("A07 条目记录真机 pilot 证据（F0/F6 已注入 + F4 honest zero）",
           "A07-F6-W3" in rim and "honest zero" in rim, "")
 

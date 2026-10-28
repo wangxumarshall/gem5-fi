@@ -36,8 +36,12 @@ namespace gem5
           be_mode(p.beMode),
           agu_ready_mode(p.aguReadyMode),
           agu_ready_delay_cycles(p.aguReadyDelayCycles),
+          agu_watchdog_cycles(p.aguWatchdogCycles),
+          agu_watchdog_max(p.aguWatchdogMax),
           aguResumeEvent([this] { this->resumeDeferredAgu(); },
-                         name() + ".aguResume")
+                         name() + ".aguResume"),
+          aguWatchdogEvent([this] { this->aguWatchdogFired(); },
+                           name() + ".aguWatchdog")
     {
         // [R6-A-SEGV 2026-10-28] Arm the guest-SEGV teardown: once this
         // injector exists, any unhandled SE page-table fault is an experiment
@@ -53,9 +57,12 @@ namespace gem5
         // exclusive), and the delay is a positive bound (0 = no-op, the
         // spec's "延后1周期" is the default and the campaign-pinned value).
         if (agu_ready_mode != "off") {
-            if (agu_ready_mode != "a07b_ready_delay")
+            if (agu_ready_mode != "a07b_ready_delay"
+                && agu_ready_mode != "a07a_ready_early"
+                && agu_ready_mode != "a07c_ready_loss")
                 panic("CHAOSAddrPath: unknown agu_ready_mode '%s' "
-                      "(off | a07b_ready_delay)\n", agu_ready_mode.c_str());
+                      "(off | a07a_ready_early | a07b_ready_delay | "
+                      "a07c_ready_loss)\n", agu_ready_mode.c_str());
             if (p.lsuTier == "off")
                 panic("CHAOSAddrPath: agu_ready_mode requires --addrpath_"
                       "lsu_tier (A07 is LSU-trigger-native; the legacy "
@@ -501,6 +508,31 @@ namespace gem5
         // is registered for A07; the fault follows the dynamic
         // instruction, not an address).
         if (agu_ready_mode != "off") {
+            // [R6-A2/A07-a] Install the real stale EA captured at the ready
+            // point. The request is built AFTER this hook, so translation
+            // and every cache/TLB consumer see the old EA.
+            if (agu_ready_mode == "a07a_ready_early" && agu_stale_valid
+                    && dyn_inst_seq != 0 && dyn_inst_seq == agu_fault_seq) {
+                const Addr current_ea = addr;
+                addr = agu_stale_ea;
+                agu_stale_valid = false;
+                if (!agu_activated) {
+                    agu_activated = true;
+                    ++l0_funnel.activated;
+                }
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: lsq_pushRequest_PRE"
+                        << ", mode=a07a_ready_early"
+                        << ", dyn_inst_seq=" << dyn_inst_seq
+                        << ", request_id=" << dyn_inst_seq
+                        << ", old_ea=0x" << std::hex << current_ea
+                        << ", new_ea=0x" << addr
+                        << ", old_pa=0x" << agu_stale_pa << std::dec
+                        << ", stale_ready_tick=" << agu_stale_ready_tick
+                        << ", consume_tick=" << curTick() << std::endl;
+                }
+            }
             if (!agu_addr_bound && dyn_inst_seq != 0
                 && dyn_inst_seq == agu_fault_seq && agu_fault_ptag) {
                 CHAOSPropagation *prop = CHAOSPropagation::instance();
@@ -508,6 +540,13 @@ namespace gem5
                     prop->bindAguFaultAddr(agu_fault_ptag, dyn_inst_seq,
                                            addr, size);
                 agu_addr_bound = true;
+            }
+            // Latch the EA of a NON-fault memory operation as the next
+            // A07-a stale candidate (never the fault instruction itself).
+            if (dyn_inst_seq != agu_fault_seq) {
+                agu_prior_valid = true;
+                agu_prior_ea = addr;
+                agu_prior_seq = dyn_inst_seq;
             }
             return size;
         }
@@ -1032,11 +1071,23 @@ namespace gem5
             ++obs_agu_opclass;
             return false;
         }
+        // [R6-A2/A07-a] A07-a is only meaningful when the instruction has a
+        // REAL stale EA (its own previous execution). No stale value =>
+        // ineligible, and it must not consume the trigger budget.
+        if (agu_ready_mode == "a07a_ready_early"
+                && (!agu_prior_valid || agu_prior_seq == inst->seqNum)) {
+            // Need a REAL saved old EA: agu_prior_ea is the EA of the
+            // previous memory operation (a real latch value, captured at
+            // its own pushRequest — never fabricated).
+            ++obs_agu_no_stale;
+            return false;
+        }
         // Single-slot guard (C12 discipline): a second fire while one
         // resume is pending would overwrite the slot (the first
         // instruction's resume lost). Campaign maxFaults=1 makes this
         // unreachable; structural refusal under unlimited configs.
-        if (aguResumeEvent.scheduled()) {
+        if (aguResumeEvent.scheduled() || aguWatchdogEvent.scheduled()
+                || aguWatchdogInst) {
             ++obs_agu_slotbusy;
             return false;
         }
@@ -1063,6 +1114,80 @@ namespace gem5
         // ready/execute tick shifts from ready_tick to delayed_tick (the
         // spec's "只改变一次事件的发生周期…数据载荷保持正确").
         const Tick ready_tick = curTick();
+        if (agu_ready_mode == "a07a_ready_early") {
+            // [R6-A2/A07-a] Ready fired early: keep the instruction's OWN
+            // previous EA (DynInst::effAddr) and install it at pushRequest.
+            // The current execution still runs, so the log carries both.
+            agu_stale_valid = true;
+            agu_stale_ea = agu_prior_valid ? agu_prior_ea : inst->effAddr;
+            agu_stale_pa = inst->physEffAddr;
+            agu_stale_ready_tick = ready_tick;
+            agu_fault_seq = inst->seqNum;
+            agu_addr_bound = false;
+            agu_activated = false;
+            ++faults_injected_count;
+            chaosL0Register(l0_item, inst->seqNum);
+            ++l0_funnel.injected;
+            if (CHAOSPropagation::instance())
+                agu_fault_ptag =
+                    CHAOSPropagation::instance()->registerAguReadyFault(
+                        inst->seqNum,
+                        (long long)(inst->isLoad() ? inst->lqIdx : -1),
+                        (long long)(inst->isLoad() ? -1 : inst->sqIdx),
+                        ready_tick, ready_tick, 0, inst->isLoad(),
+                        inst->pcState().instAddr());
+            notifyFunnelAtInjection();
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream()) << "Tick: " << ready_tick
+                    << ", Site: iew_memRef_AGU_ready_early"
+                    << ", mode=" << agu_ready_mode
+                    << ", dyn_inst_seq=" << inst->seqNum
+                    << ", stale_ea=0x" << std::hex << agu_stale_ea
+                    << ", stale_pa=0x" << agu_stale_pa << std::dec
+                    << ", ready_tick=" << ready_tick
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return false;   // execute normally this cycle
+        }
+        if (agu_ready_mode == "a07c_ready_loss") {
+            // [R6-A2/A07-c] Drop the ready handshake, but NEVER unbounded:
+            // a watchdog event is always scheduled; it either observes a
+            // real squash or forces a bounded resume.
+            const Tick watchdog_tick = o3cpu_resolved
+                ? o3cpu_resolved->clockEdge(Cycles(agu_watchdog_cycles))
+                : ready_tick;
+            aguWatchdogInst = inst;
+            agu_fault_seq = inst->seqNum;
+            agu_stale_ready_tick = ready_tick;
+            agu_addr_bound = false;
+            agu_activated = false;
+            schedule(aguWatchdogEvent, watchdog_tick);
+            ++faults_injected_count;
+            chaosL0Register(l0_item, inst->seqNum);
+            ++l0_funnel.injected;
+            if (CHAOSPropagation::instance())
+                agu_fault_ptag =
+                    CHAOSPropagation::instance()->registerAguReadyFault(
+                        inst->seqNum,
+                        (long long)(inst->isLoad() ? inst->lqIdx : -1),
+                        (long long)(inst->isLoad() ? -1 : inst->sqIdx),
+                        ready_tick, watchdog_tick, agu_watchdog_cycles,
+                        inst->isLoad(), inst->pcState().instAddr());
+            notifyFunnelAtInjection();
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream()) << "Tick: " << ready_tick
+                    << ", Site: iew_memRef_AGU_ready_loss"
+                    << ", mode=" << agu_ready_mode
+                    << ", dyn_inst_seq=" << inst->seqNum
+                    << ", ready_tick=" << ready_tick
+                    << ", watchdog_tick=" << watchdog_tick
+                    << ", watchdog_cycles=" << agu_watchdog_cycles
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return true;    // skip normal execute until the watchdog
+        }
         const Tick delayed_tick =
             o3cpu_resolved
                 ? o3cpu_resolved->clockEdge(Cycles(agu_ready_delay_cycles))
@@ -1135,6 +1260,80 @@ namespace gem5
                 << ", dyn_inst_seq=" << inst->seqNum
                 << ", consumed=1, squashed=" << (inst->isSquashed() ? 1 : 0)
                 << std::endl;
+        }
+    }
+
+    void
+    CHAOSAddrPath::aguWatchdogFired()
+    {
+        o3::DynInstPtr inst = aguWatchdogInst;
+        aguWatchdogInst = nullptr;
+        if (!inst)
+            return;
+        const Tick now = curTick();
+        CHAOSPropagation *prop = CHAOSPropagation::instance();
+        const std::string seq = std::to_string(inst->seqNum);
+        const std::string ptag = std::to_string(agu_fault_ptag);
+        const bool squashed = inst->isSquashed();
+        if (squashed) {
+            ++obs_agu_watchdog_squash;
+            if (prop && agu_fault_ptag) {
+                prop->notePropEvt("ready_loss_squashed", {
+                    {"fault_id", ptag},
+                    {"parent_event_id",
+                        std::to_string(prop->lastEventId(agu_fault_ptag))},
+                    {"dyn_inst_seq", seq},
+                    {"request_id", seq},
+                    {"outcome", "contained"},
+                    {"detection_layer", "L4"},
+                    {"contained", "1"},
+                    {"containment_layer", "L4"},
+                    {"containment_reason", "squash_before_ready"},
+                    {"corr", "seq_primary"},
+                });
+            }
+        } else {
+            ++obs_agu_watchdog;
+            if (prop && agu_fault_ptag) {
+                prop->notePropEvt("ready_loss_watchdog", {
+                    {"fault_id", ptag},
+                    {"parent_event_id",
+                        std::to_string(prop->lastEventId(agu_fault_ptag))},
+                    {"dyn_inst_seq", seq},
+                    {"request_id", seq},
+                    {"outcome", "hang_recovered"},
+                    {"detection_layer", "Hardware"},
+                    {"contained", "1"},
+                    {"containment_layer", "Hardware"},
+                    {"containment_reason", "watchdog_forced_resume"},
+                    {"corr", "seq_primary"},
+                });
+            }
+            if (o3cpu_resolved) {
+                agu_activated = true;
+                ++l0_funnel.activated;
+                o3cpu_resolved->o3IEW().chaosAguResumeInst(inst);
+            }
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << now
+                << ", Site: iew_memRef_AGU_ready_watchdog"
+                << ", mode=" << agu_ready_mode
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", ready_tick=" << agu_stale_ready_tick
+                << ", watchdog_tick=" << now
+                << ", elapsed_ticks=" << (now - agu_stale_ready_tick)
+                << ", squashed=" << (squashed ? 1 : 0)
+                << ", drop_reason="
+                << (squashed ? "squashed" : "forced_resume")
+                << std::endl;
+        }
+        // Hard bound: even if a deeper deadlock swallowed the resume, the
+        // simulation still terminates with evidence flushed.
+        if (now - agu_stale_ready_tick > (Tick)agu_watchdog_max) {
+            warn("CHAOSAddrPath: A07-c watchdog exceeded hard bound; "
+                 "ending simulation\n");
+            exitSimLoop("chaos_ready_watchdog", 124);
         }
     }
 

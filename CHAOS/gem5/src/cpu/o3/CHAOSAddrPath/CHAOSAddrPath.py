@@ -114,6 +114,11 @@ class CHAOSAddrPath(SimObject):
     aguReadyMode = Param.String("off",
         "off | a07b_ready_delay (A07-b bounded AGU-ready delay at the IEW "
         "memRef ready/handshake point)")
+    aguWatchdogCycles = Param.UInt64(4096,
+        "[R6-A2/A07-c] ready-loss watchdog delay in CPU cycles (>=1).")
+    aguWatchdogMax = Param.UInt64(1 << 20,
+        "[R6-A2/A07-c] hard upper bound; exceeding it exits with code 124 "
+        "instead of hanging forever.")
     aguReadyDelayCycles = Param.UInt64(1,
         "A07-b: the ready handshake is delayed by this many CPU clock "
         "edges (bounded, >=1; spec default 1 = '延后1周期')")
