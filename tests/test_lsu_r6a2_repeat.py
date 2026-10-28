@@ -39,16 +39,33 @@ def check(name, cond, detail=""):
 
 def main():
     print("[1] repeat 上限与实测表")
-    check("REPEAT_MAX == 4096", LC.REPEAT_MAX == 4096,
+    # [R6-A4] 上限由实测过滤后流决定：A08-a W5 需要 84,418（旧 4,096 会
+    # 静默 clamp）。131,072 是有界且实测可完成的（每趟 7.5–31 ms ⇒ ≤44 min
+    # /样本），依据记录在 lsu_campaign.REPEAT_MAX_BASIS；不是放宽为无限。
+    check("REPEAT_MAX == 131072", LC.REPEAT_MAX == 131072,
           str(LC.REPEAT_MAX))
+    check("REPEAT_MAX covers max measured R",
+          LC.REPEAT_MAX >= max(v for v in LC.REPEAT_FACTOR.values()),
+          str(LC.REPEAT_MAX))
+    check("REPEAT_MAX_BASIS recorded",
+          isinstance(LC.REPEAT_MAX_BASIS, dict)
+          and bool(LC.REPEAT_MAX_BASIS.get("basis")), str(
+              LC.REPEAT_MAX_BASIS))
+    # [R6-A4 2026-10-28] 键扩为 (model,freq,binary,submodel)，repeat_factor_for
+    # 在**无 seed** 时返回各 submodel 的保守最大值（生产路径总是传 seed）。
+    # 因此 A04/A06 的旧 3 元组期望值随子模型重 census 而更新：
+    #   A04 mini: max(a04_same_object=375, a04_same_page=212) = 375
+    #   A06 agu : max(a06_size=1123, a06_mask=1123)          = 1123
+    #   A06 sq  : max(1295, 1295)                            = 1295
+    # A01/A02 的既有合格值（4023/434）保持不变（用户工作令）。
     expect = {
         ("A01", "F1", "agu_addrmodes"): 4023,
         ("A01", "F1", "gap_bfs"): 6,
         ("A01", "F2", "agu_addrmodes"): 434,
-        ("A04", "F2", "mini_check"): 213,
+        ("A04", "F2", "mini_check"): 375,
         ("A07", "F4", "sq_forward"): 934,
-        ("A06", "F2", "agu_addrmodes"): 808,
-        ("A06", "F2", "sq_forward"): 1017,
+        ("A06", "F2", "agu_addrmodes"): 1123,
+        ("A06", "F2", "sq_forward"): 1295,
     }
     for key, val in expect.items():
         got = LC.repeat_factor_for(*key)

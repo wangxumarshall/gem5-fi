@@ -795,8 +795,14 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-if args.chaos_repeat < 1 or args.chaos_repeat > 4096:
-    p.error("--chaos_repeat must be in 1..4096 (got %d)" % args.chaos_repeat)
+# [R6-A4] repeat cap raised from 4096 after the filtered-eligible census:
+# A08-a on W5 needs ~84k same-tick pair events to reach the deterministic F2
+# first-fire position (eligible delta ~2/iteration). The bound stays finite and
+# measured: per-iteration wall time is ~8 ms, so 131072 ≈ 18 min upper bound.
+CHAOS_REPEAT_CAP = 131072
+if args.chaos_repeat < 1 or args.chaos_repeat > CHAOS_REPEAT_CAP:
+    p.error("--chaos_repeat must be in 1..%d (got %d)"
+            % (CHAOS_REPEAT_CAP, args.chaos_repeat))
 _repeat_args = ([str(args.chaos_repeat)] if args.chaos_repeat > 1 else [])
 board.set_se_binary_workload(binary=FileResource(args.cmd, override=True),
                              arguments=_repeat_args)

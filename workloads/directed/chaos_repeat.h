@@ -22,8 +22,10 @@
 
 /* [R6-A2 census 2026-10-28] 实测每迭代 eligible 增量远小于整次运行
  * （W3/W5 首趟含启动流）：F1-W3 需 ~4023 趟、W5-F2 需 ~934 趟。
- * 4096 是“有界且可完成”的实测上限，不是拍的。 */
-#define CHAOS_REPEAT_MAX 4096
+ * [R6-A4 2026-10-28] 按**子模型过滤后**的 eligible 流重标定后，A08-a 在
+ * W5 上每趟只增 ~2 个同 tick 配对事件，达到 F2 确定性首火位需要 ~84k 趟。
+ * 131072 仍是“有界且可完成”的实测上限（每趟 ~8ms ⇒ ≤18 分钟），不是拍的。 */
+#define CHAOS_REPEAT_MAX 131072
 
 static inline int
 chaos_repeat_count(int argc, char **argv)
