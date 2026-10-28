@@ -69,6 +69,18 @@ EVENT_CAP = 200000
 KIND_LAYER = {
     "inj": "L0", "addr_form": "L1", "mem_req": "L2", "resp": "L3",
     "taint_reg": "L4", "consumer": "L4", "errant_commit": "L4",
+    # [R6-A2/TERMINAL] real store lifecycle containment: the store's response
+    # was observed but its own commit never was (store_taint survives exit).
+    # Not a lifecycle marker; it carries dl/outcome/corr and can close a chain
+    # at L4 without erasing any deeper witness.
+    "store_not_retired": "L4",
+    # [R6-A2/TERMINAL] real architectural exception (SE page-table fault
+    # delivered as guest SEGV). It is a terminal at the TLB/MMU layer, not a
+    # lifecycle marker; contained only when actually delivered.
+    "arch_translation_fault": "L2",
+    # [R6-A2/TERMINAL] real LSQUnit::squash discard of the fault-carrying
+    # instruction (load or store), observed at the pop point.
+    "squash_discarded": "L4",
     # [MDSPEC][H1] lsq.cc 统一事件（表 9：L1=EA/size/flags 进入 LSQRequest；
     # L2=请求离开 LSQ 去翻译/访存）
     "lsq_push": "L1", "lsq_sendfrag": "L2",

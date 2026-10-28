@@ -229,6 +229,19 @@ class CHAOSPropagation : public SimObject
                                Addr old_addr, Addr new_addr, bool is_load,
                                unsigned old_size, unsigned new_size);
 
+    // [R6-A2/TERMINAL] A real SE page-table fault reached the guest. Emit
+    // an L2 architectural-exception terminal for the injected chain whose
+    // registered range contains `va`. `delivered` is true only when the
+    // faulting VA was the exact injected VA (not a downstream wild pointer).
+    void noteArchTranslationFault(Addr va, bool delivered);
+
+    // [R6-A2/TERMINAL] A load/store carrying an injected fault was actually
+    // discarded by LSQUnit::squash. This is a real lifecycle event (the
+    // instruction is being popped, not a run-end heuristic), so it may close
+    // the chain at L4. No-op when the inst carries no registered fault.
+    void noteSquashDiscarded(o3::DynInst *inst, bool is_load,
+                             const char *state_before);
+
     // cache family: a CHAOSCache fault just landed on block_addr.
     //   byte_offset >= 0 : data fault on one byte (registry range =
     //                      [block+off, block+off+1))

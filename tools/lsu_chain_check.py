@@ -466,6 +466,16 @@ def _terminal(chain_events, edges, by_layer, path, family,
             if e.get("contained") == "1":
                 # 显式 contained 证据（非推断）优先于 oracle 兜底
                 return "detected_contained"
+    # [R6-A2/TERMINAL] A DELIVERED architectural translation exception is a
+    # real terminal, not an inference: the guest took the fault and stopped.
+    # It must be decided before the tlb_fault oracle fallback (otherwise a
+    # tlb_fault with empty `contained` forces outcome_pending forever).
+    for e in chain_events:
+        if (e.get("kind") == "arch_translation_fault"
+                and str(e.get("contained", "")).strip() in _CONTAINED_VALUES
+                and _explicit_l5(e)
+                and _event_has_prefix(chain_events, e, family)):
+            return "detected_contained"
     if translation_blocked:
         if oracle_outcome in ("Crash", "Timeout", "SDC"):
             return f"{oracle_outcome.lower()}_translation_blocked"
@@ -1136,8 +1146,14 @@ def _containment_candidate(chain_events, family):
         layer = _obs_layer_of(e, family)
         if layer not in LAYERS:
             continue
-        if _obs_deepest_index(chain_events, family) > LAYERS.index(layer):
-            # 该层之后仍有见证 ⇒ 传播并未止于此，含住主张不成立
+        # [R6-A2/TERMINAL] An architectural exception terminates execution:
+        # L3 observations that happened BEFORE the delivered fault do not
+        # refute containment. For every other witness the old rule stands
+        # (a deeper observation means propagation did not stop there).
+        _arch_terminal = e.get("kind") == "arch_translation_fault"
+        if (not _arch_terminal
+                and _obs_deepest_index(chain_events, family)
+                    > LAYERS.index(layer)):
             continue
         return e
     return None

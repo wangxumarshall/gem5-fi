@@ -1165,6 +1165,14 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
         }
         // Clear the smart pointer to make sure it is decremented.
         loadQueue.back().instruction()->setSquashed();
+        // [R6-A2/TERMINAL] The load is really being discarded: if it carries
+        // an injected fault, emit the true squash containment event before
+        // the entry (and its DynInst) is released.
+        if (cpu->chaosPropagation) {
+            cpu->chaosPropagation->noteSquashDiscarded(
+                loadQueue.back().instruction().get(), true,
+                "load_queue_uncommitted");
+        }
         loadQueue.back().clear();
 
         loadQueue.pop_back();
@@ -1234,6 +1242,13 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
 
         // Clear the smart pointer to make sure it is decremented.
         storeQueue.back().instruction()->setSquashed();
+        // [R6-A2/TERMINAL] Same true-discard containment for stores that
+        // never reached canWB (not committed, not architecturally visible).
+        if (cpu->chaosPropagation) {
+            cpu->chaosPropagation->noteSquashDiscarded(
+                storeQueue.back().instruction().get(), false,
+                "store_queue_uncommitted");
+        }
 
         // Must delete request now that it wasn't handed off to
         // memory.  This is quite ugly.  @todo: Figure out the proper
