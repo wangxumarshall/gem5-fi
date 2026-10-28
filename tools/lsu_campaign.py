@@ -33,6 +33,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -1092,28 +1093,28 @@ ADDRPATH_F0_SPAN = {
     #                  eligible=2795 injected=0 (SPAN_UNREACHABLE, census)
     #   sq_forward:    injector=CHAOSAddrPath tier=F0 attempted=2579
     #                  eligible=2579 injected=0 (SPAN_UNREACHABLE, census)
-    ("A07", "agu_addrmodes"): 2795,
-    ("A07", "sq_forward"): 2579,
-    # [R6-A-SPAN 2026-10-28] A 单元 census（tier=F0, warmup=1,
-    # span=1000000 纯普查；binary sha256 bdf82496…）。A04-F0-W3 seed1 实测
-    # span=1000 对 2800 的流触发 EARLY_BIAS ⇒ A 族全部改按实测值参数化。
-    # 证据：runs/lsu/r6_a_census/<model>_<workload>/run.out
-    #   A01/A02 agu_addrmodes: attempted=eligible=2777
-    #   A01/A02 gap_bfs:       attempted=eligible=265019
-    #   A04 agu_addrmodes:     attempted=eligible=2800
-    #   A04 mini_check:        attempted=eligible=3207
-    #   A05 agu_addrmodes:     attempted=eligible=2800
-    #   A08 agu_addrmodes:     attempted=eligible=2800
-    ("A01", "agu_addrmodes"): 2777,
-    ("A02", "agu_addrmodes"): 2777,
-    ("A04", "agu_addrmodes"): 2800,
-    ("A04", "mini_check"): 3207,
-    ("A05", "agu_addrmodes"): 2800,
-    ("A08", "agu_addrmodes"): 2800,
-    # [R6-A-SPAN 2026-10-28] A08-F0-W5 census (sq_forward: attempted=2582)
-    ("A08", "sq_forward"): 2582,
-    ("A01", "gap_bfs"): 265019,
-    ("A02", "gap_bfs"): 265019,
+    # [R6-A2-REPEAT 2026-10-28] 同源 repeat 载体重新 census（业务代码
+    # probe_once 化后，F0 流与旧二进制略有差异；binary = 本轮 repeat 版）。
+    # 实测命令：--addrpath_lsu_tier F0 --addrpath_warmup_events 1
+    #           --addrpath_span_events 1000000000（本期改为大 span 防早火）
+    #   A01/A02 agu_addrmodes: 2789    A01/A02 gap_bfs: 264751
+    #   A04/A05/A07/A08 agu:   2819    A04 mini_check:  3187
+    #   A07/A08 sq_forward:    2568    A06 agu: 1685 / A06 sq: 1627
+    ("A07", "agu_addrmodes"): 2819,
+    ("A07", "sq_forward"): 2568,
+    ("A01", "agu_addrmodes"): 2789,
+    ("A02", "agu_addrmodes"): 2789,
+    ("A04", "agu_addrmodes"): 2819,
+    ("A04", "mini_check"): 3187,
+    ("A05", "agu_addrmodes"): 2819,
+    ("A08", "agu_addrmodes"): 2819,
+    ("A08", "sq_forward"): 2568,
+    ("A01", "gap_bfs"): 264751,
+    ("A02", "gap_bfs"): 264751,
+    # A06 is unblocked only after Task 4's real-run assertion; its census is
+    # measured here but the entry is added with that task.
+    ("A06", "agu_addrmodes"): 1685,
+    ("A06", "sq_forward"): 1627,
 }
 
 # [R6-A-SPAN 2026-10-28] Models whose F0 cells are parameterized from the
@@ -1122,7 +1123,64 @@ ADDRPATH_F0_SPAN = {
 # (changing them without measured streams would trade one silent bias for
 # another). A06 is MODEL_BLOCKED and has no entry — if it is ever unblocked
 # without a census the loud refusal below stops it.
-ADDRPATH_F0_SPAN_MODELS = frozenset({"A01", "A02", "A04", "A05", "A07", "A08"})
+ADDRPATH_F0_SPAN_MODELS = frozenset({"A01", "A02", "A04", "A05", "A06",
+                                     "A07", "A08"})
+
+# [R6-A2-REPEAT 2026-10-28] 结构性 NO_FIRE 的同源 repeat 表。
+#
+# 用户工作令公式：repeat_factor = ceil(1.2 * max_first_fire / eligible_per_iter)。
+# 本轮实测发现 eligible 不是“整次运行流长 × N”：首趟含静态 libc 启动流，
+# 后续每趟只增加探针体的 eligible 增量。因此用
+#   R = 1 + ceil((1.2 * max_first_fire - E1) / delta_per_iter)
+# 计算（E1 = repeat=1 总 eligible，delta = repeat=5 与 repeat=1 的差值/4）。
+#
+# 实测（2026-10-28，current repeat binary）：
+#   A01/A02 agu: E1=2789 delta=384.5     A04 mini: E1=3187 delta=783.5
+#   A04/A05/A07/A08 agu: E1=2819 delta=384.25
+#   A07/A08 sq: E1=2568 delta=178.5      A01 gap: E1=264751 delta=261909
+#   A06 agu: E1=1685 delta=207.5         A06 sq: E1=1627 delta=164.75
+# 首火位置（eligible 序数，seed1/2/3 的 max；由 seeded LCG 精确推导）：
+#   F1 max=1,290,806；F2/F4 max=140,806。
+REPEAT_FACTOR = {
+    # F1 (iv=1e6)
+    ("A01", "F1", "agu_addrmodes"): 4023,
+    ("A01", "F1", "gap_bfs"): 6,
+    # F2 (iv=1e5)
+    ("A01", "F2", "agu_addrmodes"): 434,
+    ("A02", "F2", "agu_addrmodes"): 434,
+    ("A04", "F2", "agu_addrmodes"): 434,
+    ("A04", "F2", "mini_check"): 213,
+    ("A05", "F2", "agu_addrmodes"): 434,
+    ("A08", "F2", "agu_addrmodes"): 434,
+    ("A08", "F2", "sq_forward"): 934,
+    ("A06", "F2", "agu_addrmodes"): 808,
+    ("A06", "F2", "sq_forward"): 1017,
+    # F4 (iv=1e5; same draw positions as F2)
+    ("A07", "F4", "agu_addrmodes"): 434,
+    ("A07", "F4", "sq_forward"): 934,
+}
+
+REPEAT_MAX = 4096
+
+
+def repeat_factor_for(model, freq, binary):
+    """Return the measured repeat factor, 1 for non-interval tiers, or None
+    when an interval-tier cell has no census (loud refusal upstream)."""
+    if freq not in ("F1", "F2", "F4"):
+        return 1
+    return REPEAT_FACTOR.get((model, freq, binary))
+
+
+def parse_iter_checksums(text):
+    """Parse the `ITER:<n>:<16hex>` lines emitted by chaos_repeat.h.
+
+    Returns [(iteration_index, checksum)] in file order. A missing line is
+    evidence of a crash before that iteration completed — callers must not
+    fill it in.
+    """
+    return [(int(m.group(1)), m.group(2))
+            for m in re.finditer(r"^ITER:(\d+):([0-9a-f]{16})\s*$",
+                                 text or "", re.M)]
 
 
 def _addrpath_tier_flags(model, tier, wl_binary=None):
@@ -1826,6 +1884,23 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
             % (model, binary, span_table, model, binary))
     flags += tier_flags
     flags += extra
+    # [R6-A2-REPEAT] interval tiers must reach their first fire position on
+    # the SAME workload (no carrier swap). Unknown = loud refusal.
+    if family == "addrpath" and model.startswith("A") and freq in (
+            "F1", "F2", "F4"):
+        rep = repeat_factor_for(model, freq, binary)
+        if rep is None:
+            return None, None, (
+                "BLOCKED(repeat-factor-unmeasured: %s-%s-%s — run the "
+                "repeat=1/5 census and add REPEAT_FACTOR[('%s','%s','%s')] "
+                "in tools/lsu_campaign.py; refusing to invent a factor)"
+                % (model, freq, binary, model, freq, binary))
+        if rep > REPEAT_MAX:
+            return None, None, (
+                "BLOCKED(repeat-factor-over-cap: %s-%s-%s needs %d > %d)"
+                % (model, freq, binary, rep, REPEAT_MAX))
+        if rep > 1:
+            flags += ["--chaos_repeat", str(rep)]
     return flags, golden, binary
 
 
@@ -2691,6 +2766,9 @@ def run_single_cell(cell, args, seed, outdir):
         return {"outcome": "Blocked", "error": golden}
 
     family = MODEL_FLAGS[model][0]
+    freq = cell[COL_FREQ].strip()
+    _rep = (repeat_factor_for(model, freq, _binary)
+            if family == "addrpath" else 1)
     outdir.mkdir(parents=True, exist_ok=True)
     # [MDSPEC][H0] every sample carries the propagation trace + identity
     prop = propagation_flags(runid, seed)
@@ -2904,6 +2982,22 @@ def run_single_cell(cell, args, seed, outdir):
 
     result = classify_run(outdir, stdout_file, golden, exit_code, stderr_file)
     result["timeout_seconds"] = _se_timeout   # effective SE budget, visible
+    # [R6-A2-REPEAT] manifest-visible repeat identity + per-iteration oracle.
+    # Every emitted ITER line is checked independently against the frozen
+    # golden; a missing tail is recorded as completed_iterations < factor
+    # (never filled in). A mismatch is the SDC signal, not a crash.
+    if _rep is not None:
+        result["repeat_factor"] = _rep
+        _stdout_text = stdout_file.read_text(errors="replace")
+        _iters = parse_iter_checksums(_stdout_text)
+        result["oracle_iterations"] = [
+            {"iter": i, "checksum": c, "matches_golden": c == golden}
+            for i, c in _iters]
+        result["oracle_iterations_completed"] = len(_iters)
+        result["oracle_iterations_expected"] = _rep
+        if _rep > 1 and not _iters:
+            result["oracle_repeat_error"] = (
+                "repeat_factor=%d but no ITER line on stdout" % _rep)
     # [MDSPEC][R4-1-review-I2] surface the injector's LOUD F0 span alarms
     # (CHAOS_LSU_TRIGGER_ALARM, chaos_lsu_trigger.hh summary) into the
     # per-run result so the cell summary prints them — the alarm must be

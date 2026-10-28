@@ -163,6 +163,11 @@ class LSU_IQ(IQUnit):
 
 p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
+# [LSU][MDSPEC][R6-A2] 同源 repeat 载体：把重复次数作为 argv[1] 传给
+# workloads/directed/chaos_repeat.h；1（默认）不传参数，输出与旧二进制
+# 逐字节一致。上限与头文件一致（600），越界直接 p.error。
+p.add_argument("--chaos_repeat", type=int, default=1,
+               help="repeat the same SE probe N times (1..4096; default 1)")
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
 p.add_argument("--maxinsts", type=int, default=0)
 # --- C4-LSU variant knob (02 敏感性配置列; S5=注入器侧, 不在此) ---
@@ -782,7 +787,11 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-board.set_se_binary_workload(binary=FileResource(args.cmd, override=True))
+if args.chaos_repeat < 1 or args.chaos_repeat > 4096:
+    p.error("--chaos_repeat must be in 1..4096 (got %d)" % args.chaos_repeat)
+_repeat_args = ([str(args.chaos_repeat)] if args.chaos_repeat > 1 else [])
+board.set_se_binary_workload(binary=FileResource(args.cmd, override=True),
+                             arguments=_repeat_args)
 
 # B0 缓存几何 + L2 预取器 —— _pre_instantiate 钩子内覆盖 (唯一可设时点)。
 # HONEST: stdlib L1DCache/L1ICache/L2Cache 默认各挂 StridePrefetcher()
