@@ -51,9 +51,13 @@ import lsu_campaign as LC  # noqa: E402
 RUNS_ROOT = Path(os.environ.get("LSU_RUNS_ROOT",
                                 "/home/sdc/gem5-fi-ding/runs/lsu"))
 BATCH_DIRNAME = "r6_a4_census_r6a4"
+# [R6-A4] the candidate binary this round's census AND formal reruns share.
+# The pre-R6-A4 frozen binary's SHA is kept in the preserved summary
+# (summary.frozen_c52ef225.json) for provenance; it is not the campaign binary
+# any more.
 FROZEN_SHA = os.environ.get(
     "LSU_FROZEN_SHA",
-    "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e")
+    "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046")
 
 # chaos_lsu_trigger.hh intervalEvents()
 TIER_INTERVAL = {"F1": 1000000, "F2": 100000, "F3": 10000, "F4": 100000}
@@ -407,6 +411,7 @@ def run_key_once(key, repeat, outroot=None, timeout=900, no_fire=False,
             "timed_out": r["timed_out"], "signal": r["signal"],
             "seconds": seconds, "start_time": start, "end_time": end,
             "cmd": cmd, "pid": r["pid"], "binary_sha256": g5_sha,
+            "workload_sha256": manifest["workload_sha256"],
             "trigger": trig, "funnel": funnel, "campaign": campaign,
             "iter_count": iters, "stdout": out_text, "stderr": err_text,
             "manifest": manifest}

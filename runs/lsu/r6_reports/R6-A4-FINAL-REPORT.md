@@ -84,6 +84,15 @@
   W5 R=84,418 实测约 9 分钟；超过上界响亮 BLOCKED，不无限循环。
 - gap_bfs F2：未注入流 E1=264,751（新器件 264,774）≥ 1.2×max ⇒ **R=1**，
   首趟即确定性首火；A01/A02-F2-W9 六格不再 BLOCKED。
+- **同源复核（新二进制 a1632e0f…，与 25 格重跑同一二进制）**：
+  `runs/lsu/r6_a4_census_newbin/summary.json` + 逐 run manifest（config/workload
+  pin + SHA）。15 键 repeat=1/5/10 + R 处 verify；所有可运行键 verify
+  `injected=1`（maxFaults 封顶生效），三方计数一致；A08-a W3 R'=15,349
+  （161.9 s）、W5 R'=84,418（520.7 s）、W9 R=1；A08-b 两键仍 `delta<=0`。
+  正式样本使用的是表内 R（旧冻结 census 标定，W3=15,706/W5=84,418），
+  均 **≥** 新 census 的最小 R，同样满足 ≥1.2×max 覆盖（不是伪造）。
+  旧二进制 census 与 summary 完整保留（`summary.frozen_c52ef225.json`、
+  `batch_manifest.frozen_c52ef225.json`），未删除任何证据。
 
 ### 4.2 maxFaults 在 LSU trigger 路径真正生效
 
@@ -146,6 +155,9 @@ addrpath FUNNEL / campaign）。
   `tests/test_lsu_prop_fields.py` → ALL PASS。
 - repeat：`pytest tests/test_lsu_r6a4_repeat_census.py -m "not slow"` → 15 passed；
   `python3 tests/test_lsu_r6a2_repeat.py` → ALL PASSED。
+- 同源慢测试：`pytest tests/test_lsu_r6a4_repeat_census.py -q -m slow`
+  → **1 passed**（真实 gem5：A05-d-W3 R=785，injected=1，三方计数一致，
+  15706/84418 等 R 的 ITER 行数完整；证据二进制与 batch_manifest 一致）。
 - 完整回归：`pytest tests -q -m "not slow"
   --ignore=tests/test_lsu_r6_reconcile_realroot.py` → **170 passed, EXIT=0**。
   - `tests/test_lsu_r6_reconcile_realroot.py` 是脚本式测试（import 期执行并
