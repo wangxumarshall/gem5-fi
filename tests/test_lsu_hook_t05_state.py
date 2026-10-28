@@ -237,6 +237,17 @@ def main():
     check("campaign 把该站点视为诊断（不计注入）",
           "arm_tlb_lookup_no_request" in LC._ARMTLB_DIAG_SITES)
 
+    print("[12] [R6-V4-CAMFIRE] CAM+tier 的 funnel 同时给出 fires 与 applied")
+    check("CHaosArmTLB 打印 CHAOS_LSU_TRIGGER_CAM",
+          "CHAOS_LSU_TRIGGER_CAM" in cc)
+    check("该行同时含 fires= 与 applied=",
+          "fires=%llu applied=%llu" in cc)
+    check("只对 CAM 族打印（isCamFault 判定）",
+          "isCamFault(fault_type_enum)" in cc.split("CHAOS_LSU_TRIGGER_CAM")[0][-800:])
+    check("campaign 用 applied 覆盖 injected（无 CAM 行时保留旧语义）",
+          "CHAOS_LSU_TRIGGER_CAM" in src("tools/lsu_campaign.py")
+          and "applied=" in src("tools/lsu_campaign.py"))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

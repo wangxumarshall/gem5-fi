@@ -2278,14 +2278,30 @@ _ARMTLB_TRIGGER_RE = None      # compiled lazily on first use
 
 
 def _armtlb_trigger_counts(stdout_text):
-    """(attempted, eligible, injected) from the CHAOS_LSU_TRIGGER line, or None."""
+    """(attempted, eligible, injected) from the CHAOS_LSU_TRIGGER line, or None.
+
+    [R6-V4-CAMFIRE] For the CAM family under a mounted tier the funnel's
+    ``injected`` counts tier FIRES; a fire on a HIT cannot fabricate an
+    injection, so the authoritative applied count is printed on a separate
+    ``CHAOS_LSU_TRIGGER_CAM ... applied=N`` line. When that line is present it
+    overrides ``injected`` (attempted/eligible still come from the main line);
+    fires stay visible in the same line. No gate is relaxed: log/stats/applied
+    must still agree exactly.
+    """
     import re as _re
     global _ARMTLB_TRIGGER_RE
     if _ARMTLB_TRIGGER_RE is None:
         _ARMTLB_TRIGGER_RE = _re.compile(
             r"CHAOS_LSU_TRIGGER: .*?attempted=(\d+) eligible=(\d+) injected=(\d+)")
     m = _ARMTLB_TRIGGER_RE.search(stdout_text or "")
-    return tuple(int(x) for x in m.groups()) if m else None
+    if not m:
+        return None
+    att, elig, inj = (int(x) for x in m.groups())
+    cam = _re.search(r"CHAOS_LSU_TRIGGER_CAM: .*?fires=(\d+) applied=(\d+)",
+                     stdout_text or "")
+    if cam:
+        inj = int(cam.group(2))
+    return (att, elig, inj)
 
 
 def _armtlb_stats_injected(outdir):

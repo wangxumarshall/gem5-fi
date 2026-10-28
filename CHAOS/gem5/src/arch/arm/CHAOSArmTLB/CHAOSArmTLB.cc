@@ -96,6 +96,24 @@ namespace gem5
             registerExitCallback([this]() {
                 if (lsuTrigger)
                     lsuTrigger->summary("CHAOSArmTLB");
+                // [R6-V4-CAMFIRE] CAM family under a mounted tier: a tier
+                // FIRE on a HIT cannot fabricate an injection (false_hit
+                // needs a miss; double_hit needs a second match; wrong_way
+                // needs another valid way), so the funnel's monotonically
+                // fire-counted `injected=` legitimately exceeds the APPLIED
+                // count. Measured (T07-F4-W4 seed1): fires=762, applied=4,
+                // log=4, stats=4 -> the three-source check reported a
+                // contradiction that was a funnel-semantics artefact.
+                // This line states BOTH numbers; `applied` is authoritative.
+                if (lsuTrigger && isCamFault(fault_type_enum)) {
+                    printf("CHAOS_LSU_TRIGGER_CAM: injector=CHAOSArmTLB "
+                           "tier=F%d fires=%llu applied=%llu (fires on a hit "
+                           "cannot fabricate; applied is authoritative)\n",
+                           static_cast<int>(lsuTrigger->tier),
+                           (unsigned long long)lsuTrigger->fires,
+                           (unsigned long long)faults_injected_count);
+                    fflush(stdout);
+                }
                 printNoEffectSummary();      // [R6-F5-NOEFFECT]
             });
         } else {

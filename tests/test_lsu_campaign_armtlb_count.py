@@ -242,6 +242,33 @@ def main():
     check("只有 armed（walk 未到 refill）→ log=0 且如实报矛盾",
           s9b["log"] == 0 and s9b["contradiction"] is True, s9b["detail"])
 
+    print("[10] [R6-V4-CAMFIRE] CAM+tier：funnel 的 injected=fires 用 applied 行纠正")
+    # 实测 T07-F4-W4 seed1：fires=762、applied=4、日志 4、stats 4。主 funnel 行
+    # 的 injected 是发射数（命中 lookup 不能伪造注入），必须用 CAM 行里的
+    # applied 作为权威注入数；否则三源核对会报假矛盾。
+    CAM_MAIN = ("CHAOS_LSU_TRIGGER: injector=CHAOSArmTLB tier=F4 "
+                "attempted=25607183 eligible=25607183 injected=762 "
+                "first_eligible_tick=1 last_eligible_tick=2 fires=n/a "
+                "no_effect=n/a (activated=W3-L0-layer)")
+    CAM_LINE = ("CHAOS_LSU_TRIGGER_CAM: injector=CHAOSArmTLB tier=F4 "
+                "fires=762 applied=4 (fires on a hit cannot fabricate; "
+                "applied is authoritative)")
+    cam_log = ["Tick: 1, Site: arm_tlb_lookup, VA: 0x1000, CAM: miss -> hit, FaultType: false_hit"] * 4
+    d10, _ = _outdir(cam_log, trigger=CAM_MAIN, stats=(
+        "board.chaos_armtlb.numFaultsInjected 4\n"))
+    s10 = LC.armtlb_count_sources(d10, CAM_MAIN + "\n" + CAM_LINE)
+    check("CAM 行存在时 injected 取 applied=4",
+          s10["trigger"] == 4, str(s10["trigger"]))
+    check("attempted/eligible 仍取主行",
+          (s10["attempted"], s10["eligible"]) == (25607183, 25607183),
+          f"{s10['attempted']}/{s10['eligible']}")
+    check("三源 log/stats/applied 一致 → 无 contradiction",
+          s10["contradiction"] is False, s10["detail"])
+    # 没有 CAM 行时仍是旧语义（fires）
+    s10b = LC.armtlb_count_sources(d10, CAM_MAIN)
+    check("无 CAM 行 → trigger=fires（旧语义保留）", s10b["trigger"] == 762,
+          str(s10b["trigger"]))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
