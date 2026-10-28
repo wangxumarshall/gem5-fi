@@ -83,6 +83,13 @@ KIND_LAYER = {
     "squash_discarded": "L4",
     # [R6-A2/A07-c] bounded ready-loss outcomes (real watchdog / real squash).
     "ready_loss_watchdog": "L4", "ready_loss_squashed": "L4",
+    # [R6-A4/A07-b] 真实 ready-delay 生命周期（resume→retire/squash）。
+    # retired 的 detection_layer=L5（真实 commit 钩子）；squashed/
+    # discarded 在 L4。resume 是 L1 生命周期观测（不是检测事件）。
+    "ready_delay_resume": "L1",
+    "ready_delay_retired": "L5",
+    "ready_delay_squashed": "L4",
+    "ready_delay_discarded": "L4",
     # [MDSPEC][H1] lsq.cc 统一事件（表 9：L1=EA/size/flags 进入 LSQRequest；
     # L2=请求离开 LSQ 去翻译/访存）
     "lsq_push": "L1", "lsq_sendfrag": "L2",
