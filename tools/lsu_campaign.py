@@ -1110,8 +1110,13 @@ ADDRPATH_F0_SPAN = {
     ("A04", "agu_addrmodes"): 2819,
     ("A04", "mini_check"): 3187,
     ("A05", "agu_addrmodes"): 2819,
-    ("A08", "agu_addrmodes"): 2819,
-    ("A08", "sq_forward"): 2568,
+    # [R6-A3/A08] measured with the REAL pairing (binary 15e69370): the
+    # eligible stream is the same-tick pair count, NOT the bare mem-op
+    # stream. Odd seeds run A08-a (channel; 110 pairs on sq_forward, 110 on
+    # agu_addrmodes); even seeds run A08-b (EA swap; 21 same-page pairs).
+    # The per-seed override below picks the right span.
+    ("A08", "agu_addrmodes"): 110,
+    ("A08", "sq_forward"): 110,
     ("A01", "gap_bfs"): 264751,
     ("A02", "gap_bfs"): 264751,
     # A06 is unblocked only after Task 4's real-run assertion; its census is
@@ -2790,9 +2795,20 @@ def run_single_cell(cell, args, seed, outdir):
         j = flags.index("--addrpath_span_events")
         flags[j + 1] = "243"     # measured a05_prepost stream on W3
     # [R6-A3/A08] seed parity: odd = A08-a (channel), even = A08-b (EA swap).
-    if model == "A08" and seed % 2 == 0:
-        i = flags.index("--agu_pre_mode")
-        flags[i + 1] = "a08_pair_swap"
+    if model == "A08":
+        # [R6-A3/A08] the two submodels have different eligible streams:
+        # A08-a (odd) sees every same-tick pair (measured 110 on both W3/W5),
+        # A08-b (even) only same-page store-first pairs (measured 21). The
+        # F0 span must be the measured stream of the SELECTED submodel, not
+        # a shared bare-stream number.
+        if seed % 2 == 0:
+            i = flags.index("--agu_pre_mode")
+            flags[i + 1] = "a08_pair_swap"
+            j = flags.index("--addrpath_span_events")
+            flags[j + 1] = "21"
+        else:
+            j = flags.index("--addrpath_span_events")
+            flags[j + 1] = "110"
     if model == "A04":
         if seed % 2 == 0:
             i = flags.index("--agu_pre_mode")
