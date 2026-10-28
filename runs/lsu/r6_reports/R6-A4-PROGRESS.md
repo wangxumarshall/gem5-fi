@@ -61,7 +61,6 @@
 
 ## 未决
 
-- Lane A：F2/gap census 与 repeat 表（进行中）
-- Lane B：A07-b 生命周期 C++（进行中，未构建）
-- Lane C：A01 真实流机制核对报告（进行中）
-- 构建：等 Lane A census 结束（scons 期间 gem5=0）
+- A08-F2-W3 s2 / A08-F2-W5 s2：A08-b 结构性 BLOCKED（delta=0），需用户裁决
+  实验规格（F2-not-applicable / 事件触发档 / 换 workload / 换子模型），
+  见 `R6-A4-FINAL-REPORT.md` §8。其余 23 格与上一轮 65 格均已合格。
