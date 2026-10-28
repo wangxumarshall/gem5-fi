@@ -43,6 +43,7 @@
 #include <csignal>
 
 #include "arch/generic/decoder.hh"
+#include "base/chaos_guest_fault.hh"
 #include "base/logging.hh"
 #include "cpu/base.hh"
 #include "cpu/thread_context.hh"
@@ -50,6 +51,7 @@
 #include "mem/page_table.hh"
 #include "sim/full_system.hh"
 #include "sim/process.hh"
+#include "sim/sim_exit.hh"
 #include "sim/system.hh"
 
 namespace gem5
@@ -99,6 +101,21 @@ GenericPageTableFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
     if (!FullSystem) {
         Process *p = tc->getProcessPtr();
         handled = p->fixupFault(vaddr);
+    }
+    // [R6-A-SEGV 2026-10-28] A CHAOS-injected effective address can land on
+    // an unmapped page. On real hardware that is a guest SIGSEGV (the app
+    // dies); in SE there is no OS, so upstream panics and aborts — losing
+    // stats.txt and the prop_evt gzip trailer. Model the guest SEGV as a
+    // normal simulation exit so the evidence is flushed. Only addresses
+    // registered by CHAOSAddrPath take this path; baseline faults keep the
+    // upstream panic unchanged.
+    if (!handled && chaos::guestSegvArmed()) {
+        const bool exact = chaos::consumeInjectedGuestVa(vaddr);
+        inform("chaos: %s address %#x faulted (guest SEGV) — ending "
+               "simulation with normal teardown\n",
+               exact ? "injected" : "downstream-unmapped", vaddr);
+        exitSimLoop("chaos_guest_segv", 128 + SIGSEGV);
+        return;
     }
     panic_if(!handled &&
             !tc->getSystemPtr()->trapToGdb(GDBSignal::SEGV, tc->contextId()),

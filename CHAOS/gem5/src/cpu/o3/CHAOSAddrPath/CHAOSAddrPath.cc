@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "base/chaos_guest_fault.hh"  // [R6-A-SEGV] injected-VA registry
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // [MDSPEC][R4-5.8] A07 ready hook (DynInst)
@@ -33,6 +34,12 @@ namespace gem5
           aguResumeEvent([this] { this->resumeDeferredAgu(); },
                          name() + ".aguResume")
     {
+        // [R6-A-SEGV 2026-10-28] Arm the guest-SEGV teardown: once this
+        // injector exists, any unhandled SE page-table fault is an experiment
+        // outcome (the corrupted program can also dereference a wild pointer
+        // derived from the injected one) and must exit normally (stats +
+        // trace flushed), not panic. Baseline runs never arm this.
+        chaos::noteChaosAddrPathActive();
         // [MDSPEC][R4-5.8] A07 config validation — LOUD refusals, no silent
         // fallback (C11/C12 discipline): the ready-delay mode is
         // LSU-trigger-native (the cycle-window legacy path has no event
@@ -345,6 +352,10 @@ namespace gem5
             return false;
         }
         req->setVaddr(new_vaddr);
+        // [R6-A-SEGV 2026-10-28] Register the injected VA so an SE page-table
+        // fault on it is modelled as a guest SEGV (normal teardown: stats and
+        // prop_evt flushed) instead of a gem5 panic that truncates evidence.
+        chaos::noteInjectedGuestVa(new_vaddr);
         // W3 L0: register the injected item + local funnel accounting. The
         // trigger-mirrored counts are taken at EXIT (see the exit callback)
         // — mirroring at injection time would snapshot mid-run values.
