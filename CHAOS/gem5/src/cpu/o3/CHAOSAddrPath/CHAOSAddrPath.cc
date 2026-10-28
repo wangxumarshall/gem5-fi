@@ -87,9 +87,11 @@ namespace gem5
         // validated per event by a06LoadSize (declines are counted, and
         // 0 = "disabled" is a legitimate configuration).
         if (be_mode != "off" && be_mode != "observe"
-            && be_mode != "shift_mid") {
+            && be_mode != "shift_mid"
+            && be_mode != "rotate1_clear_msb") {
             panic("CHAOSAddrPath: unknown be_mode '%s' "
-                  "(off | observe | shift_mid)\n", be_mode.c_str());
+                  "(off | observe | shift_mid | rotate1_clear_msb)\n",
+                  be_mode.c_str());
         }
         if (be_mode != "off" && pre_mode != "a06_size")
             panic("CHAOSAddrPath: be_mode requires pre_mode=a06_size (A06-b "
@@ -501,12 +503,31 @@ namespace gem5
         // and the very same verdict drives the value write in the a06_size
         // branch below (computed once; no RNG, hence deterministic).
         A06LoadVerdict a06_load_v = A06LoadVerdict::Success;
-        unsigned a06_load_tgt = 0;
+        // [R6-A2/A06 RULING 2026-10-28] A06-a = legal DOWN-SHRINK
+        // (target = original/2). The load leg is structurally unsafe: the
+        // fixed-width completion asserts sizeof(T) <= pkt->size, so any
+        // load shrink aborts (measured SIGABRT). Loads are therefore
+        // ineligible and never consume the trigger budget (F-049).
         if (pre_mode == "a06_size" && isLoad)
-            a06_load_v = a06LoadSize(addr, size, a06_load_tgt);
+            a06_load_v = A06LoadVerdict::ShrinkUnsafe;
         const bool a06_load_declined =
-            (pre_mode == "a06_size" && isLoad &&
-             a06_load_v != A06LoadVerdict::Success);
+            (pre_mode == "a06_size" && isLoad);
+        // A06-b (same-width non-zero byte mask) is also store-only: a load
+        // mask has no architectural consumer on this path.
+        const bool a06b_mode =
+            (pre_mode == "a06_size" && be_mode == "rotate1_clear_msb");
+        // A06-a store eligibility: size in {2,4,8,16}, aligned, target
+        // = size/2 is a legal AGU size. A06-b: same width, len == size.
+        const bool a06a_store_ok =
+            (pre_mode == "a06_size" && !a06b_mode && !isLoad
+             && size >= 2 && (size % 2) == 0
+             && isLegalAguSize(size / 2) && (addr % size) == 0);
+        const bool a06b_store_ok =
+            (a06b_mode && !isLoad && size >= 2
+             && (unsigned)byte_enable.size() == size);
+        const bool a06_store_declined =
+            (pre_mode == "a06_size" && !isLoad
+             && !(a06b_mode ? a06b_store_ok : a06a_store_ok));
 
         if (lsuTrigger) {
             lsuTrigger->onAttempt();
@@ -538,7 +559,7 @@ namespace gem5
             // consume the F6 once-ever shot. The verdict was computed ONCE
             // above and is reused by the a06_size branch below.
             if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)
-                || a06_load_declined) {
+                || a06_load_declined || a06_store_declined) {
                 // [LSU][MDSPEC][A6] op-class 拒斥（不计 activated）。A06
                 // 2026-10-19 裁决曾把全部 load 拒斥（store-only 安全路径）；
                 // R4-6-A06 2026-10-22 load 侧放宽到 widen；R4-8-A06
@@ -660,48 +681,23 @@ namespace gem5
             //   node's old_size/new_size (registerInjection, lsq.cc) and the
             //   addr registry range [addr, addr+new_size).
             if (isLoad) {
-                if (a06_load_declined) {
-                    // Belt-and-braces: the trigger path already filtered
-                    // this (eligibility == writability). The legacy
-                    // (non-trigger) path lands here — count per reason,
-                    // never write.
-                    switch (a06_load_v) {
-                      case A06LoadVerdict::NoTarget:
-                        ++obs_pre_a06_load_notarget; break;
-                      case A06LoadVerdict::Illegal:
-                        ++obs_pre_a06_load_illegal; break;
-                      case A06LoadVerdict::NoChange:
-                        ++obs_pre_a06_load_nochange; break;
-                      case A06LoadVerdict::Geometry:
-                        ++obs_pre_a06_load_geom; break;
-                      case A06LoadVerdict::ShrinkUnsafe:
-                        // [R4-10][A06] counted per REASON (was `default:`).
-                        ++obs_pre_a06_load_shrink_unsafe; break;
-                      default: break;
-                    }
-                    ++obs_pre_opclass;   // [LSU][OBS-2]
-                    return size;
-                }
-                // [MDSPEC][R4-8-A06] split the injection counter by direction
-                // (target vs ORIGINAL size, before the write).
-                // [R4-10][A06] the `else` branch (obs_pre_a06_load_shrink) is
-                // now UNREACHABLE: a06_load_declined==false implies
-                // a06_load_tgt > size (shrink returns ShrinkUnsafe above), so
-                // only the widen arm is ever taken. Kept for field stability;
-                // declines are counted in obs_pre_a06_load_shrink_unsafe.
-                if (a06_load_tgt > size) ++obs_pre_a06_load_widen;
-                else                     ++obs_pre_a06_load_shrink;
-                size = a06_load_tgt;
-                // NOTE: the carrier's buffer floor (DynInst::
-                // chaosA06BufBytes) is NOT set here — this hook has no
-                // DynInst handle. LSQ::pushRequest compares the returned size
-                // against its saved pre-fault size and sets the field on the
-                // shrinking load, which covers the trigger and legacy paths
-                // alike (lsq.cc).
-            } else if (isLegalAguSize(agu_size_to)) {
-                size = (unsigned)agu_size_to;
+                // A06 ruling: every A06 load is ineligible (fixed-width
+                // completion cannot survive a size shrink). Counted per
+                // reason, never written, and never reached via the trigger
+                // route (a06_load_declined filtered it above).
+                ++obs_pre_a06_load_shrink_unsafe;
+                ++obs_pre_opclass;   // [LSU][OBS-2]
+                return size;
+            } else if (a06b_mode) {
+                // A06-b leaves the request SIZE untouched; the mask is
+                // substituted in the A06-b block below.
+            } else if (a06a_store_ok) {
+                // A06-a: legal downward shrink, target = original / 2.
+                // byte_enable is rebuilt all-true by lsq.cc when the length
+                // changes, so no stale mask survives.
+                size = size / 2;
             } else {
-                ++obs_pre_invalid; return size;   // [LSU][OBS-2] invalid target size — no-op, logged below
+                ++obs_pre_invalid; return size;
             }
         } else if (pre_mode == "a06s_store_size") {
             // REJECTED ALIAS (2026-10-19 MDSPEC §2 裁决): 规格定义 A06、无
@@ -799,7 +795,42 @@ namespace gem5
         const bool be_all_true = (be_ones == be_len);
         if (be_all_true) ++obs_be_all_true;
         bool be_substituted = false;
-        if (be_mode == "shift_mid") {
+        unsigned long old_be_bits = 0, new_be_bits = 0;
+        for (unsigned i = 0; i < be_len; ++i)
+            if (byte_enable[i]) old_be_bits |= (1UL << i);
+        // (new_be_bits is filled after any substitution, just before logging)
+        if (be_mode == "rotate1_clear_msb") {
+            // [R6-A2/A06-b] Same-width legal mask: rotate one byte; when the
+            // mask is all-true (the ISA's normal case) the rotation is a
+            // no-op, so clear the most-significant byte instead. Never zero,
+            // never the original, never outside the access size.
+            if (!a06b_store_ok) {
+                ++obs_be_declined;
+            } else {
+                std::vector<bool> m = byte_enable;
+                bool all_true = true;
+                for (bool b : m) if (!b) { all_true = false; break; }
+                if (all_true) {
+                    m[size - 1] = false;
+                } else {
+                    const bool first = m[0];
+                    for (unsigned i = 0; i + 1 < size; ++i) m[i] = m[i + 1];
+                    m[size - 1] = first;
+                }
+                bool any = false, same = true;
+                for (unsigned i = 0; i < size; ++i) {
+                    any = any || m[i];
+                    same = same && (m[i] == byte_enable[i]);
+                }
+                if (!any || same) {
+                    ++obs_be_declined;
+                } else {
+                    byte_enable = m;
+                    be_substituted = true;
+                    ++obs_be_substituted;
+                }
+            }
+        } else if (be_mode == "shift_mid") {
             if (size != old_size) {
                 // A06-a already owns this event (one fault per sample).
                 ++obs_be_declined;
@@ -825,6 +856,9 @@ namespace gem5
             }
         }
 
+        for (unsigned i = 0;
+             i < (unsigned)byte_enable.size() && i < 64; ++i)
+            if (byte_enable[i]) new_be_bits |= (1UL << i);
         chaosL0Register(l0_item, addr ? addr : size);
         ++l0_funnel.injected;
         ++l0_funnel.activated;
@@ -868,6 +902,10 @@ namespace gem5
                 << ", be_len=" << be_len
                 << ", be_ones=" << be_ones
                 << ", be_subst=" << (be_substituted ? 1 : 0)
+                << ", submodel="
+                << (a06b_mode ? "a06b" : "a06a")
+                << ", old_be=0x" << std::hex << old_be_bits
+                << ", new_be=0x" << new_be_bits << std::dec
                 << f6_fields
                 << std::endl;
         }

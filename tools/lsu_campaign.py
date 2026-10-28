@@ -1031,15 +1031,12 @@ MODEL_BLOCKED.update({
     # 非本臂。仍 BLOCKED 的**具体**理由：A06 的 F0 跨度未实测（本轮 campaign
     # 试跑报 CHAOS_LSU_TRIGGER_ALARM EARLY_BIAS：eligible=1677 ≫ span=1000），
     # 且 pilot 仅 1 seed（本仓别处解锁门槛为 3 seed + 逐边链）。
-    "A06": ("BLOCKED(load WIDEN + store size/shrink + A06-b store mask are "
-            "real-machine verified (campaign trial: activated=1); load SHRINK "
-            "is a PROVEN-unreachable path and is declined loudly "
-            "(Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT "
-            "evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: "
-            "A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span "
-            "1000) and the pilot is 1 seed. SPEC-SCOPE ruling item "
-            "(MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — "
-            "R4-8-A06 + R4-8-INT 2026-10-22)"),})
+    # [R6-A2/A06 RULING 2026-10-28] UNBLOCKED: A06-a = store original/2,
+    # A06-b = same-width non-zero mask (rotate one byte; all-true -> clear
+    # MSB). Loads (and size=1) are structurally ineligible and do not
+    # consume the trigger budget. F0 span is measured (1685/1627); the
+    # real-run canary lands with the A06 commit.
+    })
 
 # Trigger-tier flags per family. F0 span: addrpath/lsqfwd eligible streams
 # are per-request (large; span 1000 verified by the W10 trial); prefetch
@@ -2769,6 +2766,10 @@ def run_single_cell(cell, args, seed, outdir):
     freq = cell[COL_FREQ].strip()
     _rep = (repeat_factor_for(model, freq, _binary)
             if family == "addrpath" else 1)
+    # [R6-A2/A06 RULING] A06 has two submodels; seed parity selects them
+    # (A03 seed-parity precedent): odd = A06-a size/2, even = A06-b mask.
+    if model == "A06" and seed % 2 == 0:
+        flags += ["--agu_be_mode", "rotate1_clear_msb"]
     outdir.mkdir(parents=True, exist_ok=True)
     # [MDSPEC][H0] every sample carries the propagation trace + identity
     prop = propagation_flags(runid, seed)

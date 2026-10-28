@@ -581,7 +581,7 @@ p.add_argument("--agu_size_to_load", type=lambda x: int(x,0), default=0,
 # clears an INTERIOR byte (no tail run => size unchanged => the load
 # contract is untouched) and is applied to stores only.
 p.add_argument("--agu_be_mode", default="off",
-               choices=["off","observe","shift_mid"],
+               choices=["off","observe","shift_mid","rotate1_clear_msb"],
                help="[MDSPEC][R4-6-A06] A06-b byte-enable: off | observe "
                     "(census the faulted request's mask) | shift_mid "
                     "(substitute a middle-cleared mask; stores only, "

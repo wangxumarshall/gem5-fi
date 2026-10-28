@@ -183,7 +183,7 @@ namespace gem5
                             {"containment_layer", "L4"},
                             {"containment_reason",
                                 "store_discarded_not_retired"},
-                            {"last_state", "response_seen_commit_absent"},
+                            {"state_before", "response_seen_commit_absent"},
                             {"corr", "taint_prop"},
                         });
                         emitDetectSignal("Hardware RAS", true, p,

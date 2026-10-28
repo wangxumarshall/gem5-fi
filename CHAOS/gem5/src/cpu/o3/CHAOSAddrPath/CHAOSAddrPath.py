@@ -88,7 +88,11 @@ class CHAOSAddrPath(SimObject):
         "be_all_true into the injection log + the CHAOS_L0_A06 summary line) "
         "| shift_mid (A06-b injection: substitute an interior-cleared mask; "
         "STORES only — a load's mask has no architectural consumer on this "
-        "path; requires preMode=a06_size)")
+        "path; requires preMode=a06_size) "
+        "| rotate1_clear_msb (A06 RULING 2026-10-28: rotate the original "
+        "mask by one byte; if it is all-true (the ISA's normal mask) clear "
+        "the most-significant byte. Same width, non-zero, != original; "
+        "STORES only, size>=2)")
 
     # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake family (03 sheet A07:
     # "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"; hook =
