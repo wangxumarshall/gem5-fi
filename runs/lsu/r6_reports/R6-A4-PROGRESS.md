@@ -46,6 +46,19 @@
 - A08-b：待新二进制/干净测量确认 delta 是否恒 0（疑似结构性 NO_FIRE）。
 - 旧 census 的 verify 运行被注入污染 → Lane A 已改用污染隔离重跑；新二进制将提供 measure-only 模式。
 
+## 最终状态（2026-10-29）
+
+- HEAD `e4422a04`（= origin/fix/r6-a-unit-20261028），工作树 clean，origin/fi-ding
+  仍为 `659fa4cf`；无 gem5/scons/pytest/campaign 在跑。
+- 候选二进制 `a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046`。
+- 25 格批次：`BATCH END failed=0`；**23 合格 + 2 结构性 BLOCKED（A08-b）**；
+  与上一轮 65 格合并 = **88/90**。
+- 同源 census（新二进制）：15 键 verify 全 injected=1；A08-a W3 R'=15349、
+  W5 R'=84418、W9 R=1；A08-b delta=0。
+- 回归：非 slow 170 passed（EXIT=0）；slow 1 passed；定向 A01/A07/gate/repeat 全过。
+- 文档：25 篇 seed 文档 + INDEX-A + R6-A4-STATUS.{md,json} + EVIDENCE-DEDUP +
+  FINAL-REPORT + A01 分析报告，均已提交推送。
+
 ## 未决
 
 - Lane A：F2/gap census 与 repeat 表（进行中）
