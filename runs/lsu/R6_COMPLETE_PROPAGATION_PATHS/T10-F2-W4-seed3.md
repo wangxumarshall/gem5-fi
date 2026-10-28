@@ -39,153 +39,148 @@ Tick: 1971861830334, Site: arm_tlb_lookup_hit, VA: 0xffffffc008c730e0, old_pfn: 
 
 ## 3. 完整故障传播过程（按真实事件顺序）
 
-本 seed 的事件流按 `event_id` 顺序叙述；主链由终局见证 event_id=`10929`（kind=`consumer`）沿 `parent_event_id` 回溯到 L0 注入，共 23 个事件。以下逐层说明：每一段先给出该层真实事件，再说明字段/状态如何变化。
+本 seed 的事件流按 `event_id` 顺序叙述；主链由终局见证 event_id=`97`（kind=`errant_commit`）沿 `parent_event_id` 回溯到 L0 注入，共 22 个事件。以下逐层说明：每一段先给出该层真实事件，再说明字段/状态如何变化。
 
-（本 seed 共 12752 个事件，为可读性第 3 章只逐条叙述**主链** 23 个事件；**全部**事件已逐条列在第 4 章对照表中，第 5 章给出主链索引。旁支事件见第 4 章。）
+（本 seed 共 12752 个事件，为可读性第 3 章只逐条叙述**主链** 22 个事件；**全部**事件已逐条列在第 4 章对照表中，第 5 章给出主链索引。旁支事件见第 4 章。）
 
 ### 3.1 `inj`（L0 注入）
 
-- `event_id=10880`，`tick=1971861830334`，`corr=origin`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=ffffffc008c730e0`，`field=bit_flip`，`before=80c73`，`after=80c53`
+- `event_id=0`，`tick=238095582084`，`corr=origin`，`request_id=520906`，`dyn_inst_seq=520906`，`va=ffffffc009483950`，`field=bit_flip`，`before=81d75`，`after=85d75`
 
 ### 3.2 `tlb_lookup`（L1 TLB 查询）
 
-- `event_id=10881`，`parent_event_id=10880`，`tick=1971861830334`，`corr=seq_primary`，`request_id=1456805`，`dyn_inst_seq=1456805`，`walk_id=0`，`va=ffffffc008c730e0`，`entry_index=6`，`way=-1`，`field=post_lookup`，`before=80c73`，`after=80c53`，`state_before=vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c73;ap=0;mtype=2;page_size=1000;pa=80c730e0`，`state_after=vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c53;ap=0;mtype=2;page_size=1000;pa=80c530e0`
-  该事件把 TLB 表项的状态/字段从 `vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c73;ap=0;mtype=2;page_size=1000;pa=80c730e0` 变为 `vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c53;ap=0;mtype=2;page_size=1000;pa=80c530e0`；这就是故障值进入翻译路径的位置。
+- `event_id=1`，`parent_event_id=0`，`tick=238095582084`，`corr=seq_primary`，`request_id=520906`，`dyn_inst_seq=520906`，`walk_id=0`，`va=ffffffc009483950`，`entry_index=21`，`way=-1`，`field=post_lookup`，`before=81d75`，`after=85d75`，`state_before=vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950`，`state_after=vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=85d75;ap=0;mtype=2;page_size=1000;pa=85d75950`
+  该事件把 TLB 表项的状态/字段从 `vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950` 变为 `vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=85d75;ap=0;mtype=2;page_size=1000;pa=85d75950`；这就是故障值进入翻译路径的位置。
 
 ### 3.3 `tlb_pfn`（L1 TLB 表项(pfn)）
 
-- `event_id=10882`，`parent_event_id=10881`，`tick=1971861830334`，`corr=seq_primary`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=ffffffc008c730e0`，`pa=80c530e0`，`field=bit_flip`，`before=80c73`，`after=80c53`，`state_before=80c730e0`，`state_after=80c530e0`
-  该事件把 TLB 表项的状态/字段从 `80c730e0` 变为 `80c530e0`；这就是故障值进入翻译路径的位置。
+- `event_id=2`，`parent_event_id=1`，`tick=238095582084`，`corr=seq_primary`，`request_id=520906`，`dyn_inst_seq=520906`，`va=ffffffc009483950`，`pa=85d75950`，`field=bit_flip`，`before=81d75`，`after=85d75`，`state_before=81d75950`，`state_after=85d75950`
+  该事件把 TLB 表项的状态/字段从 `81d75950` 变为 `85d75950`；这就是故障值进入翻译路径的位置。
 
 ### 3.4 `tlb_translate_result`（L2 翻译结果）
 
-- `event_id=10883`，`parent_event_id=10882`，`tick=1971861830334`，`corr=seq_primary`，`request_id=1456805`，`dyn_inst_seq=1456805`，`walk_id=0`，`va=ffffffc008c730e0`，`pa=80c530e0`，`entry_index=6`，`way=-1`，`field=effective_pa_changed`，`before=80c730e0`，`after=80c530e0`，`state_before=vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c73;ap=0;mtype=2;page_size=1000;pa=80c730e0`，`state_after=vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c53;ap=0;mtype=2;page_size=1000;pa=80c530e0`，`contained=0`，`outcome=NoFault`
-  翻译完成：PA 由 `80c730e0` 变为 `80c530e0`，outcome=`NoFault`，contained=`0`。
+- `event_id=3`，`parent_event_id=2`，`tick=238095582084`，`corr=seq_primary`，`request_id=520906`，`dyn_inst_seq=520906`，`walk_id=0`，`va=ffffffc009483950`，`pa=85d75950`，`entry_index=21`，`way=-1`，`field=effective_pa_changed`，`before=81d75950`，`after=85d75950`，`state_before=vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950`，`state_after=vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=85d75;ap=0;mtype=2;page_size=1000;pa=85d75950`，`contained=0`，`outcome=NoFault`
+  翻译完成：PA 由 `81d75950` 变为 `85d75950`，outcome=`NoFault`，contained=`0`。
 
-### 3.5 `lq_read`（L3 载入队列读取）
+### 3.5 `sq_execute`（L3 存储执行）
 
-- `event_id=10884`，`parent_event_id=10883`，`tick=1971861830334`，`corr=seq_primary`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=ffffffc008c730e0`，`lq_idx=185826`
+- `event_id=4`，`parent_event_id=3`，`tick=238095582084`，`corr=seq_primary`，`dyn_inst_seq=520906`，`va=ffffffc009483950`，`state_before=issued`，`sq_idx=54806`
   请求从 TLB 层进入 LSQ/内存路径；记录携带的 VA/PA/lq_idx/sq_idx 是关联依据。
 
-### 3.6 `cache_access`（L3 L1D 访问）
+### 3.6 `sq_writeback`（L3 存储写回）
 
-- `event_id=10885`，`parent_event_id=10884`，`tick=1971861830334`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=ffffffc008c730e0`，`pa=80c530e0`
+- `event_id=11`，`parent_event_id=4`，`tick=238095585414`，`corr=seq_primary`，`dyn_inst_seq=520906`，`pa=85d75950`，`state_after=packet_built`，`sq_idx=54806`
+  请求从 TLB 层进入 LSQ/内存路径；记录携带的 VA/PA/lq_idx/sq_idx 是关联依据。
+
+### 3.7 `cache_access`（L3 L1D 访问）
+
+- `event_id=12`，`parent_event_id=11`，`tick=238095585414`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`va=ffffffc009483950`，`pa=85d75950`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.7 `cache_return`（L3 L1D 返回）
+### 3.8 `cache_return`（L3 L1D 返回）
 
-- `event_id=10886`，`parent_event_id=10885`，`tick=1971861830334`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`pa=80c530e0`，`field=miss`
+- `event_id=13`，`parent_event_id=12`，`tick=238095585414`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`pa=85d75950`，`field=miss`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.8 `mshr_alloc`（L3 MSHR 分配）
+### 3.9 `mshr_alloc`（L3 MSHR 分配）
 
-- `event_id=10887`，`parent_event_id=10886`，`tick=1971861830334`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`cache_line=80c530e0`，`mshr_id=91`，`state_after=mshr_allocated`
+- `event_id=14`，`parent_event_id=13`，`tick=238095585414`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`cache_line=85d75950`，`mshr_id=3`，`state_after=mshr_allocated`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.9 `cache_access`（L3 L1D 访问）
+### 3.10 `cache_access`（L3 L1D 访问）
 
-- `event_id=10888`，`parent_event_id=10887`，`tick=1971861830667`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=ffffffc008c730e0`，`pa=80c530c0`
+- `event_id=15`，`parent_event_id=14`，`tick=238095585747`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`va=ffffffc009483950`，`pa=85d75940`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.10 `cache_return`（L3 L1D 返回）
+### 3.11 `cache_return`（L3 L1D 返回）
 
-- `event_id=10889`，`parent_event_id=10888`，`tick=1971861830667`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`pa=80c530c0`，`field=miss`
+- `event_id=16`，`parent_event_id=15`，`tick=238095585747`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`pa=85d75940`，`field=miss`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.11 `mshr_alloc`（L3 MSHR 分配）
+### 3.12 `mshr_alloc`（L3 MSHR 分配）
 
-- `event_id=10890`，`parent_event_id=10889`，`tick=1971861830667`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`cache_line=80c530c0`，`mshr_id=92`，`state_after=mshr_allocated`
+- `event_id=17`，`parent_event_id=16`，`tick=238095585747`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`cache_line=85d75940`，`mshr_id=4`，`state_after=mshr_allocated`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.12 `mshr_fill`（L3 MSHR 填充）
+### 3.13 `mshr_fill`（L3 MSHR 填充）
 
-- `event_id=10891`，`parent_event_id=10890`，`tick=1971861889608`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`cache_line=80c530c0`，`mshr_id=92`，`state_after=filled`
+- `event_id=60`，`parent_event_id=17`，`tick=238095645021`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`cache_line=85d75940`，`mshr_id=4`，`state_after=filled`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.13 `cache_fill`（L3 L1D 填充）
+### 3.14 `cache_fill`（L3 L1D 填充）
 
-- `event_id=10892`，`parent_event_id=10891`，`tick=1971861889608`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`pa=80c530c0`，`cache_line=80c530c0`
+- `event_id=61`，`parent_event_id=60`，`tick=238095645021`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`pa=85d75940`，`cache_line=85d75940`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.14 `mshr_free`（L3 MSHR 释放）
+### 3.15 `mshr_free`（L3 MSHR 释放）
 
-- `event_id=10893`，`parent_event_id=10892`，`tick=1971861889608`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`cache_line=80c530c0`，`mshr_id=92`，`state_after=mshr_freed`
+- `event_id=62`，`parent_event_id=61`，`tick=238095645021`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`cache_line=85d75940`，`mshr_id=4`，`state_after=mshr_freed`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.15 `mshr_fill`（L3 MSHR 填充）
+### 3.16 `mshr_fill`（L3 MSHR 填充）
 
-- `event_id=10894`，`parent_event_id=10893`，`tick=1971861890274`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`cache_line=80c530c0`，`mshr_id=0`，`state_after=filled`
+- `event_id=69`，`parent_event_id=62`，`tick=238095646020`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`cache_line=85d75940`，`mshr_id=0`，`state_after=filled`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.16 `cache_fill`（L3 L1D 填充）
+### 3.17 `cache_fill`（L3 L1D 填充）
 
-- `event_id=10895`，`parent_event_id=10894`，`tick=1971861890274`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`pa=80c530c0`，`cache_line=80c530c0`
+- `event_id=70`，`parent_event_id=69`，`tick=238095646020`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`pa=85d75940`，`cache_line=85d75940`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.17 `mshr_free`（L3 MSHR 释放）
+### 3.18 `mshr_free`（L3 MSHR 释放）
 
-- `event_id=10896`，`parent_event_id=10895`，`tick=1971861890274`，`corr=addr_fallback`，`request_id=1456805`，`dyn_inst_seq=1456805`，`cache_line=80c530c0`，`mshr_id=0`，`state_after=mshr_freed`
+- `event_id=71`，`parent_event_id=70`，`tick=238095646020`，`corr=addr_fallback`，`request_id=520906`，`dyn_inst_seq=520906`，`cache_line=85d75940`，`mshr_id=0`，`state_after=mshr_freed`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
 
-### 3.18 `resp`（L4 内存响应）
+### 3.19 `resp`（L4 内存响应）
 
-- `event_id=10897`，`parent_event_id=10896`，`tick=1971861890607`，`corr=seq_primary`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=80c530e0`
+- `event_id=80`，`parent_event_id=71`，`tick=238095646353`，`corr=seq_primary`，`request_id=520906`，`dyn_inst_seq=520906`，`va=85d75950`
   该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
-
-### 3.19 `lq_complete`（L4 载入完成）
-
-- `event_id=10898`，`parent_event_id=10897`，`tick=1971861890607`，`corr=seq_primary`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=ffffffc008c730e0`，`pa=80c530e0`，`lq_idx=185826`
 
 ### 3.20 `taint_reg`（L4 寄存器污染）
 
-- `event_id=10899`，`parent_event_id=10898`，`tick=1971861890607`，`corr=seq_primary`，`request_id=1456805`，`dyn_inst_seq=1456805`，`va=80c530e0`，`before=clean`，`after=tainted`，`arch_reg=0`，`phys_reg=204`
+- `event_id=81`，`parent_event_id=80`，`tick=238095646353`，`corr=seq_primary`，`request_id=520906`，`dyn_inst_seq=520906`，`va=85d75950`，`before=clean`，`after=tainted`
   错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
 
-### 3.21 `consumer`（L4 消费者读取）
+### 3.21 `sq_complete`（L4 存储完成）
 
-- `event_id=10900`，`parent_event_id=10899`，`tick=1971861891939`，`corr=taint_prop`，`dyn_inst_seq=1456806`，`arch_reg=0`，`phys_reg=204`，`pc=ffffffc0080bf5d4`
-  错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
+- `event_id=82`，`parent_event_id=81`，`tick=238095646353`，`corr=seq_primary`，`dyn_inst_seq=520906`，`va=ffffffc009483950`，`state_after=completed`，`sq_idx=54806`
+  请求从 TLB 层进入 LSQ/内存路径；记录携带的 VA/PA/lq_idx/sq_idx 是关联依据。
 
-### 3.22 `consumer`（L4 消费者读取）
+### 3.22 `errant_commit`（L5 错误提交）
 
-- `event_id=10908`，`parent_event_id=10900`，`tick=1971861897267`，`corr=taint_prop`，`dyn_inst_seq=1456828`，`arch_reg=0`，`phys_reg=65535`，`pc=ffffffc0087bbfdc`
-  错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
-
-### 3.23 `consumer`（L4 消费者读取）
-
-- `event_id=10929`，`parent_event_id=10908`，`tick=1971861937227`，`corr=taint_prop`，`dyn_inst_seq=1457135`，`arch_reg=24`，`phys_reg=90`，`pc=ffffffc0080c5ba4`
+- `event_id=97`，`parent_event_id=82`，`tick=238095648018`，`corr=taint_prop`，`dyn_inst_seq=520923`，`detection_layer=L5`，`contained=0`，`outcome=errant_commit`，`commit_seq=394130`，`pc=ffffffc0087b27c4`
   错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
 
 ## 4. 每一级组件/请求/地址/状态变化（对照表）
 
 | event_id | kind | 层 | 组件/对象 | 请求/事务 | 地址 | 状态变化 |
 |---|---|---|---|---|---|---|
-| 10880 | `inj` | L0 | CHAOSArmTLB | `1456805` | `ffffffc008c730e0` | `80c73` → `80c53` |
-| 10881 | `tlb_lookup` | L1 | DTLB CAM | `1456805` | `ffffffc008c730e0` | `vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c73;ap=0;mtype=2;page_size=1000;pa=80c730e0` → `vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c53;ap=0;mtype=2;page_size=1000;pa=80c530e0` |
-| 10882 | `tlb_pfn` | L1 | DTLB 表项 | `1456805` | `80c530e0` | `80c730e0` → `80c530e0` |
-| 10883 | `tlb_translate_result` | L2 | MMU 翻译 | `1456805` | `80c530e0` | `vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c73;ap=0;mtype=2;page_size=1000;pa=80c730e0` → `vpn=ffffffc008c73;asid=206;valid=1;global=1;pfn=80c53;ap=0;mtype=2;page_size=1000;pa=80c530e0` |
-| 10884 | `lq_read` | L3 | LQ | `1456805` | `ffffffc008c730e0` | — |
-| 10885 | `cache_access` | L3 | L1D | `1456805` | `80c530e0` | — |
-| 10886 | `cache_return` | L3 | L1D | `1456805` | `80c530e0` | — |
-| 10887 | `mshr_alloc` | L3 | MSHR | `1456805` | `80c530e0` | `` → `mshr_allocated` |
-| 10888 | `cache_access` | L3 | L1D | `1456805` | `80c530c0` | — |
-| 10889 | `cache_return` | L3 | L1D | `1456805` | `80c530c0` | — |
-| 10890 | `mshr_alloc` | L3 | MSHR | `1456805` | `80c530c0` | `` → `mshr_allocated` |
-| 10891 | `mshr_fill` | L3 | MSHR | `1456805` | `80c530c0` | `` → `filled` |
-| 10892 | `cache_fill` | L3 | L1D | `1456805` | `80c530c0` | — |
-| 10893 | `mshr_free` | L3 | MSHR | `1456805` | `80c530c0` | `` → `mshr_freed` |
-| 10894 | `mshr_fill` | L3 | MSHR | `1456805` | `80c530c0` | `` → `filled` |
-| 10895 | `cache_fill` | L3 | L1D | `1456805` | `80c530c0` | — |
-| 10896 | `mshr_free` | L3 | MSHR | `1456805` | `80c530c0` | `` → `mshr_freed` |
-| 10897 | `resp` | L4 | LSU | `1456805` | `80c530e0` | — |
-| 10898 | `lq_complete` | L4 | LQ | `1456805` | `80c530e0` | — |
-| 10899 | `taint_reg` | L4 | PRF/提交 | `1456805` | `80c530e0` | `clean` → `tainted` |
-| 10900 | `consumer` | L4 | consumer | `1456806` | `—` | — |
-| 10908 | `consumer` | L4 | consumer | `1456828` | `—` | — |
-| 10929 | `consumer` | L4 | consumer | `1457135` | `—` | — |
+| 0 | `inj` | L0 | CHAOSArmTLB | `520906` | `ffffffc009483950` | `81d75` → `85d75` |
+| 1 | `tlb_lookup` | L1 | DTLB CAM | `520906` | `ffffffc009483950` | `vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950` → `vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=85d75;ap=0;mtype=2;page_size=1000;pa=85d75950` |
+| 2 | `tlb_pfn` | L1 | DTLB 表项 | `520906` | `85d75950` | `81d75950` → `85d75950` |
+| 3 | `tlb_translate_result` | L2 | MMU 翻译 | `520906` | `85d75950` | `vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=81d75;ap=0;mtype=2;page_size=1000;pa=81d75950` → `vpn=ffffffc009483;asid=206;valid=1;global=1;pfn=85d75;ap=0;mtype=2;page_size=1000;pa=85d75950` |
+| 4 | `sq_execute` | L3 | SQ | `520906` | `ffffffc009483950` | `issued` → `` |
+| 11 | `sq_writeback` | L3 | SQ | `520906` | `85d75950` | `` → `packet_built` |
+| 12 | `cache_access` | L3 | L1D | `520906` | `85d75950` | — |
+| 13 | `cache_return` | L3 | L1D | `520906` | `85d75950` | — |
+| 14 | `mshr_alloc` | L3 | MSHR | `520906` | `85d75950` | `` → `mshr_allocated` |
+| 15 | `cache_access` | L3 | L1D | `520906` | `85d75940` | — |
+| 16 | `cache_return` | L3 | L1D | `520906` | `85d75940` | — |
+| 17 | `mshr_alloc` | L3 | MSHR | `520906` | `85d75940` | `` → `mshr_allocated` |
+| 60 | `mshr_fill` | L3 | MSHR | `520906` | `85d75940` | `` → `filled` |
+| 61 | `cache_fill` | L3 | L1D | `520906` | `85d75940` | — |
+| 62 | `mshr_free` | L3 | MSHR | `520906` | `85d75940` | `` → `mshr_freed` |
+| 69 | `mshr_fill` | L3 | MSHR | `520906` | `85d75940` | `` → `filled` |
+| 70 | `cache_fill` | L3 | L1D | `520906` | `85d75940` | — |
+| 71 | `mshr_free` | L3 | MSHR | `520906` | `85d75940` | `` → `mshr_freed` |
+| 80 | `resp` | L4 | LSU | `520906` | `85d75950` | — |
+| 81 | `taint_reg` | L4 | PRF/提交 | `520906` | `85d75950` | `clean` → `tainted` |
+| 82 | `sq_complete` | L4 | SQ | `520906` | `ffffffc009483950` | `` → `completed` |
+| 97 | `errant_commit` | L5 | commit | `520923` | `—` | — |
 
 
-（第 4 章仅逐条列出主链 23 个事件；其余 12729 个旁支事件按 kind 汇总如下，其原始行全部保留在 `prop_evt.txt.gz` 中，可逐条复核。）
+（第 4 章仅逐条列出主链 22 个事件；其余 12730 个旁支事件按 kind 汇总如下，其原始行全部保留在 `prop_evt.txt.gz` 中，可逐条复核。）
 
 | kind | 数量 | 首个 event_id | 末个 event_id |
 |---|---|---|---|
@@ -218,39 +213,38 @@ Tick: 1971861830334, Site: arm_tlb_lookup_hit, VA: 0xffffffc008c730e0, old_pfn: 
 主链（从注入到终局见证）：
 
 ```
-10880(inj) → 10881(tlb_lookup) → 10882(tlb_pfn) → 10883(tlb_translate_result) → 10884(lq_read) → 10885(cache_access) → 10886(cache_return) → 10887(mshr_alloc) → 10888(cache_access) → 10889(cache_return) → 10890(mshr_alloc) → 10891(mshr_fill) → 10892(cache_fill) → 10893(mshr_free) → 10894(mshr_fill) → 10895(cache_fill) → 10896(mshr_free) → 10897(resp) → 10898(lq_complete) → 10899(taint_reg) → 10900(consumer) → 10908(consumer) → 10929(consumer)
+0(inj) → 1(tlb_lookup) → 2(tlb_pfn) → 3(tlb_translate_result) → 4(sq_execute) → 11(sq_writeback) → 12(cache_access) → 13(cache_return) → 14(mshr_alloc) → 15(cache_access) → 16(cache_return) → 17(mshr_alloc) → 60(mshr_fill) → 61(cache_fill) → 62(mshr_free) → 69(mshr_fill) → 70(cache_fill) → 71(mshr_free) → 80(resp) → 81(taint_reg) → 82(sq_complete) → 97(errant_commit)
 ```
 
 | event_id | parent | tick | corr | request_id | fault_id |
 |---|---|---|---|---|---|
-| 10880 | — | 1971861830334 | `origin` | `1456805` | 3 |
-| 10881 | 10880 | 1971861830334 | `seq_primary` | `1456805` | 3 |
-| 10882 | 10881 | 1971861830334 | `seq_primary` | `1456805` | 3 |
-| 10883 | 10882 | 1971861830334 | `seq_primary` | `1456805` | 3 |
-| 10884 | 10883 | 1971861830334 | `seq_primary` | `1456805` | 3 |
-| 10885 | 10884 | 1971861830334 | `addr_fallback` | `1456805` | 3 |
-| 10886 | 10885 | 1971861830334 | `addr_fallback` | `1456805` | 3 |
-| 10887 | 10886 | 1971861830334 | `addr_fallback` | `1456805` | 3 |
-| 10888 | 10887 | 1971861830667 | `addr_fallback` | `1456805` | 3 |
-| 10889 | 10888 | 1971861830667 | `addr_fallback` | `1456805` | 3 |
-| 10890 | 10889 | 1971861830667 | `addr_fallback` | `1456805` | 3 |
-| 10891 | 10890 | 1971861889608 | `addr_fallback` | `1456805` | 3 |
-| 10892 | 10891 | 1971861889608 | `addr_fallback` | `1456805` | 3 |
-| 10893 | 10892 | 1971861889608 | `addr_fallback` | `1456805` | 3 |
-| 10894 | 10893 | 1971861890274 | `addr_fallback` | `1456805` | 3 |
-| 10895 | 10894 | 1971861890274 | `addr_fallback` | `1456805` | 3 |
-| 10896 | 10895 | 1971861890274 | `addr_fallback` | `1456805` | 3 |
-| 10897 | 10896 | 1971861890607 | `seq_primary` | `1456805` | 3 |
-| 10898 | 10897 | 1971861890607 | `seq_primary` | `1456805` | 3 |
-| 10899 | 10898 | 1971861890607 | `seq_primary` | `1456805` | 3 |
-| 10900 | 10899 | 1971861891939 | `taint_prop` | `—` | 3 |
-| 10908 | 10900 | 1971861897267 | `taint_prop` | `—` | 3 |
-| 10929 | 10908 | 1971861937227 | `taint_prop` | `—` | 3 |
+| 0 | — | 238095582084 | `origin` | `520906` | 1 |
+| 1 | 0 | 238095582084 | `seq_primary` | `520906` | 1 |
+| 2 | 1 | 238095582084 | `seq_primary` | `520906` | 1 |
+| 3 | 2 | 238095582084 | `seq_primary` | `520906` | 1 |
+| 4 | 3 | 238095582084 | `seq_primary` | `—` | 1 |
+| 11 | 4 | 238095585414 | `seq_primary` | `—` | 1 |
+| 12 | 11 | 238095585414 | `addr_fallback` | `520906` | 1 |
+| 13 | 12 | 238095585414 | `addr_fallback` | `520906` | 1 |
+| 14 | 13 | 238095585414 | `addr_fallback` | `520906` | 1 |
+| 15 | 14 | 238095585747 | `addr_fallback` | `520906` | 1 |
+| 16 | 15 | 238095585747 | `addr_fallback` | `520906` | 1 |
+| 17 | 16 | 238095585747 | `addr_fallback` | `520906` | 1 |
+| 60 | 17 | 238095645021 | `addr_fallback` | `520906` | 1 |
+| 61 | 60 | 238095645021 | `addr_fallback` | `520906` | 1 |
+| 62 | 61 | 238095645021 | `addr_fallback` | `520906` | 1 |
+| 69 | 62 | 238095646020 | `addr_fallback` | `520906` | 1 |
+| 70 | 69 | 238095646020 | `addr_fallback` | `520906` | 1 |
+| 71 | 70 | 238095646020 | `addr_fallback` | `520906` | 1 |
+| 80 | 71 | 238095646353 | `seq_primary` | `520906` | 1 |
+| 81 | 80 | 238095646353 | `seq_primary` | `520906` | 1 |
+| 82 | 81 | 238095646353 | `seq_primary` | `—` | 1 |
+| 97 | 82 | 238095648018 | `taint_prop` | `—` | 1 |
 
 ## 6. 最终结局如何表现
 
 - chain_report.terminal = `full`；provable_to = `L5`；oracle_outcome = `Crash`
-- 结局形成：终局见证是 `consumer`（event_id=10929），其字段 `outcome=`、`contained=`、`detection_layer=`、`containment_reason=`。
+- 结局形成：终局见证是 `errant_commit`（event_id=97），其字段 `outcome=errant_commit`、`contained=0`、`detection_layer=L5`、`containment_reason=`。
 
 **为何形成该结局**：`bit_flip` 翻转 PPN 的 1 个 bit：表项随后被命中，故障 PPN 被用于形成物理地址（`tlb_translate_result` 的 `effective_pa_changed`），错误地址进入 L3/L4 并由消费者/提交点暴露。
 - 该 seed 具备真实 L0→L5 ancestry（见第 5 章主链），不是由 `chain_end` 冒充的终局。

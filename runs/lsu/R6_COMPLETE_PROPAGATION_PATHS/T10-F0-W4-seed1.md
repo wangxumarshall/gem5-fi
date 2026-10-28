@@ -34,9 +34,9 @@ Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0
 
 ## 3. 完整故障传播过程（按真实事件顺序）
 
-本 seed 的事件流按 `event_id` 顺序叙述；主链由终局见证 event_id=`214`（kind=`consumer`）沿 `parent_event_id` 回溯到 L0 注入，共 28 个事件。以下逐层说明：每一段先给出该层真实事件，再说明字段/状态如何变化。
+本 seed 的事件流按 `event_id` 顺序叙述；主链由终局见证 event_id=`118`（kind=`errant_commit`）沿 `parent_event_id` 回溯到 L0 注入，共 22 个事件。以下逐层说明：每一段先给出该层真实事件，再说明字段/状态如何变化。
 
-（本 seed 共 238 个事件，为可读性第 3 章只逐条叙述**主链** 28 个事件；**全部**事件已逐条列在第 4 章对照表中，第 5 章给出主链索引。旁支事件见第 4 章。）
+（本 seed 共 238 个事件，为可读性第 3 章只逐条叙述**主链** 22 个事件；**全部**事件已逐条列在第 4 章对照表中，第 5 章给出主链索引。旁支事件见第 4 章。）
 
 ### 3.1 `inj`（L0 注入）
 
@@ -137,42 +137,14 @@ Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0
 - `event_id=40`，`parent_event_id=39`，`tick=237951016128`，`corr=seq_primary`，`request_id=301`，`dyn_inst_seq=301`，`va=a1d75fa8`，`before=clean`，`after=tainted`
   错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
 
-### 3.21 `request_fork`（request_fork）
+### 3.21 `sq_complete`（L4 存储完成）
 
-- `event_id=4294967317`，`parent_event_id=40`，`tick=237964970493`，`corr=addr_fallback`，`request_id=301`
+- `event_id=41`，`parent_event_id=40`，`tick=237951016128`，`corr=seq_primary`，`dyn_inst_seq=301`，`va=ffffffc009483fa8`，`state_after=completed`，`sq_idx=32`
+  请求从 TLB 层进入 LSQ/内存路径；记录携带的 VA/PA/lq_idx/sq_idx 是关联依据。
 
-### 3.22 `cache_access`（L3 L1D 访问）
+### 3.22 `errant_commit`（L5 错误提交）
 
-- `event_id=206`，`parent_event_id=4294967317`，`tick=237964970493`，`corr=addr_fallback`，`request_id=10529`，`dyn_inst_seq=10529`，`va=ffffffc009483fb8`，`pa=a1d75fb8`
-  该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
-
-### 3.23 `cache_return`（L3 L1D 返回）
-
-- `event_id=207`，`parent_event_id=206`，`tick=237964970493`，`corr=addr_fallback`，`request_id=10529`，`dyn_inst_seq=10529`，`pa=a1d75fb8`，`field=hit`
-  该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
-
-### 3.24 `resp`（L4 内存响应）
-
-- `event_id=208`，`parent_event_id=207`，`tick=237964970826`，`corr=addr_fallback`，`request_id=10529`，`dyn_inst_seq=10529`，`va=a1d75fb8`
-  该事件发生在其携带的物理地址上（`pa`/`cache_line`），说明错误地址（或正常地址）已到达 cache/MSHR 层。
-
-### 3.25 `lq_complete`（L4 载入完成）
-
-- `event_id=209`，`parent_event_id=208`，`tick=237964970826`，`corr=addr_fallback`，`request_id=10529`，`dyn_inst_seq=10529`，`va=ffffffc009483fb8`，`pa=a1d75fb8`，`lq_idx=822`
-
-### 3.26 `taint_reg`（L4 寄存器污染）
-
-- `event_id=210`，`parent_event_id=209`，`tick=237964970826`，`corr=addr_fallback`，`request_id=10529`，`dyn_inst_seq=10529`，`va=a1d75fb8`，`before=clean`，`after=tainted`，`arch_reg=1`，`phys_reg=228`
-  错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
-
-### 3.27 `consumer`（L4 消费者读取）
-
-- `event_id=211`，`parent_event_id=210`，`tick=237964973157`，`corr=taint_prop`，`dyn_inst_seq=10530`，`arch_reg=1`，`phys_reg=228`，`pc=ffffffc0080e63ac`
-  错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
-
-### 3.28 `consumer`（L4 消费者读取）
-
-- `event_id=214`，`parent_event_id=211`，`tick=237964973157`，`corr=taint_prop`，`dyn_inst_seq=10531`，`arch_reg=2`，`phys_reg=943`，`pc=ffffffc0080e63b0`
+- `event_id=118`，`parent_event_id=41`，`tick=237951302175`，`corr=taint_prop`，`dyn_inst_seq=391`，`detection_layer=L5`，`contained=0`，`outcome=errant_commit`，`commit_seq=161`，`pc=ffffffc0087b1000`
   错误值进入架构寄存器/消费者/提交点；这是 L4/L5 的证据。
 
 ## 4. 每一级组件/请求/地址/状态变化（对照表）
@@ -199,17 +171,11 @@ Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0
 | 35 | `mshr_free` | L3 | MSHR | `301` | `a1d75f80` | `` → `mshr_freed` |
 | 39 | `resp` | L4 | LSU | `301` | `a1d75fa8` | — |
 | 40 | `taint_reg` | L4 | PRF/提交 | `301` | `a1d75fa8` | `clean` → `tainted` |
-| 4294967317 | `request_fork` | — | request_fork | `301` | `—` | — |
-| 206 | `cache_access` | L3 | L1D | `10529` | `a1d75fb8` | — |
-| 207 | `cache_return` | L3 | L1D | `10529` | `a1d75fb8` | — |
-| 208 | `resp` | L4 | LSU | `10529` | `a1d75fb8` | — |
-| 209 | `lq_complete` | L4 | LQ | `10529` | `a1d75fb8` | — |
-| 210 | `taint_reg` | L4 | PRF/提交 | `10529` | `a1d75fb8` | `clean` → `tainted` |
-| 211 | `consumer` | L4 | consumer | `10530` | `—` | — |
-| 214 | `consumer` | L4 | consumer | `10531` | `—` | — |
+| 41 | `sq_complete` | L4 | SQ | `301` | `ffffffc009483fa8` | `` → `completed` |
+| 118 | `errant_commit` | L5 | commit | `391` | `—` | — |
 
 
-（第 4 章仅逐条列出主链 28 个事件；其余 210 个旁支事件按 kind 汇总如下，其原始行全部保留在 `prop_evt.txt.gz` 中，可逐条复核。）
+（第 4 章仅逐条列出主链 22 个事件；其余 216 个旁支事件按 kind 汇总如下，其原始行全部保留在 `prop_evt.txt.gz` 中，可逐条复核。）
 
 | kind | 数量 | 首个 event_id | 末个 event_id |
 |---|---|---|---|
@@ -241,7 +207,7 @@ Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0
 主链（从注入到终局见证）：
 
 ```
-0(inj) → 1(tlb_lookup) → 2(tlb_pfn) → 3(tlb_translate_result) → 4(sq_execute) → 5(sq_writeback) → 6(cache_access) → 7(cache_return) → 8(mshr_alloc) → 15(cache_access) → 16(cache_return) → 17(mshr_alloc) → 30(mshr_fill) → 31(cache_fill) → 32(mshr_free) → 33(mshr_fill) → 34(cache_fill) → 35(mshr_free) → 39(resp) → 40(taint_reg) → 4294967317(request_fork) → 206(cache_access) → 207(cache_return) → 208(resp) → 209(lq_complete) → 210(taint_reg) → 211(consumer) → 214(consumer)
+0(inj) → 1(tlb_lookup) → 2(tlb_pfn) → 3(tlb_translate_result) → 4(sq_execute) → 5(sq_writeback) → 6(cache_access) → 7(cache_return) → 8(mshr_alloc) → 15(cache_access) → 16(cache_return) → 17(mshr_alloc) → 30(mshr_fill) → 31(cache_fill) → 32(mshr_free) → 33(mshr_fill) → 34(cache_fill) → 35(mshr_free) → 39(resp) → 40(taint_reg) → 41(sq_complete) → 118(errant_commit)
 ```
 
 | event_id | parent | tick | corr | request_id | fault_id |
@@ -266,19 +232,13 @@ Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8, old_pfn: 0
 | 35 | 34 | 237951015795 | `addr_fallback` | `301` | 1 |
 | 39 | 35 | 237951016128 | `seq_primary` | `301` | 1 |
 | 40 | 39 | 237951016128 | `seq_primary` | `301` | 1 |
-| 4294967317 | 40 | 237964970493 | `addr_fallback` | `301` | 1 |
-| 206 | 4294967317 | 237964970493 | `addr_fallback` | `10529` | 1 |
-| 207 | 206 | 237964970493 | `addr_fallback` | `10529` | 1 |
-| 208 | 207 | 237964970826 | `addr_fallback` | `10529` | 1 |
-| 209 | 208 | 237964970826 | `addr_fallback` | `10529` | 1 |
-| 210 | 209 | 237964970826 | `addr_fallback` | `10529` | 1 |
-| 211 | 210 | 237964973157 | `taint_prop` | `—` | 1 |
-| 214 | 211 | 237964973157 | `taint_prop` | `—` | 1 |
+| 41 | 40 | 237951016128 | `seq_primary` | `—` | 1 |
+| 118 | 41 | 237951302175 | `taint_prop` | `—` | 1 |
 
 ## 6. 最终结局如何表现
 
 - chain_report.terminal = `full`；provable_to = `L5`；oracle_outcome = `Crash`
-- 结局形成：终局见证是 `consumer`（event_id=214），其字段 `outcome=`、`contained=`、`detection_layer=`、`containment_reason=`。
+- 结局形成：终局见证是 `errant_commit`（event_id=118），其字段 `outcome=errant_commit`、`contained=0`、`detection_layer=L5`、`containment_reason=`。
 
 **为何形成该结局**：`bit_flip` 翻转 PPN 的 1 个 bit：表项随后被命中，故障 PPN 被用于形成物理地址（`tlb_translate_result` 的 `effective_pa_changed`），错误地址进入 L3/L4 并由消费者/提交点暴露。
 - 该 seed 具备真实 L0→L5 ancestry（见第 5 章主链），不是由 `chain_end` 冒充的终局。

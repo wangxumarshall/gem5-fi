@@ -50,3 +50,45 @@
 - T08 其余子模型（walk_fill_dup / walk_done_early / walk_stale_result）仍无动态覆盖 ⇒ **T08 整体不是 COMPLETE，只记 PARTIAL_SUBMODEL_PROVEN**。
 - T08-W9 仍 `BLOCKED_WORKLOAD_GAP`，本轮未运行。
 - 本轮未补 seed2/seed3，未启动正式实验。
+
+## 2026-10-28 R6-V4 收口实测更新（权威）
+
+逐格状态见 `R6-V4-T-STATUS.{md,json}`；逐 seed 传播文档见 `../R6_COMPLETE_PROPAGATION_PATHS/`。
+
+| RunID | 子模型 | 动态注入 | 激活 | 结局 | 状态 |
+|---|---|---|---|---|---|
+| T05-F0-W4 | valid_clear | 3/3 seed 真实注入 | 3/3 | L2 containment / Masked | **COMPLETE_3_OF_3** |
+| T05-F2-W4 | valid_clear（F2） | 3/3 | 3/3 | L2 containment / Masked | **COMPLETE_3_OF_3** |
+| T06-F0-W4 | perm_subst | 3/3 | 3/3 | L2 containment / Masked | **COMPLETE_3_OF_3** |
+| T06-F2-W4 | perm_subst（F2） | 3/3 | 3/3 | L2 containment / Masked | **COMPLETE_3_OF_3** |
+| T07-F0-W4 | false_hit | 3/3 | 3/3 | full/L5（errant_commit），运行在墙钟上限结束 | **COMPLETE_3_OF_3** |
+| T07-F4-W4 | false_hit（F4） | 3/3 | 3/3 | s1 full/L5；s2/s3 detected_contained/L5 | **COMPLETE_3_OF_3** |
+| T08-F0-W4 | T08-a walk_pairing（官方） | 3/3 | 3/3 | L2 containment（walk_refill_lost） | **COMPLETE_3_OF_3** |
+| T08-F4-W4 | T08-a walk_pairing（F4） | 2/3 | 2/3 | L2 containment | **INCOMPLETE_2_OF_3**（seed3 NO_FIRE，见下） |
+| T10-F0/F1/F2-W4 | bit_flip | 3/3 each | 3/3 | full/L5（Crash / 部分 L5 containment） | **COMPLETE_3_OF_3** |
+
+### T08 四子模型覆盖（辅助 canary，不冒充正式 seed）
+
+见 `R6-V4-T08-SUBMODEL-COVERAGE.{md,json}` 与 `R6-T08-SUBMODEL-COVERAGE.json`：
+
+- T08-a walk_pairing：covered（官方 seed + canary）
+- T08-b walk_fill_dup：covered（弱效应，duplicated；oracle 通过）
+- T08-c walk_done_early：covered（**仅注解，按设计零硬件效应**）
+- T08-d walk_stale_result：covered（真实 stale PA，old_pfn 0x8001e → stale_pfn 0x8002f）
+
+### T08-F4-W4 3rd seed 的诚实阻塞
+
+seed3 在 F4 频率模型下 **0 次发射**：`CHAOS_LSU_TRIGGER ... attempted=126005
+eligible=126005 injected=0`，注入日志只有 probe/hit_skipped 诊断行。F4 首次发射
+位置 = `iv/2 + rng % iv`（iv=100000）落在 [50k,150k)，本 seed 的抽样超出 126,005
+个 walk-issue eligible 事件的流长，因此**没有任何注入**——这不是证据失败，而是
+频率模型在该流长下的合法“非样本”。seed4 被 campaign 频率政策
+（`POLICY_NOT_REQUIRED`，required_seeds=3）拒绝，未绕过。因此该 RunID 记
+**2/3**，不是 COMPLETE；若需第 3 个样本，需要扩展 walk 流长或调整 F4 模型
+（均属规格变更，本轮不做）。
+
+### 仍阻塞的格
+
+- **F6（政策排除）**：T04-F6-W4、T05-F6-W4、T06-F6-W4、T07-F6-W4、T08-F6-W4、T08-F6-W9。
+- **BLOCKED_SPEC**：T10-F0/F1/F2-W11（SPEC CPU2017 许可）。
+- **BLOCKED_WORKLOAD_GAP**：T08-F0-W9、T08-F4-W9（FS 镜像无 GAP/Graph500；debugfs 复核，拒绝用 W4 替代）。
