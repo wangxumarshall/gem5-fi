@@ -799,7 +799,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // value modes ignore it.
         size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
                                                       flags, inst->seqNum,
-                                                      pre_byte_enable);
+                                                      pre_byte_enable, inst);
         // [LSU][OBS-L3] register the PRE-family injection with the L3
         // propagation tracer (inj + addr_form nodes + addr registry).
         // lastPreHookInjected() also covers the flag-only modes (S06/L02

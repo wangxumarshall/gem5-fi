@@ -554,7 +554,7 @@ p.add_argument("--addrpath_f6_mode", default="early_stress",
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
 # registers on the PRE pointer instead).
 p.add_argument("--agu_pre_mode", default="off",
-               choices=["off","a04_subst","a04_same_object","a04_same_page","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
+               choices=["off","a04_subst","a04_same_object","a04_same_page","a05_base_index","a05_extend","a05_shift","a05_prepost","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
                help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08). "
                     "a06_size = A06-a access-size substitution: stores take any legal "
                     "target, loads only a contract-safe WIDEN (see --agu_size_to_load). "

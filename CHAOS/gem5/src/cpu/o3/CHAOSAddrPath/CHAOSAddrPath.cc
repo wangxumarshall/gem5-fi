@@ -5,6 +5,8 @@
 #include <string>
 
 #include "base/chaos_guest_fault.hh"  // [R6-A-SEGV] injected-VA registry
+#include "arch/arm/insts/mem64.hh"   // [R6-A2/A05] real operand classes
+#include "arch/arm/insts/static_inst.hh"
 #include "base/loader/symtab.hh"      // [R6-A2/A04] ELF object registry
 #include "sim/process.hh"             // [R6-A2/A04] Process::objFile
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
@@ -488,7 +490,8 @@ namespace gem5
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_inst_seq,
-                               std::vector<bool>& byte_enable)
+                               std::vector<bool>& byte_enable,
+                               const o3::DynInstPtr &inst)
     {
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
@@ -567,6 +570,40 @@ namespace gem5
         const bool a04b_declined =
             a04b_mode && (size == 0 || size > 4096 || (4096 / size) < 2);
 
+        // [R6-A2/A05] Real operand-level addressing modes. The hook needs
+        // the DynInst; without it (or on an unsupported shape) the event is
+        // ineligible and does NOT consume the trigger budget.
+        const bool a05_b = (pre_mode == "a05_base_index");
+        const bool a05_e = (pre_mode == "a05_extend");
+        const bool a05_s = (pre_mode == "a05_shift");
+        const bool a05_p = (pre_mode == "a05_prepost");
+        const bool a05_any = a05_b || a05_e || a05_s || a05_p;
+        ArmISA::MemoryReg64 *a05_mr = nullptr;
+        ArmISA::MemoryPreIndex64 *a05_pre = nullptr;
+        ArmISA::MemoryPostIndex64 *a05_post = nullptr;
+        if (a05_any && inst) {
+            a05_mr = dynamic_cast<ArmISA::MemoryReg64 *>(
+                inst->staticInst.get());
+            a05_pre = dynamic_cast<ArmISA::MemoryPreIndex64 *>(
+                inst->staticInst.get());
+            a05_post = dynamic_cast<ArmISA::MemoryPostIndex64 *>(
+                inst->staticInst.get());
+        }
+        bool a05_ok = false;
+        // [R6-A2/A05] Design B (reconstruct at pushRequest) can read the
+        // real immediate for pre/post, but the microop operand slots for
+        // base/index are NOT reliable (measured SIGSEGV) — a/b/c need the
+        // ISA buildEACode hook and are declined here (never injected).
+        if (a05_b || a05_e || a05_s) {
+            a05_ok = false;
+        } else if (a05_p)
+            a05_ok = (a05_pre || a05_post)
+                && static_cast<ArmISA::MemoryImm64 *>(
+                       a05_pre ? (ArmISA::MemoryImm64 *)a05_pre
+                               : (ArmISA::MemoryImm64 *)a05_post)->immValue()
+                       != 0;
+        const bool a05_declined = a05_any && !a05_ok;
+
         // [LSU][MDSPEC][R4-6-A06] A06-a load-leg verdict. Eligibility ==
         // writability (F-049): decided here, BEFORE the trigger, so a load
         // the mode cannot write can never consume the F6 once-ever shot —
@@ -630,7 +667,7 @@ namespace gem5
             // above and is reused by the a06_size branch below.
             if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)
                 || a06_load_declined || a06_store_declined
-                || a04a_declined || a04b_declined) {
+                || a04a_declined || a04b_declined || a05_declined) {
                 // [LSU][MDSPEC][A6] op-class 拒斥（不计 activated）。A06
                 // 2026-10-19 裁决曾把全部 load 拒斥（store-only 安全路径）；
                 // R4-6-A06 2026-10-22 load 侧放宽到 widen；R4-8-A06
@@ -763,13 +800,23 @@ namespace gem5
                 cand = page | ((Addr)(rng() % 256) << 4);
             } while (cand == addr);
             addr = cand;
-        } else if (pre_mode == "a05_shift") {
-            // A05 (03), shift-amount substitution submodel: rotate the low
-            // byte of the EA by d in [1,7] — the observable effect of a
-            // wrong LSL amount on the offset bits.
-            const uint64_t d = 1 + rng() % 7;
-            const Addr lo = addr & 0xFF;
-            addr = (addr & ~(Addr)0xFF) | ((lo << d | lo >> (8 - d)) & 0xFF);
+        } else if (a05_p) {
+            // [R6-A2/A05-d] True pre/post EA inversion using the REAL
+            // instruction immediate (no result-byte rotation):
+            //   pre  EA = base + imm  -> post-mode EA = base = EA - imm
+            //   post EA = base        -> pre-mode  EA = base + imm
+            // The writeback microop is untouched (both modes end at
+            // base+imm in this microarchitecture); documented in the report.
+            const ArmISA::MemoryImm64 *mi = a05_pre
+                ? static_cast<const ArmISA::MemoryImm64 *>(a05_pre)
+                : static_cast<const ArmISA::MemoryImm64 *>(a05_post);
+            const uint64_t im = (uint64_t)mi->immValue();
+            addr = a05_pre ? (addr - im) : (addr + im);
+        } else if (a05_any) {
+            // a/b/c: faithful operand rewrite requires the ISA buildEACode
+            // hook (microop slots are not a stable API). Never a proxy.
+            ++obs_pre_invalid;
+            return size;
         } else if (pre_mode == "a06_size") {
             // [LSU][MDSPEC][A6] A06-a access-size substitution. Per-op-class
             // legality envelope (2026-10-19 裁决 store-only；R4-6-A06
@@ -1024,7 +1071,9 @@ namespace gem5
                 << ", submodel="
                 << (a06b_mode ? "a06b"
                               : (a04a_mode ? "a04a"
-                                           : (a04b_mode ? "a04b" : "a06a")))
+                                           : (a04b_mode ? "a04b"
+                                                        : (a05_p ? "a05d"
+                                                                 : "a06a"))))
                 << ", old_be=0x" << std::hex << old_be_bits
                 << ", new_be=0x" << new_be_bits
                 << ", object_id=" << a04_id

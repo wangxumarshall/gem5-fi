@@ -155,6 +155,9 @@ class Memory64 : public MightBeMicro64
 
 class MemoryImm64 : public Memory64
 {
+  public:
+    // [R6-A2/A05] Real operand exposure for the operand-level injector.
+    int64_t immValue() const { return imm; }
   protected:
     int64_t imm;
 
@@ -227,6 +230,12 @@ class MemoryPostIndex64 : public MemoryImm64
 
 class MemoryReg64 : public Memory64
 {
+  public:
+    // [R6-A2/A05] Real operand exposure (register-offset addressing).
+    RegIndex baseReg() const { return base; }
+    RegIndex offsetReg() const { return offset; }
+    ArmExtendType extendType() const { return type; }
+    uint64_t shiftAmount() const { return shiftAmt; }
   protected:
     RegIndex offset;
     ArmExtendType type;

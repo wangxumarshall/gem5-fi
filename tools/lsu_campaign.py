@@ -357,7 +357,7 @@ MODEL_FLAGS = {
     "A02": ("addrpath", ["--addrpath_mode", "a02_2bit"]),
     "A03": ("addrpath", ["--addrpath_mode", "a03_stuck0"]),  # stuck1 by seed parity (note)
     "A04": ("addrpath", ["--agu_pre_mode", "a04_same_object"]),
-    "A05": ("addrpath", ["--agu_pre_mode", "a05_shift"]),
+    "A05": ("addrpath", ["--agu_pre_mode", "a05_prepost"]),
     # [LSU][MDSPEC][A6] A06（规格名，2026-10-19 计划 §2 裁决 + R4-6-A06
     # 2026-10-22 load 侧落地 + R4-8-A06 2026-10-22 load shrink 落地）：
     # a06_size = A06-a，按 op-class 的合法包络 —— store 侧任意合法目标；
@@ -2780,6 +2780,9 @@ def run_single_cell(cell, args, seed, outdir):
     # exercised by dedicated auxiliary canaries (R6-A2-A07.md); rotating
     # them into formal seeds would make a squashed-before-ready sample
     # (A07-c) unfalsifiably OPEN.
+    if model == "A05" and freq == "F0":
+        j = flags.index("--addrpath_span_events")
+        flags[j + 1] = "243"     # measured a05_prepost stream on W3
     if model == "A04":
         if seed % 2 == 0:
             i = flags.index("--agu_pre_mode")

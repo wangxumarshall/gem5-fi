@@ -52,7 +52,8 @@ class CHAOSAddrPath : public SimObject
     // place; every other mode leaves it untouched.
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_inst_seq,
-                               std::vector<bool>& byte_enable);
+                               std::vector<bool>& byte_enable,
+                               const o3::DynInstPtr &inst = nullptr);
 
     // [LSU][OBS-L3] true iff the PREVIOUS maybeCorruptPre call on this
     // injector performed an injection. The lsq.cc pushRequest call site
