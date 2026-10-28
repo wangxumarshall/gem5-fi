@@ -1094,17 +1094,43 @@ ADDRPATH_F0_SPAN = {
     #                  eligible=2579 injected=0 (SPAN_UNREACHABLE, census)
     ("A07", "agu_addrmodes"): 2795,
     ("A07", "sq_forward"): 2579,
+    # [R6-A-SPAN 2026-10-28] A 单元 census（tier=F0, warmup=1,
+    # span=1000000 纯普查；binary sha256 bdf82496…）。A04-F0-W3 seed1 实测
+    # span=1000 对 2800 的流触发 EARLY_BIAS ⇒ A 族全部改按实测值参数化。
+    # 证据：runs/lsu/r6_a_census/<model>_<workload>/run.out
+    #   A01/A02 agu_addrmodes: attempted=eligible=2777
+    #   A01/A02 gap_bfs:       attempted=eligible=265019
+    #   A04 agu_addrmodes:     attempted=eligible=2800
+    #   A04 mini_check:        attempted=eligible=3207
+    #   A05 agu_addrmodes:     attempted=eligible=2800
+    #   A08 agu_addrmodes:     attempted=eligible=2800
+    ("A01", "agu_addrmodes"): 2777,
+    ("A02", "agu_addrmodes"): 2777,
+    ("A04", "agu_addrmodes"): 2800,
+    ("A04", "mini_check"): 3207,
+    ("A05", "agu_addrmodes"): 2800,
+    ("A08", "agu_addrmodes"): 2800,
+    ("A01", "gap_bfs"): 265019,
+    ("A02", "gap_bfs"): 265019,
 }
+
+# [R6-A-SPAN 2026-10-28] Models whose F0 cells are parameterized from the
+# measured table above. Scoped to the A unit on purpose: the S/L addrpath
+# models still use the legacy span=1000 default until their own census lands
+# (changing them without measured streams would trade one silent bias for
+# another). A06 is MODEL_BLOCKED and has no entry — if it is ever unblocked
+# without a census the loud refusal below stops it.
+ADDRPATH_F0_SPAN_MODELS = frozenset({"A01", "A02", "A04", "A05", "A07", "A08"})
 
 
 def _addrpath_tier_flags(model, tier, wl_binary=None):
-    # [MDSPEC][R4-5.8] A07: per-(model, workload) F0 span with the
+    # [MDSPEC][R4-5.8] per-(model, workload) F0 span with the
     # LSQFWD_F0_SPAN loud-refusal contract (see ADDRPATH_F0_SPAN above);
-    # warmup=1 + span=N = the TRUE F0-uniform parameterization. Every
-    # other addrpath model keeps the historical tier flags byte-identical
-    # (the pre-R4-5.8 span=1000 family default — the R4-2 §2.4 parked
-    # addrpath-span item, unchanged by this task).
-    if model == "A07" and tier == "F0":
+    # warmup=1 + span=N = the TRUE F0-uniform parameterization.
+    # [R6-A-SPAN 2026-10-28] extended from A07 to the whole A unit after the
+    # A04-F0-W3 seed1 EARLY_BIAS measurement. S/L addrpath models keep the
+    # historical tier flags byte-identical (legacy span=1000) until censused.
+    if model in ADDRPATH_F0_SPAN_MODELS and tier == "F0":
         span = ADDRPATH_F0_SPAN.get((model, wl_binary))
         if span is None:
             return None   # resolve_cell turns this into a loud BLOCKED cell
