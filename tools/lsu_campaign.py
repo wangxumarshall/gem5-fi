@@ -1110,6 +1110,8 @@ ADDRPATH_F0_SPAN = {
     ("A04", "mini_check"): 3207,
     ("A05", "agu_addrmodes"): 2800,
     ("A08", "agu_addrmodes"): 2800,
+    # [R6-A-SPAN 2026-10-28] A08-F0-W5 census (sq_forward: attempted=2582)
+    ("A08", "sq_forward"): 2582,
     ("A01", "gap_bfs"): 265019,
     ("A02", "gap_bfs"): 265019,
 }

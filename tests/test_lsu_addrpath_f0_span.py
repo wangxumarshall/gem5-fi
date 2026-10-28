@@ -39,7 +39,7 @@ F0_PAIRS = [
     ("A04", "agu_addrmodes"), ("A04", "mini_check"),
     ("A05", "agu_addrmodes"),
     ("A07", "agu_addrmodes"), ("A07", "sq_forward"),
-    ("A08", "agu_addrmodes"),
+    ("A08", "agu_addrmodes"), ("A08", "sq_forward"),
 ]
 
 

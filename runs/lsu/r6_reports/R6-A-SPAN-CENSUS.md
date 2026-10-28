@@ -19,3 +19,7 @@ evidence: /home/sdc/gem5-fi-ding/runs/lsu/r6_a_census/<model>_<workload>/run.out
 
 These values feed `ADDRPATH_F0_SPAN` (tools/lsu_campaign.py); A 族 F0 现在
 参数化为 warmup=1 + span=实测值。A04-F0-W3 seed1 复跑（span 2800）无 EARLY_BIAS。
+
+追加（2026-10-28，批次 4 前）：
+| A08 | sq_forward | 2582 | 2582 |
+（A08-F0-W5 首次因缺表被 loud refusal 正确 BLOCKED；补测后放行。）
