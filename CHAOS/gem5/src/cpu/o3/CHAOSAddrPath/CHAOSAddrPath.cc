@@ -1,8 +1,12 @@
 #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 
+#include <cstdlib>
+#include <sstream>
 #include <string>
 
 #include "base/chaos_guest_fault.hh"  // [R6-A-SEGV] injected-VA registry
+#include "base/loader/symtab.hh"      // [R6-A2/A04] ELF object registry
+#include "sim/process.hh"             // [R6-A2/A04] Process::objFile
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // [MDSPEC][R4-5.8] A07 ready hook (DynInst)
@@ -26,6 +30,7 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           pre_mode(p.preMode),
+          agu_object_spec(p.aguObjectSpec),
           agu_size_to(p.aguSizeTo),
           agu_size_to_load(p.aguSizeToLoad),
           be_mode(p.beMode),
@@ -461,6 +466,18 @@ namespace gem5
         }
     }
 
+    const CHAOSAddrPath::AguObject *
+    CHAOSAddrPath::findAguObject(Addr addr, unsigned size) const
+    {
+        for (const auto &o : agu_objects) {
+            if (size == 0 || o.size == 0)
+                continue;
+            if (addr >= o.base && addr + size <= o.base + o.size)
+                return &o;
+        }
+        return nullptr;
+    }
+
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_inst_seq,
@@ -496,6 +513,20 @@ namespace gem5
         }
 
         if (probability <= 0.0f) return size;
+
+        // [R6-A2/A04] A04-a object eligibility is decided BEFORE the trigger
+        // (F-049): an EA outside every registered object must not consume a
+        // fire. A04-b (same-page) is always eligible when the page has at
+        // least two size-aligned slots.
+        const bool a04a_mode = (pre_mode == "a04_same_object");
+        const bool a04b_mode = (pre_mode == "a04_same_page");
+        const AguObject *a04_obj =
+            a04a_mode ? findAguObject(addr, size) : nullptr;
+        const bool a04a_declined =
+            a04a_mode && (!a04_obj
+                          || ((addr - a04_obj->base) % size) != 0);
+        const bool a04b_declined =
+            a04b_mode && (size == 0 || size > 4096 || (4096 / size) < 2);
 
         // [LSU][MDSPEC][R4-6-A06] A06-a load-leg verdict. Eligibility ==
         // writability (F-049): decided here, BEFORE the trigger, so a load
@@ -559,7 +590,8 @@ namespace gem5
             // consume the F6 once-ever shot. The verdict was computed ONCE
             // above and is reused by the a06_size branch below.
             if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)
-                || a06_load_declined || a06_store_declined) {
+                || a06_load_declined || a06_store_declined
+                || a04a_declined || a04b_declined) {
                 // [LSU][MDSPEC][A6] op-class 拒斥（不计 activated）。A06
                 // 2026-10-19 裁决曾把全部 load 拒斥（store-only 安全路径）；
                 // R4-6-A06 2026-10-22 load 侧放宽到 widen；R4-8-A06
@@ -633,7 +665,55 @@ namespace gem5
         const Addr old_addr = addr;
         const unsigned old_size = size;
 
-        if (pre_mode == "a04_subst" || pre_mode == "a08_subst") {
+        std::string a04_id;
+        Addr a04_base = 0;
+        uint64_t a04_size = 0, a04_src_off = 0, a04_tgt_off = 0;
+
+        if (a04a_mode) {
+            // [R6-A2/A04-a] Replace the EA with another slot inside the SAME
+            // explicitly registered oracle object. No object => the trigger
+            // filter above already declined (never a same-page fallback).
+            if (!a04_obj) { ++obs_pre_a04_not_in_object; return size; }
+            const uint64_t rel = addr - a04_obj->base;
+            if (rel % size != 0) {
+                ++obs_pre_a04_unaligned_source;
+                return size;
+            }
+            const unsigned elem =
+                a04_obj->elem ? a04_obj->elem : (unsigned)size;
+            std::vector<Addr> cands;
+            for (uint64_t off = 0; off + size <= a04_obj->size;
+                 off += elem) {
+                const Addr t = a04_obj->base + off;
+                if (t != addr && (t % size) == 0)
+                    cands.push_back(t);
+            }
+            if (cands.empty()) {
+                ++obs_pre_a04_no_candidate;
+                return size;
+            }
+            addr = cands[rng() % cands.size()];
+            a04_id = a04_obj->id;
+            a04_base = a04_obj->base;
+            a04_size = a04_obj->size;
+            a04_src_off = rel;
+            a04_tgt_off = addr - a04_obj->base;
+        } else if (a04b_mode) {
+            // [R6-A2/A04-b] Same 4KiB page, another legal address aligned to
+            // the ACCESS width (not a fixed 16B proxy).
+            const Addr page = addr & ~(Addr)0xFFF;
+            const Addr off = addr & 0xFFF;
+            std::vector<Addr> cands;
+            for (Addr o = 0; o + size <= 4096; o += size) {
+                if (o != off)
+                    cands.push_back(page + o);
+            }
+            if (cands.empty()) {
+                ++obs_pre_a04_no_candidate;
+                return size;
+            }
+            addr = cands[rng() % cands.size()];
+        } else if (pre_mode == "a04_subst" || pre_mode == "a08_subst") {
             // A04/A08 (03): substitute another LEGAL address in the same
             // 4KiB page (16B-aligned, != original). A04's "same allocated
             // object" needs the W9 oracle object table — same-page is the
@@ -903,9 +983,16 @@ namespace gem5
                 << ", be_ones=" << be_ones
                 << ", be_subst=" << (be_substituted ? 1 : 0)
                 << ", submodel="
-                << (a06b_mode ? "a06b" : "a06a")
+                << (a06b_mode ? "a06b"
+                              : (a04a_mode ? "a04a"
+                                           : (a04b_mode ? "a04b" : "a06a")))
                 << ", old_be=0x" << std::hex << old_be_bits
-                << ", new_be=0x" << new_be_bits << std::dec
+                << ", new_be=0x" << new_be_bits
+                << ", object_id=" << a04_id
+                << ", object_base=0x" << a04_base
+                << ", object_size=" << std::dec << a04_size
+                << ", source_offset=" << a04_src_off
+                << ", target_offset=" << a04_tgt_off
                 << f6_fields
                 << std::endl;
         }
@@ -1119,6 +1206,71 @@ namespace gem5
         // [LSU][OBS-L3] cache the resolved O3 CPU for the injection-time
         // funnel notify (dynamic_cast once, not per event).
         o3cpu_resolved = o3cpu;
+        // [R6-A2/A04-a] Parse the explicit oracle-object registry. A04-a
+        // refuses loudly without it — it never falls back to same-page.
+        if (pre_mode == "a04_same_object") {
+            if (agu_object_spec.empty()) {
+                fatal("CHAOSAddrPath: pre_mode=a04_same_object requires "
+                      "aguObjectSpec (id:symbol:size:elem | "
+                      "id:@addr:size:elem); refusing to fall back to "
+                      "same-page\n");
+            }
+            Process *p = o3cpu->tcBase(0)->getProcessPtr();
+            if (!p || !p->objFile) {
+                fatal("CHAOSAddrPath: a04_same_object requires an SE process "
+                      "with an ELF; no object table available\n");
+            }
+            const loader::SymbolTable &st = p->objFile->symtab();
+            std::stringstream ss(agu_object_spec);
+            std::string item;
+            while (std::getline(ss, item, ';')) {
+                if (item.empty())
+                    continue;
+                std::stringstream is(item);
+                std::string id, ref, sz, el;
+                if (!std::getline(is, id, ':')
+                        || !std::getline(is, ref, ':')
+                        || !std::getline(is, sz, ':')
+                        || !std::getline(is, el, ':')) {
+                    fatal("CHAOSAddrPath: bad aguObjectSpec item '%s' "
+                          "(want id:symbol:size:elem or id:@addr:size:elem)\n",
+                          item.c_str());
+                }
+                Addr base = 0;
+                uint64_t sym_size = 0;
+                if (!ref.empty() && ref[0] == '@') {
+                    base = std::strtoull(ref.c_str() + 1, nullptr, 0);
+                } else {
+                    auto it = st.find(ref);
+                    if (it == st.end()) {
+                        fatal("CHAOSAddrPath: aguObjectSpec symbol '%s' not "
+                              "found in the SE ELF\n", ref.c_str());
+                    }
+                    base = it->address();
+                    sym_size = it->sizeOrDefault(0);
+                }
+                AguObject o;
+                o.id = id;
+                o.base = base;
+                o.size = std::strtoull(sz.c_str(), nullptr, 0);
+                o.elem = (unsigned)std::strtoull(el.c_str(), nullptr, 0);
+                if (o.size == 0 || o.elem == 0 || o.size % o.elem != 0
+                        || o.base % o.elem != 0)
+                    fatal("CHAOSAddrPath: bad object geometry for '%s'\n",
+                          id.c_str());
+                if (sym_size != 0 && sym_size != o.size) {
+                    fatal("CHAOSAddrPath: object '%s' size %llu != symbol "
+                          "size %llu\n", id.c_str(),
+                          (unsigned long long)o.size,
+                          (unsigned long long)sym_size);
+                }
+                agu_objects.push_back(o);
+                std::cout << "CHAOS_AGU_OBJECTS: id=" << o.id
+                          << " base=0x" << std::hex << o.base << std::dec
+                          << " size=" << o.size << " elem=" << o.elem
+                          << std::endl;
+            }
+        }
         // W4: exactly one hook per run — the PRE family (A04/A05/A06/A08)
         // registers on the pushRequest-entry pointer; the post family
         // (legacy + A01-A03 + LSU tiers) keeps the sendFragment pointer.

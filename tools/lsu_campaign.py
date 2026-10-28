@@ -356,7 +356,7 @@ MODEL_FLAGS = {
     "A01": ("addrpath", ["--addrpath_mode", "a01_bit"]),
     "A02": ("addrpath", ["--addrpath_mode", "a02_2bit"]),
     "A03": ("addrpath", ["--addrpath_mode", "a03_stuck0"]),  # stuck1 by seed parity (note)
-    "A04": ("addrpath", ["--agu_pre_mode", "a04_subst"]),
+    "A04": ("addrpath", ["--agu_pre_mode", "a04_same_object"]),
     "A05": ("addrpath", ["--agu_pre_mode", "a05_shift"]),
     # [LSU][MDSPEC][A6] A06（规格名，2026-10-19 计划 §2 裁决 + R4-6-A06
     # 2026-10-22 load 侧落地 + R4-8-A06 2026-10-22 load shrink 落地）：
@@ -2770,6 +2770,24 @@ def run_single_cell(cell, args, seed, outdir):
     # (A03 seed-parity precedent): odd = A06-a size/2, even = A06-b mask.
     if model == "A06" and seed % 2 == 0:
         flags += ["--agu_be_mode", "rotate1_clear_msb"]
+    # [R6-A2/A04] seed parity: odd = A04-a (registered object), even = A04-b
+    # (same page, access-width aligned). A04-a refuses loudly without a
+    # registry; it never degrades to the same-page proxy.
+    if model == "A04":
+        if seed % 2 == 0:
+            i = flags.index("--agu_pre_mode")
+            flags[i + 1] = "a04_same_page"
+        else:
+            spec = ("arr:array:512:8" if _binary == "agu_addrmodes"
+                    else "data:oracle_data:512:8")
+            flags += ["--agu_object_spec", spec]
+            # A04-a's object filter shrinks the F0 stream (measured:
+            # agu_addrmodes 175, mini_check 465). F0 span must be the
+            # mode-specific measured stream, not the bare-model 2819/3187.
+            if freq == "F0":
+                span = 175 if _binary == "agu_addrmodes" else 465
+                j = flags.index("--addrpath_span_events")
+                flags[j + 1] = str(span)
     outdir.mkdir(parents=True, exist_ok=True)
     # [MDSPEC][H0] every sample carries the propagation trace + identity
     prop = propagation_flags(runid, seed)

@@ -63,6 +63,11 @@ class CHAOSAddrPath(SimObject):
     aguSizeTo = Param.UInt64(0,
         "a06_size STORE leg target size: 1|2|4|8|16 "
         "(anything else = invalid, no-op + counted)")
+    aguObjectSpec = Param.String("",
+        "[R6-A2/A04-a] Explicit oracle-object registry, ';'-separated. Each "
+        "item is 'id:symbol:size:elem_width' or 'id:@addr:size:elem_width'. "
+        "A04-a is eligible only when the source EA lies inside a registered "
+        "object; no registry => loud refusal (never falls back to same-page).")
     # [MDSPEC][R4-6-A06 / R4-8-A06] A06-a LOAD leg: ANOTHER legal size,
     # widen OR shrink. The AArch64 load completion is fixed-width per static
     # instruction (LoadCompleteAcc getMemLE(pkt, Mem, ..) reads sizeof(Mem)

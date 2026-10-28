@@ -206,6 +206,21 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_be_all_true = 0;           // ... of which the mask is all-true
     uint64_t obs_be_substituted = 0;        // A06-b shift_mid applied (store)
     uint64_t obs_be_declined = 0;           // A06-b shift_mid declined
+    // [R6-A2/A04] object-registry eligibility (A04-a) observability.
+    uint64_t obs_pre_a04_not_in_object = 0;
+    uint64_t obs_pre_a04_unaligned_source = 0;
+    uint64_t obs_pre_a04_no_candidate = 0;
+
+    // [R6-A2/A04-a] One explicitly registered oracle object. A04-a may only
+    // replace an EA inside the same object; no table => loud refusal.
+    struct AguObject {
+        std::string id;
+        Addr base = 0;
+        uint64_t size = 0;
+        unsigned elem = 0;
+    };
+    std::vector<AguObject> agu_objects;
+    const AguObject *findAguObject(Addr addr, unsigned size) const;
     // A06-a load-leg eligibility (F-049: a mode/target combination that
     // cannot write this request is NOT eligible — decided BEFORE the
     // trigger decision so an unwritable load can never consume the F6
@@ -258,7 +273,8 @@ class CHAOSAddrPath : public SimObject
     // fixed-width load completion path asserts on shrunken packets);
     // a06s_store_size = store-only v2. Loads are op-class filtered out
     // before the trigger decision (F-049 discipline) and never counted.
-    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06_size | a08_subst | s13_store_addr | l01_load_addr (a06s_store_size = rejected alias)
+    std::string pre_mode = "off";   // off | a04_same_object|a04_same_page | a05_shift | a06_size | a08_subst | ...
+    std::string agu_object_spec;    // [R6-A2/A04-a] explicit oracle registry
     uint64_t agu_size_to = 0;       // a06_size store leg: target size {1,2,4,8,16}
     // [MDSPEC][R4-6-A06] A06-a LOAD leg (planned 2026-10-22). The load's
     // completion is fixed-width per STATIC INSTRUCTION (ARM

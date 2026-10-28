@@ -23,7 +23,7 @@ static void put_hex(unsigned long v){
 }
 
 #define N 64
-static unsigned long data[N];
+static unsigned long oracle_data[N];
 
 /* FNV-1a 折叠：任何单元素/指针偏差都会改变 checksum。 */
 static inline unsigned long fnv(unsigned long acc, unsigned long v){
@@ -37,17 +37,17 @@ static unsigned long probe_once(void){
     unsigned i;
 
     /* 1. 短数组校验和 */
-    for (i = 0; i < N; ++i) data[i] = 0x1000UL + (unsigned long)i * 0x0101010101010101UL;
-    for (i = 0; i < N; ++i) acc = fnv(acc, data[i]);
+    for (i = 0; i < N; ++i) oracle_data[i] = 0x1000UL + (unsigned long)i * 0x0101010101010101UL;
+    for (i = 0; i < N; ++i) acc = fnv(acc, oracle_data[i]);
 
     /* 2. 指针链（置换链：节点 i 的下一跳 = (i*7+3)%N，无自环前遍历 N 步） */
-    for (i = 0; i < N; ++i) data[i] = (data[i] & ~0xffUL) | (unsigned long)((i * 7 + 3) % N);
+    for (i = 0; i < N; ++i) oracle_data[i] = (oracle_data[i] & ~0xffUL) | (unsigned long)((i * 7 + 3) % N);
     { unsigned cur = 0;
-      for (i = 0; i < N; ++i){ acc = fnv(acc, data[cur]); cur = (unsigned)(data[cur] & 0xffUL); } }
+      for (i = 0; i < N; ++i){ acc = fnv(acc, oracle_data[cur]); cur = (unsigned)(oracle_data[cur] & 0xffUL); } }
 
     /* 3. load/store round-trip（volatile 读强制真实 load） */
-    for (i = 0; i < N; ++i) data[i] ^= 0xa5a5a5a5a5a5a5a5UL;
-    { volatile unsigned long *vd = data;
+    for (i = 0; i < N; ++i) oracle_data[i] ^= 0xa5a5a5a5a5a5a5a5UL;
+    { volatile unsigned long *vd = oracle_data;
       for (i = 0; i < N; ++i) acc = fnv(acc, vd[i]); }
 
     /* 4. guard page：page1 放链表，page2 PROT_NONE；合法 next 全在 page1 内 */
