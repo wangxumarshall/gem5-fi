@@ -1,17 +1,39 @@
-# R6 A 单元传播文档索引 — 2026-10-28
+# R6 A 单元完整传播路径索引（R6-A3）
 
-合格 seed 共 9 个（RunID+seed），每个一份传播文档；全部由真实 prop_evt/chain_report 生成。
+二进制 SHA-256 冻结值见 `runs/lsu/r6_reports/R6-A3-STATUS.json`。每个 seed 一篇独立文档，数值只来自该 seed 自己的证据。
 
-| RunID | seed | 结局 | terminal | 文档 |
-|---|---|---|---|---|
-| A01-F0-W9 | 2 | Masked | full (L5) | [A01-F0-W9-seed2.md](A01-F0-W9-seed2.md) |
-| A01-F2-W9 | 2 | Crash | full (L5) | [A01-F2-W9-seed2.md](A01-F2-W9-seed2.md) |
-| A02-F0-W3 | 1 | SDC | full (L5) | [A02-F0-W3-seed1.md](A02-F0-W3-seed1.md) |
-| A02-F0-W9 | 1 | Crash | full (L5) | [A02-F0-W9-seed1.md](A02-F0-W9-seed1.md) |
-| A02-F2-W9 | 1 | Crash | full (L5) | [A02-F2-W9-seed1.md](A02-F2-W9-seed1.md) |
-| A03-F5-W3 | 3 | Crash | full (L5), 66 faults | [A03-F5-W3-seed3.md](A03-F5-W3-seed3.md) |
-| A03-F5-W10 | 3 | Crash | full (L5), 89 faults | [A03-F5-W10-seed3.md](A03-F5-W10-seed3.md) |
-| A07-F0-W3 | 2 | Masked | full (L5) | [A07-F0-W3-seed2.md](A07-F0-W3-seed2.md) |
-| A07-F0-W5 | 2 | Masked | detected_contained (L3) | [A07-F0-W5-seed2.md](A07-F0-W5-seed2.md) |
+| RunID | seed1 | seed2 | seed3 |
+|---|---|---|---|
+| A01-F0-W3 | ✅ [doc](A01-F0-W3/seed1.md) | ✅ [doc](A01-F0-W3/seed2.md) | ✅ [doc](A01-F0-W3/seed3.md) |
+| A01-F0-W9 | ✅ [doc](A01-F0-W9/seed1.md) | ✅ [doc](A01-F0-W9/seed2.md) | ✅ [doc](A01-F0-W9/seed3.md) |
+| A01-F1-W3 | ✅ [doc](A01-F1-W3/seed1.md) | ❌ [doc](A01-F1-W3/seed2.md) | ✅ [doc](A01-F1-W3/seed3.md) |
+| A01-F1-W9 | ✅ [doc](A01-F1-W9/seed1.md) | ✅ [doc](A01-F1-W9/seed2.md) | ✅ [doc](A01-F1-W9/seed3.md) |
+| A01-F2-W3 | ✅ [doc](A01-F2-W3/seed1.md) | ❌ [doc](A01-F2-W3/seed2.md) | ✅ [doc](A01-F2-W3/seed3.md) |
+| A01-F2-W9 | ❌ [doc](A01-F2-W9/seed1.md) | ❌ [doc](A01-F2-W9/seed2.md) | ❌ [doc](A01-F2-W9/seed3.md) |
+| A02-F0-W3 | ✅ [doc](A02-F0-W3/seed1.md) | ✅ [doc](A02-F0-W3/seed2.md) | ✅ [doc](A02-F0-W3/seed3.md) |
+| A02-F0-W9 | ✅ [doc](A02-F0-W9/seed1.md) | ✅ [doc](A02-F0-W9/seed2.md) | ✅ [doc](A02-F0-W9/seed3.md) |
+| A02-F2-W3 | ✅ [doc](A02-F2-W3/seed1.md) | ✅ [doc](A02-F2-W3/seed2.md) | ✅ [doc](A02-F2-W3/seed3.md) |
+| A02-F2-W9 | ❌ [doc](A02-F2-W9/seed1.md) | ❌ [doc](A02-F2-W9/seed2.md) | ❌ [doc](A02-F2-W9/seed3.md) |
+| A03-F5-W3 | ✅ [doc](A03-F5-W3/seed1.md) | ✅ [doc](A03-F5-W3/seed2.md) | ✅ [doc](A03-F5-W3/seed3.md) |
+| A03-F5-W10 | ✅ [doc](A03-F5-W10/seed1.md) | ✅ [doc](A03-F5-W10/seed2.md) | ✅ [doc](A03-F5-W10/seed3.md) |
+| A04-F0-W3 | ✅ [doc](A04-F0-W3/seed1.md) | ✅ [doc](A04-F0-W3/seed2.md) | ✅ [doc](A04-F0-W3/seed3.md) |
+| A04-F0-W0 | ✅ [doc](A04-F0-W0/seed1.md) | ✅ [doc](A04-F0-W0/seed2.md) | ✅ [doc](A04-F0-W0/seed3.md) |
+| A04-F2-W3 | ❌ [doc](A04-F2-W3/seed1.md) | ✅ [doc](A04-F2-W3/seed2.md) | ❌ [doc](A04-F2-W3/seed3.md) |
+| A04-F2-W0 | ❌ [doc](A04-F2-W0/seed1.md) | ✅ [doc](A04-F2-W0/seed2.md) | ❌ [doc](A04-F2-W0/seed3.md) |
+| A05-F0-W3 | ✅ [doc](A05-F0-W3/seed1.md) | ✅ [doc](A05-F0-W3/seed2.md) | ✅ [doc](A05-F0-W3/seed3.md) |
+| A05-F2-W3 | ❌ [doc](A05-F2-W3/seed1.md) | ❌ [doc](A05-F2-W3/seed2.md) | ❌ [doc](A05-F2-W3/seed3.md) |
+| A06-F0-W3 | ✅ [doc](A06-F0-W3/seed1.md) | ✅ [doc](A06-F0-W3/seed2.md) | ✅ [doc](A06-F0-W3/seed3.md) |
+| A06-F0-W5 | ✅ [doc](A06-F0-W5/seed1.md) | ✅ [doc](A06-F0-W5/seed2.md) | ✅ [doc](A06-F0-W5/seed3.md) |
+| A06-F2-W3 | ✅ [doc](A06-F2-W3/seed1.md) | ✅ [doc](A06-F2-W3/seed2.md) | ❌ [doc](A06-F2-W3/seed3.md) |
+| A06-F2-W5 | ✅ [doc](A06-F2-W5/seed1.md) | ✅ [doc](A06-F2-W5/seed2.md) | ❌ [doc](A06-F2-W5/seed3.md) |
+| A07-F0-W3 | ❌ [doc](A07-F0-W3/seed1.md) | ❌ [doc](A07-F0-W3/seed2.md) | ✅ [doc](A07-F0-W3/seed3.md) |
+| A07-F0-W5 | ✅ [doc](A07-F0-W5/seed1.md) | ✅ [doc](A07-F0-W5/seed2.md) | ✅ [doc](A07-F0-W5/seed3.md) |
+| A07-F4-W3 | ✅ [doc](A07-F4-W3/seed1.md) | ✅ [doc](A07-F4-W3/seed2.md) | ✅ [doc](A07-F4-W3/seed3.md) |
+| A07-F4-W5 | ✅ [doc](A07-F4-W5/seed1.md) | ✅ [doc](A07-F4-W5/seed2.md) | ✅ [doc](A07-F4-W5/seed3.md) |
+| A08-F0-W3 | ✅ [doc](A08-F0-W3/seed1.md) | ✅ [doc](A08-F0-W3/seed2.md) | ✅ [doc](A08-F0-W3/seed3.md) |
+| A08-F0-W5 | ✅ [doc](A08-F0-W5/seed1.md) | ✅ [doc](A08-F0-W5/seed2.md) | ✅ [doc](A08-F0-W5/seed3.md) |
+| A08-F2-W3 | ❌ [doc](A08-F2-W3/seed1.md) | ❌ [doc](A08-F2-W3/seed2.md) | ❌ [doc](A08-F2-W3/seed3.md) |
+| A08-F2-W5 | ❌ [doc](A08-F2-W5/seed1.md) | ❌ [doc](A08-F2-W5/seed2.md) | ❌ [doc](A08-F2-W5/seed3.md) |
 
-未合格 seed（开放链/合法零/截断）保留在各 `runs/lsu/r6_a*_<RunID>_s<seed>/` 目录，状态见 `../r6_reports/R6-A-STATUS.json`。
+✅ = admitted & certified & terminal ∈ {full, detected_contained} & 流完整；❌ = 已跑但不合格（详见该 seed 文档第 7/10 节）；— = 未运行。
+
