@@ -29,6 +29,11 @@ BIN="$REPO/CHAOS/gem5/build/ARM/gem5.opt"
 MATRIX="$MAIN/runs/lsu/r6_matrix_325.csv"
 RUNS="$MAIN/runs/lsu"
 OUT_TAG="${OUT_TAG:-}"
+# [R6-A4] per-cell budget override: the F2 repeat census showed some
+# filtered-eligible cells need a much longer run to reach the deterministic
+# first-fire position.  Default stays the historic 300s; the batch sets a
+# measured budget per cell (run time from the census × 2 margin).
+TIMEOUT="${TIMEOUT:-300}"
 OUT="$RUNS/r6_a${OUT_TAG}_${RUNID}_s${SEED}"
 LOG="$OUT.log"
 LOCK="$RUNS/.lock_r6_a${OUT_TAG}_${RUNID}_s${SEED}"
@@ -65,7 +70,7 @@ SRC_DIRTY=$(git -C "$REPO" status --porcelain --untracked-files=no -- CHAOS/gem5
 START=$(date -Is)
 SID=$(date +%s)
 
-CMD="LSU_GEM5_BIN=$BIN $PY tools/lsu_campaign.py --matrix $MATRIX --outdir $OUT --cells $RUNID --phase trial --seed-start $SEED --max-seeds-per-cell 1 --max-parallel 1 --allow-blocked-models --timeout 300"
+CMD="LSU_GEM5_BIN=$BIN $PY tools/lsu_campaign.py --matrix $MATRIX --outdir $OUT --cells $RUNID --phase trial --seed-start $SEED --max-seeds-per-cell 1 --max-parallel 1 --allow-blocked-models --timeout $TIMEOUT"
 
 write_manifest() {   # $1=status $2=exit_code $3=campaign_pid $4=pgid $5=end
     "$PY" - "$OUT/manifest.json" <<PYEOF
@@ -108,7 +113,7 @@ cd "$REPO" || exit 2
 setsid env LSU_GEM5_BIN="$BIN" "$PY" tools/lsu_campaign.py \
     --matrix "$MATRIX" --outdir "$OUT" --cells "$RUNID" \
     --phase trial --seed-start "$SEED" --max-seeds-per-cell 1 \
-    --max-parallel 1 --allow-blocked-models --timeout 300 \
+    --max-parallel 1 --allow-blocked-models --timeout "$TIMEOUT" \
     >>"$LOG" 2>&1 &
 CPID=$!
 PGID=$(ps -o pgid= -p "$CPID" 2>/dev/null | tr -d ' ')
