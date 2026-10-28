@@ -135,6 +135,26 @@ class CHAOSAddrPath : public SimObject
     // landed; see tools/lsu_runid_map.py SPEC_IMPL_LANDED pending list.
     bool maybeDelayAguReady(const o3::DynInstPtr &inst);
 
+    // [R6-A4/A07-b] REAL lifecycle observation hooks (user ruling 7,
+    // 2026-10-28). These are READ-ONLY observers: they never change commit or
+    // squash behaviour (they only read the DynInst's identity/squash state and
+    // the tracer's event counter), and both are no-ops unless an A07-b fault
+    // is actually between its resume and its terminal (agu_life.valid).
+    //
+    // observeRetire  — called from Commit::commitHead at the REAL commit
+    //                  point (same anchor as chaosCommitTrace /
+    //                  chaosPropagation->noteCommit). If the retiring
+    //                  instruction IS the delayed one, emit the true terminal
+    //                  `ready_delay_retired` with tick = this commit tick.
+    // observeSquash  — called from Commit::squashAll / Commit::commit's
+    //                  mispredict squash right after rob->squash(seq,tid):
+    //                  ROB::squash squashes every instruction with
+    //                  seqNum > squashed_seq, so if our delayed instruction
+    //                  is among them its delay was REALLY cancelled (emit
+    //                  `ready_delay_discarded`, never a guess).
+    void observeRetire(const o3::DynInstPtr &inst);
+    void observeSquash(ThreadID tid, uint64_t squashed_seq);
+
   private:
     // [MDSPEC][R4-5.8] A07-b resume thunk (aguResumeEvent, fires at the
     // delayed tick = cpu clockEdge(delay)). Single slot (C12 single-slot
@@ -167,6 +187,15 @@ class CHAOSAddrPath : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+    // [R6-A4] The configured single-fault cap (maxFaults) must be enforced on
+    // EVERY LSU-trigger injection path. Before this helper only the A07 ready
+    // path checked it, so a long-repeat F2 run (eligible stream >> the second
+    // interval) wrote a second, different fault and the trigger/funnel/campaign
+    // counts disagreed with the configured maxFaults=1.
+    bool lsuFaultCapReached() const
+    {
+        return max_faults != 0 && faults_injected_count >= max_faults;
+    }
 
     // LSU W2 (05 r2-r8): when lsuTier != off, the injection decision routes
     // through the event-normalized trigger (warm-up/repetition semantics move
@@ -399,6 +428,49 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_agu_watchdog = 0;        // A07-c: forced resume
     uint64_t obs_agu_watchdog_squash = 0; // A07-c: squashed before ready
     void aguWatchdogFired();
+
+    // ------------------------------------------------------------------
+    // [R6-A4/A07-b] REAL fault lifecycle (user ruling 7, 2026-10-28).
+    //
+    // One record per injected ready delay, armed at the ready point and
+    // closed by EXACTLY ONE real terminal hook:
+    //   resume  (resumeDeferredAgu, the delayed tick)
+    //     -> squashed  at resume          => ready_delay_squashed (L4, contained)
+    //     -> retired   Commit::commitHead => ready_delay_retired  (L5, contained)
+    //     -> squashed  after resume       => ready_delay_discarded(L4, contained)
+    // The ancestry is inj -> resume -> terminal and every event of one fault
+    // carries the SAME dyn_inst_seq / request_id (== DynInst::seqNum, the
+    // real request identity on this path: Request::getReqInstSeqNum()).
+    // Timestamps are OBSERVED, never synthesised; a violated order
+    // ready_tick < delayed_tick <= resume_tick <= terminal_tick is warned
+    // about LOUDLY and recorded as-is (data is never corrected).
+    // A watchdog is NOT a terminal: A07-b has none, and none is fabricated.
+    struct AguReadyLife {
+        bool valid = false;        // an A07-b fault is open (inj..terminal)
+        bool resumed = false;      // the resume hook really fired
+        uint64_t seq = 0;          // DynInst::seqNum == request identity
+        ThreadID tid = 0;
+        Addr pc = 0;
+        uint64_t ptag = 0;         // fault_id (0 = tracer disabled)
+        uint64_t inj_event_id = 0; // parent of the resume event
+        uint64_t resume_event_id = 0;  // parent of the terminal event
+        Tick ready_tick = 0;       // REAL ready/handshake tick
+        Tick delayed_tick = 0;     // scheduled resume tick
+        Tick resume_tick = 0;      // tick the resume hook actually ran
+        uint64_t delay_cycles = 0;
+        bool is_load = false;
+    };
+    AguReadyLife agu_life;
+    uint64_t obs_agu_life_resumed = 0;    // resume events emitted (live inst)
+    uint64_t obs_agu_life_retired = 0;    // real retirement terminals
+    uint64_t obs_agu_life_squashed = 0;   // squashed-at-resume terminals
+    uint64_t obs_agu_life_discarded = 0;  // squashed-after-resume terminals
+    // One lifecycle PROP-EVT (see a07EmitLifecycle). outcome/layer empty =
+    // non-terminal (resume). Never emits when the record/ptag is absent.
+    void a07EmitLifecycle(const char *kind, Tick tick, uint64_t parent_id,
+                          bool consumed, bool squashed,
+                          const char *outcome, const char *det_layer,
+                          const char *containment_reason);
 
     // ------------------------------------------------------------------
     // [R6-A3/A05] ISA operand-hook state (A05-a/b/c).

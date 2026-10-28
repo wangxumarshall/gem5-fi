@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <utility>   // [R6-A4/A07-b] std::pair for notePropEvt kv
+#include <vector>    // [R6-A4/A07-b] lifecycle event kv vector
 
 #include "base/chaos_guest_fault.hh"  // [R6-A-SEGV] injected-VA registry
 #include "arch/arm/insts/mem64.hh"   // [R6-A2/A05] real operand classes
@@ -242,8 +244,11 @@ namespace gem5
 
         if (lsuTrigger) {
             // LSU W2 path (05 r2-r8): event-normalized trigger owns the
-            // warm-up/repetition/max-faults semantics; the cycle window and
-            // per-event probability roll do NOT apply on this path.
+            // warm-up/repetition semantics; the cycle window and per-event
+            // probability roll do NOT apply on this path. [R6-A4] the
+            // configured maxFaults cap is enforced HERE too — before this fix
+            // a long-repeat F2 run fired a second, different fault.
+            if (lsuFaultCapReached()) return false;
             lsuTrigger->onAttempt();
             bool go;
             if (lsuTrigger->tier == ChaOSLsuTier::F6) {
@@ -548,6 +553,9 @@ namespace gem5
             di->staticInst.get());
         if (!asi)
             return;
+        // [R6-A4] configured maxFaults cap (one fault per sample).
+        if (lsuFaultCapReached())
+            return;
 
         const uint64_t seq = di->seqNum;
         const Addr pc = di->pcState().instAddr();
@@ -802,6 +810,9 @@ namespace gem5
 
         const Tick now = curTick();
         const ThreadID tid = inst->threadNumber;
+        // [R6-A4] configured maxFaults cap (one fault per sample).
+        if (lsuFaultCapReached())
+            return addr;
         lsuTrigger->onAttempt();
         ++obs_a08_attempt;
 
@@ -1325,6 +1336,12 @@ namespace gem5
             (pre_mode == "a06_size" && !isLoad
              && !(a06b_mode ? a06b_store_ok : a06a_store_ok));
 
+        // [R6-A4] configured maxFaults cap (one fault per sample): after the
+        // cap the pre hook is a pure pass-through. Placed AFTER the A05 ISA
+        // claim block on purpose — the single allowed hook fault must still
+        // get its EA binding even though faults_injected_count is already 1.
+        if (lsuFaultCapReached())
+            return size;
         if (lsuTrigger) {
             lsuTrigger->onAttempt();
             // [LSU][SEM-PRE] op-class filter BEFORE the trigger decision (F-049
@@ -1946,7 +1963,29 @@ namespace gem5
                 (long long)(inst->isLoad() ? inst->lqIdx : -1),
                 (long long)(inst->isLoad() ? -1 : inst->sqIdx),
                 ready_tick, delayed_tick, agu_ready_delay_cycles,
-                inst->isLoad(), inst->pcState().instAddr());
+                inst->isLoad(), inst->pcState().instAddr(),
+                // [R6-A4/A07-b] request identity == DynInst::seqNum (the real
+                // request key on this path, Request::getReqInstSeqNum()), so
+                // the delayed access's own downstream events stay on ONE
+                // request branch instead of opening a sibling.
+                /* request_id = */ inst->seqNum);
+        // [R6-A4/A07-b] Arm the REAL lifecycle record. The terminal MUST come
+        // from a real hook (resume squash / commit retirement / real ROB
+        // squash) — never from a timer or a guess.
+        if (agu_fault_ptag) {
+            agu_life = AguReadyLife();
+            agu_life.valid = true;
+            agu_life.seq = inst->seqNum;
+            agu_life.tid = inst->threadNumber;
+            agu_life.pc = inst->pcState().instAddr();
+            agu_life.ptag = agu_fault_ptag;
+            agu_life.ready_tick = ready_tick;
+            agu_life.delayed_tick = delayed_tick;
+            agu_life.delay_cycles = agu_ready_delay_cycles;
+            agu_life.is_load = inst->isLoad();
+            agu_life.inj_event_id =
+                CHAOSPropagation::instance()->lastEventId(agu_fault_ptag);
+        }
         notifyFunnelAtInjection();
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream()) << "Tick: " << ready_tick
@@ -1974,6 +2013,75 @@ namespace gem5
     // then stays Injected-not-activated — l0_funnel.activated is only
     // bumped on a genuine resume consumption, a REAL read-back verdict,
     // stricter than the POST hook's near-tautological approximation).
+    // ------------------------------------------------------------------
+    // [R6-A4/A07-b] lifecycle PROP-EVT emitter (see .hh). Only registry
+    // fields + the R6-A4 family-extension columns are emitted; tick is
+    // OBSERVED (the caller passes the real hook tick), never synthesised.
+    // ------------------------------------------------------------------
+    void
+    CHAOSAddrPath::a07EmitLifecycle(const char *kind, Tick tick,
+                                    uint64_t parent_id, bool consumed,
+                                    bool squashed, const char *outcome,
+                                    const char *det_layer,
+                                    const char *containment_reason)
+    {
+        CHAOSPropagation *prop = CHAOSPropagation::instance();
+        if (!prop || !agu_life.valid || agu_life.ptag == 0)
+            return;
+        std::ostringstream pc_hex;
+        pc_hex << std::hex << agu_life.pc;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"fault_id", std::to_string(agu_life.ptag)},
+            {"parent_event_id", std::to_string(parent_id)},
+            {"tick", std::to_string(tick)},
+            {"dyn_inst_seq", std::to_string(agu_life.seq)},
+            // A07-b request identity == the dynamic instruction's seq
+            // (Request::getReqInstSeqNum()); carries the model's old/new
+            // ready state through state_before/state_after.
+            {"request_id", std::to_string(agu_life.seq)},
+            {"pc", pc_hex.str()},
+            {"field", "agu_ready_delay"},
+            {"corr", "seq_primary"},
+            {"ready_tick", std::to_string(agu_life.ready_tick)},
+            {"delayed_tick", std::to_string(agu_life.delayed_tick)},
+            {"delay_cycles", std::to_string(agu_life.delay_cycles)},
+            {"consumed", consumed ? "1" : "0"},
+            {"squashed", squashed ? "1" : "0"},
+            {"state_before", "ready"},
+            {"state_after", squashed ? "squashed" : "consumed"},
+        };
+        if (outcome && *outcome) {
+            // Terminal events only: a non-terminal (resume) leaves outcome /
+            // detection_layer empty so the chain checker can never mistake
+            // the resume for an L5 detection.
+            kv.push_back({"outcome", outcome});
+            kv.push_back({"detection_layer", det_layer ? det_layer : ""});
+            kv.push_back({"contained", "1"});
+            kv.push_back({"containment_layer", det_layer ? det_layer : ""});
+            kv.push_back({"containment_reason",
+                          containment_reason ? containment_reason : ""});
+        }
+        prop->notePropEvt(kind, kv);
+    }
+
+    // [MDSPEC][R4-5.8] A07-b resume thunk (aguResumeEvent, fires at the
+    // delayed tick = the CPU's clockEdge(delay); EventFunctionWrapper's
+    // Maximum_Priority runs it after that tick's CPU tick event, i.e. the
+    // instruction executes "at" the delayed cycle). Squash-safe: the stashed
+    // DynInstPtr keeps the instruction alive across the delay window; if a
+    // younger-installed squash removed it in between, chaosAguResumeInst's
+    // squashed branch marks it executed/retirable exactly like executeInsts
+    // does (the fault then stays Injected-not-activated — l0_funnel.activated
+    // is only bumped on a genuine resume consumption, a REAL read-back
+    // verdict, stricter than the POST hook's near-tautological
+    // approximation).
+    //
+    // [R6-A4/A07-b] REAL lifecycle: this hook emits `ready_delay_resume`
+    // (parent = the inj event) with the OBSERVED resume tick and, when the
+    // delay window really straddled a squash, the true terminal
+    // `ready_delay_squashed` (parent = resume). The non-squashed terminal
+    // comes later from the REAL retirement (Commit::commitHead) or a REAL
+    // post-resume ROB squash (Commit::squashAll / mispredict squash).
     void
     CHAOSAddrPath::resumeDeferredAgu()
     {
@@ -1981,19 +2089,126 @@ namespace gem5
         aguPendingInst = nullptr;   // clear the slot BEFORE re-entry
         if (!inst)
             return;
+        const Tick resume_tick = curTick();
+        const bool squashed = inst->isSquashed();
+        // The lifecycle record must describe THIS instruction; a mismatched
+        // record (e.g. a second fault armed by another lane) is stamped stale
+        // and never spliced onto this resume.
+        const bool life_ok = agu_life.valid && agu_life.seq == inst->seqNum;
+        if (agu_life.valid && !life_ok) {
+            warn("CHAOSAddrPath: A07-b lifecycle record (seq=%llu) does not "
+                 "match the resumed inst (seq=%llu) — record closed without a "
+                 "terminal (never spliced)\n",
+                 (unsigned long long)agu_life.seq,
+                 (unsigned long long)inst->seqNum);
+            agu_life = AguReadyLife();
+        }
         if (o3cpu_resolved) {
             agu_activated = true;
             ++l0_funnel.activated;
             o3cpu_resolved->o3IEW().chaosAguResumeInst(inst);
         }
+        if (life_ok) {
+            agu_life.resumed = true;
+            agu_life.resume_tick = resume_tick;
+            // Loud, data-preserving invariant check (never correct the data).
+            if (!(agu_life.ready_tick < agu_life.delayed_tick
+                  && agu_life.delayed_tick <= resume_tick)) {
+                warn("CHAOSAddrPath: A07-b lifecycle tick order VIOLATED at "
+                     "resume: ready_tick=%llu delayed_tick=%llu "
+                     "resume_tick=%llu (recorded as observed, NOT corrected)\n",
+                     (unsigned long long)agu_life.ready_tick,
+                     (unsigned long long)agu_life.delayed_tick,
+                     (unsigned long long)resume_tick);
+            }
+            const bool was_squashed = squashed;
+            ++obs_agu_life_resumed;
+            a07EmitLifecycle("ready_delay_resume", resume_tick,
+                             agu_life.inj_event_id, /*consumed=*/true,
+                             was_squashed, /*outcome=*/nullptr,
+                             /*det_layer=*/nullptr,
+                             /*containment_reason=*/nullptr);
+            if (CHAOSPropagation::instance())
+                agu_life.resume_event_id =
+                    CHAOSPropagation::instance()->lastEventId(agu_life.ptag);
+            if (was_squashed) {
+                // REAL squash of the delayed instruction: the object
+                // cancelled is this dyn inst (and its would-be LSQ entry —
+                // the resume never pushed a request). Terminal, not a guess.
+                ++obs_agu_life_squashed;
+                a07EmitLifecycle("ready_delay_squashed", resume_tick,
+                                 agu_life.resume_event_id, /*consumed=*/true,
+                                 /*squashed=*/true,
+                                 /*outcome=*/"contained",
+                                 /*det_layer=*/"L4",
+                                 /*containment_reason=*/"squash_before_retire");
+                // Close the record: a squashed ROB entry may still drain
+                // through retireHead, but that is NOT an architectural
+                // retirement of this fault — the true terminal is the squash,
+                // and emitting a second terminal would forge a second end.
+                agu_life = AguReadyLife();
+            }
+        }
         if (write_log && log_stream && log_stream->stream()) {
-            *(log_stream->stream()) << "Tick: " << curTick()
+            *(log_stream->stream()) << "Tick: " << resume_tick
                 << ", Site: iew_memRef_AGU_ready_resume"
                 << ", mode=" << agu_ready_mode
                 << ", dyn_inst_seq=" << inst->seqNum
-                << ", consumed=1, squashed=" << (inst->isSquashed() ? 1 : 0)
+                << ", consumed=1, squashed=" << (squashed ? 1 : 0)
                 << std::endl;
         }
+    }
+
+    // [R6-A4/A07-b] REAL retirement observer (called from
+    // Commit::commitHead at the commit point; read-only, never mutates the
+    // instruction or commit state).
+    void
+    CHAOSAddrPath::observeRetire(const o3::DynInstPtr &inst)
+    {
+        if (!inst || !agu_life.valid || !agu_life.resumed)
+            return;
+        if (inst->seqNum != agu_life.seq || inst->threadNumber != agu_life.tid)
+            return;
+        const Tick commit_tick = curTick();
+        if (commit_tick < agu_life.resume_tick) {
+            warn("CHAOSAddrPath: A07-b lifecycle tick order VIOLATED at "
+                 "retire: resume_tick=%llu commit_tick=%llu (recorded as "
+                 "observed, NOT corrected)\n",
+                 (unsigned long long)agu_life.resume_tick,
+                 (unsigned long long)commit_tick);
+        }
+        ++obs_agu_life_retired;
+        a07EmitLifecycle("ready_delay_retired", commit_tick,
+                         agu_life.resume_event_id, /*consumed=*/true,
+                         /*squashed=*/false,
+                         /*outcome=*/"retired_after_delay",
+                         /*det_layer=*/"L5",
+                         /*containment_reason=*/"delay_transparent_retire");
+        agu_life = AguReadyLife();
+    }
+
+    // [R6-A4/A07-b] REAL post-resume squash observer (called right after
+    // rob->squash(squashed_seq, tid): every instruction with
+    // seqNum > squashed_seq is squashed). Read-only.
+    void
+    CHAOSAddrPath::observeSquash(ThreadID tid, uint64_t squashed_seq)
+    {
+        if (!agu_life.valid || !agu_life.resumed)
+            return;
+        if (tid != agu_life.tid)
+            return;
+        if (agu_life.seq <= squashed_seq)
+            return;   // this instruction is NOT inside the squashed range
+        const Tick squash_tick = curTick();
+        ++obs_agu_life_discarded;
+        a07EmitLifecycle("ready_delay_discarded", squash_tick,
+                         agu_life.resume_event_id, /*consumed=*/true,
+                         /*squashed=*/true,
+                         /*outcome=*/"discarded_before_retire",
+                         /*det_layer=*/"L4",
+                         /*containment_reason=*/
+                         "squash_after_resume_before_retire");
+        agu_life = AguReadyLife();
     }
 
     void
@@ -2321,14 +2536,26 @@ namespace gem5
                     if (agu_ready_mode != "off")
                         printf("CHAOS_AGU_READY: mode=%s delay_cycles=%lu "
                                "fault_seq=%lu addr_bound=%d activated=%d "
-                               "obs_opclass=%lu obs_slotbusy=%lu\n",
+                               "obs_opclass=%lu obs_slotbusy=%lu "
+                               // [R6-A4/A07-b] real lifecycle terminals: the
+                               // injected delay is closed by a real hook
+                               // (resume-squash / retirement / ROB squash).
+                               // Always printed (never a silent zero).
+                               "life_resumed=%lu life_retired=%lu "
+                               "life_squashed=%lu life_discarded=%lu "
+                               "life_open=%d\n",
                                agu_ready_mode.c_str(),
                                (unsigned long)agu_ready_delay_cycles,
                                (unsigned long)agu_fault_seq,
                                agu_addr_bound ? 1 : 0,
                                agu_activated ? 1 : 0,
                                (unsigned long)obs_agu_opclass,
-                               (unsigned long)obs_agu_slotbusy);
+                               (unsigned long)obs_agu_slotbusy,
+                               (unsigned long)obs_agu_life_resumed,
+                               (unsigned long)obs_agu_life_retired,
+                               (unsigned long)obs_agu_life_squashed,
+                               (unsigned long)obs_agu_life_discarded,
+                               agu_life.valid ? 1 : 0);
                     // Mirror the trigger's FINAL counts here (exit time), so
                     // the funnel line and the summary line always agree.
                     l0_funnel.attempted = lsuTrigger->attempted;

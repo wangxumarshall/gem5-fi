@@ -1180,7 +1180,8 @@ namespace gem5
                                             Tick ready_tick,
                                             Tick delayed_tick,
                                             uint64_t delay_cycles,
-                                            bool is_load, Addr pc)
+                                            bool is_load, Addr pc,
+                                            uint64_t request_id)
     {
         if (!write_log)
             return 0;
@@ -1202,8 +1203,18 @@ namespace gem5
               << ";lq_idx=" << lq_idx
               << ";sq_idx=" << sq_idx
               << ";pc=0x" << std::hex << pc << std::dec;
+            // [MDSPEC][R6-A4/A07-b] A07-b (request_id != 0) additionally
+            // declares the model's before/after READY STATE; the ready/
+            // delayed ticks themselves ride before/after, delay_cycles is a
+            // family-extension column (PROP_EVT_EXT_FIELDS). A07-a/A07-c
+            // (request_id == 0) keep the detail string byte-identical.
+            if (request_id)
+                d << ";state_before=ready;state_after=delayed"
+                  << ";ready_tick=" << ready_tick
+                  << ";delayed_tick=" << delayed_tick;
             writeNode(ptag, "inj", dyn_seq, true,
-                      0, false, 0, false, 0, false, 0, false, d.str(),
+                      request_id, request_id != 0,
+                      0, false, 0, false, 0, false, d.str(),
                       CORR_ORIGIN);
         }
         // NO registry entry: the EA does not exist at the ready point.

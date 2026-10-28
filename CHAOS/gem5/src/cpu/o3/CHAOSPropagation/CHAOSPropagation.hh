@@ -213,6 +213,23 @@ class CHAOSPropagation : public SimObject
         // bridge contract travels without growing the shared sheet-11 registry.
         "old_request_id", "new_request_id", "source_event_id", "dest_event_id",
         "bridge_layer", "bridge_reason", "shared_addr", "shared_size",
+        // [MDSPEC][R6-A4/A07-b] AGU ready-delay REAL lifecycle vocabulary
+        // (user ruling 7, 2026-10-28). The delayed ready handshake needs its
+        // own explicit time/consumption fields so the offline lifecycle
+        // check can prove ready_tick < delayed_tick <= resume_tick <=
+        // terminal_tick without re-deriving them from before/after:
+        //   ready_tick    the REAL ready/handshake tick (instant the AGU
+        //                 was asked for this instruction's address)
+        //   delayed_tick  the tick the delayed handshake actually ran
+        //   delay_cycles  the bounded delay in CPU cycles (spec A07-b = 1)
+        //   consumed      1 = the resume hook really re-entered the execute
+        //                 path for this instruction (read-back, not armed)
+        //   squashed      at resume/terminal: was the instruction already
+        //                 squashed (1) or still live (0)
+        // Family keys outside the shared sheet-11 registry: the parser keeps
+        // them per family (tools/lsu_prop_fields.parse_line), so no parser
+        // change is owed for these columns.
+        "ready_tick", "delayed_tick", "delay_cycles", "consumed", "squashed",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
@@ -395,10 +412,21 @@ class CHAOSPropagation : public SimObject
     // reaches pushRequest (predicated-off / squashed in the delay
     // window), the chain honestly stops at the inj node.
     // Returns the ptag (0 = tracer disabled).
+    //
+    // [MDSPEC][R6-A4/A07-b] request_id (default 0 = legacy/byte-identical,
+    // used by A07-a/A07-c) stamps the chain's request identity. For A07-b the
+    // caller passes the instruction's dyn seq, which IS the real request
+    // identity on this path (Request::getReqInstSeqNum() == DynInst::seqNum,
+    // see noteMemResponse), so every downstream event of the delayed access
+    // joins the SAME request branch instead of opening a sibling one. When
+    // request_id != 0 the inj node also declares the model's before/after
+    // ready STATE (state_before=ready, state_after=delayed) for the offline
+    // lifecycle check; request_id == 0 keeps the old detail string exactly.
     uint64_t registerAguReadyFault(uint64_t dyn_seq, long long lq_idx,
                                    long long sq_idx, Tick ready_tick,
                                    Tick delayed_tick, uint64_t delay_cycles,
-                                   bool is_load, Addr pc);
+                                   bool is_load, Addr pc,
+                                   uint64_t request_id = 0);
 
     // [MDSPEC][R4-5.8] A07 late address binding (see above): attach the
     // ALREADY-allocated ptag to [addr, addr+size) bound to dyn_seq in the
