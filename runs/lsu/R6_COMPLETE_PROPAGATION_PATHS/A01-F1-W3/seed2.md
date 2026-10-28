@@ -11,9 +11,9 @@
 | seed | 2（sample_run_id=s2） |
 | 子模型/注入参数 | 见注入日志 |
 | 二进制 | `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt` |
-| 二进制 SHA-256 | `c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e` |
-| 源码 HEAD | `ddc81a7b074d0dae2505dc85c8fec5aef6293f66` |
-| 命令 | `LSU_GEM5_BIN=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix /home/sdc/gem5-fi-ding/runs/lsu/r6_matrix_325.csv --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s2 --cells A01-F1-W3 --phase trial --seed-start 2 --max-seeds-per-cell 1 --max-parallel 1 --allow-blocked-models --timeout 300` |
+| 二进制 SHA-256 | `a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046` |
+| 源码 HEAD | `167a23ee59b3a2383cdd1eaeeca418b263666a56` |
+| 命令 | `LSU_GEM5_BIN=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix /home/sdc/gem5-fi-ding/runs/lsu/r6_matrix_325.csv --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2 --cells A01-F1-W3 --phase trial --seed-start 2 --max-seeds-per-cell 1 --max-parallel 1 --allow-blocked-models --timeout 300` |
 
 ## 2. 故障注入发生在哪里
 
@@ -55,28 +55,28 @@ Tick: 1336019300, Site: lsq_sendFragmentToTranslation, mode=a01_bit, old_vaddr=0
 
 ## 7. 最终结局
 
-- oracle：`Masked`；chain terminal：`provable_to_L2_then_unknown`；provable_to：`L2`；beyond：`Unknown`。
-- admitted=False，certified=False，violations=['no_closed_chain_and_no_containment: A01-F1-W3 既无 family-specific L0→L5 完整链，也无显式 containment——不得判 READY', 'ready_by_activated_only: A01-F1-W3 activated=1 本身不是 READY 依据（须完整链或 containment）', 'ready_by_rc0: A01-F1-W3 RC=0 不是 READY 依据（进程正常退出≠链完整）', 'ready_by_chain_end_only: A01-F1-W3 仅存在 chain_end 事件，不构成 L5 结终局证据——不得据此判 READY']，truncated=False，evidence_truncated=False，事件数=8。
+- oracle：`Masked`；chain terminal：`detected_contained`；provable_to：`L2`；beyond：`—`。
+- admitted=True，certified=True，violations=[]，truncated=False，evidence_truncated=False，事件数=8。
 - 事件数：本 seed 流共 8 条，其中 fault_id=1 链 8 条；最后一条为 `chain_end`（event_id=8, tick=1813259525）。
 
 ## 8. 为什么该结局成立
 
 链边证明（本 seed 自己的 fault 1）：已证 `L0->L1`, `L1->L2`。
-终局不是 full/detected_contained（terminal=provable_to_L2_then_unknown），该 seed **不合格**，仅作为真实结局留证。
+终局见证事件（本 seed 自己的流）：kind=`squash_discarded`，event_id=7，parent_event_id=6，tick=1336029695，detection_layer=L4，outcome=contained，contained=1，corr=seq_primary。
+该 squash 属 A01 翻译 fault 请求的**窄白名单终局**：请求在翻译期（L2）硬件 fault 后从未进入下游，L3 见证结构性缺失；白名单要求同一 request（request_id 与 dyn_inst_seq 全等）、严格 ancestry（inj→addr_form→mem_req→lsq_sendfrag→tlb_translate→tlb_fault→squash）、tick 单调、squash 后无任何更深观测、流已收口，且oracle=Masked 与 rc=0（必要条件）。见 `tools/lsu_chain_check._a01_translation_squash_witness`。
 
 ## 9. 原始证据位置与 SHA-256
 
 | 证据 | 路径 | SHA-256 |
 |---|---|---|
-| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s2/A01-F1-W3/seed2/prop_evt.txt.gz` | `97b257eda7afc294c422ab6799c0a1cd9cab1447c9d7f1bf48c15903f0d19360` |
-| stats | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s2/A01-F1-W3/seed2/stats.txt` | `cee42490c3ef99cae0dcebe9e50afeb600c3f3c654a539726574afdb69b67bf5` |
-| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s2/A01-F1-W3/seed2/run.out` | `c29e471bb732fc980434a7bcf31ddd3813eadd5e6716816ae18b34fe65792475` |
-| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s2/A01-F1-W3/seed2/run.err` | `82790b1e6fc9fb5cadb88f2ebcce5f73fa48a90b613ea160375cbfe7991ef2b9` |
-| chain_report | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s2/A01-F1-W3/chain_report.json` | `88ef4bc6224a700b6a2b8ec026b1846fbdd19d38986fe80f47e55d0bae49b0c7` |
-| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s2/manifest.json` | `731a0485ec2b275a6607aea2c02be505f367598bca2e38a750ce477647b5ba1a` |
+| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2/A01-F1-W3/seed2/prop_evt.txt.gz` | `58b92c065f955a5fd861e7d1bace39f3c3af8512ecc03ef94f90c1ba240085ba` |
+| stats | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2/A01-F1-W3/seed2/stats.txt` | `2bd9267ace99a3675f7d76d8f77e66d441372b4a4dc2d7a2ebae074bf3d10e21` |
+| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2/A01-F1-W3/seed2/run.out` | `8f34f6ad26ffe5e846544b07aa26b12ec897a801405285c228c9abf5a6d51164` |
+| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2/A01-F1-W3/seed2/run.err` | `82790b1e6fc9fb5cadb88f2ebcce5f73fa48a90b613ea160375cbfe7991ef2b9` |
+| chain_report | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2/A01-F1-W3/chain_report.json` | `890dbd713aa3b21d9d7de60ec38c88245c73b087cbc9247e256b120d3dbfa572` |
+| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2/manifest.json` | `764eddb19e6965495cc1073f7a2aaa61fb0cac7119b93478ff232957816d5fb3` |
 
 ## 10. 诚实边界
 
 - 本文所有数值均来自本 seed 自己的证据文件；没有跨 seed 取值、没有模板替代路径。
-- 本 seed **未通过验收**（见第 7 节），原因以证据为准。
 

@@ -18,7 +18,10 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+# evidence lives in the main checkout (raw runs); the committed docs/status
+# live in THIS worktree (same layout as R6-A3).
 RUNS = Path("/home/sdc/gem5-fi-ding/runs/lsu")
+REPORTS = REPO / "runs/lsu/r6_reports"
 TAG = "_r6a4"          # candidate (R6-A4) evidence
 OLD_TAG = "_r6a3"      # previous round (65 qualified samples kept as-is)
 
@@ -35,7 +38,7 @@ NEW_SAMPLES = {
     ("A08-F2-W5", 1), ("A08-F2-W5", 2), ("A08-F2-W5", 3),
     ("A07-F0-W3", 1), ("A07-F0-W3", 2),
 }
-OUT_ROOT = RUNS / "R6_COMPLETE_PROPAGATION_PATHS"
+OUT_ROOT = REPO / "runs/lsu/R6_COMPLETE_PROPAGATION_PATHS"
 
 RUNIDS = """A01-F0-W3 A01-F0-W9 A01-F1-W3 A01-F1-W9 A01-F2-W3 A01-F2-W9
 A02-F0-W3 A02-F0-W9 A02-F2-W3 A02-F2-W9
@@ -350,10 +353,28 @@ def doc(rec):
                  wit.get("kind"), wit.get("tick"), wit.get("outcome"),
                  wit.get("containment_layer"),
                  wit.get("containment_reason")))
-        A("该事件带真实 detection_layer/outcome/contained/corr，且其 "
-          "parent 前缀由同一 fault 链逐级可证（见上表）；门禁据此接受为 "
-          "`%s`——它不是 `chain_end` 推断，也不是 oracle 推断。"
-          % s.get("terminal"))
+        _k = str((wit or {}).get("kind", ""))
+        if _k == "squash_discarded":
+            A("该 squash 属 A01 翻译 fault 请求的**窄白名单终局**：请求在翻译期"
+              "（L2）硬件 fault 后从未进入下游，L3 见证结构性缺失；白名单要求"
+              "同一 request（request_id 与 dyn_inst_seq 全等）、严格 ancestry"
+              "（inj→addr_form→mem_req→lsq_sendfrag→tlb_translate→tlb_fault→"
+              "squash）、tick 单调、squash 后无任何更深观测、流已收口，且"
+              "oracle=Masked 与 rc=0（必要条件）。见 "
+              "`tools/lsu_chain_check._a01_translation_squash_witness`。")
+        elif _k == "arch_translation_fault":
+            A("该事件是**真实交付的架构翻译异常**（guest SEGV）：L2 硬件检测 + "
+              "contained 字段 + 与注入链的 corr 关联；门禁按既有规则接受为 "
+              "`%s`——不是 `chain_end` 推断，也不是 oracle 推断。" % s.get("terminal"))
+        elif _k.startswith("ready_delay_"):
+            A("该终局来自真实生命周期钩子（见上段），其 parent 链 "
+              "resume→inj 逐级可证；门禁据此接受为 `%s`——不是 `chain_end` "
+              "推断，也不是 oracle 推断。" % s.get("terminal"))
+        else:
+            A("该事件带真实 detection_layer/outcome/contained/corr，且其 "
+              "parent 前缀由同一 fault 链逐级可证（见上表）；门禁据此接受为 "
+              "`%s`——它不是 `chain_end` 推断，也不是 oracle 推断。"
+              % s.get("terminal"))
     else:
         A("终局不是 full/detected_contained（terminal=%s），该 seed **不合格**，"
           "仅作为真实结局留证。" % s.get("terminal"))
@@ -403,7 +424,11 @@ def main():
                 "round": ("R6-A4" if (rid, seed) in NEW_SAMPLES else "R6-A3"),
             })
             write_this = ("--all" in sys.argv) or ((rid, seed) in NEW_SAMPLES)
-            if not check_only and write_this and rec["present"] and rec["done"]:
+            # A BLOCKED cell has a .done/manifest but no sample; its honest
+            # document is hand-written from the resolver + census evidence and
+            # must not be replaced by a generic "no inj" template.
+            if (not check_only and write_this and rec["present"] and rec["done"]
+                    and rec["sample"]):
                 d = OUT_ROOT / rid
                 d.mkdir(parents=True, exist_ok=True)
                 (d / ("seed%d.md" % seed)).write_text(doc(rec))
@@ -467,7 +492,7 @@ def main():
                                              else "unqualified")) for x in rs},
             "qualified": sum(1 for x in rs if x["qualified"]),
         }
-    (RUNS / "r6_reports" / "R6-A4-STATUS.json").write_text(
+    (REPORTS / "R6-A4-STATUS.json").write_text(
         json.dumps(status, ensure_ascii=False, indent=1))
 
     md = ["# R6-A4 状态（2026-10-28）\n",
@@ -490,7 +515,7 @@ def main():
         md.append("| %s | %s | %d/3 |" % (rid, " | ".join(cells),
                                           sum(1 for x in rs if x["qualified"])))
     md.append("\n未合格样本的真实原因见 `R6-A4-STATUS.json` 的 samples 与逐 seed 文档。")
-    (RUNS / "r6_reports" / "R6-A4-STATUS.md").write_text("\n".join(md) + "\n")
+    (REPORTS / "R6-A4-STATUS.md").write_text("\n".join(md) + "\n")
 
     # ---- dedup ----
     seen = {}
@@ -512,7 +537,7 @@ def main():
         else:
             seen[h] = "%s s%d" % (r["runid"], r["seed"])
     dd.append("\n唯一流 %d 条，重复 %d 条。" % (len(seen), dup))
-    (RUNS / "r6_reports" / "R6-A4-EVIDENCE-DEDUP.md").write_text(
+    (REPORTS / "R6-A4-EVIDENCE-DEDUP.md").write_text(
         "\n".join(dd) + "\n")
     print("docs/index/status/dedup written; unique_streams=%d dup=%d"
           % (len(seen), dup))

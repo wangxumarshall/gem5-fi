@@ -1,78 +1,53 @@
-# A08-F2-W3 seed2 — 完整传播路径（真实事件时间顺序）
+# A08-F2-W3 seed2 — BLOCKED（结构性不可达；未注入、未生成样本）
 
-## 1. 实验身份与子模型
+## 1. 实验身份
 
 | 项 | 值 |
 |---|---|
 | RunID | `A08-F2-W3` |
-| 模型 | A08（AGU 通道/同周期EA互换） |
-| 频率档 | F2 |
-| 负载 | W3 |
-| seed | 2（sample_run_id=s2） |
-| 子模型/注入参数 | Tick: 80080, Site: lsq_pushRequest_A08, mode=a08_pair_swap, submodel=a08b, pair_tick=80080, dyn_inst_seq=5, request_id=5, isLoad=1, load_seq=5, store_seq=0, load_old_ea=0x7ffffefdc0, load_new_ea=0x7ffffefdc0, store_old_ea=0x0, size=8, page_ok=0, decline_reason=pair_missing |
-| 二进制 | `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt` |
-| 二进制 SHA-256 | `c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e` |
-| 源码 HEAD | `ddc81a7b074d0dae2505dc85c8fec5aef6293f66` |
-| 命令 | `LSU_GEM5_BIN=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix /home/sdc/gem5-fi-ding/runs/lsu/r6_matrix_325.csv --outdir /home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F2-W3_s2 --cells A08-F2-W3 --phase trial --seed-start 2 --max-seeds-per-cell 1 --max-parallel 1 --allow-blocked-models --timeout 300` |
+| 模型 | A08（同周期 load/store 配对） |
+| 子模型 | A08-b（even seed：store 先/load 后，同 4KiB 页；EA 互换） |
+| 频率档 | F2（mean 100,000 eligible 事件，±50% jitter） |
+| 负载 | W3=agu_addrmodes |
+| seed | 2 |
+| 结局 | `Blocked`（resolver 响亮拒绝，未启动 gem5） |
 
-## 2. 故障注入发生在哪里
+## 2. 为什么 BLOCKED（真实 census 证据）
 
-**该样本没有 inj 事件**（流里没有可证注入根）。
+A08-b 的“合格流”只统计**同 tick、store 先/load 后、同 4KiB 页**的配对事件
+（`CHAOSAddrPath::maybePairA08` 的 a08_pair_swap 分支）。实测：
 
-注入器日志中该样本的注入行（真实原文，按日志顺序）：
+- W3：E1=E5=E10=21（repeat 完全不增加配对 eligible，delta=0）
+- W5：E1=E5=E10=21（同上）
 
-```
-Tick: 80080, Site: lsq_pushRequest_A08, mode=a08_pair_swap, submodel=a08b, pair_tick=80080, dyn_inst_seq=5, request_id=5, isLoad=1, load_seq=5, store_seq=0, load_old_ea=0x7ffffefdc0, load_new_ea=0x7ffffefdc0, store_old_ea=0x0, size=8, page_ok=0, decline_reason=pair_missing
-Tick: 197890, Site: lsq_pushRequest_A08, mode=a08_pair_swap, submodel=a08b, pair_tick=197890, dyn_inst_seq=48, request_id=48, isLoad=1, load_seq=48, store_seq=0, load_old_ea=0x7ffffefde0, load_new_ea=0x7ffffefde0, store_old_ea=0x0, size=8, page_ok=0, decline_reason=pair_missing
-Tick: 197890, Site: lsq_pushRequest_A08, mode=a08_pair_swap, submodel=a08b, pair_tick=197890, dyn_inst_seq=44, request_id=44, isLoad=0, load_seq=0, store_seq=44, load_old_ea=0x0, load_new_ea=0x0, store_old_ea=0x7ffffefd90, size=8, page_ok=0, decline_reason=store_after_load
-Tick: 479325, Site: lsq_pushRequest_A08, mode=a08_pair_swap, submodel=a08b, pair_tick=479325, dyn_inst_seq=245, request_id=245, isLoad=1, load_seq=245, store_seq=0, load_old_ea=0x7ffffefde8, load_new_ea=0x7ffffefde8, store_old_ea=0x0, size=8, page_ok=0, decline_reason=pair_missing
-... (87855 more lines in the injection log)
-```
+证据：`/home/sdc/gem5-fi-ding/runs/lsu/r6_a4_census_r6a4/summary.json`
+（键 `A08-b-W3`/`A08-b-W5`，`blocked='delta<=0'`；同源未注入测量，
+census-only 工具 `tools/lsu_repeat_census.py`）。
 
-## 3. 注入前后的地址/操作数/大小/掩码/通道/状态变化
+F2 的确定性首火位在 eligible 序数空间（seed 由 `chaosSampleLCG` 决定）：
+seed1=106,412 / seed2=**99,417** / seed3=140,806。A08-b 的整条流只有 21 个
+eligible，**永远到不了** 99,417；repeat 只重复同一 workload，不改变
+“同 tick + store 先/load 后 + 同页”的发生条件（首个冷启动迭代 21 次，
+热迭代 0 次）。
 
-- 地址：`None` → `None`（来自 inj/addr_form 节点，本 seed 自己的值）。
-- `old_ea` = `0x7ffffefdc0`
-- `new_ea` = `0x7ffffefdc0`
-- `submodel` = `a08b`
+## 3. 没有做什么（诚实边界）
 
-## 4. 之后依次经过哪些真实部件
+- 没有启动 gem5、没有注入、没有生成 prop_evt/chain_report；
+- 没有用 A08-a 冒充 even seed（不换注入模型）；
+- 没有改 F2 的平均间隔/随机算法/seed；
+- 没有改 workload 身份或输入；
+- 没有用 oracle 正常推断“合格”。
 
-事件种类序列（本 seed，fault_id=）：``。
-按证据层映射：。
+## 4. 原始证据位置
 
-## 5. 每一步关键 event_id / parent_event_id / tick / request_id / corr
+| 证据 | 路径 |
+|---|---|
+| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W3_s2/manifest.json` |
+| cell_results | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W3_s2/A08-F2-W3/cell_results.json` |
+| census summary | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a4_census_r6a4/summary.json` |
+| resolver 拒绝日志 | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W3_s2.log` |
 
-| kind | event_id | parent | tick | request_id | va | pa | detection_layer | outcome | corr |
-|---|---|---|---|---|---|---|---|---|---|
+## 5. 需要裁决才能改变结局
 
-## 6. 地址/数据/污点在每层如何变化
-
-
-## 7. 最终结局
-
-- oracle：`Masked`；chain terminal：`None`；provable_to：`None`；beyond：`—`。
-- admitted=None，certified=None，violations=[]，truncated=False，evidence_truncated=False，事件数=0。
-- 事件数：本 seed 流共 0 条，其中 fault_id= 链 0 条；最后一条为 `None`（event_id=None, tick=None）。
-
-## 8. 为什么该结局成立
-
-链边证明（本 seed 自己的 fault ）：已证 `（无）`。
-终局不是 full/detected_contained（terminal=None），该 seed **不合格**，仅作为真实结局留证。
-
-## 9. 原始证据位置与 SHA-256
-
-| 证据 | 路径 | SHA-256 |
-|---|---|---|
-| prop_evt | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F2-W3_s2/A08-F2-W3/seed2/prop_evt.txt.gz` | `d1f5b4365ab1cae6477a148fc160aef061bf70ad7dfef3ee32faef52ecb75fcc` |
-| stats | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F2-W3_s2/A08-F2-W3/seed2/stats.txt` | `1eeb229c7ee8eaf07d16a221d1d1a1aa7da784fc62abf38fcdaa02c152093ce2` |
-| run.out | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F2-W3_s2/A08-F2-W3/seed2/run.out` | `cb5f3a67e7b9c5401ea5336873062f7be413c7afd0201fe67e09c1a1b480b2f1` |
-| run.err | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F2-W3_s2/A08-F2-W3/seed2/run.err` | `82790b1e6fc9fb5cadb88f2ebcce5f73fa48a90b613ea160375cbfe7991ef2b9` |
-| chain_report | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F2-W3_s2/A08-F2-W3/chain_report.json` | `63acd52fa53b960d80c9464deb6407628dd3403fcf16480d48dba3244e27ff65` |
-| manifest | `/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F2-W3_s2/manifest.json` | `a5891a612acf52ad60f09f2082140651467e4e7f23b57d47e5036d88c60ec78f` |
-
-## 10. 诚实边界
-
-- 本文所有数值均来自本 seed 自己的证据文件；没有跨 seed 取值、没有模板替代路径。
-- 本 seed **未通过验收**（见第 7 节），原因以证据为准。
-
+见 `runs/lsu/r6_reports/R6-A4-FINAL-REPORT.md` §8（F2-not-applicable / 事件触发档 /
+更换 workload / 换子模型），本轮严格按原规格执行，未选择任何一项。
