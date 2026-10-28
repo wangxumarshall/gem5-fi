@@ -72,6 +72,8 @@ Source("faults.cc", tags=['arm isa'])
 Source("htm.cc", tags=['arm isa'])
 Source("insts/branch.cc", tags=['arm isa'])
 Source("insts/branch64.cc", tags=['arm isa'])
+# [LSU][MDSPEC][R6-A3] A05-a/b/c real ISA operand hook.
+Source("insts/chaos_agu_operands.cc", tags=['arm isa'])
 Source("insts/data64.cc", tags=['arm isa'])
 Source("insts/macromem.cc", tags=['arm isa'])
 Source("insts/mem.cc", tags=['arm isa'])

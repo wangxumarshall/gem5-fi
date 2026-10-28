@@ -1,10 +1,12 @@
 #ifndef __CPU_O3_CHAOS_ADDR_PATH_HH__
 #define __CPU_O3_CHAOS_ADDR_PATH_HH__
 
+#include <map>
 #include <random>
 #include <string>
 #include <vector>
 
+#include "arch/arm/insts/chaos_agu_operands.hh"  // [R6-A3/A05] operand view
 #include "params/CHAOSAddrPath.hh"
 #include "sim/sim_object.hh"
 #include "base/output.hh"
@@ -40,11 +42,14 @@ class CHAOSAddrPath : public SimObject
     // substituted) access size; the call site rebuilds byte_enable when it
     // changed (A06). pre_mode selects the
     // A-series family: a04_subst (same-4KiB-page legal substitution —
-    // "same object" needs the W9 oracle table, documented proxy), a05_shift
-    // (shift-amount submodel: low-byte rotate; the base/index/extend-swap
-    // submodels are NOT expressible from the final addr — deferred, R5),
+    // "same object" needs the W9 oracle table, documented proxy),
+    // a05_base_index / a05_extend / a05_shift (A05-a/b/c REAL operand
+    // rewrites, decided in the ISA EA code — at this hook they only claim
+    // the already-faulted EA for evidence) and a05_prepost (A05-d, real
+    // pre/post EA inversion from the decoded immediate, implemented here),
     // a06_size (access-size substitution, plus the A06-b byte-enable mask
-    // fault below), a08_subst (same-page, no object constraint).
+    // fault below), a08_subst (RETIRED same-page proxy, kept only for
+    // reading historical runs; new A08 runs use a08_channel/a08_pair_swap).
     //
     // [MDSPEC][R4-6-A06] byte_enable is now an IN/OUT parameter (the
     // caller passes a mutable copy; lsq.cc builds LSQRequest::_byteEnable
@@ -62,6 +67,20 @@ class CHAOSAddrPath : public SimObject
     // addr/size untouched, so a before/after compare at the call site
     // cannot see them.
     bool lastPreHookInjected() const { return obs_pre_hook_injected; }
+
+    // [R6-A3/A05] TRUE old EA of the last PRE-family injection. For the
+    // classic PRE modes it equals the addr handed to maybeCorruptPre; for
+    // the ISA operand hook (A05-a/b/c) the addr handed in is ALREADY the
+    // faulted EA, so the propagation registration must use this accessor
+    // to record a real old->new address pair (never old==new).
+    Addr lastPreFaultOldAddr() const { return last_pre_fault_old_addr; }
+
+    // [R6-A3/A05] ISA operand hook: called from the generated
+    // register-offset EA code BEFORE the EA is computed (via
+    // ArmISA::setChaosAguOperandHook). Fills the identity fields, runs
+    // the trigger, and rewrites the LOCAL operand copies on a fire.
+    static void aguOperandThunk(ExecContext *xc, ArmISA::ChaosAguRegView &v);
+    void maybeCorruptAguOperands(ExecContext *xc, ArmISA::ChaosAguRegView &v);
 
     // [MDSPEC][R4-5.8] A07 AGU clean-ready / handshake hook (03 sheet A07:
     // "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"). Called from
@@ -260,6 +279,10 @@ class CHAOSAddrPath : public SimObject
     // Self-guarded: prints only for A06-shaped runs (pre_mode a06_size /
     // the rejected a06s alias / a non-off be_mode).
     void a06Summary();
+    // [R6-A3/A05] One A05-a/b/c evidence line (NEW line, self-guarded to
+    // the three operand-hook modes): per-reason declines, stale claims and
+    // the decision-cache size, so a NO_FIRE is never a silent zero.
+    void a05Summary();
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr
@@ -358,6 +381,67 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_agu_watchdog = 0;        // A07-c: forced resume
     uint64_t obs_agu_watchdog_squash = 0; // A07-c: squashed before ready
     void aguWatchdogFired();
+
+    // ------------------------------------------------------------------
+    // [R6-A3/A05] ISA operand-hook state (A05-a/b/c).
+    // ------------------------------------------------------------------
+    // One decision per dynamic instruction. Keyed by DynInst::seqNum and
+    // carrying the full identity (seq + pc + StaticInst*); an entry is an
+    // IDEMPOTENT REPLAY for the same instruction re-executing after a
+    // translation delay — it never re-rolls the trigger and never
+    // re-registers the injection. Pruned to the recent window so the map
+    // cannot grow without bound (seqNum is monotonic per core).
+    struct AguOperandDecision {
+        bool inject = false;
+        uint64_t seq = 0;
+        Addr pc = 0;
+        const void *si = nullptr;
+        bool is_load = false;
+        unsigned size = 0;
+        unsigned base_reg = 0, index_reg = 0;
+        uint64_t old_base = 0, old_index = 0;
+        uint64_t new_base = 0, new_index = 0;
+        ArmISA::ArmExtendType old_type = ArmISA::UXTX;
+        ArmISA::ArmExtendType new_type = ArmISA::UXTX;
+        uint64_t old_shift = 0, new_shift = 0;
+        Addr old_ea = 0, new_ea = 0;
+        const char *submodel = nullptr;
+    };
+    // A fired fault waiting for ITS OWN pushRequest to claim it (the claim
+    // is in the same call stack as the EA computation, so a pending record
+    // that is not claimed by the very next pushRequest is stale and is
+    // reclaimed loudly — never chained across dynamic instructions).
+    struct AguOperandPending {
+        bool valid = false;
+        uint64_t seq = 0;
+        Addr pc = 0;
+        const void *si = nullptr;
+        bool is_load = false;
+        unsigned size = 0;
+        unsigned base_reg = 0, index_reg = 0;
+        uint64_t old_base = 0, old_index = 0;
+        uint64_t new_base = 0, new_index = 0;
+        ArmISA::ArmExtendType old_type = ArmISA::UXTX;
+        ArmISA::ArmExtendType new_type = ArmISA::UXTX;
+        uint64_t old_shift = 0, new_shift = 0;
+        Addr old_ea = 0, new_ea = 0;
+        const char *submodel = nullptr;
+    };
+    std::map<uint64_t, AguOperandDecision> agu_decisions;
+    AguOperandPending agu_pending;
+    static CHAOSAddrPath *aguOperandConsumer;
+    uint64_t obs_a05_attempt = 0;       // register-offset EA computations seen
+    uint64_t obs_a05_eligible = 0;      // passed shape/no-op gates (trigger)
+    uint64_t obs_a05_declined = 0;      // shape/no-op decline (no budget)
+    uint64_t obs_a05_decl_shift0 = 0;   // A05-a: shift==0 => add commutes
+    uint64_t obs_a05_decl_bit31 = 0;    // A05-b: index bit31==0 => no change
+    uint64_t obs_a05_decl_size1 = 0;    // A05-c: size==1 => no other shift
+    uint64_t obs_a05_decl_index0 = 0;   // A05-c: index==0 => shift no-op
+    uint64_t obs_a05_decl_nochange = 0; // new EA == old EA (never fired)
+    uint64_t obs_a05_decl_opclass = 0;  // atomic/prefetch/non-mem
+    uint64_t obs_a05_stale_reclaimed = 0; // unclaimed pending reclaimed
+    uint64_t obs_a05_no_trigger = 0;    // legacy window path: not offered
+    Addr last_pre_fault_old_addr = 0;
 
     std::mt19937 rng;
     std::random_device rd;

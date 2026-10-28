@@ -100,9 +100,11 @@ def main():
     check("A05-b swaps UXTW/SXTW with bit31 visibility gate",
           "a05_extend" in cpp and "UXTW" in cpp and "SXTW" in cpp
           and "31" in cpp)
-    check("A05-c substitutes another legal shift",
-          "a05_shift" in cpp and
-          re.search(r"(?i)shift.*(log2|Legal|another)", cpp) is not None)
+    check("A05-c substitutes another legal shift and recomputes the EA",
+          "a05_shift" in cpp
+          and "ns = v.shift ? 0 : lg;" in cpp
+          and "const uint64_t lg = v.size == 2 ? 1 : (v.size == 4 ? 2 : 3);"
+              in cpp)
     check("a/b/c no longer fall through the old 'ineligible' branch",
           not re.search(r"if \(a05_b \|\| a05_e \|\| a05_s\) \{\s*a05_ok = false;",
                         cpp))

@@ -1188,6 +1188,15 @@ if args.chaos_addrpath:
         if args.agu_ready_delay_cycles < 1:
             p.error("--agu_ready_delay_cycles must be >= 1 (A07-b bounded "
                     "delay; 0 is a no-op)")
+    # [R6-A3/A05] A05-a/b/c are decided in the ISA operand hook and need the
+    # LSU trigger (no cycle-window denominator at an operand event). Loud
+    # refusal at config time; the injector ctor panics too.
+    _A05_OPERAND_MODES = ("a05_base_index", "a05_extend", "a05_shift")
+    if args.agu_pre_mode in _A05_OPERAND_MODES:
+        if args.addrpath_lsu_tier == "off":
+            p.error("--agu_pre_mode %s requires --addrpath_lsu_tier "
+                    "(A05-a/b/c are LSU-trigger-native operand-hook modes)"
+                    % args.agu_pre_mode)
     # [MDSPEC][R4-6-A06] A06-b config-time validation (the injector's ctor
     # panics too — loud refusal, never a silent no-op).
     if args.agu_be_mode != "off" and args.agu_pre_mode != "a06_size":

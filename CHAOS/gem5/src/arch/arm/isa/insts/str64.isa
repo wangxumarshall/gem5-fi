@@ -124,7 +124,11 @@ let {{
             if self.flavor == "fp":
                 eaCode += vfp64EnabledCheckCode
 
-            eaCode += SPAlignmentCheckCode + "EA = XBase"
+            # [LSU][MDSPEC][R6-A3] A05-a/b/c: register-offset classes install
+            # chaos_ea_code (operand snapshot -> hook -> EA). Byte-identical
+            # for every other class.
+            eaCode += SPAlignmentCheckCode
+            eaCode += getattr(self, "chaos_ea_code", "EA = XBase")
             if self.size == 16:
                 if self.top:
                     eaCode += " + (isBigEndian64(xc->tcBase()) ? 0 : 8)"
@@ -156,6 +160,26 @@ let {{
             self.wbDecl = \
                 "MicroAddXERegUop(machInst, base, base, " + \
                 "                 offset, type, shiftAmt);"
+
+            # [LSU][MDSPEC][R6-A3] A05-a/b/c real operand hook (see
+            # ldr64.isa's LoadRegInst64 for the full contract): real
+            # operands -> locals -> hook -> EA. StaticInst members untouched.
+            if self.size != 16:
+                self.chaos_ea_code = (
+                    "uint64_t _chaosBase = XBase;\n"
+                    "            uint64_t _chaosIndex = XOffset;\n"
+                    "            ArmExtendType _chaosType = type;\n"
+                    "            uint64_t _chaosShift = shiftAmt;\n"
+                    "            ArmISA::chaosAguRegOperands(\n"
+                    "                xc, /*is_load=*/false, " +
+                    str(self.size) + ",\n"
+                    "                (unsigned)base, (unsigned)offset,\n"
+                    "                _chaosBase, _chaosIndex,\n"
+                    "                _chaosType, _chaosShift);\n"
+                    "            EA = _chaosBase + extendReg64(_chaosIndex,\n"
+                    "                                          _chaosType,\n"
+                    "                                          _chaosShift, 64)")
+                self.offset = ""
 
     class StoreRawRegInst64(StoreInst64):
         def __init__(self, *args, **kargs):

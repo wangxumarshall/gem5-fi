@@ -20,6 +20,8 @@ namespace gem5
 {
 
     CHAOSAddrPath *CHAOSAddrPath::f6Consumer = nullptr;
+    // [R6-A3/A05] the single installed ARM operand hook (ISA exec path).
+    CHAOSAddrPath *CHAOSAddrPath::aguOperandConsumer = nullptr;
 
     CHAOSAddrPath::CHAOSAddrPath(const CHAOSAddrPathParams &p)
         : SimObject(p),
@@ -38,10 +40,10 @@ namespace gem5
           be_mode(p.beMode),
           agu_ready_mode(p.aguReadyMode),
           agu_ready_delay_cycles(p.aguReadyDelayCycles),
-          agu_watchdog_cycles(p.aguWatchdogCycles),
-          agu_watchdog_max(p.aguWatchdogMax),
           aguResumeEvent([this] { this->resumeDeferredAgu(); },
                          name() + ".aguResume"),
+          agu_watchdog_cycles(p.aguWatchdogCycles),
+          agu_watchdog_max(p.aguWatchdogMax),
           aguWatchdogEvent([this] { this->aguWatchdogFired(); },
                            name() + ".aguWatchdog")
     {
@@ -111,6 +113,16 @@ namespace gem5
             panic("CHAOSAddrPath: be_mode requires pre_mode=a06_size (A06-b "
                   "is a sub-fault of the same A06 model, and one sample must "
                   "carry one fault — 03 sheet: 不在同一样本叠加)\n");
+        // [R6-A3/A05] A05-a/b/c are decided in the ISA EA code and therefore
+        // need the LSU trigger (the legacy cycle window has no operand-event
+        // denominator). Loud refusal, never a silent no-op.
+        if (pre_mode == "a05_base_index" || pre_mode == "a05_extend"
+                || pre_mode == "a05_shift") {
+            if (p.lsuTier == "off")
+                panic("CHAOSAddrPath: pre_mode=%s is LSU-trigger-native "
+                      "(A05-a/b/c run in the ISA operand hook); "
+                      "--addrpath_lsu_tier is required\n", pre_mode.c_str());
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("addrpath_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -130,7 +142,13 @@ namespace gem5
         }
     }
 
-    CHAOSAddrPath::~CHAOSAddrPath() {}
+    CHAOSAddrPath::~CHAOSAddrPath() {
+        // [R6-A3/A05] never leave a dangling operand hook behind.
+        if (aguOperandConsumer == this) {
+            aguOperandConsumer = nullptr;
+            ArmISA::setChaosAguOperandHook(nullptr);
+        }
+    }
 
     CHAOSAddrPath::Mode
     CHAOSAddrPath::stringToMode(const std::string &s) {
@@ -487,6 +505,267 @@ namespace gem5
         return nullptr;
     }
 
+    // ------------------------------------------------------------------
+    // [R6-A3/A05] A05-a/b/c: REAL operand-level addressing faults.
+    //
+    // The generated ARM register-offset EA code snapshots the decoded
+    // operands (XBase/XOffset/type/shiftAmt and the register indices) into
+    // locals and calls the installed hook BEFORE computing the EA. Here we:
+    //   1) resolve the dynamic instruction (identity = seq + pc + StaticInst),
+    //   2) replay the cached decision verbatim on a re-execution,
+    //   3) for a fresh decision: count the attempt, apply the shape/no-op
+    //      eligibility gates BEFORE the trigger (F-049: an unwritable or
+    //      no-effect candidate must not consume the injection budget),
+    //   4) on a fire: rewrite the LOCAL operands (never the shared
+    //      StaticInst members, never an architectural register), register
+    //      a request-scoped claim, and emit the L0/funnel evidence.
+    // ------------------------------------------------------------------
+    void
+    CHAOSAddrPath::aguOperandThunk(ExecContext *xc,
+                                   ArmISA::ChaosAguRegView &v)
+    {
+        if (aguOperandConsumer)
+            aguOperandConsumer->maybeCorruptAguOperands(xc, v);
+    }
+
+    void
+    CHAOSAddrPath::maybeCorruptAguOperands(ExecContext *xc,
+                                           ArmISA::ChaosAguRegView &v)
+    {
+        if (!o3cpu_resolved)
+            return;
+        o3::DynInst *di = dynamic_cast<o3::DynInst *>(xc);
+        if (!di || di->cpu != o3cpu_resolved)
+            return;
+        auto *asi = dynamic_cast<ArmISA::ArmStaticInst *>(
+            di->staticInst.get());
+        if (!asi)
+            return;
+
+        const uint64_t seq = di->seqNum;
+        const Addr pc = di->pcState().instAddr();
+        const void *si = di->staticInst.get();
+        v.dyn_inst_seq = seq;
+        v.pc = pc;
+        v.static_inst = si;
+
+        // Bounded decision cache: seqNum is monotonic per core, so the
+        // lowest keys are the oldest decisions.
+        auto prune = [this]() {
+            while (agu_decisions.size() > 256)
+                agu_decisions.erase(agu_decisions.begin());
+        };
+
+        // (2) idempotent replay for the SAME dynamic instruction.
+        auto it = agu_decisions.find(seq);
+        if (it != agu_decisions.end() && it->second.pc == pc
+                && it->second.si == si) {
+            const AguOperandDecision &c = it->second;
+            if (c.inject) {
+                v.new_base_val = c.new_base;
+                v.new_index_val = c.new_index;
+                v.new_type = c.new_type;
+                v.new_shift = c.new_shift;
+                v.applied = true;
+                v.submodel = c.submodel;
+            }
+            return;
+        }
+
+        AguOperandDecision d;
+        d.seq = seq;
+        d.pc = pc;
+        d.si = si;
+        d.is_load = v.is_load;
+        d.size = v.size;
+        d.base_reg = v.base_reg;
+        d.index_reg = v.index_reg;
+        d.old_base = v.base_val;
+        d.old_index = v.index_val;
+        d.old_type = v.type;
+        d.old_shift = v.shift;
+        d.old_ea = v.base_val
+            + asi->chaosExtendReg64(v.index_val, v.type, v.shift, 64);
+
+        auto decline = [&](uint64_t &ctr) {
+            ++ctr;
+            ++obs_a05_declined;
+            agu_decisions[seq] = d;
+            prune();
+        };
+
+        // (3) eligibility shape gates, all BEFORE the trigger decision.
+        if (!lsuTrigger) {
+            ++obs_a05_no_trigger;
+            agu_decisions[seq] = d;
+            prune();
+            return;
+        }
+        lsuTrigger->onAttempt();
+        ++obs_a05_attempt;
+
+        if (di->isAtomic() || di->isDataPrefetch() || di->isInstPrefetch()
+                || !(di->isLoad() || di->isStore())) {
+            decline(obs_a05_decl_opclass);
+            return;
+        }
+
+        const bool a_b = (pre_mode == "a05_base_index");
+        const bool a_e = (pre_mode == "a05_extend");
+        const bool a_s = (pre_mode == "a05_shift");
+        uint64_t nb = v.base_val, ni = v.index_val;
+        ArmISA::ArmExtendType nt = v.type;
+        uint64_t ns = v.shift;
+        const char *sub = nullptr;
+
+        if (a_b) {
+            // A05-a: swap base and index SOURCES. With shift==0 the add is
+            // commutative (structural no-op) -> decline before the trigger.
+            if (v.shift == 0) {
+                decline(obs_a05_decl_shift0);
+                return;
+            }
+            nb = v.index_val;
+            ni = v.base_val;
+            nt = v.type;
+            ns = v.shift;
+            sub = "a05a";
+        } else if (a_e) {
+            // A05-b: UXTW <-> SXTW. Only those two encodings are swapped
+            // (UXTX/SXTX are identity in 64-bit); with index bit31==0 the
+            // two extensions are equal (structural no-op) -> decline.
+            if (v.type != ArmISA::UXTW && v.type != ArmISA::SXTW) {
+                decline(obs_a05_decl_bit31);
+                return;
+            }
+            if (!(v.index_val & (1ULL << 31))) {
+                decline(obs_a05_decl_bit31);
+                return;
+            }
+            nt = (v.type == ArmISA::UXTW) ? ArmISA::SXTW : ArmISA::UXTW;
+            sub = "a05b";
+        } else if (a_s) {
+            // A05-c: the OTHER legal shift for this access width. The
+            // AArch64 register-offset S bit admits exactly {0, log2(size)},
+            // so the substitution is unique; size==1 has no other value and
+            // index==0 shifts to the same address (both structural no-ops).
+            if (v.size != 2 && v.size != 4 && v.size != 8) {
+                decline(obs_a05_decl_size1);
+                return;
+            }
+            if (v.index_val == 0) {
+                decline(obs_a05_decl_index0);
+                return;
+            }
+            const uint64_t lg = v.size == 2 ? 1 : (v.size == 4 ? 2 : 3);
+            ns = v.shift ? 0 : lg;
+            sub = "a05c";
+        } else {
+            return;   // not an A05-a/b/c run
+        }
+
+        const Addr new_ea = nb
+            + asi->chaosExtendReg64(ni, nt, ns, 64);
+        if (new_ea == d.old_ea) {
+            decline(obs_a05_decl_nochange);
+            return;
+        }
+        d.new_base = nb;
+        d.new_index = ni;
+        d.new_type = nt;
+        d.new_shift = ns;
+        d.new_ea = new_ea;
+        d.submodel = sub;
+
+        if (!lsuTrigger->onEligible()) {
+            agu_decisions[seq] = d;   // eligible but the tier said no
+            prune();
+            return;
+        }
+        ++obs_a05_eligible;
+
+        // (4) FIRE: hand the rewritten operands back to the generated code.
+        d.inject = true;
+        v.new_base_val = nb;
+        v.new_index_val = ni;
+        v.new_type = nt;
+        v.new_shift = ns;
+        v.applied = true;
+        v.submodel = sub;
+
+        // Request-scoped claim: the very next pushRequest for THIS identity
+        // consumes it; an unclaimed predecessor is reclaimed loudly.
+        if (agu_pending.valid)
+            ++obs_a05_stale_reclaimed;
+        agu_pending.valid = true;
+        agu_pending.seq = seq;
+        agu_pending.pc = pc;
+        agu_pending.si = si;
+        agu_pending.is_load = v.is_load;
+        agu_pending.size = v.size;
+        agu_pending.base_reg = v.base_reg;
+        agu_pending.index_reg = v.index_reg;
+        agu_pending.old_base = d.old_base;
+        agu_pending.old_index = d.old_index;
+        agu_pending.new_base = nb;
+        agu_pending.new_index = ni;
+        agu_pending.old_type = d.old_type;
+        agu_pending.new_type = nt;
+        agu_pending.old_shift = d.old_shift;
+        agu_pending.new_shift = ns;
+        agu_pending.old_ea = d.old_ea;
+        agu_pending.new_ea = new_ea;
+        agu_pending.submodel = sub;
+
+        agu_decisions[seq] = d;
+        prune();
+
+        // SE page-table faults on the faulted VA are experiment outcomes:
+        // register it so the guest gets a normal SEGV teardown (stats and
+        // prop stream flushed) instead of a gemm5 panic.
+        chaos::noteInjectedGuestVa(new_ea);
+        // W3 L0: the operand rewrite is consumed by the EA computation in
+        // this very instruction, so the item is activated by construction.
+        chaosL0Register(l0_item, new_ea);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        ++faults_injected_count;
+        if (lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
+        notifyFunnelAtInjection();
+
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: agu_operand_EA"
+                << ", mode=" << pre_mode
+                << ", submodel=" << sub
+                << ", dyn_inst_seq=" << seq
+                << ", request_id=" << seq
+                << ", corr=seq_primary"
+                << ", pc=0x" << std::hex << pc
+                << ", opcode=" << di->staticInst->getName()
+                << ", old_ea=0x" << d.old_ea
+                << ", new_ea=0x" << new_ea
+                << std::dec
+                << ", size=" << v.size
+                << ", isLoad=" << (v.is_load ? 1 : 0)
+                << ", base_reg=" << v.base_reg
+                << ", index_reg=" << v.index_reg
+                << ", old_base=0x" << std::hex << v.base_val
+                << ", old_index=0x" << v.index_val
+                << ", new_base=0x" << nb
+                << ", new_index=0x" << ni
+                << std::dec
+                << ", old_type=" << (unsigned)v.type
+                << ", new_type=" << (unsigned)nt
+                << ", old_shift=" << v.shift
+                << ", new_shift=" << ns
+                << ", faults_injected: " << faults_injected_count
+                << ", reason=real_operand_rewrite"
+                << std::endl;
+        }
+    }
+
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_inst_seq,
@@ -496,6 +775,72 @@ namespace gem5
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
         obs_pre_hook_injected = false;
+        // [R6-A3/A05] the true pre-fault EA (see lastPreFaultOldAddr): the
+        // classic PRE modes inject at this very input, the ISA operand hook
+        // has already faulted it and overrides this below with the claim.
+        last_pre_fault_old_addr = addr;
+
+        // [R6-A3/A05] claim an ISA-hook operand fault for THIS dynamic
+        // instruction (identity = seq + pc + StaticInst). The EA handed in
+        // is already the faulted one; nothing is re-injected here, we only
+        // hand the evidence to the lsq.cc registration point. A pending
+        // record that does not match this request is STALE (the claim is in
+        // the same call stack as the EA computation): reclaim it loudly and
+        // never chain it to another instruction.
+        if (agu_pending.valid) {
+            const bool match = inst && agu_pending.seq == dyn_inst_seq
+                && agu_pending.pc == inst->pcState().instAddr()
+                && agu_pending.si == inst->staticInst.get();
+            if (match) {
+                obs_pre_hook_injected = true;
+                last_pre_fault_old_addr = agu_pending.old_ea;
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: lsq_pushRequest_PRE"
+                        << ", mode=" << pre_mode
+                        << ", submodel=" << agu_pending.submodel
+                        << ", dyn_inst_seq=" << dyn_inst_seq
+                        << ", request_id=" << dyn_inst_seq
+                        << ", corr=seq_primary"
+                        << ", pc=0x" << std::hex << agu_pending.pc
+                        << ", old_ea=0x" << agu_pending.old_ea
+                        << ", new_ea=0x" << agu_pending.new_ea
+                        << std::dec
+                        << ", size=" << agu_pending.size
+                        << ", isLoad=" << (agu_pending.is_load ? 1 : 0)
+                        << ", base_reg=" << agu_pending.base_reg
+                        << ", index_reg=" << agu_pending.index_reg
+                        << ", old_base=0x" << std::hex
+                        << agu_pending.old_base
+                        << ", old_index=0x" << agu_pending.old_index
+                        << ", new_base=0x" << agu_pending.new_base
+                        << ", new_index=0x" << agu_pending.new_index
+                        << std::dec
+                        << ", old_type=" << (unsigned)agu_pending.old_type
+                        << ", new_type=" << (unsigned)agu_pending.new_type
+                        << ", old_shift=" << agu_pending.old_shift
+                        << ", new_shift=" << agu_pending.new_shift
+                        << ", faults_injected: " << faults_injected_count
+                        << ", reason=real_operand_rewrite_claimed"
+                        << std::endl;
+                }
+                agu_pending.valid = false;
+            } else {
+                ++obs_a05_stale_reclaimed;
+                agu_pending.valid = false;
+            }
+        }
+        // A05-a/b/c run ENTIRELY in the ISA operand hook; a request that
+        // reaches this hook without a claim is a non-register-offset shape
+        // (or a pre-trigger decline) and is honestly ineligible — never a
+        // second, proxy injection.
+        if (pre_mode == "a05_base_index" || pre_mode == "a05_extend"
+                || pre_mode == "a05_shift") {
+            if (obs_pre_hook_injected)
+                return size;
+            ++obs_pre_invalid;
+            return size;
+        }
 
         // [MDSPEC][R4-5.8] A07 path: this hook serves ONLY as the EA
         // observation point (late binding) — NEVER a value fault and NEVER
@@ -570,39 +915,27 @@ namespace gem5
         const bool a04b_declined =
             a04b_mode && (size == 0 || size > 4096 || (4096 / size) < 2);
 
-        // [R6-A2/A05] Real operand-level addressing modes. The hook needs
-        // the DynInst; without it (or on an unsupported shape) the event is
-        // ineligible and does NOT consume the trigger budget.
-        const bool a05_b = (pre_mode == "a05_base_index");
-        const bool a05_e = (pre_mode == "a05_extend");
-        const bool a05_s = (pre_mode == "a05_shift");
+        // [R6-A3/A05] A05-d (pre/post inversion) still runs HERE, from the
+        // real decoded immediate; A05-a/b/c run in the ISA operand hook and
+        // returned above (claim or honest decline). The DynInst is needed
+        // for the pre/post instruction shape: without it (or on a non
+        // pre/post form / imm==0) the event is ineligible and does NOT
+        // consume the trigger budget (F-049).
         const bool a05_p = (pre_mode == "a05_prepost");
-        const bool a05_any = a05_b || a05_e || a05_s || a05_p;
-        ArmISA::MemoryReg64 *a05_mr = nullptr;
         ArmISA::MemoryPreIndex64 *a05_pre = nullptr;
         ArmISA::MemoryPostIndex64 *a05_post = nullptr;
-        if (a05_any && inst) {
-            a05_mr = dynamic_cast<ArmISA::MemoryReg64 *>(
-                inst->staticInst.get());
+        if (a05_p && inst) {
             a05_pre = dynamic_cast<ArmISA::MemoryPreIndex64 *>(
                 inst->staticInst.get());
             a05_post = dynamic_cast<ArmISA::MemoryPostIndex64 *>(
                 inst->staticInst.get());
         }
-        bool a05_ok = false;
-        // [R6-A2/A05] Design B (reconstruct at pushRequest) can read the
-        // real immediate for pre/post, but the microop operand slots for
-        // base/index are NOT reliable (measured SIGSEGV) — a/b/c need the
-        // ISA buildEACode hook and are declined here (never injected).
-        if (a05_b || a05_e || a05_s) {
-            a05_ok = false;
-        } else if (a05_p)
-            a05_ok = (a05_pre || a05_post)
-                && static_cast<ArmISA::MemoryImm64 *>(
-                       a05_pre ? (ArmISA::MemoryImm64 *)a05_pre
-                               : (ArmISA::MemoryImm64 *)a05_post)->immValue()
-                       != 0;
-        const bool a05_declined = a05_any && !a05_ok;
+        const bool a05_ok = a05_p && (a05_pre || a05_post)
+            && static_cast<ArmISA::MemoryImm64 *>(
+                   a05_pre ? (ArmISA::MemoryImm64 *)a05_pre
+                           : (ArmISA::MemoryImm64 *)a05_post)->immValue()
+                   != 0;
+        const bool a05_declined = a05_p && !a05_ok;
 
         // [LSU][MDSPEC][R4-6-A06] A06-a load-leg verdict. Eligibility ==
         // writability (F-049): decided here, BEFORE the trigger, so a load
@@ -812,11 +1145,6 @@ namespace gem5
                 : static_cast<const ArmISA::MemoryImm64 *>(a05_post);
             const uint64_t im = (uint64_t)mi->immValue();
             addr = a05_pre ? (addr - im) : (addr + im);
-        } else if (a05_any) {
-            // a/b/c: faithful operand rewrite requires the ISA buildEACode
-            // hook (microop slots are not a stable API). Never a proxy.
-            ++obs_pre_invalid;
-            return size;
         } else if (pre_mode == "a06_size") {
             // [LSU][MDSPEC][A6] A06-a access-size substitution. Per-op-class
             // legality envelope (2026-10-19 裁决 store-only；R4-6-A06
@@ -1443,6 +1771,35 @@ namespace gem5
                (unsigned long)obs_be_declined);
     }
 
+    // [R6-A3/A05] A05-a/b/c summary line (stdout, W2.1 discipline: a NEW
+    // line, self-guarded to the three operand-hook modes). Every decline
+    // is explicit: a NO_FIRE must never read as a silent zero.
+    void
+    CHAOSAddrPath::a05Summary() {
+        if (pre_mode != "a05_base_index" && pre_mode != "a05_extend"
+                && pre_mode != "a05_shift")
+            return;
+        printf("CHAOS_L0_A05: pre_mode=%s attempted=%lu eligible=%lu "
+               "declined=%lu d_shift0=%lu d_bit31=%lu d_size1=%lu "
+               "d_index0=%lu d_nochange=%lu d_opclass=%lu "
+               "stale_reclaimed=%lu no_trigger=%lu decisions=%lu "
+               "injected=%lu\n",
+               pre_mode.c_str(),
+               (unsigned long)obs_a05_attempt,
+               (unsigned long)obs_a05_eligible,
+               (unsigned long)obs_a05_declined,
+               (unsigned long)obs_a05_decl_shift0,
+               (unsigned long)obs_a05_decl_bit31,
+               (unsigned long)obs_a05_decl_size1,
+               (unsigned long)obs_a05_decl_index0,
+               (unsigned long)obs_a05_decl_nochange,
+               (unsigned long)obs_a05_decl_opclass,
+               (unsigned long)obs_a05_stale_reclaimed,
+               (unsigned long)obs_a05_no_trigger,
+               (unsigned long)agu_decisions.size(),
+               (unsigned long)faults_injected_count);
+    }
+
     void
     CHAOSAddrPath::startup() {
         SimObject::startup();
@@ -1536,6 +1893,17 @@ namespace gem5
         } else {
             o3cpu->setChaosAddrPath(this);
         }
+        // [R6-A3/A05] A05-a/b/c: install the ISA operand hook. The PRE
+        // pointer above stays registered as the CLAIM/evidence point (the
+        // fault itself is decided and written in the EA code).
+        if (pre_mode == "a05_base_index" || pre_mode == "a05_extend"
+                || pre_mode == "a05_shift") {
+            aguOperandConsumer = this;
+            ArmISA::setChaosAguOperandHook(&CHAOSAddrPath::aguOperandThunk);
+            std::cout << "CHAOS_A05_OPERAND_HOOK: mode=" << pre_mode
+                      << " tier=" << (lsuTrigger ? "on" : "off")
+                      << std::endl;
+        }
         if (lsuTrigger) {
             // [MDSPEC][R4-5.8] the W1 four-source F6 thunk registration is
             // for the POST family ONLY: A07's F6 event source IS the
@@ -1624,6 +1992,8 @@ namespace gem5
                 // only — a06Summary() self-guards, so every other
                 // configuration's stdout stays byte-identical).
                 a06Summary();
+                // [R6-A3/A05] A05-a/b/c evidence line (self-guarded).
+                a05Summary();
                 // [LSU][OBS-L3] final funnel row (final counts; runs only on
                 // normal exit — aborts keep the last injection-time node,
                 // which is exactly why the per-injection rows exist).
