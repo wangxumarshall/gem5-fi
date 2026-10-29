@@ -661,7 +661,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 120, "sched_getscheduler", ignoreWarnOnceFunc},
                {base + 121, "sched_getparam", sched_getparamFunc},
                {base + 122, "sched_setaffinity", ignoreWarnOnceFunc},
-               {base + 123, "sched_getaffinity", ignoreFunc},
+               {base + 123, "sched_getaffinity", schedGetaffinityFunc<ArmLinux64>},
                {base + 124, "sched_yield", ignoreWarnOnceFunc},
                {base + 125, "sched_get_priority_max", ignoreWarnOnceFunc},
                {base + 126, "sched_get_priority_min", ignoreWarnOnceFunc},
