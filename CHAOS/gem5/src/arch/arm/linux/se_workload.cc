@@ -144,6 +144,35 @@ setTLSFunc64(SyscallDesc *desc, ThreadContext *tc, uint32_t tlsPtr)
     return 0;
 }
 
+/// prctl() for SE: SVE vector-length get/pin, mirroring the Linux uapi
+/// semantics SDCShield's framework layer (arm64_vl.h) depends on — a
+/// successful PR_SVE_SET_VL returns the granted VL IN BYTES (returning 0
+/// would be read as "execution layer ignored" -> ENOSYS -> test SKIP).
+/// gem5 SE has exactly one tier (ArmISA::sve_vl_se, in quadwords), so a
+/// request at or above the configured VL is granted at the configured VL;
+/// anything lower is refused with EINVAL (single-tier limitation, warned
+/// once). Other prctl options are ignored, returning success.
+static SyscallReturn
+prctlFunc(SyscallDesc *desc, ThreadContext *tc, long option, long arg2)
+{
+    switch (option) {
+      case 51 /* PR_SVE_GET_VL */:
+        return SyscallReturn(
+            (int64_t)tc->getIsaPtr()->getVectorLengthInBytes());
+      case 50 /* PR_SVE_SET_VL */: {
+        const int64_t vl = tc->getIsaPtr()->getVectorLengthInBytes();
+        if (arg2 >= vl)
+            return SyscallReturn(vl);
+        warn_once("%s: PR_SVE_SET_VL %ld below the single configured SE "
+                  "tier (%ld bytes) refused with EINVAL",
+                  desc->name(), arg2, vl);
+        return SyscallReturn(-EINVAL);
+      }
+      default:
+        return SyscallReturn(0);
+    }
+}
+
 class SyscallTable32 : public SyscallDescTable<EmuLinux::SyscallABI32>
 {
   public:
@@ -676,7 +705,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 164, "setrlimit", ignoreFunc},
                {base + 165, "getrusage", getrusageFunc<ArmLinux64>},
                {base + 166, "umask"},
-               {base + 167, "prctl"},
+               {base + 167, "prctl", prctlFunc},
                {base + 168, "getcpu", getcpuFunc},
                {base + 169, "gettimeofday", gettimeofdayFunc<ArmLinux64>},
                {base + 170, "settimeofday"},
