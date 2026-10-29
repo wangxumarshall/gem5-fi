@@ -794,7 +794,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 238, "migrate_pages"},
                {base + 239, "move_pages"},
                {base + 240, "rt_tgsigqueueinfo"},
-               {base + 241, "perf_event_open"},
+               {base + 241, "perf_event_open", ignoreWithEnosysFunc},
                {base + 242, "accept4"},
                {base + 243, "recvmmsg"},
                {base + 260, "wait4"},
