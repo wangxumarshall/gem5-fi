@@ -265,7 +265,8 @@ SyscallReturn fcntlFunc(SyscallDesc *desc, ThreadContext *tc,
 
 /// Target fcntl64() handler.
 SyscallReturn fcntl64Func(SyscallDesc *desc, ThreadContext *tc,
-                          int tgt_fd, int cmd);
+                          int tgt_fd, int cmd,
+                          guest_abi::VarArgs<int> varargs);
 
 /// Target pipe() handler.
 SyscallReturn pipeFunc(SyscallDesc *desc, ThreadContext *tc, VPtr<> tgt_addr);

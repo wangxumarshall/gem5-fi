@@ -659,7 +659,8 @@ fcntlFunc(SyscallDesc *desc, ThreadContext *tc,
 }
 
 SyscallReturn
-fcntl64Func(SyscallDesc *desc, ThreadContext *tc, int tgt_fd, int cmd)
+fcntl64Func(SyscallDesc *desc, ThreadContext *tc, int tgt_fd, int cmd,
+            guest_abi::VarArgs<int> varargs)
 {
     auto p = tc->getProcessPtr();
 
@@ -669,6 +670,26 @@ fcntl64Func(SyscallDesc *desc, ThreadContext *tc, int tgt_fd, int cmd)
     int sim_fd = hbfdp->getSimFD();
 
     switch (cmd) {
+      case F_DUPFD:
+      case F_DUPFD_CLOEXEC: {
+        // Duplicate the descriptor on the host and register a clone of the
+        // guest FDEntry (preserving pipe/socket/file semantics) under a new
+        // target fd. Note: the returned target fd is the lowest free slot in
+        // the FDArray, which equals the kernel's "lowest >= arg" in the
+        // common case where no fds below arg are free.
+        int arg = varargs.get<int>();
+        int new_sim_fd =
+            fcntl(sim_fd, cmd == F_DUPFD_CLOEXEC ? F_DUPFD_CLOEXEC : F_DUPFD,
+                  arg);
+        if (new_sim_fd == -1)
+            return -errno;
+
+        auto newfdp = std::dynamic_pointer_cast<HBFDEntry>(hbfdp->clone());
+        newfdp->setSimFD(new_sim_fd);
+        newfdp->setCOE(cmd == F_DUPFD_CLOEXEC);
+        return p->fds->allocFD(newfdp);
+      }
+
       case 33: //F_GETLK64
         warn("fcntl64(%d, F_GETLK64) not supported, error returned\n", tgt_fd);
         return -EMFILE;
