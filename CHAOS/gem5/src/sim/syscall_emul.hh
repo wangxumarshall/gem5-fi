@@ -2293,6 +2293,14 @@ prlimitFunc(SyscallDesc *desc, ThreadContext *tc,
             rlp->rlim_cur = htog(rlp->rlim_cur, bo);
             rlp->rlim_max = htog(rlp->rlim_max, bo);
             break;
+          case OS::TGT_RLIMIT_NOFILE:
+            // max number of open files: make up a number (typical host
+            // soft limit). Callers that ask for more get the existing
+            // "ignoring new rlimit" pretend-success above.
+            rlp->rlim_cur = rlp->rlim_max = 1024;
+            rlp->rlim_cur = htog(rlp->rlim_cur, bo);
+            rlp->rlim_max = htog(rlp->rlim_max, bo);
+            break;
           default:
             warn("prlimit: unimplemented resource %d", resource);
             return -EINVAL;
