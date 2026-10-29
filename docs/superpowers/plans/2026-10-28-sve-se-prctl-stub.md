@@ -33,15 +33,24 @@ gem5 SE 模式下死于 `fatal: syscall prctl (#167) unimplemented`（实测）�
 
 ## 验证
 
-- [ ] Step 3 增量重建：`scons -C CHAOS/gem5 build/ARM/gem5.opt -j16`，
-  零新 warning；产物拷回 `CHAOS/gem5/build/ARM/gem5.opt`（README:113-116
-  陷阱）；`tools/verify_gem5_injectors.sh` 通过（19 CHAOS 类在位）。
-- [ ] Step 4 spike：`scripts/eigen-sve-double/gem5/run_sve.sh` 跑真二进制
-  `sve_rot_ldr_at_top --vl 4`（512-bit），`fatal: syscall prctl (#167)
-  unimplemented` 消失（出现下一个 fatal 属预期，Task 5 迭代）；跑完
-  `rm -rf m5out`。
-- [ ] Step 5 回归：既有 dual kernel（fpu_special_sve_dual）无注入跑绿，
-  `SDCSHIELD_FAILS=0`。
+- [x] Step 3 增量重建：`scons -C CHAOS/gem5 build/ARM/gem5.opt -j16`，
+  2016 s（实际全量重编 2083 对象）；se_workload.cc 零警告零错误（26 条
+  -Wreorder 均在未触碰的既有 CHAOS 注入器文件）；产物已拷回
+  `CHAOS/gem5/build/ARM/gem5.opt`（md5 05c34c06 两路径一致）；
+  `tools/verify_gem5_injectors.sh`：76 类注入器在位（≥19）、reg_chain
+  golden f247ef3fe6f02cfd 精确匹配（anchor3 的 sve_sme_probe 探针为
+  2026-10-13 会话未跟踪 /tmp 产物、本机已消失，FAIL 在调用 gem5 前发生，
+  与本次构建无关；SVE 可执行性由下方 spike 与回归以更直接方式证明）。
+- [x] Step 4 spike：真二进制 `-e sve_rot_ldr_at_top --vl 4`（512-bit），
+  `fatal: syscall prctl (#167) unimplemented` **消失**，推进至下一屏障：
+  `sched_getaffinity` 被忽略 → `ambient logical processor set appears to
+  be empty!` → `no devices found`（exit 71）——Task 5 迭代对象。契约另以
+  微探针直接实证：--vl 4 → GET_VL=64 / SET_VL(128)=64 / SET_VL(16)=-1
+  errno=22 + warn_once / PR_SET_NAME=0；--vl 1 → GET_VL=16 / SET_VL(128)=16
+  / SET_VL(16)=16。m5out 已清理。
+- [x] Step 5 回归：sve2_fmmla_dual `--sve_vl 4` 无注入（arm_chaos.py，
+  Atomic，max_faults 0）：`SDCSHIELD_FAILS=0`，checksum
+  `ef163d9b7a71160c`，gem5 exit 0。
 
 ## 交付
 
