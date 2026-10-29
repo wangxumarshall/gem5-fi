@@ -668,7 +668,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 112, "clock_settime"},
                {base + 113, "clock_gettime", clock_gettimeFunc<ArmLinux64>},
                {base + 114, "clock_getres"},
-               {base + 115, "clock_nanosleep"},
+               {base + 115, "clock_nanosleep", ignoreWarnOnceFunc},
                {base + 116, "syslog"},
                {base + 117, "ptrace"},
                {base + 118, "sched_setparam", ignoreWarnOnceFunc},
