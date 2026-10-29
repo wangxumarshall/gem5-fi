@@ -573,7 +573,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 21, "epoll_ctl"},
                {base + 22, "epoll_pwait"},
                {base + 23, "dup", dupFunc},
-               {base + 24, "dup3"},
+               {base + 24, "dup3", dup3Func},
                {base + 25, "fcntl64", fcntl64Func},
                {base + 26, "inotify_init1"},
                {base + 27, "inotify_add_watch"},

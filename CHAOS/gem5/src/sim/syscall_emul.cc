@@ -617,6 +617,33 @@ dup2Func(SyscallDesc *desc, ThreadContext *tc, int old_tgt_fd, int new_tgt_fd)
 }
 
 SyscallReturn
+dup3Func(SyscallDesc *desc, ThreadContext *tc, int old_tgt_fd,
+         int new_tgt_fd, int flags)
+{
+    auto p = tc->getProcessPtr();
+    auto old_hbp = std::dynamic_pointer_cast<HBFDEntry>((*p->fds)[old_tgt_fd]);
+    if (!old_hbp)
+        return -EBADF;
+    int old_sim_fd = old_hbp->getSimFD();
+
+    // same host-side trick as dup2Func: obtain a host fd to dup onto, then
+    // register the clone under the target fd. dup3 differs from dup2 only in
+    // the flags argument (O_CLOEXEC), which maps to the entry's COE bit.
+    int res_fd = dup2(old_sim_fd, open("/dev/null", O_RDONLY));
+    if (res_fd == -1)
+        return -errno;
+
+    auto new_hbp = std::dynamic_pointer_cast<HBFDEntry>((*p->fds)[new_tgt_fd]);
+    if (new_hbp)
+        p->fds->closeFDEntry(new_tgt_fd);
+    new_hbp = std::dynamic_pointer_cast<HBFDEntry>(old_hbp->clone());
+    new_hbp->setSimFD(res_fd);
+    new_hbp->setCOE(flags & O_CLOEXEC);
+
+    return p->fds->allocFD(new_hbp);
+}
+
+SyscallReturn
 fcntlFunc(SyscallDesc *desc, ThreadContext *tc,
           int tgt_fd, int cmd, guest_abi::VarArgs<int> varargs)
 {
