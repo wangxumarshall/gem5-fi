@@ -33,6 +33,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -355,8 +356,8 @@ MODEL_FLAGS = {
     "A01": ("addrpath", ["--addrpath_mode", "a01_bit"]),
     "A02": ("addrpath", ["--addrpath_mode", "a02_2bit"]),
     "A03": ("addrpath", ["--addrpath_mode", "a03_stuck0"]),  # stuck1 by seed parity (note)
-    "A04": ("addrpath", ["--agu_pre_mode", "a04_subst"]),
-    "A05": ("addrpath", ["--agu_pre_mode", "a05_shift"]),
+    "A04": ("addrpath", ["--agu_pre_mode", "a04_same_object"]),
+    "A05": ("addrpath", ["--agu_pre_mode", "a05_prepost"]),
     # [LSU][MDSPEC][A6] A06（规格名，2026-10-19 计划 §2 裁决 + R4-6-A06
     # 2026-10-22 load 侧落地 + R4-8-A06 2026-10-22 load shrink 落地）：
     # a06_size = A06-a，按 op-class 的合法包络 —— store 侧任意合法目标；
@@ -371,7 +372,13 @@ MODEL_FLAGS = {
     # （待集成构建），解除要 §2.c spike 的**真实 gem5 运行**断言。
     "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2",
                           "--agu_size_to_load", "8"]),
-    "A08": ("addrpath", ["--agu_pre_mode", "a08_subst"]),
+    # [R6-A3/A08] Real model: same-tick load/store pairing. A08-a = the
+    # store's packet really goes out as a READ (channel error); A08-b = the
+    # pair exchanges EAs (load side at pushRequest, store side via a
+    # same-page paddr retarget before buildPackets). Seed parity selects
+    # them (odd = a, even = b). The old a08_subst same-page proxy is no
+    # longer routed.
+    "A08": ("addrpath", ["--agu_pre_mode", "a08_channel"]),
     # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake timing model (03 sheet
     # A07-b "ready延迟"): --agu_ready_mode a07b_ready_delay at the IEW
     # memRef ready point (IEW::executeInsts), bounded delay pinned to the
@@ -1030,15 +1037,12 @@ MODEL_BLOCKED.update({
     # 非本臂。仍 BLOCKED 的**具体**理由：A06 的 F0 跨度未实测（本轮 campaign
     # 试跑报 CHAOS_LSU_TRIGGER_ALARM EARLY_BIAS：eligible=1677 ≫ span=1000），
     # 且 pilot 仅 1 seed（本仓别处解锁门槛为 3 seed + 逐边链）。
-    "A06": ("BLOCKED(load WIDEN + store size/shrink + A06-b store mask are "
-            "real-machine verified (campaign trial: activated=1); load SHRINK "
-            "is a PROVEN-unreachable path and is declined loudly "
-            "(Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT "
-            "evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: "
-            "A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span "
-            "1000) and the pilot is 1 seed. SPEC-SCOPE ruling item "
-            "(MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — "
-            "R4-8-A06 + R4-8-INT 2026-10-22)"),})
+    # [R6-A2/A06 RULING 2026-10-28] UNBLOCKED: A06-a = store original/2,
+    # A06-b = same-width non-zero mask (rotate one byte; all-true -> clear
+    # MSB). Loads (and size=1) are structurally ineligible and do not
+    # consume the trigger budget. F0 span is measured (1685/1627); the
+    # real-run canary lands with the A06 commit.
+    })
 
 # Trigger-tier flags per family. F0 span: addrpath/lsqfwd eligible streams
 # are per-request (large; span 1000 verified by the W10 trial); prefetch
@@ -1092,19 +1096,290 @@ ADDRPATH_F0_SPAN = {
     #                  eligible=2795 injected=0 (SPAN_UNREACHABLE, census)
     #   sq_forward:    injector=CHAOSAddrPath tier=F0 attempted=2579
     #                  eligible=2579 injected=0 (SPAN_UNREACHABLE, census)
-    ("A07", "agu_addrmodes"): 2795,
-    ("A07", "sq_forward"): 2579,
+    # [R6-A2-REPEAT 2026-10-28] 同源 repeat 载体重新 census（业务代码
+    # probe_once 化后，F0 流与旧二进制略有差异；binary = 本轮 repeat 版）。
+    # 实测命令：--addrpath_lsu_tier F0 --addrpath_warmup_events 1
+    #           --addrpath_span_events 1000000000（本期改为大 span 防早火）
+    #   A01/A02 agu_addrmodes: 2789    A01/A02 gap_bfs: 264751
+    #   A04/A05/A07/A08 agu:   2819    A04 mini_check:  3187
+    #   A07/A08 sq_forward:    2568    A06 agu: 1685 / A06 sq: 1627
+    ("A07", "agu_addrmodes"): 2819,
+    ("A07", "sq_forward"): 2568,
+    ("A01", "agu_addrmodes"): 2789,
+    ("A02", "agu_addrmodes"): 2789,
+    ("A04", "agu_addrmodes"): 2819,
+    ("A04", "mini_check"): 3187,
+    ("A05", "agu_addrmodes"): 2819,
+    # [R6-A3/A08] measured with the REAL pairing (binary 15e69370): the
+    # eligible stream is the same-tick pair count, NOT the bare mem-op
+    # stream. Odd seeds run A08-a (channel; 110 pairs on sq_forward, 110 on
+    # agu_addrmodes); even seeds run A08-b (EA swap; 21 same-page pairs).
+    # The per-seed override below picks the right span.
+    ("A08", "agu_addrmodes"): 110,
+    ("A08", "sq_forward"): 110,
+    ("A01", "gap_bfs"): 264751,
+    ("A02", "gap_bfs"): 264751,
+    # A06 is unblocked only after Task 4's real-run assertion; its census is
+    # measured here but the entry is added with that task.
+    ("A06", "agu_addrmodes"): 1685,
+    ("A06", "sq_forward"): 1627,
+}
+
+# [R6-A-SPAN 2026-10-28] Models whose F0 cells are parameterized from the
+# measured table above. Scoped to the A unit on purpose: the S/L addrpath
+# models still use the legacy span=1000 default until their own census lands
+# (changing them without measured streams would trade one silent bias for
+# another). A06 is MODEL_BLOCKED and has no entry — if it is ever unblocked
+# without a census the loud refusal below stops it.
+ADDRPATH_F0_SPAN_MODELS = frozenset({"A01", "A02", "A04", "A05", "A06",
+                                     "A07", "A08"})
+
+# [R6-A4 2026-10-28] seed -> 子模型（A 单元由 seed 奇偶选择）。repeat 键必须
+# 带 submodel：A04/A05-d/A06/A08 的 eligible 是**子模型过滤后**的流，旧表按
+# 裸访存流标定（实测 A05-F2-W3 s1 R=434：attempted=156129 eligible=91623
+# injected=0 —— 91623 < 首火位 140806）。键一律是
+#   (model, freq, binary, submodel)
+# 无子模型的模型（A01/A02/A05/A07）用空串 ""。
+SUBMODEL_PARITY = {
+    # odd seed / even seed
+    "A04": ("a04_same_object", "a04_same_page"),
+    "A06": ("a06_size", "a06_mask"),
+    "A08": ("a08_channel", "a08_pair_swap"),
 }
 
 
+def submodel_for(model, seed):
+    """Seed-parity sub-model label; "" for models without sub-models.
+
+    Single source of truth: run_single_cell's flag selection and
+    resolve_cell's REPEAT_FACTOR lookup both call this (no key/flag drift).
+    """
+    pair = SUBMODEL_PARITY.get(model)
+    if pair is None:
+        return ""
+    return pair[0] if int(seed) % 2 else pair[1]
+
+
+# [R6-A2-REPEAT / R6-A4] 结构性 NO_FIRE 的同源 repeat 表。
+#
+# 用户工作令公式：repeat_factor = ceil(1.2 * max_first_fire / eligible_per_iter)。
+# 本轮实测发现 eligible 不是“整次运行流长 × N”：首趟含静态 libc 启动流，
+# 后续每趟只增加探针体的 eligible 增量。因此用
+#   R = 1 + ceil((1.2 * max_first_fire - E1) / delta_per_iter)
+# 计算（E1 = repeat=1 总 eligible，delta = repeat=5 与 repeat=1 的差值/4）。
+#
+# [R6-A4 2026-10-28] 子模型 census（tools/lsu_repeat_census.py，冻结二进制
+# c52ef225…c7114c71e）。每行的 E1/delta/R 与运行秒数见 REPEAT_EVIDENCE；
+# 数字全部来自真实 gem5 运行，不是推算。
+#
+# 首火位置（eligible 序数，seed1/2/3 的 max；由 seeded LCG 独立重算，
+# 见 tests/test_lsu_r6a4_repeat_census.py）：F1 max=1,290,806；F2/F4
+# max=140,806（seed1=106,412 / seed2=99,417 / seed3=140,806）。
+REPEAT_FACTOR = {
+    # --- 无子模型：R6-A4 census 前的既有实测值保持不变（用户工作令） ---
+    # F1 (iv=1e6)
+    ("A01", "F1", "agu_addrmodes", ""): 4023,
+    ("A01", "F1", "gap_bfs", ""): 6,
+    # F2 (iv=1e5)
+    ("A01", "F2", "agu_addrmodes", ""): 434,
+    ("A02", "F2", "agu_addrmodes", ""): 434,
+    # [R6-A4] gap_bfs F2：未注入流 E1=264,751 >= 1.2*140,806=168,967.2 ->
+    # R=1（首火位已被 repeat=1 的流覆盖；证据见 REPEAT_EVIDENCE）。
+    ("A01", "F2", "gap_bfs", ""): 1,
+    ("A02", "F2", "gap_bfs", ""): 1,
+    # [R6-A4] A05-d = a05_prepost（无 seed 奇偶子模型）。旧 434 是按裸流
+    # 标定的，实测过滤后流 E1=243 delta=215.25 -> R=785。
+    ("A05", "F2", "agu_addrmodes", ""): 785,
+    # --- 子模型分桶（A04/A06 由 seed 奇偶选择；A08 见下方 BLOCKED 说明） ---
+    # A04-a（odd）= same_object（对象过滤流）；A04-b（even）= same_page
+    ("A04", "F2", "agu_addrmodes", "a04_same_object"): 1021,
+    ("A04", "F2", "mini_check", "a04_same_object"): 375,
+    ("A04", "F2", "agu_addrmodes", "a04_same_page"): 455,
+    ("A04", "F2", "mini_check", "a04_same_page"): 212,
+    # A06-a（odd）= a06_size；A06-b（even）= a06_mask
+    ("A06", "F2", "agu_addrmodes", "a06_size"): 1123,
+    ("A06", "F2", "sq_forward", "a06_size"): 1295,
+    ("A06", "F2", "agu_addrmodes", "a06_mask"): 1123,
+    ("A06", "F2", "sq_forward", "a06_mask"): 1295,
+    # --- [R6-A4] A08-F2： ---
+    #   A08-a（odd, channel）：W3 delta=10.75 -> R=15,706；W5 delta=2.0
+    #     -> R=84,418（census 实测，见 REPEAT_EVIDENCE）。R6-A4 已把
+    #     config/workload 的 repeat 上限抬到 131,072 并重建 gem5（新二进制
+    #     且 maxFaults=1 在 LSU trigger 路径真正封顶）。这两个 R 在新二进制
+    #     下真跑验证后才允许用于正式样本（canary 记录于 R6-A4-PROGRESS）。
+    #   A08-b（even, pair_swap）：E1=E5=E10=21，repeat 完全不增加配对
+    #     eligible（delta=0）-> 结构上不可达，**不登记**（响亮 BLOCKED）。
+    ("A08", "F2", "agu_addrmodes", "a08_channel"): 15706,
+    ("A08", "F2", "sq_forward", "a08_channel"): 84418,
+    # F4 (iv=1e5; same draw positions as F2)
+    ("A07", "F4", "agu_addrmodes", ""): 434,
+    ("A07", "F4", "sq_forward", ""): 934,
+}
+
+# [R6-A4] Per-key census evidence（E1 / delta / first-fire cover / R /
+# 实测单次运行秒数 / verify 的 injected）。来源：
+#   runs/lsu/r6_a4_census_r6a4/summary.json（tools/lsu_repeat_census.py，
+#   冻结二进制 c52ef225…c7114c71e）；数字来自真实 gem5 运行，不是推算。
+# 键与 REPEAT_FACTOR 完全一致（同一 4 元组，无第二套命名）。
+REPEAT_EVIDENCE = {
+    ("A04", "F2", "agu_addrmodes", "a04_same_object"): {
+        "E1": 175, "eligible@5": 837, "delta": 165.5, "delta_source": "repeat=5",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 1021,
+        "verify_injected": 2, "verify_seconds": 11.417,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A04-a-W3_r1021"},
+    ("A04", "F2", "mini_check", "a04_same_object"): {
+        "E1": 465, "eligible@5": 2270, "delta": 451.25, "delta_source": "repeat=5",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 375,
+        "verify_injected": 2, "verify_seconds": 9.69,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A04-a-W0_r375"},
+    ("A04", "F2", "agu_addrmodes", "a04_same_page"): {
+        "E1": 2823, "eligible@5": 4359, "delta": 366.444444,
+        "delta_source": "min(repeat=5,repeat=10)  # delta 不稳定(4.6%)",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 455,
+        "verify_injected": 1, "verify_seconds": 6.011,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A04-b-W3_r455"},
+    ("A04", "F2", "mini_check", "a04_same_page"): {
+        "E1": 3190, "eligible@5": 6334, "delta": 786.0, "delta_source": "repeat=5",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 212,
+        "verify_injected": 1, "verify_seconds": 6.227,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A04-b-W0_r212"},
+    ("A05", "F2", "agu_addrmodes", ""): {
+        "E1": 243, "eligible@5": 1104, "delta": 215.25, "delta_source": "repeat=5",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 785,
+        "verify_injected": 1, "verify_seconds": 9.5,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A05-d-W3_r785"},
+    ("A06", "F2", "agu_addrmodes", "a06_size"): {
+        "E1": 1279, "eligible@5": 1896, "delta": 149.555556,
+        "delta_source": "min(repeat=5,repeat=10)  # delta 不稳定(3.0%)",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 1123,
+        "verify_injected": 1, "verify_seconds": 12.707,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A06-a-W3_r1123"},
+    ("A06", "F2", "sq_forward", "a06_size"): {
+        "E1": 1261, "eligible@5": 1799, "delta": 129.666667,
+        "delta_source": "min(repeat=5,repeat=10)  # delta 不稳定(3.6%)",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 1295,
+        "verify_injected": 1, "verify_seconds": 8.911,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A06-a-W5_r1295"},
+    ("A06", "F2", "agu_addrmodes", "a06_mask"): {
+        "E1": 1296, "eligible@5": 1913, "delta": 149.555556,
+        "delta_source": "min(repeat=5,repeat=10)  # delta 不稳定(3.0%)",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 1123,
+        "verify_injected": 1, "verify_seconds": 12.644,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A06-b-W3_r1123"},
+    ("A06", "F2", "sq_forward", "a06_mask"): {
+        "E1": 1278, "eligible@5": 1816, "delta": 129.666667,
+        "delta_source": "min(repeat=5,repeat=10)  # delta 不稳定(3.6%)",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 1295,
+        "verify_injected": 1, "verify_seconds": 8.915,
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A06-b-W5_r1295"},
+    ("A01", "F2", "gap_bfs", ""): {
+        # 未注入流（census-only warmup=10,000,000；tier/seed/LCG 不变）
+        "E1": 264751, "eligible@5": 1311978, "delta": 261806.75,
+        "delta_source": "repeat=5 (uninjected stream)",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 1,
+        "verify_injected": 1, "verify_seconds": 4.464,
+        "note": "E1 >= 1.2*max -> R=1；seed1 的 F2 首火位 106,412 已在流内",
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A01-F2-W9_r1"},
+    ("A02", "F2", "gap_bfs", ""): {
+        "E1": 264751, "eligible@5": 1311978, "delta": 261806.75,
+        "delta_source": "repeat=5 (uninjected stream)",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 1,
+        "verify_injected": 2, "verify_seconds": 6.01,
+        "note": "E1 >= 1.2*max -> R=1；verify 里出现 2 次发射（1.2 覆盖余量）",
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A02-F2-W9_r1"},
+    ("A08", "F2", "agu_addrmodes", "a08_channel"): {
+        "E1": 143, "eligible@5": 186, "delta": 10.75, "delta_source": "repeat=5",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 15706,
+        "verify_injected": None, "verify_seconds": None,
+        "note": "over-cap under the frozen binary (needs 15,706 > 4,096); "
+                "no verify run was issued — a >4096 repeat on the old "
+                "workload ELF would be silently clamped to 4096 (fake "
+                "NO_FIRE). Re-measure on the rebuilt binary.",
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A08-a-W3_r10"},
+    ("A08", "F2", "sq_forward", "a08_channel"): {
+        "E1": 135, "eligible@5": 143, "delta": 2.0, "delta_source": "repeat=5",
+        "max_first_fire": 140806, "cover_1.2max": 168967.2, "R": 84418,
+        "verify_injected": None, "verify_seconds": None,
+        "note": "over-cap under the frozen binary (needs 84,418 > 4,096); "
+                "no verify run was issued (see the W3 entry).",
+        "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A08-a-W5_r10"},
+}
+
+REPEAT_MAX = 131072
+# [R6-A4] 上限的实测依据（不是拍的）：
+#   * census 真实使用的最大 R = 1295（A06-a/b-W5），单次 8.86 s；最坏
+#     verify = 12.707 s（A06-b-W3，R=1123，165,140 eligible）；
+#   * A08-a 的过滤后流极稀疏：W3 delta=10.75 -> R=15,706；W5 delta=2.0
+#     -> R=84,418（要覆盖 1.2*140,806）。旧上限 4,096 会静默 clamp，故
+#     R6-A4 把 config（lsu_proxy.py）与 workload（chaos_repeat.h）的上限
+#     一并抬到 131,072，并在**新二进制**上真实跑 A08-a 的 R 记录耗时；
+#   * 131,072 的上界判断：W5 每趟实测 ~7.5–31 ms，最坏 ≈ 44 min/样本，
+#     低于 A08-F2 的 3600 s 单样本预算；超过即响亮 BLOCKED，不做无限循环。
+REPEAT_MAX_BASIS = {
+    "measured_worst_run_s": 12.707,
+    "at_repeat": 1123,
+    "max_used_repeat": 84418,
+    # R6-A4 canary: A08-F2-W3 s1 at R=15706 ran 161.3 s end-to-end (15706 ITER
+    # lines, injected=1, detected_contained).  W5 R=84418 extrapolates to
+    # ~14.4 min at the same ~10 ms/iteration, inside the 3600 s A08-F2 budget.
+    "max_measured_run_s": 161.3,
+    "max_measured_at_repeat": 15706,
+    "max_used_run_s": 161.3,
+    "binary_sha256": ("a1632e0f1d24be639044d24bac8e6fd9"
+                      "02d0a6642b276fd430927471643e7046"),
+    "basis": ("R6-A4 raised the config/workload repeat cap to 131072 after "
+              "the filtered-eligible census: A08-a needs 15706 (W3) / 84418 "
+              "(W5); measured per-iteration 7.5-31 ms -> <=44 min/sample, "
+              "under the 3600 s A08-F2 budget; >cap stays a loud BLOCK"),
+    "measured_at": "2026-10-28",
+}
+
+
+def repeat_factor_for(model, freq, binary, seed=None):
+    """Return the measured repeat factor, 1 for non-interval tiers, or None
+    when an interval-tier cell has no census (loud refusal upstream).
+
+    [R6-A4] seed 已知 -> 按 (model,freq,binary,submodel) 查键。seed 未知且
+    该模型的 submodel 由 seed 决定时，返回所有 submodel 中的**最大值**
+    （保守：多重复只会多产生 eligible，不会改变首火位语义）；这只是给
+    无 seed 的旧调用方的保守视图，生产路径一律传 seed。
+    """
+    if freq not in ("F1", "F2", "F4"):
+        return 1
+    if seed is not None:
+        return REPEAT_FACTOR.get((model, freq, binary,
+                                  submodel_for(model, seed)))
+    vals = [v for (m, f, b, _s), v in REPEAT_FACTOR.items()
+            if (m, f, b) == (model, freq, binary)]
+    return max(vals) if vals else None
+
+
+def repeat_evidence(model, freq, binary, seed):
+    """Census evidence for the seed's sub-model key (None when unmeasured)."""
+    return REPEAT_EVIDENCE.get((model, freq, binary,
+                                submodel_for(model, seed)))
+
+
+def parse_iter_checksums(text):
+    """Parse the `ITER:<n>:<16hex>` lines emitted by chaos_repeat.h.
+
+    Returns [(iteration_index, checksum)] in file order. A missing line is
+    evidence of a crash before that iteration completed — callers must not
+    fill it in.
+    """
+    return [(int(m.group(1)), m.group(2))
+            for m in re.finditer(r"^ITER:(\d+):([0-9a-f]{16})\s*$",
+                                 text or "", re.M)]
+
+
 def _addrpath_tier_flags(model, tier, wl_binary=None):
-    # [MDSPEC][R4-5.8] A07: per-(model, workload) F0 span with the
+    # [MDSPEC][R4-5.8] per-(model, workload) F0 span with the
     # LSQFWD_F0_SPAN loud-refusal contract (see ADDRPATH_F0_SPAN above);
-    # warmup=1 + span=N = the TRUE F0-uniform parameterization. Every
-    # other addrpath model keeps the historical tier flags byte-identical
-    # (the pre-R4-5.8 span=1000 family default — the R4-2 §2.4 parked
-    # addrpath-span item, unchanged by this task).
-    if model == "A07" and tier == "F0":
+    # warmup=1 + span=N = the TRUE F0-uniform parameterization.
+    # [R6-A-SPAN 2026-10-28] extended from A07 to the whole A unit after the
+    # A04-F0-W3 seed1 EARLY_BIAS measurement. S/L addrpath models keep the
+    # historical tier flags byte-identical (legacy span=1000) until censused.
+    if model in ADDRPATH_F0_SPAN_MODELS and tier == "F0":
         span = ADDRPATH_F0_SPAN.get((model, wl_binary))
         if span is None:
             return None   # resolve_cell turns this into a loud BLOCKED cell
@@ -1590,7 +1865,8 @@ def check_phase_gate(phase, allow_blocked_models, t08a_canary,
 
 
 def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
-                 t08a_canary=False, t08_submodels_proven=None):
+                 t08a_canary=False, t08_submodels_proven=None,
+                 seed=None, repeat_override=None):
     """Cell -> (flags list, golden, binary) or (None, None, blocked_reason).
 
     Every cell resolves to exactly one of: runnable flags, or a blocked/
@@ -1610,6 +1886,13 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
 
     evidence_pilot=True is narrower: only landed T05--T08 modes may use it,
     solely to collect trial evidence.  It never changes formal admission.
+
+    [R6-A4] seed: the repeat key is (model, freq, binary, submodel) and the
+    sub-model is selected by seed parity (A04/A06/A08). A cell whose model
+    has sub-models therefore CANNOT resolve its repeat factor without a
+    seed — it is refused loudly rather than guessing one branch.
+    repeat_override: explicit repeat count for the census tool ONLY (it must
+    run repeat=1/5 before a table entry exists). Still capped by REPEAT_MAX.
     """
     model = cell[COL_MODEL].strip()
     freq = cell[COL_FREQ].strip()
@@ -1798,6 +2081,43 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
             % (model, binary, span_table, model, binary))
     flags += tier_flags
     flags += extra
+    # [R6-A2-REPEAT / R6-A4] interval tiers must reach their first fire
+    # position on the SAME workload (no carrier swap). Unknown = loud
+    # refusal. The key carries the seed-parity sub-model (A04/A06/A08), so a
+    # sub-model model without a seed is refused as well.
+    if family == "addrpath" and model.startswith("A") and freq in (
+            "F1", "F2", "F4"):
+        if repeat_override is not None:
+            # Census-only explicit count (it must run repeat=1/5 before the
+            # table entry exists). Still bounded by REPEAT_MAX — the cap is
+            # never bypassed, even by the census tool.
+            rep = int(repeat_override)
+            if rep < 1:
+                return None, None, (
+                    "BLOCKED(repeat-factor-invalid: %s-%s-%s override=%d; "
+                    "repeat must be >= 1)" % (model, freq, binary, rep))
+        else:
+            # seed 已知（生产路径：run_single_cell 总是传）-> 精确子模型键。
+            # seed 未知（ready-contract 等只读可用性查询）-> 各子模型的保守
+            # 最大值：多重复只多产生 eligible，改变不了首火位语义，因此
+            # 不会把"可跑"误判成"不可跑"；真正的运行路径永远带 seed。
+            rep = repeat_factor_for(model, freq, binary, seed=seed)
+        if rep is None:
+            sm = submodel_for(model, seed) if seed is not None else None
+            return None, None, (
+                "BLOCKED(repeat-factor-unmeasured: %s-%s-%s%s — run the "
+                "repeat=1/5 census (tools/lsu_repeat_census.py) and add "
+                "REPEAT_FACTOR[('%s','%s','%s','%s')] in "
+                "tools/lsu_campaign.py; refusing to invent a factor)"
+                % (model, freq, binary,
+                   "@%s" % sm if sm is not None else "", model, freq,
+                   binary, sm if sm is not None else ""))
+        if rep > REPEAT_MAX:
+            return None, None, (
+                "BLOCKED(repeat-factor-over-cap: %s-%s-%s needs %d > %d)"
+                % (model, freq, binary, rep, REPEAT_MAX))
+        if rep > 1:
+            flags += ["--chaos_repeat", str(rep)]
     return flags, golden, binary
 
 
@@ -2643,6 +2963,72 @@ def run_gem5(cmd, timeout, out_file, err_file, grace=10, sigint_grace=120):
 
 
 
+def apply_seed_variant_flags(model, freq, seed, binary, flags):
+    """Apply the seed-parity sub-model flags to a resolved flat flag list.
+
+    Single source of truth for run_single_cell AND the repeat census tool —
+    a census that measured a different config than the campaign would
+    calibrate the wrong stream. Returns a NEW list (resolve_cell's list is
+    reused by callers/tests).
+    """
+    flags = list(flags)
+    # [R6-A2/A06 RULING] A06 has two submodels; seed parity selects them
+    # (A03 seed-parity precedent): odd = A06-a size/2, even = A06-b mask.
+    if model == "A06" and seed % 2 == 0:
+        flags += ["--agu_be_mode", "rotate1_clear_msb"]
+    # [R6-A2/A04] seed parity: odd = A04-a (registered object), even = A04-b
+    # (same page, access-width aligned). A04-a refuses loudly without a
+    # registry; it never degrades to the same-page proxy.
+    # [R6-A2/A07] seed rotation over the three ready submodels:
+    # seed1=b (delay, existing), seed2=a (stale EA), seed3=c (watchdog).
+    # [R6-A2/A07] Formal A07 seeds use A07-b (bounded delay, deterministic
+    # and qualification-safe). A07-a (stale EA) and A07-c (watchdog) are
+    # exercised by dedicated auxiliary canaries (R6-A2-A07.md); rotating
+    # them into formal seeds would make a squashed-before-ready sample
+    # (A07-c) unfalsifiably OPEN.
+    if model == "A05" and freq == "F0":
+        j = flags.index("--addrpath_span_events")
+        flags[j + 1] = "243"     # measured a05_prepost stream on W3
+    # [R6-A3/A08] seed parity: odd = A08-a (channel), even = A08-b (EA swap).
+    if model == "A08":
+        # [R6-A3/A08] the two submodels have different eligible streams:
+        # A08-a (odd) sees every same-tick pair (measured 110 on both W3/W5),
+        # A08-b (even) only same-page store-first pairs (measured 21). The
+        # F0 span must be the measured stream of the SELECTED submodel, not
+        # a shared bare-stream number.
+        if seed % 2 == 0:
+            i = flags.index("--agu_pre_mode")
+            flags[i + 1] = "a08_pair_swap"
+            j = flags.index("--addrpath_span_events")
+            flags[j + 1] = "21"
+        else:
+            j = flags.index("--addrpath_span_events")
+            flags[j + 1] = "110"
+    if model == "A04":
+        if seed % 2 == 0:
+            i = flags.index("--agu_pre_mode")
+            flags[i + 1] = "a04_same_page"
+        else:
+            spec = ("arr:array:512:8" if binary == "agu_addrmodes"
+                    else "data:oracle_data:512:8")
+            flags += ["--agu_object_spec", spec]
+            # A04-a's object filter shrinks the F0 stream (measured:
+            # agu_addrmodes 175, mini_check 465). F0 span must be the
+            # mode-specific measured stream, not the bare-model 2819/3187.
+            if freq == "F0":
+                span = 175 if binary == "agu_addrmodes" else 465
+                j = flags.index("--addrpath_span_events")
+                flags[j + 1] = str(span)
+    # A03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled);
+    # swap the mode VALUE in place (the flags list already carries
+    # --addrpath_mode from MODEL_FLAGS; the first version clobbered
+    # --addrpath_rng_seed by writing cmd[-2], caught in code review).
+    if model == "A03":
+        i = flags.index("--addrpath_mode")
+        flags[i + 1] = "a03_stuck0" if seed % 2 else "a03_stuck1"
+    return flags
+
+
 def run_single_cell(cell, args, seed, outdir):
     """Run one gem5 invocation for a single cell×seed. Returns classification dict."""
     runid = cell[COL_RUNID]
@@ -2658,11 +3044,18 @@ def run_single_cell(cell, args, seed, outdir):
                      getattr(args, "t08a_canary", False)),
         t08_submodels_proven=(
             getattr(args, "t08_submodels_proven", None)
-            if getattr(args, "phase", None) == "trial" else None))
+            if getattr(args, "phase", None) == "trial" else None),
+        # [R6-A4] the repeat key is (model, freq, binary, submodel) and the
+        # sub-model is chosen by seed parity -> resolve WITH the seed.
+        seed=seed)
     if flags is None:
         return {"outcome": "Blocked", "error": golden}
 
     family = MODEL_FLAGS[model][0]
+    freq = cell[COL_FREQ].strip()
+    _rep = (repeat_factor_for(model, freq, _binary, seed=seed)
+            if family == "addrpath" else 1)
+    flags = apply_seed_variant_flags(model, freq, seed, _binary, flags)
     outdir.mkdir(parents=True, exist_ok=True)
     # [MDSPEC][H0] every sample carries the propagation trace + identity
     prop = propagation_flags(runid, seed)
@@ -2821,13 +3214,9 @@ def run_single_cell(cell, args, seed, outdir):
     cmd += flags
     cmd += [FAMILY_SEED[family], str(seed)]
     cmd += prop
-    # A03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled);
-    # swap the mode VALUE in place — the flag sits mid-list, before the
-    # seed flag (the first version clobbered --addrpath_rng_seed by writing
-    # cmd[-2], losing per-seed variation for A03; caught in code review).
-    if model == "A03":
-        i = cmd.index("--addrpath_mode")
-        cmd[i + 1] = "a03_stuck0" if seed % 2 else "a03_stuck1"
+    # [R6-A4] A03 seed-parity mode selection moved into
+    # apply_seed_variant_flags (above) so the census tool and the campaign
+    # build the identical flag list.
 
     stdout_file = outdir / "run.out"
     stderr_file = outdir / "run.err"
@@ -2876,6 +3265,22 @@ def run_single_cell(cell, args, seed, outdir):
 
     result = classify_run(outdir, stdout_file, golden, exit_code, stderr_file)
     result["timeout_seconds"] = _se_timeout   # effective SE budget, visible
+    # [R6-A2-REPEAT] manifest-visible repeat identity + per-iteration oracle.
+    # Every emitted ITER line is checked independently against the frozen
+    # golden; a missing tail is recorded as completed_iterations < factor
+    # (never filled in). A mismatch is the SDC signal, not a crash.
+    if _rep is not None:
+        result["repeat_factor"] = _rep
+        _stdout_text = stdout_file.read_text(errors="replace")
+        _iters = parse_iter_checksums(_stdout_text)
+        result["oracle_iterations"] = [
+            {"iter": i, "checksum": c, "matches_golden": c == golden}
+            for i, c in _iters]
+        result["oracle_iterations_completed"] = len(_iters)
+        result["oracle_iterations_expected"] = _rep
+        if _rep > 1 and not _iters:
+            result["oracle_repeat_error"] = (
+                "repeat_factor=%d but no ITER line on stdout" % _rep)
     # [MDSPEC][R4-1-review-I2] surface the injector's LOUD F0 span alarms
     # (CHAOS_LSU_TRIGGER_ALARM, chaos_lsu_trigger.hh summary) into the
     # per-run result so the cell summary prints them — the alarm must be

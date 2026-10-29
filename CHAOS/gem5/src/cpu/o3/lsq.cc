@@ -791,7 +791,6 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // mask substitution are mutually exclusive at the request level.
     std::vector<bool> pre_byte_enable(byte_enable);
     if (cpu->chaosAddrPathPre) {
-        const Addr pre_old_addr = addr;
         const unsigned int pre_old_size = size;
         // [MDSPEC][R4-5.8] dyn_inst_seq: the A07 ready-delay mode uses this
         // hook ONLY as the EA observation point (late binding of the fault
@@ -799,7 +798,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // value modes ignore it.
         size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
                                                       flags, inst->seqNum,
-                                                      pre_byte_enable);
+                                                      pre_byte_enable, inst);
         // [LSU][OBS-L3] register the PRE-family injection with the L3
         // propagation tracer (inj + addr_form nodes + addr registry).
         // lastPreHookInjected() also covers the flag-only modes (S06/L02
@@ -808,8 +807,15 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // address to track). nullptr tracer / no injection = no-op.
         if (cpu->chaosPropagation &&
             cpu->chaosAddrPathPre->lastPreHookInjected()) {
+            // [R6-A3/A05] Use the injector's TRUE pre-fault EA: for the ISA
+            // operand hook (A05-a/b/c) `pre_old_addr` is already the faulted
+            // EA (the operand rewrite happened in the EA code), so the
+            // registry would otherwise record old==new. For every classic
+            // PRE mode the accessor equals pre_old_addr (behaviour
+            // unchanged).
             cpu->chaosPropagation->registerInjection(
-                "lsq_pushRequest_PRE", inst->seqNum, pre_old_addr, addr,
+                "lsq_pushRequest_PRE", inst->seqNum,
+                cpu->chaosAddrPathPre->lastPreFaultOldAddr(), addr,
                 isLoad, pre_old_size, size);
         }
         // [MDSPEC][R4-8-A06] A06-a load-shrink carrier (fixed-width

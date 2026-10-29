@@ -413,17 +413,17 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
     # upstream-blocked to the chain gate (T05-F0-W4 evaluates and is admitted;
     # its 5 siblings become evidence-missing/unproven).  11 rows leave the
     # upstream block; 3 T08-W9 rows become the explicit WORKLOAD-GAP class.
-    check("已评估=64 / 未准入(有样本)=48 / 无样本=203",
+    check("已评估=64 / 未准入(有样本)=48 / 无样本=201（R6-A2：A04/A06 路由推进，2 项由 evidence-missing 转 UNRESOLVED）",
           cg["evaluated"] == 64 and cg["unproven"] == 48
-          and cg["evidence_missing"] == 203
-          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 203
+          and cg["evidence_missing"] == 201
+          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 201
           and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 48,
           str({k: cg[k] for k in ("evaluated", "unproven", "evidence_missing")}))
     check("上游独立阻塞分类（RULING6/FS-INFRA13/MODE-UNIMPL0/"
-          "UNRESOLVED4/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
+          "UNRESOLVED6/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
           all(doc["blocked_by_category"].get(k, 0) == v for k, v in
               (("RULING", 6), ("FS-INFRA", 13), ("MODE-UNIMPL", 0),
-               ("UNRESOLVED", 4), ("FS-MULTICORE", 35), ("LICENSE", 12),
+               ("UNRESOLVED", 6), ("FS-MULTICORE", 35), ("LICENSE", 12),
                ("WORKLOAD-GAP", 3)))
           and doc["blocked_by_category"].get("TIER-UNIMPL", 0) == 0,
           str(doc["blocked_by_category"]))

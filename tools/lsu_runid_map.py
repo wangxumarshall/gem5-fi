@@ -373,9 +373,9 @@ def generate_map(xlsx_path):
         #   injection log 非空（Site: iew_memRef_AGU_ready + _resume），
         #   chain_check 逐边记录（F6 样本 full→L5；F0 样本 L3 后 Unknown，
         #   诚实缺事件）；A07-F4-W3/W5 各 3 seed = honest zero（F4 突发
-        #   平均间隔 1e5 eligible 事件 >> A07 实测流长 2795/2579）。
-        # [census] ADDRPATH_F0_SPAN[(A07,agu_addrmodes)]=2795、
-        #   [(A07,sq_forward)]=2579（span=1000000 纯普查实测，重启 F0 cell）。
+        #   平均间隔 1e5 eligible 事件 >> A07 实测流长 2819/2568）。
+        # [census] ADDRPATH_F0_SPAN[(A07,agu_addrmodes)]=2819、
+        #   [(A07,sq_forward)]=2568（span=1000000 纯普查实测，重启 F0 cell）。
         # 未落地（pending）：A07-a ready 过早并使用旧 EA（SDC 通道——需
         # EA 流水锁存值观测 + 值替换，两点实现）；A07-c ready 丢失（hang/
         # Timeout 通道，需超时簿记——L04-a 同类）。
@@ -389,14 +389,14 @@ def generate_map(xlsx_path):
                "tlb_translate join by seq+overlap); STATUS: "
                "COMPILE-VERIFIED + pilot-proven on the integration binary "
                "(sha256 prefix 09d70dd0987c57d1): build clean, census "
-               "ADDRPATH_F0_SPAN[(A07,agu_addrmodes)]=2795 / "
-               "[(A07,sq_forward)]=2579, pilot 6 cells x 3 seeds — "
+               "ADDRPATH_F0_SPAN[(A07,agu_addrmodes)]=2819 / "
+               "[(A07,sq_forward)]=2568, pilot 6 cells x 3 seeds — "
                "A07-F0-W3/A07-F0-W5/A07-F6-W3/A07-F6-W5 injected=1 and "
                "activated=1 per seed with chain_check per-edge records "
                "(F6 samples full to L5; F0 samples provable to L3 then "
                "Unknown — honest missing events), A07-F4-W3/A07-F4-W5 = "
                "honest zero (F4 burst mean interval 1e5 eligible events "
-               ">> measured A07 stream 2795/2579 — same class as "
+               ">> measured A07 stream 2819/2568 — same class as "
                "L04-F2/P06-F2 recorded honest zeros); A07 deleted from "
                "lsu_campaign.MODEL_BLOCKED after these real runs "
                "(C11/C12/L04 discipline); this entry lifts the SPEC "

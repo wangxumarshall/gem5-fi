@@ -1,7 +1,16 @@
 #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 
+#include <cstdlib>
+#include <sstream>
 #include <string>
+#include <utility>   // [R6-A4/A07-b] std::pair for notePropEvt kv
+#include <vector>    // [R6-A4/A07-b] lifecycle event kv vector
 
+#include "base/chaos_guest_fault.hh"  // [R6-A-SEGV] injected-VA registry
+#include "arch/arm/insts/mem64.hh"   // [R6-A2/A05] real operand classes
+#include "arch/arm/insts/static_inst.hh"
+#include "base/loader/symtab.hh"      // [R6-A2/A04] ELF object registry
+#include "sim/process.hh"             // [R6-A2/A04] Process::objFile
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // [MDSPEC][R4-5.8] A07 ready hook (DynInst)
@@ -13,6 +22,8 @@ namespace gem5
 {
 
     CHAOSAddrPath *CHAOSAddrPath::f6Consumer = nullptr;
+    // [R6-A3/A05] the single installed ARM operand hook (ISA exec path).
+    CHAOSAddrPath *CHAOSAddrPath::aguOperandConsumer = nullptr;
 
     CHAOSAddrPath::CHAOSAddrPath(const CHAOSAddrPathParams &p)
         : SimObject(p),
@@ -25,14 +36,25 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           pre_mode(p.preMode),
+          agu_object_spec(p.aguObjectSpec),
           agu_size_to(p.aguSizeTo),
           agu_size_to_load(p.aguSizeToLoad),
           be_mode(p.beMode),
           agu_ready_mode(p.aguReadyMode),
           agu_ready_delay_cycles(p.aguReadyDelayCycles),
           aguResumeEvent([this] { this->resumeDeferredAgu(); },
-                         name() + ".aguResume")
+                         name() + ".aguResume"),
+          agu_watchdog_cycles(p.aguWatchdogCycles),
+          agu_watchdog_max(p.aguWatchdogMax),
+          aguWatchdogEvent([this] { this->aguWatchdogFired(); },
+                           name() + ".aguWatchdog")
     {
+        // [R6-A-SEGV 2026-10-28] Arm the guest-SEGV teardown: once this
+        // injector exists, any unhandled SE page-table fault is an experiment
+        // outcome (the corrupted program can also dereference a wild pointer
+        // derived from the injected one) and must exit normally (stats +
+        // trace flushed), not panic. Baseline runs never arm this.
+        chaos::noteChaosAddrPathActive();
         // [MDSPEC][R4-5.8] A07 config validation — LOUD refusals, no silent
         // fallback (C11/C12 discipline): the ready-delay mode is
         // LSU-trigger-native (the cycle-window legacy path has no event
@@ -41,9 +63,12 @@ namespace gem5
         // exclusive), and the delay is a positive bound (0 = no-op, the
         // spec's "延后1周期" is the default and the campaign-pinned value).
         if (agu_ready_mode != "off") {
-            if (agu_ready_mode != "a07b_ready_delay")
+            if (agu_ready_mode != "a07b_ready_delay"
+                && agu_ready_mode != "a07a_ready_early"
+                && agu_ready_mode != "a07c_ready_loss")
                 panic("CHAOSAddrPath: unknown agu_ready_mode '%s' "
-                      "(off | a07b_ready_delay)\n", agu_ready_mode.c_str());
+                      "(off | a07a_ready_early | a07b_ready_delay | "
+                      "a07c_ready_loss)\n", agu_ready_mode.c_str());
             if (p.lsuTier == "off")
                 panic("CHAOSAddrPath: agu_ready_mode requires --addrpath_"
                       "lsu_tier (A07 is LSU-trigger-native; the legacy "
@@ -80,14 +105,33 @@ namespace gem5
         // validated per event by a06LoadSize (declines are counted, and
         // 0 = "disabled" is a legitimate configuration).
         if (be_mode != "off" && be_mode != "observe"
-            && be_mode != "shift_mid") {
+            && be_mode != "shift_mid"
+            && be_mode != "rotate1_clear_msb") {
             panic("CHAOSAddrPath: unknown be_mode '%s' "
-                  "(off | observe | shift_mid)\n", be_mode.c_str());
+                  "(off | observe | shift_mid | rotate1_clear_msb)\n",
+                  be_mode.c_str());
         }
         if (be_mode != "off" && pre_mode != "a06_size")
             panic("CHAOSAddrPath: be_mode requires pre_mode=a06_size (A06-b "
                   "is a sub-fault of the same A06 model, and one sample must "
                   "carry one fault — 03 sheet: 不在同一样本叠加)\n");
+        // [R6-A3/A05] A05-a/b/c are decided in the ISA EA code and therefore
+        // need the LSU trigger (the legacy cycle window has no operand-event
+        // denominator). Loud refusal, never a silent no-op.
+        if (pre_mode == "a05_base_index" || pre_mode == "a05_extend"
+                || pre_mode == "a05_shift") {
+            if (p.lsuTier == "off")
+                panic("CHAOSAddrPath: pre_mode=%s is LSU-trigger-native "
+                      "(A05-a/b/c run in the ISA operand hook); "
+                      "--addrpath_lsu_tier is required\n", pre_mode.c_str());
+        }
+        // [R6-A3/A08] A08-a/b are LSU-trigger-native pair events.
+        if (pre_mode == "a08_channel" || pre_mode == "a08_pair_swap") {
+            if (p.lsuTier == "off")
+                panic("CHAOSAddrPath: pre_mode=%s requires "
+                      "--addrpath_lsu_tier (A08 pairing is LSU-trigger-"
+                      "native)\n", pre_mode.c_str());
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("addrpath_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -107,7 +151,13 @@ namespace gem5
         }
     }
 
-    CHAOSAddrPath::~CHAOSAddrPath() {}
+    CHAOSAddrPath::~CHAOSAddrPath() {
+        // [R6-A3/A05] never leave a dangling operand hook behind.
+        if (aguOperandConsumer == this) {
+            aguOperandConsumer = nullptr;
+            ArmISA::setChaosAguOperandHook(nullptr);
+        }
+    }
 
     CHAOSAddrPath::Mode
     CHAOSAddrPath::stringToMode(const std::string &s) {
@@ -194,8 +244,11 @@ namespace gem5
 
         if (lsuTrigger) {
             // LSU W2 path (05 r2-r8): event-normalized trigger owns the
-            // warm-up/repetition/max-faults semantics; the cycle window and
-            // per-event probability roll do NOT apply on this path.
+            // warm-up/repetition semantics; the cycle window and per-event
+            // probability roll do NOT apply on this path. [R6-A4] the
+            // configured maxFaults cap is enforced HERE too — before this fix
+            // a long-repeat F2 run fired a second, different fault.
+            if (lsuFaultCapReached()) return false;
             lsuTrigger->onAttempt();
             bool go;
             if (lsuTrigger->tier == ChaOSLsuTier::F6) {
@@ -327,10 +380,28 @@ namespace gem5
                     << (new_vaddr ^ vaddr) << std::dec
                     << std::endl;
             }
+            // [R6-A-F5COUNT 2026-10-28] The F5 trigger fired but no fault was
+            // written: report the no-effect outcome so fires == injected +
+            // no_effect holds (pre-fix the trigger's injected stayed 0 even
+            // though fires kept climbing).
+            if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+                lsuTrigger->noteOutcome(false);
             return false;
         }
-        if (new_vaddr == vaddr) { ++obs_post_nochange; return false; }   // [LSU][OBS-2]
+        if (new_vaddr == vaddr) {   // [LSU][OBS-2]
+            ++obs_post_nochange;
+            // F5 no-op application (e.g. A03 stuck-at where the correct bit
+            // already equals the stuck value) — honest no_effect, not an
+            // activation (03 sheet's A03 activated 口径).
+            if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+                lsuTrigger->noteOutcome(false);
+            return false;
+        }
         req->setVaddr(new_vaddr);
+        // [R6-A-SEGV 2026-10-28] Register the injected VA so an SE page-table
+        // fault on it is modelled as a guest SEGV (normal teardown: stats and
+        // prop_evt flushed) instead of a gem5 panic that truncates evidence.
+        chaos::noteInjectedGuestVa(new_vaddr);
         // W3 L0: register the injected item + local funnel accounting. The
         // trigger-mirrored counts are taken at EXIT (see the exit callback)
         // — mirroring at injection time would snapshot mid-run values.
@@ -340,6 +411,11 @@ namespace gem5
         ++l0_funnel.injected;
         ++l0_funnel.activated;
         faults_injected_count++;
+        // [R6-A-F5COUNT 2026-10-28] F5 fired AND the fault was written: report
+        // the effective outcome so trigger.injected (read by summary,
+        // CHAOS_L0_DECLINE and the L5 classifier) matches the real write.
+        if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
         // [LSU][OBS-L3] abort-survivable funnel row (attempted/eligible/
         // injected as of NOW; the inj/addr_form nodes are registered by the
         // lsq.cc sendFragmentToTranslation call site, which sees the return
@@ -429,14 +505,709 @@ namespace gem5
         }
     }
 
+    const CHAOSAddrPath::AguObject *
+    CHAOSAddrPath::findAguObject(Addr addr, unsigned size) const
+    {
+        for (const auto &o : agu_objects) {
+            if (size == 0 || o.size == 0)
+                continue;
+            if (addr >= o.base && addr + size <= o.base + o.size)
+                return &o;
+        }
+        return nullptr;
+    }
+
+    // ------------------------------------------------------------------
+    // [R6-A3/A05] A05-a/b/c: REAL operand-level addressing faults.
+    //
+    // The generated ARM register-offset EA code snapshots the decoded
+    // operands (XBase/XOffset/type/shiftAmt and the register indices) into
+    // locals and calls the installed hook BEFORE computing the EA. Here we:
+    //   1) resolve the dynamic instruction (identity = seq + pc + StaticInst),
+    //   2) replay the cached decision verbatim on a re-execution,
+    //   3) for a fresh decision: count the attempt, apply the shape/no-op
+    //      eligibility gates BEFORE the trigger (F-049: an unwritable or
+    //      no-effect candidate must not consume the injection budget),
+    //   4) on a fire: rewrite the LOCAL operands (never the shared
+    //      StaticInst members, never an architectural register), register
+    //      a request-scoped claim, and emit the L0/funnel evidence.
+    // ------------------------------------------------------------------
+    void
+    CHAOSAddrPath::aguOperandThunk(ExecContext *xc,
+                                   ArmISA::ChaosAguRegView &v)
+    {
+        if (aguOperandConsumer)
+            aguOperandConsumer->maybeCorruptAguOperands(xc, v);
+    }
+
+    void
+    CHAOSAddrPath::maybeCorruptAguOperands(ExecContext *xc,
+                                           ArmISA::ChaosAguRegView &v)
+    {
+        if (!o3cpu_resolved)
+            return;
+        o3::DynInst *di = dynamic_cast<o3::DynInst *>(xc);
+        if (!di || di->cpu != o3cpu_resolved)
+            return;
+        auto *asi = dynamic_cast<ArmISA::ArmStaticInst *>(
+            di->staticInst.get());
+        if (!asi)
+            return;
+        // [R6-A4] configured maxFaults cap (one fault per sample).
+        if (lsuFaultCapReached())
+            return;
+
+        const uint64_t seq = di->seqNum;
+        const Addr pc = di->pcState().instAddr();
+        const void *si = di->staticInst.get();
+        v.dyn_inst_seq = seq;
+        v.pc = pc;
+        v.static_inst = si;
+
+        // Bounded decision cache: seqNum is monotonic per core, so the
+        // lowest keys are the oldest decisions.
+        auto prune = [this]() {
+            while (agu_decisions.size() > 256)
+                agu_decisions.erase(agu_decisions.begin());
+        };
+
+        // (2) idempotent replay for the SAME dynamic instruction.
+        auto it = agu_decisions.find(seq);
+        if (it != agu_decisions.end() && it->second.pc == pc
+                && it->second.si == si) {
+            const AguOperandDecision &c = it->second;
+            if (c.inject) {
+                v.new_base_val = c.new_base;
+                v.new_index_val = c.new_index;
+                v.new_type = c.new_type;
+                v.new_shift = c.new_shift;
+                v.applied = true;
+                v.submodel = c.submodel;
+            }
+            return;
+        }
+
+        AguOperandDecision d;
+        d.seq = seq;
+        d.pc = pc;
+        d.si = si;
+        d.is_load = v.is_load;
+        d.size = v.size;
+        d.base_reg = v.base_reg;
+        d.index_reg = v.index_reg;
+        d.old_base = v.base_val;
+        d.old_index = v.index_val;
+        d.old_type = v.type;
+        d.old_shift = v.shift;
+        d.old_ea = v.base_val
+            + asi->chaosExtendReg64(v.index_val, v.type, v.shift, 64);
+
+        auto decline = [&](uint64_t &ctr) {
+            ++ctr;
+            ++obs_a05_declined;
+            agu_decisions[seq] = d;
+            prune();
+        };
+
+        // (3) eligibility shape gates, all BEFORE the trigger decision.
+        if (!lsuTrigger) {
+            ++obs_a05_no_trigger;
+            agu_decisions[seq] = d;
+            prune();
+            return;
+        }
+        lsuTrigger->onAttempt();
+        ++obs_a05_attempt;
+
+        if (di->isAtomic() || di->isDataPrefetch() || di->isInstPrefetch()
+                || !(di->isLoad() || di->isStore())) {
+            decline(obs_a05_decl_opclass);
+            return;
+        }
+
+        const bool a_b = (pre_mode == "a05_base_index");
+        const bool a_e = (pre_mode == "a05_extend");
+        const bool a_s = (pre_mode == "a05_shift");
+        uint64_t nb = v.base_val, ni = v.index_val;
+        ArmISA::ArmExtendType nt = v.type;
+        uint64_t ns = v.shift;
+        const char *sub = nullptr;
+
+        if (a_b) {
+            // A05-a: swap base and index SOURCES. With shift==0 the add is
+            // commutative (structural no-op) -> decline before the trigger.
+            if (v.shift == 0) {
+                decline(obs_a05_decl_shift0);
+                return;
+            }
+            nb = v.index_val;
+            ni = v.base_val;
+            nt = v.type;
+            ns = v.shift;
+            sub = "a05a";
+        } else if (a_e) {
+            // A05-b: UXTW <-> SXTW. Only those two encodings are swapped
+            // (UXTX/SXTX are identity in 64-bit); with index bit31==0 the
+            // two extensions are equal (structural no-op) -> decline.
+            if (v.type != ArmISA::UXTW && v.type != ArmISA::SXTW) {
+                decline(obs_a05_decl_bit31);
+                return;
+            }
+            if (!(v.index_val & (1ULL << 31))) {
+                decline(obs_a05_decl_bit31);
+                return;
+            }
+            nt = (v.type == ArmISA::UXTW) ? ArmISA::SXTW : ArmISA::UXTW;
+            sub = "a05b";
+        } else if (a_s) {
+            // A05-c: the OTHER legal shift for this access width. The
+            // AArch64 register-offset S bit admits exactly {0, log2(size)},
+            // so the substitution is unique; size==1 has no other value and
+            // index==0 shifts to the same address (both structural no-ops).
+            if (v.size != 2 && v.size != 4 && v.size != 8) {
+                decline(obs_a05_decl_size1);
+                return;
+            }
+            if (v.index_val == 0) {
+                decline(obs_a05_decl_index0);
+                return;
+            }
+            const uint64_t lg = v.size == 2 ? 1 : (v.size == 4 ? 2 : 3);
+            ns = v.shift ? 0 : lg;
+            sub = "a05c";
+        } else {
+            return;   // not an A05-a/b/c run
+        }
+
+        const Addr new_ea = nb
+            + asi->chaosExtendReg64(ni, nt, ns, 64);
+        if (new_ea == d.old_ea) {
+            decline(obs_a05_decl_nochange);
+            return;
+        }
+        d.new_base = nb;
+        d.new_index = ni;
+        d.new_type = nt;
+        d.new_shift = ns;
+        d.new_ea = new_ea;
+        d.submodel = sub;
+
+        if (!lsuTrigger->onEligible()) {
+            agu_decisions[seq] = d;   // eligible but the tier said no
+            prune();
+            return;
+        }
+        ++obs_a05_eligible;
+
+        // (4) FIRE: hand the rewritten operands back to the generated code.
+        d.inject = true;
+        v.new_base_val = nb;
+        v.new_index_val = ni;
+        v.new_type = nt;
+        v.new_shift = ns;
+        v.applied = true;
+        v.submodel = sub;
+
+        // Request-scoped claim: the very next pushRequest for THIS identity
+        // consumes it; an unclaimed predecessor is reclaimed loudly.
+        if (agu_pending.valid)
+            ++obs_a05_stale_reclaimed;
+        agu_pending.valid = true;
+        agu_pending.seq = seq;
+        agu_pending.pc = pc;
+        agu_pending.si = si;
+        agu_pending.is_load = v.is_load;
+        agu_pending.size = v.size;
+        agu_pending.base_reg = v.base_reg;
+        agu_pending.index_reg = v.index_reg;
+        agu_pending.old_base = d.old_base;
+        agu_pending.old_index = d.old_index;
+        agu_pending.new_base = nb;
+        agu_pending.new_index = ni;
+        agu_pending.old_type = d.old_type;
+        agu_pending.new_type = nt;
+        agu_pending.old_shift = d.old_shift;
+        agu_pending.new_shift = ns;
+        agu_pending.old_ea = d.old_ea;
+        agu_pending.new_ea = new_ea;
+        agu_pending.submodel = sub;
+
+        agu_decisions[seq] = d;
+        prune();
+
+        // SE page-table faults on the faulted VA are experiment outcomes:
+        // register it so the guest gets a normal SEGV teardown (stats and
+        // prop stream flushed) instead of a gemm5 panic.
+        chaos::noteInjectedGuestVa(new_ea);
+        // W3 L0: the operand rewrite is consumed by the EA computation in
+        // this very instruction, so the item is activated by construction.
+        chaosL0Register(l0_item, new_ea);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        ++faults_injected_count;
+        if (lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
+        notifyFunnelAtInjection();
+
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: agu_operand_EA"
+                << ", mode=" << pre_mode
+                << ", submodel=" << sub
+                << ", dyn_inst_seq=" << seq
+                << ", request_id=" << seq
+                << ", corr=seq_primary"
+                << ", pc=0x" << std::hex << pc
+                << ", opcode=" << di->staticInst->getName()
+                << ", old_ea=0x" << d.old_ea
+                << ", new_ea=0x" << new_ea
+                << std::dec
+                << ", size=" << v.size
+                << ", isLoad=" << (v.is_load ? 1 : 0)
+                << ", base_reg=" << v.base_reg
+                << ", index_reg=" << v.index_reg
+                << ", old_base=0x" << std::hex << v.base_val
+                << ", old_index=0x" << v.index_val
+                << ", new_base=0x" << nb
+                << ", new_index=0x" << ni
+                << std::dec
+                << ", old_type=" << (unsigned)v.type
+                << ", new_type=" << (unsigned)nt
+                << ", old_shift=" << v.shift
+                << ", new_shift=" << ns
+                << ", faults_injected: " << faults_injected_count
+                << ", reason=real_operand_rewrite"
+                << std::endl;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // [R6-A3/A08] Same-tick load/store pairing, channel error and EA swap.
+    //
+    // Semantics (03 sheet A08 + R6-A2-DIAG-C §2):
+    //   A08-a: the store's request goes out on the LOAD access type — the
+    //          packet command is really turned into a read at buildPackets
+    //          time (store data never reaches memory; the read response
+    //          overwrites memData). Identity stays store/store.
+    //   A08-b: the load and store exchange EAs. The load's EA is replaced at
+    //          pushRequest (it then translates/accesses the store's address);
+    //          the store's paddr is retargeted inside the SAME 4 KiB page
+    //          right before buildPackets (paddr offset preservation is
+    //          re-checked against the real translation).
+    // Only a REAL same-tick pair qualifies: store pushed before the load in
+    // the same tick, same thread, exactly one store per pair. Cross-cycle,
+    // cross-page, missing partner, already-paired store and dead requests
+    // are declined loudly and never consume the trigger budget.
+    // ------------------------------------------------------------------
+    Addr
+    CHAOSAddrPath::maybePairA08(Addr addr, unsigned size, bool is_load,
+                                uint64_t dyn_inst_seq,
+                                const o3::DynInstPtr &inst)
+    {
+        const bool channel = (pre_mode == "a08_channel");
+        if (!lsuTrigger || !inst)
+            return addr;
+
+        const Tick now = curTick();
+        const ThreadID tid = inst->threadNumber;
+        // [R6-A4] configured maxFaults cap (one fault per sample).
+        if (lsuFaultCapReached())
+            return addr;
+        lsuTrigger->onAttempt();
+        ++obs_a08_attempt;
+
+        auto logline = [&](const char *why, Addr load_old, Addr load_new,
+                           uint64_t store_seq, Addr store_old,
+                           int page_ok) {
+            if (!write_log || !log_stream || !log_stream->stream())
+                return;
+            *(log_stream->stream()) << "Tick: " << now
+                << ", Site: lsq_pushRequest_A08"
+                << ", mode=" << pre_mode
+                << ", submodel=" << (channel ? "a08a" : "a08b")
+                << ", pair_tick=" << now
+                << ", dyn_inst_seq=" << dyn_inst_seq
+                << ", request_id=" << dyn_inst_seq
+                << ", isLoad=" << (is_load ? 1 : 0)
+                << ", load_seq=" << (is_load ? dyn_inst_seq : 0)
+                << ", store_seq=" << store_seq
+                << ", load_old_ea=0x" << std::hex << load_old
+                << ", load_new_ea=0x" << load_new
+                << ", store_old_ea=0x" << store_old
+                << std::dec
+                << ", size=" << size
+                << ", page_ok=" << page_ok
+                << ", decline_reason=" << why
+                << std::endl;
+        };
+
+        if (!is_load) {
+            if (channel) {
+                // A08-a pairs at the STORE when a load ran EARLIER in this
+                // same tick: the store is then the second element of the
+                // pair, so its OWN chain starts here (injection registered
+                // at this pushRequest) and every layer downstream joins by
+                // the store's own seq. Store-first order would leave the
+                // store's earlier L1/L2 events outside the chain and cannot
+                // be proven end-to-end — decline it loudly instead of
+                // fabricating a cross-request edge.
+                if (a08_load_seen && a08_load_tick == now) {
+                    ++obs_a08_eligible;
+                    if (!lsuTrigger->onEligible())
+                        return addr;
+                    ++obs_a08_fired;
+                    A08Arm arm;
+                    arm.valid = true;
+                    arm.channel = true;
+                    arm.ea_swap = false;
+                    arm.load_seq = a08_load_seq;
+                    arm.load_va = 0;
+                    arm.load_size = size;
+                    arm.pair_tick = now;
+                    a08_arms[dyn_inst_seq] = arm;
+                    // Open the store's chain at its real L0 (pushRequest).
+                    // The packet command flip happens at writeback below.
+                    obs_pre_hook_injected = true;
+                    last_pre_fault_old_addr = addr;
+                    chaosL0Register(l0_item, addr);
+                    ++l0_funnel.injected;
+                    ++l0_funnel.activated;
+                    ++faults_injected_count;
+                    if (lsuTrigger->tier == ChaOSLsuTier::F5)
+                        lsuTrigger->noteOutcome(true);
+                    notifyFunnelAtInjection();
+                    logline("channel_armed_store_second", addr, addr,
+                            dyn_inst_seq, addr, 1);
+                    return addr;
+                }
+                ++obs_a08_decl_order;
+                logline("store_before_load", 0, 0, dyn_inst_seq, addr, 0);
+                return addr;
+            }
+            // A08-b keeps the store-first order: the LOAD is the pair-forming
+            // element and its EA must be swapped at its own pushRequest.
+            if (a08_load_seen && a08_load_tick == now) {
+                ++obs_a08_decl_order;
+                logline("store_after_load", 0, 0, dyn_inst_seq, addr, 0);
+            }
+            if (a08_store.valid && a08_store.tick != now)
+                ++obs_a08_decl_crosscycle;   // aged-out candidate
+            a08_store.valid = true;
+            a08_store.tick = now;
+            a08_store.tid = tid;
+            a08_store.seq = dyn_inst_seq;
+            a08_store.ea = addr;
+            a08_store.size = size;
+            a08_store.inst = inst;
+            a08_store.paired = false;
+            return addr;
+        }
+
+        // A load arrived: remember it for the order check, then look for a
+        // same-tick store pushed EARLIER.
+        a08_load_seen = true;
+        a08_load_tick = now;
+        a08_load_seq = dyn_inst_seq;
+
+        // A08-a pairs at the store (see above); loads only feed the
+        // same-tick order check here and never inject on their own.
+        if (channel)
+            return addr;
+
+        if (!a08_store.valid || a08_store.tick != now
+                || a08_store.tid != tid) {
+            ++obs_a08_decl_missing;
+            logline("pair_missing", addr, addr, 0, 0, 0);
+            return addr;
+        }
+        if (a08_store.paired) {
+            ++obs_a08_decl_paired;
+            logline("store_already_paired", addr, addr, a08_store.seq,
+                    a08_store.ea, 0);
+            return addr;
+        }
+        if (!a08_store.inst || a08_store.inst->isSquashed()) {
+            ++obs_a08_decl_ended;
+            a08_store.paired = true;
+            logline("store_ended", addr, addr, a08_store.seq,
+                    a08_store.ea, 0);
+            return addr;
+        }
+        const bool page_ok = ((a08_store.ea >> 12) == (addr >> 12));
+        if (!page_ok) {
+            // A08-b cannot move a translated store across pages (no
+            // request-level re-translation facility); A08-a's channel fault
+            // keeps the address, so only the swap requires the page match.
+            ++obs_a08_decl_crosspage;
+            if (!channel) {
+                a08_store.paired = true;
+                logline("cross_page", addr, addr, a08_store.seq,
+                        a08_store.ea, 0);
+                return addr;
+            }
+        }
+        // A08-b: the load side must be swapped HERE (its EA is consumed by
+        // this very request), so the trigger runs on the pair event. The
+        // store side is applied at writeback and re-checked there.
+        ++obs_a08_eligible;
+        if (!lsuTrigger->onEligible()) {
+            a08_store.paired = true;
+            return addr;
+        }
+        ++obs_a08_fired;
+
+        A08Arm arm;
+        arm.valid = true;
+        arm.channel = false;
+        arm.ea_swap = true;
+        arm.load_seq = dyn_inst_seq;
+        arm.load_va = addr;
+        arm.load_size = size;
+        arm.pair_tick = now;
+        a08_arms[a08_store.seq] = arm;
+        a08_store.paired = true;
+
+        const Addr load_old = addr;
+        addr = a08_store.ea;   // A08-b load-side EA swap
+        // The load-side injection is registered by the lsq.cc pushRequest
+        // call site through lastPreHookInjected()/lastPreFaultOldAddr().
+        obs_pre_hook_injected = true;
+        last_pre_fault_old_addr = load_old;
+        chaosL0Register(l0_item, addr);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        ++faults_injected_count;
+        if (lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
+        notifyFunnelAtInjection();
+        logline("swap_armed", load_old, addr,
+                a08_store.seq, a08_store.ea, page_ok ? 1 : 0);
+        return addr;
+    }
+
+    bool
+    CHAOSAddrPath::maybeSwapStoreChannel(const o3::DynInstPtr &inst,
+                                         Addr store_va)
+    {
+        if (pre_mode != "a08_channel" || !inst)
+            return false;
+        auto it = a08_arms.find(inst->seqNum);
+        if (it == a08_arms.end() || !it->second.valid
+                || !it->second.channel || it->second.applied)
+            return false;
+        // The trigger already fired at the store's pushRequest (store-second
+        // pair); this is only the application point. If the store died
+        // before writeback, decline loudly — the chain stays honestly open.
+        if (inst->isSquashed()) {
+            it->second.applied = true;
+            ++obs_a08_store_side_declined;
+            return false;
+        }
+        it->second.applied = true;
+        ++obs_a08_applied_channel;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: sq_writeback_channel"
+                << ", mode=a08_channel"
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", request_id=" << inst->seqNum
+                << ", expected_channel=store"
+                << ", actual_channel=load"
+                << ", old_cmd=WriteReq"
+                << ", new_cmd=ReadReq"
+                << ", va=0x" << std::hex << store_va << std::dec
+                << ", pair_load_seq=" << it->second.load_seq
+                << ", pair_tick=" << it->second.pair_tick
+                << ", reason=real_packet_command_swap"
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSAddrPath::maybeApplyStoreEaSwap(const o3::DynInstPtr &inst,
+                                         Addr store_va, Addr store_pa,
+                                         Addr &new_va, Addr &new_pa,
+                                         const char **reason)
+    {
+        *reason = nullptr;
+        if (pre_mode != "a08_pair_swap" || !inst)
+            return false;
+        auto it = a08_arms.find(inst->seqNum);
+        if (it == a08_arms.end() || !it->second.valid
+                || !it->second.ea_swap || it->second.applied)
+            return false;
+        A08Arm &arm = it->second;
+        // The store side is applied at writeback: re-verify liveness and the
+        // REAL translated page before touching the paddr.
+        if (inst->isSquashed()) {
+            arm.applied = true;
+            ++obs_a08_store_side_declined;
+            *reason = "store_squashed";
+            return false;
+        }
+        if ((store_va >> 12) != (arm.load_va >> 12)) {
+            arm.applied = true;
+            ++obs_a08_store_side_declined;
+            *reason = "cross_page_at_writeback";
+            return false;
+        }
+        if ((store_pa & 0xFFF) != (store_va & 0xFFF)) {
+            // Page mapping does not preserve the low 12 bits => a page-relative
+            // paddr rewrite would be a lie. Decline loudly.
+            arm.applied = true;
+            ++obs_a08_store_side_declined;
+            *reason = "pa_offset_not_preserved";
+            return false;
+        }
+        new_va = arm.load_va;
+        new_pa = (store_pa & ~(Addr)0xFFF) | (arm.load_va & 0xFFF);
+        arm.applied = true;
+        ++obs_a08_applied_easwap;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: sq_writeback_ea_swap"
+                << ", mode=a08_pair_swap"
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", request_id=" << inst->seqNum
+                << ", pair_load_seq=" << arm.load_seq
+                << ", pair_tick=" << arm.pair_tick
+                << ", store_old_ea=0x" << std::hex << store_va
+                << ", store_new_ea=0x" << new_va
+                << ", store_old_pa=0x" << store_pa
+                << ", store_new_pa=0x" << new_pa
+                << std::dec
+                << ", reason=real_paddr_retarget_same_page"
+                << std::endl;
+        }
+        return true;
+    }
+
+    void
+    CHAOSAddrPath::a08Summary()
+    {
+        if (pre_mode != "a08_channel" && pre_mode != "a08_pair_swap")
+            return;
+        A08Arm *leak = nullptr;
+        for (auto &kv : a08_arms) {
+            if (kv.second.valid && !kv.second.applied) {
+                ++obs_a08_armed_unapplied;
+                leak = &kv.second;
+            }
+        }
+        if (leak && write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: a08_exit_armed_unapplied"
+                << ", mode=" << pre_mode
+                << ", pair_load_seq=" << leak->load_seq
+                << ", pair_tick=" << leak->pair_tick
+                << ", reason=store_never_reached_writeback"
+                << std::endl;
+        }
+        printf("CHAOS_L0_A08: pre_mode=%s attempted=%lu eligible=%lu "
+               "fired=%lu d_missing=%lu d_order=%lu d_crosspage=%lu "
+               "d_ended=%lu d_crosscycle=%lu d_paired=%lu "
+               "applied_channel=%lu applied_easwap=%lu store_side_declined=%lu "
+               "armed_unapplied=%lu injected=%lu\n",
+               pre_mode.c_str(),
+               (unsigned long)obs_a08_attempt,
+               (unsigned long)obs_a08_eligible,
+               (unsigned long)obs_a08_fired,
+               (unsigned long)obs_a08_decl_missing,
+               (unsigned long)obs_a08_decl_order,
+               (unsigned long)obs_a08_decl_crosspage,
+               (unsigned long)obs_a08_decl_ended,
+               (unsigned long)obs_a08_decl_crosscycle,
+               (unsigned long)obs_a08_decl_paired,
+               (unsigned long)obs_a08_applied_channel,
+               (unsigned long)obs_a08_applied_easwap,
+               (unsigned long)obs_a08_store_side_declined,
+               (unsigned long)obs_a08_armed_unapplied,
+               (unsigned long)faults_injected_count);
+    }
+
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_inst_seq,
-                               std::vector<bool>& byte_enable)
+                               std::vector<bool>& byte_enable,
+                               const o3::DynInstPtr &inst)
     {
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
         obs_pre_hook_injected = false;
+        // [R6-A3/A05] the true pre-fault EA (see lastPreFaultOldAddr): the
+        // classic PRE modes inject at this very input, the ISA operand hook
+        // has already faulted it and overrides this below with the claim.
+        last_pre_fault_old_addr = addr;
+
+        // [R6-A3/A05] claim an ISA-hook operand fault for THIS dynamic
+        // instruction (identity = seq + pc + StaticInst). The EA handed in
+        // is already the faulted one; nothing is re-injected here, we only
+        // hand the evidence to the lsq.cc registration point. A pending
+        // record that does not match this request is STALE (the claim is in
+        // the same call stack as the EA computation): reclaim it loudly and
+        // never chain it to another instruction.
+        if (agu_pending.valid) {
+            const bool match = inst && agu_pending.seq == dyn_inst_seq
+                && agu_pending.pc == inst->pcState().instAddr()
+                && agu_pending.si == inst->staticInst.get();
+            if (match) {
+                obs_pre_hook_injected = true;
+                last_pre_fault_old_addr = agu_pending.old_ea;
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: lsq_pushRequest_PRE"
+                        << ", mode=" << pre_mode
+                        << ", submodel=" << agu_pending.submodel
+                        << ", dyn_inst_seq=" << dyn_inst_seq
+                        << ", request_id=" << dyn_inst_seq
+                        << ", corr=seq_primary"
+                        << ", pc=0x" << std::hex << agu_pending.pc
+                        << ", old_ea=0x" << agu_pending.old_ea
+                        << ", new_ea=0x" << agu_pending.new_ea
+                        << std::dec
+                        << ", size=" << agu_pending.size
+                        << ", isLoad=" << (agu_pending.is_load ? 1 : 0)
+                        << ", base_reg=" << agu_pending.base_reg
+                        << ", index_reg=" << agu_pending.index_reg
+                        << ", old_base=0x" << std::hex
+                        << agu_pending.old_base
+                        << ", old_index=0x" << agu_pending.old_index
+                        << ", new_base=0x" << agu_pending.new_base
+                        << ", new_index=0x" << agu_pending.new_index
+                        << std::dec
+                        << ", old_type=" << (unsigned)agu_pending.old_type
+                        << ", new_type=" << (unsigned)agu_pending.new_type
+                        << ", old_shift=" << agu_pending.old_shift
+                        << ", new_shift=" << agu_pending.new_shift
+                        << ", faults_injected: " << faults_injected_count
+                        << ", reason=real_operand_rewrite_claimed"
+                        << std::endl;
+                }
+                agu_pending.valid = false;
+            } else {
+                ++obs_a05_stale_reclaimed;
+                agu_pending.valid = false;
+            }
+        }
+        // A05-a/b/c run ENTIRELY in the ISA operand hook; a request that
+        // reaches this hook without a claim is a non-register-offset shape
+        // (or a pre-trigger decline) and is honestly ineligible — never a
+        // second, proxy injection.
+        if (pre_mode == "a05_base_index" || pre_mode == "a05_extend"
+                || pre_mode == "a05_shift") {
+            if (obs_pre_hook_injected)
+                return size;
+            ++obs_pre_invalid;
+            return size;
+        }
+        // [R6-A3/A08] same-tick load/store pairing (A08-a channel / A08-b EA
+        // swap). Runs entirely here; the store side is applied later at
+        // writeback (buildPackets) through a08Consume*.
+        if (pre_mode == "a08_channel" || pre_mode == "a08_pair_swap") {
+            addr = maybePairA08(addr, size, isLoad, dyn_inst_seq, inst);
+            return size;
+        }
 
         // [MDSPEC][R4-5.8] A07 path: this hook serves ONLY as the EA
         // observation point (late binding) — NEVER a value fault and NEVER
@@ -452,6 +1223,31 @@ namespace gem5
         // is registered for A07; the fault follows the dynamic
         // instruction, not an address).
         if (agu_ready_mode != "off") {
+            // [R6-A2/A07-a] Install the real stale EA captured at the ready
+            // point. The request is built AFTER this hook, so translation
+            // and every cache/TLB consumer see the old EA.
+            if (agu_ready_mode == "a07a_ready_early" && agu_stale_valid
+                    && dyn_inst_seq != 0 && dyn_inst_seq == agu_fault_seq) {
+                const Addr current_ea = addr;
+                addr = agu_stale_ea;
+                agu_stale_valid = false;
+                if (!agu_activated) {
+                    agu_activated = true;
+                    ++l0_funnel.activated;
+                }
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: lsq_pushRequest_PRE"
+                        << ", mode=a07a_ready_early"
+                        << ", dyn_inst_seq=" << dyn_inst_seq
+                        << ", request_id=" << dyn_inst_seq
+                        << ", old_ea=0x" << std::hex << current_ea
+                        << ", new_ea=0x" << addr
+                        << ", old_pa=0x" << agu_stale_pa << std::dec
+                        << ", stale_ready_tick=" << agu_stale_ready_tick
+                        << ", consume_tick=" << curTick() << std::endl;
+                }
+            }
             if (!agu_addr_bound && dyn_inst_seq != 0
                 && dyn_inst_seq == agu_fault_seq && agu_fault_ptag) {
                 CHAOSPropagation *prop = CHAOSPropagation::instance();
@@ -460,10 +1256,53 @@ namespace gem5
                                            addr, size);
                 agu_addr_bound = true;
             }
+            // Latch the EA of a NON-fault memory operation as the next
+            // A07-a stale candidate (never the fault instruction itself).
+            if (dyn_inst_seq != agu_fault_seq) {
+                agu_prior_valid = true;
+                agu_prior_ea = addr;
+                agu_prior_seq = dyn_inst_seq;
+            }
             return size;
         }
 
         if (probability <= 0.0f) return size;
+
+        // [R6-A2/A04] A04-a object eligibility is decided BEFORE the trigger
+        // (F-049): an EA outside every registered object must not consume a
+        // fire. A04-b (same-page) is always eligible when the page has at
+        // least two size-aligned slots.
+        const bool a04a_mode = (pre_mode == "a04_same_object");
+        const bool a04b_mode = (pre_mode == "a04_same_page");
+        const AguObject *a04_obj =
+            a04a_mode ? findAguObject(addr, size) : nullptr;
+        const bool a04a_declined =
+            a04a_mode && (!a04_obj
+                          || ((addr - a04_obj->base) % size) != 0);
+        const bool a04b_declined =
+            a04b_mode && (size == 0 || size > 4096 || (4096 / size) < 2);
+
+        // [R6-A3/A05] A05-d (pre/post inversion) still runs HERE, from the
+        // real decoded immediate; A05-a/b/c run in the ISA operand hook and
+        // returned above (claim or honest decline). The DynInst is needed
+        // for the pre/post instruction shape: without it (or on a non
+        // pre/post form / imm==0) the event is ineligible and does NOT
+        // consume the trigger budget (F-049).
+        const bool a05_p = (pre_mode == "a05_prepost");
+        ArmISA::MemoryPreIndex64 *a05_pre = nullptr;
+        ArmISA::MemoryPostIndex64 *a05_post = nullptr;
+        if (a05_p && inst) {
+            a05_pre = dynamic_cast<ArmISA::MemoryPreIndex64 *>(
+                inst->staticInst.get());
+            a05_post = dynamic_cast<ArmISA::MemoryPostIndex64 *>(
+                inst->staticInst.get());
+        }
+        const bool a05_ok = a05_p && (a05_pre || a05_post)
+            && static_cast<ArmISA::MemoryImm64 *>(
+                   a05_pre ? (ArmISA::MemoryImm64 *)a05_pre
+                           : (ArmISA::MemoryImm64 *)a05_post)->immValue()
+                   != 0;
+        const bool a05_declined = a05_p && !a05_ok;
 
         // [LSU][MDSPEC][R4-6-A06] A06-a load-leg verdict. Eligibility ==
         // writability (F-049): decided here, BEFORE the trigger, so a load
@@ -471,13 +1310,38 @@ namespace gem5
         // and the very same verdict drives the value write in the a06_size
         // branch below (computed once; no RNG, hence deterministic).
         A06LoadVerdict a06_load_v = A06LoadVerdict::Success;
-        unsigned a06_load_tgt = 0;
+        // [R6-A2/A06 RULING 2026-10-28] A06-a = legal DOWN-SHRINK
+        // (target = original/2). The load leg is structurally unsafe: the
+        // fixed-width completion asserts sizeof(T) <= pkt->size, so any
+        // load shrink aborts (measured SIGABRT). Loads are therefore
+        // ineligible and never consume the trigger budget (F-049).
         if (pre_mode == "a06_size" && isLoad)
-            a06_load_v = a06LoadSize(addr, size, a06_load_tgt);
+            a06_load_v = A06LoadVerdict::ShrinkUnsafe;
         const bool a06_load_declined =
-            (pre_mode == "a06_size" && isLoad &&
-             a06_load_v != A06LoadVerdict::Success);
+            (pre_mode == "a06_size" && isLoad);
+        // A06-b (same-width non-zero byte mask) is also store-only: a load
+        // mask has no architectural consumer on this path.
+        const bool a06b_mode =
+            (pre_mode == "a06_size" && be_mode == "rotate1_clear_msb");
+        // A06-a store eligibility: size in {2,4,8,16}, aligned, target
+        // = size/2 is a legal AGU size. A06-b: same width, len == size.
+        const bool a06a_store_ok =
+            (pre_mode == "a06_size" && !a06b_mode && !isLoad
+             && size >= 2 && (size % 2) == 0
+             && isLegalAguSize(size / 2) && (addr % size) == 0);
+        const bool a06b_store_ok =
+            (a06b_mode && !isLoad && size >= 2
+             && (unsigned)byte_enable.size() == size);
+        const bool a06_store_declined =
+            (pre_mode == "a06_size" && !isLoad
+             && !(a06b_mode ? a06b_store_ok : a06a_store_ok));
 
+        // [R6-A4] configured maxFaults cap (one fault per sample): after the
+        // cap the pre hook is a pure pass-through. Placed AFTER the A05 ISA
+        // claim block on purpose — the single allowed hook fault must still
+        // get its EA binding even though faults_injected_count is already 1.
+        if (lsuFaultCapReached())
+            return size;
         if (lsuTrigger) {
             lsuTrigger->onAttempt();
             // [LSU][SEM-PRE] op-class filter BEFORE the trigger decision (F-049
@@ -508,7 +1372,8 @@ namespace gem5
             // consume the F6 once-ever shot. The verdict was computed ONCE
             // above and is reused by the a06_size branch below.
             if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)
-                || a06_load_declined) {
+                || a06_load_declined || a06_store_declined
+                || a04a_declined || a04b_declined || a05_declined) {
                 // [LSU][MDSPEC][A6] op-class 拒斥（不计 activated）。A06
                 // 2026-10-19 裁决曾把全部 load 拒斥（store-only 安全路径）；
                 // R4-6-A06 2026-10-22 load 侧放宽到 widen；R4-8-A06
@@ -582,7 +1447,55 @@ namespace gem5
         const Addr old_addr = addr;
         const unsigned old_size = size;
 
-        if (pre_mode == "a04_subst" || pre_mode == "a08_subst") {
+        std::string a04_id;
+        Addr a04_base = 0;
+        uint64_t a04_size = 0, a04_src_off = 0, a04_tgt_off = 0;
+
+        if (a04a_mode) {
+            // [R6-A2/A04-a] Replace the EA with another slot inside the SAME
+            // explicitly registered oracle object. No object => the trigger
+            // filter above already declined (never a same-page fallback).
+            if (!a04_obj) { ++obs_pre_a04_not_in_object; return size; }
+            const uint64_t rel = addr - a04_obj->base;
+            if (rel % size != 0) {
+                ++obs_pre_a04_unaligned_source;
+                return size;
+            }
+            const unsigned elem =
+                a04_obj->elem ? a04_obj->elem : (unsigned)size;
+            std::vector<Addr> cands;
+            for (uint64_t off = 0; off + size <= a04_obj->size;
+                 off += elem) {
+                const Addr t = a04_obj->base + off;
+                if (t != addr && (t % size) == 0)
+                    cands.push_back(t);
+            }
+            if (cands.empty()) {
+                ++obs_pre_a04_no_candidate;
+                return size;
+            }
+            addr = cands[rng() % cands.size()];
+            a04_id = a04_obj->id;
+            a04_base = a04_obj->base;
+            a04_size = a04_obj->size;
+            a04_src_off = rel;
+            a04_tgt_off = addr - a04_obj->base;
+        } else if (a04b_mode) {
+            // [R6-A2/A04-b] Same 4KiB page, another legal address aligned to
+            // the ACCESS width (not a fixed 16B proxy).
+            const Addr page = addr & ~(Addr)0xFFF;
+            const Addr off = addr & 0xFFF;
+            std::vector<Addr> cands;
+            for (Addr o = 0; o + size <= 4096; o += size) {
+                if (o != off)
+                    cands.push_back(page + o);
+            }
+            if (cands.empty()) {
+                ++obs_pre_a04_no_candidate;
+                return size;
+            }
+            addr = cands[rng() % cands.size()];
+        } else if (pre_mode == "a04_subst" || pre_mode == "a08_subst") {
             // A04/A08 (03): substitute another LEGAL address in the same
             // 4KiB page (16B-aligned, != original). A04's "same allocated
             // object" needs the W9 oracle object table — same-page is the
@@ -593,13 +1506,18 @@ namespace gem5
                 cand = page | ((Addr)(rng() % 256) << 4);
             } while (cand == addr);
             addr = cand;
-        } else if (pre_mode == "a05_shift") {
-            // A05 (03), shift-amount substitution submodel: rotate the low
-            // byte of the EA by d in [1,7] — the observable effect of a
-            // wrong LSL amount on the offset bits.
-            const uint64_t d = 1 + rng() % 7;
-            const Addr lo = addr & 0xFF;
-            addr = (addr & ~(Addr)0xFF) | ((lo << d | lo >> (8 - d)) & 0xFF);
+        } else if (a05_p) {
+            // [R6-A2/A05-d] True pre/post EA inversion using the REAL
+            // instruction immediate (no result-byte rotation):
+            //   pre  EA = base + imm  -> post-mode EA = base = EA - imm
+            //   post EA = base        -> pre-mode  EA = base + imm
+            // The writeback microop is untouched (both modes end at
+            // base+imm in this microarchitecture); documented in the report.
+            const ArmISA::MemoryImm64 *mi = a05_pre
+                ? static_cast<const ArmISA::MemoryImm64 *>(a05_pre)
+                : static_cast<const ArmISA::MemoryImm64 *>(a05_post);
+            const uint64_t im = (uint64_t)mi->immValue();
+            addr = a05_pre ? (addr - im) : (addr + im);
         } else if (pre_mode == "a06_size") {
             // [LSU][MDSPEC][A6] A06-a access-size substitution. Per-op-class
             // legality envelope (2026-10-19 裁决 store-only；R4-6-A06
@@ -630,48 +1548,23 @@ namespace gem5
             //   node's old_size/new_size (registerInjection, lsq.cc) and the
             //   addr registry range [addr, addr+new_size).
             if (isLoad) {
-                if (a06_load_declined) {
-                    // Belt-and-braces: the trigger path already filtered
-                    // this (eligibility == writability). The legacy
-                    // (non-trigger) path lands here — count per reason,
-                    // never write.
-                    switch (a06_load_v) {
-                      case A06LoadVerdict::NoTarget:
-                        ++obs_pre_a06_load_notarget; break;
-                      case A06LoadVerdict::Illegal:
-                        ++obs_pre_a06_load_illegal; break;
-                      case A06LoadVerdict::NoChange:
-                        ++obs_pre_a06_load_nochange; break;
-                      case A06LoadVerdict::Geometry:
-                        ++obs_pre_a06_load_geom; break;
-                      case A06LoadVerdict::ShrinkUnsafe:
-                        // [R4-10][A06] counted per REASON (was `default:`).
-                        ++obs_pre_a06_load_shrink_unsafe; break;
-                      default: break;
-                    }
-                    ++obs_pre_opclass;   // [LSU][OBS-2]
-                    return size;
-                }
-                // [MDSPEC][R4-8-A06] split the injection counter by direction
-                // (target vs ORIGINAL size, before the write).
-                // [R4-10][A06] the `else` branch (obs_pre_a06_load_shrink) is
-                // now UNREACHABLE: a06_load_declined==false implies
-                // a06_load_tgt > size (shrink returns ShrinkUnsafe above), so
-                // only the widen arm is ever taken. Kept for field stability;
-                // declines are counted in obs_pre_a06_load_shrink_unsafe.
-                if (a06_load_tgt > size) ++obs_pre_a06_load_widen;
-                else                     ++obs_pre_a06_load_shrink;
-                size = a06_load_tgt;
-                // NOTE: the carrier's buffer floor (DynInst::
-                // chaosA06BufBytes) is NOT set here — this hook has no
-                // DynInst handle. LSQ::pushRequest compares the returned size
-                // against its saved pre-fault size and sets the field on the
-                // shrinking load, which covers the trigger and legacy paths
-                // alike (lsq.cc).
-            } else if (isLegalAguSize(agu_size_to)) {
-                size = (unsigned)agu_size_to;
+                // A06 ruling: every A06 load is ineligible (fixed-width
+                // completion cannot survive a size shrink). Counted per
+                // reason, never written, and never reached via the trigger
+                // route (a06_load_declined filtered it above).
+                ++obs_pre_a06_load_shrink_unsafe;
+                ++obs_pre_opclass;   // [LSU][OBS-2]
+                return size;
+            } else if (a06b_mode) {
+                // A06-b leaves the request SIZE untouched; the mask is
+                // substituted in the A06-b block below.
+            } else if (a06a_store_ok) {
+                // A06-a: legal downward shrink, target = original / 2.
+                // byte_enable is rebuilt all-true by lsq.cc when the length
+                // changes, so no stale mask survives.
+                size = size / 2;
             } else {
-                ++obs_pre_invalid; return size;   // [LSU][OBS-2] invalid target size — no-op, logged below
+                ++obs_pre_invalid; return size;
             }
         } else if (pre_mode == "a06s_store_size") {
             // REJECTED ALIAS (2026-10-19 MDSPEC §2 裁决): 规格定义 A06、无
@@ -769,7 +1662,42 @@ namespace gem5
         const bool be_all_true = (be_ones == be_len);
         if (be_all_true) ++obs_be_all_true;
         bool be_substituted = false;
-        if (be_mode == "shift_mid") {
+        unsigned long old_be_bits = 0, new_be_bits = 0;
+        for (unsigned i = 0; i < be_len; ++i)
+            if (byte_enable[i]) old_be_bits |= (1UL << i);
+        // (new_be_bits is filled after any substitution, just before logging)
+        if (be_mode == "rotate1_clear_msb") {
+            // [R6-A2/A06-b] Same-width legal mask: rotate one byte; when the
+            // mask is all-true (the ISA's normal case) the rotation is a
+            // no-op, so clear the most-significant byte instead. Never zero,
+            // never the original, never outside the access size.
+            if (!a06b_store_ok) {
+                ++obs_be_declined;
+            } else {
+                std::vector<bool> m = byte_enable;
+                bool all_true = true;
+                for (bool b : m) if (!b) { all_true = false; break; }
+                if (all_true) {
+                    m[size - 1] = false;
+                } else {
+                    const bool first = m[0];
+                    for (unsigned i = 0; i + 1 < size; ++i) m[i] = m[i + 1];
+                    m[size - 1] = first;
+                }
+                bool any = false, same = true;
+                for (unsigned i = 0; i < size; ++i) {
+                    any = any || m[i];
+                    same = same && (m[i] == byte_enable[i]);
+                }
+                if (!any || same) {
+                    ++obs_be_declined;
+                } else {
+                    byte_enable = m;
+                    be_substituted = true;
+                    ++obs_be_substituted;
+                }
+            }
+        } else if (be_mode == "shift_mid") {
             if (size != old_size) {
                 // A06-a already owns this event (one fault per sample).
                 ++obs_be_declined;
@@ -795,6 +1723,9 @@ namespace gem5
             }
         }
 
+        for (unsigned i = 0;
+             i < (unsigned)byte_enable.size() && i < 64; ++i)
+            if (byte_enable[i]) new_be_bits |= (1UL << i);
         chaosL0Register(l0_item, addr ? addr : size);
         ++l0_funnel.injected;
         ++l0_funnel.activated;
@@ -838,6 +1769,19 @@ namespace gem5
                 << ", be_len=" << be_len
                 << ", be_ones=" << be_ones
                 << ", be_subst=" << (be_substituted ? 1 : 0)
+                << ", submodel="
+                << (a06b_mode ? "a06b"
+                              : (a04a_mode ? "a04a"
+                                           : (a04b_mode ? "a04b"
+                                                        : (a05_p ? "a05d"
+                                                                 : "a06a"))))
+                << ", old_be=0x" << std::hex << old_be_bits
+                << ", new_be=0x" << new_be_bits
+                << ", object_id=" << a04_id
+                << ", object_base=0x" << a04_base
+                << ", object_size=" << std::dec << a04_size
+                << ", source_offset=" << a04_src_off
+                << ", target_offset=" << a04_tgt_off
                 << f6_fields
                 << std::endl;
         }
@@ -877,11 +1821,23 @@ namespace gem5
             ++obs_agu_opclass;
             return false;
         }
+        // [R6-A2/A07-a] A07-a is only meaningful when the instruction has a
+        // REAL stale EA (its own previous execution). No stale value =>
+        // ineligible, and it must not consume the trigger budget.
+        if (agu_ready_mode == "a07a_ready_early"
+                && (!agu_prior_valid || agu_prior_seq == inst->seqNum)) {
+            // Need a REAL saved old EA: agu_prior_ea is the EA of the
+            // previous memory operation (a real latch value, captured at
+            // its own pushRequest — never fabricated).
+            ++obs_agu_no_stale;
+            return false;
+        }
         // Single-slot guard (C12 discipline): a second fire while one
         // resume is pending would overwrite the slot (the first
         // instruction's resume lost). Campaign maxFaults=1 makes this
         // unreachable; structural refusal under unlimited configs.
-        if (aguResumeEvent.scheduled()) {
+        if (aguResumeEvent.scheduled() || aguWatchdogEvent.scheduled()
+                || aguWatchdogInst) {
             ++obs_agu_slotbusy;
             return false;
         }
@@ -908,6 +1864,80 @@ namespace gem5
         // ready/execute tick shifts from ready_tick to delayed_tick (the
         // spec's "只改变一次事件的发生周期…数据载荷保持正确").
         const Tick ready_tick = curTick();
+        if (agu_ready_mode == "a07a_ready_early") {
+            // [R6-A2/A07-a] Ready fired early: keep the instruction's OWN
+            // previous EA (DynInst::effAddr) and install it at pushRequest.
+            // The current execution still runs, so the log carries both.
+            agu_stale_valid = true;
+            agu_stale_ea = agu_prior_valid ? agu_prior_ea : inst->effAddr;
+            agu_stale_pa = inst->physEffAddr;
+            agu_stale_ready_tick = ready_tick;
+            agu_fault_seq = inst->seqNum;
+            agu_addr_bound = false;
+            agu_activated = false;
+            ++faults_injected_count;
+            chaosL0Register(l0_item, inst->seqNum);
+            ++l0_funnel.injected;
+            if (CHAOSPropagation::instance())
+                agu_fault_ptag =
+                    CHAOSPropagation::instance()->registerAguReadyFault(
+                        inst->seqNum,
+                        (long long)(inst->isLoad() ? inst->lqIdx : -1),
+                        (long long)(inst->isLoad() ? -1 : inst->sqIdx),
+                        ready_tick, ready_tick, 0, inst->isLoad(),
+                        inst->pcState().instAddr());
+            notifyFunnelAtInjection();
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream()) << "Tick: " << ready_tick
+                    << ", Site: iew_memRef_AGU_ready_early"
+                    << ", mode=" << agu_ready_mode
+                    << ", dyn_inst_seq=" << inst->seqNum
+                    << ", stale_ea=0x" << std::hex << agu_stale_ea
+                    << ", stale_pa=0x" << agu_stale_pa << std::dec
+                    << ", ready_tick=" << ready_tick
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return false;   // execute normally this cycle
+        }
+        if (agu_ready_mode == "a07c_ready_loss") {
+            // [R6-A2/A07-c] Drop the ready handshake, but NEVER unbounded:
+            // a watchdog event is always scheduled; it either observes a
+            // real squash or forces a bounded resume.
+            const Tick watchdog_tick = o3cpu_resolved
+                ? o3cpu_resolved->clockEdge(Cycles(agu_watchdog_cycles))
+                : ready_tick;
+            aguWatchdogInst = inst;
+            agu_fault_seq = inst->seqNum;
+            agu_stale_ready_tick = ready_tick;
+            agu_addr_bound = false;
+            agu_activated = false;
+            schedule(aguWatchdogEvent, watchdog_tick);
+            ++faults_injected_count;
+            chaosL0Register(l0_item, inst->seqNum);
+            ++l0_funnel.injected;
+            if (CHAOSPropagation::instance())
+                agu_fault_ptag =
+                    CHAOSPropagation::instance()->registerAguReadyFault(
+                        inst->seqNum,
+                        (long long)(inst->isLoad() ? inst->lqIdx : -1),
+                        (long long)(inst->isLoad() ? -1 : inst->sqIdx),
+                        ready_tick, watchdog_tick, agu_watchdog_cycles,
+                        inst->isLoad(), inst->pcState().instAddr());
+            notifyFunnelAtInjection();
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream()) << "Tick: " << ready_tick
+                    << ", Site: iew_memRef_AGU_ready_loss"
+                    << ", mode=" << agu_ready_mode
+                    << ", dyn_inst_seq=" << inst->seqNum
+                    << ", ready_tick=" << ready_tick
+                    << ", watchdog_tick=" << watchdog_tick
+                    << ", watchdog_cycles=" << agu_watchdog_cycles
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return true;    // skip normal execute until the watchdog
+        }
         const Tick delayed_tick =
             o3cpu_resolved
                 ? o3cpu_resolved->clockEdge(Cycles(agu_ready_delay_cycles))
@@ -933,7 +1963,29 @@ namespace gem5
                 (long long)(inst->isLoad() ? inst->lqIdx : -1),
                 (long long)(inst->isLoad() ? -1 : inst->sqIdx),
                 ready_tick, delayed_tick, agu_ready_delay_cycles,
-                inst->isLoad(), inst->pcState().instAddr());
+                inst->isLoad(), inst->pcState().instAddr(),
+                // [R6-A4/A07-b] request identity == DynInst::seqNum (the real
+                // request key on this path, Request::getReqInstSeqNum()), so
+                // the delayed access's own downstream events stay on ONE
+                // request branch instead of opening a sibling.
+                /* request_id = */ inst->seqNum);
+        // [R6-A4/A07-b] Arm the REAL lifecycle record. The terminal MUST come
+        // from a real hook (resume squash / commit retirement / real ROB
+        // squash) — never from a timer or a guess.
+        if (agu_fault_ptag) {
+            agu_life = AguReadyLife();
+            agu_life.valid = true;
+            agu_life.seq = inst->seqNum;
+            agu_life.tid = inst->threadNumber;
+            agu_life.pc = inst->pcState().instAddr();
+            agu_life.ptag = agu_fault_ptag;
+            agu_life.ready_tick = ready_tick;
+            agu_life.delayed_tick = delayed_tick;
+            agu_life.delay_cycles = agu_ready_delay_cycles;
+            agu_life.is_load = inst->isLoad();
+            agu_life.inj_event_id =
+                CHAOSPropagation::instance()->lastEventId(agu_fault_ptag);
+        }
         notifyFunnelAtInjection();
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream()) << "Tick: " << ready_tick
@@ -961,6 +2013,75 @@ namespace gem5
     // then stays Injected-not-activated — l0_funnel.activated is only
     // bumped on a genuine resume consumption, a REAL read-back verdict,
     // stricter than the POST hook's near-tautological approximation).
+    // ------------------------------------------------------------------
+    // [R6-A4/A07-b] lifecycle PROP-EVT emitter (see .hh). Only registry
+    // fields + the R6-A4 family-extension columns are emitted; tick is
+    // OBSERVED (the caller passes the real hook tick), never synthesised.
+    // ------------------------------------------------------------------
+    void
+    CHAOSAddrPath::a07EmitLifecycle(const char *kind, Tick tick,
+                                    uint64_t parent_id, bool consumed,
+                                    bool squashed, const char *outcome,
+                                    const char *det_layer,
+                                    const char *containment_reason)
+    {
+        CHAOSPropagation *prop = CHAOSPropagation::instance();
+        if (!prop || !agu_life.valid || agu_life.ptag == 0)
+            return;
+        std::ostringstream pc_hex;
+        pc_hex << std::hex << agu_life.pc;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"fault_id", std::to_string(agu_life.ptag)},
+            {"parent_event_id", std::to_string(parent_id)},
+            {"tick", std::to_string(tick)},
+            {"dyn_inst_seq", std::to_string(agu_life.seq)},
+            // A07-b request identity == the dynamic instruction's seq
+            // (Request::getReqInstSeqNum()); carries the model's old/new
+            // ready state through state_before/state_after.
+            {"request_id", std::to_string(agu_life.seq)},
+            {"pc", pc_hex.str()},
+            {"field", "agu_ready_delay"},
+            {"corr", "seq_primary"},
+            {"ready_tick", std::to_string(agu_life.ready_tick)},
+            {"delayed_tick", std::to_string(agu_life.delayed_tick)},
+            {"delay_cycles", std::to_string(agu_life.delay_cycles)},
+            {"consumed", consumed ? "1" : "0"},
+            {"squashed", squashed ? "1" : "0"},
+            {"state_before", "ready"},
+            {"state_after", squashed ? "squashed" : "consumed"},
+        };
+        if (outcome && *outcome) {
+            // Terminal events only: a non-terminal (resume) leaves outcome /
+            // detection_layer empty so the chain checker can never mistake
+            // the resume for an L5 detection.
+            kv.push_back({"outcome", outcome});
+            kv.push_back({"detection_layer", det_layer ? det_layer : ""});
+            kv.push_back({"contained", "1"});
+            kv.push_back({"containment_layer", det_layer ? det_layer : ""});
+            kv.push_back({"containment_reason",
+                          containment_reason ? containment_reason : ""});
+        }
+        prop->notePropEvt(kind, kv);
+    }
+
+    // [MDSPEC][R4-5.8] A07-b resume thunk (aguResumeEvent, fires at the
+    // delayed tick = the CPU's clockEdge(delay); EventFunctionWrapper's
+    // Maximum_Priority runs it after that tick's CPU tick event, i.e. the
+    // instruction executes "at" the delayed cycle). Squash-safe: the stashed
+    // DynInstPtr keeps the instruction alive across the delay window; if a
+    // younger-installed squash removed it in between, chaosAguResumeInst's
+    // squashed branch marks it executed/retirable exactly like executeInsts
+    // does (the fault then stays Injected-not-activated — l0_funnel.activated
+    // is only bumped on a genuine resume consumption, a REAL read-back
+    // verdict, stricter than the POST hook's near-tautological
+    // approximation).
+    //
+    // [R6-A4/A07-b] REAL lifecycle: this hook emits `ready_delay_resume`
+    // (parent = the inj event) with the OBSERVED resume tick and, when the
+    // delay window really straddled a squash, the true terminal
+    // `ready_delay_squashed` (parent = resume). The non-squashed terminal
+    // comes later from the REAL retirement (Commit::commitHead) or a REAL
+    // post-resume ROB squash (Commit::squashAll / mispredict squash).
     void
     CHAOSAddrPath::resumeDeferredAgu()
     {
@@ -968,18 +2089,199 @@ namespace gem5
         aguPendingInst = nullptr;   // clear the slot BEFORE re-entry
         if (!inst)
             return;
+        const Tick resume_tick = curTick();
+        const bool squashed = inst->isSquashed();
+        // The lifecycle record must describe THIS instruction; a mismatched
+        // record (e.g. a second fault armed by another lane) is stamped stale
+        // and never spliced onto this resume.
+        const bool life_ok = agu_life.valid && agu_life.seq == inst->seqNum;
+        if (agu_life.valid && !life_ok) {
+            warn("CHAOSAddrPath: A07-b lifecycle record (seq=%llu) does not "
+                 "match the resumed inst (seq=%llu) — record closed without a "
+                 "terminal (never spliced)\n",
+                 (unsigned long long)agu_life.seq,
+                 (unsigned long long)inst->seqNum);
+            agu_life = AguReadyLife();
+        }
         if (o3cpu_resolved) {
             agu_activated = true;
             ++l0_funnel.activated;
             o3cpu_resolved->o3IEW().chaosAguResumeInst(inst);
         }
+        if (life_ok) {
+            agu_life.resumed = true;
+            agu_life.resume_tick = resume_tick;
+            // Loud, data-preserving invariant check (never correct the data).
+            if (!(agu_life.ready_tick < agu_life.delayed_tick
+                  && agu_life.delayed_tick <= resume_tick)) {
+                warn("CHAOSAddrPath: A07-b lifecycle tick order VIOLATED at "
+                     "resume: ready_tick=%llu delayed_tick=%llu "
+                     "resume_tick=%llu (recorded as observed, NOT corrected)\n",
+                     (unsigned long long)agu_life.ready_tick,
+                     (unsigned long long)agu_life.delayed_tick,
+                     (unsigned long long)resume_tick);
+            }
+            const bool was_squashed = squashed;
+            ++obs_agu_life_resumed;
+            a07EmitLifecycle("ready_delay_resume", resume_tick,
+                             agu_life.inj_event_id, /*consumed=*/true,
+                             was_squashed, /*outcome=*/nullptr,
+                             /*det_layer=*/nullptr,
+                             /*containment_reason=*/nullptr);
+            if (CHAOSPropagation::instance())
+                agu_life.resume_event_id =
+                    CHAOSPropagation::instance()->lastEventId(agu_life.ptag);
+            if (was_squashed) {
+                // REAL squash of the delayed instruction: the object
+                // cancelled is this dyn inst (and its would-be LSQ entry —
+                // the resume never pushed a request). Terminal, not a guess.
+                ++obs_agu_life_squashed;
+                a07EmitLifecycle("ready_delay_squashed", resume_tick,
+                                 agu_life.resume_event_id, /*consumed=*/true,
+                                 /*squashed=*/true,
+                                 /*outcome=*/"contained",
+                                 /*det_layer=*/"L4",
+                                 /*containment_reason=*/"squash_before_retire");
+                // Close the record: a squashed ROB entry may still drain
+                // through retireHead, but that is NOT an architectural
+                // retirement of this fault — the true terminal is the squash,
+                // and emitting a second terminal would forge a second end.
+                agu_life = AguReadyLife();
+            }
+        }
         if (write_log && log_stream && log_stream->stream()) {
-            *(log_stream->stream()) << "Tick: " << curTick()
+            *(log_stream->stream()) << "Tick: " << resume_tick
                 << ", Site: iew_memRef_AGU_ready_resume"
                 << ", mode=" << agu_ready_mode
                 << ", dyn_inst_seq=" << inst->seqNum
-                << ", consumed=1, squashed=" << (inst->isSquashed() ? 1 : 0)
+                << ", consumed=1, squashed=" << (squashed ? 1 : 0)
                 << std::endl;
+        }
+    }
+
+    // [R6-A4/A07-b] REAL retirement observer (called from
+    // Commit::commitHead at the commit point; read-only, never mutates the
+    // instruction or commit state).
+    void
+    CHAOSAddrPath::observeRetire(const o3::DynInstPtr &inst)
+    {
+        if (!inst || !agu_life.valid || !agu_life.resumed)
+            return;
+        if (inst->seqNum != agu_life.seq || inst->threadNumber != agu_life.tid)
+            return;
+        const Tick commit_tick = curTick();
+        if (commit_tick < agu_life.resume_tick) {
+            warn("CHAOSAddrPath: A07-b lifecycle tick order VIOLATED at "
+                 "retire: resume_tick=%llu commit_tick=%llu (recorded as "
+                 "observed, NOT corrected)\n",
+                 (unsigned long long)agu_life.resume_tick,
+                 (unsigned long long)commit_tick);
+        }
+        ++obs_agu_life_retired;
+        a07EmitLifecycle("ready_delay_retired", commit_tick,
+                         agu_life.resume_event_id, /*consumed=*/true,
+                         /*squashed=*/false,
+                         /*outcome=*/"retired_after_delay",
+                         /*det_layer=*/"L5",
+                         /*containment_reason=*/"delay_transparent_retire");
+        agu_life = AguReadyLife();
+    }
+
+    // [R6-A4/A07-b] REAL post-resume squash observer (called right after
+    // rob->squash(squashed_seq, tid): every instruction with
+    // seqNum > squashed_seq is squashed). Read-only.
+    void
+    CHAOSAddrPath::observeSquash(ThreadID tid, uint64_t squashed_seq)
+    {
+        if (!agu_life.valid || !agu_life.resumed)
+            return;
+        if (tid != agu_life.tid)
+            return;
+        if (agu_life.seq <= squashed_seq)
+            return;   // this instruction is NOT inside the squashed range
+        const Tick squash_tick = curTick();
+        ++obs_agu_life_discarded;
+        a07EmitLifecycle("ready_delay_discarded", squash_tick,
+                         agu_life.resume_event_id, /*consumed=*/true,
+                         /*squashed=*/true,
+                         /*outcome=*/"discarded_before_retire",
+                         /*det_layer=*/"L4",
+                         /*containment_reason=*/
+                         "squash_after_resume_before_retire");
+        agu_life = AguReadyLife();
+    }
+
+    void
+    CHAOSAddrPath::aguWatchdogFired()
+    {
+        o3::DynInstPtr inst = aguWatchdogInst;
+        aguWatchdogInst = nullptr;
+        if (!inst)
+            return;
+        const Tick now = curTick();
+        CHAOSPropagation *prop = CHAOSPropagation::instance();
+        const std::string seq = std::to_string(inst->seqNum);
+        const std::string ptag = std::to_string(agu_fault_ptag);
+        const bool squashed = inst->isSquashed();
+        if (squashed) {
+            ++obs_agu_watchdog_squash;
+            if (prop && agu_fault_ptag) {
+                prop->notePropEvt("ready_loss_squashed", {
+                    {"fault_id", ptag},
+                    {"parent_event_id",
+                        std::to_string(prop->lastEventId(agu_fault_ptag))},
+                    {"dyn_inst_seq", seq},
+                    {"request_id", seq},
+                    {"outcome", "contained"},
+                    {"detection_layer", "L4"},
+                    {"contained", "1"},
+                    {"containment_layer", "L4"},
+                    {"containment_reason", "squash_before_ready"},
+                    {"corr", "seq_primary"},
+                });
+            }
+        } else {
+            ++obs_agu_watchdog;
+            if (prop && agu_fault_ptag) {
+                prop->notePropEvt("ready_loss_watchdog", {
+                    {"fault_id", ptag},
+                    {"parent_event_id",
+                        std::to_string(prop->lastEventId(agu_fault_ptag))},
+                    {"dyn_inst_seq", seq},
+                    {"request_id", seq},
+                    {"outcome", "hang_recovered"},
+                    {"detection_layer", "Hardware"},
+                    {"contained", "1"},
+                    {"containment_layer", "Hardware"},
+                    {"containment_reason", "watchdog_forced_resume"},
+                    {"corr", "seq_primary"},
+                });
+            }
+            if (o3cpu_resolved) {
+                agu_activated = true;
+                ++l0_funnel.activated;
+                o3cpu_resolved->o3IEW().chaosAguResumeInst(inst);
+            }
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << now
+                << ", Site: iew_memRef_AGU_ready_watchdog"
+                << ", mode=" << agu_ready_mode
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", ready_tick=" << agu_stale_ready_tick
+                << ", watchdog_tick=" << now
+                << ", elapsed_ticks=" << (now - agu_stale_ready_tick)
+                << ", squashed=" << (squashed ? 1 : 0)
+                << ", drop_reason="
+                << (squashed ? "squashed" : "forced_resume")
+                << std::endl;
+        }
+        // Hard bound: even if a deeper deadlock swallowed the resume, the
+        // simulation still terminates with evidence flushed.
+        if (now - agu_stale_ready_tick > (Tick)agu_watchdog_max) {
+            warn("CHAOSAddrPath: A07-c watchdog exceeded hard bound; "
+                 "ending simulation\n");
+            exitSimLoop("chaos_ready_watchdog", 124);
         }
     }
 
@@ -1040,6 +2342,35 @@ namespace gem5
                (unsigned long)obs_be_declined);
     }
 
+    // [R6-A3/A05] A05-a/b/c summary line (stdout, W2.1 discipline: a NEW
+    // line, self-guarded to the three operand-hook modes). Every decline
+    // is explicit: a NO_FIRE must never read as a silent zero.
+    void
+    CHAOSAddrPath::a05Summary() {
+        if (pre_mode != "a05_base_index" && pre_mode != "a05_extend"
+                && pre_mode != "a05_shift")
+            return;
+        printf("CHAOS_L0_A05: pre_mode=%s attempted=%lu eligible=%lu "
+               "declined=%lu d_shift0=%lu d_bit31=%lu d_size1=%lu "
+               "d_index0=%lu d_nochange=%lu d_opclass=%lu "
+               "stale_reclaimed=%lu no_trigger=%lu decisions=%lu "
+               "injected=%lu\n",
+               pre_mode.c_str(),
+               (unsigned long)obs_a05_attempt,
+               (unsigned long)obs_a05_eligible,
+               (unsigned long)obs_a05_declined,
+               (unsigned long)obs_a05_decl_shift0,
+               (unsigned long)obs_a05_decl_bit31,
+               (unsigned long)obs_a05_decl_size1,
+               (unsigned long)obs_a05_decl_index0,
+               (unsigned long)obs_a05_decl_nochange,
+               (unsigned long)obs_a05_decl_opclass,
+               (unsigned long)obs_a05_stale_reclaimed,
+               (unsigned long)obs_a05_no_trigger,
+               (unsigned long)agu_decisions.size(),
+               (unsigned long)faults_injected_count);
+    }
+
     void
     CHAOSAddrPath::startup() {
         SimObject::startup();
@@ -1051,6 +2382,71 @@ namespace gem5
         // [LSU][OBS-L3] cache the resolved O3 CPU for the injection-time
         // funnel notify (dynamic_cast once, not per event).
         o3cpu_resolved = o3cpu;
+        // [R6-A2/A04-a] Parse the explicit oracle-object registry. A04-a
+        // refuses loudly without it — it never falls back to same-page.
+        if (pre_mode == "a04_same_object") {
+            if (agu_object_spec.empty()) {
+                fatal("CHAOSAddrPath: pre_mode=a04_same_object requires "
+                      "aguObjectSpec (id:symbol:size:elem | "
+                      "id:@addr:size:elem); refusing to fall back to "
+                      "same-page\n");
+            }
+            Process *p = o3cpu->tcBase(0)->getProcessPtr();
+            if (!p || !p->objFile) {
+                fatal("CHAOSAddrPath: a04_same_object requires an SE process "
+                      "with an ELF; no object table available\n");
+            }
+            const loader::SymbolTable &st = p->objFile->symtab();
+            std::stringstream ss(agu_object_spec);
+            std::string item;
+            while (std::getline(ss, item, ';')) {
+                if (item.empty())
+                    continue;
+                std::stringstream is(item);
+                std::string id, ref, sz, el;
+                if (!std::getline(is, id, ':')
+                        || !std::getline(is, ref, ':')
+                        || !std::getline(is, sz, ':')
+                        || !std::getline(is, el, ':')) {
+                    fatal("CHAOSAddrPath: bad aguObjectSpec item '%s' "
+                          "(want id:symbol:size:elem or id:@addr:size:elem)\n",
+                          item.c_str());
+                }
+                Addr base = 0;
+                uint64_t sym_size = 0;
+                if (!ref.empty() && ref[0] == '@') {
+                    base = std::strtoull(ref.c_str() + 1, nullptr, 0);
+                } else {
+                    auto it = st.find(ref);
+                    if (it == st.end()) {
+                        fatal("CHAOSAddrPath: aguObjectSpec symbol '%s' not "
+                              "found in the SE ELF\n", ref.c_str());
+                    }
+                    base = it->address();
+                    sym_size = it->sizeOrDefault(0);
+                }
+                AguObject o;
+                o.id = id;
+                o.base = base;
+                o.size = std::strtoull(sz.c_str(), nullptr, 0);
+                o.elem = (unsigned)std::strtoull(el.c_str(), nullptr, 0);
+                if (o.size == 0 || o.elem == 0 || o.size % o.elem != 0
+                        || o.base % o.elem != 0)
+                    fatal("CHAOSAddrPath: bad object geometry for '%s'\n",
+                          id.c_str());
+                if (sym_size != 0 && sym_size != o.size) {
+                    fatal("CHAOSAddrPath: object '%s' size %llu != symbol "
+                          "size %llu\n", id.c_str(),
+                          (unsigned long long)o.size,
+                          (unsigned long long)sym_size);
+                }
+                agu_objects.push_back(o);
+                std::cout << "CHAOS_AGU_OBJECTS: id=" << o.id
+                          << " base=0x" << std::hex << o.base << std::dec
+                          << " size=" << o.size << " elem=" << o.elem
+                          << std::endl;
+            }
+        }
         // W4: exactly one hook per run — the PRE family (A04/A05/A06/A08)
         // registers on the pushRequest-entry pointer; the post family
         // (legacy + A01-A03 + LSU tiers) keeps the sendFragment pointer.
@@ -1067,6 +2463,17 @@ namespace gem5
             o3cpu->setChaosAddrPathPre(this);
         } else {
             o3cpu->setChaosAddrPath(this);
+        }
+        // [R6-A3/A05] A05-a/b/c: install the ISA operand hook. The PRE
+        // pointer above stays registered as the CLAIM/evidence point (the
+        // fault itself is decided and written in the EA code).
+        if (pre_mode == "a05_base_index" || pre_mode == "a05_extend"
+                || pre_mode == "a05_shift") {
+            aguOperandConsumer = this;
+            ArmISA::setChaosAguOperandHook(&CHAOSAddrPath::aguOperandThunk);
+            std::cout << "CHAOS_A05_OPERAND_HOOK: mode=" << pre_mode
+                      << " tier=" << (lsuTrigger ? "on" : "off")
+                      << std::endl;
         }
         if (lsuTrigger) {
             // [MDSPEC][R4-5.8] the W1 four-source F6 thunk registration is
@@ -1129,14 +2536,26 @@ namespace gem5
                     if (agu_ready_mode != "off")
                         printf("CHAOS_AGU_READY: mode=%s delay_cycles=%lu "
                                "fault_seq=%lu addr_bound=%d activated=%d "
-                               "obs_opclass=%lu obs_slotbusy=%lu\n",
+                               "obs_opclass=%lu obs_slotbusy=%lu "
+                               // [R6-A4/A07-b] real lifecycle terminals: the
+                               // injected delay is closed by a real hook
+                               // (resume-squash / retirement / ROB squash).
+                               // Always printed (never a silent zero).
+                               "life_resumed=%lu life_retired=%lu "
+                               "life_squashed=%lu life_discarded=%lu "
+                               "life_open=%d\n",
                                agu_ready_mode.c_str(),
                                (unsigned long)agu_ready_delay_cycles,
                                (unsigned long)agu_fault_seq,
                                agu_addr_bound ? 1 : 0,
                                agu_activated ? 1 : 0,
                                (unsigned long)obs_agu_opclass,
-                               (unsigned long)obs_agu_slotbusy);
+                               (unsigned long)obs_agu_slotbusy,
+                               (unsigned long)obs_agu_life_resumed,
+                               (unsigned long)obs_agu_life_retired,
+                               (unsigned long)obs_agu_life_squashed,
+                               (unsigned long)obs_agu_life_discarded,
+                               agu_life.valid ? 1 : 0);
                     // Mirror the trigger's FINAL counts here (exit time), so
                     // the funnel line and the summary line always agree.
                     l0_funnel.attempted = lsuTrigger->attempted;
@@ -1156,6 +2575,10 @@ namespace gem5
                 // only — a06Summary() self-guards, so every other
                 // configuration's stdout stays byte-identical).
                 a06Summary();
+                // [R6-A3/A05] A05-a/b/c evidence line (self-guarded).
+                a05Summary();
+                // [R6-A3/A08] A08-a/b evidence line (self-guarded).
+                a08Summary();
                 // [LSU][OBS-L3] final funnel row (final counts; runs only on
                 // normal exit — aborts keep the last injection-time node,
                 // which is exactly why the per-injection rows exist).

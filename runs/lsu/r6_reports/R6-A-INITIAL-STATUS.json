@@ -1,0 +1,298 @@
+{
+ "generated_at": "2026-10-28",
+ "scope": "R6 A (AGU) 39 RunIDs",
+ "authoritative_head": "659fa4cf6ea2095e178f43df9f177bff8260bda2",
+ "branch": "fix/r6-a-unit-20261028",
+ "binary": {
+  "path": "CHAOS/gem5/build/ARM/gem5.opt",
+  "sha256": "3db54541b7fbafa47d27ab7a3f71b8c777c2893501078f3eb36fddb91cd866c2",
+  "binary_source_head": "1f344a5b66da30267c578536e00a1ad4ad56bb31"
+ },
+ "status_counts": {
+  "READY_FOR_CANARY": 11,
+  "REVIEW_REQUIRED": 15,
+  "BLOCKED_RULING": 4,
+  "POLICY_EXCLUDED_F6": 9
+ },
+ "cells": {
+  "A01-F0-W3": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "CHAOSAddrPath A01Bit 已实现并路由；F0 单次抽样可触发（旧 trial activated=5）",
+   "model": "A01",
+   "freq": "F0",
+   "workload": "W3"
+  },
+  "A01-F0-W9": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "W9 重新评估：SE 载体 workloads/directed/gap_bfs + golden 030921682b3731f2 存在，R6-STATUS-TABLE 判 RUNNABLE；FS 镜像阻塞不适用于 SE W9",
+   "model": "A01",
+   "freq": "F0",
+   "workload": "W9"
+  },
+  "A01-F1-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F1 首火阈值 500k-1.5M eligible，W3 观测 eligible≈2.7k，结构性零（旧 trial activated=0）",
+   "model": "A01",
+   "freq": "F1",
+   "workload": "W3"
+  },
+  "A01-F1-W9": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F1 首火阈值 500k-1.5M eligible，gap_bfs eligible≈265k，结构性零",
+   "model": "A01",
+   "freq": "F1",
+   "workload": "W9"
+  },
+  "A01-F2-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F2 首火阈值 50k-150k eligible，W3 观测 eligible≈2.7k，结构性零（旧 trial activated=0）",
+   "model": "A01",
+   "freq": "F2",
+   "workload": "W3"
+  },
+  "A01-F2-W9": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "W9 重新评估（同上）；F2 阈值 50k-150k < eligible≈265k，可触发",
+   "model": "A01",
+   "freq": "F2",
+   "workload": "W9"
+  },
+  "A02-F0-W3": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "CHAOSAddrPath A02DoubleBit 已实现并路由；F0 可触发（旧 trial activated=5）",
+   "model": "A02",
+   "freq": "F0",
+   "workload": "W3"
+  },
+  "A02-F0-W9": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "W9 重新评估（同上）",
+   "model": "A02",
+   "freq": "F0",
+   "workload": "W9"
+  },
+  "A02-F2-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F2 首火阈值 50k-150k eligible，W3 eligible≈2.7k，结构性零",
+   "model": "A02",
+   "freq": "F2",
+   "workload": "W3"
+  },
+  "A02-F2-W9": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "W9 重新评估（同上）；F2 阈值可达",
+   "model": "A02",
+   "freq": "F2",
+   "workload": "W9"
+  },
+  "A03-F5-W10": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "同上 F5 计数缺陷；另需事件流尺寸监控",
+   "model": "A03",
+   "freq": "F5",
+   "workload": "W10"
+  },
+  "A03-F5-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F5 计数缺陷：CHAOSAddrPath 无 noteOutcome 回报，trigger.injected 恒 0 → activated 结构性 0；需先修复",
+   "model": "A03",
+   "freq": "F5",
+   "workload": "W3"
+  },
+  "A04-F0-W0": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "同上；W0=mini_check，guard page 在 SE 下退化，oracle 需核实",
+   "model": "A04",
+   "freq": "F0",
+   "workload": "W0"
+  },
+  "A04-F0-W3": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "a04_subst（同页 16B 代理）已实现并路由；A04-a 同对象子模型 NOT_IMPLEMENTED",
+   "model": "A04",
+   "freq": "F0",
+   "workload": "W3"
+  },
+  "A04-F2-W0": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F2 结构性零",
+   "model": "A04",
+   "freq": "F2",
+   "workload": "W0"
+  },
+  "A04-F2-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F2 阈值高于 W3 eligible，结构性零（旧 trial activated=0）",
+   "model": "A04",
+   "freq": "F2",
+   "workload": "W3"
+  },
+  "A04-F6-W0": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A04",
+   "freq": "F6",
+   "workload": "W0"
+  },
+  "A04-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A04",
+   "freq": "F6",
+   "workload": "W3"
+  },
+  "A05-F0-W3": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "仅 a05_shift（子模型 c，低字节旋转近似）实现并路由；A05-a/b/d NOT_IMPLEMENTED",
+   "model": "A05",
+   "freq": "F0",
+   "workload": "W3"
+  },
+  "A05-F2-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F2 结构性零",
+   "model": "A05",
+   "freq": "F2",
+   "workload": "W3"
+  },
+  "A05-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A05",
+   "freq": "F6",
+   "workload": "W3"
+  },
+  "A06-F0-W3": {
+   "status": "BLOCKED_RULING",
+   "rationale": "合法变换语义不唯一（load shrink 方向/byte-enable 掩码定义/target 选择/触发口径），既有 R4-8 自裁被 R4-10 NO-GO 否定",
+   "model": "A06",
+   "freq": "F0",
+   "workload": "W3"
+  },
+  "A06-F0-W5": {
+   "status": "BLOCKED_RULING",
+   "rationale": "同上",
+   "model": "A06",
+   "freq": "F0",
+   "workload": "W5"
+  },
+  "A06-F2-W3": {
+   "status": "BLOCKED_RULING",
+   "rationale": "同上；另有 F2 结构性零",
+   "model": "A06",
+   "freq": "F2",
+   "workload": "W3"
+  },
+  "A06-F2-W5": {
+   "status": "BLOCKED_RULING",
+   "rationale": "同上；另有 F2 结构性零",
+   "model": "A06",
+   "freq": "F2",
+   "workload": "W5"
+  },
+  "A06-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A06",
+   "freq": "F6",
+   "workload": "W3"
+  },
+  "A06-F6-W5": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A06",
+   "freq": "F6",
+   "workload": "W5"
+  },
+  "A07-F0-W3": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "clean ready hook 已落地（iew.cc executeInsts → maybeDelayAguReady），仅 A07-b 实现；A07-a/c NOT_IMPLEMENTED",
+   "model": "A07",
+   "freq": "F0",
+   "workload": "W3"
+  },
+  "A07-F0-W5": {
+   "status": "READY_FOR_CANARY",
+   "rationale": "同上；W5 载体待 canary 实测",
+   "model": "A07",
+   "freq": "F0",
+   "workload": "W5"
+  },
+  "A07-F4-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F4 首火 ≥50k eligible，W3 eligible≈2.8k，结构性零；addrpath 无 interval 拒斥门禁",
+   "model": "A07",
+   "freq": "F4",
+   "workload": "W3"
+  },
+  "A07-F4-W5": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "F4 结构性零",
+   "model": "A07",
+   "freq": "F4",
+   "workload": "W5"
+  },
+  "A07-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A07",
+   "freq": "F6",
+   "workload": "W3"
+  },
+  "A07-F6-W5": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A07",
+   "freq": "F6",
+   "workload": "W5"
+  },
+  "A08-F0-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "仅 a08_subst（同页地址代理）路由，A08-a 错通道 / A08-b 同周期 EA 互换 NOT_IMPLEMENTED",
+   "model": "A08",
+   "freq": "F0",
+   "workload": "W3"
+  },
+  "A08-F0-W5": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "同上",
+   "model": "A08",
+   "freq": "F0",
+   "workload": "W5"
+  },
+  "A08-F2-W3": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "同上；F2 结构性零",
+   "model": "A08",
+   "freq": "F2",
+   "workload": "W3"
+  },
+  "A08-F2-W5": {
+   "status": "REVIEW_REQUIRED",
+   "rationale": "同上",
+   "model": "A08",
+   "freq": "F2",
+   "workload": "W5"
+  },
+  "A08-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A08",
+   "freq": "F6",
+   "workload": "W3"
+  },
+  "A08-F6-W5": {
+   "status": "POLICY_EXCLUDED_F6",
+   "rationale": "工作令固定排除；本轮不运行，不计 PASS/FAIL",
+   "model": "A08",
+   "freq": "F6",
+   "workload": "W5"
+  }
+ },
+ "notes": [
+  "初始状态基于 2026-10-28 只读诊断（R6-A-DIAG-A/B/C.md）+ 主 agent 复核；canary 实测后可升级状态。",
+  "W9 重新评估依据工作令 §3.2 条件：SE 载体与 golden 真实存在；FS 镜像无 GAP 的结论仅约束 FS。",
+  "F1/F2/F4 结构性零为触发阈值 vs 载体 eligible 数的静态推断，需 canary summary 的 eligible 实测确认。",
+  "A06 保持 BLOCKED_RULING：交互语义不唯一，不自行发明。"
+ ]
+}

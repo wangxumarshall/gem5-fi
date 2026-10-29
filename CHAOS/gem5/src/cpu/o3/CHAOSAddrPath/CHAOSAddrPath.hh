@@ -1,10 +1,12 @@
 #ifndef __CPU_O3_CHAOS_ADDR_PATH_HH__
 #define __CPU_O3_CHAOS_ADDR_PATH_HH__
 
+#include <map>
 #include <random>
 #include <string>
 #include <vector>
 
+#include "arch/arm/insts/chaos_agu_operands.hh"  // [R6-A3/A05] operand view
 #include "params/CHAOSAddrPath.hh"
 #include "sim/sim_object.hh"
 #include "base/output.hh"
@@ -40,11 +42,14 @@ class CHAOSAddrPath : public SimObject
     // substituted) access size; the call site rebuilds byte_enable when it
     // changed (A06). pre_mode selects the
     // A-series family: a04_subst (same-4KiB-page legal substitution —
-    // "same object" needs the W9 oracle table, documented proxy), a05_shift
-    // (shift-amount submodel: low-byte rotate; the base/index/extend-swap
-    // submodels are NOT expressible from the final addr — deferred, R5),
+    // "same object" needs the W9 oracle table, documented proxy),
+    // a05_base_index / a05_extend / a05_shift (A05-a/b/c REAL operand
+    // rewrites, decided in the ISA EA code — at this hook they only claim
+    // the already-faulted EA for evidence) and a05_prepost (A05-d, real
+    // pre/post EA inversion from the decoded immediate, implemented here),
     // a06_size (access-size substitution, plus the A06-b byte-enable mask
-    // fault below), a08_subst (same-page, no object constraint).
+    // fault below), a08_subst (RETIRED same-page proxy, kept only for
+    // reading historical runs; new A08 runs use a08_channel/a08_pair_swap).
     //
     // [MDSPEC][R4-6-A06] byte_enable is now an IN/OUT parameter (the
     // caller passes a mutable copy; lsq.cc builds LSQRequest::_byteEnable
@@ -52,7 +57,8 @@ class CHAOSAddrPath : public SimObject
     // place; every other mode leaves it untouched.
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_inst_seq,
-                               std::vector<bool>& byte_enable);
+                               std::vector<bool>& byte_enable,
+                               const o3::DynInstPtr &inst = nullptr);
 
     // [LSU][OBS-L3] true iff the PREVIOUS maybeCorruptPre call on this
     // injector performed an injection. The lsq.cc pushRequest call site
@@ -61,6 +67,38 @@ class CHAOSAddrPath : public SimObject
     // addr/size untouched, so a before/after compare at the call site
     // cannot see them.
     bool lastPreHookInjected() const { return obs_pre_hook_injected; }
+
+    // [R6-A3/A05] TRUE old EA of the last PRE-family injection. For the
+    // classic PRE modes it equals the addr handed to maybeCorruptPre; for
+    // the ISA operand hook (A05-a/b/c) the addr handed in is ALREADY the
+    // faulted EA, so the propagation registration must use this accessor
+    // to record a real old->new address pair (never old==new).
+    Addr lastPreFaultOldAddr() const { return last_pre_fault_old_addr; }
+
+    // [R6-A3/A05] ISA operand hook: called from the generated
+    // register-offset EA code BEFORE the EA is computed (via
+    // ArmISA::setChaosAguOperandHook). Fills the identity fields, runs
+    // the trigger, and rewrites the LOCAL operand copies on a fire.
+    static void aguOperandThunk(ExecContext *xc, ArmISA::ChaosAguRegView &v);
+    void maybeCorruptAguOperands(ExecContext *xc, ArmISA::ChaosAguRegView &v);
+
+    // [R6-A3/A08] Same-tick load/store pairing (A08-a/b). Called from
+    // maybeCorruptPre for a08_channel / a08_pair_swap: registers the
+    // candidate, enforces store-before-load ordering, the same-4KiB-page
+    // constraint and request liveness, runs the trigger on the pair-forming
+    // request, and returns the (possibly swapped) load EA.
+    Addr maybePairA08(Addr addr, unsigned size, bool is_load,
+                      uint64_t dyn_inst_seq, const o3::DynInstPtr &inst);
+    // A08-a: consume the channel fault armed for THIS store (once).
+    bool maybeSwapStoreChannel(const o3::DynInstPtr &inst,
+                               Addr store_va);
+    // A08-b: consume the store-side EA swap armed for THIS store (once).
+    // Same-page and paddr-offset-preservation are re-checked against the
+    // REAL translated paddr before the caller retargets its packets.
+    bool maybeApplyStoreEaSwap(const o3::DynInstPtr &inst, Addr store_va,
+                               Addr store_pa, Addr &new_va, Addr &new_pa,
+                               const char **reason);
+    void a08Summary();
 
     // [MDSPEC][R4-5.8] A07 AGU clean-ready / handshake hook (03 sheet A07:
     // "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"). Called from
@@ -97,6 +135,26 @@ class CHAOSAddrPath : public SimObject
     // landed; see tools/lsu_runid_map.py SPEC_IMPL_LANDED pending list.
     bool maybeDelayAguReady(const o3::DynInstPtr &inst);
 
+    // [R6-A4/A07-b] REAL lifecycle observation hooks (user ruling 7,
+    // 2026-10-28). These are READ-ONLY observers: they never change commit or
+    // squash behaviour (they only read the DynInst's identity/squash state and
+    // the tracer's event counter), and both are no-ops unless an A07-b fault
+    // is actually between its resume and its terminal (agu_life.valid).
+    //
+    // observeRetire  — called from Commit::commitHead at the REAL commit
+    //                  point (same anchor as chaosCommitTrace /
+    //                  chaosPropagation->noteCommit). If the retiring
+    //                  instruction IS the delayed one, emit the true terminal
+    //                  `ready_delay_retired` with tick = this commit tick.
+    // observeSquash  — called from Commit::squashAll / Commit::commit's
+    //                  mispredict squash right after rob->squash(seq,tid):
+    //                  ROB::squash squashes every instruction with
+    //                  seqNum > squashed_seq, so if our delayed instruction
+    //                  is among them its delay was REALLY cancelled (emit
+    //                  `ready_delay_discarded`, never a guess).
+    void observeRetire(const o3::DynInstPtr &inst);
+    void observeSquash(ThreadID tid, uint64_t squashed_seq);
+
   private:
     // [MDSPEC][R4-5.8] A07-b resume thunk (aguResumeEvent, fires at the
     // delayed tick = cpu clockEdge(delay)). Single slot (C12 single-slot
@@ -129,6 +187,15 @@ class CHAOSAddrPath : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+    // [R6-A4] The configured single-fault cap (maxFaults) must be enforced on
+    // EVERY LSU-trigger injection path. Before this helper only the A07 ready
+    // path checked it, so a long-repeat F2 run (eligible stream >> the second
+    // interval) wrote a second, different fault and the trigger/funnel/campaign
+    // counts disagreed with the configured maxFaults=1.
+    bool lsuFaultCapReached() const
+    {
+        return max_faults != 0 && faults_injected_count >= max_faults;
+    }
 
     // LSU W2 (05 r2-r8): when lsuTier != off, the injection decision routes
     // through the event-normalized trigger (warm-up/repetition semantics move
@@ -206,6 +273,21 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_be_all_true = 0;           // ... of which the mask is all-true
     uint64_t obs_be_substituted = 0;        // A06-b shift_mid applied (store)
     uint64_t obs_be_declined = 0;           // A06-b shift_mid declined
+    // [R6-A2/A04] object-registry eligibility (A04-a) observability.
+    uint64_t obs_pre_a04_not_in_object = 0;
+    uint64_t obs_pre_a04_unaligned_source = 0;
+    uint64_t obs_pre_a04_no_candidate = 0;
+
+    // [R6-A2/A04-a] One explicitly registered oracle object. A04-a may only
+    // replace an EA inside the same object; no table => loud refusal.
+    struct AguObject {
+        std::string id;
+        Addr base = 0;
+        uint64_t size = 0;
+        unsigned elem = 0;
+    };
+    std::vector<AguObject> agu_objects;
+    const AguObject *findAguObject(Addr addr, unsigned size) const;
     // A06-a load-leg eligibility (F-049: a mode/target combination that
     // cannot write this request is NOT eligible — decided BEFORE the
     // trigger decision so an unwritable load can never consume the F6
@@ -244,6 +326,10 @@ class CHAOSAddrPath : public SimObject
     // Self-guarded: prints only for A06-shaped runs (pre_mode a06_size /
     // the rejected a06s alias / a non-off be_mode).
     void a06Summary();
+    // [R6-A3/A05] One A05-a/b/c evidence line (NEW line, self-guarded to
+    // the three operand-hook modes): per-reason declines, stale claims and
+    // the decision-cache size, so a NO_FIRE is never a silent zero.
+    void a05Summary();
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr
@@ -258,7 +344,8 @@ class CHAOSAddrPath : public SimObject
     // fixed-width load completion path asserts on shrunken packets);
     // a06s_store_size = store-only v2. Loads are op-class filtered out
     // before the trigger decision (F-049 discipline) and never counted.
-    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06_size | a08_subst | s13_store_addr | l01_load_addr (a06s_store_size = rejected alias)
+    std::string pre_mode = "off";   // off | a04_same_object|a04_same_page | a05_shift | a06_size | a08_subst | ...
+    std::string agu_object_spec;    // [R6-A2/A04-a] explicit oracle registry
     uint64_t agu_size_to = 0;       // a06_size store leg: target size {1,2,4,8,16}
     // [MDSPEC][R4-6-A06] A06-a LOAD leg (planned 2026-10-22). The load's
     // completion is fixed-width per STATIC INSTRUCTION (ARM
@@ -320,6 +407,177 @@ class CHAOSAddrPath : public SimObject
     // Resume event (C12 fillResumeEvent shape): scheduled at the CPU's
     // clockEdge(delay); fires IEW::chaosAguResumeInst for the stashed inst.
     EventFunctionWrapper aguResumeEvent;
+
+    // [R6-A2/A07-a] stale EA captured at the ready point (effAddr from the
+    // instruction's previous execution) and installed at pushRequest.
+    bool agu_stale_valid = false;
+    Addr agu_stale_ea = 0;
+    Addr agu_stale_pa = 0;
+    Tick agu_stale_ready_tick = 0;
+    // Real saved EA of the PREVIOUS memory operation (updated at every
+    // non-fault pushRequest). A07-a uses it as the stale EA.
+    bool agu_prior_valid = false;
+    Addr agu_prior_ea = 0;
+    uint64_t agu_prior_seq = 0;
+    // [R6-A2/A07-c] bounded ready-loss watchdog (never an unbounded hang).
+    uint64_t agu_watchdog_cycles = 4096;
+    uint64_t agu_watchdog_max = 1ULL << 20;
+    o3::DynInstPtr aguWatchdogInst;
+    EventFunctionWrapper aguWatchdogEvent;
+    uint64_t obs_agu_no_stale = 0;        // A07-a: no previous EA
+    uint64_t obs_agu_watchdog = 0;        // A07-c: forced resume
+    uint64_t obs_agu_watchdog_squash = 0; // A07-c: squashed before ready
+    void aguWatchdogFired();
+
+    // ------------------------------------------------------------------
+    // [R6-A4/A07-b] REAL fault lifecycle (user ruling 7, 2026-10-28).
+    //
+    // One record per injected ready delay, armed at the ready point and
+    // closed by EXACTLY ONE real terminal hook:
+    //   resume  (resumeDeferredAgu, the delayed tick)
+    //     -> squashed  at resume          => ready_delay_squashed (L4, contained)
+    //     -> retired   Commit::commitHead => ready_delay_retired  (L5, contained)
+    //     -> squashed  after resume       => ready_delay_discarded(L4, contained)
+    // The ancestry is inj -> resume -> terminal and every event of one fault
+    // carries the SAME dyn_inst_seq / request_id (== DynInst::seqNum, the
+    // real request identity on this path: Request::getReqInstSeqNum()).
+    // Timestamps are OBSERVED, never synthesised; a violated order
+    // ready_tick < delayed_tick <= resume_tick <= terminal_tick is warned
+    // about LOUDLY and recorded as-is (data is never corrected).
+    // A watchdog is NOT a terminal: A07-b has none, and none is fabricated.
+    struct AguReadyLife {
+        bool valid = false;        // an A07-b fault is open (inj..terminal)
+        bool resumed = false;      // the resume hook really fired
+        uint64_t seq = 0;          // DynInst::seqNum == request identity
+        ThreadID tid = 0;
+        Addr pc = 0;
+        uint64_t ptag = 0;         // fault_id (0 = tracer disabled)
+        uint64_t inj_event_id = 0; // parent of the resume event
+        uint64_t resume_event_id = 0;  // parent of the terminal event
+        Tick ready_tick = 0;       // REAL ready/handshake tick
+        Tick delayed_tick = 0;     // scheduled resume tick
+        Tick resume_tick = 0;      // tick the resume hook actually ran
+        uint64_t delay_cycles = 0;
+        bool is_load = false;
+    };
+    AguReadyLife agu_life;
+    uint64_t obs_agu_life_resumed = 0;    // resume events emitted (live inst)
+    uint64_t obs_agu_life_retired = 0;    // real retirement terminals
+    uint64_t obs_agu_life_squashed = 0;   // squashed-at-resume terminals
+    uint64_t obs_agu_life_discarded = 0;  // squashed-after-resume terminals
+    // One lifecycle PROP-EVT (see a07EmitLifecycle). outcome/layer empty =
+    // non-terminal (resume). Never emits when the record/ptag is absent.
+    void a07EmitLifecycle(const char *kind, Tick tick, uint64_t parent_id,
+                          bool consumed, bool squashed,
+                          const char *outcome, const char *det_layer,
+                          const char *containment_reason);
+
+    // ------------------------------------------------------------------
+    // [R6-A3/A05] ISA operand-hook state (A05-a/b/c).
+    // ------------------------------------------------------------------
+    // One decision per dynamic instruction. Keyed by DynInst::seqNum and
+    // carrying the full identity (seq + pc + StaticInst*); an entry is an
+    // IDEMPOTENT REPLAY for the same instruction re-executing after a
+    // translation delay — it never re-rolls the trigger and never
+    // re-registers the injection. Pruned to the recent window so the map
+    // cannot grow without bound (seqNum is monotonic per core).
+    struct AguOperandDecision {
+        bool inject = false;
+        uint64_t seq = 0;
+        Addr pc = 0;
+        const void *si = nullptr;
+        bool is_load = false;
+        unsigned size = 0;
+        unsigned base_reg = 0, index_reg = 0;
+        uint64_t old_base = 0, old_index = 0;
+        uint64_t new_base = 0, new_index = 0;
+        ArmISA::ArmExtendType old_type = ArmISA::UXTX;
+        ArmISA::ArmExtendType new_type = ArmISA::UXTX;
+        uint64_t old_shift = 0, new_shift = 0;
+        Addr old_ea = 0, new_ea = 0;
+        const char *submodel = nullptr;
+    };
+    // A fired fault waiting for ITS OWN pushRequest to claim it (the claim
+    // is in the same call stack as the EA computation, so a pending record
+    // that is not claimed by the very next pushRequest is stale and is
+    // reclaimed loudly — never chained across dynamic instructions).
+    struct AguOperandPending {
+        bool valid = false;
+        uint64_t seq = 0;
+        Addr pc = 0;
+        const void *si = nullptr;
+        bool is_load = false;
+        unsigned size = 0;
+        unsigned base_reg = 0, index_reg = 0;
+        uint64_t old_base = 0, old_index = 0;
+        uint64_t new_base = 0, new_index = 0;
+        ArmISA::ArmExtendType old_type = ArmISA::UXTX;
+        ArmISA::ArmExtendType new_type = ArmISA::UXTX;
+        uint64_t old_shift = 0, new_shift = 0;
+        Addr old_ea = 0, new_ea = 0;
+        const char *submodel = nullptr;
+    };
+    std::map<uint64_t, AguOperandDecision> agu_decisions;
+    AguOperandPending agu_pending;
+    static CHAOSAddrPath *aguOperandConsumer;
+    uint64_t obs_a05_attempt = 0;       // register-offset EA computations seen
+    uint64_t obs_a05_eligible = 0;      // passed shape/no-op gates (trigger)
+    uint64_t obs_a05_declined = 0;      // shape/no-op decline (no budget)
+    uint64_t obs_a05_decl_shift0 = 0;   // A05-a: shift==0 => add commutes
+    uint64_t obs_a05_decl_bit31 = 0;    // A05-b: index bit31==0 => no change
+    uint64_t obs_a05_decl_size1 = 0;    // A05-c: size==1 => no other shift
+    uint64_t obs_a05_decl_index0 = 0;   // A05-c: index==0 => shift no-op
+    uint64_t obs_a05_decl_nochange = 0; // new EA == old EA (never fired)
+    uint64_t obs_a05_decl_opclass = 0;  // atomic/prefetch/non-mem
+    uint64_t obs_a05_stale_reclaimed = 0; // unclaimed pending reclaimed
+    uint64_t obs_a05_no_trigger = 0;    // legacy window path: not offered
+    Addr last_pre_fault_old_addr = 0;
+
+    // ------------------------------------------------------------------
+    // [R6-A3/A08] same-tick load/store pairing + channel / EA swap.
+    // ------------------------------------------------------------------
+    // ONE store candidate per (thread, tick): a store may pair at most once,
+    // and only with a load pushed later in the SAME tick (store->load order,
+    // the W5 SQ-forward shape). A candidate older than the current tick is
+    // aged out loudly (never reused across cycles).
+    struct A08StoreCand {
+        bool valid = false;
+        Tick tick = 0;
+        ThreadID tid = 0;
+        uint64_t seq = 0;
+        Addr ea = 0;
+        unsigned size = 0;
+        o3::DynInstPtr inst;
+        bool paired = false;
+    };
+    struct A08Arm {
+        bool valid = false;
+        bool channel = false;    // A08-a
+        bool ea_swap = false;    // A08-b
+        uint64_t load_seq = 0;
+        Addr load_va = 0;
+        unsigned load_size = 0;
+        Tick pair_tick = 0;
+        bool applied = false;
+    };
+    A08StoreCand a08_store;
+    bool a08_load_seen = false;       // a load already ran in this tick
+    Tick a08_load_tick = 0;
+    uint64_t a08_load_seq = 0;
+    std::map<uint64_t, A08Arm> a08_arms;   // store seq -> armed fault
+    uint64_t obs_a08_attempt = 0;
+    uint64_t obs_a08_eligible = 0;
+    uint64_t obs_a08_fired = 0;
+    uint64_t obs_a08_decl_missing = 0;
+    uint64_t obs_a08_decl_order = 0;
+    uint64_t obs_a08_decl_crosspage = 0;
+    uint64_t obs_a08_decl_ended = 0;
+    uint64_t obs_a08_decl_crosscycle = 0;
+    uint64_t obs_a08_decl_paired = 0;
+    uint64_t obs_a08_applied_channel = 0;
+    uint64_t obs_a08_applied_easwap = 0;
+    uint64_t obs_a08_store_side_declined = 0;
+    uint64_t obs_a08_armed_unapplied = 0;
 
     std::mt19937 rng;
     std::random_device rd;

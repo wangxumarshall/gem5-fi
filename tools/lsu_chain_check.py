@@ -466,6 +466,16 @@ def _terminal(chain_events, edges, by_layer, path, family,
             if e.get("contained") == "1":
                 # 显式 contained 证据（非推断）优先于 oracle 兜底
                 return "detected_contained"
+    # [R6-A2/TERMINAL] A DELIVERED architectural translation exception is a
+    # real terminal, not an inference: the guest took the fault and stopped.
+    # It must be decided before the tlb_fault oracle fallback (otherwise a
+    # tlb_fault with empty `contained` forces outcome_pending forever).
+    for e in chain_events:
+        if (e.get("kind") == "arch_translation_fault"
+                and str(e.get("contained", "")).strip() in _CONTAINED_VALUES
+                and _explicit_l5(e)
+                and _event_has_prefix(chain_events, e, family)):
+            return "detected_contained"
     if translation_blocked:
         if oracle_outcome in ("Crash", "Timeout", "SDC"):
             return f"{oracle_outcome.lower()}_translation_blocked"
@@ -495,6 +505,14 @@ def _terminal(chain_events, edges, by_layer, path, family,
     by_id = {e.get("event_id", ""): e for e in chain_events
              if e.get("event_id", "") != ""}
     errant_escape = _errant_commit_escape(chain_events, family, by_id, path)
+    # [R6-A4/A07-b] ready-delay 的真实生命周期终局（inj→resume→retired/
+    # squashed/discarded）。只认真实钩子；watchdog 不参与、不冒充终局。
+    # oracle 必须干净（Masked）：纯时序模型不产生数据错误，oracle=SDC/Crash
+    # 说明另有来源，不得用本终局覆盖既有 oracle join。
+    if not errant_escape and oracle_outcome == "Masked":
+        _a07 = check_a07b_lifecycle(chain_events, oracle_outcome=oracle_outcome)
+        if _a07.get("accepted"):
+            return "detected_contained"
     for e in chain_events:
         if (str(e.get("contained", "")).strip() in _CONTAINED_VALUES
                 and _explicit_l5(e)
@@ -502,6 +520,14 @@ def _terminal(chain_events, edges, by_layer, path, family,
             if errant_escape and _is_squash_witness(e):
                 continue          # squash 含住让位于真逃逸（见上）
             return "detected_contained"
+    # [R6-A4] A01 翻译 fault 请求的真实 squash/discard：翻译阶段阻断的请求
+    # 天然没有 L3 见证，白名单按字段/同一 request/ancestry/tick 严格证明。
+    # oracle 必须是 Masked（干净 checksum）：oracle=SDC/Crash 时翻译阻断本身
+    # 已由上面的 oracle join 定终局，白名单不得覆盖。
+    if not errant_escape and oracle_outcome == "Masked":
+        for e in chain_events:
+            if _a01_translation_squash_witness(chain_events, e, family):
+                return "detected_contained"
     # 显式 squash/replay/mask（L5 证据事件）—— 真逃逸在场时整体让位
     if not errant_escape:
         for e in chain_events:
@@ -674,6 +700,14 @@ GATE_VIOLATIONS = (
     # "以 errant_commit 收口的可证 L0→L5 路径"时，squash 类含住不得据此准入
     # （防 READY 虚增；见用户裁决 2026-10-25c）。
     "errant_escape_outranks_containment",
+    # [R6-A4/A01] 翻译 fault squash 白名单的 oracle/rc 前提：干净 checksum
+    # （oracle=Masked）且进程正常退出（rc=0）是必要条件，绝不是充分条件。
+    "a01_squash_oracle_not_masked",
+    "a01_squash_requires_rc0",
+    # [R6-A4/A07-b] ready-delay 生命周期终局同样要求干净 oracle（时序故障
+    # 不产生数据错误）与正常退出；二者是必要条件，不是充分条件。
+    "a07_lifecycle_oracle_not_masked",
+    "a07_lifecycle_requires_rc0",
     # [MDSPEC][R6-FIXA2] cross-request lineage bridge missing/malformed/
     # unverifiable — the ONLY legal carrier of a request transition, so a bad
     # one is a named hard-gate failure (never a silent pass, never a loosened
@@ -1118,6 +1152,353 @@ def _obs_deepest_index(chain_events, family):
                 if l in LAYERS), default=-1)
 
 
+# ---------------------------------------------------------------------------
+# [MDSPEC][R6-A4/A07-b] 真实 ready-delay 生命周期终局（用户裁决 7）。
+#
+# A07-b 是纯时序模型：注入只把一次访存的 ready/execute tick 推迟
+# agu_ready_delay_cycles，数据载荷保持正确。它的**可证终局**不是 oracle 猜测，
+# 而是真实生命周期钩子：resume（IEW 延迟重入）→ 真实 commit（retired）或
+# 真实 squash（resume 时/重入后）。Watchdog 不参与 A07-b，不得冒充终局。
+#
+# 事件形状（C++ 侧 CHAOSAddrPath::a07EmitLifecycle 发射）：
+#   inj(field=agu_ready_delay, before=ready_tick, after=delayed_tick)
+#     → ready_delay_resume(parent=inj, consumed=1, squashed=0|1)
+#       → ready_delay_retired | ready_delay_squashed | ready_delay_discarded
+#         (parent=resume)
+# 本函数只认这三类终局，逐字段/逐 ancestry/tick 严格校验；缺项/倒退/跨请求/
+# 截断/仅有 inj/resume 一律拒绝（响亮，不猜测）。A07-b 的终局永远是
+# contained（值不变），**不得**产出 SDC / full(escape)。
+_A07_LIFE_KINDS = ("ready_delay_resume",)
+_A07_TERMINALS = {
+    # kind -> (outcome, detection_layer, containment_reason, squashed)
+    "ready_delay_retired": ("retired_after_delay", "L5",
+                            "delay_transparent_retire", "0"),
+    "ready_delay_squashed": ("contained", "L4",
+                             "squash_before_retire", "1"),
+    "ready_delay_discarded": ("discarded_before_retire", "L4",
+                              "squash_after_resume_before_retire", "1"),
+}
+_A07_ALL_LIFE = _A07_LIFE_KINDS + tuple(_A07_TERMINALS)
+
+
+def _a07_int(evt, key):
+    try:
+        return int(str(evt.get(key, "") or "0"), 10)
+    except ValueError:
+        return 0
+
+
+def _a07_result(accepted, violations, fid=None, seq=None, terminal=None,
+                chain=None):
+    return {"accepted": accepted, "violations": list(violations),
+            "fault_id": fid, "dyn_inst_seq": seq, "terminal": terminal,
+            "chain": list(chain or []), "contained": bool(accepted)}
+
+
+def check_a07b_lifecycle(events, truncated=False, oracle_outcome=None):
+    """[R6-A4] A07-b ready-delay 真实生命周期契约（契约测试同源）。
+
+    返回 {accepted, violations, fault_id, dyn_inst_seq, terminal, chain,
+    contained}。accepted=True 仅当真实 inj→resume→terminal 三事件齐全、
+    同一 ancestry/请求、tick 不变量成立、终局字段逐字匹配。
+    oracle/rc 由 check_admission 另行强制（oracle=Masked、rc=0）。
+    """
+    groups = {}
+    for e in events:
+        fid = str(e.get("fault_id", "") or "")
+        if fid and fid != "0":
+            groups.setdefault(fid, []).append(e)
+
+    def _any(pred):
+        return any(pred(e) for grp in groups.values() for e in grp)
+
+    any_life = _any(lambda e: e.get("kind") in _A07_ALL_LIFE)
+    any_inj = _any(lambda e: e.get("kind") == "inj"
+                   and e.get("field") == "agu_ready_delay")
+    if not any_life and not any_inj:
+        return _a07_result(False, ["no_lifecycle_events"])
+    if len(groups) != 1:
+        return _a07_result(False, ["multiple_faults"])
+    fid, chain = next(iter(groups.items()))
+
+    injs = [e for e in chain if e.get("kind") == "inj"
+            and e.get("field") == "agu_ready_delay"]
+    if not injs:
+        return _a07_result(False, ["missing_inj"], fid=fid)
+    if len(injs) > 1:
+        return _a07_result(False, ["multiple_inj"], fid=fid)
+    inj = injs[0]
+    seq = str(inj.get("dyn_inst_seq", "") or "")
+    req = str(inj.get("request_id", "") or "")
+    v = []
+    if not seq or seq == "0":
+        v.append("inj_missing_dyn_inst_seq")
+    if req != seq:
+        v.append("inj_request_id_not_dyn_inst_seq")
+
+    res = [e for e in chain if e.get("kind") == "ready_delay_resume"]
+    terms = [e for e in chain if e.get("kind") in _A07_TERMINALS]
+    if not res:
+        v.append("missing_resume")
+    elif len(res) > 1:
+        v.append("multiple_resume")
+    if not terms:
+        v.append("missing_terminal")
+        if truncated:
+            v.append("truncated_stream")
+        return _a07_result(False, v, fid=fid, seq=seq)
+    if len(terms) > 1:
+        v.append("multiple_terminals")
+    if not res:
+        return _a07_result(False, v, fid=fid, seq=seq)
+
+    r, t = res[0], terms[0]
+    for e in chain:
+        if e.get("kind") in _A07_ALL_LIFE:
+            if str(e.get("dyn_inst_seq", "") or "") != seq:
+                v.append("cross_request_dyn_inst_seq")
+            if str(e.get("request_id", "") or "") != req:
+                v.append("cross_request_request_id")
+    inj_id = str(inj.get("event_id", "") or "")
+    res_id = str(r.get("event_id", "") or "")
+    if not inj_id:
+        v.append("missing_inj_event_id")
+    if not res_id or res_id == inj_id:
+        v.append("missing_resume_event_id")
+    if str(r.get("parent_event_id", "") or "") != inj_id:
+        v.append("resume_parent_not_inj")
+    if str(t.get("parent_event_id", "") or "") != res_id:
+        v.append("terminal_parent_not_resume")
+    if not str(t.get("event_id", "") or ""):
+        v.append("missing_terminal_event_id")
+    ready, delayed = _a07_int(inj, "before"), _a07_int(inj, "after")
+    if not ready < delayed:
+        v.append("delay_start_ge_delayed")
+    if _a07_int(inj, "delay_cycles") < 1:
+        v.append("delay_cycles_zero")
+    if _a07_int(inj, "tick") != ready:
+        v.append("inj_tick_not_ready_tick")
+    rtick = _a07_int(r, "tick")
+    if not delayed <= rtick:
+        v.append("resume_before_delayed")
+    tterm = _a07_int(t, "tick")
+    if tterm < rtick:
+        v.append("terminal_before_resume")
+    if (str(t.get("kind")) == "ready_delay_squashed"
+            and tterm != rtick):
+        v.append("squash_tick_not_resume_tick")
+    if str(r.get("consumed", "") or "") != "1":
+        v.append("resume_not_consumed")
+    if (_a07_int(r, "ready_tick") != ready
+            or _a07_int(r, "delayed_tick") != delayed):
+        v.append("resume_ready_state_mismatch")
+    if _a07_int(r, "delay_cycles") != _a07_int(inj, "delay_cycles"):
+        v.append("resume_delay_cycles_mismatch")
+    for e, nm in ((r, "resume"), (t, "terminal")):
+        if str(e.get("corr", "") or "") != "seq_primary":
+            v.append(f"{nm}_corr_not_seq_primary")
+        if str(e.get("field", "") or "") != "agu_ready_delay":
+            v.append(f"{nm}_missing_field")
+        if not str(e.get("pc", "") or ""):
+            v.append(f"{nm}_missing_pc")
+    kind = str(t.get("kind"))
+    outcome, layer, reason, squashed = _A07_TERMINALS[kind]
+    if str(t.get("outcome", "") or "") != outcome:
+        v.append("terminal_outcome_mismatch")
+    if str(t.get("detection_layer", "") or "") != layer:
+        v.append("terminal_detection_layer_mismatch")
+    if str(t.get("contained", "") or "") != "1":
+        v.append("terminal_not_contained")
+    if str(t.get("containment_layer", "") or "") != layer:
+        v.append("terminal_containment_layer_mismatch")
+    if str(t.get("containment_reason", "") or "") != reason:
+        v.append("terminal_containment_reason_mismatch")
+    if str(t.get("squashed", "") or "") != squashed:
+        v.append("terminal_squashed_flag_mismatch")
+    if str(t.get("consumed", "") or "") != "1":
+        v.append("terminal_not_consumed")
+
+    accepted = not v
+    return _a07_result(accepted, v, fid=fid, seq=seq,
+                       terminal=outcome if accepted else None,
+                       chain=[inj_id, res_id,
+                              str(t.get("event_id", "") or "")])
+
+
+def _a07_terminal_event(chain_events, kind):
+    for e in chain_events:
+        if e.get("kind") == kind:
+            return e
+    return None
+
+
+def _a01_translation_squash_witness(chain_events, target, family):
+    """[R6-A4] A01 翻译 fault 请求被真实 squash/discard 的白名单终局。
+
+    真实机制（A01-F1-W3 seed2 / A01-F2-W3 seed2）：注入的单 bit EA 让请求在
+    翻译期硬件 fault（tlb_fault, detection_layer=Hardware），该**未提交**的
+    load 随即被 LSQUnit::squash 真实 pop/discard（squash_discarded，L4，
+    contained=1, state_before=load_queue_uncommitted）。翻译 fault 的请求
+    **从未进入下游**，因此 L3 见证结构性缺席；旧通用前缀规则（要求 L0→L3）
+    因此误拒。
+
+    这是**窄白名单**（Lane C 字段级契约），任一条件不满足 → False：
+      A. 作用域/完整性：全部 run_id 同为 A01、family=agu、唯一 fault、唯一
+         squash_discarded、唯一 chain_end 且位于流末并带合法生命周期字段
+         （corr=none / outcome=run_end / contained=0 / detection_layer 空）。
+      B. 见证字段精确：contained=1 / outcome=contained / detection_layer=L4 /
+         containment_layer=L4 / containment_reason=squash_discarded /
+         corr=seq_primary / field=load / state_before=load_queue_uncommitted /
+         evidence_status ∈ {"", "observed"}。
+      C. ancestry 严格等于 inj→addr_form→mem_req→lsq_sendfrag→tlb_translate→
+         tlb_fault→squash_discarded（不许缺项/额外项/乱序）；
+         dyn_inst_seq 七个事件非空且全等；request_id 五个事件非空且全等；
+         va 五个事件非空且全等；inj.before==inj.va、inj.after==addr_form.va、
+         且 before!=after；tlb_fault.detection_layer=Hardware、outcome 非空
+         （解析截断容忍 "Generic*"）、contained 为空或 0。
+      D. 时间/后验：ancestry tick 非降；squash.tick>tlb_fault.tick；
+         chain_end.tick>squash.tick；squash 之后（流序与 tick 两个口径）除
+         chain_end 外没有任何事件；链内不得有 arch_translation_fault /
+         consumer / taint_reg / errant_commit / store_not_retired / resp /
+         lq_* / sq_* / cache_* / mshr_*。
+      E. oracle/rc（oracle=Masked、rc=0）由 `_terminal` 与 `check_admission`
+         强制；errant_commit 逃逸优先由调用方保留。
+    流收口/未截断由 containment_from_events / check_admission 继续强制。
+    """
+    if family != "agu":
+        return False
+    if target.get("kind", "") != "squash_discarded":
+        return False
+
+    # --- A. scope / stream integrity -------------------------------------
+    run_ids = {str(e.get("run_id", "")).strip() for e in chain_events
+               if str(e.get("run_id", "")).strip()}
+    if len(run_ids) != 1:
+        return False
+    if next(iter(run_ids))[:3] != "A01":
+        return False
+    fids = {str(e.get("fault_id", "")).strip() for e in chain_events
+            if str(e.get("fault_id", "")).strip() not in ("", "0")}
+    if len(fids) != 1:
+        return False
+    if sum(1 for e in chain_events
+           if e.get("kind") == "squash_discarded") != 1:
+        return False
+    ces = [e for e in chain_events if e.get("kind") == "chain_end"]
+    if len(ces) != 1 or chain_events[-1] is not ces[0]:
+        return False
+    ce = ces[0]
+    if str(ce.get("corr", "")).strip() != "none":
+        return False
+    if str(ce.get("outcome", "")).strip() != "run_end":
+        return False
+    if str(ce.get("contained", "")).strip() not in (
+            "", "0", "false", "False", "no", "No"):
+        return False
+    if str(ce.get("detection_layer", "")).strip() not in _EMPTY_DETECTION:
+        return False
+
+    # --- B. witness fields ------------------------------------------------
+    if str(target.get("contained", "")).strip() not in _CONTAINED_VALUES:
+        return False
+    if str(target.get("outcome", "")).strip() != "contained":
+        return False
+    if str(target.get("detection_layer", "")).strip() != "L4":
+        return False
+    if str(target.get("containment_layer", "")).strip() != "L4":
+        return False
+    if (str(target.get("containment_reason", "")).strip()
+            != "squash_discarded"):
+        return False
+    if str(target.get("corr", "")).strip() != "seq_primary":
+        return False
+    if str(target.get("field", "")).strip() != "load":
+        return False
+    if (str(target.get("state_before", "")).strip()
+            != "load_queue_uncommitted"):
+        return False
+    if str(target.get("evidence_status", "")).strip().lower() not in (
+            "", "observed"):
+        return False
+    if not _key_evidence_ok(target):
+        return False
+    req = str(target.get("request_id", "")).strip()
+    seq = str(target.get("dyn_inst_seq", "")).strip()
+    if not req or not seq or req == "0" or seq == "0":
+        return False
+
+    # --- C. exact ancestry + identity ------------------------------------
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    anc = _ancestry(target, by_id)
+    want = ("inj", "addr_form", "mem_req", "lsq_sendfrag", "tlb_translate",
+            "tlb_fault", "squash_discarded")
+    if tuple(e.get("kind", "") for e in anc) != want:
+        return False
+    ev = {k: anc[i] for i, k in enumerate(want[:-1])}
+    mem_chain = (ev["mem_req"], ev["lsq_sendfrag"], ev["tlb_translate"],
+                 ev["tlb_fault"], target)
+    for e in anc:
+        if str(e.get("dyn_inst_seq", "")).strip() != seq:
+            return False
+    for e in mem_chain:
+        if str(e.get("request_id", "")).strip() != req:
+            return False
+        if str(e.get("corr", "")).strip() != "seq_primary":
+            return False
+    va = str(ev["addr_form"].get("va", "")).strip()
+    if not va:
+        return False
+    for k in ("mem_req", "lsq_sendfrag", "tlb_translate", "tlb_fault"):
+        if str(ev[k].get("va", "")).strip() != va:
+            return False
+    if str(ev["inj"].get("corr", "")).strip() != "origin":
+        return False
+    if str(ev["addr_form"].get("corr", "")).strip() != "origin":
+        return False
+    before = str(ev["inj"].get("before", "")).strip()
+    after = str(ev["inj"].get("after", "")).strip()
+    inj_va = str(ev["inj"].get("va", "")).strip()
+    if not before or before != inj_va:
+        return False
+    if not after or after != va or before == after:
+        return False
+    tf = ev["tlb_fault"]
+    if str(tf.get("detection_layer", "")).strip() != "Hardware":
+        return False
+    if not str(tf.get("outcome", "")).strip().startswith("Generic"):
+        return False
+    if str(tf.get("contained", "")).strip() in ("1", "true", "True",
+                                                "yes", "Yes"):
+        return False
+
+    # --- D. time / no deeper observation ---------------------------------
+    ticks = [_tick(e) for e in anc]
+    if any(b < a for a, b in zip(ticks, ticks[1:])):
+        return False
+    ts = _tick(target)
+    if ts <= _tick(tf):
+        return False
+    if _tick(ce) <= ts:
+        return False
+    t_idx = next(i for i, e in enumerate(chain_events) if e is target)
+    for e in chain_events[t_idx + 1:]:
+        if e.get("kind", "") != "chain_end":
+            return False
+    for e in chain_events:
+        if e is target or e.get("kind", "") in _LIFECYCLE_KINDS:
+            continue
+        if _tick(e) >= ts:
+            return False
+    forbidden = {"arch_translation_fault", "consumer", "taint_reg",
+                 "errant_commit", "store_not_retired", "resp"}
+    for e in chain_events:
+        k = str(e.get("kind", ""))
+        if k in forbidden or k.startswith(("lq_", "sq_", "cache_", "mshr_")):
+            return False
+    return True
+
+
 def _containment_candidate(chain_events, family):
     """[R6-FIXB] 返回**本该**支撑含住主张的真实检测事件（或 None）。
 
@@ -1131,15 +1512,32 @@ def _containment_candidate(chain_events, family):
             continue
         if not _explicit_l5(e) or not _key_evidence_ok(e):
             continue
-        if not _event_has_prefix(chain_events, e, family):
+        if not (_event_has_prefix(chain_events, e, family)
+                or _a01_translation_squash_witness(chain_events, e, family)):
             continue
         layer = _obs_layer_of(e, family)
         if layer not in LAYERS:
             continue
-        if _obs_deepest_index(chain_events, family) > LAYERS.index(layer):
-            # 该层之后仍有见证 ⇒ 传播并未止于此，含住主张不成立
+        # [R6-A2/TERMINAL] An architectural exception terminates execution:
+        # L3 observations that happened BEFORE the delivered fault do not
+        # refute containment. For every other witness the old rule stands
+        # (a deeper observation means propagation did not stop there).
+        _arch_terminal = e.get("kind") == "arch_translation_fault"
+        if (not _arch_terminal
+                and _obs_deepest_index(chain_events, family)
+                    > LAYERS.index(layer)):
             continue
         return e
+    # [R6-A4/A07-b] ready-delay lifecycle terminal: the real resume→retire/
+    # squash hook pair is the witness. Its observation layer is L4 (squashed/
+    # discarded) or L5 (transparent retirement); it deliberately has no
+    # L0→L3 data-path prefix because the fault is timing-only.
+    _a07 = check_a07b_lifecycle(chain_events)
+    if _a07.get("accepted"):
+        for kind in _A07_TERMINALS:
+            t = _a07_terminal_event(chain_events, kind)
+            if t is not None:
+                return t
     return None
 
 
@@ -1397,6 +1795,47 @@ def check_admission(bundle):
         # 样本经 full 链正常准入。悬空 errant_commit 不触发（见
         # `_errant_commit_escape`）；非 squash 类含住（翻译阻断等）保持原状。
         _cand = _containment_candidate(chain, family)
+        # [R6-A4/A01] the translation-fault squash whitelist additionally
+        # requires a clean checksum (oracle=Masked) and a normal exit
+        # (rc=0). They are necessary, never sufficient — the witness itself
+        # still has to satisfy the full field/ancestry/tick contract.
+        if (_cand is not None
+                and _a01_translation_squash_witness(chain, _cand, family)):
+            if bundle.get("oracle_outcome") != "Masked":
+                cont_issues.append(
+                    f"a01_squash_oracle_not_masked: {run_id} 翻译 fault squash "
+                    f"白名单要求 oracle=Masked（干净 checksum），实际 "
+                    f"{bundle.get('oracle_outcome')!r}——不得据此准入")
+            _rc = bundle.get("rc")
+            try:
+                _rcv = int(_rc)
+            except (TypeError, ValueError):
+                _rcv = None
+            if _rcv != 0:
+                cont_issues.append(
+                    f"a01_squash_requires_rc0: {run_id} 翻译 fault squash "
+                    f"白名单要求进程正常退出（rc=0），实际 rc={_rc!r}——"
+                    f"不得据此准入")
+        # [R6-A4/A07-b] the ready-delay lifecycle terminal likewise needs a
+        # clean checksum and a normal exit. A timing-only model cannot cause
+        # SDC/Crash, so a non-Masked oracle means another source is at play.
+        if (_cand is not None
+                and check_a07b_lifecycle(chain).get("accepted")):
+            if bundle.get("oracle_outcome") != "Masked":
+                cont_issues.append(
+                    f"a07_lifecycle_oracle_not_masked: {run_id} ready-delay "
+                    f"生命周期终局要求 oracle=Masked（干净 checksum），实际 "
+                    f"{bundle.get('oracle_outcome')!r}——不得据此准入")
+            _rc7 = bundle.get("rc")
+            try:
+                _rc7v = int(_rc7)
+            except (TypeError, ValueError):
+                _rc7v = None
+            if _rc7v != 0:
+                cont_issues.append(
+                    f"a07_lifecycle_requires_rc0: {run_id} ready-delay "
+                    f"生命周期终局要求进程正常退出（rc=0），实际 rc={_rc7!r}"
+                    f"——不得据此准入")
         _esc = None
         if _cand is not None and _is_squash_witness(_cand):
             _by_id = {e.get("event_id", ""): e for e in chain

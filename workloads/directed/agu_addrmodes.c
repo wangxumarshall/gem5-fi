@@ -5,6 +5,7 @@
    检测面：每种寻址模式产生确定值参与最终 FNV-1a 校验和。 */
 #include <unistd.h>
 #include <stdint.h>
+#include "chaos_repeat.h"
 
 static void put_hex(unsigned long v){
     char buf[16];
@@ -20,7 +21,7 @@ static inline unsigned long fnv(unsigned long acc, unsigned long v){
 static unsigned long array[N] __attribute__((aligned(4096)));
 static unsigned long output[N];
 
-int main(void)
+static unsigned long probe_once(void)
 {
     unsigned long acc = 0x42ee1ce4d4e55eedUL;
     unsigned long base = (unsigned long)array;
@@ -67,6 +68,18 @@ int main(void)
     for (i = 0; i < N; ++i) output[i] = array[i] ^ 0xDEADBEEFCAFEBABEUL;
     for (i = 0; i < N; ++i) acc = fnv(acc, output[i]);
 
+    return acc;
+}
+
+int main(int argc, char **argv)
+{
+    int reps = chaos_repeat_count(argc, argv);
+    unsigned long acc = 0;
+    for (int r = 0; r < reps; ++r) {
+        acc = probe_once();
+        if (reps > 1)
+            chaos_emit_iter(r, acc);
+    }
     put_hex(acc);
     return 0;
 }

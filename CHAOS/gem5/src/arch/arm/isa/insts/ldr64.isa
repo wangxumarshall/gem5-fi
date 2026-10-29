@@ -117,7 +117,13 @@ let {{
             if self.literal:
                 eaCode += "EA = RawPC"
             else:
-                eaCode += SPAlignmentCheckCode + "EA = XBase"
+                # [LSU][MDSPEC][R6-A3] A05-a/b/c: register-offset classes
+                # install chaos_ea_code, which snapshots the REAL operands
+                # into locals, lets the CHAOSAddrPath operand hook rewrite
+                # the locals (never the shared StaticInst members), and only
+                # then computes the EA. Every other class is byte-identical.
+                eaCode += SPAlignmentCheckCode
+                eaCode += getattr(self, "chaos_ea_code", "EA = XBase")
 
             if self.size == 16:
                 if self.top:
@@ -192,6 +198,32 @@ let {{
             self.wbDecl = \
                 "MicroAddXERegUop(machInst, base, base, " + \
                 "                 offset, type, shiftAmt);"
+
+            # [LSU][MDSPEC][R6-A3] A05-a/b/c real operand hook. The decoded
+            # operands (XBase/XOffset/type/shiftAmt/base/offset) are
+            # snapshotted into LOCALS; the CHAOSAddrPath hook may rewrite the
+            # locals; the EA is then computed from them. type/shiftAmt are
+            # StaticInst members shared across dynamic instances — they are
+            # never written. Scalar register-offset forms are at most 8 bytes
+            # (LDP/STP size-16 pairs live in macromem.isa), so the size-16
+            # EA suffix cannot follow this expression; keep the baseline path
+            # for that (unreachable here) shape.
+            if self.size != 16:
+                self.chaos_ea_code = (
+                    "uint64_t _chaosBase = XBase;\n"
+                    "            uint64_t _chaosIndex = XOffset;\n"
+                    "            ArmExtendType _chaosType = type;\n"
+                    "            uint64_t _chaosShift = shiftAmt;\n"
+                    "            ArmISA::chaosAguRegOperands(\n"
+                    "                xc, /*is_load=*/true, " +
+                    str(self.size) + ",\n"
+                    "                (unsigned)base, (unsigned)offset,\n"
+                    "                _chaosBase, _chaosIndex,\n"
+                    "                _chaosType, _chaosShift);\n"
+                    "            EA = _chaosBase + extendReg64(_chaosIndex,\n"
+                    "                                          _chaosType,\n"
+                    "                                          _chaosShift, 64)")
+                self.offset = ""
 
     class LoadRawRegInst64(LoadInst64):
         def __init__(self, *args, **kargs):

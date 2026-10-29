@@ -564,6 +564,18 @@ class ArmStaticInst : public StaticInst
                                     ExceptionLevel pstateEL) const;
 
   public:
+    /// [LSU][MDSPEC][R6-A3] Public window over the REAL extension semantics
+    /// for the CHAOS AGU operand hook (A05-a/b/c). The hook must recompute
+    /// an EA from transformed operands with exactly the ISA's extend rules;
+    /// this wrapper calls the very same extendReg64 instead of
+    /// reimplementing it (no semantic drift).
+    uint64_t
+    chaosExtendReg64(uint64_t base, ArmExtendType type, uint64_t shiftAmt,
+                     uint8_t width) const
+    {
+        return (uint64_t)extendReg64(base, type, shiftAmt, width);
+    }
+
     virtual void
     annotateFault(ArmFault *fault) {}
 

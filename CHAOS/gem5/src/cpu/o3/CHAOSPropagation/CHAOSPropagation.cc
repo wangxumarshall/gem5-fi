@@ -165,6 +165,27 @@ namespace gem5
                             continue;
                         containment_ptags[p] = {"L4",
                                                 "store_discarded_not_retired"};
+                        // [R6-A2/TERMINAL] A REAL lifecycle event, not a
+                        // chain_end claim: this store's response was observed
+                        // (noteMemResponse inserted the taint) and the store's
+                        // own commit was NEVER observed (noteCommit erases
+                        // it). That is the containment evidence the gate
+                        // requires. We deliberately do NOT claim same-PC
+                        // replay here (that would need per-PC commit proof).
+                        notePropEvt("store_not_retired", {
+                            {"fault_id", std::to_string(p)},
+                            {"request_id", std::to_string(st.first)},
+                            {"dyn_inst_seq",
+                                std::to_string(st.second.taintor_seq)},
+                            {"outcome", "contained"},
+                            {"detection_layer", "L4"},
+                            {"contained", "1"},
+                            {"containment_layer", "L4"},
+                            {"containment_reason",
+                                "store_discarded_not_retired"},
+                            {"state_before", "response_seen_commit_absent"},
+                            {"corr", "taint_prop"},
+                        });
                         emitDetectSignal("Hardware RAS", true, p,
                                          "store_discarded_not_retired");
                     }
@@ -1159,7 +1180,8 @@ namespace gem5
                                             Tick ready_tick,
                                             Tick delayed_tick,
                                             uint64_t delay_cycles,
-                                            bool is_load, Addr pc)
+                                            bool is_load, Addr pc,
+                                            uint64_t request_id)
     {
         if (!write_log)
             return 0;
@@ -1181,8 +1203,18 @@ namespace gem5
               << ";lq_idx=" << lq_idx
               << ";sq_idx=" << sq_idx
               << ";pc=0x" << std::hex << pc << std::dec;
+            // [MDSPEC][R6-A4/A07-b] A07-b (request_id != 0) additionally
+            // declares the model's before/after READY STATE; the ready/
+            // delayed ticks themselves ride before/after, delay_cycles is a
+            // family-extension column (PROP_EVT_EXT_FIELDS). A07-a/A07-c
+            // (request_id == 0) keep the detail string byte-identical.
+            if (request_id)
+                d << ";state_before=ready;state_after=delayed"
+                  << ";ready_tick=" << ready_tick
+                  << ";delayed_tick=" << delayed_tick;
             writeNode(ptag, "inj", dyn_seq, true,
-                      0, false, 0, false, 0, false, 0, false, d.str(),
+                      request_id, request_id != 0,
+                      0, false, 0, false, 0, false, d.str(),
                       CORR_ORIGIN);
         }
         // NO registry entry: the EA does not exist at the ready point.
@@ -2028,6 +2060,76 @@ namespace gem5
         return 0;
     }
 
+    void
+    CHAOSPropagation::noteArchTranslationFault(Addr va, bool delivered)
+    {
+        if (!write_log)
+            return;
+        uint64_t ptag = 0;
+        const char *corr = nullptr;
+        for (const auto &kv : addr_registry) {
+            const AddrEntry &e = kv.second;
+            if (e.size != 0 && va >= e.base && va < e.base + e.size) {
+                ptag = e.ptag;
+                corr = CORR_SEQ_PRIMARY;
+                break;
+            }
+        }
+        if (!ptag) {
+            for (const auto &kv : blk_registry) {
+                const BlkEntry &e = kv.second;
+                if (va >= e.byte_begin && va < e.byte_end) {
+                    ptag = e.ptag;
+                    corr = CORR_ADDR_FALLBACK;
+                    break;
+                }
+            }
+        }
+        if (!ptag)
+            return;   // no injected chain owns this address: stay honest
+        std::ostringstream h_va;
+        h_va << std::hex << va;
+        notePropEvt("arch_translation_fault", {
+            {"fault_id", std::to_string(ptag)},
+            {"va", h_va.str()},
+            {"exc_type", "page_table"},
+            {"delivered", delivered ? "1" : "0"},
+            {"outcome", "arch_exception"},
+            {"detection_layer", "L2"},
+            {"contained", delivered ? "1" : "0"},
+            {"containment_layer", delivered ? "L2" : ""},
+            {"containment_reason", delivered
+                ? "arch_translation_fault_delivered" : ""},
+            {"corr", corr ? corr : ""},
+        });
+    }
+
+    void
+    CHAOSPropagation::noteSquashDiscarded(o3::DynInst *inst, bool is_load,
+                                          const char *state_before)
+    {
+        if (!write_log || !inst)
+            return;
+        Addr base = 0;
+        const char *corr = nullptr;
+        const uint64_t ptag = correlateRequestBySeq(inst->seqNum, &base, &corr);
+        if (!ptag)
+            return;   // instruction carries no injected fault
+        notePropEvt("squash_discarded", {
+            {"fault_id", std::to_string(ptag)},
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            {"request_id", std::to_string(inst->seqNum)},
+            {"field", is_load ? "load" : "store"},
+            {"state_before", state_before ? state_before : ""},
+            {"outcome", "contained"},
+            {"detection_layer", "L4"},
+            {"contained", "1"},
+            {"containment_layer", "L4"},
+            {"containment_reason", "squash_discarded"},
+            {"corr", corr ? corr : ""},
+        });
+    }
+
     uint64_t
     CHAOSPropagation::correlateRequestBySeq(uint64_t dyn_seq,
                                             Addr *base_out,
@@ -2325,10 +2427,17 @@ namespace gem5
         {
             std::ostringstream d;
             d << "family=" << hit_family << ";size=" << pkt->getSize();
-            if (pkt->hasData()) {
+            // [R6-A2/EVID-P0] A SplitDataRequest response can carry the
+            // data flag without a readable contiguous buffer; the old
+            // unconditional getPtr() crash inside fnv1a64 truncated the
+            // whole evidence stream (A08-F0-W5 s3). Never hash a null
+            // pointer — record the honest "unavailable" marker instead.
+            if (pkt->hasData() && pkt->getPtr<uint8_t>() != nullptr) {
                 d << ";data_fnv=" << std::hex
                   << fnv1a64(pkt->getPtr<uint8_t>(), pkt->getSize())
                   << std::dec;
+            } else if (pkt->hasData()) {
+                d << ";data_fnv=unavailable";
             }
             if (inst->getFault() != NoFault)
                 d << ";fault=" << inst->getFault()->name();

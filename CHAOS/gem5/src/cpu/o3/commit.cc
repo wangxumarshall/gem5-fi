@@ -68,6 +68,10 @@
 // W2.1/W2.4). Non-circular for the same reason (CHAOSPropagation.hh
 // forward-declares o3::CPU/o3::DynInst and does not include commit.hh).
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+// [MDSPEC][R6-A4/A07-b] full definition for the read-only A07 lifecycle
+// retire/squash observers (CHaosAddrPath.hh forward-declares o3::CPU and does
+// not include commit.hh — non-circular, same rationale as the includes above).
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 #include "cpu/o3/thread_state.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
@@ -531,6 +535,15 @@ Commit::squashAll(ThreadID tid)
     rob->squash(squashed_inst, tid);
     changedROBNumEntries[tid] = true;
 
+    /* gem5-fi [MDSPEC][R6-A4/A07-b] */ if (cpu->chaosAguReady) {
+        // Read-only: a real ROB squash was just issued for every instruction
+        // younger than squashed_inst. If the A07-b delayed instruction is in
+        // that range its delay was REALLY cancelled (its ROBSquashing entry
+        // will never architecturally commit) — the observer emits the true
+        // `ready_delay_discarded` terminal. No squash state is touched.
+        cpu->chaosAguReady->observeSquash(tid, squashed_inst);
+    }
+
     // Send back the sequence number of the squashed instruction.
     toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
 
@@ -833,6 +846,12 @@ Commit::commit()
 
             rob->squash(squashed_inst, tid);
             changedROBNumEntries[tid] = true;
+
+            /* gem5-fi [MDSPEC][R6-A4/A07-b] */ if (cpu->chaosAguReady) {
+                // Read-only A07-b post-resume squash observation (same real
+                // ROB squash boundary as above: seqNum > squashed_inst).
+                cpu->chaosAguReady->observeSquash(tid, squashed_inst);
+            }
 
             toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
 
@@ -1316,6 +1335,16 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // rob->retireHead) so all three observation layers see the same
         // commit stream. nullptr = no tracer (zero regression).
         chaosPropagation->noteCommit(tid, head_inst.get());
+    }
+
+    /* gem5-fi [MDSPEC][R6-A4/A07-b] */ if (cpu->chaosAguReady) {
+        // Read-only A07-b ready-delay lifecycle terminal: if THIS retiring
+        // instruction is the one whose AGU-ready handshake was delayed, emit
+        // the TRUE retirement terminal (`ready_delay_retired`) with tick =
+        // this real commit tick. Never changes commit behaviour: the observer
+        // only compares the DynInst identity and emits a tracing event.
+        // nullptr = no A07 injector installed (non-A07 runs pay one branch).
+        cpu->chaosAguReady->observeRetire(head_inst);
     }
 
     // hardware transactional memory

@@ -63,6 +63,11 @@ class CHAOSAddrPath(SimObject):
     aguSizeTo = Param.UInt64(0,
         "a06_size STORE leg target size: 1|2|4|8|16 "
         "(anything else = invalid, no-op + counted)")
+    aguObjectSpec = Param.String("",
+        "[R6-A2/A04-a] Explicit oracle-object registry, ';'-separated. Each "
+        "item is 'id:symbol:size:elem_width' or 'id:@addr:size:elem_width'. "
+        "A04-a is eligible only when the source EA lies inside a registered "
+        "object; no registry => loud refusal (never falls back to same-page).")
     # [MDSPEC][R4-6-A06 / R4-8-A06] A06-a LOAD leg: ANOTHER legal size,
     # widen OR shrink. The AArch64 load completion is fixed-width per static
     # instruction (LoadCompleteAcc getMemLE(pkt, Mem, ..) reads sizeof(Mem)
@@ -88,7 +93,11 @@ class CHAOSAddrPath(SimObject):
         "be_all_true into the injection log + the CHAOS_L0_A06 summary line) "
         "| shift_mid (A06-b injection: substitute an interior-cleared mask; "
         "STORES only — a load's mask has no architectural consumer on this "
-        "path; requires preMode=a06_size)")
+        "path; requires preMode=a06_size) "
+        "| rotate1_clear_msb (A06 RULING 2026-10-28: rotate the original "
+        "mask by one byte; if it is all-true (the ISA's normal mask) clear "
+        "the most-significant byte. Same width, non-zero, != original; "
+        "STORES only, size>=2)")
 
     # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake family (03 sheet A07:
     # "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"; hook =
@@ -105,6 +114,11 @@ class CHAOSAddrPath(SimObject):
     aguReadyMode = Param.String("off",
         "off | a07b_ready_delay (A07-b bounded AGU-ready delay at the IEW "
         "memRef ready/handshake point)")
+    aguWatchdogCycles = Param.UInt64(4096,
+        "[R6-A2/A07-c] ready-loss watchdog delay in CPU cycles (>=1).")
+    aguWatchdogMax = Param.UInt64(1 << 20,
+        "[R6-A2/A07-c] hard upper bound; exceeding it exits with code 124 "
+        "instead of hanging forever.")
     aguReadyDelayCycles = Param.UInt64(1,
         "A07-b: the ready handshake is delayed by this many CPU clock "
         "edges (bounded, >=1; spec default 1 = '延后1周期')")

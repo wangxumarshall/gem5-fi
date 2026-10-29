@@ -452,6 +452,35 @@ class LSQ
         virtual void buildPackets() = 0;
 
         /**
+         * [LSU][MDSPEC][R6-A3] A08-a: turn every already-built packet of
+         * this (store) request into a READ request. The command really
+         * enters the memory system; the request's own isLoad flag and the
+         * DynInst stay store-side, which is exactly the "store routed to
+         * the load channel" evidence.
+         */
+        void
+        chaosStoreChannelToRead()
+        {
+            for (auto *pkt : _packets) {
+                if (pkt && pkt->isWrite())
+                    pkt->cmd = MemCmd::ReadReq;
+            }
+        }
+
+        /**
+         * [LSU][MDSPEC][R6-A3] A08-b: shift every fragment's paddr by
+         * `delta` (used to point a store at the paired load's address).
+         * The caller must have verified the same-4KiB-page mapping and the
+         * paddr offset preservation first.
+         */
+        virtual void
+        chaosRetargetPaddr(Addr delta)
+        {
+            for (auto &r : _reqs)
+                r->setPaddr(r->getPaddr() + delta);
+        }
+
+        /**
          * Memory mapped IPR accesses
          */
         virtual Cycles handleLocalAccess(

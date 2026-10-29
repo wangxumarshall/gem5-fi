@@ -50,3 +50,9 @@
 `T08-F4-W4` seed3 为 **NO_FIRE**：F4 频率模型首次发射位置落在 [50k,150k)，
 超出该 seed 的 126,005 个 walk-issue eligible 事件，0 次注入——合法非样本，不是证据失败。
 
+
+## R6 A 单元（AGU）— 2026-10-28
+
+A 单元不复用本文件的 T 单元判定。其权威副本与逐 seed 状态见
+`R6-A-STATUS.json`（选择优先级 `fix2 > segv2 > segv > spanfix > 初版`）。
+旧 pilot（`r6_n6_A05-F0-W3_s1` 等）只作诊断参考，未被移动或覆盖。

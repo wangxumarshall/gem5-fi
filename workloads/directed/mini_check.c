@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/mman.h>
+#include "chaos_repeat.h"
 
 static void put_hex(unsigned long v){
     char buf[16];
@@ -22,7 +23,7 @@ static void put_hex(unsigned long v){
 }
 
 #define N 64
-static unsigned long data[N];
+static unsigned long oracle_data[N];
 
 /* FNV-1a 折叠：任何单元素/指针偏差都会改变 checksum。 */
 static inline unsigned long fnv(unsigned long acc, unsigned long v){
@@ -31,22 +32,22 @@ static inline unsigned long fnv(unsigned long acc, unsigned long v){
 
 struct node { unsigned long val; unsigned long next_off; };
 
-int main(void){
+static unsigned long probe_once(void){
     unsigned long acc = 0xcbf29ce484222325UL;
     unsigned i;
 
     /* 1. 短数组校验和 */
-    for (i = 0; i < N; ++i) data[i] = 0x1000UL + (unsigned long)i * 0x0101010101010101UL;
-    for (i = 0; i < N; ++i) acc = fnv(acc, data[i]);
+    for (i = 0; i < N; ++i) oracle_data[i] = 0x1000UL + (unsigned long)i * 0x0101010101010101UL;
+    for (i = 0; i < N; ++i) acc = fnv(acc, oracle_data[i]);
 
     /* 2. 指针链（置换链：节点 i 的下一跳 = (i*7+3)%N，无自环前遍历 N 步） */
-    for (i = 0; i < N; ++i) data[i] = (data[i] & ~0xffUL) | (unsigned long)((i * 7 + 3) % N);
+    for (i = 0; i < N; ++i) oracle_data[i] = (oracle_data[i] & ~0xffUL) | (unsigned long)((i * 7 + 3) % N);
     { unsigned cur = 0;
-      for (i = 0; i < N; ++i){ acc = fnv(acc, data[cur]); cur = (unsigned)(data[cur] & 0xffUL); } }
+      for (i = 0; i < N; ++i){ acc = fnv(acc, oracle_data[cur]); cur = (unsigned)(oracle_data[cur] & 0xffUL); } }
 
     /* 3. load/store round-trip（volatile 读强制真实 load） */
-    for (i = 0; i < N; ++i) data[i] ^= 0xa5a5a5a5a5a5a5a5UL;
-    { volatile unsigned long *vd = data;
+    for (i = 0; i < N; ++i) oracle_data[i] ^= 0xa5a5a5a5a5a5a5a5UL;
+    { volatile unsigned long *vd = oracle_data;
       for (i = 0; i < N; ++i) acc = fnv(acc, vd[i]); }
 
     /* 4. guard page：page1 放链表，page2 PROT_NONE；合法 next 全在 page1 内 */
@@ -67,6 +68,16 @@ int main(void){
           off = p->next_off;
       } }
 
+    return acc;
+}
+
+int main(int argc, char **argv){
+    int reps = chaos_repeat_count(argc, argv);
+    unsigned long acc = 0;
+    for (int r = 0; r < reps; ++r){
+        acc = probe_once();
+        if (reps > 1) chaos_emit_iter(r, acc);
+    }
     put_hex(acc);
     return 0;
 }

@@ -1,0 +1,1177 @@
+{
+ "generated_at": "2026-10-28",
+ "scope": "R6 A (AGU) 39 RunIDs",
+ "start_head": "659fa4cf6ea2095e178f43df9f177bff8260bda2",
+ "branch": "fix/r6-a-unit-20261028",
+ "final_binary": {
+  "path": "CHAOS/gem5/build/ARM/gem5.opt",
+  "sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+  "source_commit_equivalent": "1e8e96fe2 (SEGV fix)",
+  "source_head_at_build": null
+ },
+ "status_counts": {
+  "OPEN_CHAIN_0_OF_3": 6,
+  "EXCLUDED_NO_FIRE_3_OF_3": 11,
+  "PARTIAL_1_OF_3": 9,
+  "POLICY_EXCLUDED_F6": 9,
+  "BLOCKED_RULING": 4
+ },
+ "qualified_seed_total": 9,
+ "cells": {
+  "A01-F0-W3": {
+   "status": "OPEN_CHAIN_0_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "443e3d0f4e9e1ea898851ce04c0192a368271b60325fbaa80f38d963c24f5afd",
+     "evidence_dir": "runs/lsu/r6_a_segv_A01-F0-W3_s1",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 256400
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A01-F0-W3_s2",
+     "oracle": "Masked",
+     "terminal": "provable_to_L2_then_unknown",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A01-F0-W3_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L2_then_unknown",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A01-a/b/c: IMPLEMENTED+ROUTED（band 逐事件随机抽，无 pin；动态覆盖见下）"
+  },
+  "A01-F1-W3": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F1-W3_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F1-W3_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F1-W3_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A01-a/b/c: IMPLEMENTED+ROUTED（band 逐事件随机抽，无 pin；动态覆盖见下）"
+  },
+  "A01-F2-W3": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F2-W3_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F2-W3_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F2-W3_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A01-a/b/c: IMPLEMENTED+ROUTED（band 逐事件随机抽，无 pin；动态覆盖见下）"
+  },
+  "A01-F0-W9": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F0-W9_s1",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257342
+    },
+    "seed2": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F0-W9_s2",
+     "oracle": "Masked",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258103
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F0-W9_s3",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257340
+    }
+   },
+   "submodels": "A01-a/b/c: IMPLEMENTED+ROUTED（band 逐事件随机抽，无 pin；动态覆盖见下）"
+  },
+  "A01-F1-W9": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F1-W9_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258103
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F1-W9_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258103
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F1-W9_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258103
+    }
+   },
+   "submodels": "A01-a/b/c: IMPLEMENTED+ROUTED（band 逐事件随机抽，无 pin；动态覆盖见下）"
+  },
+  "A01-F2-W9": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F2-W9_s1",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257632
+    },
+    "seed2": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F2-W9_s2",
+     "oracle": "Crash",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 2,
+     "stats_bytes": 257196
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A01-F2-W9_s3",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257486
+    }
+   },
+   "submodels": "A01-a/b/c: IMPLEMENTED+ROUTED（band 逐事件随机抽，无 pin；动态覆盖见下）"
+  },
+  "A02-F0-W3": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A02-F0-W3_s1",
+     "oracle": "SDC",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F0-W3_s2",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257182
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A02-F0-W3_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L2_then_unknown",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A02-a/b: IMPLEMENTED+ROUTED（50/50 抽）"
+  },
+  "A02-F2-W3": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F2-W3_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F2-W3_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F2-W3_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A02-a/b: IMPLEMENTED+ROUTED（50/50 抽）"
+  },
+  "A02-F0-W9": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F0-W9_s1",
+     "oracle": "Crash",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257342
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F0-W9_s2",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257632
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F0-W9_s3",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257340
+    }
+   },
+   "submodels": "A02-a/b: IMPLEMENTED+ROUTED（50/50 抽）"
+  },
+  "A02-F2-W9": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F2-W9_s1",
+     "oracle": "Crash",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 2,
+     "stats_bytes": 257342
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F2-W9_s2",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257632
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A02-F2-W9_s3",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257486
+    }
+   },
+   "submodels": "A02-a/b: IMPLEMENTED+ROUTED（50/50 抽）"
+  },
+  "A03-F5-W3": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A03-F5-W3_s1",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 201114
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A03-F5-W3_s2",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L3",
+     "truncated": false,
+     "injected": 2,
+     "stats_bytes": 226466
+    },
+    "seed3": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A03-F5-W3_s3",
+     "oracle": "Crash",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 66,
+     "stats_bytes": 237760
+    }
+   },
+   "submodels": "A03-a/b: IMPLEMENTED+ROUTED（seed 奇偶）；F5 计数已修复"
+  },
+  "A03-F5-W10": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A03-F5-W10_s1",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L2",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 201114
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A03-F5-W10_s2",
+     "oracle": "Crash",
+     "terminal": "crash_translation_blocked",
+     "provable_to": "L3",
+     "truncated": false,
+     "injected": 2,
+     "stats_bytes": 227243
+    },
+    "seed3": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A03-F5-W10_s3",
+     "oracle": "Crash",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 89,
+     "stats_bytes": 238928
+    }
+   },
+   "submodels": "A03-a/b: IMPLEMENTED+ROUTED（seed 奇偶）；F5 计数已修复"
+  },
+  "A04-F0-W3": {
+   "status": "OPEN_CHAIN_0_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A04-F0-W3_s1",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F0-W3_s2",
+     "oracle": "Crash",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 252845
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A04-F0-W3_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A04-a: NOT_IMPLEMENTED（无对象表）；A04-b: 同页代理 IMPLEMENTED+ROUTED"
+  },
+  "A04-F2-W3": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F2-W3_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F2-W3_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F2-W3_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A04-a: NOT_IMPLEMENTED（无对象表）；A04-b: 同页代理 IMPLEMENTED+ROUTED"
+  },
+  "A04-F0-W0": {
+   "status": "OPEN_CHAIN_0_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F0-W0_s1",
+     "oracle": "Crash",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 253485
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F0-W0_s2",
+     "oracle": "SDC",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257282
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F0-W0_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 257282
+    }
+   },
+   "submodels": "A04-a: NOT_IMPLEMENTED（无对象表）；A04-b: 同页代理 IMPLEMENTED+ROUTED"
+  },
+  "A04-F2-W0": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F2-W0_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 257282
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F2-W0_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 257282
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A04-F2-W0_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 257282
+    }
+   },
+   "submodels": "A04-a: NOT_IMPLEMENTED（无对象表）；A04-b: 同页代理 IMPLEMENTED+ROUTED"
+  },
+  "A04-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "A04-a: NOT_IMPLEMENTED（无对象表）；A04-b: 同页代理 IMPLEMENTED+ROUTED",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A04-F6-W0": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "A04-a: NOT_IMPLEMENTED（无对象表）；A04-b: 同页代理 IMPLEMENTED+ROUTED",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A05-F0-W3": {
+   "status": "OPEN_CHAIN_0_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A05-F0-W3_s1",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258060
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A05-F0-W3_s2",
+     "oracle": "Crash",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 252845
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A05-F0-W3_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258060
+    }
+   },
+   "submodels": "A05-c: IMPLEMENTED+ROUTED（低字节旋转近似）；A05-a/b/d: NOT_IMPLEMENTED"
+  },
+  "A05-F2-W3": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A05-F2-W3_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A05-F2-W3_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A05-F2-W3_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A05-c: IMPLEMENTED+ROUTED（低字节旋转近似）；A05-a/b/d: NOT_IMPLEMENTED"
+  },
+  "A05-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "A05-c: IMPLEMENTED+ROUTED（低字节旋转近似）；A05-a/b/d: NOT_IMPLEMENTED",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A06-F0-W3": {
+   "status": "BLOCKED_RULING",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "BLOCKED_RULING：合法变换语义不唯一",
+   "note": "access-size/byte-enable 合法变换语义互斥，未自行发明"
+  },
+  "A06-F2-W3": {
+   "status": "BLOCKED_RULING",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "BLOCKED_RULING：合法变换语义不唯一",
+   "note": "access-size/byte-enable 合法变换语义互斥，未自行发明"
+  },
+  "A06-F0-W5": {
+   "status": "BLOCKED_RULING",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "BLOCKED_RULING：合法变换语义不唯一",
+   "note": "access-size/byte-enable 合法变换语义互斥，未自行发明"
+  },
+  "A06-F2-W5": {
+   "status": "BLOCKED_RULING",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "BLOCKED_RULING：合法变换语义不唯一",
+   "note": "access-size/byte-enable 合法变换语义互斥，未自行发明"
+  },
+  "A06-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "BLOCKED_RULING：合法变换语义不唯一",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A06-F6-W5": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "BLOCKED_RULING：合法变换语义不唯一",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A07-F0-W3": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A07-F0-W3_s1",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F0-W3_s2",
+     "oracle": "Masked",
+     "terminal": "full",
+     "provable_to": "L5",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F0-W3_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L3_then_unknown",
+     "provable_to": "L3",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A07-b: IMPLEMENTED+ROUTED；A07-a/A07-c: NOT_IMPLEMENTED"
+  },
+  "A07-F4-W3": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F4-W3_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F4-W3_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F4-W3_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A07-b: IMPLEMENTED+ROUTED；A07-a/A07-c: NOT_IMPLEMENTED"
+  },
+  "A07-F0-W5": {
+   "status": "PARTIAL_1_OF_3",
+   "qualified_seeds": 1,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A07-F0-W5_s1",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 256749
+    },
+    "seed2": {
+     "verdict": "QUALIFIED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F0-W5_s2",
+     "oracle": "Masked",
+     "terminal": "detected_contained",
+     "provable_to": "L3",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 256749
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F0-W5_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 256749
+    }
+   },
+   "submodels": "A07-b: IMPLEMENTED+ROUTED；A07-a/A07-c: NOT_IMPLEMENTED"
+  },
+  "A07-F4-W5": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F4-W5_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 256749
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F4-W5_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 256749
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A07-F4-W5_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 256749
+    }
+   },
+   "submodels": "A07-b: IMPLEMENTED+ROUTED；A07-a/A07-c: NOT_IMPLEMENTED"
+  },
+  "A07-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "A07-b: IMPLEMENTED+ROUTED；A07-a/A07-c: NOT_IMPLEMENTED",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A07-F6-W5": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "A07-b: IMPLEMENTED+ROUTED；A07-a/A07-c: NOT_IMPLEMENTED",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A08-F0-W3": {
+   "status": "OPEN_CHAIN_0_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "bdf824964e30844f08a35707d105aa27da6fdc92e575dc2742d4075474c8aa75",
+     "evidence_dir": "runs/lsu/r6_a_spanfix_A08-F0-W3_s1",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A08-F0-W3_s2",
+     "oracle": "Crash",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 252845
+    },
+    "seed3": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A08-F0-W3_s3",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A08-a/A08-b: NOT_IMPLEMENTED（仅 a08_subst 同页代理）"
+  },
+  "A08-F2-W3": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A08-F2-W3_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A08-F2-W3_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_segv2_A08-F2-W3_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 258042
+    }
+   },
+   "submodels": "A08-a/A08-b: NOT_IMPLEMENTED（仅 a08_subst 同页代理）"
+  },
+  "A08-F0-W5": {
+   "status": "OPEN_CHAIN_0_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A08-F0-W5_s1",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 256749
+    },
+    "seed2": {
+     "verdict": "OPEN_CHAIN",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A08-F0-W5_s2",
+     "oracle": "Masked",
+     "terminal": "provable_to_L4_then_unknown",
+     "provable_to": "L4",
+     "truncated": false,
+     "injected": 1,
+     "stats_bytes": 256749
+    },
+    "seed3": {
+     "verdict": "TRUNCATED",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A08-F0-W5_s3",
+     "oracle": "Crash",
+     "terminal": "provable_to_L3_then_unknown",
+     "provable_to": "L3",
+     "truncated": true,
+     "injected": 1,
+     "stats_bytes": 0
+    }
+   },
+   "submodels": "A08-a/A08-b: NOT_IMPLEMENTED（仅 a08_subst 同页代理）"
+  },
+  "A08-F2-W5": {
+   "status": "EXCLUDED_NO_FIRE_3_OF_3",
+   "qualified_seeds": 0,
+   "seeds": {
+    "seed1": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A08-F2-W5_s1",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 256749
+    },
+    "seed2": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A08-F2-W5_s2",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 256749
+    },
+    "seed3": {
+     "verdict": "EXCLUDED_NO_FIRE",
+     "binary_sha256": "37c9ec362595c4631a85b78f67c2d05bbc6b126bfcc0dfda7007bdb568c4699f",
+     "evidence_dir": "runs/lsu/r6_a_fix2_A08-F2-W5_s3",
+     "oracle": "Masked",
+     "terminal": null,
+     "provable_to": null,
+     "truncated": false,
+     "injected": 0,
+     "stats_bytes": 256749
+    }
+   },
+   "submodels": "A08-a/A08-b: NOT_IMPLEMENTED（仅 a08_subst 同页代理）"
+  },
+  "A08-F6-W3": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "A08-a/A08-b: NOT_IMPLEMENTED（仅 a08_subst 同页代理）",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  },
+  "A08-F6-W5": {
+   "status": "POLICY_EXCLUDED_F6",
+   "qualified_seeds": 0,
+   "seeds": {},
+   "submodels": "A08-a/A08-b: NOT_IMPLEMENTED（仅 a08_subst 同页代理）",
+   "note": "工作令固定排除；未运行，不计 PASS/FAIL"
+  }
+ },
+ "policy_findings": {
+  "required_seeds_F0_F5": 3,
+  "seed_gt_3": "POLICY_NOT_REQUIRED（无旁路）"
+ },
+ "root_causes": [
+  {
+   "id": "F5COUNT",
+   "commit": "cf224f1c",
+   "fix": "CHAOSAddrPath F5 noteOutcome 回报",
+   "verified": "A03-F5-W3 s3 FUNNEL injected=66/eligible=124"
+  },
+  {
+   "id": "SPAN",
+   "commit": "c5558c9e",
+   "fix": "A 族 F0 warmup=1+实测 span",
+   "verified": "A04-F0-W3 s1 复跑无 EARLY_BIAS"
+  },
+  {
+   "id": "SEGV",
+   "commit": "1e8e96fe",
+   "fix": "注入/下游未映射访问 → guest SEGV 优雅 teardown",
+   "verified": "A03-F5-W3 s3 admitted=True full L5"
+  }
+ ]
+}

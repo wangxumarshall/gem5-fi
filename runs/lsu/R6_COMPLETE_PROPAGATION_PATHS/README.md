@@ -86,14 +86,3 @@
 ## 校验
 
 `INDEX.json → validation` 记录逐 seed 的 12 项检查：事件回查、单祖先 parenting、tick 单调、值取自本 seed、无跨 seed 身份复制、终局匹配权威报告、full 的 L5 真实性、含住事件真实性、人话版与表格一致、唯一合法共享注入（T04-F0-W4 seed2/seed3）、RunID 路径不复用、tier 一致。
-
-## R6-V4 增量（2026-10-28）
-
-本轮新增 **32** 份逐 seed 文档（T 单元 11 个可执行 RunID；`T08-F4-W4` seed3 为
-NO_FIRE 非样本，无文档）。总计 **83** 份。增量索引见 [`INDEX-V4.md`](INDEX-V4.md)；
-逐格状态见 `../r6_reports/R6-V4-T-STATUS.md`；四子模型覆盖见
-`../r6_reports/R6-V4-T08-SUBMODEL-COVERAGE.md`。
-
-两轴口径不变：链证据完整性（每份 = PASS）与实验身份（workload 标签 vs 实际
-readfile）分开报告；本轮 W4 载体为 `configs/fs/tlb_probe.rcS`，与矩阵标签
-“TLB-AliasPerm 地址翻译探针”一致（同一载体），不构成 W1 那类 mismatch。

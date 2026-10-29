@@ -162,14 +162,16 @@ def main():
           "A06 evidence fields / summary line missing")
     # A10c [R4-8-A06] 汇总行新增 load_nochange、且 widen/shrink 分向计数
     #      （三者必须在 .hh 计数器、.cc 分支与 .cc 汇总行同时存在）。
-    check("A10c_load_direction_counters",
+    # [R6-A2/A06 RULING 2026-10-28] Loads are structurally ineligible (the
+    # fixed-width completion cannot survive a size shrink), so the ruling
+    # pins ShrinkUnsafe for every A06 load rather than a widen/shrink split.
+    check("A10c_load_ruling_counters",
           "obs_pre_a06_load_nochange" in hhtxt
           and "obs_pre_a06_load_nochange" in cctxt
           and "load_nochange=%lu" in cctxt
-          and "if (a06_load_tgt > size) ++obs_pre_a06_load_widen;"
-              in cctxt
-          and "++obs_pre_a06_load_shrink;" in cctxt,
-          "widen/shrink/nochange counters not pinned")
+          and "a06_load_v = A06LoadVerdict::ShrinkUnsafe;" in cctxt
+          and "++obs_pre_a06_load_shrink_unsafe;" in cctxt,
+          "A06 load eligibility (ShrinkUnsafe) not pinned")
     # A15 [R4-10][A06] ShrinkUnsafe 必须**逐因计数**（不得再落 `default:`），
     #     且在汇总行可见 —— 否则 A06 每次运行打印 load_shrink=0 的静默零，
     #     与"永不静默零"约定相悖。判据：.hh 声明 + .cc 两处 switch 各有
@@ -286,10 +288,10 @@ def main():
     check("C2_a06_route_has_load_target",
           "--agu_size_to_load" in extra and "--agu_size_to" in extra,
           f"extra={extra}")
-    check("C3_a06_still_blocked",
-          "A06" in lc.MODEL_BLOCKED
-          and "load" in str(lc.MODEL_BLOCKED["A06"]).lower(),
-          str(lc.MODEL_BLOCKED.get("A06"))[:120])
+    check("C3_a06_unblocked_has_route",
+          "A06" in lc.MODEL_FLAGS and "A06" not in lc.MODEL_BLOCKED,
+          f"flags={'A06' in lc.MODEL_FLAGS} "
+          f"blocked={'A06' in lc.MODEL_BLOCKED}")
     # C3b [R4-8-A06] BLOCKED 理由必须**具体且可跑**（不是空话）：点名 load 侧
     #     shrink、点名 COMPILE-UNVERIFIED 这条真实原因；且 6 个 A06 RunID 都
     #     仍在 MODEL_BLOCKED 里（逐个断言，不是"存在 A06 就行"）。
@@ -300,21 +302,15 @@ def main():
     # 已被证伪；真实残留 = ① load SHRINK 被判**已证不可达**并响亮拒绝
     # （Packet::getRaw 断言 sizeof(T) <= pkt->size，真实 SIGABRT 证据）、
     # ② A06 的 F0 跨度未实测（EARLY_BIAS 告警）+ pilot 仅 1 seed。
-    check("C3b_blocked_reason_specific",
-          "SHRINK" in reason.upper()
-          and "COMPILE-UNVERIFIED" not in reason.upper()
-          and ("UNREACHABLE" in reason.upper() or "DECLINED" in reason.upper()),
-          reason[:200])
-    # 6 个 RunID 的 model 前缀都必须落在 MODEL_BLOCKED（campaign 以 model
-    # 为单位封锁；RunID 级封锁由该 model 条目派生）。
-    check("C3c_all_six_a06_runids_blocked",
-          all(r.split("-")[0] in lc.MODEL_BLOCKED for r in a06_rows),
-          f"rows={a06_rows} blocked={sorted(lc.MODEL_BLOCKED)[:12]}")
-    # C3d 反向：A06 必须在 MODEL_BLOCKED **且不在** MODEL_FLAGS 的可跑集合之外
-    #     —— A06 有路由（MODEL_FLAGS）但同时被 BLOCKED 是允许的（RULING 家族），
-    #     但没有路由才是回归。
-    check("C3d_a06_has_route_but_blocked",
-          "A06" in lc.MODEL_FLAGS and "A06" in lc.MODEL_BLOCKED,
+    check("C3b_a06_route_is_spec_mode",
+          "a06_size" in lc.MODEL_FLAGS["A06"][1], str(lc.MODEL_FLAGS["A06"]))
+    # 6 个 RunID 的 model 前缀都必须可路由（campaign 以 model 为单位路由）。
+    check("C3c_all_six_a06_runids_routable",
+          all(r.split("-")[0] in lc.MODEL_FLAGS for r in a06_rows),
+          f"rows={a06_rows} flags={sorted(lc.MODEL_FLAGS)[:12]}")
+    # C3d 反向：A06 不得同时出现在 MODEL_BLOCKED（新裁决已解除）。
+    check("C3d_a06_not_blocked",
+          "A06" in lc.MODEL_FLAGS and "A06" not in lc.MODEL_BLOCKED,
           f"flags={'A06' in lc.MODEL_FLAGS} blocked={'A06' in lc.MODEL_BLOCKED}")
     check("C4_no_a06s_model_id",
           not any(k.startswith("A06S") for k in lc.MODEL_FLAGS)

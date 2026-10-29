@@ -4,6 +4,7 @@
    实现：确定性 CSR 图上的 BFS + SSSP + PageRank 一轮迭代。 */
 #include <unistd.h>
 #include <stdint.h>
+#include "chaos_repeat.h"
 
 static void put_hex(unsigned long v){
     char buf[16];
@@ -23,7 +24,7 @@ static unsigned long dist[NV];     /* BFS/SSSP */
 static unsigned long rank[NV];     /* PageRank */
 static unsigned long outdeg[NV];
 
-int main(void)
+static unsigned long probe_once(void)
 {
     unsigned long acc = 0x9a9170eed0d15eedUL;
     unsigned i, v, u;
@@ -78,6 +79,18 @@ int main(void)
     }
     for (v = 0; v < NV; v += 8) acc = fnv(acc, rank[v]);
 
+    return acc;
+}
+
+int main(int argc, char **argv)
+{
+    int reps = chaos_repeat_count(argc, argv);
+    unsigned long acc = 0;
+    for (int r = 0; r < reps; ++r) {
+        acc = probe_once();
+        if (reps > 1)
+            chaos_emit_iter(r, acc);
+    }
     put_hex(acc);
     return 0;
 }

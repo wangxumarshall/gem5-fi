@@ -37,11 +37,17 @@ def main():
           family == "addrpath" and "--agu_pre_mode" in extra
           and "a06_size" in extra,
           f"family={family} extra={extra}")
-    check("a06_runids_blocked", "A06" in lc.MODEL_BLOCKED,
-          f"MODEL_BLOCKED keys={sorted(lc.MODEL_BLOCKED)[:12]}")
-    check("a06_blocked_reason_mentions_loadside",
-          "load" in str(lc.MODEL_BLOCKED.get("A06", "")).lower(),
-          str(lc.MODEL_BLOCKED.get("A06"))[:120])
+    # [R6-A2/A06 RULING 2026-10-28] The user ruling unblocked A06:
+    # A06-a = store original/2, A06-b = same-width non-zero mask; loads and
+    # size=1 are structurally ineligible. Assert the NEW state (route
+    # present, no BLOCKED entry), not the retired one.
+    check("a06_runids_unblocked", "A06" in lc.MODEL_FLAGS
+          and "A06" not in lc.MODEL_BLOCKED,
+          f"flags={'A06' in lc.MODEL_FLAGS} "
+          f"blocked={'A06' in lc.MODEL_BLOCKED}")
+    check("a06_route_is_a06_size",
+          "a06_size" in lc.MODEL_FLAGS["A06"][1],
+          str(lc.MODEL_FLAGS["A06"]))
 
     # ---- 2) 无 A06S 模型 ID 泄入（二.3：不得私改模型ID） ----
     check("a06s_model_id_absent",

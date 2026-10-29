@@ -163,6 +163,11 @@ class LSU_IQ(IQUnit):
 
 p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
+# [LSU][MDSPEC][R6-A2] 同源 repeat 载体：把重复次数作为 argv[1] 传给
+# workloads/directed/chaos_repeat.h；1（默认）不传参数，输出与旧二进制
+# 逐字节一致。上限与头文件一致（600），越界直接 p.error。
+p.add_argument("--chaos_repeat", type=int, default=1,
+               help="repeat the same SE probe N times (1..4096; default 1)")
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
 p.add_argument("--maxinsts", type=int, default=0)
 # --- C4-LSU variant knob (02 敏感性配置列; S5=注入器侧, 不在此) ---
@@ -549,7 +554,7 @@ p.add_argument("--addrpath_f6_mode", default="early_stress",
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
 # registers on the PRE pointer instead).
 p.add_argument("--agu_pre_mode", default="off",
-               choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
+               choices=["off","a04_subst","a04_same_object","a04_same_page","a05_base_index","a05_extend","a05_shift","a05_prepost","a06_size","a08_subst","a08_channel","a08_pair_swap","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
                help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08). "
                     "a06_size = A06-a access-size substitution: stores take any legal "
                     "target, loads only a contract-safe WIDEN (see --agu_size_to_load). "
@@ -575,8 +580,11 @@ p.add_argument("--agu_size_to_load", type=lambda x: int(x,0), default=0,
 # inactive-TAIL trim in LSQRequest::addReq (== a size change). shift_mid
 # clears an INTERIOR byte (no tail run => size unchanged => the load
 # contract is untouched) and is applied to stores only.
+p.add_argument("--agu_object_spec", default="",
+               help="[R6-A2/A04-a] oracle-object registry: "
+                    "id:symbol:size:elem or id:@addr:size:elem, ';'-separated")
 p.add_argument("--agu_be_mode", default="off",
-               choices=["off","observe","shift_mid"],
+               choices=["off","observe","shift_mid","rotate1_clear_msb"],
                help="[MDSPEC][R4-6-A06] A06-b byte-enable: off | observe "
                     "(census the faulted request's mask) | shift_mid "
                     "(substitute a middle-cleared mask; stores only, "
@@ -592,8 +600,13 @@ p.add_argument("--agu_be_mode", default="off",
 # spec "延后1周期"; data payload stays correct). A07-a (ready early +
 # stale latched EA) / A07-c (ready lost) pending — MDSPEC
 # SPEC_IMPL_LANDED. LSU-trigger-native + one-hook-per-run (W1-⑦).
+p.add_argument("--agu_watchdog_cycles", type=int, default=4096,
+               help="[R6-A2/A07-c] ready-loss watchdog delay (cycles)")
+p.add_argument("--agu_watchdog_max", type=int, default=(1 << 20),
+               help="[R6-A2/A07-c] hard upper bound (cycles)")
 p.add_argument("--agu_ready_mode", default="off",
-               choices=["off","a07b_ready_delay"],
+               choices=["off","a07a_ready_early","a07b_ready_delay",
+                        "a07c_ready_loss"],
                help="[MDSPEC][R4-5.8] A07 AGU clean-ready/handshake hook "
                     "(IEW executeInsts memRef branch). a07b_ready_delay = "
                     "A07-b bounded ready delay; requires --addrpath_lsu_tier; "
@@ -782,7 +795,17 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-board.set_se_binary_workload(binary=FileResource(args.cmd, override=True))
+# [R6-A4] repeat cap raised from 4096 after the filtered-eligible census:
+# A08-a on W5 needs ~84k same-tick pair events to reach the deterministic F2
+# first-fire position (eligible delta ~2/iteration). The bound stays finite and
+# measured: per-iteration wall time is ~8 ms, so 131072 ≈ 18 min upper bound.
+CHAOS_REPEAT_CAP = 131072
+if args.chaos_repeat < 1 or args.chaos_repeat > CHAOS_REPEAT_CAP:
+    p.error("--chaos_repeat must be in 1..%d (got %d)"
+            % (CHAOS_REPEAT_CAP, args.chaos_repeat))
+_repeat_args = ([str(args.chaos_repeat)] if args.chaos_repeat > 1 else [])
+board.set_se_binary_workload(binary=FileResource(args.cmd, override=True),
+                             arguments=_repeat_args)
 
 # B0 缓存几何 + L2 预取器 —— _pre_instantiate 钩子内覆盖 (唯一可设时点)。
 # HONEST: stdlib L1DCache/L1ICache/L2Cache 默认各挂 StridePrefetcher()
@@ -1171,6 +1194,21 @@ if args.chaos_addrpath:
         if args.agu_ready_delay_cycles < 1:
             p.error("--agu_ready_delay_cycles must be >= 1 (A07-b bounded "
                     "delay; 0 is a no-op)")
+    # [R6-A3/A05] A05-a/b/c are decided in the ISA operand hook and need the
+    # LSU trigger (no cycle-window denominator at an operand event). Loud
+    # refusal at config time; the injector ctor panics too.
+    _A05_OPERAND_MODES = ("a05_base_index", "a05_extend", "a05_shift")
+    if args.agu_pre_mode in _A05_OPERAND_MODES:
+        if args.addrpath_lsu_tier == "off":
+            p.error("--agu_pre_mode %s requires --addrpath_lsu_tier "
+                    "(A05-a/b/c are LSU-trigger-native operand-hook modes)"
+                    % args.agu_pre_mode)
+    # [R6-A3/A08] same-tick pairing is an LSU-trigger-native event stream.
+    _A08_TRIGGER_MODES = ("a08_channel", "a08_pair_swap")
+    if args.agu_pre_mode in _A08_TRIGGER_MODES:
+        if args.addrpath_lsu_tier == "off":
+            p.error("--agu_pre_mode %s requires --addrpath_lsu_tier "
+                    "(A08 pairing is LSU-trigger-native)" % args.agu_pre_mode)
     # [MDSPEC][R4-6-A06] A06-b config-time validation (the injector's ctor
     # panics too — loud refusal, never a silent no-op).
     if args.agu_be_mode != "off" and args.agu_pre_mode != "a06_size":
@@ -1194,7 +1232,10 @@ if args.chaos_addrpath:
         aguSizeTo=args.agu_size_to,
         aguSizeToLoad=args.agu_size_to_load,
         beMode=args.agu_be_mode,
+        aguObjectSpec=args.agu_object_spec,
         aguReadyMode=args.agu_ready_mode,
+        aguWatchdogCycles=args.agu_watchdog_cycles,
+        aguWatchdogMax=args.agu_watchdog_max,
         aguReadyDelayCycles=args.agu_ready_delay_cycles,
     )
     board.chaos_addrpath = ap
