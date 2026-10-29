@@ -21,9 +21,11 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 import lsu_prop_doc_audit as audit  # noqa: E402
 
+# [R6-RESULTS-LAYOUT] Default to THIS checkout's propagation docs (works in
+# any worktree); the raw evidence JSON remains at the main evidence root.
 DOCS_DIR = os.environ.get(
     "R6_PROP_DOCS_DIR",
-    "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS",
+    os.path.join(ROOT, "runs/lsu/R6_COMPLETE_PROPAGATION_PATHS"),
 )
 EVIDENCE_JSON = os.environ.get(
     "R6_AUTH_EVIDENCE_JSON",
@@ -126,7 +128,7 @@ pytestmark_real = pytest.mark.skipif(
 def test_real_t03_f5_w4_seed1_is_pass():
     """Regression for the stale-dir false positive."""
     result = audit.audit_one(
-        os.path.join(DOCS_DIR, "T03-F5-W4-seed1.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T03-F5-W4", "T03-F5-W4-seed1.md"), REPO_ROOT, EVIDENCE_JSON
     )
     assert result["seed_verdict"] == "PASS"
     assert result["missing_chapters"] == []
@@ -136,13 +138,13 @@ def test_real_t03_f5_w4_seed1_is_pass():
 def test_real_t01_f1_w4_seed2_is_pass_with_two_calibers():
     """After the recheck the doc reports run-level and per-fault counts apart."""
     result = audit.audit_one(
-        os.path.join(DOCS_DIR, "T01-F1-W4-seed2.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T01-F1-W4", "T01-F1-W4-seed2.md"), REPO_ROOT, EVIDENCE_JSON
     )
     assert result["seed_verdict"] == "PASS"
     assert result["chain_evidence_status"] == "PASS"
     assert result["experiment_identity_status"] == "MATCH"
     ch6 = audit.split_sections(open(
-        os.path.join(DOCS_DIR, "T01-F1-W4-seed2.md"), encoding="utf-8"
+        os.path.join(DOCS_DIR, "T01-F1-W4", "T01-F1-W4-seed2.md"), encoding="utf-8"
     ).read())["ch6"]
     assert "run 级 outcome" in ch6 and "per-fault 终局" in ch6
 
@@ -150,7 +152,7 @@ def test_real_t01_f1_w4_seed2_is_pass_with_two_calibers():
 @pytestmark_real
 def test_real_w1_docs_are_two_axis_not_single_pass():
     result = audit.audit_one(
-        os.path.join(DOCS_DIR, "T01-F0-W1-seed1.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T01-F0-W1", "T01-F0-W1-seed1.md"), REPO_ROOT, EVIDENCE_JSON
     )
     assert result["seed_verdict"] == "NOT_MIBENCH_RESULT"
     assert result["chain_evidence_status"] == "PASS"
@@ -161,10 +163,10 @@ def test_real_w1_docs_are_two_axis_not_single_pass():
 @pytestmark_real
 def test_real_w1_identity_mismatch_and_w4_match():
     w1 = audit.audit_one(
-        os.path.join(DOCS_DIR, "T01-F0-W1-seed1.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T01-F0-W1", "T01-F0-W1-seed1.md"), REPO_ROOT, EVIDENCE_JSON
     )
     w4 = audit.audit_one(
-        os.path.join(DOCS_DIR, "T01-F0-W4-seed1.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T01-F0-W4", "T01-F0-W4-seed1.md"), REPO_ROOT, EVIDENCE_JSON
     )
     assert w1["experiment_identity_status"] == "WORKLOAD_IDENTITY_MISMATCH"
     assert w4["experiment_identity_status"] == "MATCH"
@@ -174,7 +176,7 @@ def test_real_w1_identity_mismatch_and_w4_match():
 def test_real_t01_f0_w4_seed2_arrow_chain_with_parens():
     """`0(inj) → 1(tlb_lookup) → ...` is a valid ancestry chain."""
     result = audit.audit_one(
-        os.path.join(DOCS_DIR, "T01-F0-W4-seed2.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T01-F0-W4", "T01-F0-W4-seed2.md"), REPO_ROOT, EVIDENCE_JSON
     )
     assert result["ancestry"]["chain"] == list(range(0, 9)) + [60, 61, 259]
     assert result["ancestry"]["parent_mismatches"] == []
@@ -186,7 +188,7 @@ def test_real_t04_f0_w4_seeds_use_full_ch4_ancestry():
     """`path_event_ids` is a layer-anchor list, not the chain; Ch.4 is full."""
     for seed in (1, 3):
         result = audit.audit_one(
-            os.path.join(DOCS_DIR, f"T04-F0-W4-seed{seed}.md"),
+            os.path.join(DOCS_DIR, "T04-F0-W4", f"T04-F0-W4-seed{seed}.md"),
             REPO_ROOT, EVIDENCE_JSON,
         )
         # The full chain has 22 events; ids are not necessarily contiguous.
@@ -199,7 +201,7 @@ def test_real_t04_f0_w4_seeds_use_full_ch4_ancestry():
 @pytestmark_real
 def test_real_t10_f1_w1_seed2_full_chain():
     result = audit.audit_one(
-        os.path.join(DOCS_DIR, "T10-F1-W1-seed2.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T10-F1-W1", "T10-F1-W1-seed2.md"), REPO_ROOT, EVIDENCE_JSON
     )
     assert result["ancestry"]["chain"] == list(range(0, 21))
     assert result["ancestry"]["parent_mismatches"] == []
@@ -210,7 +212,7 @@ def test_real_t10_f1_w1_seed2_full_chain():
 def test_real_t02_f2_w4_seed2_regrade_containment():
     """Authoritative regrade has no chain_valid field; event 68 is the witness."""
     result = audit.audit_one(
-        os.path.join(DOCS_DIR, "T02-F2-W4-seed2.md"), REPO_ROOT, EVIDENCE_JSON
+        os.path.join(DOCS_DIR, "T02-F2-W4", "T02-F2-W4-seed2.md"), REPO_ROOT, EVIDENCE_JSON
     )
     assert result["chain_evidence_status"] == "PASS"
     assert result["evidence"]["terminal"] == "detected_contained"

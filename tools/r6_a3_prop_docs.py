@@ -339,7 +339,7 @@ def main():
             if not check_only and rec["present"] and rec["done"]:
                 d = OUT_ROOT / rid
                 d.mkdir(parents=True, exist_ok=True)
-                (d / ("seed%d.md" % seed)).write_text(doc(rec))
+                (d / ("%s-seed%d.md" % (rid, seed))).write_text(doc(rec))
 
     nq = sum(1 for r in rows if r["qualified"])
     print("samples=%d qualified=%d" % (len(rows), nq))
@@ -364,7 +364,7 @@ def main():
         for seed in SEEDS:
             r = next(x for x in rows if x["runid"] == rid and x["seed"] == seed)
             mark = "✅" if r["qualified"] else ("—" if not r["done"] else "❌")
-            cells.append("%s [doc](%s/seed%d.md)" % (mark, rid, seed)
+            cells.append("%s [doc](%s/%s-seed%d.md)" % (mark, rid, rid, seed)
                          if r["present"] and r["done"] else mark)
         lines.append("| %s | %s |" % (rid, " | ".join(cells)))
     lines.append("\n✅ = admitted & certified & terminal ∈ {full, detected_contained}"

@@ -149,7 +149,7 @@ def test_na_evidence_recorded_in_json():
 
 def test_na_docs_do_not_claim_injection_or_chain():
     for rid, seed in SPEC_EXCLUDED:
-        doc = (DOCS / rid / ("seed%d.md" % seed)).read_text()
+        doc = (DOCS / rid / ("%s-seed%d.md" % (rid, seed))).read_text()
         assert "status | `N/A`" in doc
         assert "classification | `SPEC_EXCLUDED`" in doc
         assert "A08-b structurally unreachable under F2" in doc
@@ -200,7 +200,7 @@ def test_qualified_docs_evidence_paths_and_sha_unchanged():
         if r["classification"] == "SPEC_EXCLUDED":
             continue
         assert r["qualified"] is True, (r["runid"], r["seed"])
-        doc = DOCS / r["runid"] / ("seed%d.md" % r["seed"])
+        doc = DOCS / r["runid"] / ("%s-seed%d.md" % (r["runid"], r["seed"]))
         assert doc.exists(), doc
         n_docs += 1
         rows = re.findall(

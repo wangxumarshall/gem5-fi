@@ -484,7 +484,7 @@ def main():
                     and rec["sample"]):
                 d = OUT_ROOT / rid
                 d.mkdir(parents=True, exist_ok=True)
-                (d / ("seed%d.md" % seed)).write_text(doc(rec))
+                (d / ("%s-seed%d.md" % (rid, seed))).write_text(doc(rec))
 
     applicable = [r for r in rows if r["classification"] != "SPEC_EXCLUDED"]
     spec = [r for r in rows if r["classification"] == "SPEC_EXCLUDED"]
@@ -525,7 +525,7 @@ def main():
                 mark = "✅"
             else:
                 mark = "—" if not r["done"] else "❌"
-            cells.append("%s [doc](%s/seed%d.md)" % (mark, rid, seed)
+            cells.append("%s [doc](%s/%s-seed%d.md)" % (mark, rid, rid, seed)
                          if r["present"] and r["done"] else mark)
         lines.append("| %s | %s |" % (rid, " | ".join(cells)))
     lines.insert(2, ("- 口径：applicable_samples=%d；"

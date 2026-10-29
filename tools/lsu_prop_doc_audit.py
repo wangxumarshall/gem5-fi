@@ -702,10 +702,31 @@ def audit_one(doc_path: str, repo_root: str, evidence_json: str) -> dict:
 # Directory audit + rendering
 # ---------------------------------------------------------------------------
 def audit_dir(docs_dir: str, repo_root: str, evidence_json: str) -> dict:
-    files = sorted(
-        f for f in os.listdir(docs_dir)
-        if re.match(r"^T\d+-F\d+-W\d+-seed\d+\.md$", f)
-    )
+    # [R6-RESULTS-LAYOUT] Docs now live in <RunID>/<RunID>-seedN.md.
+    # The V3 audit's scope is the 51 entries recorded in INDEX.json; fall back
+    # to a recursive scan when the index is absent.
+    index_path = os.path.join(docs_dir, "INDEX.json")
+    files = []
+    if os.path.isfile(index_path):
+        try:
+            _idx = json.loads(open(index_path, encoding="utf-8").read())
+            for _e in _idx.get("entries", []):
+                _p = str(_e.get("md_path", "") or "")
+                if not _p:
+                    continue
+                _rel = (os.path.relpath(_p, docs_dir)
+                        if os.path.isabs(_p) else _p)
+                if os.path.isfile(os.path.join(docs_dir, _rel)):
+                    files.append(_rel)
+        except Exception:
+            files = []
+    if not files:
+        for _root, _dirs, _fs in os.walk(docs_dir):
+            for f in _fs:
+                if re.match(r"^T\d+-F\d+-W\d+-seed\d+\.md$", f):
+                    files.append(os.path.relpath(os.path.join(_root, f),
+                                                 docs_dir))
+    files = sorted(files)
     results = []
     for f in files:
         try:

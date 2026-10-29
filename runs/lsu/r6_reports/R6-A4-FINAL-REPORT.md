@@ -177,7 +177,7 @@ addrpath FUNNEL / campaign）。
 terminal ∈ {full, detected_contained}；admitted=True；certified=True；
 violations=[]；conservation=OK；无 cross_request_edge / time_reversed_edge /
 truncated。逐 seed 文档见
-`runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/seedN.md`。
+`runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/<RunID>-seedN.md`。
 
 ## 7. 90 格状态表（30 非 F6 RunID × seed1/2/3）
 
