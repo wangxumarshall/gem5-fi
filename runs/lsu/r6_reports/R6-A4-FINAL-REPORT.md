@@ -1,19 +1,22 @@
-# R6-A4 最终报告（2026-10-29）— A 单元补救轮：88/90 合格，A08-b 结构性阻塞
+# R6-A4 最终报告（2026-10-29，收口）— A 单元：88/88 applicable qualified + 2 SPEC_EXCLUDED
 
-## 1. 结论先行（如实）
+## 1. 结论先行（权威口径）
 
-- 本轮只重跑 R6-A3 未合格的 25 个 (RunID, seed)，**未重跑任何已合格的 65 个样本**。
-- **25 格中 23 格合格**（真实注入、正常收口、admitted=True、certified=True、
-  violations=[]、conservation=OK、三方注入计数一致）；与上一轮 65 格合并 =
-  **88/90 合格**。
-- **剩余 2 格（A08-F2-W3 seed2、A08-F2-W5 seed2）是结构性不可达，不是工具
-  缺陷、也不是可用 repeat 修复的 NO_FIRE**：A08-b（even seed 的 pair_swap
-  子模型）的合格流只统计“同 tick store 先/load 后且同 4KiB 页”的配对
-  事件，实测 E1=E5=E10=21（repeat 完全不增加配对 eligible，delta=0）。
-  F2 的确定性首火位是 eligible 序数 99,417（seed2），该流永远到不了。
-  按用户裁决“达不到时响亮 BLOCKED、不伪造”，resolver 对这两个格输出
-  `BLOCKED(delta<=0)`，未注入、未生成样本，也没有用 oracle 推断合格。
-- 达到 90/90 需要用户裁决（见 §8），本报告不擅自改实验规格。
+- **applicable_samples=88；qualified_applicable_samples=88；
+  spec_excluded_samples=2；failed_applicable_samples=0；
+  unit_status=COMPLETE_WITH_SPEC_EXCLUSIONS。**
+- 规范表述：**88/88 applicable samples qualified; 2/2 structurally
+  inapplicable samples explicitly excluded; 0 applicable failures; A unit
+  closed as COMPLETE_WITH_SPEC_EXCLUSIONS.**
+- 本轮只重跑 R6-A3 未合格的 25 个 (RunID, seed)，**未重跑任何已合格的 65 个
+  样本**。25 格中 **23 格合格**（真实注入、正常收口、admitted=True、
+  certified=True、violations=[]、conservation=OK、三方注入计数一致）。
+- 两个 SPEC_EXCLUDED 样本（A08-F2-W3 seed2、A08-F2-W5 seed2）由用户
+  2026-10-29 裁决按“规格不适用项”收口：`status=N/A`、
+  `classification=SPEC_EXCLUDED`、
+  `reason=A08-b structurally unreachable under F2`。它们**不是 PASS、不是
+  FAIL**，admitted/certified 为空，无传播链，不计入 88 的 applicable 分母。
+- 本报告**不把结果写成 90/90 PASS**。
 
 ## 2. 二进制与来源（混合来源，逐项标注）
 
@@ -54,10 +57,10 @@
 | A07-F0-W3 | 1 | Masked | detected_contained | True | True | 1 | 1（0） | |
 | A07-F0-W3 | 2 | Masked | detected_contained | True | True | 1 | 1（0） | |
 | A08-F2-W3 | 1 | Masked | detected_contained | True | True | 1 | 15706（15706） | |
-| A08-F2-W3 | 2 | — | BLOCKED(no sample) | — | — | 0 | 1 | A08-b delta=0 结构不可达（repeat 不增加配对 eligible） |
+| A08-F2-W3 | 2 | — | N/A (SPEC_EXCLUDED) | — | — | 0 | 1 | A08-b structurally unreachable under F2；E1=E5=E10=21、delta=0、首火位 99,417；不注入、无传播链 |
 | A08-F2-W3 | 3 | Masked | detected_contained | True | True | 1 | 15706（15706） | |
 | A08-F2-W5 | 1 | Masked | detected_contained | True | True | 1 | 84418（84418） | |
-| A08-F2-W5 | 2 | — | BLOCKED(no sample) | — | — | 0 | 1 | A08-b delta=0 结构不可达（repeat 不增加配对 eligible） |
+| A08-F2-W5 | 2 | — | N/A (SPEC_EXCLUDED) | — | — | 0 | 1 | A08-b structurally unreachable under F2；E1=E5=E10=21、delta=0、首火位 99,417；不注入、无传播链 |
 | A08-F2-W5 | 3 | Masked | detected_contained | True | True | 1 | 84418（84418） | |
 
 ## 4. 根因与修复（全部有真实证据）
@@ -176,42 +179,44 @@ violations=[]；conservation=OK；无 cross_request_edge / time_reversed_edge /
 truncated。逐 seed 文档见
 `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/seedN.md`。
 
-## 7. 90 格状态表
+## 7. 90 格状态表（30 非 F6 RunID × seed1/2/3）
 
-| RunID | s1 | s2 | s3 | 合格 |
-|---|---|---|---|---|
-| A01-F0-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A01-F0-W9 | ✅ | ✅ | ✅ | 3/3 |
-| A01-F1-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A01-F1-W9 | ✅ | ✅ | ✅ | 3/3 |
-| A01-F2-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A01-F2-W9 | ✅ | ✅ | ✅ | 3/3 |
-| A02-F0-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A02-F0-W9 | ✅ | ✅ | ✅ | 3/3 |
-| A02-F2-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A02-F2-W9 | ✅ | ✅ | ✅ | 3/3 |
-| A03-F5-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A03-F5-W10 | ✅ | ✅ | ✅ | 3/3 |
-| A04-F0-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A04-F0-W0 | ✅ | ✅ | ✅ | 3/3 |
-| A04-F2-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A04-F2-W0 | ✅ | ✅ | ✅ | 3/3 |
-| A05-F0-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A05-F2-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A06-F0-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A06-F0-W5 | ✅ | ✅ | ✅ | 3/3 |
-| A06-F2-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A06-F2-W5 | ✅ | ✅ | ✅ | 3/3 |
-| A07-F0-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A07-F0-W5 | ✅ | ✅ | ✅ | 3/3 |
-| A07-F4-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A07-F4-W5 | ✅ | ✅ | ✅ | 3/3 |
-| A08-F0-W3 | ✅ | ✅ | ✅ | 3/3 |
-| A08-F0-W5 | ✅ | ✅ | ✅ | 3/3 |
-| A08-F2-W3 | ✅ | ❌(None/None) | ✅ | 2/3 |
-| A08-F2-W5 | ✅ | ❌(None/None) | ✅ | 2/3 |
+| RunID | s1 | s2 | s3 | applicable | qualified |
+|---|---|---|---|---|---|
+| A01-F0-W3 | PASS | PASS | PASS | 3 | 3 |
+| A01-F0-W9 | PASS | PASS | PASS | 3 | 3 |
+| A01-F1-W3 | PASS | PASS | PASS | 3 | 3 |
+| A01-F1-W9 | PASS | PASS | PASS | 3 | 3 |
+| A01-F2-W3 | PASS | PASS | PASS | 3 | 3 |
+| A01-F2-W9 | PASS | PASS | PASS | 3 | 3 |
+| A02-F0-W3 | PASS | PASS | PASS | 3 | 3 |
+| A02-F0-W9 | PASS | PASS | PASS | 3 | 3 |
+| A02-F2-W3 | PASS | PASS | PASS | 3 | 3 |
+| A02-F2-W9 | PASS | PASS | PASS | 3 | 3 |
+| A03-F5-W3 | PASS | PASS | PASS | 3 | 3 |
+| A03-F5-W10 | PASS | PASS | PASS | 3 | 3 |
+| A04-F0-W3 | PASS | PASS | PASS | 3 | 3 |
+| A04-F0-W0 | PASS | PASS | PASS | 3 | 3 |
+| A04-F2-W3 | PASS | PASS | PASS | 3 | 3 |
+| A04-F2-W0 | PASS | PASS | PASS | 3 | 3 |
+| A05-F0-W3 | PASS | PASS | PASS | 3 | 3 |
+| A05-F2-W3 | PASS | PASS | PASS | 3 | 3 |
+| A06-F0-W3 | PASS | PASS | PASS | 3 | 3 |
+| A06-F0-W5 | PASS | PASS | PASS | 3 | 3 |
+| A06-F2-W3 | PASS | PASS | PASS | 3 | 3 |
+| A06-F2-W5 | PASS | PASS | PASS | 3 | 3 |
+| A07-F0-W3 | PASS | PASS | PASS | 3 | 3 |
+| A07-F0-W5 | PASS | PASS | PASS | 3 | 3 |
+| A07-F4-W3 | PASS | PASS | PASS | 3 | 3 |
+| A07-F4-W5 | PASS | PASS | PASS | 3 | 3 |
+| A08-F0-W3 | PASS | PASS | PASS | 3 | 3 |
+| A08-F0-W5 | PASS | PASS | PASS | 3 | 3 |
+| A08-F2-W3 | PASS | N/A (SPEC_EXCLUDED) | PASS | 2 | 2 |
+| A08-F2-W5 | PASS | N/A (SPEC_EXCLUDED) | PASS | 2 | 2 |
 
-## 8. A08-b 结构性阻塞（唯一未达 90/90 的原因）与可选裁决
+说明：N/A (SPEC_EXCLUDED) 不是 PASS/FAIL；A08-F2-W3 与 A08-F2-W5 的 applicable=2、qualified=2（seed2 被规格排除，不进入分母）。F6 RunID 属独立的 F6 政策排除，与本轮两个 A08-b N/A 互不混淆。
+
+## 8. A08-b 两个样本的 SPEC_EXCLUDED 收口（用户裁决 2026-10-29）
 
 - 事实：A08-b 的合格流在 W3/W5 上 E1=E5=E10=21，delta=0（census 三次独立
   测量一致）；F2 首火位 seed2=99,417、max=140,806，远大于 21。repeat 只重复
@@ -219,16 +224,18 @@ truncated。逐 seed 文档见
   （首个冷启动迭代产生 21 次，热迭代为 0）。
 - 不伪造：resolver 输出 `BLOCKED(delta<=0)`，未运行、未注入；没有改用 A08-a
   冒充 even seed；没有改 F2 阈值/seed/算法；没有换 workload 身份。
-- 达到 90/90 需要修改实验规格之一（需用户裁决）：
-  (a) 承认 A08-b 在 F2 下不适用（该子模型只适合 F0/F5/F6 事件触发），
-      把 A08-F2-W3/W5 seed2 标为 `n/a(F2-not-applicable)` 并计入完成；
-  (b) 为 A08-b 定义事件触发档（例如 F6 same-tick-pair 事件），但这改变频率法；
-  (c) 更换 A08-b 的 workload（改变 workload 身份）；
-  (d) 允许 even seed 使用 A08-a（改变注入模型）。
-  本轮严格按原规格执行，未选择任何一项。
+- 用户裁决（2026-10-29）：接受两格为规格不适用项，按
+  `status=N/A` / `classification=SPEC_EXCLUDED` /
+  `reason=A08-b structurally unreachable under F2` 收口。
+- 两格明确：不是 PASS、不是 FAIL；没有 admitted=True；没有 certified=True；
+  没有生成伪造传播链；不计入 88 个可执行样本的分母；不再补跑；
+  原始 BLOCKED/census 证据完整保留（未删除、未改写）。
+- 没有换 seed、没有换 workload、没有改成 A08-a、没有修改 F2 频率定义。
 
-## 9. 合并 origin/fi-ding 的条件
+## 9. 合并 origin/fi-ding（收口后执行）
 
-- 未合并 `origin/fi-ding`（仍为 `659fa4cf6ea2095e178f43df9f177bff8260bda2`）。
-- A 单元当前 88/90；按用户完成条件（90/90）**尚未满足**，因此不具备合并
-  条件。除 A08-b 两格外，其余工程/文档/证据均已落地并推送。
+- 合并前 `origin/fi-ding` = `659fa4cf6ea2095e178f43df9f177bff8260bda2`。
+- 用户裁决：A 单元按 `COMPLETE_WITH_SPEC_EXCLUSIONS` 收口后，将 A 分支以
+  `--no-ff` 合并进 fi-ding（保留 A 单元边界），不使用 force push。
+- 合并提交与推送结果见 `R6-A4-PROGRESS.md` 的“最终状态”与 git 历史；
+  本报告的计数口径不因 merge commit 改变。

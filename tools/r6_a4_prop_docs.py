@@ -38,6 +38,42 @@ NEW_SAMPLES = {
     ("A08-F2-W5", 1), ("A08-F2-W5", 2), ("A08-F2-W5", 3),
     ("A07-F0-W3", 1), ("A07-F0-W3", 2),
 }
+# [R6-A4-CLOSE 2026-10-29] User ruling: these two even-seed A08-b samples are
+# STRUCTURALLY INAPPLICABLE under F2 (not failures).  They are excluded from
+# the applicable denominator, are never counted as PASS/admitted/certified,
+# and keep their original BLOCKED evidence untouched.
+SPEC_EXCLUSIONS = {
+    ("A08-F2-W3", 2): {
+        "status": "N/A",
+        "classification": "SPEC_EXCLUDED",
+        "reason": "A08-b structurally unreachable under F2",
+        "evidence": {
+            "eligible_repeat_1_5_10": 21,
+            "repeat_delta": 0,
+            "first_fire_seed2_eligible_ordinal": 99417,
+            "explanation": ("A08-b counts only same-tick store-first/load-after "
+                            "pairs in the same 4 KiB page; repeating the same "
+                            "workload does not create more such pairs, so the "
+                            "eligible stream stays at 21 and never reaches the "
+                            "deterministic F2 first-fire position 99,417. "
+                            "No legal injection opportunity exists."),
+        },
+    },
+    ("A08-F2-W5", 2): {
+        "status": "N/A",
+        "classification": "SPEC_EXCLUDED",
+        "reason": "A08-b structurally unreachable under F2",
+        "evidence": {
+            "eligible_repeat_1_5_10": 21,
+            "repeat_delta": 0,
+            "first_fire_seed2_eligible_ordinal": 99417,
+            "explanation": ("Same as A08-F2-W3 seed2: the same-tick store-first/"
+                            "load-after same-page pair stream does not grow with "
+                            "repeat (delta=0), so F2 cannot reach 99,417."),
+        },
+    },
+}
+
 OUT_ROOT = REPO / "runs/lsu/R6_COMPLETE_PROPAGATION_PATHS"
 
 RUNIDS = """A01-F0-W3 A01-F0-W9 A01-F1-W3 A01-F1-W9 A01-F2-W3 A01-F2-W9
@@ -395,6 +431,13 @@ def doc(rec):
     return "\n".join(L) + "\n"
 
 
+def status_conclusion(nq, na, ns, nf, unit_status):
+    return ("%d/%d applicable samples qualified; %d/%d structurally "
+            "inapplicable samples explicitly excluded; %d applicable "
+            "failures; A unit closed as %s."
+            % (nq, na, ns, ns, nf, unit_status))
+
+
 def main():
     check_only = "--check" in sys.argv
     OUT_ROOT.mkdir(parents=True, exist_ok=True)
@@ -422,6 +465,16 @@ def main():
                 "binary_source_head": (rec["manifest"] or {}).get(
                     "binary_source_head"),
                 "round": ("R6-A4" if (rid, seed) in NEW_SAMPLES else "R6-A3"),
+                "status": ("PASS" if q else
+                           ("N/A" if (rid, seed) in SPEC_EXCLUSIONS else
+                            ("FAIL" if rec["done"] else "NOT_RUN"))),
+                "classification": (
+                    "SPEC_EXCLUDED" if (rid, seed) in SPEC_EXCLUSIONS else
+                    ("QUALIFIED" if q else
+                     ("APPLICABLE_FAILED" if rec["done"] else "NOT_RUN"))),
+                "spec_exclusion": SPEC_EXCLUSIONS.get((rid, seed)),
+                "reason": (SPEC_EXCLUSIONS[(rid, seed)]["reason"]
+                           if (rid, seed) in SPEC_EXCLUSIONS else None),
             })
             write_this = ("--all" in sys.argv) or ((rid, seed) in NEW_SAMPLES)
             # A BLOCKED cell has a .done/manifest but no sample; its honest
@@ -433,10 +486,21 @@ def main():
                 d.mkdir(parents=True, exist_ok=True)
                 (d / ("seed%d.md" % seed)).write_text(doc(rec))
 
-    nq = sum(1 for r in rows if r["qualified"])
-    print("samples=%d qualified=%d" % (len(rows), nq))
+    applicable = [r for r in rows if r["classification"] != "SPEC_EXCLUDED"]
+    spec = [r for r in rows if r["classification"] == "SPEC_EXCLUDED"]
+    nq = sum(1 for r in applicable if r["qualified"])
+    failed = sum(1 for r in applicable
+                 if r["done"] and not r["qualified"])
+    not_run = sum(1 for r in applicable if not r["done"])
+    unit_status = ("COMPLETE_WITH_SPEC_EXCLUSIONS"
+                   if failed == 0 and not_run == 0 and nq == len(applicable)
+                   else "INCOMPLETE")
+    print("target=%d applicable=%d qualified_applicable=%d "
+          "spec_excluded=%d failed_applicable=%d not_run=%d unit_status=%s"
+          % (len(rows), len(applicable), nq, len(spec), failed, not_run,
+             unit_status))
     for r in rows:
-        if not r["qualified"]:
+        if not r["qualified"] and r["classification"] != "SPEC_EXCLUDED":
             print("  UNQUALIFIED %s s%d done=%s oracle=%s terminal=%s "
                   "admitted=%s certified=%s trunc=%s evtrunc=%s stream=%s"
                   % (r["runid"], r["seed"], r["done"], r["oracle"],
@@ -455,13 +519,28 @@ def main():
         cells = []
         for seed in SEEDS:
             r = next(x for x in rows if x["runid"] == rid and x["seed"] == seed)
-            mark = "✅" if r["qualified"] else ("—" if not r["done"] else "❌")
+            if r["classification"] == "SPEC_EXCLUDED":
+                mark = "N/A (SPEC_EXCLUDED)"
+            elif r["qualified"]:
+                mark = "✅"
+            else:
+                mark = "—" if not r["done"] else "❌"
             cells.append("%s [doc](%s/seed%d.md)" % (mark, rid, seed)
                          if r["present"] and r["done"] else mark)
         lines.append("| %s | %s |" % (rid, " | ".join(cells)))
+    lines.insert(2, ("- 口径：applicable_samples=%d；"
+                     "qualified_applicable_samples=%d；"
+                     "spec_excluded_samples=%d；"
+                     "failed_applicable_samples=%d；unit_status=%s"
+                     % (len(applicable), nq, len(spec), failed, unit_status)))
+    lines.insert(3, "- %s" % status_conclusion(nq, len(applicable),
+                                                 len(spec), failed,
+                                                 unit_status))
+    lines.insert(4, "")
     lines.append("\n✅ = admitted & certified & terminal ∈ {full, detected_contained}"
-                 " & 流完整；❌ = 已跑但不合格（详见该 seed 文档第 7/10 节）；"
-                 "— = 未运行。\n")
+                 " & 流完整；N/A (SPEC_EXCLUDED) = 规格不适用（A08-b 在 F2 下结构性"
+                 "不可达；不是 PASS/FAIL，不注入、无传播链）；❌ = 已跑但不合格"
+                 "（详见该 seed 文档第 7/10 节）；— = 未运行。\n")
     (OUT_ROOT / "INDEX-A.md").write_text("\n".join(lines) + "\n")
 
     # ---- STATUS json + md ----
@@ -478,7 +557,31 @@ def main():
         "previous_round_source_head":
             "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
         "target_samples": len(rows),
-        "qualified_samples": nq,
+        "applicable_samples": len(applicable),
+        "qualified_applicable_samples": nq,
+        "spec_excluded_samples": len(spec),
+        "failed_applicable_samples": failed,
+        "not_run_applicable_samples": not_run,
+        "unit_status": unit_status,
+        "canonical_conclusion": (
+            "%d/%d applicable samples qualified; %d/%d structurally "
+            "inapplicable samples explicitly excluded; %d applicable "
+            "failures; A unit closed as %s."
+            % (nq, len(applicable), len(spec), len(spec), failed, unit_status)),
+        "spec_exclusions": [
+            {"run_id": r["runid"], "seed": r["seed"],
+             "status": "N/A", "classification": "SPEC_EXCLUDED",
+             "reason": r["spec_exclusion"]["reason"],
+             "evidence": r["spec_exclusion"]["evidence"],
+             "admitted": None, "certified": None, "terminal": None,
+             "generated_propagation_chain": False,
+             "original_evidence_dir": r["outdir"]}
+            for r in spec],
+        "f6_policy_excluded": {
+            "note": ("F6 RunIDs are excluded by the F6 policy (not part of the "
+                     "30 non-F6 A-unit RunIDs); this is SEPARATE from the two "
+                     "A08-b SPEC_EXCLUDED samples and is not counted here."),
+        },
         "runids": {},
         "samples": rows,
     }
@@ -487,34 +590,60 @@ def main():
         by.setdefault(r["runid"], []).append(r)
     for rid, rs in by.items():
         status["runids"][rid] = {
-            "seeds": {str(x["seed"]): ("qualified" if x["qualified"]
-                                       else ("not_run" if not x["done"]
-                                             else "unqualified")) for x in rs},
+            "seeds": {str(x["seed"]): (
+                "N/A" if x["classification"] == "SPEC_EXCLUDED"
+                else ("qualified" if x["qualified"]
+                      else ("not_run" if not x["done"] else "unqualified")))
+                for x in rs},
+            "applicable": sum(1 for x in rs
+                              if x["classification"] != "SPEC_EXCLUDED"),
             "qualified": sum(1 for x in rs if x["qualified"]),
+            "spec_excluded": sum(1 for x in rs
+                                 if x["classification"] == "SPEC_EXCLUDED"),
         }
     (REPORTS / "R6-A4-STATUS.json").write_text(
         json.dumps(status, ensure_ascii=False, indent=1))
 
-    md = ["# R6-A4 状态（2026-10-28）\n",
-          "- 候选二进制（25 格新跑）sha256 `%s`（HEAD `%s`）"
+    md = ["# R6-A4 状态（2026-10-29，A 单元收口）\n",
+          "- %s" % status_conclusion(nq, len(applicable), len(spec),
+                                     failed, unit_status),
+          "- applicable_samples=%d；qualified_applicable_samples=%d；"
+          "spec_excluded_samples=%d；failed_applicable_samples=%d；"
+          "unit_status=%s" % (len(applicable), nq, len(spec), failed,
+                              unit_status),
+          "- 候选二进制（23 个新合格样本）sha256 `%s`（HEAD `%s`）"
           % ((cand or {}).get("binary_sha256"),
              (cand or {}).get("binary_source_head")),
-          "- 上一轮冻结二进制（65 格保留）sha256 "
+          "- 上一轮冻结二进制（65 个保留样本）sha256 "
           "`c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e`"
           "（HEAD `ddc81a7b074d0dae2505dc85c8fec5aef6293f66`）",
-          "- 目标样本 %d（30 非 F6 RunID × seed1/2/3），合格 %d。\n"
-          % (len(rows), nq),
-          "| RunID | s1 | s2 | s3 | 合格 |", "|---|---|---|---|---|"]
+          "- 两个 N/A 样本没有任何二进制运行结果（resolver 响亮 BLOCKED，"
+          "未启动 gem5、未注入、未生成传播链）。",
+          "- 目标样本 %d（30 非 F6 RunID × seed1/2/3）；F6 RunID 属独立的"
+          "F6 政策排除，与本轮两个 A08-b SPEC_EXCLUDED 互不混淆。\n"
+          % len(rows),
+          "| RunID | s1 | s2 | s3 | applicable | qualified |",
+          "|---|---|---|---|---|---|"]
     for rid in RUNIDS:
         rs = by[rid]
         cells = []
         for x in rs:
-            cells.append("✅" if x["qualified"]
-                         else ("—" if not x["done"] else
-                               "❌(%s/%s)" % (x["oracle"], x["terminal"])))
-        md.append("| %s | %s | %d/3 |" % (rid, " | ".join(cells),
-                                          sum(1 for x in rs if x["qualified"])))
-    md.append("\n未合格样本的真实原因见 `R6-A4-STATUS.json` 的 samples 与逐 seed 文档。")
+            if x["classification"] == "SPEC_EXCLUDED":
+                cells.append("N/A (SPEC_EXCLUDED)")
+            elif x["qualified"]:
+                cells.append("PASS")
+            else:
+                cells.append("—" if not x["done"] else
+                             "FAIL(%s/%s)" % (x["oracle"], x["terminal"]))
+        md.append("| %s | %s | %d | %d |"
+                  % (rid, " | ".join(cells),
+                     sum(1 for x in rs
+                         if x["classification"] != "SPEC_EXCLUDED"),
+                     sum(1 for x in rs if x["qualified"])))
+    md.append("\nN/A (SPEC_EXCLUDED) = `A08-b structurally unreachable under F2`；"
+              "不是 PASS、不是 FAIL，不计入 applicable 分母，"
+              "admitted/certified 均为空，无传播链。"
+              "其余样本的真实原因见 `R6-A4-STATUS.json` 的 samples 与逐 seed 文档。")
     (REPORTS / "R6-A4-STATUS.md").write_text("\n".join(md) + "\n")
 
     # ---- dedup ----

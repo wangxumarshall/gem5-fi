@@ -69,9 +69,24 @@ def main():
     check("A08 route is a08_channel",
           LC.MODEL_FLAGS["A08"][1][:2] == ["--agu_pre_mode", "a08_channel"],
           str(LC.MODEL_FLAGS["A08"]))
+    # [R6-A4] The parity routing moved into the single shared
+    # apply_seed_variant_flags path (campaign + census use the same function,
+    # so a census can never measure a different submodel). Assert the
+    # behaviour, not a source-text shape.
+    _base = ["--agu_pre_mode", "a08_channel",
+             "--addrpath_span_events", "110"]
+    _even = LC.apply_seed_variant_flags("A08", "F2", 2, "agu_addrmodes",
+                                        _base)
+    _odd = LC.apply_seed_variant_flags("A08", "F2", 1, "agu_addrmodes",
+                                       _base)
     check("seed parity selects a08_pair_swap",
-          re.search(r'if model == "A08" and seed % 2 == 0:[\s\S]{0,200}'
-                    r'a08_pair_swap', camp) is not None)
+          _even[_even.index("--agu_pre_mode") + 1] == "a08_pair_swap"
+          and _even[_even.index("--addrpath_span_events") + 1] == "21",
+          str(_even))
+    check("odd seed keeps a08_channel (measured span 110)",
+          _odd[_odd.index("--agu_pre_mode") + 1] == "a08_channel"
+          and _odd[_odd.index("--addrpath_span_events") + 1] == "110",
+          str(_odd))
     check("a08_subst is no longer routed by the campaign",
           '"a08_subst"' not in camp)
 

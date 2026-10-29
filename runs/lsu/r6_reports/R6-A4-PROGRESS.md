@@ -59,8 +59,24 @@
 - 文档：25 篇 seed 文档 + INDEX-A + R6-A4-STATUS.{md,json} + EVIDENCE-DEDUP +
   FINAL-REPORT + A01 分析报告，均已提交推送。
 
+## 收口（2026-10-29，用户裁决）
+
+- 用户裁决：A08-F2-W3 seed2 / A08-F2-W5 seed2 按规格不适用项收口。
+  `status=N/A`、`classification=SPEC_EXCLUDED`、
+  `reason=A08-b structurally unreachable under F2`；不运行、不换 seed/workload、
+  不改 A08-a、不改 F2 频率定义；不写成 PASS/admitted/certified。
+- 权威口径：applicable_samples=88；qualified_applicable_samples=88；
+  spec_excluded_samples=2；failed_applicable_samples=0；
+  unit_status=COMPLETE_WITH_SPEC_EXCLUSIONS。
+  规范表述：88/88 applicable samples qualified; 2/2 structurally inapplicable
+  samples explicitly excluded; 0 applicable failures; A unit closed as
+  COMPLETE_WITH_SPEC_EXCLUSIONS.
+- 状态/索引/报告/两个 N/A 说明已更新；一致性与证据 SHA 由
+  `tests/test_lsu_r6a4_unit_close.py` 钉死（88 篇文档、528 条证据行逐条核对）。
+- N/A 证据保留：`runs/lsu/r6_a_r6a4_A08-{F2-W3,F2-W5}_s2/`（Blocked，
+  activated=0，无 prop_evt/chain sample）。
+- 收口后合并并推送 origin/fi-ding（见最终汇报），未删除任何分支/工作树/证据。
+
 ## 未决
 
-- A08-F2-W3 s2 / A08-F2-W5 s2：A08-b 结构性 BLOCKED（delta=0），需用户裁决
-  实验规格（F2-not-applicable / 事件触发档 / 换 workload / 换子模型），
-  见 `R6-A4-FINAL-REPORT.md` §8。其余 23 格与上一轮 65 格均已合格。
+- 无（A 单元已按 COMPLETE_WITH_SPEC_EXCLUSIONS 收口）。

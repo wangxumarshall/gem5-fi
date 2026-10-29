@@ -6,7 +6,54 @@
  "previous_round_binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
  "previous_round_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
  "target_samples": 90,
- "qualified_samples": 88,
+ "applicable_samples": 88,
+ "qualified_applicable_samples": 88,
+ "spec_excluded_samples": 2,
+ "failed_applicable_samples": 0,
+ "not_run_applicable_samples": 0,
+ "unit_status": "COMPLETE_WITH_SPEC_EXCLUSIONS",
+ "canonical_conclusion": "88/88 applicable samples qualified; 2/2 structurally inapplicable samples explicitly excluded; 0 applicable failures; A unit closed as COMPLETE_WITH_SPEC_EXCLUSIONS.",
+ "spec_exclusions": [
+  {
+   "run_id": "A08-F2-W3",
+   "seed": 2,
+   "status": "N/A",
+   "classification": "SPEC_EXCLUDED",
+   "reason": "A08-b structurally unreachable under F2",
+   "evidence": {
+    "eligible_repeat_1_5_10": 21,
+    "repeat_delta": 0,
+    "first_fire_seed2_eligible_ordinal": 99417,
+    "explanation": "A08-b counts only same-tick store-first/load-after pairs in the same 4 KiB page; repeating the same workload does not create more such pairs, so the eligible stream stays at 21 and never reaches the deterministic F2 first-fire position 99,417. No legal injection opportunity exists."
+   },
+   "admitted": null,
+   "certified": null,
+   "terminal": null,
+   "generated_propagation_chain": false,
+   "original_evidence_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W3_s2"
+  },
+  {
+   "run_id": "A08-F2-W5",
+   "seed": 2,
+   "status": "N/A",
+   "classification": "SPEC_EXCLUDED",
+   "reason": "A08-b structurally unreachable under F2",
+   "evidence": {
+    "eligible_repeat_1_5_10": 21,
+    "repeat_delta": 0,
+    "first_fire_seed2_eligible_ordinal": 99417,
+    "explanation": "Same as A08-F2-W3 seed2: the same-tick store-first/load-after same-page pair stream does not grow with repeat (delta=0), so F2 cannot reach 99,417."
+   },
+   "admitted": null,
+   "certified": null,
+   "terminal": null,
+   "generated_propagation_chain": false,
+   "original_evidence_dir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W5_s2"
+  }
+ ],
+ "f6_policy_excluded": {
+  "note": "F6 RunIDs are excluded by the F6 policy (not part of the 30 non-F6 A-unit RunIDs); this is SEPARATE from the two A08-b SPEC_EXCLUDED samples and is not counted here."
+ },
  "runids": {
   "A01-F0-W3": {
    "seeds": {
@@ -14,7 +61,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A01-F0-W9": {
    "seeds": {
@@ -22,7 +71,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A01-F1-W3": {
    "seeds": {
@@ -30,7 +81,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A01-F1-W9": {
    "seeds": {
@@ -38,7 +91,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A01-F2-W3": {
    "seeds": {
@@ -46,7 +101,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A01-F2-W9": {
    "seeds": {
@@ -54,7 +111,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A02-F0-W3": {
    "seeds": {
@@ -62,7 +121,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A02-F0-W9": {
    "seeds": {
@@ -70,7 +131,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A02-F2-W3": {
    "seeds": {
@@ -78,7 +141,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A02-F2-W9": {
    "seeds": {
@@ -86,7 +151,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A03-F5-W3": {
    "seeds": {
@@ -94,7 +161,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A03-F5-W10": {
    "seeds": {
@@ -102,7 +171,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A04-F0-W3": {
    "seeds": {
@@ -110,7 +181,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A04-F0-W0": {
    "seeds": {
@@ -118,7 +191,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A04-F2-W3": {
    "seeds": {
@@ -126,7 +201,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A04-F2-W0": {
    "seeds": {
@@ -134,7 +211,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A05-F0-W3": {
    "seeds": {
@@ -142,7 +221,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A05-F2-W3": {
    "seeds": {
@@ -150,7 +231,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A06-F0-W3": {
    "seeds": {
@@ -158,7 +241,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A06-F0-W5": {
    "seeds": {
@@ -166,7 +251,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A06-F2-W3": {
    "seeds": {
@@ -174,7 +261,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A06-F2-W5": {
    "seeds": {
@@ -182,7 +271,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A07-F0-W3": {
    "seeds": {
@@ -190,7 +281,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A07-F0-W5": {
    "seeds": {
@@ -198,7 +291,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A07-F4-W3": {
    "seeds": {
@@ -206,7 +301,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A07-F4-W5": {
    "seeds": {
@@ -214,7 +311,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A08-F0-W3": {
    "seeds": {
@@ -222,7 +321,9 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A08-F0-W5": {
    "seeds": {
@@ -230,23 +331,29 @@
     "2": "qualified",
     "3": "qualified"
    },
-   "qualified": 3
+   "applicable": 3,
+   "qualified": 3,
+   "spec_excluded": 0
   },
   "A08-F2-W3": {
    "seeds": {
     "1": "qualified",
-    "2": "unqualified",
+    "2": "N/A",
     "3": "qualified"
    },
-   "qualified": 2
+   "applicable": 2,
+   "qualified": 2,
+   "spec_excluded": 1
   },
   "A08-F2-W5": {
    "seeds": {
     "1": "qualified",
-    "2": "unqualified",
+    "2": "N/A",
     "3": "qualified"
    },
-   "qualified": 2
+   "applicable": 2,
+   "qualified": 2,
+   "spec_excluded": 1
   }
  },
  "samples": [
@@ -269,7 +376,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F0-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F0-W3",
@@ -290,7 +401,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F0-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F0-W3",
@@ -311,7 +426,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F0-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F0-W9",
@@ -332,7 +451,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F0-W9_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F0-W9",
@@ -353,7 +476,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F0-W9_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F0-W9",
@@ -374,7 +501,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F0-W9_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F1-W3",
@@ -395,7 +526,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F1-W3",
@@ -416,7 +551,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F1-W3_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F1-W3",
@@ -437,7 +576,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F1-W9",
@@ -458,7 +601,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W9_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F1-W9",
@@ -479,7 +626,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W9_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F1-W9",
@@ -500,7 +651,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F1-W9_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F2-W3",
@@ -521,7 +676,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F2-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F2-W3",
@@ -542,7 +701,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F2-W3_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F2-W3",
@@ -563,7 +726,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A01-F2-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F2-W9",
@@ -584,7 +751,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F2-W9_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F2-W9",
@@ -605,7 +776,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F2-W9_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A01-F2-W9",
@@ -626,7 +801,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A01-F2-W9_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F0-W3",
@@ -647,7 +826,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F0-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F0-W3",
@@ -668,7 +851,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F0-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F0-W3",
@@ -689,7 +876,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F0-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F0-W9",
@@ -710,7 +901,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F0-W9_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F0-W9",
@@ -731,7 +926,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F0-W9_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F0-W9",
@@ -752,7 +951,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F0-W9_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F2-W3",
@@ -773,7 +976,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F2-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F2-W3",
@@ -794,7 +1001,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F2-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F2-W3",
@@ -815,7 +1026,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A02-F2-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F2-W9",
@@ -836,7 +1051,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A02-F2-W9_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F2-W9",
@@ -857,7 +1076,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A02-F2-W9_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A02-F2-W9",
@@ -878,7 +1101,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A02-F2-W9_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A03-F5-W3",
@@ -899,7 +1126,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A03-F5-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A03-F5-W3",
@@ -920,7 +1151,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A03-F5-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A03-F5-W3",
@@ -941,7 +1176,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A03-F5-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A03-F5-W10",
@@ -962,7 +1201,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A03-F5-W10_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A03-F5-W10",
@@ -983,7 +1226,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A03-F5-W10_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A03-F5-W10",
@@ -1004,7 +1251,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A03-F5-W10_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F0-W3",
@@ -1025,7 +1276,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F0-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F0-W3",
@@ -1046,7 +1301,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F0-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F0-W3",
@@ -1067,7 +1326,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F0-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F0-W0",
@@ -1088,7 +1351,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F0-W0_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F0-W0",
@@ -1109,7 +1376,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F0-W0_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F0-W0",
@@ -1130,7 +1401,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F0-W0_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F2-W3",
@@ -1151,7 +1426,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A04-F2-W3_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F2-W3",
@@ -1172,7 +1451,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F2-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F2-W3",
@@ -1193,7 +1476,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A04-F2-W3_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F2-W0",
@@ -1214,7 +1501,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A04-F2-W0_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F2-W0",
@@ -1235,7 +1526,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A04-F2-W0_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A04-F2-W0",
@@ -1256,7 +1551,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A04-F2-W0_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A05-F0-W3",
@@ -1277,7 +1576,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A05-F0-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A05-F0-W3",
@@ -1298,7 +1601,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A05-F0-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A05-F0-W3",
@@ -1319,7 +1626,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A05-F0-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A05-F2-W3",
@@ -1340,7 +1651,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A05-F2-W3_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A05-F2-W3",
@@ -1361,7 +1676,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A05-F2-W3_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A05-F2-W3",
@@ -1382,7 +1701,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A05-F2-W3_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F0-W3",
@@ -1403,7 +1726,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F0-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F0-W3",
@@ -1424,7 +1751,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F0-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F0-W3",
@@ -1445,7 +1776,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F0-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F0-W5",
@@ -1466,7 +1801,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F0-W5_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F0-W5",
@@ -1487,7 +1826,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F0-W5_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F0-W5",
@@ -1508,7 +1851,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F0-W5_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F2-W3",
@@ -1529,7 +1876,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F2-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F2-W3",
@@ -1550,7 +1901,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F2-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F2-W3",
@@ -1571,7 +1926,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A06-F2-W3_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F2-W5",
@@ -1592,7 +1951,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F2-W5_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F2-W5",
@@ -1613,7 +1976,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A06-F2-W5_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A06-F2-W5",
@@ -1634,7 +2001,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A06-F2-W5_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F0-W3",
@@ -1655,7 +2026,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A07-F0-W3_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F0-W3",
@@ -1676,7 +2051,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A07-F0-W3_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F0-W3",
@@ -1697,7 +2076,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F0-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F0-W5",
@@ -1718,7 +2101,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F0-W5_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F0-W5",
@@ -1739,7 +2126,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F0-W5_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F0-W5",
@@ -1760,7 +2151,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F0-W5_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F4-W3",
@@ -1781,7 +2176,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F4-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F4-W3",
@@ -1802,7 +2201,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F4-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F4-W3",
@@ -1823,7 +2226,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F4-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F4-W5",
@@ -1844,7 +2251,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F4-W5_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F4-W5",
@@ -1865,7 +2276,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F4-W5_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A07-F4-W5",
@@ -1886,7 +2301,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A07-F4-W5_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F0-W3",
@@ -1907,7 +2326,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F0-W3_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F0-W3",
@@ -1928,7 +2351,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F0-W3_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F0-W3",
@@ -1949,7 +2376,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F0-W3_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F0-W5",
@@ -1970,7 +2401,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F0-W5_s1",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F0-W5",
@@ -1991,7 +2426,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F0-W5_s2",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F0-W5",
@@ -2012,7 +2451,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a3_A08-F0-W5_s3",
    "binary_sha256": "c52ef2257bb9dad6ddf593a1dbca51d5096e52ac790ec901c46ebf9c7114c71e",
    "binary_source_head": "ddc81a7b074d0dae2505dc85c8fec5aef6293f66",
-   "round": "R6-A3"
+   "round": "R6-A3",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F2-W3",
@@ -2033,7 +2476,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W3_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F2-W3",
@@ -2054,7 +2501,21 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W3_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "115dda4c029ddcbce7b896f986b298dcda36da18",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "N/A",
+   "classification": "SPEC_EXCLUDED",
+   "spec_exclusion": {
+    "status": "N/A",
+    "classification": "SPEC_EXCLUDED",
+    "reason": "A08-b structurally unreachable under F2",
+    "evidence": {
+     "eligible_repeat_1_5_10": 21,
+     "repeat_delta": 0,
+     "first_fire_seed2_eligible_ordinal": 99417,
+     "explanation": "A08-b counts only same-tick store-first/load-after pairs in the same 4 KiB page; repeating the same workload does not create more such pairs, so the eligible stream stays at 21 and never reaches the deterministic F2 first-fire position 99,417. No legal injection opportunity exists."
+    }
+   },
+   "reason": "A08-b structurally unreachable under F2"
   },
   {
    "runid": "A08-F2-W3",
@@ -2075,7 +2536,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W3_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F2-W5",
@@ -2096,7 +2561,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W5_s1",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   },
   {
    "runid": "A08-F2-W5",
@@ -2117,7 +2586,21 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W5_s2",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "115dda4c029ddcbce7b896f986b298dcda36da18",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "N/A",
+   "classification": "SPEC_EXCLUDED",
+   "spec_exclusion": {
+    "status": "N/A",
+    "classification": "SPEC_EXCLUDED",
+    "reason": "A08-b structurally unreachable under F2",
+    "evidence": {
+     "eligible_repeat_1_5_10": 21,
+     "repeat_delta": 0,
+     "first_fire_seed2_eligible_ordinal": 99417,
+     "explanation": "Same as A08-F2-W3 seed2: the same-tick store-first/load-after same-page pair stream does not grow with repeat (delta=0), so F2 cannot reach 99,417."
+    }
+   },
+   "reason": "A08-b structurally unreachable under F2"
   },
   {
    "runid": "A08-F2-W5",
@@ -2138,7 +2621,11 @@
    "outdir": "/home/sdc/gem5-fi-ding/runs/lsu/r6_a_r6a4_A08-F2-W5_s3",
    "binary_sha256": "a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046",
    "binary_source_head": "167a23ee59b3a2383cdd1eaeeca418b263666a56",
-   "round": "R6-A4"
+   "round": "R6-A4",
+   "status": "PASS",
+   "classification": "QUALIFIED",
+   "spec_exclusion": null,
+   "reason": null
   }
  ]
 }
