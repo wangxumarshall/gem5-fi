@@ -100,3 +100,36 @@ processor set appears to be empty!` → `no devices found`（exit 71）。
   450010ff4a314019fbb8377ca80653f3。
 - se_sve.py 多 CPU（4×AtomicSimpleCPU 同 VL，单 Process 挂全 CPU 的
   上游 se.py SMP 模式）在 sdcshield-main 仓提交，非 gem5 stub。
+
+## Ruling F 扩展（+2 stub，2026-10-29 控制器裁定）
+
+- [x] Stub 7（5f623ce6）: perf_event_open → 挂上游 ignoreWithEnosysFunc
+  （warn+-ENOSYS）——框架 effective_cpu_freq.hpp:163-167 自有
+  UINT64_MAX→NaN fallback 吸收。spike：perf fatal 消失，**第一个测试
+  完整跑完**，推进至 clock_nanosleep fatal。
+- [x] Stub 8（f0298c92）: fdatasync → ignoreFunc（上游 x86-64 同款
+  syscall_tbl64.cc:128）。激活点（每测试 logging_flush）位于新屏障
+  之后，无回归实证。
+- [ ] **仍未达 exit: pass——新屏障 clock_nanosleep (#115)，按裁定 STOP
+  （no third stub），BLOCKED 上报**：
+  - 调用链已完全定位（gem5 --debug-flags=Exec + 符号化 + 宿主 gdb
+    对照）：worker 线程 `test_loop_condition+12`（sandstone_run.cpp:626
+    内联进测试体）读 shmem `current_test_sleep_duration` 得 **104µs**
+    （应为 0）→ 门通过 → `usleep(104/8192)` = `usleep(0)` → glibc
+    nanosleep→clock_nanosleep({0,0}) fatal。宿主同二进制 gdb 实测仅
+    2 次 clock_nanosleep（均为 main 的 wait_delay_between_tests），
+    worker 路径 0 次——即 shmem 该字段在 gem5 内被污染为非零。
+  - 修复路径（下一裁定）：挂 clock_nanosleep（ignoreFunc 即可，
+    {0,0} 睡眠本意即让出）；104µs 来源需 guest watchpoint 定位——
+    候选：mprotect 被忽略→框架线程栈 PROT_NONE 护栏未生效→潜在
+    越界写静默落 shmem（native 会 SIGSEGV 的写法在 gem5 里无声）。
+    该污染经 N=8192 除法后为 0µs 无害，但**若确系静默越界写，对
+    Task 6/7 证据有效性是实质风险**，必须查清。
+  - 单位澄清：gem5 全局 tick 为 1THz(1ps)，tick 407169250000 =
+    **407ms** 模拟时间（非 407s）——测试 500ms 预算近尾声时触发；
+    客户时钟无问题（探针实证 syscall 时钟随模拟时间正确推进）。
+- [x] 回归（8-stub 终版二进制 b1f671db…）：sve2_fmmla_dual --sve_vl 4
+  SDCSHIELD_FAILS=0，checksum ef163d9b7a71160c 与 Task 4 逐位一致；
+  injector 76 类 + anchor1 golden 精确匹配（anchor3 探针缺失为既有
+  基线）。
+- HEAD：0169ef04 → **f0298c92**（已推送）。
