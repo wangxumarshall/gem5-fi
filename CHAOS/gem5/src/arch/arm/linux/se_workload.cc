@@ -144,6 +144,21 @@ setTLSFunc64(SyscallDesc *desc, ThreadContext *tc, uint32_t tlsPtr)
     return 0;
 }
 
+/// memfd_create() for SE: gem5 does not emulate memfd semantics (shared
+/// mappings do not propagate across forked processes — see the mmapFunc
+/// warn_once), and mmap() only accepts FileFDEntry-backed descriptors, so a
+/// host memfd masquerading as a plain HBFDEntry would fail mmap with EBADF.
+/// Returning ENOSYS is the honest emulation: callers engage their own
+/// fallback path (SDCShield's sysdeps/unix/tmpfile.c falls back to
+/// O_TMPFILE / regular unlinked tmpfiles, which mmap handles fine).
+static SyscallReturn
+memfdCreateFunc(SyscallDesc *desc, ThreadContext *tc)
+{
+    warn_once("%s: not emulated, returning ENOSYS (callers fall back to "
+              "tmpfiles)", desc->name());
+    return SyscallReturn(-ENOSYS);
+}
+
 /// prctl() for SE: SVE vector-length get/pin, mirroring the Linux uapi
 /// semantics SDCShield's framework layer (arm64_vl.h) depends on — a
 /// successful PR_SVE_SET_VL returns the granted VL IN BYTES (returning 0
@@ -801,7 +816,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 276, "renameat2"},
                {base + 277, "seccomp"},
                {base + 278, "getrandom", getrandomFunc<ArmLinux64>},
-               {base + 279, "memfd_create"},
+               {base + 279, "memfd_create", memfdCreateFunc},
                {base + 280, "bpf"},
                {base + 281, "execveat"},
                {base + 282, "userfaultfd"},
