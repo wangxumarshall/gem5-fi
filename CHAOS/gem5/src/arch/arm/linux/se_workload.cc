@@ -636,7 +636,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 80, "fstat64", fstat64Func<ArmLinux64>},
                {base + 81, "sync"},
                {base + 82, "fsync"},
-               {base + 83, "fdatasync"},
+               {base + 83, "fdatasync", ignoreFunc},
                {base + 84, "sync_file_range"},
                {base + 85, "timerfd_create"},
                {base + 86, "timerfd_settime"},
