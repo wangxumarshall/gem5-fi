@@ -133,3 +133,55 @@ processor set appears to be empty!` → `no devices found`（exit 71）。
   injector 76 类 + anchor1 golden 精确匹配（anchor3 探针缺失为既有
   基线）。
 - HEAD：0169ef04 → **f0298c92**（已推送）。
+
+## Ruling H 裁定（2026-10-29 晚）：104µs 根因 + 第 9 个 stub → exit: pass
+
+### Phase 1 根因（三重实证，全部真实输出）
+
+1. **框架源**：字段有 NSDMI `= {}`（sandstone_p.h:429），init_shmem 的
+   placement-new（sandstone.cpp:355）确会写入 0——但 **commit_shmem
+   （sandstone.cpp:360）随后 munmap+重映射同一 tmpfile fd**（Linux 下
+   MAP_SHARED 文件持久性保住内容；框架自身在 attach_shmem_internal 用
+   assert 防线校验 thread_data_offset/main_thread_count，release 构建
+   NDEBUG 将其编译掉）。
+2. **gem5 探针**（/tmp/t5_shmem_probe，native 与 gem5 对照）：
+   - native: `pattern_survived=YES sleep_field=0`（文件内容跨重映射存活）
+   - gem5:   `pattern_survived=NO` byte0=00（重映射页为零填充**新页**，
+     非陈旧垃圾；匿名页零填充 sum=0 ✓）
+3. **syscall 追踪**：init_shmem 映射 4KB@0x3fff902000(tick 3.67ms) →
+   munmap(0x3fff902000,4096)(tick 5.1838e9) → 重映射 12KB@**0x3fff8ff000
+   (不同地址)**——旧映射（含 placement-new 零值）被弃，新页全零。
+
+**机制链**：重映射后 thread_data_offset=0 → attach_shmem_internal 以
+0 计算每线程数据指针（assert 已被 NDEBUG 关掉）→ PerThreadData 叠印
+在 SharedMemory 结构体上 → 一个 per-thread 字段值（量级=log_fd≈104）
+落在 +0x2c 即 current_test_sleep_duration → 104µs。旁证：gem5 内 -v
+的 verbosity（存 shmem cfg）同样丢失 → per-test yaml 块被抑制（native
+-v 两测试 result: pass 均打印）。
+
+**判定：gem5 mmap 语义差异（MAP_SHARED 无跨 munmap 持久性，上游
+warn_once 已文档化）× 框架 Linux 合法模式——非测试/框架越界写**。
+SVE 计算与 golden memcmp（堆）不受影响；判定路径自洽（写读同址）。
+
+### Phase 2（benign 分支）：Stub 9（55d92b63）
+
+clock_nanosleep #115 → ignoreWarnOnceFunc，严格循树内 sleep 类先例
+（x86-64 {35,"nanosleep",ignoreWarnOnceFunc} syscall_tbl64.cc:88、
+riscv:634、ARM32:338 同款）。时序语义：睡眠零时长、不推进模拟时间；
+-t 时长由 clock_gettime deadline 驱动不受影响；间歇延迟坍缩为 0。
+
+### 结果
+
+- [x] **spike `exit: pass` / `Simulated exit code: 0 @ tick 407370811000`
+  （-f no，--vl 4=512-bit，真二进制）**；-v 复跑同样 exit: pass
+  （tick 407373415000）。native 同参 -v 交叉：两测试（sve_rot_ldr_at_top
+  + mce_check）均 result: pass。
+- [x] 回归（9-stub 二进制 3f9011f4…）：sve2_fmmla_dual --sve_vl 4
+  SDCSHIELD_FAILS=0，checksum ef163d9b7a71160c 与 Task 4 逐位一致；
+  injector 76 类 + anchor1 golden 精确匹配（anchor3 既有探针缺失）。
+- [x] HEAD：635a6631 → **55d92b63**。
+- 残余风险（如实）：gem5 nofork 下 per-thread 数据区与结构体叠印，
+  pass 判定自洽可信，但失败归因/明细有理论性掩蔽风险；Task 6 建议
+  每测试单进程调用 + 以进程退出码与 exit: 行为准。
+- 标定数据（Task 6 输入）：整 run ≈ 0.407 模拟秒（1THz tick），
+  wall ≈ 9-10 分钟/测试。
