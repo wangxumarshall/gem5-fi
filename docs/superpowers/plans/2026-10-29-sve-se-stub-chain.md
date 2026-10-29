@@ -65,10 +65,38 @@ processor set appears to be empty!` → `no devices found`（exit 71）。
 
 ## Steps
 
-- [ ] Step 1: getaffinity 挂表 + 重建 + spike（屏障 1 消失证据）
-- [ ] Step 2: memfd_create ENOSYS stub + spike
-- [ ] Step 3: fdatasync stub + spike
-- [ ] Step 4: se_sve.py 多 CPU + spike
-- [ ] Step 5: -f no spike → exit: pass（或继续排障）
-- [ ] Step 6: 默认模式 fork 链推进（预算内）
-- [ ] Step 7: 回归 + injector + 记录 HEAD sha
+- [x] Step 1: getaffinity 挂表（accf5166）——屏障 1 消失实证（exit 71→memfd fatal）
+- [x] Step 2: memfd_create ENOSYS（f34ca013）——框架 tmpfile fallback 接管实证
+- [x] Step 3': prlimit RLIMIT_NOFILE（df3eef1e，实测屏障 3 与预测不同：
+      非 fdatasync 而是 prlimit 资源 7→getrlimit EINVAL→exit 71）
+- [x] Step 4': socket 三件套挂表（070f0451，实测屏障 4：宿主 PATH 有 gdb
+      →backtrace_on_crash→create_crash_pipe→socketpair fatal）
+- [x] Step 5': fcntl64 F_DUPFD/F_DUPFD_CLOEXEC（f17448d3，实测屏障 5：
+      passthrough 丢第三参→EPERM→fdopen exit 204）
+- [x] Step 6': dup3 handler（fa18c8dd，实测屏障 6：aarch64 无 dup2，
+      glibc dup2→dup3 fatal；-f no + se_sve.py 4CPU 后 worker 线程栈
+      分配走通，推进至 perf_event_open fatal）
+- [x] Step 7: 回归 sve2_fmmla_dual --sve_vl 4：SDCSHIELD_FAILS=0，
+      checksum ef163d9b7a71160c 与 Task 4 逐位一致；injector 76 类在位 +
+      anchor1 reg_chain golden 精确匹配（anchor3 探针二进制缺失为
+      2026-10-13 /tmp 历史产物，与 Task 4 基线一致，非本次回归）
+- [ ] **时间盒跳闸（6 stub 用尽，未达 exit: pass）——STOP，链况交人工**：
+      - -f no 剩余链：perf_event_open #241（ENOSYS 即触发框架
+        effective_cpu_freq.hpp 自有 UINT64_MAX→NaN fallback）→ fdatasync
+        #83（x86-64 上游先例 ignoreFunc）→ 可能的后续小项。约 2 个 stub。
+      - 默认 fork 模式剩余链：eventfd2 #19 → waitid(P_PIDFD) →
+        CLONE_PIDFD+pidfd FDEntry+BasicSignal 带退出码 → pollFunc 负 fd
+        断言（server_debug_socket=-1）→ fdatasync。约 5 个 stub。
+      - 结构性约束（上游限制）：SE 无异步信号投递（forkfd SIGCHLD 兜底
+        不可行）；mmap 共享区不跨 fork 传播（fork 模式逐线程明细降级，
+        判定仍经退出码完整传递）。
+
+## 附记（执行事实）
+
+- 并行会话于 070f0451 后将共享 checkout 切至 feat/sve-oob-audit-dual-
+  2026-10-29；fcntl64 一度提交到该分支（5fe0d5c1），已 cherry-pick 回本
+  分支（f17448d3）并推送；对端分支留有该 commit（其文件与本链不相交）。
+- 产物二进制经 6 stub 链构建，CHAOS/gem5/build/ARM/gem5.opt md5
+  450010ff4a314019fbb8377ca80653f3。
+- se_sve.py 多 CPU（4×AtomicSimpleCPU 同 VL，单 Process 挂全 CPU 的
+  上游 se.py SMP 模式）在 sdcshield-main 仓提交，非 gem5 stub。
