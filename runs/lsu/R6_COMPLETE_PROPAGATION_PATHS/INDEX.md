@@ -67,3 +67,37 @@ W1 identity mismatch 清单（24 份）：`T01-F0-W1-seed1`、`T01-F0-W1-seed2`�
 | T03-F5-W9 | 1 | COMPLETE_L5 | arm_tlb_lookup_hit | 卡死 | 0xffffffc008a16868 | 0x80a16→0x80a06 | 0x80a16868→0x80a06868 | inj → tlb_lookup → tlb_pfn → tlb_translate_result → lsq_push → lq_read → cache_access → cache_return → mshr_alloc → cache_access → cache_return → mshr_alloc → mshr_fill → cache_fill → mshr_free → mshr_fill → cache_fill → mshr_free → resp → lq_complete → taint_reg → errant_commit | L5 | 280 | L5 | Timeout | True | True | [`T03-F5-W9-seed1.md`](T03-F5-W9/T03-F5-W9-seed1.md) | `/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T03-F5-W9_s1/T03-F5-W9/seed1` | `ee3cd490a470a2322407506ae0468c6b83cc95003461cd5bc54da8c336db6d80` | `647a4eb7fc82cd8152a32cf5d49d1975c88aaef67880ccaaf1ee75b5ba43b27b` | `20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d` | `d1543872e155943893fdd6d18a489ff7c372d97d` | `4af986f726a6791f441130dee19eca0711e0b38f` | PASS | MATCH | PASS | PASS |
 | T03-F5-W9 | 2 | COMPLETE_L5 | arm_tlb_lookup_hit | 卡死 | 0xffffffc009483eb0 | 0x81d75→0x81d77 | 0x81d75eb0→0x81d77eb0 | inj → tlb_lookup → tlb_pfn → tlb_translate_result → lsq_push → sq_execute → sq_writeback → cache_access → cache_return → mshr_alloc → cache_access → cache_return → mshr_alloc → mshr_fill → cache_fill → mshr_free → mshr_fill → cache_fill → mshr_free → resp → taint_reg → sq_complete → errant_commit | L5 | 293 | L5 | Timeout | True | True | [`T03-F5-W9-seed2.md`](T03-F5-W9/T03-F5-W9-seed2.md) | `/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T03-F5-W9_s2/T03-F5-W9/seed2` | `11b38ce82e052647e198a9cf276d9607325b4d7989d50d4094c6c83e63497eec` | `a00d7138dd203c4ddebf11eb79e426707b33550fc716374f962726fabd98b7d9` | `20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d` | `d1543872e155943893fdd6d18a489ff7c372d97d` | `4af986f726a6791f441130dee19eca0711e0b38f` | PASS | MATCH | PASS | PASS |
 | T03-F5-W9 | 3 | COMPLETE_L5 | arm_tlb_lookup_hit | 卡死 | 0xffffff807fbce090 | 0xffbce→0xdfbce | 0xffbce090→0xdfbce090 | inj → tlb_lookup → tlb_pfn → tlb_translate_result → lsq_push → lq_read → cache_access → cache_return → mshr_alloc → cache_access → cache_return → mshr_alloc → mshr_fill → cache_fill → mshr_free → mshr_fill → cache_fill → mshr_free → resp → lq_complete → taint_reg → errant_commit | L5 | 21 | L5 | Timeout | True | True | [`T03-F5-W9-seed3.md`](T03-F5-W9/T03-F5-W9-seed3.md) | `/home/sdc/gem5-fi-ding/runs/lsu/r6_n8_T03-F5-W9_s3/T03-F5-W9/seed3` | `7cdc2fd4c88fa45e94e5635b23a529c99aebf4913e16ae1a25a6ba9d696c098b` | `5ddfab7b2758b2f20c7ed96be2b5bd1a26332f7d8bafddf2a13730e50a8ad91e` | `20fda6994ee257e60a6d99c4b4abc7232732c302aaccfeeee4661c448ea7390d` | `d1543872e155943893fdd6d18a489ff7c372d97d` | `4af986f726a6791f441130dee19eca0711e0b38f` | PASS | MATCH | PASS | PASS |
+
+---
+
+---
+
+## R6-S（Store Queue 单元）逐 seed 传播路径
+
+- S seed 文档：**21**（7 RunID × 3 seed）
+- 全部 seed：binary SHA-256 `a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046`，binary_source_head `2498573f`
+- 判定口径：`oracle=Masked` + `terminal=detected_contained`（含 S06-F0-W6 seed2 的 `full`），admitted=True，certified=True，violations=[]；S06 seed1/seed2 与 S07 seed2 为 L3 containment（L4→L5 为 N/A）
+
+| RunID | seed | terminal | provable_to | 文档 |
+|---|---|---|---|---|
+| S04-F0-W0 | 1 | detected_contained | L5 | [`S04-F0-W0-seed1.md`](S04-F0-W0/S04-F0-W0-seed1.md) |
+| S04-F0-W0 | 2 | detected_contained | L5 | [`S04-F0-W0-seed2.md`](S04-F0-W0/S04-F0-W0-seed2.md) |
+| S04-F0-W0 | 3 | detected_contained | L5 | [`S04-F0-W0-seed3.md`](S04-F0-W0/S04-F0-W0-seed3.md) |
+| S04-F0-W5 | 1 | detected_contained | L5 | [`S04-F0-W5-seed1.md`](S04-F0-W5/S04-F0-W5-seed1.md) |
+| S04-F0-W5 | 2 | detected_contained | L5 | [`S04-F0-W5-seed2.md`](S04-F0-W5/S04-F0-W5-seed2.md) |
+| S04-F0-W5 | 3 | detected_contained | L5 | [`S04-F0-W5-seed3.md`](S04-F0-W5/S04-F0-W5-seed3.md) |
+| S05-F0-W3 | 1 | detected_contained | L5 | [`S05-F0-W3-seed1.md`](S05-F0-W3/S05-F0-W3-seed1.md) |
+| S05-F0-W3 | 2 | detected_contained | L5 | [`S05-F0-W3-seed2.md`](S05-F0-W3/S05-F0-W3-seed2.md) |
+| S05-F0-W3 | 3 | detected_contained | L5 | [`S05-F0-W3-seed3.md`](S05-F0-W3/S05-F0-W3-seed3.md) |
+| S05-F0-W5 | 1 | detected_contained | L5 | [`S05-F0-W5-seed1.md`](S05-F0-W5/S05-F0-W5-seed1.md) |
+| S05-F0-W5 | 2 | detected_contained | L5 | [`S05-F0-W5-seed2.md`](S05-F0-W5/S05-F0-W5-seed2.md) |
+| S05-F0-W5 | 3 | detected_contained | L5 | [`S05-F0-W5-seed3.md`](S05-F0-W5/S05-F0-W5-seed3.md) |
+| S06-F0-W5 | 1 | detected_contained | L3 | [`S06-F0-W5-seed1.md`](S06-F0-W5/S06-F0-W5-seed1.md) |
+| S06-F0-W5 | 2 | detected_contained | L3 | [`S06-F0-W5-seed2.md`](S06-F0-W5/S06-F0-W5-seed2.md) |
+| S06-F0-W5 | 3 | detected_contained | L5 | [`S06-F0-W5-seed3.md`](S06-F0-W5/S06-F0-W5-seed3.md) |
+| S06-F0-W6 | 1 | detected_contained | L3 | [`S06-F0-W6-seed1.md`](S06-F0-W6/S06-F0-W6-seed1.md) |
+| S06-F0-W6 | 2 | full | L5 | [`S06-F0-W6-seed2.md`](S06-F0-W6/S06-F0-W6-seed2.md) |
+| S06-F0-W6 | 3 | detected_contained | L5 | [`S06-F0-W6-seed3.md`](S06-F0-W6/S06-F0-W6-seed3.md) |
+| S07-F0-W5 | 1 | detected_contained | L5 | [`S07-F0-W5-seed1.md`](S07-F0-W5/S07-F0-W5-seed1.md) |
+| S07-F0-W5 | 2 | detected_contained | L3 | [`S07-F0-W5-seed2.md`](S07-F0-W5/S07-F0-W5-seed2.md) |
+| S07-F0-W5 | 3 | detected_contained | L5 | [`S07-F0-W5-seed3.md`](S07-F0-W5/S07-F0-W5-seed3.md) |

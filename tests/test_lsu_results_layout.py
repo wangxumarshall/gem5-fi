@@ -20,7 +20,9 @@ DOCS = Path(os.environ.get(
     ROOT / "runs/lsu/R6_COMPLETE_PROPAGATION_PATHS"))
 
 SEEDRE = re.compile(r"^(?P<rid>[AT]\d{2}-F\d+-W\d+)-seed(?P<seed>\d)\.md$")
-RUNIDRE = re.compile(r"^[AT]\d{2}-F\d+-W\d+$")
+# S (Store Queue) RunID directories are legal too; their per-seed document
+# contract is audited separately by tests/test_lsu_s_prop_docs.py.
+RUNIDRE = re.compile(r"^[ATS]\d{2}-F\d+-W\d+$")
 SPEC_EXCLUDED = {("A08-F2-W3", 2), ("A08-F2-W5", 2)}
 OLD_FLAT_A = [
     "A01-F0-W9-seed2.md", "A01-F2-W9-seed2.md", "A02-F0-W3-seed1.md",
