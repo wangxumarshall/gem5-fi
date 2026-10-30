@@ -59,7 +59,7 @@
 注入日志原文（本 seed 自己的 `lsq_fwd_injections.log`）：
 
 ```text
-（无 Tick 注入行）
+Cycle: 38831, Site: store->load_forward_decision, FaultType: fwd_source_sub, Vaddr: 0x7ffffefc30, TrueSrcSize: 8, AltSrcSize: 8, Copied: 8, faults_injected: 1
 ```
 
 运行期触发/检测原文（本 seed 自己的 `seed3/run.out`）：

@@ -206,7 +206,11 @@ def parse_detect(runout):
 
 
 def inj_line(text):
+    # addrpath logs use "Tick: ..."; the forwarding/S10 injector logs use
+    # "Cycle: ...". Both are the seed's own injection line.
     lines = [ln for ln in text.splitlines() if ln.startswith("Tick: ")]
+    if not lines:
+        lines = [ln for ln in text.splitlines() if ln.startswith("Cycle: ")]
     return lines[-1] if lines else ""
 
 

@@ -59,7 +59,7 @@
 注入日志原文（本 seed 自己的 `lsq_fwd_injections.log`）：
 
 ```text
-（无 Tick 注入行）
+Cycle: 33424, CPU: board.processor.cores.core, Site: store->load_forward, FaultType: bit_flip, Vaddr: 0x48fb70, FwdSize: 8, ByteOffset: 0, Mask: 10000000, StoreSeq: 11141, SqIdx: 840, LoadSeq: 11143, LqIdx: 657
 ```
 
 运行期触发/检测原文（本 seed 自己的 `seed2/run.out`）：
