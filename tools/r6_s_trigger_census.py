@@ -42,6 +42,18 @@ INTERVAL_CYCLES = {"F1": 2_600_000, "F2": 260_000, "F3": 26_000}
 # events; the 3 F4 cells are reachability-blocked, not spec-blocked.
 INTERVAL_EVENTS = {"F4": 100_000}
 
+# The census is over the ORIGINAL S-unit NO_FIRE round (frozen evidence in
+# runs/lsu/r6_s_unit).  The repair round re-ran some cells and changed their
+# current seed status (e.g. S10-F5 from NO_FIRE to CHAIN_INCOMPLETE_S10_MODEL);
+# that must NOT erase the historical reachability census.  This list is the
+# exact 20-cell original set.
+ORIGINAL_NO_FIRE = {
+ "S01-F1-W5","S01-F2-W5","S02-F2-W5","S04-F2-W0","S04-F2-W5",
+ "S05-F2-W3","S05-F2-W5","S06-F2-W5","S06-F2-W6","S07-F4-W5",
+ "S08-F2-W5","S09-F2-W5","S10-F5-W5","S10-F5-W9","S11-F4-W5",
+ "S11-F4-W6","S13-F1-W12","S13-F1-W5","S13-F2-W12","S13-F2-W5",
+}
+
 
 def _trigger(runout):
     """Prefer the ALARM line: it is the loud statement that the fire
@@ -99,7 +111,8 @@ def census():
     st = json.loads(STATUS.read_text())
     rows = []
     for r in st["rows"]:
-        if r.get("seed1") not in ("SEED1_NO_FIRE", "NO_FIRE"):
+        if (r["run_id"] not in ORIGINAL_NO_FIRE
+                and r.get("seed1") not in ("SEED1_NO_FIRE", "NO_FIRE")):
             continue
         rid = r["run_id"]
         tier = rid.split("-")[1]
