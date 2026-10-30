@@ -706,6 +706,17 @@ class CHAOSPropagation : public SimObject
                                    Addr *base_out = nullptr,
                                    const char **corr_out = nullptr);
 
+    // [R6-S-REPAIR2 2026-10-30] S11 lost-store real witnesses. The PRE hook
+    // zeroed the access size, so addReq() creates no Request and the store
+    // completes without any memory transaction. Emit the real L2
+    // request-suppressed observation at that deterministic point, and the
+    // L3 containment when the store actually completes with no request.
+    // Both look up the injection by seq (the size-0 registry entry) and
+    // never fabricate a Request/mem_req.
+    void noteStoreRequestSuppressed(uint64_t dyn_seq, Addr addr,
+                                    unsigned old_size);
+    void noteStoreLostContained(uint64_t dyn_seq, Addr addr);
+
     // [MDSPEC][H4] Block-address correlation for cache structural events
     // (access/fill/evict on a faulted block): return the ptag whose
     // faulted-byte registry overlaps [addr, addr+size); optionally return
@@ -1002,6 +1013,9 @@ class CHAOSPropagation : public SimObject
     // the faulting load's self-taint commit. Without this the store chain
     // honestly stopped at L3 (measured S04-F0-W5).
     std::map<uint64_t, TaintEntry> store_taint;
+
+    // [R6-S-REPAIR2] one real L3 containment per lost-store seq.
+    std::set<uint64_t> store_lost_contained;
 
     // [MDSPEC][H5] prefetch-request registry: one entry per prefetch
     // request keyed by its line base, carrying the request-level

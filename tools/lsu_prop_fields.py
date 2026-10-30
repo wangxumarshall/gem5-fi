@@ -131,6 +131,11 @@ KIND_LAYER = {
     "sq_entry": "L1",
     # [MDSPEC][H3] SQ 生命周期（execute/writeback/complete；drain 属 L3 访存侧）
     "sq_execute": "L3", "sq_writeback": "L3", "sq_complete": "L3",
+    # [R6-S-REPAIR2 2026-10-30] S11 lost-store real path: the PRE hook zeroed
+    # the size, so request formation is deterministically suppressed (L2);
+    # the store then completes with no memory transaction (L3 containment).
+    # No Request/mem_req is fabricated at either point.
+    "request_suppressed": "L2", "store_lost_contained": "L3",
     # [MDSPEC][H3-FWD] S 系转发故障（生产 store→消费 load 的转发数据被污染）
     "lsq_fwd": "L2",
     # [R6-S-REPAIR2 2026-10-30] S10 StoreSet SSIT 真实层级（用户工作令 §七）：
@@ -254,6 +259,15 @@ REQUIRED_FIELDS = {
     "sq_writeback": ["fault_id", "corr", "dyn_inst_seq", "sq_idx", "pa"],
     "sq_complete": ["fault_id", "corr", "dyn_inst_seq", "sq_idx", "va",
                     "state_after"],
+    # [R6-S-REPAIR2 2026-10-30] S11 lost-store real witnesses.
+    # request_suppressed = the empty byte-enable deterministically prevents
+    # Request formation (before=old size, after=0). store_lost_contained =
+    # the store completed with no memory transaction (L3 containment).
+    "request_suppressed": ["fault_id", "corr", "dyn_inst_seq", "va",
+                           "field", "before", "after", "state_before"],
+    "store_lost_contained": ["fault_id", "corr", "dyn_inst_seq", "va",
+                             "field", "state_after", "detection_layer",
+                             "contained", "outcome"],
     # [MDSPEC][H3-FWD] before/after = 转发数据被污染前后。
     # [MDSPEC][R4-1] seq/idx/request_id 为 PRIMARY 关联键（用户裁决
     # 2026-10-20）：dyn_inst_seq=消费 load 的 seq；store_dyn_inst_seq=
