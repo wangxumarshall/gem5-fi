@@ -72,9 +72,13 @@ W1 identity mismatch 清单（24 份）：`T01-F0-W1-seed1`、`T01-F0-W1-seed2`�
 
 ---
 
+---
+
+---
+
 ## R6-S（Store Queue 单元）逐 seed 传播路径
 
-- S seed 文档：**21**（7 RunID × 3 seed）
+- S seed 文档：**39**（7 RunID × 3 seed）
 - 全部 seed：binary SHA-256 `a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046`，binary_source_head `2498573f`
 - 判定口径：`oracle=Masked` + `terminal=detected_contained`（含 S06-F0-W6 seed2 的 `full`），admitted=True，certified=True，violations=[]；S06 seed1/seed2 与 S07 seed2 为 L3 containment（L4→L5 为 N/A）
 
@@ -101,3 +105,21 @@ W1 identity mismatch 清单（24 份）：`T01-F0-W1-seed1`、`T01-F0-W1-seed2`�
 | S07-F0-W5 | 1 | detected_contained | L5 | [`S07-F0-W5-seed1.md`](S07-F0-W5/S07-F0-W5-seed1.md) |
 | S07-F0-W5 | 2 | detected_contained | L3 | [`S07-F0-W5-seed2.md`](S07-F0-W5/S07-F0-W5-seed2.md) |
 | S07-F0-W5 | 3 | detected_contained | L5 | [`S07-F0-W5-seed3.md`](S07-F0-W5/S07-F0-W5-seed3.md) |
+| S01-F0-W5 | 1 | full | L5 | [`S01-F0-W5-seed1.md`](S01-F0-W5/S01-F0-W5-seed1.md) |
+| S01-F0-W5 | 2 | full | L5 | [`S01-F0-W5-seed2.md`](S01-F0-W5/S01-F0-W5-seed2.md) |
+| S02-F0-W5 | 1 | full | L5 | [`S02-F0-W5-seed1.md`](S02-F0-W5/S02-F0-W5-seed1.md) |
+| S02-F0-W5 | 2 | full | L5 | [`S02-F0-W5-seed2.md`](S02-F0-W5/S02-F0-W5-seed2.md) |
+| S08-F0-W5 | 1 | full | L5 | [`S08-F0-W5-seed1.md`](S08-F0-W5/S08-F0-W5-seed1.md) |
+| S08-F0-W5 | 3 | full | L5 | [`S08-F0-W5-seed3.md`](S08-F0-W5/S08-F0-W5-seed3.md) |
+| S09-F0-W5 | 1 | full | L5 | [`S09-F0-W5-seed1.md`](S09-F0-W5/S09-F0-W5-seed1.md) |
+| S13-F0-W1 | 1 | crash_translation_fault | L3 | [`S13-F0-W1-seed1.md`](S13-F0-W1/S13-F0-W1-seed1.md) |
+| S13-F0-W1 | 2 | crash_translation_fault | L3 | [`S13-F0-W1-seed2.md`](S13-F0-W1/S13-F0-W1-seed2.md) |
+| S13-F0-W5 | 1 | crash_translation_fault | L3 | [`S13-F0-W5-seed1.md`](S13-F0-W5/S13-F0-W5-seed1.md) |
+| S13-F0-W5 | 2 | crash_translation_fault | L3 | [`S13-F0-W5-seed2.md`](S13-F0-W5/S13-F0-W5-seed2.md) |
+| S13-F0-W5 | 3 | detected_contained | L5 | [`S13-F0-W5-seed3.md`](S13-F0-W5/S13-F0-W5-seed3.md) |
+| S13-F0-W12 | 1 | crash_translation_fault | L3 | [`S13-F0-W12-seed1.md`](S13-F0-W12/S13-F0-W12-seed1.md) |
+| S13-F0-W12 | 2 | crash_translation_fault | L3 | [`S13-F0-W12-seed2.md`](S13-F0-W12/S13-F0-W12-seed2.md) |
+| S13-F0-W12 | 3 | detected_contained | L5 | [`S13-F0-W12-seed3.md`](S13-F0-W12/S13-F0-W12-seed3.md) |
+| S13-F1-W1 | 1 | crash_translation_fault | L3 | [`S13-F1-W1-seed1.md`](S13-F1-W1/S13-F1-W1-seed1.md) |
+| S13-F1-W1 | 2 | crash_translation_fault | L3 | [`S13-F1-W1-seed2.md`](S13-F1-W1/S13-F1-W1-seed2.md) |
+| S13-F2-W1 | 1 | crash_translation_fault | L3 | [`S13-F2-W1-seed1.md`](S13-F2-W1/S13-F2-W1-seed1.md) |

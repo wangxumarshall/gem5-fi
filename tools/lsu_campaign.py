@@ -107,7 +107,11 @@ def wl_binary_path(binary):
 # every W1 run as a FABRICATED Timeout (injected=0). lsu_runner.TIMEOUTS
 # already freezes SE_W1=43200 s for exactly this reason; the campaign reuses
 # the same constant so the two drivers agree (no drift, no silent fake Timeout).
-SE_W1_TIMEOUT = 43200
+# [R6-S-REPAIR 2026-10-30] Bounded override for a repair-round rerun. The
+# historical W1 contract stays 43200 s by default (never changed silently);
+# an explicit LSU_SE_W1_TIMEOUT lets a bounded pilot cap a corrupted long run
+# and record an honest Timeout instead of blocking the batch for 12 h.
+SE_W1_TIMEOUT = int(os.environ.get("LSU_SE_W1_TIMEOUT", "43200"))
 
 # [LSU][R6-CAMPAIGN] Per-run wall-clock budgets. The FS default was 1800 s,
 # which silently killed FS runs that legitimately needed longer on this

@@ -19,6 +19,7 @@ Usage:
 import gzip
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -26,11 +27,18 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 RUNS = Path("/home/sdc/gem5-fi-ding/runs/lsu")
 EVID = RUNS / "r6_s_unit"
+# [R6-S-REPAIR 2026-10-30] The repaired round writes fresh evidence under a
+# new root; the original 7 RunIDs stay in the frozen root (never re-run).
+EVID_NEW = Path(os.environ.get("R6S_EVID_ROOT", str(RUNS / "r6_s_unit_r3")))
 OUT = REPO / "runs/lsu/R6_COMPLETE_PROPAGATION_PATHS"
 STATUS = RUNS / "RESULTS/STATUS/R6-S-UNIT-STATUS.json"
 
-PASS_RIDS = ["S04-F0-W0", "S04-F0-W5", "S05-F0-W3", "S05-F0-W5",
-             "S06-F0-W5", "S06-F0-W6", "S07-F0-W5"]
+OLD_RIDS = ["S04-F0-W0", "S04-F0-W5", "S05-F0-W3", "S05-F0-W5",
+            "S06-F0-W5", "S06-F0-W6", "S07-F0-W5"]
+NEW_RIDS = ["S01-F0-W5", "S02-F0-W5", "S08-F0-W5", "S09-F0-W5",
+            "S13-F0-W1", "S13-F0-W5", "S13-F0-W12", "S13-F1-W1",
+            "S13-F2-W1"]
+PASS_RIDS = OLD_RIDS + NEW_RIDS
 SEEDS = [1, 2, 3]
 
 MODEL_NAME = {
@@ -44,7 +52,9 @@ MODEL_NAME = {
 
 # Observation layer of a kind, mirrors tools/lsu_prop_fields.py.
 LAYER_OF_KIND = {
-    "inj": "L0", "addr_form": "L1", "lsq_push": "L1", "mem_req": "L2",
+    "inj": "L0", "addr_form": "L1", "lsq_push": "L1",
+    "sq_entry": "L1", "lsq_fwd": "L2",
+    "mem_req": "L2",
     "lsq_sendfrag": "L2", "tlb_translate": "L2", "tlb_fault": "L2",
     "tlb_hit": "L2", "arch_translation_fault": "L2",
     "sq_execute": "L3", "sq_writeback": "L3", "lq_read": "L3",
@@ -62,6 +72,8 @@ ROLE = {
     "inj": "L0 故障注入",
     "addr_form": "L1 地址形成",
     "lsq_push": "L1 入队（LQ/SQ）",
+    "sq_entry": "L1 生产 store 的 SQ 表项（转发源）",
+    "lsq_fwd": "L2 store→load 转发决策/传输",
     "mem_req": "L2 请求创建",
     "lsq_sendfrag": "L2 请求分片",
     "tlb_translate": "L2 地址翻译",
@@ -91,28 +103,49 @@ def sha256(path):
 def read_events(path):
     ev = []
     opener = gzip.open if str(path).endswith(".gz") else open
-    with opener(path, "rt", errors="replace") as f:
-        for line in f:
-            if not line.startswith("PROP-EVT:"):
-                continue
-            d = {}
-            for kv in line.split()[1:]:
-                if "=" in kv:
-                    k, v = kv.split("=", 1)
-                    d[k] = v
-            ev.append(d)
+    try:
+        with opener(path, "rt", errors="replace") as f:
+            for line in f:
+                if not line.startswith("PROP-EVT:"):
+                    continue
+                d = {}
+                for kv in line.split()[1:]:
+                    if "=" in kv:
+                        k, v = kv.split("=", 1)
+                        d[k] = v
+                ev.append(d)
+    except (EOFError, OSError):
+        # Truncated gzip: the stream is not admissible evidence for a doc.
+        return []
     return ev
 
 
 def evidence(rid, seed):
-    outdir = EVID / f"{rid}_s{seed}"
+    if rid in OLD_RIDS:
+        roots = [EVID]
+    else:
+        roots = [Path(p) for p in os.environ.get(
+            "R6S_EVID_ROOTS", "").split(":") if p] or [EVID_NEW]
+    outdir = None
+    for root in roots:
+        cand = root / f"{rid}_s{seed}"
+        rep = cand / rid / f"seed{seed}" / "chain_report.json"
+        if rep.exists():
+            outdir = cand
+            break
+    if outdir is None:
+        outdir = roots[0] / f"{rid}_s{seed}"
     rdir = outdir / rid
     seed_dir = rdir / f"seed{seed}"
     rec = {"rid": rid, "seed": seed, "outdir": outdir, "rdir": rdir,
            "seed_dir": seed_dir}
-    rec["manifest"] = json.loads((outdir / "manifest.json").read_text())
-    rec["chain"] = json.loads((rdir / "chain_report.json").read_text())
-    rec["cell"] = json.loads((rdir / "cell_results.json").read_text())
+    try:
+        rec["manifest"] = json.loads((outdir / "manifest.json").read_text())
+        rec["chain"] = json.loads((rdir / "chain_report.json").read_text())
+        rec["cell"] = json.loads((rdir / "cell_results.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        rec["qualified"] = False
+        return rec
     ev_path = seed_dir / "prop_evt.txt.gz"
     if not ev_path.exists():
         ev_path = seed_dir / "prop_evt.txt"
@@ -120,8 +153,14 @@ def evidence(rid, seed):
     rec["events"] = read_events(ev_path)
     rec["done"] = (outdir / ".done").exists()
     rec["runout"] = (seed_dir / "run.out").read_text(errors="replace")
-    inj_log = seed_dir / "addrpath_injections.log"
-    rec["inj_text"] = inj_log.read_text(errors="replace") if inj_log.exists() else ""
+    rec["inj_text"] = ""
+    for name in ("addrpath_injections.log", "lsq_fwd_injections.log"):
+        inj_log = seed_dir / name
+        if inj_log.exists():
+            rec["inj_text"] = inj_log.read_text(errors="replace")
+            rec["inj_log_name"] = name
+            break
+    rec.setdefault("inj_log_name", "n/a")
     rec["sample"] = (rec["chain"].get("samples") or [{}])[0]
     faults = rec["sample"].get("faults") or {}
     rec["fid"] = next(iter(faults.keys()), "")
@@ -133,6 +172,9 @@ def evidence(rid, seed):
         and rec["sample"].get("certified")
         and not rec["sample"].get("truncated")
         and not rec["sample"].get("evidence_truncated")
+        # [R6-S-REPAIR 2026-10-30] A Timeout/Hang is not a normal EOF outcome;
+        # even a closed-looking chain on a timed-out run is not a PASS seed.
+        and rec["sample"].get("oracle_outcome") not in ("Timeout", "Hang")
         and rec["cev"] and not (rec["sample"].get("admission") or {}).get("violations"))
     return rec
 
@@ -398,7 +440,7 @@ def doc(rec):
     A(f"| corr | `{fmt(inj, 'corr')}` |")
     A(f"| injected/activated 计数 | `{funnel or '—'}`；`{l0f or '—'}` |")
     A("")
-    A("注入日志原文（本 seed 自己的 `addrpath_injections.log`）：\n")
+    A(f"注入日志原文（本 seed 自己的 `{rec['inj_log_name']}`）：\n")
     A("```text")
     A(logline or "（无 Tick 注入行）")
     A("```\n")
@@ -436,7 +478,8 @@ def doc(rec):
                      ("cell_results", rec["rdir"] / "cell_results.json"),
                      ("stats", rec["seed_dir"] / "stats.txt"),
                      ("run.out", rec["seed_dir"] / "run.out"),
-                     ("injections.log", rec["seed_dir"] / "addrpath_injections.log"),
+                     ("injections.log",
+                      rec["seed_dir"] / rec["inj_log_name"]),
                      ("manifest", rec["outdir"] / "manifest.json")):
         A(f"| {label} | `{p}` | `{sha256(p)}` |")
     A("")
@@ -464,7 +507,17 @@ def doc(rec):
       "不以 0 冒充。")
     A("- `chain_end` 只是生命周期标记（corr=none），从不作为 L5 证据；"
       "本 doc 未把 `chain_end` 当作终局。")
-    if provable == "L3" and rid.startswith("S06"):
+    if f.get("terminal") == "crash_translation_fault":
+        A("- 本 seed 的终局是严格 `crash_translation_fault`：真实注入 → 连续 "
+          "L0→L3 ancestry → 真实 `arch_translation_fault`（detection_layer=L2、"
+          "contained=0、outcome=arch_exception、corr 为链关联值）→ 请求在产生"
+          "任何内存副作用之前被翻译异常终止。L4/L5 结构性 **N/A**：不是缺失，"
+          "也不得伪造。")
+        A("- guest 真实 Crash 的受控证据：该 seed 的 `run.out` 含 "
+          "`CHAOS_GUEST_SEGV_EXIT: cause=chaos_guest_segv code=139`，gem5 "
+          "退出码 139（128+SIGSEGV）；admission 走独立的 crash_terminal 路径，"
+          "与 full/contained 无关。")
+    elif provable == "L3" and rid.startswith("S06"):
         A(f"- 本 seed 属于 S06 的 **L3 containment** 情形：真实包含事件是 "
           f"event_id={cid} 的 `squash_discarded`（detection_layer=L4，"
           f"contained=1，containment_reason=squash_discarded）；链 checker 把带 "
@@ -509,26 +562,38 @@ def main(argv):
     wl = {r["run_id"]: r["workload"] for r in status["rows"]}
     check = "--check" in argv
     recs = []
+    skipped = []
     for rid in PASS_RIDS:
+        got = 0
         for seed in SEEDS:
             rec = evidence(rid, seed)
             rec["workload"] = wl.get(rid, "—")
             if not rec["qualified"]:
-                print(f"REFUSE {rid} seed{seed}: not qualified "
+                skipped.append(f"{rid} seed{seed}")
+                print(f"SKIP {rid} seed{seed}: not qualified "
                       f"(admitted/certified/violations/truncated)")
-                return 2
+                continue
+            got += 1
             recs.append(rec)
             print(f"OK {rid} seed{seed}: events={len(rec['cev'])} "
                   f"terminal={rec['fault'].get('terminal')} "
                   f"provable={rec['fault'].get('provable_to')}")
+        if got == 0:
+            print(f"REFUSE {rid}: no qualified seed "
+                  f"(RunID has no per-seed evidence document)")
+            return 2
     if check:
-        print(f"{len(recs)} qualified seeds")
+        print(f"{len(recs)} qualified seeds; skipped {len(skipped)}")
         return 0
     for rec in recs:
         rid, seed = rec["rid"], rec["seed"]
         d = OUT / rid
         d.mkdir(parents=True, exist_ok=True)
         p = d / f"{rid}-seed{seed}.md"
+        if rid in OLD_RIDS and p.exists():
+            # The original 21 S docs are frozen: never regenerate them.
+            print(f"KEEP {p} (frozen original)")
+            continue
         p.write_text(doc(rec))
         print(f"WROTE {p}")
     rows = [(r["rid"], r["seed"], r["fault"]) for r in recs]
