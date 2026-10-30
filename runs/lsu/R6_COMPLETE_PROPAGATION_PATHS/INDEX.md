@@ -78,9 +78,9 @@ W1 identity mismatch 清单（24 份）：`T01-F0-W1-seed1`、`T01-F0-W1-seed2`�
 
 ## R6-S（Store Queue 单元）逐 seed 传播路径
 
-- S seed 文档：**39**（7 RunID × 3 seed）
-- 全部 seed：binary SHA-256 `a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046`，binary_source_head `2498573f`
-- 判定口径：`oracle=Masked` + `terminal=detected_contained`（含 S06-F0-W6 seed2 的 `full`），admitted=True，certified=True，violations=[]；S06 seed1/seed2 与 S07 seed2 为 L3 containment（L4→L5 为 N/A）
+- S seed 文档：**39**（16 RunID；原始 7 RunID×3 seed 冻结 21 份，本轮修复轮新增 18 份）
+- 两批二进制：原始 21 份 `a1632e0f1d24be639044d24bac8e6fd902d0a6642b276fd430927471643e7046`（source `2498573f`）；本轮 18 份 `686458c34ab7199a07ec4a968c3bbfe40e0d7514cccc2ee0d181a68621b7cef9`（source `5b550954+dirty:d55db8d6b7bb78fb35addf191a45b3d6bb7b19b9006770aa4c1c9beb7ac2b876`），各文档第 1/7 章自证
+- 判定口径：admitted=True、certified=True、violations=[]、非 truncated；terminal/provable_to 逐行列出。原始 7 RunID 为 detected_contained（S06-F0-W6 seed2 为 full）；本轮新增 S01/S02/S08/S09 的 full L5 与 S13 的 `crash_translation_fault`（provable_to=L3，L4/L5=N/A）及 detected_contained 混合。
 
 | RunID | seed | terminal | provable_to | 文档 |
 |---|---|---|---|---|
