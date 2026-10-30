@@ -205,9 +205,13 @@ def main():
 
     print("[7] [R4-1-review-I2] 每 (模型,负载) span 表 + 未测量对的响亮拒绝")
     camp = (ROOT / "tools/lsu_campaign.py").read_text()
+    # [R6-S-REPAIR2 2026-10-30] Re-censused with the campaign's EXACT
+    # absolute-path command (guest argv[0] length is timing-visible):
+    # S01/S02=6, S08=1, S09=6 (old relative-path readings 7/7/2/7).
+    # Evidence: docs/gem5-fi/lsu/evidence/R6-S-REPAIR2-CENSUS.md.
     check("LSQFWD_F0_SPAN per-(model,workload) table exists",
           "LSQFWD_F0_SPAN = {" in camp
-          and '("S01", "sq_forward"): 7' in camp)
+          and '("S01", "sq_forward"): 6' in camp)
     check("no family-wide lsqfwd span constant remains",
           '"--lsqfwd_span_events", "7"' not in camp)
     check("unmeasured F0 (model,workload) refused loudly",
@@ -228,8 +232,8 @@ def main():
         check(f"{pair[0]}@{pair[1]} span measured (integer)",
               entries.get(pair) is not None and entries[pair].isdigit(),
               str(entries.get(pair)))
-    check("S08's own stream measured (2, not the corrupt-path 7)",
-          entries.get(("S08", "sq_forward")) == "2")
+    check("S08's own stream measured (1, not the corrupt-path 7)",
+          entries.get(("S08", "sq_forward")) == "1")
     check("L03 stream is workload-dependent (571 vs 18681 measured)",
           entries.get(("L03", "sq_forward")) == "571"
           and entries.get(("L03", "sqlite_like")) == "18681")

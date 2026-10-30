@@ -15,6 +15,7 @@
 #include "cpu/o3/dyn_inst.hh"   // [MDSPEC][R4-5.3] full DynInst (resp-pair)
 #include "debug/LSQUnit.hh"
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [MDSPEC][H3-FWD]
+#include "base/chaos_guest_fault.hh"  // [R6-S-REPAIR2] guest-SEGV teardown arm
 
 namespace gem5
 {
@@ -305,6 +306,12 @@ namespace gem5
                           int byte_off, int mask, const FwdCorrelKeys &keys,
                           const o3::DynInstPtr &load_inst, const void *data)
     {
+        // [R6-S-REPAIR2 2026-10-30] A real LSQFwd injection can leave the
+        // guest with a corrupted value that is later dereferenced as a wild
+        // pointer. Arm the same controlled guest-SEGV teardown CHAOSAddrPath
+        // uses; without it the SE page-table-fault path panics and truncates
+        // stats/prop_evt (S09-F0-W5 seed2). Arm-only: no VA is registered.
+        chaos::noteChaosInjection();
         // [MDSPEC][H3-FWD] register the forwarding fault with the propagation
         // tracer — writeLog is the single chokepoint every S01/S02/S03/S09
         // data-path injection passes through, so one hook covers them all.
@@ -553,6 +560,8 @@ namespace gem5
         memcpy(load_data, alt_src, n);
         stats->numFaultsInjected++;
         ++faults_injected_count;
+        // [R6-S-REPAIR2 2026-10-30] real injection: arm controlled guest SEGV.
+        chaos::noteChaosInjection();
         // [R6-S-FWD 2026-10-30] fwd_source_sub rides the SAME real
         // registration/emission path as the data-path corruption: the inj
         // node names the consuming load, and the real L1->L4 lifecycle is
@@ -663,6 +672,8 @@ namespace gem5
         ++faults_injected_count;
         ++l0_funnel.injected;
         ++l0_funnel.activated;
+        // [R6-S-REPAIR2 2026-10-30] real injection: arm controlled guest SEGV.
+        chaos::noteChaosInjection();
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream()) << "Cycle: " << cpu->curCycle()
                 << ", Site: checkViolations_L03"
@@ -784,6 +795,8 @@ namespace gem5
         ++faults_injected_count;
         if (stats)
             stats->numFaultsInjected++;
+        // [R6-S-REPAIR2 2026-10-30] real injection: arm controlled guest SEGV.
+        chaos::noteChaosInjection();
         // Injection-log line (L0 parses the "Tick: …, Site: …, mode=…,
         // faults_injected:" contract — tools/lsu_obs_core._INJ_RE; the
         // source/target IDs are the L04 pairing keys the spec requires to
@@ -1187,6 +1200,8 @@ namespace gem5
         ++s10_active->faults_injected_count;
         if (s10_active->stats)
             s10_active->stats->numFaultsInjected++;
+        // [R6-S-REPAIR2 2026-10-30] real S10 injection: arm guest SEGV.
+        chaos::noteChaosInjection();
         // [R6-S-S10 2026-10-30] F5 separates fire from outcome: report the
         // REAL write so trigger.injected == injection log == stats (pre-fix
         // fires=3 / outcomes_recorded=0 / injected=0 was a reporting bug).

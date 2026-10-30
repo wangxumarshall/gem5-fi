@@ -55,6 +55,18 @@ noteChaosAddrPathActive()
     guestSegvArmed() = true;
 }
 
+// [R6-S-REPAIR2 2026-10-30] Any real CHAOS fault injection (not only
+// CHAOSAddrPath) can produce a wild pointer that page-table-faults in SE.
+// Arm the same controlled guest-SEGV teardown from the injector's real
+// injection sink. This only flips the armed flag; it never registers a VA,
+// so a downstream fault stays honestly unattributed (no fabricated
+// arch_translation_fault terminal). Baseline runs never arm this flag.
+inline void
+noteChaosInjection()
+{
+    guestSegvArmed() = true;
+}
+
 inline void
 noteInjectedGuestVa(Addr va)
 {
