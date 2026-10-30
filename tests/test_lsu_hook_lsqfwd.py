@@ -44,7 +44,12 @@ def check(name, cond, detail=""):
 
 def main():
     print("[1] lsq_fwd kind→层级 + 必录字段（PRIMARY 关联键）")
-    check("lsq_fwd -> L3", P.KIND_LAYER.get("lsq_fwd") == "L3",
+    # [R6-S-FWD 2026-10-30] lsq_fwd is the forward DECISION/TRANSFER (L2);
+    # the producer SQ entry is the L1 witness and the forwarded response is
+    # L3. The old L3 mapping made L1->L2 structurally unprovable.
+    check("sq_entry -> L1", P.KIND_LAYER.get("sq_entry") == "L1",
+          str(P.KIND_LAYER.get("sq_entry")))
+    check("lsq_fwd -> L2", P.KIND_LAYER.get("lsq_fwd") == "L2",
           str(P.KIND_LAYER.get("lsq_fwd")))
     req = P.REQUIRED_FIELDS.get("lsq_fwd")
     check("lsq_fwd required fields registered", req is not None)

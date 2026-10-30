@@ -19,19 +19,24 @@ FORCE="${FORCE:-0}"
 
 MAIN=/home/sdc/gem5-fi-ding
 REPO=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-s-unit-20261029
-BIN=/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/CHAOS/gem5/build/ARM/gem5.opt
+# [R6-S-BUILD 2026-10-30] The repair round uses THIS worktree's unified build
+# (new C++: LSQ-forwarding lifecycle, S08 registration, S10 cap/outcome).
+# Overridable for a frozen binary if a rerun must reproduce old behavior.
+BIN="${GEM5_BIN:-$REPO/CHAOS/gem5/build/ARM/gem5.opt}"
 MATRIX="$MAIN/runs/lsu/r6_matrix_325.csv"
 RUNS="$MAIN/runs/lsu"
-OUT="$RUNS/r6_s_unit/${RUNID}_s${SEED}"
-LOG="$RUNS/r6_s_unit/${RUNID}_s${SEED}.log"
-LOCK="$RUNS/r6_s_unit/.lock_${RUNID}_s${SEED}"
-# Binary build source head is a FIXED provenance fact (verified: no C++ delta to
-# HEAD). It must NOT be replaced by the analysis tool head.
-BIN_SOURCE_HEAD="2498573fddaf67bdbca7b1461443ae9e926e650b"
+# Fresh output root for reruns: NEVER overwrite the original failure scenes.
+OUT_ROOT="${R6S_OUT_ROOT:-$RUNS/r6_s_unit_r2}"
+OUT="$OUT_ROOT/${RUNID}_s${SEED}"
+LOG="$OUT_ROOT/${RUNID}_s${SEED}.log"
+LOCK="$OUT_ROOT/.lock_${RUNID}_s${SEED}"
+# Build source provenance (HEAD + dirty-diff SHA at build time). Overridable;
+# never replaced by the analysis tool head.
+BIN_SOURCE_HEAD="${GEM5_SOURCE_HEAD:-UNRECORDED}"
 TIMEOUT="${TIMEOUT:-300}"
 PY=python3
 
-mkdir -p "$RUNS/r6_s_unit"
+mkdir -p "$OUT_ROOT"
 [ -x "$BIN" ] || { echo "FATAL: missing binary $BIN" >&2; exit 2; }
 [ -f "$MATRIX" ] || { echo "FATAL: missing matrix $MATRIX" >&2; exit 2; }
 

@@ -36,6 +36,11 @@ TICKS_PER_SECOND = 1_000_000_000_000
 CPU_HZ = 2_600_000_000
 TICKS_PER_CYCLE = round(TICKS_PER_SECOND / CPU_HZ)          # 385
 INTERVAL_CYCLES = {"F1": 2_600_000, "F2": 260_000, "F3": 26_000}
+# [R6-S-B2/B3 2026-10-30] F4 IS authoritatively defined (LSU spec: every
+# 100,000 eligible events, then 2-4 consecutive pollutions) and is
+# EVENT-counted, not cycle-counted. Its first-fire floor is 100,000 eligible
+# events; the 3 F4 cells are reachability-blocked, not spec-blocked.
+INTERVAL_EVENTS = {"F4": 100_000}
 
 
 def _trigger(runout):
@@ -57,6 +62,39 @@ def _simticks(stats):
     return None
 
 
+def _field(line, key):
+    m = re.search(rf" {key}=(\S+)", line or "")
+    if not m or m.group(1) in ("n/a", ""):
+        return None
+    try:
+        return int(m.group(1))
+    except ValueError:
+        return m.group(1)
+
+
+def _log_lines(seed_dir):
+    p = seed_dir / "lsq_fwd_injections.log"
+    if not p.exists():
+        return None
+    return len([ln for ln in p.read_text(errors="replace").splitlines()
+                if "faults_injected:" in ln])
+
+
+def _stats_injected(seed_dir):
+    p = seed_dir / "stats.txt"
+    if not p.exists():
+        return None
+    for ln in p.read_text(errors="replace").splitlines():
+        if ".numFaultsInjected" in ln:
+            parts = ln.split()
+            if len(parts) >= 2:
+                try:
+                    return int(parts[1])
+                except ValueError:
+                    return None
+    return None
+
+
 def census():
     st = json.loads(STATUS.read_text())
     rows = []
@@ -70,26 +108,99 @@ def census():
         stats = (seed_dir / "stats.txt")
         trig = _trigger(runout.read_text(errors="replace")) if runout.exists() else ""
         simticks = _simticks(stats.read_text(errors="replace")) if stats.exists() else None
+        eligible_total = _field(trig, "eligible")
         iv = INTERVAL_CYCLES.get(tier)
-        floor = iv * TICKS_PER_CYCLE if iv else None
-        if "ALARM" in trig or "F5_UNREPORTED_OUTCOME" in trig:
-            cls = "BLOCKED_TRIGGER_REPORTING"
-            reason = "injector fired but recorded no outcome (F5 reporting gap)"
-        elif floor is None:
-            cls = "BLOCKED_TRIGGER_SEMANTICS"
-            reason = f"tier {tier} is not interval-based; needs its own census"
-        elif simticks is not None and simticks < floor:
-            cls = "BLOCKED_TRIGGER_REACHABILITY"
-            reason = (f"whole run simTicks={simticks} < earliest fire "
-                      f"{floor} ({iv} cycles x {TICKS_PER_CYCLE})")
-        else:
-            cls = "REACHABLE_NOT_FIRED"
-            reason = (f"simTicks={simticks} >= floor {floor}: a bounded "
-                      "re-run can reach the first fire position")
-        rows.append({"run_id": rid, "tier": tier, "trigger": trig,
-                     "simTicks": simticks, "interval_cycles": iv,
-                     "earliest_fire_tick": floor, "classification": cls,
-                     "reason": reason})
+        floor_tick = iv * TICKS_PER_CYCLE if iv else None
+        floor_events = INTERVAL_EVENTS.get(tier)
+
+        row = {"run_id": rid, "tier": tier, "trigger": trig,
+               "simTicks": simticks, "eligible_total": eligible_total,
+               "interval_cycles": iv, "earliest_fire_tick": floor_tick,
+               "earliest_fire_events": floor_events}
+
+        if "F5_UNREPORTED_OUTCOME" in trig:
+            inj = _field(trig, "injected")
+            fires = _field(trig, "fires")
+            outcomes = _field(trig, "outcomes_recorded")
+            logn = _log_lines(seed_dir)
+            statsn = _stats_injected(seed_dir)
+            contradiction = bool(
+                (logn is not None and inj is not None and logn != inj)
+                or (logn is not None and statsn is not None
+                    and logn != statsn))
+            row.update({
+                "classification": "BLOCKED_TRIGGER_REPORTING",
+                "fires": fires, "outcomes_recorded": outcomes,
+                "injected": inj, "log_lines": logn,
+                "stats_numFaultsInjected": statsn,
+                "count_contradiction": contradiction,
+                "reason": ("injector fired but recorded no outcome "
+                           f"(fires={fires} outcomes_recorded={outcomes} "
+                           f"injected={inj}); three-way counts "
+                           f"trigger/log/stats = {inj}/{logn}/{statsn}"),
+                "unblock_condition": ("fix the injector's F5 outcome "
+                                      "reporting and re-run this seed; the "
+                                      "trigger/log/stats counts must agree "
+                                      "(fires == injected + no_effect)"),
+            })
+            rows.append(row)
+            continue
+
+        if floor_tick is not None:
+            if simticks is not None and simticks < floor_tick:
+                cls = "BLOCKED_TRIGGER_REACHABILITY"
+                reason = (f"whole run simTicks={simticks} < earliest fire "
+                          f"{floor_tick} ({iv} cycles x {TICKS_PER_CYCLE}); "
+                          "the program exits before the first fire")
+                unblock = ("requires a workload whose WHOLE run lasts at "
+                           f"least {floor_tick} simTicks, or an authoritative "
+                           "tier re-assignment; no wall timeout can reach a "
+                           "fire position the program never reaches")
+            else:
+                cls = "REACHABLE_NOT_FIRED"
+                reason = (f"simTicks={simticks} >= floor {floor_tick}: a "
+                          "bounded re-run can reach the first fire position")
+                unblock = "bounded re-run with the SAME seed and budget"
+            row.update({"classification": cls, "reason": reason,
+                        "unblock_condition": unblock,
+                        "count_contradiction": False})
+            rows.append(row)
+            continue
+
+        if floor_events is not None:
+            if (isinstance(eligible_total, int)
+                    and eligible_total < floor_events):
+                cls = "BLOCKED_TRIGGER_REACHABILITY"
+                reason = (f"whole run eligible={eligible_total} < F4 first-"
+                          f"fire floor {floor_events} eligible events "
+                          "(authoritative: every 100,000 eligible events, "
+                          "then 2-4 consecutive pollutions)")
+                unblock = ("requires a workload with at least "
+                           f"{floor_events} eligible events in its whole "
+                           "run, or an authoritative tier re-assignment; "
+                           "seed hunting is forbidden")
+            else:
+                cls = "REACHABLE_NOT_FIRED"
+                reason = (f"eligible={eligible_total} >= floor "
+                          f"{floor_events}: a bounded re-run can reach the "
+                          "first fire position")
+                unblock = "bounded re-run with the SAME seed and budget"
+            row.update({"classification": cls, "reason": reason,
+                        "unblock_condition": unblock,
+                        "count_contradiction": False})
+            rows.append(row)
+            continue
+
+        row.update({
+            "classification": "BLOCKED_TRIGGER_SEMANTICS",
+            "reason": (f"tier {tier} has no authoritative interval/frequency "
+                       "definition in the LSU spec; it cannot be run"),
+            "unblock_condition": ("requires an authoritative specification "
+                                  "of this tier's cycle/event interval before "
+                                  "any run; inventing a frequency is forbidden"),
+            "count_contradiction": False,
+        })
+        rows.append(row)
     return rows
 
 

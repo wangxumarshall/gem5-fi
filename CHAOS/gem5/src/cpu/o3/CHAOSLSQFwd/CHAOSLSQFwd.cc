@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstring>     // [R6-S-FWD] strcmp (model-field routing)
 #include <cstdio>      // [MDSPEC][R4-5.7b] printf (CHAOS_LSU_S10_FORK line)
 #include <algorithm>   // [MDSPEC][R4-5.7] std::find (S10 candidate dedup)
 
@@ -299,9 +300,10 @@ namespace gem5
         return mask;
     }
 
-    void
+    uint64_t
     CHAOSLSQFwd::writeLog(const char *type, unsigned size, Addr vaddr,
-                          int byte_off, int mask, const FwdCorrelKeys &keys)
+                          int byte_off, int mask, const FwdCorrelKeys &keys,
+                          const o3::DynInstPtr &load_inst, const void *data)
     {
         // [MDSPEC][H3-FWD] register the forwarding fault with the propagation
         // tracer — writeLog is the single chokepoint every S01/S02/S03/S09
@@ -315,33 +317,27 @@ namespace gem5
         // join by seq); the byte range stays in the blk registry as the
         // LABELED address-only fallback. store_dyn_inst_seq == 0 (seq
         // genuinely unavailable) degrades to corr=addr_fallback.
+        uint64_t ptag = 0;
         if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
-            const uint64_t ptag = tr->registerLSQForwardFault(
+            ptag = tr->registerLSQForwardFault(
                 keys.store_dyn_inst_seq, keys.sq_idx, keys.store_request_id,
                 keys.load_dyn_inst_seq, keys.lq_idx, keys.load_request_id,
-                vaddr, size ? size : 1, "lsqfwd_forward");
-            if (ptag) {
-                std::ostringstream a;
-                a << std::hex << vaddr;
-                tr->notePropEvt("lsq_fwd", {
-                    {"fault_id", std::to_string(ptag)},
-                    {"dyn_inst_seq", std::to_string(keys.load_dyn_inst_seq)},
-                    {"store_dyn_inst_seq",
-                     std::to_string(keys.store_dyn_inst_seq)},
-                    {"sq_idx", std::to_string(keys.sq_idx)},
-                    {"lq_idx", std::to_string(keys.lq_idx)},
-                    {"request_id", std::to_string(keys.load_request_id)},
-                    {"va", a.str()},
-                    {"pa", a.str()},
-                    {"field", type},
-                    {"before", "store_data"},
-                    {"after", std::string("fwd_corrupt:") + type},
-                    {"corr", keys.store_dyn_inst_seq ? "seq_primary"
-                                                     : "addr_fallback"},
-                });
-            }
+                vaddr, size ? size : 1,
+                type && strcmp(type, "fwd_source_sub") == 0
+                    ? "fwd_source_sub" : "lsqfwd_forward");
+            // [R6-S-FWD 2026-10-30] The real forward lifecycle (L1 sq_entry ->
+            // L2 lsq_fwd -> L3 resp -> L4 taint_reg) plus the consuming load's
+            // seq registration. A forwarded load has no memory response, so
+            // this is the only place its dest registers can be tainted.
+            if (ptag)
+                tr->noteForwardedLoad(
+                    load_inst ? load_inst.get() : nullptr,
+                    vaddr, size ? size : 1, ptag,
+                    keys.store_dyn_inst_seq, keys.sq_idx, keys.lq_idx,
+                    keys.load_request_id,
+                    /*true_store_seq=*/0, type, data);
         }
-        if (!write_log) return;
+        if (!write_log) return ptag;
         *(log_stream->stream())
             << "Cycle: " << cpu->curCycle()
             << ", CPU: " << cpu->name()
@@ -356,14 +352,16 @@ namespace gem5
             << ", LoadSeq: " << keys.load_dyn_inst_seq
             << ", LqIdx: " << keys.lq_idx
             << std::endl;
+        return ptag;
     }
 
-    void
+    bool
     CHAOSLSQFwd::corrupt(uint8_t *data, unsigned size, Addr vaddr,
-                         const FwdCorrelKeys &keys)
+                         const FwdCorrelKeys &keys,
+                         const o3::DynInstPtr &load_inst)
     {
         // Hot-path short-circuit: no injection configured.
-        if (probability <= 0.0f) return;
+        if (probability <= 0.0f) return false;
         // fwd_source_sub injects at the DECISION point (maybeSubstituteSource,
         // called before the memcpy); this post-forward corrupt hook must NOT
         // also fire in that mode (double-injection bug found in Phase 4.2
@@ -371,53 +369,54 @@ namespace gem5
         // in fwd_source_sub mode — the old hook was still active).
         // phase_offset likewise acts at the WRITEBACK-SCHEDULE point
         // (maybeDelayForward) — no data mutation there either.
-        if (struct_mode == StructMode::FwdSourceSub) return;
-        if (struct_mode == StructMode::PhaseOffset) return;
+        if (struct_mode == StructMode::FwdSourceSub) return false;
+        if (struct_mode == StructMode::PhaseOffset) return false;
         // [LSU][SEM-B] L03 hook split: with --lsqfwd_l03 the SQ-forward
         // data path is NOT L03's event source — the trigger stream must be
         // violation checks only (checkViolations site), not the mixed stream.
-        if (l03_mode) return;
+        if (l03_mode) return false;
         // [MDSPEC][R4-5.3] L04 hook split, same discipline: with
         // --lsqfwd_l04 the SQ-forward data path is NOT L04's event source —
         // the trigger stream is the response-pairing point only
         // (LSQUnit::completeDataAccess, maybeSwapResponseTarget).
-        if (l04_mode) return;
+        if (l04_mode) return false;
         // [MDSPEC][R4-5.7] S10 hook split, same discipline: with
         // --lsqfwd_s10 the SQ-forward data path is NOT S10's event source —
         // the trigger stream is the StoreSet SSIT-training point only
         // (StoreSet::violation, chaosS10* hooks).
-        if (s10_mode) return;
+        if (s10_mode) return false;
         // [MDSPEC][R4-9-FSMC] O06/O07 hook split, same discipline: with
         // --lsqfwd_o06/--lsqfwd_o07 the SQ-forward data path is NOT the
         // model's event source — the trigger stream is the barrier-SN
         // bookkeeping in MemDepUnit (cpu/o3/chaos_barrier_hook.hh).
-        if (o06_mode || o07_mode) return;
+        if (o06_mode || o07_mode) return false;
         if (lsuTrigger) {
             // LSU W2/W5 path (05 r2-r8): the event-normalized trigger owns
             // warm-up/repetition semantics; the legacy cycle window,
             // events_to_skip and the Bernoulli roll do NOT apply here.
             lsuTrigger->onAttempt();
-            if (!lsuTrigger->onEligible()) return;
+            if (!lsuTrigger->onEligible()) return false;
         } else {
             Cycles cur = cpu->curCycle();
-            if (cur < first_clock) return;
-            if (last_clock != Cycles(0) && cur > last_clock) return;
-            if (max_faults != 0 && faults_injected_count >= max_faults) return;
+            if (cur < first_clock) return false;
+            if (last_clock != Cycles(0) && cur > last_clock) return false;
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
 
             // Sampling-bias fix (findings.md Phase 2.2): skip the first N
             // eligible forwarding events (N ~ geometric(0.1) from the seed)
             // so the single fault lands on a seed-dependent event.
-            if (count_only) { ++eligible_count; return; }
+            if (count_only) { ++eligible_count; return false; }
             if (events_to_skip > 0) {
                 --events_to_skip;
-                return;
+                return false;
             }
 
             // Bernoulli: does this forwarding event get corrupted?
             std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-            if (dist(rng) >= probability) return;
+            if (dist(rng) >= probability) return false;
         }
-        if (size == 0) return;
+        if (size == 0) return false;
 
         // §2.4 structured fault modes (fi-h6-h7 branch, H5 closed):
         if (struct_mode == StructMode::ByteLaneSkew) {
@@ -433,19 +432,24 @@ namespace gem5
             }
             stats->numFaultsInjected++;
             ++faults_injected_count;
-            writeLog("byte_lane_skew", size, vaddr, lane_skew_k, 0, keys);
+            writeLog("byte_lane_skew", size, vaddr, lane_skew_k, 0, keys,
+                     load_inst, data);
+            if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+                lsuTrigger->noteOutcome(true);
             DPRINTF(LSQUnit, "CHAOSLSQFwd: byte_lane_skew rol %d (vaddr=%#x)\n",
                     lane_skew_k, vaddr);
-            return;
+            return true;
         }
         if (struct_mode == StructMode::AllZero) {
             for (unsigned i = 0; i < size; i++) data[i] = 0;
             stats->numFaultsInjected++;
             ++faults_injected_count;
-            writeLog("all_zero", size, vaddr, 0, 0, keys);
+            writeLog("all_zero", size, vaddr, 0, 0, keys, load_inst, data);
+            if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+                lsuTrigger->noteOutcome(true);
             DPRINTF(LSQUnit, "CHAOSLSQFwd: all_zero (vaddr=%#x size=%u)\n",
                     vaddr, size);
-            return;
+            return true;
         }
 
         // Choose byte to corrupt.
@@ -483,10 +487,16 @@ namespace gem5
         }
         stats->numFaultsInjected++;
         ++faults_injected_count;
-        writeLog(faultTypeToString(chosen), size, vaddr, off, mask, keys);
+        writeLog(faultTypeToString(chosen), size, vaddr, off, mask, keys,
+                 load_inst, data);
+        // [R6-A-F5COUNT discipline] F5 separates fire from outcome: report the
+        // effective write so trigger.injected matches the log/stats.
+        if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
         DPRINTF(LSQUnit, "CHAOSLSQFwd: corrupted forwarded byte %d (vaddr=%#x "
                 "mask=%#x type=%s)\n", off, vaddr, mask,
                 faultTypeToString(chosen));
+        return true;
     }
 
     bool
@@ -494,7 +504,12 @@ namespace gem5
                                        const uint8_t *true_src,
                                        unsigned copy_size,
                                        const uint8_t *alt_src,
-                                       unsigned alt_size, Addr vaddr)
+                                       unsigned alt_size, Addr vaddr,
+                                       const FwdCorrelKeys &keys,
+                                       const o3::DynInstPtr &load_inst,
+                                       uint64_t alt_store_seq,
+                                       long long alt_sq_idx,
+                                       uint64_t alt_store_req_id)
     {
         // §2.4 fwd_source_sub (F5): wrong-source store->load forwarding.
         // Only active in FwdSourceSub mode; other modes return false and the
@@ -538,6 +553,27 @@ namespace gem5
         memcpy(load_data, alt_src, n);
         stats->numFaultsInjected++;
         ++faults_injected_count;
+        // [R6-S-FWD 2026-10-30] fwd_source_sub rides the SAME real
+        // registration/emission path as the data-path corruption: the inj
+        // node names the consuming load, and the real L1->L4 lifecycle is
+        // emitted with the WRONG source store's identity (the store whose
+        // data was actually delivered). true_store_dyn_inst_seq keeps the
+        // scan's true source on the event. No lone/isolated inj is allowed.
+        if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+            const uint64_t ptag = tr->registerLSQForwardFault(
+                alt_store_seq, alt_sq_idx, alt_store_req_id,
+                keys.load_dyn_inst_seq, keys.lq_idx, keys.load_request_id,
+                vaddr, n, "fwd_source_sub");
+            if (ptag)
+                tr->noteForwardedLoad(
+                    load_inst ? load_inst.get() : nullptr, vaddr, n, ptag,
+                    alt_store_seq, alt_sq_idx, keys.lq_idx,
+                    keys.load_request_id, keys.store_dyn_inst_seq,
+                    "fwd_source_sub", load_data);
+        }
+        // [R6-A-F5COUNT discipline] report the effective F5 write.
+        if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5)
+            lsuTrigger->noteOutcome(true);
         if (write_log) {
             *(log_stream->stream())
                 << "Cycle: " << cpu->curCycle()
@@ -1057,6 +1093,15 @@ namespace gem5
         if (!s10_active || !s10_active->lsuTrigger || !out_ssid)
             return false;
 
+        // [R6-S-S10 2026-10-30] maxFaults gates NEW injections at THIS site
+        // too. The violation-top check only freezes the attempt stream; the
+        // substitution hook still ran and injected (measured on S10-F5-W5:
+        // maxFaults=1 but 3 real writes). Cap first, before any attempt or
+        // eligibility accounting, so attempted/eligible/injected reconcile.
+        if (s10_active->max_faults != 0 &&
+            s10_active->faults_injected_count >= s10_active->max_faults)
+            return false;
+
         // [MDSPEC][R4-5.7b] FUNNEL FORK-POINT INSTRUMENTATION (observation
         // only — no decision below depends on these counters). Reaching this
         // line at all means StoreSet::violation took its "brand-new store
@@ -1142,6 +1187,11 @@ namespace gem5
         ++s10_active->faults_injected_count;
         if (s10_active->stats)
             s10_active->stats->numFaultsInjected++;
+        // [R6-S-S10 2026-10-30] F5 separates fire from outcome: report the
+        // REAL write so trigger.injected == injection log == stats (pre-fix
+        // fires=3 / outcomes_recorded=0 / injected=0 was a reporting bug).
+        if (s10_active->lsuTrigger->tier == ChaOSLsuTier::F5)
+            s10_active->lsuTrigger->noteOutcome(true);
         // Injection-log line (L0 parses the "Tick: …, Site: …, mode=…,
         // old_ssid/new_ssid, …, faults_injected:" contract —
         // tools/lsu_obs_core._INJ_RE; source/target + the candidate-set

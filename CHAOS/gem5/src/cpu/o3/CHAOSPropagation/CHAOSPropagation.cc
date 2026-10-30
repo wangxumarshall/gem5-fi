@@ -347,6 +347,16 @@ namespace gem5
             else
                 ++it;
         }
+        // [R6-S-FWD 2026-10-30] forwarded-load seq entries share the same
+        // lifetime policy (a stale seq must never capture a recycled seq).
+        for (auto it = load_fwd_registry.begin();
+             it != load_fwd_registry.end(); ) {
+            if (now > it->second.registered &&
+                now - it->second.registered > (Tick)addr_expiry_ticks)
+                it = load_fwd_registry.erase(it);
+            else
+                ++it;
+        }
         // [MDSPEC][H5] prefetch requests share the same lifetime policy as
         // the other address registries (no expiry when addr_expiry_ticks=0).
         for (auto it = pf_registry.begin(); it != pf_registry.end(); ) {
@@ -2128,6 +2138,22 @@ namespace gem5
             {"containment_reason", "squash_discarded"},
             {"corr", corr ? corr : ""},
         });
+        // [R6-S-FWD 2026-10-30] A FORWARDED load's squashed result is
+        // discarded and replayed: drop the taint it established and its seq
+        // registration so the replay can never inherit a stale chain. Gated
+        // strictly on the forwarded-load registry so addrpath/cache semantics
+        // stay byte-identical (their taint handling is untouched).
+        if (load_fwd_registry.find(inst->seqNum)
+                != load_fwd_registry.end()) {
+            for (auto it = taint_set.begin(); it != taint_set.end(); ) {
+                if (it->second.ptag == ptag &&
+                    it->second.taintor_seq == inst->seqNum)
+                    it = taint_set.erase(it);
+                else
+                    ++it;
+            }
+            load_fwd_registry.erase(inst->seqNum);
+        }
     }
 
     uint64_t
@@ -2147,6 +2173,17 @@ namespace gem5
                     *corr_out = CORR_SEQ_PRIMARY;
                 return e.ptag;
             }
+        }
+        // [R6-S-FWD 2026-10-30] A forwarded load has no memory response; its
+        // only seq-bound surface is the dedicated forwarded-load registry
+        // written at the forward site. Join by the LOAD's own seq.
+        const auto fit = load_fwd_registry.find(dyn_seq);
+        if (fit != load_fwd_registry.end()) {
+            if (base_out)
+                *base_out = fit->second.base;
+            if (corr_out)
+                *corr_out = CORR_SEQ_PRIMARY;
+            return fit->second.ptag;
         }
         return 0;
     }
@@ -2535,6 +2572,118 @@ namespace gem5
         }
     }
 
+    // [R6-S-FWD 2026-10-30] Real SQ-forward lifecycle: L1 sq_entry -> L2
+    // lsq_fwd -> L3 resp -> L4 taint_reg, plus the consuming load's seq
+    // registration. A forwarded load has no memory response, so this is the
+    // ONLY place its destination registers can enter the taint set; noteCommit
+    // then observes a real L5 at the load's (or a consumer's) commit.
+    uint64_t
+    CHAOSPropagation::noteForwardedLoad(o3::DynInst *load_inst, Addr vaddr,
+                                        unsigned size, uint64_t ptag,
+                                        uint64_t store_seq, long long sq_idx,
+                                        long long lq_idx,
+                                        uint64_t load_req_id,
+                                        uint64_t true_store_seq,
+                                        const char *field, const void *data)
+    {
+        if (!write_log || !load_inst || ptag == 0)
+            return 0;
+        const uint64_t load_seq = load_inst->seqNum;
+        const Addr span = size ? size : 1;
+        sweepExpired();
+        auto hex = [](Addr a) {
+            std::ostringstream s;
+            s << std::hex << a;
+            return s.str();
+        };
+        const char *model = field ? field : "lsqfwd_forward";
+
+        // L1: the producer store's SQ entry — the real forwarding source.
+        notePropEvt("sq_entry", {
+            {"fault_id", std::to_string(ptag)},
+            {"dyn_inst_seq", std::to_string(load_seq)},
+            {"store_dyn_inst_seq", std::to_string(store_seq)},
+            {"sq_idx", std::to_string(sq_idx)},
+            {"lq_idx", std::to_string(lq_idx)},
+            {"request_id", std::to_string(load_req_id)},
+            {"va", hex(vaddr)},
+            {"field", "store_entry"},
+            {"corr", CORR_SEQ_PRIMARY},
+        });
+
+        // L2: the forward decision/transfer itself.
+        {
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"fault_id", std::to_string(ptag)},
+                {"dyn_inst_seq", std::to_string(load_seq)},
+                {"store_dyn_inst_seq", std::to_string(store_seq)},
+                {"sq_idx", std::to_string(sq_idx)},
+                {"lq_idx", std::to_string(lq_idx)},
+                {"request_id", std::to_string(load_req_id)},
+                {"va", hex(vaddr)},
+                {"field", model},
+                {"before", "store_data"},
+                {"after", std::string("fwd_corrupt:") + model},
+                {"shared_size", std::to_string(span)},
+                {"corr", CORR_SEQ_PRIMARY},
+            };
+            if (true_store_seq != 0 && true_store_seq != store_seq)
+                kv.push_back({"true_store_dyn_inst_seq",
+                              std::to_string(true_store_seq)});
+            notePropEvt("lsq_fwd", kv);
+        }
+
+        // L3: the forwarded value handed to the consuming load.
+        {
+            std::ostringstream d;
+            d << "family=lsqfwd;size=" << span << ";field=" << model;
+            if (data)
+                d << ";data_fnv=" << std::hex
+                  << fnv1a64(data, span) << std::dec;
+            if (true_store_seq != 0 && true_store_seq != store_seq)
+                d << ";true_store_dyn_inst_seq=" << true_store_seq;
+            writeNode(ptag, "resp", load_seq, true, load_req_id,
+                      load_req_id != 0, vaddr, true, 0, false, 0, false,
+                      d.str(), CORR_SEQ_PRIMARY);
+        }
+
+        // L4: the load's destination physical register(s) receive the value.
+        uint64_t last_evt = 0;
+        const int ndest = (int)load_inst->numDestRegs();
+        for (int i = 0; i < ndest; ++i) {
+            const PhysRegIdPtr phys = load_inst->renamedDestIdx(i);
+            if (!phys)
+                continue;
+            const std::pair<int, uint32_t> key(phys->classValue(),
+                                               phys->index());
+            std::ostringstream d;
+            d << "class=" << regClassName(phys->classValue())
+              << ";dest_idx=" << i
+              << ";old_addr=clean;new_addr=tainted"
+              << ";fwd_source=" << store_seq;
+            writeNode(ptag, "taint_reg", load_seq, true, load_req_id,
+                      load_req_id != 0, vaddr, true, phys->index(), true,
+                      load_inst->destRegIdx(i).index(), true, d.str(),
+                      CORR_SEQ_PRIMARY);
+            TaintEntry te;
+            te.ptag = ptag;
+            te.taintor_seq = load_seq;
+            te.src_event = next_node_id - 1;
+            taint_set[key] = te;
+            last_evt = next_node_id - 1;
+        }
+
+        // Seq-bound lifecycle surface: squash/commit join by the LOAD's seq.
+        AddrEntry e;
+        e.ptag = ptag;
+        e.dyn_seq = load_seq;
+        e.base = vaddr;
+        e.size = span;
+        e.registered = curTick();
+        load_fwd_registry[load_seq] = e;
+        return last_evt;
+    }
+
     void
     CHAOSPropagation::noteCommit(ThreadID tid, o3::DynInst *head_inst)
     {
@@ -2727,6 +2876,11 @@ namespace gem5
                                                phys->index()));
             }
         }
+        // [R6-S-FWD 2026-10-30] This instruction's commit was observed; drop
+        // its forwarded-load registration so a recycled dyn seq cannot
+        // re-join the chain. The architectural taint itself stays (the
+        // phys-reg entry is cleared by the normal overwrite rules).
+        load_fwd_registry.erase(head_inst->seqNum);
     }
 
 } // namespace gem5

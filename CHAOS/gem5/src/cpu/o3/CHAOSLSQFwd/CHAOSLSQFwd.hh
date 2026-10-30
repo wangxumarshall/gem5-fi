@@ -73,8 +73,13 @@ class CHAOSLSQFwd : public SimObject
     // bits in `data` (one byte selected by byteOffset). Hot-path: when
     // probability==0 or outside the [firstClock,lastClock] window, returns
     // immediately with no work.
-    void corrupt(uint8_t *data, unsigned size, Addr vaddr,
-                 const FwdCorrelKeys &keys);
+    // [R6-S-FWD 2026-10-30] `load_inst` is the consuming load whose memData
+    // is being corrupted: the tracer needs it to emit the real L3 resp / L4
+    // taint_reg (destination physical registers) and to register the load's
+    // own dyn seq for squash/commit lifecycle joins.
+    bool corrupt(uint8_t *data, unsigned size, Addr vaddr,
+                 const FwdCorrelKeys &keys,
+                 const o3::DynInstPtr &load_inst);
 
     // §2.4 fwd_source_sub (F5, Phase 4.2 — method1 wrong-source forwarding):
     // called from lsq_unit.cc at the forwarding DECISION point, after a
@@ -84,10 +89,20 @@ class CHAOSLSQFwd : public SimObject
     // wrong store's data (wrong-source forward, 张冠李戴). Parameters are
     // raw pointers/sizes so lsq_unit.cc doesn't need CHAOS types. Returns
     // true if the substitution happened (the caller skips its own memcpy).
+    // [R6-S-FWD 2026-10-30] The substitution must ride the SAME real
+    // registration/emission path as the data-path corruption (never a lone
+    // inj event): `keys` + `load_inst` identify the consuming load, while
+    // alt_store_seq/alt_sq_idx/alt_store_req_id identify the WRONG source
+    // store whose data is actually delivered. true_store_dyn_inst_seq is
+    // recovered from keys.store_dyn_inst_seq (the scan's true source).
     bool maybeSubstituteSource(uint8_t *load_data,
                                const uint8_t *true_src, unsigned copy_size,
                                const uint8_t *alt_src, unsigned alt_size,
-                               Addr vaddr);
+                               Addr vaddr,
+                               const FwdCorrelKeys &keys,
+                               const o3::DynInstPtr &load_inst,
+                               uint64_t alt_store_seq, long long alt_sq_idx,
+                               uint64_t alt_store_req_id);
 
     // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
     // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
@@ -340,8 +355,12 @@ class CHAOSLSQFwd : public SimObject
     OutputStream *log_stream;
 
     int generateRandomMask(int bits_to_change);  // 8-bit mask (per byte)
-    void writeLog(const char *type, unsigned size, Addr vaddr, int byte_off,
-                  int mask, const FwdCorrelKeys &keys);
+    // [R6-S-FWD 2026-10-30] Returns the tracer ptag (0 = tracer disabled) and
+    // completes the real lifecycle via noteForwardedLoad (L1->L4 + load seq
+    // registration). `data` is the post-corruption forwarded buffer.
+    uint64_t writeLog(const char *type, unsigned size, Addr vaddr,
+                      int byte_off, int mask, const FwdCorrelKeys &keys,
+                      const o3::DynInstPtr &load_inst, const void *data);
 
     // [MDSPEC][R4-5.7] S10 static hook bodies (registered into the
     // chaosS10* globals below by the ctor when s10_mode; deregistered by

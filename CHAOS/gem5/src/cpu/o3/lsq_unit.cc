@@ -1785,6 +1785,26 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     if (a06_buf > request->mainReq()->getSize())
                         memset(load_inst->memData, 0, a06_buf);
                 }
+                // [R6-S-FWD 2026-10-30] Build the PRIMARY correlation keys
+                // BEFORE the forward decision: both the wrong-source
+                // substitution and the data-path corruption must register
+                // with the SAME consuming-load identity (never a lone inj).
+                CHAOSLSQFwd::FwdCorrelKeys fwd_keys;
+                fwd_keys.store_dyn_inst_seq = store_it->instruction()->seqNum;
+                fwd_keys.sq_idx = (long long)store_it->instruction()->sqIdx;
+                {
+                    const auto &st_req = store_it->request()->mainReq();
+                    if (st_req && st_req->hasInstSeqNum())
+                        fwd_keys.store_request_id = st_req->getReqInstSeqNum();
+                }
+                fwd_keys.load_dyn_inst_seq = load_inst->seqNum;
+                fwd_keys.lq_idx = (long long)load_idx;
+                {
+                    const auto &ld_req = request->mainReq();
+                    if (ld_req && ld_req->hasInstSeqNum())
+                        fwd_keys.load_request_id = ld_req->getReqInstSeqNum();
+                }
+
                 if (store_it->isAllZeros())
                     memset(load_inst->memData, 0,
                             request->mainReq()->getSize());
@@ -1808,13 +1828,25 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                             }
                         }
                         if (alt) {
+                            uint64_t alt_seq = alt->instruction()->seqNum;
+                            long long alt_sq =
+                                (long long)alt->instruction()->sqIdx;
+                            uint64_t alt_req = 0;
+                            // SQEntry::request() is non-const (same accessor
+                            // shape as store_it->request() above); the scan
+                            // only reads the Request identity.
+                            const auto &alt_req_ptr =
+                                const_cast<SQEntry *>(alt)->request()->mainReq();
+                            if (alt_req_ptr && alt_req_ptr->hasInstSeqNum())
+                                alt_req = alt_req_ptr->getReqInstSeqNum();
                             substituted = cpu->lsqFwd->maybeSubstituteSource(
                                 load_inst->memData,
                                 (const uint8_t *)(store_it->data()) + shift_amt,
                                 request->mainReq()->getSize(),
                                 (const uint8_t *)(alt->data()),
                                 alt->size(),
-                                request->mainReq()->getVaddr());
+                                request->mainReq()->getVaddr(),
+                                fwd_keys, load_inst, alt_seq, alt_sq, alt_req);
                         }
                     }
                     if (!substituted)
@@ -1828,32 +1860,11 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // reproduce-method2 v3 mechanism on core 179). Hot-path:
                 // when no injector is attached (lsqFwd==nullptr) or its
                 // probability is 0, corrupt() returns immediately.
-                // [MDSPEC][R4-1] the producer store's and consuming load's
-                // dyn_inst_seq / sq_idx / lq_idx / request_id ride along as
-                // the PRIMARY correlation keys (sq_idx from DynInst::sqIdx
-                // — the same source as the sq_execute/sq_writeback/
-                // sq_complete events; lq_idx = the read() load_idx, the
-                // same source as the lq_read events, so the keys join 1:1).
                 if (cpu->lsqFwd) {
-                    CHAOSLSQFwd::FwdCorrelKeys fwd_keys;
-                    fwd_keys.store_dyn_inst_seq =
-                        store_it->instruction()->seqNum;
-                    fwd_keys.sq_idx =
-                        (long long)store_it->instruction()->sqIdx;
-                    const auto &st_req = store_it->request()->mainReq();
-                    if (st_req && st_req->hasInstSeqNum())
-                        fwd_keys.store_request_id =
-                            st_req->getReqInstSeqNum();
-                    fwd_keys.load_dyn_inst_seq = load_inst->seqNum;
-                    fwd_keys.lq_idx = (long long)load_idx;
-                    const auto &ld_req = request->mainReq();
-                    if (ld_req && ld_req->hasInstSeqNum())
-                        fwd_keys.load_request_id =
-                            ld_req->getReqInstSeqNum();
                     cpu->lsqFwd->corrupt(load_inst->memData,
                                          request->mainReq()->getSize(),
                                          request->mainReq()->getVaddr(),
-                                         fwd_keys);
+                                         fwd_keys, load_inst);
                 }
 
                 // LSU W2 F6 event source (09 §2.1 map): a store-to-load

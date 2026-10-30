@@ -230,6 +230,12 @@ class CHAOSPropagation : public SimObject
         // them per family (tools/lsu_prop_fields.parse_line), so no parser
         // change is owed for these columns.
         "ready_tick", "delayed_tick", "delay_cycles", "consumed", "squashed",
+        // [R6-S-FWD 2026-10-30] fwd_source_sub identity: the load was fed by
+        // the WRONG (older) store. store_dyn_inst_seq on the event names that
+        // wrong source (the real producer of the delivered data); this field
+        // names the TRUE source the address/forward scan selected, so both
+        // sides of the wrong-source substitution are recoverable.
+        "true_store_dyn_inst_seq",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
@@ -726,6 +732,24 @@ class CHAOSPropagation : public SimObject
     // for the dest phys regs (added to the taint set).
     void noteMemResponse(o3::DynInst *inst, Packet *pkt, bool wb_to_reg);
 
+    // [R6-S-FWD 2026-10-30] A real SQ forward delivered the faulted data to
+    // `load_inst` (no memory response exists on this path). Emit the REAL
+    // lifecycle the hardware executes and register the consuming load:
+    //   L1 sq_entry  — the producer store's SQ entry is the forward source,
+    //   L2 lsq_fwd   — the forward decision/transfer (field = model),
+    //   L3 resp      — the forwarded value handed to the load,
+    //   L4 taint_reg — the load's destination physical register(s) receive
+    //                  fault-delivered data (also inserted into taint_set),
+    // and register load_inst->seqNum in the forwarded-load seq registry so
+    // squash/commit lifecycle hooks join by SEQ (never by an unrelated
+    // address broadcast). Returns the taint_reg event id (0 when disabled).
+    uint64_t noteForwardedLoad(o3::DynInst *load_inst, Addr vaddr,
+                               unsigned size, uint64_t ptag,
+                               uint64_t store_seq, long long sq_idx,
+                               long long lq_idx, uint64_t load_req_id,
+                               uint64_t true_store_seq, const char *field,
+                               const void *data);
+
     // Commit::commitHead (the W2.1/W2.4 anchor): commit-side taint
     // propagation. consumer nodes for tainted source phys regs, first
     // errant_commit, dest re-taint / clean-overwrite.
@@ -941,6 +965,13 @@ class CHAOSPropagation : public SimObject
         Tick registered;
     };
     std::map<Addr, AddrEntry> addr_registry;
+
+    // [R6-S-FWD 2026-10-30] Forwarded-load seq registry. The forward binds
+    // the addr registry to the PRODUCER store's seq; the consuming load has
+    // no memory response, so its lifecycle (squash/commit) can only join by
+    // ITS OWN seq. Keyed by dyn_seq (one entry per load), swept on expiry and
+    // erased at commit/squash so a recycled seq cannot inherit the chain.
+    std::map<uint64_t, AddrEntry> load_fwd_registry;
 
     struct BlkEntry {
         uint64_t ptag;

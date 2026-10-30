@@ -48,10 +48,19 @@ def test_f5_reporting_gap_is_named():
         assert "F5_UNREPORTED_OUTCOME" in rows[rid]["trigger"], rid
 
 
-def test_f4_has_no_interval_mapping():
+def test_f4_uses_authoritative_event_floor():
+    """[R6-S-B3 2026-10-30] F4 IS authoritatively defined (LSU spec: every
+    100,000 eligible events, then 2-4 pollutions) and implemented in
+    chaos_lsu_trigger.hh. The three F4 cells are therefore
+    BLOCKED_TRIGGER_REACHABILITY (whole-run eligible < 100,000), NOT a
+    spec-semantics gap. This corrects the earlier assumption, which the
+    authoritative spec falsified."""
     rows = {r["run_id"]: r for r in C.census()}
     for rid in ("S07-F4-W5", "S11-F4-W5", "S11-F4-W6"):
-        assert rows[rid]["classification"] == "BLOCKED_TRIGGER_SEMANTICS", rid
+        r = rows[rid]
+        assert r["classification"] == "BLOCKED_TRIGGER_REACHABILITY", rid
+        assert r["earliest_fire_events"] == 100_000, rid
+        assert r["eligible_total"] < 100_000, rid
 
 
 def test_fired_sisters_confirm_the_interval_model():

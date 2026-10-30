@@ -124,10 +124,15 @@ KIND_LAYER = {
     # [MDSPEC][H7] LQ 逐事件（表 9：lq_idx 生命周期；read/completion 属
     # L3 访存发射与返回；insert 在 dispatch 期早于注入注册、结构性缺席）
     "lq_read": "L3", "lq_complete": "L3",
+    # [R6-S-FWD 2026-10-30] 真实 SQ 转发层级：
+    #   L1 sq_entry = 生产 store 的 SQ 表项观测（转发源确实在 SQ 中）；
+    #   L2 lsq_fwd  = 转发决策/传输（此前误标 L3 → L1->L2 结构断裂）。
+    # 修真实 emitter 的层，不放宽 checker。
+    "sq_entry": "L1",
     # [MDSPEC][H3] SQ 生命周期（execute/writeback/complete；drain 属 L3 访存侧）
     "sq_execute": "L3", "sq_writeback": "L3", "sq_complete": "L3",
     # [MDSPEC][H3-FWD] S 系转发故障（生产 store→消费 load 的转发数据被污染）
-    "lsq_fwd": "L3",
+    "lsq_fwd": "L2",
     # [MDSPEC][R4-5.7] S10 StoreSet SSIT 腐蚀链（换值子模型 S10-a）：
     # ssit_consult（L1）= checkInst 咨询被腐蚀 load PC 的 SSIT 条目——
     # 预测依赖的读取点（dispatch 期，先于执行）；ssit_violation（L2）=
@@ -253,6 +258,12 @@ REQUIRED_FIELDS = {
     "lsq_fwd": ["fault_id", "dyn_inst_seq", "store_dyn_inst_seq",
                 "sq_idx", "lq_idx", "request_id", "va", "field",
                 "before", "after"],
+    # [R6-S-FWD 2026-10-30] L1 SQ-entry witness of the forwarding source.
+    # dyn_inst_seq = the consuming load (chain owner, so the admitted path
+    # keeps one request identity); store_dyn_inst_seq = the producer store;
+    # sq_idx/lq_idx = the same 1:1 keys as sq_*/lq_read.
+    "sq_entry": ["fault_id", "corr", "dyn_inst_seq", "store_dyn_inst_seq",
+                 "sq_idx", "lq_idx", "request_id", "va", "field"],
     # [MDSPEC][R4-5.7] S10 StoreSet SSIT 腐蚀链（S10-a 换值；注入器
     # CHAOSLSQFwd --lsqfwd_s10，注入点 StoreSet::violation 新 SSID 赋值臂）。
     # ssit_consult: before/after = 反事实/实际预测的 producing-store seq
