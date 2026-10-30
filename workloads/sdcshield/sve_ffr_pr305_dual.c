@@ -36,6 +36,29 @@
  *   8 (detection); the round-1 all-mapped-only test never sampled a
  *   partially-cleared FFR at all, so this bit state was invisible to
  *   it by construction — the round-2 review #12 blind spot.
+ * Phase 7 (golden, round-3 combined window + bitmap): the two round-3
+ *   changes mirrored — (a) faulting+accumulation captures inside ONE
+ *   combined unit capture_pair (cross-capture zero-call discipline),
+ *   (b) FFR verified BIT-FOR-BIT on a materialized byte image (byte i
+ *   = 1 iff FFR bit i set; svsel + st1b inside the window) against
+ *   golden bitmaps m_gold (all ones) / f_gold (8 ones then zeros),
+ *   counts kept as diagnostics only. FAULT_RELOOP_ITERS iterations of
+ *   [mapped face + pair], the patched re-loop shape (no straight-line
+ *   one-shot: GCC 12 CSEs svrdffr across SETFFR/LDFF1/calls, so the
+ *   captures are noinline functions — a call boundary is the only
+ *   reliable CSE killer; the loop's first iteration is the one-shot).
+ *   Measured boundary: the acc-face DATA is hashed but NOT asserted —
+ *   hardware (Kunpeng 920) loads all predicate-active elements
+ *   regardless of prior FFR state (FFR is a pure output; even FFR=0
+ *   loads fully), gem5 SE models the FFR as an implicit per-element
+ *   input mask (sve_mem.isa: GpOp_x[i] && firstFaultReg[...]) and
+ *   zeroes FFR-clear elements. Both agree the mapped load leaves the
+ *   FFR untouched — which is the assertion the patched test makes.
+ * Phase 8 (poison, round-3 #17 blind spot): complementary count-
+ *   conserving double flip of the F-face predicate — bit 1 (expected-1,
+ *   element 0's slice) drops, bit 9 (expected-0, element 1's slice)
+ *   rises. popcount stays exactly 8 (the OLD count check is blind —
+ *   the review's exact scenario) while the image memcmp detects.
  *
  * Output: one 16-hex checksum line (fnv1a over the captured counts and
  * readbacks) + SDCSHIELD_FAILS=N (N = unexpected outcomes).
@@ -67,6 +90,44 @@ static long capture(const double *from, double *to, int prime)
     long bits = svcntp_b8(svptrue_b8(), ffr);
     svst1_f64(svptrue_b64(), to, v);
     return bits;
+}
+
+/* round-3 capture: additionally materializes the FFR predicate into a
+ * byte image (byte i = 1 iff FFR bit i set) — the patched test's
+ * bit-for-bit verification input; expressions mirror the round-3
+ * ffr_ldff1_capture (count demoted to diagnostic). The leading asm is
+ * the same zero-instruction compiler barrier the round-3 test carries:
+ * GCC 12 neither models svldff1/svsetffr FFR effects nor kills rdffr
+ * values at calls (measured), so without it a later capture's rdffr can
+ * be CSE'd into an earlier capture's stale spill (observed: phase7 M
+ * face reloading phase6's partial-clear value). */
+static __attribute__((noinline)) long
+capture_img(const double *from, double *to, int prime,
+                          uint8_t *ffr_image)
+{
+    __asm__ volatile ("" : : : "memory");
+    if (prime) svsetffr();
+    svfloat64_t v = svldff1_f64(svptrue_b64(), from);
+    svbool_t ffr = svrdffr();
+    long bits = svcntp_b8(svptrue_b8(), ffr);
+    svst1_f64(svptrue_b64(), to, v);
+    svst1_s8(svptrue_b8(), (int8_t *)ffr_image,
+             svsel(ffr, svdup_n_s8(1), svdup_n_s8(0)));
+    return bits;
+}
+
+/* round-3 combined unit: the faulting and accumulation captures as ONE
+ * function so the between-captures zero-call discipline is structural —
+ * mirrors the patched test's ffr_fault_acc_capture (always-inline there;
+ * plain here: gem5 SE has no libc/syscall in this path to clobber FFR) */
+static __attribute__((noinline)) void
+capture_pair(const double *fault_from, double *fault_to,
+                           uint8_t *fault_img, const double *acc_from,
+                           double *acc_to, uint8_t *acc_img,
+                           long *fb, long *ab)
+{
+    *fb = capture_img(fault_from, fault_to, 1, fault_img);
+    *ab = capture_img(acc_from, acc_to, 0, acc_img);
 }
 
 int main(void)
@@ -169,6 +230,14 @@ int main(void)
         double fexp[16];
         fexp[0] = (double)((vl - 1) % 4) - 1.5;
         for (long i = 1; i < vl; ++i) fexp[i] = 0.0;
+        /* round-3 bitmap goldens (shared by Phase 7/8): one byte per FFR
+         * bit; m_gold all-ones (mapped face), f_gold 8 ones then zeros
+         * (faulting AND accumulation faces) */
+        uint8_t m_gold[128], f_gold[128];
+        for (long i = 0; i < total_bits; ++i) {
+            m_gold[i] = 1;
+            f_gold[i] = (i < 8) ? 1 : 0;
+        }
         int f_ok = f_bits == 8 && memcmp(fback, fexp, (size_t)vl * 8) == 0;
         int a_ok = a_bits == 8;
         if (!f_ok || !a_ok) fails++;
@@ -199,11 +268,25 @@ int main(void)
                    (long)FAULT_RELOOP_ITERS, bad < 0 ? "all clean" : "FAILED");
         }
 
-        /* ---- Phase 6: poison — stuck-at-1 in the faulted tail ---- */
+        /* ---- Phase 6: poison — stuck-at-1 in the faulted tail ----
+         * GCC 12 (measured, 12.3.1) does NOT model svldff1's FFR side
+         * effect: when the loaded data is dead (buffer never read), the
+         * st1d is DSE'd, the ldff1 follows it out, and rdffr then reads
+         * the all-ones FFR left by SETFFR — the fault silently never
+         * happens in the generated code (minimal repro: setffr;
+         * (void)ldff1; rdffr -> ldff1d absent). Every capture's data
+         * buffer is therefore memcmp'd (the data golden is part of the
+         * face anyway) and the poison base predicate is rebuilt from
+         * the OBSERVABLE image bytes — svcmpne(image, 0) restores
+         * exactly the predicate the image materialized, bit for bit. */
         {
-            svsetffr();
-            (void)svldff1_f64(all_b64, pg_fault_k1);
-            svbool_t ffr = svrdffr();
+            double pback6[16];
+            uint8_t p6_img[128];
+            (void)capture_img(pg_fault_k1, pback6, 1, p6_img);
+            if (memcmp(pback6, fexp, (size_t)vl * 8) != 0) fails++;
+            svbool_t ffr = svcmpne_n_s8(all_b8,
+                                        svld1_s8(all_b8,
+                                                 (int8_t *)p6_img), 0);
             /* bit 9 = element 1's slice, non-first bit, expected-0 tail */
             svbool_t w10 = svwhilelt_b8((uint64_t)0, (uint64_t)10);
             svbool_t w9 = svwhilelt_b8((uint64_t)0, (uint64_t)9);
@@ -221,6 +304,99 @@ int main(void)
                    "stuck=%ld (==9 detected? %s)\n",
                    clean_cnt, clean_cnt == 8 ? "Y" : "NO",
                    stuck_cnt, stuck_cnt == 9 ? "Y" : "NO");
+        }
+
+        /* ---- Phase 7: round-3 combined window + bitmap goldens ----
+         * No straight-line one-shot ahead of the loop: GCC 12 CSEs
+         * svrdffr values across SETFFR/LDFF1 and even calls (measured —
+         * see the capture_img comment), so a one-shot M face placed here
+         * read Phase 6's stale partial-clear value and false-FAILED;
+         * the loop boundary is the only reliable CSE killer and the
+         * FIRST loop iteration runs the identical one-shot checks. */
+        {
+            uint8_t m_img[128], f_img[128], a_img[128];
+            double mback[16], fback2[16], aback2[16];
+            long mb = -1, fb2 = -1, ab2 = -1, bad = -1;
+            int why = -1;
+            for (long it = 0; it < FAULT_RELOOP_ITERS; ++it) {
+                mb = capture_img(pg_mapped, mback, 1, m_img);
+                capture_pair(pg_fault_k1, fback2, f_img, pg_mapped, aback2,
+                             a_img, &fb2, &ab2);
+                if (memcmp(m_img, m_gold, (size_t)total_bits) != 0) { why = 0; }
+                else if (memcmp(mback, pg_mapped, (size_t)vl * 8) != 0) { why = 1; }
+                else if (memcmp(f_img, f_gold, (size_t)total_bits) != 0) { why = 2; }
+                else if (memcmp(fback2, fexp, (size_t)vl * 8) != 0) { why = 3; }
+                else if (memcmp(a_img, f_gold, (size_t)total_bits) != 0) { why = 4; }
+                if (why >= 0) { bad = it; break; }
+                /* acc-face DATA: hashed, not asserted — the patched test
+                 * does not check it either, because the two executions
+                 * of record DISAGREE here (measured 2026-10-30):
+                 * hardware (Kunpeng 920) loads all predicate-active
+                 * elements regardless of prior FFR state (FFR is a pure
+                 * output — even FFR=0 loads fully), while gem5 SE models
+                 * the FFR as an implicit per-element input mask
+                 * (sve_mem.isa fautlingLoadmemAccCode: GpOp_x[i] &&
+                 * firstFaultReg[...]) and zeroes FFR-clear elements.
+                 * Both agree the mapped load leaves the FFR untouched,
+                 * which is the face's assertion. The hash still pins the
+                 * acc LDFF1 against DSE. */
+                h = fnv1a(h, aback2, (size_t)vl * 8);
+            }
+            if (bad >= 0) fails++;
+            h = fnv1a(h, &bad, sizeof bad);
+            h = fnv1a(h, &mb, sizeof mb);
+            h = fnv1a(h, &fb2, sizeof fb2);
+            h = fnv1a(h, &ab2, sizeof ab2);
+            printf("phase7: %ld combined iterations (M/F/A bitmaps+data), "
+                   "%s (last counts %ld/%ld/%ld diag%s%s)\n",
+                   (long)FAULT_RELOOP_ITERS, bad < 0 ? "all clean" : "FAILED",
+                   mb, fb2, ab2, bad < 0 ? "" : ", failed check ",
+                   bad < 0 ? "" : (why == 0 ? "m_img" : why == 1 ? "mback" :
+                                   why == 4 ? "a_img" : "?"));
+        }
+
+        /* ---- Phase 8: poison — count-CONSERVING complementary double
+         * flip (round-3 review #17's exact blind spot): bit 1 (expected
+         * 1, element 0's slice) drops, bit 9 (expected 0, element 1's
+         * slice) rises. The OLD count check sees 8 == 8 and passes; the
+         * round-3 image memcmp must detect. ---- */
+        {
+            double fback3[16];
+            uint8_t p_img[128], c_img[128];
+            /* base predicate rebuilt from the observable image, data
+             * buffer memcmp'd to pin the ldff1 (see the Phase 6 comment
+             * for the GCC 12 DCE/DSE mechanism) */
+            (void)capture_img(pg_fault_k1, fback3, 1, p_img);
+            if (memcmp(fback3, fexp, (size_t)vl * 8) != 0) fails++;
+            svbool_t ffr = svcmpne_n_s8(all_b8,
+                                        svld1_s8(all_b8,
+                                                 (int8_t *)p_img), 0);
+            /* bit 1 = whilelt(0,2) ^ whilelt(0,1); bit 9 = w(0,10)^w(0,9) */
+            svbool_t w2 = svwhilelt_b8((uint64_t)0, (uint64_t)2);
+            svbool_t w1 = svwhilelt_b8((uint64_t)0, (uint64_t)1);
+            svbool_t w10 = svwhilelt_b8((uint64_t)0, (uint64_t)10);
+            svbool_t w9 = svwhilelt_b8((uint64_t)0, (uint64_t)9);
+            svbool_t flip = svorr_b_z(all_b8,
+                                      sveor_b_z(all_b8, w2, w1),
+                                      sveor_b_z(all_b8, w10, w9));
+            svbool_t corrupt = sveor_b_z(all_b8, ffr, flip);
+            const long clean_cnt = svcntp_b8(all_b8, ffr);
+            const long corrupt_cnt = svcntp_b8(all_b8, corrupt);
+            svst1_s8(all_b8, (int8_t *)c_img,
+                     svsel(corrupt, svdup_n_s8(1), svdup_n_s8(0)));
+            /* clean face must equal f_gold; corrupt count must CONSERVE
+             * (== 8, old check blind) while the image must DIFFER */
+            int clean_ok = memcmp(p_img, f_gold, (size_t)total_bits) == 0;
+            int old_blind = (corrupt_cnt == 8);
+            int new_detects = memcmp(c_img, f_gold, (size_t)total_bits) != 0;
+            if (!(clean_ok && old_blind && new_detects)) fails++;
+            h = fnv1a(h, &clean_cnt, sizeof clean_cnt);
+            h = fnv1a(h, &corrupt_cnt, sizeof corrupt_cnt);
+            h = fnv1a(h, c_img, (size_t)total_bits);
+            printf("phase8: poison bits{1,9}: clean_img=%s corrupt_cnt=%ld "
+                   "(==8 conserved/old blind? %s) corrupt_img_differs=%s\n",
+                   clean_ok ? "OK" : "FAIL", corrupt_cnt,
+                   old_blind ? "Y" : "NO", new_detects ? "Y" : "NO");
         }
     }
 
