@@ -2,7 +2,7 @@
  "generated_at": "2026-10-27T00:00:00",
  "root": "/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS",
  "REPO_HEAD": "4af986f726a6791f441130dee19eca0711e0b38f",
- "purpose": "Per-seed complete L0→L5 (or containment) propagation-path documentation rebuilt from each seed's own untouched prop_evt.txt.gz.",
+ "purpose": "Per-seed complete L0\u2192L5 (or containment) propagation-path documentation rebuilt from each seed's own untouched prop_evt.txt.gz.",
  "analysis_tool_head": "4af986f726a6791f441130dee19eca0711e0b38f",
  "checker_sha256": "baa1e8e3c71503d3f0e32b329f45a060173f2afe685be9c422159470c3b71b44",
  "counts": {
@@ -37,9 +37,9 @@
   {
    "run_id": "T01-F0-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_CONTAINED_L2",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_CONTAINED_L2",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483fa8",
    "old_pfn": "0x81d75",
@@ -90,7 +90,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "detected_contained",
    "run_outcome_record": "Masked",
@@ -102,9 +102,9 @@
   {
    "run_id": "T01-F0-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb8",
    "old_pfn": "0x81d75",
@@ -163,7 +163,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -175,9 +175,9 @@
   {
    "run_id": "T01-F0-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_CONTAINED_L2",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_CONTAINED_L2",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb0",
    "old_pfn": "0x81d75",
@@ -228,7 +228,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "detected_contained",
    "run_outcome_record": "Masked",
@@ -240,9 +240,9 @@
   {
    "run_id": "T02-F0-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483fa8",
    "old_pfn": "0x81d75",
@@ -305,7 +305,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -317,9 +317,9 @@
   {
    "run_id": "T02-F0-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb8",
    "old_pfn": "0x81d75",
@@ -378,7 +378,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -390,9 +390,9 @@
   {
    "run_id": "T02-F0-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb0",
    "old_pfn": "0x81d75",
@@ -462,7 +462,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -474,9 +474,9 @@
   {
    "run_id": "T02-F2-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffff8001362708",
    "old_pfn": "0x81362",
@@ -538,7 +538,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -550,9 +550,9 @@
   {
    "run_id": "T02-F2-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_CONTAINED_L4",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_CONTAINED_L4",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483960",
    "old_pfn": "0x81d75",
@@ -610,7 +610,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "detected_contained",
    "run_outcome_record": "Crash",
@@ -622,9 +622,9 @@
   {
    "run_id": "T02-F2-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483950",
    "old_pfn": "0x81d75",
@@ -687,7 +687,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Timeout",
@@ -699,9 +699,9 @@
   {
    "run_id": "T04-F0-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "换值",
+   "fault_type": "\u6362\u503c",
    "fault_id": "1",
    "va": "0xffffffc009483fa8",
    "old_pfn": "0x81d75",
@@ -770,7 +770,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -782,9 +782,9 @@
   {
    "run_id": "T04-F0-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "换值",
+   "fault_type": "\u6362\u503c",
    "fault_id": "1",
    "va": "0xffffff807fbce090",
    "old_pfn": "0xffbce",
@@ -853,7 +853,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Timeout",
@@ -865,9 +865,9 @@
   {
    "run_id": "T04-F0-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "换值",
+   "fault_type": "\u6362\u503c",
    "fault_id": "1",
    "va": "0xffffff807fbce090",
    "old_pfn": "0xffbce",
@@ -936,7 +936,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Timeout",
@@ -948,9 +948,9 @@
   {
    "run_id": "T04-F2-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "换值",
+   "fault_type": "\u6362\u503c",
    "fault_id": "1",
    "va": "0xffffffc009483970",
    "old_pfn": "0x81d75",
@@ -1019,7 +1019,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1031,9 +1031,9 @@
   {
    "run_id": "T04-F2-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "换值",
+   "fault_type": "\u6362\u503c",
    "fault_id": "1",
    "va": "0xffffff807fbce008",
    "old_pfn": "0xffbce",
@@ -1101,7 +1101,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1113,9 +1113,9 @@
   {
    "run_id": "T04-F2-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "换值",
+   "fault_type": "\u6362\u503c",
    "fault_id": "1",
    "va": "0xffffffc009483968",
    "old_pfn": "0x81d75",
@@ -1184,7 +1184,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1196,9 +1196,9 @@
   {
    "run_id": "T01-F1-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483b48",
    "old_pfn": "0x81d75",
@@ -1261,7 +1261,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1273,9 +1273,9 @@
   {
    "run_id": "T01-F1-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0x7f82b83d08",
    "old_pfn": "0x8313b",
@@ -1343,7 +1343,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1355,9 +1355,9 @@
   {
    "run_id": "T01-F1-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0x7fe7c61d40",
    "old_pfn": "0x83111",
@@ -1420,7 +1420,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1432,9 +1432,9 @@
   {
    "run_id": "T01-F2-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffff8001362708",
    "old_pfn": "0x81362",
@@ -1496,7 +1496,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1508,9 +1508,9 @@
   {
    "run_id": "T01-F2-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_CONTAINED_L4",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_CONTAINED_L4",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483960",
    "old_pfn": "0x81d75",
@@ -1568,7 +1568,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "detected_contained",
    "run_outcome_record": "Crash",
@@ -1580,9 +1580,9 @@
   {
    "run_id": "T01-F2-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483950",
    "old_pfn": "0x81d75",
@@ -1645,7 +1645,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1657,9 +1657,9 @@
   {
    "run_id": "T03-F5-W4",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "卡死",
+   "fault_type": "\u5361\u6b7b",
    "fault_id": "2",
    "va": "0xffffffc008a16868",
    "old_pfn": "0x80a16",
@@ -1728,7 +1728,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Timeout",
@@ -1740,9 +1740,9 @@
   {
    "run_id": "T03-F5-W4",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "卡死",
+   "fault_type": "\u5361\u6b7b",
    "fault_id": "1",
    "va": "0xffffff8001362700",
    "old_pfn": "0x81362",
@@ -1811,7 +1811,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Timeout",
@@ -1823,9 +1823,9 @@
   {
    "run_id": "T03-F5-W4",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "卡死",
+   "fault_type": "\u5361\u6b7b",
    "fault_id": "2",
    "va": "0xffffff807fbce090",
    "old_pfn": "0xffbce",
@@ -1894,7 +1894,7 @@
    "experiment_identity_status": "MATCH",
    "overall_experiment_status": "PASS",
    "seed_verdict": "PASS",
-   "matrix_workload_label": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
+   "matrix_workload_label": "TLB-AliasPerm \u5730\u5740\u7ffb\u8bd1\u63a2\u9488\uff084KiB/2MiB \u9875\u3001ASID\u3001\u540cVA\u4e0d\u540cPA\u3001\u6743\u9650\u3001TLBI\u3001\u8de8\u9875\u8bbf\u95ee\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Timeout",
@@ -1906,9 +1906,9 @@
   {
    "run_id": "T01-F0-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483fa8",
    "old_pfn": "0x81d75",
@@ -1977,7 +1977,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -1989,9 +1989,9 @@
   {
    "run_id": "T01-F0-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb8",
    "old_pfn": "0x81d75",
@@ -2056,7 +2056,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2068,9 +2068,9 @@
   {
    "run_id": "T01-F0-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb0",
    "old_pfn": "0x81d75",
@@ -2140,7 +2140,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2152,9 +2152,9 @@
   {
    "run_id": "T01-F1-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483b48",
    "old_pfn": "0x81d75",
@@ -2223,7 +2223,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2235,9 +2235,9 @@
   {
    "run_id": "T01-F1-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0x7f82b83d08",
    "old_pfn": "0x8313b",
@@ -2305,7 +2305,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2317,9 +2317,9 @@
   {
    "run_id": "T01-F1-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0x7fe7c61d40",
    "old_pfn": "0x83111",
@@ -2388,7 +2388,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2400,9 +2400,9 @@
   {
    "run_id": "T01-F2-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffff8001362708",
    "old_pfn": "0x81362",
@@ -2470,7 +2470,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2482,9 +2482,9 @@
   {
    "run_id": "T01-F2-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_CONTAINED_L4",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_CONTAINED_L4",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483960",
    "old_pfn": "0x81d75",
@@ -2542,7 +2542,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "detected_contained",
    "run_outcome_record": "Crash",
@@ -2554,9 +2554,9 @@
   {
    "run_id": "T01-F2-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483950",
    "old_pfn": "0x81d75",
@@ -2625,7 +2625,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2637,9 +2637,9 @@
   {
    "run_id": "T02-F0-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483fa8",
    "old_pfn": "0x81d75",
@@ -2708,7 +2708,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2720,9 +2720,9 @@
   {
    "run_id": "T02-F0-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb8",
    "old_pfn": "0x81d75",
@@ -2787,7 +2787,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2799,9 +2799,9 @@
   {
    "run_id": "T02-F0-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb0",
    "old_pfn": "0x81d75",
@@ -2871,7 +2871,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2883,9 +2883,9 @@
   {
    "run_id": "T02-F2-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffff8001362708",
    "old_pfn": "0x81362",
@@ -2953,7 +2953,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -2965,9 +2965,9 @@
   {
    "run_id": "T02-F2-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_CONTAINED_L4",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_CONTAINED_L4",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483960",
    "old_pfn": "0x81d75",
@@ -3025,7 +3025,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "detected_contained",
    "run_outcome_record": "Crash",
@@ -3037,9 +3037,9 @@
   {
    "run_id": "T02-F2-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "双比特翻转",
+   "fault_type": "\u53cc\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483950",
    "old_pfn": "0x81d75",
@@ -3108,7 +3108,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3120,9 +3120,9 @@
   {
    "run_id": "T10-F0-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483fa8",
    "old_pfn": "0x81d75",
@@ -3191,7 +3191,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3203,9 +3203,9 @@
   {
    "run_id": "T10-F0-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb8",
    "old_pfn": "0x81d75",
@@ -3270,7 +3270,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3282,9 +3282,9 @@
   {
    "run_id": "T10-F0-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483eb0",
    "old_pfn": "0x81d75",
@@ -3354,7 +3354,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3366,9 +3366,9 @@
   {
    "run_id": "T10-F1-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483b48",
    "old_pfn": "0x81d75",
@@ -3437,7 +3437,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3449,9 +3449,9 @@
   {
    "run_id": "T10-F1-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0x7f82b83d08",
    "old_pfn": "0x8313b",
@@ -3519,7 +3519,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3531,9 +3531,9 @@
   {
    "run_id": "T10-F1-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0x7fe7c61d40",
    "old_pfn": "0x83111",
@@ -3602,7 +3602,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3614,9 +3614,9 @@
   {
    "run_id": "T10-F2-W1",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffff8001362708",
    "old_pfn": "0x81362",
@@ -3684,7 +3684,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3696,9 +3696,9 @@
   {
    "run_id": "T10-F2-W1",
    "seed": 2,
-   "完成状态": "COMPLETE_CONTAINED_L4",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_CONTAINED_L4",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483960",
    "old_pfn": "0x81d75",
@@ -3756,7 +3756,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "detected_contained",
    "run_outcome_record": "Crash",
@@ -3768,9 +3768,9 @@
   {
    "run_id": "T10-F2-W1",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "单比特翻转",
+   "fault_type": "\u5355\u6bd4\u7279\u7ffb\u8f6c",
    "fault_id": "1",
    "va": "0xffffffc009483950",
    "old_pfn": "0x81d75",
@@ -3839,7 +3839,7 @@
    "experiment_identity_status": "WORKLOAD_IDENTITY_MISMATCH",
    "overall_experiment_status": "NOT_MIBENCH_RESULT",
    "seed_verdict": "NOT_MIBENCH_RESULT",
-   "matrix_workload_label": "MiBench-TC23 论文负载（blowfish、patricia、fft、gsm、dijkstra、rijndael、sha、bitcount、edge、smooth）",
+   "matrix_workload_label": "MiBench-TC23 \u8bba\u6587\u8d1f\u8f7d\uff08blowfish\u3001patricia\u3001fft\u3001gsm\u3001dijkstra\u3001rijndael\u3001sha\u3001bitcount\u3001edge\u3001smooth\uff09",
    "actual_readfile": "/home/sdc/gem5-fi-ding/.claude/worktrees/r6-f5-noeffect-20261026/configs/fs/tlb_probe.rcS",
    "propagation_terminal_record": "full",
    "run_outcome_record": "Crash",
@@ -3851,9 +3851,9 @@
   {
    "run_id": "T03-F5-W9",
    "seed": 1,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "卡死",
+   "fault_type": "\u5361\u6b7b",
    "fault_id": "2",
    "va": "0xffffffc008a16868",
    "old_pfn": "0x80a16",
@@ -3934,9 +3934,9 @@
   {
    "run_id": "T03-F5-W9",
    "seed": 2,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "卡死",
+   "fault_type": "\u5361\u6b7b",
    "fault_id": "1",
    "va": "0xffffffc009483eb0",
    "old_pfn": "0x81d75",
@@ -4018,9 +4018,9 @@
   {
    "run_id": "T03-F5-W9",
    "seed": 3,
-   "完成状态": "COMPLETE_L5",
+   "\u5b8c\u6210\u72b6\u6001": "COMPLETE_L5",
    "site": "arm_tlb_lookup_hit",
-   "fault_type": "卡死",
+   "fault_type": "\u5361\u6b7b",
    "fault_id": "1",
    "va": "0xffffff807fbce090",
    "old_pfn": "0xffbce",
@@ -4163,7 +4163,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (4); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (4); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4231,7 +4231,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (12); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (12); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4299,7 +4299,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (4); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (4); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4367,7 +4367,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (16); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4435,7 +4435,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (12); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (12); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4503,7 +4503,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (23); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4571,7 +4571,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (15); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (15); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4639,7 +4639,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (11); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4707,7 +4707,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (16); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4775,7 +4775,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4843,7 +4843,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4911,7 +4911,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -4979,7 +4979,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5047,7 +5047,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (21); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5115,7 +5115,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5183,7 +5183,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (16); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5251,7 +5251,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (21); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5319,7 +5319,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (16); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5387,7 +5387,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (15); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (15); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5455,7 +5455,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (11); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5523,7 +5523,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (16); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (16); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5591,7 +5591,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5659,7 +5659,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5727,7 +5727,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5795,7 +5795,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5863,7 +5863,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (18); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (18); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5931,7 +5931,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (23); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -5999,7 +5999,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6067,7 +6067,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (21); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6135,7 +6135,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6203,7 +6203,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (21); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6271,7 +6271,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (11); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6339,7 +6339,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6407,7 +6407,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6475,7 +6475,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (18); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (18); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6543,7 +6543,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (23); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6611,7 +6611,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (21); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6679,7 +6679,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (11); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6747,7 +6747,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6815,7 +6815,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6883,7 +6883,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (18); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (18); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -6951,7 +6951,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (23); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7019,7 +7019,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7087,7 +7087,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (21); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7155,7 +7155,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7223,7 +7223,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (21); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (21); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7291,7 +7291,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (11); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (11); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7359,7 +7359,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7427,7 +7427,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7495,7 +7495,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (23); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (23); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7563,7 +7563,7 @@
      {
       "item": "9_narrative_and_table_agree",
       "ok": true,
-      "evidence": "narrative ids ⊆ ancestry∪chain_end; table ids == ancestry (22); witness+inj present in both"
+      "evidence": "narrative ids \u2286 ancestry\u222achain_end; table ids == ancestry (22); witness+inj present in both"
      },
      {
       "item": "10_only_legitimate_shared_injection",
@@ -7607,5 +7607,430 @@
    "REVIEW_REQUIRED": 0,
    "NOT_MIBENCH_RESULT": 24
   }
+ },
+ "r6_s_repair2": {
+  "generated": "2026-10-30",
+  "root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c",
+  "binary_sha256": "6db026e7ffa1ec3c95d1bc3065188cffdb61290633c6aa7a7e97456a028f9ef4",
+  "binary_source_head": "43d1bb0833e59559366fdb2d5254d77b0b139351",
+  "counts": {
+   "run_ids_complete": 11,
+   "seeds_per_run": 3,
+   "md_files": 33
+  },
+  "complete_3_of_3": {
+   "S01-F0-W5": true,
+   "S02-F0-W5": true,
+   "S03-F5-W5": true,
+   "S03-F5-W10": true,
+   "S08-F0-W5": true,
+   "S09-F0-W5": true,
+   "S10-F0-W5": true,
+   "S10-F0-W9": true,
+   "S10-F5-W5": true,
+   "S10-F5-W9": true,
+   "S11-F0-W5": true
+  },
+  "unattributed": {
+   "S11-F0-W6": "downstream 0x18 guest SEGV has no real taint/identity bridge; admitted=False"
+  },
+  "entries": [
+   {
+    "run_id": "S01-F0-W5",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S01-F0-W5/S01-F0-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S01-F0-W5_s1"
+   },
+   {
+    "run_id": "S01-F0-W5",
+    "seed": 2,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S01-F0-W5/S01-F0-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S01-F0-W5_s2"
+   },
+   {
+    "run_id": "S01-F0-W5",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S01-F0-W5/S01-F0-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S01-F0-W5_s3"
+   },
+   {
+    "run_id": "S02-F0-W5",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S02-F0-W5/S02-F0-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S02-F0-W5_s1"
+   },
+   {
+    "run_id": "S02-F0-W5",
+    "seed": 2,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S02-F0-W5/S02-F0-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S02-F0-W5_s2"
+   },
+   {
+    "run_id": "S02-F0-W5",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S02-F0-W5/S02-F0-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S02-F0-W5_s3"
+   },
+   {
+    "run_id": "S03-F5-W5",
+    "seed": 1,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Crash",
+    "doc": "S03-F5-W5/S03-F5-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S03-F5-W5_s1"
+   },
+   {
+    "run_id": "S03-F5-W5",
+    "seed": 2,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Crash",
+    "doc": "S03-F5-W5/S03-F5-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S03-F5-W5_s2"
+   },
+   {
+    "run_id": "S03-F5-W5",
+    "seed": 3,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Crash",
+    "doc": "S03-F5-W5/S03-F5-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S03-F5-W5_s3"
+   },
+   {
+    "run_id": "S03-F5-W10",
+    "seed": 1,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Crash",
+    "doc": "S03-F5-W10/S03-F5-W10-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S03-F5-W10_s1"
+   },
+   {
+    "run_id": "S03-F5-W10",
+    "seed": 2,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Crash",
+    "doc": "S03-F5-W10/S03-F5-W10-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S03-F5-W10_s2"
+   },
+   {
+    "run_id": "S03-F5-W10",
+    "seed": 3,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Crash",
+    "doc": "S03-F5-W10/S03-F5-W10-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S03-F5-W10_s3"
+   },
+   {
+    "run_id": "S08-F0-W5",
+    "seed": 1,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S08-F0-W5/S08-F0-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S08-F0-W5_s1"
+   },
+   {
+    "run_id": "S08-F0-W5",
+    "seed": 2,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S08-F0-W5/S08-F0-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S08-F0-W5_s2"
+   },
+   {
+    "run_id": "S08-F0-W5",
+    "seed": 3,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S08-F0-W5/S08-F0-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S08-F0-W5_s3"
+   },
+   {
+    "run_id": "S09-F0-W5",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S09-F0-W5/S09-F0-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S09-F0-W5_s1"
+   },
+   {
+    "run_id": "S09-F0-W5",
+    "seed": 2,
+    "terminal": "full",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S09-F0-W5/S09-F0-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S09-F0-W5_s2"
+   },
+   {
+    "run_id": "S09-F0-W5",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L5",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S09-F0-W5/S09-F0-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S09-F0-W5_s3"
+   },
+   {
+    "run_id": "S10-F0-W5",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F0-W5/S10-F0-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F0-W5_s1"
+   },
+   {
+    "run_id": "S10-F0-W5",
+    "seed": 2,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F0-W5/S10-F0-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F0-W5_s2"
+   },
+   {
+    "run_id": "S10-F0-W5",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F0-W5/S10-F0-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F0-W5_s3"
+   },
+   {
+    "run_id": "S10-F0-W9",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F0-W9/S10-F0-W9-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F0-W9_s1"
+   },
+   {
+    "run_id": "S10-F0-W9",
+    "seed": 2,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F0-W9/S10-F0-W9-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F0-W9_s2"
+   },
+   {
+    "run_id": "S10-F0-W9",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F0-W9/S10-F0-W9-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F0-W9_s3"
+   },
+   {
+    "run_id": "S10-F5-W5",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F5-W5/S10-F5-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F5-W5_s1"
+   },
+   {
+    "run_id": "S10-F5-W5",
+    "seed": 2,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F5-W5/S10-F5-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F5-W5_s2"
+   },
+   {
+    "run_id": "S10-F5-W5",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F5-W5/S10-F5-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F5-W5_s3"
+   },
+   {
+    "run_id": "S10-F5-W9",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F5-W9/S10-F5-W9-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F5-W9_s1"
+   },
+   {
+    "run_id": "S10-F5-W9",
+    "seed": 2,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F5-W9/S10-F5-W9-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F5-W9_s2"
+   },
+   {
+    "run_id": "S10-F5-W9",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L2",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S10-F5-W9/S10-F5-W9-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S10-F5-W9_s3"
+   },
+   {
+    "run_id": "S11-F0-W5",
+    "seed": 1,
+    "terminal": "detected_contained",
+    "provable_to": "L3",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S11-F0-W5/S11-F0-W5-seed1.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S11-F0-W5_s1"
+   },
+   {
+    "run_id": "S11-F0-W5",
+    "seed": 2,
+    "terminal": "detected_contained",
+    "provable_to": "L3",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S11-F0-W5/S11-F0-W5-seed2.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S11-F0-W5_s2"
+   },
+   {
+    "run_id": "S11-F0-W5",
+    "seed": 3,
+    "terminal": "detected_contained",
+    "provable_to": "L3",
+    "admitted": true,
+    "certified": true,
+    "truncated": false,
+    "oracle_outcome": "Masked",
+    "doc": "S11-F0-W5/S11-F0-W5-seed3.md",
+    "evidence": "/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c/S11-F0-W5_s3"
+   }
+  ]
  }
 }
