@@ -937,7 +937,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         if (!isLoad && size == 0 && !pre_byte_enable.empty()) {
             if (cpu->chaosPropagation)
                 cpu->chaosPropagation->noteStoreRequestSuppressed(
-                    inst->seqNum, _addr, pre_byte_enable.size());
+                    inst->seqNum, addr, pre_byte_enable.size());
         }
         inst->setRequest();
         request->taskId(cpu->taskId());
