@@ -1421,15 +1421,23 @@ def _addrpath_tier_flags(model, tier, wl_binary=None):
 # docs/gem5-fi/lsu/mdspec/round4_findings.md §R4-1-fix.
 LSQFWD_F0_SPAN = {
     # (model, workload binary) -> measured eligible-stream size
-    ("S01", "sq_forward"): 7,    # byte_flip, corrupt() path
-    ("S02", "sq_forward"): 7,    # byte_flip x2, corrupt() path
+    # [R6-S-REPAIR2 2026-10-30] RE-CENSUSED on the repair-round binary
+    # (sha256 686458c3…) with the campaign's EXACT absolute command form
+    # (--cmd <repo>/workloads/directed/sq_forward): the guest argv[0] string
+    # shifts stack/cache placement and is timing-visible, so a relative-path
+    # census (old 7/7/2/7) is NOT the same experiment. Measured eligible:
+    # S01=6, S02=6, S03=7 (unchanged), S08=1, S09=6. Evidence:
+    # runs/lsu/r6_s_repair2/census_abs/*.out and
+    # docs/gem5-fi/lsu/evidence/R6-S-REPAIR2-CENSUS.md.
+    ("S01", "sq_forward"): 6,    # byte_flip, corrupt() path
+    ("S02", "sq_forward"): 6,    # byte_flip x2, corrupt() path
     ("S03", "sq_forward"): 7,    # byte_lane_skew, corrupt() path
-    ("S08", "sq_forward"): 2,    # fwd_source_sub, maybeSubstituteSource
+    ("S08", "sq_forward"): 1,    # fwd_source_sub, maybeSubstituteSource
                                  #   (alt-SQ-entry opportunities; the
                                  #   R4-1-review-I2 change routes this site
                                  #   through the trigger — before, the tier
                                  #   flags were inert here)
-    ("S09", "sq_forward"): 7,    # byte_lane_skew, corrupt() path
+    ("S09", "sq_forward"): 6,    # byte_lane_skew, corrupt() path (repair census)
     ("L03", "sq_forward"): 571,  # violation-check stream (lsqfwd_l03)
     ("L03", "sqlite_like"): 18681,
     # [MDSPEC][R4-5.3] L04 rows (real runs 2026-10-21, binary

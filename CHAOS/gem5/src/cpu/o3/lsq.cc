@@ -929,6 +929,16 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // all-true rebuild).
         request->_byteEnable = (pre_byte_enable.size() == size)
             ? pre_byte_enable : std::vector<bool>(size, true);
+        // [R6-S-REPAIR2 2026-10-30] S11 lost-store: a PRE-hook size loss
+        // (size 0 + empty byte-enable) deterministically makes addReq()
+        // create no Request. Emit the real L2 request-suppressed witness
+        // here, while the injection identity is still seq-bound. No
+        // Request/mem_req is fabricated.
+        if (!isLoad && size == 0 && !pre_byte_enable.empty()) {
+            if (cpu->chaosPropagation)
+                cpu->chaosPropagation->noteStoreRequestSuppressed(
+                    inst->seqNum, addr, pre_byte_enable.size());
+        }
         inst->setRequest();
         request->taskId(cpu->taskId());
 

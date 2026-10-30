@@ -336,6 +336,13 @@ StoreSet::checkInst(Addr PC)
 void
 StoreSet::issued(Addr issued_PC, InstSeqNum issued_seq_num, bool is_store)
 {
+    // [R6-S-REPAIR2 2026-10-30] S10 L3: the (possibly corrupted) dependency
+    // prediction is consumed when the instruction issues. The hook runs for
+    // loads too (before the store-only early return); the callback emits
+    // ssit_dep_effective only when a real consult returned before != after.
+    if (chaosS10Issued)
+        chaosS10Issued(issued_PC);
+
     // This only is updated upon a store being issued.
     if (!is_store) {
         return;
@@ -402,6 +409,13 @@ StoreSet::squash(InstSeqNum squashed_num, ThreadID tid)
 void
 StoreSet::clear()
 {
+    // [R6-S-REPAIR2 2026-10-30] S10 epoch boundary: report the real clear
+    // point. The callback contains corrupted entries that never changed a
+    // decision before this reset (L1 containment); entries whose wrong
+    // prediction already reached issue are NOT contained here.
+    if (chaosS10Clear)
+        chaosS10Clear();
+
     SSIT.clear();
 
     for (int i = 0; i < LFSTSize; ++i) {

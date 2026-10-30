@@ -59,13 +59,18 @@ def src(path):
 
 
 def main():
-    print("[1] 观测端契约：S10 新 kind ssit_consult/ssit_violation + 必录字段")
-    check("ssit_consult 在 KIND_LAYER 注册为 L1",
-          P.KIND_LAYER.get("ssit_consult") == "L1",
+    print("[1] 观测端契约：S10 真实层级 + 必录字段")
+    # [R6-S-REPAIR2 2026-10-30] Real semantics replace the legacy
+    # consult=L1 / violation=L2 labels: L1 = field corrupted, L2 = consult,
+    # L3 = wrong dependency effective, L4 = real violation/replay.
+    check("ssit_corrupt 在 KIND_LAYER 注册为 L1",
+          P.KIND_LAYER.get("ssit_corrupt") == "L1",
+          str(P.KIND_LAYER.get("ssit_corrupt")))
+    check("ssit_consult 在 KIND_LAYER 注册为 L2",
+          P.KIND_LAYER.get("ssit_consult") == "L2",
           str(P.KIND_LAYER.get("ssit_consult")))
-    check("ssit_violation 在 KIND_LAYER 注册为 L2（表9 L2 档字面点名 "
-          "violation/replay）",
-          P.KIND_LAYER.get("ssit_violation") == "L2",
+    check("ssit_violation 在 KIND_LAYER 注册为 L4",
+          P.KIND_LAYER.get("ssit_violation") == "L4",
           str(P.KIND_LAYER.get("ssit_violation")))
     check("ssit_consult 必录字段 = fault_id/pc/field/before/after/entry_index",
           P.REQUIRED_FIELDS.get("ssit_consult") ==
@@ -103,14 +108,20 @@ def main():
     chain = [P.parse_line(l) for l in [
         "PROP-EVT: kind=inj fault_id=1 event_id=0 tick=12631850 "
         "pc=4448a4 before=37 after=512 field=ssid corr=origin",
-        "PROP-EVT: kind=ssit_consult fault_id=1 event_id=1 tick=12680000 "
-        "pc=4448a4 field=pred_dep before=9901 after=0 entry_index=512",
-        "PROP-EVT: kind=ssit_violation fault_id=1 event_id=2 tick=12712250 "
-        "pc=4448a4 field=dep_miss_violation state_before=512",
-        "PROP-EVT: kind=chain_end fault_id=1 event_id=3 tick=19000000 "
-        "detection_layer=None contained=0 outcome=run_end corr=none",
+        "PROP-EVT: kind=ssit_corrupt fault_id=1 event_id=1 "
+        "parent_event_id=0 tick=12631850 pc=4448a4 field=ssid "
+        "before=37 after=512 entry_index=512 corr=origin",
+        "PROP-EVT: kind=ssit_consult fault_id=1 event_id=2 "
+        "parent_event_id=1 tick=12680000 pc=4448a4 field=pred_dep "
+        "before=9901 after=0 entry_index=512 corr=origin",
+        "PROP-EVT: kind=ssit_violation fault_id=1 event_id=3 "
+        "parent_event_id=2 tick=12712250 pc=4448a4 "
+        "field=dep_miss_violation state_before=512 corr=origin",
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=4 "
+        "parent_event_id=3 tick=19000000 detection_layer=None "
+        "contained=0 outcome=run_end corr=none",
     ]]
-    check("合成 S10 链 4 事件全部可解析", len(chain) == 4
+    check("合成 S10 链 5 事件全部可解析", len(chain) == 5
           and all(e is not None for e in chain))
     check("链上每事件过 validate_event（必录字段齐备）",
           not [e for e in chain if P.validate_event(e)],
@@ -126,11 +137,11 @@ def main():
                                  "field": "dep_miss_violation"})))
     v = CC.check_chain(chain, oracle_outcome="Masked")
     f1 = v["faults"]["1"]
-    check("L0→L1 proven（inj → ssit_consult，witness fault_id）",
+    check("L0→L1 proven（inj → ssit_corrupt）",
           f1["edges"]["L0->L1"] == "proven", str(f1["edges"].get("L0->L1")))
-    check("L1→L2 proven（consult → violation）",
+    check("L1→L2 proven（ssit_corrupt → ssit_consult）",
           f1["edges"]["L1->L2"] == "proven", str(f1["edges"].get("L1->L2")))
-    check("L2→L3 missing（预测器故障无 L3 链事件——缺事件只报 Unknown）",
+    check("L2→L3 missing（无 effective 事件——缺事件只报 Unknown）",
           f1["edges"]["L2->L3"] == "missing",
           str(f1["edges"].get("L2->L3")))
     check("terminal = provable_to_L2_then_unknown（绝不推断 Masked）",
@@ -139,7 +150,7 @@ def main():
     check("beyond = Unknown", f1["beyond"] == "Unknown", str(f1["beyond"]))
     # 只有 inj + chain_end（注入的 PC 从未被咨询）——诚实 Injected-not-
     # activated 形态：链止于 L0。
-    v2 = CC.check_chain([chain[0], chain[3]])
+    v2 = CC.check_chain([chain[0], chain[4]])
     f2 = v2["faults"]["1"]
     check("未被消费的注入：terminal = provable_to_L0_then_unknown",
           f2["terminal"] == "provable_to_L0_then_unknown",
@@ -220,7 +231,7 @@ def main():
     check("目标从候选均匀抽取（seeded mt19937，非随机位串）",
           "rng() % cands.size()" in s10_subst_body)
     check("corrupt() 在 s10_mode 下旁路（hook split，L03/L04 纪律）",
-          "if (s10_mode) return;" in cc)
+          "if (s10_mode) return false;" in cc)
     check("s10 模式拒绝 lsuTier=off（大声失败，不静默）",
           "--lsqfwd_s10 (S10 StoreSet SSIT-ID 换值 " in cc
           and "requires --lsqfwd_lsu_tier" in cc)

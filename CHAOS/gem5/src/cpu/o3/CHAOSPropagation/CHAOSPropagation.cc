@@ -2071,6 +2071,61 @@ namespace gem5
     }
 
     void
+    CHAOSPropagation::noteStoreRequestSuppressed(uint64_t dyn_seq, Addr addr,
+                                                 unsigned old_size)
+    {
+        if (!write_log)
+            return;
+        Addr base = addr;
+        const char *corr = nullptr;
+        const uint64_t ptag = correlateRequestBySeq(dyn_seq, &base, &corr);
+        if (!ptag)
+            return;
+        std::ostringstream h;
+        h << std::hex << base;
+        notePropEvt("request_suppressed", {
+            {"fault_id", std::to_string(ptag)},
+            {"dyn_inst_seq", std::to_string(dyn_seq)},
+            {"va", h.str()},
+            {"field", "request_suppressed:empty_byte_enable"},
+            {"before", std::to_string(old_size)},
+            {"after", "0"},
+            {"state_before", "byte_enable_empty"},
+            {"corr", corr ? corr : CORR_SEQ_PRIMARY},
+        });
+    }
+
+    void
+    CHAOSPropagation::noteStoreLostContained(uint64_t dyn_seq, Addr addr)
+    {
+        if (!write_log)
+            return;
+        if (store_lost_contained.count(dyn_seq))
+            return;
+        Addr base = addr;
+        const char *corr = nullptr;
+        const uint64_t ptag = correlateRequestBySeq(dyn_seq, &base, &corr);
+        if (!ptag)
+            return;
+        store_lost_contained.insert(dyn_seq);
+        std::ostringstream h;
+        h << std::hex << base;
+        notePropEvt("store_lost_contained", {
+            {"fault_id", std::to_string(ptag)},
+            {"dyn_inst_seq", std::to_string(dyn_seq)},
+            {"va", h.str()},
+            {"field", "store_completed_without_mem_request"},
+            {"state_after", "completed_no_request"},
+            {"detection_layer", "L3"},
+            {"contained", "1"},
+            {"outcome", "contained"},
+            {"containment_layer", "L3"},
+            {"containment_reason", "store_lost_before_request_formation"},
+            {"corr", corr ? corr : CORR_SEQ_PRIMARY},
+        });
+    }
+
+    void
     CHAOSPropagation::noteArchTranslationFault(Addr va, bool delivered)
     {
         if (!write_log)

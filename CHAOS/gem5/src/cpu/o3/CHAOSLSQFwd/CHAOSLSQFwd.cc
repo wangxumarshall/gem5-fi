@@ -15,6 +15,7 @@
 #include "cpu/o3/dyn_inst.hh"   // [MDSPEC][R4-5.3] full DynInst (resp-pair)
 #include "debug/LSQUnit.hh"
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [MDSPEC][H3-FWD]
+#include "base/chaos_guest_fault.hh"  // [R6-S-REPAIR2] guest-SEGV teardown arm
 
 namespace gem5
 {
@@ -92,6 +93,8 @@ namespace gem5
             chaosS10SsidSubst = &CHAOSLSQFwd::s10SsidSubstCb;
             chaosS10CorruptedPc = &CHAOSLSQFwd::s10CorruptedPcCb;
             chaosS10Consult = &CHAOSLSQFwd::s10ConsultCb;
+            chaosS10Issued = &CHAOSLSQFwd::s10IssuedCb;
+            chaosS10Clear = &CHAOSLSQFwd::s10ClearCb;
         }
         // [MDSPEC][R4-9-FSMC] O06/O07: trigger-native like L04/S10 (the
         // barrier-SN stream IS the model's event source). The MemDepUnit has
@@ -243,6 +246,10 @@ namespace gem5
                 chaosS10CorruptedPc = nullptr;
             if (chaosS10Consult == &CHAOSLSQFwd::s10ConsultCb)
                 chaosS10Consult = nullptr;
+            if (chaosS10Issued == &CHAOSLSQFwd::s10IssuedCb)
+                chaosS10Issued = nullptr;
+            if (chaosS10Clear == &CHAOSLSQFwd::s10ClearCb)
+                chaosS10Clear = nullptr;
         }
         // [MDSPEC][R4-9-FSMC] O06/O07 hook deregistration (same single-
         // consumer discipline).
@@ -305,6 +312,12 @@ namespace gem5
                           int byte_off, int mask, const FwdCorrelKeys &keys,
                           const o3::DynInstPtr &load_inst, const void *data)
     {
+        // [R6-S-REPAIR2 2026-10-30] A real LSQFwd injection can leave the
+        // guest with a corrupted value that is later dereferenced as a wild
+        // pointer. Arm the same controlled guest-SEGV teardown CHAOSAddrPath
+        // uses; without it the SE page-table-fault path panics and truncates
+        // stats/prop_evt (S09-F0-W5 seed2). Arm-only: no VA is registered.
+        chaos::noteChaosInjection();
         // [MDSPEC][H3-FWD] register the forwarding fault with the propagation
         // tracer — writeLog is the single chokepoint every S01/S02/S03/S09
         // data-path injection passes through, so one hook covers them all.
@@ -553,6 +566,8 @@ namespace gem5
         memcpy(load_data, alt_src, n);
         stats->numFaultsInjected++;
         ++faults_injected_count;
+        // [R6-S-REPAIR2 2026-10-30] real injection: arm controlled guest SEGV.
+        chaos::noteChaosInjection();
         // [R6-S-FWD 2026-10-30] fwd_source_sub rides the SAME real
         // registration/emission path as the data-path corruption: the inj
         // node names the consuming load, and the real L1->L4 lifecycle is
@@ -663,6 +678,8 @@ namespace gem5
         ++faults_injected_count;
         ++l0_funnel.injected;
         ++l0_funnel.activated;
+        // [R6-S-REPAIR2 2026-10-30] real injection: arm controlled guest SEGV.
+        chaos::noteChaosInjection();
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream()) << "Cycle: " << cpu->curCycle()
                 << ", Site: checkViolations_L03"
@@ -784,6 +801,8 @@ namespace gem5
         ++faults_injected_count;
         if (stats)
             stats->numFaultsInjected++;
+        // [R6-S-REPAIR2 2026-10-30] real injection: arm controlled guest SEGV.
+        chaos::noteChaosInjection();
         // Injection-log line (L0 parses the "Tick: …, Site: …, mode=…,
         // faults_injected:" contract — tools/lsu_obs_core._INJ_RE; the
         // source/target IDs are the L04 pairing keys the spec requires to
@@ -1036,7 +1055,12 @@ namespace gem5
         // this event witnesses the co-occurrence, the causal reading rests
         // on the preceding ssit_consult's before/after divergence.
         auto it = s10_active->s10_entries.find(load_pc);
-        if (it != s10_active->s10_entries.end()) {
+        // [R6-S-REPAIR2 2026-10-30] A violation on the corrupted PC only
+        // belongs to this chain when the corruption actually changed the
+        // predicted dependency. A no-effect consult's L2 containment is not
+        // invalidated by an unrelated natural violation on the same PC.
+        if (it != s10_active->s10_entries.end() &&
+            it->second.wrong_prediction) {
             if (!it->second.consumed) {
                 it->second.consumed = true;
                 ++s10_active->s10_activated_count;
@@ -1055,6 +1079,7 @@ namespace gem5
                     {"state_before",
                      load_ssid_valid ? std::to_string(load_ssid_now)
                                      : "invalid"},
+                    {"corr", "origin"},
                 });
             }
             if (s10_active->write_log && s10_active->log_stream &&
@@ -1181,12 +1206,64 @@ namespace gem5
         // PC — only possible with maxFaults=0/unlimited — overwrites; the
         // previous chain then has no live consumption surface, recorded in
         // the .hh comment rather than papered over).
-        s10_active->s10_entries[load_pc] =
-            S10Entry{ptag, true_ssid, false};
+        // [R6-S-REPAIR2 2026-10-30] Overwrite-before-use: a previous
+        // corruption of this PC is replaced by this new injection. If it
+        // never changed a decision (no wrong prediction reached issue) and
+        // was not contained yet, close its chain at the real overwrite point.
+        auto prev = s10_active->s10_entries.find(load_pc);
+        if (prev != s10_active->s10_entries.end() &&
+            !prev->second.effective_emitted &&
+            !prev->second.contained_emitted) {
+            if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+                std::ostringstream pc_hex;
+                pc_hex << std::hex << load_pc;
+                tr->notePropEvt("ssit_epoch_clear", {
+                    {"fault_id", std::to_string(prev->second.ptag)},
+                    {"pc", pc_hex.str()},
+                    {"field", "ssid_overwritten"},
+                    {"state_before",
+                     std::to_string(prev->second.subst_ssid)},
+                    {"detection_layer", "L1"},
+                    {"contained", "1"},
+                    {"outcome", "contained"},
+                    {"containment_layer", "L1"},
+                    {"containment_reason",
+                     "overwritten_before_decision_change"},
+                    {"corr", "origin"},
+                });
+            }
+            prev->second.contained_emitted = true;
+        }
+
+        S10Entry entry;
+        entry.ptag = ptag;
+        entry.true_ssid = true_ssid;
+        entry.subst_ssid = target;
+        s10_active->s10_entries[load_pc] = entry;
+
+        // [R6-S-REPAIR2 2026-10-30] L1 witness: the SSIT field now holds the
+        // substituted SSID (the corrupted state exists). parent = inj.
+        if (ptag) {
+            if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+                std::ostringstream pc_hex;
+                pc_hex << std::hex << load_pc;
+                tr->notePropEvt("ssit_corrupt", {
+                    {"fault_id", std::to_string(ptag)},
+                    {"pc", pc_hex.str()},
+                    {"field", "ssid"},
+                    {"before", std::to_string(true_ssid)},
+                    {"after", std::to_string(target)},
+                    {"entry_index", std::to_string(target)},
+                    {"corr", "origin"},
+                });
+            }
+        }
 
         ++s10_active->faults_injected_count;
         if (s10_active->stats)
             s10_active->stats->numFaultsInjected++;
+        // [R6-S-REPAIR2 2026-10-30] real S10 injection: arm guest SEGV.
+        chaos::noteChaosInjection();
         // [R6-S-S10 2026-10-30] F5 separates fire from outcome: report the
         // REAL write so trigger.injected == injection log == stats (pre-fix
         // fires=3 / outcomes_recorded=0 / injected=0 was a reporting bug).
@@ -1224,6 +1301,71 @@ namespace gem5
         return true;
     }
 
+    void
+    CHAOSLSQFwd::s10IssuedCb(Addr pc)
+    {
+        if (!s10_active)
+            return;
+        auto it = s10_active->s10_entries.find(pc);
+        if (it == s10_active->s10_entries.end())
+            return;
+        S10Entry &e = it->second;
+        if (!e.wrong_prediction || e.effective_emitted)
+            return;
+        e.effective_emitted = true;
+        if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+            std::ostringstream pc_hex;
+            pc_hex << std::hex << pc;
+            tr->notePropEvt("ssit_dep_effective", {
+                {"fault_id", std::to_string(e.ptag)},
+                {"pc", pc_hex.str()},
+                {"field", "pred_dep_effective"},
+                {"before", std::to_string(e.dep_before)},
+                {"after", std::to_string(e.dep_after)},
+                {"entry_index", std::to_string(e.subst_ssid)},
+                {"corr", "origin"},
+            });
+        }
+    }
+
+    void
+    CHAOSLSQFwd::s10ClearCb()
+    {
+        if (!s10_active)
+            return;
+        // [R6-S-REPAIR2 2026-10-30] Real epoch boundary. A corrupted entry
+        // that never changed the predicted dependency is contained here:
+        // it was discarded before it could affect a decision. Entries whose
+        // wrong prediction already reached issue are NOT contained.
+        for (auto &kv : s10_active->s10_entries) {
+            S10Entry &e = kv.second;
+            if (e.effective_emitted || e.contained_emitted ||
+                e.wrong_prediction)
+                continue;
+            e.contained_emitted = true;
+            if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+                std::ostringstream pc_hex;
+                pc_hex << std::hex << kv.first;
+                tr->notePropEvt("ssit_epoch_clear", {
+                    {"fault_id", std::to_string(e.ptag)},
+                    {"pc", pc_hex.str()},
+                    {"field", e.consulted ? "ssid_clear_after_no_effect"
+                                          : "ssid_clear_before_use"},
+                    {"state_before", std::to_string(e.subst_ssid)},
+                    {"detection_layer", "L1"},
+                    {"contained", "1"},
+                    {"outcome", "contained"},
+                    {"containment_layer", "L1"},
+                    {"containment_reason", e.consulted
+                        ? "epoch_clear_after_no_decision_change"
+                        : "epoch_clear_before_use"},
+                    {"corr", "origin"},
+                });
+            }
+        }
+        s10_active->s10_entries.clear();
+    }
+
     bool
     CHAOSLSQFwd::s10CorruptedPcCb(Addr pc, uint64_t *true_ssid)
     {
@@ -1254,6 +1396,9 @@ namespace gem5
             it->second.consumed = true;
             ++s10_active->s10_activated_count;
         }
+        it->second.consulted = true;
+        it->second.dep_before = counterfactual_dep;
+        it->second.dep_after = actual_dep;
 
         if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
             std::ostringstream pc_hex;
@@ -1265,7 +1410,40 @@ namespace gem5
                 {"before", std::to_string(counterfactual_dep)},
                 {"after", std::to_string(actual_dep)},
                 {"entry_index", std::to_string(actual_ssid)},
+                {"corr", "origin"},
             });
+        }
+
+        // [R6-S-REPAIR2 2026-10-30] Real L2 detected containment: the
+        // corrupted entry was read, but the predicted dependency equals the
+        // counterfactual (the substituted SSID's LFST slot produced the same
+        // answer). No decision changed at this read. A LATER consult with
+        // before != after emits ssit_dep_effective at issue (L3), which
+        // disqualifies this L2 containment in the chain checker.
+        if (actual_dep == counterfactual_dep && !it->second.wrong_prediction &&
+            !it->second.no_effect_emitted) {
+            it->second.no_effect_emitted = true;
+            if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+                std::ostringstream pc_hex;
+                pc_hex << std::hex << pc;
+                tr->notePropEvt("ssit_no_effect", {
+                    {"fault_id", std::to_string(it->second.ptag)},
+                    {"pc", pc_hex.str()},
+                    {"field", "pred_dep_unchanged"},
+                    {"before", std::to_string(counterfactual_dep)},
+                    {"after", std::to_string(actual_dep)},
+                    {"entry_index", std::to_string(actual_ssid)},
+                    {"detection_layer", "L2"},
+                    {"contained", "1"},
+                    {"outcome", "contained"},
+                    {"containment_layer", "L2"},
+                    {"containment_reason",
+                     "ssit_consult_prediction_unchanged"},
+                    {"corr", "origin"},
+                });
+            }
+        } else if (actual_dep != counterfactual_dep) {
+            it->second.wrong_prediction = true;
         }
         // [R4-5.7-integration] 这里原本有一行 DPRINTF(LSQUnit, ...) 诊断输出，
         // 构建失败两次后移除：

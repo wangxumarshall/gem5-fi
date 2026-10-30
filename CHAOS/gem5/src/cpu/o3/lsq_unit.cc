@@ -1427,6 +1427,11 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
                 {"va", h3_hex.str()},
                 {"state_after", "completed"},
             });
+            // [R6-S-REPAIR2 2026-10-30] S11 lost-store: the store completed
+            // with no memory request (size 0). Real L3 containment.
+            if (store_idx->size() == 0)
+                cpu->chaosPropagation->noteStoreLostContained(
+                    store_inst->seqNum, h3_base);
         }
     }
 

@@ -1,5 +1,18 @@
 # R6_COMPLETE_PROPAGATION_PATHS — INDEX
 
+## R6-S-REPAIR2（2026-10-30）
+
+- 新增/重跑：11 RunID × 3 seed = 33 份 seed 文档；S 文档总数 **65**；全部文档 **238**。
+- 全部 33 seed：`admitted=True`、`certified=True`、`violations=[]`、gzip 完整、stats 非零、非截断。
+- 新增 3/3：`S01-F0-W5`、`S02-F0-W5`、`S03-F5-W5`、`S03-F5-W10`、`S08-F0-W5`、`S09-F0-W5`、`S10-F0-W5`、`S10-F0-W9`、`S10-F5-W5`、`S10-F5-W9`、`S11-F0-W5`。
+- 终局：S03-F5 两格为真实 Crash + full L5（mmap 溢出修为 guest ENOMEM）；S10 四格为 L2 detected containment（污染 SSIT 被读取但预测未改变）；S11-F0-W5 为 L3 detected containment（request 在形成前被抑制）；S01/S02/S08/S09 为 full / detected_contained L5。
+- `S11-F0-W6`：`UNATTRIBUTED_DOWNSTREAM_CRASH`（0x18 下游野指针无真实 taint/身份桥；不生成文档、不准入）。
+- 二进制 SHA-256：`6db026e7ffa1ec3c95d1bc3065188cffdb61290633c6aa7a7e97456a028f9ef4`；源码 HEAD：`43d1bb0833e59559366fdb2d5254d77b0b139351`；证据根：`/home/sdc/gem5-fi-ding/runs/lsu/r6_s_repair2c`。
+- 文档格式：每份八章（定义/注入/事件总览/逐步语义/终局/guest 表现/证据 SHA/复现与边界）。
+
+---
+（以下为 2026-10-27 T 轮历史索引）
+
 生成时间：`2026-10-27`；根目录：`/home/sdc/gem5-fi-ding/runs/lsu/R6_COMPLETE_PROPAGATION_PATHS`；集成 worktree HEAD `4af986f7`（审计工具提交）
 
 - MD 文件：**51**（17 RunID × 3 seed），每份七个一级章节
