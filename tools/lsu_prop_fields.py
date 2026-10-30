@@ -133,12 +133,18 @@ KIND_LAYER = {
     "sq_execute": "L3", "sq_writeback": "L3", "sq_complete": "L3",
     # [MDSPEC][H3-FWD] S 系转发故障（生产 store→消费 load 的转发数据被污染）
     "lsq_fwd": "L2",
-    # [MDSPEC][R4-5.7] S10 StoreSet SSIT 腐蚀链（换值子模型 S10-a）：
-    # ssit_consult（L1）= checkInst 咨询被腐蚀 load PC 的 SSIT 条目——
-    # 预测依赖的读取点（dispatch 期，先于执行）；ssit_violation（L2）=
-    # 该 PC 上的 memory-ordering violation 检出（漏预测的具体化——
-    # 表9 S10 行 L2 档字面点名 "violation/replay"）。
-    "ssit_consult": "L1", "ssit_violation": "L2",
+    # [R6-S-REPAIR2 2026-10-30] S10 StoreSet SSIT 真实层级（用户工作令 §七）：
+    #   L1 ssit_corrupt        SSIT 字段被真实替换（注入落点）
+    #   L2 ssit_consult        调度/依赖查询真实读取污染状态
+    #   L3 ssit_dep_effective  错误依赖预测在 issue 时真实生效
+    #   L4 ssit_violation      真实 memory-order violation（replay/squash）
+    #   L2 ssit_no_effect      读取污染状态但预测不变（真实 detected containment）
+    #   L1 ssit_epoch_clear    条目在产生决策变化前被 epoch 清除（containment）
+    # 旧映射 ssit_consult=L1 / ssit_violation=L2 把“读取”和“后果”混为一层，
+    # 无法表达 L2→L3→L4 的真实传播；此轮按真实语义重定义（测试钉死）。
+    "ssit_corrupt": "L1", "ssit_consult": "L2",
+    "ssit_dep_effective": "L3", "ssit_violation": "L4",
+    "ssit_no_effect": "L2", "ssit_epoch_clear": "L1",
     # [MDSPEC][H4] cache 结构事件（L1=lookup / L2=hit返回·miss+MSHR+fill+evict
     # / L3=writeback 持久化）
     "cache_access": "L1", "cache_return": "L2", "cache_fill": "L2",
@@ -275,9 +281,22 @@ REQUIRED_FIELDS = {
     # 的 PC 键匹配，非 correlate* 查询——CORR_VALUES 5 值词汇表无 PC 键
     # join 标记，扩表会破坏 test_lsu_prop_fields §6 的钉死契约（此为
     # 已裁决的诚实缺席，非静默地址关联；登记于 R4-5.7 报告）。
+    "ssit_corrupt": ["fault_id", "pc", "field", "before", "after",
+                     "entry_index"],
     "ssit_consult": ["fault_id", "pc", "field", "before", "after",
                      "entry_index"],
+    "ssit_dep_effective": ["fault_id", "pc", "field", "before", "after",
+                           "entry_index", "corr"],
     "ssit_violation": ["fault_id", "pc", "field", "state_before"],
+    # The no-effect witness is a real detected containment: the corrupted
+    # SSIT entry was READ and the predicted dependency equalled the
+    # counterfactual (before == after), so it changed no decision. It must
+    # carry the full explicit-terminal vocabulary (dl/outcome/corr).
+    "ssit_no_effect": ["fault_id", "pc", "field", "before", "after",
+                       "entry_index", "detection_layer", "contained",
+                       "outcome", "corr"],
+    "ssit_epoch_clear": ["fault_id", "pc", "field", "state_before",
+                         "detection_layer", "contained", "outcome", "corr"],
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
     "cache_access": ["fault_id", "corr", "va", "pa"],
     "cache_return": ["fault_id", "corr", "pa", "field"],

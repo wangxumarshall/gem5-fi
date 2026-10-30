@@ -278,7 +278,15 @@ class CHAOSLSQFwd : public SimObject
     struct S10Entry {
         uint64_t ptag = 0;
         uint64_t true_ssid = 0;
-        bool consumed = false;
+        uint64_t subst_ssid = 0;
+        bool consumed = false;          // activation counted (first use)
+        bool consulted = false;         // StoreSet::checkInst read the entry
+        bool no_effect_emitted = false; // before == after at a consult
+        bool wrong_prediction = false;  // a consult returned before != after
+        bool effective_emitted = false; // the wrong prediction reached issue
+        bool contained_emitted = false; // epoch/overwrite containment emitted
+        uint64_t dep_before = 0;        // counterfactual producing-store seq
+        uint64_t dep_after = 0;         // actual producing-store seq
     };
     std::unordered_map<Addr, S10Entry> s10_entries;
     uint64_t s10_activated_count = 0;  // entries with consumed=true
@@ -376,6 +384,12 @@ class CHAOSLSQFwd : public SimObject
     static bool s10CorruptedPcCb(Addr pc, uint64_t *true_ssid);
     static void s10ConsultCb(Addr pc, uint64_t actual_ssid,
                              uint64_t actual_dep, uint64_t counterfactual_dep);
+    // [R6-S-REPAIR2 2026-10-30] Real downstream hooks: StoreSet::issued
+    // (L3 wrong-dependency decision takes effect) and StoreSet::clear
+    // (epoch boundary: corrupted entries that never changed a decision are
+    // contained at L1).
+    static void s10IssuedCb(Addr pc);
+    static void s10ClearCb();
     // [MDSPEC][R4-9-FSMC] O06/O07 static hook bodies (registered into the
     // chaosBarrier* globals by the ctor when o06_mode/o07_mode; cleared by
     // the dtor). Single consumer, same scoping as the s10 callbacks above.
@@ -449,6 +463,9 @@ inline bool (*chaosS10CorruptedPc)(Addr pc, uint64_t *true_ssid) = nullptr;
 inline void (*chaosS10Consult)(Addr pc, uint64_t actual_ssid,
                                uint64_t actual_dep,
                                uint64_t counterfactual_dep) = nullptr;
+// [R6-S-REPAIR2 2026-10-30] L3/L1 real downstream hooks.
+inline void (*chaosS10Issued)(Addr pc) = nullptr;
+inline void (*chaosS10Clear)() = nullptr;
 
 } // namespace gem5  [R4-5.7-integration] 关闭为 S10 钩子重开的 namespace
 
