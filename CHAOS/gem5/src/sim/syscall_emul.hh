@@ -259,13 +259,18 @@ SyscallReturn dupFunc(SyscallDesc *desc, ThreadContext *tc,
 SyscallReturn dup2Func(SyscallDesc *desc, ThreadContext *tc,
                        int old_tgt_fd, int new_tgt_fd);
 
+/// Target dup3() handler (aarch64 dup2: dup3 with flags).
+SyscallReturn dup3Func(SyscallDesc *desc, ThreadContext *tc,
+                       int old_tgt_fd, int new_tgt_fd, int flags);
+
 /// Target fcntl() handler.
 SyscallReturn fcntlFunc(SyscallDesc *desc, ThreadContext *tc,
                         int tgt_fd, int cmd, guest_abi::VarArgs<int> varargs);
 
 /// Target fcntl64() handler.
 SyscallReturn fcntl64Func(SyscallDesc *desc, ThreadContext *tc,
-                          int tgt_fd, int cmd);
+                          int tgt_fd, int cmd,
+                          guest_abi::VarArgs<int> varargs);
 
 /// Target pipe() handler.
 SyscallReturn pipeFunc(SyscallDesc *desc, ThreadContext *tc, VPtr<> tgt_addr);
@@ -2290,6 +2295,14 @@ prlimitFunc(SyscallDesc *desc, ThreadContext *tc,
           case OS::TGT_RLIMIT_DATA:
             // max data segment size in bytes: make up a number
             rlp->rlim_cur = rlp->rlim_max = 256*1024*1024;
+            rlp->rlim_cur = htog(rlp->rlim_cur, bo);
+            rlp->rlim_max = htog(rlp->rlim_max, bo);
+            break;
+          case OS::TGT_RLIMIT_NOFILE:
+            // max number of open files: make up a number (typical host
+            // soft limit). Callers that ask for more get the existing
+            // "ignoring new rlimit" pretend-success above.
+            rlp->rlim_cur = rlp->rlim_max = 1024;
             rlp->rlim_cur = htog(rlp->rlim_cur, bo);
             rlp->rlim_max = htog(rlp->rlim_max, bo);
             break;

@@ -144,6 +144,50 @@ setTLSFunc64(SyscallDesc *desc, ThreadContext *tc, uint32_t tlsPtr)
     return 0;
 }
 
+/// memfd_create() for SE: gem5 does not emulate memfd semantics (shared
+/// mappings do not propagate across forked processes — see the mmapFunc
+/// warn_once), and mmap() only accepts FileFDEntry-backed descriptors, so a
+/// host memfd masquerading as a plain HBFDEntry would fail mmap with EBADF.
+/// Returning ENOSYS is the honest emulation: callers engage their own
+/// fallback path (SDCShield's sysdeps/unix/tmpfile.c falls back to
+/// O_TMPFILE / regular unlinked tmpfiles, which mmap handles fine).
+static SyscallReturn
+memfdCreateFunc(SyscallDesc *desc, ThreadContext *tc)
+{
+    warn_once("%s: not emulated, returning ENOSYS (callers fall back to "
+              "tmpfiles)", desc->name());
+    return SyscallReturn(-ENOSYS);
+}
+
+/// prctl() for SE: SVE vector-length get/pin, mirroring the Linux uapi
+/// semantics SDCShield's framework layer (arm64_vl.h) depends on — a
+/// successful PR_SVE_SET_VL returns the granted VL IN BYTES (returning 0
+/// would be read as "execution layer ignored" -> ENOSYS -> test SKIP).
+/// gem5 SE has exactly one tier (ArmISA::sve_vl_se, in quadwords), so a
+/// request at or above the configured VL is granted at the configured VL;
+/// anything lower is refused with EINVAL (single-tier limitation, warned
+/// once). Other prctl options are ignored, returning success.
+static SyscallReturn
+prctlFunc(SyscallDesc *desc, ThreadContext *tc, long option, long arg2)
+{
+    switch (option) {
+      case 51 /* PR_SVE_GET_VL */:
+        return SyscallReturn(
+            (int64_t)tc->getIsaPtr()->getVectorLengthInBytes());
+      case 50 /* PR_SVE_SET_VL */: {
+        const int64_t vl = tc->getIsaPtr()->getVectorLengthInBytes();
+        if (arg2 >= vl)
+            return SyscallReturn(vl);
+        warn_once("%s: PR_SVE_SET_VL %ld below the single configured SE "
+                  "tier (%ld bytes) refused with EINVAL",
+                  desc->name(), arg2, vl);
+        return SyscallReturn(-EINVAL);
+      }
+      default:
+        return SyscallReturn(0);
+    }
+}
+
 class SyscallTable32 : public SyscallDescTable<EmuLinux::SyscallABI32>
 {
   public:
@@ -529,7 +573,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 21, "epoll_ctl"},
                {base + 22, "epoll_pwait"},
                {base + 23, "dup", dupFunc},
-               {base + 24, "dup3"},
+               {base + 24, "dup3", dup3Func},
                {base + 25, "fcntl64", fcntl64Func},
                {base + 26, "inotify_init1"},
                {base + 27, "inotify_add_watch"},
@@ -592,7 +636,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 80, "fstat64", fstat64Func<ArmLinux64>},
                {base + 81, "sync"},
                {base + 82, "fsync"},
-               {base + 83, "fdatasync"},
+               {base + 83, "fdatasync", ignoreFunc},
                {base + 84, "sync_file_range"},
                {base + 85, "timerfd_create"},
                {base + 86, "timerfd_settime"},
@@ -624,7 +668,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 112, "clock_settime"},
                {base + 113, "clock_gettime", clock_gettimeFunc<ArmLinux64>},
                {base + 114, "clock_getres"},
-               {base + 115, "clock_nanosleep"},
+               {base + 115, "clock_nanosleep", ignoreWarnOnceFunc},
                {base + 116, "syslog"},
                {base + 117, "ptrace"},
                {base + 118, "sched_setparam", ignoreWarnOnceFunc},
@@ -632,7 +676,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 120, "sched_getscheduler", ignoreWarnOnceFunc},
                {base + 121, "sched_getparam", sched_getparamFunc},
                {base + 122, "sched_setaffinity", ignoreWarnOnceFunc},
-               {base + 123, "sched_getaffinity", ignoreFunc},
+               {base + 123, "sched_getaffinity", schedGetaffinityFunc<ArmLinux64>},
                {base + 124, "sched_yield", ignoreWarnOnceFunc},
                {base + 125, "sched_get_priority_max", ignoreWarnOnceFunc},
                {base + 126, "sched_get_priority_min", ignoreWarnOnceFunc},
@@ -676,7 +720,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 164, "setrlimit", ignoreFunc},
                {base + 165, "getrusage", getrusageFunc<ArmLinux64>},
                {base + 166, "umask"},
-               {base + 167, "prctl"},
+               {base + 167, "prctl", prctlFunc},
                {base + 168, "getcpu", getcpuFunc},
                {base + 169, "gettimeofday", gettimeofdayFunc<ArmLinux64>},
                {base + 170, "settimeofday"},
@@ -708,7 +752,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 196, "shmat"},
                {base + 197, "shmdt"},
                {base + 198, "socket"},
-               {base + 199, "socketpair"},
+               {base + 199, "socketpair", socketpairFunc<ArmLinux64>},
                {base + 200, "bind"},
                {base + 201, "listen"},
                {base + 202, "accept"},
@@ -717,8 +761,8 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 205, "getpeername"},
                {base + 206, "sendto", sendtoFunc<ArmLinux64>},
                {base + 207, "recvfrom", recvfromFunc<ArmLinux64>},
-               {base + 208, "setsockopt"},
-               {base + 209, "getsockopt"},
+               {base + 208, "setsockopt", setsockoptFunc},
+               {base + 209, "getsockopt", getsockoptFunc},
                {base + 210, "shutdown"},
                {base + 211, "sendmsg"},
                {base + 212, "recvmsg"},
@@ -750,7 +794,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 238, "migrate_pages"},
                {base + 239, "move_pages"},
                {base + 240, "rt_tgsigqueueinfo"},
-               {base + 241, "perf_event_open"},
+               {base + 241, "perf_event_open", ignoreWithEnosysFunc},
                {base + 242, "accept4"},
                {base + 243, "recvmmsg"},
                {base + 260, "wait4"},
@@ -772,7 +816,7 @@ class SyscallTable64 : public SyscallDescTable<EmuLinux::SyscallABI64>
                {base + 276, "renameat2"},
                {base + 277, "seccomp"},
                {base + 278, "getrandom", getrandomFunc<ArmLinux64>},
-               {base + 279, "memfd_create"},
+               {base + 279, "memfd_create", memfdCreateFunc},
                {base + 280, "bpf"},
                {base + 281, "execveat"},
                {base + 282, "userfaultfd"},
