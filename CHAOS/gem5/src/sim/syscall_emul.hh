@@ -2080,6 +2080,12 @@ mmapFunc(SyscallDesc *desc, ThreadContext *tc,
 
     length = roundUp(length, page_bytes);
 
+    // [R6-S-REPAIR2 2026-10-30] A corrupted length/hint must not overflow
+    // the address space. Real Linux fails such a mapping with ENOMEM; the
+    // old path wrapped start+length and tripped VMA::sanityCheck.
+    if (start && length > MaxAddr - start)
+        return -ENOMEM;
+
     int sim_fd = -1;
     if (!(tgt_flags & OS::TGT_MAP_ANONYMOUS)) {
         std::shared_ptr<FDEntry> fdep = (*p->fds)[tgt_fd];
@@ -2135,6 +2141,11 @@ mmapFunc(SyscallDesc *desc, ThreadContext *tc,
             * Extend global mmap region to give us some room for the app.
             */
             start = p->memState->extendMmap(length);
+            // [R6-S-REPAIR2] extendMmap returns 0 when the requested length
+            // cannot fit; report the guest-visible ENOMEM instead of
+            // constructing a wrapped AddrRange.
+            if (!start || length > MaxAddr - start)
+                return -ENOMEM;
         }
     }
 

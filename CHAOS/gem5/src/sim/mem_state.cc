@@ -451,10 +451,26 @@ MemState::fixupFault(Addr vaddr)
 Addr
 MemState::extendMmap(Addr length)
 {
+    // [R6-S-REPAIR2 2026-10-30] A corrupted guest length must not wrap the
+    // mmap region: the old code computed start = _mmapEnd - length, then
+    // stored a wrapped _mmapEnd, and AddrRange later tripped
+    // VMA::sanityCheck (S03-F5 guest mmap2(0, 2^62+4096, ...)). A length
+    // that cannot fit in the address space is a guest-visible ENOMEM; 0 is
+    // the caller's failure sentinel.
+    if (length == 0)
+        return 0;
+
     Addr start = _mmapEnd;
 
-    if (_ownerProcess->mmapGrowsDown())
+    if (_ownerProcess->mmapGrowsDown()) {
+        if (length > _mmapEnd)
+            return 0;
         start = _mmapEnd - length;
+    } else {
+        if (length > MaxAddr - _mmapEnd)
+            return 0;
+        start = _mmapEnd;
+    }
 
     // Look for a contiguous region of free virtual memory.  We can't assume
     // that the region beyond mmap_end is free because of fixed mappings from
