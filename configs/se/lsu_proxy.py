@@ -1367,3 +1367,15 @@ if args.maxinsts:
 
 simulator = Simulator(board=board, full_system=False)
 simulator.run()
+
+# [R6-S-CRASH 2026-10-30] Controlled guest-SEGV exit. An injected effective
+# address hitting an unmapped page ends SE simulation via
+# exitSimLoop("chaos_guest_segv", 128 + SIGSEGV); the exit event is mapped in
+# gem5/simulate/exit_event.py. Exit with the documented code and print the
+# marker so strict crash_translation_fault admission has a controlled exit
+# record instead of the historical NotImplementedError (rc=1 tool failure).
+# Any other exit cause is left untouched.
+if simulator.get_last_exit_event_cause() == "chaos_guest_segv":
+    print("CHAOS_GUEST_SEGV_EXIT: cause=chaos_guest_segv code=139 "
+          "tick=%d" % simulator.get_current_tick())
+    raise SystemExit(139)

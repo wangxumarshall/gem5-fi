@@ -56,6 +56,14 @@ class ExitEvent(Enum):
     PERF_COUNTER_INTERRUPT = "performance counter interrupt"
     KERNEL_PANIC = "kernel panic in simulated system"
     KERNEL_OOPS = "kernel oops in simulated system"
+    # [R6-S-CRASH 2026-10-30] Controlled guest SEGV: src/sim/faults.cc ends
+    # SE simulation with exitSimLoop("chaos_guest_segv", 128 + SIGSEGV) when
+    # an injected effective address hits an unmapped page. It used to be an
+    # UNMAPPED string, so this table raised NotImplementedError (rc=1, a tool
+    # failure) instead of a controlled guest-crash exit. Mapping it makes the
+    # exit cause explicit; configs/se/lsu_proxy.py then exits 139 and prints
+    # CHAOS_GUEST_SEGV_EXIT, the strict crash-terminal proof.
+    GUEST_SEGV = "chaos guest segv"
 
     @classmethod
     def translate_exit_status(cls, exit_string: str) -> "ExitEvent":
@@ -130,6 +138,10 @@ class ExitEvent(Enum):
             return ExitEvent.KERNEL_PANIC
         elif exit_string == "Kernel oops in simulated kernel":
             return ExitEvent.KERNEL_OOPS
+        # [R6-S-CRASH 2026-10-30] controlled guest SEGV (exact match only;
+        # the catch-all below still fails loudly for unknown strings).
+        elif exit_string == "chaos_guest_segv":
+            return ExitEvent.GUEST_SEGV
         elif exit_string.endswith("will terminate the simulation.\n"):
             # This is for the traffic generator exit event
             return ExitEvent.EXIT

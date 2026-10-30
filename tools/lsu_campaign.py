@@ -2310,9 +2310,45 @@ def check_chain_fast(events, oracle_outcome=None):
         return CHAIN.check_chain(events, oracle_outcome=oracle_outcome)
 
 
+def detect_crash_exit(outdir, exit_code=None):
+    """[R6-S-CRASH 2026-10-30] Controlled guest-SEGV exit evidence.
+
+    Strict crash_translation_fault admission requires ALL of:
+      * rc / recorded code == 128+SIGSEGV == 139;
+      * exit cause == `chaos_guest_segv` (the mapped exit event);
+      * the guest-SEGV marker AND the controlled-exit marker line.
+
+    Historical runs raised NotImplementedError on the unmapped exit event
+    (rc=1, no controlled marker); they must be rejected here, never silently
+    upgraded to a Crash terminal.
+    """
+    text = ""
+    for name in ("run.out", "run.err"):
+        p = Path(outdir) / name
+        if p.exists():
+            text += p.read_text(errors="replace")
+    cause = ""
+    m = re.search(r"CHAOS_GUEST_SEGV_EXIT:[^\n]*cause=(\S+)", text)
+    if m:
+        cause = m.group(1)
+    else:
+        m = re.search(r"Exit event '([^']+)'", text)
+        if m:
+            cause = m.group(1)
+    code = exit_code
+    m = re.search(r"CHAOS_GUEST_SEGV_EXIT:[^\n]*code=(\d+)", text)
+    if m:
+        code = int(m.group(1))
+    return {"exit_code": code,
+            "exit_cause": cause,
+            "guest_segv_marker": ("guest SEGV" in text
+                                  or "chaos_guest_segv" in text),
+            "controlled_marker": "CHAOS_GUEST_SEGV_EXIT" in text}
+
+
 def admission_gate(runid, events, activated, oracle_outcome=None, exit_code=None,
                    containment=None, summary_issues=None,
-                   consumer_summary_accounting=None):
+                   consumer_summary_accounting=None, crash_exit=None):
     """[LSU][MDSPEC][R6-FIXD] binding 硬门禁：调用**唯一**判定源
     `lsu_chain_check.check_admission`。
 
@@ -2346,6 +2382,9 @@ def admission_gate(runid, events, activated, oracle_outcome=None, exit_code=None
     bundle = {"run_id": str(runid), "activated": act, "events": list(events),
               "rc": (exit_code if exit_code is not None else 0),
               "oracle_outcome": oracle_outcome, "containment": cont,
+              # [R6-S-CRASH 2026-10-30] controlled exit proof for the strict
+              # translation-fault Crash terminal (None => crash path fails).
+              "crash_exit": crash_exit,
               # [MDSPEC][R6-FIXTOOLS] a malformed/non-conserving consumer_summary
               # is a loud hard-gate failure; a well-formed one changes nothing.
               "summary_issues": list(summary_issues or []),
@@ -2436,7 +2475,8 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
         rep["activate"] = "on" if _act else "off"
         gate = admission_gate(runid, events, _act, oracle, exit_code,
                               summary_issues=_summ_issues,
-                              consumer_summary_accounting=_acct)
+                              consumer_summary_accounting=_acct,
+                              crash_exit=detect_crash_exit(outdir, exit_code))
         rep["admission"] = gate
         if _acct["conservation"] == "violation":
             _loud = ("CONSUMER-SUMMARY VIOLATION: %s | "

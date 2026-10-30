@@ -585,6 +585,11 @@ class ClassicGeneratorExitHandler(ExitHandler, hypercall_num=0):
             ExitEvent.USER_INTERRUPT: exit_generator(),
             ExitEvent.MAX_TICK: exit_generator(),
             ExitEvent.SCHEDULED_TICK: exit_generator(),
+            # [R6-S-CRASH 2026-10-30] Controlled guest SEGV (chaos_guest_segv)
+            # must terminate the simulation like a normal exit; without this
+            # entry the handler raises KeyError before the config can record
+            # the controlled exit code/marker.
+            ExitEvent.GUEST_SEGV: exit_generator(),
             ExitEvent.SIMPOINT_BEGIN: warn_default_decorator(
                 skip_generator,
                 "simpoint begin",

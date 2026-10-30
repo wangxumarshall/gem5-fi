@@ -109,10 +109,22 @@ CLOSED_TERMINALS = {
     "full",
     "detected_contained",
     "squash_replay_masked",
+    # [R6-S-CRASH 2026-10-30] strict translation-fault Crash terminal:
+    # real injection -> contiguous L0..L3 ancestry -> delivered architectural
+    # translation exception that structurally prevents any memory side effect
+    # -> guest really crashed. L4/L5 are N/A by construction; this is NOT an
+    # L4/L5 event. Admission has its own independent, strict path.
+    "crash_translation_fault",
     "crash_translation_blocked",
     "timeout_translation_blocked",
     "sdc_translation_blocked",
 }
+
+# The only exit status accepted as "the guest really crashed on the
+# delivered translation fault". gem5 exits with 128+SIGSEGV = 139 from the
+# controlled `chaos_guest_segv` exit event (configs/se/lsu_proxy.py).
+GUEST_SEGV_EXIT_CODE = 139
+GUEST_SEGV_EXIT_CAUSE = "chaos_guest_segv"
 
 
 _TLB_SIGNATURE_KINDS = {
@@ -411,6 +423,96 @@ def _errant_commit_escape(chain_events, family, by_id, path):
     return False
 
 
+# ---------------------------------------------------------------------------
+# [R6-S-CRASH 2026-10-30] strict translation-fault Crash terminal.
+#
+# User ruling: a real injected fault whose ancestry is contiguous through
+# L0..L3, delivered as a REAL architectural translation exception, blocks the
+# request before any memory side effect and the guest really crashes => the
+# event is admissible as a translation-layer Crash terminal:
+#   terminal=crash_translation_fault, provable_to=L3, L4/L5 N/A, outcome=Crash.
+# Admission is an INDEPENDENT, strict path (never a relaxation of full or
+# containment). Every failing condition names a violation token.
+_CRASH_TERMINAL_KIND = "arch_translation_fault"
+
+
+def _crash_exit_ok(bundle):
+    """Controlled guest-SEGV exit proof (all clauses mandatory).
+
+    * rc and the recorded exit code are exactly 128+SIGSEGV = 139;
+    * the gem5 exit cause is `chaos_guest_segv` (mapped, not the historical
+      NotImplementedError tool failure);
+    * the run printed the guest-SEGV marker AND the controlled-exit marker.
+    """
+    ce = bundle.get("crash_exit")
+    if not isinstance(ce, dict):
+        return False
+    try:
+        rc = int(bundle.get("rc"))
+    except (TypeError, ValueError):
+        return False
+    try:
+        code = int(ce.get("exit_code"))
+    except (TypeError, ValueError):
+        return False
+    return (rc == GUEST_SEGV_EXIT_CODE
+            and code == GUEST_SEGV_EXIT_CODE
+            and str(ce.get("exit_cause", "")).strip() == GUEST_SEGV_EXIT_CAUSE
+            and bool(ce.get("guest_segv_marker"))
+            and bool(ce.get("controlled_marker")))
+
+
+def _crash_candidate_reason(events, family, fid=None):
+    """Locate the architectural translation exception and test its structure.
+
+    Returns (event, reason). `reason is None` means the event itself is a
+    genuine delivered translation fault with a contiguous L0..L3 ancestry;
+    the remaining admission clauses (oracle/exit/stream) are checked by the
+    caller so every rejection can name its own violation.
+    """
+    archs = [e for e in events
+             if e.get("kind") == _CRASH_TERMINAL_KIND]
+    if not archs:
+        return None, None
+    cand = next((e for e in archs
+                 if fid is not None and e.get("fault_id", "") == str(fid)),
+                archs[0])
+    fidv = str(cand.get("fault_id", "")).strip()
+    if not fidv or fidv == "0":
+        return cand, "crash_terminal_not_in_ancestry"
+    if str(cand.get("contained", "")).strip() in _CONTAINED_VALUES:
+        return cand, "crash_terminal_contained"
+    if str(cand.get("corr", "")).strip() not in _CHAIN_CORR:
+        return cand, "crash_terminal_missing_corr"
+    if (str(cand.get("outcome", "")).strip() != "arch_exception"
+            or str(cand.get("detection_layer", "")).strip() != "L2"):
+        return cand, "crash_terminal_not_in_ancestry"
+    if not str(cand.get("parent_event_id", "")).strip():
+        return cand, "crash_terminal_not_in_ancestry"
+    same = [e for e in events if e.get("fault_id", "") == fidv]
+    by_id = {e.get("event_id", ""): e for e in same
+             if e.get("event_id", "") != ""}
+    by_id.setdefault(cand.get("event_id", ""), cand)
+    anc = _ancestry(cand, by_id)
+    if not any(e.get("kind") == "inj" for e in anc):
+        return cand, "crash_terminal_no_injection"
+    pre = _ordered_prefix([e for e in anc if e is not cand], family)
+    if len(pre) < LAYERS.index("L3") + 1:
+        return cand, "crash_terminal_not_in_ancestry"
+    if _tick(cand) < _tick(pre[LAYERS.index("L3")]):
+        return cand, "crash_terminal_time_reversed"
+    owner = ""
+    for e in anc:
+        r = str(e.get("request_id", "")).strip()
+        if r and r != "0":
+            owner = r
+            break
+    mine = str(cand.get("request_id", "")).strip()
+    if owner and mine and mine != "0" and mine != owner:
+        return cand, "crash_terminal_cross_request"
+    return cand, None
+
+
 def _edges_for(chain_events, family):
     """Prove edges only from one contiguous, tick-monotone DAG path."""
     path = _best_ordered_path(chain_events, family)
@@ -476,6 +578,18 @@ def _terminal(chain_events, edges, by_layer, path, family,
                 and _explicit_l5(e)
                 and _event_has_prefix(chain_events, e, family)):
             return "detected_contained"
+
+    # [R6-S-CRASH 2026-10-30] strict translation-fault Crash terminal. The
+    # event itself is structurally valid (contiguous L0..L3 ancestry, real
+    # delivered arch_translation_fault, contained=0); oracle must be Crash.
+    # A genuine errant-commit escape (full) always outranks this terminal.
+    _crash_evt, _crash_reason = _crash_candidate_reason(chain_events, family)
+    if (_crash_evt is not None and _crash_reason is None
+            and oracle_outcome == "Crash"):
+        _by_id = {e.get("event_id", ""): e for e in chain_events
+                  if e.get("event_id", "") != ""}
+        if not _errant_commit_escape(chain_events, family, _by_id, path):
+            return "crash_translation_fault"
     if translation_blocked:
         if oracle_outcome in ("Crash", "Timeout", "SDC"):
             return f"{oracle_outcome.lower()}_translation_blocked"
@@ -619,7 +733,8 @@ def check_chain(events, spec_nodes=None, oracle_outcome=None):
 # sibling squash containment (see the `errant_escape_outranks_containment`
 # guard, which additionally keeps the two evidence kinds from being confused
 # *within* one chain).
-_TERMINAL_RANK = {"full": 2, "detected_contained": 1}
+_TERMINAL_RANK = {"full": 2, "detected_contained": 1,
+                  "crash_translation_fault": 1}
 
 
 def _terminal_rank(terminal):
@@ -719,6 +834,19 @@ GATE_VIOLATIONS = (
     # parent-ancestry node (it is not a PROP-EVT and carries no event_id); it
     # only carries the aggregation accounting for repeated consumers.
     "malformed_consumer_summary",
+    # [R6-S-CRASH 2026-10-30] strict crash_translation_fault gate. Every
+    # rejection names its reason; none of these may be waived.
+    "crash_terminal_not_in_ancestry",
+    "crash_terminal_missing_corr",
+    "crash_terminal_contained",
+    "crash_terminal_is_lifecycle",
+    "crash_terminal_time_reversed",
+    "crash_terminal_cross_request",
+    "crash_terminal_no_injection",
+    "crash_terminal_on_truncated_stream",
+    "crash_terminal_on_unclosed_stream",
+    "crash_requires_oracle_crash",
+    "crash_requires_guest_segv_exit",
 )
 
 
@@ -1708,6 +1836,61 @@ def check_admission(bundle):
     path = _best_ordered_path(chain, family)
     res["path_layers"] = [_layer_of(e, family) for e in path]
 
+    # [R6-S-CRASH 2026-10-30] strict crash-terminal diagnostics. They run
+    # whenever this sample could be read as a translation-fault Crash but do
+    # not already admit via full/contained — every failing clause is named.
+    crash_evt, crash_reason = _crash_candidate_reason(events, family, fid)
+    crash_issues = []
+    _crash_shaped = (crash_evt is not None
+                     and str(crash_evt.get("contained", "")).strip()
+                     not in _CONTAINED_VALUES)
+    crash_scope = (f["terminal"] == "crash_translation_fault"
+                   or (_crash_shaped and f["terminal"] != "full")
+                   or (bundle.get("oracle_outcome") == "Crash"
+                       and f["terminal"] != "full"))
+    if crash_scope and crash_evt is None:
+        # No architectural translation exception in the representative chain:
+        # the only crash-relevant defect is a lifecycle marker masquerading
+        # as one. Legitimate contained/full admissions are untouched.
+        for e in chain:
+            if (e.get("kind") == "chain_end"
+                    and (str(e.get("detection_layer", "")).strip()
+                         not in _EMPTY_DETECTION
+                         or str(e.get("outcome", "")).strip()
+                         not in _EMPTY_OUTCOME)):
+                crash_issues.append(
+                    f"crash_terminal_is_lifecycle: {run_id} chain_end 携带"
+                    f"终局字段冒充翻译异常事件——生命周期标记永不充当 L5/"
+                    f"crash 终局")
+                break
+    elif crash_scope:
+        if crash_reason:
+            crash_issues.append(
+                f"{crash_reason}: {run_id} fault {fid} 翻译异常事件不满足严格"
+                f" crash 终局结构条件（event_id="
+                f"{crash_evt.get('event_id') if crash_evt else '?'}）——不得放行")
+        if bundle.get("oracle_outcome") != "Crash":
+            crash_issues.append(
+                f"crash_requires_oracle_crash: {run_id} 严格 crash 终局要求 "
+                f"oracle=Crash，实际 {bundle.get('oracle_outcome')!r}")
+        else:
+            if not _crash_exit_ok(bundle):
+                crash_issues.append(
+                    f"crash_requires_guest_segv_exit: {run_id} 缺少受控的"
+                    f" guest-SEGV 退出证据（rc==139、exit_cause=="
+                    f"{GUEST_SEGV_EXIT_CAUSE!r}、marker/controlled 标记）——"
+                    f"不得把未知退出字符串或工具异常当作 Crash")
+            if _truncated_flag(bundle):
+                crash_issues.append(
+                    f"crash_terminal_on_truncated_stream: {run_id} 证据流截断"
+                    f"（gzip EOF / OVER_CAP）——crash 终局不可证")
+            elif not _stream_closed(chain):
+                crash_issues.append(
+                    f"crash_terminal_on_unclosed_stream: {run_id} fault {fid} "
+                    f"证据流未经 chain_end 收口——正常 EOF 不可证")
+    if crash_issues:
+        viol.extend(crash_issues)
+
     # (2) L1 impersonation — family-specific, loud.
     l1 = next((e for e in path if _layer_of(e, family) == "L1"), None)
     l1kind = l1.get("kind") if l1 else None
@@ -1860,13 +2043,20 @@ def check_admission(bundle):
     if cont_issues:
         viol.extend(cont_issues)
     opt2 = claimed and not cont_issues
+    # [R6-S-CRASH 2026-10-30] independent strict crash-terminal admission:
+    # the structural event, oracle, controlled exit, closed/truncation and
+    # ancestry clauses all passed (crash_issues empty) and no other violation
+    # fired. L4/L5 are structurally N/A for this terminal.
+    opt3 = (f["terminal"] == "crash_translation_fault" and not crash_issues)
     if opt1:
         res["path"] = "full_chain"
     elif opt2:
         res["path"] = "contained"
+    elif opt3:
+        res["path"] = "crash_terminal"
     else:
         _crutch_violations(res, bundle, events)
-    res["admitted"] = bool((opt1 or opt2) and not viol)
+    res["admitted"] = bool((opt1 or opt2 or opt3) and not viol)
     return res
 
 
