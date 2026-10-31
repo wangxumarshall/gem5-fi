@@ -60,6 +60,16 @@
  *   rises. popcount stays exactly 8 (the OLD count check is blind —
  *   the review's exact scenario) while the image memcmp detects.
  *
+ * Round-4 rerun (2026-10-31, repo head bda6ccf5): the repo test's
+ * round-4 changes (three-state hole discriminator + SDC-verdict
+ * priority + parameterized checkers + cleanup page-1-only munmap +
+ * NOINLINE captures) do not alter the healthy-path capture semantics
+ * this kernel mirrors — the failure-path discriminator/gate cannot run
+ * under gem5 SE at all (msync is unimplementedFunc there). This rerun
+ * at all four tiers re-proves the Phase 4-8 contract holds under the
+ * converged capture shape (both sources now noinline + barrier), and
+ * the checksums pin it.
+ *
  * Output: one 16-hex checksum line (fnv1a over the captured counts and
  * readbacks) + SDCSHIELD_FAILS=N (N = unexpected outcomes).
  */
@@ -96,11 +106,18 @@ static long capture(const double *from, double *to, int prime)
  * byte image (byte i = 1 iff FFR bit i set) — the patched test's
  * bit-for-bit verification input; expressions mirror the round-3
  * ffr_ldff1_capture (count demoted to diagnostic). The leading asm is
- * the same zero-instruction compiler barrier the round-3 test carries:
+ * the same zero-instruction compiler barrier the test carries:
  * GCC 12 neither models svldff1/svsetffr FFR effects nor kills rdffr
  * values at calls (measured), so without it a later capture's rdffr can
  * be CSE'd into an earlier capture's stale spill (observed: phase7 M
- * face reloading phase6's partial-clear value). */
+ * face reloading phase6's partial-clear value). Round-4 convergence
+ * (PR #305 review #27/#30): the repo test's ffr_ldff1_capture switched
+ * from always-inline to NOINLINE for the same reason this kernel's
+ * captures are noinline — the call boundary (caller never spells
+ * svrdffr + the function writes memory, so calls can be neither merged
+ * nor hoisted) is the only mechanical RDFFR-freshness guarantee; the
+ * barrier's honest role is intra-window memory ordering, not CSE
+ * prevention. The two sources now share the capture shape end to end. */
 static __attribute__((noinline)) long
 capture_img(const double *from, double *to, int prime,
                           uint8_t *ffr_image)
@@ -118,8 +135,12 @@ capture_img(const double *from, double *to, int prime,
 
 /* round-3 combined unit: the faulting and accumulation captures as ONE
  * function so the between-captures zero-call discipline is structural —
- * mirrors the patched test's ffr_fault_acc_capture (always-inline there;
- * plain here: gem5 SE has no libc/syscall in this path to clobber FFR) */
+ * mirrors the patched test's ffr_fault_acc_capture (round-4: always-
+ * inline wrapper there holding TWO ADJACENT NOINLINE capture calls,
+ * i.e. exactly this two-call gap shape; a bl to our own leaf preserves
+ * FFR — bl is not a syscall, the leaf is not libc, and neither writes
+ * FFR after its own RDFFR — which this kernel asserts across 2000
+ * iterations x 4 tiers per Phase 5/7) */
 static __attribute__((noinline)) void
 capture_pair(const double *fault_from, double *fault_to,
                            uint8_t *fault_img, const double *acc_from,
