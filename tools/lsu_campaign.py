@@ -1480,6 +1480,37 @@ LSQFWD_F0_SPAN = {
     ("S10", "gap_bfs"): 4,       # W9 carrier (GAP/Graph500 子集)
 }
 
+# [MDSPEC][R6-S-W1-CONTINUATION] Explicit, auditable span injection for a
+# (model, workload) pair measured by a census but not yet promoted into the
+# table above. The launcher passes the measured eligible stream as JSON:
+#   LSU_LSQFWD_F0_SPAN_EXTRA='{"S01:mibench/bin/w1_all": 12345}'
+# Parsing is STRICT: a malformed key/value aborts the campaign rather than
+# silently running with the wrong span (same loud-refusal contract as an
+# unmeasured pair). The effective extra spans are printed for provenance.
+LSQFWD_F0_SPAN_EXTRA = {}
+_extra_spec = os.environ.get("LSU_LSQFWD_F0_SPAN_EXTRA", "").strip()
+if _extra_spec:
+    try:
+        _extra = json.loads(_extra_spec)
+        if not isinstance(_extra, dict):
+            raise ValueError("expected a JSON object")
+        for _k, _v in _extra.items():
+            if not isinstance(_k, str) or ":" not in _k:
+                raise ValueError("key %r must be 'MODEL:workload_binary'" % (_k,))
+            _m, _wl = _k.split(":", 1)
+            if not _m or not _wl:
+                raise ValueError("key %r has an empty model or workload" % (_k,))
+            _n = int(_v)
+            if _n <= 0:
+                raise ValueError("span for %s must be > 0 (got %d)" % (_k, _n))
+            LSQFWD_F0_SPAN[(_m, _wl)] = _n
+            LSQFWD_F0_SPAN_EXTRA[(_m, _wl)] = _n
+    except Exception as _e:
+        raise SystemExit(
+            "[campaign] invalid LSU_LSQFWD_F0_SPAN_EXTRA=%r: %s"
+            % (_extra_spec, _e))
+    print("[campaign] LSQFWD_F0_SPAN_EXTRA:", LSQFWD_F0_SPAN_EXTRA)
+
 
 # [MDSPEC][R4-8-S10] INTERVAL-TIER reachability refusals, keyed per
 # (model, tier, workload binary) exactly like the span tables above.
