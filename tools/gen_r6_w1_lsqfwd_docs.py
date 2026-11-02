@@ -202,6 +202,20 @@ def generate(root):
           f"Vaddr `{row.get('Vaddr', '—')}`，FwdSize `{row.get('FwdSize', '—')}`，"
           f"ByteOffset `{row.get('ByteOffset', '—')}`，Mask `{row.get('Mask', '—')}`，"
           f"StoreSeq `{row.get('StoreSeq', '—')}`，LoadSeq `{row.get('LoadSeq', '—')}`。")
+        # Honest address provenance: the LSQFwd event domain carries VA and an
+        # optional PA; PFN is not emitted.  Never print a blank as if verified.
+        pas = []
+        for eid in ids:
+            p = events["captured"].get(eid, {}).get("pa")
+            if p and p not in pas:
+                pas.append(p)
+        if pas:
+            pa_txt = "、".join(f"`0x{p}`" for p in pas)
+            pfn_txt = "、".join(f"`0x{int(p, 16) >> 12:x}`（由 PA 推导）" for p in pas)
+        else:
+            pa_txt = "`n/a`（规范路径事件 `pa=` 为空，未记录物理地址）"
+            pfn_txt = "`n/a`（事件域无 pfn 字段，且 PA 为空）"
+        a(f"- 地址：VA `{row.get('Vaddr', '—')}`；PA {pa_txt}；PFN {pfn_txt}。")
         a(f"- 层边：{', '.join(f'{k}={v}' for k, v in edge_map(f).items()) or '—'}。")
         a("")
         a("| 位置 | 层 | event_id | parent_event_id | tick | cycle | kind | request_id | dyn_inst_seq | va | before → after | state_before → state_after | detection/containment |")

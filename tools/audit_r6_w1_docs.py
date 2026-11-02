@@ -133,6 +133,32 @@ def audit_doc(doc_path, root):
         ck(unq(r[5]) == f.get("terminal"), f"{doc_path}: fault {fid} terminal")
         ck(unq(r[6]) == f.get("provable_to"), f"{doc_path}: fault {fid} provable_to")
 
+    # per-fault address provenance: VA must equal the injection VA; PA/PFN must
+    # either quote every PA present on the canonical path or say n/a explicitly.
+    va_by_fid = {unq(r[0]): unq(r[2]) for r in fv}
+    for fid in faults:
+        m = re.search(
+            r"### fault %s\n\n- 注入：[^\n]*\n- 地址：VA `([^`]+)`；PA ([^；]+)；PFN ([^。]+)。"
+            % re.escape(str(fid)), text)
+        ck(bool(m), f"{doc_path}: fault {fid} address line")
+        if not m:
+            continue
+        ck(m.group(1) == va_by_fid.get(fid),
+           f"{doc_path}: fault {fid} VA {m.group(1)} != {va_by_fid.get(fid)}")
+        pas = []
+        for eid in (st["path_ids"].get(fid) or []):
+            p = (evs["captured"].get(eid) or {}).get("pa")
+            if p and p not in pas:
+                pas.append(p)
+        if pas:
+            ck(all(f"0x{p}" in m.group(2) for p in pas),
+               f"{doc_path}: fault {fid} PA incomplete")
+            ck(all(f"0x{int(p, 16) >> 12:x}" in m.group(3) for p in pas),
+               f"{doc_path}: fault {fid} PFN not derived from PA")
+        else:
+            ck("n/a" in m.group(2) and "n/a" in m.group(3),
+               f"{doc_path}: fault {fid} empty PA/PFN must be n/a")
+
     # injection table
     inj = table(sec.get("3. 真实注入清单", ""), "| fault | Cycle | Site |")
     ck(len(inj) == len(st["inj"]), f"{doc_path}: injection rows")
