@@ -38,15 +38,35 @@ def test_every_runid_has_required_fields():
         "activated_definition", "audited_status", "existing_injector",
         "missing_hooks", "real_workload_identity", "workload_identity_status",
         "golden_oracle", "required_l0_l5", "test_status", "three_seed_status",
-        "blockers",
+        "seed_completion", "coverage_status", "coverage_reason", "blockers",
     ]
     for r in matrix:
         for k in required:
             assert k in r, (r["runid"], k)
             assert r[k] not in (None, "", []), (r["runid"], k)
-        assert r["three_seed_status"] == "0/3"
+        expected = "3/3" if r["runid"] == "FSU-FP04-F0-W4" else "0/3"
+        assert r["three_seed_status"] == expected
+        assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")
         assert hasattr(r["blockers"], "__len__") and len(r["blockers"]) >= 5
+
+
+def test_seed_completion_and_coverage_status():
+    matrix, summary = m.build()
+    pilot = next(r for r in matrix if r["runid"] == "FSU-FP04-F0-W4")
+    assert pilot["seed_completion"] == "3/3"
+    assert pilot["coverage_status"] == "PILOT_SUBMODEL_ONLY"
+    assert "FP04-c" in pilot["coverage_reason"]
+    assert summary["seed_completion_counts"] == {"0/3": 172, "3/3": 1}
+    expected = {
+        "FSU-FP04-F1-W4": "PARTIAL",
+        "FSU-FR01-F0-W1": "BLOCKED_NO_TRUE_ARTIFACT",
+        "FSU-FQ03-F0-W2": "BLOCKED_NOT_IMPLEMENTED",
+    }
+    for rid, status in expected.items():
+        r = next(x for x in matrix if x["runid"] == rid)
+        assert r["coverage_status"] == status, (rid, r["coverage_status"])
+        assert r["seed_completion"] == "0/3"
 
 
 def test_pilot_candidate_has_real_workload():

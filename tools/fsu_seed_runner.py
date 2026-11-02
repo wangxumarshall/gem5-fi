@@ -178,7 +178,8 @@ def write_hashes(attempt: Path):
         if not p.is_file():
             continue
         rel = str(p.relative_to(attempt))
-        if rel in ("evidence_sha256.json", ".done", ".failed"):
+        if rel in ("evidence_sha256.json", ".done", ".failed",
+                   "audit.json", "audit.md"):
             continue
         out[rel] = sha256_file(p)
     (attempt / "evidence_sha256.json").write_text(
@@ -297,6 +298,9 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     chain_report = {
         "run_id": run_id, "seed": seed, "sample_run_id": f"s{seed}",
         "attempt": k, "oracle": oracle, "chain": chain,
+        "admitted": chain.get("admitted"),
+        "certified": chain.get("certified"),
+        "violations": chain.get("violations", []),
         "source_head": source_head, "gem5_sha256": binary_sha,
         "workload_sha256": seed_manifest["workload_sha256"],
         "command": {"census": census_cmd, "inject": inj_cmd},
@@ -310,6 +314,7 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         category not in ("SimulatorError", "Inactive")
         and faults >= 1
         and chain.get("admitted_faults")
+        and chain.get("certified")
         and not chain.get("truncated")
         and chain_report["stats_nonempty"]
         and prop.exists()

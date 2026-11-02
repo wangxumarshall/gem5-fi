@@ -17,7 +17,7 @@
     "timed_out": false
   },
   "chain": {
-    "path": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W4/seed2/attempt-1/inject/prop_evt.txt.gz",
+    "path": "runs/fsu/FSU-FP04-F0-W4/seed2/attempt-1/inject/prop_evt.txt.gz",
     "event_count": 7,
     "truncated": false,
     "truncation_reason": "",
@@ -52,12 +52,16 @@
         "containment_layer": null,
         "off_chain_event_ids": [],
         "violations": [],
-        "admitted": true
+        "admitted": true,
+        "certified": true
       }
     },
     "admitted_faults": [
       "1"
-    ]
+    ],
+    "admitted": true,
+    "certified": true,
+    "violations": []
   },
   "source_head": "8e86d1ba0421741f96bd5986da7a4cdb9dae48a7",
   "gem5_sha256": "f9a7cd9b4de6a47dbaceaa4dac0b58bbf8ba5bbbe8f1c8241a9e71be7af98c32",
@@ -147,5 +151,8 @@
     ]
   },
   "stats_nonempty": true,
-  "prop_evt_exists": true
+  "prop_evt_exists": true,
+  "admitted": true,
+  "certified": true,
+  "violations": []
 }

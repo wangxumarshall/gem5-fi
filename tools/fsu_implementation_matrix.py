@@ -31,6 +31,7 @@ import openpyxl
 ROOT = Path(__file__).resolve().parents[1]
 XLSX = ROOT / "docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx"
 OUT = ROOT / "docs/gem5-fi/fsu"
+DEFAULT_RUNS = ROOT / "runs/fsu"
 SHEET7 = "7.展开执行矩阵"
 SHEET9 = "9.逐RunID传播监控"
 SHEET10 = "10.源码监控映射"
@@ -306,7 +307,39 @@ def load_workbook_tables():
     return rows7, rows9, rows10
 
 
-def build():
+def _seed_completion(out_root, runid):
+    n = 0
+    for s in (1, 2, 3):
+        if (Path(out_root) / runid / f"seed{s}" / "AUTHORITATIVE").exists():
+            n += 1
+    return n
+
+
+def _coverage(runid, audited_status, workload_identity, seed_n):
+    """Coverage semantics are independent of seed completion.
+
+    PILOT_SUBMODEL_ONLY is only for a RunID whose workbook row requires more
+    submodels than the validated pilot actually exercised.
+    """
+    if runid == "FSU-FP04-F0-W4":
+        return ("PILOT_SUBMODEL_ONLY",
+                "pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID "
+                "requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, "
+                "FP04-d NEON lane result, plus F1/F2/F3 semantics")
+    if audited_status == "MISSING":
+        return ("BLOCKED_NOT_IMPLEMENTED",
+                "injector/hook for this model is missing in the audited code")
+    if workload_identity in ("NO_TRUE_ARTIFACT", "NO_FP_ARTIFACT"):
+        return ("BLOCKED_NO_TRUE_ARTIFACT",
+                "workload identity has no真实 artifact / oracle")
+    if audited_status == "PARTIAL":
+        return ("PARTIAL",
+                "injector/model only partially covers the workbook submodels; "
+                "no 3-seed evidence for this RunID")
+    return ("COMPLETE", "")
+
+
+def build(out_root=DEFAULT_RUNS):
     rows7, rows9, rows10 = load_workbook_tables()
     s9 = {r["RunID"]: r for r in rows9}
     s10 = {r["模型ID"]: r for r in rows10}
@@ -340,6 +373,9 @@ def build():
             activation = "该 RunID 的注入动作尚不存在，activated 不可定义"
         else:
             activation = "—"
+        seed_n = _seed_completion(out_root, rid)
+        coverage_status, coverage_reason = _coverage(
+            rid, audit["status"], wl["identity"], seed_n)
         matrix.append({
             "runid": rid,
             "model_id": model,
@@ -372,7 +408,11 @@ def build():
             "fsu_fields_model_focus": s10[model].get("模型重点字段"),
             "cross_unit_keys": r9.get("跨单元关联键"),
             "test_status": "无模型级自动化测试（仅转换器 24 项 + 实施矩阵 5 项）",
-            "three_seed_status": "0/3",
+            "three_seed_status": f"{seed_n}/3",
+            "seed_completion": f"{seed_n}/3",
+            "seed_completion_count": seed_n,
+            "coverage_status": coverage_status,
+            "coverage_reason": coverage_reason,
             "pilot": rid in ("FSU-FP04-F0-W4",),
             "blockers": blockers,
         })
@@ -394,6 +434,8 @@ def build():
         "runid_status_counts": dict(status_counts),
         "workload_identity_counts": dict(Counter(m["workload_identity_status"] for m in matrix)),
         "pilot_candidates": [m["runid"] for m in matrix if m["pilot"]],
+        "seed_completion_counts": dict(Counter(m["seed_completion"] for m in matrix)),
+        "coverage_status_counts": dict(Counter(m["coverage_status"] for m in matrix)),
         "implemented_runids": [m["runid"] for m in matrix if m["audited_status"] == "IMPLEMENTED"],
         "models": model_status,
         "global_blockers": GLOBAL_BLOCKERS,
@@ -413,7 +455,8 @@ def write_outputs(matrix, summary):
               "implemented", "missing_hooks", "real_workload_identity",
               "workload_path", "workload_identity_status", "golden_oracle",
               "required_l0_l5", "fsu_fields_model_focus", "test_status",
-              "three_seed_status", "pilot", "blockers"]
+              "three_seed_status", "seed_completion", "coverage_status",
+              "coverage_reason", "pilot", "blockers"]
     with (OUT / "IMPLEMENTATION_MATRIX.csv").open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, lineterminator="\n",
                            extrasaction="ignore")
@@ -447,6 +490,16 @@ def write_outputs(matrix, summary):
         lines.append(f"| {model} | {m0['unit']} | {m0['workbook_status_sheet10']} | "
                      f"**{m0['audited_status']}** | {m0['existing_injector']} | "
                      f"{m0['missing_hooks']} |")
+    lines += ["", "## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）", "",
+              "- seed_completion："
+              + "、".join(f"{k} {v}" for k, v in sorted(summary["seed_completion_counts"].items())),
+              "- coverage_status："
+              + "、".join(f"{k} {v}" for k, v in sorted(summary["coverage_status_counts"].items())),
+              "", "| RunID | seed_completion | coverage_status | coverage_reason |",
+              "|---|---|---|---|"]
+    for m in matrix:
+        lines.append(f"| {m['runid']} | {m['seed_completion']} | "
+                     f"{m['coverage_status']} | {m['coverage_reason']} |")
     lines += ["", "## 3. 全局阻塞（对全部 173 RunID 生效）", ""]
     lines += [f"- {b}" for b in GLOBAL_BLOCKERS]
     lines += ["", "## 4. Workload 身份审计", "",

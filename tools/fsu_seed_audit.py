@@ -131,6 +131,12 @@ def audit_attempt(attempt: Path):
         if r.get("admitted"):
             admitted_fid = fid
             break
+    # A chain with no admitted/certified fault must never pass the gate,
+    # even if a tampered report and a regenerated MD agree with each other.
+    check("链 admitted=True", chain.get("admitted") is True)
+    check("链 certified=True", chain.get("certified") is True)
+    check("链 violations=[]", chain.get("violations", []) == [])
+    check("存在 admitted fault", admitted_fid is not None)
     if admitted_fid is not None:
         chain_ids = chain["faults"][admitted_fid].get("path_event_ids", [])
         check("MD 覆盖原始主链全部事件",
@@ -144,9 +150,9 @@ def audit_attempt(attempt: Path):
         check("MD admitted/certified 与 chain_report 一致",
               adm is not None and adm.replace(" ", "") in
               (f"{chain['faults'][admitted_fid].get('admitted')}/"
-               f"{chain['faults'][admitted_fid].get('admitted')}",
+               f"{chain['faults'][admitted_fid].get('certified')}",
                f"{str(chain['faults'][admitted_fid].get('admitted')).lower()}/"
-               f"{str(chain['faults'][admitted_fid].get('admitted')).lower()}"))
+               f"{str(chain['faults'][admitted_fid].get('certified')).lower()}"))
 
     # 6. 证据哈希
     hp = attempt / "evidence_sha256.json"
@@ -169,6 +175,110 @@ def audit_attempt(attempt: Path):
 
     return {"ok": not failures, "checks": checks, "failures": failures,
             "attempt": str(attempt)}
+
+
+def write_audit(attempt: Path):
+    """Recompute the audit gate and persist audit.json / audit.md.
+
+    `certified` is computed from the full gate (identity, gzip EOF, parent
+    chain, tick monotonicity, L5 witness, stats, evidence hashes, no
+    cross-seed data) — never hard-coded.
+    """
+    import hashlib as _hashlib
+    attempt = Path(attempt)
+    res = audit_attempt(attempt)
+    manifest = json.loads((attempt / "manifest.json").read_text(encoding="utf-8"))
+    report = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
+    chain = report.get("chain", {})
+    oracle = report.get("oracle", {})
+    prop = attempt / "inject/prop_evt.txt.gz"
+    events, truncated, reason = P.read_stream(prop) if prop.exists() else ([], True, "missing")
+    fid, fault = None, {}
+    for k, v in sorted(chain.get("faults", {}).items()):
+        if v.get("admitted"):
+            fid, fault = k, v
+            break
+    by_id = {str(e.get("event_id")): e for e in events}
+    path = [by_id[i] for i in fault.get("path_event_ids", []) if i in by_id]
+    edges = [{"from": a.get("event_id"), "to": b.get("event_id"),
+              "ok": str(b.get("parent_event_id")) == str(a.get("event_id"))}
+             for a, b in zip(path, path[1:])]
+    ticks = []
+    for e in path:
+        try:
+            ticks.append(int(str(e.get("tick"))))
+        except ValueError:
+            pass
+    tick_ok = all(b >= a for a, b in zip(ticks, ticks[1:]))
+    l5_id = fault.get("l5_witness_event_id")
+    l5 = by_id.get(str(l5_id), {})
+    cross_ok = all(str(e.get("sample_run_id")) == manifest.get("sample_run_id")
+                   for e in events)
+    hp = attempt / "evidence_sha256.json"
+    hashes = json.loads(hp.read_text(encoding="utf-8")) if hp.exists() else {}
+    stats = attempt / "stats.txt"
+    audit = {
+        "run_id": manifest.get("run_id"),
+        "seed": manifest.get("seed"),
+        "sample_run_id": manifest.get("sample_run_id"),
+        "attempt": attempt.name,
+        "gzip_eof_ok": not truncated,
+        "truncation_reason": reason,
+        "event_count": len(events),
+        "identity_ok": not chain.get("identity_violations"),
+        "identity_violations": chain.get("identity_violations", []),
+        "direct_parent_chain": all(e["ok"] for e in edges) if edges else False,
+        "edges": edges,
+        "tick_monotonic": tick_ok,
+        "layers": fault.get("layers", []),
+        "layers_na": fault.get("layers_na", []),
+        "l5_witness": {"event_id": l5_id, "kind": l5.get("kind"),
+                       "outcome": l5.get("outcome")},
+        "oracle": oracle.get("category"),
+        "oracle_reason": oracle.get("reason"),
+        "chain_terminal": fault.get("terminal"),
+        "stats_nonempty": stats.exists() and stats.stat().st_size > 0,
+        "evidence_sha256": hashes,
+        "cross_seed_ok": cross_ok,
+        "admitted": fault.get("admitted", False),
+        "certified": bool(res["ok"]),
+        "violations": fault.get("violations", []),
+        "audit_checks": [{"check": n, "ok": ok} for n, ok in res["checks"]],
+        "failures": res["failures"],
+        "ok": res["ok"],
+    }
+    (attempt / "audit.json").write_text(
+        json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
+    lines = [f"# {audit['run_id']} seed{audit['seed']} 审计", "",
+             f"- attempt：`{audit['attempt']}`",
+             f"- sample_run_id：`{audit['sample_run_id']}`", "",
+             "| 项 | 值 |", "|---|---|",
+             f"| gzip EOF 完整 | {audit['gzip_eof_ok']}（{audit['truncation_reason'] or 'ok'}） |",
+             f"| event_count | {audit['event_count']} |",
+             f"| 身份一致 | {audit['identity_ok']} |",
+             f"| 单祖先直接 parent | {audit['direct_parent_chain']} |",
+             f"| tick 单调 | {audit['tick_monotonic']} |",
+             f"| 层映射 | {', '.join(audit['layers'])}；N/A={audit['layers_na']} |",
+             f"| L5 witness | {audit['l5_witness']} |",
+             f"| oracle | {audit['oracle']} |",
+             f"| chain terminal | {audit['chain_terminal']} |",
+             f"| stats 非空 | {audit['stats_nonempty']} |",
+             f"| 无跨 seed 复制 | {audit['cross_seed_ok']} |",
+             f"| admitted | {audit['admitted']} |",
+             f"| certified | {audit['certified']} |",
+             f"| violations | {audit['violations']} |", "",
+             "## 边", ""]
+    for e in audit["edges"]:
+        lines.append(f"- `{e['from']}` → `{e['to']}`：{'✓' if e['ok'] else '✗'}")
+    lines += ["", "## 证据 SHA-256", "", "| 文件 | SHA-256 |", "|---|---|"]
+    for rel, h in sorted(hashes.items()):
+        lines.append(f"| `{rel}` | `{h}` |")
+    lines += ["", "## 审计检查", "", "| 检查 | 结果 |", "|---|---|"]
+    for c in audit["audit_checks"]:
+        lines.append(f"| {c['check']} | {'PASS' if c['ok'] else 'FAIL'} |")
+    lines += ["", f"**结论：{'PASS' if audit['ok'] else 'FAIL'}**", ""]
+    (attempt / "audit.md").write_text("\n".join(lines), encoding="utf-8")
+    return audit
 
 
 def main(argv=None):

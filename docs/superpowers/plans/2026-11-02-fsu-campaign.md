@@ -54,6 +54,21 @@
 - [x] C3-pilot 试点三份 seed Markdown 生成并逐 seed 审计通过。
 - [x] C4-pilot 生成 README.md/INDEX.md/INDEX.json；该 RunID 标记 COMPLETE_3_OF_3。
 
+## 阶段 D0/D0.5：试点收口与覆盖语义校正
+
+- [x] D0 三份权威 seed 的 audit.json/audit.md 持久化；
+      `certified` 由链审计 + 完整证据门禁计算（非硬编码）；
+      chain_report/Markdown/证据哈希/INDEX 从 raw 证据重建；
+      raw prop_evt/stats/run.out/run.err/注入日志哈希不变；
+      seed1 attempt-1 保留 lineage，attempt-2 为 AUTHORITATIVE；
+      closeout 报告 `docs/gem5-fi/fsu/FP04-F0-W4-PILOT-CLOSEOUT.md`。
+- [x] D0.5 seed_completion 与 coverage_status 分离：
+      `FSU-FP04-F0-W4` = 3/3 + `PILOT_SUBMODEL_ONLY`（工作簿要求 a/b/c/d，
+      试点仅 FP04-c/mant_lo/W4/F0）；其余 172 个 RunID 为 0/3。
+- [ ] D1 频率语义门禁：读表 5 与 FP04 行，建立 F0–F5 → 代码/runner 映射；
+      F1/F2/F3 增加合成测试与真实小型门禁（eligible 口径、注入次数/间隔/
+      选择规则、manifest/事件字段、replay），禁止只改 `--fsu_freq` 标签。
+
 ## 阶段 D：最终审计
 
 - [ ] D1 173/173 RunID、519/519 seed（或列出真实阻塞项）。

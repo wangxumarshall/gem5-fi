@@ -154,7 +154,8 @@ def _check_one(fid, events):
             "deepest_layer": None, "layers_na": [],
             "terminal": "no_root", "beyond": "Unknown",
             "violations": violations + ["no_fault_applied_root"],
-            "admitted": False, "l5_witness_event_id": None,
+            "admitted": False, "certified": False,
+            "l5_witness_event_id": None,
             "containment_event_id": None, "containment_layer": None,
         }
     if len(roots) > 1:
@@ -176,7 +177,7 @@ def _check_one(fid, events):
                 set(by_id) - {_clean(root, "event_id")}),
             "layers": ["L0"], "deepest_layer": "L0", "layers_na": [],
             "terminal": "not_activated", "beyond": "N/A",
-            "violations": violations, "admitted": False,
+            "violations": violations, "admitted": False, "certified": False,
             "l5_witness_event_id": None, "containment_event_id": None,
             "containment_layer": None,
         }
@@ -267,6 +268,10 @@ def _check_one(fid, events):
         "off_chain_event_ids": sorted(set(by_id) - set(path_ids)),
         "violations": violations,
         "admitted": admitted,
+        # certified is the same closed-terminal + no-violation gate; the
+        # seed-level audit additionally requires intact evidence (gzip EOF,
+        # stats, hashes) and recomputes it, never hard-coding true.
+        "certified": admitted,
     }
 
 
@@ -290,6 +295,15 @@ def check_stream(path, run_id=None, sample_run_id=None):
             result["violations"].append("truncated_stream")
             result["admitted"] = False
         faults[fid] = result
+    admitted_faults = sorted(fid for fid, r in faults.items() if r["admitted"])
+    all_violations = []
+    for r in faults.values():
+        all_violations.extend(r.get("violations", []))
+    all_violations.extend(identity)
+    if truncated:
+        all_violations.append("truncated_stream")
+    admitted = bool(admitted_faults) and not truncated and not identity
+    certified = admitted and all(r.get("certified") for r in faults.values())
     return {
         "path": str(path),
         "event_count": len(events),
@@ -297,7 +311,10 @@ def check_stream(path, run_id=None, sample_run_id=None):
         "truncation_reason": reason,
         "identity_violations": identity,
         "faults": faults,
-        "admitted_faults": sorted(fid for fid, r in faults.items() if r["admitted"]),
+        "admitted_faults": admitted_faults,
+        "admitted": admitted,
+        "certified": certified,
+        "violations": all_violations,
     }
 
 

@@ -7,7 +7,17 @@
     "with_0_of_3": 172,
     "admitted_seeds_total": 3,
     "target_seeds": 519,
-    "generated_at": "2026-11-02T16:34:32",
+    "seed_completion_counts": {
+      "0/3": 172,
+      "3/3": 1
+    },
+    "coverage_status_counts": {
+      "BLOCKED_NO_TRUE_ARTIFACT": 26,
+      "PARTIAL": 59,
+      "BLOCKED_NOT_IMPLEMENTED": 87,
+      "PILOT_SUBMODEL_ONLY": 1
+    },
+    "generated_at": "2026-11-02T17:00:30",
     "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS"
   },
   "runids": [
@@ -25,6 +35,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -41,6 +54,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -57,6 +73,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -73,6 +92,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -89,6 +111,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -105,6 +130,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -121,6 +149,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -137,6 +168,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -153,6 +187,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -169,6 +206,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -185,6 +225,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -201,6 +244,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -217,6 +263,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -233,6 +282,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -249,6 +301,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -265,6 +320,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -281,6 +339,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -297,6 +358,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -313,6 +377,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -329,6 +396,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -345,6 +415,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -361,6 +434,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -377,6 +453,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -393,6 +472,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -409,6 +491,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -425,6 +510,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -441,6 +529,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -457,6 +548,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -473,6 +567,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -489,6 +586,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -505,6 +605,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -521,6 +624,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -537,6 +643,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -553,6 +662,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -569,6 +681,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -585,6 +700,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -601,6 +719,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -617,6 +738,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -633,6 +757,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -649,6 +776,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -665,6 +795,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -681,6 +814,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -697,6 +833,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -713,6 +852,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -729,6 +871,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -745,6 +890,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -761,6 +909,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -777,6 +928,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -793,6 +947,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -809,6 +966,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -825,6 +985,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -841,6 +1004,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -857,6 +1023,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -873,6 +1042,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -889,6 +1061,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -905,6 +1080,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -921,6 +1099,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -937,6 +1118,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -953,6 +1137,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -969,6 +1156,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -985,6 +1175,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1001,6 +1194,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1017,6 +1213,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1033,6 +1232,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1049,6 +1251,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1065,6 +1270,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1081,6 +1289,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1097,6 +1308,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1113,6 +1327,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1129,6 +1346,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1145,6 +1365,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1161,6 +1384,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1177,6 +1403,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1193,6 +1422,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1209,6 +1441,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1225,6 +1460,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1241,6 +1479,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1257,6 +1498,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1273,6 +1517,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1289,6 +1536,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -1305,6 +1555,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1321,6 +1574,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1337,6 +1593,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -1353,6 +1612,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1369,6 +1631,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1385,6 +1650,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1401,6 +1669,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1417,6 +1688,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1433,6 +1707,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1449,6 +1726,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1465,6 +1745,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1481,6 +1764,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1497,6 +1783,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1513,6 +1802,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1529,6 +1821,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1545,6 +1840,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1561,6 +1859,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1577,6 +1878,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1593,6 +1897,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1609,6 +1916,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1625,6 +1935,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1641,6 +1954,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1657,6 +1973,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1673,6 +1992,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1689,6 +2011,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1705,6 +2030,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1721,6 +2049,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1737,6 +2068,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1753,6 +2087,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1769,6 +2106,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1785,6 +2125,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1801,6 +2144,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1817,6 +2163,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1833,6 +2182,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1849,6 +2201,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1865,6 +2220,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1881,6 +2239,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -1897,6 +2258,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -1913,6 +2277,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1947,6 +2314,9 @@
         }
       },
       "admitted_seeds": 3,
+      "seed_completion": "3/3",
+      "coverage_status": "PILOT_SUBMODEL_ONLY",
+      "coverage_reason": "pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, FP04-d NEON lane result, plus F1/F2/F3 semantics",
       "status": "COMPLETE_3_OF_3"
     },
     {
@@ -1963,6 +2333,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1979,6 +2352,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -1995,6 +2371,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2011,6 +2390,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2027,6 +2409,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2043,6 +2428,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2059,6 +2447,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2075,6 +2466,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2091,6 +2485,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2107,6 +2504,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2123,6 +2523,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2139,6 +2542,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2155,6 +2561,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2171,6 +2580,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2187,6 +2599,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2203,6 +2618,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2219,6 +2637,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2235,6 +2656,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2251,6 +2675,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2267,6 +2694,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2283,6 +2713,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2299,6 +2732,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2315,6 +2751,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2331,6 +2770,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2347,6 +2789,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2363,6 +2808,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2379,6 +2827,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2395,6 +2846,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2411,6 +2865,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2427,6 +2884,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2443,6 +2903,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2459,6 +2922,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2475,6 +2941,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2491,6 +2960,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
       "status": "PENDING"
     },
     {
@@ -2507,6 +2979,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2523,6 +2998,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2539,6 +3017,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2555,6 +3036,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NO_TRUE_ARTIFACT",
+      "coverage_reason": "workload identity has no真实 artifact / oracle",
       "status": "PENDING"
     },
     {
@@ -2571,6 +3055,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2587,6 +3074,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2603,6 +3093,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2619,6 +3112,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2635,6 +3131,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2651,6 +3150,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2667,6 +3169,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2683,6 +3188,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2699,6 +3207,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2715,6 +3226,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2731,6 +3245,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2747,6 +3264,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2763,6 +3283,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2779,6 +3302,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     },
     {
@@ -2795,6 +3321,9 @@
         }
       },
       "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "BLOCKED_NOT_IMPLEMENTED",
+      "coverage_reason": "injector/hook for this model is missing in the audited code",
       "status": "PENDING"
     }
   ]

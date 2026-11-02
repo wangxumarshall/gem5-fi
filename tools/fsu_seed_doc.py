@@ -178,7 +178,7 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
           f"- 传播链 terminal：**{fault.get('terminal','N/A')}**",
           f"- provable_to：{fault.get('deepest_layer','N/A')}",
           f"- admitted / certified：{fault.get('admitted', False)} / "
-          f"{fault.get('admitted', False)}",
+          f"{fault.get('certified', False)}",
           f"- violations：{fault.get('violations', [])}",
           f"- truncated / evidence_truncated：{chain.get('truncated')} / {truncated}",
           f"- 事件数：{chain.get('event_count','N/A')}",

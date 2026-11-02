@@ -1,5 +1,7 @@
 # 试点 RunID `FSU-FP04-F0-W4`：三 seed 完成报告（3/3）
 
+> **D0 收口更新**：派生 chain_report/Markdown/证据哈希已用 `certified` 重建，raw prop_evt/stats 未改动；以 `docs/gem5-fi/fsu/FP04-F0-W4-PILOT-CLOSEOUT.md` 为准。
+
 > 生成时间：2026-11-02；本文所有数值来自本机真实运行与逐 seed 审计。
 
 ## 1. 结论

@@ -12,7 +12,7 @@
 | seed / sample_run_id | 2 / `s2` |
 | selection seed / injection seed | 2 / 2 |
 | 实际 workload | `/home/sdc/gem5-fi-fsu/workloads/directed/elemwise_fma_kernel`（SHA-256 `80e633a0cd4b8f64bdfa09f4bf8b1683f79cefd8140f8fe74bf4c973d1941c97`） |
-| manifest | `/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W4/seed2/attempt-1/manifest.json` |
+| manifest | `runs/fsu/FSU-FP04-F0-W4/seed2/attempt-1/manifest.json` |
 | gem5 二进制 | `CHAOS/gem5/build/ARM/gem5.opt`（SHA-256 `f9a7cd9b4de6a47dbaceaa4dac0b58bbf8ba5bbbe8f1c8241a9e71be7af98c32`） |
 | 源码 HEAD | `8e86d1ba0421741f96bd5986da7a4cdb9dae48a7` |
 | 分析工具 SHA-256 | `b3a087a059ee22082d3a21c00916f24642f7e5148f340d8c3d305ca75a1e26ab` |
@@ -120,7 +120,7 @@ Tick: 33769120, Site: dyn_inst_execute, opClass=8, sn=94347, bitseg=mant_lo, mas
 | `run.err` | `89736f20b2030718beca99e4246b7e20e1e59dfcdbda8d07067bff6783a4a5dc` |
 | `stats.txt` | `511e09115e4e7bcf7bc2e608cbf6cc07af250e35e283ba626dcfa764c70a99b6` |
 | `oracle.json` | `456ee36c9aa9b5184195f4bb174620929e723542cf4f47d1b1c21056be754cbe` |
-| `chain_report.json` | `b338b479c67861450c3b6bd007220082914d8de4039248137a54ca7e2e762638` |
+| `chain_report.json` | `ff67f863c998f720a1c7077eb5c977c97e4ed8f81d2ba5214ea384352404af4b` |
 | `census/fpu_injections.log` | `7bc8726ba761e237b918a253b4aa17afe92f63b6fb33bcdbe3233ab77f314a00` |
 | `inject/fpu_injections.log` | `e2721c7e734e1f732b7dd664a2e31b85e7df3a389480be2b9d1e87ee882edcde` |
 | `inject/prop_evt.txt.gz` | `fc5ca226fac390fde8425e87dbb9abf78b164f94c344a5ea4586c56180eb8cb7` |

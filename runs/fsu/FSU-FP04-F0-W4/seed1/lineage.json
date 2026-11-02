@@ -1,0 +1,19 @@
+{
+  "run_id": "FSU-FP04-F0-W4",
+  "seed": 1,
+  "authoritative": "attempt-2",
+  "attempts": [
+    {
+      "attempt": "attempt-1",
+      "status": "superseded",
+      "reason": "emitter v1 wrote unit='FSU Pipe' (space) which the space-delimited PROP-EVT parser split; fault_mask was absent from the C++ extension registry and was dropped; activated was counted 3x because L3/L4 reused activated=1. Raw evidence retained unchanged; not used as authoritative.",
+      "raw_evidence_retained": true
+    },
+    {
+      "attempt": "attempt-2",
+      "status": "authoritative",
+      "reason": "re-run after emitter/runner fixes: unit=FSU_Pipe, fault_mask present, activated=1 (L2 only), audit certified=true.",
+      "raw_evidence_retained": true
+    }
+  ]
+}
