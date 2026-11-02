@@ -2,7 +2,7 @@
   "summary": {
     "generated_from": "/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx",
     "baseline_commit": "46ce66cdb9c22f5e591b43b97b68c7d526704211",
-    "current_head": "ac92c69c8b7dd029c57d13f21925c953531b65a3",
+    "current_head": "c8acbed028c40cd77c03e33f93835dddb8781b8b",
     "current_binary_sha256": "e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c",
     "baseline_gap": [
       {
@@ -54,7 +54,8 @@
       }
     ],
     "current_status": {
-      "head": "ac92c69c8b7dd029c57d13f21925c953531b65a3",
+      "head": "c8acbed028c40cd77c03e33f93835dddb8781b8b",
+      "head_note": "probe-time HEAD；本文件由其后继提交写入，故最终 HEAD 通常是该值的子提交",
       "branch": "fsu",
       "gem5_binary": {
         "path": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",

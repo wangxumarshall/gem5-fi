@@ -377,6 +377,7 @@ def probe_current_status():
     rate_impl = rate.exists()
     return {
         "head": _head(),
+        "head_note": "probe-time HEAD；本文件由其后继提交写入，故最终 HEAD 通常是该值的子提交",
         "branch": subprocess.run(
             ["git", "-C", str(ROOT), "branch", "--show-current"],
             capture_output=True, text=True).stdout.strip(),
