@@ -32,14 +32,26 @@ def _seed_state(seed_dir: Path):
         if rep.exists():
             r = json.loads(rep.read_text(encoding="utf-8"))
             chain = r.get("chain", {})
+            # A seed is only counted when its independent audit passed; an
+            # AUTHORITATIVE pointer alone must not inflate completion.
+            audit_path = attempt / "audit.json"
+            audit_ok = False
+            if audit_path.exists():
+                try:
+                    audit_ok = json.loads(
+                        audit_path.read_text(encoding="utf-8")).get("ok") is True
+                except (OSError, json.JSONDecodeError):
+                    audit_ok = False
             terminal = None
             for fid, f in sorted(chain.get("faults", {}).items()):
                 if f.get("admitted"):
                     terminal = f.get("terminal")
                     break
-            return {"state": "admitted", "attempt": str(attempt),
+            return {"state": "admitted" if audit_ok else "invalid",
+                    "attempt": str(attempt),
                     "oracle": r.get("oracle", {}).get("category"),
                     "terminal": terminal,
+                    "audit_ok": audit_ok,
                     "admitted_faults": chain.get("admitted_faults", [])}
         return {"state": "invalid", "attempt": str(attempt)}
     attempts = sorted(seed_dir.glob("attempt-*")) if seed_dir.exists() else []

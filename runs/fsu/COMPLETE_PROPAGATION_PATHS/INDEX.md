@@ -1,6 +1,6 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-03T00:42:51；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-03T00:50:36；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 - 总 RunID：**173**
 - 目标 seed：**519**

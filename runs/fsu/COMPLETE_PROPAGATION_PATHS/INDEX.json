@@ -17,7 +17,7 @@
       "BLOCKED_NOT_IMPLEMENTED": 87,
       "PILOT_SUBMODEL_ONLY": 1
     },
-    "generated_at": "2026-11-03T00:42:51",
+    "generated_at": "2026-11-03T00:50:36",
     "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS"
   },
   "runids": [
@@ -2290,6 +2290,7 @@
           "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W4/seed1/attempt-2",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1"
           ]
@@ -2299,6 +2300,7 @@
           "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W4/seed2/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1"
           ]
@@ -2308,6 +2310,7 @@
           "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W4/seed3/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1"
           ]
@@ -2403,6 +2406,7 @@
           "attempt": "runs/fsu/FSU-FP04-F1-W4/seed1/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1"
           ]
@@ -2412,6 +2416,7 @@
           "attempt": "runs/fsu/FSU-FP04-F1-W4/seed2/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1",
             "2"
@@ -2422,6 +2427,7 @@
           "attempt": "runs/fsu/FSU-FP04-F1-W4/seed3/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1"
           ]
@@ -2517,6 +2523,7 @@
           "attempt": "runs/fsu/FSU-FP04-F2-W4/seed1/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1",
             "10",
@@ -2546,6 +2553,7 @@
           "attempt": "runs/fsu/FSU-FP04-F2-W4/seed2/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1",
             "10",
@@ -2576,6 +2584,7 @@
           "attempt": "runs/fsu/FSU-FP04-F2-W4/seed3/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1",
             "10",
@@ -2689,6 +2698,7 @@
           "attempt": "runs/fsu/FSU-FP04-F3-W4/seed1/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1",
             "10",
@@ -2903,6 +2913,7 @@
           "attempt": "runs/fsu/FSU-FP04-F3-W4/seed2/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1",
             "10",
@@ -3113,6 +3124,7 @@
           "attempt": "runs/fsu/FSU-FP04-F3-W4/seed3/attempt-1",
           "oracle": "SDC",
           "terminal": "full",
+          "audit_ok": true,
           "admitted_faults": [
             "1",
             "10",
