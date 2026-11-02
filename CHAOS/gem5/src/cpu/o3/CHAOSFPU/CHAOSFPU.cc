@@ -2,8 +2,10 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <sstream>
 
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // DynInst, opClass, isFloating
@@ -40,7 +42,10 @@ namespace gem5
           fsu_freq(p.fsuFreq),
           fsu_load(p.fsuLoad),
           fsu_submodel(p.fsuSubmodel),
-          fsu_eligible_total(p.fsuEligibleTotal)
+          fsu_eligible_total(p.fsuEligibleTotal),
+          rate_warmup(p.rateWarmup),
+          rate_divisor(p.fsuRateDivisor),
+          jitter_pct(p.fsuJitterPct)
     {
         if (probability > 0.0f) {
             log_stream = simout.create("fpu_injections.log", false, true);
@@ -63,6 +68,87 @@ namespace gem5
         }
         count_only = p.countOnly;
         }
+
+        // [FSU][D2] Parse + validate F1/F2/F3 ordinals. The driver
+        // (tools/fsu_rate_ordinals.py) is the single generator; the C++ side
+        // only consumes the explicit list, so there is no second sampler to
+        // drift from the manifest.
+        if (!p.rateOrdinals.empty()) {
+            std::stringstream ss(p.rateOrdinals);
+            std::string tok;
+            while (std::getline(ss, tok, ',')) {
+                if (tok.empty())
+                    panic("CHAOSFPU: empty rate-ordinal token in '%s'\n",
+                          p.rateOrdinals.c_str());
+                char *end = nullptr;
+                unsigned long long v = std::strtoull(tok.c_str(), &end, 10);
+                if (end == tok.c_str() || *end != '\0')
+                    panic("CHAOSFPU: bad rate ordinal '%s'\n", tok.c_str());
+                rate_ordinals.push_back((uint64_t)v);
+            }
+        }
+        rate_mode = !rate_ordinals.empty();
+        if (rate_mode) {
+            const bool known_freq = fsu_freq == "F1" || fsu_freq == "F2" ||
+                                    fsu_freq == "F3";
+            if (!known_freq)
+                panic("CHAOSFPU: rate ordinals require F1/F2/F3 freq, got "
+                      "'%s'\n", fsu_freq.c_str());
+            const uint64_t expected = fsu_freq == "F1" ? 1000000ULL :
+                                      fsu_freq == "F2" ? 100000ULL :
+                                      10000ULL;
+            if (rate_divisor != expected)
+                panic("CHAOSFPU: %s requires rate_divisor=%llu, got %llu\n",
+                      fsu_freq.c_str(), (unsigned long long)expected,
+                      (unsigned long long)rate_divisor);
+            if (jitter_pct >= 100)
+                panic("CHAOSFPU: jitter_pct must be < 100, got %llu\n",
+                      (unsigned long long)jitter_pct);
+            if (fsu_eligible_total == 0)
+                panic("CHAOSFPU: rate mode requires --fsu_eligible_total "
+                      "(countOnly census)\n");
+            if (probability != 1.0f)
+                panic("CHAOSFPU: rate mode requires probability=1.0 "
+                      "(ordinals define the exact injection events)\n");
+            // These modes can skip a matched ordinal (fpsr/f3) or bypass
+            // noteFaultApplied (rounding), which would silently break the
+            // rate contract. Reject loudly instead.
+            if (fpsr_suppress || f3_dependent || rounding_sub ||
+                recurring_stuck)
+                panic("CHAOSFPU: rate mode is incompatible with "
+                      "fpsr_suppress/f3_dependent/rounding_sub/"
+                      "recurring_stuck\n");
+            for (size_t i = 0; i < rate_ordinals.size(); ++i) {
+                if (i == 0 && rate_ordinals[i] <= rate_warmup)
+                    panic("CHAOSFPU: first ordinal %llu <= warmup %llu\n",
+                          (unsigned long long)rate_ordinals[i],
+                          (unsigned long long)rate_warmup);
+                if (i > 0 && rate_ordinals[i] <= rate_ordinals[i - 1])
+                    panic("CHAOSFPU: ordinals not strictly increasing at "
+                          "index %zu\n", i);
+                if (rate_ordinals[i] > fsu_eligible_total)
+                    panic("CHAOSFPU: ordinal %llu > eligible_total %llu\n",
+                          (unsigned long long)rate_ordinals[i],
+                          (unsigned long long)fsu_eligible_total);
+            }
+            max_faults = rate_ordinals.size();
+            events_to_skip = 0;
+            fixed_skip_mode = true;
+        } else {
+            // A bare F1/F2/F3 label without ordinals is exactly the
+            // forbidden "change the tag only" case. countOnly is exempt: it
+            // measures the stream before ordinals can exist.
+            if (!count_only && (fsu_freq == "F1" || fsu_freq == "F2" ||
+                                fsu_freq == "F3"))
+                panic("CHAOSFPU: %s requires --fpu_rate_ordinals; changing "
+                      "--fsu_freq alone is not rate semantics\n",
+                      fsu_freq.c_str());
+            if (rate_divisor != 0 || jitter_pct != 0)
+                panic("CHAOSFPU: rate_divisor/jitter without ordinals\n");
+        }
+        if (probability <= 0.0f &&
+            (!p.rateOrdinals.empty() || p.fsuRateDivisor != 0))
+            panic("CHAOSFPU: rate mode requires probability > 0\n");
     }
 
     CHAOSFPU::~CHAOSFPU()
@@ -135,22 +221,45 @@ namespace gem5
             return false;
         }
 
-        // v1.1 Phase 8.2 fixed-skip mode: consume the skip ONLY on
-        // corruptible events so skip indexes the same stream countOnly
-        // counted. Legacy geometric mode keeps the old consume-on-eligible
-        // behavior (byte-identical replays for existing campaigns).
-        if (fixed_skip_mode && !has_fp_dest) return false;
+        // [FSU][D2] F1/F2/F3: exact eligible-ordinal match. The ordinal
+        // stream is the same `has_fp_dest` stream countOnly measured; no
+        // probability draw, no geometric skip, no second sampler.
+        if (rate_mode) {
+            if (!has_fp_dest) return false;
+            ++eligible_ordinal;
+            if (next_rate_index >= rate_ordinals.size())
+                return false;   // max_faults already enforced above
+            const uint64_t target = rate_ordinals[next_rate_index];
+            if (eligible_ordinal < target)
+                return false;
+            if (eligible_ordinal > target)
+                panic("CHAOSFPU: rate ordinal %llu missed (eligible now "
+                      "%llu)\n", (unsigned long long)target,
+                      (unsigned long long)eligible_ordinal);
+            const uint64_t prev = next_rate_index == 0
+                ? rate_warmup : rate_ordinals[next_rate_index - 1];
+            current_interval = target - prev;
+            current_ordinal_index = next_rate_index;
+            injected_eligible_ordinal = target;
+        } else {
+            // v1.1 Phase 8.2 fixed-skip mode: consume the skip ONLY on
+            // corruptible events so skip indexes the same stream countOnly
+            // counted. Legacy geometric mode keeps the old consume-on-
+            // eligible behavior (byte-identical replays for existing
+            // campaigns).
+            if (fixed_skip_mode && !has_fp_dest) return false;
 
-        // Sampling-bias fix (findings.md Phase 3.0): skip the first N
-        // eligible events (N ~ geometric(0.1) from the seed) so the
-        // single fault lands on a seed-dependent event.
-        if (events_to_skip > 0) {
-            --events_to_skip;
-            return false;
+            // Sampling-bias fix (findings.md Phase 3.0): skip the first N
+            // eligible events (N ~ geometric(0.1) from the seed) so the
+            // single fault lands on a seed-dependent event.
+            if (events_to_skip > 0) {
+                --events_to_skip;
+                return false;
+            }
+
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
         }
-
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
 
         // v1.1 Phase 9 patch 1a-0 — PRF-DEST REWRITE. The old path XORed
         // the DynInst::instResult queue, whose ONLY consumer is the checker
@@ -318,9 +427,16 @@ namespace gem5
                 break;  // int/cond/misc dests are CHAOSExec's scope
             }
         }
-        if (!ok) return false;  // no FP/vector dest register on this inst
+        if (!ok) {
+            if (rate_mode)
+                panic("CHAOSFPU: rate ordinal %llu matched but no writable "
+                      "FP/vector dest (fault not applied)\n",
+                      (unsigned long long)injected_eligible_ordinal);
+            return false;  // no FP/vector dest register on this inst
+        }
         faults_injected_count++;
         noteFaultApplied(dyn_inst, fault_cls, fault_idx, oldv, newv, mask);
+        if (rate_mode) ++next_rate_index;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: dyn_inst_execute, opClass=" << (int)oc
@@ -419,6 +535,26 @@ namespace gem5
         if (fsu_eligible_total)
             kv.push_back({"eligible_total",
                           std::to_string(fsu_eligible_total)});
+        if (rate_mode) {
+            // [FSU][D2] Per-fault rate provenance. These fields make the
+            // event self-describing: a reader can verify the ordinal is the
+            // declared cumulative interval and that the run really used F3
+            // (etc.), not merely a relabeled F0.
+            kv.push_back({"eligible_ordinal",
+                          std::to_string(injected_eligible_ordinal)});
+            kv.push_back({"eligible_total",
+                          std::to_string(fsu_eligible_total)});
+            kv.push_back({"rate_divisor",
+                          std::to_string(rate_divisor)});
+            kv.push_back({"jitter_pct", std::to_string(jitter_pct)});
+            kv.push_back({"interval", std::to_string(current_interval)});
+            kv.push_back({"ordinal_index",
+                          std::to_string(current_ordinal_index)});
+            kv.push_back({"ordinal_generator",
+                          "splitmix64-mod-uniform-interval"});
+            kv.push_back({"ordinal_generator_version", "1"});
+            kv.push_back({"ordinal_seed", std::to_string(rng_seed)});
+        }
         const uint64_t l0 = emitFsu("fault_applied", fid, FSU_NO_PARENT, kv);
         const uint64_t l1 = emitFsu("carrier_state", fid, l0, kv);
         faulted_regs.push_back({fid, l0, l1, inst->seqNum, curTick(),
@@ -550,6 +686,25 @@ namespace gem5
         // The chain checker maps this to terminal=not_activated (never
         // inferred from a missing event).
         registerExitCallback([this]() { noteNotActivated(); });
+        if (rate_mode) {
+            // Honest end-of-run rate accounting: the driver must see every
+            // declared ordinal actually injected. A shortfall is loud.
+            registerExitCallback([this]() {
+                const size_t total = rate_ordinals.size();
+                std::ostream *os = (log_stream && log_stream->stream())
+                    ? log_stream->stream() : nullptr;
+                if (next_rate_index < total) {
+                    warn("CHAOSFPU: rate ordinals unreached: %zu/%zu "
+                         "injected\n", next_rate_index, total);
+                    if (os)
+                        *os << "CHAOS_RATE_UNREACHED=" << (total - next_rate_index)
+                            << " injected=" << next_rate_index
+                            << " ordinals=" << total << std::endl;
+                } else if (os) {
+                    *os << "CHAOS_RATE_COMPLETE=" << total << std::endl;
+                }
+            });
+        }
     }
 
 } // namespace gem5

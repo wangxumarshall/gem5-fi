@@ -90,6 +90,20 @@ class CHAOSFPU : public SimObject
     std::string fsu_model, fsu_freq, fsu_load, fsu_submodel;
     uint64_t fsu_eligible_total = 0;
 
+    // [FSU][D2] F1/F2/F3 deterministic rate semantics. The driver supplies
+    // exact eligible ordinals; the injector matches them 1:1 and never draws
+    // a probability/geometric substitute. Empty vector = F0 mode.
+    bool rate_mode = false;
+    std::vector<uint64_t> rate_ordinals;
+    uint64_t rate_warmup = 0;
+    uint64_t rate_divisor = 0;
+    uint64_t jitter_pct = 0;
+    uint64_t eligible_ordinal = 0;   // 1-based count of eligible events
+    size_t next_rate_index = 0;
+    uint64_t injected_eligible_ordinal = 0;
+    uint64_t current_interval = 0;
+    uint64_t current_ordinal_index = 0;
+
     // [FSU] Faulted-result taint. A fault is "activated" only when a real
     // consumer instruction reads the faulted physical register; the root
     // fault_applied event therefore leaves activated empty, and the L2

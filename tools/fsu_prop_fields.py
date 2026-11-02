@@ -34,6 +34,8 @@ PROP_EVT_FIELDS = [
     "fu_class", "fu_index", "field", "bit_indices", "fault_mask",
     "before", "after", "before_hash", "after_hash", "value_hash",
     "eligible_ordinal", "eligible_total", "attempted", "activated",
+    "rate_divisor", "jitter_pct", "interval", "ordinal_index",
+    "ordinal_generator", "ordinal_generator_version", "ordinal_seed",
     "burst_id", "burst_ordinal", "burst_length",
     "detection_layer", "contained", "outcome", "oracle_diff",
     "evidence_status", "corr", "golden_id", "config_hash", "binary_hash",

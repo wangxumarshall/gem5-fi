@@ -11,15 +11,20 @@
     stats.txt              注入运行 stats（从 inject/ 复制；空文件即失败）
     oracle.json            classify.py 的结局与理由
     chain_report.json      fsu_chain_check.check_stream 的完整结果
+    ordinals.json          F1/F2/F3 完整 ordinal 序列（canonical JSON）
+    not_activated.json     rate 首 ordinal 超出 ROI 时的显式终局
     evidence_sha256.json   本 attempt 全部证据文件的 SHA-256
     <RunID>-seed<N>.md     传播链 Markdown（真实事件生成）
     .done / .failed        原子完成标记（仅 .done 计入 3/3）
+    .not_activated         rate 零注入标记（不计入 3/3）
 
 规则:
   - attempt 目录只增不改；失败保留并记录原因，重跑创建 attempt-k+1。
   - 已存在 AUTHORITATIVE 的 seed 默认不再运行。
   - admitted 需要：非 SimulatorError/Inactive、faults>=1、stats 非空、
-    链审计至少一个 fault admitted、证据流未截断。
+    所有 injected fault 都出现在事件流且每条链 certified、证据流未截断。
+  - F1/F2/F3 必须有 injector.rate；仅改 --fsu_freq 标签会被拒绝。
+    rate 模式实际注入数必须等于 ordinal 数；零 ordinal 记 not_activated。
 """
 from __future__ import annotations
 
@@ -32,6 +37,9 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fsu_rate_ordinals as O  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GEM5 = ROOT / "CHAOS/gem5/build/ARM/gem5.opt"
@@ -92,22 +100,24 @@ def _read(path: Path) -> str:
 
 
 def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
-              gem5: Path, config: Path, root: Path):
+              gem5: Path, config: Path, root: Path, rate_doc=None):
     wl = manifest["workload"]
     binary = Path(wl["binary"])
     if not binary.is_absolute():
         binary = root / binary
     inj = manifest["injector"]
     fpu = inj.get("fpu_mode") or {}
+    max_faults = (len(rate_doc["ordinals"]) if rate_doc
+                  else inj.get("max_faults", 1))
     cmd = [
         str(gem5), "--quiet", "-d", str(outdir), str(config),
         "--cmd", str(binary), "--cpu", "O3",
         "--first_clock", str(inj.get("first_clock", 0)),
-        "--max_faults", str(inj.get("max_faults", 1)),
+        "--max_faults", str(max_faults),
         "--rng_seed", str(seed),
         "--chaos_fpu",
         "--fpu_first_clock", str(inj.get("first_clock", 0)),
-        "--fpu_max_faults", str(inj.get("max_faults", 1)),
+        "--fpu_max_faults", str(max_faults),
         "--fpu_fault_mask", "0",
         "--fpu_rng_seed", str(seed),
     ]
@@ -129,7 +139,16 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
     if count_only:
         cmd += ["--fpu_count_only"]
     else:
-        cmd += ["--fpu_events_to_skip", str(skip)]
+        if rate_doc is not None:
+            # F1/F2/F3: exact eligible ordinals, no probability/geometric draw.
+            cmd += ["--fpu_events_to_skip", "0",
+                    "--fpu_rate_ordinals",
+                    ",".join(str(x) for x in rate_doc["ordinals"]),
+                    "--fpu_rate_warmup", str(rate_doc["warmup"]),
+                    "--fsu_rate_divisor", str(rate_doc["rate_divisor"]),
+                    "--fsu_jitter_pct", str(rate_doc["jitter_pct"])]
+        else:
+            cmd += ["--fpu_events_to_skip", str(skip)]
         cmd += ["--chaos_propagation",
                 "--prop_run_id", manifest["run_id"],
                 "--prop_sample_run_id", f"s{seed}"]
@@ -195,6 +214,10 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
 
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
     run_id = manifest["run_id"]
+    # F1/F2/F3 必须在创建任何 attempt 之前证明真实 rate 语义；
+    # 只改 --fsu_freq 标签的 manifest 在这里被拒绝。
+    rate_cfg = O.validate_rate_for_freq(
+        manifest.get("freq", ""), O.rate_config_from_manifest(manifest))
     seed_dir = Path(out_root) / run_id / f"seed{seed}"
     auth = seed_dir / "AUTHORITATIVE"
     if auth.exists() and not allow_rerun:
@@ -259,12 +282,63 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     if eligible == 0:
         return fail("eligible=0 (no FSU event in window) — not Masked")
 
+    # ---- F1/F2/F3 rate ordinals (deterministic; no probability proxy) ----
+    rate_doc = None
+    if rate_cfg is not None:
+        rate_doc = O.build_rate_ordinals(
+            eligible, rate_cfg["rate_divisor"], rate_cfg["jitter_pct"],
+            seed, rate_cfg["warmup"])
+        ord_path = attempt / "ordinals.json"
+        ord_bytes = O.canonical_bytes(rate_doc)
+        ord_path.write_bytes(ord_bytes)
+        ord_sha = hashlib.sha256(ord_bytes).hexdigest()
+        seed_manifest["rate"] = {
+            **{k: rate_doc[k] for k in
+               ("generator", "version", "rate_divisor", "jitter_pct",
+                "seed", "warmup", "interval_bounds", "N",
+                "injection_count", "first_ordinal", "last_ordinal")},
+            "eligible_total": eligible,
+            "ordinals": rate_doc["ordinals"],
+            "intervals": rate_doc["intervals"],
+            "ordinals_file": "ordinals.json",
+            "ordinals_sha256": ord_sha,
+        }
+        (attempt / "manifest.json").write_text(
+            json.dumps(seed_manifest, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        if not rate_doc["ordinals"]:
+            # 确定性 ordinal 在 ROI 外：保留 attempt，不伪造注入、不计 3/3。
+            note = {
+                "status": "not_activated",
+                "reason": "eligible_below_first_ordinal",
+                "eligible_total": eligible,
+                "first_interval_upper_bound": rate_doc["interval_bounds"]["hi"],
+                "seed": seed,
+                "rate_divisor": rate_doc["rate_divisor"],
+                "jitter_pct": rate_doc["jitter_pct"],
+                "warmup": rate_doc["warmup"],
+                "ordinals_sha256": ord_sha,
+            }
+            (attempt / "not_activated.json").write_text(
+                json.dumps(note, ensure_ascii=False, indent=2),
+                encoding="utf-8")
+            (attempt / ".not_activated").write_text(
+                "not_activated/eligible_below_first_ordinal\n",
+                encoding="utf-8")
+            write_hashes(attempt)
+            return {"status": "not_activated",
+                    "reason": "eligible_below_first_ordinal",
+                    "attempt": str(attempt), "eligible_total": eligible,
+                    "first_interval_upper_bound":
+                        rate_doc["interval_bounds"]["hi"],
+                    "ordinals_sha256": ord_sha}
+
     skip = chaos_pick_skip(seed, eligible)
 
     # ---- injection ----
     inject_dir = attempt / "inject"
     inj_cmd = build_cmd(seed_manifest, inject_dir, seed, skip, False,
-                        gem5, DEFAULT_CONFIG, Path(root))
+                        gem5, DEFAULT_CONFIG, Path(root), rate_doc=rate_doc)
     inj_cmd += ["--fsu_eligible_total", str(eligible)]
     rc, out, err, timed_out = runner(inj_cmd, timeout)
     (attempt / "run.out").write_text(out, encoding="utf-8")
@@ -281,9 +355,20 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         oracle_kind=oracle_kind, oracle_tol=oracle_tol)
     oracle = {"category": category, "reason": reason, "faults_injected": faults,
               "eligible_count": eligible, "selection_seed": seed,
-              "injection_seed": seed, "skip": skip,
+              "injection_seed": seed,
+              "skip": None if rate_doc is not None else skip,
               "oracle_kind": oracle_kind, "golden": golden,
               "returncode": rc, "timed_out": timed_out}
+    if rate_doc is not None:
+        oracle.update({
+            "rate_divisor": rate_doc["rate_divisor"],
+            "jitter_pct": rate_doc["jitter_pct"],
+            "interval_bounds": rate_doc["interval_bounds"],
+            "warmup": rate_doc["warmup"],
+            "expected_injections": rate_doc["injection_count"],
+            "ordinals": rate_doc["ordinals"],
+            "ordinals_sha256": seed_manifest["rate"]["ordinals_sha256"],
+        })
     (attempt / "oracle.json").write_text(
         json.dumps(oracle, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -295,9 +380,33 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         chain = {"path": str(prop), "event_count": 0, "truncated": False,
                  "truncation_reason": "missing prop_evt", "identity_violations": [],
                  "faults": {}, "admitted_faults": []}
+    # run-level oracle 与每个 fault 的 chain terminal 分开保存，绝不混写。
+    fault_terminals = {fid: r.get("terminal")
+                       for fid, r in chain.get("faults", {}).items()}
+    chain_faults = chain.get("faults", {})
+    rate_ok = (rate_doc is None
+               or faults == rate_doc["injection_count"])
+    # Every injected fault must have its own chain in the stream; an
+    # injection log count larger than the stream's fault set is a missing
+    # chain, not a pass.
+    all_faults_present = len(chain_faults) == faults
     chain_report = {
         "run_id": run_id, "seed": seed, "sample_run_id": f"s{seed}",
-        "attempt": k, "oracle": oracle, "chain": chain,
+        "attempt": k, "oracle": oracle,
+        "run_level_oracle": {
+            "category": category, "reason": reason,
+            "faults_injected": faults,
+            "eligible_count": eligible,
+        },
+        "rate": seed_manifest.get("rate"),
+        "rate_ok": rate_ok,
+        "expected_injections": (rate_doc["injection_count"]
+                                if rate_doc is not None else None),
+        "actual_injections": faults,
+        "faults_in_stream": len(chain_faults),
+        "all_faults_present": all_faults_present,
+        "fault_terminals": fault_terminals,
+        "chain": chain,
         "admitted": chain.get("admitted"),
         "certified": chain.get("certified"),
         "violations": chain.get("violations", []),
@@ -313,6 +422,8 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     admitted = (
         category not in ("SimulatorError", "Inactive")
         and faults >= 1
+        and rate_ok
+        and all_faults_present
         and chain.get("admitted_faults")
         and chain.get("certified")
         and not chain.get("truncated")
@@ -345,6 +456,8 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
                 "md": str(dst)}
     (attempt / ".failed").write_text(
         f"not admitted: oracle={category} faults={faults} "
+        f"expected={chain_report['expected_injections']} rate_ok={rate_ok} "
+        f"faults_in_stream={len(chain_faults)} "
         f"admitted_faults={chain.get('admitted_faults')} "
         f"truncated={chain.get('truncated')} "
         f"stats_nonempty={chain_report['stats_nonempty']} doc_ok={doc_ok}\n",
@@ -352,6 +465,8 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     write_hashes(attempt)
     return {"status": "failed", "attempt": str(attempt), "oracle": category,
             "reason": reason, "faults": faults,
+            "rate_ok": rate_ok,
+            "expected_injections": chain_report["expected_injections"],
             "admitted_faults": chain.get("admitted_faults"),
             "truncated": chain.get("truncated")}
 

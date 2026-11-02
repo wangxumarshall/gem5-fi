@@ -247,6 +247,9 @@ class CHAOSPropagation : public SimObject
         "eligible_ordinal", "eligible_total", "attempted", "activated",
         "burst_id", "burst_ordinal", "burst_length",
         "golden_id", "config_hash", "binary_hash", "terminal",
+        // [FSU][D2] F1/F2/F3 rate provenance.
+        "rate_divisor", "jitter_pct", "interval", "ordinal_index",
+        "ordinal_generator", "ordinal_generator_version", "ordinal_seed",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));

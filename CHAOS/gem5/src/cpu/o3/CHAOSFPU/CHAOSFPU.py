@@ -85,3 +85,16 @@ class CHAOSFPU(SimObject):
     fsuSubmodel = Param.String("", "FSU submodel (e.g. FP04-c) for FSU_PROP events")
     fsuEligibleTotal = Param.UInt64(0, "countOnly eligible-event total for "
                                        "this seed (0 = not measured)")
+    # [FSU][D2] F1/F2/F3 deterministic rate semantics. The driver generates
+    # the exact ordinals (tools/fsu_rate_ordinals.py, SplitMix64, interval in
+    # [ceil(0.5*rate), floor(1.5*rate)]) from the countOnly eligible total and
+    # passes them here. The injector matches the eligible-event ordinal
+    # exactly — no probability/geometric approximation. Empty = F0 mode.
+    rateOrdinals = Param.String("", "Comma-separated strict-increasing "
+                                    "eligible ordinals for F1/F2/F3 "
+                                    "(empty = F0 single-fault mode)")
+    rateWarmup = Param.UInt64(0, "Eligible events before the first rate "
+                                 "ordinal window")
+    fsuRateDivisor = Param.UInt64(0, "F1=1000000, F2=100000, F3=10000 "
+                                     "(0 = F0/not rate mode)")
+    fsuJitterPct = Param.UInt64(0, "Interval jitter percentage (workbook=50)")
