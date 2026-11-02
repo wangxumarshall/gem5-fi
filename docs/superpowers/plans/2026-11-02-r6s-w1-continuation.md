@@ -55,6 +55,21 @@ tmux new-session -d -s r6s-w1-parallel \
 - [ ] 队列 `R6S_W1_PARALLEL_DONE` 出现，14 个 `.done` / `.exit_code` / manifest FINISHED。
 - [ ] 运行期间 `pgrep` 证明 gem5 并发 ≤ 8，无 OOM。
 
+## Task 2b — EVENT_CAP 误判修复（2026-11-02 实测发现，一个 commit）
+
+S01-F2-W1 的流经 `gzip -t` 验证完整（1,480,644 行），但 `EVENT_CAP=200000`
+把“完整流超出分析上限”与“gzip 截断”混为一谈，campaign 因此标
+`EVIDENCE-TRUNCATED` 并拒绝认证。新增离线 regrade：
+
+- [ ] `tools/regrade_r6_w1_event_cap.py`：先证明 gzip EOF + stats 非空，统计真实
+      event 数 n，用 cap=n+1 重跑**同一** `write_chain_report`（同一 parser/checker/
+      admission gate）；只有 `truncated=False`、`evidence_truncated=False`、
+      `event_count==n`、`admitted=True`、`certified=True` 才写回。
+- [ ] 原件备份 `.pre-capregrade-20261102`；manifest 增加 `chain_regrade`
+      provenance（含原文件 SHA-256）；raw 证据不改。
+- [ ] 实测：S01-F2-W1 s1（1,479,991 events/71 faults）与 s3（1,545,241/70）
+      均由 EVIDENCE-TRUNCATED 变为 admitted/certified，独立证据审计 PASS。
+
 ## Task 3 — 逐 seed 证据审计（一个 commit）
 
 新增独立审计器 `tools/audit_r6_w1_evidence.py`（只读原始证据，不复用 runner 的判断）：
