@@ -18,6 +18,8 @@ import zlib
 from pathlib import Path
 
 PREFIX = "FSU_PROP-EVT:"
+# 发射端复用 CHAOSPropagation 的统一流（PROP-EVT:）；独立文件可用 FSU 前缀。
+PREFIXES = ("FSU_PROP-EVT:", "PROP-EVT:")
 EVENT_CAP = 200000
 
 # 字段顺序即发射端写入顺序；解析端容忍缺键。
@@ -88,9 +90,10 @@ def parse_line(line: str):
     line = line.strip()
     if not line or line.startswith("#"):
         return None
-    if not line.startswith(PREFIX):
+    pfx = next((p for p in PREFIXES if line.startswith(p)), None)
+    if pfx is None:
         return None
-    body = line[len(PREFIX):].strip()
+    body = line[len(pfx):].strip()
     evt = {}
     for tok in body.split():
         if "=" in tok:

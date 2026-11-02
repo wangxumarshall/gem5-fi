@@ -151,7 +151,8 @@ def _check_one(fid, events):
         return {
             "fault_id": fid, "root_event_id": None, "path_event_ids": [],
             "off_chain_event_ids": sorted(by_id), "layers": [],
-            "deepest_layer": None, "terminal": "no_root", "beyond": "Unknown",
+            "deepest_layer": None, "layers_na": [],
+            "terminal": "no_root", "beyond": "Unknown",
             "violations": violations + ["no_fault_applied_root"],
             "admitted": False, "l5_witness_event_id": None,
             "containment_event_id": None, "containment_layer": None,
@@ -173,7 +174,7 @@ def _check_one(fid, events):
             "path_event_ids": [_clean(root, "event_id")],
             "off_chain_event_ids": sorted(
                 set(by_id) - {_clean(root, "event_id")}),
-            "layers": ["L0"], "deepest_layer": "L0",
+            "layers": ["L0"], "deepest_layer": "L0", "layers_na": [],
             "terminal": "not_activated", "beyond": "N/A",
             "violations": violations, "admitted": False,
             "l5_witness_event_id": None, "containment_event_id": None,
@@ -218,9 +219,14 @@ def _check_one(fid, events):
     else:
         contained_id, contained_layer = None, None
         if l5_evt is not None:
-            missing = [l for l in LAYERS if l not in layers]
-            if missing:
-                violations.append("incomplete_layer_sequence:" + ",".join(missing))
+            # FSU 规格只要求 L0 + 直接载体 + 真实 L5 见证；真实未到达的中间层
+            # 记 N/A，但不得用跳接事件凑层。
+            if "L0" not in layers or "L1" not in layers:
+                violations.append("incomplete_carrier_sequence")
+                terminal = (f"provable_to_{layers[-1]}_then_unknown"
+                            if layers else "unknown")
+            elif not any(l in ("L2", "L3", "L4") for l in layers):
+                violations.append("no_intermediate_layer")
                 terminal = f"provable_to_{layers[-1]}_then_unknown"
             else:
                 terminal = "full"
@@ -232,6 +238,15 @@ def _check_one(fid, events):
     closed = (terminal in P.CLOSED_TERMINALS
               or terminal.startswith("contained_"))
     beyond = "N/A" if closed else "Unknown"
+    layers_na = []
+    if closed and layers:
+        deepest_idx = LAYERS.index(layers[-1])
+        layers_na = [l for l in LAYERS if l not in layers
+                     and LAYERS.index(l) < deepest_idx]
+        if terminal == "full":
+            layers_na = [l for l in LAYERS if l not in layers]
+        else:
+            layers_na = LAYERS[deepest_idx + 1:]
     admitted = closed and not violations
     return {
         "fault_id": fid,
@@ -239,6 +254,7 @@ def _check_one(fid, events):
         "path_event_ids": path_ids,
         "layers": layers,
         "deepest_layer": layers[-1] if layers else None,
+        "layers_na": layers_na,
         "terminal": terminal,
         "beyond": beyond,
         "l5_witness_event_id": _clean(l5_evt, "event_id") if l5_evt else None,

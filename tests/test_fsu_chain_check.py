@@ -54,6 +54,9 @@ def test_parse_line_and_layers():
     e = P.parse_line(line)
     assert e["kind"] == "fault_applied" and e["tick"] == "7"
     assert P.parse_line("plain text") is None
+    e2 = P.parse_line("PROP-EVT: kind=execute event_id=3 tick=9 model_id=FP04")
+    assert e2["kind"] == "execute" and e2["model_id"] == "FP04"
+    assert P.layer_of(e2) == "L3"
     assert P.layer_of(e) == "L0"
     assert P.layer_of({"kind": "commit"}) == "L5"
     assert P.layer_of({"kind": "chain_end"}) is None
@@ -69,6 +72,7 @@ def test_full_chain_admitted(tmp_path):
     assert f["terminal"] == "full"
     assert f["layers"] == ["L0", "L1", "L2", "L3", "L4", "L5"]
     assert f["l5_witness_event_id"] == "5"
+    assert f["layers_na"] == []
     assert f["beyond"] == "N/A"
     assert f["violations"] == []
     assert f["admitted"] is True
@@ -89,6 +93,7 @@ def test_contained_at_L3(tmp_path):
     assert f["terminal"] == "contained_L3"
     assert f["containment_layer"] == "L3"
     assert f["beyond"] == "N/A"
+    assert f["layers_na"] == ["L4", "L5"]
     assert f["admitted"] is True
     assert "L4" not in f["layers"] and "L5" not in f["layers"]
 
@@ -176,7 +181,8 @@ def test_l5_without_witness_rejected(tmp_path):
     assert f["admitted"] is False
 
 
-def test_incomplete_layers_not_full(tmp_path):
+def test_missing_L2_is_full_with_na(tmp_path):
+    """真实未到达的 L2 记 N/A，不算跳接凑层；L0/L1/L5 齐全仍为 full。"""
     b = base()
     lines = [
         evt(kind="fault_applied", event_id="0", tick="100", activated="1", **b),
@@ -187,8 +193,23 @@ def test_incomplete_layers_not_full(tmp_path):
             detection_layer="L5", outcome="errant_commit", **b),
     ]
     f = check(tmp_path, lines)["faults"]["1"]
+    assert f["terminal"] == "full"
+    assert f["layers_na"] == ["L2"]
+    assert f["admitted"] is True
+
+
+def test_missing_carrier_not_full(tmp_path):
+    b = base()
+    lines = [
+        evt(kind="fault_applied", event_id="0", tick="100", activated="1", **b),
+        evt(kind="execute", event_id="1", parent_event_id="0", tick="101", **b),
+        evt(kind="prf_writeback", event_id="2", parent_event_id="1", tick="102", **b),
+        evt(kind="commit", event_id="3", parent_event_id="2", tick="103",
+            detection_layer="L5", outcome="errant_commit", **b),
+    ]
+    f = check(tmp_path, lines)["faults"]["1"]
     assert f["terminal"].startswith("provable_to_L5_then_unknown")
-    assert any(v.startswith("incomplete_layer_sequence") for v in f["violations"])
+    assert "incomplete_carrier_sequence" in f["violations"]
     assert f["admitted"] is False
 
 
