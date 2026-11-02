@@ -23,10 +23,19 @@
 
 ## 阶段 B：实现审计
 
-- [ ] B1 以最新 `origin/fi-ding` 真实代码审计 30 个模型的支持状态。
-- [ ] B2 建立 RunID × 模型 × 频率 × 负载 × hook × workload × oracle × 观测字段矩阵。
+- [x] B1 以最新 `origin/fi-ding` 真实代码审计 30 个模型的支持状态。
+      - 结论：0 IMPLEMENTED；13 PARTIAL（FQ01/FQ02/FQ04/FQ08、
+        FR01/FR02/FR03/FR07、FP04/FP05/FP06/FP07/FP08）；17 MISSING。
+      - 工作簿“直接已有”的 FR01/FP04 经审计降级为 PARTIAL。
+- [x] B2 建立 RunID × 模型 × 频率 × 负载 × hook × workload × oracle × 观测字段矩阵。
+      - 产物：`docs/gem5-fi/fsu/IMPLEMENTATION_MATRIX.{json,csv}`、
+        `IMPLEMENTATION_AUDIT.md`；173 行唯一 RunID；测试 5 项通过。
 - [ ] B3 试点 RunID 端到端（golden → census → 单次注入 → 链报告 → 审计）。
+      - 已选试点：**FSU-FP04-F0-W4**（FP04 + elemwise_fma_kernel + ARRAYHASH/ULP）。
+      - **BLOCKED**：无 gem5 二进制；无 FSU PROP-EVT；无 activated 判定；
+        无 chain_report/单 seed Markdown 生成器/链审计器。
 - [ ] B4 所有缺口实现并测试；禁止用相近模型结果替代。
+      - **BLOCKED**：依赖 B3 的传播事件与审计器落地；按单点提交逐步实现。
 
 ## 阶段 C：三 seed 执行
 
