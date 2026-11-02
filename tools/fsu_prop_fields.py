@@ -33,7 +33,7 @@ PROP_EVT_FIELDS = [
     "lane_width", "lane_offset", "lane_mask",
     "fu_class", "fu_index", "field", "bit_indices", "fault_mask",
     "before", "after", "before_hash", "after_hash", "value_hash",
-    "eligible_ordinal", "eligible_total", "activated",
+    "eligible_ordinal", "eligible_total", "attempted", "activated",
     "burst_id", "burst_ordinal", "burst_length",
     "detection_layer", "contained", "outcome", "oracle_diff",
     "evidence_status", "corr", "golden_id", "config_hash", "binary_hash",
