@@ -44,7 +44,7 @@
 - Consumes: `tools/lsu_campaign.py`（f1291067 版本，`resolve_g5()` 读 `LSU_GEM5_BIN`；`propagation_flags()` 自动挂 `--chaos_propagation`）。
 - Produces: 一份可审计的 C 样本目录，供 Task 2/3 用真实数据开发；决定是否进入 Task 2A（C++ 传播模型修复）分支。
 
-- [ ] **Step 1: 记录基线事实**
+- [x] **Step 1: 记录基线事实**（HEAD=f1291067；SHA=6db026e7…fef4；无并发 gem5；MemAvailable 25G；/home 42G）
 
 ```bash
 cd /home/sdc/gem5-fi-ding/.claude/worktrees/r6-c-unit-20261102
@@ -56,7 +56,7 @@ pgrep -fa 'gem5.opt|lsu_campaign' || true
 
 期望：HEAD=f1291067；SHA=6db026e7…fef4；无 gem5/campaign 在跑；MemAvailable≥12GiB；/home≥30GiB。
 
-- [ ] **Step 2: 写 canary 启动器**
+- [x] **Step 2: 写 canary 启动器**（`tools/r6_c_canary.sh`，提交 85187831）
 
 `tools/r6_c_canary.sh`：
 
@@ -101,7 +101,7 @@ touch "$DIR/.done"
 echo "END $RUN_ID seed$SEED rc=$RC"
 ```
 
-- [ ] **Step 3: 运行 canary（前台，超时 1800s）**
+- [x] **Step 3: 运行 canary（前台，超时 1800s）**（rib=0；92 事件；注入真实）
 
 ```bash
 chmod +x tools/r6_c_canary.sh
@@ -110,7 +110,7 @@ WT=$PWD tools/r6_c_canary.sh C01-F0-W6 1 1800
 
 期望：`END C01-F0-W6 seed1 rc=0`，`.done` 存在。
 
-- [ ] **Step 4: 七项硬门禁核验**
+- [x] **Step 4: 七项硬门禁核验**（结果：gzip/stats/注入 PASS；`admitted=False`、`terminal=provable_to_L4_then_unknown`、violations 含 `cross_branch_edge`）
 
 ```bash
 D=/home/sdc/gem5-fi-ding/runs/lsu/r6_c_unit/canary/C01-F0-W6_s1
@@ -132,7 +132,7 @@ grep -c 'Tick:' "$D"/*/*/cache_injections.log 2>/dev/null || echo NO_INJ_LOG
 
 期望：GZIP_OK；stats>0；`event_count>0`；`admitted=True`、`certified=True`、`violations=[]`；`faults` 非空；`cache_injections.log` 有 `Tick:`。
 
-- [ ] **Step 5（决策点）: 若 canary 失败**
+- [x] **Step 5（决策点）: 若 canary 失败** — 命中类型 1：`errant_commit` 的 parent 落到 owner 请求分支（event 3），未接 taint_reg（event 8），导致 L4→L5 单链断裂。已定位 `CHAOSPropagation.cc` `noteCommit`，修复进行中；需重建 + 重跑 canary 验证。
 
 按失败类型进入最小修复（先写失败测试，再修，再重建/重跑 canary）：
 1. `prop_evt` 无 `inj` 事件但注入日志有 `Tick:` → C++ 传播模型问题（CHAOSCache 未调用 `chaos_chain` 记录 L0）。诊断 `CHAOS/gem5/src/mem/cache/CHAOSCache/`，补 L0 registration，`scons -j16 build/ARM/gem5.opt`，记录新 SHA，仅重跑受影响 RunID。
