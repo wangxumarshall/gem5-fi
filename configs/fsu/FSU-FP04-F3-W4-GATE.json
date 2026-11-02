@@ -1,0 +1,26 @@
+{
+  "run_id": "FSU-FP04-F3-W4-GATE",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F3",
+  "load_id": "W4",
+  "submodel": "FP04-c",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel",
+    "golden_id": "elemwisefma-golden-v1",
+    "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {"bitseg": "mant_lo"},
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rate": {"rate_divisor": 10000, "jitter_pct": 50, "warmup": 0}
+  },
+  "limits": {"timeout_s": 1800},
+  "notes": "D2 mechanism gate only (short W4, N=57347). F3 real rate ordinals -> ~4-7 independent faults. Not an official 3-seed RunID; out-root runs/fsu-gates. This gate proves multi-fault independent L0 roots, per-fault chains and audit behavior before W4-rate-v1 official runs."
+}

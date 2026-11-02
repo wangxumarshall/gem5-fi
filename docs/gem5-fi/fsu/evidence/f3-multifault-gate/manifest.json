@@ -1,0 +1,77 @@
+{
+  "run_id": "FSU-FP04-F3-W4-GATE",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F3",
+  "load_id": "W4",
+  "submodel": "FP04-c",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel",
+    "golden_id": "elemwisefma-golden-v1",
+    "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "mant_lo"
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rate": {
+      "rate_divisor": 10000,
+      "jitter_pct": 50,
+      "warmup": 0
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "D2 mechanism gate only (short W4, N=57347). F3 real rate ordinals -> ~4-7 independent faults. Not an official 3-seed RunID; out-root runs/fsu-gates. This gate proves multi-fault independent L0 roots, per-fault chains and audit behavior before W4-rate-v1 official runs.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 1,
+  "created_at": "2026-11-02T21:35:27",
+  "source_head": "60b6c6f3646d5cb658b0db96c325e50e90361f47",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c",
+  "runner_tool_sha256": "a9f7e2b00569a9dc3d2d104a245888624b5d2c51b637f72ab6cb1ee969b2fe76",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/elemwise_fma_kernel",
+  "workload_sha256": "80e633a0cd4b8f64bdfa09f4bf8b1683f79cefd8140f8fe74bf4c973d1941c97",
+  "rate": {
+    "generator": "splitmix64-mod-uniform-interval",
+    "version": "1",
+    "rate_divisor": 10000,
+    "jitter_pct": 50,
+    "seed": 1,
+    "warmup": 0,
+    "interval_bounds": {
+      "lo": 5000,
+      "hi": 15000
+    },
+    "N": 57347,
+    "injection_count": 4,
+    "first_ordinal": 11004,
+    "last_ordinal": 48713,
+    "eligible_total": 57347,
+    "ordinals": [
+      11004,
+      24122,
+      34278,
+      48713
+    ],
+    "intervals": [
+      11004,
+      13118,
+      10156,
+      14435
+    ],
+    "ordinals_file": "ordinals.json",
+    "ordinals_sha256": "2e5b7546da9616a5d99b0160a483607bcf172bfd580ccd6ecb630b988f1ae122"
+  }
+}

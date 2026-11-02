@@ -1,0 +1,1 @@
+{"N":57347,"first_ordinal":11004,"generator":"splitmix64-mod-uniform-interval","injection_count":4,"interval_bounds":{"hi":15000,"lo":5000},"intervals":[11004,13118,10156,14435],"jitter_pct":50,"last_ordinal":48713,"ordinal_index":[0,1,2,3],"ordinals":[11004,24122,34278,48713],"rate_divisor":10000,"seed":1,"version":"1","warmup":0}
