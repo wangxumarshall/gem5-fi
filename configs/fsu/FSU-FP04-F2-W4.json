@@ -1,0 +1,42 @@
+{
+  "run_id": "FSU-FP04-F2-W4",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F2",
+  "load_id": "W4",
+  "submodel": "FP04-c",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel_rate_v1",
+    "identity": "W4-rate-v1",
+    "source": "workloads/directed/elemwise_fma_kernel_rate_v1.c",
+    "roi": {
+      "n_base": 8192,
+      "repeat": 32,
+      "n_elements": 262144,
+      "jitter_pct": 50
+    },
+    "golden_id": "elemwisefma-rate-v1-golden",
+    "golden": "e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "mant_lo"
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rate": {
+      "rate_divisor": 100000,
+      "jitter_pct": 50,
+      "warmup": 0
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "W4-rate-v1: independent extended W4 (not the short W4 binary). F1=1e6/F2=1e5/F3=1e4 eligible events per injection, ±50% deterministic SplitMix64 jitter. countOnly eligible_total=2097155 (measured). Pre-registered ordinals: configs/fsu/W4-rate-v1-ordinals.json. Runs are not started in D2; this manifest is the official F1/F2/F3-W4 identity."
+}
