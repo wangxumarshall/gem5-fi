@@ -122,6 +122,19 @@ def test_not_activated_is_not_contained(tmp_path):
     assert f["admitted"] is False
 
 
+def test_not_activated_event_terminal(tmp_path):
+    b = base()
+    lines = [
+        evt(kind="fault_applied", event_id="0", tick="100", **b),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0", tick="101", **b),
+        evt(kind="not_activated", event_id="2", parent_event_id="1", tick="102",
+            activated="0", **b),
+    ]
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert f["terminal"] == "not_activated"
+    assert f["admitted"] is False
+
+
 # ---------- 负向 ----------
 
 def test_missing_parent_rejected(tmp_path):

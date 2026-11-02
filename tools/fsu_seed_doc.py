@@ -75,9 +75,11 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
     inj_text = injection_lines.read_text(encoding="utf-8", errors="replace") if injection_lines.exists() else ""
 
     attempted = sum(1 for e in events if str(e.get("kind")) == "fault_applied")
+    # activated 只认“故障值被真实消费”的事件（L2/operand_read 等），
+    # 不把根 fault_applied 重复计数。
     activated = sum(1 for e in events
-                    if str(e.get("kind")) == "fault_applied"
-                    and str(e.get("activated")).strip() == "1")
+                    if str(e.get("activated")).strip() == "1"
+                    and str(e.get("kind")) != "fault_applied")
     eligible = oracle.get("eligible_count", "—")
 
     L = []

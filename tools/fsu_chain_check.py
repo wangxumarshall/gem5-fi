@@ -203,8 +203,12 @@ def _check_one(fid, events):
         if _clean(e, "kind") in P.LIFECYCLE_KINDS and _clean(e, "detection_layer") == "L5":
             violations.append(f"chain_end_claimed_l5:{_clean(e, 'event_id')}")
 
+    not_act = next((e for e in best if _clean(e, "kind") == "not_activated"), None)
     contain = next(((_containment(e), e) for e in best if _containment(e)), None)
-    if contain:
+    if not_act is not None:
+        terminal = "not_activated"
+        contained_id, contained_layer = None, None
+    elif contain:
         (dl, ckind), cevt = contain
         if ckind == "crash":
             terminal = "crash"
