@@ -1,5 +1,9 @@
 # F3 多故障机制门禁（短 W4，seed1）
 
+> 注（2026-11-03）：本文为门禁快照，门禁证据不计入正式 seed。正式
+> F3-W4 三 seed 已完成；当前状态见 `COVERAGE_STATUS.md` 与
+> `FP04-W4-FREQUENCY-CLOSEOUT.md`。
+>
 > 生成时间：2026-11-02。门禁目的：在正式 W4-rate-v1 三 seed 之前，证明
 > F3 真实 rate ordinal 能产生**多个独立 fault**，每个 fault 有独立 L0 root
 > 和闭合主链，且逐 fault Markdown/审计不会因单个 fault 达 L5 而误认证全部。

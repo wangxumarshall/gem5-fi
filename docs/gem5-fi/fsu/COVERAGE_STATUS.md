@@ -15,6 +15,9 @@
 | 部分完成 RunID | **0 / 173** |
 | 其余 169 个 RunID | 0/3 |
 
+> 频率批次（F0/F1/F2/F3-W4，12 个 seed）的总审计见
+> `docs/gem5-fi/fsu/FP04-W4-FREQUENCY-CLOSEOUT.md`。
+
 ## 2. frequency_coverage（限 `FSU-FP04-*-W4`）
 
 | 档位 | 正式 seed | 机制/预算状态 |

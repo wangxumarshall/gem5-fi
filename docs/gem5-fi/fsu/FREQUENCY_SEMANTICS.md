@@ -1,5 +1,8 @@
 # FSU 频率语义映射与 W4 可行性（D1）
 
+> 注（2026-11-03）：本文为 D1 设计快照。F1/F2/F3-W4 的正式三 seed 已完成；
+> 当前状态见 `COVERAGE_STATUS.md` 与 `FP04-W4-FREQUENCY-CLOSEOUT.md`。
+>
 > 数据源：工作簿 `5.频率与统计`（F0–F5 原文）、`7.展开执行矩阵` FP04 行、
 > 试点 census 实测 `CHAOS_ELIGIBLE_COUNT=57347`。本文件只记录事实与映射，
 > 不声称 F1/F2/F3 已实现。
