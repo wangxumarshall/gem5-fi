@@ -191,27 +191,37 @@ def scan_events(path, wanted_ids=(), capture_kinds=CAPTURE_KINDS):
             "last_tick": last_tick}
 
 
-_INJ = re.compile(r"^Tick:\s*(\d+),\s*Cache Block Addr:\s*([0-9a-fA-Fx]+),"
-                  r"\s*Byte Offset:\s*(\d+),\s*FaultType:\s*(\S+),"
-                  r"\s*Mask:\s*(\S+)")
+_INJ_HEAD = re.compile(
+    r"^Tick:\s*(\d+),\s*Cache Block Addr:\s*([0-9a-fA-Fx]+)(?:,\s*(.*))?$")
+_KV = re.compile(r"(\w[\w ]*?):\s*([^,]+?)(?:,\s*|$)")
 
 
 def parse_injection_log(path):
-    """CHAOSCache log row: Tick, Cache Block Addr, Byte Offset, FaultType, Mask."""
+    """CHAOSCache log rows — BOTH shapes are real injections.
+
+    data fields:  Tick, Cache Block Addr, Byte Offset, FaultType, Mask
+    state fields: Tick, Cache Block Addr, Field: <name> (<effect>), ...
+
+    Rows that explicitly say NO partner / NO same-set partner are attempts
+    that did NOT inject and are excluded (never counted as an injection).
+    """
     rows = []
     if not os.path.isfile(path):
         return rows
     with open(path, errors="replace") as f:
         for line in f:
-            m = _INJ.match(line.strip())
-            if m:
-                rows.append({
-                    "Tick": m.group(1),
-                    "Cache Block Addr": m.group(2),
-                    "Byte Offset": m.group(3),
-                    "FaultType": m.group(4),
-                    "Mask": m.group(5),
-                })
+            m = _INJ_HEAD.match(line.strip())
+            if not m:
+                continue
+            tick, addr, rest = m.group(1), m.group(2), m.group(3) or ""
+            if "NO partner" in rest or "NO same-set partner" in rest:
+                continue
+            row = {"Tick": tick, "Cache Block Addr": addr}
+            for k, v in _KV.findall(rest):
+                row[k.strip()] = v.strip()
+            if "Field" not in row and "FaultType" in row:
+                row["Field"] = "data"
+            rows.append(row)
     return rows
 
 
