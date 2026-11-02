@@ -1,0 +1,28 @@
+tag=20261102T211141
+after_binary=CHAOS/gem5/build/ARM/gem5.opt
+e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c  CHAOS/gem5/build/ARM/gem5.opt
+after_size=1246083368 after_mtime=2026-11-02 21:18:14.392740567 +0800
+--- git status --short (worktree at build end) ---
+ M CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc
+ M CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.hh
+ M CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py
+ M CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+ M configs/se/ooo_proxy.py
+ M tools/fsu_prop_fields.py
+ M tools/fsu_seed_runner.py
+?? tests/test_fsu_rate_ordinals.py
+?? tools/fsu_rate_ordinals.py
+--- git diff --stat ---
+ CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc         | 187 +++++++++++++++++++--
+ CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.hh         |  14 ++
+ CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py         |  13 ++
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.hh    |   3 +
+ configs/se/ooo_proxy.py                            |  11 ++
+ tools/fsu_prop_fields.py                           |   2 +
+ tools/fsu_seed_runner.py                           | 124 +++++++++++++-
+ 7 files changed, 331 insertions(+), 23 deletions(-)
+--- HEAD ---
+67b4dfd1616be47cb8b3f31b94d049a04d1a72a2
+--- built objects ---
+CHAOS/gem5/build/ARM/cpu/o3/CHAOSFPU/CHAOSFPU.o 2026-11-02 21:12:25.464699025 +0800
+CHAOS/gem5/build/ARM/cpu/o3/CHAOSPropagation/CHAOSPropagation.o 2026-11-02 21:12:35.680934473 +0800

@@ -1,0 +1,75 @@
+scons: Reading SConscript files ...
+Mkdir("/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.build")
+Checking for linker -Wl,--as-needed support... (cached) yes
+Warning: Detected GCC version 10.3.1 is not officially supported.
+         gem5 supports GCC v11 up to v14.2.
+Checking for compiler -gz support... (cached) yes
+Checking for linker -gz support... (cached) yes
+Info: Using Python config: /opt/python3.11/bin/python3.11-config
+Checking for C header file Python.h... (cached) yes
+Checking Python version... (cached) 3.11.9
+Checking for accept(0,0,0) in C++ library None... (cached) yes
+Checking for zlibVersion() in C++ library z... (cached) yes
+Checking for C library tcmalloc_minimal... (cached) no
+Checking for C library tcmalloc... (cached) no
+Warning: You can get a 12% performance improvement by installing tcmalloc
+         (libgoogle-perftools-dev package on Ubuntu or RedHat).
+Building in /home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM
+"build_tools/kconfig_base.py" "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.build/Kconfig" "/home/sdc/gem5-fi-fsu/CHAOS/gem5/src/Kconfig"
+Warning: While checking protoc version: [Errno 2] No such file or directory:
+         'protoc'
+Warning: Protocol buffer compiler (protoc) not found.
+         Please install protobuf-compiler for tracing support.
+Checking for C header file fenv.h... (cached) yes
+Checking for C header file png.h... (cached) no
+Warning: Header file <png.h> not found.
+         This host has no libpng library.
+         Disabling support for PNG framebuffers.
+Checking for clock_nanosleep(0,0,NULL,NULL) in C library None... (cached) yes
+Checking for C header file valgrind/valgrind.h... (cached) yes
+Checking for pkg-config package hdf5-serial... (cached) no
+Checking for pkg-config package hdf5... (cached) no
+Checking for H5Fcreate("", 0, 0, 0) in C library hdf5... (cached) no
+Warning: Couldn't find HDF5 C++ libraries. Disabling HDF5 support.
+Checking for shm_open("/test", 0, 0) in C library None... (cached) yes
+Checking for C header file capstone/capstone.h... (cached) no
+Warning: Header file <capstone/capstone.h> not found.
+         This host has no capstone library installed.
+Checking for C header file linux/kvm.h... (cached) yes
+Checking for timer_create(CLOCK_MONOTONIC, NULL, NULL) in C library None... (cached) yes
+Checking for member exclude_host in struct perf_event_attr...(cached) yes
+Checking for backtrace_symbols_fd((void *)1, 0, 0) in C library None... (cached) yes
+Checking for C header file linux/if_tun.h... (cached) yes
+Checking whether __i386__ is declared... (cached) no
+Checking whether __x86_64__ is declared... (cached) no
+Warning: Unrecognized architecture for systemc.
+BUILD_TLM not set, not building CHI-TLM integration
+
+Checking for compiler -Wno-self-assign-overloaded support... (cached) yes
+Checking for linker -Wno-free-nonheap-object support... (cached) yes
+scons: done reading SConscript files.
+
+scons: warning: Support for Python older than 3.9.0 is deprecated (3.8.18 detected).
+    If this will cause hardship, contact scons-dev@python.org
+File "/home/sdc/.local/bin/scons", line 8, in <module>
+scons: Building targets ...
+ [     CXX] src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc -> ARM/cpu/o3/CHAOSPropagation/CHAOSPropagation.o
+ [     CXX] src/cpu/o3/CHAOSFPU/CHAOSFPU.cc -> ARM/cpu/o3/CHAOSFPU/CHAOSFPU.o
+ [VER TAGS]  -> ARM/sim/tags.cc
+ [    LINK]  -> ARM/gem5.opt
+scons: done building targets.
+*** Summary of Warnings ***
+Warning: Detected GCC version 10.3.1 is not officially supported.
+         gem5 supports GCC v11 up to v14.2.
+Warning: You can get a 12% performance improvement by installing tcmalloc
+         (libgoogle-perftools-dev package on Ubuntu or RedHat).
+Warning: While checking protoc version: [Errno 2] No such file or directory:
+         'protoc'
+Warning: Protocol buffer compiler (protoc) not found.
+         Please install protobuf-compiler for tracing support.
+Warning: Header file <png.h> not found.
+         This host has no libpng library.
+         Disabling support for PNG framebuffers.
+Warning: Couldn't find HDF5 C++ libraries. Disabling HDF5 support.
+Warning: Header file <capstone/capstone.h> not found.
+         This host has no capstone library installed.
