@@ -67,6 +67,27 @@ noteChaosInjection()
     guestSegvArmed() = true;
 }
 
+// [R6-C-UNIT] A CHAOSCache C04/C05 tag fault installs a tag alias. The
+// classic hierarchy's snoop filter tracks holders by address and can no
+// longer prove ownership of the aliased line, so its normal "eviction from
+// a non-holder" consistency check would abort the simulation. That check is
+// a BASELINE consistency assertion; after an injected tag corruption the
+// trace is expected to be inconsistent. This flag lets the snoop filter
+// downgrade exactly that check to a loud warning (never set by baseline
+// runs, which keep the panic).
+inline bool &
+tagFaultActive()
+{
+    static bool active = false;
+    return active;
+}
+
+inline void
+noteTagFault()
+{
+    tagFaultActive() = true;
+}
+
 inline void
 noteInjectedGuestVa(Addr va)
 {

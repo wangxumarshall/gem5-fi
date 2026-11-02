@@ -3,6 +3,7 @@
 #include <random>
 #include <vector>
 
+#include "base/chaos_guest_fault.hh"  // [R6-C-UNIT] arm controlled guest-SEGV teardown
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 registration
 #include "debug/CHAOSCache.hh"
 #include "mem/cache/base.hh"
@@ -462,6 +463,15 @@ namespace gem5
         BaseTags* tags = getTags();
         unsigned blockSize = targetCache->getBlockSize();
 
+        // [R6-C-UNIT] Metadata / whole-block field faults are counted ONCE
+        // (a field is one fault regardless of corruption_size), while the
+        // byte loop's tail counts per-byte data faults. These flags keep
+        // `faults_injected_count` == the funnel/stream count (measured:
+        // valid/data_shift/tag reported injected=2 for one injection because
+        // the branch and the tail both counted).
+        bool metadata_injected = false;
+        bool metadata_skipped = false;
+
         std::vector<CacheBlk*> validBlocks;
 
         tags->forEachBlk([&validBlocks](CacheBlk &blk) {
@@ -500,9 +510,23 @@ namespace gem5
                 }
             }
             if (!targetBlk) {
-                std::uniform_int_distribution<int> blockDist(0, validBlocks.size() - 1);
-                int randomIdx = blockDist(rng);
-                targetBlk = validBlocks[randomIdx];
+                // F0 eligible set = valid lines the program has actually
+                // accessed (refCount>0) and that are not the PA-0 sentinel.
+                // A never-accessed valid line (measured seed 2: block 0)
+                // yields an injection that cannot reach L1..L5 — an
+                // Injected-not-activated sample, not a propagation chain.
+                std::vector<CacheBlk*> pool;
+                for (auto *b : validBlocks) {
+                    if (b->getRefCount() > 0
+                            && tags->regenerateBlkAddr(b) != 0) {
+                        pool.push_back(b);
+                    }
+                }
+                if (pool.empty())
+                    pool = validBlocks;
+                std::uniform_int_distribution<int> blockDist(
+                    0, pool.size() - 1);
+                targetBlk = pool[blockDist(rng)];
             }
 
             Addr blockAddr = tags->regenerateBlkAddr(targetBlk);
@@ -566,53 +590,59 @@ namespace gem5
 
                 // §2.7/§2.11 field-level fault: when target_field != "data",
                 // corrupt the CacheBlk field (valid/dirty/coh) instead of the
-                // data byte. tag(F5) + repl deferred.
-                // v1.2 Phase 14 (plan 14 item 1): L2 tag F5 — replace the
-                // block's tag with ANOTHER VALID BLOCK's tag from the same
-                // cache (a legal, aligned, in-cache alias — modeling a tag
-                // SRAM soft error that hits a legal value, NOT a random bit
-                // flip). The block now aliases: a lookup for the OTHER
-                // address hits THIS block's data -> silent wrong-data
-                // (method2-style).
+                // data byte.
+                // C04/C05 model = a single-bit flip in the tag SRAM (the
+                // matrix row says "tag 单比特翻转"). Flip the tag in place:
+                // the set index comes from the block's physical position
+                // (ReplaceableEntry::getSet()), so all cache invariants hold
+                // and no invalidate/insert is needed. The line now answers
+                // to a different (synthetic) tag within the same set -> a
+                // lookup for that tag hits this data (wrong-way alias).
                 if (target_field == "tag") {
-                    if (validBlocks.size() < 2) {
+                    // Alias to a SAME-SET valid partner's tag, applied in
+                    // place. The partner's line is owned by this L1D, so the
+                    // coherence/snoop-filter holder stays valid; a synthetic
+                    // tag (pure bit flip) makes a later writeback target an
+                    // address the L1D does not own and aborts the snoop
+                    // filter (measured C04-F0-W6 tick 12,248,390).
+                    CacheBlk *partner = nullptr;
+                    // Pick the HOTTEST same-set partner (max refCount): the
+                    // alias target address must be looked up again for the
+                    // fault to leave L0 (measured C04-F0-W6 seed1: a cold
+                    // partner gave inj+chain_end only).
+                    for (auto *b : validBlocks) {
+                        if (b == targetBlk
+                                || b->getSet() != targetBlk->getSet())
+                            continue;
+                        if (!partner
+                                || b->getRefCount() > partner->getRefCount())
+                            partner = b;
+                    }
+                    if (!partner) {
                         if (write_log) {
                             *(log_stream->stream()) << "Tick: " << curTick()
                                 << ", Cache Block Addr: " << blockAddr
-                                << ", Field: tag — NO partner block (need >=2 valid)"
+                                << ", Field: tag — NO same-set partner"
                                 << std::endl;
                         }
-                        faults_injected_count++;
+                        metadata_skipped = true;
                         continue;
                     }
-                    // pick a partner != targetBlk
-                    CacheBlk *partner = nullptr;
-                    for (auto *b : validBlocks) {
-                        if (b != targetBlk) { partner = b; break; }
-                    }
-                    if (!partner) continue;
-                    auto old_tag = targetBlk->getTag();
-                    // re-tag via invalidate + insert (TaggedEntry::insert
-                    // asserts !isValid() — setValid on a valid block aborts;
-                    // found on the real machine as a gem5 assertion failure
-                    // at the injection tick). The block now answers to the
-                    // partner's address.
-                    bool was_secure = targetBlk->isSecure();
-                    targetBlk->invalidate();
-                    targetBlk->insert({partner->getTag(), was_secure});
+                    Addr old_tag = targetBlk->getTag();
+                    Addr new_tag = partner->getTag();
+                    targetBlk->chaosSetTag(new_tag);
+                    chaos::noteTagFault();  // snoop filter tolerates eviction
                     stats->numFaultsInjected++;
-                    faults_injected_count++;
-                    // [LSU][OBS-L3] tag fault: inj node only (alias target
-                    // unknowable from the CPU side — chain honestly stops).
+                    metadata_injected = true;
                     if (CHAOSPropagation::instance())
                         CHAOSPropagation::instance()->registerCacheFault(
                             blockAddr, -2, blockSize, "tag");
                     if (write_log) {
                         *(log_stream->stream()) << "Tick: " << curTick()
                             << ", Cache Block Addr: " << blockAddr
-                            << ", Field: tag (F5 alias), old_tag=0x" << std::hex
-                            << old_tag << " -> new_tag=0x" << partner->getTag()
-                            << std::dec << std::endl;
+                            << ", Field: tag (same-set alias), old_tag=0x"
+                            << std::hex << old_tag << " -> new_tag=0x"
+                            << new_tag << std::dec << std::endl;
                     }
                     continue;
                 }
@@ -628,7 +658,7 @@ namespace gem5
                             << ", Cache Block Addr: " << blockAddr
                             << ", Field: valid (invalidate)" << std::endl;
                     }
-                    faults_injected_count++;
+                    metadata_injected = true;
                     continue;  // skip byte mutation
                 } else if (target_field == "data_shift") {
                     // LSU W6 C09: way-select MUX / alignment corruption —
@@ -643,7 +673,7 @@ namespace gem5
                         data[blkSize - 1] = tmp;
                     }
                     stats->numFaultsInjected++;
-                    faults_injected_count++;
+                    metadata_injected = true;
                     // [LSU][OBS-L3] whole-block fault: every byte corrupt —
                     // register the full block range (delivery tracking ON).
                     if (CHAOSPropagation::instance())
@@ -674,7 +704,7 @@ namespace gem5
                             << ", Field: " << target_field << " (toggle bit "
                             << bit << ")" << std::endl;
                     }
-                    faults_injected_count++;
+                    metadata_injected = true;
                     continue;
                 }
 
@@ -798,7 +828,13 @@ namespace gem5
         // G5: single-fault enforcement. Count the valid injections that
         // happened this attack (one per corruption_size byte). If we've
         // reached max_faults, STOP rescheduling. max_faults==0 = unlimited.
-        faults_injected_count += corruption_size;
+        if (metadata_injected) {
+            faults_injected_count += 1;      // one field = one fault
+            chaos::noteChaosInjection();
+        } else if (!metadata_skipped) {
+            faults_injected_count += corruption_size;  // per-byte data fault
+            chaos::noteChaosInjection();
+        }
         if (max_faults != 0 && faults_injected_count >= max_faults) {
             return;  // do not reschedule
         }

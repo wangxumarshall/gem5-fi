@@ -290,6 +290,26 @@ class CacheBlk : public TaggedEntry
     /** Get the requestor id associated to this block. */
     uint32_t getSrcRequestorId() const { return _srcRequestorId; }
 
+    /**
+     * [LSU][C-UNIT] Apply a single-bit flip to this block's tag (a tag-SRAM
+     * soft error). The block's set index comes from its physical position
+     * (ReplaceableEntry::getSet()), not from the tag, so the set remains
+     * consistent and all cache invariants hold. Used by CHAOSCache's C04/C05
+     * tag model; it is the only way to change a tag without the
+     * invalidate+insert dance (which resets srcRequestorId and asserts on
+     * setValid of an already-valid block).
+     */
+    void chaosFlipTagBit(unsigned bit) { setTag(getTag() ^ (1ULL << bit)); }
+
+    /**
+     * [LSU][C-UNIT] Install an arbitrary tag value in place (C04/C05 tag
+     * alias model). The set index is still taken from the block's physical
+     * position, so the set stays consistent; the caller must ensure the new
+     * tag belongs to a line this cache already owns (same-set partner) so
+     * the coherence/snoop-filter holder bits stay valid.
+     */
+    void chaosSetTag(Addr tag) { setTag(tag); }
+
     /** Getter for _partitionId */
     uint64_t getPartitionId() const { return _partitionId; }
 

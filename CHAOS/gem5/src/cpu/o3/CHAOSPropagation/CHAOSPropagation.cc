@@ -456,10 +456,18 @@ namespace gem5
             const auto oit = ptag_owner_request.find(ptag);
             const bool is_owner = (oit != ptag_owner_request.end()
                                    && oit->second == branch_key);
-            const bool first_of_branch =
-                ptag_branch_last.find({ptag, branch_key})
-                    == ptag_branch_last.end();
-            if (ptag != 0 && stamped0 && !is_owner && first_of_branch)
+            // [R6-C-UNIT] Emit the lineage bridge once per (fault, new
+            // request), not only when the branch cursor is still empty.
+            // The address-broadcast path can pre-seed the cursor via an
+            // un-emitted lookup, leaving the new request's first fault event
+            // parentless (measured C01-F0-W6 seed2: cache_access seq 1098
+            // had parent="" while the same corrupted line carried the L5
+            // errant_commit). `emitLineageBridge` still refuses to fabricate:
+            // it requires a real source event and a shared corrupted range.
+            const bool bridge_done =
+                ptag_bridge_event.find({ptag, branch_key})
+                    != ptag_bridge_event.end();
+            if (ptag != 0 && stamped0 && !is_owner && !bridge_done)
                 bridge_id = emitLineageBridge(kind, ptag, branch_key,
                                               event_id, fields);
         }
@@ -888,26 +896,36 @@ namespace gem5
                       CORR_ORIGIN);
         }
         if (byte_offset >= 0) {
-            // Single faulted byte (data faults).
-            sweepExpired();
-            BlkEntry e;
-            e.ptag = ptag;
-            e.byte_begin = block_addr + (Addr)byte_offset;
-            e.byte_end = e.byte_begin + 1;
-            e.registered = curTick();
-            blk_registry[e.byte_begin] = e;
-        } else if (byte_offset == -1) {
-            // Whole-block fault (data_shift rotate corrupts every byte).
+            // Single faulted BYTE (data faults). The cache event domain
+            // carries the BLOCK base address (va/pa), not the faulted byte,
+            // so the correlation registry must cover the whole block;
+            // registering only [base+offset, +1) made a data fault with a
+            // nonzero offset unmatchable and suppressed the lineage bridge
+            // (measured C01-F0-W6 seed2: offset 35, events va=block base ->
+            // chain stopped at L4 with a real errant_commit on another
+            // request branch). The exact byte stays in the inj detail/log.
             sweepExpired();
             BlkEntry e;
             e.ptag = ptag;
             e.byte_begin = block_addr;
-            e.byte_end = block_addr + block_size;
+            e.byte_end = block_addr + (block_size ? block_size : 1);
+            e.registered = curTick();
+            blk_registry[block_addr] = e;
+        } else if (byte_offset == -1 || byte_offset == -2) {
+            // Whole-block fault: data_shift rotates every byte (-1), and a
+            // metadata field (valid/dirty/coh/tag, -2) is a property of the
+            // whole line. Registering the line lets the downstream
+            // cache_access / cache_return / fill / evict / writeback events
+            // join address-only (corr=addr_fallback) — the metadata fault is
+            // then observable at L1..L3 instead of stopping at L0.
+            sweepExpired();
+            BlkEntry e;
+            e.ptag = ptag;
+            e.byte_begin = block_addr;
+            e.byte_end = block_addr + (block_size ? block_size : 1);
             e.registered = curTick();
             blk_registry[block_addr] = e;
         }
-        // byte_offset == -2 (metadata field / victim path): NO registry —
-        // the chain honestly stops at the inj node (see .hh).
         return ptag;
     }
 

@@ -42,6 +42,7 @@
 
 #include "mem/snoop_filter.hh"
 
+#include "base/chaos_guest_fault.hh"
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "debug/SnoopFilter.hh"
@@ -141,9 +142,21 @@ SnoopFilter::lookupRequest(const Packet* cpkt, const ResponsePort&
     } else { // if (!cpkt->needsResponse())
         assert(cpkt->isEviction());
         // make sure that the sender actually had the line
-        panic_if((sf_item.holder & req_port).none(), "requestor %x is not a " \
-                 "holder :( SF value %x.%x\n", req_port,
-                 sf_item.requested, sf_item.holder);
+        if ((sf_item.holder & req_port).none()) {
+            if (chaos::tagFaultActive()) {
+                // [R6-C-UNIT] A CHAOSCache C04/C05 tag fault intentionally
+                // aliased a line; the SF's holder map can no longer prove
+                // ownership. Tolerate the resulting eviction loudly so the
+                // faulted run can finish (baseline runs keep the panic).
+                warn("CHAOS tag-fault: eviction from non-holder %x tolerated "
+                     "(SF value %x.%x)\n", req_port, sf_item.requested,
+                     sf_item.holder);
+            } else {
+                panic("requestor %x is not a " \
+                      "holder :( SF value %x.%x\n", req_port,
+                      sf_item.requested, sf_item.holder);
+            }
+        }
         // CleanEvicts and Writebacks -> the sender and all caches above
         // it may not have the line anymore.
         if (!cpkt->isBlockCached()) {
