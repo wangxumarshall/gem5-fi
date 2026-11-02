@@ -1,0 +1,41 @@
+{
+  "run_id": "FSU-FP04-F0-W4",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W4",
+  "submodel": "FP04-c",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel",
+    "golden_id": "elemwisefma-golden-v1",
+    "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "mant_lo"
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "Pilot only. W4 elemwise_fma_kernel is a REAL artifact with ARRAYHASH/ULP golden. FP04-c = mantissa field. The injection is selected uniformly over eligible FSU results via countOnly + fixed skip.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 2,
+  "created_at": "2026-11-02T16:28:06",
+  "source_head": "8e86d1ba0421741f96bd5986da7a4cdb9dae48a7",
+  "gem5_binary": "CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "f9a7cd9b4de6a47dbaceaa4dac0b58bbf8ba5bbbe8f1c8241a9e71be7af98c32",
+  "runner_tool_sha256": "b3a087a059ee22082d3a21c00916f24642f7e5148f340d8c3d305ca75a1e26ab",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/elemwise_fma_kernel",
+  "workload_sha256": "80e633a0cd4b8f64bdfa09f4bf8b1683f79cefd8140f8fe74bf4c973d1941c97"
+}

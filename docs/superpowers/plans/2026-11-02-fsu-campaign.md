@@ -30,12 +30,13 @@
 - [x] B2 建立 RunID × 模型 × 频率 × 负载 × hook × workload × oracle × 观测字段矩阵。
       - 产物：`docs/gem5-fi/fsu/IMPLEMENTATION_MATRIX.{json,csv}`、
         `IMPLEMENTATION_AUDIT.md`；173 行唯一 RunID；测试 5 项通过。
-- [ ] B3 试点 RunID 端到端（golden → census → 单次注入 → 链报告 → 审计）。
-      - 已选试点：**FSU-FP04-F0-W4**（FP04 + elemwise_fma_kernel + ARRAYHASH/ULP）。
-      - **BLOCKED**：无 gem5 二进制；无 FSU PROP-EVT；无 activated 判定；
-        无 chain_report/单 seed Markdown 生成器/链审计器。
+- [x] B3 试点 RunID 端到端（golden → census → 单次注入 → 链报告 → 审计）。
+      - 试点：**FSU-FP04-F0-W4**（FP04 + elemwise_fma_kernel + ARRAYHASH/ULP）。
+      - 结果：三 seed 全部 admitted；逐 seed 审计 ok=true/failures=[]；
+        门禁 1–10 全部 PASS；见 `docs/gem5-fi/fsu/evidence/PILOT_3_OF_3.md`。
 - [ ] B4 所有缺口实现并测试；禁止用相近模型结果替代。
-      - **BLOCKED**：依赖 B3 的传播事件与审计器落地；按单点提交逐步实现。
+      - 试点已落地 FSU_PROP 发射端（L0–L5 + activated）；
+        其余 29 个模型/172 个 RunID 的缺口仍按单点提交逐步实现。
 
 ## 阶段 C：三 seed 执行
 
@@ -43,10 +44,15 @@
       - 产物：`tools/fsu_prop_fields.py`、`tools/fsu_chain_check.py`、
         `tests/test_fsu_chain_check.py`（18 项合成流测试通过）。
       - 边界：仅工具与合成事件；真实 FSU 事件流仍需 C++ 发射端。
+- [x] C0a 权威 gem5 构建（Python 3.11.9，`-j4`，exit 0）与 baseline golden。
+      - 二进制 `f9a7cd9b…98c32`（发射端最终版）；golden 两次一致。
 - [ ] C1 单实例资源实测，确定并发上限，campaign 支持 resume。
-- [ ] C2 每个 RunID 三个独立 seed；失败 attempt 保留 lineage。
-- [ ] C3 每 seed 生成 `runs/fsu/COMPLETE_PROPAGATION_PATHS/<RunID>/<RunID>-seed<N>.md`。
-- [ ] C4 生成 README.md/INDEX.md/INDEX.json，逐 RunID 标记 COMPLETE_3_OF_3。
+      - 构建与单 seed 已实测；并发上限与 resume 调度仍待实现。
+- [x] C2-pilot 试点 `FSU-FP04-F0-W4` 三个独立 seed 完成（3/3）。
+      - seed1 attempt-1 因字段问题保留 lineage；attempt-2 为 AUTHORITATIVE。
+      - 其余 172 个 RunID 尚未启动。
+- [x] C3-pilot 试点三份 seed Markdown 生成并逐 seed 审计通过。
+- [x] C4-pilot 生成 README.md/INDEX.md/INDEX.json；该 RunID 标记 COMPLETE_3_OF_3。
 
 ## 阶段 D：最终审计
 
