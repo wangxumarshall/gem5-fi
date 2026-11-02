@@ -2,8 +2,8 @@
   "summary": {
     "generated_from": "/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx",
     "baseline_commit": "46ce66cdb9c22f5e591b43b97b68c7d526704211",
-    "current_head": "1a9d69fd30ec38abd8146456ccbf64fae8afec38",
-    "current_binary_sha256": "f9a7cd9b4de6a47dbaceaa4dac0b58bbf8ba5bbbe8f1c8241a9e71be7af98c32",
+    "current_head": "ac92c69c8b7dd029c57d13f21925c953531b65a3",
+    "current_binary_sha256": "e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c",
     "baseline_gap": [
       {
         "id": "gem5_binary_missing",
@@ -54,14 +54,14 @@
       }
     ],
     "current_status": {
-      "head": "1a9d69fd30ec38abd8146456ccbf64fae8afec38",
+      "head": "ac92c69c8b7dd029c57d13f21925c953531b65a3",
       "branch": "fsu",
       "gem5_binary": {
         "path": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
         "exists": true,
-        "sha256": "f9a7cd9b4de6a47dbaceaa4dac0b58bbf8ba5bbbe8f1c8241a9e71be7af98c32",
-        "size": 1246143432,
-        "mtime": 1793607773.5409796
+        "sha256": "e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c",
+        "size": 1246083368,
+        "mtime": 1793625494.3927405
       },
       "fsu_prop_emitter": {
         "implemented": true,
@@ -76,14 +76,15 @@
         "path": "tools/fsu_seed_runner.py"
       },
       "rate_ordinals": {
-        "implemented": false,
+        "implemented": true,
         "path": "tools/fsu_rate_ordinals.py",
-        "generator": ""
+        "generator": "build_rate_ordinals"
       },
       "model_level_tests": [
         "tests/test_fsu_chain_check.py",
         "tests/test_fsu_implementation_matrix.py",
         "tests/test_fsu_index.py",
+        "tests/test_fsu_rate_ordinals.py",
         "tests/test_fsu_regenerate.py",
         "tests/test_fsu_seed_audit.py",
         "tests/test_fsu_seed_runner.py",
@@ -149,10 +150,6 @@
       {
         "id": "per_model_behavior_tests_missing",
         "text": "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
-      },
-      {
-        "id": "rate_ordinals_missing",
-        "text": "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
       }
     ],
     "runid_count": 173,
@@ -185,6 +182,44 @@
       "PARTIAL": 59,
       "BLOCKED_NOT_IMPLEMENTED": 87,
       "PILOT_SUBMODEL_ONLY": 1
+    },
+    "coverage_dimensions": {
+      "seed_completion": {
+        "admitted_seeds": 3,
+        "target_seeds": 519,
+        "complete_runids": 1
+      },
+      "frequency_coverage": {
+        "F0": "3/3",
+        "F1": "0/3",
+        "F2": "0/3",
+        "F3": "0/3"
+      },
+      "submodel_coverage": {
+        "covered": [
+          "FP04-c/mant_lo"
+        ],
+        "not_covered": [
+          "FP04-a sign",
+          "FP04-b exp_hi/exp_lo",
+          "FP04-c mant_hi/mant_mid",
+          "FP04-d NEON lane",
+          "FP32",
+          "NEON 128-bit lane"
+        ]
+      },
+      "workload_coverage": {
+        "W4": "REAL; short W4 F0 3/3; W4-rate-v1 golden/census ready, 0/3",
+        "W1": "NO_TRUE_ARTIFACT",
+        "W2": "NO_TRUE_ARTIFACT",
+        "W3": "PARTIAL",
+        "W5": "PARTIAL",
+        "W6": "PARTIAL",
+        "W7": "NO_FP_ARTIFACT",
+        "W9": "REAL but unbound",
+        "W0/W8/W10": "UNUSED"
+      },
+      "overall": "NOT_COMPLETE"
     },
     "implemented_runids": [],
     "models": {
@@ -271,13 +306,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：src0/src1 子模型选择；c 的 active-ready producer 判定；producer_sn/ready/activation 证据；operand hash；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -354,13 +387,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：src0/src1 子模型选择；c 的 active-ready producer 判定；producer_sn/ready/activation 证据；operand hash；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -434,17 +465,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：src0/src1 子模型选择；c 的 active-ready producer 判定；producer_sn/ready/activation 证据；operand hash；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -518,17 +546,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：src0/src1 子模型选择；c 的 active-ready producer 判定；producer_sn/ready/activation 证据；operand hash；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -605,13 +630,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：相邻/非相邻/跨子字段分层；候选域与越界计数；target writer/首个读者；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -688,13 +711,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：相邻/非相邻/跨子字段分层；候选域与越界计数；target writer/首个读者；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -768,17 +789,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：相邻/非相邻/跨子字段分层；候选域与越界计数；target writer/首个读者；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -852,17 +870,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：相邻/非相邻/跨子字段分层；候选域与越界计数；target writer/首个读者；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -939,13 +954,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1022,13 +1035,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1102,17 +1113,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1186,17 +1194,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1273,13 +1278,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：ready_never/_event 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；stale-ready 缺失；scoreboard 真值/旧值读取/ROB stall；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1356,13 +1359,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：ready_never/_event 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；stale-ready 缺失；scoreboard 真值/旧值读取/ROB stall；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1439,13 +1440,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：ready_never/_event 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；stale-ready 缺失；scoreboard 真值/旧值读取/ROB stall；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1522,13 +1521,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：ready_never/_event 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；stale-ready 缺失；scoreboard 真值/旧值读取/ROB stall；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1605,13 +1602,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：valid lost/ghost、issued early、squash clear lost、nonSpec 伪造；IQ slot 生命期/occupancy 守恒；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1688,13 +1683,11 @@
         "workload 身份缺口（NO_FP_ARTIFACT）：无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体",
         "注入器缺口（MISSING）：valid lost/ghost、issued early、squash clear lost、nonSpec 伪造；IQ slot 生命期/occupancy 守恒；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1771,13 +1764,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：valid lost/ghost、issued early、squash clear lost、nonSpec 伪造；IQ slot 生命期/occupancy 守恒；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1854,13 +1845,11 @@
         "workload 身份缺口（NO_FP_ARTIFACT）：无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体",
         "注入器缺口（MISSING）：valid lost/ghost、issued early、squash clear lost、nonSpec 伪造；IQ slot 生命期/occupancy 守恒；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -1937,13 +1926,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2020,13 +2007,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2103,13 +2088,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2183,17 +2166,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2267,17 +2247,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2351,17 +2328,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2438,13 +2412,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：ready-list rank/age swap、seqNum 合法替代、starvation bias；issue 顺序与性能差异；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2521,13 +2493,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：ready-list rank/age swap、seqNum 合法替代、starvation bias；issue 顺序与性能差异；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2601,17 +2571,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：ready-list rank/age swap、seqNum 合法替代、starvation bias；issue 顺序与性能差异；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2685,17 +2652,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：ready-list rank/age swap、seqNum 合法替代、starvation bias；issue 顺序与性能差异；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2772,13 +2736,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：duplicate wake；victim 非 Vec 限定且未写日志（inst_queue.cc:1272）；producer→consumer sn/tag 配对；b 在无 victim 时仍计注入；c 的延迟事件 squash 断言风险（inst_queue.cc:1160，UNVERIFIED）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2855,13 +2817,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：duplicate wake；victim 非 Vec 限定且未写日志（inst_queue.cc:1272）；producer→consumer sn/tag 配对；b 在无 victim 时仍计注入；c 的延迟事件 squash 断言风险（inst_queue.cc:1160，UNVERIFIED）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -2935,17 +2895,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：duplicate wake；victim 非 Vec 限定且未写日志（inst_queue.cc:1272）；producer→consumer sn/tag 配对；b 在无 victim 时仍计注入；c 的延迟事件 squash 断言风险（inst_queue.cc:1160，UNVERIFIED）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3019,17 +2976,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：duplicate wake；victim 非 Vec 限定且未写日志（inst_queue.cc:1272）；producer→consumer sn/tag 配对；b 在无 victim 时仍计注入；c 的延迟事件 squash 断言风险（inst_queue.cc:1160，UNVERIFIED）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3106,13 +3060,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（PARTIAL）：duplicate wake；victim 非 Vec 限定且未写日志（inst_queue.cc:1272）；producer→consumer sn/tag 配对；b 在无 victim 时仍计注入；c 的延迟事件 squash 断言风险（inst_queue.cc:1160，UNVERIFIED）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3189,13 +3141,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：duplicate wake；victim 非 Vec 限定且未写日志（inst_queue.cc:1272）；producer→consumer sn/tag 配对；b 在无 victim 时仍计注入；c 的延迟事件 squash 断言风险（inst_queue.cc:1160，UNVERIFIED）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3272,13 +3222,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：issue→execute early/late/drop/duplicate/stale slot；FUPool/FUCompletion 事件；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3355,13 +3303,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：issue→execute early/late/drop/duplicate/stale slot；FUPool/FUCompletion 事件；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3438,13 +3384,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：issue→execute early/late/drop/duplicate/stale slot；FUPool/FUCompletion 事件；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3521,13 +3465,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：issue→execute early/late/drop/duplicate/stale slot；FUPool/FUCompletion 事件；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3604,13 +3546,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：FU index 替代、busy→free/free→busy、release lost；FU 状态与 grant 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3687,13 +3627,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：FU index 替代、busy→free/free→busy、release lost；FU 状态与 grant 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3770,13 +3708,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：FU index 替代、busy→free/free→busy、release lost；FU 状态与 grant 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3853,13 +3789,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：FU index 替代、busy→free/free→busy、release lost；FU 状态与 grant 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -3936,13 +3870,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4019,13 +3951,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4102,13 +4032,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4182,17 +4110,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4266,17 +4191,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4350,17 +4272,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4434,17 +4353,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4518,17 +4434,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4602,17 +4515,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4686,17 +4596,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4770,17 +4677,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4854,17 +4758,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -4941,13 +4842,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5024,13 +4923,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5107,13 +5004,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5187,17 +5082,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5271,17 +5163,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5355,17 +5244,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5442,13 +5328,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：Vec 写路径 stuck 未实现（不调用 setStuckTarget）；checkPermanent 按键号误伤 int PRF；clearStuckTarget 从未调用；exposure/applied 计数；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5525,13 +5409,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：Vec 写路径 stuck 未实现（不调用 setStuckTarget）；checkPermanent 按键号误伤 int PRF；clearStuckTarget 从未调用；exposure/applied 计数；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5608,13 +5490,11 @@
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：Vec 写路径 stuck 未实现（不调用 setStuckTarget）；checkPermanent 按键号误伤 int PRF；clearStuckTarget 从未调用；exposure/applied 计数；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5691,13 +5571,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：Vec 读地址/tag 替代到另一 active-ready Vec 物理寄存器；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5774,13 +5652,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 读地址/tag 替代到另一 active-ready Vec 物理寄存器；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5854,17 +5730,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：Vec 读地址/tag 替代到另一 active-ready Vec 物理寄存器；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -5938,17 +5811,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 读地址/tag 替代到另一 active-ready Vec 物理寄存器；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6025,13 +5895,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6108,13 +5976,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6191,13 +6057,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6271,17 +6135,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6355,17 +6216,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6439,17 +6297,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6526,13 +6381,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口多位/跨 lane 翻转；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6609,13 +6462,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 读端口多位/跨 lane 翻转；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6689,17 +6540,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口多位/跨 lane 翻转；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6773,17 +6621,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 读端口多位/跨 lane 翻转；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6860,13 +6705,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -6943,13 +6786,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7026,13 +6867,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7106,17 +6945,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7190,17 +7026,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7274,17 +7107,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7361,13 +7191,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：Vec 写目标 tag 替代/交换；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7444,13 +7272,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 写目标 tag 替代/交换；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7524,17 +7350,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：Vec 写目标 tag 替代/交换；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7608,17 +7431,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：Vec 写目标 tag 替代/交换；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7695,13 +7515,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：write-enable/ready/wakeup 原子性（lost/early/late/split）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7778,13 +7596,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：write-enable/ready/wakeup 原子性（lost/early/late/split）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7861,13 +7677,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：write-enable/ready/wakeup 原子性（lost/early/late/split）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -7944,13 +7758,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：write-enable/ready/wakeup 原子性（lost/early/late/split）；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8027,13 +7839,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8110,13 +7920,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8193,13 +8001,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8276,13 +8082,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8359,13 +8163,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8442,13 +8244,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8525,13 +8325,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8608,13 +8406,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8664,10 +8460,10 @@
       "implemented": "—",
       "missing_hooks": "操作数/控制/流水线级故障；PROP 事件",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：operand phys/value/lane hash、bit field、correct/fault result、FPSR",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "operand phys/value/lane hash、bit field、correct/fault result、FPSR",
@@ -8690,13 +8486,11 @@
       "blockers": [
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8773,13 +8567,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8853,17 +8645,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8937,17 +8726,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -8997,10 +8783,10 @@
       "implemented": "—",
       "missing_hooks": "操作数/控制/流水线级故障；PROP 事件",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：operand phys/value/lane hash、bit field、correct/fault result、FPSR",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "operand phys/value/lane hash、bit field、correct/fault result、FPSR",
@@ -9021,16 +8807,13 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9104,17 +8887,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9191,13 +8971,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9274,13 +9052,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9357,13 +9133,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9437,17 +9211,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9521,17 +9292,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9605,17 +9373,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9692,13 +9457,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：FSU op-select 换值；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9775,13 +9538,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：FSU op-select 换值；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9855,17 +9616,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（MISSING）：FSU op-select 换值；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -9939,17 +9697,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：FSU op-select 换值；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10026,13 +9781,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10109,13 +9862,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10165,10 +9916,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -10191,13 +9942,11 @@
       "blockers": [
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10274,13 +10023,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10357,13 +10104,11 @@
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10437,17 +10182,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10521,17 +10263,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10581,10 +10320,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -10594,7 +10333,7 @@
       "seed_completion": "0/3",
       "seed_completion_count": 0,
       "coverage_status": "PARTIAL",
-      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
+      "coverage_reason": "D2 implements real rate ordinals and W4-rate-v1 (N=2,097,155) is golden/census-ready, but this RunID still has 0/3 official seeds; the F3 multi-fault gate used the short W4 and is not an official seed",
       "pilot": false,
       "baseline_blockers": [
         "无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行",
@@ -10605,16 +10344,13 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10688,17 +10424,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10772,17 +10505,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10856,17 +10586,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -10940,17 +10667,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11000,10 +10724,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -11013,7 +10737,7 @@
       "seed_completion": "0/3",
       "seed_completion_count": 0,
       "coverage_status": "PARTIAL",
-      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
+      "coverage_reason": "D2 implements real rate ordinals and W4-rate-v1 (N=2,097,155) is golden/census-ready, but this RunID still has 0/3 official seeds; the F3 multi-fault gate used the short W4 and is not an official seed",
       "pilot": false,
       "baseline_blockers": [
         "无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行",
@@ -11024,16 +10748,13 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11107,17 +10828,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11191,17 +10909,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11275,17 +10990,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11359,17 +11071,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11419,10 +11128,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -11432,7 +11141,7 @@
       "seed_completion": "0/3",
       "seed_completion_count": 0,
       "coverage_status": "PARTIAL",
-      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
+      "coverage_reason": "D2 implements real rate ordinals and W4-rate-v1 (N=2,097,155) is golden/census-ready, but this RunID still has 0/3 official seeds; the F3 multi-fault gate used the short W4 and is not an official seed",
       "pilot": false,
       "baseline_blockers": [
         "无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行",
@@ -11443,16 +11152,13 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11526,17 +11232,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11610,17 +11313,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11697,13 +11397,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11780,13 +11478,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11863,13 +11559,11 @@
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -11946,13 +11640,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12029,13 +11721,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12112,13 +11802,11 @@
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12195,13 +11883,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12278,13 +11964,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12334,10 +12018,10 @@
       "implemented": "同一掩码重复应用于每次 eligible 结果",
       "missing_hooks": "SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：fixed bit/mask/polarity、exposure/applied、affected sn、首影响延迟",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "fixed bit/mask/polarity、exposure/applied、affected sn、首影响延迟",
@@ -12360,13 +12044,11 @@
       "blockers": [
         "注入器缺口（PARTIAL）：SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12443,13 +12125,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12526,13 +12206,11 @@
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12582,10 +12260,10 @@
       "implemented": "最终结果按 mant 85%/exp 10%/sign 5% 抽 bit",
       "missing_hooks": "真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：A/B/C、proxy kind、weighted field/row/shift、fused result、ULP/residual",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "A/B/C、proxy kind、weighted field/row/shift、fused result、ULP/residual",
@@ -12608,13 +12286,11 @@
       "blockers": [
         "注入器缺口（PARTIAL）：真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12691,13 +12367,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12774,13 +12448,11 @@
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12830,10 +12502,10 @@
       "implemented": "最终结果按 mant 85%/exp 10%/sign 5% 抽 bit",
       "missing_hooks": "真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
       "workload_definition": "FMA-DotProduct：W4 FMA-DotProduct：复用elemwise_fma_kernel，覆盖FMA、dot-product、累加依赖和正负消去；array hash+容差/ULP oracle",
-      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+      "real_workload_identity": "elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
       "workload_path": "workloads/directed/elemwise_fma_kernel",
       "workload_identity_status": "REAL",
-      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP",
+      "golden_oracle": "elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：A/B/C、proxy kind、weighted field/row/shift、fused result、ULP/residual",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "A/B/C、proxy kind、weighted field/row/shift、fused result、ULP/residual",
@@ -12854,16 +12526,13 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "注入器缺口（PARTIAL）：真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -12937,17 +12606,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（PARTIAL）：真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13021,17 +12687,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：FFT/IFFT 组合与稀疏线性系统组件缺失",
         "注入器缺口（PARTIAL）：真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13108,13 +12771,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：FP32、FTZ/DN、异常/FPCR/FPSR 可观测状态；suppressed_count 未输出；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13191,13 +12852,11 @@
         "workload 身份缺口（NO_FP_ARTIFACT）：无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体",
         "注入器缺口（PARTIAL）：FP32、FTZ/DN、异常/FPCR/FPSR 可观测状态；suppressed_count 未输出；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13271,17 +12930,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_TRUE_ARTIFACT）：工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体",
         "注入器缺口（PARTIAL）：FP32、FTZ/DN、异常/FPCR/FPSR 可观测状态；suppressed_count 未输出；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13355,17 +13011,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（NO_FP_ARTIFACT）：无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体",
         "注入器缺口（PARTIAL）：FP32、FTZ/DN、异常/FPCR/FPSR 可观测状态；suppressed_count 未输出；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13442,13 +13095,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13525,13 +13176,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13607,13 +13256,11 @@
       "blockers": [
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13687,17 +13334,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13771,17 +13415,14 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13855,16 +13496,13 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；仅改 --fsu_freq 标签无效",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -13941,13 +13579,11 @@
         "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14024,13 +13660,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14106,13 +13740,11 @@
       "blockers": [
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14189,13 +13821,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：completion early/late/drop/duplicate、result/dest swap、stale completion、延迟配对；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14272,13 +13902,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：completion early/late/drop/duplicate、result/dest swap、stale completion、延迟配对；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14355,13 +13983,11 @@
         "workload 身份缺口（NO_FP_ARTIFACT）：无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体",
         "注入器缺口（MISSING）：completion early/late/drop/duplicate、result/dest swap、stale completion、延迟配对；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14438,13 +14064,11 @@
         "workload 身份缺口（NO_TRUE_ARTIFACT）：缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者",
         "注入器缺口（MISSING）：completion early/late/drop/duplicate、result/dest swap、stale completion、延迟配对；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14521,13 +14145,11 @@
         "workload 身份缺口（PARTIAL）：工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签",
         "注入器缺口（MISSING）：completion early/late/drop/duplicate、result/dest swap、stale completion、延迟配对；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [
@@ -14604,13 +14226,11 @@
         "workload 身份缺口（NO_FP_ARTIFACT）：无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体",
         "注入器缺口（MISSING）：completion early/late/drop/duplicate、result/dest swap、stale completion、延迟配对；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
-        "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签"
+        "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
       ],
       "remaining_gaps": [
         "config_mismatch_b0",
-        "per_model_behavior_tests_missing",
-        "rate_ordinals_missing"
+        "per_model_behavior_tests_missing"
       ],
       "resolved_by_commit": {
         "gem5_binary_missing": [

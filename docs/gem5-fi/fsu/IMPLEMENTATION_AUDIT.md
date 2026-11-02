@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`1a9d69fd30ec38abd8146456ccbf64fae8afec38`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`ac92c69c8b7dd029c57d13f21925c953531b65a3`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -178,17 +178,17 @@
 | FSU-FP04-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP04-F1-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F1-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FP04-F1-W4 | 0/3 | PARTIAL | D2 implements real rate ordinals and W4-rate-v1 (N=2,097,155) is golden/census-ready, but this RunID still has 0/3 official seeds; the F3 multi-fault gate used the short W4 and is not an official seed |
 | FSU-FP04-F1-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP04-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F2-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FP04-F2-W4 | 0/3 | PARTIAL | D2 implements real rate ordinals and W4-rate-v1 (N=2,097,155) is golden/census-ready, but this RunID still has 0/3 official seeds; the F3 multi-fault gate used the short W4 and is not an official seed |
 | FSU-FP04-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F3-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP04-F3-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F3-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FP04-F3-W4 | 0/3 | PARTIAL | D2 implements real rate ordinals and W4-rate-v1 (N=2,097,155) is golden/census-ready, but this RunID still has 0/3 official seeds; the F3 multi-fault gate used the short W4 and is not an official seed |
 | FSU-FP04-F3-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F3-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP05-F0-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -241,13 +241,13 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`1a9d69fd30ec38abd8146456ccbf64fae8afec38`（branch `fsu`）
-- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`f9a7cd9b4de6a47dbaceaa4dac0b58bbf8ba5bbbe8f1c8241a9e71be7af98c32`；size=1246143432
+- HEAD：`ac92c69c8b7dd029c57d13f21925c953531b65a3`（branch `fsu`）
+- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c`；size=1246083368
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）
 - FSU 三 seed runner：True（`tools/fsu_seed_runner.py`）
-- rate ordinal 工具：False（`tools/fsu_rate_ordinals.py`）
-- 模型级测试文件：7 个
+- rate ordinal 工具：True（`tools/fsu_rate_ordinals.py`）
+- 模型级测试文件：8 个
 - B0 配置匹配：False（ooo_proxy.py 仍为 C3 默认 ROB=128/IQ=64/4-wide；工作簿 B0 的 ROB=40/IQ=32/3/3/3 未实现）
 
 ### 3.3 resolved_by_commit
@@ -262,7 +262,6 @@
 
 - `config_mismatch_b0`：配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8
 - `per_model_behavior_tests_missing`：30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）
-- `rate_ordinals_missing`：F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签
 
 ## 4. Workload 身份审计
 
@@ -272,7 +271,7 @@
 | W1 | FP-ScalarProbe | **NO_TRUE_ARTIFACT** | `workloads/directed/method1_controls` 无专用产物；可用 method1_controls pure_fma 作部分标量 FMA 代理 | purefma-golden-v1=98433fcf09968e6a；16-hex checksum（无 FPSR/FPCR/NaN/4 舍入） | 工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体 |
 | W2 | FP-IQ-Dependency | **NO_TRUE_ARTIFACT** | `workloads/ooo/dep_chain/dep_chain_vec` 无专用产物；dep_chain_vec 仅 NEON FMLA 依赖链 | depchainvec-golden-v1=b1e661a247b95774；16-hex checksum（非逐边 oracle） | 缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者 |
 | W3 | NEON-LaneProbe | **PARTIAL** | `workloads/directed/neon_lane` neon_lane（仅 32-bit lane；XOR/shift/add） | neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行 | 缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce |
-| W4 | FMA-DotProduct | **REAL** | `workloads/directed/elemwise_fma_kernel` elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]） | elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；ARRAYHASH 64-hex + ULP | 不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理） |
+| W4 | FMA-DotProduct | **REAL** | `workloads/directed/elemwise_fma_kernel` elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155） | elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP | 不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）；W4-rate-v1 尚无正式三 seed |
 | W5 | PolyBench-FP | **PARTIAL** | `workloads/ooo/polybench/` gemm/lu/cholesky/jacobi-2d（2mm 未 vendored） | gemm=116849d3adf3227b; lu=74ffe5eb77ea9257; cholesky=ea7e0d0e7c86582d; jacobi-2d=dc867b5f02998c1e；精确 FINAL 16-hex | 工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签 |
 | W6 | SVD-FFT-Sparse | **PARTIAL** | `workloads/directed/svd_iterative_kernel` svd_iterative_kernel；FFT/稀疏线性系统无固定产物 | svditerative-golden-v1=4afb95b5b32f3820；16-hex checksum | FFT/IFFT 组合与稀疏线性系统组件缺失 |
 | W7 | FP-ExceptionRecovery | **NO_FP_ARTIFACT** | `workloads/directed/divzero_loop_kernel` 仅整数除零/NULL 解引用崩溃探针（divzero_loop_kernel/exc_trigger） | 无 golden；无 | 无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体 |

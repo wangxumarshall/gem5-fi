@@ -239,11 +239,14 @@ WORKLOAD_AUDIT = {
                oracle="精确 16-hex + 64-hex per-lane 行",
                gap="缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce"),
     "W4": dict(name="FMA-DotProduct", identity="REAL",
-               real="elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）",
+               real="elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；"
+                    "D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",
                path="workloads/directed/elemwise_fma_kernel",
-               golden="elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+               golden="elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；"
+                      "elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba",
                oracle="ARRAYHASH 64-hex + ULP",
-               gap="不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）"),
+               gap="不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）；"
+                   "W4-rate-v1 尚无正式三 seed"),
     "W5": dict(name="PolyBench-FP", identity="PARTIAL",
                real="gemm/lu/cholesky/jacobi-2d（2mm 未 vendored）",
                path="workloads/ooo/polybench/",
@@ -496,6 +499,12 @@ def _coverage(runid, audited_status, workload_identity, seed_n):
                 "pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID "
                 "requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, "
                 "FP04-d NEON lane result, plus F1/F2/F3 semantics")
+    if runid in ("FSU-FP04-F1-W4", "FSU-FP04-F2-W4", "FSU-FP04-F3-W4"):
+        return ("PARTIAL",
+                "D2 implements real rate ordinals and W4-rate-v1 "
+                "(N=2,097,155) is golden/census-ready, but this RunID still "
+                "has 0/3 official seeds; the F3 multi-fault gate used the "
+                "short W4 and is not an official seed")
     if audited_status == "MISSING":
         return ("BLOCKED_NOT_IMPLEMENTED",
                 "injector/hook for this model is missing in the audited code")
@@ -625,6 +634,32 @@ def build(out_root=DEFAULT_RUNS):
         "pilot_candidates": [m["runid"] for m in matrix if m["pilot"]],
         "seed_completion_counts": dict(Counter(m["seed_completion"] for m in matrix)),
         "coverage_status_counts": dict(Counter(m["coverage_status"] for m in matrix)),
+        "coverage_dimensions": {
+            "seed_completion": {
+                "admitted_seeds": sum(m["seed_completion_count"] for m in matrix),
+                "target_seeds": len(matrix) * 3,
+                "complete_runids": sum(1 for m in matrix
+                                       if m["seed_completion_count"] == 3),
+            },
+            "frequency_coverage": {
+                f: f"{next((m['seed_completion_count'] for m in matrix if m['runid'] == f'FSU-FP04-{f}-W4'), 0)}/3"
+                for f in ("F0", "F1", "F2", "F3")
+            },
+            "submodel_coverage": {
+                "covered": ["FP04-c/mant_lo"],
+                "not_covered": ["FP04-a sign", "FP04-b exp_hi/exp_lo",
+                                "FP04-c mant_hi/mant_mid", "FP04-d NEON lane",
+                                "FP32", "NEON 128-bit lane"],
+            },
+            "workload_coverage": {
+                "W4": "REAL; short W4 F0 3/3; W4-rate-v1 golden/census ready, 0/3",
+                "W1": "NO_TRUE_ARTIFACT", "W2": "NO_TRUE_ARTIFACT",
+                "W3": "PARTIAL", "W5": "PARTIAL", "W6": "PARTIAL",
+                "W7": "NO_FP_ARTIFACT", "W9": "REAL but unbound",
+                "W0/W8/W10": "UNUSED",
+            },
+            "overall": "NOT_COMPLETE",
+        },
         "implemented_runids": [m["runid"] for m in matrix if m["audited_status"] == "IMPLEMENTED"],
         "models": model_status,
     }

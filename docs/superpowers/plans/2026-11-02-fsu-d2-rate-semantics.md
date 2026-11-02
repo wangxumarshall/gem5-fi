@@ -13,7 +13,7 @@
 - 当前 F0 三 seed 3/3 是既有事实，任何改动不得破坏其证据。
 - F1/F2/F3 不得用 F0 语义换标签；runner 与 C++ 都必须拒绝缺少真实 ordinal 的 F1/F2/F3。
 
-## 1. 任务 A：实施矩阵事实刷新（1 commit）
+## 1. 任务 A：实施矩阵事实刷新（1 commit）✅
 
 改动：
 - `tools/fsu_implementation_matrix.py`
@@ -35,7 +35,7 @@ python3 tools/fsu_implementation_matrix.py
 提交：`[FSU][D2] 实施矩阵事实刷新：baseline_gap / current_status / resolved_by_commit`
 推送 `origin fsu`。
 
-## 2. 任务 B：F1/F2/F3 rate ordinal 语义（1 commit）
+## 2. 任务 B：F1/F2/F3 rate ordinal 语义（1 commit）✅
 
 ### B1 Python 生成器
 新文件 `tools/fsu_rate_ordinals.py`：
@@ -81,7 +81,7 @@ cd CHAOS/gem5 && scons -j126 build/ARM/gem5.opt
 提交：`[FSU][D2] F1/F2/F3 确定性 rate ordinal 发射语义`
 推送；记录新 gem5 SHA-256。
 
-## 3. 任务 C：W4-rate-v1 与 golden/census（1 commit）
+## 3. 任务 C：W4-rate-v1 与 golden/census（1 commit）✅
 
 - 新源 `workloads/directed/elemwise_fma_kernel_rate_v1.c`（不覆盖短 W4）：
   `N_BASE=8192`、`REPEAT`（默认 32）个确定性块，输入 LCG 连续，FP 操作不变。
@@ -103,7 +103,7 @@ python3 -m pytest tests/test_fsu_workload_identity.py -q  # 若新增
 提交：`[FSU][D2] W4-rate-v1：可配置 ROI、三次 golden 与 eligible census`
 推送。
 
-## 4. 任务 D：F3 多故障机制门禁（1 commit）
+## 4. 任务 D：F3 多故障机制门禁（1 commit）✅
 
 - `fsu_chain_check`：逐 fault 已独立；补充 seed 级 `fault_terminal_summary`；
   `certified` 仍要求**全部** fault admitted（一个 L5 不能自动认证其余）。
@@ -129,7 +129,7 @@ python3 tools/fsu_seed_audit.py <attempt>
 提交：`[FSU][D2] F3 多故障门禁：逐 fault 链、审计与 run-level oracle 分离`
 推送。
 
-## 5. 任务 E：覆盖状态（1 commit）
+## 5. 任务 E：覆盖状态（1 commit）✅
 
 `docs/gem5-fi/fsu/COVERAGE_STATUS.md`（矩阵 summary 同步）分别记录：
 - seed_completion（当前 3/519）；

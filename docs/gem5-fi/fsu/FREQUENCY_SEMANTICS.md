@@ -25,9 +25,9 @@
 | 档位 | 当前代码能力 | 正确实现所需 | 状态 |
 |---|---|---|---|
 | F0 | `maxFaults=1` + `eventsToSkip=chaos_pick_skip(seed,N)`；单次注入 | 已实现并试点验证 | **IMPLEMENTED** |
-| F1 | 无 rate 模式 | countOnly 得 N；按 rate=1e6、±50% 抖动生成注入 ordinal 列表；注入器在 eligible ordinal 命中时注入；事件写 `eligible_ordinal`/`eligible_total`/`freq` | **NOT IMPLEMENTED** |
-| F2 | 同上 | rate=1e5 | **NOT IMPLEMENTED** |
-| F3 | 同上 | rate=1e4 | **NOT IMPLEMENTED** |
+| F1 | rate 模式已实现（D2） | rate=1e6；SplitMix64 确定性 interval ∈ [500000,1500000]；ordinal 精确命中 | **IMPLEMENTED（机制）**；正式 seed 0/3 |
+| F2 | 同上 | rate=1e5；interval ∈ [50000,150000] | **IMPLEMENTED（机制）**；正式 seed 0/3 |
+| F3 | 同上 | rate=1e4；interval ∈ [5000,15000] | **IMPLEMENTED（机制）**；正式 seed 0/3 |
 | F4 | 无 burst 模式 | rate=1e5 + 2–4 事件 burst / ±1 cycle | **NOT IMPLEMENTED** |
 | F5 | `recurringStuck` 有结果侧固定 mask 代理 | 首 eligible 起永久 stuck；Vec 写路径、exposure 计数 | **PARTIAL PROXY** |
 
@@ -45,35 +45,39 @@
 | F2 | 100,000 | 0.573 | 50,000 | 0 或 1 次（取决于 seed；不稳定） |
 | F3 | 10,000 | 5.73 | 5,000 | 可行（约 4–6 次） |
 
-结论：
+结论（D1 事实，短 W4）：
 
-- **FSU-FP04-F1-W4 在当前 W4 上不可能产生 activated seed**：即使间隔取下界
-  500,000，也大于 N=57,347。它只能被记为 `INACTIVE / eligible_below_rate`，
-  不能伪造注入或把 F0 结果换标签。
-- **FSU-FP04-F2-W4** 依赖第一个间隔是否落在 50,000–57,347 的窄窗口内，
-  3 个 seed 不一定都能 activated；不能保证 3/3。
-- **FSU-FP04-F3-W4** 有真实可行的 multiple-injection 预算，可作为 D1 的真实
-  小型门禁。
+- 短 W4 的 N=57,347 对 F1 必然零注入（首间隔下界 500,000 > N），对 F2 不稳定；
+- F3 在短 W4 上约 4–7 次，可做机制门禁。
 
-## 4. 若要真正覆盖 F1/F2-W4，需要用户裁决
+## 4. 用户裁决与 D2 执行（路径 1）
 
-可行路径（三选一，均需重新标定 workload/golden，不能静默换标签）：
+用户选择**路径 1：扩展 W4 的 ROI/重复次数**，不接受把 F1/F2 永久记为
+INACTIVE，也不允许换标签。D2 已执行：
 
-1. **扩展 W4 的 ROI/重复次数**：例如让 `elemwise_fma_kernel` 循环足够多次，
-   使 N ≥ 1,000,000（F1）或 ≥ 300,000（F2 稳定多注入）；需要固定输入规模、
-   重新生成 ARRAYHASH/ULP golden、记录新的 workload identity 和 SHA-256。
-2. **接受 F1/F2-W4 为 BLOCKED/INACTIVE**：只跑 F3-W4（D2 顺序改为 F3 先行），
-   F1/F2 在 INDEX 中保持 0/3 + `eligible_below_rate`。
-3. **为 F1/F2 换更大 eligible 预算的 workload**：这违反当前 D2 的“同 workload
-   W4 扩展”约束，需要用户明确批准并更新工作簿/实施矩阵。
+- 新增 **W4-rate-v1**（独立源/二进制，不覆盖短 W4）：
+  `N_BASE=8192 × REPEAT=32 = 262144` 元素；countOnly 实测
+  **N_eligible = 2,097,155**（≥1,500,000；不是线性推算）；
+- 无注入 golden 连续 3 次 ARRAYHASH 一致：`e563e3e1...525aba`，ULP=0；
+- 新二进制 SHA-256：`c698cd698e7339930ec4087f134fad0bde71b4a960cf83022c2996d34ac37784`；
+- 预注册 F1/F2/F3 × seed1/2/3 的 ordinal 列表与 SHA-256：
+  `configs/fsu/W4-rate-v1-ordinals.json`。
 
-在裁决前，不会启动 F1/F2 的运行，也不会用 F0 语义冒充 F1/F2。
+详细记录见 `docs/gem5-fi/fsu/W4-RATE-V1.md`。
 
-## 5. 下一步实现（待裁决后）
+## 5. D2 机制实现（已完成）
 
-- 在 runner 中实现 `build_rate_ordinals(N, rate, jitter, seed, warmup)`；
-- CHAOSFPU 增加 `injectOrdinals` 参数，在 eligible ordinal 命中时注入；
-- 事件写 `eligible_ordinal`/`eligible_total`/`freq`/`rate_divisor`/`jitter_pct`；
-- 合成测试覆盖：F1/F2/F3 的期望次数、间隔上下界、replay；
-- F3-W4 真实小型门禁：census → ordinal 生成 → 注入 → 多 fault chain 汇总；
-- F1/F2-W4 记录 `INACTIVE / eligible_below_rate`，不计入 3/3。
+- `tools/fsu_rate_ordinals.py`：`build_rate_ordinals(N, rate, jitter_pct, seed,
+  warmup)`；SplitMix64 v1；interval ∈ [ceil(0.5·rate), floor(1.5·rate)]；
+  ordinal 为严格递增累加值，超过 N 停止；禁止 probability/geometric 近似；
+- CHAOSFPU 新参数 `rateOrdinals`/`rateWarmup`/`fsuRateDivisor`/`fsuJitterPct`，
+  按 eligible 序号精确命中；每个 fault 独立 fault_id + L0 root；
+- manifest/事件记录 `rate_divisor`/`jitter_pct`/`interval`/`ordinal_index`/
+  `eligible_ordinal`/`eligible_total`/`freq`；
+- label-only fail-fast：F1/F2/F3 缺少 ordinals、F0 携带 rate、divisor 不符、
+  probability≠1、ordinal 越界/非递增均在 runner/C++ 拒绝；
+- F3 短 W4 门禁：N=57,347，4 个独立 fault、4 条独立 full 链、逐 fault
+  Markdown/audit 通过（`docs/gem5-fi/fsu/F3-MULTIFAULT-GATE.md`）。
+
+**尚未完成**：F1/F2/F3-W4 的正式三 seed。当前 seed 总数仍为 **3/519**，
+覆盖状态见 `docs/gem5-fi/fsu/COVERAGE_STATUS.md`。
