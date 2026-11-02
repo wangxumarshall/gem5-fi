@@ -40,6 +40,26 @@ def full_chain():
     ]
 
 
+def store_chain():
+    """FP04 结果被 store 消费：L3(execute) 真实不适用，记 N/A。"""
+    b = base()
+    return [
+        evt(kind="fault_applied", event_id="0", tick="100", attempted="1",
+            before="0x1", after="0x2", mask="0x1", bit_indices="0",
+            phys_reg="7", field="mant_lo", **b),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0", tick="101",
+            phys_reg="7", **b),
+        evt(kind="operand_read", event_id="2", parent_event_id="1", tick="102",
+            producer_seq="10", consumer_seq="20", src_slot="1",
+            activated="1", **b),
+        evt(kind="consumer", event_id="3", parent_event_id="2", tick="103",
+            consumer_seq="20", outcome="arch_side_effect", **b),
+        evt(kind="commit", event_id="4", parent_event_id="3", tick="104",
+            commit_seq="20", detection_layer="L5", outcome="errant_commit",
+            oracle_diff="array_hash_diff", **b),
+    ]
+
+
 def contained_chain():
     b = base()
     return [
@@ -168,6 +188,21 @@ def test_eligible_zero_fails(tmp_path):
     res = run(tmp_path, fake_runner_factory(full_chain(), "", census_zero=True))
     assert res["status"] == "failed"
     assert "eligible=0" in res["reason"]
+
+
+def test_store_consumer_chain_l3_na(tmp_path):
+    res = run(tmp_path, fake_runner_factory(store_chain(), "ARRAYHASH=" + "0" * 64))
+    assert res["status"] == "admitted"
+    attempt = Path(res["attempt"])
+    rep = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
+    f = rep["chain"]["faults"]["1"]
+    assert f["terminal"] == "full"
+    assert f["layers"] == ["L0", "L1", "L2", "L4", "L5"]
+    assert f["layers_na"] == ["L3"]
+    assert f["admitted"] is True
+    text = (attempt / f"{RUNID}-seed1.md").read_text(encoding="utf-8")
+    assert "N/A（本 seed 真实未到达" in text
+    assert "1 / 100 / 1" in text          # attempted / eligible / activated
 
 
 def test_contained_chain_doc_marks_na(tmp_path):
