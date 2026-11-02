@@ -9,9 +9,9 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **4 / 519** |
+| 已完成合格 seed | **5 / 519** |
 | seed-complete RunID | **1 / 173**（`FSU-FP04-F0-W4` = 3/3） |
-| 部分完成 RunID | **1 / 173**（`FSU-FP04-F3-W4` = 1/3，seed1） |
+| 部分完成 RunID | **1 / 173**（`FSU-FP04-F3-W4` = 2/3，seed1+seed2） |
 | 其余 171 个 RunID | 0/3 |
 
 ## 2. frequency_coverage（限 `FSU-FP04-*-W4`）
@@ -21,7 +21,7 @@
 | F0 | **3/3** | 已实现；短 W4 pilot 三 seed |
 | F1 | **0/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1 N=2,097,155；ordinals 预注册；未运行 |
 | F2 | **0/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；ordinals 预注册；未运行 |
-| F3 | **1/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；ordinals 预注册；seed1 正式运行完成（206/206 fault 全 `full`，audit PASS）；seed2/3 未运行 |
+| F3 | **2/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；ordinals 预注册；seed1（206/206）与 seed2（202/202）正式完成，全部 fault `full`、audit PASS；seed3 未运行 |
 | F4/F5 | 0/3 | 未按本报告实现（F4 burst / F5 stuck 不在 D2 范围） |
 
 > F3 门禁（4 个独立 fault、逐 fault full 链）是机制证据，不是正式 seed；

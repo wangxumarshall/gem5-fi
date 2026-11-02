@@ -118,8 +118,9 @@ warmup 0，`load_id` 仍为 W4（同一 workload 身份，版本 W4-rate-v1）�
 
 - 本文（D2）生成时没有运行任何正式 F1/F2/F3 seed。**D3 更新（2026-11-02）**：
   已正式运行 `FSU-FP04-F3-W4` seed1（`runs/fsu/FSU-FP04-F3-W4/seed1/attempt-1`，
-  206/206 fault，逐 fault `full`，audit PASS）；当前 seed 完成数为 **4/519**。
-  F1、F2 与 F3 seed2/3 仍未运行。
+  206/206 fault）与 seed2（`.../seed2/attempt-1`，202/202 fault），
+  逐 fault `full`，两次 audit 均 PASS；当前 seed 完成数为 **5/519**。
+  F1、F2 与 F3 seed3 仍未运行。
 - F3 机制门禁使用**短 W4**（N=57,347），不是本文件的大 workload；其证据
   单独保存在 `runs/fsu-gates/`。
 - 运行时与资源为同机、同 gem5 二进制的单次实测，不是承诺值。
