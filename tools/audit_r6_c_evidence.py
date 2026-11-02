@@ -51,7 +51,23 @@ def audit(root):
         ck("load_sample", False, repr(exc))
         return rec
     man, chain = s["manifest"], s["chain"]
-    rec.update({"run_id": s["run_id"], "seed": s["seed"]})
+    rec.update({
+        "run_id": s["run_id"], "seed": s["seed"],
+        "oracle": chain.get("oracle_outcome"),
+        "terminal": chain.get("terminal"),
+        "provable_to": chain.get("provable_to"),
+        "admitted": chain.get("admitted"),
+        "certified": chain.get("certified"),
+        "truncated": chain.get("truncated"),
+        "evidence_truncated": chain.get("evidence_truncated"),
+        "violations": (chain.get("admission") or {}).get("violations") or [],
+        "binary_sha256": man.get("binary_sha256"),
+        "binary_source_head": man.get("binary_source_head"),
+        "analysis_tool_head": man.get("analysis_tool_head"),
+        "event_count": chain.get("event_count"),
+        "fault_count": len(chain.get("faults") or {}),
+        "seed_dir": s["seed_dir"],
+    })
 
     # 1. identity + termination metadata
     ck("manifest_status_finished", man.get("status") == "FINISHED",
