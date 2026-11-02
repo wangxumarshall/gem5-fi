@@ -303,6 +303,8 @@ def check_stream(path, run_id=None, sample_run_id=None):
     if truncated:
         all_violations.append("truncated_stream")
     admitted = bool(admitted_faults) and not truncated and not identity
+    # Seed-level certified requires EVERY fault to be closed; one fault
+    # reaching L5 must never auto-certify the others.
     certified = admitted and all(r.get("certified") for r in faults.values())
     return {
         "path": str(path),
@@ -311,7 +313,14 @@ def check_stream(path, run_id=None, sample_run_id=None):
         "truncation_reason": reason,
         "identity_violations": identity,
         "faults": faults,
+        "fault_count": len(faults),
+        "fault_terminals": {fid: r.get("terminal")
+                            for fid, r in faults.items()},
         "admitted_faults": admitted_faults,
+        "all_faults_admitted": bool(faults) and all(
+            r.get("admitted") for r in faults.values()),
+        "all_faults_certified": bool(faults) and all(
+            r.get("certified") for r in faults.values()),
         "admitted": admitted,
         "certified": certified,
         "violations": all_violations,

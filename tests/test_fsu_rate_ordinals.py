@@ -7,6 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import fsu_rate_ordinals as O
+import fsu_seed_audit as A
 import fsu_seed_runner as R
 
 RATES = {"F1": 1_000_000, "F2": 100_000, "F3": 10_000}
@@ -201,7 +202,7 @@ def _evt(**kw):
     return P.PREFIX + " " + " ".join(f"{k}={d[k]}" for k in P.PROP_EVT_FIELDS)
 
 
-def _full_chains(n, runid, sample, ordinals):
+def _full_chains(n, runid, sample, ordinals, incomplete_fault=None):
     lines, eid, tick = [], 0, 100
     for i in range(n):
         fid = str(i + 1)
@@ -218,6 +219,14 @@ def _full_chains(n, runid, sample, ordinals):
             eid += 1
             tick += 1
             return row
+        if incomplete_fault is not None and fid == str(incomplete_fault):
+            lines += [
+                e(kind="fault_applied", activated="0"),
+                e(kind="carrier_state", parent_event_id=str(eid - 1)),
+                e(kind="not_activated", parent_event_id=str(eid - 1),
+                  activated="0"),
+            ]
+            continue
         lines += [
             e(kind="fault_applied", activated="1"),
             e(kind="carrier_state", parent_event_id=str(eid - 1)),
@@ -231,7 +240,7 @@ def _full_chains(n, runid, sample, ordinals):
     return lines
 
 
-def _rate_runner(commands, n):
+def _rate_runner(commands, n, incomplete_fault=None):
     import gzip
 
     def runner(cmd, timeout):
@@ -247,10 +256,10 @@ def _rate_runner(commands, n):
             f"faults_injected: {n}\n", encoding="utf-8")
         (outdir / "stats.txt").write_text("simSeconds 1\n", encoding="utf-8")
         (outdir / "prop_evt.txt.gz").write_bytes(gzip.compress(
-            ("\n".join(_full_chains(n, "FSU-FP04-F3-W4", "s1",
-                                    O.build_rate_ordinals(
-                                        57347, 10_000, 50, 1)["ordinals"]))
-             + "\n").encode()))
+            ("\n".join(_full_chains(
+                n, "FSU-FP04-F3-W4", "s1",
+                O.build_rate_ordinals(57347, 10_000, 50, 1)["ordinals"],
+                incomplete_fault=incomplete_fault)) + "\n").encode()))
         return 0, "ARRAYHASH=" + "0" * 64, "", False
     return runner
 
@@ -290,6 +299,82 @@ def test_runner_rate_mode_generates_ordinals_and_admits(tmp_path):
         ",".join(str(x) for x in doc["ordinals"])
     assert "--fpu_events_to_skip" in inj
     assert inj[inj.index("--fpu_events_to_skip") + 1] == "0"
+
+
+def _run_multi(tmp_path, n=4, incomplete_fault=None):
+    mp, gem5 = _manifest(tmp_path, "F3",
+                         rate={"rate_divisor": 10_000, "jitter_pct": 50})
+    res = R.run_seed(
+        mp, 1, out_root=tmp_path / "runs", gem5=gem5,
+        root=Path(__file__).resolve().parents[1],
+        runner=_rate_runner([], n, incomplete_fault=incomplete_fault))
+    return res
+
+
+def test_multi_fault_doc_and_audit_are_per_fault(tmp_path):
+    res = _run_multi(tmp_path, n=4)
+    assert res["status"] == "admitted", res
+    attempt = Path(res["attempt"])
+    md = (attempt / "FSU-FP04-F3-W4-seed1.md").read_text(encoding="utf-8")
+    for fid in ("1", "2", "3", "4"):
+        assert f"### fault {fid}" in md
+    # 第 5 节事件表必须覆盖全部 fault 的主链事件。
+    rep = json.loads((attempt / "chain_report.json").read_text())
+    for fid, fr in rep["chain"]["faults"].items():
+        for eid in fr["path_event_ids"]:
+            assert f"| {eid} |" in md, (fid, eid)
+    # 逐 fault 终局表必须在 Markdown 中。
+    assert "### 逐 fault 终局" in md
+    audit = A.audit_attempt(attempt)
+    assert audit["ok"] is True, audit["failures"]
+    # audit_attempt does not write; write_audit does.
+    full = A.write_audit(attempt)
+    assert full["ok"] is True and full["certified"] is True
+    assert full["fault_count"] == 4
+    assert full["all_faults_admitted"] is True
+    assert full["all_faults_certified"] is True
+    assert set(full["fault_terminals"].values()) == {"full"}
+
+
+def test_audit_detects_one_fault_terminal_tamper(tmp_path):
+    res = _run_multi(tmp_path, n=4)
+    attempt = Path(res["attempt"])
+    md = attempt / "FSU-FP04-F3-W4-seed1.md"
+    text = md.read_text(encoding="utf-8").replace(
+        "| 3 | full |", "| 3 | contained_L3 |")
+    md.write_text(text, encoding="utf-8")
+    audit = A.audit_attempt(attempt)
+    assert audit["ok"] is False
+    assert any("fault 3 MD terminal" in f for f in audit["failures"])
+
+
+def test_audit_detects_missing_fault_chain_in_md(tmp_path):
+    res = _run_multi(tmp_path, n=4)
+    attempt = Path(res["attempt"])
+    rep = json.loads((attempt / "chain_report.json").read_text())
+    eid = rep["chain"]["faults"]["2"]["path_event_ids"][2]
+    md = attempt / "FSU-FP04-F3-W4-seed1.md"
+    text = "\n".join(l for l in md.read_text(encoding="utf-8").splitlines()
+                     if f"| {eid} |" not in l)
+    md.write_text(text, encoding="utf-8")
+    audit = A.audit_attempt(attempt)
+    assert audit["ok"] is False
+    assert any("fault 2 MD 覆盖主链全部事件" in f
+               for f in audit["failures"])
+
+
+def test_one_incomplete_fault_blocks_seed_certification(tmp_path):
+    res = _run_multi(tmp_path, n=4, incomplete_fault=2)
+    assert res["status"] == "failed"
+    attempt = Path(res["attempt"])
+    rep = json.loads((attempt / "chain_report.json").read_text())
+    assert rep["actual_injections"] == 4
+    assert rep["chain"]["faults"]["2"]["terminal"] == "not_activated"
+    assert rep["chain"]["faults"]["2"]["admitted"] is False
+    assert rep["chain"]["certified"] is False
+    assert not (attempt.parent / "AUTHORITATIVE").exists()
+    audit = A.audit_attempt(attempt)
+    assert audit["ok"] is False
 
 
 def test_runner_zero_ordinal_keeps_attempt_not_activated(tmp_path):

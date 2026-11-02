@@ -57,6 +57,25 @@ def _md_value(md: str, label: str):
     return m.group(1).strip() if m else None
 
 
+def _md_fault_rows(md: str):
+    """Parse the '### 逐 fault 终局' table → {fault_id: cells}."""
+    rows, inside = {}, False
+    for line in md.splitlines():
+        if line.startswith("### 逐 fault 终局"):
+            inside = True
+            continue
+        if inside and (line.startswith("## ") or line.startswith("- 结局标签")):
+            break
+        if not inside or not line.startswith("|"):
+            continue
+        if line.startswith("|---") or "| fault | terminal |" in line:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) >= 8 and cells[0] not in ("fault", "—"):
+            rows[cells[0]] = cells
+    return rows
+
+
 def audit_attempt(attempt: Path):
     attempt = Path(attempt)
     checks, failures = [], []
@@ -102,17 +121,30 @@ def audit_attempt(attempt: Path):
                     or str(e.get("sample_run_id")) != sample]
     check(f"事件身份全为本 seed（越界 {len(bad_identity)}）", not bad_identity)
 
-    # 3. 链重算与 chain_report 一致
+    # 3. 链重算与 chain_report 一致（逐 fault）
     recomputed = C.check_stream(prop, run_id=runid, sample_run_id=sample) \
         if prop.exists() else {"faults": {}, "admitted_faults": [], "truncated": True}
+    recomputed_faults = recomputed.get("faults", {})
     check("重算 admitted_faults 一致",
           recomputed.get("admitted_faults") == chain.get("admitted_faults"))
     check("重算 truncated 一致", recomputed.get("truncated") == chain.get("truncated"))
-    for fid, r in recomputed.get("faults", {}).items():
+    # Every injected fault must have a chain; one fault reaching L5 must not
+    # certify the others.
+    check("事件流 fault 数 = 注入数",
+          len(recomputed_faults) == report.get("actual_injections",
+                                               len(recomputed_faults)))
+    check("所有 fault 均 admitted",
+          bool(recomputed_faults)
+          and all(r.get("admitted") for r in recomputed_faults.values()))
+    check("所有 fault 均 certified",
+          bool(recomputed_faults)
+          and all(r.get("certified") for r in recomputed_faults.values()))
+    for fid, r in recomputed_faults.items():
         old = chain.get("faults", {}).get(fid, {})
         check(f"fault {fid} terminal 一致", r.get("terminal") == old.get("terminal"))
         check(f"fault {fid} violations 一致", r.get("violations") == old.get("violations"))
         check(f"fault {fid} admitted 一致", r.get("admitted") == old.get("admitted"))
+        check(f"fault {fid} certified 一致", r.get("certified") == old.get("certified"))
 
     # 4. Markdown 事件表 ↔ 原始流
     by_id = {str(e.get("event_id")): e for e in events}
@@ -126,6 +158,7 @@ def audit_attempt(attempt: Path):
             check(f"MD event {eid} kind 一致", r[0] == str(evt.get("kind")))
             check(f"MD event {eid} parent 一致",
                   r[2] == (str(evt.get("parent_event_id")) or "—"))
+    fault_rows = _md_fault_rows(md)
     admitted_fid = None
     for fid, r in chain.get("faults", {}).items():
         if r.get("admitted"):
@@ -137,11 +170,28 @@ def audit_attempt(attempt: Path):
     check("链 certified=True", chain.get("certified") is True)
     check("链 violations=[]", chain.get("violations", []) == [])
     check("存在 admitted fault", admitted_fid is not None)
+    check("MD 逐 fault 终局表存在", bool(fault_rows))
+    # Per-fault Markdown + direct-parent checks.
+    for fid, r in sorted(recomputed_faults.items()):
+        path_ids = r.get("path_event_ids", [])
+        check(f"fault {fid} MD 覆盖主链全部事件",
+              all(i in md_ids for i in path_ids))
+        path = [by_id[i] for i in path_ids if i in by_id]
+        edges_ok = all(
+            str(b.get("parent_event_id")) == str(a.get("event_id"))
+            for a, b in zip(path, path[1:]))
+        check(f"fault {fid} MD/原始流 direct parent", edges_ok)
+        cells = fault_rows.get(fid)
+        check(f"fault {fid} MD 逐 fault 终局行存在", cells is not None)
+        if cells is not None:
+            check(f"fault {fid} MD terminal 一致",
+                  cells[1] == str(r.get("terminal")))
+            check(f"fault {fid} MD admitted 一致",
+                  cells[3] == str(r.get("admitted")))
+            check(f"fault {fid} MD certified 一致",
+                  cells[4] == str(r.get("certified")))
     if admitted_fid is not None:
-        chain_ids = chain["faults"][admitted_fid].get("path_event_ids", [])
-        check("MD 覆盖原始主链全部事件",
-              all(i in md_ids for i in chain_ids))
-        # 5. terminal / admitted 一致
+        # 5. primary terminal / admitted 一致（兼容单 fault 行）
         term = _md_value(md, "传播链 terminal：")
         check("MD terminal 与 chain_report 一致",
               term is not None and term.strip("* ") == str(
@@ -199,19 +249,44 @@ def write_audit(attempt: Path):
             fid, fault = k, v
             break
     by_id = {str(e.get("event_id")): e for e in events}
-    path = [by_id[i] for i in fault.get("path_event_ids", []) if i in by_id]
-    edges = [{"from": a.get("event_id"), "to": b.get("event_id"),
-              "ok": str(b.get("parent_event_id")) == str(a.get("event_id"))}
-             for a, b in zip(path, path[1:])]
-    ticks = []
-    for e in path:
-        try:
-            ticks.append(int(str(e.get("tick"))))
-        except ValueError:
-            pass
-    tick_ok = all(b >= a for a, b in zip(ticks, ticks[1:]))
-    l5_id = fault.get("l5_witness_event_id")
-    l5 = by_id.get(str(l5_id), {})
+
+    def _fault_detail(k, v):
+        path = [by_id[i] for i in v.get("path_event_ids", []) if i in by_id]
+        edges = [{"from": a.get("event_id"), "to": b.get("event_id"),
+                  "ok": str(b.get("parent_event_id")) == str(a.get("event_id"))}
+                 for a, b in zip(path, path[1:])]
+        ticks = []
+        for e in path:
+            try:
+                ticks.append(int(str(e.get("tick"))))
+            except ValueError:
+                pass
+        l5_id = v.get("l5_witness_event_id")
+        l5 = by_id.get(str(l5_id), {})
+        return {
+            "fault_id": k,
+            "terminal": v.get("terminal"),
+            "admitted": v.get("admitted", False),
+            "certified": v.get("certified", False),
+            "violations": v.get("violations", []),
+            "layers": v.get("layers", []),
+            "layers_na": v.get("layers_na", []),
+            "direct_parent_chain": all(e["ok"] for e in edges) if edges else False,
+            "edges": edges,
+            "tick_monotonic": all(b >= a for a, b in zip(ticks, ticks[1:])),
+            "l5_witness": {"event_id": l5_id, "kind": l5.get("kind"),
+                           "outcome": l5.get("outcome")},
+            "containment_event_id": v.get("containment_event_id"),
+            "containment_layer": v.get("containment_layer"),
+        }
+
+    fault_audits = [_fault_detail(k, v)
+                    for k, v in sorted(chain.get("faults", {}).items())]
+    primary = _fault_detail(fid, fault) if fid is not None else {}
+    edges = primary.get("edges", [])
+    tick_ok = primary.get("tick_monotonic", False)
+    l5_id = primary.get("l5_witness", {}).get("event_id")
+    l5 = primary.get("l5_witness", {})
     cross_ok = all(str(e.get("sample_run_id")) == manifest.get("sample_run_id")
                    for e in events)
     hp = attempt / "evidence_sha256.json"
@@ -230,19 +305,29 @@ def write_audit(attempt: Path):
         "direct_parent_chain": all(e["ok"] for e in edges) if edges else False,
         "edges": edges,
         "tick_monotonic": tick_ok,
-        "layers": fault.get("layers", []),
-        "layers_na": fault.get("layers_na", []),
+        "layers": primary.get("layers", []),
+        "layers_na": primary.get("layers_na", []),
         "l5_witness": {"event_id": l5_id, "kind": l5.get("kind"),
                        "outcome": l5.get("outcome")},
         "oracle": oracle.get("category"),
         "oracle_reason": oracle.get("reason"),
-        "chain_terminal": fault.get("terminal"),
+        "run_level_oracle": report.get("run_level_oracle"),
+        "chain_terminal": primary.get("terminal"),
+        "fault_count": len(fault_audits),
+        "fault_terminals": {x["fault_id"]: x["terminal"]
+                            for x in fault_audits},
+        "all_faults_admitted": bool(fault_audits)
+        and all(x["admitted"] for x in fault_audits),
+        "all_faults_certified": bool(fault_audits)
+        and all(x["certified"] for x in fault_audits),
+        "fault_audit": fault_audits,
         "stats_nonempty": stats.exists() and stats.stat().st_size > 0,
         "evidence_sha256": hashes,
         "cross_seed_ok": cross_ok,
-        "admitted": fault.get("admitted", False),
-        "certified": bool(res["ok"]),
-        "violations": fault.get("violations", []),
+        "admitted": primary.get("admitted", False),
+        "certified": bool(res["ok"]) and bool(fault_audits)
+        and all(x["certified"] for x in fault_audits),
+        "violations": primary.get("violations", []),
         "audit_checks": [{"check": n, "ok": ok} for n, ok in res["checks"]],
         "failures": res["failures"],
         "ok": res["ok"],
@@ -264,10 +349,21 @@ def write_audit(attempt: Path):
              f"| chain terminal | {audit['chain_terminal']} |",
              f"| stats 非空 | {audit['stats_nonempty']} |",
              f"| 无跨 seed 复制 | {audit['cross_seed_ok']} |",
-             f"| admitted | {audit['admitted']} |",
-             f"| certified | {audit['certified']} |",
-             f"| violations | {audit['violations']} |", "",
-             "## 边", ""]
+             f"| admitted（主 fault） | {audit['admitted']} |",
+             f"| certified（全 fault 门禁） | {audit['certified']} |",
+             f"| fault 数 | {audit['fault_count']} |",
+             f"| 所有 fault admitted | {audit['all_faults_admitted']} |",
+             f"| 所有 fault certified | {audit['all_faults_certified']} |",
+             f"| violations（主 fault） | {audit['violations']} |", "",
+             "## 逐 fault 审计", "",
+             "| fault | terminal | admitted | certified | direct parent | tick 单调 | layers | violations |",
+             "|---|---|---|---|---|---|---|---|"]
+    for x in audit["fault_audit"]:
+        lines.append(f"| {x['fault_id']} | {x['terminal']} | {x['admitted']} | "
+                     f"{x['certified']} | {x['direct_parent_chain']} | "
+                     f"{x['tick_monotonic']} | {', '.join(x['layers'])} | "
+                     f"{x['violations']} |")
+    lines += ["", "## 边（主 fault）", ""]
     for e in audit["edges"]:
         lines.append(f"- `{e['from']}` → `{e['to']}`：{'✓' if e['ok'] else '✗'}")
     lines += ["", "## 证据 SHA-256", "", "| 文件 | SHA-256 |", "|---|---|"]
