@@ -90,3 +90,17 @@
 | 落位 | `docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx`（chmod 444，只读） |
 
 后续转换与校验见 `docs/gem5-fi/fsu/CONVERSION_REPORT.md`。
+
+## 6. 构建环境更新（2026-11-02 14:07）
+
+- 首次干净构建（默认 `python3-config` = Python 3.8.18）成功，二进制
+  `de5cba558c25c16887130f70e77befb5a8b570a2d3319f8f212cbff703d6d720`，
+  但运行 `configs/se/ooo_proxy.py` 时在 `from gem5.simulate.simulator import Simulator`
+  处失败：`TypeError: unsupported operand type(s) for |: 'type' and 'type'`。
+  根因：gem5 v25.1 stdlib 使用 PEP 604（`X | Y`），Python 3.8 不支持。
+- 首次二进制嵌入 `PYVER 3.8.18`，**不作为权威运行二进制**；仅作证据保留。
+- 主机存在 `/opt/python3.11/bin/python3.11`（3.11.9）；旧二进制
+  `/home/sdc/gem5-fi-ding/.../gem5.opt` 嵌入 `PYVER 3.11.9`，但其源码状态不同，
+  按任务要求不复用。
+- 正在以 `PYTHON_CONFIG=/opt/python3.11/bin/python3.11-config scons -j4` 重新构建
+  权威基线；新二进制需再次 smoke 验证后再用于任何 RunID。
