@@ -422,3 +422,24 @@ tail -n 5 /home/sdc/gem5-fi-ding-cleanup-20261029/r6c-regression.log
 - **Placeholder scan:** 每个任务给出真实命令/路径；Task 1/4 的代码块为可执行实现；Task 2/3 的测试给出断言，实现细节以接口约束列明。✅
 - **Type consistency:** `load_sample` 返回键（`manifest/chain/events/kinds/census/sha`）在 Task 2/3/7 一致；`discover_seeds` 输出 `run_id/seed/seed_root` 与队列命名 `<RUNID>_s<SEED>` 一致。✅
 - **Review Focus:** 五项风险均有对应任务/门禁（Task 1 step 5、Task 6 step 1-3、Task 2 step 3、Task 3 step 4、Task 5 step 3）。✅
+
+---
+
+## Execution Outcome（2026-11-03，真实结果，替代逐框勾选）
+
+- **范围**：31 个可运行非 F6 C RunID × seed 1/2/3 = 93 样本，全部执行（rc=0，无超时）。
+- **合格**：独立证据审计 **88/93 PASS**；**26/31 RunID 3/3**；C04-F0/F1/F2、C05-F0/F2 为 2/3。
+- **未达 3/3 的原因（诚实）**：C04/C05 seed1 是真实 Injected-not-activated 样本（tag 别名目标行未被
+  后续访问，链如实止于 L0）；频率策略固定 required_seeds=3 并拒绝 seed4+。
+- **六个真实修复**（均有真机验证，提交 `f8505e7d` + `e56e6523`）：
+  errant_commit 父事件；metadata 下游登记；funnel 双计数；guest SEGV arming；
+  F0 eligible（valid+accessed+非 0）；整块地址登记 + lineage bridge；tag 同 set 最热 partner 原位替换
+  + snoop filter 注入期容忍。
+- **二进制**：26 RunID（78 seeds）`d4e7ba6d…b312c`；C04/C05（15 seeds）`f0233ef1…47945`；
+  逐 seed manifest 记录，未混算。
+- **文档**：93 份 staging、文档审计 **0 errors**；部署 88 份合格文档。
+- **索引**：EVIDENCE 88、CATALOG 88、INDEX `r6_c_unit_20261102`（31 RunID / 26 complete3）、
+  STATUS `R6-C-UNIT-STATUS.json`。
+- **回归**：`263 passed, 9 failed`；9 项与基线 f1291067 逐名一致 → **NEW FAIL = 0**。
+- **报告**：`runs/lsu/r6_reports/R6-C-UNIT-FINAL-REPORT.md`、`R6-C-UNIT-STATUS.json`。
+- **部署位置**：权威主树 `/home/sdc/gem5-fi-ding/runs/lsu/`（runs/ 产物未新增到 git，沿用 S 轮做法）。
