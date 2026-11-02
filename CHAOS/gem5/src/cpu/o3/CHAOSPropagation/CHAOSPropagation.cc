@@ -677,13 +677,13 @@ namespace gem5
         return bridge_id;
     }
 
-    void
+    uint64_t
     CHAOSPropagation::notePropEvt(
         const std::string &kind,
         const std::vector<std::pair<std::string, std::string>> &kv)
     {
         if (!write_log || !evt_gz_file)
-            return;
+            return 0;
         std::map<std::string, std::string> fields;
         uint64_t ptag = 0;
         for (const auto &pair : kv) {
@@ -714,7 +714,9 @@ namespace gem5
         const auto fp = fields.find("fault_id");
         if (fp != fields.end() && !fp->second.empty())
             ptag = strtoull(fp->second.c_str(), nullptr, 10);
-        emitPropEvt(kind, ptag, next_node_id++, std::move(fields), -1);
+        const uint64_t eid = next_node_id++;
+        emitPropEvt(kind, ptag, eid, std::move(fields), -1);
+        return eid;
     }
 
     // ------------------------------------------------------------------ util

@@ -1,8 +1,11 @@
 #ifndef __CPU_O3_CHAOS_FPU_HH__
 #define __CPU_O3_CHAOS_FPU_HH__
 
+#include <map>
 #include <random>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "params/CHAOSFPU.hh"
 #include "sim/sim_object.hh"
@@ -29,6 +32,12 @@ class CHAOSFPU : public SimObject
     // opClass (FloatAdd/FloatMult/FloatMultAcc + SimdFloat*); XORs the FP
     // result blob. Returns true if an injection happened.
     bool maybeCorrupt(o3::DynInst *dyn_inst);
+
+    // [FSU] Read-only propagation observers. Called from DynInst::execute()
+    // (same anchor as maybeCorrupt) and Commit::commitHead(); they never
+    // change architectural or microarchitectural state.
+    void noteConsumerExecute(o3::DynInst *inst);
+    void noteCommit(ThreadID tid, o3::DynInst *inst);
 
   private:
     BaseCPU *cpu;
@@ -76,6 +85,44 @@ class CHAOSFPU : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
+
+    // [FSU] Pilot identity (set from ooo_proxy CLI; empty = not reported).
+    std::string fsu_model, fsu_freq, fsu_load, fsu_submodel;
+    uint64_t fsu_eligible_total = 0;
+
+    // [FSU] Faulted-result taint. A fault is "activated" only when a real
+    // consumer instruction reads the faulted physical register; the root
+    // fault_applied event therefore leaves activated empty, and the L2
+    // operand_read event carries activated=1.
+    struct FaultedReg {
+        uint64_t fault_id = 0;
+        uint64_t l0_id = 0, l1_id = 0;
+        uint64_t producer_sn = 0;
+        Tick tick = 0;
+        int tid = 0, reg_class = 0, reg_index = 0;
+        uint64_t before = 0, after = 0, mask = 0;
+        std::string field;
+        bool consumed = false;
+    };
+    struct TaintedConsumer {
+        uint64_t fault_id = 0;
+        uint64_t l2_id = 0, l3_id = 0, l4_id = 0;
+        uint64_t consumer_sn = 0;
+        std::string field;
+        bool is_store = false;
+        bool has_l3 = false, has_l4 = false, committed = false;
+    };
+    std::vector<FaultedReg> faulted_regs;
+    std::map<uint64_t, TaintedConsumer> tainted_consumers;
+    uint64_t next_fault_id = 1;
+
+    void noteFaultApplied(o3::DynInst *inst, int reg_class, int reg_index,
+                          uint64_t oldv, uint64_t newv, uint64_t mask);
+    uint64_t emitFsu(const char *kind, uint64_t fault_id, uint64_t parent,
+                     std::vector<std::pair<std::string, std::string>> kv);
+    void noteNotActivated();
+    static std::string hex64(uint64_t v);
+    static std::string hash64(uint64_t v);
 
     bool inWindow();
 };

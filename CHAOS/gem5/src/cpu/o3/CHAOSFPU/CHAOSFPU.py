@@ -77,3 +77,11 @@ class CHAOSFPU(SimObject):
     fpsrSuppress = Param.Bool(False, "fpsr_suppress mode: clear FP "
                                      "exception flags (logged count)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+    # [FSU] Pilot identity written into FSU_PROP events. Empty = honestly
+    # unset (the chain doc then shows N/A rather than a guessed RunID).
+    fsuModel = Param.String("", "FSU model id (e.g. FP04) for FSU_PROP events")
+    fsuFreq = Param.String("", "FSU frequency id (F0..F5) for FSU_PROP events")
+    fsuLoad = Param.String("", "FSU workload id (W1..W9) for FSU_PROP events")
+    fsuSubmodel = Param.String("", "FSU submodel (e.g. FP04-c) for FSU_PROP events")
+    fsuEligibleTotal = Param.UInt64(0, "countOnly eligible-event total for "
+                                       "this seed (0 = not measured)")

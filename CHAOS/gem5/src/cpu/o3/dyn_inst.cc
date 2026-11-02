@@ -366,6 +366,10 @@ DynInst::execute()
     if (fault == NoFault && cpu) {
         if (cpu->chaosExec) cpu->chaosExec->maybeCorrupt(this);
         if (cpu->chaosFPU)   cpu->chaosFPU->maybeCorrupt(this);
+        // [FSU] Read-only taint observation: if this instruction reads a
+        // physical register holding an injected FSU result, emit the L2
+        // operand_read (and L3/L4 for FP consumers). No state mutation.
+        if (cpu->chaosFPU)   cpu->chaosFPU->noteConsumerExecute(this);
     }
 
     thread->noSquashFromTC = no_squash_from_TC;

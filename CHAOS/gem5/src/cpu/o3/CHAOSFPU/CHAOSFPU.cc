@@ -1,11 +1,13 @@
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"
 
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // DynInst, opClass, isFloating
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // FSU_PROP stream
 #include "cpu/op_class.hh"       // FloatAddOp/FloatMultOp/FloatMultAccOp/SimdFloat*
 #include "cpu/inst_res.hh"       // InstResult::corruptBlob
 #include "cpu/o3/chaos_event_sample.hh"  // v1.1 Phase 8.2 uniform sampling
@@ -33,7 +35,12 @@ namespace gem5
           f3_dependent(p.f3Dependent),
           exp_lo(p.expLo),
           exp_hi(p.expHi),
-          fpsr_suppress(p.fpsrSuppress)
+          fpsr_suppress(p.fpsrSuppress),
+          fsu_model(p.fsuModel),
+          fsu_freq(p.fsuFreq),
+          fsu_load(p.fsuLoad),
+          fsu_submodel(p.fsuSubmodel),
+          fsu_eligible_total(p.fsuEligibleTotal)
     {
         if (probability > 0.0f) {
             log_stream = simout.create("fpu_injections.log", false, true);
@@ -255,6 +262,8 @@ namespace gem5
             mask = (1ULL << (rng() % 64));
         }
         bool ok = false;
+        int fault_cls = -1, fault_idx = -1;
+        uint64_t oldv = 0, newv = 0;
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         // v1.1 Phase 9 mode 5 — f3_data_dependent gate: corrupt only when
         // the first FP/vector dest's biased exponent is inside
@@ -285,15 +294,23 @@ namespace gem5
                 // XOR the low 8 bytes of the vector register's PRF blob.
                 void *vp = o3cpu->getWritableReg(dest, dyn_inst->threadNumber);
                 if (!vp) break;
+                std::memcpy(&oldv, vp, 8);
                 uint64_t *q = reinterpret_cast<uint64_t*>(vp);
                 *q ^= (uint64_t)mask;
+                std::memcpy(&newv, vp, 8);
+                fault_cls = (int)dest->classValue();
+                fault_idx = dest->index();
                 ok = true;
                 break;
               }
               case FloatRegClass:
               case VecElemClass: {
                 RegVal v = o3cpu->getReg(dest, dyn_inst->threadNumber);
+                oldv = (uint64_t)v;
+                newv = (uint64_t)(v ^ mask);
                 o3cpu->setReg(dest, v ^ mask, dyn_inst->threadNumber);
+                fault_cls = (int)dest->classValue();
+                fault_idx = dest->index();
                 ok = true;
                 break;
               }
@@ -303,6 +320,7 @@ namespace gem5
         }
         if (!ok) return false;  // no FP/vector dest register on this inst
         faults_injected_count++;
+        noteFaultApplied(dyn_inst, fault_cls, fault_idx, oldv, newv, mask);
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: dyn_inst_execute, opClass=" << (int)oc
@@ -315,6 +333,198 @@ namespace gem5
                 << std::endl;
         }
         return true;
+    }
+
+    // Sentinel: event_id 0 is valid; do not use 0 to mean "no parent".
+    static constexpr uint64_t FSU_NO_PARENT = ~0ULL;
+
+    std::string
+    CHAOSFPU::hex64(uint64_t v)
+    {
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "0x%016llx",
+                      (unsigned long long)v);
+        return std::string(buf);
+    }
+
+    std::string
+    CHAOSFPU::hash64(uint64_t v)
+    {
+        // FNV-1a over the 8 value bytes (evidence only; not a crypto hash).
+        uint64_t h = 1469598103934665603ULL;
+        for (int i = 0; i < 8; i++) {
+            h ^= (v >> (8 * i)) & 0xffULL;
+            h *= 1099511628211ULL;
+        }
+        return hex64(h);
+    }
+
+    uint64_t
+    CHAOSFPU::emitFsu(const char *kind, uint64_t fault_id, uint64_t parent,
+                      std::vector<std::pair<std::string, std::string>> kv)
+    {
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu || !o3cpu->chaosPropagation)
+            return 0;
+        kv.push_back({"fault_id", std::to_string(fault_id)});
+        if (parent != FSU_NO_PARENT)
+            kv.push_back({"parent_event_id", std::to_string(parent)});
+        if (!fsu_model.empty())
+            kv.push_back({"model_id", fsu_model});
+        if (!fsu_submodel.empty())
+            kv.push_back({"submodel", fsu_submodel});
+        if (!fsu_freq.empty())
+            kv.push_back({"freq", fsu_freq});
+        if (!fsu_load.empty())
+            kv.push_back({"load_id", fsu_load});
+        // PROP-EVT is space-delimited: no spaces in values.
+        kv.push_back({"unit", "FSU_Pipe"});
+        kv.push_back({"corr", std::string(kind) == "fault_applied"
+                              ? "origin" : "fsu_taint"});
+        return o3cpu->chaosPropagation->notePropEvt(kind, kv);
+    }
+
+    void
+    CHAOSFPU::noteFaultApplied(o3::DynInst *inst, int reg_class,
+                               int reg_index, uint64_t oldv, uint64_t newv,
+                               uint64_t mask)
+    {
+        if (!inst || reg_class < 0 || reg_index < 0)
+            return;
+        const uint64_t fid = next_fault_id++;
+        const std::string field = !bitseg.empty() ? bitseg :
+            (recurring_stuck ? "recurring_result_stuck" :
+             fma_weighted ? "fma_intermediate" :
+             rounding_sub ? "rounding_sub" : "uniform");
+        const int bit = mask ? __builtin_ctzll(mask) : -1;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            {"pc", hex64(inst->pcState().instAddr())},
+            {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
+            {"phys_reg", std::to_string(reg_index)},
+            {"field", field},
+            {"fault_mask", hex64(mask)},
+            {"bit_indices", bit >= 0 ? std::to_string(bit) : ""},
+            {"lane_width", "64"},
+            {"lane_offset", "0"},
+            {"before", hex64(oldv)},
+            {"after", hex64(newv)},
+            {"before_hash", hash64(oldv)},
+            {"after_hash", hash64(newv)},
+            {"value_hash", hash64(newv)},
+            {"attempted", "1"},
+            {"activated", ""},
+            {"thread_id", std::to_string((int)inst->threadNumber)},
+        };
+        if (fsu_eligible_total)
+            kv.push_back({"eligible_total",
+                          std::to_string(fsu_eligible_total)});
+        const uint64_t l0 = emitFsu("fault_applied", fid, FSU_NO_PARENT, kv);
+        const uint64_t l1 = emitFsu("carrier_state", fid, l0, kv);
+        faulted_regs.push_back({fid, l0, l1, inst->seqNum, curTick(),
+                                (int)inst->threadNumber, reg_class, reg_index,
+                                oldv, newv, mask, field, false});
+    }
+
+    void
+    CHAOSFPU::noteConsumerExecute(o3::DynInst *inst)
+    {
+        if (!inst || faulted_regs.empty())
+            return;
+        if (tainted_consumers.count(inst->seqNum))
+            return;
+        for (auto &f : faulted_regs) {
+            if (f.consumed)
+                continue;
+            for (int i = 0; i < inst->numSrcRegs(); i++) {
+                PhysRegIdPtr reg = inst->renamedSrcIdx(i);
+                if (!reg || reg->is(InvalidRegClass))
+                    continue;
+                if ((int)reg->classValue() != f.reg_class ||
+                    reg->index() != f.reg_index ||
+                    (int)inst->threadNumber != f.tid)
+                    continue;
+                f.consumed = true;
+                std::vector<std::pair<std::string, std::string>> kv = {
+                    {"producer_seq", std::to_string(f.producer_sn)},
+                    {"consumer_seq", std::to_string(inst->seqNum)},
+                    {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                    {"src_slot", std::to_string(i)},
+                    {"phys_reg", std::to_string(f.reg_index)},
+                    {"pc", hex64(inst->pcState().instAddr())},
+                    {"opcode", inst->staticInst
+                                   ? inst->staticInst->getName() : ""},
+                    {"activated", "1"},
+                    {"value_hash", hash64(f.after)},
+                    {"field", f.field},
+                    {"thread_id", std::to_string((int)inst->threadNumber)},
+                };
+                const uint64_t l2 = emitFsu("operand_read", f.fault_id,
+                                            f.l1_id, kv);
+                TaintedConsumer tc;
+                tc.fault_id = f.fault_id;
+                tc.l2_id = l2;
+                tc.consumer_sn = inst->seqNum;
+                tc.field = f.field;
+                tc.is_store = inst->isStore();
+                if (!tc.is_store && isFpOpClass(inst->opClass())) {
+                    tc.l3_id = emitFsu("execute", f.fault_id, l2, kv);
+                    tc.has_l3 = true;
+                    tc.l4_id = emitFsu("prf_writeback", f.fault_id,
+                                       tc.l3_id, kv);
+                    tc.has_l4 = true;
+                }
+                tainted_consumers[inst->seqNum] = tc;
+                return;
+            }
+        }
+    }
+
+    void
+    CHAOSFPU::noteCommit(ThreadID tid, o3::DynInst *inst)
+    {
+        if (!inst)
+            return;
+        auto it = tainted_consumers.find(inst->seqNum);
+        if (it == tainted_consumers.end() || it->second.committed)
+            return;
+        TaintedConsumer &tc = it->second;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"consumer_seq", std::to_string(inst->seqNum)},
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            {"commit_seq", std::to_string(inst->seqNum)},
+            {"thread_id", std::to_string((int)tid)},
+            {"pc", hex64(inst->pcState().instAddr())},
+            {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
+            {"field", tc.field},
+        };
+        if (!tc.has_l4) {
+            kv.push_back({"outcome", "arch_side_effect"});
+            tc.l4_id = emitFsu("consumer", tc.fault_id, tc.l2_id, kv);
+            tc.has_l4 = true;
+        }
+        kv.push_back({"detection_layer", "L5"});
+        kv.push_back({"outcome", "errant_commit"});
+        kv.push_back({"contained", "0"});
+        emitFsu("commit", tc.fault_id, tc.l4_id, kv);
+        tc.committed = true;
+    }
+
+    void
+    CHAOSFPU::noteNotActivated()
+    {
+        for (auto &f : faulted_regs) {
+            if (f.consumed)
+                continue;
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"producer_seq", std::to_string(f.producer_sn)},
+                {"phys_reg", std::to_string(f.reg_index)},
+                {"field", f.field},
+                {"activated", "0"},
+                {"value_hash", hash64(f.after)},
+            };
+            emitFsu("not_activated", f.fault_id, f.l1_id, kv);
+        }
     }
 
     void
@@ -336,6 +546,10 @@ namespace gem5
                         << eligible_count << std::endl;
             });
         }
+        // [FSU] Explicit not_activated terminal for faults never consumed.
+        // The chain checker maps this to terminal=not_activated (never
+        // inferred from a missing event).
+        registerExitCallback([this]() { noteNotActivated(); });
     }
 
 } // namespace gem5

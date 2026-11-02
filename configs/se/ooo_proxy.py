@@ -26,6 +26,13 @@
 import argparse
 import m5
 from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap
+# [FSU] propagation tracer is optional (absent in binaries built before the
+# unified PROP-EVT implementation). Import failure must not break unrelated
+# OoO runs; --chaos_propagation fails loudly below if it is really needed.
+try:
+    from m5.objects import CHAOSPropagation
+except ImportError:
+    CHAOSPropagation = None
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -283,6 +290,18 @@ p.add_argument("--fpu_rounding_sub", action="store_true")
 p.add_argument("--fpu_f3_dependent", action="store_true")
 p.add_argument("--fpu_exp_range", default="-1,-1")
 p.add_argument("--fpu_fpsr_suppress", action="store_true")
+# [FSU] Pilot identity + unified propagation stream. Defaults leave every
+# existing OoO campaign byte-identical (no tracer attached).
+p.add_argument("--fsu_model", default="")
+p.add_argument("--fsu_freq", default="")
+p.add_argument("--fsu_load", default="")
+p.add_argument("--fsu_submodel", default="")
+p.add_argument("--fsu_eligible_total", type=lambda x: int(x, 0), default=0)
+p.add_argument("--chaos_propagation", action="store_true",
+               help="attach CHAOSPropagation (read-only PROP-EVT tracer)")
+p.add_argument("--prop_trace_file", default="prop_trace.csv.gz")
+p.add_argument("--prop_run_id", default="")
+p.add_argument("--prop_sample_run_id", default="")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -714,8 +733,33 @@ if args.chaos_fpu:
         expHi=int(args.fpu_exp_range.split(",")[1]),
         fpsrSuppress=args.fpu_fpsr_suppress,
         writeLog=True,
+        fsuModel=args.fsu_model,
+        fsuFreq=args.fsu_freq,
+        fsuLoad=args.fsu_load,
+        fsuSubmodel=args.fsu_submodel,
+        fsuEligibleTotal=args.fsu_eligible_total,
     )
     board.chaos_fpu = fpu
+
+if args.chaos_propagation:
+    # [FSU] Read-only unified PROP-EVT tracer. SELF-ATTACHES at startup() to
+    # cpu.chaosPropagation; CHAOSFPU/commit reach it through that pointer.
+    # Explicit request + missing object = fatal (never silently degrade).
+    if CHAOSPropagation is None:
+        raise SystemExit(
+            "[ooo_proxy] FATAL: --chaos_propagation requires a gem5 binary "
+            "built with CHAOSPropagation (fsu baseline).")
+    prop = CHAOSPropagation(
+        cpu=cpu0,
+        traceFile=args.prop_trace_file,
+        writeLog=True,
+        runId=args.prop_run_id,
+        sampleRunId=args.prop_sample_run_id,
+    )
+    board.chaos_propagation = prop
+    print(f"[ooo_proxy] CHAOSPropagation attached "
+          f"(trace={args.prop_trace_file}, run_id={args.prop_run_id!r}, "
+          f"sample_run_id={args.prop_sample_run_id!r})")
 
 if args.chaos_l1dfwd:
     # §2.7 CHAOSL1DForward: O3-only. SELF-ATTACHES at startup() to

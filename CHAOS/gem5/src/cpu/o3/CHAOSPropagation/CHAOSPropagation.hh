@@ -236,6 +236,17 @@ class CHAOSPropagation : public SimObject
         // names the TRUE source the address/forward scan selected, so both
         // sides of the wrong-source substitution are recoverable.
         "true_store_dyn_inst_seq",
+        // [FSU] FSU family extension keys (outside the shared 41-field
+        // registry, same convention as the family keys above). Kept here so
+        // notePropEvt does not drop them as unknown.
+        "model_id", "submodel", "unit", "freq", "load_id",
+        "iq_slot", "src_slot", "producer_seq", "consumer_seq",
+        "reg_generation", "lane_width", "lane_offset", "lane_mask",
+        "fu_class", "fu_index", "bit_indices", "fault_mask",
+        "before_hash", "after_hash", "value_hash",
+        "eligible_ordinal", "eligible_total", "attempted", "activated",
+        "burst_id", "burst_ordinal", "burst_length",
+        "golden_id", "config_hash", "binary_hash", "terminal",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
@@ -246,8 +257,10 @@ class CHAOSPropagation : public SimObject
     // caller leaves them absent: event_id (next counter), parent_event_id
     // (chain of fault_id), tick, cycle, core_id, run_id / sample_run_id
     // (params), evidence_status ("observed").
-    void notePropEvt(const std::string &kind,
-                     const std::vector<std::pair<std::string, std::string>> &kv);
+    // [FSU] Returns the assigned event_id so a caller can set an explicit
+    // parent_event_id for a direct-parent chain.
+    uint64_t notePropEvt(const std::string &kind,
+                         const std::vector<std::pair<std::string, std::string>> &kv);
 
 
     // ---- injector-facing registration (fault-injection time) --------------
