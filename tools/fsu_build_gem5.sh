@@ -25,6 +25,7 @@ fi
   echo "branch=$(git -C "$ROOT" branch --show-current)"
   echo "remote_fsu=$(git -C "$ROOT" rev-parse origin/fsu)"
   echo "cmd=scons -j4 build/ARM/gem5.opt"
+  echo "python_config=${PYTHON_CONFIG:-default}"
   echo "scons=$(scons --version 2>&1 | grep -m1 'SCons:')"
   echo "gcc=$(gcc --version | head -1)"
   echo "gxx=$(g++ --version | head -1)"
