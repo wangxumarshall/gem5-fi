@@ -111,6 +111,11 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         "--fpu_fault_mask", "0",
         "--fpu_rng_seed", str(seed),
     ]
+    for flag, key in (("--fsu_model", "model_id"), ("--fsu_freq", "freq"),
+                      ("--fsu_load", "load_id"),
+                      ("--fsu_submodel", "submodel")):
+        if manifest.get(key):
+            cmd += [flag, str(manifest[key])]
     if fpu.get("bitseg"):
         cmd += ["--fpu_bitseg", str(fpu["bitseg"])]
     if fpu.get("fma_weighted"):
@@ -259,6 +264,7 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     inject_dir = attempt / "inject"
     inj_cmd = build_cmd(seed_manifest, inject_dir, seed, skip, False,
                         gem5, DEFAULT_CONFIG, Path(root))
+    inj_cmd += ["--fsu_eligible_total", str(eligible)]
     rc, out, err, timed_out = runner(inj_cmd, timeout)
     (attempt / "run.out").write_text(out, encoding="utf-8")
     (attempt / "run.err").write_text(err, encoding="utf-8")
