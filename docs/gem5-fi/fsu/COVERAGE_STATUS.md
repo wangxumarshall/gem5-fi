@@ -9,17 +9,17 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **9 / 519** |
+| 已完成合格 seed | **10 / 519** |
 | seed-complete RunID | **3 / 173**（`FSU-FP04-F0-W4`、`FSU-FP04-F3-W4`、`FSU-FP04-F2-W4` 均 3/3） |
-| 部分完成 RunID | **0 / 173** |
-| 其余 170 个 RunID | 0/3 |
+| 部分完成 RunID | **1 / 173**（`FSU-FP04-F1-W4` = 1/3，seed1） |
+| 其余 169 个 RunID | 0/3 |
 
 ## 2. frequency_coverage（限 `FSU-FP04-*-W4`）
 
 | 档位 | 正式 seed | 机制/预算状态 |
 |---|---|---|
 | F0 | **3/3** | 已实现；短 W4 pilot 三 seed |
-| F1 | **0/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1 N=2,097,155；ordinals 预注册；未运行 |
+| F1 | **1/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1；seed1（1/1）正式完成，fault `full`、audit PASS；seed2/3 未运行 |
 | F2 | **3/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；seed1（21/21）、seed2（22/22）、seed3（19/19）正式完成，全部 fault `full`、audit PASS |
 | F3 | **3/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；seed1（206/206）、seed2（202/202）、seed3（210/210）正式完成，全部 fault `full`、audit PASS |
 | F4/F5 | 0/3 | 未按本报告实现（F4 burst / F5 stuck 不在 D2 范围） |
@@ -73,4 +73,4 @@
 |---|---|
 | B0 配置（ROB=40、IQ=32、3/3/3、8/8/8） | 未实现，仍用 C3 默认 |
 | 30 模型逐模型行为测试 | 未齐全（现有 94 项 FSU 测试覆盖编排/链/rate/矩阵） |
-| F1/F2/F3 正式三 seed | **F2、F3 已完成 3/3**；`FSU-FP04-F1-W4` 未运行 |
+| F1/F2/F3 正式三 seed | **F2、F3 已完成 3/3**；`FSU-FP04-F1-W4` seed1 完成 |
