@@ -9,9 +9,9 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **10 / 519** |
+| 已完成合格 seed | **11 / 519** |
 | seed-complete RunID | **3 / 173**（`FSU-FP04-F0-W4`、`FSU-FP04-F3-W4`、`FSU-FP04-F2-W4` 均 3/3） |
-| 部分完成 RunID | **1 / 173**（`FSU-FP04-F1-W4` = 1/3，seed1） |
+| 部分完成 RunID | **1 / 173**（`FSU-FP04-F1-W4` = 2/3，seed1+seed2） |
 | 其余 169 个 RunID | 0/3 |
 
 ## 2. frequency_coverage（限 `FSU-FP04-*-W4`）
@@ -19,7 +19,7 @@
 | 档位 | 正式 seed | 机制/预算状态 |
 |---|---|---|
 | F0 | **3/3** | 已实现；短 W4 pilot 三 seed |
-| F1 | **1/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1；seed1（1/1）正式完成，fault `full`、audit PASS；seed2/3 未运行 |
+| F1 | **2/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1；seed1（1/1）与 seed2（2/2）正式完成，fault `full`、audit PASS；seed3 未运行 |
 | F2 | **3/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；seed1（21/21）、seed2（22/22）、seed3（19/19）正式完成，全部 fault `full`、audit PASS |
 | F3 | **3/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；seed1（206/206）、seed2（202/202）、seed3（210/210）正式完成，全部 fault `full`、audit PASS |
 | F4/F5 | 0/3 | 未按本报告实现（F4 burst / F5 stuck 不在 D2 范围） |

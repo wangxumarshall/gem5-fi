@@ -1,14 +1,14 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-03T00:22:25；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-03T00:32:06；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 - 总 RunID：**173**
 - 目标 seed：**519**
-- 已完成合格 seed：**10**
+- 已完成合格 seed：**11**
 - COMPLETE_3_OF_3：**3**
-- seed_completion：0/3 169、1/3 1、3/3 3
+- seed_completion：0/3 169、2/3 1、3/3 3
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 26、PARTIAL 59、PILOT_SUBMODEL_ONLY 1
-- 1/3：1；2/3：0；0/3：169
+- 1/3：0；2/3：1；0/3：169
 
 | RunID | seed1 | seed2 | seed3 | seed_completion | coverage_status | 状态 |
 |---|---|---|---|---|---|---|
@@ -136,7 +136,7 @@
 | FSU-FP04-F0-W6 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F1-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
 | FSU-FP04-F1-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FP04-F1-W4 | ✅ | — | — | 1/3 | PARTIAL | PARTIAL_1_OF_3 |
+| FSU-FP04-F1-W4 | ✅ | ✅ | — | 2/3 | PARTIAL | PARTIAL_2_OF_3 |
 | FSU-FP04-F1-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F1-W6 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F2-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |

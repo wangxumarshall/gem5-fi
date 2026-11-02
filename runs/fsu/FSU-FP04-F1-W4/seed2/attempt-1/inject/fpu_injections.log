@@ -1,0 +1,3 @@
+Tick: 1575854280, Site: dyn_inst_execute, opClass=8, sn=6180087, bitseg=mant_lo, mask=0x1, faults_injected: 1
+Tick: 3251629535, Site: dyn_inst_execute, opClass=8, sn=10598059, bitseg=mant_lo, mask=0x8000, faults_injected: 2
+CHAOS_RATE_COMPLETE=2
