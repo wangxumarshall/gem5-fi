@@ -1,0 +1,121 @@
+{
+  "run_id": "FSU-FP04-F2-W4",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F2",
+  "load_id": "W4",
+  "submodel": "FP04-c",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel_rate_v1",
+    "identity": "W4-rate-v1",
+    "source": "workloads/directed/elemwise_fma_kernel_rate_v1.c",
+    "roi": {
+      "n_base": 8192,
+      "repeat": 32,
+      "n_elements": 262144,
+      "jitter_pct": 50
+    },
+    "golden_id": "elemwisefma-rate-v1-golden",
+    "golden": "e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "mant_lo"
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rate": {
+      "rate_divisor": 100000,
+      "jitter_pct": 50,
+      "warmup": 0
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "W4-rate-v1: independent extended W4 (not the short W4 binary). F1=1e6/F2=1e5/F3=1e4 eligible events per injection, ±50% deterministic SplitMix64 jitter. countOnly eligible_total=2097155 (measured). Pre-registered ordinals: configs/fsu/W4-rate-v1-ordinals.json. Runs are not started in D2; this manifest is the official F1/F2/F3-W4 identity.",
+  "seed": 2,
+  "sample_run_id": "s2",
+  "selection_seed": 2,
+  "injection_seed": 2,
+  "attempt": 1,
+  "created_at": "2026-11-02T23:53:44",
+  "source_head": "c44191fd4351cc1635f52765cf0867dcc2ce846c",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c",
+  "runner_tool_sha256": "a9f7e2b00569a9dc3d2d104a245888624b5d2c51b637f72ab6cb1ee969b2fe76",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/elemwise_fma_kernel_rate_v1",
+  "workload_sha256": "c698cd698e7339930ec4087f134fad0bde71b4a960cf83022c2996d34ac37784",
+  "rate": {
+    "generator": "splitmix64-mod-uniform-interval",
+    "version": "1",
+    "rate_divisor": 100000,
+    "jitter_pct": 50,
+    "seed": 2,
+    "warmup": 0,
+    "interval_bounds": {
+      "lo": 50000,
+      "hi": 150000
+    },
+    "N": 2097155,
+    "injection_count": 22,
+    "first_ordinal": 82214,
+    "last_ordinal": 2058002,
+    "eligible_total": 2097155,
+    "ordinals": [
+      82214,
+      202662,
+      294538,
+      353270,
+      446917,
+      529646,
+      641990,
+      704958,
+      792846,
+      851661,
+      974416,
+      1065147,
+      1131198,
+      1231961,
+      1348566,
+      1408575,
+      1489110,
+      1604180,
+      1746423,
+      1875343,
+      1975890,
+      2058002
+    ],
+    "intervals": [
+      82214,
+      120448,
+      91876,
+      58732,
+      93647,
+      82729,
+      112344,
+      62968,
+      87888,
+      58815,
+      122755,
+      90731,
+      66051,
+      100763,
+      116605,
+      60009,
+      80535,
+      115070,
+      142243,
+      128920,
+      100547,
+      82112
+    ],
+    "ordinals_file": "ordinals.json",
+    "ordinals_sha256": "783007882a6f784e997d4a738226baf681326427b0312d2192e8286b0ea6c01c"
+  }
+}
