@@ -2752,19 +2752,23 @@ namespace gem5
 
         const uint64_t pc = head_inst->pcState().instAddr();
         uint64_t first_consumed_ptag = 0;
+        uint64_t first_consumed_src_event = 0;
         bool any_consumer = false;
         bool self_taint = false;
         uint64_t self_taint_ptag = 0;
+        uint64_t self_taint_src_event = 0;
         // [MDSPEC][R6/A7] A STORE whose own response carried the fault: its
         // commit is the architectural materialization (the wrong memory side
         // effect). Keyed by dyn seq (see store_taint / noteMemResponse).
         bool self_store_taint = false;
         uint64_t self_store_ptag = 0;
+        uint64_t self_store_src_event = 0;
         {
             const auto stit = store_taint.find(head_inst->seqNum);
             if (stit != store_taint.end()) {
                 self_store_taint = true;
                 self_store_ptag = stit->second.ptag;
+                self_store_src_event = stit->second.src_event;
             }
         }
         // [MDSPEC][R6/A6] event_id of the last consumer node emitted above —
@@ -2783,8 +2787,10 @@ namespace gem5
             if (it == taint_set.end())
                 continue;
             any_consumer = true;
-            if (!first_consumed_ptag)
+            if (!first_consumed_ptag) {
                 first_consumed_ptag = it->second.ptag;
+                first_consumed_src_event = it->second.src_event;
+            }
             // [MDSPEC][R6-FIXCPP/T3] Route the consumer through the summary
             // aggregator. The group's FIRST member (and any member with a NEW
             // dyn_inst_seq = a new semantic state) is emitted as its own
@@ -2843,8 +2849,10 @@ namespace gem5
             if (it != taint_set.end()
                     && it->second.taintor_seq == head_inst->seqNum) {
                 self_taint = true;
-                if (!self_taint_ptag)
+                if (!self_taint_ptag) {
                     self_taint_ptag = it->second.ptag;
+                    self_taint_src_event = it->second.src_event;
+                }
             }
         }
 
@@ -2879,8 +2887,26 @@ namespace gem5
               // crash/abort sample that never reaches the exit callback must
               // still carry contained=0 and the commit point.
               << ";contained=0"
-              << ";commit_seq=" << commit_seq_counter
-              << ";pc=" << std::hex << pc << std::dec;
+              << ";commit_seq=" << commit_seq_counter;
+            // [R6-C-UNIT] Bind the L5 detection to the taint source that
+            // actually triggered this commit. Without this override the
+            // emitter falls back to the request-branch cursor; for an
+            // address-only (cache-family) chain the fork puts the committing
+            // instruction on a different request branch, so the commit would
+            // hang off the OWNER request's last event instead of the
+            // taint_reg that made it errant -> a sibling L5 branch and a
+            // false `cross_branch_edge` (measured C01-F0-W6 seed1).
+            uint64_t errant_parent = 0;
+            if (any_consumer)
+                errant_parent = last_consumer_evt ? last_consumer_evt
+                                                  : first_consumed_src_event;
+            else if (self_taint)
+                errant_parent = self_taint_src_event;
+            else
+                errant_parent = self_store_src_event;
+            if (errant_parent)
+                d << ";parent_event_id=" << errant_parent;
+            d << ";pc=" << std::hex << pc << std::dec;
             writeNode(ptag, "errant_commit", head_inst->seqNum, true,
                       0, false, 0, false, 0, false, 0, false, d.str(),
                       CORR_TAINT_PROP, (int)tid);
