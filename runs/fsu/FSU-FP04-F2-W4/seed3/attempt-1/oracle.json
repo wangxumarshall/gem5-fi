@@ -1,0 +1,43 @@
+{
+  "category": "SDC",
+  "reason": "completed exit=0, ARRAYHASH 32e9009b60144ac020a167b4b80a46382ec9b5059445ff793980b7e806e65b10 != golden e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba — silent data corruption",
+  "faults_injected": 19,
+  "eligible_count": 2097155,
+  "selection_seed": 3,
+  "injection_seed": 3,
+  "skip": null,
+  "oracle_kind": "array_hash",
+  "golden": "e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba",
+  "returncode": 0,
+  "timed_out": false,
+  "rate_divisor": 100000,
+  "jitter_pct": 50,
+  "interval_bounds": {
+    "lo": 50000,
+    "hi": 150000
+  },
+  "warmup": 0,
+  "expected_injections": 19,
+  "ordinals": [
+    115872,
+    260767,
+    349889,
+    452442,
+    519162,
+    613677,
+    732681,
+    846473,
+    993341,
+    1069381,
+    1172812,
+    1315819,
+    1406882,
+    1548679,
+    1622438,
+    1748744,
+    1813964,
+    1942027,
+    2028008
+  ],
+  "ordinals_sha256": "097afed3c24e7d8d23913ed61faa968d3628fa76b6c4bedb41a3f774456629f3"
+}

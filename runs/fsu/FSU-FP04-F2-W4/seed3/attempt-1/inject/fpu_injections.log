@@ -1,0 +1,20 @@
+Tick: 188808235, Site: dyn_inst_execute, opClass=6, sn=708121, bitseg=mant_lo, mask=0x10, faults_injected: 1
+Tick: 409259235, Site: dyn_inst_execute, opClass=8, sn=1577486, bitseg=mant_lo, mask=0x4000, faults_injected: 2
+Tick: 544711475, Site: dyn_inst_execute, opClass=6, sn=2112227, bitseg=mant_lo, mask=0x2, faults_injected: 3
+Tick: 700807030, Site: dyn_inst_execute, opClass=6, sn=2727541, bitseg=mant_lo, mask=0x8, faults_injected: 4
+Tick: 802165980, Site: dyn_inst_execute, opClass=6, sn=3127861, bitseg=mant_lo, mask=0x400, faults_injected: 5
+Tick: 945965020, Site: dyn_inst_execute, opClass=8, sn=3694935, bitseg=mant_lo, mask=0x1000, faults_injected: 6
+Tick: 1126901545, Site: dyn_inst_execute, opClass=8, sn=4408959, bitseg=mant_lo, mask=0x40, faults_injected: 7
+Tick: 1300031810, Site: dyn_inst_execute, opClass=6, sn=5091731, bitseg=mant_lo, mask=0x800, faults_injected: 8
+Tick: 1523301010, Site: dyn_inst_execute, opClass=6, sn=5972939, bitseg=mant_lo, mask=0x80, faults_injected: 9
+Tick: 1638987735, Site: dyn_inst_execute, opClass=8, sn=6429170, bitseg=mant_lo, mask=0x2, faults_injected: 10
+Tick: 1796254460, Site: dyn_inst_execute, opClass=6, sn=7049772, bitseg=mant_lo, mask=0x10000, faults_injected: 11
+Tick: 2013727100, Site: dyn_inst_execute, opClass=8, sn=7907798, bitseg=mant_lo, mask=0x200, faults_injected: 12
+Tick: 2152157700, Site: dyn_inst_execute, opClass=8, sn=8454172, bitseg=mant_lo, mask=0x800, faults_injected: 13
+Tick: 2367938650, Site: dyn_inst_execute, opClass=8, sn=9304958, bitseg=mant_lo, mask=0x800, faults_injected: 14
+Tick: 2714143740, Site: dyn_inst_execute, opClass=8, sn=9847963, bitseg=mant_lo, mask=0x1, faults_injected: 15
+Tick: 3437283465, Site: dyn_inst_execute, opClass=8, sn=10859143, bitseg=mant_lo, mask=0x2000, faults_injected: 16
+Tick: 3808550130, Site: dyn_inst_execute, opClass=8, sn=11381295, bitseg=mant_lo, mask=0x8, faults_injected: 17
+Tick: 4539543085, Site: dyn_inst_execute, opClass=8, sn=12406583, bitseg=mant_lo, mask=0x40, faults_injected: 18
+Tick: 5022375435, Site: dyn_inst_execute, opClass=8, sn=13094921, bitseg=mant_lo, mask=0x100, faults_injected: 19
+CHAOS_RATE_COMPLETE=19

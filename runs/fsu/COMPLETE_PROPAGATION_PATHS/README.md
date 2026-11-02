@@ -2,10 +2,10 @@
 
 目录规则：`<RunID>/<RunID>-seed<N>.md`（仅 admitted seed 复制到此）。
 
-- 生成时间：2026-11-03T00:02:46
+- 生成时间：2026-11-03T00:12:01
 - 总 RunID：173；目标 seed：519
-- 已完成合格 seed：8
-- COMPLETE_3_OF_3：2
+- 已完成合格 seed：9
+- COMPLETE_3_OF_3：3
 - seed_completion 与 coverage_status 独立：3/3 只表示三个真实 seed，不代表模型覆盖完整。
 
 详细状态见 `INDEX.md` / `INDEX.json`。

@@ -2,7 +2,7 @@
   "summary": {
     "generated_from": "/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx",
     "baseline_commit": "46ce66cdb9c22f5e591b43b97b68c7d526704211",
-    "current_head": "c44191fd4351cc1635f52765cf0867dcc2ce846c",
+    "current_head": "dd5089867a48fe6b492f7205803a5e935fd9c573",
     "current_binary_sha256": "e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c",
     "baseline_gap": [
       {
@@ -54,7 +54,7 @@
       }
     ],
     "current_status": {
-      "head": "c44191fd4351cc1635f52765cf0867dcc2ce846c",
+      "head": "dd5089867a48fe6b492f7205803a5e935fd9c573",
       "head_note": "probe-time HEAD；本文件由其后继提交写入，故最终 HEAD 通常是该值的子提交",
       "branch": "fsu",
       "gem5_binary": {
@@ -176,8 +176,7 @@
     ],
     "seed_completion_counts": {
       "0/3": 170,
-      "3/3": 2,
-      "2/3": 1
+      "3/3": 3
     },
     "coverage_status_counts": {
       "BLOCKED_NO_TRUE_ARTIFACT": 26,
@@ -187,14 +186,14 @@
     },
     "coverage_dimensions": {
       "seed_completion": {
-        "admitted_seeds": 8,
+        "admitted_seeds": 9,
         "target_seeds": 519,
-        "complete_runids": 2
+        "complete_runids": 3
       },
       "frequency_coverage": {
         "F0": "3/3",
         "F1": "0/3",
-        "F2": "2/3",
+        "F2": "3/3",
         "F3": "3/3"
       },
       "submodel_coverage": {
@@ -211,7 +210,7 @@
         ]
       },
       "workload_coverage": {
-        "W4": "REAL; short W4 F0 3/3; W4-rate-v1 F1 0/3, F2 2/3, F3 3/3",
+        "W4": "REAL; short W4 F0 3/3; W4-rate-v1 F1 0/3, F2 3/3, F3 3/3",
         "W1": "NO_TRUE_ARTIFACT",
         "W2": "NO_TRUE_ARTIFACT",
         "W3": "PARTIAL",
@@ -10735,11 +10734,11 @@
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "cross_unit_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；arch_reg + reg_class + phys_reg + reg_generation；IQ slot/src_slot + producer_seq/consumer_seq；opClass + FU_class/FU_index。禁止只按tick、PC或寄存器索引单键连接。",
       "test_status": "无模型级自动化测试（仅转换器 24 项 + 实施矩阵 5 项）",
-      "three_seed_status": "2/3",
-      "seed_completion": "2/3",
-      "seed_completion_count": 2,
+      "three_seed_status": "3/3",
+      "seed_completion": "3/3",
+      "seed_completion_count": 3,
       "coverage_status": "PARTIAL",
-      "coverage_reason": "W4-rate-v1 official seeds 2/3 admitted; 1/3 not run. The F3 multi-fault gate used the short W4 and is not an official seed",
+      "coverage_reason": "W4-rate-v1 official seeds 3/3 admitted; 0/3 not run. The F3 multi-fault gate used the short W4 and is not an official seed",
       "pilot": false,
       "baseline_blockers": [
         "无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行",
