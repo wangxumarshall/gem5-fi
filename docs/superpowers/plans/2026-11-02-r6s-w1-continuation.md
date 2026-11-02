@@ -70,6 +70,23 @@ S01-F2-W1 的流经 `gzip -t` 验证完整（1,480,644 行），但 `EVENT_CAP=2
 - [ ] 实测：S01-F2-W1 s1（1,479,991 events/71 faults）与 s3（1,545,241/70）
       均由 EVIDENCE-TRUNCATED 变为 admitted/certified，独立证据审计 PASS。
 
+## Task 2c — 复判备份顺序缺陷与 provenance 更正（2026-11-02 实测发现，一个 commit）
+
+实测发现 Task 2b 的 apply 路径顺序错误：`analyze()` 先写 seed 级 `chain_report.json`，
+之后才 `backup()`，因此 seed 级 `.pre-capregrade-20261102` 是**新文件副本**，manifest
+`original_seed_chain_sha256` 记录的也是新文件 SHA，不是原件。
+
+- [x] 失败测试：apply 必须在覆盖前备份 seed 级报告，manifest 记录**原件** SHA。
+- [x] 修复 `regrade_r6_w1_event_cap.py`：先备份（seed/aggregate/cell/manifest）再分析；
+      已含 `chain_regrade` 的样本拒绝重复 apply。
+- [x] 新增 `audit_r6_w1_cap_regrade.py`：从 aggregate `.pre-capregrade` 的 sample 逐字节
+      重建原 seed 报告（写 `chain_report.json` 用 `indent=1, ensure_ascii=False`，已在 3 个
+      未复判 seed 上验证重建==原文件）；校验只允许 cap 相关字段变化；校验 raw 证据
+      mtime 早于复判、gzip 全量计数 == cap-1、样本级 full/L5、admitted/certified、
+      violations=[]、conservation=OK；`--apply-fix` 更正 6 个已复判 manifest 的
+      `original_seed_chain_sha256` 并保留被更正值的审计记录。
+- [x] 实测：6/6 PASS，字段级 diff 记录到 `R6S_W1_CAP_REGRADE_AUDIT.json`。
+
 ## Task 3 — 逐 seed 证据审计（一个 commit）
 
 新增独立审计器 `tools/audit_r6_w1_evidence.py`（只读原始证据，不复用 runner 的判断）：

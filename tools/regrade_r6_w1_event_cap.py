@@ -85,10 +85,15 @@ def regrade(root, apply=False, stamp="20261102"):
     inner = os.path.join(root, runid)
     seed_dir = os.path.join(inner, f"seed{seed}")
     old_seed_path = os.path.join(seed_dir, "chain_report.json")
+    agg_path = os.path.join(inner, "chain_report.json")
     cell_path = os.path.join(inner, "cell_results.json")
     old_seed = json.load(open(old_seed_path))
     cell = json.load(open(cell_path))
     run = cell["runs"][0]
+    if apply and "chain_regrade" in man:
+        return {"root": root, "status": "REFUSED",
+                "reason": "already regraded (chain_regrade present); refusing to "
+                          "overwrite the only original backup"}
 
     evt = os.path.join(seed_dir, "prop_evt.txt.gz")
     stats = os.path.join(seed_dir, "stats.txt")
@@ -107,8 +112,20 @@ def regrade(root, apply=False, stamp="20261102"):
 
     cap = n + 1
     tmp = None
+    orig_seed_sha = None
     if apply:
         outdir = seed_dir
+        # Backup BEFORE analyze(): write_chain_report() writes the new report
+        # into <outdir>/chain_report.json in place, so a backup taken after it
+        # would be a copy of the new file (provenance defect fixed 2026-11-02).
+        orig_seed_sha = sha256(old_seed_path)
+        for p in (old_seed_path, agg_path, cell_path, man_path):
+            backup(p, stamp)
+        pre_seed = old_seed_path + f".pre-capregrade-{stamp}"
+        if sha256(pre_seed) != orig_seed_sha:
+            return {"root": root, "status": "REFUSED",
+                    "reason": "existing seed backup differs from the current "
+                              "original; refusing to regrade"}
     else:
         # same filesystem as the evidence so hard links work (no copy, no
         # mutation); removed after the dry run
@@ -153,12 +170,7 @@ def regrade(root, apply=False, stamp="20261102"):
     if not ok:
         return rec
 
-    # --- apply: back up, then rewrite derived files -------------------------
-    backup(old_seed_path, stamp)
-    backup(os.path.join(inner, "chain_report.json"), stamp)
-    backup(cell_path, stamp)
-    backup(man_path, stamp)
-
+    # --- apply: backups were already taken before analyze() ----------------
     run["chain"] = rep
     run["admitted"] = rep["admitted"]
     run["evidence_truncated"] = rep["evidence_truncated"]
@@ -206,8 +218,9 @@ def regrade(root, apply=False, stamp="20261102"):
                    "%d; analysis re-run with cap=%d (same parser/checker/gate)"
                    % (n, PF.EVENT_CAP, cap)),
         "event_cap": cap, "events": n,
-        "original_seed_chain_sha256": sha256(
-            old_seed_path + f".pre-capregrade-{stamp}"),
+        "original_seed_chain_sha256": orig_seed_sha,
+        "original_aggregate_chain_sha256": sha256(
+            agg_path + f".pre-capregrade-{stamp}"),
         "original_cell_results_sha256": sha256(
             cell_path + f".pre-capregrade-{stamp}"),
         "evidence_unchanged": True,
