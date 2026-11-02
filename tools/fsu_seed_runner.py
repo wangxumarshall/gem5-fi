@@ -1,0 +1,372 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""fsu_seed_runner.py — FSU 单 seed（census → injection → oracle → chain）运行器。
+
+每个 seed 的目录:
+  runs/fsu/<RunID>/seed<N>/attempt-<k>/
+    manifest.json          本 seed/attempt 的身份与完整命令
+    census/                countOnly gem5 outdir + fpu_injections.log
+    inject/                injection gem5 outdir + fpu_injections.log + prop_evt.txt.gz
+    run.out / run.err      注入运行的 stdout/stderr
+    stats.txt              注入运行 stats（从 inject/ 复制；空文件即失败）
+    oracle.json            classify.py 的结局与理由
+    chain_report.json      fsu_chain_check.check_stream 的完整结果
+    evidence_sha256.json   本 attempt 全部证据文件的 SHA-256
+    <RunID>-seed<N>.md     传播链 Markdown（真实事件生成）
+    .done / .failed        原子完成标记（仅 .done 计入 3/3）
+
+规则:
+  - attempt 目录只增不改；失败保留并记录原因，重跑创建 attempt-k+1。
+  - 已存在 AUTHORITATIVE 的 seed 默认不再运行。
+  - admitted 需要：非 SimulatorError/Inactive、faults>=1、stats 非空、
+    链审计至少一个 fault admitted、证据流未截断。
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_GEM5 = ROOT / "CHAOS/gem5/build/ARM/gem5.opt"
+DEFAULT_CONFIG = ROOT / "configs/se/ooo_proxy.py"
+DEFAULT_OUT = ROOT / "runs/fsu"
+COMPLETE_ROOT = DEFAULT_OUT / "COMPLETE_PROPAGATION_PATHS"
+MASK64 = (1 << 64) - 1
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def chaos_pick_skip(seed: int, n_eligible: int) -> int:
+    """Python twin of gem5::chaosPickSkip (cpu/o3/chaos_event_sample.hh)."""
+    if n_eligible == 0:
+        return 0
+    x = (seed ^ 0x9E3779B97F4A7C15) & MASK64
+    x = (x * 6364136223846793005 + 1442695040888963407) & MASK64
+    return x % n_eligible
+
+
+def parse_eligible_count(text: str) -> int:
+    vals = []
+    for line in text.splitlines():
+        if "CHAOS_ELIGIBLE_COUNT=" in line:
+            try:
+                vals.append(int(line.split("CHAOS_ELIGIBLE_COUNT=")[1].split()[0]))
+            except (IndexError, ValueError):
+                pass
+    return vals[-1] if vals else -1
+
+
+def count_injections(text: str) -> int:
+    """Count real injection lines; CHAOS_ELIGIBLE_COUNT/census lines excluded."""
+    n = 0
+    last_explicit = None
+    for line in text.splitlines():
+        if "faults_injected:" in line:
+            try:
+                last_explicit = int(line.split("faults_injected:")[1].split()[0])
+            except (IndexError, ValueError):
+                pass
+        elif "Site: dyn_inst_execute" in line or "Site=" in line:
+            n += 1
+    return last_explicit if last_explicit is not None else n
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
+              gem5: Path, config: Path, root: Path):
+    wl = manifest["workload"]
+    binary = Path(wl["binary"])
+    if not binary.is_absolute():
+        binary = root / binary
+    inj = manifest["injector"]
+    fpu = inj.get("fpu_mode") or {}
+    cmd = [
+        str(gem5), "--quiet", "-d", str(outdir), str(config),
+        "--cmd", str(binary), "--cpu", "O3",
+        "--first_clock", str(inj.get("first_clock", 0)),
+        "--max_faults", str(inj.get("max_faults", 1)),
+        "--rng_seed", str(seed),
+        "--chaos_fpu",
+        "--fpu_first_clock", str(inj.get("first_clock", 0)),
+        "--fpu_max_faults", str(inj.get("max_faults", 1)),
+        "--fpu_fault_mask", "0",
+        "--fpu_rng_seed", str(seed),
+    ]
+    if fpu.get("bitseg"):
+        cmd += ["--fpu_bitseg", str(fpu["bitseg"])]
+    if fpu.get("fma_weighted"):
+        cmd += ["--fpu_fma_weighted"]
+    if fpu.get("recurring_stuck"):
+        cmd += ["--fpu_recurring_stuck"]
+    if fpu.get("rounding_sub"):
+        cmd += ["--fpu_rounding_sub"]
+    if fpu.get("f3_dependent"):
+        cmd += ["--fpu_f3_dependent"]
+    if count_only:
+        cmd += ["--fpu_count_only"]
+    else:
+        cmd += ["--fpu_events_to_skip", str(skip)]
+        cmd += ["--chaos_propagation",
+                "--prop_run_id", manifest["run_id"],
+                "--prop_sample_run_id", f"s{seed}"]
+    return cmd
+
+
+def _default_runner(cmd, timeout):
+    env = dict(os.environ)
+    env.setdefault("PYTHONHASHSEED", "0")
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           errors="replace", timeout=timeout, env=env)
+        return r.returncode, r.stdout or "", r.stderr or "", False
+    except subprocess.TimeoutExpired as e:
+        def s(x):
+            return x.decode("utf-8", "replace") if isinstance(x, bytes) else (x or "")
+        return -1, s(e.stdout), s(e.stderr), True
+
+
+def new_attempt_dir(seed_dir: Path):
+    seed_dir.mkdir(parents=True, exist_ok=True)
+    ks = []
+    for p in seed_dir.glob("attempt-*"):
+        if p.is_dir():
+            try:
+                ks.append(int(p.name.split("-")[1]))
+            except (IndexError, ValueError):
+                pass
+    k = max(ks, default=0) + 1
+    d = seed_dir / f"attempt-{k}"
+    d.mkdir()
+    return d, k
+
+
+def _copy_stats(inject_dir: Path, attempt: Path):
+    src = inject_dir / "stats.txt"
+    dst = attempt / "stats.txt"
+    if src.exists():
+        shutil.copy2(src, dst)
+    return dst
+
+
+def write_hashes(attempt: Path):
+    out = {}
+    for p in sorted(attempt.rglob("*")):
+        if not p.is_file():
+            continue
+        rel = str(p.relative_to(attempt))
+        if rel in ("evidence_sha256.json", ".done", ".failed"):
+            continue
+        out[rel] = sha256_file(p)
+    (attempt / "evidence_sha256.json").write_text(
+        json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out
+
+
+def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
+             gem5: Path = DEFAULT_GEM5, root: Path = ROOT,
+             runner=None, timeout_s=None, allow_rerun=False):
+    from classify import classify_run
+    import fsu_chain_check as C
+
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    run_id = manifest["run_id"]
+    seed_dir = Path(out_root) / run_id / f"seed{seed}"
+    auth = seed_dir / "AUTHORITATIVE"
+    if auth.exists() and not allow_rerun:
+        return {"status": "already_admitted", "authoritative": _read(auth).strip()}
+
+    attempt, k = new_attempt_dir(seed_dir)
+    runner = runner or _default_runner
+    timeout = timeout_s or int(manifest.get("limits", {}).get("timeout_s", 1800))
+    binary = Path(manifest["workload"]["binary"])
+    if not binary.is_absolute():
+        binary = Path(root) / binary
+    gem5 = Path(gem5)
+
+    source_head = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        capture_output=True, text=True).stdout.strip()
+    binary_sha = sha256_file(gem5) if gem5.exists() else ""
+    tool_head = sha256_file(Path(__file__))
+
+    seed_manifest = {
+        **manifest,
+        "seed": seed,
+        "sample_run_id": f"s{seed}",
+        "selection_seed": seed,
+        "injection_seed": seed,
+        "attempt": k,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "source_head": source_head,
+        "gem5_binary": str(gem5),
+        "gem5_sha256": binary_sha,
+        "runner_tool_sha256": tool_head,
+        "workload_binary": str(binary),
+        "workload_sha256": sha256_file(binary) if binary.exists() else "",
+    }
+    (attempt / "manifest.json").write_text(
+        json.dumps(seed_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def fail(reason, extra=None):
+        info = {"status": "failed", "reason": reason, "attempt": str(attempt)}
+        if extra:
+            info.update(extra)
+        (attempt / ".failed").write_text(reason + "\n", encoding="utf-8")
+        write_hashes(attempt)
+        return info
+
+    if not gem5.exists():
+        return fail(f"gem5 missing: {gem5}")
+    if not binary.exists():
+        return fail(f"workload missing: {binary}")
+
+    # ---- census (countOnly) ----
+    census_dir = attempt / "census"
+    census_cmd = build_cmd(seed_manifest, census_dir, seed, None, True,
+                           gem5, DEFAULT_CONFIG, Path(root))
+    rc, out, err, timed_out = runner(census_cmd, timeout)
+    (attempt / "census.out").write_text(out, encoding="utf-8")
+    (attempt / "census.err").write_text(err, encoding="utf-8")
+    census_log = _read(census_dir / "fpu_injections.log")
+    eligible = parse_eligible_count(census_log + "\n" + out + "\n" + err)
+    if rc != 0 or timed_out or eligible < 0:
+        return fail(f"census failed rc={rc} timed_out={timed_out} eligible={eligible}")
+    if eligible == 0:
+        return fail("eligible=0 (no FSU event in window) — not Masked")
+
+    skip = chaos_pick_skip(seed, eligible)
+
+    # ---- injection ----
+    inject_dir = attempt / "inject"
+    inj_cmd = build_cmd(seed_manifest, inject_dir, seed, skip, False,
+                        gem5, DEFAULT_CONFIG, Path(root))
+    rc, out, err, timed_out = runner(inj_cmd, timeout)
+    (attempt / "run.out").write_text(out, encoding="utf-8")
+    (attempt / "run.err").write_text(err, encoding="utf-8")
+    stats = _copy_stats(inject_dir, attempt)
+    inj_log = _read(inject_dir / "fpu_injections.log")
+    faults = count_injections(inj_log)
+    golden = manifest["workload"].get("golden") or \
+        manifest["workload"].get("golden_id", "")
+    oracle_kind = manifest["workload"].get("oracle_kind", "exact_hash")
+    oracle_tol = int(manifest["workload"].get("oracle_tol", 0))
+    category, reason = classify_run(
+        out, err, rc, faults, golden, timed_out,
+        oracle_kind=oracle_kind, oracle_tol=oracle_tol)
+    oracle = {"category": category, "reason": reason, "faults_injected": faults,
+              "eligible_count": eligible, "selection_seed": seed,
+              "injection_seed": seed, "skip": skip,
+              "oracle_kind": oracle_kind, "golden": golden,
+              "returncode": rc, "timed_out": timed_out}
+    (attempt / "oracle.json").write_text(
+        json.dumps(oracle, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # ---- chain ----
+    prop = inject_dir / "prop_evt.txt.gz"
+    if prop.exists():
+        chain = C.check_stream(prop, run_id=run_id, sample_run_id=f"s{seed}")
+    else:
+        chain = {"path": str(prop), "event_count": 0, "truncated": False,
+                 "truncation_reason": "missing prop_evt", "identity_violations": [],
+                 "faults": {}, "admitted_faults": []}
+    chain_report = {
+        "run_id": run_id, "seed": seed, "sample_run_id": f"s{seed}",
+        "attempt": k, "oracle": oracle, "chain": chain,
+        "source_head": source_head, "gem5_sha256": binary_sha,
+        "workload_sha256": seed_manifest["workload_sha256"],
+        "command": {"census": census_cmd, "inject": inj_cmd},
+        "stats_nonempty": stats.exists() and stats.stat().st_size > 0,
+        "prop_evt_exists": prop.exists(),
+    }
+    (attempt / "chain_report.json").write_text(
+        json.dumps(chain_report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    admitted = (
+        category not in ("SimulatorError", "Inactive")
+        and faults >= 1
+        and chain.get("admitted_faults")
+        and not chain.get("truncated")
+        and chain_report["stats_nonempty"]
+        and prop.exists()
+    )
+
+    # ---- seed Markdown + hashes ----
+    doc_ok = False
+    try:
+        import fsu_seed_doc
+        fsu_seed_doc.write_doc(attempt, seed_manifest, chain_report)
+        doc_ok = (attempt / f"{run_id}-seed{seed}.md").exists()
+    except Exception as e:  # doc generation must not hide the evidence
+        (attempt / "doc_error.txt").write_text(repr(e) + "\n", encoding="utf-8")
+
+    hashes = write_hashes(attempt)
+    if admitted and doc_ok:
+        (attempt / ".done").write_text("admitted\n", encoding="utf-8")
+        auth.write_text(str(attempt), encoding="utf-8")
+        dst = (Path(out_root) / "COMPLETE_PROPAGATION_PATHS" / run_id /
+               f"{run_id}-seed{seed}.md")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        md = attempt / f"{run_id}-seed{seed}.md"
+        if md.exists():
+            shutil.copy2(md, dst)
+        write_hashes(attempt)
+        return {"status": "admitted", "attempt": str(attempt),
+                "chain_terminal": _terminal(chain), "oracle": category,
+                "md": str(dst)}
+    (attempt / ".failed").write_text(
+        f"not admitted: oracle={category} faults={faults} "
+        f"admitted_faults={chain.get('admitted_faults')} "
+        f"truncated={chain.get('truncated')} "
+        f"stats_nonempty={chain_report['stats_nonempty']} doc_ok={doc_ok}\n",
+        encoding="utf-8")
+    write_hashes(attempt)
+    return {"status": "failed", "attempt": str(attempt), "oracle": category,
+            "reason": reason, "faults": faults,
+            "admitted_faults": chain.get("admitted_faults"),
+            "truncated": chain.get("truncated")}
+
+
+def _terminal(chain):
+    for fid, r in sorted(chain.get("faults", {}).items()):
+        if r.get("admitted"):
+            return r.get("terminal")
+    return None
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="FSU 单 seed 运行器")
+    ap.add_argument("--manifest", required=True)
+    ap.add_argument("--seed", type=int, required=True)
+    ap.add_argument("--out-root", default=str(DEFAULT_OUT))
+    ap.add_argument("--gem5", default=str(DEFAULT_GEM5))
+    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--timeout", type=int, default=None)
+    ap.add_argument("--allow-rerun", action="store_true")
+    a = ap.parse_args(argv)
+    res = run_seed(Path(a.manifest), a.seed, Path(a.out_root), Path(a.gem5),
+                   Path(a.root), timeout_s=a.timeout, allow_rerun=a.allow_rerun)
+    print(json.dumps(res, ensure_ascii=False, indent=2))
+    return 0 if res["status"] in ("admitted", "already_admitted") else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

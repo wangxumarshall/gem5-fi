@@ -1,0 +1,25 @@
+{
+  "run_id": "FSU-FP04-F0-W4",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W4",
+  "submodel": "FP04-c",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel",
+    "golden_id": "elemwisefma-golden-v1",
+    "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {"bitseg": "mant_lo"},
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {"timeout_s": 1800},
+  "notes": "Pilot only. W4 elemwise_fma_kernel is a REAL artifact with ARRAYHASH/ULP golden. FP04-c = mantissa field. The injection is selected uniformly over eligible FSU results via countOnly + fixed skip."
+}

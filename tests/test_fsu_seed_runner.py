@@ -1,0 +1,195 @@
+"""tests/test_fsu_seed_runner.py — 单 seed 运行器/证据/文档编排测试（假 gem5）。"""
+import gzip
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+import fsu_prop_fields as P
+import fsu_seed_runner as R
+
+GOLDEN = "a" * 64
+RUNID = "FSU-FP04-F0-W4"
+
+
+def evt(**kw):
+    d = {k: "" for k in P.PROP_EVT_FIELDS}
+    d.update(kw)
+    return P.PREFIX + " " + " ".join(f"{k}={d[k]}" for k in P.PROP_EVT_FIELDS)
+
+
+def base():
+    return dict(run_id=RUNID, sample_run_id="s1", fault_id="1",
+                model_id="FP04", unit="FSU Pipe", freq="F0", load_id="W4",
+                submodel="FP04-c")
+
+
+def full_chain():
+    b = base()
+    return [
+        evt(kind="fault_applied", event_id="0", tick="100", activated="1",
+            before="0x1", after="0x2", mask="0x1", bit_indices="0",
+            **b),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0", tick="101", **b),
+        evt(kind="operand_read", event_id="2", parent_event_id="1", tick="102", **b),
+        evt(kind="execute", event_id="3", parent_event_id="2", tick="103", **b),
+        evt(kind="prf_writeback", event_id="4", parent_event_id="3", tick="104", **b),
+        evt(kind="commit", event_id="5", parent_event_id="4", tick="105",
+            detection_layer="L5", outcome="errant_commit",
+            oracle_diff="array_hash_diff", **b),
+    ]
+
+
+def contained_chain():
+    b = base()
+    return [
+        evt(kind="fault_applied", event_id="0", tick="100", activated="1", **b),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0", tick="101", **b),
+        evt(kind="operand_read", event_id="2", parent_event_id="1", tick="102", **b),
+        evt(kind="execute", event_id="3", parent_event_id="2", tick="103", **b),
+        evt(kind="contain", event_id="4", parent_event_id="3", tick="104",
+            detection_layer="L3", contained="1", outcome="recovered", **b),
+    ]
+
+
+def make_manifest(tmp_path, golden=GOLDEN):
+    wl = tmp_path / "fake_workload"
+    wl.write_text("#!/bin/sh\nexit 0\n")
+    wl.chmod(0o755)
+    gem5 = tmp_path / "fake_gem5"
+    gem5.write_text("#!/bin/sh\nexit 0\n")
+    gem5.chmod(0o755)
+    m = {
+        "run_id": RUNID, "model_id": "FP04", "unit": "FSU Pipe",
+        "freq": "F0", "load_id": "W4", "submodel": "FP04-c",
+        "workload": {"binary": str(wl), "golden": golden,
+                     "oracle_kind": "array_hash", "oracle_tol": 0},
+        "config_family": "C3",
+        "injector": {"component": "fsu", "fpu_mode": {"bitseg": "mant_lo"},
+                     "max_faults": 1, "first_clock": 0},
+        "limits": {"timeout_s": 10},
+    }
+    p = tmp_path / "manifest.json"
+    p.write_text(json.dumps(m), encoding="utf-8")
+    return p, gem5
+
+
+def fake_runner_factory(events, stdout, eligible=100, truncate=False,
+                        census_zero=False):
+    def runner(cmd, timeout):
+        outdir = Path(cmd[cmd.index("-d") + 1])
+        outdir.mkdir(parents=True, exist_ok=True)
+        if "--fpu_count_only" in cmd:
+            n = 0 if census_zero else eligible
+            (outdir / "fpu_injections.log").write_text(
+                f"CHAOS_ELIGIBLE_COUNT={n}\n", encoding="utf-8")
+            (outdir / "stats.txt").write_text("simSeconds 1\n", encoding="utf-8")
+            return 0, "", "", False
+        (outdir / "fpu_injections.log").write_text(
+            "Tick: 100, Site: dyn_inst_execute, sn=7, mask=0x1, "
+            "faults_injected: 1\n", encoding="utf-8")
+        (outdir / "stats.txt").write_text("simSeconds 1\nsimInsts 10\n",
+                                          encoding="utf-8")
+        data = gzip.compress(("\n".join(events) + "\n").encode())
+        if truncate:
+            data = data[:-12]
+        (outdir / "prop_evt.txt.gz").write_bytes(data)
+        return 0, stdout, "", False
+    return runner
+
+
+def run(tmp_path, runner, **kw):
+    manifest, gem5 = make_manifest(tmp_path)
+    return R.run_seed(manifest, 1, out_root=tmp_path / "runs", gem5=gem5,
+                      root=Path(__file__).resolve().parents[1],
+                      runner=runner, **kw)
+
+
+def test_seed_admitted_and_evidence(tmp_path):
+    res = run(tmp_path, fake_runner_factory(full_chain(), "ARRAYHASH=" + "0" * 64))
+    assert res["status"] == "admitted"
+    attempt = Path(res["attempt"])
+    for name in ["manifest.json", "run.out", "run.err", "stats.txt",
+                 "oracle.json", "chain_report.json", "evidence_sha256.json",
+                 ".done"]:
+        assert (attempt / name).exists(), name
+    assert (attempt.parent / "AUTHORITATIVE").exists()
+    rep = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
+    assert rep["oracle"]["category"] == "SDC"
+    assert rep["chain"]["admitted_faults"] == ["1"]
+    f = rep["chain"]["faults"]["1"]
+    assert f["terminal"] == "full" and f["admitted"] is True
+    md = attempt / f"{RUNID}-seed1.md"
+    text = md.read_text(encoding="utf-8")
+    for sec in ["## 1. 实验身份与复现信息", "## 2. 故障注入发生在哪里",
+                "## 3. 注入前后状态", "## 4. 之后依次经过哪些真实部件",
+                "## 5. 完整主链事件表", "## 6. 数据、控制和污点在各层如何变化",
+                "## 7. 最终结局", "## 8. 为什么该结局成立",
+                "## 9. 原始证据位置与 SHA-256", "## 10. 诚实边界"]:
+        assert sec in text, sec
+    assert "SDC" in text and "full" in text
+    hashes = json.loads((attempt / "evidence_sha256.json").read_text(encoding="utf-8"))
+    assert "inject/prop_evt.txt.gz" in hashes
+    # 权威 Markdown 复制
+    assert (tmp_path / "runs/COMPLETE_PROPAGATION_PATHS" / RUNID /
+            f"{RUNID}-seed1.md").exists()
+
+
+def test_admitted_seed_not_rerun(tmp_path):
+    runner = fake_runner_factory(full_chain(), "ARRAYHASH=" + "0" * 64)
+    r1 = run(tmp_path, runner)
+    assert r1["status"] == "admitted"
+    r2 = run(tmp_path, runner)
+    assert r2["status"] == "already_admitted"
+
+
+def test_rerun_creates_new_attempt(tmp_path):
+    runner = fake_runner_factory(full_chain(), "ARRAYHASH=" + "0" * 64)
+    r1 = run(tmp_path, runner)
+    r2 = run(tmp_path, runner, allow_rerun=True)
+    assert r1["status"] == "admitted" and r2["status"] == "admitted"
+    assert Path(r1["attempt"]).name == "attempt-1"
+    assert Path(r2["attempt"]).name == "attempt-2"
+    assert Path(r1["attempt"]).exists()          # 旧 attempt 保留
+
+
+def test_truncated_chain_fails(tmp_path):
+    res = run(tmp_path, fake_runner_factory(full_chain(), "ARRAYHASH=" + "0" * 64,
+                                            truncate=True))
+    assert res["status"] == "failed"
+    attempt = Path(res["attempt"])
+    assert (attempt / ".failed").exists()
+    assert not (attempt.parent / "AUTHORITATIVE").exists()
+    rep = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
+    assert rep["chain"]["truncated"] is True
+
+
+def test_eligible_zero_fails(tmp_path):
+    res = run(tmp_path, fake_runner_factory(full_chain(), "", census_zero=True))
+    assert res["status"] == "failed"
+    assert "eligible=0" in res["reason"]
+
+
+def test_contained_chain_doc_marks_na(tmp_path):
+    res = run(tmp_path, fake_runner_factory(contained_chain(), "ARRAYHASH=" + "0" * 64))
+    assert res["status"] == "admitted"
+    attempt = Path(res["attempt"])
+    rep = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
+    f = rep["chain"]["faults"]["1"]
+    assert f["terminal"] == "contained_L3"
+    assert f["layers_na"] == ["L4", "L5"]
+    text = (attempt / f"{RUNID}-seed1.md").read_text(encoding="utf-8")
+    assert "N/A（本 seed 真实未到达" in text
+    assert "contained_L3" in text
+
+
+def test_skip_matches_cpp_formula():
+    # gem5::chaosPickSkip(seed, n) = LCG(seed ^ const) % n
+    def cpp(seed, n):
+        x = (seed ^ 0x9E3779B97F4A7C15) & R.MASK64
+        x = (x * 6364136223846793005 + 1442695040888963407) & R.MASK64
+        return x % n
+    for seed, n in [(1, 100), (2, 100), (3, 7), (123456789, 99991)]:
+        assert R.chaos_pick_skip(seed, n) == cpp(seed, n)
+    assert R.chaos_pick_skip(0, 0) == 0
+    assert R.chaos_pick_skip(5, 1) == 0
