@@ -9,14 +9,17 @@
 - [x] A1 环境清单：记录 OS/CPU/内存/磁盘/Python/openpyxl/pytest/scons/gcc、
       `origin/fi-ding` 起点、`fsu` 工作区、负载与在跑进程。
       - 验证：`docs/gem5-fi/fsu/PHASE-A-ENV.md` 内容与实测命令输出一致。
-- [ ] A2 源 Excel 落位并校验 SHA-256。
-      - 期望：`4A5B358CB6E12D93F5B25ED0B422C6100A30540C0693482C04AF904669B22CD6`
-      - 目标路径：`docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx`
-      - **状态：BLOCKED —— 服务器上未找到该文件（见 PHASE-A-ENV.md 搜索记录）。**
-- [ ] A3 实现 `tools/fsu_xlsx_to_md.py`（12 表无损转换 + 回读逐格校验 + 负向测试）。
-- [ ] A4 生成转换报告（源 SHA、12 表尺寸、173 RunID、表7/表9 集合、
+- [x] A2 源 Excel 落位并校验 SHA-256。
+      - 来源：`/home/sdc/fsu-input/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx`
+      - 实测 SHA-256：`4a5b358cb6e12d93f5b25ed0b422c6100a30540c0693482c04af904669b22cd6`（与期望一致）
+      - 落位：`docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx`（chmod 444，只读）
+- [x] A3 实现 `tools/fsu_xlsx_to_md.py`（12 表无损转换 + 回读逐格校验 + 负向测试）。
+      - 验证：`python3 -m pytest tests/test_fsu_xlsx_to_md.py -q` → `24 passed`。
+- [x] A4 生成转换报告（源 SHA、12 表尺寸、173 RunID、表7/表9 集合、
       非空单元格、公式/隐藏/合并计数、回读校验结果）。
-- [ ] A5 173 RunID 机器可读清单（JSON/CSV）。
+      - 验证：真实工作簿转换 `ALL PASS`，报告 `docs/gem5-fi/fsu/CONVERSION_REPORT.md`。
+- [x] A5 173 RunID 机器可读清单（JSON/CSV）。
+      - 验证：`runids.json` count=173；`runids.csv` 同源。
 
 ## 阶段 B：实现审计
 

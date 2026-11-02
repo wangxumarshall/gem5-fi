@@ -74,5 +74,19 @@
 | `find /home /tmp /root -iname "*fsu*" -o -iname "*传播*"` | 仅 `sdcshield` 的 `*_fsu_byteexact_*` 配置与报告，无 FSU 方案工作簿 |
 | `git ls-tree -r origin/fi-ding \| grep -i -E 'fsu\|xlsx'` | 仅 LSU/OOO 工作簿，无 FSU 工作簿 |
 
-**结论：服务器上不存在该文件，无法开始无损转换。**
+**结论（2026-11-02 10:46 采集时）：服务器上不存在该文件，无法开始无损转换。**
 不得用 LSU/OOO 工作簿替代，也不得伪造 SHA-256。需要用户提供文件或其准确路径。
+
+### 5.1 更新（2026-11-02 10:52）：文件已提供
+
+用户提供路径 `/home/sdc/fsu-input/`。实测：
+
+| 项 | 值 |
+|---|---|
+| 文件 | `/home/sdc/fsu-input/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx` |
+| 大小 | 95572 bytes |
+| SHA-256 | `4a5b358cb6e12d93f5b25ed0b422c6100a30540c0693482c04af904669b22cd6` |
+| 与期望值 | 一致 |
+| 落位 | `docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx`（chmod 444，只读） |
+
+后续转换与校验见 `docs/gem5-fi/fsu/CONVERSION_REPORT.md`。
