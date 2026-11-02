@@ -39,6 +39,10 @@
 
 ## 阶段 C：三 seed 执行
 
+- [x] C0 FSU_PROP-EVT v1 字段规范 + 直接 parent 链审计器（工具先于 C++ 发射端落地）。
+      - 产物：`tools/fsu_prop_fields.py`、`tools/fsu_chain_check.py`、
+        `tests/test_fsu_chain_check.py`（18 项合成流测试通过）。
+      - 边界：仅工具与合成事件；真实 FSU 事件流仍需 C++ 发射端。
 - [ ] C1 单实例资源实测，确定并发上限，campaign 支持 resume。
 - [ ] C2 每个 RunID 三个独立 seed；失败 attempt 保留 lineage。
 - [ ] C3 每 seed 生成 `runs/fsu/COMPLETE_PROPAGATION_PATHS/<RunID>/<RunID>-seed<N>.md`。

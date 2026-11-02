@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""fsu_prop_fields.py — FSU 传播事件流（FSU_PROP-EVT v1）字段注册表与解析器。
+
+设计目标（阶段 C 合同，先于 C++ 发射端落地）:
+  - 与 LSU `PROP-EVT` 同族：空格分隔 `key=value`，缺值留空但键不省略；
+  - 增加 FSU 专用字段：IQ slot / src_slot / producer-consumer seq /
+    phys tag+generation / lane / FU / operand hash / burst / eligible ordinal；
+  - 行格式：
+      FSU_PROP-EVT: kind=<v> run_id=<v> ... terminal=<v>
+  - 解析端对缺失键填 ""，对 gzip 截断置 truncated=True（不静默）；
+  - `chain_end` 是生命周期收口，不是 L5（层映射为 None）。
+"""
+from __future__ import annotations
+
+import gzip
+import zlib
+from pathlib import Path
+
+PREFIX = "FSU_PROP-EVT:"
+EVENT_CAP = 200000
+
+# 字段顺序即发射端写入顺序；解析端容忍缺键。
+PROP_EVT_FIELDS = [
+    "kind", "run_id", "sample_run_id", "fault_id", "event_id",
+    "parent_event_id", "tick", "cycle", "core_id", "thread_id",
+    "model_id", "submodel", "unit", "freq", "load_id",
+    "dyn_inst_seq", "commit_seq", "pc", "opcode",
+    "iq_slot", "src_slot", "producer_seq", "consumer_seq",
+    "arch_reg", "phys_reg", "reg_generation",
+    "lane_width", "lane_offset", "lane_mask",
+    "fu_class", "fu_index", "field", "bit_indices", "fault_mask",
+    "before", "after", "before_hash", "after_hash", "value_hash",
+    "eligible_ordinal", "eligible_total", "activated",
+    "burst_id", "burst_ordinal", "burst_length",
+    "detection_layer", "contained", "outcome", "oracle_diff",
+    "evidence_status", "corr", "golden_id", "config_hash", "binary_hash",
+    "terminal",
+]
+
+# kind → 层级。None = 生命周期/终局标记，不占 L0–L5。
+KIND_LAYER = {
+    "fault_applied": "L0",
+    "carrier_state": "L1",
+    # L2：IQ 选择/ready/操作数读取
+    "iq_select": "L2", "ready_update": "L2", "operand_read": "L2",
+    "producer_consumer_edge": "L2",
+    # L3：FSU 执行
+    "execute": "L3", "fsu_result": "L3",
+    # L4：写回/wakeup/下游消费
+    "prf_writeback": "L4", "wakeup": "L4", "consumer": "L4",
+    "downstream_read": "L4",
+    # L5：架构提交/架构状态/软件 oracle
+    "commit": "L5", "arch_state": "L5", "oracle_diff": "L5",
+    "sdc_escape": "L5",
+    # 显式检测/含住（层级取自 detection_layer）
+    "detect": None, "contain": None, "squash": None, "replay": None,
+    "overwrite": None, "mask": None, "crash": None, "timeout": None,
+    # 生命周期收口与未激活
+    "chain_end": None, "not_activated": None,
+}
+
+CONTAIN_KINDS = frozenset({
+    "detect", "contain", "squash", "replay", "overwrite", "mask",
+    "crash", "timeout",
+})
+L5_WITNESS_KINDS = frozenset({"commit", "arch_state", "oracle_diff", "sdc_escape"})
+LIFECYCLE_KINDS = frozenset({"chain_end"})
+
+EMPTY_VALUES = ("", "None", "none", "Unknown", "unknown")
+CONTAINED_TRUE = ("1", "true", "True", "yes", "Yes")
+CLOSED_TERMINALS = frozenset({"full", "crash", "timeout", "sdc"})
+
+
+def layer_of(evt: dict):
+    """事件层级；detect/contain 等取 detection_layer，chain_end 返回 None。"""
+    kind = str(evt.get("kind", "")).strip()
+    if kind in LIFECYCLE_KINDS:
+        return None
+    if kind in CONTAIN_KINDS:
+        dl = str(evt.get("detection_layer", "")).strip()
+        return dl if dl in ("L0", "L1", "L2", "L3", "L4", "L5") else None
+    return KIND_LAYER.get(kind)
+
+
+def parse_line(line: str):
+    """解析一条 FSU_PROP-EVT；非本流行返回 None。"""
+    line = line.strip()
+    if not line or line.startswith("#"):
+        return None
+    if not line.startswith(PREFIX):
+        return None
+    body = line[len(PREFIX):].strip()
+    evt = {}
+    for tok in body.split():
+        if "=" in tok:
+            k, v = tok.split("=", 1)
+            evt[k] = v
+    for k in PROP_EVT_FIELDS:
+        evt.setdefault(k, "")
+    evt.setdefault("evidence_status", "observed")
+    return evt
+
+
+def read_stream(path):
+    """读取 .gz/.txt；返回 (events, truncated, reason)。
+
+    截断/损坏必须显式标记，绝不静默返回“完整”。
+    """
+    p = Path(path)
+    opener = gzip.open if str(p).endswith(".gz") else open
+    events, truncated, reason = [], False, ""
+    try:
+        with opener(p, "rt", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                evt = parse_line(line)
+                if evt is None:
+                    continue
+                if len(events) >= EVENT_CAP:
+                    truncated = True
+                    reason = f"event_cap_exceeded({EVENT_CAP})"
+                    break
+                events.append(evt)
+    except (EOFError, gzip.BadGzipFile, OSError, zlib.error) as e:
+        truncated = True
+        reason = f"{type(e).__name__}:{e}"
+    return events, truncated, reason
