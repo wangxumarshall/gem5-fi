@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`2c9f6ab0ccd3842d445c968c6d146ba6eefee753`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`cf637b9ac690a66c8c04dd57d5dfd38f5a2034b2`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -49,7 +49,7 @@
 
 ## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）
 
-- seed_completion：0/3 169、2/3 1、3/3 3
+- seed_completion：0/3 169、3/3 4
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 26、PARTIAL 59、PILOT_SUBMODEL_ONLY 1
 
 | RunID | seed_completion | coverage_status | coverage_reason |
@@ -178,17 +178,17 @@
 | FSU-FP04-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP04-F1-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F1-W4 | 2/3 | PARTIAL | W4-rate-v1 official seeds 2/3 admitted; 1/3 not run. The F3 multi-fault gate used the short W4 and is not an official seed |
+| FSU-FP04-F1-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0 remaining. |
 | FSU-FP04-F1-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP04-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F2-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0/3 not run. The F3 multi-fault gate used the short W4 and is not an official seed |
+| FSU-FP04-F2-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0 remaining. |
 | FSU-FP04-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F3-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP04-F3-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F3-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0/3 not run. The F3 multi-fault gate used the short W4 and is not an official seed |
+| FSU-FP04-F3-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0 remaining. The F3 multi-fault gate used the short W4 and is not an official seed |
 | FSU-FP04-F3-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F3-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP05-F0-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -241,7 +241,7 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`2c9f6ab0ccd3842d445c968c6d146ba6eefee753`（branch `fsu`）
+- HEAD：`cf637b9ac690a66c8c04dd57d5dfd38f5a2034b2`（branch `fsu`）
 - gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c`；size=1246083368
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）

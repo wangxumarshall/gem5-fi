@@ -1,6 +1,7 @@
-# FSU 覆盖状态（D2 收口 + D3 F3 3/3）
+# FSU 覆盖状态（D2 收口 + D3 F0–F3 W4）
 
-> 生成时间：2026-11-02；D3 更新：正式 `FSU-FP04-F3-W4` 三 seed 已全部 admitted。
+> 生成时间：2026-11-03；D3 更新：F0、F2、F3 的 W4 三 seed 已全部 admitted，
+> F1-W4 seed1/seed2 已完成。
 > 数据源：`runs/fsu` 的 AUTHORITATIVE 证据、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
 > `runs/fsu-gates/` 下的门禁证据**不计入** seed 完成数。
@@ -9,9 +10,9 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **11 / 519** |
-| seed-complete RunID | **3 / 173**（`FSU-FP04-F0-W4`、`FSU-FP04-F3-W4`、`FSU-FP04-F2-W4` 均 3/3） |
-| 部分完成 RunID | **1 / 173**（`FSU-FP04-F1-W4` = 2/3，seed1+seed2） |
+| 已完成合格 seed | **12 / 519** |
+| seed-complete RunID | **4 / 173**（`FSU-FP04-F0-W4`、`FSU-FP04-F1-W4`、`FSU-FP04-F2-W4`、`FSU-FP04-F3-W4` 均 3/3） |
+| 部分完成 RunID | **0 / 173** |
 | 其余 169 个 RunID | 0/3 |
 
 ## 2. frequency_coverage（限 `FSU-FP04-*-W4`）
@@ -19,7 +20,7 @@
 | 档位 | 正式 seed | 机制/预算状态 |
 |---|---|---|
 | F0 | **3/3** | 已实现；短 W4 pilot 三 seed |
-| F1 | **2/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1；seed1（1/1）与 seed2（2/2）正式完成，fault `full`、audit PASS；seed3 未运行 |
+| F1 | **3/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1；seed1（1/1）、seed2（2/2）、seed3（1/1）正式完成，fault `full`、audit PASS |
 | F2 | **3/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；seed1（21/21）、seed2（22/22）、seed3（19/19）正式完成，全部 fault `full`、audit PASS |
 | F3 | **3/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；seed1（206/206）、seed2（202/202）、seed3（210/210）正式完成，全部 fault `full`、audit PASS |
 | F4/F5 | 0/3 | 未按本报告实现（F4 burst / F5 stuck 不在 D2 范围） |
@@ -31,7 +32,7 @@
 
 | 子模型 | 状态 |
 |---|---|
-| FP04-c / mant_lo | 已覆盖（F0 三 seed + F3 门禁） |
+| FP04-c / mant_lo | 已覆盖（F0/F1/F2/F3-W4 各三 seed + F3 门禁） |
 | FP04-a / sign | **未覆盖** |
 | FP04-b / exp_hi, exp_lo | **未覆盖** |
 | FP04-c / mant_hi, mant_mid | **未覆盖** |
@@ -43,7 +44,7 @@
 
 | W-ID | 身份 | 状态 |
 |---|---|---|
-| W4 | REAL（短 W4 + W4-rate-v1） | 短 W4：F0 3/3；W4-rate-v1：F3 3/3，F1/F2 0/3 |
+| W4 | REAL（短 W4 + W4-rate-v1） | 短 W4：F0 3/3；W4-rate-v1：F1/F2/F3 均 3/3 |
 | W1 | NO_TRUE_ARTIFACT | 未覆盖（缺 NaN/Inf/±0/subnormal、4 舍入、FPSR/FPCR 载体） |
 | W2 | NO_TRUE_ARTIFACT | 未覆盖（缺 FP/NEON fan-out、双源非交换、ready 竞争） |
 | W3 | PARTIAL | 仅 32-bit lane |
@@ -57,7 +58,7 @@
 
 **NOT_COMPLETE**。
 
-即使 F1/F2/F3-W4 未来完成三 seed，FP04 仍不能标记 COMPLETE，因为以下仍未覆盖：
+即使 F1/F2/F3-W4 全部完成三 seed，FP04 仍不能标记 COMPLETE，因为以下仍未覆盖：
 
 - sign（FP04-a）；
 - exp_hi / exp_lo（FP04-b）；
@@ -73,4 +74,4 @@
 |---|---|
 | B0 配置（ROB=40、IQ=32、3/3/3、8/8/8） | 未实现，仍用 C3 默认 |
 | 30 模型逐模型行为测试 | 未齐全（现有 94 项 FSU 测试覆盖编排/链/rate/矩阵） |
-| F1/F2/F3 正式三 seed | **F2、F3 已完成 3/3**；`FSU-FP04-F1-W4` seed1 完成 |
+| F1/F2/F3 正式三 seed | **全部完成 3/3**（F1-W4、F2-W4、F3-W4） |

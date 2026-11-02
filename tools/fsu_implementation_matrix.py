@@ -502,10 +502,12 @@ def _coverage(runid, audited_status, workload_identity, seed_n):
                 "FP04-d NEON lane result, plus F1/F2/F3 semantics")
     if runid in ("FSU-FP04-F1-W4", "FSU-FP04-F2-W4", "FSU-FP04-F3-W4"):
         if seed_n:
+            gate_note = (" The F3 multi-fault gate used the short W4 and is "
+                         "not an official seed"
+                         if runid == "FSU-FP04-F3-W4" else "")
             return ("PARTIAL",
                     f"W4-rate-v1 official seeds {seed_n}/3 admitted; "
-                    f"{3 - seed_n}/3 not run. The F3 multi-fault gate used "
-                    "the short W4 and is not an official seed")
+                    f"{3 - seed_n} remaining.{gate_note}")
         return ("PARTIAL",
                 "D2 implements real rate ordinals and W4-rate-v1 "
                 "(N=2,097,155) is golden/census-ready, but this RunID still "
