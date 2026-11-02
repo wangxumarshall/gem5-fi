@@ -658,7 +658,12 @@ def build(out_root=DEFAULT_RUNS):
                                 "FP32", "NEON 128-bit lane"],
             },
             "workload_coverage": {
-                "W4": "REAL; short W4 F0 3/3; W4-rate-v1 F3 seed1 1/3",
+                "W4": "REAL; short W4 F0 "
+                      f"{next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W4'), 0)}/3; "
+                      "W4-rate-v1 "
+                      f"F1 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F1-W4'), 0)}/3, "
+                      f"F2 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F2-W4'), 0)}/3, "
+                      f"F3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F3-W4'), 0)}/3",
                 "W1": "NO_TRUE_ARTIFACT", "W2": "NO_TRUE_ARTIFACT",
                 "W3": "PARTIAL", "W5": "PARTIAL", "W6": "PARTIAL",
                 "W7": "NO_FP_ARTIFACT", "W9": "REAL but unbound",

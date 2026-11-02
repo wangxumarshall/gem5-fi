@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`3ee06a496531ffd39c4924aa182cb0114f6fcd27`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`daf8ab06763a23987ea7f9226cd299e2cd56617a`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -49,7 +49,7 @@
 
 ## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）
 
-- seed_completion：0/3 171、3/3 2
+- seed_completion：0/3 170、1/3 1、3/3 2
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 26、PARTIAL 59、PILOT_SUBMODEL_ONLY 1
 
 | RunID | seed_completion | coverage_status | coverage_reason |
@@ -183,7 +183,7 @@
 | FSU-FP04-F1-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP04-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F2-W4 | 0/3 | PARTIAL | D2 implements real rate ordinals and W4-rate-v1 (N=2,097,155) is golden/census-ready, but this RunID still has 0/3 official seeds; the F3 multi-fault gate used the short W4 and is not an official seed |
+| FSU-FP04-F2-W4 | 1/3 | PARTIAL | W4-rate-v1 official seeds 1/3 admitted; 2/3 not run. The F3 multi-fault gate used the short W4 and is not an official seed |
 | FSU-FP04-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F3-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
@@ -241,7 +241,7 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`3ee06a496531ffd39c4924aa182cb0114f6fcd27`（branch `fsu`）
+- HEAD：`daf8ab06763a23987ea7f9226cd299e2cd56617a`（branch `fsu`）
 - gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c`；size=1246083368
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）
