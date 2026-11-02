@@ -1,7 +1,7 @@
 # FSU 覆盖状态（D2 收口 + D3 F0–F3 W4）
 
-> 生成时间：2026-11-03；D3 更新：F0、F2、F3 的 W4 三 seed 已全部 admitted，
-> F1-W4 seed1/seed2 已完成。
+> 生成时间：2026-11-03；D3 更新：F0、F1、F2、F3 的 W4 三 seed 已全部 admitted
+> （12/519）。
 > 数据源：`runs/fsu` 的 AUTHORITATIVE 证据、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
 > `runs/fsu-gates/` 下的门禁证据**不计入** seed 完成数。

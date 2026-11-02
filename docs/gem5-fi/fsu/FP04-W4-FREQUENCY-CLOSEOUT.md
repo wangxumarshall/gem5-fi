@@ -98,6 +98,7 @@ F1/F2/F3 的 9 个 seed 在运行前分别提交了前一个 seed 的证据，�
 记录的 `source_head` 不同。对 `db21e798…` 到 `2a5f3273…` 验证：
 
 ```bash
+# 运行时的 HEAD = 2a5f3273（F1 seed3 提交）
 git diff --stat db21e798ad154fe7983d937640943190e5d21ee8..HEAD -- \
   CHAOS/gem5/src configs/se tools/fsu_seed_runner.py tools/fsu_chain_check.py \
   tools/fsu_seed_audit.py tools/fsu_seed_doc.py tools/fsu_prop_fields.py \

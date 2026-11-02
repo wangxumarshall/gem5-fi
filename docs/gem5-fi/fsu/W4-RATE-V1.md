@@ -108,6 +108,10 @@ CHAOS/gem5/build/ARM/gem5.opt --quiet -d /tmp/w4rate_census \
 
 ## 6. 官方 manifest
 
+> 下表是 `configs/fsu/<RunID>.json` 注册身份文件的 SHA-256，不是每次
+> attempt 的 `manifest.json`。attempt manifest 的哈希记录在各自的
+> `evidence_sha256.json` 中。
+
 | RunID | manifest SHA-256 |
 |---|---|
 | `FSU-FP04-F1-W4` | `aa2115145f630ad6aa4143115a71906c7c6118353cd0fa3b8fc61b969e062eb3` |
@@ -119,7 +123,7 @@ warmup 0，`load_id` 仍为 W4（同一 workload 身份，版本 W4-rate-v1）�
 
 ## 7. 诚实边界
 
-- 本文（D2）生成时没有运行任何正式 F1/F2/F3 seed。**D3 更新（2026-11-02）**：
+- 本文（D2）生成时没有运行任何正式 F1/F2/F3 seed。**D3 更新（2026-11-03）**：
   已正式运行 `FSU-FP04-F3-W4` seed1（`.../seed1/attempt-1`，206/206 fault）、
   seed2（`.../seed2/attempt-1`，202/202 fault）与 seed3
   （`.../seed3/attempt-1`，210/210 fault），逐 fault `full`，三次 audit 均 PASS；
