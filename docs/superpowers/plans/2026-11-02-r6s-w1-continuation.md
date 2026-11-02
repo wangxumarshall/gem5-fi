@@ -21,10 +21,12 @@
 
 修复点：
 
-- [ ] `declare -A RUNNING=()` + 显式 `RUNNING_N` 计数器（不再依赖空数组长度）。
-- [ ] worker 在到达 MAXJOBS 时被回收后立即 grade（旧版只对最后一波 grade，其余记录丢失）。
-- [ ] `S01-F1-W1#1` 从 canary 目录 grade 并跳过重跑（PRESEED）。
-- [ ] 所有路径可由 `R6S_W1_*` 覆盖，便于用假 launcher 验证调度逻辑。
+- [x] `declare -A RUNNING=()` + 显式 `RUNNING_N` 计数器（不再依赖空数组长度）；
+  实测 `/tmp/t.sh` 复现旧缺陷，假 launcher 自测 max_concurrency=2。
+- [x] worker 在到达 MAXJOBS 时被回收后立即 grade（旧版只对最后一波 grade，其余记录丢失）；
+  自测 4 条 grade 记录齐全（`8e7c3ae6`）。
+- [x] `S01-F1-W1#1` 从 canary 目录 grade 并跳过重跑（PRESEED）；真实队列中确实未重跑。
+- [x] 所有路径可由 `R6S_W1_*` 覆盖，便于用假 launcher 验证调度逻辑。
 
 文件：`tools/r6_s_w1_parallel.sh`、`tests/test_r6_s_w1_parallel.py`。
 
