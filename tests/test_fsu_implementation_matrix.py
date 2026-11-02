@@ -48,7 +48,11 @@ def test_every_runid_has_required_fields():
         assert r["three_seed_status"] == expected
         assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")
-        assert hasattr(r["blockers"], "__len__") and len(r["blockers"]) >= 5
+        # 最初审计事实必须完整保留；当前 blocker 只列剩余缺口。
+        assert len(r["baseline_blockers"]) >= 6
+        assert len(r["blockers"]) >= 1
+        assert isinstance(r["remaining_gaps"], list)
+        assert isinstance(r["resolved_by_commit"], dict)
 
 
 def test_seed_completion_and_coverage_status():
@@ -83,3 +87,30 @@ def test_no_masked_misclassification():
         blob = (str(r["audited_status"]) + str(r["workbook_status_sheet10"])
                 + str(r["workbook_status_sheet9"]))
         assert "Masked" not in blob
+
+
+def test_baseline_and_current_status_are_separated():
+    _, s = m.build()
+    for key in ("baseline_gap", "current_status", "resolved_by_commit",
+                "current_binary_sha256", "remaining_gaps"):
+        assert key in s, key
+    # 历史审计原文不得被删除。
+    ids = {g["id"] for g in s["baseline_gap"]}
+    assert {"gem5_binary_missing", "fsu_prop_evt_missing",
+            "fsu_chain_auditor_missing",
+            "fsu_three_seed_runner_missing"} <= ids
+    # 已解决的缺口不得再出现在当前 blocker 中。
+    remaining_ids = {g["id"] for g in s["remaining_gaps"]}
+    assert "gem5_binary_missing" not in remaining_ids
+    assert "fsu_prop_evt_missing" not in remaining_ids
+    assert "fsu_chain_auditor_missing" not in remaining_ids
+    assert "fsu_three_seed_runner_missing" not in remaining_ids
+    # 当前二进制必须真实存在并有 SHA-256。
+    bin_ = s["current_status"]["gem5_binary"]
+    assert bin_["exists"] is True
+    assert len(bin_["sha256"]) == 64
+    assert s["current_binary_sha256"] == bin_["sha256"]
+    # 已解决条目必须给出提交证据。
+    for r in s["resolved_by_commit"]:
+        assert r["resolved_by_commit"]
+        assert r["evidence"]

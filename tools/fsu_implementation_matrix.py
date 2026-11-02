@@ -22,7 +22,10 @@
 from __future__ import annotations
 
 import csv
+import functools
+import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -186,10 +189,11 @@ MODEL_AUDIT = {
         status="PARTIAL",
         injector="CHAOSFPU 结果 XOR + bitseg(sign/exp_hi/exp_lo/mant_hi/mid/lo)",
         hooks="CHAOSFPU.cc:227-256,280-315; dyn_inst.cc:361-369",
-        implemented="FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试",
+        implemented="FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；"
+                    "FSU PROP L0–L5 已落地（F0 三 seed 验证）",
         missing="FP32 字段映射；128-bit Vec 全 lane（FP04-d）；"
-                "dest phys tag/old-correct/consumer/FPSR；PROP 事件。"
-                "工作簿“直接已有”高估",
+                "dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义"
+                "（D2 实现中）。工作簿“直接已有”高估",
     ),
     "FP05": dict(status="PARTIAL", injector="CHAOSFPU faultMask / recurringStuck",
                  hooks="CHAOSFPU.cc:217-256",
@@ -273,14 +277,180 @@ WORKLOAD_AUDIT = {
                 gap="仓库无源码/二进制/checkpoint；173 RunID 未使用"),
 }
 
-GLOBAL_BLOCKERS = [
-    "无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行",
-    "无 FSU PROP-EVT 发射：CHAOSFPU/CHAOSIQ/CHAOSPhysReg 均未调用 CHAOSPropagation::notePropEvt",
-    "无 FSU 链审计器：无 fsu_prop_fields.py/fsu_chain_check.py；LSU 审计器为硬编码",
-    "无 FSU 三 seed 流水线：runner.py/campaign.py 无 FSU RunID/seed1..3/chain_report 支持",
-    "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
-    "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项",
+BASELINE_COMMIT = "46ce66cdb9c22f5e591b43b97b68c7d526704211"
+
+# 2026-11-02 最初代码审计的全局缺口。原文保留，不得删除。
+# 每项额外记录后来的裁决证据；status 由 probe_current_status() 实时覆盖。
+BASELINE_GAPS = [
+    {
+        "id": "gem5_binary_missing",
+        "text": "无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行",
+        "resolved_by_commit": ["f8eb4a22", "2f65a647"],
+        "resolution_evidence": "权威基线改为 CHAOS/gem5/build/ARM/gem5.opt；"
+                               "Python 3.11.9 构建成功并由 F0 三 seed 使用",
+    },
+    {
+        "id": "fsu_prop_evt_missing",
+        "text": "无 FSU PROP-EVT 发射：CHAOSFPU/CHAOSIQ/CHAOSPhysReg 均未调用 CHAOSPropagation::notePropEvt",
+        "resolved_by_commit": ["e541beb9"],
+        "resolution_evidence": "CHAOSFPU emitFsu() 调用 CHAOSPropagation::notePropEvt；"
+                               "F0 三 seed 的 prop_evt 已由链审计器解析",
+    },
+    {
+        "id": "fsu_chain_auditor_missing",
+        "text": "无 FSU 链审计器：无 fsu_prop_fields.py/fsu_chain_check.py；LSU 审计器为硬编码",
+        "resolved_by_commit": ["15f6cd1b", "ccf4c96e", "26c96efe"],
+        "resolution_evidence": "tools/fsu_prop_fields.py + tools/fsu_chain_check.py + "
+                               "tools/fsu_seed_audit.py；逐 seed audit.json 已持久化",
+    },
+    {
+        "id": "fsu_three_seed_runner_missing",
+        "text": "无 FSU 三 seed 流水线：runner.py/campaign.py 无 FSU RunID/seed1..3/chain_report 支持",
+        "resolved_by_commit": ["ef6b4036", "8e86d1ba"],
+        "resolution_evidence": "tools/fsu_seed_runner.py（census→inject→oracle→chain）"
+                               "与 F0 三 seed AUTHORITATIVE 证据",
+    },
+    {
+        "id": "config_mismatch_b0",
+        "text": "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
+        "resolved_by_commit": [],
+        "resolution_evidence": "未解决：C3 仍使用默认 ROB/IQ/width，B0 参数化未实现",
+    },
+    {
+        "id": "model_level_tests_missing",
+        "text": "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项",
+        "resolved_by_commit": ["e541beb9", "15f6cd1b", "ccf4c96e", "26c96efe"],
+        "resolution_evidence": "已新增 FSU rate/chain/runner/audit/index/矩阵测试；"
+                               "但 30 个模型的逐模型行为测试仍未齐全（见 remaining_gaps）",
+    },
 ]
+
+GOLDEN_F0_W4 = "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7"
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+@functools.lru_cache(maxsize=1)
+def _binary_probe():
+    """权威二进制按 D0 证据顺序探测；不假设仓库根路径存在。"""
+    candidates = [ROOT / "CHAOS/gem5/build/ARM/gem5.opt",
+                  ROOT / "build/ARM/gem5.opt"]
+    for p in candidates:
+        if p.exists():
+            st = p.stat()
+            return {"path": str(p), "exists": True,
+                    "sha256": _sha256_file(p), "size": st.st_size,
+                    "mtime": st.st_mtime}
+    return {"path": str(candidates[0]), "exists": False, "sha256": "",
+            "size": 0, "mtime": 0}
+
+
+@functools.lru_cache(maxsize=1)
+def _head():
+    try:
+        return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+                              capture_output=True, text=True).stdout.strip()
+    except OSError:
+        return ""
+
+
+def probe_current_status():
+    """当前 fsu HEAD 的可验证状态（与 baseline 审计分开记录）。"""
+    fpu_cc = ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc"
+    fpu_txt = fpu_cc.read_text(encoding="utf-8", errors="replace") \
+        if fpu_cc.exists() else ""
+    prop_hh = ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+    runner = ROOT / "tools/fsu_seed_runner.py"
+    chain = ROOT / "tools/fsu_chain_check.py"
+    rate = ROOT / "tools/fsu_rate_ordinals.py"
+    tests = sorted((ROOT / "tests").glob("test_fsu_*.py"))
+    binary = _binary_probe()
+    rate_impl = rate.exists()
+    return {
+        "head": _head(),
+        "branch": subprocess.run(
+            ["git", "-C", str(ROOT), "branch", "--show-current"],
+            capture_output=True, text=True).stdout.strip(),
+        "gem5_binary": binary,
+        "fsu_prop_emitter": {
+            "implemented": ("emitFsu" in fpu_txt
+                            and "notePropEvt" in fpu_txt
+                            and prop_hh.exists()),
+            "evidence": "CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt",
+        },
+        "chain_auditor": {"implemented": chain.exists(),
+                          "path": str(chain.relative_to(ROOT))},
+        "three_seed_runner": {
+            "implemented": runner.exists()
+            and "AUTHORITATIVE" in runner.read_text(encoding="utf-8",
+                                                    errors="replace"),
+            "path": str(runner.relative_to(ROOT)),
+        },
+        "rate_ordinals": {
+            "implemented": rate_impl,
+            "path": str(rate.relative_to(ROOT)),
+            "generator": "build_rate_ordinals" if rate_impl else "",
+        },
+        "model_level_tests": [str(p.relative_to(ROOT)) for p in tests],
+        "config_b0_match": False,
+        "config_b0_note": "ooo_proxy.py 仍为 C3 默认 ROB=128/IQ=64/4-wide；"
+                          "工作簿 B0 的 ROB=40/IQ=32/3/3/3 未实现",
+    }
+
+
+def remaining_gaps(status):
+    """只列当前仍成立、尚未解决的缺口。"""
+    gaps = []
+    for g in BASELINE_GAPS:
+        if g["id"] == "gem5_binary_missing" and status["gem5_binary"]["exists"]:
+            continue
+        if g["id"] == "fsu_prop_evt_missing" and status["fsu_prop_emitter"]["implemented"]:
+            continue
+        if g["id"] == "fsu_chain_auditor_missing" and status["chain_auditor"]["implemented"]:
+            continue
+        if g["id"] == "fsu_three_seed_runner_missing" and status["three_seed_runner"]["implemented"]:
+            continue
+        if g["id"] == "model_level_tests_missing":
+            # 已有 FSU 编排/链/审计测试，但 30 模型仍未逐个覆盖。
+            gaps.append({
+                "id": "per_model_behavior_tests_missing",
+                "text": "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 "
+                        "rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）",
+            })
+            continue
+        gaps.append({"id": g["id"], "text": g["text"]})
+    if not status["rate_ordinals"]["implemented"]:
+        gaps.append({
+            "id": "rate_ordinals_missing",
+            "text": "F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签",
+        })
+    return gaps
+
+
+def resolved_gaps(status):
+    out = []
+    for g in BASELINE_GAPS:
+        if not g["resolved_by_commit"]:
+            continue
+        # 只有当前探测确实成立时，才把历史缺口标为已解决。
+        if g["id"] == "gem5_binary_missing" and not status["gem5_binary"]["exists"]:
+            continue
+        if g["id"] == "fsu_prop_evt_missing" and not status["fsu_prop_emitter"]["implemented"]:
+            continue
+        if g["id"] == "fsu_chain_auditor_missing" and not status["chain_auditor"]["implemented"]:
+            continue
+        if g["id"] == "fsu_three_seed_runner_missing" and not status["three_seed_runner"]["implemented"]:
+            continue
+        out.append({"id": g["id"], "text": g["text"],
+                    "resolved_by_commit": list(g["resolved_by_commit"]),
+                    "evidence": g["resolution_evidence"]})
+    return out
 
 
 def _sheet_rows(ws, header_row):
@@ -361,11 +531,17 @@ def build(out_root=DEFAULT_RUNS):
         wl = WORKLOAD_AUDIT[load]
         r9 = s9[rid]
         claimed = s10[model]["实现状态"]
-        blockers = list(GLOBAL_BLOCKERS)
+        status = probe_current_status()
+        # baseline_blockers 保留最初审计事实；blockers 只列当前仍成立的缺口。
+        baseline_blockers = [g["text"] for g in BASELINE_GAPS]
+        blockers = [g["text"] for g in remaining_gaps(status)]
         if audit["status"] != "IMPLEMENTED":
             blockers.insert(0, f"注入器缺口（{audit['status']}）：{audit['missing']}")
         if wl["identity"] != "REAL":
             blockers.insert(0, f"workload 身份缺口（{wl['identity']}）：{wl['gap']}")
+        if freq in ("F1", "F2", "F3") and not status["rate_ordinals"]["implemented"]:
+            blockers.insert(0, "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；"
+                               "仅改 --fsu_freq 标签无效")
         if audit["status"] == "PARTIAL":
             activation = ("注入动作可施加，但 activated 需要额外消费/结果见证；"
                           "当前无 FSU PROP 事件，无法证明 activation")
@@ -414,7 +590,11 @@ def build(out_root=DEFAULT_RUNS):
             "coverage_status": coverage_status,
             "coverage_reason": coverage_reason,
             "pilot": rid in ("FSU-FP04-F0-W4",),
+            "baseline_blockers": baseline_blockers,
             "blockers": blockers,
+            "remaining_gaps": [g["id"] for g in remaining_gaps(status)],
+            "resolved_by_commit": {g["id"]: g["resolved_by_commit"]
+                                   for g in resolved_gaps(status)},
         })
 
     # 汇总
@@ -423,9 +603,18 @@ def build(out_root=DEFAULT_RUNS):
     model_status = {}
     for m in matrix:
         model_status.setdefault(m["model_id"], m["audited_status"])
+    status = probe_current_status()
     summary = {
         "generated_from": str(XLSX),
-        "baseline_commit": "46ce66cdb9c22f5e591b43b97b68c7d526704211",
+        "baseline_commit": BASELINE_COMMIT,
+        "current_head": status["head"],
+        "current_binary_sha256": status["gem5_binary"]["sha256"],
+        "baseline_gap": [{"id": g["id"], "text": g["text"],
+                          "resolved_by_commit": g["resolved_by_commit"]}
+                         for g in BASELINE_GAPS],
+        "current_status": status,
+        "resolved_by_commit": resolved_gaps(status),
+        "remaining_gaps": remaining_gaps(status),
         "runid_count": len(matrix),
         "unique_runids": len(set(m["runid"] for m in matrix)),
         "sheet7_sheet9_sets_equal": True,
@@ -438,7 +627,6 @@ def build(out_root=DEFAULT_RUNS):
         "coverage_status_counts": dict(Counter(m["coverage_status"] for m in matrix)),
         "implemented_runids": [m["runid"] for m in matrix if m["audited_status"] == "IMPLEMENTED"],
         "models": model_status,
-        "global_blockers": GLOBAL_BLOCKERS,
     }
     return matrix, summary
 
@@ -456,18 +644,25 @@ def write_outputs(matrix, summary):
               "workload_path", "workload_identity_status", "golden_oracle",
               "required_l0_l5", "fsu_fields_model_focus", "test_status",
               "three_seed_status", "seed_completion", "coverage_status",
-              "coverage_reason", "pilot", "blockers"]
+              "coverage_reason", "pilot", "remaining_gaps",
+              "baseline_blockers", "blockers"]
     with (OUT / "IMPLEMENTATION_MATRIX.csv").open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, lineterminator="\n",
                            extrasaction="ignore")
         w.writeheader()
         for m in matrix:
-            w.writerow({**m, "blockers": " || ".join(m["blockers"])})
+            w.writerow({**m,
+                        "remaining_gaps": " || ".join(m["remaining_gaps"]),
+                        "baseline_blockers": " || ".join(m["baseline_blockers"]),
+                        "blockers": " || ".join(m["blockers"])})
 
-    lines = ["# FSU 30 模型 × 173 RunID 实施审计（阶段 B）", "",
-             "> 基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；"
+    st = summary["current_status"]
+    bin_ = st["gem5_binary"]
+    lines = ["# FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）", "",
+             f"> 设计时基线：`origin/fi-ding` `{summary['baseline_commit']}`；"
+             f"当前 HEAD：`{summary['current_head']}`；"
              "生成工具：`tools/fsu_implementation_matrix.py`；"
-             "数据源：工作簿表 7/9/10 + 2026-11-02 真实代码审计。", "",
+             "数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。", "",
              "## 1. 结论", "",
              f"- RunID 总数：**{summary['runid_count']}**（唯一 {summary['unique_runids']}；"
              "表 7/表 9 集合相等）",
@@ -481,7 +676,8 @@ def write_outputs(matrix, summary):
              f"{len(summary['implemented_runids'])}/{summary['runid_count']}**", "",
              "工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型："
              "FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，"
-             "FP32 与 NEON 全 lane（FP04-d）缺失。二者均无 FSU PROP 事件，不能直接进入三 seed 执行。", "",
+             "FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0 传播链已落地，"
+             "但子模型覆盖仍不完整；FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。", "",
              "## 2. 30 模型审计表", "",
              "| 模型 | 单元 | 工作簿声明 | 代码审计 | 现有注入器 | 关键缺口 |",
              "|---|---|---|---|---|---|"]
@@ -500,20 +696,43 @@ def write_outputs(matrix, summary):
     for m in matrix:
         lines.append(f"| {m['runid']} | {m['seed_completion']} | "
                      f"{m['coverage_status']} | {m['coverage_reason']} |")
-    lines += ["", "## 3. 全局阻塞（对全部 173 RunID 生效）", ""]
-    lines += [f"- {b}" for b in GLOBAL_BLOCKERS]
+    lines += ["", "## 3. 基线缺口 vs 当前状态", "",
+              "### 3.1 baseline_gap（2026-11-02 最初审计原文，保留不删）", ""]
+    for g in summary["baseline_gap"]:
+        lines.append(f"- `{g['id']}`：{g['text']}")
+    lines += ["", "### 3.2 current_status（当前 fsu HEAD 实测）", "",
+              f"- HEAD：`{st['head']}`（branch `{st['branch']}`）",
+              f"- gem5 二进制：`{bin_['path']}`；存在={bin_['exists']}；"
+              f"SHA-256=`{bin_['sha256'] or 'N/A'}`；size={bin_['size']}",
+              f"- FSU PROP 发射端：{st['fsu_prop_emitter']['implemented']}"
+              f"（{st['fsu_prop_emitter']['evidence']}）",
+              f"- FSU 链审计器：{st['chain_auditor']['implemented']}"
+              f"（`{st['chain_auditor']['path']}`）",
+              f"- FSU 三 seed runner：{st['three_seed_runner']['implemented']}"
+              f"（`{st['three_seed_runner']['path']}`）",
+              f"- rate ordinal 工具：{st['rate_ordinals']['implemented']}"
+              f"（`{st['rate_ordinals']['path']}`）",
+              f"- 模型级测试文件：{len(st['model_level_tests'])} 个",
+              f"- B0 配置匹配：{st['config_b0_match']}（{st['config_b0_note']}）", "",
+              "### 3.3 resolved_by_commit", ""]
+    for r in summary["resolved_by_commit"]:
+        lines.append(f"- `{r['id']}`：已由 {', '.join(r['resolved_by_commit'])} 解决；"
+                     f"{r['evidence']}")
+    lines += ["", "### 3.4 remaining_gaps（当前仍成立，不含已解决事项）", ""]
+    lines += [f"- `{g['id']}`：{g['text']}" for g in summary["remaining_gaps"]]
     lines += ["", "## 4. Workload 身份审计", "",
               "| W-ID | 名称 | 身份 | 真实载体 | golden/oracle | 缺口 |",
               "|---|---|---|---|---|---|"]
     for wid, w in WORKLOAD_AUDIT.items():
         lines.append(f"| {wid} | {w['name']} | **{w['identity']}** | "
                      f"`{w['path']}` {w['real']} | {w['golden']}；{w['oracle']} | {w['gap']} |")
-    lines += ["", "## 5. 试点选择", "",
-              "首选 **FSU-FP04-F0-W4**（FP04 + `elemwise_fma_kernel` + ARRAYHASH/ULP）：",
-              "- 注入器：CHAOSFPU 已能对 FP64 标量结果做 sign/exp/mant 字段单 bit 翻转；",
-              "- workload：`workloads/directed/elemwise_fma_kernel` 存在且 golden 完整；",
-              "- 仍缺：FSU PROP-EVT、activated 判定、chain_report、单 seed Markdown 生成器、链审计器、gem5 构建。",
-              "在补齐上述传播/审计能力前，试点门禁 1–10 均不能判定通过。", "",
+    lines += ["", "## 5. 试点现状", "",
+              "**FSU-FP04-F0-W4**（FP04-c/mant_lo + 短 `elemwise_fma_kernel` + "
+              "ARRAYHASH/ULP）已完成三 seed：",
+              "- seed_completion = 3/3，逐 seed admitted/certified=true、violations=[]；",
+              "- coverage_status 仍为 PILOT_SUBMODEL_ONLY（只覆盖 FP04-c 的 mant_lo，"
+              "不是 FP04 全子模型，也不是 F1/F2/F3）。",
+              "- 已解决的全局能力见 3.3；仍缺的能力见 3.4。", "",
               "## 6. 诚实边界", "",
               "- 本表不把“不支持/未激活/缺观测字段”记为 Masked；三 seed 状态一律 0/3。",
               "- 工作簿声明状态与代码审计状态分列；未观测到的运行时行为标 UNVERIFIED。",

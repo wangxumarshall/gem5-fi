@@ -1,6 +1,6 @@
-# FSU 30 模型 × 173 RunID 实施审计（阶段 B）
+# FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 2026-11-02 真实代码审计。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`1a9d69fd30ec38abd8146456ccbf64fae8afec38`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -10,7 +10,7 @@
 - workload 身份：NO_FP_ARTIFACT 6、NO_TRUE_ARTIFACT 54、PARTIAL 101、REAL 12
 - **可端到端运行（注入器+workload+oracle+传播链）的 RunID：0/173**
 
-工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型：FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，FP32 与 NEON 全 lane（FP04-d）缺失。二者均无 FSU PROP 事件，不能直接进入三 seed 执行。
+工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型：FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0 传播链已落地，但子模型覆盖仍不完整；FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。
 
 ## 2. 30 模型审计表
 
@@ -19,7 +19,7 @@
 | FP01 | FSU Pipe | 需新增 | **MISSING** | CHAOSFPU 仅结果侧 XOR，无操作数/A/B/C hook | 操作数/控制/流水线级故障；PROP 事件 |
 | FP02 | FSU Pipe | 需新增 | **MISSING** | CHAOSFPU faultMask 仅结果低 64 位多位 XOR | 同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件 |
 | FP03 | FSU Pipe | 需新增 | **MISSING** | CHAOSFPU 无；CHAOSDecode 仅有解码级 opcode swap（越界代理） | FSU op-select 换值；PROP 事件 |
-| FP04 | FSU Pipe | 直接已有 | **PARTIAL** | CHAOSFPU 结果 XOR + bitseg(sign/exp_hi/exp_lo/mant_hi/mid/lo) | FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；PROP 事件。工作簿“直接已有”高估 |
+| FP04 | FSU Pipe | 直接已有 | **PARTIAL** | CHAOSFPU 结果 XOR + bitseg(sign/exp_hi/exp_lo/mant_hi/mid/lo) | FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估 |
 | FP05 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU faultMask / recurringStuck | 2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件 |
 | FP06 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU recurringStuck（结果侧 stuck 代理） | SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件 |
 | FP07 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU fmaWeighted（E3 行为代理） | 真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件 |
@@ -228,14 +228,41 @@
 | FSU-FP10-F4-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FP10-F4-W7 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 
-## 3. 全局阻塞（对全部 173 RunID 生效）
+## 3. 基线缺口 vs 当前状态
 
-- 无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行
-- 无 FSU PROP-EVT 发射：CHAOSFPU/CHAOSIQ/CHAOSPhysReg 均未调用 CHAOSPropagation::notePropEvt
-- 无 FSU 链审计器：无 fsu_prop_fields.py/fsu_chain_check.py；LSU 审计器为硬编码
-- 无 FSU 三 seed 流水线：runner.py/campaign.py 无 FSU RunID/seed1..3/chain_report 支持
-- 配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8
-- 所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项
+### 3.1 baseline_gap（2026-11-02 最初审计原文，保留不删）
+
+- `gem5_binary_missing`：无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行
+- `fsu_prop_evt_missing`：无 FSU PROP-EVT 发射：CHAOSFPU/CHAOSIQ/CHAOSPhysReg 均未调用 CHAOSPropagation::notePropEvt
+- `fsu_chain_auditor_missing`：无 FSU 链审计器：无 fsu_prop_fields.py/fsu_chain_check.py；LSU 审计器为硬编码
+- `fsu_three_seed_runner_missing`：无 FSU 三 seed 流水线：runner.py/campaign.py 无 FSU RunID/seed1..3/chain_report 支持
+- `config_mismatch_b0`：配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8
+- `model_level_tests_missing`：所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项
+
+### 3.2 current_status（当前 fsu HEAD 实测）
+
+- HEAD：`1a9d69fd30ec38abd8146456ccbf64fae8afec38`（branch `fsu`）
+- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`f9a7cd9b4de6a47dbaceaa4dac0b58bbf8ba5bbbe8f1c8241a9e71be7af98c32`；size=1246143432
+- FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
+- FSU 链审计器：True（`tools/fsu_chain_check.py`）
+- FSU 三 seed runner：True（`tools/fsu_seed_runner.py`）
+- rate ordinal 工具：False（`tools/fsu_rate_ordinals.py`）
+- 模型级测试文件：7 个
+- B0 配置匹配：False（ooo_proxy.py 仍为 C3 默认 ROB=128/IQ=64/4-wide；工作簿 B0 的 ROB=40/IQ=32/3/3/3 未实现）
+
+### 3.3 resolved_by_commit
+
+- `gem5_binary_missing`：已由 f8eb4a22, 2f65a647 解决；权威基线改为 CHAOS/gem5/build/ARM/gem5.opt；Python 3.11.9 构建成功并由 F0 三 seed 使用
+- `fsu_prop_evt_missing`：已由 e541beb9 解决；CHAOSFPU emitFsu() 调用 CHAOSPropagation::notePropEvt；F0 三 seed 的 prop_evt 已由链审计器解析
+- `fsu_chain_auditor_missing`：已由 15f6cd1b, ccf4c96e, 26c96efe 解决；tools/fsu_prop_fields.py + tools/fsu_chain_check.py + tools/fsu_seed_audit.py；逐 seed audit.json 已持久化
+- `fsu_three_seed_runner_missing`：已由 ef6b4036, 8e86d1ba 解决；tools/fsu_seed_runner.py（census→inject→oracle→chain）与 F0 三 seed AUTHORITATIVE 证据
+- `model_level_tests_missing`：已由 e541beb9, 15f6cd1b, ccf4c96e, 26c96efe 解决；已新增 FSU rate/chain/runner/audit/index/矩阵测试；但 30 个模型的逐模型行为测试仍未齐全（见 remaining_gaps）
+
+### 3.4 remaining_gaps（当前仍成立，不含已解决事项）
+
+- `config_mismatch_b0`：配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8
+- `per_model_behavior_tests_missing`：30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）
+- `rate_ordinals_missing`：F1/F2/F3 的真实 rate ordinal 语义尚未实现；不得只改 freq 标签
 
 ## 4. Workload 身份审计
 
@@ -253,13 +280,12 @@
 | W9 | libjpeg-turbo-NEON | **REAL** | `workloads/ooo/libjpeg/jpeg_wl` libjpeg-turbo 3.2.1 AArch64 NEON jpeg_wl | libjpeg-golden-v1=c712f8f6fb9e21ec；FINAL 16-hex（解码 RGB FNV-1a） | 尚未被任何 FSU 173 RunID campaign 绑定 |
 | W10 | SPEC CPU2017 FP SimPoint | **UNUSED** | `—` 无（需许可证） | 无；无 | 仓库无源码/二进制/checkpoint；173 RunID 未使用 |
 
-## 5. 试点选择
+## 5. 试点现状
 
-首选 **FSU-FP04-F0-W4**（FP04 + `elemwise_fma_kernel` + ARRAYHASH/ULP）：
-- 注入器：CHAOSFPU 已能对 FP64 标量结果做 sign/exp/mant 字段单 bit 翻转；
-- workload：`workloads/directed/elemwise_fma_kernel` 存在且 golden 完整；
-- 仍缺：FSU PROP-EVT、activated 判定、chain_report、单 seed Markdown 生成器、链审计器、gem5 构建。
-在补齐上述传播/审计能力前，试点门禁 1–10 均不能判定通过。
+**FSU-FP04-F0-W4**（FP04-c/mant_lo + 短 `elemwise_fma_kernel` + ARRAYHASH/ULP）已完成三 seed：
+- seed_completion = 3/3，逐 seed admitted/certified=true、violations=[]；
+- coverage_status 仍为 PILOT_SUBMODEL_ONLY（只覆盖 FP04-c 的 mant_lo，不是 FP04 全子模型，也不是 F1/F2/F3）。
+- 已解决的全局能力见 3.3；仍缺的能力见 3.4。
 
 ## 6. 诚实边界
 
