@@ -501,6 +501,11 @@ def _coverage(runid, audited_status, workload_identity, seed_n):
                 "requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, "
                 "FP04-d NEON lane result, plus F1/F2/F3 semantics")
     if runid in ("FSU-FP04-F1-W4", "FSU-FP04-F2-W4", "FSU-FP04-F3-W4"):
+        if seed_n:
+            return ("PARTIAL",
+                    f"W4-rate-v1 official seeds {seed_n}/3 admitted; "
+                    f"{3 - seed_n}/3 not run. The F3 multi-fault gate used "
+                    "the short W4 and is not an official seed")
         return ("PARTIAL",
                 "D2 implements real rate ordinals and W4-rate-v1 "
                 "(N=2,097,155) is golden/census-ready, but this RunID still "
@@ -653,7 +658,7 @@ def build(out_root=DEFAULT_RUNS):
                                 "FP32", "NEON 128-bit lane"],
             },
             "workload_coverage": {
-                "W4": "REAL; short W4 F0 3/3; W4-rate-v1 golden/census ready, 0/3",
+                "W4": "REAL; short W4 F0 3/3; W4-rate-v1 F3 seed1 1/3",
                 "W1": "NO_TRUE_ARTIFACT", "W2": "NO_TRUE_ARTIFACT",
                 "W3": "PARTIAL", "W5": "PARTIAL", "W6": "PARTIAL",
                 "W7": "NO_FP_ARTIFACT", "W9": "REAL but unbound",

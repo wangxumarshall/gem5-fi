@@ -1,6 +1,7 @@
-# FSU 覆盖状态（D2 收口）
+# FSU 覆盖状态（D2 收口 + D3 F3 seed1）
 
-> 生成时间：2026-11-02。数据源：`runs/fsu` 的 AUTHORITATIVE 证据、
+> 生成时间：2026-11-02；D3 更新：正式 `FSU-FP04-F3-W4` seed1 已 admitted。
+> 数据源：`runs/fsu` 的 AUTHORITATIVE 证据、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
 > `runs/fsu-gates/` 下的门禁证据**不计入** seed 完成数。
 
@@ -8,9 +9,10 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **3 / 519** |
+| 已完成合格 seed | **4 / 519** |
 | seed-complete RunID | **1 / 173**（`FSU-FP04-F0-W4` = 3/3） |
-| 其余 172 个 RunID | 0/3 |
+| 部分完成 RunID | **1 / 173**（`FSU-FP04-F3-W4` = 1/3，seed1） |
+| 其余 171 个 RunID | 0/3 |
 
 ## 2. frequency_coverage（限 `FSU-FP04-*-W4`）
 
@@ -19,7 +21,7 @@
 | F0 | **3/3** | 已实现；短 W4 pilot 三 seed |
 | F1 | **0/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1 N=2,097,155；ordinals 预注册；未运行 |
 | F2 | **0/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；ordinals 预注册；未运行 |
-| F3 | **0/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；ordinals 预注册；仅短 W4 机制门禁通过 |
+| F3 | **1/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；ordinals 预注册；seed1 正式运行完成（206/206 fault 全 `full`，audit PASS）；seed2/3 未运行 |
 | F4/F5 | 0/3 | 未按本报告实现（F4 burst / F5 stuck 不在 D2 范围） |
 
 > F3 门禁（4 个独立 fault、逐 fault full 链）是机制证据，不是正式 seed；
@@ -71,4 +73,4 @@
 |---|---|
 | B0 配置（ROB=40、IQ=32、3/3/3、8/8/8） | 未实现，仍用 C3 默认 |
 | 30 模型逐模型行为测试 | 未齐全（现有 94 项 FSU 测试覆盖编排/链/rate/矩阵） |
-| F1/F2/F3 正式三 seed | **未启动**（用户指令：先完成门禁，不批量运行） |
+| F1/F2/F3 正式三 seed | **部分启动**：`FSU-FP04-F3-W4` seed1 已完成；F1、F2 与 F3 seed2/3 未运行 |
