@@ -130,6 +130,13 @@ def _field_violations(evt):
     prec = str(evt.get("precision", "")).strip()
     if not prec and field in FP_FIELDS["fp64"]:
         prec = "fp64"  # legacy D2 event (only FP64 fields existed)
+    # [FSU][F5] A permanent stuck-at event may name the IEEE field of its
+    # fixed mask (e.g. sign under FP06-b), but the FP04 field→submodel table
+    # does not apply: FP06-a/b/c are the F5 submodels. The forced-value rules
+    # below still validate mask/polarity/target bits exactly.
+    f5_mode = (field == "permanent_stuck"
+               or str(evt.get("stuck_polarity", "")).strip() != ""
+               or str(evt.get("install_event", "")).strip() != "")
     if field not in MODE_FIELDS:
         if prec not in FP_FIELDS:
             v.append(f"fault {fid}: unknown field '{field}' / precision '{prec}'")
@@ -143,7 +150,8 @@ def _field_violations(evt):
         # FP04-d is the NEON lane-result domain, orthogonal to the field
         # axis: a lane-selected run (lane_offset > 0) may carry any field.
         lane_domain = (sub == "FP04-d" and lane_o > 0)
-        if want_sub and sub and sub != want_sub and not lane_domain:
+        if (want_sub and sub and sub != want_sub and not lane_domain
+                and not f5_mode):
             v.append(f"fault {fid}: field {field} requires {want_sub}, "
                      f"event submodel={sub}")
     mask = _hex_int(evt.get("fault_mask"))
@@ -186,7 +194,7 @@ def _field_violations(evt):
     # Its before/after pair is a FORCED value, not an XOR: when the correct
     # bit already equals the stuck polarity the pair legitimately differs by
     # zero (exposed-but-not-activated).
-    permanent = field == "permanent_stuck"
+    permanent = f5_mode
     pol = None
     if permanent:
         fixed = _mask_hex(evt.get("fixed_mask"), default=None)
