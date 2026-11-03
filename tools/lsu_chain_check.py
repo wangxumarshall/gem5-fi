@@ -497,9 +497,15 @@ def _crash_candidate_reason(events, family, fid=None):
     if not any(e.get("kind") == "inj" for e in anc):
         return cand, "crash_terminal_no_injection"
     pre = _ordered_prefix([e for e in anc if e is not cand], family)
-    if len(pre) < LAYERS.index("L3") + 1:
+    # [LSU][L-UNIT] An LQ address fault that fails TRANSLATION has no L3 by
+    # construction (the access never forms a request/response). Its honest
+    # crash terminal is the delivered arch_translation_fault at L2, proven
+    # from a contiguous L0..L2 ancestry. Other families keep the stricter
+    # L3 requirement.
+    crash_layer = "L2" if family == "lq" else "L3"
+    if len(pre) < LAYERS.index(crash_layer) + 1:
         return cand, "crash_terminal_not_in_ancestry"
-    if _tick(cand) < _tick(pre[LAYERS.index("L3")]):
+    if _tick(cand) < _tick(pre[LAYERS.index(crash_layer)]):
         return cand, "crash_terminal_time_reversed"
     owner = ""
     for e in anc:
@@ -776,22 +782,48 @@ def injected_not_activated_verdict(
         return bad(f"expected exactly one fault, got {sorted(faults)}")
     fid, chain = next(iter(faults.items()))
     nonlife = [e for e in chain if e.get("kind") != "chain_end"]
-    if len(nonlife) != 1 or nonlife[0].get("kind") != "inj":
+    # Two honest shapes:
+    #   [inj]                 -> L0-only (cache line never consumed);
+    #   [inj, addr_form]      -> L1 view formed but no downstream effect
+    #                            (L03 violation-check view).
+    shape = None
+    if len(nonlife) == 1 and nonlife[0].get("kind") == "inj":
+        shape = "L0"
+    elif (len(nonlife) == 2
+          and nonlife[0].get("kind") == "inj"
+          and nonlife[1].get("kind") == "addr_form"
+          and str(nonlife[1].get("parent_event_id", ""))
+              == str(nonlife[0].get("event_id", ""))
+          and str(nonlife[1].get("corr", "")).strip() in _CHAIN_CORR):
+        shape = "L1"
+    if shape is None:
         kinds = sorted({str(e.get("kind", "")) for e in nonlife
                         if e.get("kind") != "inj"})
         return bad(f"downstream/structural events present in the fault chain: "
-                   f"{kinds or 'missing inj'} (not exactly one L0 inj)")
+                   f"{kinds or 'missing inj'} (not a proven L0/L1 view)")
     inj = nonlife[0]
+    last = nonlife[-1]
     line = (_hex_or_none(inj.get("cache_line"))
             or _hex_or_none(inj.get("va")))
+    if shape == "L1":
+        line = (_hex_or_none(last.get("va"))
+                or _hex_or_none(last.get("cache_line")) or line)
     if not line:
-        return bad("L0 injection has no verifiable cache_line/va")
+        return bad("injection has no verifiable cache_line/va")
     tick0 = inj.get("tick")
     try:
         tick0 = int(tick0)
     except (TypeError, ValueError):
         return bad("L0 injection has no valid tick")
-    field = str(inj.get("field", "")).strip()
+    try:
+        last_tick = int(last.get("tick"))
+    except (TypeError, ValueError):
+        last_tick = tick0
+    field = str(inj.get("field", "")).strip() or (
+        "violation_addr" if shape == "L1" else "")
+    res["provable_to"] = "L1" if shape == "L1" else "L0"
+    res["subkind"] = "latent_no_effect" if shape == "L1" else INA_SUBKIND
+    res["shape"] = shape
 
     # (8) lifecycle marker must be lifecycle-only.
     for e in chain:
@@ -814,13 +846,13 @@ def injected_not_activated_verdict(
     # non-lifecycle event may exist at all (any such event would be an
     # unproven downstream claim).
     for e in events:
-        if e is inj or e.get("kind") == "chain_end":
+        if e is inj or e is last or e.get("kind") == "chain_end":
             continue
         try:
             te = int(e.get("tick") or -1)
         except (TypeError, ValueError):
             te = -1
-        if te < tick0:
+        if te < last_tick:
             continue
         for key in ("pa", "cache_line", "va"):
             val = _hex_or_none(e.get(key))
@@ -842,7 +874,13 @@ def injected_not_activated_verdict(
         simticks = 0
     if simticks <= 0:
         return bad("stats.simTicks missing/zero")
-    raw_stat = stats.get("board.chaos_l1d.numFaultsInjected")
+    raw_stat = None
+    for _k in ("board.chaos_l1d.numFaultsInjected",
+               "board.chaos_lsqfwd.numFaultsInjected",
+               "board.chaos_addrpath.numFaultsInjected"):
+        if _k in stats:
+            raw_stat = stats[_k]
+            break
     try:
         stat_inj = int(raw_stat)
     except (TypeError, ValueError):
