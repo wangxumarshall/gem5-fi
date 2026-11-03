@@ -292,6 +292,9 @@ def run(root, regrade=False):
                                     "未被下游消费，无架构影响。"}
         new["injected_not_activated"] = {
             "subkind": verdict["subkind"], "fault_id": verdict["fault_id"],
+            "fault_ids": verdict.get("fault_ids") or [verdict["fault_id"]],
+            "fault_count": verdict.get("fault_count") or 1,
+            "faults": verdict.get("faults") or [],
             "l0": verdict["l0"], "line": verdict["line"],
             "oracle": verdict["oracle"], "stats_injected": verdict["stats_injected"],
             "log_rows": verdict["log_rows"], "simTicks": verdict["simTicks"],
@@ -465,6 +468,16 @@ def doc(man, rid, seed, rep, events, paths):
         a("故障真实注入，但该视图在程序结束前没有被下游消费/产生可观察的架构影响；"
           "`chain_end` 仅生命周期，不是 L5，不伪造任何 L1–L5 事件。")
         a("")
+        fault_list = ina.get("faults") or []
+        if len(fault_list) > 1:
+            a(f"本样本为多 fault（burst，共 `{len(fault_list)}` 个），"
+              "每个 fault 都独立满足 L0/L1 视图证明：")
+            a("")
+            for f in fault_list:
+                a(f"- fault `{f.get('fault_id')}`：shape=`{f.get('shape')}`，"
+                  f"line=`{f.get('line')}`，tick=`{f.get('tick')}`，"
+                  f"field=`{f.get('field')}`")
+            a("")
     terminal = rep.get("terminal") or ""
     a("## 终局语义")
     a("")
