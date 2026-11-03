@@ -35,20 +35,20 @@ gemm → 2mm → lu → cholesky → jacobi-2d
   三个词，禁止用单个 PolyBench 程序冒充 W5。
 
 ### 任务 1：裁决文档 + suite schema（提交 1）
-- [ ] 新增 `docs/gem5-fi/fsu/FP04-F0-W5-SUITE-RULING.md`：上述裁决全文、
+- [x] 新增 `docs/gem5-fi/fsu/FP04-F0-W5-SUITE-RULING.md`：上述裁决全文、
       计数规则、失败重试规则、术语定义、与 173×3=519 / 80×3=240 的关系。
-- [ ] 新增 `schemas/fsu_suite.schema.json`（draft-07）：suite_id、suite_version、
+- [x] 新增 `schemas/fsu_suite.schema.json`（draft-07）：suite_id、suite_version、
       program_order（固定 5 项）、programs、scale、compiler、oracle、
       suite_hash、program_count=5。
-- [ ] 新增 `schemas/fsu_component.schema.json`：suite_id/suite_hash/suite_seed/
+- [x] 新增 `schemas/fsu_component.schema.json`：suite_id/suite_hash/suite_seed/
       program_id/program_index/program_count/component_attempt/
       component_manifest_sha256/component_{binary,source,golden}_sha256/
       component_status/eligible/activated/terminal/oracle。
-- [ ] 测试：schema 必填/枚举/固定顺序；缺 program、重复 program、
+- [x] 测试：schema 必填/枚举/固定顺序；缺 program、重复 program、
       program_count≠5 必须拒绝。
 
 ### 任务 2：suite 身份与计数门禁（提交 2）
-- [ ] `tools/fsu_suite.py`：
+- [x] `tools/fsu_suite.py`：
   - `PROGRAM_ORDER = ("gemm","2mm","lu","cholesky","jacobi-2d")`；
   - `compute_suite_hash(suite)`：SHA-256 over canonical JSON，字段严格为
     suite_id、suite_version、program_order、每程序 source/binary SHA、
@@ -61,14 +61,14 @@ gemm → 2mm → lu → cholesky → jacobi-2d
     全部响亮拒绝；
   - `suite_seed_state(seed_dir)`：只有 `suite_manifest.json` + `audit.json.ok`
     + 5/5 component certified 才返回 admitted。
-- [ ] `configs/fsu/suites/polybench-fp-v1.json`：固定顺序、五程序源码/规模/
+- [x] `configs/fsu/suites/polybench-fp-v1.json`：固定顺序、五程序源码/规模/
      编译参数/oracle 版本；binary SHA 在构建后回填，构建前 `pending`。
-- [ ] `tests/test_fsu_suite.py`：suite_hash 稳定、篡改任一身份字段必变、
+- [x] `tests/test_fsu_suite.py`：suite_hash 稳定、篡改任一身份字段必变、
       缺/重复 component 拒绝、派生 seed 确定且唯一。
-- [ ] `tests/test_fsu_index.py` 增补：一个 suite seed（5 component）只计 1 seed。
+- [x] `tests/test_fsu_index.py` 增补：一个 suite seed（5 component）只计 1 seed。
 
 ### 任务 3：suite runner / suite audit / suite Markdown（提交 3）
-- [ ] `tools/fsu_suite_runner.py`：
+- [x] `tools/fsu_suite_runner.py`：
   - 对 suite seed 的 5 个程序按固定顺序分别调用
     `fsu_seed_runner.run_seed`，component seed 用任务 2 的派生值；
   - 每个 component 目录：`runs/fsu/<RunID>/seed<N>/components/<program_id>/
@@ -78,26 +78,26 @@ gemm → 2mm → lu → cholesky → jacobi-2d
     `FSU-FP04-F0-W5-seed<N>.md`（suite 级，链接 5 个 component attempt），
     最后才写 `AUTHORITATIVE`；
   - 重复 component/缺 component/suite_hash 漂移 → 拒绝运行。
-- [ ] `tools/fsu_index.py`：seed 目录含 `suite_manifest.json` 时按 suite
+- [x] `tools/fsu_index.py`：seed 目录含 `suite_manifest.json` 时按 suite
       seed 计数（1 个 seed），component 数量不进入 summary。
-- [ ] `tests/test_fsu_suite_runner.py`：假 gemm5 下 5/5 通过计 1 seed；
+- [x] `tests/test_fsu_suite_runner.py`：假 gemm5 下 5/5 通过计 1 seed；
       任一 component 失败 → suite 不 admitted；重试不覆盖旧 attempt；
       5 个 component 不等于 5 个 seed。
 
 ### 任务 4：五程序逐元素 oracle（提交 4）
-- [ ] `workloads/ooo/polybench/utilities/gem5fi_oracle.h`（新）：
+- [x] `workloads/ooo/polybench/utilities/gem5fi_oracle.h`（新）：
       `gem5fi_dump_array(path, ptr, count, elem_size)` 以**小端原始字节**写出，
       打印 `ARRAY_SHA256=<64hex> ARRAY_COUNT=<n> ARRAY_PATH=<path>`；
       路径来自 `--array-dump=<path>` 或 `POLYBENCH_ARRAY_DUMP`；
       输出数组域与现有 FINAL 完全相同（gemm C、2mm D、lu A、cholesky
       下三角、jacobi-2d A）。
-- [ ] 五个 `*.c` 在 FINAL 块后加入 dump 调用（仅此一处新偏差，PROVENANCE 记录）。
-- [ ] `tools/fsu_oracle.py`：读取 meta（dtype=fp32、shape、row-major、
+- [x] 五个 `*.c` 在 FINAL 块后加入 dump 调用（仅此一处新偏差，PROVENANCE 记录）。
+- [x] `tools/fsu_oracle.py`：读取 meta（dtype=fp32、shape、row-major、
       little-endian、count）、逐元素比较、abs/rel/ULP tolerance、
       mismatch_count/first_mismatch_index/max_abs_error/max_rel_error/max_ulp、
       golden/fault 数组 SHA-256；tolerance 必须在 fault 运行前预注册。
-- [ ] `schemas/fsu_oracle.schema.json`。
-- [ ] `tests/test_fsu_oracle.py`：形状不一致拒绝、逐元素定位、三种 tolerance、
+- [x] `schemas/fsu_oracle.schema.json`。
+- [x] `tests/test_fsu_oracle.py`：形状不一致拒绝、逐元素定位、三种 tolerance、
       SHA-256 稳定、NaN/Inf 规则显式。
 - [ ] Makefile 构建五个程序；构建后回填 `configs/fsu/suites/polybench-fp-v1.json`
       的 binary SHA 并重算 suite_hash。
@@ -119,25 +119,25 @@ gemm → 2mm → lu → cholesky → jacobi-2d
 ## 2. F5：一个永久故障、多次 exposure
 
 ### 任务 7：F5 事件字段 + 链审计（提交 5）
-- [ ] `tools/fsu_prop_fields.py` 增加字段：install_event、stuck_polarity、
+- [x] `tools/fsu_prop_fields.py` 增加字段：install_event、stuck_polarity、
       fixed_mask、first_eligible_sn、exposure_id、exposure_count、
       activated_exposure_count、first_activated_sn、last_exposure_sn、
       affected_sn、correct_before、stuck_after、first_impact_latency、
       sample_policy、exposures_total、exposures_sampled、exposures_dropped。
-- [ ] kind 映射：`fault_installed`=L0；`exposure`=None（旁支，不占层）；
+- [x] kind 映射：`fault_installed`=L0；`exposure`=None（旁支，不占层）；
       `activation`/`first_impact` 按真实层级；`chain_end` 仍不占层。
-- [ ] `tools/fsu_chain_check.py`：F5 根可为 `fault_installed`；
+- [x] `tools/fsu_chain_check.py`：F5 根可为 `fault_installed`；
       一个 fault 只允许一个安装根；exposure 不得被当成独立 fault；
       首个 activated exposure 必须能连到 L0–L5；安装/exposure 总数/
       dropped 显式校验；EVENT_CAP 截断必须 `truncated=True`。
-- [ ] 测试：一次安装、多 exposure、非激活 exposure、parent 隔离、
+- [x] 测试：一次安装、多 exposure、非激活 exposure、parent 隔离、
       事件容量截断、exposure 不重复计 fault。
 
 ### 任务 8：CHAOSFPU F5 永久语义（提交 6）
-- [ ] `chaos_fsu_fields.hh` 增加纯函数：
+- [x] `chaos_fsu_fields.hh` 增加纯函数：
       `applyStuck(value, mask, polarity)`（SA0 强制清零、SA1 强制置一，
       **不是 XOR**）、`stuckActivated(correct, mask, polarity)`。
-- [ ] `CHAOSFPU.hh/.cc/.py`：
+- [x] `CHAOSFPU.hh/.cc/.py`：
   - 新参数 `permanentStuck`、`stuckPolarity`、`f5Warmup`、
     `f5SampleLimit`、`f5KeepFirstLastN`；
   - warm-up 后第一个 eligible 安装一次永久 fault（固定 fault_id、
@@ -148,7 +148,7 @@ gemm → 2mm → lu → cholesky → jacobi-2d
     最终 terminal 保留完整直接 parent 链；其余 exposure 只记计数与
     bounded samples，显式记录 policy/total/dropped；
   - 运行结束发 `chain_end`，含 exposures_total/activated/dropped。
-- [ ] 单元测试（host C++ + Python）：SA0/SA1、一次安装、多 exposure、
+- [x] 单元测试（host C++ + Python）：SA0/SA1、一次安装、多 exposure、
       非激活 exposure、mask/polarity 全程不变、非目标位不变、
       capacity 不静默丢证据。
 
@@ -169,22 +169,22 @@ gemm → 2mm → lu → cholesky → jacobi-2d
 ## 3. FR03（不运行正式 seed）
 
 ### 任务 11：FR03 写路径与世代（提交 8，代码 + host 单测）
-- [ ] `regfile.hh`：VecRegClass 每次写入重新施加 stuck mask（SA0/SA1），
+- [x] `regfile.hh`：VecRegClass 每次写入重新施加 stuck mask（SA0/SA1），
       128-bit 两个 64-bit 字；Vec 不落入 int PRF。
-- [ ] permanent key：reg_class + phys_index + generation + lane + bit + polarity。
-- [ ] 物理寄存器重新分配后，旧世代故障不传播到新世代（除非显式要求
+- [x] permanent key：reg_class + phys_index + generation + lane + bit + polarity。
+- [x] 物理寄存器重新分配后，旧世代故障不传播到新世代（除非显式要求
       cell 跨世代）。
 - [ ] CHAOSPhysReg 增加真实 FSU_PROP L0–L5；runner 增加显式
       CHAOSPhysReg 路径。
-- [ ] host 单测：连续多次 Vec 写后目标位仍保持 SA0/SA1；squash/重命名/
+- [x] host 单测：连续多次 Vec 写后目标位仍保持 SA0/SA1；squash/重命名/
       释放/重分配语义。全部通过前 FR03-F5 不得正式运行；不得借用 FP06
       结果侧 stuck 证据认证 FR03。
 
 ## 4. 测试、Git 与报告
 
-- [ ] 保持 125 项 FSU 测试通过；新增 suite/oracle/F5 测试。
-- [ ] 18 个历史正式 seed 继续只读审计通过；不改旧原始事件。
-- [ ] 每个稳定阶段小步提交并 `git push origin fsu`；不 force push、
+- [x] 保持 125 项 FSU 测试通过；新增 suite/oracle/F5 测试。
+- [x] 18 个历史正式 seed 继续只读审计通过；不改旧原始事件。
+- [x] 每个稳定阶段小步提交并 `git push origin fsu`；不 force push、
       不重写历史、不覆盖失败 attempt、不手工补写传播事件或 Markdown。
 - [ ] 最终报告：负载与恢复时点、W5/oracle 状态、五程序每 seed/component
       状态、F0-W5 3/3、F5 语义真实性、FP06-F5-W3 3/3、FR03 状态、
@@ -201,3 +201,21 @@ gemm → 2mm → lu → cholesky → jacobi-2d
 | 主 agent | `configs/fsu/**` 正式 manifest/gate、`tools/fsu_seed_doc.py`、`CHAOS/gem5/src/cpu/o3/regfile.hh`、`CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/*`(FR03)、构建、gem5/gate、正式运行、索引、提交/推送 |
 
 subagent 只写代码 + 跑轻量测试，**不执行 git commit / push**；主 agent 按任务逐单元提交。
+
+## 6. 进度快照（2026-11-03 18:10，代码阶段）
+
+- 已完成并推送：`40c467ad`、`1f3c0350`、`189f551d`、`3c8a807a`、
+  `096ee156`、`feb23244`、`d27b248f`。
+- FSU 测试 216 passed；18/18 历史 seed 只读审计通过；双视图仍 18/519、9/240。
+- 待负载恢复：scons 重建、PolyBench 重建、W5 element-oracle gate、
+  F5 gate、F0-W5 3 seeds、FP06-F5-W3 3 seeds。
+- FR03：写路径/世代 host 单测完成；真实 FSU_PROP L0–L5 与 runner
+  显式路径仍未实现，正式 seed 继续禁止。
+
+### 6.1 实现偏差说明（任务 4）
+
+C 侧最终接口为 `gem5fi_oracle_dump_{from_argv,lower_from_argv}`，打印
+`ARRAY_DUMP path=<p> count=<n> elem_size=<s> fnv1a=<16hex>`；SHA-256 由
+`tools/fsu_oracle.py` 对保存的 canonical 字节计算（C 侧不重复实现哈希）。
+这保留了计划要求的“canonical 数组 + SHA-256”，并让 FNV 行与现有 FINAL
+块使用同一套无依赖 C 代码。
