@@ -275,7 +275,7 @@ def test_delivered_arch_fault_sibling_refused_by_whitelist():
                contained="1", outcome="arch_exception")
     ev = a01_chain(extra_anc=[arch])
     sq = next(e for e in ev if e.get("kind") == "squash_discarded")
-    assert C._a01_translation_squash_witness(ev, sq, "agu") is False
+    assert C._translation_squash_witness(ev, sq, "agu") is False
 
 
 def test_store_not_retired_in_chain_refused():

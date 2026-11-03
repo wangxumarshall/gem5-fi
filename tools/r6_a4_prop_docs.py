@@ -397,7 +397,7 @@ def doc(rec):
               "（inj→addr_form→mem_req→lsq_sendfrag→tlb_translate→tlb_fault→"
               "squash）、tick 单调、squash 后无任何更深观测、流已收口，且"
               "oracle=Masked 与 rc=0（必要条件）。见 "
-              "`tools/lsu_chain_check._a01_translation_squash_witness`。")
+              "`tools/lsu_chain_check._translation_squash_witness`。")
         elif _k == "arch_translation_fault":
             A("该事件是**真实交付的架构翻译异常**（guest SEGV）：L2 硬件检测 + "
               "contained 字段 + 与注入链的 corr 关联；门禁按既有规则接受为 "

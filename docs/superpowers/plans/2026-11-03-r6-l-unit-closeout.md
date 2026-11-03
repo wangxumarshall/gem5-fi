@@ -744,3 +744,17 @@ Expected: 远端 `fi-ding` == 本地 HEAD；分支 SHA 一致。
 - [ ] 原始证据未修改（旧目录保留并标注 superseded）。
 - [ ] 状态表、CATALOG、EVIDENCE、INDEX 与报告一致。
 - [ ] 分支与 `origin/fi-ding` 已推送，远端 SHA 复核一致。
+
+---
+
+## 执行结果（2026-11-03，最终）
+
+- [x] Task 1-4：已验证 L03/stats、checker 终局、L 工具已提交。
+- [x] Task 5-9：25 个 NO_INJECTION 全部定量诊断为 workload 供给不足；有界重复路由扩展到 L01/L02/L03；`sqlite_like` 增加同源 repeat；census 以目标尺度验证修正（F1-W5 119,056、F4-W5 56,143、F2-W5 12,901 等）；四类 canary 全部通过。
+- [x] Task 10：25 个 seed 在全新根 `runs/lsu/r6_l_unit/runs_repeat_20261103/` 重跑，全部 rc=0。
+- [x] Task 11-12：42/42 逐 seed 文档已部署；独立审计 `docs=42 run_ids=14 broken_or_mismatched_docs=0 ok=true`。
+- [x] Task 13：STATUS/CATALOG/INDEX/AUTHORITATIVE-EVIDENCE 已更新（42/42、14/14、NO_INJECTION=0）。
+- [x] Task 14：`pytest -q tests/` = **299 passed / 9 failed**，9 个失败与基线逐名一致（NEW FAIL=0）；分支已推送，fi-ding 快进与远端 SHA 复核见最终汇报。
+
+**关键实证修正**：小重复数外推会高估渐近 eligible 增量（F1-W5 局部 16.33 vs 渐近 13.0；F4-W5 局部 6.11 vs 渐近 3.0）；census 因此改为“目标尺度验证 + 有界修正”。
+**新增传播模型**：LQ 翻译期 squash containment、L03 comparison-view squash containment、L03 comparison-view 真实 errant_commit（full/L5，oracle Masked 的 silent escape）。

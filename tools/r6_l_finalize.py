@@ -442,8 +442,15 @@ def doc(man, rid, seed, rep, events, paths):
          if (meta.get("repeat_factor") or 1) <= 1 else
          "ITER 行 `%s`（全部等于 golden：`%s`）。"
          % (meta.get("iter_lines"), meta.get("iter_all_match_golden"))))
-    a(f"- 二进制 SHA `{man.get('binary_sha256')}`，源 `{man.get('binary_source_head')}`，"
-      f"analysis head `{man.get('analysis_tool_head')}`。")
+    a(f"- 二进制 SHA `{man.get('binary_sha256')}`；C 工作树源 head "
+      f"`{man.get('binary_source_head')}`；L 源 commit "
+      f"`{man.get('binary_source_commit') or 'n/a'}`；analysis head "
+      f"`{man.get('analysis_tool_head')}`。")
+    src = man.get("source_file_sha256")
+    if isinstance(src, dict):
+        a("- C/L 源文件逐字节一致："
+          + "；".join(f"`{os.path.basename(k)}`={'是' if v.get('identical') else '否'}"
+                     for k, v in sorted(src.items())) + "。")
     a(f"- 事件数 `{rep.get('event_count')}`；truncated `{rep.get('truncated')}`。")
     a("")
     a("## 注入点与字段")
