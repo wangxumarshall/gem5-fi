@@ -115,7 +115,7 @@ class CHAOSLSQFwd : public SimObject
     // checkViolations before the overlap comparison. Returns true if the
     // comparison address was corrupted (caller logs it). The corruption
     // changes ONLY the violation check, not the actual memory access.
-    bool violationCorrupt(Addr& cmp_addr);
+    bool violationCorrupt(Addr& cmp_addr, uint64_t load_seq);
 
     // [MDSPEC][R4-5.3] LSU W5 L04 — response-pairing target substitution
     // (model L04-b "同周期load返回目标互换", workbook 03/09 sheets; the

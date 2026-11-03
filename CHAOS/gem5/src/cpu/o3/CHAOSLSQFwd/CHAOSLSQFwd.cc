@@ -666,7 +666,7 @@ namespace gem5
     {}
 
     bool
-    CHAOSLSQFwd::violationCorrupt(Addr& cmp_addr)
+    CHAOSLSQFwd::violationCorrupt(Addr& cmp_addr, uint64_t load_seq)
     {
         // [LSU][SEM-B] the violation site is L03's ONLY injection point;
         // non-L03 runs must not inject here (was: mixed into any lsqfwd run).
@@ -674,12 +674,27 @@ namespace gem5
         lsuTrigger->onAttempt();
         if (!lsuTrigger->onEligible()) return false;
         const uint64_t bit = rng() % 20;
+        const Addr old_cmp = cmp_addr;
         cmp_addr ^= (1ULL << bit);
         ++faults_injected_count;
         ++l0_funnel.injected;
         ++l0_funnel.activated;
+        // [R6-L-UNIT] The L03 site incremented the local counters but not the
+        // SimObject stat, so stats.numFaultsInjected stayed 0 while the log
+        // and stream recorded one real injection. Count it here too.
+        stats->numFaultsInjected++;
         // [R6-S-REPAIR2 2026-10-30] real injection: arm controlled guest SEGV.
         chaos::noteChaosInjection();
+        // [R6-L-UNIT] L03 had no propagation event at all (the stream was
+        // empty while the log recorded a real injection). Register the
+        // corrupted comparison view: inj (L0, original address) + addr_form
+        // (L1, corrupted address) + the addr registry for the load seq, so
+        // a later squash/replay of this load can join by seq/address.
+        if (CHAOSPropagation::instance()) {
+            CHAOSPropagation::instance()->registerInjection(
+                "checkViolations_L03", load_seq, old_cmp, cmp_addr,
+                /*is_load=*/true, 8, 8);
+        }
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream()) << "Cycle: " << cpu->curCycle()
                 << ", Site: checkViolations_L03"

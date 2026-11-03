@@ -645,7 +645,8 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
         // squash/replay) or suppressing a real one (missed ordering
         // violation). The ACTUAL load/store addresses are untouched; only
         // the violation-check view is corrupted.
-        if (cpu->lsqFwd && cpu->lsqFwd->violationCorrupt(ld_eff_addr1)) {
+        if (cpu->lsqFwd && cpu->lsqFwd->violationCorrupt(
+                ld_eff_addr1, ld_inst->seqNum)) {
             DPRINTF(LSQUnit, "CHAOSLSQFwd L03: violation addr corrupted to "
                     "%#x (orig view of [sn:%lli])\n",
                     ld_eff_addr1, ld_inst->seqNum);
