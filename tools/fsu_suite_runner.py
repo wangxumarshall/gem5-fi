@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -704,6 +705,13 @@ def run_suite(suite_path: Path = DEFAULT_SUITE, suite_seed: int = 1,
     stale_failed = seed_dir / ".failed"
     if stale_failed.exists():
         stale_failed.unlink()
+    # [W5] The authoritative directory carries exactly ONE suite-level
+    # Markdown per formal suite seed (the five component runs are linked from
+    # it; they are never copied here as if they were formal seeds).
+    complete_dir = (Path(out_root) / "COMPLETE_PROPAGATION_PATHS" / run_id)
+    complete_dir.mkdir(parents=True, exist_ok=True)
+    complete_md = complete_dir / f"{run_id}-seed{int(suite_seed)}.md"
+    shutil.copy2(md_path, complete_md)
     # AUTHORITATIVE is written last, only after all evidence exists.
     (seed_dir / "AUTHORITATIVE").write_text(str(seed_dir), encoding="utf-8")
     return {"status": "admitted", "suite_seed_dir": str(seed_dir),

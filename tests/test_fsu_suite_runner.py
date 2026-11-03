@@ -236,6 +236,12 @@ def test_suite_5_of_5_admitted_and_counts_one_seed(tmp_path):
         assert "oracle_elements.json" in hashes
         assert "inject/array.bin" in hashes
 
+    # The authoritative directory carries exactly ONE suite-level Markdown
+    # for the formal seed (component MDs are linked, never copied as seeds).
+    complete = tmp_path / "runs/COMPLETE_PROPAGATION_PATHS" / RID
+    suite_mds = sorted(complete.glob(f"{RID}-seed*.md"))
+    assert [p.name for p in suite_mds] == [f"{RID}-seed1.md"]
+
     # index: 5 component runs == 1 admitted seed, never 5.
     runids = tmp_path / "runids.json"
     runids.write_text(json.dumps({"runids": [{"RunID": RID}]}),
