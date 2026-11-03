@@ -248,14 +248,14 @@ class PhysRegFile
 
     uint32_t generationOf(PhysRegIdPtr p) const {
         const RegIndex flat = p->flatIndex();
-        if (flat < 0 || (size_t)flat >= flat_generation.size())
+        if ((size_t)flat >= flat_generation.size())
             return 0;
         return flat_generation[flat];
     }
 
     void noteRegFreed(PhysRegIdPtr p) {
         const RegIndex flat = p->flatIndex();
-        if (flat >= 0 && (size_t)flat < flat_generation.size())
+        if ((size_t)flat < flat_generation.size())
             ++flat_generation[flat];
     }
 
