@@ -76,11 +76,11 @@ precision/opClass 过滤）同样全部 `audit.ok / certified=true`：
 | 3 | FP06-c | fp32 | `0x007f8000` | 0 | 41,216 | 40,192 | 514 | 39,678 | 29,559 | full | SDC |
 
 证据：`runs/fsu/FSU-FP06-F5-W1/seed{1,2,3}/attempt-1/`；gate PASS 证据：
-`runs/fsu-gates/F5-FP06-F5-W1-v3/`（不计 519/240）。
+`runs/fsu-gates/F5-FP06-W1-v3/`（不计 519/240）。
 
-**认证边界**：这 3 个 seed 只认证 FP06-a/b/c 的结果侧代理，且 W3 载体是
-32-bit lane2。它们不认证 FP06-d，也不认证其他 lane、FP64/全 128-bit
-字段矩阵或其他 workload。
+**认证边界**：W1 + W3 两组 seed 只认证 FP06-a/b/c 的结果侧代理（W3 为
+FP32 32-bit lane2；W1 为 scalar FP32/FP64）。它们不认证 FP06-d，也不
+认证其他 lane、全 128-bit 字段矩阵或其他 workload。
 
 ### 3.2 FP06-d（MISSING）
 
@@ -95,7 +95,7 @@ precision/opClass 过滤）同样全部 `audit.ok / certified=true`：
 
 - W1：已完成 3/3。gate（FP32 SA0、FP64 SA1、FP32 fixed mantissa、
   precision mismatch eligible=0、opClass/regClass 过滤、守恒、采样、
-  chain_end、B0、oracle）在 `runs/fsu-gates/F5-FP06-F5-W1-v3/` PASS，
+  chain_end、B0、oracle）在 `runs/fsu-gates/F5-FP06-W1-v3/` PASS，
   产物不计 519/240；正式 seed 在 `runs/fsu/FSU-FP06-F5-W1/seed{1,2,3}/`。
 - W4/W5/W6：均 0/3；W5 suite artifact 已成立，但“有 workload”不等于
   “该 F5 RunID 已运行/认证”。
@@ -115,25 +115,25 @@ precision/opClass 过滤）同样全部 `audit.ok / certified=true`：
   验证连续写保持 SA0、非 XOR、跨 generation 持久、generation 链重启、
   squash 后仍卡死、其他 cell/class 不串扰、reset 后清除。
 
-仍未完成（截至本文件写入时，工作区存在未提交的 FR03 代码改动）：
+仍未完成（代码已提交并构建通过；尚未在 FR03 真实 gate 验证）：
 
-1. 真实 CHAOSPhysReg 的 FSU_PROP L0–L5：工作区已开始接入
-   `notePropEvt`/`emitFsuProp`，但尚未提交、未构建、未在 gem5 中验证；
+1. 真实 CHAOSPhysReg 的 FSU_PROP：L0–L4 部分层已接入并随 gem5 构建通过；
+   L5 commit/squash/oracle/first-impact 仍未实现，未在 FR03 真实 gate 验证；
 2. runner 显式 CHAOSPhysReg 路径（当前 runner 固定 FPU manifest 路径，
-   工作区 runner 改动只有 FP06 opClass/regClass 过滤）；
+   runner 改动只有 FP06 opClass/regClass 过滤）；
 3. squash / rename / free / realloc 的容器级完整测试（当前 host 单测覆盖
    generation 身份，不等于 O3 容器级验证）；
 4. FR03-F5 的正式 seed 与逐 fault 链审计。
 
 结论：**FR03-F5-W3/W5/W6 保持 BLOCKED，0/3，不得认证**；不得借用
 FP06 结果侧证据认证 FR03。model 级 `audited_status` 仍为 PARTIAL，
-`f5_readiness` 为 BLOCKED。代码存在（包括工作区未提交改动）不等于认证，
-只有构建通过、容器级测试通过并跑完正式 seed 后才会改变 readiness。
+`f5_readiness` 为 BLOCKED。代码存在/已构建不等于认证，只有 L0–L5 完整
+链、runner 路径、容器级测试通过并跑完正式 seed 后才会改变 readiness。
 
 ## 5. 最小可运行候选与门禁
 
 - `FSU-FP06-F5-W1` 已完成 3/3（REAL workload + golden；见 §3.1 与
-  `runs/fsu-gates/F5-FP06-F5-W1-v3/GATE.md`）。
+  `runs/fsu-gates/F5-FP06-W1-v3/GATE.md`）。
 - `FSU-FP06-F5-W3` 已完成 3/3；其事件量（16,384 eligible）在
   `EVENT_CAP=200000` 内，有界采样使证据可审计。
 - 正式运行前必须具备：F5 manifest 预注册、polarity/mask 运行前固定、

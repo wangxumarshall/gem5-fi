@@ -2,12 +2,12 @@
 
 目录规则：`<RunID>/<RunID>-seed<N>.md`（仅 admitted seed 复制到此）。
 
-- 生成时间：2026-11-03T20:57:14
+- 生成时间：2026-11-03T23:37:52
 - 总 RunID：173；目标 seed：519
-- 已完成合格 seed：24
+- 已完成合格 seed：27
 - suite seed（component run 不计 seed）：admitted 3，component run 15
-- COMPLETE_3_OF_3：8
-- 活跃范围（F0/F5）：15/240 seed，5/80 RunID 3/3；DEFERRED_BY_USER 90 RunID
+- COMPLETE_3_OF_3：9
+- 活跃范围（F0/F5）：18/240 seed，6/80 RunID 3/3；DEFERRED_BY_USER 90 RunID
 - seed_completion 与 coverage_status 独立：3/3 只表示三个真实 seed，不代表模型覆盖完整。
 - 历史全量视图（173/519）与活跃范围视图（80/240）分别记录；F1–F4 不是失败。
 

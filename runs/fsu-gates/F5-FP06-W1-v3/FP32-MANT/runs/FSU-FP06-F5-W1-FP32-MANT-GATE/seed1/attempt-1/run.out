@@ -1,0 +1,24 @@
+Global frequency set at 1000000000000 ticks per second
+info: Standard input is not a terminal, disabling listeners.
+[ooo_proxy] C3-OOO params applied: width=4-wide, ROB=128, physInt=128, physFloat=192, physVec=48 (IQ=64 unified default; LQ/SQ=gem5 default, north star silent; 2.6GHz)
+[ooo_proxy] B0-core params applied: fetch/decode/rename=3/3/3, dispatch=6, issue/wb/commit=8/8/8, ROB=40, IQ=32, PRF 128/192/48, LQ/SQ=16, fetchBuffer=16, squash=8
+[ooo_proxy] CHAOSPropagation attached (trace=prop_trace.csv.gz, run_id='FSU-FP06-F5-W1-FP32-MANT-GATE', sample_run_id='s1')
+W1REP=1
+NP=32
+OPS32=20608
+OPS64=20608
+FPCR_RN=0000000000000000
+FPCR_RP=0000000000400000
+FPCR_RM=0000000000800000
+FPCR_RZ=0000000000c00000
+ARRAYHASH32=8e8aa18c8954bec9
+ARRAYHASH64=9b0aad0f5e039018
+FPSRHASH=74d3440506066d93
+ARRAYHASH=8e8aa18c8954bec99b0aad0f5e03901874d3440506066d93ede75820f2eba183
+ULP=18446744073709551615
+ULPMAX=18446744073709551615
+BITMISMATCH=64
+FPSRMISMATCH=0
+FPCRMISMATCH=0
+FIRSTDIFF=0
+DONE

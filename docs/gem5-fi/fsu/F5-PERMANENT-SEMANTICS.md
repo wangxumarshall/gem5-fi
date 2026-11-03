@@ -7,7 +7,7 @@
 > 状态：代码 + host 单测 + 合成事件流审计已验证；真实 gem5 已构建。
 > `FSU-FP06-F5-W3` 与 `FSU-FP06-F5-W1` 各 3 个正式 seed 全部
 > `audit.ok/certified`；FP06-W1 的非正式 gate 在
-> `runs/fsu-gates/F5-FP06-F5-W1-v3/` 通过（不计 519/240）。
+> `runs/fsu-gates/F5-FP06-W1-v3/` 通过（不计 519/240）。
 
 ## 1. 四个定义
 
@@ -352,7 +352,7 @@ mask/polarity/precision/opClasses/regClass 在运行前写入每个 manifest 的
 
 ### 12.1 真实结果（2026-11-03）
 
-gate `runs/fsu-gates/F5-FP06-F5-W1-v3/`：**PASS**（四项全过；FP32/FP64/
+gate `runs/fsu-gates/F5-FP06-W1-v3/`：**PASS**（四项全过；FP32/FP64/
 MANT 每项 eligible=41,216；precision-mismatch eligible=0 且由
 `precision_mismatch` 拒绝造成）。FP64 gate 的采样窗口在**正式 seed 之前**
 调整为 warmup=10000 / sample=2048 / first+last=1024，以在真实 FP64 流中

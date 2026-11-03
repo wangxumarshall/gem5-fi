@@ -1,8 +1,8 @@
 # FSU 实现状态（2026-11-03，W5 suite / F5 永久故障 / FR03）
 
-> 本文件记录代码与测试阶段的真实状态。正式 seed 尚未运行：服务器被 root
-> 的 `kunpeng-stl-d010` 压力程序占用（loadavg ~92，86 核），按规则禁止
-> scons / gemm5 / 大规模 native golden。资源恢复后按 §5 的命令继续。
+> 本文件保留 2026-11-03 开工时的代码/测试阶段记录；**正式结果以 §7 为准**。
+> 开工时服务器被 root 的 `kunpeng-stl-d010` 压力程序占用（loadavg ~92），
+> 资源恢复后按 §5 执行；最终计数见 §7.4。
 
 ## 1. 基线
 
@@ -51,13 +51,15 @@
 
 ### 2.3 FR03
 
-- 已完成：Vec 写路径每次写入后重新施加 SA0/SA1；generation 在释放时递增
-  以隔离旧世代；Vec 索引不再被 legacy periodic re-apply 当 int 写入。
-- host 单测：连续 8 次 Vec 写保持 SA0、非 XOR、重分配后不再适用。
-- **仍缺**：真实 CHAOSPhysReg FSU_PROP L0–L5 的构建/运行验证、runner
-  显式 CHAOSPhysReg 路径、squash/重命名/释放/重分配的容器级完整测试。
-  （工作区后续未提交代码已开始接入 `notePropEvt`；在构建与正式 seed 前
-  结论不变。）
+- 已完成（最终状态）：Vec 写路径每次写入后重施加 SA0/SA1；永久物理 cell
+  跨 generation 保留，generation 只标识分配世代/暴露链；Vec 索引不再被
+  legacy periodic re-apply 当 int 写入；CHAOSPhysReg FSU_PROP L0–L4 部分层
+  已构建通过。
+- host 单测：连续 8 次 Vec 写保持 SA0、非 XOR、free 后新 generation 仍
+  卡死、generation 链重启、squash 后仍卡死、其他 cell/class 不串扰、
+  reset 后清除。
+- **仍缺**：L5 commit/squash/oracle/first-impact、runner 显式 CHAOSPhysReg
+  路径、O3 容器级完整测试、FR03 正式 seed。
 - 因此 **FR03-F5 不得运行正式 seed**，也不得借用 FP06 证据认证。
 
 ## 3. 双视图计数（本轮开工时历史记录；最终见 §7.4）
@@ -67,7 +69,7 @@
 - 本轮开工时（历史）：**18/519 seed，6/173 RunID**。
 - 本轮开工时（历史）：活跃（F0/F5）**9/240 seed，3/80 RunID**。
 - 本轮开工时（历史）：F0-W5 0/3；FP06-F5-W3 0/3；FR03-F5-W3 0/3。
-- 最终：F0-W5 3/3、FP06-F5-W3 3/3（§7）；FR03 仍 BLOCKED。
+- 最终：F0-W5 3/3、FP06-F5-W3 3/3、FP06-F5-W1 3/3（§7）；FR03 仍 BLOCKED。
 
 ## 4. 资源规则
 
@@ -174,7 +176,7 @@ sampled + dropped`；三个 attempt 独立 audit/certified 全部通过。
 
 ### 7.6 FP06-F5-W1（FSU-FP06-F5-W1）COMPLETE_3_OF_3
 
-gate：`runs/fsu-gates/F5-FP06-F5-W1-v3/`（非正式，不计 519/240）
+gate：`runs/fsu-gates/F5-FP06-W1-v3/`（非正式，不计 519/240）
 四项全部 PASS：FP32 SA0、FP64 SA1、FP32 fixed mantissa、
 precision-mismatch eligible=0；gate 证据另有 opClass/regClass 过滤、
 守恒、采样、chain_end、B0 config、golden/fault oracle 检查。

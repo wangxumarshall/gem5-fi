@@ -1,0 +1,1342 @@
+{
+  "gate": "F5-FP06-W1",
+  "created_at": "2026-11-03T23:09:31",
+  "non_formal": true,
+  "counts_toward_519": false,
+  "outdir": "runs/fsu-gates/F5-FP06-W1-v3",
+  "records": [
+    {
+      "gate": "FP32-SIGN",
+      "kind": "permanent",
+      "manifest": "/home/sdc/gem5-fi-fsu/configs/fsu/FSU-FP06-F5-W1-FP32-SIGN-GATE.json",
+      "checks": [
+        {
+          "check": "pre_registration block present",
+          "ok": true
+        },
+        {
+          "check": "manifest marked gate=true",
+          "ok": true
+        },
+        {
+          "check": "manifest counts_toward_519=false",
+          "ok": true
+        },
+        {
+          "check": "manifest config_profile == B0",
+          "ok": true
+        },
+        {
+          "check": "pre-registered precision == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered lane_width == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered mask == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered polarity == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered op_classes == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered reg_class == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime precision == pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "runtime lane_width == pre-registered lane_width",
+          "ok": true
+        },
+        {
+          "check": "runtime mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "runtime polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "runtime op_classes == pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "runtime reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "runtime decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime permanent_stuck == true",
+          "ok": true
+        },
+        {
+          "check": "workload is the pre-registered binary",
+          "ok": true
+        },
+        {
+          "check": "audit.ok",
+          "ok": true
+        },
+        {
+          "check": "audit.certified",
+          "ok": true
+        },
+        {
+          "check": "prop_evt not truncated (ok)",
+          "ok": true
+        },
+        {
+          "check": "oracle category is decidable (not UNKNOWN/Inactive/SimulatorError)",
+          "ok": true
+        },
+        {
+          "check": "B0 census config.ini matches",
+          "ok": true
+        },
+        {
+          "check": "B0 injection config.ini matches",
+          "ok": true
+        },
+        {
+          "check": "census command carries the pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "census command carries the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "census command enables decode_guard",
+          "ok": true
+        },
+        {
+          "check": "inject command carries the pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "inject command carries the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "inject command enables decode_guard",
+          "ok": true
+        },
+        {
+          "check": "exactly one fault_installed root",
+          "ok": true
+        },
+        {
+          "check": "exactly one fault_id in the stream",
+          "ok": true
+        },
+        {
+          "check": "root fault_id is the only fault_id",
+          "ok": true
+        },
+        {
+          "check": "root fault_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "root fixed_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "root stuck_polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "root reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "root op_class inside pre-registered allowlist",
+          "ok": true
+        },
+        {
+          "check": "root precision == pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "exactly one carrier_state",
+          "ok": true
+        },
+        {
+          "check": "every F5 identity event carries op_class and reg_class",
+          "ok": true
+        },
+        {
+          "check": "carrier_state keeps the fixed mask/polarity",
+          "ok": true
+        },
+        {
+          "check": "exposure events present",
+          "ok": true
+        },
+        {
+          "check": "exposure_id values are unique",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep the fixed mask",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep the fixed polarity",
+          "ok": true
+        },
+        {
+          "check": "all exposures point at the installation event",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep one fault_id",
+          "ok": true
+        },
+        {
+          "check": "all exposure op_class values are inside the allowlist",
+          "ok": true
+        },
+        {
+          "check": "all exposure reg_class values == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "no exposure comes from an FCVT opClass",
+          "ok": true
+        },
+        {
+          "check": "all exposures decode as scalar_vfp",
+          "ok": true
+        },
+        {
+          "check": "all exposures decode as fp32",
+          "ok": true
+        },
+        {
+          "check": "all exposures declare the pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "every exposure has correct_before/stuck_after",
+          "ok": true
+        },
+        {
+          "check": "activation == stuckActivated(correct_before, mask, polarity)",
+          "ok": true
+        },
+        {
+          "check": "stuck_after == applyStuck(correct_before, mask, polarity)",
+          "ok": true
+        },
+        {
+          "check": "at least one exposed-but-NOT-activated exposure",
+          "ok": true
+        },
+        {
+          "check": "at least one activated exposure",
+          "ok": true
+        },
+        {
+          "check": "every exposure satisfies total == sampled + dropped",
+          "ok": true
+        },
+        {
+          "check": "exactly one F5 chain_end (with exposures_total)",
+          "ok": true
+        },
+        {
+          "check": "chain_end counts are integers",
+          "ok": true
+        },
+        {
+          "check": "exposures_total == exposures_sampled + exposures_dropped",
+          "ok": true
+        },
+        {
+          "check": "exposures_sampled == exposure events in the stream",
+          "ok": true
+        },
+        {
+          "check": "activated_exposure_count >= activated stream events",
+          "ok": true
+        },
+        {
+          "check": "exposures_total > 0",
+          "ok": true
+        },
+        {
+          "check": "chain_end install_event == root event_id",
+          "ok": true
+        },
+        {
+          "check": "chain_end fixed_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "chain_end stuck_polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "chain_end op_class inside allowlist",
+          "ok": true
+        },
+        {
+          "check": "chain_end reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "chain_end terminal is a defined F5 terminal",
+          "ok": true
+        },
+        {
+          "check": "chain_end outcome agrees with terminal",
+          "ok": true
+        },
+        {
+          "check": "terminal=committed has a real L5 commit witness",
+          "ok": true
+        },
+        {
+          "check": "census CHAOS_ELIGIBLE_COUNT present",
+          "ok": true
+        },
+        {
+          "check": "gate eligible > 0",
+          "ok": true
+        },
+        {
+          "check": "sum(per-opClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "sum(per-regClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "census opClass names are all inside the pre-registered allowlist",
+          "ok": true
+        },
+        {
+          "check": "census regClass names are all the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "census reports >=2 distinct allowed opClasses",
+          "ok": true
+        },
+        {
+          "check": "census reports the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "injection census used the same eligible total",
+          "ok": true
+        }
+      ],
+      "failures": [],
+      "ok": true,
+      "status": "admitted",
+      "run_result": {
+        "status": "admitted",
+        "attempt": "runs/fsu-gates/F5-FP06-W1-v3/FP32-SIGN/runs/FSU-FP06-F5-W1-FP32-SIGN-GATE/seed1/attempt-1",
+        "chain_terminal": "full",
+        "oracle": "SDC",
+        "md": "runs/fsu-gates/F5-FP06-W1-v3/FP32-SIGN/runs/FSU-FP06-F5-W1-FP32-SIGN-GATE/seed1/attempt-1/FSU-FP06-F5-W1-FP32-SIGN-GATE-seed1.md"
+      },
+      "attempt": "runs/fsu-gates/F5-FP06-W1-v3/FP32-SIGN/runs/FSU-FP06-F5-W1-FP32-SIGN-GATE/seed1/attempt-1",
+      "eligible": 41216,
+      "opclass_census": {
+        "FloatAdd": 16384,
+        "FloatDiv": 8192,
+        "FloatMult": 8192,
+        "FloatMultAcc": 8192,
+        "FloatSqrt": 256
+      },
+      "regclass_census": {
+        "vec": 41216
+      },
+      "oracle": "SDC",
+      "audit_ok": true,
+      "audit_certified": true,
+      "event_count": 26,
+      "truncated": false
+    },
+    {
+      "gate": "FP64-SIGN",
+      "kind": "permanent",
+      "manifest": "/home/sdc/gem5-fi-fsu/configs/fsu/FSU-FP06-F5-W1-FP64-SIGN-GATE.json",
+      "checks": [
+        {
+          "check": "pre_registration block present",
+          "ok": true
+        },
+        {
+          "check": "manifest marked gate=true",
+          "ok": true
+        },
+        {
+          "check": "manifest counts_toward_519=false",
+          "ok": true
+        },
+        {
+          "check": "manifest config_profile == B0",
+          "ok": true
+        },
+        {
+          "check": "pre-registered precision == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered lane_width == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered mask == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered polarity == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered op_classes == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered reg_class == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime precision == pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "runtime lane_width == pre-registered lane_width",
+          "ok": true
+        },
+        {
+          "check": "runtime mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "runtime polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "runtime op_classes == pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "runtime reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "runtime decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime permanent_stuck == true",
+          "ok": true
+        },
+        {
+          "check": "workload is the pre-registered binary",
+          "ok": true
+        },
+        {
+          "check": "audit.ok",
+          "ok": true
+        },
+        {
+          "check": "audit.certified",
+          "ok": true
+        },
+        {
+          "check": "prop_evt not truncated (ok)",
+          "ok": true
+        },
+        {
+          "check": "oracle category is decidable (not UNKNOWN/Inactive/SimulatorError)",
+          "ok": true
+        },
+        {
+          "check": "B0 census config.ini matches",
+          "ok": true
+        },
+        {
+          "check": "B0 injection config.ini matches",
+          "ok": true
+        },
+        {
+          "check": "census command carries the pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "census command carries the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "census command enables decode_guard",
+          "ok": true
+        },
+        {
+          "check": "inject command carries the pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "inject command carries the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "inject command enables decode_guard",
+          "ok": true
+        },
+        {
+          "check": "exactly one fault_installed root",
+          "ok": true
+        },
+        {
+          "check": "exactly one fault_id in the stream",
+          "ok": true
+        },
+        {
+          "check": "root fault_id is the only fault_id",
+          "ok": true
+        },
+        {
+          "check": "root fault_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "root fixed_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "root stuck_polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "root reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "root op_class inside pre-registered allowlist",
+          "ok": true
+        },
+        {
+          "check": "root precision == pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "exactly one carrier_state",
+          "ok": true
+        },
+        {
+          "check": "every F5 identity event carries op_class and reg_class",
+          "ok": true
+        },
+        {
+          "check": "carrier_state keeps the fixed mask/polarity",
+          "ok": true
+        },
+        {
+          "check": "exposure events present",
+          "ok": true
+        },
+        {
+          "check": "exposure_id values are unique",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep the fixed mask",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep the fixed polarity",
+          "ok": true
+        },
+        {
+          "check": "all exposures point at the installation event",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep one fault_id",
+          "ok": true
+        },
+        {
+          "check": "all exposure op_class values are inside the allowlist",
+          "ok": true
+        },
+        {
+          "check": "all exposure reg_class values == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "no exposure comes from an FCVT opClass",
+          "ok": true
+        },
+        {
+          "check": "all exposures decode as scalar_vfp",
+          "ok": true
+        },
+        {
+          "check": "all exposures decode as fp64",
+          "ok": true
+        },
+        {
+          "check": "all exposures declare the pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "every exposure has correct_before/stuck_after",
+          "ok": true
+        },
+        {
+          "check": "activation == stuckActivated(correct_before, mask, polarity)",
+          "ok": true
+        },
+        {
+          "check": "stuck_after == applyStuck(correct_before, mask, polarity)",
+          "ok": true
+        },
+        {
+          "check": "at least one exposed-but-NOT-activated exposure",
+          "ok": true
+        },
+        {
+          "check": "at least one activated exposure",
+          "ok": true
+        },
+        {
+          "check": "every exposure satisfies total == sampled + dropped",
+          "ok": true
+        },
+        {
+          "check": "exactly one F5 chain_end (with exposures_total)",
+          "ok": true
+        },
+        {
+          "check": "chain_end counts are integers",
+          "ok": true
+        },
+        {
+          "check": "exposures_total == exposures_sampled + exposures_dropped",
+          "ok": true
+        },
+        {
+          "check": "exposures_sampled == exposure events in the stream",
+          "ok": true
+        },
+        {
+          "check": "activated_exposure_count >= activated stream events",
+          "ok": true
+        },
+        {
+          "check": "exposures_total > 0",
+          "ok": true
+        },
+        {
+          "check": "chain_end install_event == root event_id",
+          "ok": true
+        },
+        {
+          "check": "chain_end fixed_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "chain_end stuck_polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "chain_end op_class inside allowlist",
+          "ok": true
+        },
+        {
+          "check": "chain_end reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "chain_end terminal is a defined F5 terminal",
+          "ok": true
+        },
+        {
+          "check": "chain_end outcome agrees with terminal",
+          "ok": true
+        },
+        {
+          "check": "terminal=committed has a real L5 commit witness",
+          "ok": true
+        },
+        {
+          "check": "census CHAOS_ELIGIBLE_COUNT present",
+          "ok": true
+        },
+        {
+          "check": "gate eligible > 0",
+          "ok": true
+        },
+        {
+          "check": "sum(per-opClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "sum(per-regClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "census opClass names are all inside the pre-registered allowlist",
+          "ok": true
+        },
+        {
+          "check": "census regClass names are all the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "census reports >=2 distinct allowed opClasses",
+          "ok": true
+        },
+        {
+          "check": "census reports the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "injection census used the same eligible total",
+          "ok": true
+        }
+      ],
+      "failures": [],
+      "ok": true,
+      "status": "admitted",
+      "run_result": {
+        "status": "admitted",
+        "attempt": "runs/fsu-gates/F5-FP06-W1-v3/FP64-SIGN/runs/FSU-FP06-F5-W1-FP64-SIGN-GATE/seed1/attempt-1",
+        "chain_terminal": "full",
+        "oracle": "SDC",
+        "md": "runs/fsu-gates/F5-FP06-W1-v3/FP64-SIGN/runs/FSU-FP06-F5-W1-FP64-SIGN-GATE/seed1/attempt-1/FSU-FP06-F5-W1-FP64-SIGN-GATE-seed1.md"
+      },
+      "attempt": "runs/fsu-gates/F5-FP06-W1-v3/FP64-SIGN/runs/FSU-FP06-F5-W1-FP64-SIGN-GATE/seed1/attempt-1",
+      "eligible": 41216,
+      "opclass_census": {
+        "FloatAdd": 16384,
+        "FloatDiv": 8192,
+        "FloatMult": 8192,
+        "FloatMultAcc": 8192,
+        "FloatSqrt": 256
+      },
+      "regclass_census": {
+        "vec": 41216
+      },
+      "oracle": "SDC",
+      "audit_ok": true,
+      "audit_certified": true,
+      "event_count": 2057,
+      "truncated": false
+    },
+    {
+      "gate": "FP32-MANT",
+      "kind": "permanent",
+      "manifest": "/home/sdc/gem5-fi-fsu/configs/fsu/FSU-FP06-F5-W1-FP32-MANT-GATE.json",
+      "checks": [
+        {
+          "check": "pre_registration block present",
+          "ok": true
+        },
+        {
+          "check": "manifest marked gate=true",
+          "ok": true
+        },
+        {
+          "check": "manifest counts_toward_519=false",
+          "ok": true
+        },
+        {
+          "check": "manifest config_profile == B0",
+          "ok": true
+        },
+        {
+          "check": "pre-registered precision == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered lane_width == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered mask == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered polarity == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered op_classes == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered reg_class == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime precision == pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "runtime lane_width == pre-registered lane_width",
+          "ok": true
+        },
+        {
+          "check": "runtime mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "runtime polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "runtime op_classes == pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "runtime reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "runtime decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime permanent_stuck == true",
+          "ok": true
+        },
+        {
+          "check": "workload is the pre-registered binary",
+          "ok": true
+        },
+        {
+          "check": "audit.ok",
+          "ok": true
+        },
+        {
+          "check": "audit.certified",
+          "ok": true
+        },
+        {
+          "check": "prop_evt not truncated (ok)",
+          "ok": true
+        },
+        {
+          "check": "oracle category is decidable (not UNKNOWN/Inactive/SimulatorError)",
+          "ok": true
+        },
+        {
+          "check": "B0 census config.ini matches",
+          "ok": true
+        },
+        {
+          "check": "B0 injection config.ini matches",
+          "ok": true
+        },
+        {
+          "check": "census command carries the pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "census command carries the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "census command enables decode_guard",
+          "ok": true
+        },
+        {
+          "check": "inject command carries the pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "inject command carries the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "inject command enables decode_guard",
+          "ok": true
+        },
+        {
+          "check": "exactly one fault_installed root",
+          "ok": true
+        },
+        {
+          "check": "exactly one fault_id in the stream",
+          "ok": true
+        },
+        {
+          "check": "root fault_id is the only fault_id",
+          "ok": true
+        },
+        {
+          "check": "root fault_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "root fixed_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "root stuck_polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "root reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "root op_class inside pre-registered allowlist",
+          "ok": true
+        },
+        {
+          "check": "root precision == pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "exactly one carrier_state",
+          "ok": true
+        },
+        {
+          "check": "every F5 identity event carries op_class and reg_class",
+          "ok": true
+        },
+        {
+          "check": "carrier_state keeps the fixed mask/polarity",
+          "ok": true
+        },
+        {
+          "check": "exposure events present",
+          "ok": true
+        },
+        {
+          "check": "exposure_id values are unique",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep the fixed mask",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep the fixed polarity",
+          "ok": true
+        },
+        {
+          "check": "all exposures point at the installation event",
+          "ok": true
+        },
+        {
+          "check": "all exposures keep one fault_id",
+          "ok": true
+        },
+        {
+          "check": "all exposure op_class values are inside the allowlist",
+          "ok": true
+        },
+        {
+          "check": "all exposure reg_class values == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "no exposure comes from an FCVT opClass",
+          "ok": true
+        },
+        {
+          "check": "all exposures decode as scalar_vfp",
+          "ok": true
+        },
+        {
+          "check": "all exposures decode as fp32",
+          "ok": true
+        },
+        {
+          "check": "all exposures declare the pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "every exposure has correct_before/stuck_after",
+          "ok": true
+        },
+        {
+          "check": "activation == stuckActivated(correct_before, mask, polarity)",
+          "ok": true
+        },
+        {
+          "check": "stuck_after == applyStuck(correct_before, mask, polarity)",
+          "ok": true
+        },
+        {
+          "check": "at least one exposed-but-NOT-activated exposure",
+          "ok": true
+        },
+        {
+          "check": "at least one activated exposure",
+          "ok": true
+        },
+        {
+          "check": "every exposure satisfies total == sampled + dropped",
+          "ok": true
+        },
+        {
+          "check": "exactly one F5 chain_end (with exposures_total)",
+          "ok": true
+        },
+        {
+          "check": "chain_end counts are integers",
+          "ok": true
+        },
+        {
+          "check": "exposures_total == exposures_sampled + exposures_dropped",
+          "ok": true
+        },
+        {
+          "check": "exposures_sampled == exposure events in the stream",
+          "ok": true
+        },
+        {
+          "check": "activated_exposure_count >= activated stream events",
+          "ok": true
+        },
+        {
+          "check": "exposures_total > 0",
+          "ok": true
+        },
+        {
+          "check": "chain_end install_event == root event_id",
+          "ok": true
+        },
+        {
+          "check": "chain_end fixed_mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "chain_end stuck_polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "chain_end op_class inside allowlist",
+          "ok": true
+        },
+        {
+          "check": "chain_end reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "chain_end terminal is a defined F5 terminal",
+          "ok": true
+        },
+        {
+          "check": "chain_end outcome agrees with terminal",
+          "ok": true
+        },
+        {
+          "check": "terminal=committed has a real L5 commit witness",
+          "ok": true
+        },
+        {
+          "check": "census CHAOS_ELIGIBLE_COUNT present",
+          "ok": true
+        },
+        {
+          "check": "gate eligible > 0",
+          "ok": true
+        },
+        {
+          "check": "sum(per-opClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "sum(per-regClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "census opClass names are all inside the pre-registered allowlist",
+          "ok": true
+        },
+        {
+          "check": "census regClass names are all the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "census reports >=2 distinct allowed opClasses",
+          "ok": true
+        },
+        {
+          "check": "census reports the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "injection census used the same eligible total",
+          "ok": true
+        }
+      ],
+      "failures": [],
+      "ok": true,
+      "status": "admitted",
+      "run_result": {
+        "status": "admitted",
+        "attempt": "runs/fsu-gates/F5-FP06-W1-v3/FP32-MANT/runs/FSU-FP06-F5-W1-FP32-MANT-GATE/seed1/attempt-1",
+        "chain_terminal": "full",
+        "oracle": "SDC",
+        "md": "runs/fsu-gates/F5-FP06-W1-v3/FP32-MANT/runs/FSU-FP06-F5-W1-FP32-MANT-GATE/seed1/attempt-1/FSU-FP06-F5-W1-FP32-MANT-GATE-seed1.md"
+      },
+      "attempt": "runs/fsu-gates/F5-FP06-W1-v3/FP32-MANT/runs/FSU-FP06-F5-W1-FP32-MANT-GATE/seed1/attempt-1",
+      "eligible": 41216,
+      "opclass_census": {
+        "FloatAdd": 16384,
+        "FloatDiv": 8192,
+        "FloatMult": 8192,
+        "FloatMultAcc": 8192,
+        "FloatSqrt": 256
+      },
+      "regclass_census": {
+        "vec": 41216
+      },
+      "oracle": "SDC",
+      "audit_ok": true,
+      "audit_certified": true,
+      "event_count": 25,
+      "truncated": false
+    },
+    {
+      "gate": "PRECISION-MISMATCH",
+      "kind": "mismatch",
+      "manifest": "/home/sdc/gem5-fi-fsu/configs/fsu/FSU-FP06-F5-W1-PRECISION-MISMATCH-GATE.json",
+      "checks": [
+        {
+          "check": "pre_registration block present",
+          "ok": true
+        },
+        {
+          "check": "manifest marked gate=true",
+          "ok": true
+        },
+        {
+          "check": "manifest counts_toward_519=false",
+          "ok": true
+        },
+        {
+          "check": "manifest config_profile == B0",
+          "ok": true
+        },
+        {
+          "check": "pre-registered precision == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered lane_width == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered mask == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered polarity == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered op_classes == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered reg_class == gate spec",
+          "ok": true
+        },
+        {
+          "check": "pre-registered decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime precision == pre-registered precision",
+          "ok": true
+        },
+        {
+          "check": "runtime lane_width == pre-registered lane_width",
+          "ok": true
+        },
+        {
+          "check": "runtime mask == pre-registered mask",
+          "ok": true
+        },
+        {
+          "check": "runtime polarity == pre-registered polarity",
+          "ok": true
+        },
+        {
+          "check": "runtime op_classes == pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "runtime reg_class == pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "runtime decode_guard == true",
+          "ok": true
+        },
+        {
+          "check": "runtime permanent_stuck == true",
+          "ok": true
+        },
+        {
+          "check": "workload is the pre-registered binary",
+          "ok": true
+        },
+        {
+          "check": "census rc == 0",
+          "ok": true
+        },
+        {
+          "check": "census not timed out",
+          "ok": true
+        },
+        {
+          "check": "census command carries pre-registered op_classes",
+          "ok": true
+        },
+        {
+          "check": "census command carries pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "census command enables decode_guard",
+          "ok": true
+        },
+        {
+          "check": "B0 census config.ini matches",
+          "ok": true
+        },
+        {
+          "check": "census CHAOS_ELIGIBLE_COUNT present",
+          "ok": true
+        },
+        {
+          "check": "precision mismatch: eligible == 0",
+          "ok": true
+        },
+        {
+          "check": "sum(per-opClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "sum(per-regClass eligible) == eligible",
+          "ok": true
+        },
+        {
+          "check": "census opClass names are all inside the pre-registered allowlist",
+          "ok": true
+        },
+        {
+          "check": "census regClass names are all the pre-registered reg_class",
+          "ok": true
+        },
+        {
+          "check": "rejection reason is precision_mismatch",
+          "ok": true
+        },
+        {
+          "check": "census decode rejects > 0",
+          "ok": true
+        }
+      ],
+      "failures": [],
+      "ok": true,
+      "status": "pass",
+      "eligible": 0,
+      "opclass_census": {},
+      "regclass_census": {},
+      "decode_rejects": 327680,
+      "decode_reasons": {
+        "precision_mismatch": 327680
+      },
+      "command": [
+        "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+        "--quiet",
+        "-d",
+        "runs/fsu-gates/F5-FP06-W1-v3/PRECISION-MISMATCH/census",
+        "/home/sdc/gem5-fi-fsu/configs/se/ooo_proxy.py",
+        "--cmd",
+        "/home/sdc/gem5-fi-fsu/workloads/directed/fp32_fma_kernel",
+        "--cpu",
+        "O3",
+        "--first_clock",
+        "0",
+        "--max_faults",
+        "1",
+        "--rng_seed",
+        "1",
+        "--chaos_fpu",
+        "--fpu_first_clock",
+        "0",
+        "--fpu_max_faults",
+        "1",
+        "--fpu_fault_mask",
+        "9223372036854775808",
+        "--fpu_rng_seed",
+        "1",
+        "--fpu_permanent_stuck",
+        "--fpu_stuck_polarity",
+        "0",
+        "--fpu_f5_warmup",
+        "64",
+        "--fpu_f5_sample_limit",
+        "0",
+        "--fpu_f5_keep_first_last_n",
+        "0",
+        "--fsu_model",
+        "FP06",
+        "--fsu_freq",
+        "F5",
+        "--fsu_load",
+        "W1",
+        "--fsu_submodel",
+        "FP06-a",
+        "--fpu_precision",
+        "fp64",
+        "--fpu_lane_width",
+        "64",
+        "--fpu_lane_offset",
+        "0",
+        "--fpu_decode_guard",
+        "--fpu_op_classes",
+        "FloatAdd,FloatMult,FloatMultAcc,FloatDiv,FloatSqrt",
+        "--fpu_reg_class",
+        "vec",
+        "--config_profile",
+        "B0",
+        "--fpu_count_only"
+      ]
+    }
+  ],
+  "ok": true
+}

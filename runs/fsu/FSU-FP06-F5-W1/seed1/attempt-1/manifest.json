@@ -1,0 +1,81 @@
+{
+  "run_id": "FSU-FP06-F5-W1",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W1",
+  "submodel": "FP06-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "identity": "W1-fp-scalar-probe-v1",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 0,
+      "f5_warmup": 1024,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec"
+    },
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "pre_registration": {
+    "frozen_at": "2026-11-03",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0,
+    "mask": "0x80000000",
+    "polarity": 0,
+    "op_classes": [
+      "FloatAdd",
+      "FloatMult",
+      "FloatMultAcc",
+      "FloatDiv",
+      "FloatSqrt"
+    ],
+    "reg_class": "vec",
+    "decode_guard": true,
+    "f5_warmup": 1024,
+    "f5_sample_limit": 1024,
+    "f5_keep_first_last_n": 256
+  },
+  "notes": "F5 formal seed1: FP06-a FP32 scalar sign, SA0, fixed mask 0x80000000, op_class allowlist = scalar FloatAdd/FloatMult/FloatMultAcc/FloatDiv/FloatSqrt, reg_class=vec, config_profile=B0, decode_guard=true. Mask/polarity/precision are frozen BEFORE the run and must not be changed after seeing results.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 1,
+  "created_at": "2026-11-03T23:11:58",
+  "source_head": "52fece882d56985bdd32560aaef6cd9fc363482e",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "3a087f34b59912518e37c410689175d1d4923d4271cab453730bf574bfd75a62",
+  "runner_tool_sha256": "f1a139d8e3777cc0b30c28f1e138574dc74ea5acfd3f4a341e09d20f5a2c932a",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/w1_fp_scalar_probe",
+  "workload_sha256": "c2b8a553bd44c87faaa3d8130d8a897097dc53c4e1627cb2b09b32a59e914754"
+}
