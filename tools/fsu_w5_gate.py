@@ -228,7 +228,7 @@ def main(argv=None):
                    str(Path(a.config)), "--cmd", str(binary), "--cpu", "O3",
                    "--config_profile", "B0", "--rng_seed", str(rep),
                    "--chaos_fpu", "--fpu_count_only",
-                   "--cmd_arg", f"--array-dump={dump}"]
+                   f"--cmd_arg=--array-dump={dump}"]
             rc, out, err, timed = run(cmd, a.timeout, cwd=str(root))
             prof = CP.verify_config_profile(
                 arts / f"{pid}.gem5-{rep}.outdir" / "config.ini", "B0")

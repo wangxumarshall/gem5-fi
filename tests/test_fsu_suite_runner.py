@@ -169,8 +169,8 @@ def fake_runner(suite, golden_arrays=None, fail_programs=(), census_zero=(),
         if program in fail_programs:
             data = data[:-12]
         (outdir / "prop_evt.txt.gz").write_bytes(data)
-        dump = next((t.split("=", 1)[1] for t in cmd
-                     if t.startswith("--array-dump=")), None)
+        dump = next((t.split("--array-dump=", 1)[1] for t in cmd
+                     if "--array-dump=" in t), None)
         if dump and program not in omit_array:
             if program in sdc_programs:
                 payload = struct.pack("<2f", 9.0, 9.0)
@@ -396,8 +396,8 @@ def test_seed_build_cmd_adds_array_dump_only_for_injection(tmp_path):
     }
     inj = R.build_cmd(manifest, outdir, 7, 0, False,
                       tmp_path / "gem5", tmp_path / "cfg.py", tmp_path)
-    assert "--cmd_arg" in inj
-    assert f"--array-dump={outdir / 'array.bin'}" in inj
+    assert any(t.startswith("--cmd_arg=") for t in inj)
+    assert f"--array-dump={outdir / 'array.bin'}" in " ".join(inj)
     census = R.build_cmd(manifest, tmp_path / "census", 7, None, True,
                          tmp_path / "gem5", tmp_path / "cfg.py", tmp_path)
     assert "--cmd_arg" not in census

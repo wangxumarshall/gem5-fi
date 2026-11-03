@@ -183,7 +183,10 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         # as raw fp32 bytes for tools/fsu_oracle.py. The census run does not
         # need a dump (and would only add a second, unused artifact).
         if (manifest.get("workload") or {}).get("element_oracle"):
-            cmd += ["--cmd_arg", f"--array-dump={Path(outdir) / 'array.bin'}"]
+            # argparse needs the value in the SAME token when it starts with
+            # "--" (a separate "--array-dump=..." would be parsed as an option
+            # and rejected as "expected one argument").
+            cmd += [f"--cmd_arg=--array-dump={Path(outdir) / 'array.bin'}"]
         if rate_doc is not None:
             # F1/F2/F3: exact eligible ordinals, no probability/geometric draw.
             cmd += ["--fpu_events_to_skip", "0",
