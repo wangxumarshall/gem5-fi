@@ -1,0 +1,13 @@
+{
+  "category": "SDC",
+  "reason": "completed exit=0, ARRAYHASH ced113fdd122842d658d24a1683f240af55f78de0e043ff761239d5d989f43e7 != golden ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7 — silent data corruption",
+  "faults_injected": 1,
+  "eligible_count": 57347,
+  "selection_seed": 2,
+  "injection_seed": 2,
+  "skip": 13908,
+  "oracle_kind": "array_hash",
+  "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+  "returncode": 0,
+  "timed_out": false
+}

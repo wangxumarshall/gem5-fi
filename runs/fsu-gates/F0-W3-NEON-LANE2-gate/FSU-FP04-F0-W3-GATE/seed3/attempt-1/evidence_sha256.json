@@ -1,0 +1,23 @@
+{
+  "FSU-FP04-F0-W3-GATE-seed3.md": "54e2ae59c69072670c0f8874025926064105925bba6bb9169a45a64f51a084fd",
+  "census/citations.bib": "107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5",
+  "census/config.ini": "1c7572544378752e989775ef3c30e767894fea38b7a3420039d029f1921b6f79",
+  "census/config.json": "49989b9d9df63c4eb3b3105ace214e05e9a4d669ed0474a6b7e8869a8caccd7f",
+  "census/fpu_injections.log": "d00d38340db51de7c1c6fb62f1bb636a1d50ee3b76ed17e3e40a2db17bb3130f",
+  "census/stats.txt": "63e6afe7d110eb88a82e399658af55e5fa56c53749668ed4494e1c7f3108c0a0",
+  "census.err": "3b94bc39600d81ebe273ced2f04543d363c1f8965959df54c0ee05789173dbaf",
+  "census.out": "c700ade0802ee2163fbd21cc6974ca492622677e84322b994eb446a0f8b96be9",
+  "chain_report.json": "f85fe6a1bcd58d7a0836287468b771c0d81fe23c060097f44dbbbf64a39c0244",
+  "inject/citations.bib": "107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5",
+  "inject/config.ini": "e52e8f2a9a34b6fb38b73951920bcf957ee958fa398016ae7857fde176b0893c",
+  "inject/config.json": "79892555148d7118be62966ed1b5014ccbba9e0d80b0231c06c2eae9b4e46f9f",
+  "inject/fpu_injections.log": "5f55f8f8d2f12738f6d5ef672016a62d52a84114afb25eaee5ebf9dadd520d2d",
+  "inject/prop_evt.txt.gz": "a85f3d52e43e0615f61f3d58d695481c2ab4f73e3125555d4038e6bc4017047a",
+  "inject/prop_trace.csv.gz": "bac917a242450d5cba2c51cf61351aab9afb86ce96c89ed567f6bd9d6a9efafe",
+  "inject/stats.txt": "748cbfbfa0e5fe642d990e4f11c59ab992248583d1c30191faf2e0b9a2b718a0",
+  "manifest.json": "2f71362ef722fb96e577dc98d46f4e6811636736a325cb3cf5c187d320a6fa7c",
+  "oracle.json": "c573b91d2988451bbfeb34f774a667fc1b060c4ae832198acde0712582931014",
+  "run.err": "3b94bc39600d81ebe273ced2f04543d363c1f8965959df54c0ee05789173dbaf",
+  "run.out": "c8c9f5bbb151e9037a3ea49ed9f9e761d06343d373dbe76ea0f748cb2861b8ff",
+  "stats.txt": "748cbfbfa0e5fe642d990e4f11c59ab992248583d1c30191faf2e0b9a2b718a0"
+}

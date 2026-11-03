@@ -1,0 +1,46 @@
+{
+  "run_id": "FSU-FP04-F0-W1-GATE",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FP04-a",
+  "workload": {
+    "binary": "workloads/directed/fp32_fma_kernel",
+    "identity": "W1-fp32-scalar-v1",
+    "source": "workloads/directed/fp32_fma_kernel.c",
+    "golden_id": "fp32fma-scalar-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "FP32 scalar field gate FP04-a/sign (FP32 bit 31) on a real scalar binary32 FMA workload. Not an official 173 RunID; does not count toward 519.",
+  "seed": 3,
+  "sample_run_id": "s3",
+  "selection_seed": 3,
+  "injection_seed": 3,
+  "attempt": 1,
+  "created_at": "2026-11-03T10:39:24",
+  "source_head": "2dbfb5964978ba0cb92b8bc2b166b8b8c6379029",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "5647208d1fdf9ea131bcae60e0479fc5a0d477dce2fee0930bc8d04d40f47e73",
+  "runner_tool_sha256": "e19d8bbf12f45d8857416a92332997f9e610534d13b0cb3b718bb5dc92a82a2c",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/fp32_fma_kernel",
+  "workload_sha256": "bf3d26a4a2bcdd53b6a5dd1b04d540056b60e73108ff01e7fe01ece106c98eaf"
+}

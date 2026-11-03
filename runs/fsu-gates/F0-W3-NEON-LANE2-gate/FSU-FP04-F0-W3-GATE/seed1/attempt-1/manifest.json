@@ -1,0 +1,46 @@
+{
+  "run_id": "FSU-FP04-F0-W3-GATE",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W3",
+  "submodel": "FP04-d",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 2
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "FP04-d NEON lane gate: 4x32-bit lane 2 sign bit (absolute bit 95) on a real float32x4 FMA workload. Not an official 173 RunID; does not count toward 519.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 1,
+  "created_at": "2026-11-03T10:41:10",
+  "source_head": "2dbfb5964978ba0cb92b8bc2b166b8b8c6379029",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "5647208d1fdf9ea131bcae60e0479fc5a0d477dce2fee0930bc8d04d40f47e73",
+  "runner_tool_sha256": "e19d8bbf12f45d8857416a92332997f9e610534d13b0cb3b718bb5dc92a82a2c",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/neon_fp32_lane_kernel",
+  "workload_sha256": "d8b01bc0ac140f43c4f7462e1f3b376802e75dfeaca40a0257b4cad5ede92a92"
+}

@@ -1,0 +1,6 @@
+Global frequency set at 1000000000000 ticks per second
+info: Standard input is not a terminal, disabling listeners.
+[ooo_proxy] C3-OOO params applied: width=4-wide, ROB=128, physInt=128, physFloat=192, physVec=48 (IQ=64 unified default; LQ/SQ=gem5 default, north star silent; 2.6GHz)
+[ooo_proxy] CHAOSPropagation attached (trace=prop_trace.csv.gz, run_id='FSU-FP04-F0-W1-GATE', sample_run_id='s1')
+ARRAYHASH=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d718c60f3a7f537a4c
+ULP=0
