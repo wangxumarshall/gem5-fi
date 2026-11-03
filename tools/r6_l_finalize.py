@@ -198,6 +198,85 @@ def run(root, regrade=False):
         rec["reasons"].append(f"stream: {exc!r}")
         rec["status"] = "EVIDENCE_TRUNCATED"
         return rec, rep, None
+
+    # [R6-L-UNIT] Offline terminal regrade with the CURRENT checker. The raw
+    # stream is never modified; the prior report is backed up and the stream
+    # SHA is asserted unchanged. This is how the L-family translation-squash
+    # containment (tlb_fault + squash_discarded) becomes admissible without
+    # re-running gem5.
+    gate = None
+    if rep.get("admitted") is not True:
+        try:
+            verdict = CHAIN.check_chain(
+                events, oracle_outcome=rep.get("oracle_outcome"))
+            cont = CHAIN.containment_from_events(events, rid)
+            text = (open(paths["run_out"], errors="replace").read()
+                    if os.path.isfile(paths["run_out"]) else "")
+            m = re.search(r"CHAOS_GUEST_SEGV_EXIT:[^\n]*cause=(\S+)", text)
+            cause = m.group(1) if m else ""
+            if not cause:
+                m = re.search(r"Exit event '([^']+)'", text)
+                cause = m.group(1) if m else ""
+            code = rep.get("exit_code")
+            m = re.search(r"CHAOS_GUEST_SEGV_EXIT:[^\n]*code=(\d+)", text)
+            if m:
+                code = int(m.group(1))
+            crash_exit = {
+                "exit_code": code, "exit_cause": cause,
+                "guest_segv_marker": ("guest SEGV" in text
+                                      or "chaos_guest_segv" in text),
+                "controlled_marker": "CHAOS_GUEST_SEGV_EXIT" in text}
+            acct = rep.get("consumer_summary_accounting") or {}
+            activated = sum(
+                1 for e in events
+                if e.get("kind") == "inj"
+                and str(e.get("fault_id", "")) not in ("", "0"))
+            gate = LC.admission_gate(
+                rid, events, activated,
+                oracle_outcome=rep.get("oracle_outcome"),
+                exit_code=rep.get("exit_code"), containment=cont,
+                summary_issues=acct.get("issues") or [],
+                consumer_summary_accounting=acct, crash_exit=crash_exit)
+            if gate.get("admitted"):
+                new = json.loads(json.dumps(rep))
+                faults = verdict.get("faults") or {}
+                if faults:
+                    new["faults"] = faults
+                    _fid, _f = CHAIN.select_representative_fault(faults)
+                    if _f:
+                        new["terminal"] = _f.get("terminal")
+                        new["provable_to"] = _f.get("provable_to")
+                        new["beyond"] = _f.get("beyond")
+                new["admitted"] = True
+                new["certified"] = True
+                new["admission"] = dict(
+                    gate,
+                    note="离线终局重判：L 族翻译期 squash containment"
+                         "（原始流 SHA 不变）")
+                if regrade:
+                    before = sha256_file(paths["prop_evt"])
+                    bak = paths["seed_report"] + ".pre-terminal-regrade"
+                    if not os.path.exists(bak):
+                        shutil.copy2(paths["seed_report"], bak)
+                    new["regrade"] = {
+                        "kind": "terminal_containment",
+                        "reason": "L-family translation-squash witness "
+                                  "(tlb_fault + squash_discarded)",
+                        "original_report_sha256": sha256_file(bak),
+                        "prop_evt_sha256_before": before,
+                        "prop_evt_sha256_after": sha256_file(paths["prop_evt"]),
+                        "tool_head": os.popen(
+                            "git -C %s rev-parse HEAD" % os.path.dirname(
+                                os.path.dirname(os.path.abspath(__file__)))
+                        ).read().strip(),
+                    }
+                    atomic_write(paths["seed_report"],
+                                 json.dumps(new, ensure_ascii=False, indent=1))
+                    assert before == new["regrade"]["prop_evt_sha256_after"]
+                rep = new
+        except Exception as exc:          # noqa: BLE001 — recorded, not hidden
+            rec["regrade_error"] = repr(exc)
+    rec["gate"] = gate
     stats = parse_stats(paths["stats"])
     inj = count_injections(paths["inj_log"])
     rec.update({"oracle": rep.get("oracle_outcome"),

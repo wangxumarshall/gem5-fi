@@ -634,6 +634,8 @@ def _terminal(chain_events, edges, by_layer, path, family,
         if _a07.get("accepted"):
             return "detected_contained"
     for e in chain_events:
+        if _l03_view_squash_witness(chain_events, e, family):
+            return "detected_contained"
         if (str(e.get("contained", "")).strip() in _CONTAINED_VALUES
                 and _explicit_l5(e)
                 and _event_has_prefix(chain_events, e, family)):
@@ -646,7 +648,7 @@ def _terminal(chain_events, edges, by_layer, path, family,
     # 已由上面的 oracle join 定终局，白名单不得覆盖。
     if not errant_escape and oracle_outcome == "Masked":
         for e in chain_events:
-            if _a01_translation_squash_witness(chain_events, e, family):
+            if _translation_squash_witness(chain_events, e, family):
                 return "detected_contained"
     # 显式 squash/replay/mask（L5 证据事件）—— 真逃逸在场时整体让位
     if not errant_escape:
@@ -679,6 +681,104 @@ def _terminal(chain_events, edges, by_layer, path, family,
     return f"provable_to_{deepest}_then_unknown"
 
 
+def _l03_view_escape_witness(chain_events, family):
+    """[R6-L-UNIT] L03 violation-view escape: a REAL errant commit.
+
+    L03 corrupts the memory-order violation comparison view. The load's real
+    response can still arrive (resp -> lq_complete), taint the destination
+    register, and commit through an errant path: the fault changed a
+    comparison decision, not the load data, so the ordinary L0->L1->L2 prefix
+    is structurally absent (there is no new mem_req). The real L3/L4/L5
+    events are present and share the load's dyn_inst_seq/request_id.
+
+    Narrow whitelist, all mandatory:
+      * family=lq, one fault, run_id prefix L03;
+      * exactly one errant_commit, detection_layer=L5, contained not true;
+      * exact ancestry inj -> addr_form -> resp -> lq_complete -> taint_reg
+        -> errant_commit (no missing/extra/reordered step);
+      * identical dyn_inst_seq across the ancestry; request_id non-empty and
+        identical across resp/lq_complete/taint_reg/errant_commit;
+      * inj/addr_form corr=origin; downstream corr in seq_primary/taint_prop;
+      * inj.before == inj.va, inj.after == addr_form.va, before != after;
+      * non-decreasing ticks; a single chain_end at/after the errant commit;
+      * no fabricated cache/lq/mshr/structural event and no squash in this
+        fault's chain (a sibling fault may carry its own containment).
+    Returns the errant_commit event or None.
+    """
+    if family != "lq":
+        return None
+    run_ids = {str(e.get("run_id", "")).strip() for e in chain_events
+               if str(e.get("run_id", "")).strip()}
+    if len(run_ids) != 1 or not next(iter(run_ids)).startswith("L03"):
+        return None
+    fids = {str(e.get("fault_id", "")).strip() for e in chain_events
+            if str(e.get("fault_id", "")).strip() not in ("", "0")}
+    if len(fids) != 1:
+        return None
+    targets = [e for e in chain_events
+               if e.get("kind") == "errant_commit"
+               and _explicit_l5(e)
+               and str(e.get("contained", "")).strip()
+                   not in _CONTAINED_VALUES]
+    if len(targets) != 1:
+        return None
+    t = targets[0]
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    anc = _ancestry(t, by_id)
+    want = ("inj", "addr_form", "resp", "lq_complete", "taint_reg",
+            "errant_commit")
+    if tuple(e.get("kind", "") for e in anc) != want:
+        return None
+    ev = {k: anc[i] for i, k in enumerate(want)}
+    seq = str(t.get("dyn_inst_seq", "")).strip()
+    if not seq or seq == "0":
+        return None
+    for e in anc:
+        if str(e.get("dyn_inst_seq", "")).strip() != seq:
+            return None
+    # errant_commit itself carries no request_id (it joins by taint_prop on
+    # the same dyn_inst_seq); the taint chain below it does.
+    req = str(ev["taint_reg"].get("request_id", "")).strip()
+    if not req or req == "0":
+        return None
+    for k in ("resp", "lq_complete", "taint_reg"):
+        if str(ev[k].get("request_id", "")).strip() != req:
+            return None
+        if str(ev[k].get("corr", "")).strip() not in ("seq_primary",
+                                                      "taint_prop"):
+            return None
+    if str(t.get("request_id", "")).strip() not in ("", req):
+        return None
+    if str(t.get("corr", "")).strip() not in ("seq_primary", "taint_prop"):
+        return None
+    if str(ev["inj"].get("corr", "")).strip() != "origin":
+        return None
+    if str(ev["addr_form"].get("corr", "")).strip() != "origin":
+        return None
+    before = str(ev["inj"].get("before", "")).strip()
+    after = str(ev["inj"].get("after", "")).strip()
+    inj_va = str(ev["inj"].get("va", "")).strip()
+    addr_va = str(ev["addr_form"].get("va", "")).strip()
+    if not before or before != inj_va:
+        return None
+    if not after or after != addr_va or before == after:
+        return None
+    ticks = [_tick(e) for e in anc]
+    if any(b < a for a, b in zip(ticks, ticks[1:])):
+        return None
+    ces = [e for e in chain_events if e.get("kind") == "chain_end"]
+    if len(ces) != 1 or _tick(ces[0]) < _tick(t):
+        return None
+    forbidden = {"squash_discarded", "squash_masked", "arch_translation_fault",
+                 "store_not_retired"}
+    for e in chain_events:
+        k = str(e.get("kind", ""))
+        if k in forbidden or k.startswith(("cache_", "mshr_")):
+            return None
+    return t
+
+
 def check_chain(events, spec_nodes=None, oracle_outcome=None):
     """主入口：events = lsu_prop_fields 解析的事件列表。
 
@@ -694,8 +794,18 @@ def check_chain(events, spec_nodes=None, oracle_outcome=None):
     for fid, chain in _group_by_fault(events).items():
         family = _family_of(chain)
         edges, by_layer, path = _edges_for(chain, family)
-        term = _terminal(chain, edges, by_layer, path, family, oracle_outcome)
-        provable = LAYERS[len(path) - 1] if path else None
+        _esc = _l03_view_escape_witness(chain, family)
+        if _esc is not None:
+            # Real errant-commit escape through the L03 comparison view.
+            by_id = {e.get("event_id", ""): e for e in chain
+                     if e.get("event_id", "") != ""}
+            path = [e for e in _ancestry(_esc, by_id)
+                    if e.get("kind") != "chain_end"]
+            term, provable = "full", "L5"
+        else:
+            term = _terminal(chain, edges, by_layer, path, family,
+                             oracle_outcome)
+            provable = LAYERS[len(path) - 1] if path else None
         result["faults"][fid] = {
             "edges": edges,
             "terminal": term,
@@ -1713,7 +1823,7 @@ def _a07_terminal_event(chain_events, kind):
     return None
 
 
-def _a01_translation_squash_witness(chain_events, target, family):
+def _translation_squash_witness(chain_events, target, family):
     """[R6-A4] A01 翻译 fault 请求被真实 squash/discard 的白名单终局。
 
     真实机制（A01-F1-W3 seed2 / A01-F2-W3 seed2）：注入的单 bit EA 让请求在
@@ -1746,7 +1856,12 @@ def _a01_translation_squash_witness(chain_events, target, family):
          强制；errant_commit 逃逸优先由调用方保留。
     流收口/未截断由 containment_from_events / check_admission 继续强制。
     """
-    if family != "agu":
+    # [R6-L-UNIT] The same real mechanism exists in the L (Load Queue) family:
+    # an injected load EA faults at translation (tlb_fault, Hardware) and the
+    # uncommitted load is squash-discarded (L4, contained=1). The L-family
+    # stream additionally carries the H1 lsq_push event between addr_form and
+    # mem_req. Scope stays narrow: only L01/L02/L03.
+    if family not in ("agu", "lq"):
         return False
     if target.get("kind", "") != "squash_discarded":
         return False
@@ -1756,7 +1871,11 @@ def _a01_translation_squash_witness(chain_events, target, family):
                if str(e.get("run_id", "")).strip()}
     if len(run_ids) != 1:
         return False
-    if next(iter(run_ids))[:3] != "A01":
+    rid_prefix = next(iter(run_ids))[:3]
+    if family == "agu":
+        if rid_prefix != "A01":
+            return False
+    elif rid_prefix not in ("L01", "L02", "L03"):
         return False
     fids = {str(e.get("fault_id", "")).strip() for e in chain_events
             if str(e.get("fault_id", "")).strip() not in ("", "0")}
@@ -1812,8 +1931,11 @@ def _a01_translation_squash_witness(chain_events, target, family):
     by_id = {e.get("event_id", ""): e for e in chain_events
              if e.get("event_id", "") != ""}
     anc = _ancestry(target, by_id)
-    want = ("inj", "addr_form", "mem_req", "lsq_sendfrag", "tlb_translate",
-            "tlb_fault", "squash_discarded")
+    want = tuple(
+        ["inj", "addr_form"]
+        + (["lsq_push"] if family == "lq" else [])
+        + ["mem_req", "lsq_sendfrag", "tlb_translate", "tlb_fault",
+           "squash_discarded"])
     if tuple(e.get("kind", "") for e in anc) != want:
         return False
     ev = {k: anc[i] for i, k in enumerate(want[:-1])}
@@ -1880,6 +2002,97 @@ def _a01_translation_squash_witness(chain_events, target, family):
     return True
 
 
+def _l03_view_squash_witness(chain_events, target, family):
+    """[R6-L-UNIT] L03 violation-view latent fault contained by a real squash.
+
+    The corrupted comparison view forms (inj -> addr_form at L0/L1) but is
+    never turned into a new memory request; the same load is then genuinely
+    squash-discarded by the LSQ (contained=1, L4). No architectural effect
+    is possible. Narrow whitelist:
+      * family=lq, run_id prefix L03, one fault, one squash_discarded;
+      * exact ancestry inj -> addr_form -> squash_discarded;
+      * squash fields: contained=1, detection/containment layer L4,
+        reason=squash_discarded, outcome=contained, field=load,
+        state_before=load_queue_uncommitted, corr=seq_primary;
+      * identical dyn_inst_seq; non-empty squash request_id;
+      * inj/addr_form corr=origin; before==inj.va, after==addr_form.va,
+        before != after; non-decreasing ticks; chain_end after the squash;
+      * no resp/lq_complete/taint_reg/errant_commit/consumer/cache/mshr event
+        in this fault's chain (no deeper witness by construction).
+    Returns the squash event or None.
+    """
+    if family != "lq" or target.get("kind", "") != "squash_discarded":
+        return None
+    run_ids = {str(e.get("run_id", "")).strip() for e in chain_events
+               if str(e.get("run_id", "")).strip()}
+    if len(run_ids) != 1 or not next(iter(run_ids)).startswith("L03"):
+        return None
+    fids = {str(e.get("fault_id", "")).strip() for e in chain_events
+            if str(e.get("fault_id", "")).strip() not in ("", "0")}
+    if len(fids) != 1:
+        return None
+    if sum(1 for e in chain_events
+           if e.get("kind") == "squash_discarded") != 1:
+        return None
+    if str(target.get("contained", "")).strip() not in _CONTAINED_VALUES:
+        return None
+    if str(target.get("detection_layer", "")).strip() != "L4":
+        return None
+    if str(target.get("containment_layer", "")).strip() != "L4":
+        return None
+    if (str(target.get("containment_reason", "")).strip()
+            != "squash_discarded"):
+        return None
+    if str(target.get("outcome", "")).strip() != "contained":
+        return None
+    if str(target.get("field", "")).strip() != "load":
+        return None
+    if (str(target.get("state_before", "")).strip()
+            != "load_queue_uncommitted"):
+        return None
+    if str(target.get("corr", "")).strip() != "seq_primary":
+        return None
+    if not _key_evidence_ok(target):
+        return None
+    seq = str(target.get("dyn_inst_seq", "")).strip()
+    req = str(target.get("request_id", "")).strip()
+    if not seq or seq == "0" or not req or req == "0":
+        return None
+    by_id = {e.get("event_id", ""): e for e in chain_events
+             if e.get("event_id", "") != ""}
+    anc = _ancestry(target, by_id)
+    if tuple(e.get("kind", "") for e in anc) != (
+            "inj", "addr_form", "squash_discarded"):
+        return None
+    inj, addr = anc[0], anc[1]
+    for e in anc:
+        if str(e.get("dyn_inst_seq", "")).strip() != seq:
+            return None
+    if str(inj.get("corr", "")).strip() != "origin":
+        return None
+    if str(addr.get("corr", "")).strip() != "origin":
+        return None
+    before = str(inj.get("before", "")).strip()
+    after = str(inj.get("after", "")).strip()
+    if not before or before != str(inj.get("va", "")).strip():
+        return None
+    if not after or after != str(addr.get("va", "")).strip() or before == after:
+        return None
+    ticks = [_tick(e) for e in anc]
+    if any(b < a for a, b in zip(ticks, ticks[1:])):
+        return None
+    ces = [e for e in chain_events if e.get("kind") == "chain_end"]
+    if len(ces) != 1 or _tick(ces[0]) < _tick(target):
+        return None
+    forbidden = {"resp", "lq_complete", "taint_reg", "errant_commit",
+                 "consumer", "squash_masked", "arch_translation_fault"}
+    for e in chain_events:
+        k = str(e.get("kind", ""))
+        if k in forbidden or k.startswith(("cache_", "mshr_")):
+            return None
+    return target
+
+
 def _containment_candidate(chain_events, family):
     """[R6-FIXB] 返回**本该**支撑含住主张的真实检测事件（或 None）。
 
@@ -1894,7 +2107,8 @@ def _containment_candidate(chain_events, family):
         if not _explicit_l5(e) or not _key_evidence_ok(e):
             continue
         if not (_event_has_prefix(chain_events, e, family)
-                or _a01_translation_squash_witness(chain_events, e, family)):
+                or _translation_squash_witness(chain_events, e, family)
+                or _l03_view_squash_witness(chain_events, e, family)):
             continue
         layer = _obs_layer_of(e, family)
         if layer not in LAYERS:
@@ -2236,7 +2450,7 @@ def check_admission(bundle):
         # (rc=0). They are necessary, never sufficient — the witness itself
         # still has to satisfy the full field/ancestry/tick contract.
         if (_cand is not None
-                and _a01_translation_squash_witness(chain, _cand, family)):
+                and _translation_squash_witness(chain, _cand, family)):
             if bundle.get("oracle_outcome") != "Masked":
                 cont_issues.append(
                     f"a01_squash_oracle_not_masked: {run_id} 翻译 fault squash "
