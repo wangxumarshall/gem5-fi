@@ -1218,6 +1218,18 @@ REPEAT_FACTOR = {
     # F4 (iv=1e5; same draw positions as F2)
     ("A07", "F4", "agu_addrmodes", ""): 434,
     ("A07", "F4", "sq_forward", ""): 934,
+    # --- [R6-L-UNIT] L-unit factors, measured 2026-11-03 by
+    # tools/r6_l_repeat_census.py on binary deecd9e3… (summary.json):
+    #   W5 delta 16.33/iter (addrpath), 6.11/iter (L03 violation stream);
+    #   W12 delta 11867.75/iter (addrpath), 19872.75/iter (L03).
+    ("L01", "F1", "sq_forward", ""): 94759,
+    ("L01", "F1", "sqlite_like", ""): 131,
+    ("L01", "F2", "sq_forward", ""): 10269,
+    ("L01", "F2", "sqlite_like", ""): 15,
+    ("L02", "F2", "sq_forward", ""): 10269,
+    ("L02", "F2", "sqlite_like", ""): 15,
+    ("L03", "F4", "sq_forward", ""): 27562,
+    ("L03", "F4", "sqlite_like", ""): 9,
 }
 
 # [R6-A4] Per-key census evidence（E1 / delta / first-fire cover / R /
@@ -1307,6 +1319,50 @@ REPEAT_EVIDENCE = {
         "note": "over-cap under the frozen binary (needs 84,418 > 4,096); "
                 "no verify run was issued (see the W3 entry).",
         "census": "runs/lsu/r6_a4_census_r6a4/r6_a4_census_A08-a-W5_r10"},
+    # --- [R6-L-UNIT] measured 2026-11-03 with tools/r6_l_repeat_census.py
+    # on the campaign binary deecd9e3…; each entry names its own census
+    # directory (runs/lsu/r6_l_census_20261103/<key>_r*). No number here is
+    # extrapolated from the one-shot stream length.
+    ("L01", "F1", "sq_forward", ""): {
+        "E1": 1262, "eligible@5": 1341, "delta": 16.333333,
+        "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 1290806,
+        "cover_1.2max": 1548967.2, "R": 94759,
+        "census": "runs/lsu/r6_l_census_20261103/L01-F1-W5_r10"},
+    ("L01", "F1", "sqlite_like", ""): {
+        "E1": 13193, "eligible@5": 60664, "delta": 11867.75,
+        "delta_source": "repeat=5", "max_first_fire": 1290806,
+        "cover_1.2max": 1548967.2, "R": 131,
+        "census": "runs/lsu/r6_l_census_20261103/L01-F1-W12_r10"},
+    ("L01", "F2", "sq_forward", ""): {
+        "E1": 1262, "eligible@5": 1341, "delta": 16.333333,
+        "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 140806,
+        "cover_1.2max": 168967.2, "R": 10269,
+        "census": "runs/lsu/r6_l_census_20261103/L01-F2-W5_r10"},
+    ("L01", "F2", "sqlite_like", ""): {
+        "E1": 13193, "eligible@5": 60664, "delta": 11867.75,
+        "delta_source": "repeat=5", "max_first_fire": 140806,
+        "cover_1.2max": 168967.2, "R": 15,
+        "census": "runs/lsu/r6_l_census_20261103/L01-F2-W12_r10"},
+    ("L02", "F2", "sq_forward", ""): {
+        "E1": 1262, "eligible@5": 1341, "delta": 16.333333,
+        "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 140806,
+        "cover_1.2max": 168967.2, "R": 10269,
+        "census": "runs/lsu/r6_l_census_20261103/L02-F2-W5_r10"},
+    ("L02", "F2", "sqlite_like", ""): {
+        "E1": 13193, "eligible@5": 60664, "delta": 11867.75,
+        "delta_source": "repeat=5", "max_first_fire": 140806,
+        "cover_1.2max": 168967.2, "R": 15,
+        "census": "runs/lsu/r6_l_census_20261103/L02-F2-W12_r10"},
+    ("L03", "F4", "sq_forward", ""): {
+        "E1": 540, "eligible@5": 588, "delta": 6.111111,
+        "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 140806,
+        "cover_1.2max": 168967.2, "R": 27562,
+        "census": "runs/lsu/r6_l_census_20261103/L03-F4-W5_r10"},
+    ("L03", "F4", "sqlite_like", ""): {
+        "E1": 20432, "eligible@5": 99923, "delta": 19872.75,
+        "delta_source": "repeat=5", "max_first_fire": 140806,
+        "cover_1.2max": 168967.2, "R": 9,
+        "census": "runs/lsu/r6_l_census_20261103/L03-F4-W12_r10"},
 }
 
 REPEAT_MAX = 131072
@@ -1354,7 +1410,13 @@ L_REPEAT_MODELS = frozenset({"L01", "L02", "L03"})
 # draw. Keyed by (model, binary, seed) because the factor is a property of
 # that draw, and only measured entries are applied (an unmeasured seed keeps
 # repeat=1, its honest pre-existing behavior, rather than inventing one).
-L_F0_REPEAT = {}
+L_F0_REPEAT = {
+    # [R6-L-UNIT] 2026-11-03 real census (runs/lsu/r6_l_census_20261103/
+    # L03-F0-W5-s3_r5, no-fire warmup): E1=540, eligible@2=580, delta=12.0;
+    # the seed's own draw is 561, so R=1+ceil((1.2*561-540)/12)=13. The
+    # draw/warmup/span (561 / 1 / 571) are untouched.
+    ("L03", "sq_forward", 3): 13,
+}
 
 
 def _l_repeat_family(family, model, freq):
