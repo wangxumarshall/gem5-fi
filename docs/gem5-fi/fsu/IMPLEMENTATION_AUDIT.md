@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`cf637b9ac690a66c8c04dd57d5dfd38f5a2034b2`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`36fc8e06073c13323e49cadba7c98aaadbd2c6f6`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -49,7 +49,7 @@
 
 ## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）
 
-- seed_completion：0/3 169、3/3 4
+- seed_completion：0/3 168、3/3 5
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 26、PARTIAL 59、PILOT_SUBMODEL_ONLY 1
 
 | RunID | seed_completion | coverage_status | coverage_reason |
@@ -172,7 +172,7 @@
 | FSU-FP03-F2-W1 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FP03-F2-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FP04-F0-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
-| FSU-FP04-F0-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FP04-F0-W3 | 3/3 | PARTIAL | official seeds 3/3 admitted with the real NEON FP32 lane workload; evidence covers FP04-d lane2 sign bit only (32-bit lane domain); FP04-a/b/c fields and the other lanes are not covered |
 | FSU-FP04-F0-W4 | 3/3 | PILOT_SUBMODEL_ONLY | pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, FP04-d NEON lane result, plus F1/F2/F3 semantics |
 | FSU-FP04-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -241,13 +241,13 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`cf637b9ac690a66c8c04dd57d5dfd38f5a2034b2`（branch `fsu`）
-- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`e1ee610d774d88b0ae23a89b9ce2620ce9d2cf3f59bad85f23a013af5117280c`；size=1246083368
+- HEAD：`36fc8e06073c13323e49cadba7c98aaadbd2c6f6`（branch `fsu`）
+- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`5647208d1fdf9ea131bcae60e0479fc5a0d477dce2fee0930bc8d04d40f47e73`；size=1246185920
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）
 - FSU 三 seed runner：True（`tools/fsu_seed_runner.py`）
 - rate ordinal 工具：True（`tools/fsu_rate_ordinals.py`）
-- 模型级测试文件：8 个
+- 模型级测试文件：9 个
 - B0 配置匹配：False（ooo_proxy.py 仍为 C3 默认 ROB=128/IQ=64/4-wide；工作簿 B0 的 ROB=40/IQ=32/3/3/3 未实现）
 
 ### 3.3 resolved_by_commit

@@ -500,6 +500,16 @@ def _coverage(runid, audited_status, workload_identity, seed_n):
                 "pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID "
                 "requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, "
                 "FP04-d NEON lane result, plus F1/F2/F3 semantics")
+    if runid == "FSU-FP04-F0-W3":
+        if seed_n:
+            return ("PARTIAL",
+                    f"official seeds {seed_n}/3 admitted with the real NEON "
+                    "FP32 lane workload; evidence covers FP04-d lane2 sign "
+                    "bit only (32-bit lane domain); FP04-a/b/c fields and "
+                    "the other lanes are not covered")
+        return ("PARTIAL",
+                "real NEON FP32 lane workload and golden exist, but this "
+                "RunID has 0/3 official seeds")
     if runid in ("FSU-FP04-F1-W4", "FSU-FP04-F2-W4", "FSU-FP04-F3-W4"):
         if seed_n:
             gate_note = (" The F3 multi-fault gate used the short W4 and is "
@@ -654,10 +664,18 @@ def build(out_root=DEFAULT_RUNS):
                 for f in ("F0", "F1", "F2", "F3")
             },
             "submodel_coverage": {
-                "covered": ["FP04-c/mant_lo"],
+                "covered": ["FP04-c/mant_lo (formal W4 seeds)"],
+                "partial": (
+                    ["FP04-d lane result: 32-bit lane2 sign bit only "
+                     f"(F0-W3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W3'), 0)}/3)"]
+                    if next((m["seed_completion_count"] for m in matrix
+                             if m["runid"] == "FSU-FP04-F0-W3"), 0) else []
+                ),
                 "not_covered": ["FP04-a sign", "FP04-b exp_hi/exp_lo",
-                                "FP04-c mant_hi/mant_mid", "FP04-d NEON lane",
-                                "FP32", "NEON 128-bit lane"],
+                                "FP04-c mant_hi/mant_mid",
+                                "FP04-d other lanes/fields",
+                                "FP32 formal RunID coverage",
+                                "NEON 128-bit full field/lane matrix"],
             },
             "workload_coverage": {
                 "W4": "REAL; short W4 F0 "
@@ -666,8 +684,12 @@ def build(out_root=DEFAULT_RUNS):
                       f"F1 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F1-W4'), 0)}/3, "
                       f"F2 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F2-W4'), 0)}/3, "
                       f"F3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F3-W4'), 0)}/3",
-                "W1": "NO_TRUE_ARTIFACT", "W2": "NO_TRUE_ARTIFACT",
-                "W3": "PARTIAL", "W5": "PARTIAL", "W6": "PARTIAL",
+                "W1": "NO_TRUE_ARTIFACT (gate-only FP32 scalar workload exists)",
+                "W2": "NO_TRUE_ARTIFACT",
+                "W3": "PARTIAL; real NEON FP32 lane workload "
+                      f"F0-W3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W3'), 0)}/3 "
+                      "(lane2 sign only)",
+                "W5": "PARTIAL", "W6": "PARTIAL",
                 "W7": "NO_FP_ARTIFACT", "W9": "REAL but unbound",
                 "W0/W8/W10": "UNUSED",
             },

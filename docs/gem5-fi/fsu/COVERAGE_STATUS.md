@@ -10,13 +10,15 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **12 / 519** |
-| seed-complete RunID | **4 / 173**（`FSU-FP04-F0-W4`、`FSU-FP04-F1-W4`、`FSU-FP04-F2-W4`、`FSU-FP04-F3-W4` 均 3/3） |
+| 已完成合格 seed | **15 / 519** |
+| seed-complete RunID | **5 / 173**（W4 四个：F0/F1/F2/F3-W4；以及 `FSU-FP04-F0-W3`，均 3/3） |
 | 部分完成 RunID | **0 / 173** |
-| 其余 169 个 RunID | 0/3 |
+| 其余 168 个 RunID | 0/3 |
 
 > 频率批次（F0/F1/F2/F3-W4，12 个 seed）的总审计见
 > `docs/gem5-fi/fsu/FP04-W4-FREQUENCY-CLOSEOUT.md`。
+> 字段/FP32/NEON lane 的门禁与 `FSU-FP04-F0-W3` 正式试点见
+> `docs/gem5-fi/fsu/FP04-FIELD-LANE-GATE-CLOSEOUT.md`。
 
 ## 2. frequency_coverage（限 `FSU-FP04-*-W4`）
 
@@ -39,7 +41,7 @@
 | FP04-a / sign | **未覆盖** |
 | FP04-b / exp_hi, exp_lo | **未覆盖** |
 | FP04-c / mant_hi, mant_mid | **未覆盖** |
-| FP04-d / NEON lane result | **未覆盖** |
+| FP04-d / NEON lane result | **部分覆盖**：`FSU-FP04-F0-W3` 3/3，真实 float32x4 FMA workload，仅 32-bit lane2 的 sign 位（绝对 bit 95）；其他 lane 与字段未覆盖 |
 | FP32 字段映射 | **未覆盖** |
 | NEON 全 128-bit lane | **未覆盖** |
 
@@ -68,7 +70,7 @@
 - mant_hi / mant_mid（FP04-c 其余字段）；
 - FP32；
 - NEON 全 128-bit lane；
-- FP04-d lane result；
+- FP04-d lane result 的其余 lane / 字段组合；
 - W1/W3/W5/W6（及其它未绑定 workload）。
 
 ## 6. 当前仍存在的实现缺口

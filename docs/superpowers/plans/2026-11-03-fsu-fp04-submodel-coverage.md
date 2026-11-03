@@ -31,7 +31,10 @@
 - 验证：`python3 -m pytest tests/test_fsu_fp04_fields.py -q`
   （预期 15 passed + 3 xfailed，或按参数化计数）。
 
-## 2. 任务 B：FP32 精度参数与字段表（1 commit）
+## 2. 任务 B：FP32 精度参数与字段表（1 commit）✅
+
+> 已实现：`CHAOSFPU` precision/fp32 位表、事件 precision/field 范围；
+> host C++ 单测与 FP32 scalar 门禁（F0-W1-GATE）3/3 PASS。
 
 - `CHAOSFPU.py` 增加 `precision`（`fp64` 默认 / `fp32`）。
 - `CHAOSFPU.cc` 按精度选择字段表：
@@ -44,7 +47,11 @@
 - 构建：`flock /tmp/gem5-build.lock scons -j4 build/ARM/gem5.opt`（禁止 -j16）。
 - 完成前不得启动新的正式 RunID；先用 gate/pilot 验证。
 
-## 3. 任务 C：lane 选择、128-bit 写入与 lane_mask（1 commit）
+## 3. 任务 C：lane 选择、128-bit 写入与 lane_mask（1 commit）✅
+
+> 已实现：laneWidth/laneOffset、16 字节 VecReg lane RMW、lane_mask/
+> full_before/full_after/bit_in_lane/reg_class；NEON lane2 门禁与正式
+> F0-W3 3/3 证明只改目标 lane。
 
 - 增加 `laneWidth ∈ {8,16,32,64}`、`laneOffset`，按目标 lane 基址 XOR。
 - VecRegClass 写路径覆盖 16 字节（当前仅 8 字节，`CHAOSFPU.cc:402-413`）。
@@ -52,7 +59,10 @@
 - 测试：目标 lane 外 bit 不变；lane_mask 落盘；128-bit 第二 lane 可注入。
 - 构建同上；gate/pilot 先行。
 
-## 4. 任务 D：真实 workload + golden + census（1 commit）
+## 4. 任务 D：真实 workload + golden + census（1 commit）✅
+
+> 已新增 `fp32_fma_kernel` 与 `neon_fp32_lane_kernel`；golden 各 3 次一致；
+> countOnly eligible 实测 524,292（scalar FP32）与 16,384（NEON lane2）。
 
 - FP32：新增 `workloads/directed/elemwise_fma_kernel_fp32.c`，全数组
   ARRAYHASH + ULP；无注入 golden 连续 3 次一致；记录 source/binary SHA。
@@ -63,7 +73,11 @@
 - 注意：W3 现有 `neon_lane.c` 是整数 NEON，不在当前 `isFpOpClass` 域
   （`CHAOSFPU.cc:180-188`），不能直接复用。
 
-## 5. 任务 E：gate/pilot 与正式注册裁决
+## 5. 任务 E：gate/pilot 与正式注册裁决 ✅
+
+> 已执行：3 个 GATE RunID × 3 seed 全 PASS（不计 519）；未新增第 174 个
+> RunID。正式试点用未运行的 `FSU-FP04-F0-W3`，3 seed 全 PASS，
+> 正式完成数 12/519 → 15/519。
 
 - 先用 `*-GATE` RunID 证明机制（不计入 519）；逐 fault 链/audit 门禁与
   F3 门禁相同。

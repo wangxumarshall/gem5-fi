@@ -146,10 +146,31 @@ LANEHASH3=d9639e1314922560   （与 golden 相同）
 - 4 个 W4 RunID（F0/F1/F2/F3-W4）已各 3/3，但只实测 mant_lo；没有空余的
   W4 种子槽位可再表达 sign/exp/mant_hi。
 - 因此本轮**不新增第 174 个 RunID**：GATE 证据只证明能力，不计入 519。
-- 下一步正式试点选择仍未被使用的真实 RunID `FSU-FP04-F0-W3`
-  （NEON-LaneProbe）：新 NEON FP32 workload 已有真实 golden、eligible 与
-  完整链条件。若 3 seed 全部审计通过，可把该 RunID 标为 3/3，但覆盖仍
-  仅限“lane2 + sign”，不得宣称 FP04 全模型覆盖。
+- 已执行正式试点：仍未被使用的真实 RunID `FSU-FP04-F0-W3`
+  （NEON-LaneProbe）。新 NEON FP32 workload 的 golden、eligible 与完整链
+  均真实；3 个正式 seed 全部审计通过（见 6.1）。该 RunID 标为 3/3，但
+  覆盖仍仅限“lane2 + sign”，不得宣称 FP04 全模型覆盖。
+
+### 6.1 正式 FSU-FP04-F0-W3 结果
+
+`configs/fsu/FSU-FP04-F0-W3.json`（manifest 已提交）使用
+`workloads/directed/neon_fp32_lane_kernel`，`submodel=FP04-d`，
+`precision=fp32`、`lane_width=32`、`lane_offset=2`、`bitseg=sign`。
+三个正式 seed 的 eligible 均为 16,384：
+
+| seed | eligible | skip | terminal | oracle | audit checks | audit.json | seed Markdown | chain_report.json | prop_evt.txt.gz |
+|---:|---:|---:|---|---|---:|---|---|---|---|
+| 1 | 16,384 | 15,571 | full | SDC | 65 PASS | `58bcc6f3920e602dea7fc7c944675da1bed1be42dd502dbb08d065d8ffc4c29e` | `800f9931478f35b15e96d586ad0e76eacc5049212a191046c922c38e87e90f59` | `e1777329aeda44eeb8574ecc47a4b063db96fc26faebc68af2b5da936af86af8` | `c672d09bf1862255cf59ab093d3b95ec1e863a03ada072af0febd02a0718618a` |
+| 2 | 16,384 | 14,938 | full | SDC | 65 PASS | `7b52105b02a55801890baddeeee0bedf1fefd4b1cf9e167068772eec13b34bfd` | `d861e3af0ea45cdcdf2cad5e9224b65005f2315b028838587547ce38ffa58ded` | `9b967be56276460814bcce1f7f7666ba5b0f807c2dd1217381ac298b222432a0` | `b87a881711f3f6f0250370d2f31019717aaa481518320fc59ebdb77a31b67202` |
+| 3 | 16,384 | 15,149 | full | SDC | 65 PASS | `e6d46ef07451e0f32138ac1b4665a7f32271ca0248d61fcd71ae7f0834a82fda` | `caee21ca6f909a1059abc428b4f0a43b7a8ca6452d4e4c82ba3f159a090f7535` | `c1799e47a75791133742d43fd82a9e13d0ec27a5aebcc6c9430990104184e6b6` | `ce373aa84090ec3c993a4bfea6ab75c9b0f001e1e1ee90cc9f18a342a4d4c8c3` |
+
+三个 seed 的根事件均为 `field=sign`、`precision=fp32`、`lane_width=32`、
+`lane_offset=2`、`bit_indices=95`、`fault_mask=0x0000000080000000`、
+`lane_mask=0x00000000800000000000000000000000`；`full_before ^ full_after`
+恰为 bit 95。`LANEHASH0/1/3` 与 golden 相同，仅 `LANEHASH2` 改变。
+
+正式完成数因此从 **12/519** 变为 **15/519**；seed-complete RunID 从
+**4/173** 变为 **5/173**。`overall coverage_status` 仍为 **NOT_COMPLETE**。
 
 ## 7. 边界
 
