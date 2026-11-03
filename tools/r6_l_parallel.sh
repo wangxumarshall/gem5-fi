@@ -18,7 +18,7 @@ SUMMARY="$STATE_DIR/r6l-par-summary.jsonl"
 QLOG="$STATE_DIR/r6l-parallel.log"
 DONE_MARK="$STATE_DIR/R6L_PARALLEL_DONE"
 STOP_MARK="$STATE_DIR/R6L_PARALLEL_STOP"
-mkdir -p "$OUTROOT" "$STATE_DIR"
+mkdir -p "$OUTROOT" "$STATE_DIR" "$STATE_DIR/logs"
 
 IFS=',' read -r -a IDS <<< "$RUNIDS"
 TASKS=()
@@ -81,6 +81,7 @@ launch() {
   local task="$1" rid seed
   rid="${task%%|*}"; seed="${task##*|}"
   R6L_BIN="$BIN" R6L_OUTROOT="$OUTROOT" R6L_WANT_SHA="${R6L_WANT_SHA:-}" \
+    R6L_LOG="$STATE_DIR/logs/${rid}-s${seed}.log" \
     "$WT/tools/r6_l_seed.sh" "$rid" "$seed" "$TIMEOUT" &
   local pid=$!
   RUNNING[$pid]=1
