@@ -2,7 +2,7 @@
   "summary": {
     "generated_from": "/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx",
     "baseline_commit": "46ce66cdb9c22f5e591b43b97b68c7d526704211",
-    "current_head": "36fc8e06073c13323e49cadba7c98aaadbd2c6f6",
+    "current_head": "4f6e157f662f80367ed0d31dd64e9e61a2aa5a18",
     "current_binary_sha256": "5647208d1fdf9ea131bcae60e0479fc5a0d477dce2fee0930bc8d04d40f47e73",
     "baseline_gap": [
       {
@@ -54,7 +54,7 @@
       }
     ],
     "current_status": {
-      "head": "36fc8e06073c13323e49cadba7c98aaadbd2c6f6",
+      "head": "4f6e157f662f80367ed0d31dd64e9e61a2aa5a18",
       "head_note": "probe-time HEAD；本文件由其后继提交写入，故最终 HEAD 通常是该值的子提交",
       "branch": "fsu",
       "gem5_binary": {
@@ -1013,10 +1013,10 @@
       "implemented": "—",
       "missing_hooks": "src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/cycle/core/tid/sn/PC/opcode/IQ slot/mode/old-new/eligible-activated；L1 src_slot/arch+phys tag/producer/ready/valid/issued/squashed/occupancy；L2 ready rank/FU candidate+grant/issue+accept tick；L3 operands/result/lane/FPSR hash；L4 dest/wakeup/consumer；L5 ROB/commit/squash/first divergence/outcome；模型重点：tag/ready/value hash配对、opClass交换律、错lane",
       "required_chain_path": "L0 CHAOSIQ/FP-IQ条目故障施加 → L1 Vec src tag/ready/valid/issued/dependGraph → L2 ready-list/FU grant/issueToExecute → L3 FSU执行与结果 → L4 Vec PRF写回/wakeup/下游consumer/FPSR → L5 ROB complete/squash/commit、架构V/FPSR、软件oracle/Crash/Timeout",
       "fsu_fields_model_focus": "tag/ready/value hash配对、opClass交换律、错lane",
@@ -1037,7 +1037,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -1175,10 +1175,10 @@
       "implemented": "—",
       "missing_hooks": "src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/cycle/core/tid/sn/PC/opcode/IQ slot/mode/old-new/eligible-activated；L1 src_slot/arch+phys tag/producer/ready/valid/issued/squashed/occupancy；L2 ready rank/FU candidate+grant/issue+accept tick；L3 operands/result/lane/FPSR hash；L4 dest/wakeup/consumer；L5 ROB/commit/squash/first divergence/outcome；模型重点：tag/ready/value hash配对、opClass交换律、错lane",
       "required_chain_path": "L0 CHAOSIQ/FP-IQ条目故障施加 → L1 Vec src tag/ready/valid/issued/dependGraph → L2 ready-list/FU grant/issueToExecute → L3 FSU执行与结果 → L4 Vec PRF写回/wakeup/下游consumer/FPSR → L5 ROB complete/squash/commit、架构V/FPSR、软件oracle/Crash/Timeout",
       "fsu_fields_model_focus": "tag/ready/value hash配对、opClass交换律、错lane",
@@ -1199,7 +1199,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：src0↔src1 配对交换；FMA mul/add 源角色；lane 角色交换；双源配对日志；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -1985,10 +1985,10 @@
       "implemented": "整数 FU class 误路由（对 FSU 不可用）",
       "missing_hooks": "FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/cycle/core/tid/sn/PC/opcode/IQ slot/mode/old-new/eligible-activated；L1 src_slot/arch+phys tag/producer/ready/valid/issued/squashed/occupancy；L2 ready rank/FU candidate+grant/issue+accept tick；L3 operands/result/lane/FPSR hash；L4 dest/wakeup/consumer；L5 ROB/commit/squash/first divergence/outcome；模型重点：true/fault opClass、capability set、grant FU、latency、结果/异常",
       "required_chain_path": "L0 CHAOSIQ/FP-IQ条目故障施加 → L1 Vec src tag/ready/valid/issued/dependGraph → L2 ready-list/FU grant/issueToExecute → L3 FSU执行与结果 → L4 Vec PRF写回/wakeup/下游consumer/FPSR → L5 ROB complete/squash/commit、架构V/FPSR、软件oracle/Crash/Timeout",
       "fsu_fields_model_focus": "true/fault opClass、capability set、grant FU、latency、结果/异常",
@@ -2009,7 +2009,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -2228,10 +2228,10 @@
       "implemented": "整数 FU class 误路由（对 FSU 不可用）",
       "missing_hooks": "FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/cycle/core/tid/sn/PC/opcode/IQ slot/mode/old-new/eligible-activated；L1 src_slot/arch+phys tag/producer/ready/valid/issued/squashed/occupancy；L2 ready rank/FU candidate+grant/issue+accept tick；L3 operands/result/lane/FPSR hash；L4 dest/wakeup/consumer；L5 ROB/commit/squash/first divergence/outcome；模型重点：true/fault opClass、capability set、grant FU、latency、结果/异常",
       "required_chain_path": "L0 CHAOSIQ/FP-IQ条目故障施加 → L1 Vec src tag/ready/valid/issued/dependGraph → L2 ready-list/FU grant/issueToExecute → L3 FSU执行与结果 → L4 Vec PRF写回/wakeup/下游consumer/FPSR → L5 ROB complete/squash/commit、架构V/FPSR、软件oracle/Crash/Timeout",
       "fsu_fields_model_focus": "true/fault opClass、capability set、grant FU、latency、结果/异常",
@@ -2252,7 +2252,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：FP/SIMD add-pipe↔mul-pipe、compatible FU index、scalar↔SIMD route；FU capability/grant/latency 证据；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -3929,10 +3929,10 @@
       "implemented": "单个 Vec lane 内 1-bit/多位 XOR；FP64 字段未分层",
       "missing_hooks": "128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
@@ -3953,7 +3953,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -4172,10 +4172,10 @@
       "implemented": "单个 Vec lane 内 1-bit/多位 XOR；FP64 字段未分层",
       "missing_hooks": "128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
@@ -4196,7 +4196,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -4415,10 +4415,10 @@
       "implemented": "单个 Vec lane 内 1-bit/多位 XOR；FP64 字段未分层",
       "missing_hooks": "128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
@@ -4439,7 +4439,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -4658,10 +4658,10 @@
       "implemented": "单个 Vec lane 内 1-bit/多位 XOR；FP64 字段未分层",
       "missing_hooks": "128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "phys/arch/generation、lane/bit、old-new、reads-before-overwrite、首消费者",
@@ -4682,7 +4682,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -4901,10 +4901,10 @@
       "implemented": "同一 lane 内双 bit 翻转",
       "missing_hooks": "跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：bit pair/距离/lane pair、old-new、消费扇出",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "bit pair/距离/lane pair、old-new、消费扇出",
@@ -4925,7 +4925,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -5144,10 +5144,10 @@
       "implemented": "同一 lane 内双 bit 翻转",
       "missing_hooks": "跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：bit pair/距离/lane pair、old-new、消费扇出",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "bit pair/距离/lane pair、old-new、消费扇出",
@@ -5168,7 +5168,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -5306,10 +5306,10 @@
       "implemented": "int/float 标量写路径永久 stuck",
       "missing_hooks": "Vec 写路径 stuck 未实现（不调用 setStuckTarget）；checkPermanent 按键号误伤 int PRF；clearStuckTarget 从未调用；exposure/applied 计数；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：arm tick、phys generation、每次correct/stored、exposure/applied、首影响",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "arm tick、phys generation、每次correct/stored、exposure/applied、首影响",
@@ -5330,7 +5330,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：Vec 写路径 stuck 未实现（不调用 setStuckTarget）；checkPermanent 按键号误伤 int PRF；clearStuckTarget 从未调用；exposure/applied 计数；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -5954,10 +5954,10 @@
       "implemented": "—",
       "missing_hooks": "Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：reader sn/src slot、requested tag、array/bypass source、old-new value/lane hash",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "reader sn/src slot、requested tag、array/bypass source、old-new value/lane hash",
@@ -5978,7 +5978,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -6197,10 +6197,10 @@
       "implemented": "—",
       "missing_hooks": "Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：reader sn/src slot、requested tag、array/bypass source、old-new value/lane hash",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "reader sn/src slot、requested tag、array/bypass source、old-new value/lane hash",
@@ -6221,7 +6221,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -6359,10 +6359,10 @@
       "implemented": "—",
       "missing_hooks": "Vec 读端口多位/跨 lane 翻转；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：port/src slot、bit/lane pair、returned value、FU operand、consumer result",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "port/src slot、bit/lane pair、returned value、FU operand、consumer result",
@@ -6383,7 +6383,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口多位/跨 lane 翻转；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -6521,10 +6521,10 @@
       "implemented": "—",
       "missing_hooks": "Vec 读端口多位/跨 lane 翻转；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：port/src slot、bit/lane pair、returned value、FU operand、consumer result",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "port/src slot、bit/lane pair、returned value、FU operand、consumer result",
@@ -6545,7 +6545,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：Vec 读端口多位/跨 lane 翻转；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -6764,10 +6764,10 @@
       "implemented": "执行结果（含 Vec 低 64 位）单/多 bit XOR",
       "missing_hooks": "PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：writer sn/FU、correct/bus/stored hash、dest tag、ready/wakeup、所有后继读",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "writer sn/FU、correct/bus/stored hash、dest tag、ready/wakeup、所有后继读",
@@ -6788,7 +6788,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -7007,10 +7007,10 @@
       "implemented": "执行结果（含 Vec 低 64 位）单/多 bit XOR",
       "missing_hooks": "PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：writer sn/FU、correct/bus/stored hash、dest tag、ready/wakeup、所有后继读",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "writer sn/FU、correct/bus/stored hash、dest tag、ready/wakeup、所有后继读",
@@ -7031,7 +7031,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：PRF 写回边界 hook；golden result、WB txn、dest tag、wakeup、consumer 链；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -7898,10 +7898,10 @@
       "implemented": "—",
       "missing_hooks": "bypass/forwarding mux 与 partial-lane merge；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：write/read pair、source port、lane mask、selected fragments、returned value",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "write/read pair、source port、lane mask、selected fragments、returned value",
@@ -7922,7 +7922,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -8141,10 +8141,10 @@
       "implemented": "—",
       "missing_hooks": "bypass/forwarding mux 与 partial-lane merge；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/class/phys/arch/generation/lane/bit/mask/old-new；L1 alloc/free/reuse/ready/write version；L2 reader sn/src slot/port/array-or-bypass/value+lane hash/reads-before-overwrite；L3 opClass/FU/result；L4 writeback/wakeup/consumer fanout；L5 commit V/FPSR/squash/oracle/outcome；模型重点：write/read pair、source port、lane mask、selected fragments、returned value",
       "required_chain_path": "L0 CHAOSPhysReg或读写端口故障 → L1 Vec PRF cell/generation/ready与RAT映射 → L2 FP/SIMD consumer operand read/旁路/lane merge → L3 FSU execute/result → L4 dest Vec PRF writeback、wakeup与consumer扇出 → L5 ROB commit/squash、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "write/read pair、source port、lane mask、selected fragments、returned value",
@@ -8165,7 +8165,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：bypass/forwarding mux 与 partial-lane merge；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -8384,10 +8384,10 @@
       "implemented": "—",
       "missing_hooks": "操作数/控制/流水线级故障；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：operand phys/value/lane hash、bit field、correct/fault result、FPSR",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "operand phys/value/lane hash、bit field、correct/fault result、FPSR",
@@ -8408,7 +8408,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -8707,10 +8707,10 @@
       "implemented": "—",
       "missing_hooks": "操作数/控制/流水线级故障；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：operand phys/value/lane hash、bit field、correct/fault result、FPSR",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "operand phys/value/lane hash、bit field、correct/fault result、FPSR",
@@ -8731,7 +8731,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：操作数/控制/流水线级故障；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -9030,10 +9030,10 @@
       "implemented": "结果侧粗粒度多位 XOR",
       "missing_hooks": "同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：operand role、bit/lane pair、old-new input、result/FPSR差异",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "operand role、bit/lane pair、old-new input、result/FPSR差异",
@@ -9054,7 +9054,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -9273,10 +9273,10 @@
       "implemented": "结果侧粗粒度多位 XOR",
       "missing_hooks": "同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：operand role、bit/lane pair、old-new input、result/FPSR差异",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "operand role、bit/lane pair、old-new input、result/FPSR差异",
@@ -9297,7 +9297,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：同 lane 相邻/跨 lane 双 bit 几何、FP32/全 128 位；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -9840,10 +9840,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -9864,7 +9864,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -10244,10 +10244,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -10268,7 +10268,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -10648,10 +10648,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -10672,7 +10672,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -11052,10 +11052,10 @@
       "implemented": "FP64 低 64 位结果字段单 bit 翻转；FP04-a/b/c 可试；FSU PROP L0–L5 已落地（F0 三 seed 验证）",
       "missing_hooks": "FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "opClass/FU、correct/fault result、field/lane/mask、dest phys、consumer",
@@ -11076,7 +11076,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -11375,10 +11375,10 @@
       "implemented": "结果多位 XOR、可重复同掩码",
       "missing_hooks": "2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：burst_id/len/ordinal、lane mask、每结果hash、扇出与cluster结局",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "burst_id/len/ordinal、lane mask、每结果hash、扇出与cluster结局",
@@ -11399,7 +11399,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -11618,10 +11618,10 @@
       "implemented": "结果多位 XOR、可重复同掩码",
       "missing_hooks": "2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：burst_id/len/ordinal、lane mask、每结果hash、扇出与cluster结局",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "burst_id/len/ordinal、lane mask、每结果hash、扇出与cluster结局",
@@ -11642,7 +11642,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -11942,10 +11942,10 @@
       "implemented": "同一掩码重复应用于每次 eligible 结果",
       "missing_hooks": "SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：fixed bit/mask/polarity、exposure/applied、affected sn、首影响延迟",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "fixed bit/mask/polarity、exposure/applied、affected sn、首影响延迟",
@@ -11966,7 +11966,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（PARTIAL）：SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -13073,10 +13073,10 @@
       "implemented": "—",
       "missing_hooks": "lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：element width、active/write mask、lane map old-new、逐lane首差与消费",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "element width、active/write mask、lane map old-new、逐lane首差与消费",
@@ -13097,7 +13097,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -13315,10 +13315,10 @@
       "implemented": "—",
       "missing_hooks": "lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：element width、active/write mask、lane map old-new、逐lane首差与消费",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "element width、active/write mask、lane map old-new、逐lane首差与消费",
@@ -13339,7 +13339,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"
@@ -13557,10 +13557,10 @@
       "implemented": "—",
       "missing_hooks": "lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
       "workload_definition": "NEON-LaneProbe：W3 NEON-LaneProbe：8/16/32/64-bit lane，整数/浮点AdvSIMD，extract/insert、widen/narrow、permute、reduce；逐lane比对",
-      "real_workload_identity": "neon_lane（仅 32-bit lane；XOR/shift/add）",
-      "workload_path": "workloads/directed/neon_lane",
+      "real_workload_identity": "neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+      "workload_path": "workloads/directed/neon_fp32_lane_kernel",
       "workload_identity_status": "PARTIAL",
-      "golden_oracle": "neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行",
+      "golden_oracle": "neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
       "required_l0_l5": "L0 run/sample/fault/event/parent/tick/sn/PC/opClass/FU/submodel/bit-field/lane/mask/eligible-activated；L1 A/B/C phys+value hash/width/lane/FPCR；L2 operation/proxy/expected-actual latency/result/FPSR；L3 dest tag/WB/lane mask；L4 consumer sn/src slot/read hash/fanout；L5 commit V/FPSR/exception/squash/oracle/outcome；模型重点：element width、active/write mask、lane map old-new、逐lane首差与消费",
       "required_chain_path": "L0 CHAOSFPU或新FSU operand/control/result故障 → L1 Float*/SimdFloat* FU输入、opClass、lane、FPCR → L2 FSU运算/延迟/completion → L3 result/lane mask/FPSR候选与Vec PRF writeback → L4 IQ消费者/旁路/控制或访存扇出 → L5 ROB commit/squash/FP异常、架构V/FPSR与oracle",
       "fsu_fields_model_focus": "element width、active/write mask、lane map old-new、逐lane首差与消费",
@@ -13581,7 +13581,7 @@
         "所有模型均无模型级自动化测试；仅有转换器 24 项 + 实施矩阵 5 项"
       ],
       "blockers": [
-        "workload 身份缺口（PARTIAL）：缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
+        "workload 身份缺口（PARTIAL）：F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce",
         "注入器缺口（MISSING）：lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件",
         "配置不匹配：ooo_proxy.py 默认 ROB=128、IQ=64、4-wide，工作簿 B0 为 ROB=40、IQ=32、3/3/3、8/8/8",
         "30 个模型尚未逐个具备模型级行为测试（现有测试覆盖 rate/链条/runner/audit/矩阵，不等于 30 模型全覆盖）"

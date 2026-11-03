@@ -234,10 +234,14 @@ WORKLOAD_AUDIT = {
                oracle="16-hex checksum（非逐边 oracle）",
                gap="缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者"),
     "W3": dict(name="NEON-LaneProbe", identity="PARTIAL",
-               real="neon_lane（仅 32-bit lane；XOR/shift/add）",
-               path="workloads/directed/neon_lane", golden="neon-golden-v1=00000000526925fe",
-               oracle="精确 16-hex + 64-hex per-lane 行",
-               gap="缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce"),
+               real="neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；"
+                    "真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域）",
+               path="workloads/directed/neon_fp32_lane_kernel",
+               golden="neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180ea"
+                      "af3c1e774d9264d7d0b595189bce8c2e",
+               oracle="ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL）",
+               gap="F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、"
+                   "8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce"),
     "W4": dict(name="FMA-DotProduct", identity="REAL",
                real="elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；"
                     "D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155）",

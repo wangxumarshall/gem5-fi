@@ -14,7 +14,9 @@
 - 12/12 seed 的 `audit.json` 均为 `ok=true`、`failures=[]`；审计检查合计
   **21,579 项，0 失败**。
 - 12/12 run-level oracle 为 **SDC**；0 Masked、0 Crash、0 Timeout。
-- 当前正式完成数 **12/519**，seed-complete RunID **4/173**；
+- **W4 批次收口时**的正式完成数为 **12/519**，seed-complete RunID **4/173**；
+  其后 F0-W3 正式试点使全局变为 15/519、5/173（见
+  `FP04-FIELD-LANE-GATE-CLOSEOUT.md` 6.1）；
   `overall coverage_status` 仍为 **NOT_COMPLETE**（见第 8 节）。
 - F0 与 F1/F2/F3 使用**不同的 gem5 二进制与 workload**，不能合并为一个
   可重放身份（见第 5 节）。
@@ -160,7 +162,8 @@ python3 -m pytest tests/test_fsu_chain_check.py tests/test_fsu_implementation_ma
 
 ## 8. 覆盖边界（不得宣布 COMPLETE）
 
-- 正式 seed：12/519；seed-complete RunID：4/173；其余 169 个 RunID 为 0/3。
+- W4 批次收口时：正式 seed 12/519；seed-complete RunID 4/173；其余 169 个
+  RunID 为 0/3。（F0-W3 试点后全局为 15/519、5/173、168 个 0/3。）
 - frequency_coverage（W4）：F0=3/3，F1=3/3，F2=3/3，F3=3/3。
 - submodel_coverage：仅 **FP04-c / mant_lo** 有正式证据；
   `sign`（FP04-a）、`exp_hi/exp_lo`（FP04-b）、`mant_hi/mant_mid`、

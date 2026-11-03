@@ -17,7 +17,7 @@
       "BLOCKED_NOT_IMPLEMENTED": 87,
       "PILOT_SUBMODEL_ONLY": 1
     },
-    "generated_at": "2026-11-03T11:02:29",
+    "generated_at": "2026-11-03T11:28:32",
     "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS"
   },
   "runids": [

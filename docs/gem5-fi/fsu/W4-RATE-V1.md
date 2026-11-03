@@ -129,7 +129,8 @@ warmup 0，`load_id` 仍为 W4（同一 workload 身份，版本 W4-rate-v1）�
   （`.../seed3/attempt-1`，210/210 fault），逐 fault `full`，三次 audit 均 PASS；
   另已运行 `FSU-FP04-F2-W4` seed1（21/21）、seed2（22/22）与 seed3（19/19），
   均 audit PASS；并已运行 `FSU-FP04-F1-W4` seed1（1/1）、seed2（2/2）与
-  seed3（1/1），均 audit PASS。当前 seed 完成数为 **12/519**；
+  seed3（1/1），均 audit PASS。另已用新 NEON FP32 workload 完成
+  `FSU-FP04-F0-W3` 3/3。当前 seed 完成数为 **15/519**；
   F1-W4、F2-W4、F3-W4 均为 3/3。
 - F3 机制门禁使用**短 W4**（N=57,347），不是本文件的大 workload；其证据
   单独保存在 `runs/fsu-gates/`。

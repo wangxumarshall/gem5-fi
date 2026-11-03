@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`36fc8e06073c13323e49cadba7c98aaadbd2c6f6`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`4f6e157f662f80367ed0d31dd64e9e61a2aa5a18`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -241,7 +241,7 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`36fc8e06073c13323e49cadba7c98aaadbd2c6f6`（branch `fsu`）
+- HEAD：`4f6e157f662f80367ed0d31dd64e9e61a2aa5a18`（branch `fsu`）
 - gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`5647208d1fdf9ea131bcae60e0479fc5a0d477dce2fee0930bc8d04d40f47e73`；size=1246185920
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）
@@ -270,7 +270,7 @@
 | W0 | FSU-MiniCheck | **UNUSED** | `workloads/directed/mini_check` 仅存在 LSU 整数版 workloads/directed/mini_check（无 FP/NEON） | minicheck-golden-v1=07568da9f3ad5665（LSU）；exact 16-hex（但域不符） | 它不是 FSU 探针；173 个 RunID 未使用 W0 |
 | W1 | FP-ScalarProbe | **NO_TRUE_ARTIFACT** | `workloads/directed/method1_controls` 无专用产物；可用 method1_controls pure_fma 作部分标量 FMA 代理 | purefma-golden-v1=98433fcf09968e6a；16-hex checksum（无 FPSR/FPCR/NaN/4 舍入） | 工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体 |
 | W2 | FP-IQ-Dependency | **NO_TRUE_ARTIFACT** | `workloads/ooo/dep_chain/dep_chain_vec` 无专用产物；dep_chain_vec 仅 NEON FMLA 依赖链 | depchainvec-golden-v1=b1e661a247b95774；16-hex checksum（非逐边 oracle） | 缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者 |
-| W3 | NEON-LaneProbe | **PARTIAL** | `workloads/directed/neon_lane` neon_lane（仅 32-bit lane；XOR/shift/add） | neon-golden-v1=00000000526925fe；精确 16-hex + 64-hex per-lane 行 | 缺 8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce |
+| W3 | NEON-LaneProbe | **PARTIAL** | `workloads/directed/neon_fp32_lane_kernel` neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域） | neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL） | F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce |
 | W4 | FMA-DotProduct | **REAL** | `workloads/directed/elemwise_fma_kernel` elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155） | elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP | 不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）；W4-rate-v1 尚无正式三 seed |
 | W5 | PolyBench-FP | **PARTIAL** | `workloads/ooo/polybench/` gemm/lu/cholesky/jacobi-2d（2mm 未 vendored） | gemm=116849d3adf3227b; lu=74ffe5eb77ea9257; cholesky=ea7e0d0e7c86582d; jacobi-2d=dc867b5f02998c1e；精确 FINAL 16-hex | 工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签 |
 | W6 | SVD-FFT-Sparse | **PARTIAL** | `workloads/directed/svd_iterative_kernel` svd_iterative_kernel；FFT/稀疏线性系统无固定产物 | svditerative-golden-v1=4afb95b5b32f3820；16-hex checksum | FFT/IFFT 组合与稀疏线性系统组件缺失 |
