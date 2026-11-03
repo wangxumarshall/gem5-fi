@@ -245,6 +245,12 @@ class CHAOSPropagation : public SimObject
         // [FSU][D3] FP precision + named-field range + full 128-bit values.
         "precision", "field_lo", "field_hi", "full_before", "full_after",
         "reg_class", "bit_in_lane",
+        // [FSU][D3] Real dynamic-instruction decode provenance.
+        "instruction_bits", "decoded_kind", "decoded_precision",
+        "decoded_reg_class", "decoded_element_width", "decoded_lanes",
+        "decoded_reliable", "manifest_precision", "manifest_lane_width",
+        "manifest_lane_offset", "precision_match", "lane_match",
+        "decode_reason",
         "fu_class", "fu_index", "bit_indices", "fault_mask",
         "before_hash", "after_hash", "value_hash",
         "eligible_ordinal", "eligible_total", "attempted", "activated",

@@ -44,6 +44,12 @@ class CHAOSFPU(SimObject):
     laneWidth = Param.UInt32(64, "Storage lane width in bits: 8 | 16 | 32 | 64")
     laneOffset = Param.UInt32(0, "Lane index inside the 128-bit register; "
                                  "valid range [0, 128/laneWidth)")
+    # [FSU][D3] Dynamic decode guard: reject a candidate unless its real
+    # AArch64 encoding proves the configured precision/element width/lane.
+    # Default false keeps every legacy campaign byte-identical.
+    decodeGuard = Param.Bool(False,
+        "Reject candidates whose decoded precision/element width/lane does "
+        "not match the manifest (fail closed). Formal D3 runs enable this.")
     # v1.1 Phase 9 patch 1a mode 2 — fma_intermediate (E3 BEHAVIORAL
     # PROXY, not a microarchitectural replay): gem5's ARM FP is a pure
     # functional model (arch/arm/fplib.cc fplibMulAdd) with no real

@@ -134,6 +134,8 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         cmd += ["--fpu_lane_width", str(fpu["lane_width"])]
     if fpu.get("lane_offset") is not None:
         cmd += ["--fpu_lane_offset", str(fpu["lane_offset"])]
+    if fpu.get("decode_guard"):
+        cmd += ["--fpu_decode_guard"]
     if fpu.get("fma_weighted"):
         cmd += ["--fpu_fma_weighted"]
     if fpu.get("recurring_stuck"):

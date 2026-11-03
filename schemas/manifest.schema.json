@@ -279,6 +279,10 @@
               "minimum": 0,
               "description": "Lane index inside the 128-bit vector register; < 128/lane_width."
             },
+            "decode_guard": {
+              "type": "boolean",
+              "description": "Reject candidates whose real AArch64 decode disagrees with precision/lane_width/lane_offset (fail closed)."
+            },
             "fma_weighted": {
               "type": "boolean"
             },

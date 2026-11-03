@@ -14,6 +14,7 @@
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/o3/CHAOSFPU/chaos_fsu_fields.hh"
+#include "cpu/o3/CHAOSFPU/decoded_fp.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class DynInst; } }
@@ -74,6 +75,13 @@ class CHAOSFPU : public SimObject
     int precision_bits = 64;
     int lane_width = 64;
     int lane_offset = 0;
+    // [FSU][D3] Reject dynamic candidates whose real decoded precision /
+    // element width / lane does not match the manifest. Default false keeps
+    // legacy campaigns byte-identical; formal D3 runs enable it.
+    bool decode_guard = false;
+    uint64_t decode_reject_count = 0;
+    std::map<std::string, uint64_t> decode_reject_reasons;
+    std::map<std::string, uint64_t> decode_kind_counts;
     // mode 2 — fma_intermediate weighted proxy (E3).
     bool fma_weighted = false;
     // mode 3 — recurring_result_stuck: same fixed mask every event.
@@ -130,6 +138,14 @@ class CHAOSFPU : public SimObject
         uint64_t abs_lo = 0, abs_hi = 0;
         uint64_t full_before_lo = 0, full_before_hi = 0;
         uint64_t full_after_lo = 0, full_after_hi = 0;
+        uint32_t instruction_bits = 0;
+        std::string decoded_kind;
+        int decoded_precision_bits = 0;
+        int decoded_element_width = 0;
+        int decoded_lanes = 0;
+        bool decoded_reliable = false;
+        bool precision_match = false;
+        bool lane_match = false;
         bool is_vec = false;
         bool consumed = false;
     };
@@ -143,6 +159,14 @@ class CHAOSFPU : public SimObject
         int bit_in_lane = 0, abs_bit = 0;
         int field_lo = -1, field_hi = -1;
         uint64_t abs_lo = 0, abs_hi = 0;
+        uint32_t instruction_bits = 0;
+        std::string decoded_kind;
+        int decoded_precision_bits = 0;
+        int decoded_element_width = 0;
+        int decoded_lanes = 0;
+        bool decoded_reliable = false;
+        bool precision_match = false;
+        bool lane_match = false;
         bool is_store = false;
         bool has_l3 = false, has_l4 = false, committed = false;
     };
@@ -160,6 +184,14 @@ class CHAOSFPU : public SimObject
         uint64_t abs_lo = 0, abs_hi = 0;
         uint64_t full_before_lo = 0, full_before_hi = 0;
         uint64_t full_after_lo = 0, full_after_hi = 0;
+        uint32_t instruction_bits = 0;
+        std::string decoded_kind;
+        int decoded_precision_bits = 0;
+        int decoded_element_width = 0;
+        int decoded_lanes = 0;
+        bool decoded_reliable = false;
+        bool precision_match = false;
+        bool lane_match = false;
         bool is_vec = false;
         std::string field;
     };

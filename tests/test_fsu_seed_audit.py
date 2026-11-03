@@ -191,3 +191,43 @@ def test_field_violations_decimal_bit_and_fp04d_lane_domain():
         full_before="0x0000000000000000000000003ec41894",
         full_after="0x000000000000000000000000bec41894"))
     assert A._field_violations(wrong)
+
+
+def test_decode_violations_new_and_legacy():
+    # Legacy root: no decoded_kind -> legacy-valid, no decode violation.
+    legacy = P.parse_line(evt(kind="fault_applied", fault_id="1"))
+    assert A._decode_violations(legacy) == []
+
+    good = P.parse_line(evt(
+        kind="fault_applied", fault_id="1", decoded_kind="scalar_vfp",
+        decoded_reliable="1", precision_match="1", lane_match="1",
+        instruction_bits="0x1e222820", decoded_precision="fp32",
+        manifest_precision="fp32", decoded_element_width="32",
+        decoded_lanes="1", manifest_lane_width="32", lane_width="32",
+        lane_offset="0"))
+    assert A._decode_violations(good) == []
+
+    bad_prec = P.parse_line(evt(
+        kind="fault_applied", fault_id="2", decoded_kind="scalar_vfp",
+        decoded_reliable="1", precision_match="0", lane_match="1",
+        instruction_bits="0x1e622820", decoded_precision="fp64",
+        manifest_precision="fp32", decoded_element_width="64",
+        decoded_lanes="1", manifest_lane_width="64", lane_width="64",
+        lane_offset="0"))
+    assert any("precision_match" in v for v in A._decode_violations(bad_prec))
+
+    bad_lane = P.parse_line(evt(
+        kind="fault_applied", fault_id="3", decoded_kind="neon_vector",
+        decoded_reliable="1", precision_match="1", lane_match="0",
+        instruction_bits="0x4e22d420", decoded_precision="fp32",
+        manifest_precision="fp32", decoded_element_width="32",
+        decoded_lanes="4", manifest_lane_width="64", lane_width="64",
+        lane_offset="0"))
+    viol = A._decode_violations(bad_lane)
+    assert any("lane_match" in v or "lane_width" in v for v in viol)
+
+    undecoded = P.parse_line(evt(
+        kind="fault_applied", fault_id="4", decoded_kind="cvt",
+        decoded_reliable="0", precision_match="0", lane_match="0"))
+    assert any("decoded_kind" in v or "reliable" in v
+               for v in A._decode_violations(undecoded))

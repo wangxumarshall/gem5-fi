@@ -185,6 +185,65 @@ def _field_violations(evt):
     return v
 
 
+def _decode_violations(evt):
+    """Validate the real-instruction decode provenance on a new-gate root.
+
+    Legacy D2/D3 events have no decoded_kind; they are legacy-valid and are
+    reported separately, never silently upgraded to decoded evidence.
+    """
+    kind = str(evt.get("decoded_kind", "")).strip()
+    if not kind:
+        return []
+    v = []
+    fid = str(evt.get("fault_id", "?"))
+    reliable = str(evt.get("decoded_reliable", "")).strip()
+    pm = str(evt.get("precision_match", "")).strip()
+    lm = str(evt.get("lane_match", "")).strip()
+    if reliable not in ("1", "true", "True"):
+        v.append(f"fault {fid}: decoded_reliable != 1")
+    if pm not in ("1", "true", "True"):
+        v.append(f"fault {fid}: precision_match != 1")
+    if lm not in ("1", "true", "True"):
+        v.append(f"fault {fid}: lane_match != 1")
+    if kind not in ("scalar_vfp", "neon_vector"):
+        v.append(f"fault {fid}: decoded_kind {kind} is not injectable")
+    bits = str(evt.get("instruction_bits", "")).strip()
+    if not bits:
+        v.append(f"fault {fid}: missing instruction_bits")
+    dec_p = str(evt.get("decoded_precision", "")).strip()
+    man_p = str(evt.get("manifest_precision", "")).strip()
+    if dec_p not in ("fp32", "fp64"):
+        v.append(f"fault {fid}: decoded_precision {dec_p!r} not fp32/fp64")
+    if man_p not in ("fp32", "fp64"):
+        v.append(f"fault {fid}: manifest_precision {man_p!r} not fp32/fp64")
+    if dec_p in ("fp32", "fp64") and man_p in ("fp32", "fp64") and dec_p != man_p:
+        v.append(f"fault {fid}: decoded {dec_p} != manifest {man_p}")
+    try:
+        ew = int(str(evt.get("decoded_element_width", "")))
+        lanes = int(str(evt.get("decoded_lanes", "")))
+    except ValueError:
+        v.append(f"fault {fid}: missing decoded element width / lanes")
+        return v
+    lane_w = int(str(evt.get("lane_width") or 64))
+    lane_o = int(str(evt.get("lane_offset") or 0))
+    man_lw = int(str(evt.get("manifest_lane_width") or lane_w))
+    if ew <= 0 or lanes <= 0:
+        v.append(f"fault {fid}: invalid decoded width/lanes {ew}/{lanes}")
+    if man_lw != lane_w:
+        v.append(f"fault {fid}: manifest_lane_width {man_lw} != {lane_w}")
+    if kind == "scalar_vfp":
+        if lanes != 1 or lane_o != 0:
+            v.append(f"fault {fid}: scalar decode lanes={lanes} offset={lane_o}")
+        if not (lane_w == ew or (ew == 32 and lane_w == 64)):
+            v.append(f"fault {fid}: scalar element {ew} vs lane_width {lane_w}")
+    else:
+        if lane_w != ew:
+            v.append(f"fault {fid}: lane_width {lane_w} != element {ew}")
+        if not (0 <= lane_o < lanes):
+            v.append(f"fault {fid}: lane_offset {lane_o} outside {lanes} lanes")
+    return v
+
+
 def _scheduled_faults(manifest, report):
     expected = report.get("expected_injections")
     if expected is not None:
@@ -273,6 +332,16 @@ def audit_attempt(attempt: Path):
         check(f"fault {fid} 字段/lane/mask 语义", not viol)
         if viol:
             failures.extend(viol)
+        dviol = _decode_violations(root)
+        check(f"fault {fid} 真实指令解码匹配", not dviol)
+        if dviol:
+            failures.extend(dviol)
+    guard = bool(((manifest.get("injector") or {}).get("fpu_mode") or {})
+                 .get("decode_guard"))
+    decoded_roots = [r for r in roots if str(r.get("decoded_kind", "")).strip()]
+    if guard:
+        check("decode_guard: 所有 root 含真实解码字段",
+              len(decoded_roots) == len(roots) and bool(roots))
     for key in ("model_id", "submodel", "freq", "load_id"):
         want = manifest.get(key)
         if want:
@@ -488,6 +557,16 @@ def write_audit(attempt: Path):
         "stats_nonempty": stats.exists() and stats.stat().st_size > 0,
         "evidence_sha256": hashes,
         "cross_seed_ok": cross_ok,
+        "decoded_roots": sum(
+            1 for e in events
+            if str(e.get("kind")) == "fault_applied"
+            and str(e.get("decoded_kind", "")).strip()),
+        "legacy_roots": sum(
+            1 for e in events
+            if str(e.get("kind")) == "fault_applied"
+            and not str(e.get("decoded_kind", "")).strip()),
+        "decode_guard": bool(((manifest.get("injector") or {}).get("fpu_mode")
+                              or {}).get("decode_guard")),
         "admitted": primary.get("admitted", False),
         "certified": bool(res["ok"]) and bool(fault_audits)
         and all(x["certified"] for x in fault_audits),
@@ -513,6 +592,8 @@ def write_audit(attempt: Path):
              f"| chain terminal | {audit['chain_terminal']} |",
              f"| stats 非空 | {audit['stats_nonempty']} |",
              f"| 无跨 seed 复制 | {audit['cross_seed_ok']} |",
+             f"| decode_guard | {audit['decode_guard']} |",
+             f"| decoded / legacy roots | {audit['decoded_roots']} / {audit['legacy_roots']} |",
              f"| admitted（主 fault） | {audit['admitted']} |",
              f"| certified（全 fault 门禁） | {audit['certified']} |",
              f"| fault 数 | {audit['fault_count']} |",

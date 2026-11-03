@@ -289,6 +289,9 @@ p.add_argument("--fpu_precision", default="fp64", choices=["fp64", "fp32"])
 p.add_argument("--fpu_lane_width", type=lambda x: int(x, 0), default=64,
                choices=[8, 16, 32, 64])
 p.add_argument("--fpu_lane_offset", type=lambda x: int(x, 0), default=0)
+# [FSU][D3] Reject candidates whose real instruction decode disagrees with
+# the manifest precision/element width/lane (fail closed).
+p.add_argument("--fpu_decode_guard", action="store_true")
 p.add_argument("--fpu_fma_weighted", action="store_true")
 p.add_argument("--fpu_recurring_stuck", action="store_true")
 p.add_argument("--fpu_rounding_sub", action="store_true")
@@ -740,6 +743,7 @@ if args.chaos_fpu:
         precision=args.fpu_precision,
         laneWidth=args.fpu_lane_width,
         laneOffset=args.fpu_lane_offset,
+        decodeGuard=args.fpu_decode_guard,
         fmaWeighted=args.fpu_fma_weighted,
         recurringStuck=args.fpu_recurring_stuck,
         roundingSub=args.fpu_rounding_sub,

@@ -10,6 +10,7 @@
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // DynInst, opClass, isFloating
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // FSU_PROP stream
+#include "arch/arm/insts/static_inst.hh"  // ArmStaticInst::encoding()
 #include "cpu/op_class.hh"       // FloatAddOp/FloatMultOp/FloatMultAccOp/SimdFloat*
 #include "cpu/inst_res.hh"       // InstResult::corruptBlob
 #include "cpu/o3/chaos_event_sample.hh"  // v1.1 Phase 8.2 uniform sampling
@@ -35,6 +36,7 @@ namespace gem5
           precision_bits(64),
           lane_width((int)p.laneWidth),
           lane_offset((int)p.laneOffset),
+          decode_guard(p.decodeGuard),
           fma_weighted(p.fmaWeighted),
           recurring_stuck(p.recurringStuck),
           rounding_sub(p.roundingSub),
@@ -248,6 +250,56 @@ namespace gem5
         return "unknown";
     }
 
+    static std::string precisionName(int bits) {
+        if (bits == 32) return "fp32";
+        if (bits == 64) return "fp64";
+        if (bits == 16) return "fp16";
+        return "none";
+    }
+
+    static chaos_fsu::FpFamily familyOf(OpClass oc) {
+        switch (oc) {
+          case FloatAddOp: case FloatCmpOp: case FloatMultOp:
+          case FloatMultAccOp: case FloatDivOp: case FloatMiscOp:
+          case FloatSqrtOp:
+            return chaos_fsu::FpFamily::ScalarFloat;
+          case FloatCvtOp:
+            return chaos_fsu::FpFamily::Cvt;
+          case SimdFloatAluOp: case SimdFloatCmpOp: case SimdFloatCvtOp:
+          case SimdFloatMultOp: case SimdFloatMultAccOp: case SimdFloatDivOp:
+          case SimdFloatSqrtOp: case SimdFloatMiscOp:
+          case SimdFloatAddOp:
+            if (oc == SimdFloatCvtOp)
+                return chaos_fsu::FpFamily::Cvt;
+            return chaos_fsu::FpFamily::SimdFloat;
+          default:
+            return chaos_fsu::FpFamily::Other;
+        }
+    }
+
+    // Decode the REAL dynamic AArch64 instruction. Returns false when the
+    // encoding is not available or not reliably classifiable; callers must
+    // fail closed when decode_guard is enabled.
+    static bool decodeInstInfo(o3::DynInst *inst,
+                               chaos_fsu::DecodedFp &dec, uint32_t &enc)
+    {
+        dec = chaos_fsu::DecodedFp();
+        enc = 0;
+        if (!inst || !inst->staticInst) {
+            dec.reason = "no-static-inst";
+            return false;
+        }
+        auto *asi = dynamic_cast<const ArmISA::ArmStaticInst *>(
+            inst->staticInst.get());
+        if (!asi) {
+            dec.reason = "not-arm-static-inst";
+            return false;
+        }
+        enc = asi->encoding();
+        dec = chaos_fsu::decodedPrecision(enc, familyOf(inst->opClass()));
+        return dec.reliable;
+    }
+
     bool
     CHAOSFPU::maybeCorrupt(o3::DynInst *dyn_inst)
     {
@@ -277,9 +329,65 @@ namespace gem5
         // scalar FP results use lane 0 (AArch64 scalar FP is stored in a
         // VecReg container whose upper lanes are zero padding). Keep the
         // countOnly and injection streams on the SAME predicate.
+        // [FSU][D3] Decode the REAL instruction. The guard only changes the
+        // eligible stream when explicitly enabled; otherwise the decoded
+        // facts are still recorded so a mismatch is visible, never silent.
+        const bool want_decode = decode_guard || !fsu_model.empty();
+        chaos_fsu::DecodedFp dec;
+        uint32_t dec_enc = 0;
+        bool dec_ok = true, dec_pm = false, dec_lm = false;
+        if (want_decode) {
+            dec_ok = decodeInstInfo(dyn_inst, dec, dec_enc);
+            if (dec_ok) {
+                dec_pm = dec.precision_bits == precision_bits;
+                if (dec.kind == chaos_fsu::FpKind::ScalarVfp) {
+                    dec_lm = lane_offset == 0 &&
+                        (lane_width == dec.element_width ||
+                         (dec.element_width == 32 && lane_width == 64));
+                } else if (dec.kind == chaos_fsu::FpKind::NeonVector) {
+                    dec_lm = lane_width == dec.element_width &&
+                             lane_offset >= 0 && lane_offset < dec.lanes;
+                }
+                ++decode_kind_counts[chaos_fsu::fpKindName(dec.kind)];
+            } else {
+                ++decode_kind_counts["unreliable"];
+            }
+            const bool matched = dec_ok && dec_pm && dec_lm;
+            if (has_fp_dest && !matched) {
+                ++decode_reject_count;
+                const std::string why = !dec_ok
+                    ? std::string("undecoded:") + dec.reason
+                    : (!dec_pm ? "precision_mismatch" : "lane_mismatch");
+                ++decode_reject_reasons[why];
+                if (decode_reject_count <= 16 && log_stream &&
+                    log_stream->stream()) {
+                    std::ostringstream os;
+                    os << "Tick: " << curTick()
+                       << ", Site: dyn_inst_execute, sn=" << dyn_inst->seqNum
+                       << ", pc=0x" << std::hex
+                       << dyn_inst->pcState().instAddr() << std::dec
+                       << ", decode_reject=" << why
+                       << ", enc=0x" << std::hex << dec_enc << std::dec
+                       << ", decoded_kind="
+                       << chaos_fsu::fpKindName(dec.kind)
+                       << ", decoded_precision="
+                       << precisionName(dec.precision_bits)
+                       << ", decoded_width=" << dec.element_width
+                       << ", decoded_lanes=" << dec.lanes
+                       << ", manifest_precision=" << precision
+                       << ", manifest_lane_width=" << lane_width
+                       << ", manifest_lane_offset=" << lane_offset
+                       << std::endl;
+                    *(log_stream->stream()) << os.str();
+                }
+            }
+            if (decode_guard)
+                dec_ok = matched;
+        }
+
         const bool lane_mode = lane_offset != 0;
-        const bool eligible =
-            has_fp_dest && (!lane_mode || isSimdOpClass(oc));
+        const bool eligible = has_fp_dest && dec_ok &&
+                              (!lane_mode || isSimdOpClass(oc));
 
         // v1.1 Phase 8.2 countOnlyMode: count only CORRUPTIBLE eligible
         // events (no FP/vector dest = can never take the fault); never
@@ -476,6 +584,16 @@ namespace gem5
         info.field_hi = field_hi;
         info.abs_lo = mi.abs_lo;
         info.abs_hi = mi.abs_hi;
+        info.instruction_bits = dec_enc;
+        if (want_decode) {
+            info.decoded_kind = chaos_fsu::fpKindName(dec.kind);
+            info.decoded_precision_bits = dec.precision_bits;
+            info.decoded_element_width = dec.element_width;
+            info.decoded_lanes = dec.lanes;
+            info.decoded_reliable = dec.reliable;
+            info.precision_match = dec_pm;
+            info.lane_match = dec_lm;
+        }
         info.field = field_mode ? bitseg :
             (recurring_stuck ? "recurring_result_stuck" :
              fma_weighted ? "fma_intermediate" :
@@ -595,6 +713,15 @@ namespace gem5
                 << ", precision=" << precision
                 << ", lane_width=" << lane_width
                 << ", lane_offset=" << lane_offset
+                << (want_decode
+                    ? ", decoded_kind=" +
+                      std::string(chaos_fsu::fpKindName(dec.kind))
+                    : std::string())
+                << (want_decode
+                    ? std::string(", precision_match=") +
+                      (dec_pm ? "1" : "0") + ", lane_match=" +
+                      (dec_lm ? "1" : "0")
+                    : std::string())
                 << ", mask=0x" << std::hex << mi.lane_mask << std::dec
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
@@ -710,6 +837,29 @@ namespace gem5
             kv.push_back({"field_lo", std::to_string(fl)});
         if (fh >= 0)
             kv.push_back({"field_hi", std::to_string(fh)});
+        if (fi.instruction_bits || !fi.decoded_kind.empty()) {
+            kv.push_back({"instruction_bits",
+                          hexWidth(fi.instruction_bits, 32)});
+            kv.push_back({"decoded_kind", fi.decoded_kind});
+            kv.push_back({"decoded_precision",
+                          precisionName(fi.decoded_precision_bits)});
+            kv.push_back({"decoded_reg_class",
+                          regClassName(fi.reg_class)});
+            kv.push_back({"decoded_element_width",
+                          std::to_string(fi.decoded_element_width)});
+            kv.push_back({"decoded_lanes",
+                          std::to_string(fi.decoded_lanes)});
+            kv.push_back({"decoded_reliable",
+                          fi.decoded_reliable ? "1" : "0"});
+            kv.push_back({"manifest_precision", precision});
+            kv.push_back({"manifest_lane_width",
+                          std::to_string(lane_width)});
+            kv.push_back({"manifest_lane_offset",
+                          std::to_string(lane_offset)});
+            kv.push_back({"precision_match",
+                          fi.precision_match ? "1" : "0"});
+            kv.push_back({"lane_match", fi.lane_match ? "1" : "0"});
+        }
         if (fsu_eligible_total)
             kv.push_back({"eligible_total",
                           std::to_string(fsu_eligible_total)});
@@ -761,6 +911,14 @@ namespace gem5
         fr.full_before_hi = fi.full_before_hi;
         fr.full_after_lo = fi.full_after_lo;
         fr.full_after_hi = fi.full_after_hi;
+        fr.instruction_bits = fi.instruction_bits;
+        fr.decoded_kind = fi.decoded_kind;
+        fr.decoded_precision_bits = fi.decoded_precision_bits;
+        fr.decoded_element_width = fi.decoded_element_width;
+        fr.decoded_lanes = fi.decoded_lanes;
+        fr.decoded_reliable = fi.decoded_reliable;
+        fr.precision_match = fi.precision_match;
+        fr.lane_match = fi.lane_match;
         fr.is_vec = fi.is_vec;
         fr.consumed = false;
         faulted_regs.push_back(fr);
@@ -792,6 +950,19 @@ namespace gem5
                     {"src_slot", std::to_string(i)},
                     {"phys_reg", std::to_string(f.reg_index)},
                     {"reg_class", regClassName(f.reg_class)},
+                    {"instruction_bits", hexWidth(f.instruction_bits, 32)},
+                    {"decoded_kind", f.decoded_kind},
+                    {"decoded_precision",
+                     precisionName(f.decoded_precision_bits)},
+                    {"decoded_element_width",
+                     std::to_string(f.decoded_element_width)},
+                    {"decoded_lanes", std::to_string(f.decoded_lanes)},
+                    {"decoded_reliable", f.decoded_reliable ? "1" : "0"},
+                    {"manifest_precision", precision},
+                    {"manifest_lane_width", std::to_string(lane_width)},
+                    {"manifest_lane_offset", std::to_string(lane_offset)},
+                    {"precision_match", f.precision_match ? "1" : "0"},
+                    {"lane_match", f.lane_match ? "1" : "0"},
                     {"pc", hex64(inst->pcState().instAddr())},
                     {"opcode", inst->staticInst
                                    ? inst->staticInst->getName() : ""},
@@ -827,6 +998,14 @@ namespace gem5
                 tc.field_hi = f.field_hi;
                 tc.abs_lo = f.abs_lo;
                 tc.abs_hi = f.abs_hi;
+                tc.instruction_bits = f.instruction_bits;
+                tc.decoded_kind = f.decoded_kind;
+                tc.decoded_precision_bits = f.decoded_precision_bits;
+                tc.decoded_element_width = f.decoded_element_width;
+                tc.decoded_lanes = f.decoded_lanes;
+                tc.decoded_reliable = f.decoded_reliable;
+                tc.precision_match = f.precision_match;
+                tc.lane_match = f.lane_match;
                 tc.is_store = inst->isStore();
                 if (!tc.is_store && isFpOpClass(inst->opClass())) {
                     tc.l3_id = emitFsu("execute", f.fault_id, l2, kv);
@@ -864,6 +1043,17 @@ namespace gem5
             {"bit_indices", std::to_string(tc.abs_bit)},
             {"bit_in_lane", std::to_string(tc.bit_in_lane)},
             {"lane_mask", hex128(tc.abs_lo, tc.abs_hi)},
+            {"instruction_bits", hexWidth(tc.instruction_bits, 32)},
+            {"decoded_kind", tc.decoded_kind},
+            {"decoded_precision", precisionName(tc.decoded_precision_bits)},
+            {"decoded_element_width", std::to_string(tc.decoded_element_width)},
+            {"decoded_lanes", std::to_string(tc.decoded_lanes)},
+            {"decoded_reliable", tc.decoded_reliable ? "1" : "0"},
+            {"manifest_precision", precision},
+            {"manifest_lane_width", std::to_string(lane_width)},
+            {"manifest_lane_offset", std::to_string(lane_offset)},
+            {"precision_match", tc.precision_match ? "1" : "0"},
+            {"lane_match", tc.lane_match ? "1" : "0"},
         };
         if (tc.field_lo >= 0)
             kv.push_back({"field_lo", std::to_string(tc.field_lo)});
@@ -891,6 +1081,19 @@ namespace gem5
                 {"producer_seq", std::to_string(f.producer_sn)},
                 {"phys_reg", std::to_string(f.reg_index)},
                 {"reg_class", regClassName(f.reg_class)},
+                {"instruction_bits", hexWidth(f.instruction_bits, 32)},
+                {"decoded_kind", f.decoded_kind},
+                {"decoded_precision",
+                 precisionName(f.decoded_precision_bits)},
+                {"decoded_element_width",
+                 std::to_string(f.decoded_element_width)},
+                {"decoded_lanes", std::to_string(f.decoded_lanes)},
+                {"decoded_reliable", f.decoded_reliable ? "1" : "0"},
+                {"manifest_precision", precision},
+                {"manifest_lane_width", std::to_string(lane_width)},
+                {"manifest_lane_offset", std::to_string(lane_offset)},
+                {"precision_match", f.precision_match ? "1" : "0"},
+                {"lane_match", f.lane_match ? "1" : "0"},
                 {"field", f.field},
                 {"precision", precision},
                 {"lane_width", std::to_string(f.lane_width)},
@@ -925,6 +1128,24 @@ namespace gem5
                         << eligible_count << std::endl;
             });
         }
+        // [FSU][D3] Honest decode-rejection accounting. A mismatch rejects
+        // the candidate (no ordinal consumption); it never fabricates an
+        // injection or a chain event.
+        registerExitCallback([this]() {
+            if (!log_stream || !log_stream->stream())
+                return;
+            if (decode_reject_count || !decode_kind_counts.empty()) {
+                std::ostream &os = *(log_stream->stream());
+                os << "CHAOS_DECODE_REJECTS=" << decode_reject_count
+                   << "\n";
+                for (const auto &kv : decode_reject_reasons)
+                    os << "CHAOS_DECODE_REJECT_REASON " << kv.first
+                       << "=" << kv.second << "\n";
+                for (const auto &kv : decode_kind_counts)
+                    os << "CHAOS_DECODE_KIND " << kv.first
+                       << "=" << kv.second << "\n";
+            }
+        });
         // [FSU] Explicit not_activated terminal for faults never consumed.
         // The chain checker maps this to terminal=not_activated (never
         // inferred from a missing event).
