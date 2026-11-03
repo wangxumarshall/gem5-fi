@@ -71,6 +71,42 @@ class CHAOSFPU(SimObject):
     # in this mode (every event is hit).
     recurringStuck = Param.Bool(False, "recurring_result_stuck mode: same "
                                        "fixed mask on every eligible result")
+    # [FSU][F5] permanent_stuck: install ONE fixed stuck-at fault (one
+    # fault_id, one explicit faultMask, one SA0/SA1 polarity) on the first
+    # eligible event after f5Warmup, then apply that SAME forced polarity to
+    # every later eligible result until the run ends. This is NOT XOR and
+    # NOT recurring_result_stuck: exposures share the single installation's
+    # fault_id, and only an exposure whose correct value differs from the
+    # forced polarity is an activated exposure. Requires fsuFreq=F5,
+    # probability=1.0, an explicit faultMask, and maxFaults=0/1. Mutually
+    # exclusive with rate modes / recurringStuck / roundingSub /
+    # f3Dependent / fpsrSuppress / fmaWeighted.
+    permanentStuck = Param.Bool(False,
+        "F5 permanent stuck-at: one install, every later eligible result is "
+        "an exposure of the same fixed mask/polarity")
+    # -1 = draw the polarity ONCE at installation from rngSeed, then keep it
+    # fixed for the whole run; 0 = SA0 (force mask bits to 0); 1 = SA1
+    # (force mask bits to 1). Formal seeds should pin 0 or 1 explicitly.
+    stuckPolarity = Param.Int(-1,
+        "Permanent stuck polarity: -1 draw once at install, 0=SA0, 1=SA1")
+    # Count of eligible events to skip before installation (warm-up). The
+    # first eligible event with ordinal > f5Warmup installs the fault.
+    f5Warmup = Param.UInt64(0,
+        "F5 warm-up: eligible events before the single installation")
+    # Bounded exposure evidence. Mandatory events (install, first exposure,
+    # first activated exposure, first impact commit, chain_end) are ALWAYS
+    # emitted; f5SampleLimit bounds the additional ordinary exposure
+    # samples. 0 = mandatory events only. The resolved budget is capped well
+    # below the 200000 PROP-EVT event cap so evidence is never silently
+    # truncated.
+    f5SampleLimit = Param.UInt64(0,
+        "F5 ordinary exposure sample budget (mandatory events extra)")
+    # 0 = prefix policy (first f5SampleLimit samples). N>0 = keep the first
+    # N and the last N ordinary samples within the same budget, so a run
+    # that spans millions of exposures still carries bounded early/late
+    # evidence; totals/dropped are always exact on chain_end.
+    f5KeepFirstLastN = Param.UInt64(0,
+        "F5 bounded samples: keep the first N and last N (0 = prefix only)")
     # v1.1 Phase 9 patch 1a mode 4 — rounding_sub (F5, E3 proxy): re-round
     # the injected double one ULP toward the OPPOSITE of the current
     # rounding direction (nearest -> the value's other neighbor). Models a

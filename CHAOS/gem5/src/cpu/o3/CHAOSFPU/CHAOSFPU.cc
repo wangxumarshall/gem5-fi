@@ -1,5 +1,6 @@
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -44,6 +45,11 @@ namespace gem5
           exp_lo(p.expLo),
           exp_hi(p.expHi),
           fpsr_suppress(p.fpsrSuppress),
+          permanent_stuck(p.permanentStuck),
+          stuck_polarity(p.stuckPolarity),
+          f5_warmup(p.f5Warmup),
+          f5_sample_limit(p.f5SampleLimit),
+          f5_keep_first_last_n(p.f5KeepFirstLastN),
           fsu_model(p.fsuModel),
           fsu_freq(p.fsuFreq),
           fsu_load(p.fsuLoad),
@@ -197,6 +203,71 @@ namespace gem5
         if (f3_dependent && (precision != "fp64" || lane_width != 64 ||
                              lane_offset != 0))
             panic("CHAOSFPU: f3_dependent is FP64/lane64/offset0 only\n");
+
+        // [FSU][F5] Permanent stuck-at (one install, many exposures).
+        // Fail closed on every ambiguous configuration: this mode MUST NOT
+        // be a relabeled rate/random mode, and it MUST NOT fall back to XOR
+        // (a stuck cell forces a polarity; it never flips).
+        if (permanent_stuck) {
+            if (!count_only && fsu_freq != "F5")
+                panic("CHAOSFPU: permanentStuck requires --fsu_freq F5, "
+                      "got '%s'\n", fsu_freq.c_str());
+            if (probability != 1.0f)
+                panic("CHAOSFPU: permanentStuck requires probability=1.0 "
+                      "(every eligible event after warm-up is an exposure)\n");
+            if (fault_mask == 0)
+                panic("CHAOSFPU: permanentStuck requires an explicit "
+                      "fixed faultMask (one fixed mask for the whole run)\n");
+            if (stuck_polarity < -1 || stuck_polarity > 1)
+                panic("CHAOSFPU: stuckPolarity must be -1 (draw once), 0 "
+                      "(SA0) or 1 (SA1), got %d\n", stuck_polarity);
+            if (max_faults > 1)
+                panic("CHAOSFPU: permanentStuck installs exactly one fault; "
+                      "maxFaults must be 0 or 1, got %llu\n",
+                      (unsigned long long)max_faults);
+            if (rate_mode || recurring_stuck || rounding_sub ||
+                f3_dependent || fpsr_suppress || fma_weighted)
+                panic("CHAOSFPU: permanentStuck is incompatible with "
+                      "rate/recurring_stuck/rounding_sub/f3_dependent/"
+                      "fpsr_suppress/fma_weighted\n");
+            if (!bitseg.empty())
+                panic("CHAOSFPU: permanentStuck uses the explicit faultMask; "
+                      "bitseg is not allowed\n");
+            if (p.eventsToSkip != ~0ULL)
+                panic("CHAOSFPU: permanentStuck uses f5Warmup, not "
+                      "eventsToSkip\n");
+            // Bounded evidence: mandatory first/first-activated events plus
+            // the first/last sample budget must stay well below the
+            // authoritative PROP-EVT cap (200000) so a run can never be
+            // silently truncated by EVENT_CAP.
+            const uint64_t budget = f5_sample_limit;
+            uint64_t kf = 0, kl = 0;
+            if (f5_keep_first_last_n == 0) {
+                kf = budget;
+            } else {
+                kf = std::min(f5_keep_first_last_n, budget);
+                kl = std::min(f5_keep_first_last_n, budget - kf);
+            }
+            if (kf + kl + 8 > 190000)
+                panic("CHAOSFPU: permanentStuck sample budget %llu exceeds "
+                      "the auditable PROP-EVT budget (190000)\n",
+                      (unsigned long long)(kf + kl + 8));
+            f5_keep_first = kf;
+            f5_keep_last = kl;
+        } else {
+            if (stuck_polarity != -1)
+                panic("CHAOSFPU: stuckPolarity requires permanentStuck\n");
+            if (f5_warmup != 0 || f5_sample_limit != 0 ||
+                f5_keep_first_last_n != 0)
+                panic("CHAOSFPU: f5Warmup/f5SampleLimit/f5KeepFirstLastN "
+                      "require permanentStuck\n");
+        }
+        // A bare F5 tag without permanentStuck is exactly the forbidden
+        // "change the tag only" case (countOnly is exempt: it measures the
+        // stream before the mode is armed).
+        if (!count_only && fsu_freq == "F5" && !permanent_stuck)
+            panic("CHAOSFPU: --fsu_freq F5 requires permanentStuck; changing "
+                  "the tag alone is not permanent-stuck semantics\n");
     }
 
     CHAOSFPU::~CHAOSFPU()
@@ -304,7 +375,11 @@ namespace gem5
     CHAOSFPU::maybeCorrupt(o3::DynInst *dyn_inst)
     {
         if (!cpu || probability <= 0.0f) return false;
-        if (!count_only && max_faults != 0 && faults_injected_count >= max_faults)
+        // [FSU][F5] maxFaults bounds INSTALLATIONS, not exposures: after the
+        // single install every eligible event is an exposure of the same
+        // fault and must still be forced.
+        if (!permanent_stuck && !count_only && max_faults != 0 &&
+            faults_injected_count >= max_faults)
             return false;
         if (!inWindow()) return false;
         OpClass oc = dyn_inst->opClass();
@@ -398,10 +473,16 @@ namespace gem5
             return false;
         }
 
-        // [FSU][D2] F1/F2/F3: exact eligible-ordinal match. The ordinal
-        // stream is the same `has_fp_dest` stream countOnly measured; no
-        // probability draw, no geometric skip, no second sampler.
-        if (rate_mode) {
+        // [FSU][F5] Permanent stuck-at: warm-up counts eligible events; the
+        // first eligible event AFTER the warm-up installs the fault, and
+        // every later eligible event is an exposure. No probability, no
+        // skip, no new fault_id.
+        if (permanent_stuck) {
+            if (!eligible) return false;
+            ++eligible_ordinal;
+            if (eligible_ordinal <= f5_warmup) return false;
+            injected_eligible_ordinal = eligible_ordinal;
+        } else if (rate_mode) {
             if (!eligible) return false;
             ++eligible_ordinal;
             if (next_rate_index >= rate_ordinals.size())
@@ -518,7 +599,13 @@ namespace gem5
             panic("CHAOSFPU: %s\n", why.c_str());
         };
 
-        if (recurring_stuck) {
+        if (permanent_stuck) {
+            // The explicit faultMask is the one permanent mask. It is
+            // validated once in the constructor and reused verbatim.
+            if (!chaos_fsu::buildExplicitMask(fault_mask, lane_width,
+                                              lane_offset, mi, ferr))
+                mask_fail(ferr);
+        } else if (recurring_stuck) {
             // v1.1 Phase 9 mode 3 — the SAME fixed mask every event: the
             // directed --fault_mask if given, else drawn once from the
             // uniform pick and reused for the whole run.
@@ -573,6 +660,15 @@ namespace gem5
                 mask_fail(ferr);
         }
 
+        // [FSU][F5] The polarity is fixed at installation. If the user did
+        // not pin it, draw it ONCE here from the seeded RNG and never draw
+        // again; every later exposure reuses f5_polarity.
+        int f5_pol = f5_polarity;
+        if (permanent_stuck && !f5_armed) {
+            f5_pol = stuck_polarity >= 0 ? stuck_polarity
+                                         : (int)(rng() % 2);
+        }
+
         FaultInfo info;
         info.mask = mi.lane_mask;
         info.precision_bits = precision_bits;
@@ -594,10 +690,42 @@ namespace gem5
             info.precision_match = dec_pm;
             info.lane_match = dec_lm;
         }
-        info.field = field_mode ? bitseg :
-            (recurring_stuck ? "recurring_result_stuck" :
-             fma_weighted ? "fma_intermediate" :
-             rounding_sub ? "rounding_sub" : "uniform");
+        if (permanent_stuck) {
+            // A SINGLE-bit mask that fits one IEEE754 field is named by
+            // that field; a multi-bit mask (FP06-c fixed mantissa) stays
+            // "permanent_stuck" and is expressed by `fixed_mask`. The seed
+            // audit validates a named field against fault_mask == 1<<bit,
+            // so the label must never disagree with a multi-bit mask.
+            info.field = "permanent_stuck";
+            if (mi.lane_mask) {
+                info.field_lo = __builtin_ctzll(mi.lane_mask);
+                info.field_hi = 63 - __builtin_clzll(mi.lane_mask);
+            }
+            if (__builtin_popcountll(mi.lane_mask) == 1) {
+                static const char *const segs[] = {
+                    "sign", "exp_hi", "exp_lo",
+                    "mant_hi", "mant_mid", "mant_lo"
+                };
+                for (const char *seg : segs) {
+                    const auto r = chaos_fsu::fieldRange(
+                        seg, precision_bits);
+                    if (!r.valid || r.hi >= lane_width)
+                        continue;
+                    uint64_t fm = 0;
+                    for (int b = r.lo; b <= r.hi; ++b)
+                        fm |= ((uint64_t)1 << b);
+                    if ((mi.lane_mask & ~fm) == 0) {
+                        info.field = seg;
+                        break;
+                    }
+                }
+            }
+        } else {
+            info.field = field_mode ? bitseg :
+                (recurring_stuck ? "recurring_result_stuck" :
+                 fma_weighted ? "fma_intermediate" :
+                 rounding_sub ? "rounding_sub" : "uniform");
+        }
 
         bool ok = false;
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
@@ -645,7 +773,12 @@ namespace gem5
                 const int base = lane_offset * lane_bytes;
                 uint64_t lane_before = 0, lane_after = 0;
                 std::memcpy(&lane_before, before + base, lane_bytes);
-                lane_after = lane_before ^ mi.lane_mask;
+                // [FSU][F5] Stuck-at forces a polarity (SA0: &~mask,
+                // SA1: |mask); it is NOT XOR. Non-target bits and all other
+                // lanes stay byte-identical.
+                lane_after = permanent_stuck
+                    ? chaos_fsu::applyStuck(lane_before, mi.lane_mask, f5_pol)
+                    : lane_before ^ mi.lane_mask;
                 std::memcpy(after + base, &lane_after, lane_bytes);
                 std::memcpy(vp, after, 16);
                 std::memcpy(&info.full_before_lo, before, 8);
@@ -675,7 +808,9 @@ namespace gem5
                     chaos_fsu::laneMaskForWidth(lane_width);
                 const uint64_t oldv = (uint64_t)v;
                 const uint64_t lane_before = oldv & width_mask;
-                const uint64_t lane_after = lane_before ^ mi.lane_mask;
+                const uint64_t lane_after = permanent_stuck
+                    ? chaos_fsu::applyStuck(lane_before, mi.lane_mask, f5_pol)
+                    : lane_before ^ mi.lane_mask;
                 const uint64_t newv =
                     (oldv & ~width_mask) | lane_after;
                 o3cpu->setReg(dest, (RegVal)newv, dyn_inst->threadNumber);
@@ -700,8 +835,21 @@ namespace gem5
                       (unsigned long long)injected_eligible_ordinal);
             return false;  // no FP/vector dest register on this inst
         }
-        faults_injected_count++;
-        noteFaultApplied(dyn_inst, info);
+        if (permanent_stuck) {
+            // Install once (fixed fault_id/mask/polarity); every event after
+            // that is an exposure of the SAME fault. noteFaultApplied is
+            // deliberately NOT called per exposure: that would mint a new
+            // fault_id for every event and turn one permanent defect into
+            // thousands of independent faults.
+            if (!f5_armed) {
+                f5_fixed_mask = mi.lane_mask;
+                f5_polarity = f5_pol;
+            }
+            notePermanentExposure(dyn_inst, info);
+        } else {
+            faults_injected_count++;
+            noteFaultApplied(dyn_inst, info);
+        }
         if (rate_mode) ++next_rate_index;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
@@ -710,6 +858,13 @@ namespace gem5
                 << (bitseg.empty() ? std::string() : ", bitseg=" + bitseg)
                 << (fma_weighted ? ", mode=fma_intermediate" : "")
                 << (recurring_stuck ? ", mode=recurring_result_stuck" : "")
+                << (permanent_stuck
+                    ? ", mode=permanent_stuck, polarity=" +
+                      std::to_string(f5_polarity) +
+                      ", exposure=" + std::to_string(f5_exposures_total) +
+                      ", activated_exposures=" +
+                      std::to_string(f5_activated_total)
+                    : std::string())
                 << ", precision=" << precision
                 << ", lane_width=" << lane_width
                 << ", lane_offset=" << lane_offset
@@ -792,7 +947,10 @@ namespace gem5
             kv.push_back({"load_id", fsu_load});
         // PROP-EVT is space-delimited: no spaces in values.
         kv.push_back({"unit", "FSU_Pipe"});
-        kv.push_back({"corr", std::string(kind) == "fault_applied"
+        // fault_installed is the F5 L0 root, exactly like fault_applied is
+        // the F0-F4 root: it opens the chain (no join happened yet).
+        kv.push_back({"corr", (std::string(kind) == "fault_applied" ||
+                               std::string(kind) == "fault_installed")
                               ? "origin" : "fsu_taint"});
         return o3cpu->chaosPropagation->notePropEvt(kind, kv);
     }
@@ -924,6 +1082,355 @@ namespace gem5
         faulted_regs.push_back(fr);
     }
 
+    // ------------------------------------------------------------------
+    // [FSU][F5] Permanent stuck-at: one install, many exposures.
+    // ------------------------------------------------------------------
+
+    std::string
+    CHAOSFPU::f5PolicyString() const
+    {
+        // PROP-EVT is space-delimited: keep this value free of spaces.
+        return "bounded_first_last(limit=" + std::to_string(f5_sample_limit) +
+               ",first=" + std::to_string(f5_keep_first) +
+               ",last=" + std::to_string(f5_keep_last) + ")";
+    }
+
+    std::vector<std::pair<std::string, std::string>>
+    CHAOSFPU::buildF5Kv(o3::DynInst *inst, const FaultInfo &fi) const
+    {
+        int fl = fi.field_lo, fh = fi.field_hi;
+        if (fl < 0 && fi.mask) {
+            fl = __builtin_ctzll(fi.mask);
+            fh = 63 - __builtin_clzll(fi.mask);
+        }
+        // `fi.field` was refined once in maybeCorrupt (single-bit mask that
+        // fits one IEEE754 field -> that field's name; otherwise
+        // "permanent_stuck"), so every event of the chain -- including the
+        // L2-L5 consumer events -- carries the SAME field label.
+        const std::string &fld = fi.field;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            {"pc", hex64(inst->pcState().instAddr())},
+            {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
+            {"phys_reg", std::to_string(fi.reg_index)},
+            {"reg_class", regClassName(fi.reg_class)},
+            {"field", fld},
+            {"precision", precision},
+            {"fault_mask", hex64(fi.mask)},
+            {"fixed_mask", hex64(fi.mask)},
+            {"stuck_polarity", std::to_string(f5_polarity)},
+            {"bit_indices", std::to_string(fi.abs_bit)},
+            {"bit_in_lane", std::to_string(fi.bit_in_lane)},
+            {"lane_width", std::to_string(fi.lane_width)},
+            {"lane_offset", std::to_string(fi.lane_offset)},
+            {"lane_mask", hex128(fi.abs_lo, fi.abs_hi)},
+            {"before", hexWidth(fi.before, fi.lane_width)},
+            {"after", hexWidth(fi.after, fi.lane_width)},
+            {"full_before", hex128(fi.full_before_lo, fi.full_before_hi)},
+            {"full_after", hex128(fi.full_after_lo, fi.full_after_hi)},
+            {"before_hash", hash64(fi.before)},
+            {"after_hash", hash64(fi.after)},
+            {"value_hash", hash64(fi.after)},
+            {"attempted", "1"},
+            {"thread_id", std::to_string((int)inst->threadNumber)},
+            {"first_eligible_sn", std::to_string(f5_first_eligible_sn)},
+            {"sample_policy", f5PolicyString()},
+        };
+        if (fl >= 0)
+            kv.push_back({"field_lo", std::to_string(fl)});
+        if (fh >= 0)
+            kv.push_back({"field_hi", std::to_string(fh)});
+        if (f5_install_event)
+            kv.push_back({"install_event", std::to_string(f5_install_event)});
+        if (fi.instruction_bits || !fi.decoded_kind.empty()) {
+            kv.push_back({"instruction_bits",
+                          hexWidth(fi.instruction_bits, 32)});
+            kv.push_back({"decoded_kind", fi.decoded_kind});
+            kv.push_back({"decoded_precision",
+                          precisionName(fi.decoded_precision_bits)});
+            kv.push_back({"decoded_reg_class",
+                          regClassName(fi.reg_class)});
+            kv.push_back({"decoded_element_width",
+                          std::to_string(fi.decoded_element_width)});
+            kv.push_back({"decoded_lanes",
+                          std::to_string(fi.decoded_lanes)});
+            kv.push_back({"decoded_reliable",
+                          fi.decoded_reliable ? "1" : "0"});
+            kv.push_back({"manifest_precision", precision});
+            kv.push_back({"manifest_lane_width",
+                          std::to_string(lane_width)});
+            kv.push_back({"manifest_lane_offset",
+                          std::to_string(lane_offset)});
+            kv.push_back({"precision_match",
+                          fi.precision_match ? "1" : "0"});
+            kv.push_back({"lane_match", fi.lane_match ? "1" : "0"});
+        }
+        if (fsu_eligible_total)
+            kv.push_back({"eligible_total",
+                          std::to_string(fsu_eligible_total)});
+        return kv;
+    }
+
+    static void
+    f5SetKv(std::vector<std::pair<std::string, std::string>> &kv,
+            const std::string &key, const std::string &value)
+    {
+        for (auto &p : kv) {
+            if (p.first == key) {
+                p.second = value;
+                return;
+            }
+        }
+        kv.push_back({key, value});
+    }
+
+    uint64_t
+    CHAOSFPU::emitF5Exposure(
+        const std::vector<std::pair<std::string, std::string>> &kv,
+        uint64_t parent)
+    {
+        const uint64_t eid = emitFsu("exposure", f5_fault_id, parent, kv);
+        if (eid)
+            f5_last_event_id = eid;
+        return eid;
+    }
+
+    void
+    CHAOSFPU::registerF5Taint(o3::DynInst *inst, const FaultInfo &fi,
+                              uint64_t parent_event)
+    {
+        if (f5_taint_registered)
+            return;
+        FaultedReg fr;
+        fr.fault_id = f5_fault_id;
+        fr.l0_id = f5_install_event;
+        // The first ACTIVATED exposure is the direct L1 parent of the real
+        // L2-L5 impact chain: install -> carrier -> exposure -> operand_read
+        // -> execute -> prf_writeback -> commit.
+        fr.l1_id = parent_event ? parent_event : f5_carrier_event;
+        fr.producer_sn = inst->seqNum;
+        fr.tick = curTick();
+        fr.tid = (int)inst->threadNumber;
+        fr.reg_class = fi.reg_class;
+        fr.reg_index = fi.reg_index;
+        fr.before = fi.before;
+        fr.after = fi.after;
+        fr.mask = fi.mask;
+        fr.field = fi.field;
+        fr.precision_bits = fi.precision_bits;
+        fr.lane_width = fi.lane_width;
+        fr.lane_offset = fi.lane_offset;
+        fr.bit_in_lane = fi.bit_in_lane;
+        fr.abs_bit = fi.abs_bit;
+        fr.field_lo = fi.field_lo;
+        fr.field_hi = fi.field_hi;
+        fr.abs_lo = fi.abs_lo;
+        fr.abs_hi = fi.abs_hi;
+        fr.full_before_lo = fi.full_before_lo;
+        fr.full_before_hi = fi.full_before_hi;
+        fr.full_after_lo = fi.full_after_lo;
+        fr.full_after_hi = fi.full_after_hi;
+        fr.instruction_bits = fi.instruction_bits;
+        fr.decoded_kind = fi.decoded_kind;
+        fr.decoded_precision_bits = fi.decoded_precision_bits;
+        fr.decoded_element_width = fi.decoded_element_width;
+        fr.decoded_lanes = fi.decoded_lanes;
+        fr.decoded_reliable = fi.decoded_reliable;
+        fr.precision_match = fi.precision_match;
+        fr.lane_match = fi.lane_match;
+        fr.is_vec = fi.is_vec;
+        fr.consumed = false;
+        fr.f5 = true;
+        faulted_regs.push_back(fr);
+        f5_taint_registered = true;
+    }
+
+    void
+    CHAOSFPU::notePermanentExposure(o3::DynInst *inst, const FaultInfo &fi)
+    {
+        if (!inst || fi.reg_class < 0 || fi.reg_index < 0)
+            return;
+
+        const bool install = !f5_armed;
+        if (install) {
+            // ONE installation per run: one fault_id, one mask, one
+            // polarity. The install event is the L0 root; carrier_state is
+            // L1. No later event increments next_fault_id.
+            f5_fault_id = next_fault_id++;
+            f5_first_eligible_sn = inst->seqNum;
+            ++faults_injected_count;
+            auto kv = buildF5Kv(inst, fi);
+            f5_install_event = emitFsu("fault_installed", f5_fault_id,
+                                       FSU_NO_PARENT, kv);
+            f5_last_event_id = f5_install_event;
+            auto ckv = kv;
+            if (f5_install_event)
+                f5SetKv(ckv, "install_event",
+                        std::to_string(f5_install_event));
+            f5_carrier_event = emitFsu(
+                "carrier_state", f5_fault_id,
+                f5_install_event ? f5_install_event : FSU_NO_PARENT, ckv);
+            if (f5_carrier_event)
+                f5_last_event_id = f5_carrier_event;
+            f5_terminal_parent = f5_carrier_event
+                ? f5_carrier_event : f5_install_event;
+            f5_armed = true;
+        }
+
+        // Every eligible event after installation is an exposure: re-apply
+        // the SAME polarity and classify activation from the CORRECT value
+        // (the value before the forced write). No new fault is created.
+        ++f5_exposures_total;
+        const bool activated = chaos_fsu::stuckActivated(
+            fi.before, fi.mask, f5_polarity);
+        if (activated)
+            ++f5_activated_total;
+        const bool first_activated = activated && !f5_first_activated_done;
+        if (first_activated) {
+            f5_first_activated_done = true;
+            f5_first_activated_sn = inst->seqNum;
+            f5_first_activated_tick = curTick();
+        }
+        f5_last_exposure_sn = inst->seqNum;
+
+        auto ekv = buildF5Kv(inst, fi);
+        ekv.push_back({"exposure_id", std::to_string(f5_exposures_total)});
+        ekv.push_back({"exposure_count", std::to_string(f5_exposures_total)});
+        ekv.push_back({"activated_exposure_count",
+                       std::to_string(f5_activated_total)});
+        ekv.push_back({"activated", activated ? "1" : "0"});
+        ekv.push_back({"first_activated_sn",
+                       f5_first_activated_sn
+                           ? std::to_string(f5_first_activated_sn)
+                           : std::string()});
+        ekv.push_back({"last_exposure_sn",
+                       std::to_string(f5_last_exposure_sn)});
+        ekv.push_back({"affected_sn",
+                       activated ? std::to_string(inst->seqNum)
+                                 : std::string()});
+        ekv.push_back({"correct_before",
+                       hexWidth(fi.before, fi.lane_width)});
+        ekv.push_back({"stuck_after",
+                       hexWidth(fi.after, fi.lane_width)});
+        ekv.push_back({"exposures_total",
+                       std::to_string(f5_exposures_total)});
+
+        const bool first_exposure = (f5_exposures_total == 1);
+        enum { F5_DROP, F5_EMIT_NOW, F5_KEEP_TAIL } action = F5_DROP;
+        if (first_exposure || first_activated) {
+            action = F5_EMIT_NOW;
+        } else if (f5_ordinary_emitted < f5_keep_first) {
+            action = F5_EMIT_NOW;
+            ++f5_ordinary_emitted;
+        } else if (f5_keep_last > 0) {
+            action = F5_KEEP_TAIL;
+        }
+
+        if (action == F5_EMIT_NOW) {
+            ++f5_exposures_sampled;
+            const uint64_t sampled = f5_exposures_sampled;
+            const uint64_t dropped = f5_exposures_total > sampled
+                ? f5_exposures_total - sampled : 0;
+            f5SetKv(ekv, "exposures_sampled", std::to_string(sampled));
+            f5SetKv(ekv, "exposures_dropped", std::to_string(dropped));
+            const uint64_t parent = f5_carrier_event
+                ? f5_carrier_event : f5_install_event;
+            const uint64_t eid = emitF5Exposure(ekv, parent);
+            if (first_activated) {
+                if (eid)
+                    f5_terminal_parent = eid;
+                registerF5Taint(inst, fi,
+                                eid ? eid : (f5_carrier_event
+                                             ? f5_carrier_event
+                                             : f5_install_event));
+            }
+        } else if (action == F5_KEEP_TAIL) {
+            // Bounded tail sample: emitted by the exit callback. Its
+            // counters are rewritten at flush time (sampled events may
+            // still grow afterwards) and the authoritative totals live on
+            // chain_end.
+            f5SetKv(ekv, "exposures_sampled",
+                    std::to_string(f5_exposures_sampled + 1));
+            f5SetKv(ekv, "exposures_dropped",
+                    std::to_string(f5_exposures_total >
+                                   f5_exposures_sampled + 1
+                                       ? f5_exposures_total -
+                                         (f5_exposures_sampled + 1)
+                                       : 0));
+            f5_last_samples.push_back(std::move(ekv));
+            while (f5_last_samples.size() > (size_t)f5_keep_last)
+                f5_last_samples.pop_front();
+        }
+    }
+
+    void
+    CHAOSFPU::flushF5Samples()
+    {
+        const uint64_t parent = f5_carrier_event
+            ? f5_carrier_event : f5_install_event;
+        while (!f5_last_samples.empty()) {
+            auto kv = std::move(f5_last_samples.front());
+            f5_last_samples.pop_front();
+            ++f5_exposures_sampled;
+            const uint64_t sampled = f5_exposures_sampled;
+            const uint64_t dropped = f5_exposures_total > sampled
+                ? f5_exposures_total - sampled : 0;
+            f5SetKv(kv, "exposures_sampled", std::to_string(sampled));
+            f5SetKv(kv, "exposures_dropped", std::to_string(dropped));
+            emitF5Exposure(kv, parent);
+        }
+    }
+
+    void
+    CHAOSFPU::emitF5ChainEnd()
+    {
+        if (!f5_armed)
+            return;
+        f5_exposures_dropped = f5_exposures_total > f5_exposures_sampled
+            ? f5_exposures_total - f5_exposures_sampled : 0;
+        const char *terminal = f5_commit_seen
+            ? "committed"
+            : (f5_activated_total ? "exposed_unconsumed" : "not_activated");
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"install_event", std::to_string(f5_install_event)},
+            {"stuck_polarity", std::to_string(f5_polarity)},
+            {"fixed_mask", hex64(f5_fixed_mask)},
+            {"first_eligible_sn", std::to_string(f5_first_eligible_sn)},
+            {"exposure_count", std::to_string(f5_exposures_total)},
+            {"activated_exposure_count",
+             std::to_string(f5_activated_total)},
+            {"first_activated_sn",
+             f5_first_activated_sn
+                 ? std::to_string(f5_first_activated_sn) : std::string()},
+            {"last_exposure_sn", std::to_string(f5_last_exposure_sn)},
+            {"affected_sn",
+             f5_first_impact_sn
+                 ? std::to_string(f5_first_impact_sn)
+                 : (f5_first_activated_sn
+                        ? std::to_string(f5_first_activated_sn)
+                        : std::string())},
+            {"first_impact_latency",
+             f5_commit_seen ? std::to_string(f5_first_impact_latency)
+                            : std::string()},
+            {"sample_policy", f5PolicyString()},
+            {"exposures_total", std::to_string(f5_exposures_total)},
+            {"exposures_sampled", std::to_string(f5_exposures_sampled)},
+            {"exposures_dropped", std::to_string(f5_exposures_dropped)},
+            {"terminal", terminal},
+            {"outcome", terminal},
+            {"activated", f5_activated_total ? "1" : "0"},
+            // Lifecycle terminus only: no detection_layer, never an L5
+            // witness. The real L5 is the commit event of the first
+            // activated exposure's chain.
+        };
+        emitFsu("chain_end", f5_fault_id,
+                f5_terminal_parent ? f5_terminal_parent
+                                   : (f5_carrier_event
+                                          ? f5_carrier_event
+                                          : f5_install_event),
+                kv);
+    }
+
     void
     CHAOSFPU::noteConsumerExecute(o3::DynInst *inst)
     {
@@ -982,6 +1489,21 @@ namespace gem5
                     kv.push_back({"field_lo", std::to_string(f.field_lo)});
                 if (f.field_hi >= 0)
                     kv.push_back({"field_hi", std::to_string(f.field_hi)});
+                if (f.f5) {
+                    // Keep every link of the one permanent fault's chain
+                    // self-describing, not just the install/exposure.
+                    kv.push_back({"install_event",
+                                  std::to_string(f5_install_event)});
+                    kv.push_back({"stuck_polarity",
+                                  std::to_string(f5_polarity)});
+                    kv.push_back({"fixed_mask", hex64(f5_fixed_mask)});
+                    kv.push_back({"first_eligible_sn",
+                                  std::to_string(f5_first_eligible_sn)});
+                    kv.push_back({"first_activated_sn",
+                                  f5_first_activated_sn
+                                      ? std::to_string(f5_first_activated_sn)
+                                      : std::string()});
+                }
                 const uint64_t l2 = emitFsu("operand_read", f.fault_id,
                                             f.l1_id, kv);
                 TaintedConsumer tc;
@@ -1059,6 +1581,51 @@ namespace gem5
             kv.push_back({"field_lo", std::to_string(tc.field_lo)});
         if (tc.field_hi >= 0)
             kv.push_back({"field_hi", std::to_string(tc.field_hi)});
+        // [FSU][F5] The commit of the first activated exposure's consumer
+        // is the FIRST REAL IMPACT. Record its latency from activation and
+        // carry the permanent-fault identity onto the L5 witness.
+        if (permanent_stuck && f5_armed && tc.fault_id == f5_fault_id) {
+            f5_commit_seen = true;
+            f5_first_impact_sn = inst->seqNum;
+            f5_first_impact_tick = curTick();
+            f5_first_impact_latency =
+                (f5_first_activated_tick &&
+                 curTick() >= f5_first_activated_tick)
+                    ? (uint64_t)(curTick() - f5_first_activated_tick)
+                    : 0;
+            kv.push_back({"install_event",
+                          std::to_string(f5_install_event)});
+            kv.push_back({"stuck_polarity",
+                          std::to_string(f5_polarity)});
+            kv.push_back({"fixed_mask", hex64(f5_fixed_mask)});
+            kv.push_back({"first_eligible_sn",
+                          std::to_string(f5_first_eligible_sn)});
+            kv.push_back({"first_activated_sn",
+                          f5_first_activated_sn
+                              ? std::to_string(f5_first_activated_sn)
+                              : std::string()});
+            kv.push_back({"affected_sn",
+                          std::to_string(f5_first_impact_sn)});
+            kv.push_back({"first_impact_latency",
+                          std::to_string(f5_first_impact_latency)});
+            kv.push_back({"exposure_count",
+                          std::to_string(f5_exposures_total)});
+            kv.push_back({"activated_exposure_count",
+                          std::to_string(f5_activated_total)});
+            kv.push_back({"last_exposure_sn",
+                          std::to_string(f5_last_exposure_sn)});
+            kv.push_back({"sample_policy", f5PolicyString()});
+            kv.push_back({"exposures_total",
+                          std::to_string(f5_exposures_total)});
+            kv.push_back({"exposures_sampled",
+                          std::to_string(f5_exposures_sampled)});
+            kv.push_back({"exposures_dropped",
+                          std::to_string(f5_exposures_total >
+                                         f5_exposures_sampled
+                                             ? f5_exposures_total -
+                                               f5_exposures_sampled
+                                             : 0)});
+        }
         if (!tc.has_l4) {
             kv.push_back({"outcome", "arch_side_effect"});
             tc.l4_id = emitFsu("consumer", tc.fault_id, tc.l2_id, kv);
@@ -1067,7 +1634,11 @@ namespace gem5
         kv.push_back({"detection_layer", "L5"});
         kv.push_back({"outcome", "errant_commit"});
         kv.push_back({"contained", "0"});
-        emitFsu("commit", tc.fault_id, tc.l4_id, kv);
+        const uint64_t commit_eid = emitFsu("commit", tc.fault_id,
+                                            tc.l4_id, kv);
+        if (commit_eid && permanent_stuck && f5_armed &&
+            tc.fault_id == f5_fault_id)
+            f5_terminal_parent = commit_eid;
         tc.committed = true;
     }
 
@@ -1076,6 +1647,13 @@ namespace gem5
     {
         for (auto &f : faulted_regs) {
             if (f.consumed)
+                continue;
+            // [FSU][F5] A permanent fault's terminal is the F5 chain_end
+            // (exposures_total/activated_exposure_count/terminal). A
+            // generic not_activated event here would contradict a nonzero
+            // activated_exposure_count and falsely say the value never
+            // changed.
+            if (f.f5)
                 continue;
             std::vector<std::pair<std::string, std::string>> kv = {
                 {"producer_seq", std::to_string(f.producer_sn)},
@@ -1150,6 +1728,16 @@ namespace gem5
         // The chain checker maps this to terminal=not_activated (never
         // inferred from a missing event).
         registerExitCallback([this]() { noteNotActivated(); });
+        if (permanent_stuck) {
+            // [FSU][F5] Flush the bounded tail samples FIRST (they carry
+            // their real occurrence tick), then close the one permanent
+            // fault's lifecycle with explicit capacity accounting. The F5
+            // chain_end is a lifecycle terminus, never an L5 witness.
+            registerExitCallback([this]() {
+                flushF5Samples();
+                emitF5ChainEnd();
+            });
+        }
         if (rate_mode) {
             // Honest end-of-run rate accounting: the driver must see every
             // declared ordinal actually injected. A shortfall is loud.

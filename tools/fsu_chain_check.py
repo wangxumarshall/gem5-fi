@@ -11,6 +11,11 @@
   6. contained 必须有实时含住事件与检测层级；后续层写 N/A。
   7. Masked / contained / Crash / Timeout / SDC / 未激活严格区分；
      缺事件只能标 Unknown，绝不推断 Masked。
+  8. [FSU][F5] 永久故障：根可为 `fault_installed`（L0）；一个 fault 只允许
+     一个安装根；`exposure` 是同一 fault_id 的旁支（不占层、不计独立
+     fault）；首个 activated exposure 必须出现在通往 L5 的直接 parent 链上；
+     `chain_end` 的 exposures_total/sampled/dropped/activated 必须自洽且与
+     流内实际 exposure 样本一致（截断时由 truncated=True 阻断认证）。
 
 用法:
   python3 tools/fsu_chain_check.py <fsu_prop_evt.txt[.gz]> \
@@ -47,6 +52,26 @@ def _is_true(v):
 
 def _empty(v):
     return str(v).strip() in P.EMPTY_VALUES
+
+
+def _int_or_none(evt, key):
+    text = _clean(evt, key)
+    if not text:
+        return None
+    try:
+        return int(text, 10)
+    except ValueError:
+        return None
+
+
+def _mask_ok(evt, key):
+    text = _clean(evt, key)
+    if not text:
+        return None
+    try:
+        return int(text, 16)
+    except ValueError:
+        return None
 
 
 def _l5_witness_ok(evt):
@@ -104,6 +129,14 @@ def _enumerate_paths(root, children, violations):
         advanced = False
         for kid in kids:
             kid_id = _clean(kid, "event_id")
+            # [FSU][F5] Sampled non-activation exposures are dead-end branch
+            # evidence, not chain forks. Descending into them would blow up
+            # the path space (MAX_PATHS) and could hide the real activation
+            # chain. Skip a branch event that has no children of its own;
+            # an activated exposure carries the L2-L5 chain and is kept.
+            if (_clean(kid, "kind") in P.BRANCH_KINDS
+                    and kid_id not in children):
+                continue
             if kid_id in seen:
                 violations.append(f"cycle:{kid_id}")
                 continue
@@ -138,14 +171,138 @@ def _score(path):
     return (kind, deep, len(path))
 
 
-def _check_one(fid, events):
+def _f5_accounting(fid, events, root, violations, truncated):
+    """Validate one permanent fault's install/exposure/terminal accounting.
+
+    Returns a dict of observed counters. Every rule is about the SINGLE
+    installed fault: exposure events never create additional faults, and
+    the capacity fields on chain_end must reconcile with the samples that
+    actually reached the stream.
+    """
+    root_id = _clean(root, "event_id")
+    root_mask = _mask_ok(root, "fault_mask")
+    root_pol = _int_or_none(root, "stuck_polarity")
+    root_first_sn = _int_or_none(root, "first_eligible_sn")
+    exposures = [e for e in events if _clean(e, "kind") in P.BRANCH_KINDS]
+    activated_events = [e for e in exposures
+                        if _clean(e, "activated") == "1"]
+    exp_ids = []
+    for e in exposures:
+        eid = _clean(e, "event_id")
+        if not _clean(e, "parent_event_id"):
+            violations.append(f"exposure_without_parent:{eid}")
+        if _clean(e, "fault_id") != str(fid):
+            violations.append(f"exposure_wrong_fault_id:{eid}")
+        ie = _clean(e, "install_event")
+        if ie and ie != root_id:
+            violations.append(f"exposure_wrong_install_event:{eid}")
+        m = _mask_ok(e, "fixed_mask")
+        if m is not None and root_mask is not None and m != root_mask:
+            violations.append(f"exposure_mask_drift:{eid}")
+        p = _int_or_none(e, "stuck_polarity")
+        if p is not None and root_pol is not None and p != root_pol:
+            violations.append(f"exposure_polarity_drift:{eid}")
+        # Verify the recorded values really implement forced stuck-at:
+        # after == applyStuck(before, mask, polarity), no non-target bit
+        # moved, and `activated` equals the polarity-difference predicate.
+        cb = _mask_ok(e, "correct_before")
+        sa = _mask_ok(e, "stuck_after")
+        if cb is not None and sa is not None and m is not None \
+                and p in (0, 1):
+            expected = (cb | m) if p else (cb & ~m)
+            if sa != expected:
+                violations.append(f"f5_stuck_apply_mismatch:{eid}")
+            if ((cb ^ sa) & ~m) != 0:
+                violations.append(f"f5_non_target_bit_changed:{eid}")
+            act_expected = bool(((~cb) & m) if p else (cb & m))
+            if (_clean(e, "activated") == "1") != act_expected:
+                violations.append(f"f5_activation_flag_mismatch:{eid}")
+        xid = _int_or_none(e, "exposure_id")
+        if xid is not None:
+            exp_ids.append(xid)
+    if len(exp_ids) != len(set(exp_ids)):
+        violations.append("duplicate_exposure_id")
+
+    ends = [e for e in events
+            if _clean(e, "kind") == "chain_end"
+            and _clean(e, "exposures_total")]
+    end = ends[-1] if ends else None
+    total = sampled = dropped = activated_total = None
+    first_act_sn = None
+    if end is not None:
+        total = _int_or_none(end, "exposures_total")
+        sampled = _int_or_none(end, "exposures_sampled")
+        dropped = _int_or_none(end, "exposures_dropped")
+        activated_total = _int_or_none(end, "activated_exposure_count")
+        first_act_sn = _int_or_none(end, "first_activated_sn")
+        ie = _clean(end, "install_event")
+        if ie and ie != root_id:
+            violations.append(f"chain_end_wrong_install_event:{ie}")
+        m = _mask_ok(end, "fixed_mask")
+        if m is not None and root_mask is not None and m != root_mask:
+            violations.append("chain_end_mask_drift")
+        p = _int_or_none(end, "stuck_polarity")
+        if p is not None and root_pol is not None and p != root_pol:
+            violations.append("chain_end_polarity_drift")
+        e_first = _int_or_none(end, "first_eligible_sn")
+        if e_first is not None and root_first_sn is not None \
+                and e_first != root_first_sn:
+            violations.append("chain_end_first_eligible_sn_mismatch")
+        r_sn = _int_or_none(root, "dyn_inst_seq")
+        if e_first is not None and r_sn is not None and e_first != r_sn:
+            violations.append("install_sn_not_first_eligible_sn")
+    elif _clean(root, "kind") == "fault_installed":
+        violations.append("missing_f5_chain_end")
+
+    if total is not None and sampled is not None and dropped is not None:
+        if total != sampled + dropped:
+            violations.append(
+                f"f5_capacity_mismatch:total={total},sampled={sampled},"
+                f"dropped={dropped}")
+        if dropped < 0 or sampled < 0:
+            violations.append("f5_capacity_negative")
+    if (not truncated and sampled is not None
+            and sampled != len(exposures)):
+        violations.append(
+            f"f5_sampled_mismatch:sampled={sampled},"
+            f"observed={len(exposures)}")
+    if activated_total is not None:
+        if activated_total < len(activated_events):
+            violations.append(
+                f"f5_activated_count_underflow:declared={activated_total},"
+                f"observed={len(activated_events)}")
+        if activated_total > 0 and not activated_events:
+            violations.append("f5_first_activated_exposure_missing")
+        if activated_total > 0 and first_act_sn is None:
+            violations.append("f5_missing_first_activated_sn")
+        if first_act_sn is not None and not any(
+                _int_or_none(e, "dyn_inst_seq") == first_act_sn
+                for e in activated_events):
+            violations.append("f5_first_activated_sn_not_observed")
+    if not exposures and total not in (None, 0):
+        violations.append("f5_exposures_total_without_events")
+    return {
+        "root_event_id": root_id,
+        "exposure_events": len(exposures),
+        "activated_events": len(activated_events),
+        "exposures_total": total,
+        "exposures_sampled": sampled,
+        "exposures_dropped": dropped,
+        "activated_exposure_count": activated_total,
+        "first_activated_sn": first_act_sn,
+        "chain_end_event_id": _clean(end, "event_id") if end else None,
+        "chain_end_terminal": _clean(end, "terminal") if end else None,
+    }
+
+
+def _check_one(fid, events, truncated=False):
     violations = []
     by_id, children, dup = _children_map(events)
     for d in dup:
         violations.append(f"duplicate_event_id:{d}")
 
     roots = [e for e in events
-             if _clean(e, "kind") == "fault_applied"
+             if _clean(e, "kind") in P.ROOT_KINDS
              and _clean(e, "parent_event_id") == ""]
     if not roots:
         return {
@@ -157,10 +314,20 @@ def _check_one(fid, events):
             "admitted": False, "certified": False,
             "l5_witness_event_id": None,
             "containment_event_id": None, "containment_layer": None,
+            "f5": None,
         }
     if len(roots) > 1:
-        violations.append("multiple_fault_applied_roots")
+        kinds = {_clean(e, "kind") for e in roots}
+        if kinds == {"fault_installed"}:
+            violations.append("multiple_fault_installed_roots")
+        else:
+            violations.append("multiple_fault_roots")
+            if "fault_installed" in kinds:
+                violations.append("fault_installed_with_other_root")
     root = roots[0]
+    is_f5 = _clean(root, "kind") == "fault_installed"
+    f5 = _f5_accounting(fid, events, root, violations, truncated) \
+        if is_f5 else None
 
     # 非根事件 parent 必须在本 fault 组内
     for e in events:
@@ -168,8 +335,9 @@ def _check_one(fid, events):
         if pid and pid not in by_id:
             violations.append(f"orphan_parent:{eid}->{pid}")
 
-    # 未激活：根事件显式 activated=0 → 非合格 seed
-    if _clean(root, "activated") == "0":
+    # 未激活：根事件显式 activated=0 → 非合格 seed。F5's installation is
+    # not an activation judgement; its exposure events carry activated.
+    if not is_f5 and _clean(root, "activated") == "0":
         return {
             "fault_id": fid, "root_event_id": _clean(root, "event_id"),
             "path_event_ids": [_clean(root, "event_id")],
@@ -179,7 +347,7 @@ def _check_one(fid, events):
             "terminal": "not_activated", "beyond": "N/A",
             "violations": violations, "admitted": False, "certified": False,
             "l5_witness_event_id": None, "containment_event_id": None,
-            "containment_layer": None,
+            "containment_layer": None, "f5": f5,
         }
 
     paths = _enumerate_paths(root, children, violations)
@@ -240,6 +408,36 @@ def _check_one(fid, events):
         else:
             terminal = "unknown"
 
+    # [FSU][F5] A permanent fault's terminal is defined by its OWN exposure
+    # accounting, not by a generic lifecycle marker:
+    #   activated_exposure_count == 0  -> not_activated
+    #   activated > 0 but no L5 commit -> exposed_unconsumed (honest Unknown)
+    #   real L5 commit                -> full, and the direct chain MUST pass
+    #                                    through the first activated exposure.
+    if is_f5 and f5 is not None:
+        act = f5.get("activated_exposure_count") or 0
+        ct = f5.get("chain_end_terminal") or ""
+        if l5_evt is not None and act > 0:
+            first_sn = f5.get("first_activated_sn")
+            through = any(
+                _clean(e, "kind") in P.BRANCH_KINDS
+                and _clean(e, "activated") == "1"
+                and (first_sn is None
+                     or _int_or_none(e, "dyn_inst_seq") == first_sn)
+                for e in best)
+            if not through:
+                violations.append(
+                    "activation_chain_not_through_first_activated")
+        if l5_evt is None:
+            if act > 0:
+                terminal = "exposed_unconsumed"
+            elif (f5.get("exposures_total") or 0) > 0:
+                terminal = "not_activated"
+        if ct == "committed" and l5_evt is None:
+            violations.append("f5_chain_end_claims_commit_without_l5")
+        if ct == "not_activated" and act > 0:
+            violations.append("f5_chain_end_terminal_contradicts_activation")
+
     closed = (terminal in P.CLOSED_TERMINALS
               or terminal.startswith("contained_"))
     beyond = "N/A" if closed else "Unknown"
@@ -267,6 +465,7 @@ def _check_one(fid, events):
         "containment_layer": contained_layer,
         "off_chain_event_ids": sorted(set(by_id) - set(path_ids)),
         "violations": violations,
+        "f5": f5,
         "admitted": admitted,
         # certified is the same closed-terminal + no-violation gate; the
         # seed-level audit additionally requires intact evidence (gzip EOF,
@@ -286,8 +485,23 @@ def check_stream(path, run_id=None, sample_run_id=None):
             identity.append(f"sample_run_id:{_clean(e, 'event_id')}:"
                             f"{_clean(e, 'sample_run_id')}!={sample_run_id}")
     faults = {}
+    orphan_exposure_groups = []
+    orphan_exposure_violations = []
     for fid, group in sorted(_group_by_fault(events).items()):
-        result = _check_one(fid, group)
+        # [FSU][F5] An exposure is a branch of ONE installed fault. A group
+        # with exposure events but no root is not a fault and must never be
+        # counted as one; report it loudly instead.
+        has_root = any(_clean(e, "kind") in P.ROOT_KINDS for e in group)
+        has_branch = any(_clean(e, "kind") in P.BRANCH_KINDS for e in group)
+        if has_branch and not has_root:
+            orphan_exposure_groups.append(fid)
+            for e in group:
+                if _clean(e, "kind") in P.BRANCH_KINDS:
+                    orphan_exposure_violations.append(
+                        f"exposure_without_fault_installed_root:{fid}:"
+                        f"{_clean(e, 'event_id')}")
+            continue
+        result = _check_one(fid, group, truncated=truncated)
         if identity:
             result["violations"].extend(identity)
             result["admitted"] = False
@@ -299,10 +513,12 @@ def check_stream(path, run_id=None, sample_run_id=None):
     all_violations = []
     for r in faults.values():
         all_violations.extend(r.get("violations", []))
+    all_violations.extend(orphan_exposure_violations)
     all_violations.extend(identity)
     if truncated:
         all_violations.append("truncated_stream")
-    admitted = bool(admitted_faults) and not truncated and not identity
+    admitted = (bool(admitted_faults) and not truncated and not identity
+                and not orphan_exposure_violations)
     # Seed-level certified requires EVERY fault to be closed; one fault
     # reaching L5 must never auto-certify the others.
     certified = admitted and all(r.get("certified") for r in faults.values())
@@ -314,6 +530,8 @@ def check_stream(path, run_id=None, sample_run_id=None):
         "identity_violations": identity,
         "faults": faults,
         "fault_count": len(faults),
+        "orphan_exposure_groups": orphan_exposure_groups,
+        "orphan_exposure_violations": orphan_exposure_violations,
         "fault_terminals": {fid: r.get("terminal")
                             for fid, r in faults.items()},
         "admitted_faults": admitted_faults,

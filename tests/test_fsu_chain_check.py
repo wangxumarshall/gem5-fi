@@ -32,6 +32,85 @@ def chain_full(t0=100):
     ]
 
 
+def f5_root(event_id="0", sn="100", mask="0x0000000000000020",
+            polarity="1"):
+    b = base()
+    return evt(kind="fault_installed", event_id=event_id, tick="100",
+               dyn_inst_seq=sn, first_eligible_sn=sn, fault_mask=mask,
+               fixed_mask=mask, stuck_polarity=polarity,
+               sample_policy="bounded_first_last(limit=4,first=2,last=2)",
+               field="mant_lo", lane_width="64", lane_offset="0", **b)
+
+
+def f5_exposure(event_id, parent, exposure_id, sn, activated,
+                first_activated_sn="", mask="0x0000000000000020",
+                polarity="1", activated_total="1"):
+    b = base()
+    # SA1 on bit5: correct_before=0 -> activated; 0x20 -> exposed-but-not.
+    before = "0x0000000000000000" if activated == "1" \
+        else "0x0000000000000020"
+    return evt(kind="exposure", event_id=str(event_id),
+               parent_event_id=str(parent), tick=str(100 + int(sn)),
+               dyn_inst_seq=str(sn), install_event="0",
+               exposure_id=str(exposure_id), exposure_count=str(exposure_id),
+               activated_exposure_count=activated_total,
+               first_activated_sn=first_activated_sn,
+               last_exposure_sn=str(sn),
+               affected_sn=(str(sn) if activated == "1" else ""),
+               correct_before=before,
+               stuck_after="0x0000000000000020",
+               fixed_mask=mask, stuck_polarity=polarity,
+               activated=activated, field="mant_lo",
+               lane_width="64", lane_offset="0",
+               sample_policy="bounded_first_last(limit=4,first=2,last=2)",
+               **b)
+
+
+def f5_chain_end(parent, total=3, sampled=2, dropped=1,
+                 activated_total="1", first_activated_sn="102",
+                 first_eligible_sn="100", last_exposure_sn="105",
+                 terminal="committed", mask="0x0000000000000020",
+                 polarity="1"):
+    b = base()
+    return evt(kind="chain_end", event_id="9", parent_event_id=str(parent),
+               tick="9999", install_event="0", fault_mask=mask,
+               fixed_mask=mask, stuck_polarity=polarity,
+               first_eligible_sn=first_eligible_sn,
+               exposure_count=str(total),
+               activated_exposure_count=activated_total,
+               first_activated_sn=first_activated_sn,
+               last_exposure_sn=last_exposure_sn,
+               exposures_total=str(total), exposures_sampled=str(sampled),
+               exposures_dropped=str(dropped),
+               sample_policy="bounded_first_last(limit=4,first=2,last=2)",
+               terminal=terminal, outcome=terminal, **b)
+
+
+def f5_full(t0=100):
+    """One install, two exposures (one non-activated, one activated), the
+    first activated exposure's real L2-L5 chain, and capacity accounting."""
+    b = base()
+    return [
+        f5_root(),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="100", **b),
+        f5_exposure(2, 1, 1, 101, "0", activated_total="0"),
+        f5_exposure(3, 1, 2, 102, "1", first_activated_sn="102",
+                    activated_total="1"),
+        evt(kind="operand_read", event_id="4", parent_event_id="3",
+            tick="202", dyn_inst_seq="102", activated="1", **b),
+        evt(kind="execute", event_id="5", parent_event_id="4",
+            tick="203", dyn_inst_seq="102", **b),
+        evt(kind="prf_writeback", event_id="6", parent_event_id="5",
+            tick="204", dyn_inst_seq="102", **b),
+        evt(kind="commit", event_id="7", parent_event_id="6", tick="205",
+            dyn_inst_seq="102", detection_layer="L5",
+            outcome="errant_commit", **b),
+        f5_chain_end(7, total=3, sampled=2, dropped=1,
+                     activated_total="1", first_activated_sn="102"),
+    ]
+
+
 def write(tmp_path, lines, name="ev.txt", gz=False):
     p = tmp_path / name
     text = "\n".join(lines) + "\n"
@@ -292,3 +371,195 @@ def test_event_cap_marks_truncated(tmp_path, monkeypatch):
     assert len(events) == 2
     assert truncated is True
     assert reason.startswith("event_cap_exceeded")
+
+
+# ---------- [FSU][F5] one permanent fault, many exposures ----------
+
+def test_f5_layer_mapping():
+    assert P.layer_of({"kind": "fault_installed"}) == "L0"
+    assert P.layer_of({"kind": "exposure"}) is None
+    assert P.layer_of({"kind": "activation"}) == "L2"
+    assert P.layer_of({"kind": "first_impact"}) == "L5"
+    assert P.layer_of({"kind": "chain_end"}) is None
+
+
+def test_f5_full_chain_admitted(tmp_path):
+    r = check(tmp_path, f5_full())
+    assert r["fault_count"] == 1
+    assert r["admitted_faults"] == ["1"]
+    f = r["faults"]["1"]
+    assert f["terminal"] == "full"
+    assert f["layers"] == ["L0", "L1", "L2", "L3", "L4", "L5"]
+    assert f["violations"] == []
+    assert f["admitted"] is True
+    assert f["f5"]["exposures_total"] == 3
+    assert f["f5"]["exposures_sampled"] == 2
+    assert f["f5"]["exposures_dropped"] == 1
+    assert f["f5"]["activated_exposure_count"] == 1
+    # The non-activated exposure is branch evidence, not a fault.
+    assert "2" in f["off_chain_event_ids"]
+    assert "3" in f["path_event_ids"]      # first activated exposure
+
+
+def test_f5_many_exposures_are_one_fault(tmp_path):
+    b = base()
+    lines = [f5_root(), evt(kind="carrier_state", event_id="1",
+                            parent_event_id="0", tick="100", **b)]
+    # 20 sampled exposures of the SAME fault_id: still one fault.
+    for i in range(20):
+        lines.append(f5_exposure(10 + i, 1, i + 1, 200 + i,
+                                 "0" if i % 2 else "1",
+                                 first_activated_sn="200",
+                                 activated_total="10"))
+    lines.append(f5_chain_end(29, total=20000, sampled=20, dropped=19980,
+                              activated_total="10",
+                              first_activated_sn="200",
+                              last_exposure_sn="20199",
+                              terminal="exposed_unconsumed"))
+    r = check(tmp_path, lines)
+    assert r["fault_count"] == 1
+    assert r["faults"]["1"]["f5"]["exposures_total"] == 20000
+    assert r["faults"]["1"]["f5"]["exposures_sampled"] == 20
+    assert r["faults"]["1"]["f5"]["exposures_dropped"] == 19980
+
+
+def test_f5_exposure_without_install_is_not_a_fault(tmp_path):
+    lines = [f5_exposure(0, 1, 1, 101, "0", activated_total="0")]
+    r = check(tmp_path, lines)
+    assert r["fault_count"] == 0
+    assert r["faults"] == {}
+    assert r["orphan_exposure_violations"]
+    assert r["admitted"] is False
+
+
+def test_f5_multiple_install_roots_rejected(tmp_path):
+    b = base()
+    lines = [
+        f5_root(),
+        f5_root(event_id="10"),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="100", **b),
+    ]
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert "multiple_fault_installed_roots" in f["violations"]
+    assert f["admitted"] is False
+
+
+def test_f5_exposure_wrong_install_event_rejected(tmp_path):
+    lines = f5_full()
+    lines[3] = f5_exposure(3, 1, 2, 102, "1", first_activated_sn="102",
+                           activated_total="1")
+    lines[3] = lines[3].replace("install_event=0", "install_event=77")
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert any(v.startswith("exposure_wrong_install_event:3")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_stuck_apply_is_audited(tmp_path):
+    """The event stream itself must prove forced SA1, not XOR/random."""
+    lines = f5_full()
+    lines[2] = lines[2].replace(
+        "stuck_after=0x0000000000000020",
+        "stuck_after=0x0000000000000000")
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert any(v.startswith("f5_stuck_apply_mismatch:2")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_capacity_mismatch_rejected(tmp_path):
+    lines = f5_full()
+    lines[-1] = f5_chain_end(7, total=3, sampled=2, dropped=7,
+                              activated_total="1", first_activated_sn="102")
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert any(v.startswith("f5_capacity_mismatch")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_sampled_mismatch_rejected(tmp_path):
+    lines = f5_full()
+    lines[-1] = f5_chain_end(7, total=3, sampled=9, dropped=0,
+                              activated_total="1", first_activated_sn="102")
+    f = check(tmp_path, lines)["faults"]["1"]
+    # total == sampled + dropped would also fail, but the observed-sample
+    # count is an independent check.
+    assert any(v.startswith("f5_sampled_mismatch")
+               or v.startswith("f5_capacity_mismatch")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_activation_chain_must_pass_exposure(tmp_path):
+    """A commit hanging directly off L1 bypasses the first activated
+    exposure and must not certify the activation chain."""
+    lines = f5_full()
+    lines[4] = evt(kind="operand_read", event_id="4", parent_event_id="1",
+                   tick="202", dyn_inst_seq="102", activated="1", **base())
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert "activation_chain_not_through_first_activated" in f["violations"]
+    assert f["admitted"] is False
+
+
+def test_f5_no_activation_is_not_activated(tmp_path):
+    b = base()
+    lines = [
+        f5_root(),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="100", **b),
+        f5_exposure(2, 1, 1, 101, "0", activated_total="0"),
+        f5_chain_end(2, total=1, sampled=1, dropped=0,
+                     activated_total="0", first_activated_sn="",
+                     last_exposure_sn="101", terminal="not_activated"),
+    ]
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert f["terminal"] == "not_activated"
+    assert f["admitted"] is False
+
+
+def test_f5_activated_without_commit_is_honest_unknown(tmp_path):
+    b = base()
+    lines = [
+        f5_root(),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="100", **b),
+        f5_exposure(2, 1, 1, 101, "1", first_activated_sn="101",
+                    activated_total="1"),
+        f5_chain_end(2, total=2, sampled=1, dropped=1,
+                     activated_total="1", first_activated_sn="101",
+                     last_exposure_sn="102", terminal="exposed_unconsumed"),
+    ]
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert f["terminal"] == "exposed_unconsumed"
+    assert f["beyond"] == "Unknown"
+    assert f["admitted"] is False
+
+
+def test_f5_chain_end_cannot_claim_commit_without_l5(tmp_path):
+    b = base()
+    lines = [
+        f5_root(),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="100", **b),
+        f5_exposure(2, 1, 1, 101, "1", first_activated_sn="101",
+                    activated_total="1"),
+        f5_chain_end(2, total=1, sampled=1, dropped=0,
+                     activated_total="1", first_activated_sn="101",
+                     last_exposure_sn="101", terminal="committed"),
+    ]
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert "f5_chain_end_claims_commit_without_l5" in f["violations"]
+    assert f["admitted"] is False
+
+
+def test_f5_truncated_stream_blocks_admission(tmp_path, monkeypatch):
+    p = write(tmp_path, f5_full())
+    orig = P.read_stream
+    monkeypatch.setattr(P, "read_stream",
+                        lambda _p: (orig(p)[0], True, "forced"))
+    r = C.check_stream(p)
+    assert r["truncated"] is True
+    assert r["admitted_faults"] == []
+    assert any("truncated_stream" in f["violations"]
+               for f in r["faults"].values())

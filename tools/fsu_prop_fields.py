@@ -10,6 +10,13 @@
       FSU_PROP-EVT: kind=<v> run_id=<v> ... terminal=<v>
   - 解析端对缺失键填 ""，对 gzip 截断置 truncated=True（不静默）；
   - `chain_end` 是生命周期收口，不是 L5（层映射为 None）。
+
+[FSU][F5] 永久故障（一个安装、多次 exposure）:
+  - `fault_installed` 是唯一 L0 根；`exposure` 是同一 fault_id 的旁支证据，
+    层映射为 None，绝不作为独立 fault 计数；
+  - `activation`/`first_impact` 如被显式发射，分别按真实观测层 L2/L5 映射；
+  - `install_event`/`fixed_mask`/`stuck_polarity`/`exposures_*` 等字段使
+    “一个永久 fault 的完整链”可离线审计，而不依赖每事件新建 fault_id。
 """
 from __future__ import annotations
 
@@ -47,11 +54,25 @@ PROP_EVT_FIELDS = [
     "detection_layer", "contained", "outcome", "oracle_diff",
     "evidence_status", "corr", "golden_id", "config_hash", "binary_hash",
     "terminal",
+    # [FSU][F5] One permanent fault, many exposures. These fields keep the
+    # single installation and the exposure accounting explicit; an exposure
+    # event never mints a new fault_id.
+    "install_event", "stuck_polarity", "fixed_mask", "first_eligible_sn",
+    "exposure_id", "exposure_count", "activated_exposure_count",
+    "first_activated_sn", "last_exposure_sn", "affected_sn",
+    "correct_before", "stuck_after", "first_impact_latency",
+    "sample_policy", "exposures_total", "exposures_sampled",
+    "exposures_dropped",
 ]
 
 # kind → 层级。None = 生命周期/终局标记，不占 L0–L5。
 KIND_LAYER = {
     "fault_applied": "L0",
+    # [FSU][F5] The one permanent-fault installation is the L0 root. Every
+    # later eligible event is an `exposure` branch event (no layer): it is
+    # evidence of the same fault, never an independent fault.
+    "fault_installed": "L0",
+    "exposure": None,
     "carrier_state": "L1",
     # L2：IQ 选择/ready/操作数读取
     "iq_select": "L2", "ready_update": "L2", "operand_read": "L2",
@@ -69,14 +90,41 @@ KIND_LAYER = {
     "overwrite": None, "mask": None, "crash": None, "timeout": None,
     # 生命周期收口与未激活
     "chain_end": None, "not_activated": None,
+    # [FSU][F5] Explicit activation / first-impact markers, mapped to their
+    # REAL observation layers (a value change is an L2 operand/execute
+    # observation; the first architectural impact is L5). The current
+    # CHAOSFPU emitter records activation/impact on the exposure/commit
+    # events themselves; these kinds are registered so an emitter that
+    # chooses explicit markers cannot drift from the checker.
+    "activation": "L2", "first_impact": "L5",
 }
 
 CONTAIN_KINDS = frozenset({
     "detect", "contain", "squash", "replay", "overwrite", "mask",
     "crash", "timeout",
 })
-L5_WITNESS_KINDS = frozenset({"commit", "arch_state", "oracle_diff", "sdc_escape"})
+L5_WITNESS_KINDS = frozenset({"commit", "arch_state", "oracle_diff",
+                              "sdc_escape", "first_impact"})
 LIFECYCLE_KINDS = frozenset({"chain_end"})
+# [FSU][F5] Root kinds: an F0-F4 chain starts at fault_applied, an F5
+# permanent chain starts at the single fault_installed event.
+ROOT_KINDS = frozenset({"fault_applied", "fault_installed"})
+# Exposure events are side-branch evidence of the SAME fault. They must
+# never be grouped/counted as independent faults.
+BRANCH_KINDS = frozenset({"exposure"})
+F5_FIELDS = frozenset({
+    "install_event", "stuck_polarity", "fixed_mask", "first_eligible_sn",
+    "exposure_id", "exposure_count", "activated_exposure_count",
+    "first_activated_sn", "last_exposure_sn", "affected_sn",
+    "correct_before", "stuck_after", "first_impact_latency",
+    "sample_policy", "exposures_total", "exposures_sampled",
+    "exposures_dropped",
+})
+F5_CHAIN_END_FIELDS = frozenset({
+    "exposures_total", "activated_exposure_count", "exposures_sampled",
+    "exposures_dropped", "sample_policy", "first_eligible_sn",
+    "last_exposure_sn",
+})
 
 EMPTY_VALUES = ("", "None", "none", "Unknown", "unknown")
 CONTAINED_TRUE = ("1", "true", "True", "yes", "Yes")

@@ -1,0 +1,41 @@
+{
+  "run_id": "FSU-FP06-F5-W3-PERMANENT-GATE",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W3",
+  "submodel": "FP06-b",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 2,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 1,
+      "f5_warmup": 0,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256
+    },
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "F5 permanent-stuck gate (NOT a formal RunID; does NOT count toward 519/240). Pre-registered: FP06-b SA1 on the FP32 sign bit of NEON lane 2. One installation at the first eligible SimdFloatMultAcc result, then every eligible result is an exposure of the same fault_id/mask/polarity. Golden ARRAYHASH is the no-fault W3 value."
+}

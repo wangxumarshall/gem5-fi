@@ -214,6 +214,43 @@ laneMaskForWidth(int lane_width)
     return (((uint64_t)1) << lane_width) - 1;
 }
 
+// [FSU][F5] Permanent stuck-at polarity. 0 = SA0 (force target bits to 0),
+// 1 = SA1 (force target bits to 1). Any other value is invalid and callers
+// must reject the configuration (fail closed).
+inline bool
+stuckPolarityValid(int polarity)
+{
+    return polarity == 0 || polarity == 1;
+}
+
+// Apply a permanent stuck-at fault to one lane value. This is NOT XOR:
+//   SA0: value & ~mask   (every target bit forced to 0)
+//   SA1: value |  mask   (every target bit forced to 1)
+// Bits outside `mask` are never touched, so the "non-target bits unchanged"
+// invariant holds by construction. The operation is idempotent:
+// applyStuck(applyStuck(v)) == applyStuck(v).
+inline uint64_t
+applyStuck(uint64_t value, uint64_t mask, int polarity)
+{
+    return polarity ? (value | mask) : (value & ~mask);
+}
+
+// Was this exposure activated? A stuck-at exposure is activated exactly when
+// the pre-application (correct) value differs from the forced polarity on at
+// least one target bit:
+//   SA0: any target bit is 1 in the correct value -> (correct & mask) != 0
+//   SA1: any target bit is 0 in the correct value -> (~correct & mask) != 0
+// Multi-bit masks activate when ANY target bit differs (not all): a single
+// already-stuck bit does not mask the other forced bits. An empty mask is
+// never activated.
+inline bool
+stuckActivated(uint64_t correct, uint64_t mask, int polarity)
+{
+    if (mask == 0)
+        return false;
+    return polarity ? ((~correct & mask) != 0) : ((correct & mask) != 0);
+}
+
 } // namespace chaos_fsu
 } // namespace gem5
 

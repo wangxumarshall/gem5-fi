@@ -1,6 +1,7 @@
 #ifndef __CPU_O3_CHAOS_FPU_HH__
 #define __CPU_O3_CHAOS_FPU_HH__
 
+#include <deque>
 #include <map>
 #include <random>
 #include <string>
@@ -96,6 +97,52 @@ class CHAOSFPU : public SimObject
     // mode 6 — fpsr_suppress: logged count of cleared-flag events.
     bool fpsr_suppress = false;
     uint64_t suppressed_count = 0;
+    // mode 7 — permanent_stuck (F5): install ONE fixed stuck-at fault
+    // (one fault_id / fixed mask / fixed SA0-or-SA1 polarity) on the first
+    // eligible event after the warm-up, then apply the SAME forced polarity
+    // to every later eligible result until the run ends. This is not XOR
+    // and not a per-event new fault: the exposure stream shares one
+    // fault_id and one L0 install root.
+    bool permanent_stuck = false;
+    int stuck_polarity = -1;          // -1 = draw once, then fixed; 0/1 = explicit
+    uint64_t f5_warmup = 0;           // eligible events before installation
+    uint64_t f5_sample_limit = 0;     // ordinary exposure samples (mandatory extra)
+    uint64_t f5_keep_first_last_n = 0; // bounded "first N + last N" sample policy
+    uint64_t f5_keep_first = 0;       // resolved sample budget: first N
+    uint64_t f5_keep_last = 0;        // resolved sample budget: last N
+
+    // [FSU][F5] Installed permanent fault state. Exactly one fault is ever
+    // installed per run; every later eligible event is an exposure of it.
+    bool f5_armed = false;
+    uint64_t f5_fault_id = 0;
+    uint64_t f5_install_event = 0;
+    uint64_t f5_carrier_event = 0;
+    uint64_t f5_fixed_mask = 0;
+    int f5_polarity = -1;
+    uint64_t f5_first_eligible_sn = 0;
+    uint64_t f5_exposures_total = 0;
+    uint64_t f5_activated_total = 0;
+    uint64_t f5_exposures_sampled = 0;
+    uint64_t f5_exposures_dropped = 0;
+    uint64_t f5_first_activated_sn = 0;
+    Tick f5_first_activated_tick = 0;
+    uint64_t f5_last_exposure_sn = 0;
+    uint64_t f5_first_impact_sn = 0;
+    Tick f5_first_impact_tick = 0;
+    uint64_t f5_first_impact_latency = 0;
+    bool f5_first_activated_done = false;
+    bool f5_taint_registered = false;
+    bool f5_commit_seen = false;
+    uint64_t f5_ordinary_emitted = 0;
+    uint64_t f5_last_event_id = 0;
+    // Direct parent for the terminal chain_end: the real commit when one
+    // happened, else the first activated exposure, else the L1 carrier.
+    // Sample-branch events never become the terminal's parent.
+    uint64_t f5_terminal_parent = 0;
+    // Bounded tail buffer; only the LAST f5_keep_last samples are retained.
+    // Flushed by the exit callback, so EVENT_CAP is never silently exceeded.
+    std::deque<std::vector<std::pair<std::string, std::string>>>
+        f5_last_samples;
 
     std::mt19937 rng;
     std::random_device rd;
@@ -148,6 +195,11 @@ class CHAOSFPU : public SimObject
         bool lane_match = false;
         bool is_vec = false;
         bool consumed = false;
+        // [FSU][F5] The taint belongs to a permanent fault: its terminal is
+        // reported by the F5 chain_end (with exposure accounting), never by
+        // a generic not_activated event (which would contradict
+        // activated_exposure_count > 0).
+        bool f5 = false;
     };
     struct TaintedConsumer {
         uint64_t fault_id = 0;
@@ -203,6 +255,23 @@ class CHAOSFPU : public SimObject
     uint64_t emitFsu(const char *kind, uint64_t fault_id, uint64_t parent,
                      std::vector<std::pair<std::string, std::string>> kv);
     void noteNotActivated();
+
+    // [FSU][F5] Permanent stuck-at path. One install (L0 root + L1 carrier),
+    // then one exposure event per eligible event (bounded samples) while the
+    // SAME mask/polarity is applied. The first ACTIVATED exposure supplies
+    // the L1 parent for the existing L2-L5 taint/consumer/commit machinery,
+    // so the real impact chain stays direct and auditable.
+    std::vector<std::pair<std::string, std::string>>
+    buildF5Kv(o3::DynInst *inst, const FaultInfo &info) const;
+    void notePermanentExposure(o3::DynInst *inst, const FaultInfo &info);
+    void registerF5Taint(o3::DynInst *inst, const FaultInfo &info,
+                         uint64_t parent_event);
+    uint64_t emitF5Exposure(
+        const std::vector<std::pair<std::string, std::string>> &kv,
+        uint64_t parent);
+    std::string f5PolicyString() const;
+    void flushF5Samples();
+    void emitF5ChainEnd();
     static std::string hex64(uint64_t v);
     static std::string hexWidth(uint64_t v, int bits);
     static std::string hex128(uint64_t lo, uint64_t hi);

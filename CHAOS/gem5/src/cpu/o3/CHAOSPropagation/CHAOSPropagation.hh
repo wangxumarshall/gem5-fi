@@ -259,6 +259,13 @@ class CHAOSPropagation : public SimObject
         // [FSU][D2] F1/F2/F3 rate provenance.
         "rate_divisor", "jitter_pct", "interval", "ordinal_index",
         "ordinal_generator", "ordinal_generator_version", "ordinal_seed",
+        // [FSU][F5] Permanent-fault (one install, many exposures) provenance.
+        "install_event", "stuck_polarity", "fixed_mask",
+        "first_eligible_sn", "exposure_id", "exposure_count",
+        "activated_exposure_count", "first_activated_sn",
+        "last_exposure_sn", "affected_sn", "correct_before", "stuck_after",
+        "first_impact_latency", "sample_policy", "exposures_total",
+        "exposures_sampled", "exposures_dropped",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));

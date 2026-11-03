@@ -1,0 +1,42 @@
+{
+  "run_id": "FSU-FP06-F5-W3",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W3",
+  "submodel": "FP06-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 2,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 0,
+      "f5_warmup": 0,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256
+    },
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "F5 seed1：预注册 FP06-a SA0，FP32 sign bit，lane2。 正式 F5 seed 的极性/掩码在运行前固定，不得看结果后修改；不是 gate。",
+  "pre_registration": "seed1: polarity=0, mask=0x80000000, submodel=FP06-a"
+}
