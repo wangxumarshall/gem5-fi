@@ -1,0 +1,23 @@
+{
+  "FSU-FP06-F5-W4-SAMPLED-GATE-seed1.md": "40a0b47b823bfd5196ff6b41c4f053f9113f56f96c8e6022f2c52ef5ed958bb3",
+  "census/citations.bib": "107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5",
+  "census/config.ini": "94fb4685ea9c87df5670da8d084968ff41ad9bb2b9c34a1b122cb7d407a47ce2",
+  "census/config.json": "b730a552a2edd464d11c6c3743df9e7cc12d56abbcd91054afc9991be02f0ac0",
+  "census/fpu_injections.log": "078c8d3c8067ea1d531cb994258af50c8fb4f89c28e932c258b511f18505ac54",
+  "census/stats.txt": "ac2f9e03233d672093cbbbcdcb27ce9e36d67a718e34b5b7bc2d6b8b85abe671",
+  "census.err": "f32dc759c1a2e7bb63c726cab9c10d30263e837a9aa422db218c1e54d63d5134",
+  "census.out": "64eebd0ac2566fa2b513d0da1395d19e43fd4119183f1bd7a61bf812b12784a2",
+  "chain_report.json": "49357bec9dc8dce265fc370e7b8d37dd84d9c4abd5a71f929bcdfeba6878adbb",
+  "inject/citations.bib": "107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5",
+  "inject/config.ini": "dd04912d493d99ebf8aef6c3b06708af3f6871f4ab320c5a32bb4960337a8cec",
+  "inject/config.json": "632f8cf9c85448075b6b8f0edac8b13b6da5a6323acefa734e5d4b4963e6c1d3",
+  "inject/fpu_injections.log": "ac7b6f0f0bc259ae9558ad5b45e5ad66c90a7ee488ef5365afaba00341915d4a",
+  "inject/prop_evt.txt.gz": "901fa7b545c84b401e0c040015c139159427af9925e55120897151c425972a96",
+  "inject/prop_trace.csv.gz": "bac917a242450d5cba2c51cf61351aab9afb86ce96c89ed567f6bd9d6a9efafe",
+  "inject/stats.txt": "3e5299931f3a118bfc72039524c3caea73d6d105f26cbb7119a6cb41f5f88adb",
+  "manifest.json": "78073ded06fe7c5bee54dfbb72acc69adfcc14c9c3f8fec12bd00d58a58f4aa4",
+  "oracle.json": "0a92e2f5beeb2faf4098c0a9efd9e9cc1e5b64968cee0c9ec68c78e8dcc40551",
+  "run.err": "f32dc759c1a2e7bb63c726cab9c10d30263e837a9aa422db218c1e54d63d5134",
+  "run.out": "fc38a8304cd0ba828b1ca2ab02105efbe3002805a86ad97665ef4fcc54122a48",
+  "stats.txt": "3e5299931f3a118bfc72039524c3caea73d6d105f26cbb7119a6cb41f5f88adb"
+}

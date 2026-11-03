@@ -1,0 +1,778 @@
+{
+  "gate": "FP06-F5-W5",
+  "gate_id": "FSU-FP06-F5-W5-GATE",
+  "created_at": "2026-11-04T02:41:01",
+  "non_formal": true,
+  "counts_toward_519": false,
+  "formal_suite_seed_count": 0,
+  "suite_id": "polybench-fp-v1-f5",
+  "suite_version": "1",
+  "suite_hash": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581",
+  "suite_seed": 1,
+  "seed_plan_entry": {
+    "suite_seed": 1,
+    "submodel": "FP06-a",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0,
+    "mask": "0x00400000",
+    "polarity": 0,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true
+  },
+  "program_order": [
+    "gemm",
+    "2mm",
+    "lu",
+    "cholesky",
+    "jacobi-2d"
+  ],
+  "program_count": 5,
+  "component_run_count": 5,
+  "component_pass_count": 5,
+  "records": [
+    {
+      "program_id": "gemm",
+      "program_index": 0,
+      "attempt": "runs/fsu-gates/F5-FP06-W5-GATE-v5/gate-seed1/components/gemm/FSU-FP06-F5-W5-GATE/seed11077303513871350950/attempt-1",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "check": "attempt directory exists",
+          "ok": true
+        },
+        {
+          "check": "attempt manifest.json exists",
+          "ok": true
+        },
+        {
+          "check": "attempt freq is F5",
+          "ok": true
+        },
+        {
+          "check": "attempt model_id is FP06",
+          "ok": true
+        },
+        {
+          "check": "attempt load_id is W5",
+          "ok": true
+        },
+        {
+          "check": "attempt submodel == seed_plan submodel",
+          "ok": true
+        },
+        {
+          "check": "injector component is fsu",
+          "ok": true
+        },
+        {
+          "check": "exactly one component fault (max_faults=1)",
+          "ok": true
+        },
+        {
+          "check": "permanent_stuck enabled",
+          "ok": true
+        },
+        {
+          "check": "fault_mask == seed_plan mask",
+          "ok": true
+        },
+        {
+          "check": "precision == seed_plan precision",
+          "ok": true
+        },
+        {
+          "check": "stuck_polarity == seed_plan polarity",
+          "ok": true
+        },
+        {
+          "check": "lane_width == seed_plan lane_width",
+          "ok": true
+        },
+        {
+          "check": "lane_offset == seed_plan lane_offset",
+          "ok": true
+        },
+        {
+          "check": "f5_warmup == seed_plan warmup",
+          "ok": true
+        },
+        {
+          "check": "f5_sample_limit == seed_plan sample.limit",
+          "ok": true
+        },
+        {
+          "check": "f5_keep_first_last_n == seed_plan sample.keep_first_last_n",
+          "ok": true
+        },
+        {
+          "check": "op_classes == seed_plan op_classes",
+          "ok": true
+        },
+        {
+          "check": "reg_class == seed_plan reg_class",
+          "ok": true
+        },
+        {
+          "check": "decode_guard == seed_plan decode_guard",
+          "ok": true
+        },
+        {
+          "check": "attempt seed_plan_entry == suite seed_plan entry",
+          "ok": true
+        },
+        {
+          "check": "binary is the registered program binary",
+          "ok": true
+        },
+        {
+          "check": "run_id is the gate id, not a formal RunID",
+          "ok": true
+        },
+        {
+          "check": "component manifest structure/identity",
+          "ok": true
+        },
+        {
+          "check": "component_status == admitted",
+          "ok": true
+        },
+        {
+          "check": "component_oracle is SDC or MASKED",
+          "ok": true
+        },
+        {
+          "check": "component seed_plan_entry == pre-registration",
+          "ok": true
+        },
+        {
+          "check": "component_manifest_sha256 == attempt manifest.json",
+          "ok": true
+        },
+        {
+          "check": "independent audit.ok",
+          "ok": true
+        },
+        {
+          "check": "independent audit.certified",
+          "ok": true
+        },
+        {
+          "check": "oracle_elements.json exists",
+          "ok": true
+        },
+        {
+          "check": "inject/array.bin exists",
+          "ok": true
+        },
+        {
+          "check": "oracle/array covered by evidence_sha256.json",
+          "ok": true
+        }
+      ],
+      "component_oracle": "SDC",
+      "component_eligible": 1393944,
+      "component_activated": 1,
+      "component_terminal": "full",
+      "ok": true,
+      "run_status": null
+    },
+    {
+      "program_id": "2mm",
+      "program_index": 1,
+      "attempt": "runs/fsu-gates/F5-FP06-W5-GATE-v5/gate-seed1/components/2mm/FSU-FP06-F5-W5-GATE/seed11619651366395148639/attempt-1",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "check": "attempt directory exists",
+          "ok": true
+        },
+        {
+          "check": "attempt manifest.json exists",
+          "ok": true
+        },
+        {
+          "check": "attempt freq is F5",
+          "ok": true
+        },
+        {
+          "check": "attempt model_id is FP06",
+          "ok": true
+        },
+        {
+          "check": "attempt load_id is W5",
+          "ok": true
+        },
+        {
+          "check": "attempt submodel == seed_plan submodel",
+          "ok": true
+        },
+        {
+          "check": "injector component is fsu",
+          "ok": true
+        },
+        {
+          "check": "exactly one component fault (max_faults=1)",
+          "ok": true
+        },
+        {
+          "check": "permanent_stuck enabled",
+          "ok": true
+        },
+        {
+          "check": "fault_mask == seed_plan mask",
+          "ok": true
+        },
+        {
+          "check": "precision == seed_plan precision",
+          "ok": true
+        },
+        {
+          "check": "stuck_polarity == seed_plan polarity",
+          "ok": true
+        },
+        {
+          "check": "lane_width == seed_plan lane_width",
+          "ok": true
+        },
+        {
+          "check": "lane_offset == seed_plan lane_offset",
+          "ok": true
+        },
+        {
+          "check": "f5_warmup == seed_plan warmup",
+          "ok": true
+        },
+        {
+          "check": "f5_sample_limit == seed_plan sample.limit",
+          "ok": true
+        },
+        {
+          "check": "f5_keep_first_last_n == seed_plan sample.keep_first_last_n",
+          "ok": true
+        },
+        {
+          "check": "op_classes == seed_plan op_classes",
+          "ok": true
+        },
+        {
+          "check": "reg_class == seed_plan reg_class",
+          "ok": true
+        },
+        {
+          "check": "decode_guard == seed_plan decode_guard",
+          "ok": true
+        },
+        {
+          "check": "attempt seed_plan_entry == suite seed_plan entry",
+          "ok": true
+        },
+        {
+          "check": "binary is the registered program binary",
+          "ok": true
+        },
+        {
+          "check": "run_id is the gate id, not a formal RunID",
+          "ok": true
+        },
+        {
+          "check": "component manifest structure/identity",
+          "ok": true
+        },
+        {
+          "check": "component_status == admitted",
+          "ok": true
+        },
+        {
+          "check": "component_oracle is SDC or MASKED",
+          "ok": true
+        },
+        {
+          "check": "component seed_plan_entry == pre-registration",
+          "ok": true
+        },
+        {
+          "check": "component_manifest_sha256 == attempt manifest.json",
+          "ok": true
+        },
+        {
+          "check": "independent audit.ok",
+          "ok": true
+        },
+        {
+          "check": "independent audit.certified",
+          "ok": true
+        },
+        {
+          "check": "oracle_elements.json exists",
+          "ok": true
+        },
+        {
+          "check": "inject/array.bin exists",
+          "ok": true
+        },
+        {
+          "check": "oracle/array covered by evidence_sha256.json",
+          "ok": true
+        }
+      ],
+      "component_oracle": "SDC",
+      "component_eligible": 1145697,
+      "component_activated": 1,
+      "component_terminal": "full",
+      "ok": true,
+      "run_status": null
+    },
+    {
+      "program_id": "lu",
+      "program_index": 2,
+      "attempt": "runs/fsu-gates/F5-FP06-W5-GATE-v5/gate-seed1/components/lu/FSU-FP06-F5-W5-GATE/seed11876213844782747763/attempt-1",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "check": "attempt directory exists",
+          "ok": true
+        },
+        {
+          "check": "attempt manifest.json exists",
+          "ok": true
+        },
+        {
+          "check": "attempt freq is F5",
+          "ok": true
+        },
+        {
+          "check": "attempt model_id is FP06",
+          "ok": true
+        },
+        {
+          "check": "attempt load_id is W5",
+          "ok": true
+        },
+        {
+          "check": "attempt submodel == seed_plan submodel",
+          "ok": true
+        },
+        {
+          "check": "injector component is fsu",
+          "ok": true
+        },
+        {
+          "check": "exactly one component fault (max_faults=1)",
+          "ok": true
+        },
+        {
+          "check": "permanent_stuck enabled",
+          "ok": true
+        },
+        {
+          "check": "fault_mask == seed_plan mask",
+          "ok": true
+        },
+        {
+          "check": "precision == seed_plan precision",
+          "ok": true
+        },
+        {
+          "check": "stuck_polarity == seed_plan polarity",
+          "ok": true
+        },
+        {
+          "check": "lane_width == seed_plan lane_width",
+          "ok": true
+        },
+        {
+          "check": "lane_offset == seed_plan lane_offset",
+          "ok": true
+        },
+        {
+          "check": "f5_warmup == seed_plan warmup",
+          "ok": true
+        },
+        {
+          "check": "f5_sample_limit == seed_plan sample.limit",
+          "ok": true
+        },
+        {
+          "check": "f5_keep_first_last_n == seed_plan sample.keep_first_last_n",
+          "ok": true
+        },
+        {
+          "check": "op_classes == seed_plan op_classes",
+          "ok": true
+        },
+        {
+          "check": "reg_class == seed_plan reg_class",
+          "ok": true
+        },
+        {
+          "check": "decode_guard == seed_plan decode_guard",
+          "ok": true
+        },
+        {
+          "check": "attempt seed_plan_entry == suite seed_plan entry",
+          "ok": true
+        },
+        {
+          "check": "binary is the registered program binary",
+          "ok": true
+        },
+        {
+          "check": "run_id is the gate id, not a formal RunID",
+          "ok": true
+        },
+        {
+          "check": "component manifest structure/identity",
+          "ok": true
+        },
+        {
+          "check": "component_status == admitted",
+          "ok": true
+        },
+        {
+          "check": "component_oracle is SDC or MASKED",
+          "ok": true
+        },
+        {
+          "check": "component seed_plan_entry == pre-registration",
+          "ok": true
+        },
+        {
+          "check": "component_manifest_sha256 == attempt manifest.json",
+          "ok": true
+        },
+        {
+          "check": "independent audit.ok",
+          "ok": true
+        },
+        {
+          "check": "independent audit.certified",
+          "ok": true
+        },
+        {
+          "check": "oracle_elements.json exists",
+          "ok": true
+        },
+        {
+          "check": "inject/array.bin exists",
+          "ok": true
+        },
+        {
+          "check": "oracle/array covered by evidence_sha256.json",
+          "ok": true
+        }
+      ],
+      "component_oracle": "SDC",
+      "component_eligible": 800982,
+      "component_activated": 1,
+      "component_terminal": "full",
+      "ok": true,
+      "run_status": null
+    },
+    {
+      "program_id": "cholesky",
+      "program_index": 3,
+      "attempt": "runs/fsu-gates/F5-FP06-W5-GATE-v5/gate-seed1/components/cholesky/FSU-FP06-F5-W5-GATE/seed11734857743562195419/attempt-1",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "check": "attempt directory exists",
+          "ok": true
+        },
+        {
+          "check": "attempt manifest.json exists",
+          "ok": true
+        },
+        {
+          "check": "attempt freq is F5",
+          "ok": true
+        },
+        {
+          "check": "attempt model_id is FP06",
+          "ok": true
+        },
+        {
+          "check": "attempt load_id is W5",
+          "ok": true
+        },
+        {
+          "check": "attempt submodel == seed_plan submodel",
+          "ok": true
+        },
+        {
+          "check": "injector component is fsu",
+          "ok": true
+        },
+        {
+          "check": "exactly one component fault (max_faults=1)",
+          "ok": true
+        },
+        {
+          "check": "permanent_stuck enabled",
+          "ok": true
+        },
+        {
+          "check": "fault_mask == seed_plan mask",
+          "ok": true
+        },
+        {
+          "check": "precision == seed_plan precision",
+          "ok": true
+        },
+        {
+          "check": "stuck_polarity == seed_plan polarity",
+          "ok": true
+        },
+        {
+          "check": "lane_width == seed_plan lane_width",
+          "ok": true
+        },
+        {
+          "check": "lane_offset == seed_plan lane_offset",
+          "ok": true
+        },
+        {
+          "check": "f5_warmup == seed_plan warmup",
+          "ok": true
+        },
+        {
+          "check": "f5_sample_limit == seed_plan sample.limit",
+          "ok": true
+        },
+        {
+          "check": "f5_keep_first_last_n == seed_plan sample.keep_first_last_n",
+          "ok": true
+        },
+        {
+          "check": "op_classes == seed_plan op_classes",
+          "ok": true
+        },
+        {
+          "check": "reg_class == seed_plan reg_class",
+          "ok": true
+        },
+        {
+          "check": "decode_guard == seed_plan decode_guard",
+          "ok": true
+        },
+        {
+          "check": "attempt seed_plan_entry == suite seed_plan entry",
+          "ok": true
+        },
+        {
+          "check": "binary is the registered program binary",
+          "ok": true
+        },
+        {
+          "check": "run_id is the gate id, not a formal RunID",
+          "ok": true
+        },
+        {
+          "check": "component manifest structure/identity",
+          "ok": true
+        },
+        {
+          "check": "component_status == admitted",
+          "ok": true
+        },
+        {
+          "check": "component_oracle is SDC or MASKED",
+          "ok": true
+        },
+        {
+          "check": "component seed_plan_entry == pre-registration",
+          "ok": true
+        },
+        {
+          "check": "component_manifest_sha256 == attempt manifest.json",
+          "ok": true
+        },
+        {
+          "check": "independent audit.ok",
+          "ok": true
+        },
+        {
+          "check": "independent audit.certified",
+          "ok": true
+        },
+        {
+          "check": "oracle_elements.json exists",
+          "ok": true
+        },
+        {
+          "check": "inject/array.bin exists",
+          "ok": true
+        },
+        {
+          "check": "oracle/array covered by evidence_sha256.json",
+          "ok": true
+        }
+      ],
+      "component_oracle": "SDC",
+      "component_eligible": 810725,
+      "component_activated": 1,
+      "component_terminal": "full",
+      "ok": true,
+      "run_status": null
+    },
+    {
+      "program_id": "jacobi-2d",
+      "program_index": 4,
+      "attempt": "runs/fsu-gates/F5-FP06-W5-GATE-v5/gate-seed1/components/jacobi-2d/FSU-FP06-F5-W5-GATE/seed1898146363856152889/attempt-1",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "check": "attempt directory exists",
+          "ok": true
+        },
+        {
+          "check": "attempt manifest.json exists",
+          "ok": true
+        },
+        {
+          "check": "attempt freq is F5",
+          "ok": true
+        },
+        {
+          "check": "attempt model_id is FP06",
+          "ok": true
+        },
+        {
+          "check": "attempt load_id is W5",
+          "ok": true
+        },
+        {
+          "check": "attempt submodel == seed_plan submodel",
+          "ok": true
+        },
+        {
+          "check": "injector component is fsu",
+          "ok": true
+        },
+        {
+          "check": "exactly one component fault (max_faults=1)",
+          "ok": true
+        },
+        {
+          "check": "permanent_stuck enabled",
+          "ok": true
+        },
+        {
+          "check": "fault_mask == seed_plan mask",
+          "ok": true
+        },
+        {
+          "check": "precision == seed_plan precision",
+          "ok": true
+        },
+        {
+          "check": "stuck_polarity == seed_plan polarity",
+          "ok": true
+        },
+        {
+          "check": "lane_width == seed_plan lane_width",
+          "ok": true
+        },
+        {
+          "check": "lane_offset == seed_plan lane_offset",
+          "ok": true
+        },
+        {
+          "check": "f5_warmup == seed_plan warmup",
+          "ok": true
+        },
+        {
+          "check": "f5_sample_limit == seed_plan sample.limit",
+          "ok": true
+        },
+        {
+          "check": "f5_keep_first_last_n == seed_plan sample.keep_first_last_n",
+          "ok": true
+        },
+        {
+          "check": "op_classes == seed_plan op_classes",
+          "ok": true
+        },
+        {
+          "check": "reg_class == seed_plan reg_class",
+          "ok": true
+        },
+        {
+          "check": "decode_guard == seed_plan decode_guard",
+          "ok": true
+        },
+        {
+          "check": "attempt seed_plan_entry == suite seed_plan entry",
+          "ok": true
+        },
+        {
+          "check": "binary is the registered program binary",
+          "ok": true
+        },
+        {
+          "check": "run_id is the gate id, not a formal RunID",
+          "ok": true
+        },
+        {
+          "check": "component manifest structure/identity",
+          "ok": true
+        },
+        {
+          "check": "component_status == admitted",
+          "ok": true
+        },
+        {
+          "check": "component_oracle is SDC or MASKED",
+          "ok": true
+        },
+        {
+          "check": "component seed_plan_entry == pre-registration",
+          "ok": true
+        },
+        {
+          "check": "component_manifest_sha256 == attempt manifest.json",
+          "ok": true
+        },
+        {
+          "check": "independent audit.ok",
+          "ok": true
+        },
+        {
+          "check": "independent audit.certified",
+          "ok": true
+        },
+        {
+          "check": "oracle_elements.json exists",
+          "ok": true
+        },
+        {
+          "check": "inject/array.bin exists",
+          "ok": true
+        },
+        {
+          "check": "oracle/array covered by evidence_sha256.json",
+          "ok": true
+        }
+      ],
+      "component_oracle": "SDC",
+      "component_eligible": 2099624,
+      "component_activated": 1,
+      "component_terminal": "full",
+      "ok": true,
+      "run_status": null
+    }
+  ],
+  "ok": true
+}

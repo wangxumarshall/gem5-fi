@@ -1,0 +1,272 @@
+{
+  "suite_id": "polybench-fp-v1-f5",
+  "suite_version": "1",
+  "suite_hash": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581",
+  "suite_seed": 3,
+  "run_id": "FSU-FP06-F5-W5",
+  "component_run_count": 5,
+  "component_eligible_total": 6250972,
+  "component_activated_total": 5,
+  "component_fault_total": 5,
+  "formal_suite_seed_count": 1,
+  "checks": [
+    {
+      "check": "suite_manifest.json 存在",
+      "ok": true
+    },
+    {
+      "check": "suite 身份与 suite_hash",
+      "ok": true
+    },
+    {
+      "check": "suite_manifest.suite_hash 与重算一致",
+      "ok": true
+    },
+    {
+      "check": "component manifest 结构/顺序/哈希",
+      "ok": true
+    },
+    {
+      "check": "gemm attempt 存在",
+      "ok": true
+    },
+    {
+      "check": "gemm component_manifest.json 存在",
+      "ok": true
+    },
+    {
+      "check": "gemm component manifest 校验",
+      "ok": true
+    },
+    {
+      "check": "gemm component_manifest_sha256 与 attempt manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "gemm 独立 audit.ok",
+      "ok": true
+    },
+    {
+      "check": "gemm audit.certified",
+      "ok": true
+    },
+    {
+      "check": "gemm component_status=admitted",
+      "ok": true
+    },
+    {
+      "check": "gemm oracle_elements.json 存在",
+      "ok": true
+    },
+    {
+      "check": "gemm inject/array.bin 存在",
+      "ok": true
+    },
+    {
+      "check": "gemm oracle/array 已被证据 SHA 覆盖",
+      "ok": true
+    },
+    {
+      "check": "gemm component_oracle 为 SDC/MASKED",
+      "ok": true
+    },
+    {
+      "check": "2mm attempt 存在",
+      "ok": true
+    },
+    {
+      "check": "2mm component_manifest.json 存在",
+      "ok": true
+    },
+    {
+      "check": "2mm component manifest 校验",
+      "ok": true
+    },
+    {
+      "check": "2mm component_manifest_sha256 与 attempt manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "2mm 独立 audit.ok",
+      "ok": true
+    },
+    {
+      "check": "2mm audit.certified",
+      "ok": true
+    },
+    {
+      "check": "2mm component_status=admitted",
+      "ok": true
+    },
+    {
+      "check": "2mm oracle_elements.json 存在",
+      "ok": true
+    },
+    {
+      "check": "2mm inject/array.bin 存在",
+      "ok": true
+    },
+    {
+      "check": "2mm oracle/array 已被证据 SHA 覆盖",
+      "ok": true
+    },
+    {
+      "check": "2mm component_oracle 为 SDC/MASKED",
+      "ok": true
+    },
+    {
+      "check": "lu attempt 存在",
+      "ok": true
+    },
+    {
+      "check": "lu component_manifest.json 存在",
+      "ok": true
+    },
+    {
+      "check": "lu component manifest 校验",
+      "ok": true
+    },
+    {
+      "check": "lu component_manifest_sha256 与 attempt manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "lu 独立 audit.ok",
+      "ok": true
+    },
+    {
+      "check": "lu audit.certified",
+      "ok": true
+    },
+    {
+      "check": "lu component_status=admitted",
+      "ok": true
+    },
+    {
+      "check": "lu oracle_elements.json 存在",
+      "ok": true
+    },
+    {
+      "check": "lu inject/array.bin 存在",
+      "ok": true
+    },
+    {
+      "check": "lu oracle/array 已被证据 SHA 覆盖",
+      "ok": true
+    },
+    {
+      "check": "lu component_oracle 为 SDC/MASKED",
+      "ok": true
+    },
+    {
+      "check": "cholesky attempt 存在",
+      "ok": true
+    },
+    {
+      "check": "cholesky component_manifest.json 存在",
+      "ok": true
+    },
+    {
+      "check": "cholesky component manifest 校验",
+      "ok": true
+    },
+    {
+      "check": "cholesky component_manifest_sha256 与 attempt manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "cholesky 独立 audit.ok",
+      "ok": true
+    },
+    {
+      "check": "cholesky audit.certified",
+      "ok": true
+    },
+    {
+      "check": "cholesky component_status=admitted",
+      "ok": true
+    },
+    {
+      "check": "cholesky oracle_elements.json 存在",
+      "ok": true
+    },
+    {
+      "check": "cholesky inject/array.bin 存在",
+      "ok": true
+    },
+    {
+      "check": "cholesky oracle/array 已被证据 SHA 覆盖",
+      "ok": true
+    },
+    {
+      "check": "cholesky component_oracle 为 SDC/MASKED",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d attempt 存在",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d component_manifest.json 存在",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d component manifest 校验",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d component_manifest_sha256 与 attempt manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d 独立 audit.ok",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d audit.certified",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d component_status=admitted",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d oracle_elements.json 存在",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d inject/array.bin 存在",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d oracle/array 已被证据 SHA 覆盖",
+      "ok": true
+    },
+    {
+      "check": "jacobi-2d component_oracle 为 SDC/MASKED",
+      "ok": true
+    },
+    {
+      "check": "suite_report.json 存在",
+      "ok": true
+    },
+    {
+      "check": "suite_report 声明 5 个 component run",
+      "ok": true
+    },
+    {
+      "check": "suite_report 未把 component 数当 seed 数",
+      "ok": true
+    },
+    {
+      "check": "suite_report suite_hash 一致",
+      "ok": true
+    },
+    {
+      "check": "suite_report eligible/activated 汇总一致",
+      "ok": true
+    }
+  ],
+  "failures": [],
+  "ok": true
+}

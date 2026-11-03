@@ -1,0 +1,67 @@
+VecStuckInstall: cycle=0 fault=1 phys=0 gen=1 lane=0 mask=0x7f8000 polarity=0 correct=0x0 stuck=0x0 activated=0
+  [vec lane 0/64 width=32bits mask=0x7f8000]
+Cycle: 0, CPU: board.processor.cores.core, Thread: 0, Mode: phys, RegClass: vec, PhysReg[0] (Active, mapped from ArchReg[0]), semanticRole: FR03, FaultType: stuck_at_zero, Mask: 0000000000000000000000000000000000000000011111111000000000000000, FreeListSize: 4, faults_injected: 1
+VecStuckApply: cycle=30234 phys=0 gen=2 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=30243 phys=0 gen=3 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0xc00cc00c after=0xc000400c activated=1
+VecStuckApply: cycle=30516 phys=0 gen=4 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x30000000 after=0x30000000 activated=0
+VecStuckApply: cycle=30541 phys=0 gen=5 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=30566 phys=0 gen=6 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x30000 after=0x0 activated=1
+VecStuckApply: cycle=30580 phys=0 gen=7 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=34549 phys=0 gen=8 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3e800000 after=0x3e800000 activated=0
+ReadTracePoll: cycle 100000 PhysReg[0] reads_before_overwrite=2640 overwritten=0
+ReadTracePoll: cycle 200000 PhysReg[0] reads_before_overwrite=6735 overwritten=0
+ReadTracePoll: cycle 300000 PhysReg[0] reads_before_overwrite=10831 overwritten=0
+ReadTracePoll: cycle 400000 PhysReg[0] reads_before_overwrite=14926 overwritten=0
+ReadTracePoll: cycle 500000 PhysReg[0] reads_before_overwrite=19022 overwritten=0
+ReadTracePoll: cycle 600000 PhysReg[0] reads_before_overwrite=23084 overwritten=0
+ReadTracePoll: cycle 700000 PhysReg[0] reads_before_overwrite=27180 overwritten=0
+ReadTracePoll: cycle 800000 PhysReg[0] reads_before_overwrite=31278 overwritten=0
+ReadTracePoll: cycle 900000 PhysReg[0] reads_before_overwrite=35375 overwritten=0
+ReadTracePoll: cycle 1000000 PhysReg[0] reads_before_overwrite=39472 overwritten=0
+ReadTracePoll: cycle 1100000 PhysReg[0] reads_before_overwrite=43569 overwritten=0
+ReadTracePoll: cycle 1200000 PhysReg[0] reads_before_overwrite=47639 overwritten=0
+ReadTracePoll: cycle 1300000 PhysReg[0] reads_before_overwrite=51735 overwritten=0
+ReadTracePoll: cycle 1400000 PhysReg[0] reads_before_overwrite=55830 overwritten=0
+ReadTracePoll: cycle 1500000 PhysReg[0] reads_before_overwrite=59926 overwritten=0
+ReadTracePoll: cycle 1600000 PhysReg[0] reads_before_overwrite=64021 overwritten=0
+ReadTracePoll: cycle 1700000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 1800000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 1900000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2000000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2100000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2200000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2300000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2400000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2500000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2600000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2700000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2800000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 2900000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3000000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3100000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3200000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3300000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3400000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3500000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3600000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3700000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3800000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 3900000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4000000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4100000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4200000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4300000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4400000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4500000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4600000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4700000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4800000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 4900000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 5000000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 5100000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 5200000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 5300000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 5400000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 5500000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+ReadTracePoll: cycle 5600000 PhysReg[0] reads_before_overwrite=65554 overwritten=0
+CHAOS_L0: CHAOSPhysReg: target=0 reads=65554 overwritten=0 at=0 hit=1

@@ -1,0 +1,345 @@
+{
+  "gate": "F5-FP06-W4",
+  "generated_at": "2026-11-04T01:24:01",
+  "passed": true,
+  "formal_suite_seed_count": 0,
+  "standalone_seed_count": 0,
+  "checks": [
+    {
+      "check": "full: runner status",
+      "pass": true,
+      "detail": {
+        "status": "admitted",
+        "attempt": "runs/fsu-gates/F5-FP06-W4-GATE/full/FSU-FP06-F5-W4-FULL-GATE/seed1/attempt-1",
+        "chain_terminal": "full",
+        "oracle": "SDC",
+        "md": "runs/fsu-gates/F5-FP06-W4-GATE/full/COMPLETE_PROPAGATION_PATHS/FSU-FP06-F5-W4-FULL-GATE/FSU-FP06-F5-W4-FULL-GATE-seed1.md"
+      }
+    },
+    {
+      "check": "sampled: runner status",
+      "pass": true,
+      "detail": {
+        "status": "admitted",
+        "attempt": "runs/fsu-gates/F5-FP06-W4-GATE/sampled/FSU-FP06-F5-W4-SAMPLED-GATE/seed1/attempt-1",
+        "chain_terminal": "full",
+        "oracle": "SDC",
+        "md": "runs/fsu-gates/F5-FP06-W4-GATE/sampled/COMPLETE_PROPAGATION_PATHS/FSU-FP06-F5-W4-SAMPLED-GATE/FSU-FP06-F5-W4-SAMPLED-GATE-seed1.md"
+      }
+    },
+    {
+      "check": "formal: runner status",
+      "pass": true,
+      "detail": {
+        "status": "admitted",
+        "attempt": "runs/fsu-gates/F5-FP06-W4-GATE/formal/FSU-FP06-F5-W4-FORMAL-BOUNDED-GATE/seed1/attempt-1",
+        "chain_terminal": "full",
+        "oracle": "SDC",
+        "md": "runs/fsu-gates/F5-FP06-W4-GATE/formal/COMPLETE_PROPAGATION_PATHS/FSU-FP06-F5-W4-FORMAL-BOUNDED-GATE/FSU-FP06-F5-W4-FORMAL-BOUNDED-GATE-seed1.md"
+      }
+    },
+    {
+      "check": "early: run not admitted",
+      "pass": true,
+      "detail": {
+        "status": "failed",
+        "attempt": "runs/fsu-gates/F5-FP06-W4-GATE/early/FSU-FP06-F5-W4-SAMPLED-GATE/seed1/attempt-1",
+        "oracle": "Hang",
+        "reason": "exceeded Hang timeout with no program checksum (control-flow corruption: never completed)",
+        "faults": 1,
+        "rate_ok": true,
+        "expected_injections": null,
+        "admitted_faults": [],
+        "truncated": true
+      }
+    },
+    {
+      "check": "full: audit.ok",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "check": "full: chain_end terminal present",
+      "pass": true,
+      "detail": "committed"
+    },
+    {
+      "check": "full: total=sampled+dropped",
+      "pass": true,
+      "detail": {
+        "root_event_id": "0",
+        "exposure_events": 32643,
+        "unique_exposure_ids": 32643,
+        "activated_events": 4077,
+        "exposures_total": 32643,
+        "exposures_sampled": 32643,
+        "exposures_dropped": 0,
+        "activated_exposure_count": 4077,
+        "first_activated_sn": 10879,
+        "eligible_seen_total": 32771,
+        "warmup_configured": 128,
+        "warmup_eligible_skipped": 128,
+        "install_eligible_ordinal": 129,
+        "post_install_eligible": 32643,
+        "eligible_without_writable_dest": 0,
+        "selected_eligible_total": 32771,
+        "eligible_delta_vs_census": 0,
+        "sampled_unique": 32643,
+        "omitted": 0,
+        "cell_sources_overflow": 0,
+        "chain_end_event_id": "32650",
+        "chain_end_terminal": "committed"
+      }
+    },
+    {
+      "check": "full: sampled == unique ids",
+      "pass": true,
+      "detail": {
+        "root_event_id": "0",
+        "exposure_events": 32643,
+        "unique_exposure_ids": 32643,
+        "activated_events": 4077,
+        "exposures_total": 32643,
+        "exposures_sampled": 32643,
+        "exposures_dropped": 0,
+        "activated_exposure_count": 4077,
+        "first_activated_sn": 10879,
+        "eligible_seen_total": 32771,
+        "warmup_configured": 128,
+        "warmup_eligible_skipped": 128,
+        "install_eligible_ordinal": 129,
+        "post_install_eligible": 32643,
+        "eligible_without_writable_dest": 0,
+        "selected_eligible_total": 32771,
+        "eligible_delta_vs_census": 0,
+        "sampled_unique": 32643,
+        "omitted": 0,
+        "cell_sources_overflow": 0,
+        "chain_end_event_id": "32650",
+        "chain_end_terminal": "committed"
+      }
+    },
+    {
+      "check": "sampled: audit.ok",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "check": "sampled: chain_end terminal present",
+      "pass": true,
+      "detail": "committed"
+    },
+    {
+      "check": "sampled: total=sampled+dropped",
+      "pass": true,
+      "detail": {
+        "root_event_id": "0",
+        "exposure_events": 514,
+        "unique_exposure_ids": 514,
+        "activated_events": 40,
+        "exposures_total": 32643,
+        "exposures_sampled": 514,
+        "exposures_dropped": 32129,
+        "activated_exposure_count": 4077,
+        "first_activated_sn": 10879,
+        "eligible_seen_total": 32771,
+        "warmup_configured": 128,
+        "warmup_eligible_skipped": 128,
+        "install_eligible_ordinal": 129,
+        "post_install_eligible": 32643,
+        "eligible_without_writable_dest": 0,
+        "selected_eligible_total": 32771,
+        "eligible_delta_vs_census": 0,
+        "sampled_unique": 514,
+        "omitted": 32129,
+        "cell_sources_overflow": 0,
+        "chain_end_event_id": "521",
+        "chain_end_terminal": "committed"
+      }
+    },
+    {
+      "check": "sampled: sampled == unique ids",
+      "pass": true,
+      "detail": {
+        "root_event_id": "0",
+        "exposure_events": 514,
+        "unique_exposure_ids": 514,
+        "activated_events": 40,
+        "exposures_total": 32643,
+        "exposures_sampled": 514,
+        "exposures_dropped": 32129,
+        "activated_exposure_count": 4077,
+        "first_activated_sn": 10879,
+        "eligible_seen_total": 32771,
+        "warmup_configured": 128,
+        "warmup_eligible_skipped": 128,
+        "install_eligible_ordinal": 129,
+        "post_install_eligible": 32643,
+        "eligible_without_writable_dest": 0,
+        "selected_eligible_total": 32771,
+        "eligible_delta_vs_census": 0,
+        "sampled_unique": 514,
+        "omitted": 32129,
+        "cell_sources_overflow": 0,
+        "chain_end_event_id": "521",
+        "chain_end_terminal": "committed"
+      }
+    },
+    {
+      "check": "formal: audit.ok",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "check": "formal: chain_end terminal present",
+      "pass": true,
+      "detail": "committed"
+    },
+    {
+      "check": "full == sampled: exposures_total",
+      "pass": true,
+      "detail": {
+        "full": 32643,
+        "sampled": 32643
+      }
+    },
+    {
+      "check": "full == sampled: activated_exposure_count",
+      "pass": true,
+      "detail": {
+        "full": 4077,
+        "sampled": 4077
+      }
+    },
+    {
+      "check": "full == sampled: faults_injected",
+      "pass": true,
+      "detail": {
+        "full": 1,
+        "sampled": 1
+      }
+    },
+    {
+      "check": "full == sampled: oracle",
+      "pass": true,
+      "detail": {
+        "full": "SDC",
+        "sampled": "SDC"
+      }
+    },
+    {
+      "check": "formal: prop_evt bounded (< 200000 events)",
+      "pass": true,
+      "detail": {
+        "event_count": 521,
+        "truncated": false,
+        "prop_evt_bytes": 73084,
+        "injection_log_bytes": 381988508
+      }
+    },
+    {
+      "check": "formal: evidence files bounded",
+      "pass": true,
+      "detail": {
+        "event_count": 521,
+        "truncated": false,
+        "prop_evt_bytes": 73084,
+        "injection_log_bytes": 381988508
+      }
+    },
+    {
+      "check": "early: audit is NOT ok (fail-closed)",
+      "pass": true,
+      "detail": [
+        "prop_evt 未截断（reason=EOFError:Compressed file ended before the end-of-stream marker was reached）",
+        "所有 fault 均 admitted",
+        "所有 fault 均 certified",
+        "链 admitted=True",
+        "链 certified=True",
+        "链 violations=[]",
+        "存在 admitted fault",
+        "stats.txt 非空"
+      ]
+    },
+    {
+      "check": "early: no AUTHORITATIVE",
+      "pass": true,
+      "detail": "runs/fsu-gates/F5-FP06-W4-GATE/early/FSU-FP06-F5-W4-SAMPLED-GATE/seed1/AUTHORITATIVE"
+    },
+    {
+      "check": "early: no injector chain_end",
+      "pass": true,
+      "detail": {
+        "has_end": false
+      }
+    }
+  ],
+  "stats": {
+    "full": {
+      "attempt": "runs/fsu-gates/F5-FP06-W4-GATE/full/FSU-FP06-F5-W4-FULL-GATE/seed1/attempt-1",
+      "audit_ok": true,
+      "audit_failures": [],
+      "oracle": "SDC",
+      "faults_injected": 1,
+      "exposures_total": 32643,
+      "activated_exposure_count": 4077,
+      "exposures_sampled": 32643,
+      "exposures_dropped": 0,
+      "sampled_unique": 32643,
+      "eligible_seen_total": 32771,
+      "chain_end_terminal": "committed",
+      "artifacts": {
+        "event_count": 32651,
+        "truncated": false,
+        "prop_evt_bytes": 4722066,
+        "injection_log_bytes": 9337549
+      }
+    },
+    "sampled": {
+      "attempt": "runs/fsu-gates/F5-FP06-W4-GATE/sampled/FSU-FP06-F5-W4-SAMPLED-GATE/seed1/attempt-1",
+      "audit_ok": true,
+      "audit_failures": [],
+      "oracle": "SDC",
+      "faults_injected": 1,
+      "exposures_total": 32643,
+      "activated_exposure_count": 4077,
+      "exposures_sampled": 514,
+      "exposures_dropped": 32129,
+      "sampled_unique": 514,
+      "eligible_seen_total": 32771,
+      "chain_end_terminal": "committed",
+      "artifacts": {
+        "event_count": 522,
+        "truncated": false,
+        "prop_evt_bytes": 75829,
+        "injection_log_bytes": 9337549
+      }
+    },
+    "formal": {
+      "attempt": "runs/fsu-gates/F5-FP06-W4-GATE/formal/FSU-FP06-F5-W4-FORMAL-BOUNDED-GATE/seed1/attempt-1",
+      "audit_ok": true,
+      "audit_failures": [],
+      "oracle": "SDC",
+      "faults_injected": 1,
+      "exposures_total": 1309699,
+      "activated_exposure_count": 130814,
+      "exposures_sampled": 513,
+      "exposures_dropped": 1309186,
+      "sampled_unique": 513,
+      "eligible_seen_total": 1310723,
+      "chain_end_terminal": "committed",
+      "artifacts": {
+        "event_count": 521,
+        "truncated": false,
+        "prop_evt_bytes": 73084,
+        "injection_log_bytes": 381988508
+      }
+    }
+  },
+  "attempts": {
+    "full": "runs/fsu-gates/F5-FP06-W4-GATE/full/FSU-FP06-F5-W4-FULL-GATE/seed1/attempt-1",
+    "sampled": "runs/fsu-gates/F5-FP06-W4-GATE/sampled/FSU-FP06-F5-W4-SAMPLED-GATE/seed1/attempt-1",
+    "formal": "runs/fsu-gates/F5-FP06-W4-GATE/formal/FSU-FP06-F5-W4-FORMAL-BOUNDED-GATE/seed1/attempt-1",
+    "early": "runs/fsu-gates/F5-FP06-W4-GATE/early/FSU-FP06-F5-W4-SAMPLED-GATE/seed1/attempt-1"
+  }
+}

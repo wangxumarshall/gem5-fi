@@ -1,0 +1,141 @@
+{
+  "run_id": "FSU-FP06-F5-W5",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W5",
+  "submodel": "FP06-c",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/ooo/polybench/jacobi-2d/jacobi-2d",
+    "source": "workloads/ooo/polybench/stencils/jacobi-2d/jacobi-2d.c",
+    "identity": "W5-polybench-jacobi-2d-v1",
+    "golden": "dc867b5f02998c1e",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/jacobi-2d.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "jacobi-2d",
+        "golden_id": "polybenchjacobi2d-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          160,
+          160
+        ],
+        "count": 25600,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "f5_warmup": 1024,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256,
+      "op_classes": [],
+      "reg_class": "any",
+      "stuck_polarity": 0
+    },
+    "fault_mask": "0x007f8000"
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1-f5",
+    "suite_version": "1",
+    "suite_hash": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581",
+    "suite_seed": 3,
+    "program_id": "jacobi-2d",
+    "program_index": 4,
+    "program_count": 5,
+    "component_seed": 9842723862644389253,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "notes": "W5 suite component run: exactly one program and exactly one injected fault; not a formal suite seed by itself.",
+  "program_override": null,
+  "effective_injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "f5_warmup": 1024,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256,
+      "op_classes": [],
+      "reg_class": "any",
+      "stuck_polarity": 0
+    },
+    "fault_mask": "0x007f8000"
+  },
+  "seed_plan_entry": {
+    "suite_seed": 3,
+    "submodel": "FP06-c",
+    "mask": "0x007f8000",
+    "polarity": 0,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true,
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  },
+  "pre_registration": {
+    "suite_seed": 3,
+    "submodel": "FP06-c",
+    "mask": "0x007f8000",
+    "polarity": 0,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true,
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  },
+  "seed": 9842723862644389253,
+  "sample_run_id": "s9842723862644389253",
+  "selection_seed": 9842723862644389253,
+  "injection_seed": 9842723862644389253,
+  "attempt": 1,
+  "created_at": "2026-11-04T03:33:00",
+  "source_head": "f7473c545c2483f5cc74c720405a8188725f7d11",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "04be57c3a2383fb53b1beff2b4358abe1c8c589baae7808228ed593db5344dda",
+  "runner_tool_sha256": "3417b6abebea8a683f348584cf87cfc34d56863fbd004813bfa929fd10bbc6b9",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/ooo/polybench/jacobi-2d/jacobi-2d",
+  "workload_sha256": "91ca3f4175b7e1177e36463db6e1ef8de349dd2afd399c441b000d7f5f7a423c"
+}

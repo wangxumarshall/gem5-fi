@@ -1,0 +1,464 @@
+{
+  "run_id": "FSU-FP06-F5-W5",
+  "seed": 18166053919936268521,
+  "sample_run_id": "s18166053919936268521",
+  "attempt": "attempt-1",
+  "gzip_eof_ok": true,
+  "truncation_reason": "",
+  "event_count": 521,
+  "identity_ok": true,
+  "identity_violations": [],
+  "direct_parent_chain": true,
+  "edges": [
+    {
+      "from": "0",
+      "to": "1",
+      "ok": true
+    },
+    {
+      "from": "1",
+      "to": "3",
+      "ok": true
+    },
+    {
+      "from": "3",
+      "to": "4",
+      "ok": true
+    },
+    {
+      "from": "4",
+      "to": "7",
+      "ok": true
+    },
+    {
+      "from": "7",
+      "to": "8",
+      "ok": true
+    },
+    {
+      "from": "8",
+      "to": "520",
+      "ok": true
+    }
+  ],
+  "tick_monotonic": true,
+  "layers": [
+    "L0",
+    "L1",
+    "L2",
+    "L4",
+    "L5"
+  ],
+  "layers_na": [
+    "L3"
+  ],
+  "l5_witness": {
+    "event_id": "8",
+    "kind": "commit",
+    "outcome": "errant_commit"
+  },
+  "oracle": "SDC",
+  "oracle_reason": "completed exit=0, checksum a3ed7052a88521eb != golden ea7e0d0e7c86582d — silent data corruption",
+  "run_level_oracle": {
+    "category": "SDC",
+    "reason": "completed exit=0, checksum a3ed7052a88521eb != golden ea7e0d0e7c86582d — silent data corruption",
+    "faults_injected": 1,
+    "eligible_count": 810725
+  },
+  "chain_terminal": "full",
+  "fault_count": 1,
+  "fault_terminals": {
+    "1": "full"
+  },
+  "all_faults_admitted": true,
+  "all_faults_certified": true,
+  "fault_audit": [
+    {
+      "fault_id": "1",
+      "terminal": "full",
+      "admitted": true,
+      "certified": true,
+      "violations": [],
+      "layers": [
+        "L0",
+        "L1",
+        "L2",
+        "L4",
+        "L5"
+      ],
+      "layers_na": [
+        "L3"
+      ],
+      "direct_parent_chain": true,
+      "edges": [
+        {
+          "from": "0",
+          "to": "1",
+          "ok": true
+        },
+        {
+          "from": "1",
+          "to": "3",
+          "ok": true
+        },
+        {
+          "from": "3",
+          "to": "4",
+          "ok": true
+        },
+        {
+          "from": "4",
+          "to": "7",
+          "ok": true
+        },
+        {
+          "from": "7",
+          "to": "8",
+          "ok": true
+        },
+        {
+          "from": "8",
+          "to": "520",
+          "ok": true
+        }
+      ],
+      "tick_monotonic": true,
+      "l5_witness": {
+        "event_id": "8",
+        "kind": "commit",
+        "outcome": "errant_commit"
+      },
+      "containment_event_id": null,
+      "containment_layer": null
+    }
+  ],
+  "stats_nonempty": true,
+  "evidence_sha256": {
+    "FSU-FP06-F5-W5-seed18166053919936268521.md": "fbaddf8e6158395db38c9cc13266ee4a5eede848289a11e811fb82c8e27c604f",
+    "census/citations.bib": "107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5",
+    "census/config.ini": "3d298941daeb7d49f7984aad7dcb44f7f57f514ec81fd4298a929ab3c4fece9f",
+    "census/config.json": "2b5b401d5ad2642ba80bb42c7b4df62a79345a82010db32a81d5eeb2231ebce9",
+    "census/fpu_injections.log": "6888b5f440be65818781c1e962672d465a94da01be8d84aea2d5b24ec3abc9aa",
+    "census/stats.txt": "72bba2e391985b0c5f0eb736b3bfe94f262dc53a90e7e7038adfdb8e2af3f51b",
+    "census.err": "83d08de2fb2bec371fda146b8d893c9461a9e8568f72ea943fc0c7010f4e08a0",
+    "census.out": "ebd792f6461d512abb42df564d9864a21c462de74f95e4b3be8c792d316f3851",
+    "chain_report.json": "738ab7fe644ca5330e1e91a2082a99085f705af3aeb6d7bfbe3feb062241cc66",
+    "component_manifest.json": "eb0b1447a8daa1cdb953b2ab27a7b25e3f6128136fb010b712026cb430c9f5f9",
+    "inject/array.bin": "0f4c215ca763a24e4f65f7d18744d75c6e55a31caa8edd6295ad78d970565820",
+    "inject/citations.bib": "107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5",
+    "inject/config.ini": "77babc9eef556145cd964dd326ee460f75658ca0da4b2038dbf6c62dad18dcf8",
+    "inject/config.json": "28697c2071db16d5eddc95565881259fd11cffabdffc39eb06c07737727209a5",
+    "inject/fpu_injections.log.gz": "6d9432d44a38c475347ea862a0a8d013dd29966f7d4005417b47f74ed557e599",
+    "inject/prop_evt.txt.gz": "22987b952a64ea337a2deac768ac762bcd49e9b46b4ba97fdea2b072f9d72820",
+    "inject/prop_trace.csv.gz": "bac917a242450d5cba2c51cf61351aab9afb86ce96c89ed567f6bd9d6a9efafe",
+    "inject/stats.txt": "7f99c5cffe24ac8dd5a46bed205a071335e28dac9be6225130ac73144639b33f",
+    "injection_log_storage.json": "336e0466b75c723e14efcd2e316f668fe75ca6e3c3468e1351aa3509a7100a96",
+    "manifest.json": "388522943e8d2798999460d903d556403fd290aa072f61618d197ce8e21f1ee4",
+    "oracle.json": "e5b8912a27d4aa33fda53aeb4dcd891269d7d9a6cf5f2cc9673c82dac220b6a7",
+    "oracle_elements.json": "a77cc8421228cb2285fed98ceb84f2014128f4f48ed8d141b8ca7bad4dd807dc",
+    "run.err": "83d08de2fb2bec371fda146b8d893c9461a9e8568f72ea943fc0c7010f4e08a0",
+    "run.out": "f6017fe294425dcb717adb48d8d70f46e8f2c586388bd5e99fe211fcafe069a2",
+    "stats.txt": "7f99c5cffe24ac8dd5a46bed205a071335e28dac9be6225130ac73144639b33f"
+  },
+  "cross_seed_ok": true,
+  "decoded_roots": 1,
+  "legacy_roots": 0,
+  "decode_guard": true,
+  "config_profile": "B0",
+  "legacy_md_format": false,
+  "admitted": true,
+  "certified": true,
+  "violations": [],
+  "audit_checks": [
+    {
+      "check": "seed Markdown 存在",
+      "ok": true
+    },
+    {
+      "check": "RunID 一致",
+      "ok": true
+    },
+    {
+      "check": "seed/sample_run_id 一致",
+      "ok": true
+    },
+    {
+      "check": "workload 二进制身份一致",
+      "ok": true
+    },
+    {
+      "check": "gem5 二进制身份一致",
+      "ok": true
+    },
+    {
+      "check": "源码 HEAD 一致",
+      "ok": true
+    },
+    {
+      "check": "prop_evt 存在",
+      "ok": true
+    },
+    {
+      "check": "prop_evt 未截断（reason=ok）",
+      "ok": true
+    },
+    {
+      "check": "事件身份全为本 seed（越界 0）",
+      "ok": true
+    },
+    {
+      "check": "scheduled(1) = fault_roots(1)",
+      "ok": true
+    },
+    {
+      "check": "每个 injected fault 均真实激活",
+      "ok": true
+    },
+    {
+      "check": "fault 1 永久故障至少一次 activated exposure",
+      "ok": true
+    },
+    {
+      "check": "fault 1 字段/lane/mask 语义",
+      "ok": true
+    },
+    {
+      "check": "fault 1 真实指令解码匹配",
+      "ok": true
+    },
+    {
+      "check": "decode_guard: 所有 root 含真实解码字段",
+      "ok": true
+    },
+    {
+      "check": "事件 model_id 与 manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "事件 submodel 与 manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "事件 freq 与 manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "事件 load_id 与 manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 全链 field 一致",
+      "ok": true
+    },
+    {
+      "check": "重算 admitted_faults 一致",
+      "ok": true
+    },
+    {
+      "check": "重算 truncated 一致",
+      "ok": true
+    },
+    {
+      "check": "事件流 fault 数 = 注入数",
+      "ok": true
+    },
+    {
+      "check": "所有 fault 均 admitted",
+      "ok": true
+    },
+    {
+      "check": "所有 fault 均 certified",
+      "ok": true
+    },
+    {
+      "check": "fault 1 terminal 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 violations 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 admitted 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 certified 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 sampled_unique = 唯一 exposure_id 数",
+      "ok": true
+    },
+    {
+      "check": "fault 1 F5 计数/去重/守恒校验",
+      "ok": true
+    },
+    {
+      "check": "MD event 0 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 0 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 0 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 1 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 1 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 1 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 3 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 3 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 3 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 4 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 4 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 4 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 7 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 7 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 7 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 8 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 8 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 8 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 520 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 520 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 520 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "链 admitted=True",
+      "ok": true
+    },
+    {
+      "check": "链 certified=True",
+      "ok": true
+    },
+    {
+      "check": "链 violations=[]",
+      "ok": true
+    },
+    {
+      "check": "存在 admitted fault",
+      "ok": true
+    },
+    {
+      "check": "MD 逐 fault 终局表存在（legacy 单 fault 行）",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD 覆盖主链全部事件",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD/原始流 direct parent",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD 逐 fault 终局行存在",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD terminal 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD admitted 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD certified 一致",
+      "ok": true
+    },
+    {
+      "check": "MD terminal 与 chain_report 一致",
+      "ok": true
+    },
+    {
+      "check": "MD admitted/certified 与 chain_report 一致",
+      "ok": true
+    },
+    {
+      "check": "evidence_sha256.json 存在",
+      "ok": true
+    },
+    {
+      "check": "证据 SHA-256 全部匹配（失配 0）",
+      "ok": true
+    },
+    {
+      "check": "stats.txt 非空",
+      "ok": true
+    },
+    {
+      "check": "B0 运行态配置匹配（census）",
+      "ok": true
+    },
+    {
+      "check": "B0 运行态配置匹配（inject）",
+      "ok": true
+    },
+    {
+      "check": "admitted=True",
+      "ok": true
+    },
+    {
+      "check": "violations=[]",
+      "ok": true
+    }
+  ],
+  "failures": [],
+  "ok": true
+}

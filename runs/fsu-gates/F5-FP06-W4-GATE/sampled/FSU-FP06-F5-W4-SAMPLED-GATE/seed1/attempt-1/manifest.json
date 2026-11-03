@@ -1,0 +1,66 @@
+{
+  "run_id": "FSU-FP06-F5-W4-SAMPLED-GATE",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W4",
+  "submodel": "FP06-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel",
+    "identity": "W4-short",
+    "source": "workloads/directed/elemwise_fma_kernel.c",
+    "golden_id": "elemwisefma-golden-v1",
+    "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp64",
+      "lane_width": 64,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 0,
+      "f5_warmup": 128,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256
+    },
+    "fault_mask": "0x8000000000000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "pre_registration": {
+    "frozen_at": "2026-11-04",
+    "kind": "gate",
+    "counts_toward_519": false,
+    "purpose": "same short-W4 configuration as FULL-GATE but bounded sampling; the exact totals must match",
+    "submodel": "FP06-a",
+    "precision": "fp64",
+    "mask": "0x8000000000000000",
+    "polarity": 0,
+    "f5_warmup": 128,
+    "f5_sample_limit": 1024,
+    "f5_keep_first_last_n": 256
+  },
+  "notes": "Non-formal gate. Sampling changes observation only; it must not change exposures_total/activated_exposure_count or the run-level oracle.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 1,
+  "created_at": "2026-11-04T01:13:53",
+  "source_head": "f7473c545c2483f5cc74c720405a8188725f7d11",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "d6aa580b80bcd021953ad73c10bb769c32900de6525768a9eb0bef5ddd6261b6",
+  "runner_tool_sha256": "654072132a67485b81dacb73ac11b3d55ef19a4288a0427291f28b1e8f29a6c5",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/elemwise_fma_kernel",
+  "workload_sha256": "80e633a0cd4b8f64bdfa09f4bf8b1683f79cefd8140f8fe74bf4c973d1941c97"
+}

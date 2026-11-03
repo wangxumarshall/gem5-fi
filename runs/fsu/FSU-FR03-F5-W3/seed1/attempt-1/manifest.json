@@ -1,0 +1,64 @@
+{
+  "run_id": "FSU-FR03-F5-W3",
+  "model_id": "FR03",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "submodel": "FR03",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "physreg",
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 0,
+      "require_allocated": true,
+      "vec_lane_width": 32,
+      "vec_lane_offset": 2,
+      "fault_type": "stuck_at_one",
+      "bits_to_change": 1,
+      "semantic_role": "FR03"
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "pre_registration": {
+    "frozen_at": "2026-11-04",
+    "submodel": "FR03",
+    "reg_class": "vector",
+    "target_phys_idx": 0,
+    "require_allocated": true,
+    "lane_width": 32,
+    "lane_offset": 2,
+    "mask": "0x80000000",
+    "polarity": 1,
+    "fault_type": "stuck_at_one"
+  },
+  "notes": "FR03 formal seed1: one permanent Vec physical cell (phys 0, lane2 sign bit 95), SA1. The fault survives every write, free/realloc and squash; only run end/reset clears it. The fault-run oracle is classified independently from the per-fault L5 chain.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 1,
+  "created_at": "2026-11-04T02:28:45",
+  "source_head": "f7473c545c2483f5cc74c720405a8188725f7d11",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "04be57c3a2383fb53b1beff2b4358abe1c8c589baae7808228ed593db5344dda",
+  "runner_tool_sha256": "3417b6abebea8a683f348584cf87cfc34d56863fbd004813bfa929fd10bbc6b9",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/neon_fp32_lane_kernel",
+  "workload_sha256": "d8b01bc0ac140f43c4f7462e1f3b376802e75dfeaca40a0257b4cad5ede92a92"
+}

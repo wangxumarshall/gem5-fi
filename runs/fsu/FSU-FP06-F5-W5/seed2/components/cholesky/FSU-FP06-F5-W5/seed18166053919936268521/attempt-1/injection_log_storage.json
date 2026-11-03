@@ -1,0 +1,17 @@
+{
+  "attempt": "runs/fsu/FSU-FP06-F5-W5/seed2/components/cholesky/FSU-FP06-F5-W5/seed18166053919936268521/attempt-1",
+  "threshold_mb": 64,
+  "files": [
+    {
+      "status": "compressed",
+      "original": "runs/fsu/FSU-FP06-F5-W5/seed2/components/cholesky/FSU-FP06-F5-W5/seed18166053919936268521/attempt-1/inject/fpu_injections.log",
+      "original_sha256": "32b1c084929ef542419a5d4a71ddf9b6a5b9109a86dd6e77e8c7e5b6322a59b4",
+      "original_bytes": 227849948,
+      "compressed": "runs/fsu/FSU-FP06-F5-W5/seed2/components/cholesky/FSU-FP06-F5-W5/seed18166053919936268521/attempt-1/inject/fpu_injections.log.gz",
+      "compressed_sha256": "6d9432d44a38c475347ea862a0a8d013dd29966f7d4005417b47f74ed557e599",
+      "compressed_bytes": 8930934,
+      "method": "gzip-9 (lossless; content unchanged)"
+    }
+  ],
+  "status": "compressed"
+}

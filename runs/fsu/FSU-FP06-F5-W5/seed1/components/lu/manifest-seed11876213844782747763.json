@@ -1,0 +1,109 @@
+{
+  "run_id": "FSU-FP06-F5-W5",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W5",
+  "submodel": "FP06-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/ooo/polybench/lu/lu",
+    "source": "workloads/ooo/polybench/linear-algebra/solvers/lu/lu.c",
+    "identity": "W5-polybench-lu-v1",
+    "golden": "74ffe5eb77ea9257",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "lu",
+        "golden_id": "polybenchlu-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          84,
+          84
+        ],
+        "count": 7056,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "f5_warmup": 1024,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256,
+      "op_classes": [],
+      "reg_class": "any",
+      "stuck_polarity": 0
+    },
+    "fault_mask": "0x00400000"
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1-f5",
+    "suite_version": "1",
+    "suite_hash": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581",
+    "suite_seed": 1,
+    "program_id": "lu",
+    "program_index": 2,
+    "program_count": 5,
+    "component_seed": 11876213844782747763,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "notes": "W5 suite component run: exactly one program and exactly one injected fault; not a formal suite seed by itself.",
+  "seed_plan_entry": {
+    "suite_seed": 1,
+    "submodel": "FP06-a",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0,
+    "mask": "0x00400000",
+    "polarity": 0,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true
+  },
+  "pre_registration": {
+    "suite_seed": 1,
+    "submodel": "FP06-a",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0,
+    "mask": "0x00400000",
+    "polarity": 0,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true
+  }
+}

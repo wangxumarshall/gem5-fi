@@ -1,0 +1,13 @@
+{
+  "category": "Hang",
+  "reason": "exceeded Hang timeout with no program checksum (control-flow corruption: never completed)",
+  "faults_injected": 1,
+  "eligible_count": 32771,
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "skip": 22063,
+  "oracle_kind": "array_hash",
+  "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+  "returncode": -1,
+  "timed_out": true
+}
