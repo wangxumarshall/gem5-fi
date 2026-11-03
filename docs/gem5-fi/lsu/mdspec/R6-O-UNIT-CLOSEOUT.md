@@ -3,8 +3,11 @@
 Scope: the 10 authoritative O-F0/F5 RunIDs only. F0 seed1/2/3; F5 seed1 bounded
 diagnostic. No P unit, no F1/F2/F3/F4/F6, no workload/fault substitution.
 
-**Status: PARTIAL — F0 complete 3/3 for O01/O02/O03; O02-F5 awaits a semantic
-ruling; O04/O05/O06/O07/O09 remain blocked with named evidence.**
+**Status: PARTIAL_BLOCKED_6_OF_10_RUNIDS — F0 complete 3/3 for O01/O02/O03
+(9 seeds); O02-F5 seed1/2/3 accepted as authorized bounded
+`Timeout`/`guest_livelock` diagnostics (not COMPLETE/PASS); O04/O05/O06/O07/O09
+remain blocked with named evidence. The authoritative 10 RunIDs are NOT all
+3/3 and this document does not claim so.**
 
 ## 1. Platform and identity
 
@@ -58,24 +61,41 @@ Docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/O0{1,2,3}-F0-W7/…-seed{1,2,3}.md
 (9 files). Independent audit: 9/9 PASS, 392 markdown links checked, 0 broken
 (`runs/lsu/r6_reports/R6-O-UNIT-DOC-AUDIT.{md,json}`).
 
-## 3. O02-F5-W7 — bounded livelock diagnostic (ruling required)
+## 3. O02-F5-W7 — authorized bounded Timeout/livelock diagnostics (3 seeds)
 
-- Directory: `runs/lsu/r6_o_unit/f5_diag_20261103_r2`; report `DIAGNOSTIC.md`.
-- Bounds: gem5 concurrency 1; inner `--fs-timeout 1200 s`, grace 60 s; outer
-  2400 s not hit; `/home` and MemAvailable thresholds never hit.
-- Outcome: **run-level oracle `Timeout` (1010/1010)**; per-fault chain
-  `detected_contained`/L2, admitted=True. These are reported side by side and
-  **not** promoted to Masked/containment/PASS.
-- Evidence: 1010 injections; 1008/1008 consumed SC = `mismatch_fail` and STXR
-  `fail_retry`; zero successful STXR after injection; guest stops at
-  `LITMUS free atomic …` without FINAL; all 1010 `chain_end` share
-  finalTick 267504485742. Termination was a graceful SIGINT: stats written,
-  both gzip EOF complete, `truncated=False`.
-- No transient rewrite, no retry cap, no workload change, no post-hoc relabel.
-- Ruling needed: (a) accept as expected Timeout/livelock outcome, (b) declare
-  permanent-monitor × W7 retry-loop a semantics conflict and exclude the cell,
-  or (c) add an explicit livelock terminal (semantic extension, requires user
-  approval). Until then this cell is UNDER_MEASURED/Timeout.
+User ruling 2026-11-03: a sustained retry/no-progress episode terminated at a
+pre-set observation bound is a legitimate result — `run_outcome=Timeout`, with
+`diagnosis=guest_livelock` only on sufficient causal evidence; never rewritten
+as Masked/Crash/contained; generic admission unchanged (no other Timeout is
+auto-certified).
+
+| seed | dir | injections | consumed | contained L2 | unresolved L1 | squash | pending | outcome | acceptance |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | `f5_diag_20261103_r2` | 1010 | 1008 | 1008 | 2 | 2 | 0 | Timeout | AUTHORIZED_TIMEOUT_LIVELOCK |
+| 2 | `f5_diag_20261103_seed23` | 70,861 | 70,859 | 70,859 | 2 | 2 | 0 | Timeout | AUTHORIZED_TIMEOUT_LIVELOCK |
+| 3 | `f5_diag_20261103_seed3` | 64,403 | 64,401 | 64,401 | 2 | 2 | 0 | Timeout | AUTHORIZED_TIMEOUT_LIVELOCK |
+
+All seeds: 0 successful STXR after injection; stable ~5,994-tick retry cadence;
+guest stops at `LITMUS free atomic …` with no FINAL; both cores active; host
+speed 91.5–94.8% of golden; graceful SIGINT at 1200 s with complete stats and
+raw gzip EOF. The 2 unresolved faults per seed are LDXRs squashed at
+`load_queue_uncommitted` (fault 2/15), not pending and not contained. Per-seed
+diagnostic docs (not COMPLETE seeds, not in COMPLETE counts):
+`runs/lsu/R6_O_F5_DIAGNOSTIC_DOCS/O02-F5-W7-seed{1,2,3}.md`; full per-fault
+ledgers `seed{1,2,3}-faults.json`.
+
+Analyzer-cap defect (seed2/3): raw `prop_evt.txt.gz` was complete (425,164 /
+386,417 events) but `lsu_prop_fields.read_stream` caps at `EVENT_CAP=200000` and
+the campaign mislabeled that as “incomplete gzip … killed mid-write”. Minimal
+fix: `detect_evidence_truncation` now re-checks raw gzip EOF and reports
+`analysis capped at EVENT_CAP` (still marks chain evidence truncated; never
+treats the capped prefix as complete). `tools/lsu_o_f5_livelock_accept.py`
+recomputes the full chain from the raw stream and records
+`COMPLETE_RAW_ANALYSIS_CAPPED`. Seed2 was not rerun; seed3 was launched
+separately after the campaign stopped early, with identical semantics/bounds.
+Negative tests cover raw truncation, Timeout without causal evidence, a pending
+fault, a successful STXR after injection, chain_end not at the boundary, and
+non-Timeout outcomes.
 
 ## 4. Blocked cells (specific evidence, not "multicore-fs")
 
@@ -94,6 +114,11 @@ Full code/binary evidence: `R6-O-UNIT-CENSUS.md`.
 
 - `pilot_evidence.json` additively registers the 9 O F0 seeds; pre-fix historical
   streams are preserved under `shadowed_paths` (files not deleted).
+- The 3 O02-F5 diagnostic seeds are **deliberately not registered** in
+  `pilot_evidence.json`: registering them would let the generic chain gate treat
+  a Timeout as an ordinary pilot sample. Their acceptance lives in the separate
+  `acceptance.json` axis and in `R6_O_F5_DIAGNOSTIC_DOCS`; the F5 cells remain
+  outside COMPLETE counts.
 - `test_lsu_r6_reconcile_realroot.py` snapshot updated: admitted set is now
   `T05-F0-W4 + O01/O02/O03-F0-W7`; READY remains exactly 1 (`T05-F0-W4`);
   O rows are admitted but upstream-BLOCKED (admission ≠ unlock).
@@ -104,18 +129,33 @@ Full code/binary evidence: `R6-O-UNIT-CENSUS.md`.
 
 ## 6. Verification
 
-- `python3 -m pytest -q tests/`: **301 passed, 10 failed**. The same 10 failures
-  reproduce on the pre-change baseline (stashed changes): A4 frozen-binary
-  census (lost a1632e0f binary, CLOSED_ACCEPTED_LOSS), A-doc evidence paths to
-  the missing r6-f5-noeffect binary, and the stale 39-vs-65 S-doc count/EOF
-  assertions. **NEW FAIL = 0.**
-- `tests/test_lsu_r6_reconcile_realroot.py`: **ALL PASS**.
+- `python3 -m pytest -q tests/`: **309 passed, 10 failed**. The same 10 failures
+  reproduce on the pre-change baseline (A4 frozen-binary census / lost a1632e0f
+  binary, CLOSED_ACCEPTED_LOSS; A-doc evidence paths to the missing
+  r6-f5-noeffect binary; stale 39-vs-65 S-doc count/EOF assertions).
+  **NEW FAIL = 0.**
+- `tests/test_lsu_r6_reconcile_realroot.py`: **ALL PASS** (READY still only
+  T05-F0-W4; O admitted rows remain upstream-BLOCKED).
 - `python3 -m pytest -q tests/test_lsu_o_unit_chain.py`: **3 passed**.
+- `python3 -m pytest -q tests/test_lsu_o_f5_livelock_accept.py`: **8 passed**,
+  including negative tests for raw truncation, no-causal Timeout, pending fault,
+  successful STXR after injection, chain_end not at the boundary, non-Timeout,
+  plus analysis-cap-vs-raw-truncation.
+- `tests/test_lsu_campaign_truncation.py`: **ALL PASS**, including the new
+  `analysis capped + raw gzip complete` case.
 - No C++ change this round beyond the already-committed `f9a9756c`; no rebuild
   needed. No admission/conservation rule was relaxed; no SKIP/XFAIL used.
 
 ## 7. Repository state
 
-- Branch `fix/r6-o-unit-20261103`, base `bb35c522`, prior HEAD `f8762717`.
-- Not merged to `origin/fi-ding`: O02-F5 semantic ruling is pending; the unit is
-  explicitly **partial**, not complete.
+- Branch `fix/r6-o-unit-20261103`, base `bb35c522`; before this F5 round HEAD
+  was `5d23b4d7` (F0 docs/evidence). F5 tooling and docs are committed on top
+  and pushed; `origin/fi-ding` merge happens only after the final
+  divergence/check verification.
+- The global `R6-STATUS-TABLE` still shows O02-F5-W7 as UNPROVEN/BLOCKED and
+  O01/O02 as UNPROVEN / O03 as TRUNCATED because it scans retained historical
+  pre-fix streams and does not accept Timeout diagnostics. This is intentional:
+  the separate authorized acceptance does not modify generic admission.
+- The unit is explicitly **partial**: the authoritative 10 RunIDs are not all
+  3/3; 6 RunIDs remain BLOCKED with named evidence. F0 (9 seeds) and the F5
+  three-seed authorized diagnostics are the completed work.

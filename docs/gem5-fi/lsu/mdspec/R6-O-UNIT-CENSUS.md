@@ -17,12 +17,19 @@ a new SHA, recorded with every run.
   `chain_valid=True`, `violations=[]`, events=6, faults=1, exit=0, gzip EOF OK,
   stats non-zero, not truncated. O01/O02 `provable_to=L2`; O03 `provable_to=L3`
   (real `sq_complete` after the forced-fail detection event).
-- **O02-F5-W7 seed1: UNDER_MEASURED / Timeout (ruling required).** Bounded solo
-  run (`f5_diag_20261103_r2`, inner 1200 s, graceful SIGINT): 1010 injections,
-  1008/1008 SC `mismatch_fail` + STXR `fail_retry`, no successful STXR after
-  injection, guest stalls in the atomic phase. Run oracle `Timeout` and chain
-  `detected_contained/L2` are reported side by side; **not promoted to PASS**.
-  See `runs/lsu/r6_o_unit/f5_diag_20261103_r2/DIAGNOSTIC.md`.
+- **O02-F5-W7 seed1/2/3: authorized bounded `Timeout`/`guest_livelock`
+  diagnostics (not COMPLETE/PASS).** All three seeds: permanent monitor fault,
+  0 successful STXR after injection, guest stops in the atomic phase with no
+  FINAL, both cores active, host speed 91.5–94.8% of golden; terminated by the
+  pre-set 1200 s wall bound with graceful SIGINT and complete raw gzip/stats.
+  Seed1: 1010 injections / 1008 consumed / 2 squash / 0 pending. Seed2:
+  70,861 / 70,859 / 2 / 0 (raw gzip complete; analyzer EVENT_CAP=200000 capped
+  the chain report). Seed3: 64,403 / 64,401 / 2 / 0 (same cap). Per-fault:
+  1008/70,859/64,401 `detected_contained`/L2; 2 unresolved `provable_to_L1` each
+  (squashed loads). Run outcome `Timeout`, diagnosis `guest_livelock`,
+  experiment acceptance `AUTHORIZED_TIMEOUT_LIVELOCK`; generic admission
+  unchanged, no other Timeout auto-certified. Docs:
+  `runs/lsu/R6_O_F5_DIAGNOSTIC_DOCS/`; ledgers `seed{1,2,3}-faults.json`.
 - Executed binary: this worktree `CHAOS/gem5/build/ARM/gem5.opt`, sha256
   `c6cccf5b490823d216d01bd2449031aef2d892c88cec5cd291c852bbe86ca87b`; sources
   mtime 19:14–19:17 precede build 19:23 and `scons -n` shows no C++ recompiles.
