@@ -47,7 +47,9 @@ def test_every_runid_has_required_fields():
         expected = {"FSU-FP04-F0-W4": "3/3", "FSU-FP04-F3-W4": "3/3",
                     "FSU-FP04-F2-W4": "3/3", "FSU-FP04-F1-W4": "3/3",
                     "FSU-FP04-F0-W3": "3/3",
-                    "FSU-FP04-F0-W1": "3/3"}.get(r["runid"], "0/3")
+                    "FSU-FP04-F0-W1": "3/3",
+                    "FSU-FP04-F0-W5": "3/3",
+                    "FSU-FP06-F5-W3": "3/3"}.get(r["runid"], "0/3")
         assert r["three_seed_status"] == expected
         assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")
@@ -64,7 +66,7 @@ def test_seed_completion_and_coverage_status():
     assert pilot["seed_completion"] == "3/3"
     assert pilot["coverage_status"] == "PILOT_SUBMODEL_ONLY"
     assert "FP04-c" in pilot["coverage_reason"]
-    assert summary["seed_completion_counts"] == {"0/3": 167, "3/3": 6}
+    assert summary["seed_completion_counts"] == {"0/3": 165, "3/3": 8}
     w1 = next(r for r in matrix if r["runid"] == "FSU-FP04-F0-W1")
     assert w1["seed_completion"] == "3/3"
     assert w1["workload_identity_status"] == "REAL"
