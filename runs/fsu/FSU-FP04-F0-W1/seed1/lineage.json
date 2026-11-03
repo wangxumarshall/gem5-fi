@@ -1,0 +1,19 @@
+{
+  "run_id": "FSU-FP04-F0-W1",
+  "seed": 1,
+  "authoritative": "attempt-2",
+  "attempts": [
+    {
+      "attempt": "attempt-1",
+      "status": "superseded",
+      "reason": "C3 platform (ROB128/IQ64/4-wide). The workbook W1 gate requires the B0 platform; raw evidence retained unchanged and not counted.",
+      "raw_evidence_retained": true
+    },
+    {
+      "attempt": "attempt-2",
+      "status": "authoritative",
+      "reason": "B0-core config.ini verified for census and inject; decode_guard=1 with real FP32 scalar instruction; audit ok=true.",
+      "raw_evidence_retained": true
+    }
+  ]
+}

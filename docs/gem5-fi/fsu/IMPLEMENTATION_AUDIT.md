@@ -1,13 +1,13 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`4f6e157f662f80367ed0d31dd64e9e61a2aa5a18`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`a7b129b4b39e481923e7673db4d46a3dac7a61ca`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
 - RunID 总数：**173**（唯一 173；表 7/表 9 集合相等）
 - 模型数：**30**；模型状态：MISSING 17、PARTIAL 13
 - RunID 状态：MISSING 87、PARTIAL 86
-- workload 身份：NO_FP_ARTIFACT 6、NO_TRUE_ARTIFACT 54、PARTIAL 101、REAL 12
+- workload 身份：NO_FP_ARTIFACT 6、NO_TRUE_ARTIFACT 29、PARTIAL 101、REAL 37
 - **可端到端运行（注入器+workload+oracle+传播链）的 RunID：0/173**
 
 工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型：FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0 传播链已落地，但子模型覆盖仍不完整；FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。
@@ -49,8 +49,8 @@
 
 ## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）
 
-- seed_completion：0/3 168、3/3 5
-- coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 26、PARTIAL 59、PILOT_SUBMODEL_ONLY 1
+- seed_completion：0/3 167、3/3 6
+- coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、PARTIAL 74、PILOT_SUBMODEL_ONLY 1
 
 | RunID | seed_completion | coverage_status | coverage_reason |
 |---|---|---|---|
@@ -98,22 +98,22 @@
 | FSU-FQ10-F0-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FQ10-F4-W2 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FQ10-F4-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
-| FSU-FR01-F0-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR01-F0-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F0-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR01-F1-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR01-F1-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F1-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F1-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR01-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR01-F2-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR01-F3-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR01-F3-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F3-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR01-F3-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR02-F0-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR02-F0-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR02-F0-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR02-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR02-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR02-F2-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR02-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR02-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR03-F5-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -133,10 +133,10 @@
 | FSU-FR06-F0-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FR06-F2-W3 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FR06-F2-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
-| FSU-FR07-F0-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR07-F0-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR07-F0-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR07-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR07-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FR07-F2-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR07-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR07-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR08-F0-W2 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
@@ -171,22 +171,22 @@
 | FSU-FP03-F0-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FP03-F2-W1 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FP03-F2-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
-| FSU-FP04-F0-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FP04-F0-W1 | 3/3 | PARTIAL | official seeds 3/3 admitted under B0-core with the real W1 FP-ScalarProbe; decoded FP32 scalar instructions only (sign bit). The workload exercises FP64, special values, four rounding modes and FPSR/FPCR, but those are not injected per seed |
 | FSU-FP04-F0-W3 | 3/3 | PARTIAL | official seeds 3/3 admitted with the real NEON FP32 lane workload; evidence covers FP04-d lane2 sign bit only (32-bit lane domain); FP04-a/b/c fields and the other lanes are not covered |
 | FSU-FP04-F0-W4 | 3/3 | PILOT_SUBMODEL_ONLY | pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, FP04-d NEON lane result, plus F1/F2/F3 semantics |
 | FSU-FP04-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F1-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FP04-F1-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0 remaining. |
 | FSU-FP04-F1-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FP04-F2-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0 remaining. |
 | FSU-FP04-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F2-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP04-F3-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FP04-F3-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F3-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F3-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0 remaining. The F3 multi-fault gate used the short W4 and is not an official seed |
 | FSU-FP04-F3-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -197,7 +197,7 @@
 | FSU-FP05-F4-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP05-F4-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP05-F4-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP06-F5-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FP06-F5-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP06-F5-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP06-F5-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP06-F5-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -208,9 +208,9 @@
 | FSU-FP07-F2-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP07-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP07-F2-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP08-F0-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FP08-F0-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP08-F0-W7 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
-| FSU-FP08-F2-W1 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
+| FSU-FP08-F2-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP08-F2-W7 | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | workload identity has no真实 artifact / oracle |
 | FSU-FP09-F0-W3 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FP09-F0-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
@@ -241,14 +241,14 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`4f6e157f662f80367ed0d31dd64e9e61a2aa5a18`（branch `fsu`）
-- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`5647208d1fdf9ea131bcae60e0479fc5a0d477dce2fee0930bc8d04d40f47e73`；size=1246185920
+- HEAD：`a7b129b4b39e481923e7673db4d46a3dac7a61ca`（branch `fsu`）
+- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`62f2f55a75fa1f8c9097ede2d6dfaae4a649c521b1609787d903e838a993740e`；size=1246414544
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）
 - FSU 三 seed runner：True（`tools/fsu_seed_runner.py`）
 - rate ordinal 工具：True（`tools/fsu_rate_ordinals.py`）
-- 模型级测试文件：9 个
-- B0 配置匹配：False（ooo_proxy.py 仍为 C3 默认 ROB=128/IQ=64/4-wide；工作簿 B0 的 ROB=40/IQ=32/3/3/3 未实现）
+- 模型级测试文件：10 个
+- B0 配置匹配：True（B0-core 已实现并经 F0-W1 的 config.ini 逐项校验：ROB=40/IQ=32/fetch-decode-rename 3/3/3/dispatch6/issue-wb-commit 8/8/8/PRF 128/192/48/LQ-SQ16。完整 v7a_3 的 FP FUPool=2 尚未实现，属剩余缺口。）
 
 ### 3.3 resolved_by_commit
 
@@ -268,7 +268,7 @@
 | W-ID | 名称 | 身份 | 真实载体 | golden/oracle | 缺口 |
 |---|---|---|---|---|---|
 | W0 | FSU-MiniCheck | **UNUSED** | `workloads/directed/mini_check` 仅存在 LSU 整数版 workloads/directed/mini_check（无 FP/NEON） | minicheck-golden-v1=07568da9f3ad5665（LSU）；exact 16-hex（但域不符） | 它不是 FSU 探针；173 个 RunID 未使用 W0 |
-| W1 | FP-ScalarProbe | **NO_TRUE_ARTIFACT** | `workloads/directed/method1_controls` 无专用产物；可用 method1_controls pure_fma 作部分标量 FMA 代理 | purefma-golden-v1=98433fcf09968e6a；16-hex checksum（无 FPSR/FPCR/NaN/4 舍入） | 工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体 |
+| W1 | FP-ScalarProbe | **REAL** | `workloads/directed/w1_fp_scalar_probe` w1_fp_scalar_probe（FP32/FP64 add/sub/mul/div/sqrt/FMA；NaN/Inf/±0/subnormal；RN/RP/RM/RZ；FPSR/FPCR 快照） | w1-fpscalarprobe-v1-golden=ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183；ARRAYHASH 64-hex（结果32+结果64+FPSR+FPCR）+ ULP；in-run golden/check | F0-W1 3/3 在 B0-core 下注入 FP32 scalar sign；FP64、特殊值、4 舍入与 FPSR 由 workload 执行但未逐 seed 注入；FPCR trap/异常恢复在 SE 中 N/A |
 | W2 | FP-IQ-Dependency | **NO_TRUE_ARTIFACT** | `workloads/ooo/dep_chain/dep_chain_vec` 无专用产物；dep_chain_vec 仅 NEON FMLA 依赖链 | depchainvec-golden-v1=b1e661a247b95774；16-hex checksum（非逐边 oracle） | 缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者 |
 | W3 | NEON-LaneProbe | **PARTIAL** | `workloads/directed/neon_fp32_lane_kernel` neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域） | neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL） | F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce |
 | W4 | FMA-DotProduct | **REAL** | `workloads/directed/elemwise_fma_kernel` elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155） | elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP | 不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）；W4-rate-v1 尚无正式三 seed |

@@ -1,0 +1,47 @@
+{
+  "run_id": "FSU-FP04-F0-W1",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FP04-a",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "identity": "W1-fp-scalar-probe-v1",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "Official FSU-FP04-F0-W1 (FP-ScalarProbe). The workload covers FP32/FP64 add/sub/mul/div/sqrt/FMA, NaN/Inf/+-0/subnormal, four rounding modes, and FPSR/FPCR snapshots with a bit-level ARRAYHASH. This F0 run injects the FP32 scalar sign bit with decode_guard=true, so FP64/FCVT candidates are rejected and not counted. W1 coverage remains partial: one field/one precision is injected per seed.",
+  "seed": 2,
+  "sample_run_id": "s2",
+  "selection_seed": 2,
+  "injection_seed": 2,
+  "attempt": 1,
+  "created_at": "2026-11-03T12:53:59",
+  "source_head": "33e3b0cc5fd68e58eb75b40cfa7fbce5404ef5f1",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "62f2f55a75fa1f8c9097ede2d6dfaae4a649c521b1609787d903e838a993740e",
+  "runner_tool_sha256": "572e92ccd9b4732d3a6dededdb5bd9d5977e864ca9465ead744235a6d67f178b",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/w1_fp_scalar_probe",
+  "workload_sha256": "c2b8a553bd44c87faaa3d8130d8a897097dc53c4e1627cb2b09b32a59e914754"
+}

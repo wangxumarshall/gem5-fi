@@ -223,11 +223,16 @@ WORKLOAD_AUDIT = {
                path="workloads/directed/mini_check", golden="minicheck-golden-v1=07568da9f3ad5665（LSU）",
                oracle="exact 16-hex（但域不符）",
                gap="它不是 FSU 探针；173 个 RunID 未使用 W0"),
-    "W1": dict(name="FP-ScalarProbe", identity="NO_TRUE_ARTIFACT",
-               real="无专用产物；可用 method1_controls pure_fma 作部分标量 FMA 代理",
-               path="workloads/directed/method1_controls", golden="purefma-golden-v1=98433fcf09968e6a",
-               oracle="16-hex checksum（无 FPSR/FPCR/NaN/4 舍入）",
-               gap="工作簿要求的 NaN/Inf/±0/subnormal、4 种舍入、FPSR/FPCR 均无载体"),
+    "W1": dict(name="FP-ScalarProbe", identity="REAL",
+               real="w1_fp_scalar_probe（FP32/FP64 add/sub/mul/div/sqrt/FMA；"
+                    "NaN/Inf/±0/subnormal；RN/RP/RM/RZ；FPSR/FPCR 快照）",
+               path="workloads/directed/w1_fp_scalar_probe",
+               golden="w1-fpscalarprobe-v1-golden=ffe18c8279bf419d9b0aad0f5e039018"
+                      "74d3440506066d93ede75820f2eba183",
+               oracle="ARRAYHASH 64-hex（结果32+结果64+FPSR+FPCR）+ ULP；in-run golden/check",
+               gap="F0-W1 3/3 在 B0-core 下注入 FP32 scalar sign；FP64、特殊值、"
+                   "4 舍入与 FPSR 由 workload 执行但未逐 seed 注入；FPCR trap/"
+                   "异常恢复在 SE 中 N/A"),
     "W2": dict(name="FP-IQ-Dependency", identity="NO_TRUE_ARTIFACT",
                real="无专用产物；dep_chain_vec 仅 NEON FMLA 依赖链",
                path="workloads/ooo/dep_chain/dep_chain_vec", golden="depchainvec-golden-v1=b1e661a247b95774",
@@ -406,9 +411,12 @@ def probe_current_status():
             "generator": "build_rate_ordinals" if rate_impl else "",
         },
         "model_level_tests": [str(p.relative_to(ROOT)) for p in tests],
-        "config_b0_match": False,
-        "config_b0_note": "ooo_proxy.py 仍为 C3 默认 ROB=128/IQ=64/4-wide；"
-                          "工作簿 B0 的 ROB=40/IQ=32/3/3/3 未实现",
+        "config_b0_match": True,
+        "config_b0_note": "B0-core 已实现并经 F0-W1 的 config.ini 逐项校验："
+                          "ROB=40/IQ=32/fetch-decode-rename 3/3/3/dispatch6/"
+                          "issue-wb-commit 8/8/8/PRF 128/192/48/LQ-SQ16。"
+                          "完整 v7a_3 的 FP FUPool=2 尚未实现，属剩余缺口。",
+        "config_b0_full_match": False,
     }
 
 
@@ -504,6 +512,17 @@ def _coverage(runid, audited_status, workload_identity, seed_n):
                 "pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID "
                 "requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, "
                 "FP04-d NEON lane result, plus F1/F2/F3 semantics")
+    if runid == "FSU-FP04-F0-W1":
+        if seed_n:
+            return ("PARTIAL",
+                    f"official seeds {seed_n}/3 admitted under B0-core with the "
+                    "real W1 FP-ScalarProbe; decoded FP32 scalar instructions "
+                    "only (sign bit). The workload exercises FP64, special "
+                    "values, four rounding modes and FPSR/FPCR, but those are "
+                    "not injected per seed")
+        return ("PARTIAL",
+                "real W1 FP-ScalarProbe artifact and golden exist; this "
+                "RunID has 0/3 official seeds")
     if runid == "FSU-FP04-F0-W3":
         if seed_n:
             return ("PARTIAL",
@@ -671,7 +690,9 @@ def build(out_root=DEFAULT_RUNS):
                 "covered": ["FP04-c/mant_lo (formal W4 seeds)"],
                 "partial": (
                     ["FP04-d lane result: 32-bit lane2 sign bit only "
-                     f"(F0-W3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W3'), 0)}/3)"]
+                     f"(F0-W3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W3'), 0)}/3)",
+                     "FP04-a sign: FP32 scalar sign only "
+                     f"(F0-W1 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W1'), 0)}/3, B0-core)"]
                     if next((m["seed_completion_count"] for m in matrix
                              if m["runid"] == "FSU-FP04-F0-W3"), 0) else []
                 ),
@@ -688,7 +709,9 @@ def build(out_root=DEFAULT_RUNS):
                       f"F1 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F1-W4'), 0)}/3, "
                       f"F2 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F2-W4'), 0)}/3, "
                       f"F3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F3-W4'), 0)}/3",
-                "W1": "NO_TRUE_ARTIFACT (gate-only FP32 scalar workload exists)",
+                "W1": "REAL; W1 FP-ScalarProbe "
+                      f"F0-W1 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W1'), 0)}/3 "
+                      "(B0-core, FP32 scalar sign only)",
                 "W2": "NO_TRUE_ARTIFACT",
                 "W3": "PARTIAL; real NEON FP32 lane workload "
                       f"F0-W3 {next((m['seed_completion_count'] for m in matrix if m['runid'] == 'FSU-FP04-F0-W3'), 0)}/3 "

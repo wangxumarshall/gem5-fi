@@ -392,6 +392,10 @@ def audit_attempt(attempt: Path):
             check(f"MD event {eid} kind 一致", r[0] == str(evt.get("kind")))
             check(f"MD event {eid} parent 一致",
                   r[2] == (str(evt.get("parent_event_id")) or "—"))
+    # Legacy D0/D2 Markdown has only the singular terminal lines; newer
+    # multi-fault docs carry the explicit per-fault table. Both are valid
+    # evidence formats, but a new-format doc must cover every fault.
+    has_fault_table = "### 逐 fault 终局" in md
     fault_rows = _md_fault_rows(md)
     admitted_fid = None
     for fid, r in chain.get("faults", {}).items():
@@ -404,7 +408,8 @@ def audit_attempt(attempt: Path):
     check("链 certified=True", chain.get("certified") is True)
     check("链 violations=[]", chain.get("violations", []) == [])
     check("存在 admitted fault", admitted_fid is not None)
-    check("MD 逐 fault 终局表存在", bool(fault_rows))
+    check("MD 逐 fault 终局表存在（legacy 单 fault 行）",
+          bool(fault_rows) or not has_fault_table)
     # Per-fault Markdown + direct-parent checks.
     for fid, r in sorted(recomputed_faults.items()):
         path_ids = r.get("path_event_ids", [])
@@ -416,7 +421,8 @@ def audit_attempt(attempt: Path):
             for a, b in zip(path, path[1:]))
         check(f"fault {fid} MD/原始流 direct parent", edges_ok)
         cells = fault_rows.get(fid)
-        check(f"fault {fid} MD 逐 fault 终局行存在", cells is not None)
+        if has_fault_table:
+            check(f"fault {fid} MD 逐 fault 终局行存在", cells is not None)
         if cells is not None:
             check(f"fault {fid} MD terminal 一致",
                   cells[1] == str(r.get("terminal")))
@@ -538,6 +544,9 @@ def write_audit(attempt: Path):
     hp = attempt / "evidence_sha256.json"
     hashes = json.loads(hp.read_text(encoding="utf-8")) if hp.exists() else {}
     stats = attempt / "stats.txt"
+    profile = str(manifest.get("config_profile", "") or "")
+    md_path = attempt / f"{manifest.get('run_id')}-seed{manifest.get('seed')}.md"
+    md = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
     audit = {
         "run_id": manifest.get("run_id"),
         "seed": manifest.get("seed"),
@@ -581,6 +590,7 @@ def write_audit(attempt: Path):
         "decode_guard": bool(((manifest.get("injector") or {}).get("fpu_mode")
                               or {}).get("decode_guard")),
         "config_profile": profile,
+        "legacy_md_format": not ("### 逐 fault 终局" in md),
         "admitted": primary.get("admitted", False),
         "certified": bool(res["ok"]) and bool(fault_audits)
         and all(x["certified"] for x in fault_audits),

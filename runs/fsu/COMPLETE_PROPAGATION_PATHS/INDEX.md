@@ -1,14 +1,14 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-03T11:28:32；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-03T13:11:41；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 - 总 RunID：**173**
 - 目标 seed：**519**
-- 已完成合格 seed：**15**
-- COMPLETE_3_OF_3：**5**
-- seed_completion：0/3 168、3/3 5
-- coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 26、PARTIAL 59、PILOT_SUBMODEL_ONLY 1
-- 1/3：0；2/3：0；0/3：168
+- 已完成合格 seed：**18**
+- COMPLETE_3_OF_3：**6**
+- seed_completion：0/3 167、3/3 6
+- coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、PARTIAL 74、PILOT_SUBMODEL_ONLY 1
+- 1/3：0；2/3：0；0/3：167
 
 | RunID | seed1 | seed2 | seed3 | seed_completion | coverage_status | 状态 |
 |---|---|---|---|---|---|---|
@@ -56,22 +56,22 @@
 | FSU-FQ10-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
 | FSU-FQ10-F4-W2 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
 | FSU-FQ10-F4-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
-| FSU-FR01-F0-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR01-F0-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FR01-F1-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR01-F1-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F1-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F1-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FR01-F2-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR01-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F2-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F2-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FR01-F3-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR01-F3-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F3-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR01-F3-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FR02-F0-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR02-F0-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR02-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR02-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FR02-F2-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR02-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR02-F2-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR02-F2-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR03-F5-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
@@ -91,10 +91,10 @@
 | FSU-FR06-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
 | FSU-FR06-F2-W3 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
 | FSU-FR06-F2-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
-| FSU-FR07-F0-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR07-F0-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR07-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR07-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FR07-F2-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FR07-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR07-F2-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR07-F2-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FR08-F0-W2 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
@@ -129,22 +129,22 @@
 | FSU-FP03-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
 | FSU-FP03-F2-W1 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
 | FSU-FP03-F2-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
-| FSU-FP04-F0-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FP04-F0-W1 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 |
 | FSU-FP04-F0-W3 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 |
 | FSU-FP04-F0-W4 | ✅ | ✅ | ✅ | 3/3 | PILOT_SUBMODEL_ONLY | COMPLETE_3_OF_3 |
 | FSU-FP04-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F0-W6 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FP04-F1-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FP04-F1-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F1-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F1-W4 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 |
 | FSU-FP04-F1-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F1-W6 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FP04-F2-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FP04-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F2-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F2-W4 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 |
 | FSU-FP04-F2-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F2-W6 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FP04-F3-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FP04-F3-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F3-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP04-F3-W4 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 |
 | FSU-FP04-F3-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
@@ -155,7 +155,7 @@
 | FSU-FP05-F4-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP05-F4-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP05-F4-W6 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FP06-F5-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FP06-F5-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP06-F5-W3 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP06-F5-W4 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP06-F5-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
@@ -166,9 +166,9 @@
 | FSU-FP07-F2-W4 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP07-F2-W5 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP07-F2-W6 | — | — | — | 0/3 | PARTIAL | PENDING |
-| FSU-FP08-F0-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FP08-F0-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP08-F0-W7 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
-| FSU-FP08-F2-W1 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
+| FSU-FP08-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING |
 | FSU-FP08-F2-W7 | — | — | — | 0/3 | BLOCKED_NO_TRUE_ARTIFACT | PENDING |
 | FSU-FP09-F0-W3 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |
 | FSU-FP09-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING |

@@ -82,6 +82,11 @@
             "C3",
             "C4-LSU"
           ]
+        },
+        "config_profile": {
+          "type": "string",
+          "enum": ["C3", "B0"],
+          "description": "Microarchitecture profile; B0 is the workbook/O3_ARM_v7a_3 point and is verified against config.ini."
         }
       }
     },

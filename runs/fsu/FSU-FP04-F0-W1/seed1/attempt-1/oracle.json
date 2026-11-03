@@ -1,0 +1,13 @@
+{
+  "category": "Masked",
+  "reason": "completed exit=0, ARRAYHASH==golden (ffe18c8279bf419d...) — fault did not propagate",
+  "faults_injected": 1,
+  "eligible_count": 49664,
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "skip": 9427,
+  "oracle_kind": "array_hash",
+  "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+  "returncode": 0,
+  "timed_out": false
+}
