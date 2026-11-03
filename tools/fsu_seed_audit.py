@@ -85,6 +85,17 @@ def _hex_int(value, default=0):
         return None
 
 
+def _dec_int(value, default=None):
+    """bit_indices / field_lo / field_hi are emitted as decimal strings."""
+    text = str(value or "").strip()
+    if not text:
+        return default
+    try:
+        return int(text, 10)
+    except ValueError:
+        return None
+
+
 def _field_violations(evt):
     """Validate one L0 root's field/lane/mask semantics.
 
@@ -116,7 +127,10 @@ def _field_violations(evt):
             return v
         want_sub = FIELD_SUBMODEL.get(field)
         sub = str(evt.get("submodel", "")).strip()
-        if want_sub and sub and sub != want_sub:
+        # FP04-d is the NEON lane-result domain, orthogonal to the field
+        # axis: a lane-selected run (lane_offset > 0) may carry any field.
+        lane_domain = (sub == "FP04-d" and lane_o > 0)
+        if want_sub and sub and sub != want_sub and not lane_domain:
             v.append(f"fault {fid}: field {field} requires {want_sub}, "
                      f"event submodel={sub}")
     mask = _hex_int(evt.get("fault_mask"))
@@ -125,7 +139,7 @@ def _field_violations(evt):
         return v
     if lane_w < 64 and (mask >> lane_w):
         v.append(f"fault {fid}: fault_mask 0x{mask:x} exceeds lane_width {lane_w}")
-    bit = _hex_int(evt.get("bit_indices"), default=None)
+    bit = _dec_int(evt.get("bit_indices"), default=None)
     if bit is None:
         v.append(f"fault {fid}: missing bit_indices")
         return v
@@ -141,6 +155,14 @@ def _field_violations(evt):
             v.append(f"fault {fid}: bit {rel} outside field {field} [{lo},{hi}]")
         if mask != (1 << rel):
             v.append(f"fault {fid}: fault_mask 0x{mask:x} != 1<<{rel}")
+        flo = _dec_int(evt.get("field_lo"))
+        fhi = _dec_int(evt.get("field_hi"))
+        if flo is not None and fhi is not None and (flo, fhi) != (lo, hi):
+            v.append(f"fault {fid}: field_lo/hi ({flo},{fhi}) != "
+                     f"{field} ({lo},{hi})")
+        bil = _dec_int(evt.get("bit_in_lane"))
+        if bil is not None and bil != rel:
+            v.append(f"fault {fid}: bit_in_lane {bil} != {rel}")
     lane_mask = _hex_int(evt.get("lane_mask"), default=None)
     if lane_mask is not None:
         want = mask << lane_base

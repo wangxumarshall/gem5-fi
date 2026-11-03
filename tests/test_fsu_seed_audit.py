@@ -153,3 +153,41 @@ def test_audit_detects_missing_event(tmp_path):
     res = A.audit_attempt(attempt)
     assert res["ok"] is False
     assert any("MD event 4" in f or "主链全部事件" in f for f in res["failures"])
+
+
+def test_field_violations_decimal_bit_and_fp04d_lane_domain():
+    # bit_indices is decimal: "63" must mean bit 63, not 0x63=99.
+    e = P.parse_line(evt(
+        kind="fault_applied", field="sign", precision="fp64",
+        submodel="FP04-a", lane_width="64", lane_offset="0",
+        bit_indices="63", bit_in_lane="63", field_lo="63", field_hi="63",
+        fault_mask="0x8000000000000000",
+        lane_mask="0x00000000000000008000000000000000",
+        before="0x4080580000000000", after="0xc080580000000000",
+        full_before="0x00000000000000004080580000000000",
+        full_after="0x0000000000000000c080580000000000"))
+    assert A._field_violations(e) == []
+
+    # FP04-d is the lane domain: a lane-selected sign flip is valid even
+    # though the field itself maps to FP04-a.
+    lane2 = P.parse_line(evt(
+        kind="fault_applied", field="sign", precision="fp32",
+        submodel="FP04-d", lane_width="32", lane_offset="2",
+        bit_indices="95", bit_in_lane="31", field_lo="31", field_hi="31",
+        fault_mask="0x0000000080000000",
+        lane_mask="0x00000000800000000000000000000000",
+        before="0x3e7ff79e", after="0xbe7ff79e",
+        full_before="0x3f9170e73e7ff79e3e7efbb53f1b9433",
+        full_after="0x3f9170e7be7ff79e3e7efbb53f1b9433"))
+    assert A._field_violations(lane2) == []
+
+    # A scalar sign flip labelled FP04-c is still a mapping violation.
+    wrong = P.parse_line(evt(
+        kind="fault_applied", field="sign", precision="fp32",
+        submodel="FP04-c", lane_width="32", lane_offset="0",
+        bit_indices="31", bit_in_lane="31", field_lo="31", field_hi="31",
+        fault_mask="0x80000000", lane_mask="0x00000000000000000000000080000000",
+        before="0x3ec41894", after="0xbec41894",
+        full_before="0x0000000000000000000000003ec41894",
+        full_after="0x000000000000000000000000bec41894"))
+    assert A._field_violations(wrong)
