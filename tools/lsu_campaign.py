@@ -1339,6 +1339,32 @@ REPEAT_MAX_BASIS = {
 }
 
 
+# [R6-L-UNIT] The bounded same-workload repeat contract (chaos_repeat.h)
+# was wired for the A unit only. The L unit's F1/F2/F4 cells hit the same
+# structural wall: the SPEC-FIXED first-fire position (F1 up to 1,290,806
+# eligible events; F2/F4 up to 140,806) exceeds the L carriers' supply
+# (sq_forward 1,262 / 540; sqlite_like 11,306 / 18,681). Repeating the SAME
+# workload extends the eligible stream without changing the interval, the
+# tier, the seed, the injection field/site, or the RunID identity.
+L_REPEAT_MODELS = frozenset({"L01", "L02", "L03"})
+
+# L03's F0 draw is a per-seed eligible ordinal (span/warmup stay exactly as
+# the spec's parameterization pins them). seed3 on sq_forward draws 561 while
+# the stream supplies 540; a bounded repeat extends the supply past the SAME
+# draw. Keyed by (model, binary, seed) because the factor is a property of
+# that draw, and only measured entries are applied (an unmeasured seed keeps
+# repeat=1, its honest pre-existing behavior, rather than inventing one).
+L_F0_REPEAT = {}
+
+
+def _l_repeat_family(family, model, freq):
+    """True when the L-unit bounded-repeat contract owns this cell."""
+    if freq in ("F1", "F2", "F4"):
+        return ((family == "addrpath" and model in ("L01", "L02"))
+                or (family == "lsqfwd" and model == "L03"))
+    return False
+
+
 def repeat_factor_for(model, freq, binary, seed=None):
     """Return the measured repeat factor, 1 for non-interval tiers, or None
     when an interval-tier cell has no census (loud refusal upstream).
@@ -2128,8 +2154,11 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
     # position on the SAME workload (no carrier swap). Unknown = loud
     # refusal. The key carries the seed-parity sub-model (A04/A06/A08), so a
     # sub-model model without a seed is refused as well.
-    if family == "addrpath" and model.startswith("A") and freq in (
-            "F1", "F2", "F4"):
+    repeat_owned = (
+        (family == "addrpath" and (model.startswith("A")
+                                   or model in ("L01", "L02")))
+        or (family == "lsqfwd" and model == "L03"))
+    if repeat_owned and freq in ("F1", "F2", "F4"):
         if repeat_override is not None:
             # Census-only explicit count (it must run repeat=1/5 before the
             # table entry exists). Still bounded by REPEAT_MAX — the cap is
@@ -2159,6 +2188,24 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
             return None, None, (
                 "BLOCKED(repeat-factor-over-cap: %s-%s-%s needs %d > %d)"
                 % (model, freq, binary, rep, REPEAT_MAX))
+        if rep > 1:
+            flags += ["--chaos_repeat", str(rep)]
+    # [R6-L-UNIT] L03's F0 draw is a per-seed eligible ordinal. The repeat
+    # only extends the supply; warmup/span/seed and the draw stay byte-exact.
+    # Only a measured seed-keyed factor applies; otherwise repeat=1 stays.
+    if model == "L03" and freq == "F0":
+        if repeat_override is not None:
+            rep = int(repeat_override)
+            if rep < 1:
+                return None, None, (
+                    "BLOCKED(repeat-factor-invalid: %s-%s-%s override=%d; "
+                    "repeat must be >= 1)" % (model, freq, binary, rep))
+        else:
+            rep = int(L_F0_REPEAT.get((model, binary, seed), 1))
+        if rep > REPEAT_MAX:
+            return None, None, (
+                "BLOCKED(repeat-factor-over-cap: %s-%s-%s@seed%s needs %d > %d)"
+                % (model, freq, binary, seed, rep, REPEAT_MAX))
         if rep > 1:
             flags += ["--chaos_repeat", str(rep)]
     return flags, golden, binary
@@ -3136,8 +3183,17 @@ def run_single_cell(cell, args, seed, outdir):
 
     family = MODEL_FLAGS[model][0]
     freq = cell[COL_FREQ].strip()
-    _rep = (repeat_factor_for(model, freq, _binary, seed=seed)
-            if family == "addrpath" else 1)
+    # [R6-L-UNIT] The manifest/iteration-oracle repeat value must match what
+    # resolve_cell actually put on the command line. L03 F0 is seed-keyed and
+    # L03 F4 shares the interval table; A models keep their existing shape.
+    if model == "L03" and freq == "F0":
+        _rep = int(L_F0_REPEAT.get((model, _binary, seed), 1))
+    elif _l_repeat_family(family, model, freq):
+        _rep = repeat_factor_for(model, freq, _binary, seed=seed)
+    elif family == "addrpath":
+        _rep = repeat_factor_for(model, freq, _binary, seed=seed)
+    else:
+        _rep = 1
     flags = apply_seed_variant_flags(model, freq, seed, _binary, flags)
     outdir.mkdir(parents=True, exist_ok=True)
     # [MDSPEC][H0] every sample carries the propagation trace + identity
