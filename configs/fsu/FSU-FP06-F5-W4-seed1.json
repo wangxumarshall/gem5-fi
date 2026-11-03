@@ -1,0 +1,57 @@
+{
+  "run_id": "FSU-FP06-F5-W4",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W4",
+  "submodel": "FP06-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel_rate_v1",
+    "identity": "W4-rate-v1",
+    "source": "workloads/directed/elemwise_fma_kernel_rate_v1.c",
+    "source_sha256": "e63dbcf7ce881b34078ef713281823f1ecc2e7d04cf79ecbb1c4be37201ac2c0",
+    "binary_sha256": "c698cd698e7339930ec4087f134fad0bde71b4a960cf83022c2996d34ac37784",
+    "golden_id": "elemwisefma-rate-v1-golden",
+    "golden": "e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp64",
+      "lane_width": 64,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 0,
+      "f5_warmup": 1024,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256
+    },
+    "fault_mask": "0x8000000000000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "pre_registration": {
+    "frozen_at": "2026-11-04",
+    "submodel": "FP06-a",
+    "precision": "fp64",
+    "lane_width": 64,
+    "lane_offset": 0,
+    "mask": "0x8000000000000000",
+    "polarity": 0,
+    "f5_warmup": 1024,
+    "f5_sample_limit": 1024,
+    "f5_keep_first_last_n": 256,
+    "decode_guard": true,
+    "eligible_census_reference": 2097155
+  },
+  "notes": "F5 formal seed1: FP06-a FP64 sign SA0 on the real W4-rate-v1 carrier. Mask/polarity/precision/warm-up/sampling frozen BEFORE the run; the fault-run eligible count may differ from the pre-registered census because the fault can change control flow."
+}
