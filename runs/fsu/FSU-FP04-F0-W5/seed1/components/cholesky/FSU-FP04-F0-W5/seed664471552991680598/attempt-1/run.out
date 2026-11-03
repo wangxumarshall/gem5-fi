@@ -1,0 +1,7 @@
+Global frequency set at 1000000000000 ticks per second
+info: Standard input is not a terminal, disabling listeners.
+[ooo_proxy] C3-OOO params applied: width=4-wide, ROB=128, physInt=128, physFloat=192, physVec=48 (IQ=64 unified default; LQ/SQ=gem5 default, north star silent; 2.6GHz)
+[ooo_proxy] B0-core params applied: fetch/decode/rename=3/3/3, dispatch=6, issue/wb/commit=8/8/8, ROB=40, IQ=32, PRF 128/192/48, LQ/SQ=16, fetchBuffer=16, squash=8
+[ooo_proxy] CHAOSPropagation attached (trace=prop_trace.csv.gz, run_id='FSU-FP04-F0-W5', sample_run_id='s664471552991680598')
+FINAL=ea7e0d0e7c86582d
+ARRAY_DUMP path=/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed1/components/cholesky/FSU-FP04-F0-W5/seed664471552991680598/attempt-1/inject/array.bin count=3916 elem_size=4 fnv1a=ea7e0d0e7c86582d

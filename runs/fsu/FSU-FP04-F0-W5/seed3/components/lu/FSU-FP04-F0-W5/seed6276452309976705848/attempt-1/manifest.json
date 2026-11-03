@@ -1,0 +1,78 @@
+{
+  "run_id": "FSU-FP04-F0-W5",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W5",
+  "submodel": "FP04-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/ooo/polybench/lu/lu",
+    "source": "workloads/ooo/polybench/linear-algebra/solvers/lu/lu.c",
+    "identity": "W5-polybench-lu-v1",
+    "golden": "74ffe5eb77ea9257",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "lu",
+        "golden_id": "polybenchlu-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          84,
+          84
+        ],
+        "count": 7056,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    },
+    "max_faults": 1,
+    "first_clock": 0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1",
+    "suite_version": "1",
+    "suite_hash": "7282decf461243a8fdff38b6f99f66112c18027ee9a9b0a7dd057c4e2a0a7493",
+    "suite_seed": 3,
+    "program_id": "lu",
+    "program_index": 2,
+    "program_count": 5,
+    "component_seed": 6276452309976705848,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "notes": "W5 suite component run: exactly one program and exactly one injected fault; not a formal suite seed by itself.",
+  "seed": 6276452309976705848,
+  "sample_run_id": "s6276452309976705848",
+  "selection_seed": 6276452309976705848,
+  "injection_seed": 6276452309976705848,
+  "attempt": 1,
+  "created_at": "2026-11-03T20:45:58",
+  "source_head": "0a3ad42133348c2f66a5d225ce01dac3a7f94531",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "8b1080971957cd47f395e62f2e56f85cd0eeeab451777bd4a7bb0dcd49f5dda6",
+  "runner_tool_sha256": "5495363ff5d0e5052e63dbb5a8480b8d8dd3ecc40636e86bcb056af693979594",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/ooo/polybench/lu/lu",
+  "workload_sha256": "afabec562a5e3d181355e2859a205d13ec6a64e8028a471c98ce2765580adb53"
+}

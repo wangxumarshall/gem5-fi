@@ -1,0 +1,66 @@
+{
+  "run_id": "FSU-FP04-F0-W5",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W5",
+  "submodel": "FP04-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/ooo/polybench/lu/lu",
+    "source": "workloads/ooo/polybench/linear-algebra/solvers/lu/lu.c",
+    "identity": "W5-polybench-lu-v1",
+    "golden": "74ffe5eb77ea9257",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "lu",
+        "golden_id": "polybenchlu-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          84,
+          84
+        ],
+        "count": 7056,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    },
+    "max_faults": 1,
+    "first_clock": 0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1",
+    "suite_version": "1",
+    "suite_hash": "7282decf461243a8fdff38b6f99f66112c18027ee9a9b0a7dd057c4e2a0a7493",
+    "suite_seed": 1,
+    "program_id": "lu",
+    "program_index": 2,
+    "program_count": 5,
+    "component_seed": 17763049110757693680,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "notes": "W5 suite component run: exactly one program and exactly one injected fault; not a formal suite seed by itself."
+}

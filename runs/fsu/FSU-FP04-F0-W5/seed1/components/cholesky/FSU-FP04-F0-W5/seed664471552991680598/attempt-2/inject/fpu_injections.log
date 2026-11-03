@@ -1,0 +1,4 @@
+Tick: 833429520, Site: dyn_inst_execute, opClass=8, sn=1803808, bitseg=sign, precision=fp32, lane_width=32, lane_offset=0, decoded_kind=scalar_vfp, precision_match=1, lane_match=1, mask=0x80000000, faults_injected: 1
+CHAOS_DECODE_REJECTS=0
+CHAOS_DECODE_KIND scalar_vfp=194019
+CHAOS_DECODE_KIND unreliable=6
