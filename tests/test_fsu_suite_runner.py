@@ -418,3 +418,154 @@ def test_suite_audit_detects_broken_component(tmp_path):
     cm.unlink()
     audit = A.audit_suite(seed_dir)
     assert audit["ok"] is False
+
+
+# ---------- F5: pre-registered seed_plan drives every component ----------
+
+F5_PLAN = [
+    {"suite_seed": 1, "submodel": "FP06-a", "bitseg": "sign",
+     "precision": "fp32", "lane_width": 32, "lane_offset": 0,
+     "mask": "0x80000000", "polarity": 0, "warmup": 1024,
+     "sample": {"limit": 1024, "keep_first_last_n": 256},
+     "op_classes": [], "reg_class": "any", "decode_guard": True,
+     "permanent_stuck": True},
+    {"suite_seed": 2, "submodel": "FP06-b", "bitseg": "sign",
+     "precision": "fp32", "lane_width": 32, "lane_offset": 0,
+     "mask": "0x80000000", "polarity": 1, "warmup": 1024,
+     "sample": {"limit": 1024, "keep_first_last_n": 256},
+     "op_classes": [], "reg_class": "any", "decode_guard": True,
+     "permanent_stuck": True},
+    {"suite_seed": 3, "submodel": "FP06-c", "precision": "fp32",
+     "lane_width": 32, "lane_offset": 0, "mask": "0x007f8000",
+     "polarity": 0, "warmup": 1024,
+     "sample": {"limit": 1024, "keep_first_last_n": 256},
+     "op_classes": [], "reg_class": "any", "decode_guard": True,
+     "permanent_stuck": True},
+]
+
+
+def make_f5_suite(tmp_path):
+    path, suite, gem5, goldens = make_suite(tmp_path)
+    suite["run_defaults"].update(
+        {"model_id": "FP06", "freq": "F5", "load_id": "W5",
+         "submodel": "FP06-a"})
+    suite["injector"] = {
+        "component": "fsu", "max_faults": 1, "first_clock": 0,
+        "fpu_mode": {
+            "precision": "fp32", "lane_width": 32, "lane_offset": 0,
+            "decode_guard": True, "permanent_stuck": True,
+            "f5_warmup": 1024, "f5_sample_limit": 1024,
+            "f5_keep_first_last_n": 256,
+            "op_classes": [], "reg_class": "any",
+        },
+    }
+    suite["seed_plan"] = json.loads(json.dumps(F5_PLAN))
+    suite["suite_hash"] = S.compute_suite_hash(suite)
+    path.write_text(json.dumps(suite, ensure_ascii=False, indent=2),
+                    encoding="utf-8")
+    return path, suite, gem5, goldens
+
+
+def recording_failure_runner(calls):
+    def runner(cmd, timeout):
+        calls.append(list(cmd))
+        return 0, "", "", False  # no census log -> attempt fails, manifest stays
+    return runner
+
+
+def test_f5_seed_plan_overrides_fpu_mode_and_mask(tmp_path):
+    suite_path, suite, gem5, goldens = make_f5_suite(tmp_path)
+    calls = []
+    for seed in (1, 2, 3):
+        res = run(tmp_path, suite_path, gem5,
+                  recording_failure_runner(calls), seed=seed)
+        assert res["status"] == "failed"  # fake runner provides no census
+    assert len(calls) == 3 * S.PROGRAM_COUNT
+
+    by_seed = {1: (0, "FP06-a", "0x80000000", 0),
+               2: (1, "FP06-b", "0x80000000", 1),
+               3: (0, "FP06-c", "0x007f8000", 0)}
+    for seed, (polarity, submodel, mask, want_pol) in by_seed.items():
+        assert polarity == want_pol
+        seed_dir = tmp_path / "runs" / RID / f"seed{seed}"
+        attempts = sorted(seed_dir.glob("components/*/*/seed*/attempt-1"))
+        assert len(attempts) == S.PROGRAM_COUNT
+        masks = set()
+        subs = set()
+        for attempt in attempts:
+            m = json.loads((attempt / "manifest.json").read_text(
+                encoding="utf-8"))
+            fpu = m["injector"]["fpu_mode"]
+            assert m["freq"] == "F5"
+            assert m["model_id"] == "FP06"
+            assert m["load_id"] == "W5"
+            assert m["submodel"] == submodel
+            assert m["injector"]["fault_mask"] == mask
+            assert fpu["precision"] == "fp32"
+            assert fpu["lane_width"] == 32
+            assert fpu["lane_offset"] == 0
+            assert fpu["permanent_stuck"] is True
+            assert fpu["stuck_polarity"] == want_pol
+            assert fpu["decode_guard"] is True
+            assert fpu["f5_warmup"] == 1024
+            assert fpu["f5_sample_limit"] == 1024
+            assert fpu["f5_keep_first_last_n"] == 256
+            assert fpu["op_classes"] == []
+            assert fpu["reg_class"] == "any"
+            # seed 3 is the fixed-mantissa entry: the base injector has no
+            # bitseg, so the plan must not leak seed 1/2's "sign" into it.
+            assert ("bitseg" in fpu) == (seed != 3)
+            if seed != 3:
+                assert fpu["bitseg"] == "sign"
+            assert m["seed_plan_entry"] == S.seed_plan_identity(
+                S.seed_plan_entry(suite, seed))
+            masks.add(m["injector"]["fault_mask"])
+            subs.add(m["submodel"])
+        assert masks == {mask}
+        assert subs == {submodel}
+
+
+def test_f5_suite_without_seed_plan_refused_before_running(tmp_path):
+    path, suite, gem5, goldens = make_f5_suite(tmp_path)
+    bad = json.loads(path.read_text(encoding="utf-8"))
+    del bad["seed_plan"]
+    bad["suite_hash"] = S.compute_suite_hash(bad)
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    calls = []
+    with pytest.raises(S.SuiteError, match="must pre-register a seed_plan"):
+        run(tmp_path, path, gem5, fake_runner(suite, goldens, calls=calls))
+    assert calls == []
+    assert not (tmp_path / "runs" / RID / "seed1").exists()
+
+
+def test_f5_suite_requires_permanent_stuck_injector(tmp_path):
+    path, suite, gem5, goldens = make_f5_suite(tmp_path)
+    bad = json.loads(path.read_text(encoding="utf-8"))
+    bad["injector"]["fpu_mode"]["permanent_stuck"] = False
+    bad["suite_hash"] = S.compute_suite_hash(bad)
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    with pytest.raises(S.SuiteError, match="permanent_stuck"):
+        run(tmp_path, path, gem5, fake_runner(suite, goldens))
+
+
+def test_f5_unknown_suite_seed_refused(tmp_path):
+    suite_path, suite, gem5, goldens = make_f5_suite(tmp_path)
+    calls = []
+    with pytest.raises(S.SuiteError, match="not in the pre-registered"):
+        run(tmp_path, suite_path, gem5,
+            fake_runner(suite, goldens, calls=calls), seed=4)
+    assert calls == []
+    assert not list((tmp_path / "runs" / RID / "seed4").glob("components/*"))
+
+
+def test_f5_disk_binary_identity_mismatch_refused(tmp_path):
+    path, suite, gem5, goldens = make_f5_suite(tmp_path)
+    bad = json.loads(path.read_text(encoding="utf-8"))
+    bad["programs"][0]["binary_sha256"] = "a" * 64
+    bad["suite_hash"] = S.compute_suite_hash(bad)
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    calls = []
+    with pytest.raises(S.SuiteError, match="binary SHA drift"):
+        run(tmp_path, path, gem5, fake_runner(suite, goldens, calls=calls))
+    assert calls == []
+    assert not (tmp_path / "runs" / RID / "seed1").exists()

@@ -66,6 +66,24 @@ def load_suite(path: Path, root: Path = ROOT):
                            f"(max_faults must be 1, got {max_faults})")
     if not isinstance(injector.get("fpu_mode"), dict):
         raise S.SuiteError("suite.injector.fpu_mode is required")
+    defaults = suite.get("run_defaults") or {}
+    if str(defaults.get("freq", "") or "").strip() == "F5":
+        # [FSU][F5] An F5 suite must carry a frozen 3-seed plan and a
+        # permanent-stuck component fault; a suite without them is refused
+        # before any attempt directory is created.
+        if S.seed_plan_map(suite) is None:
+            raise S.SuiteError("an F5 suite must pre-register a seed_plan")
+        if str(injector.get("component", "")) != "fsu":
+            raise S.SuiteError("an F5 suite component must be 'fsu'")
+        fpu = injector.get("fpu_mode") or {}
+        if fpu.get("permanent_stuck") is not True:
+            raise S.SuiteError(
+                "an F5 suite requires fpu_mode.permanent_stuck == true")
+        for entry in S.normalise_seed_plan(suite):
+            if entry["permanent_stuck"] is not True:
+                raise S.SuiteError(
+                    f"seed_plan seed{entry['suite_seed']} must set "
+                    "permanent_stuck == true")
     for p in suite["programs"]:
         pid = p["program_id"]
         for kind in ("source", "binary"):
@@ -109,10 +127,45 @@ def _component_seed_dir(seed_dir: Path, program_id: str, run_id: str,
             f"seed{component_seed}")
 
 
+def _apply_seed_plan(injector: dict, defaults: dict, entry: dict):
+    """Override the component injector/run identity with one seed_plan entry.
+
+    The suite's `injector` block is only the F5 base configuration; the
+    pre-registered per-suite-seed entry is authoritative for the submodel,
+    precision, mask, polarity, lane geometry, op/reg filtering, warm-up and
+    bounded sample window. Unknown/extra values are never inferred.
+    """
+    fpu = dict(injector.get("fpu_mode") or {})
+    fpu.update({
+        "precision": entry["precision"],
+        "lane_width": entry["lane_width"],
+        "lane_offset": entry["lane_offset"],
+        "decode_guard": entry["decode_guard"],
+        "permanent_stuck": entry["permanent_stuck"],
+        "stuck_polarity": entry["polarity"],
+        "f5_warmup": entry["warmup"],
+        "f5_sample_limit": entry["sample"]["limit"],
+        "f5_keep_first_last_n": entry["sample"]["keep_first_last_n"],
+        "op_classes": list(entry["op_classes"]),
+        "reg_class": entry["reg_class"],
+    })
+    if "bitseg" in entry:
+        fpu["bitseg"] = entry["bitseg"]
+    else:
+        fpu.pop("bitseg", None)
+    injector["fpu_mode"] = fpu
+    injector["fault_mask"] = entry["mask"]
+    defaults["submodel"] = entry["submodel"]
+    return injector, defaults
+
+
 def _component_run_manifest(suite, program, run_id, suite_seed,
-                            component_seed, suite_hash, policy_version):
+                            component_seed, suite_hash, policy_version,
+                            plan_entry=None):
     defaults = copy.deepcopy(suite.get("run_defaults") or {})
     injector = copy.deepcopy(suite.get("injector") or {})
+    if plan_entry is not None:
+        injector, defaults = _apply_seed_plan(injector, defaults, plan_entry)
     limits = copy.deepcopy(defaults.pop("limits", {}) or {})
     workload = {
         "binary": str(program["binary"]),
@@ -135,7 +188,7 @@ def _component_run_manifest(suite, program, run_id, suite_seed,
         "component_seed": component_seed,
         "component_seed_policy_version": policy_version,
     }
-    return {
+    out = {
         "run_id": run_id,
         **defaults,
         "workload": workload,
@@ -145,6 +198,10 @@ def _component_run_manifest(suite, program, run_id, suite_seed,
         "notes": ("W5 suite component run: exactly one program and exactly "
                   "one injected fault; not a formal suite seed by itself."),
     }
+    if plan_entry is not None:
+        out["seed_plan_entry"] = S.seed_plan_identity(plan_entry)
+        out["pre_registration"] = copy.deepcopy(out["seed_plan_entry"])
+    return out
 
 
 def _activated_count(attempt: Path) -> int:
@@ -227,7 +284,8 @@ def _oracle_evidence_ok(attempt: Path) -> bool:
 
 def _component_manifest(suite, program, suite_hash, suite_seed, component_seed,
                         policy_version, attempt: Path, status: str,
-                        audit_ok: bool, certified: bool, root: Path = ROOT):
+                        audit_ok: bool, certified: bool, root: Path = ROOT,
+                        plan_entry=None):
     report_path = attempt / "chain_report.json"
     if report_path.exists():
         report = json.loads(report_path.read_text(encoding="utf-8"))
@@ -244,7 +302,7 @@ def _component_manifest(suite, program, suite_hash, suite_seed, component_seed,
         attempt_no = 0
     if status == "admitted" and not (audit_ok and certified):
         status = "failed"
-    return {
+    out = {
         "suite_id": suite["suite_id"],
         "suite_version": suite["suite_version"],
         "suite_hash": suite_hash,
@@ -279,6 +337,9 @@ def _component_manifest(suite, program, suite_hash, suite_seed, component_seed,
         "component_certified": bool(certified),
         "attempt": str(attempt),
     }
+    if plan_entry is not None:
+        out["seed_plan_entry"] = S.seed_plan_identity(plan_entry)
+    return out
 
 
 def _write_component_manifest(attempt: Path, manifest: dict):
@@ -291,7 +352,7 @@ def _write_component_manifest(attempt: Path, manifest: dict):
 
 def _reuse_component(seed_dir: Path, program_id: str, run_id: str,
                      component_seed: int, suite, suite_hash: str,
-                     suite_seed: int, policy_version: str):
+                     suite_seed: int, policy_version: str, plan_entry=None):
     """Reuse an already-admitted component attempt without re-running gem5."""
     comp_seed_dir = _component_seed_dir(seed_dir, program_id, run_id,
                                         component_seed)
@@ -333,13 +394,16 @@ def _reuse_component(seed_dir: Path, program_id: str, run_id: str,
             != S.PROGRAM_ORDER.index(program_id)
             or cm.get("component_seed_policy_version") != policy_version):
         return None
+    if plan_entry is not None and cm.get("seed_plan_entry") != \
+            S.seed_plan_identity(plan_entry):
+        return None
     return cm
 
 
 def _run_one_component(suite, program, suite_hash, suite_seed, component_seed,
                        policy_version, seed_dir: Path, run_id: str,
                        out_root: Path, gem5: Path, root: Path, runner,
-                       timeout_s, allow_rerun: bool):
+                       timeout_s, allow_rerun: bool, plan_entry=None):
     pid = program["program_id"]
     component_root = Path(seed_dir) / "components" / pid
     component_root.mkdir(parents=True, exist_ok=True)
@@ -348,12 +412,13 @@ def _run_one_component(suite, program, suite_hash, suite_seed, component_seed,
     if not allow_rerun:
         reused = _reuse_component(seed_dir, pid, run_id, component_seed,
                                   suite, suite_hash, suite_seed,
-                                  policy_version)
+                                  policy_version, plan_entry=plan_entry)
         if reused is not None:
             return {**reused, "reused": True}
 
     spec = _component_run_manifest(suite, program, run_id, suite_seed,
-                                   component_seed, suite_hash, policy_version)
+                                   component_seed, suite_hash, policy_version,
+                                   plan_entry=plan_entry)
     spec_path = component_root / f"manifest-seed{component_seed}.json"
     spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=2),
                          encoding="utf-8")
@@ -391,6 +456,8 @@ def _run_one_component(suite, program, suite_hash, suite_seed, component_seed,
             "component_audit_ok": False, "component_certified": False,
             "attempt": str(attempt), "run_status": res.get("status"),
             "reason": res.get("reason", "no attempt created"),
+            **({"seed_plan_entry": S.seed_plan_identity(plan_entry)}
+               if plan_entry is not None else {}),
         }
 
     if res.get("status") != "admitted":
@@ -399,7 +466,8 @@ def _run_one_component(suite, program, suite_hash, suite_seed, component_seed,
                   else "failed")
         cm = _component_manifest(suite, program, suite_hash, suite_seed,
                                  component_seed, policy_version, attempt,
-                                 status, audit_ok, certified, root)
+                                 status, audit_ok, certified, root,
+                                 plan_entry=plan_entry)
         cm["run_status"] = res.get("status")
         cm["reason"] = res.get("reason")
         _write_component_manifest(attempt, cm)
@@ -425,7 +493,8 @@ def _run_one_component(suite, program, suite_hash, suite_seed, component_seed,
               else "failed")
     cm = _component_manifest(suite, program, suite_hash, suite_seed,
                              component_seed, policy_version, attempt,
-                             status, audit_ok, certified, root)
+                             status, audit_ok, certified, root,
+                             plan_entry=plan_entry)
     if oracle_ok:
         mismatches = int(oracle_result.get("mismatch_count", 0))
         cm["component_oracle"] = "SDC" if mismatches > 0 else "MASKED"
@@ -589,6 +658,12 @@ def run_suite(suite_path: Path = DEFAULT_SUITE, suite_seed: int = 1,
     derived = S.derive_component_seeds(
         int(suite_seed), policy_version, suite["suite_id"],
         suite["suite_version"])
+    # [FSU][F5] Every component run inside one suite seed is driven by the
+    # SAME pre-registered seed_plan entry (identical submodel/mask/polarity/
+    # warm-up/sampling for all five programs). A missing seed is refused
+    # (seed_plan_entry raises) instead of silently falling back to the base
+    # injector.
+    plan_entry = S.seed_plan_entry(suite, int(suite_seed))
 
     results = []
     for pid in S.PROGRAM_ORDER:
@@ -597,7 +672,8 @@ def run_suite(suite_path: Path = DEFAULT_SUITE, suite_seed: int = 1,
         results.append(_run_one_component(
             suite, program, suite_hash, int(suite_seed), derived[pid],
             policy_version, seed_dir, run_id, Path(out_root), Path(gem5),
-            Path(root), runner, timeout_s, allow_rerun))
+            Path(root), runner, timeout_s, allow_rerun,
+            plan_entry=plan_entry))
 
     admitted = all(c.get("component_status") == "admitted"
                    and c.get("component_audit_ok") is True
@@ -655,7 +731,8 @@ def run_suite(suite_path: Path = DEFAULT_SUITE, suite_seed: int = 1,
             "component_golden_sha256", "component_status",
             "component_eligible", "component_activated", "component_faults",
             "component_terminal", "component_oracle",
-            "component_audit_ok", "component_certified", "attempt")
+            "component_audit_ok", "component_certified", "attempt",
+            "seed_plan_entry")
     } for c in results]
     suite_manifest = {
         "suite": suite,

@@ -1,0 +1,123 @@
+{
+  "suite_id": "w6-fp-v1",
+  "suite_version": "1",
+  "oracle_version": "fsu-w6-oracle-v1",
+  "reps": 3,
+  "created_at": "2026-11-04T00:19:58",
+  "program_order": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "programs": {
+    "svd": {
+      "golden_array": "configs/fsu/suites/w6-fp-v1/golden/svd.bin",
+      "sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
+      "count": 64,
+      "shape": [
+        8,
+        8
+      ],
+      "domain": "full",
+      "dtype": "fp64",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
+        "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
+        "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c"
+      ],
+      "native_rcs": [
+        0,
+        0,
+        0
+      ],
+      "native_finals": [
+        "4afb95b5b32f3820",
+        "4afb95b5b32f3820",
+        "4afb95b5b32f3820"
+      ],
+      "native_residuals": [
+        null,
+        null,
+        null
+      ],
+      "final": "4afb95b5b32f3820",
+      "ok": true
+    },
+    "fft": {
+      "golden_array": "configs/fsu/suites/w6-fp-v1/golden/fft.bin",
+      "sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
+      "count": 1024,
+      "shape": [
+        1,
+        1024
+      ],
+      "domain": "full",
+      "dtype": "fp32",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
+        "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
+        "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177"
+      ],
+      "native_rcs": [
+        0,
+        0,
+        0
+      ],
+      "native_finals": [
+        "fdd819481ea73b0c",
+        "fdd819481ea73b0c",
+        "fdd819481ea73b0c"
+      ],
+      "native_residuals": [
+        null,
+        null,
+        null
+      ],
+      "final": "fdd819481ea73b0c",
+      "ok": true
+    },
+    "sparse-cg": {
+      "golden_array": "configs/fsu/suites/w6-fp-v1/golden/sparse-cg.bin",
+      "sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
+      "count": 256,
+      "shape": [
+        1,
+        256
+      ],
+      "domain": "full",
+      "dtype": "fp32",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
+        "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
+        "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8"
+      ],
+      "native_rcs": [
+        0,
+        0,
+        0
+      ],
+      "native_finals": [
+        "feb0479242258ead",
+        "feb0479242258ead",
+        "feb0479242258ead"
+      ],
+      "native_residuals": [
+        "2.825277123e-09",
+        "2.825277123e-09",
+        "2.825277123e-09"
+      ],
+      "final": "feb0479242258ead",
+      "ok": true
+    }
+  },
+  "ok": true
+}

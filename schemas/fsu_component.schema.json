@@ -71,6 +71,10 @@
     "component_oracle_error": {"type": "string"},
     "component_audit_ok": {"type": "boolean"},
     "component_certified": {"type": "boolean"},
+    "seed_plan_entry": {
+      "type": "object",
+      "description": "F5: canonical pre-registered seed_plan entry for this component's suite_seed (identity, covered by suite_hash)."
+    },
     "attempt": {"type": "string", "minLength": 1}
   }
 }

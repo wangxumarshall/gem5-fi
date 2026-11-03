@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """fsu_oracle.py — FSU W5 element-wise oracle for PolyBench output arrays.
 
+The fp32 comparison path is also the single implementation reused by
+``tools/fsu_w6_oracle.py`` for the W6 FFT / sparse-cg components (the W6
+module only adds an fp64 path for SVD). ``schemas/fsu_oracle.schema.json``
+stays W5-specific; W6 has its own meta contract.
+
 The C side (``workloads/ooo/polybench/utilities/gem5fi_oracle.h``) optionally
 writes ONE live-out array as raw little-endian bytes and prints::
 
@@ -64,7 +69,11 @@ from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
 ORACLE_VERSION = "fsu-oracle-v1"
 RESULT_SCHEMA = "fsu-oracle-result-v1"
 
-PROGRAMS = ("gemm", "2mm", "lu", "cholesky", "jacobi-2d")
+# W5 PolyBench programs plus the W6 artifact components. The fp32 path of
+# tools/fsu_w6_oracle.py delegates to this module, so W6 fp32 comparisons
+# share exactly the same implementation as W5.
+PROGRAMS = ("gemm", "2mm", "lu", "cholesky", "jacobi-2d",
+            "svd", "fft", "sparse-cg")
 DTYPE_FP32 = "fp32"
 LAYOUT_ROW_MAJOR = "row-major"
 ENDIANNESS_LITTLE = "little"

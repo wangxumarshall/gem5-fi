@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import fsu_suite as S  # noqa: E402
 
 SUITE_PATH = ROOT / "configs/fsu/suites/polybench-fp-v1.json"
+F5_SUITE_PATH = ROOT / "configs/fsu/suites/polybench-fp-v1-f5.json"
 SCHEMA = json.loads((ROOT / "schemas/fsu_suite.schema.json").read_text(
     encoding="utf-8"))
 COMPONENT_SCHEMA = json.loads(
@@ -33,13 +34,56 @@ def complete_suite():
     return suite
 
 
+SEED_PLAN = [
+    {"suite_seed": 1, "submodel": "FP06-a", "bitseg": "sign",
+     "precision": "fp32", "lane_width": 32, "lane_offset": 0,
+     "mask": "0x80000000", "polarity": 0, "warmup": 1024,
+     "sample": {"limit": 1024, "keep_first_last_n": 256},
+     "op_classes": [], "reg_class": "any", "decode_guard": True,
+     "permanent_stuck": True},
+    {"suite_seed": 2, "submodel": "FP06-b", "bitseg": "sign",
+     "precision": "fp32", "lane_width": 32, "lane_offset": 0,
+     "mask": "0x80000000", "polarity": 1, "warmup": 1024,
+     "sample": {"limit": 1024, "keep_first_last_n": 256},
+     "op_classes": [], "reg_class": "any", "decode_guard": True,
+     "permanent_stuck": True},
+    {"suite_seed": 3, "submodel": "FP06-c",
+     "precision": "fp32", "lane_width": 32, "lane_offset": 0,
+     "mask": "0x007f8000", "polarity": 0, "warmup": 1024,
+     "sample": {"limit": 1024, "keep_first_last_n": 256},
+     "op_classes": [], "reg_class": "any", "decode_guard": True,
+     "permanent_stuck": True},
+]
+
+
+def f5_suite():
+    """A complete F5 suite identity with the real 3-seed pre-registration."""
+    suite = complete_suite()
+    suite["suite_id"] = "test-polybench-fp-v1-f5"
+    suite["run_defaults"]["model_id"] = "FP06"
+    suite["run_defaults"]["freq"] = "F5"
+    suite["injector"] = {
+        "component": "fsu", "max_faults": 1, "first_clock": 0,
+        "fpu_mode": {
+            "precision": "fp32", "lane_width": 32, "lane_offset": 0,
+            "decode_guard": True, "permanent_stuck": True,
+            "f5_warmup": 1024, "f5_sample_limit": 1024,
+            "f5_keep_first_last_n": 256,
+            "op_classes": [], "reg_class": "any",
+        },
+    }
+    suite["seed_plan"] = copy.deepcopy(SEED_PLAN)
+    suite["suite_hash"] = S.compute_suite_hash(suite)
+    return suite
+
+
 def component_for(suite, pid, suite_seed=1, attempt=1, status="admitted"):
     p = next(x for x in suite["programs"] if x["program_id"] == pid)
     cseed = S.derive_component_seed(
         suite_seed, pid, S.DEFAULT_COMPONENT_SEED_POLICY,
         suite["suite_id"], suite["suite_version"])
     golden_sha, _ = S.component_golden_sha256(p)
-    return {
+    comp = {
         "suite_id": suite["suite_id"],
         "suite_version": suite["suite_version"],
         "suite_hash": S.compute_suite_hash(suite),
@@ -63,6 +107,10 @@ def component_for(suite, pid, suite_seed=1, attempt=1, status="admitted"):
         "component_audit_ok": status == "admitted",
         "component_certified": status == "admitted",
     }
+    plan = S.seed_plan_map(suite)
+    if plan is not None:
+        comp["seed_plan_entry"] = S.seed_plan_identity(plan[suite_seed])
+    return comp
 
 
 def make_suite_seed(tmp_path, suite, audit_ok=True, broken_pid=None,
@@ -425,3 +473,142 @@ def test_component_schema():
     bad["program_count"] = 4
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, COMPONENT_SCHEMA)
+
+
+# ---------- F5 seed_plan (pre-registered 3 suite seeds) ----------
+
+def test_real_f5_suite_identity_matches_disk():
+    suite = json.loads(F5_SUITE_PATH.read_text(encoding="utf-8"))
+    info = S.validate_suite_manifest(suite, require_hashes=True,
+                                     require_suite_hash=True)
+    assert info["ok"] is True
+    assert suite["run_defaults"]["freq"] == "F5"
+    assert suite["run_defaults"]["model_id"] == "FP06"
+    assert suite["run_defaults"]["load_id"] == "W5"
+    assert suite["run_defaults"]["limits"]["timeout_s"] == 3600
+    plan = S.normalise_seed_plan(suite)
+    assert [e["suite_seed"] for e in plan] == [1, 2, 3]
+    assert [e["submodel"] for e in plan] == ["FP06-a", "FP06-b", "FP06-c"]
+    assert [(e["mask"], e["polarity"]) for e in plan] == [
+        ("0x80000000", 0), ("0x80000000", 1), ("0x007f8000", 0)]
+    # Real on-disk identities, not copied tokens.
+    for p in suite["programs"]:
+        assert S.sha256_file(ROOT / p["source"]) == p["source_sha256"]
+        assert S.sha256_file(ROOT / p["binary"]) == p["binary_sha256"]
+        golden = ROOT / p["element_oracle"]["golden_array"]
+        assert S.sha256_file(golden) == p["golden_array_sha256"]
+
+
+def test_f5_suite_schema_accepts_real_config():
+    suite = json.loads(F5_SUITE_PATH.read_text(encoding="utf-8"))
+    jsonschema.validate(suite, SCHEMA)
+
+
+def test_f5_suite_without_seed_plan_is_rejected():
+    suite = f5_suite()
+    del suite["seed_plan"]
+    with pytest.raises(S.SuiteError, match="must pre-register a seed_plan"):
+        S.validate_suite_manifest(suite)
+
+
+def test_seed_plan_hash_covers_every_pre_registered_field():
+    base = f5_suite()
+    h0 = S.compute_suite_hash(base)
+
+    def changed(mut):
+        d = copy.deepcopy(base)
+        mut(d["seed_plan"][0])
+        return S.compute_suite_hash(d)
+
+    mutations = {
+        "submodel": lambda e: e.__setitem__("submodel", "FP06-z"),
+        "precision": lambda e: (e.__setitem__("precision", "fp64"),
+                                e.__setitem__("lane_width", 64)),
+        "mask": lambda e: e.__setitem__("mask", "0x80000001"),
+        "polarity": lambda e: e.__setitem__("polarity", 1),
+        "warmup": lambda e: e.__setitem__("warmup", 0),
+        "sample.limit": lambda e: e["sample"].__setitem__("limit", 512),
+        "sample.keep": lambda e: e["sample"].__setitem__(
+            "keep_first_last_n", 128),
+        "op_classes": lambda e: e.__setitem__("op_classes", ["FloatAdd"]),
+        "reg_class": lambda e: e.__setitem__("reg_class", "vec"),
+        "decode_guard": lambda e: e.__setitem__("decode_guard", False),
+        "permanent_stuck": lambda e: e.__setitem__("permanent_stuck", False),
+        "bitseg": lambda e: e.__setitem__("bitseg", "mant_lo"),
+        "lane_offset": lambda e: e.__setitem__("lane_offset", 1),
+    }
+    for name, fn in mutations.items():
+        assert changed(fn) != h0, name
+
+
+def test_seed_plan_validation_rejects_garbage():
+    def expect(entry, match):
+        d = f5_suite()
+        d["seed_plan"][0] = entry
+        with pytest.raises(S.SuiteError, match=match):
+            S.validate_suite_manifest(d)
+
+    expect({"suite_seed": 1}, "missing required")
+    expect(dict(SEED_PLAN[0], polarity=2), "polarity")
+    expect(dict(SEED_PLAN[0], mask="0x100000000"), "does not fit lane_width")
+    expect(dict(SEED_PLAN[0], mask="0x0"), "non-zero")
+    expect(dict(SEED_PLAN[0], precision="fp16"), "precision")
+    expect(dict(SEED_PLAN[0], submodel=""), "submodel")
+    expect(dict(SEED_PLAN[0], unknown=1), "unknown field")
+    expect(dict(SEED_PLAN[0], warmup=-1), "warmup")
+    bad_sample = copy.deepcopy(SEED_PLAN[0])
+    bad_sample["sample"]["keep_first_last_n"] = 2048
+    expect(bad_sample, "keep_first_last_n")
+    bad_ops = dict(SEED_PLAN[0], op_classes=["NotAnOp"])
+    expect(bad_ops, "unknown name")
+
+
+def test_seed_plan_requires_exactly_three_unique_seeds():
+    d = f5_suite()
+    d["seed_plan"] = d["seed_plan"][:2]
+    with pytest.raises(S.SuiteError, match="exactly 3"):
+        S.validate_suite_manifest(d)
+
+    d = f5_suite()
+    d["seed_plan"][1]["suite_seed"] = 1
+    with pytest.raises(S.SuiteError, match="exactly"):
+        S.validate_suite_manifest(d)
+
+
+def test_seed_plan_entry_lookup_is_loud():
+    suite = f5_suite()
+    assert S.seed_plan_entry(suite, 1)["submodel"] == "FP06-a"
+    assert S.seed_plan_entry(suite, 2)["polarity"] == 1
+    assert S.seed_plan_entry(suite, 3)["mask"] == "0x007f8000"
+    with pytest.raises(S.SuiteError, match="not in the pre-registered"):
+        S.seed_plan_entry(suite, 4)
+    legacy = real_suite()
+    assert S.seed_plan_entry(legacy, 1) is None
+
+
+def test_legacy_suite_hash_is_unchanged_by_seed_plan_support():
+    suite = real_suite()
+    assert S.compute_suite_hash(suite) == suite["suite_hash"]
+
+
+def test_component_manifest_requires_matching_seed_plan_entry():
+    suite = f5_suite()
+    comp = component_for(suite, "gemm", suite_seed=2)
+    assert S.validate_component_manifest(comp, suite)["ok"] is True
+
+    bad = copy.deepcopy(comp)
+    del bad["seed_plan_entry"]
+    with pytest.raises(S.SuiteError, match="seed_plan_entry is required"):
+        S.validate_component_manifest(bad, suite)
+
+    bad = copy.deepcopy(comp)
+    bad["seed_plan_entry"]["polarity"] = 0
+    with pytest.raises(S.SuiteError, match="seed_plan_entry drift"):
+        S.validate_component_manifest(bad, suite)
+
+    # A component cannot silently use a different suite seed's plan.
+    bad = copy.deepcopy(comp)
+    bad["seed_plan_entry"] = S.seed_plan_identity(
+        S.seed_plan_entry(suite, 1))
+    with pytest.raises(S.SuiteError, match="seed_plan_entry drift"):
+        S.validate_component_manifest(bad, suite)

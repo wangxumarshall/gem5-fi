@@ -70,6 +70,45 @@
         }
       }
     },
+    "seed_plan": {
+      "type": "array",
+      "description": "F5 pre-registration: exactly three formal suite seeds, each freezing submodel/precision/mask/polarity/warm-up/bounded sampling. Covered by suite_hash.",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": [
+          "suite_seed", "submodel", "precision", "mask", "polarity",
+          "warmup", "sample"
+        ],
+        "properties": {
+          "suite_seed": {"type": "integer", "enum": [1, 2, 3]},
+          "submodel": {"type": "string", "minLength": 1},
+          "bitseg": {
+            "type": "string",
+            "enum": ["sign", "exp_hi", "exp_lo", "mant_hi", "mant_mid", "mant_lo"]
+          },
+          "precision": {"type": "string", "enum": ["fp32", "fp64"]},
+          "lane_width": {"type": "integer", "enum": [8, 16, 32, 64]},
+          "lane_offset": {"type": "integer", "minimum": 0},
+          "mask": {"type": "string", "pattern": "^0x[0-9a-fA-F]{1,16}$"},
+          "polarity": {"type": "integer", "enum": [0, 1]},
+          "warmup": {"type": "integer", "minimum": 0},
+          "sample": {
+            "type": "object",
+            "required": ["limit", "keep_first_last_n"],
+            "properties": {
+              "limit": {"type": "integer", "minimum": 0},
+              "keep_first_last_n": {"type": "integer", "minimum": 0}
+            }
+          },
+          "op_classes": {"type": "array", "items": {"type": "string"}},
+          "reg_class": {"type": "string", "enum": ["any", "vec", "float", "vec_elem"]},
+          "decode_guard": {"type": "boolean"},
+          "permanent_stuck": {"type": "boolean"}
+        }
+      }
+    },
     "scale": {"type": "object"},
     "compiler": {
       "type": "object",

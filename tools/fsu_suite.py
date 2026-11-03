@@ -29,6 +29,35 @@ DEFAULT_COMPONENT_SEED_POLICY = "w5-component-seed-v1"
 COMPONENT_STATUSES = ("admitted", "failed", "not_activated", "invalid")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
+# [FSU][F5] Pre-registered per-suite-seed plan. A suite that declares a
+# seed_plan freezes exactly three formal suite seeds BEFORE execution:
+# each entry fixes the submodel, precision, permanent-fault mask/polarity,
+# lane geometry, op/reg filtering, warm-up and bounded sampling window.
+# The plan participates in suite_hash, so it cannot be changed after seeing
+# results without a loud suite_hash drift error.
+SEED_PLAN_COUNT = 3
+SEED_PLAN_REQUIRED = (
+    "suite_seed", "submodel", "precision", "mask", "polarity",
+    "warmup", "sample",
+)
+SEED_PLAN_OPTIONAL = (
+    "bitseg", "lane_width", "lane_offset", "op_classes", "reg_class",
+    "decode_guard", "permanent_stuck",
+)
+SEED_PLAN_ALLOWED = frozenset(SEED_PLAN_REQUIRED + SEED_PLAN_OPTIONAL)
+PRECISIONS = ("fp32", "fp64")
+BITSEGS = ("sign", "exp_hi", "exp_lo", "mant_hi", "mant_mid", "mant_lo")
+LANE_WIDTHS = (8, 16, 32, 64)
+# Keep identical to tools/fsu_seed_runner.py / CHAOSFPU.cc kOpClassNames.
+FPU_OP_CLASSES = (
+    "FloatAdd", "FloatCmp", "FloatCvt", "FloatMult", "FloatMultAcc",
+    "FloatDiv", "FloatMisc", "FloatSqrt",
+    "SimdFloatAdd", "SimdFloatAlu", "SimdFloatCmp", "SimdFloatCvt",
+    "SimdFloatMult", "SimdFloatMultAcc", "SimdFloatDiv", "SimdFloatSqrt",
+    "SimdFloatMisc",
+)
+FPU_REG_CLASSES = ("any", "vec", "float", "vec_elem")
+
 
 class SuiteError(ValueError):
     """Suite/component 身份不成立；调用方必须响亮拒绝，不得降级运行。"""
@@ -104,6 +133,215 @@ def _validate_order_and_count(suite: dict):
                          f"got {count}")
 
 
+def _int(value, where: str, minimum=None) -> int:
+    if isinstance(value, bool):
+        raise SuiteError(f"{where} must be an integer, got {value!r}")
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        raise SuiteError(f"{where} must be an integer, got {value!r}")
+    if minimum is not None and value < minimum:
+        raise SuiteError(f"{where} must be >= {minimum}, got {value}")
+    return value
+
+
+def _mask_value(value, lane_width: int, where: str) -> int:
+    """Parse an int or 0x-hex mask and require it to fit the lane width."""
+    if isinstance(value, bool):
+        raise SuiteError(f"{where} must be a mask, got {value!r}")
+    if isinstance(value, int):
+        parsed = value
+    else:
+        text = str(value or "").strip()
+        try:
+            parsed = int(text, 0)
+        except ValueError:
+            raise SuiteError(f"{where} must be an integer or 0x-hex mask, "
+                             f"got {value!r}")
+    if parsed < 0:
+        raise SuiteError(f"{where} must be >= 0, got {value!r}")
+    if parsed == 0:
+        raise SuiteError(f"{where} must be non-zero (a zero mask is a no-op)")
+    if parsed >= (1 << lane_width):
+        raise SuiteError(f"{where}=0x{parsed:x} does not fit lane_width="
+                         f"{lane_width}")
+    return parsed
+
+
+def _mask_text(value: int, lane_width: int) -> str:
+    width = 8 if lane_width <= 32 else 16
+    return f"0x{value:0{width}x}"
+
+
+def _normalise_sample(entry: dict, where: str) -> dict:
+    sample = entry.get("sample")
+    if not isinstance(sample, dict):
+        raise SuiteError(f"{where}.sample must be an object with "
+                         "limit/keep_first_last_n")
+    missing = [k for k in ("limit", "keep_first_last_n") if k not in sample]
+    if missing:
+        raise SuiteError(f"{where}.sample missing {missing}")
+    limit = _int(sample["limit"], f"{where}.sample.limit", minimum=0)
+    keep = _int(sample["keep_first_last_n"],
+                f"{where}.sample.keep_first_last_n", minimum=0)
+    if limit == 0 and keep != 0:
+        raise SuiteError(f"{where}.sample: keep_first_last_n must be 0 when "
+                         "limit is 0")
+    if limit > 0 and keep > limit:
+        raise SuiteError(f"{where}.sample: keep_first_last_n {keep} > limit "
+                         f"{limit}")
+    return {"limit": limit, "keep_first_last_n": keep}
+
+
+def normalise_seed_plan_entry(entry: dict, index: int) -> dict:
+    """Validate one seed_plan entry and return its canonical identity form.
+
+    Canonical form is what suite_hash binds; it is also what the runner
+    writes into the component manifest (`seed_plan_entry`). Numeric masks
+    are normalised to a fixed-width 0x string, optional F5 knobs get their
+    defaults, and unknown keys are rejected (a typo must never silently
+    change a fault).
+    """
+    where = f"seed_plan[{index}]"
+    if not isinstance(entry, dict):
+        raise SuiteError(f"{where} must be an object")
+    missing = [k for k in SEED_PLAN_REQUIRED if k not in entry]
+    if missing:
+        raise SuiteError(f"{where} missing required field(s): {missing}")
+    unknown = sorted(set(entry) - SEED_PLAN_ALLOWED)
+    if unknown:
+        raise SuiteError(f"{where} has unknown field(s): {unknown}")
+
+    suite_seed = _int(entry["suite_seed"], f"{where}.suite_seed", minimum=1)
+    submodel = str(entry["submodel"] or "").strip()
+    if not submodel:
+        raise SuiteError(f"{where}.submodel is required")
+    precision = str(entry["precision"] or "").strip()
+    if precision not in PRECISIONS:
+        raise SuiteError(f"{where}.precision must be one of {list(PRECISIONS)}, "
+                         f"got {precision!r}")
+    lane_width = _int(entry.get("lane_width",
+                                64 if precision == "fp64" else 32),
+                      f"{where}.lane_width", minimum=8)
+    if lane_width not in LANE_WIDTHS:
+        raise SuiteError(f"{where}.lane_width must be one of "
+                         f"{list(LANE_WIDTHS)}, got {lane_width}")
+    if precision == "fp64" and lane_width != 64:
+        raise SuiteError(f"{where}: fp64 requires lane_width 64")
+    if precision == "fp32" and lane_width < 32:
+        raise SuiteError(f"{where}: fp32 requires lane_width >= 32")
+    lane_offset = _int(entry.get("lane_offset", 0),
+                       f"{where}.lane_offset", minimum=0)
+    if lane_offset >= 128 // lane_width:
+        raise SuiteError(f"{where}.lane_offset {lane_offset} >= "
+                         f"{128 // lane_width} for lane_width {lane_width}")
+    polarity = _int(entry["polarity"], f"{where}.polarity", minimum=0)
+    if polarity not in (0, 1):
+        raise SuiteError(f"{where}.polarity must be 0 or 1, got {polarity}")
+    mask = _mask_value(entry["mask"], lane_width, f"{where}.mask")
+    warmup = _int(entry["warmup"], f"{where}.warmup", minimum=0)
+    sample = _normalise_sample(entry, where)
+
+    bitseg = entry.get("bitseg")
+    if bitseg is not None:
+        bitseg = str(bitseg).strip()
+        if bitseg not in BITSEGS:
+            raise SuiteError(f"{where}.bitseg must be one of "
+                             f"{list(BITSEGS)}, got {bitseg!r}")
+
+    raw_ops = entry.get("op_classes")
+    if raw_ops is None:
+        op_classes = []
+    elif isinstance(raw_ops, (list, tuple)):
+        op_classes = [str(x) for x in raw_ops]
+    else:
+        raise SuiteError(f"{where}.op_classes must be an array")
+    bad_ops = [x for x in op_classes if x not in FPU_OP_CLASSES]
+    if bad_ops:
+        raise SuiteError(f"{where}.op_classes has unknown name(s): {bad_ops}")
+    if len(set(op_classes)) != len(op_classes):
+        raise SuiteError(f"{where}.op_classes contains duplicates")
+
+    reg_class = str(entry.get("reg_class", "any") or "any").strip()
+    if reg_class not in FPU_REG_CLASSES:
+        raise SuiteError(f"{where}.reg_class must be one of "
+                         f"{list(FPU_REG_CLASSES)}, got {reg_class!r}")
+
+    out = {
+        "suite_seed": suite_seed,
+        "submodel": submodel,
+        "precision": precision,
+        "lane_width": lane_width,
+        "lane_offset": lane_offset,
+        "mask": _mask_text(mask, lane_width),
+        "mask_value": mask,
+        "polarity": polarity,
+        "warmup": warmup,
+        "sample": sample,
+        "op_classes": op_classes,
+        "reg_class": reg_class,
+        "decode_guard": bool(entry.get("decode_guard", True)),
+        "permanent_stuck": bool(entry.get("permanent_stuck", True)),
+    }
+    if bitseg is not None:
+        out["bitseg"] = bitseg
+    return out
+
+
+def normalise_seed_plan(suite: dict):
+    """Return the normalised seed_plan (sorted by suite_seed) or None."""
+    if "seed_plan" not in suite:
+        return None
+    plan = suite.get("seed_plan")
+    if not isinstance(plan, list):
+        raise SuiteError("suite.seed_plan must be a list")
+    if len(plan) != SEED_PLAN_COUNT:
+        raise SuiteError(f"suite.seed_plan must contain exactly "
+                         f"{SEED_PLAN_COUNT} entries, got {len(plan)}")
+    entries = [normalise_seed_plan_entry(e, i) for i, e in enumerate(plan)]
+    seeds = [e["suite_seed"] for e in entries]
+    if set(seeds) != set(range(1, SEED_PLAN_COUNT + 1)):
+        raise SuiteError(f"seed_plan suite_seed values must be exactly "
+                         f"{list(range(1, SEED_PLAN_COUNT + 1))}, got {seeds}")
+    if len(set(seeds)) != len(seeds):
+        raise SuiteError(f"seed_plan duplicate suite_seed: {seeds}")
+    return sorted(entries, key=lambda e: e["suite_seed"])
+
+
+def seed_plan_map(suite: dict):
+    """Map suite_seed -> canonical entry; None for a legacy suite."""
+    plan = normalise_seed_plan(suite)
+    if plan is None:
+        return None
+    return {e["suite_seed"]: e for e in plan}
+
+
+def seed_plan_entry(suite: dict, suite_seed: int):
+    """Return the pre-registered entry for one suite seed (loud if missing)."""
+    plan = seed_plan_map(suite)
+    if plan is None:
+        return None
+    try:
+        seed = int(suite_seed)
+    except (TypeError, ValueError):
+        raise SuiteError(f"suite_seed must be an integer, got {suite_seed!r}")
+    if seed not in plan:
+        raise SuiteError(f"suite_seed {seed} is not in the pre-registered "
+                         f"seed_plan {sorted(plan)}")
+    return plan[seed]
+
+
+def seed_plan_identity(entry: dict) -> dict:
+    """Identity-only projection of a canonical seed_plan entry."""
+    out = {k: entry[k] for k in (
+        "suite_seed", "submodel", "precision", "lane_width", "lane_offset",
+        "mask", "polarity", "warmup", "sample", "op_classes", "reg_class",
+        "decode_guard", "permanent_stuck")}
+    if "bitseg" in entry:
+        out["bitseg"] = entry["bitseg"]
+    return out
+
+
 def suite_identity_document(suite: dict, allow_pending: bool = True) -> dict:
     """构造参与 suite_hash 的严格身份文档。
 
@@ -175,7 +413,7 @@ def suite_identity_document(suite: dict, allow_pending: bool = True) -> dict:
     if not oracle_version:
         raise SuiteError("suite.oracle.version is required")
 
-    return {
+    doc = {
         "suite_id": suite_id,
         "suite_version": suite_version,
         "program_order": list(PROGRAM_ORDER),
@@ -190,6 +428,26 @@ def suite_identity_document(suite: dict, allow_pending: bool = True) -> dict:
         },
     }
 
+    # [FSU][F5] The pre-registered seed plan is identity: it is frozen
+    # BEFORE any run, so it must be covered by suite_hash. Legacy suites
+    # without a seed_plan keep their historical hash byte-for-byte.
+    plan = normalise_seed_plan(suite)
+    if plan is not None:
+        doc["seed_plan"] = [seed_plan_identity(e) for e in plan]
+        defaults = suite.get("run_defaults") or {}
+        doc["run_defaults_identity"] = {
+            k: str(defaults.get(k, "")) for k in (
+                "model_id", "unit", "freq", "load_id", "submodel",
+                "config_family", "config_profile")
+        }
+        injector = suite.get("injector") or {}
+        doc["injector_identity"] = {
+            "component": str(injector.get("component", "")),
+            "max_faults": int(injector.get("max_faults", 0) or 0),
+            "first_clock": int(injector.get("first_clock", 0) or 0),
+        }
+    return doc
+
 
 def compute_suite_hash(suite: dict) -> str:
     return sha256_bytes(canonical_bytes(suite_identity_document(suite)))
@@ -203,6 +461,12 @@ def validate_suite_manifest(suite: dict, require_hashes: bool = False,
     require_suite_hash=True：manifest 必须带 suite_hash，且与重算一致。
     返回 {ok, suite_hash, identity}；任何不成立都抛 SuiteError。
     """
+    defaults = suite.get("run_defaults") or {}
+    freq = str(defaults.get("freq", "") or "").strip()
+    if freq == "F5" and "seed_plan" not in suite:
+        raise SuiteError(
+            "an F5 suite must pre-register a seed_plan (3 suite seeds with "
+            "submodel/precision/mask/polarity/warm-up/sample)")
     doc = suite_identity_document(suite, allow_pending=not require_hashes)
     if require_hashes:
         for p in doc["programs"]:
@@ -344,6 +608,16 @@ def validate_component_manifest(component: dict, suite: dict | None = None) -> d
         raise SuiteError(f"{pid}.suite_seed must be an integer")
     if suite_seed < 0:
         raise SuiteError(f"{pid}.suite_seed must be >= 0")
+    plan = normalise_seed_plan(suite) if suite is not None else None
+    if plan is not None:
+        want_entry = seed_plan_entry(suite, suite_seed)
+        got_entry = component.get("seed_plan_entry")
+        if not isinstance(got_entry, dict):
+            raise SuiteError(f"{pid}.seed_plan_entry is required for a suite "
+                             "with a pre-registered seed_plan")
+        if got_entry != seed_plan_identity(want_entry):
+            raise SuiteError(f"{pid}.seed_plan_entry drift for suite_seed "
+                             f"{suite_seed}")
     try:
         attempt = int(component.get("component_attempt"))
     except (TypeError, ValueError):
