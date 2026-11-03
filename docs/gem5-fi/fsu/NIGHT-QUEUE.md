@@ -50,8 +50,8 @@
   - [x] E2 FFT 固定输入 + 来源/许可证 + 可重复构建 + native/gem5 golden + 数值 oracle
   - [x] E3 真实稀疏线性系统（非 SpMV 代理）+ 同上
   - [x] E4 suite_hash / component identity / 计数协议
-  - [ ] E5 FP04-F0-W6 gate → 正式 3 seed
-  - [ ] E6 FP06-F5-W6 gate → 正式 3 seed（若组件齐全）
+  - [x] E5 FP04-F0-W6 gate → 正式 3 seed
+  - [x] E6 FP06-F5-W6 gate → 正式 3 seed（若组件齐全）
 
 ## 2. 文件所有权（同一文件只允许一个 agent 修改）
 
@@ -96,3 +96,5 @@ python3 -m pytest tests/test_fsu_*.py tests/test_chaos_fsu_*.py tests/test_chaos
 - 2026-11-04 04:40 W6 F0 gate v2 PASS 3/3；W6 F5 gate PASS 3/3（SVD fp64、FFT/sparse fp32）。
 - 2026-11-04 04:55 W6 正式模式接入 fsu_w6_gate + fsu_index W6 suite 识别；FSU-FP04-F0-W6 与 FSU-FP06-F5-W6 各 3 个 suite seed 全部 admitted（每 seed 3 component，component 不计 seed）。
 - 2026-11-04 05:00 最终磁盘计数：历史 **42/519 seed、14/173 RunID**；活跃 F0/F5 **33/240 seed、11/80 RunID**。FSU 335 passed，非 FSU 20 passed。
+- 2026-11-04 05:10 批量复审计：42 个 authoritative seed 全部 audit ok（含 12 个 suite seed / 48 个 component）；HEAD 与 origin/fsu 同步，工作区 clean。
+- 2026-11-04 05:10 队列 A–E 全部完成。剩余 **FR03-F5-W5/W6 保持 BLOCKED**（未做 suite/artifact 门禁，未借用 W3 证据）；FP06-d 仍 MISSING。当前双视图：历史 42/519、14/173；活跃 33/240、11/80。
