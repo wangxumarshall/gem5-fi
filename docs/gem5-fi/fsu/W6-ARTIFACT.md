@@ -1,9 +1,13 @@
-# W6 artifact：SVD + FFT + 稀疏线性系统（native 已完成，gem5 待主 agent）
+# W6 artifact：SVD + FFT + 稀疏线性系统（native + gem5 + 正式 seed 已完成）
 
 > 日期：2026-11-04。分支 `fsu`。
-> 范围：`FSU-FP04-F0-W6` / `FSU-FP06-F5-W6` 的 **artifact 准备**。
-> 本文只记录真实执行过的 native 证据；**gem5 B0 / gem5 fault-run golden
-> 尚未由本 agent 运行**，不得据本文声称 W6 已完成或可正式计数。
+> 范围：`FSU-FP04-F0-W6` / `FSU-FP06-F5-W6`。
+> 2026-11-04 主 agent 已完成 gem5 B0 gate 与正式 suite seed：
+> F0-W6 gate v2 PASS 3/3；F5-W6 gate PASS 3/3；两个 RunID 各 3 个正式
+> suite seed 全部 admitted（每 seed 3 component，component 不计 seed）。
+> 证据：`runs/fsu/FSU-FP04-F0-W6/seed{1,2,3}/`、
+> `runs/fsu/FSU-FP06-F5-W6/seed{1,2,3}/`；gate：
+> `runs/fsu-gates/W6-F0-GATE-v2/`、`runs/fsu-gates/W6-F5-GATE/`。
 
 ## 1. 固定 suite
 
@@ -239,10 +243,24 @@ python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1-f5.json \
     --suite-seed 1 --outdir runs/fsu-gates/W6-F5-GATE --verify-only
 ```
 
-### 8.4 仍未完成
+### 8.4 正式运行（已完成）
 
-- gem5 侧的 3/3 gate、CSV/audit 证据与 F0/F5 正式 seed 全部未运行；
-- F0 artifact 的 `suite.injector` 只有 `bitseg=sign`（无 fault_mask），
-  正式 F0 注入的 mask/polarity 仍需主 agent 在运行清单中固定并记录；
-- 未创建 `w6-fp-v1-f0.json`：F0 artifact 直接复用 `w6-fp-v1.json`，
-  因为 gate 工具按 `--suite` 选择 F0/F5，不需要重复文件。
+```bash
+# F0-W6：3 个 suite seed，每个 3 component
+for s in 1 2 3; do
+  python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1.json \
+    --suite-seed $s --formal-run-id FSU-FP04-F0-W6 --allow-rerun
+done
+# F5-W6：3 个 suite seed（FP06-a/b/c），每个 3 component
+for s in 1 2 3; do
+  python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1-f5.json \
+    --suite-seed $s --formal-run-id FSU-FP06-F5-W6 --allow-rerun
+done
+```
+
+- F0-W6：seed1 三组件 SDC；seed2 FFT Masked、其余 SDC；seed3 全 SDC。
+- F5-W6：seed1/2/3 各 3 组件全部 SDC/可判定。
+- 每 seed 的 Markdown：`seed<N>/<RunID>-seed<N>.md` 与
+  `runs/fsu/COMPLETE_PROPAGATION_PATHS/<RunID>/<RunID>-seed<N>.md`；
+  审计：`seed<N>/audit.json` / `audit.md` / `suite_report.json`。
+- 最终双视图（磁盘）：历史 42/519、14/173；活跃 33/240、11/80。

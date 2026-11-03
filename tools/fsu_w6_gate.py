@@ -322,7 +322,7 @@ def _run_one_component(suite, program, suite_hash, suite_seed, component_seed,
 
 
 def verify_component_attempt(attempt: Path, suite, program, plan_entry=None,
-                             asset_root=ROOT):
+                             asset_root=ROOT, gate_id=None):
     attempt = Path(attempt)
     pid = program["program_id"]
     checks, check = _checker()
@@ -349,8 +349,10 @@ def verify_component_attempt(attempt: Path, suite, program, plan_entry=None,
         check("manifest binary is the registered program binary",
               Path(str((manifest.get("workload") or {}).get("binary", "")))
               .name == Path(program["binary"]).name)
+        run_id = str(manifest.get("run_id", ""))
         check("manifest run_id is the gate id",
-              str(manifest.get("run_id", "")).endswith("-GATE"))
+              (run_id == str(gate_id)) if gate_id is not None
+              else run_id.endswith("-GATE"))
         if plan_entry is not None:
             check("manifest seed_plan_entry == pre-registration",
                   manifest.get("seed_plan_entry") ==
@@ -480,7 +482,8 @@ def _verify_seed_components(suite, info, seed_dir, gate_id, plan_entry,
             })
             continue
         records.append(verify_component_attempt(
-            attempt, suite, by_id[pid], plan_entry, asset_root=asset_root))
+            attempt, suite, by_id[pid], plan_entry, asset_root=asset_root,
+            gate_id=gate_id))
     return records
 
 
@@ -544,7 +547,40 @@ def _write_formal(seed_dir: Path, run_id: str, suite, info, plan_entry,
         f"- components: {len(records)}/{WS.W6_PROGRAM_COUNT}\n"
         f"- formal suite seeds: {1 if ok else 0}\n",
         encoding="utf-8")
+    md_lines = [
+        f"# {run_id} seed{info['suite_seed']} — W6 formal suite seed",
+        "",
+        "> 一个 suite seed 固定包含 3 个 component run（SVD/FFT/sparse-CG）；",
+        "> component 不进入 seed 计数，本文件只代表 **1 个正式 seed**。",
+        "",
+        f"- suite_hash: `{info['suite_hash']}`",
+        f"- program_order: {' → '.join(WS.W6_PROGRAM_ORDER)}",
+        f"- suite_seed: {info['suite_seed']}",
+        f"- result: **{'PASS' if ok else 'FAIL'}**",
+        "",
+        "| # | program | precision | lane | oracle | audit.ok | certified | attempt |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for i, r in enumerate(records, 1):
+        inj = WS.resolved_injector(suite, r["program_id"], plan_entry)
+        fpu = inj.get("fpu_mode") or {}
+        md_lines.append(
+            f"| {i} | {r['program_id']} | {fpu.get('precision')} | "
+            f"{fpu.get('lane_width')} | {r.get('component_oracle')} | "
+            f"{r.get('component_audit_ok')} | {r.get('component_certified')} | "
+            f"`{r.get('attempt')}` |")
+    md_lines += ["", "## 计数规则", "",
+                 "- 本 suite seed = **1** 个正式 seed。",
+                 "- 3 个 component run / fault 不进入 `admitted_seeds_total`。",
+                 ""]
+    md = "\n".join(md_lines)
+    (seed_dir / f"{run_id}-seed{info['suite_seed']}.md").write_text(
+        md, encoding="utf-8")
     if ok:
+        dst = (seed_dir.parent.parent / "COMPLETE_PROPAGATION_PATHS" /
+               run_id / f"{run_id}-seed{info['suite_seed']}.md")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(md, encoding="utf-8")
         (seed_dir / "AUTHORITATIVE").write_text(
             str(seed_dir) + "\n", encoding="utf-8")
 
