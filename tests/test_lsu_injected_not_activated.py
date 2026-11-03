@@ -170,3 +170,39 @@ def test_full_and_contained_terminals_unchanged():
     ]
     v = C.check_chain(contained, oracle_outcome="Masked")
     assert v["faults"]["1"]["terminal"] == "detected_contained"
+
+
+# [R6-L-UNIT] F4 is a burst tier: one sample can carry several independent
+# L0 injections. Each must be a proven L1 latent view; counters must cover all.
+def _view(fid, eid, tick, va):
+    return [
+        ev(fault_id=fid, event_id=eid, tick=tick, kind="inj", corr="origin",
+           va=va, cache_line=va, field="violation_addr"),
+        ev(fault_id=fid, event_id=str(int(eid) + 1), parent_event_id=eid,
+           tick=tick, kind="addr_form", corr="origin", va=va, cache_line=va,
+           field="violation_addr"),
+    ]
+
+
+def test_multi_fault_burst_accepted():
+    events = (_view("1", "10", "1000", "74cc0")
+              + _view("2", "20", "2000", "75cc0")
+              + [chain_end(event_id="99", tick="3000")])
+    r = verdict(events, inj_rows=2,
+                stats={"simTicks": "3000",
+                       "board.chaos_lsqfwd.numFaultsInjected": "2"})
+    assert r["ok"] is True, r["reasons"]
+    assert r["fault_count"] == 2
+    assert r["provable_to"] == "L1"
+    assert r["subkind"] == "latent_no_effect"
+
+
+def test_multi_fault_count_mismatch_rejected():
+    events = (_view("1", "10", "1000", "74cc0")
+              + _view("2", "20", "2000", "75cc0")
+              + [chain_end(event_id="99", tick="3000")])
+    r = verdict(events, inj_rows=1,
+                stats={"simTicks": "3000",
+                       "board.chaos_lsqfwd.numFaultsInjected": "2"})
+    assert r["ok"] is False
+    assert any("log rows" in x for x in r["reasons"])

@@ -185,6 +185,12 @@ def run(root, regrade=False):
     man, rid, seed, sd, paths = load(root)
     rec = {"root": root, "run_id": rid, "seed": seed, "pass": False,
            "status": None, "reasons": []}
+    if not os.path.isfile(paths["seed_report"]):
+        rec["status"] = "INCOMPLETE"
+        rec["reasons"].append(
+            "chain_report.json missing (run still active or aborted before "
+            "the campaign report)")
+        return rec, {}, None
     rep = json.load(open(paths["seed_report"]))
     try:
         events, truncated, _s, _i = PF.read_stream(paths["prop_evt"])

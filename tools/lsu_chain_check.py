@@ -778,89 +778,96 @@ def injected_not_activated_verdict(
     for e in events:
         by_fault.setdefault(str(e.get("fault_id", "")), []).append(e)
     faults = {k: v for k, v in by_fault.items() if k not in ("", "0")}
-    if len(faults) != 1:
-        return bad(f"expected exactly one fault, got {sorted(faults)}")
-    fid, chain = next(iter(faults.items()))
-    nonlife = [e for e in chain if e.get("kind") != "chain_end"]
-    # Two honest shapes:
-    #   [inj]                 -> L0-only (cache line never consumed);
-    #   [inj, addr_form]      -> L1 view formed but no downstream effect
-    #                            (L03 violation-check view).
-    shape = None
-    if len(nonlife) == 1 and nonlife[0].get("kind") == "inj":
-        shape = "L0"
-    elif (len(nonlife) == 2
-          and nonlife[0].get("kind") == "inj"
-          and nonlife[1].get("kind") == "addr_form"
-          and str(nonlife[1].get("parent_event_id", ""))
-              == str(nonlife[0].get("event_id", ""))
-          and str(nonlife[1].get("corr", "")).strip() in _CHAIN_CORR):
-        shape = "L1"
-    if shape is None:
-        kinds = sorted({str(e.get("kind", "")) for e in nonlife
-                        if e.get("kind") != "inj"})
-        return bad(f"downstream/structural events present in the fault chain: "
-                   f"{kinds or 'missing inj'} (not a proven L0/L1 view)")
-    inj = nonlife[0]
-    last = nonlife[-1]
-    line = (_hex_or_none(inj.get("cache_line"))
-            or _hex_or_none(inj.get("va")))
-    if shape == "L1":
-        line = (_hex_or_none(last.get("va"))
-                or _hex_or_none(last.get("cache_line")) or line)
-    if not line:
-        return bad("injection has no verifiable cache_line/va")
-    tick0 = inj.get("tick")
-    try:
-        tick0 = int(tick0)
-    except (TypeError, ValueError):
-        return bad("L0 injection has no valid tick")
-    try:
-        last_tick = int(last.get("tick"))
-    except (TypeError, ValueError):
-        last_tick = tick0
-    field = str(inj.get("field", "")).strip() or (
-        "violation_addr" if shape == "L1" else "")
-    res["provable_to"] = "L1" if shape == "L1" else "L0"
-    res["subkind"] = "latent_no_effect" if shape == "L1" else INA_SUBKIND
-    res["shape"] = shape
+    if not faults:
+        return bad("no fault chain in the stream")
 
-    # (8) lifecycle marker must be lifecycle-only.
-    for e in chain:
-        if e.get("kind") != "chain_end":
-            continue
-        if (str(e.get("detection_layer", "")).strip()
-                or str(e.get("contained", "")).strip() not in ("", "0")
-                or str(e.get("outcome", "")).strip() not in ("", "run_end")
-                or str(e.get("corr", "")).strip() not in ("", "none")):
-            return bad("chain_end carries L5/containment fields (lifecycle only)")
-
-    # (6) no structural/terminal event in this fault's chain.
-    for e in nonlife:
-        if e is inj:
-            continue
-        if e.get("kind") in _CACHE_STRUCTURAL_KINDS:
-            return bad(f"structural event {e.get('kind')} present in L0 chain")
-
-    # (5) after the injection: no event may touch the corrupted line, and no
-    # non-lifecycle event may exist at all (any such event would be an
-    # unproven downstream claim).
-    for e in events:
-        if e is inj or e is last or e.get("kind") == "chain_end":
-            continue
+    # [R6-L-UNIT] F4 is a BURST tier: one sample legitimately carries several
+    # independent L0 injections (observed: 8 on L03-F4-W5). Every fault must
+    # independently be a proven L0/L1-only view; the global counters must
+    # account for ALL of them. A single-fault sample is the N=1 case.
+    parsed = []
+    for fid in sorted(faults, key=lambda x: int(x)):
+        chain = faults[fid]
+        nonlife = [e for e in chain if e.get("kind") != "chain_end"]
+        # Two honest shapes:
+        #   [inj]             -> L0-only (cache line never consumed);
+        #   [inj, addr_form]  -> L1 view formed but no downstream effect
+        #                        (L03 violation-check view).
+        shape = None
+        if len(nonlife) == 1 and nonlife[0].get("kind") == "inj":
+            shape = "L0"
+        elif (len(nonlife) == 2
+              and nonlife[0].get("kind") == "inj"
+              and nonlife[1].get("kind") == "addr_form"
+              and str(nonlife[1].get("parent_event_id", ""))
+                  == str(nonlife[0].get("event_id", ""))
+              and str(nonlife[1].get("corr", "")).strip() in _CHAIN_CORR):
+            shape = "L1"
+        if shape is None:
+            kinds = sorted({str(e.get("kind", "")) for e in nonlife
+                            if e.get("kind") != "inj"})
+            return bad(f"fault {fid}: downstream/structural events present "
+                       f"in the chain: {kinds or 'missing inj'} "
+                       f"(not a proven L0/L1 view)")
+        inj = nonlife[0]
+        last = nonlife[-1]
+        line = (_hex_or_none(inj.get("cache_line"))
+                or _hex_or_none(inj.get("va")))
+        if shape == "L1":
+            line = (_hex_or_none(last.get("va"))
+                    or _hex_or_none(last.get("cache_line")) or line)
+        if not line:
+            return bad(f"fault {fid}: injection has no verifiable cache_line/va")
         try:
-            te = int(e.get("tick") or -1)
+            tick0 = int(inj.get("tick"))
         except (TypeError, ValueError):
-            te = -1
-        if te < last_tick:
+            return bad(f"fault {fid}: L0 injection has no valid tick")
+        try:
+            last_tick = int(last.get("tick"))
+        except (TypeError, ValueError):
+            last_tick = tick0
+        field = str(inj.get("field", "")).strip() or (
+            "violation_addr" if shape == "L1" else "")
+        # (8) lifecycle marker must be lifecycle-only.
+        for e in chain:
+            if e.get("kind") != "chain_end":
+                continue
+            if (str(e.get("detection_layer", "")).strip()
+                    or str(e.get("contained", "")).strip() not in ("", "0")
+                    or str(e.get("outcome", "")).strip() not in ("", "run_end")
+                    or str(e.get("corr", "")).strip() not in ("", "none")):
+                return bad(f"fault {fid}: chain_end carries L5/containment "
+                           f"fields (lifecycle only)")
+        # (6) no structural/terminal event in this fault's chain.
+        for e in nonlife:
+            if e is inj:
+                continue
+            if e.get("kind") in _CACHE_STRUCTURAL_KINDS:
+                return bad(f"fault {fid}: structural event {e.get('kind')} "
+                           f"present in L0 chain")
+        parsed.append({"fault_id": fid, "chain": chain, "nonlife": nonlife,
+                       "inj": inj, "last": last, "line": line, "tick0": tick0,
+                       "last_tick": last_tick, "shape": shape, "field": field})
+
+    # (5) the stream may contain ONLY the proven fault chains plus lifecycle
+    # markers. Any other event is an unproven downstream claim for at least
+    # one fault — reject the whole sample.
+    allowed = set()
+    for p in parsed:
+        for e in p["nonlife"]:
+            allowed.add(id(e))
+    for e in events:
+        if e.get("kind") == "chain_end":
             continue
-        for key in ("pa", "cache_line", "va"):
-            val = _hex_or_none(e.get(key))
-            if val is not None and val == line:
-                return bad(f"downstream event {e.get('event_id')} kind="
-                           f"{e.get('kind')} touches the injected line")
-        return bad(f"downstream event after L0 without a proven chain: kind="
-                   f"{e.get('kind')}")
+        if id(e) not in allowed:
+            return bad(f"downstream event {e.get('event_id')} kind="
+                       f"{e.get('kind')} is not part of any proven L0/L1 chain")
+    shapes = [p["shape"] for p in parsed]
+    res["provable_to"] = "L1" if "L1" in shapes else "L0"
+    res["subkind"] = "latent_no_effect" if "L1" in shapes else INA_SUBKIND
+    res["shape"] = shapes[0] if len(shapes) == 1 else "multi"
+    res["fault_ids"] = [p["fault_id"] for p in parsed]
+    res["fault_count"] = len(parsed)
 
     # (1) stream completeness.
     if truncated:
@@ -890,8 +897,8 @@ def injected_not_activated_verdict(
         rows = int(inj_rows)
     except (TypeError, ValueError):
         return bad("injection log row count missing")
-    if rows != 1:
-        return bad(f"injection log rows={rows} != 1")
+    if rows != len(parsed):
+        return bad(f"injection log rows={rows} != proven faults={len(parsed)}")
     n_l0 = sum(1 for e in events
                if e.get("kind") == "inj"
                and str(e.get("fault_id", "")) not in ("", "0"))
@@ -923,19 +930,26 @@ def injected_not_activated_verdict(
     if not str(analysis_tool_head or "").strip():
         return bad("analysis_tool_head missing")
 
+    p0 = parsed[0]
+    inj0 = p0["inj"]
     res.update({
-        "ok": True, "applicable": True, "fault_id": fid,
+        "ok": True, "applicable": True, "fault_id": p0["fault_id"],
+        "fault_ids": [p["fault_id"] for p in parsed],
+        "fault_count": len(parsed),
         "l0": {
-            "event_id": str(inj.get("event_id", "")),
-            "tick": tick0,
-            "va": inj.get("va", ""),
-            "pa": inj.get("pa", ""),
-            "cache_line": inj.get("cache_line", ""),
-            "field": field,
-            "before": inj.get("before", ""),
-            "after": inj.get("after", ""),
+            "event_id": str(inj0.get("event_id", "")),
+            "tick": p0["tick0"],
+            "va": inj0.get("va", ""),
+            "pa": inj0.get("pa", ""),
+            "cache_line": inj0.get("cache_line", ""),
+            "field": p0["field"],
+            "before": inj0.get("before", ""),
+            "after": inj0.get("after", ""),
         },
-        "line": line,
+        "faults": [{"fault_id": p["fault_id"], "shape": p["shape"],
+                    "line": p["line"], "tick": p["tick0"],
+                    "field": p["field"]} for p in parsed],
+        "line": p0["line"],
         "oracle": oracle_outcome,
         "stats_injected": stat_inj,
         "log_rows": rows,
