@@ -76,25 +76,24 @@
       "binary_hash_state": "pending_rebuild_after_oracle_hunk",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/gemm.bin",
-        "golden_array_status": "pending_generation",
+        "oracle_version": "polybench-element-v1",
         "meta": {
           "program_id": "gemm",
           "golden_id": "polybenchgemm-golden-v1",
+          "oracle_version": "polybench-element-v1",
           "dtype": "fp32",
           "layout": "row-major",
           "endianness": "little",
-          "count": 7744,
           "shape": [
             88,
             88
           ],
+          "count": 7744,
           "domain": "full",
           "abs_tol": 0.0,
           "rel_tol": 0.0,
-          "ulp_tol": 0,
-          "oracle_version": "polybench-element-v1"
-        },
-        "oracle_version": "polybench-element-v1"
+          "ulp_tol": 0
+        }
       }
     },
     {
@@ -114,25 +113,24 @@
       "binary_hash_state": "pending_rebuild_after_oracle_hunk",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/2mm.bin",
-        "golden_array_status": "pending_generation",
+        "oracle_version": "polybench-element-v1",
         "meta": {
           "program_id": "2mm",
           "golden_id": "polybench2mm-golden-v1",
+          "oracle_version": "polybench-element-v1",
           "dtype": "fp32",
           "layout": "row-major",
           "endianness": "little",
-          "count": 5184,
           "shape": [
             72,
             72
           ],
+          "count": 5184,
           "domain": "full",
           "abs_tol": 0.0,
           "rel_tol": 0.0,
-          "ulp_tol": 0,
-          "oracle_version": "polybench-element-v1"
-        },
-        "oracle_version": "polybench-element-v1"
+          "ulp_tol": 0
+        }
       }
     },
     {
@@ -149,25 +147,24 @@
       "binary_hash_state": "pending_rebuild_after_oracle_hunk",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
-        "golden_array_status": "pending_generation",
+        "oracle_version": "polybench-element-v1",
         "meta": {
           "program_id": "lu",
           "golden_id": "polybenchlu-golden-v1",
+          "oracle_version": "polybench-element-v1",
           "dtype": "fp32",
           "layout": "row-major",
           "endianness": "little",
-          "count": 7056,
           "shape": [
             84,
             84
           ],
+          "count": 7056,
           "domain": "full",
           "abs_tol": 0.0,
           "rel_tol": 0.0,
-          "ulp_tol": 0,
-          "oracle_version": "polybench-element-v1"
-        },
-        "oracle_version": "polybench-element-v1"
+          "ulp_tol": 0
+        }
       }
     },
     {
@@ -184,25 +181,24 @@
       "binary_hash_state": "pending_rebuild_after_oracle_hunk",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/cholesky.bin",
-        "golden_array_status": "pending_generation",
+        "oracle_version": "polybench-element-v1",
         "meta": {
           "program_id": "cholesky",
           "golden_id": "polybenchcholesky-golden-v1",
+          "oracle_version": "polybench-element-v1",
           "dtype": "fp32",
           "layout": "row-major",
           "endianness": "little",
-          "count": 3916,
           "shape": [
             88,
             88
           ],
+          "count": 3916,
           "domain": "lower_triangle_incl_diag",
           "abs_tol": 0.0,
           "rel_tol": 0.0,
-          "ulp_tol": 0,
-          "oracle_version": "polybench-element-v1"
-        },
-        "oracle_version": "polybench-element-v1"
+          "ulp_tol": 0
+        }
       }
     },
     {
@@ -220,25 +216,24 @@
       "binary_hash_state": "pending_rebuild_after_oracle_hunk",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/jacobi-2d.bin",
-        "golden_array_status": "pending_generation",
+        "oracle_version": "polybench-element-v1",
         "meta": {
           "program_id": "jacobi-2d",
           "golden_id": "polybenchjacobi2d-golden-v1",
+          "oracle_version": "polybench-element-v1",
           "dtype": "fp32",
           "layout": "row-major",
           "endianness": "little",
-          "count": 25600,
           "shape": [
             160,
             160
           ],
+          "count": 25600,
           "domain": "full",
           "abs_tol": 0.0,
           "rel_tol": 0.0,
-          "ulp_tol": 0,
-          "oracle_version": "polybench-element-v1"
-        },
-        "oracle_version": "polybench-element-v1"
+          "ulp_tol": 0
+        }
       }
     }
   ],

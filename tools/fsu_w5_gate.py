@@ -29,6 +29,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fsu_config_profile as CP  # noqa: E402
 import fsu_oracle as O  # noqa: E402
 import fsu_suite as S  # noqa: E402
 
@@ -128,6 +129,9 @@ def main(argv=None):
                     help="write golden arrays after 3 native reps agree")
     ap.add_argument("--force-golden", action="store_true",
                     help="overwrite an existing golden array (never a failed attempt)")
+    ap.add_argument("--update-suite", action="store_true",
+                    help="after a PASS, write real binary SHA + golden array "
+                         "SHA + suite_hash back into the suite config")
     a = ap.parse_args(argv)
 
     root = Path(a.root)
@@ -226,18 +230,22 @@ def main(argv=None):
                    "--chaos_fpu", "--fpu_count_only",
                    "--cmd_arg", f"--array-dump={dump}"]
             rc, out, err, timed = run(cmd, a.timeout, cwd=str(root))
+            prof = CP.verify_config_profile(
+                arts / f"{pid}.gem5-{rep}.outdir" / "config.ini", "B0")
             gem.append({
                 "rep": rep, "rc": rc, "timed_out": timed,
                 "final": parse_final(out), "dump": parse_array_dump(out),
                 "array_sha256": sha256_file(dump) if dump.exists() else None,
                 "dump_path": str(dump),
+                "config_profile_check": prof,
                 "stdout_tail": "\n".join(out.splitlines()[-4:]),
                 "stderr_tail": "\n".join(err.splitlines()[-4:]),
             })
         row["gem5"] = gem
         for x in gem:
             if (x["rc"] != 0 or x["timed_out"] or not x["array_sha256"]
-                    or x["array_sha256"] != row["golden_sha256"]):
+                    or x["array_sha256"] != row["golden_sha256"]
+                    or not (x.get("config_profile_check") or {}).get("ok")):
                 ok = False
         # FINAL must match the registered 16-hex golden token (auxiliary).
         want_final = str(p.get("golden") or "")
@@ -283,6 +291,27 @@ def main(argv=None):
         if f.is_file() and f.name != "SHA256SUMS":
             sums.append(f"{sha256_file(f)}  {f.relative_to(outdir)}")
     (outdir / "SHA256SUMS").write_text("\n".join(sums) + "\n", encoding="utf-8")
+    if a.update_suite:
+        if not report["ok"]:
+            raise SystemExit("refusing --update-suite: gate did not PASS")
+        updated = json.loads(suite_path.read_text(encoding="utf-8"))
+        for p in updated["programs"]:
+            row = next(r for r in report["programs"]
+                       if r["program_id"] == p["program_id"])
+            p["binary_sha256"] = row["binary_sha256"]
+            p["source_sha256"] = row["source_sha256"]
+            p["golden_array_sha256"] = row["golden_sha256"]
+            p["binary_hash_state"] = "gated"
+        resolved = json.loads(json.dumps(updated))
+        for p in resolved["programs"]:
+            p["binary_sha256"] = row_sha = report["programs"][
+                S.PROGRAM_ORDER.index(p["program_id"])]["binary_sha256"]
+        updated["suite_hash"] = S.compute_suite_hash(resolved)
+        suite_path.write_text(
+            json.dumps(updated, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+        report["suite_config_updated"] = str(suite_path)
+        report["updated_suite_hash"] = updated["suite_hash"]
     print(json.dumps({"ok": report["ok"], "suite_hash": suite_hash,
                       "outdir": str(outdir)}, ensure_ascii=False, indent=2))
     return 0 if report["ok"] else 1
