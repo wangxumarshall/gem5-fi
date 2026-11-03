@@ -2329,10 +2329,29 @@ def detect_evidence_truncation(outdir):
             reasons.append("prop_evt %s unreadable (%r)" % (stream.name, e))
         else:
             if truncated:
-                reasons.append(
-                    "prop_evt %s incomplete gzip stream (EOF before the "
-                    "end-of-stream marker; run killed mid-write)"
-                    % stream.name)
+                # [R6-O-F5-CAP 2026-11-03] `read_events` also sets truncated
+                # when it stops at EVENT_CAP.  That is an analyzer bound, not a
+                # mid-write kill: if the raw gzip reaches EOF, say so instead of
+                # mislabeling complete evidence as "killed mid-write".
+                import gzip
+                raw_eof = False
+                try:
+                    with gzip.open(stream, "rt") as _f:
+                        for _line in _f:
+                            pass
+                    raw_eof = True
+                except Exception:  # noqa: BLE001 - genuine truncation
+                    raw_eof = False
+                if raw_eof:
+                    reasons.append(
+                        "prop_evt %s analysis capped at EVENT_CAP=%d; raw gzip "
+                        "stream is complete (not a mid-write kill)"
+                        % (stream.name, getattr(PF, "EVENT_CAP", 0)))
+                else:
+                    reasons.append(
+                        "prop_evt %s incomplete gzip stream (EOF before the "
+                        "end-of-stream marker; run killed mid-write)"
+                        % stream.name)
     stats = outdir / "stats.txt"
     if not stats.exists():
         reasons.append("stats.txt missing (gem5 never finalized stats)")

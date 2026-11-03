@@ -93,6 +93,26 @@ def main():
         check("完整流 + 非空 stats → False", t3 is False and r3 == [],
               f"{t3} {r3}")
 
+        # (d) 原始 gzip 完整但分析器 EVENT_CAP 截断：必须与“中途被杀”区分。
+        d4 = root / "analysis_capped"
+        d4.mkdir()
+        _write_complete_gz(d4 / "prop_evt.txt.gz")
+        (d4 / "stats.txt").write_text("simSeconds 0.1\n")
+        import lsu_prop_fields as PF
+        _orig = PF.read_events
+        PF.read_events = lambda p: ([{}] * PF.EVENT_CAP, True)
+        try:
+            t4, r4 = LC.detect_evidence_truncation(d4)
+        finally:
+            PF.read_events = _orig
+        check("分析 cap + 完整 gzip → 仍标记截断（不冒充完整链）",
+              t4 is True, f"{t4} {r4}")
+        check("reason 点名 analysis capped / raw gzip complete",
+              any("analysis capped" in x and "raw gzip stream is complete" in x
+                  for x in r4), str(r4))
+        check("reason 不误报 killed mid-write",
+              not any("killed mid-write" in x for x in r4), str(r4))
+
     print("[2] write_chain_report 响亮标记（绝不静默完整链）")
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
