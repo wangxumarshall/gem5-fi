@@ -94,7 +94,8 @@
           "rel_tol": 0.0,
           "ulp_tol": 0
         }
-      }
+      },
+      "golden_array_sha256": "babce53409efc22ef7ecc1a1a9257f467a7c1b289b15097709021c4ad275dd5a"
     },
     {
       "program_id": "2mm",
@@ -131,7 +132,8 @@
           "rel_tol": 0.0,
           "ulp_tol": 0
         }
-      }
+      },
+      "golden_array_sha256": "23eb863deda56bcbd897823b0fcc0832907661ca0b80980a6aa5acaaa388ed9a"
     },
     {
       "program_id": "lu",
@@ -165,7 +167,8 @@
           "rel_tol": 0.0,
           "ulp_tol": 0
         }
-      }
+      },
+      "golden_array_sha256": "46eb754c53cf2ecffe653675230b55272073383f69806a3169a45ba35733dd60"
     },
     {
       "program_id": "cholesky",
@@ -199,7 +202,8 @@
           "rel_tol": 0.0,
           "ulp_tol": 0
         }
-      }
+      },
+      "golden_array_sha256": "ad54ba81bc46aa236d3fc8e663dda077853e513721685ba78abe940108879f43"
     },
     {
       "program_id": "jacobi-2d",
@@ -234,7 +238,8 @@
           "rel_tol": 0.0,
           "ulp_tol": 0
         }
-      }
+      },
+      "golden_array_sha256": "dad9731239bff9177fd983b961d93b8100afe636f85248b933b86ee4ab31e624"
     }
   ],
   "suite_hash": "7282decf461243a8fdff38b6f99f66112c18027ee9a9b0a7dd057c4e2a0a7493"

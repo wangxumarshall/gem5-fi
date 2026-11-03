@@ -1,0 +1,107 @@
+{
+  "suite_id": "polybench-fp-v1",
+  "suite_version": "1",
+  "oracle_version": "polybench-element-v1",
+  "programs": {
+    "gemm": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/gemm.bin",
+      "sha256": "babce53409efc22ef7ecc1a1a9257f467a7c1b289b15097709021c4ad275dd5a",
+      "count": 7744,
+      "shape": [
+        88,
+        88
+      ],
+      "domain": "full",
+      "dtype": "fp32",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "babce53409efc22ef7ecc1a1a9257f467a7c1b289b15097709021c4ad275dd5a",
+        "babce53409efc22ef7ecc1a1a9257f467a7c1b289b15097709021c4ad275dd5a",
+        "babce53409efc22ef7ecc1a1a9257f467a7c1b289b15097709021c4ad275dd5a"
+      ],
+      "final": "116849d3adf3227b"
+    },
+    "2mm": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/2mm.bin",
+      "sha256": "23eb863deda56bcbd897823b0fcc0832907661ca0b80980a6aa5acaaa388ed9a",
+      "count": 5184,
+      "shape": [
+        72,
+        72
+      ],
+      "domain": "full",
+      "dtype": "fp32",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "23eb863deda56bcbd897823b0fcc0832907661ca0b80980a6aa5acaaa388ed9a",
+        "23eb863deda56bcbd897823b0fcc0832907661ca0b80980a6aa5acaaa388ed9a",
+        "23eb863deda56bcbd897823b0fcc0832907661ca0b80980a6aa5acaaa388ed9a"
+      ],
+      "final": "41ebd3d0a77ab3d2"
+    },
+    "lu": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
+      "sha256": "46eb754c53cf2ecffe653675230b55272073383f69806a3169a45ba35733dd60",
+      "count": 7056,
+      "shape": [
+        84,
+        84
+      ],
+      "domain": "full",
+      "dtype": "fp32",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "46eb754c53cf2ecffe653675230b55272073383f69806a3169a45ba35733dd60",
+        "46eb754c53cf2ecffe653675230b55272073383f69806a3169a45ba35733dd60",
+        "46eb754c53cf2ecffe653675230b55272073383f69806a3169a45ba35733dd60"
+      ],
+      "final": "74ffe5eb77ea9257"
+    },
+    "cholesky": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/cholesky.bin",
+      "sha256": "ad54ba81bc46aa236d3fc8e663dda077853e513721685ba78abe940108879f43",
+      "count": 3916,
+      "shape": [
+        88,
+        88
+      ],
+      "domain": "lower_triangle_incl_diag",
+      "dtype": "fp32",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "ad54ba81bc46aa236d3fc8e663dda077853e513721685ba78abe940108879f43",
+        "ad54ba81bc46aa236d3fc8e663dda077853e513721685ba78abe940108879f43",
+        "ad54ba81bc46aa236d3fc8e663dda077853e513721685ba78abe940108879f43"
+      ],
+      "final": "ea7e0d0e7c86582d"
+    },
+    "jacobi-2d": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/jacobi-2d.bin",
+      "sha256": "dad9731239bff9177fd983b961d93b8100afe636f85248b933b86ee4ab31e624",
+      "count": 25600,
+      "shape": [
+        160,
+        160
+      ],
+      "domain": "full",
+      "dtype": "fp32",
+      "layout": "row-major",
+      "endianness": "little",
+      "native_reps": 3,
+      "native_shas": [
+        "dad9731239bff9177fd983b961d93b8100afe636f85248b933b86ee4ab31e624",
+        "dad9731239bff9177fd983b961d93b8100afe636f85248b933b86ee4ab31e624",
+        "dad9731239bff9177fd983b961d93b8100afe636f85248b933b86ee4ab31e624"
+      ],
+      "final": "dc867b5f02998c1e"
+    }
+  }
+}
