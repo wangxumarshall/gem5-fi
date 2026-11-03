@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gem5-fi/fsu/schemas/fsu-oracle-v1.json",
+  "title": "FSU W5 element-oracle meta (fsu-oracle-v1)",
+  "description": "Pre-registered meta for one PolyBench output-array dump. The tolerance triple (abs_tol/rel_tol/ulp_tol) is mandatory and MUST be fixed before the fault run; tools/fsu_oracle.py never infers it from results. Arrays are canonical raw fp32, row-major, explicitly little-endian, count*4 bytes. domain=full requires count==shape[0]*shape[1]; domain=lower_triangle_incl_diag requires a square shape and count==n*(n+1)/2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "program_id",
+    "golden_id",
+    "dtype",
+    "layout",
+    "endianness",
+    "count",
+    "shape",
+    "abs_tol",
+    "rel_tol",
+    "ulp_tol",
+    "oracle_version"
+  ],
+  "properties": {
+    "program_id": {
+      "type": "string",
+      "enum": ["gemm", "2mm", "lu", "cholesky", "jacobi-2d"]
+    },
+    "golden_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dtype": {"const": "fp32"},
+    "layout": {"const": "row-major"},
+    "endianness": {"const": "little"},
+    "count": {"type": "integer", "minimum": 1},
+    "shape": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "domain": {
+      "type": "string",
+      "enum": ["full", "lower_triangle_incl_diag"],
+      "default": "full"
+    },
+    "abs_tol": {"type": "number", "minimum": 0},
+    "rel_tol": {"type": "number", "minimum": 0},
+    "ulp_tol": {"type": "integer", "minimum": 0},
+    "oracle_version": {"type": "string", "minLength": 1},
+    "fnv1a": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{16}$",
+      "description": "Optional pre-registered FNV-1a 64 of the canonical bytes; verified by tools/fsu_oracle.py load_array."
+    }
+  }
+}

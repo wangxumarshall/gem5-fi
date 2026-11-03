@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gem5-fi.local/schemas/fsu_component.schema.json",
+  "title": "FSU W5 suite component run manifest",
+  "description": "One component run = one program within one formal suite seed. A component run injects exactly one fault. Its count is never a seed count.",
+  "type": "object",
+  "required": [
+    "suite_id",
+    "suite_hash",
+    "suite_seed",
+    "program_id",
+    "program_index",
+    "program_count",
+    "component_attempt",
+    "component_manifest_sha256",
+    "component_binary_sha256",
+    "component_source_sha256",
+    "component_golden_sha256",
+    "component_status",
+    "component_eligible",
+    "component_activated",
+    "component_terminal",
+    "component_oracle"
+  ],
+  "properties": {
+    "suite_id": {"type": "string", "minLength": 1},
+    "suite_version": {"type": "string", "minLength": 1},
+    "suite_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "suite_seed": {"type": "integer", "minimum": 0},
+    "program_id": {"enum": ["gemm", "2mm", "lu", "cholesky", "jacobi-2d"]},
+    "program_index": {"type": "integer", "minimum": 0, "maximum": 4},
+    "program_count": {"const": 5},
+    "component_seed_policy_version": {"type": "string", "minLength": 1},
+    "component_seed": {"type": "integer", "minimum": 1},
+    "component_attempt": {"type": "integer", "minimum": 1},
+    "component_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "component_binary_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "component_source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "component_golden_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "component_golden_sha256_scheme": {"type": "string"},
+    "component_golden": {"type": "string"},
+    "component_status": {
+      "enum": ["admitted", "failed", "not_activated", "invalid"]
+    },
+    "component_eligible": {"type": "integer", "minimum": 0},
+    "component_activated": {"type": "integer", "minimum": 0},
+    "component_faults": {"type": "integer", "minimum": 0},
+    "component_terminal": {
+      "type": ["string", "null"]
+    },
+    "component_oracle": {"type": "string", "minLength": 1},
+    "component_oracle_category": {"type": "string"},
+    "component_oracle_mismatch_count": {"type": "integer", "minimum": 0},
+    "component_oracle_elements": {"const": "oracle_elements.json"},
+    "component_oracle_elements_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "component_oracle_error": {"type": "string"},
+    "component_audit_ok": {"type": "boolean"},
+    "component_certified": {"type": "boolean"},
+    "attempt": {"type": "string", "minLength": 1}
+  }
+}

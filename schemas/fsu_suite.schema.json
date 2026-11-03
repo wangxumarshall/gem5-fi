@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gem5-fi.local/schemas/fsu_suite.schema.json",
+  "title": "FSU W5 fixed suite manifest (PolyBench-FP v1)",
+  "description": "W5 suite identity. program_order is fixed: gemm, 2mm, lu, cholesky, jacobi-2d. suite_hash is SHA-256 over canonical JSON of identity fields only (never run results).",
+  "type": "object",
+  "required": [
+    "suite_id",
+    "suite_version",
+    "program_order",
+    "program_count",
+    "programs",
+    "compiler",
+    "oracle",
+    "suite_hash"
+  ],
+  "properties": {
+    "suite_id": {"type": "string", "minLength": 1},
+    "suite_version": {"type": "string", "minLength": 1},
+    "program_order": {
+      "type": "array",
+      "const": ["gemm", "2mm", "lu", "cholesky", "jacobi-2d"],
+      "items": {"enum": ["gemm", "2mm", "lu", "cholesky", "jacobi-2d"]},
+      "minItems": 5,
+      "maxItems": 5
+    },
+    "program_count": {"const": 5},
+    "programs": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "program_id",
+          "program_index",
+          "source_sha256",
+          "binary_sha256",
+          "scale"
+        ],
+        "properties": {
+          "program_id": {"enum": ["gemm", "2mm", "lu", "cholesky", "jacobi-2d"]},
+          "program_index": {"type": "integer", "minimum": 0, "maximum": 4},
+          "source_sha256": {
+            "type": "string",
+            "pattern": "^(pending|[0-9a-f]{64})$"
+          },
+          "binary_sha256": {
+            "type": "string",
+            "pattern": "^(pending|[0-9a-f]{64})$"
+          },
+          "golden": {"type": "string", "minLength": 1},
+          "scale": {"type": "object", "minProperties": 1},
+          "element_oracle": {
+            "type": "object",
+            "required": ["golden_array", "meta", "oracle_version"],
+            "properties": {
+              "golden_array": {"type": "string", "minLength": 1},
+              "oracle_version": {"type": "string", "minLength": 1},
+              "meta": {
+                "type": "object",
+                "required": [
+                  "program_id", "golden_id", "dtype", "layout",
+                  "endianness", "count", "shape", "abs_tol", "rel_tol",
+                  "ulp_tol", "oracle_version"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "scale": {"type": "object"},
+    "compiler": {
+      "type": "object",
+      "required": ["version", "cflags"],
+      "properties": {
+        "cc": {"type": "string"},
+        "version": {"type": "string", "minLength": 1},
+        "cflags": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string"}
+            }
+          ]
+        }
+      }
+    },
+    "oracle": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "id": {"type": "string"},
+        "version": {"type": "string", "minLength": 1},
+        "kind": {"type": "string"}
+      }
+    },
+    "suite_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
