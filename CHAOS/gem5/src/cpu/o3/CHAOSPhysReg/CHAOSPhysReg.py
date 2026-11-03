@@ -43,6 +43,15 @@ class CHAOSPhysReg(SimObject):
         0, "Architectural register index (arch_frontend / arch_commit modes). "
         "On aarch64 X0-X30 = 0-30 (31 = Zero, excluded); for floating_point "
         "class this indexes the FP arch reg file (V0-V31 = 0-31 on aarch64).")
+    requireAllocated = Param.Bool(
+        False,
+        "[FR03] phys mode only: install the fault ONLY on a cell that is "
+        "currently allocated (not in the unified free list), i.e. really held "
+        "by an in-flight instruction. If the selected cell is free, the "
+        "attack event reschedules and the fault is NOT consumed. Default "
+        "false keeps every existing campaign byte-identical. Use with a "
+        "fixed targetPhysRegIdx for FR03 formal/gate runs so the permanent "
+        "cell is a real, used physical slot.")
     regTargetClass = Param.String(
         "integer", "Register class to target: 'integer' | 'floating_point' | "
         "'vector' | 'both' (phys mode: random pick across the three classes; "

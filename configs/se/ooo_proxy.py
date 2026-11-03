@@ -103,6 +103,10 @@ p.add_argument("--chaos_phys", action="store_true")
 p.add_argument("--phys_mode", default="phys",
                choices=["phys", "arch_frontend", "arch_commit"])
 p.add_argument("--phys_target_idx", type=int, default=-1)
+p.add_argument("--phys_require_allocated", action="store_true",
+               help="[FR03] phys mode: only install on a currently allocated "
+                    "cell (not free); reschedule without consuming the fault "
+                    "otherwise. Default off = historical behaviour.")
 p.add_argument("--phys_target_arch", type=int, default=0)
 p.add_argument("--phys_reg_class", default="integer",
                choices=["integer", "floating_point", "vector", "both"])
@@ -591,6 +595,7 @@ if args.chaos_phys:
         cpu=cpu0,
         injectionMode=args.phys_mode,
         targetPhysRegIdx=args.phys_target_idx,
+        requireAllocated=args.phys_require_allocated,
         targetArchRegIdx=args.phys_target_arch,
         regTargetClass=args.phys_reg_class,
         vecLaneWidth=args.vec_lane_width,

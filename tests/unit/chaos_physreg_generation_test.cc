@@ -119,6 +119,23 @@ main()
           g4b.exposure_total == 10 && cell.exposuresTotal() == 10);
     check("generation change count is observable",
           cell.generationChanges() == 1);
+    check("mask/polarity/lane are fixed for the whole run",
+          cell.target().lane_mask == 0x1ULL &&
+          cell.target().polarity == 0 &&
+          cell.target().lane_width == 32 &&
+          cell.target().lane_offset == 2 &&
+          cell.target().bit_in_lane == 0);
+
+    // A generation change must not widen the fault: only the target lane's
+    // masked bit changes in the new generation either.
+    std::memset(v, 0x5a, sizeof(v));
+    uint8_t pre_new_gen[16];
+    std::memcpy(pre_new_gen, v, sizeof(v));
+    cell.writeVec16(v, VEC, IDX, 5);
+    check("new generation still changes only the target bit",
+          onlyMaskedBitsDiffer(pre_new_gen, v, 32, 2, 0x1ULL));
+    check("new generation non-target lanes byte-identical",
+          v[0] == 0x5a && v[3] == 0x5a && v[12] == 0x5a && v[15] == 0x5a);
 
     // --- other phys index / reg class / lane / bit are untouched ----------
     std::memset(v, 0xab, sizeof(v));
@@ -143,7 +160,7 @@ main()
     std::memset(v, 0xab, sizeof(v));
     uint8_t pre_lane[16];
     std::memcpy(pre_lane, v, sizeof(v));
-    cell.writeVec16(v, VEC, IDX, 4);
+    cell.writeVec16(v, VEC, IDX, 5);
     check("non-target lanes/bits of the target cell are preserved",
           onlyMaskedBitsDiffer(pre_lane, v, 32, 2, 0x1ULL));
     check("non-target lane 0 intact", v[0] == 0xab && v[3] == 0xab);
@@ -153,7 +170,7 @@ main()
     // The model intentionally exposes no squash()/free() clear API: there is
     // no state transition for a squash, so the very next write still sticks.
     std::memset(v, 0x00, sizeof(v));
-    WriteResult after_squash = cell.writeVec16(v, VEC, IDX, 4);
+    WriteResult after_squash = cell.writeVec16(v, VEC, IDX, 5);
     check("SQUASH DOES NOT CLEAR: write after squash still stuck",
           after_squash.matched && after_squash.applied &&
           (laneOf(v, 32, 2) & 1ULL) == 0);
@@ -170,6 +187,96 @@ main()
     check("SA1 new generation sticks and chain restarts",
           sa1_gen1.matched && sa1_gen1.applied &&
           sa1_gen1.generation_changed && sa1_gen1.generation_exposure_id == 1);
+
+    // --- read vs write exposures are counted separately -------------------
+    {
+        PermanentCell rw;
+        check("rw install", rw.install(VEC, 9, 32, 0, 0x1ULL, 0, 0));
+        std::memset(v, 0xff, sizeof(v));
+        for (int i = 0; i < 6; ++i)
+            rw.writeVec16(v, VEC, 9, 0);
+        for (int i = 0; i < 11; ++i)
+            rw.noteRead();
+        check("write exposures exclude reads",
+              rw.writeExposuresTotal() == 6 &&
+              rw.exposuresTotal() == 6);
+        check("read exposures exclude writes",
+              rw.readExposuresTotal() == 11);
+        rw.writeVec16(v, VEC, 9, 0);
+        check("a read never increments the write counter",
+              rw.writeExposuresTotal() == 7 && rw.readExposuresTotal() == 11);
+        rw.noteRead();
+        check("a write never increments the read counter",
+              rw.writeExposuresTotal() == 7 && rw.readExposuresTotal() == 12);
+    }
+
+    // --- L5 commit/squash state machine -----------------------------------
+    {
+        L5Ledger l5;
+        check("unrecorded seq never commits",
+              !l5.noteCommit(100).matched);
+        check("unrecorded seq never squashes",
+              !l5.noteSquash(101).matched);
+
+        check("record consumer A (gen 4)",
+              l5.record(200, 11, 4, 0xdead));
+        check("record consumer B (gen 4)",
+              l5.record(201, 12, 4, 0xbeef));
+        check("re-record does not create a second consumer",
+              !l5.record(200, 13, 4, 0xcafe) &&
+              l5.consumersRecorded() == 2 &&
+              l5.pendingConsumers() == 2);
+
+        L5Ledger::EventResult sq = l5.noteSquash(200);
+        check("squash matches only a recorded consumer",
+              sq.matched && sq.newly_terminal && sq.ordinal == 1);
+        check("squash does not count as a commit",
+              l5.commitEvents() == 0 && l5.squashEvents() == 1 &&
+              l5.terminal(3) == std::string("squashed"));
+        check("a squashed consumer cannot later commit",
+              !l5.noteCommit(200).matched);
+        check("a consumer is terminal exactly once",
+              !l5.noteSquash(200).matched);
+
+        L5Ledger::EventResult cm = l5.noteCommit(201);
+        check("commit matches a real consumer",
+              cm.matched && cm.newly_terminal && cm.ordinal == 1 &&
+              cm.l2_event == 12 && cm.generation == 4 &&
+              cm.value == 0xbeef);
+        check("real commit wins the terminal",
+              l5.commitSeen() && l5.terminal(3) == std::string("committed"));
+        check("first impact is the first real commit",
+              l5.firstImpactSeq() == 201 && l5.firstImpactGeneration() == 4);
+        check("commit is terminal exactly once",
+              !l5.noteCommit(201).matched && !l5.noteSquash(201).matched);
+
+        L5Ledger empty;
+        check("no commit/squash but activated -> exposed_unconsumed",
+              empty.terminal(7) == std::string("exposed_unconsumed"));
+        check("no commit/squash and no activation -> not_activated",
+              empty.terminal(0) == std::string("not_activated"));
+
+        // Old-generation consumer identity is preserved, never relabelled to
+        // the new generation: the L5 event carries the generation recorded at
+        // the read, which is how the offline join keeps generations apart.
+        L5Ledger old;
+        old.record(300, 21, 6, 0x1);
+        old.record(301, 22, 7, 0x2);
+        L5Ledger::EventResult c6 = old.noteCommit(300);
+        L5Ledger::EventResult c7 = old.noteCommit(301);
+        check("old generation consumer keeps its own generation",
+              c6.matched && c6.generation == 6 &&
+              c7.matched && c7.generation == 7);
+        check("old/new generation L2 parents never merge",
+              c6.l2_event == 21 && c7.l2_event == 22);
+
+        old.reset();
+        check("L5 reset clears state",
+              old.consumersRecorded() == 0 &&
+              old.commitEvents() == 0 &&
+              old.squashEvents() == 0 &&
+              old.terminal(0) == std::string("not_activated"));
+    }
 
     // --- explicit reset (end of run) clears -------------------------------
     cell.clear();

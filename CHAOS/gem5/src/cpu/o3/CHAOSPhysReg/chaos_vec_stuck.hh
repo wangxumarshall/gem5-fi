@@ -27,6 +27,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <map>
+#include <string>
 #include <vector>
 
 namespace gem5
@@ -251,6 +253,7 @@ class PermanentCell
         have_generation_ = true;
         generation_exposures_ = 0;
         total_exposures_ = 0;
+        read_exposures_ = 0;
         activated_total_ = 0;
         generation_changes_ = 0;
         return true;
@@ -265,6 +268,7 @@ class PermanentCell
         have_generation_ = false;
         generation_exposures_ = 0;
         total_exposures_ = 0;
+        read_exposures_ = 0;
         activated_total_ = 0;
         generation_changes_ = 0;
     }
@@ -273,9 +277,18 @@ class PermanentCell
     const Target &target() const { return target_; }
     bool matches(int cls, int idx) const { return target_.matches(cls, idx); }
     uint32_t generation() const { return generation_; }
+    // Write exposures (install write + every re-apply to the target cell) and
+    // read exposures (consumer reads of the target cell) are counted
+    // SEPARATELY. A read never inflates the write count and vice versa.
     uint64_t exposuresTotal() const { return total_exposures_; }
+    uint64_t writeExposuresTotal() const { return total_exposures_; }
+    uint64_t readExposuresTotal() const { return read_exposures_; }
     uint64_t activatedTotal() const { return activated_total_; }
     uint64_t generationChanges() const { return generation_changes_; }
+
+    // Record one consumer read of the target physical cell. Read-only
+    // observation: it must never change the write/exposure state.
+    void noteRead() { ++read_exposures_; }
 
     // Observe a write whose lane value is supplied directly. `generation` is
     // the CURRENT allocation generation of the cell (from the container's
@@ -357,8 +370,150 @@ class PermanentCell
     bool have_generation_ = false;
     uint64_t generation_exposures_ = 0;
     uint64_t total_exposures_ = 0;
+    uint64_t read_exposures_ = 0;
     uint64_t activated_total_ = 0;
     uint64_t generation_changes_ = 0;
+};
+
+// ---------------------------------------------------------------------------
+// L5Ledger: the pure L5 commit/squash state machine for the permanent-cell
+// fault. Only instructions that really read the target physical cell are
+// recorded as consumers (the container/injector decides that from the real
+// operand-read observation). A consumer is terminal exactly once:
+//   * noteCommit()  -> the consumer retired; a real L5 witness exists.
+//   * noteSquash()  -> the consumer was squashed; NEVER treated as a commit.
+// A squash does not clear the permanent defect and does not erase a commit
+// that already happened. The terminal vocabulary is:
+//   committed          real L5 commit observed
+//   squashed           a consumer was squashed and no commit was observed
+//   exposed_unconsumed activated exposures exist but no consumer reached L5
+//   not_activated      no activated exposure at all
+// ---------------------------------------------------------------------------
+class L5Ledger
+{
+  public:
+    struct EventResult
+    {
+        bool matched = false;         // seq was a recorded consumer
+        bool newly_terminal = false;  // first terminal event for this seq
+        uint32_t generation = 0;      // generation captured at consumer read
+        uint64_t l2_event = 0;        // L2 operand_read event id (chain parent)
+        uint64_t value = 0;           // lane value observed at the read
+        uint64_t ordinal = 0;         // 1-based commit/squash ordinal
+    };
+
+    // Record a real consumer read. Re-reading the same seq before it reaches
+    // a terminal only refreshes its L2 parent/generation/value; it never
+    // re-arms a consumer that already committed or squashed.
+    bool record(uint64_t seq, uint64_t l2_event, uint32_t generation,
+                uint64_t value)
+    {
+        auto it = consumers_.find(seq);
+        if (it != consumers_.end()) {
+            if (it->second.committed || it->second.squashed)
+                return false;
+            it->second.l2_event = l2_event;
+            it->second.generation = generation;
+            it->second.value = value;
+            return false;
+        }
+        Consumer c;
+        c.seq = seq;
+        c.l2_event = l2_event;
+        c.generation = generation;
+        c.value = value;
+        consumers_[seq] = c;
+        ++recorded_;
+        return true;
+    }
+
+    EventResult noteCommit(uint64_t seq)
+    {
+        EventResult r;
+        auto it = consumers_.find(seq);
+        if (it == consumers_.end() || it->second.committed ||
+            it->second.squashed)
+            return r;
+        r.matched = true;
+        r.newly_terminal = true;
+        r.generation = it->second.generation;
+        r.l2_event = it->second.l2_event;
+        r.value = it->second.value;
+        r.ordinal = ++commit_events_;
+        if (first_impact_seq_ == 0) {
+            first_impact_seq_ = seq;
+            first_impact_generation_ = it->second.generation;
+        }
+        consumers_.erase(it);
+        return r;
+    }
+
+    EventResult noteSquash(uint64_t seq)
+    {
+        EventResult r;
+        auto it = consumers_.find(seq);
+        if (it == consumers_.end() || it->second.committed ||
+            it->second.squashed)
+            return r;
+        r.matched = true;
+        r.newly_terminal = true;
+        r.generation = it->second.generation;
+        r.l2_event = it->second.l2_event;
+        r.value = it->second.value;
+        r.ordinal = ++squash_events_;
+        consumers_.erase(it);
+        return r;
+    }
+
+    bool commitSeen() const { return commit_events_ > 0; }
+    uint64_t commitEvents() const { return commit_events_; }
+    uint64_t squashEvents() const { return squash_events_; }
+    uint64_t consumersRecorded() const { return recorded_; }
+    uint64_t pendingConsumers() const { return consumers_.size(); }
+    uint64_t firstImpactSeq() const { return first_impact_seq_; }
+    uint32_t firstImpactGeneration() const { return first_impact_generation_; }
+
+    // Honest terminal. `activated_total` is the permanent cell's exact
+    // activated-exposure count; without a real L5 commit this can never
+    // report "committed".
+    const char *terminal(uint64_t activated_total) const
+    {
+        if (commit_events_ > 0)
+            return "committed";
+        if (squash_events_ > 0)
+            return "squashed";
+        if (activated_total > 0)
+            return "exposed_unconsumed";
+        return "not_activated";
+    }
+
+    // End of run / new install only.
+    void reset()
+    {
+        consumers_.clear();
+        recorded_ = 0;
+        commit_events_ = 0;
+        squash_events_ = 0;
+        first_impact_seq_ = 0;
+        first_impact_generation_ = 0;
+    }
+
+  private:
+    struct Consumer
+    {
+        uint64_t seq = 0;
+        uint64_t l2_event = 0;
+        uint32_t generation = 0;
+        uint64_t value = 0;
+        bool committed = false;
+        bool squashed = false;
+    };
+    std::map<uint64_t, Consumer> consumers_;
+    uint64_t recorded_ = 0;
+    uint64_t commit_events_ = 0;
+    uint64_t squash_events_ = 0;
+    uint64_t first_impact_seq_ = 0;
+    uint32_t first_impact_generation_ = 0;
 };
 
 } // namespace chaos_vec_stuck

@@ -16,6 +16,7 @@
 #include "cpu/reg_class.hh"    // PhysRegIdPtr (FR03 event helpers)
 #include "base/output.hh"
 #include "cpu/o3/chaos_l0.hh"  // W2.5 L0 lifecycle interface state
+#include "cpu/o3/CHAOSPhysReg/chaos_vec_stuck.hh"  // [FR03] L5 ledger
 
 // o3::CPU (C++ class behind ArmO3CPU) is needed to reach regFile/renameMap.
 // We forward-declare it here (full definition pulled into the .cc via
@@ -40,6 +41,18 @@ class CHAOSPhysReg : public SimObject
      *  Re-asserts the permanent Vec stuck bits after every write to the
      *  target physical cell. Read-only for every other instruction/register. */
     void maybeReapplyStuck(o3::DynInst *inst);
+
+    /** [FR03] L5 terminal: called from Commit::commitHead() at the existing
+     *  FSU noteCommit anchor, AFTER the instruction really committed. Emits
+     *  kind=commit only when this seqNum is a recorded consumer of the
+     *  permanently stuck cell; never changes commit behaviour. */
+    void noteCommit(ThreadID tid, o3::DynInst *inst);
+
+    /** [FR03] L5 squash observation: called from ROB::doSquash() for every
+     *  instruction that is really squashed. Emits kind=squash (never a
+     *  commit) only for recorded consumers; a squash never clears the
+     *  permanent defect. */
+    void noteSquash(ThreadID tid, o3::DynInst *inst);
 
   private:
     uint64_t vec_stuck_writes = 0;   // re-applies actually performed
@@ -84,10 +97,35 @@ class CHAOSPhysReg : public SimObject
         uint64_t reads_reported = 0;
         uint64_t read_events = 0;
         uint64_t operand_read_events = 0;
+        // [FR03] Read and write exposures are separate, exact counters:
+        //   write_exposures_total = installation write + every re-apply
+        //   read_exposures_total  = every consumer read of the target cell
+        // `exposures_total` keeps the historical write-exposure meaning so
+        // existing F5 accounting stays valid.
+        uint64_t write_exposures_total = 0;
+        uint64_t read_exposures_total = 0;
+        // L5 / first-impact evidence.
+        uint64_t install_tick = 0;
+        uint64_t first_activated_tick = 0;
+        uint64_t first_impact_sn = 0;
+        uint64_t first_impact_tick = 0;
+        uint64_t first_impact_latency = 0;
+        uint64_t l5_witness_event = 0;
+        uint64_t commit_events = 0;
+        uint64_t squash_events = 0;
+        uint64_t consumers_recorded = 0;
+        // Most recent L1 carrier_state event id (parent of the next L2
+        // operand_read); 0 after a generation change until a new carrier is
+        // observed, so old-generation carriers never parent a new chain.
+        uint64_t last_carrier_event = 0;
         bool first_activated_emitted = false;
         bool exit_flush_registered = false;
     };
     VecStuckEmission vec_emit;
+    // [FR03] L5 commit/squash state machine (host-unit-tested pure model).
+    // Consumers are only recorded from real operand reads of the target cell
+    // after at least one activated exposure; a squash never becomes a commit.
+    chaos_vec_stuck::L5Ledger l5;
     uint64_t next_fsu_fault_id = 1;
 
     static constexpr uint64_t kVecExposureEventCap = 2048;
@@ -108,6 +146,10 @@ class CHAOSPhysReg : public SimObject
     void emitVecTerminal();
     void registerVecExitFlush();
     static const char *vecRegClassName(int cls);
+    // [FR03] Only classes that are actually allocated through the unified
+    // free list are legal permanent-cell targets. Misc/predicate/element/
+    // matrix/CC classes are excluded (reserved/special, non-allocatable).
+    static bool isFreeListClass(RegClassType cls);
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     enum class Mode { Phys, ArchFrontend, ArchCommit };
     enum class RegClassSel { Integer, FloatingPoint, Vector, Both };
@@ -139,6 +181,10 @@ class CHAOSPhysReg : public SimObject
     int target_phys_idx;     // phys fi_mode; -1 = random
     int target_arch_idx;     // arch_frontend / arch_commit modes
     RegClassSel reg_target_class;  // integer / floating_point / both
+    // [FR03] phys mode only: when true, install ONLY on a cell that is
+    // currently allocated (not in the free list), i.e. held by an in-flight
+    // instruction. Default false keeps every existing campaign byte-identical.
+    bool require_allocated;
 
     // Phase 2 item 1: NEON lane stratification. The vec path corrupts ONE
     // lane of vec_lane_width bits at lane vec_lane_offset (within the

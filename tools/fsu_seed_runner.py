@@ -165,6 +165,78 @@ def _mask_int(value, default=0):
     return int(str(value), 0)
 
 
+PHYSREG_INJECTION_MODES = ("phys", "arch_frontend", "arch_commit")
+PHYSREG_REG_CLASSES = ("integer", "floating_point", "vector", "both")
+PHYSREG_FAULT_TYPES = ("bit_flip", "stuck_at_zero", "stuck_at_one", "random")
+
+
+def _build_physreg_cmd(manifest, outdir: Path, seed: int, max_faults: int,
+                       gem5: Path, config: Path, root: Path):
+    """[FR03] Explicit CHAOSPhysReg routing.
+
+    A manifest whose `injector.component` is `physreg` MUST reach
+    CHAOSPhysReg. There is no silent fallback to CHAOSFPU: unknown/ambiguous
+    routing is rejected before gem5 starts.
+    """
+    inj = manifest["injector"]
+    phys = inj.get("physreg_mode") or {}
+    wl = manifest["workload"]
+    binary = Path(wl["binary"])
+    if not binary.is_absolute():
+        binary = root / binary
+    fault_mask = _mask_int(inj.get("fault_mask", phys.get("fault_mask", 0)))
+    if fault_mask == 0:
+        raise ValueError("physreg requires an explicit non-zero fault_mask")
+    mode = str(phys.get("injection_mode", "phys"))
+    if mode not in PHYSREG_INJECTION_MODES:
+        raise ValueError(f"unknown physreg injection_mode {mode!r}")
+    reg_class = str(phys.get("reg_class", "vector"))
+    if reg_class not in PHYSREG_REG_CLASSES:
+        raise ValueError(f"unknown physreg reg_class {reg_class!r}")
+    fault_type = str(phys.get("fault_type", "stuck_at_zero"))
+    if fault_type not in PHYSREG_FAULT_TYPES:
+        raise ValueError(f"unknown physreg fault_type {fault_type!r}")
+    lane_width = int(phys.get("vec_lane_width", 32))
+    if lane_width not in (8, 16, 32, 64):
+        raise ValueError(f"physreg vec_lane_width must be 8/16/32/64, "
+                         f"got {lane_width}")
+    lane_offset = int(phys.get("vec_lane_offset", -1))
+    cmd = [
+        str(gem5), "--quiet", "-d", str(outdir), str(config),
+        "--cmd", str(binary), "--cpu", "O3",
+        "--first_clock", str(inj.get("first_clock", 0)),
+        "--max_faults", str(max_faults),
+        "--rng_seed", str(seed),
+        "--chaos_phys",
+        "--phys_mode", mode,
+        "--phys_target_idx", str(int(phys.get("target_phys_idx", -1))),
+        "--phys_reg_class", reg_class,
+        "--vec_lane_width", str(lane_width),
+        "--vec_lane_offset", str(lane_offset),
+        "--fault_mask", str(fault_mask),
+        "--fault_type", fault_type,
+    ]
+    if phys.get("require_allocated"):
+        cmd += ["--phys_require_allocated"]
+    if phys.get("target_arch_reg") is not None:
+        cmd += ["--phys_target_arch", str(int(phys["target_arch_reg"]))]
+    if phys.get("bits_to_change") is not None:
+        cmd += ["--bits_to_change", str(int(phys["bits_to_change"]))]
+    if phys.get("semantic_role"):
+        cmd += ["--phys_semantic_role", str(phys["semantic_role"])]
+    profile = str(manifest.get("config_profile", "") or "")
+    if profile == "B0":
+        cmd += ["--config_profile", "B0"]
+    elif profile not in ("", "C3"):
+        raise ValueError(f"unknown config_profile {profile!r}")
+    if (manifest.get("workload") or {}).get("element_oracle"):
+        cmd += [f"--cmd_arg=--array-dump={Path(outdir) / 'array.bin'}"]
+    cmd += ["--chaos_propagation",
+            "--prop_run_id", manifest["run_id"],
+            "--prop_sample_run_id", f"s{seed}"]
+    return cmd
+
+
 def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
               gem5: Path, config: Path, root: Path, rate_doc=None):
     wl = manifest["workload"]
@@ -177,6 +249,18 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
                   else inj.get("max_faults", 1))
     fault_mask = _mask_int(inj.get("fault_mask", fpu.get("fault_mask", 0)))
     permanent = bool(fpu.get("permanent_stuck"))
+    component = str(inj.get("component", "fsu") or "fsu")
+    if component == "physreg":
+        if rate_doc is not None:
+            raise ValueError("physreg has no F1-F4 rate semantics")
+        if count_only:
+            raise ValueError("physreg has no eligible-count stream; do not "
+                             "run a CHAOSFPU-style census")
+        return _build_physreg_cmd(manifest, outdir, seed, max_faults,
+                                  gem5, config, root)
+    if component != "fsu":
+        raise ValueError(f"unknown injector.component {component!r}; "
+                         "expected 'fsu' or 'physreg'")
     cmd = [
         str(gem5), "--quiet", "-d", str(outdir), str(config),
         "--cmd", str(binary), "--cpu", "O3",
@@ -406,26 +490,44 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         return fail(f"workload missing: {binary}")
 
     # ---- census (countOnly) ----
-    census_dir = attempt / "census"
-    census_cmd = build_cmd(seed_manifest, census_dir, seed, None, True,
-                           gem5, Path(config), Path(root))
-    rc, out, err, timed_out = runner(census_cmd, timeout)
-    (attempt / "census.out").write_text(out, encoding="utf-8")
-    (attempt / "census.err").write_text(err, encoding="utf-8")
-    census_log = _read(census_dir / "fpu_injections.log")
-    eligible = parse_eligible_count(census_log + "\n" + out + "\n" + err)
-    if rc != 0 or timed_out or eligible < 0:
-        return fail(f"census failed rc={rc} timed_out={timed_out} eligible={eligible}")
-    if eligible == 0:
-        return fail("eligible=0 (no FSU event in window) — not Masked")
+    # [FR03] CHAOSPhysReg installs one permanent physical-cell fault; there
+    # is no CHAOSFPU eligible-event stream to census. The census is skipped
+    # EXPLICITLY (recorded on disk), never silently replaced by a zero.
+    inj_component = str(
+        (seed_manifest.get("injector") or {}).get("component", "fsu") or "fsu")
+    physreg = (inj_component == "physreg")
     profile = str(seed_manifest.get("config_profile", "") or "")
     census_profile_check = None
-    if profile == "B0":
-        census_profile_check = CP.verify_config_profile(
-            census_dir / "config.ini", "B0")
-        if not census_profile_check["ok"]:
-            return fail("config_profile_mismatch(census)",
-                        {"config_profile_check": census_profile_check})
+    if physreg:
+        eligible = 0
+        census_cmd = []
+        (attempt / "census_skipped.json").write_text(
+            json.dumps({
+                "status": "skipped",
+                "reason": "physreg permanent-cell target has no "
+                          "CHAOSFPU eligible-event census",
+                "component": inj_component,
+            }, ensure_ascii=False, indent=2), encoding="utf-8")
+    else:
+        census_dir = attempt / "census"
+        census_cmd = build_cmd(seed_manifest, census_dir, seed, None, True,
+                               gem5, Path(config), Path(root))
+        rc, out, err, timed_out = runner(census_cmd, timeout)
+        (attempt / "census.out").write_text(out, encoding="utf-8")
+        (attempt / "census.err").write_text(err, encoding="utf-8")
+        census_log = _read(census_dir / "fpu_injections.log")
+        eligible = parse_eligible_count(census_log + "\n" + out + "\n" + err)
+        if rc != 0 or timed_out or eligible < 0:
+            return fail(f"census failed rc={rc} timed_out={timed_out} "
+                        f"eligible={eligible}")
+        if eligible == 0:
+            return fail("eligible=0 (no FSU event in window) — not Masked")
+        if profile == "B0":
+            census_profile_check = CP.verify_config_profile(
+                census_dir / "config.ini", "B0")
+            if not census_profile_check["ok"]:
+                return fail("config_profile_mismatch(census)",
+                            {"config_profile_check": census_profile_check})
 
     # ---- F1/F2/F3 rate ordinals (deterministic; no probability proxy) ----
     rate_doc = None
@@ -478,7 +580,7 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
                         rate_doc["interval_bounds"]["hi"],
                     "ordinals_sha256": ord_sha}
 
-    skip = chaos_pick_skip(seed, eligible)
+    skip = None if physreg else chaos_pick_skip(seed, eligible)
 
     # ---- injection ----
     inject_dir = attempt / "inject"
@@ -508,7 +610,8 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     oracle = {"category": category, "reason": reason, "faults_injected": faults,
               "eligible_count": eligible, "selection_seed": seed,
               "injection_seed": seed,
-              "skip": None if rate_doc is not None else skip,
+              "skip": (None if (rate_doc is not None or physreg)
+                       else skip),
               "oracle_kind": oracle_kind, "golden": golden,
               "returncode": rc, "timed_out": timed_out}
     if rate_doc is not None:

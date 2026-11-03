@@ -71,6 +71,8 @@
 // [FSU] full definition for the read-only FSU commit terminal
 // (CHAOSFPU::noteCommit), same anchor point as the LSU noteCommit above.
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"
+// [FR03] CHAOSPhysReg::noteCommit (L5 errant-commit witness), same anchor.
+#include "cpu/o3/CHAOSPhysReg/CHAOSPhysReg.hh"
 // [MDSPEC][R6-A4/A07-b] full definition for the read-only A07 lifecycle
 // retire/squash observers (CHaosAddrPath.hh forward-declares o3::CPU and does
 // not include commit.hh — non-circular, same rationale as the includes above).
@@ -1345,6 +1347,13 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // an injected FSU result, emit the real L5 errant commit (or the L4
         // arch-side-effect consumer for a store). No state mutation.
         cpu->chaosFPU->noteCommit(tid, head_inst.get());
+    }
+
+    /* gem5-fi [FR03] */ if (cpu->chaosPhysReg) {
+        // Read-only L5 terminal: if THIS retiring instruction really consumed
+        // the permanently stuck Vec physical cell, emit the L5 errant-commit
+        // witness. No state mutation, no commit behaviour change.
+        cpu->chaosPhysReg->noteCommit(tid, head_inst.get());
     }
 
     /* gem5-fi [MDSPEC][R6-A4/A07-b] */ if (cpu->chaosAguReady) {

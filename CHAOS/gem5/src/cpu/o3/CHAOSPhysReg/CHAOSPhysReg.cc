@@ -18,6 +18,7 @@
 #include "cpu/o3/CHAOSPhysReg/chaos_vec_stuck.hh"
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // FSU_PROP stream
 #include "arch/generic/isa.hh"
+#include "sim/core.hh"            // curTick() for L5 first-impact stamping
 #include "sim/sim_exit.hh"        // registerExitCallback (W2.5 CHAOS_L0 line)
 
 namespace gem5
@@ -30,6 +31,7 @@ namespace gem5
           target_phys_idx(p.targetPhysRegIdx),
           target_arch_idx(p.targetArchRegIdx),
           reg_target_class(stringToRegClassSel(p.regTargetClass)),
+          require_allocated(p.requireAllocated),
           vec_lane_width(p.vecLaneWidth),
           vec_lane_offset(p.vecLaneOffset),
           probability(p.probability),
@@ -132,6 +134,17 @@ namespace gem5
         return "unknown";
     }
 
+    bool
+    CHAOSPhysReg::isFreeListClass(RegClassType cls)
+    {
+        // PhysRegFile::initFreeList adds exactly these three classes to the
+        // unified free list. Every index in range is therefore allocatable;
+        // VecElem/VecPred/Mat/CC/Misc are reserved/special and are never
+        // legal permanent-cell targets.
+        return cls == IntRegClass || cls == FloatRegClass ||
+               cls == VecRegClass;
+    }
+
     uint64_t
     CHAOSPhysReg::emitFsuProp(
         const char *kind, uint64_t fault_id, uint64_t parent,
@@ -183,18 +196,25 @@ namespace gem5
         vec_emit.fault_id = next_fsu_fault_id++;
         vec_emit.install_generation = generation;
         vec_emit.observed_generation = generation;
+        vec_emit.install_tick = curTick();
         vec_emit.reads_total = rf.getVecStuckReads();
         vec_emit.reads_reported = vec_emit.reads_total;
+        vec_emit.read_exposures_total = vec_emit.reads_total;
+        // A fresh installation starts a fresh L5 ledger: consumers from a
+        // previous fault never enter this chain.
+        l5.reset();
         // The installation write itself is exposure #1 of generation 0.
         vec_emit.exposure_id = 1;
         vec_emit.exposures_total = 1;
         vec_emit.exposures_sampled = 1;
+        vec_emit.write_exposures_total = 1;
         const bool activated = !chaos_vec_stuck::satisfied(
             correct_lane, t.lane_mask, t.polarity);
         if (activated) {
             vec_emit.activated_total = 1;
             vec_emit.activated_events = 1;
             vec_emit.first_activated_emitted = true;
+            vec_emit.first_activated_tick = curTick();
             vec_emit.last_exposure_sn = 0;
         }
 
@@ -206,7 +226,12 @@ namespace gem5
             {"lane_offset", std::to_string(t.lane_offset)},
             {"bit_in_lane", std::to_string(t.bit_in_lane)},
             {"lane_mask", propHex(t.lane_mask)},
+            {"lane_mask_scope", "lane"},
             {"fixed_mask", propHex(t.lane_mask)},
+            {"fault_mask", propHex(t.lane_mask)},
+            {"bit_indices",
+             std::to_string(t.lane_offset * t.lane_width + t.bit_in_lane)},
+            {"precision", "fp32"},
             {"stuck_polarity", std::to_string((int)t.polarity)},
             {"field", "permanent_stuck"},
             {"correct_before", propHex(correct_lane)},
@@ -217,19 +242,39 @@ namespace gem5
             {"exposure_id", "1"},
             {"exposure_count", "1"},
             {"activated_exposure_count", activated ? "1" : "0"},
+            {"first_activated_at_install", activated ? "1" : "0"},
             {"exposures_total", "1"},
             {"exposures_sampled", "1"},
             {"exposures_dropped", "0"},
+            {"write_exposures_total", "1"},
+            {"read_exposures_total",
+             std::to_string(vec_emit.read_exposures_total)},
             {"generation_changes", "0"},
             {"cell_allocated", cell_allocated ? "1" : "0"},
             {"cell_free", cell_allocated ? "0" : "1"},
             {"stuck_reapplied", "1"},
+            {"install_is_exposure", "1"},
             {"sample_policy", "first_of_generation+first_activated+cap"},
             {"state_before", "warmup_cell"},
             {"state_after", "fault_installed"},
         };
         vec_emit.install_event =
             emitFsuProp("fault_installed", vec_emit.fault_id, 0, kv);
+
+        // [FR03] The installation write is exposure #1. Emit it as an
+        // explicit branch event (same contract as FP06's first exposure) so
+        // `exposures_sampled` always equals the number of exposure events in
+        // the stream. Its dyn_inst_seq is genuinely unknown (installation
+        // happens on an event, not an instruction); first_activated_sn stays
+        // empty and `first_activated_at_install=1` records the distinction.
+        std::vector<std::pair<std::string, std::string>> ekv = kv;
+        ekv.push_back(
+            {"install_event", std::to_string(vec_emit.install_event)});
+        ekv.push_back({"dyn_inst_seq", ""});
+        ekv.push_back({"consumer_seq", ""});
+        ekv.push_back({"producer_seq", ""});
+        emitFsuProp("exposure", vec_emit.fault_id,
+                    vec_emit.install_event, ekv);
 
         std::vector<std::pair<std::string, std::string>> ckv = {
             {"reg_class", vecRegClassName(t.reg_class)},
@@ -239,7 +284,12 @@ namespace gem5
             {"lane_offset", std::to_string(t.lane_offset)},
             {"bit_in_lane", std::to_string(t.bit_in_lane)},
             {"lane_mask", propHex(t.lane_mask)},
+            {"lane_mask_scope", "lane"},
             {"fixed_mask", propHex(t.lane_mask)},
+            {"fault_mask", propHex(t.lane_mask)},
+            {"bit_indices",
+             std::to_string(t.lane_offset * t.lane_width + t.bit_in_lane)},
+            {"precision", "fp32"},
             {"stuck_polarity", std::to_string((int)t.polarity)},
             {"field", "permanent_stuck"},
             {"before", propHex(stuck_lane)},
@@ -255,6 +305,7 @@ namespace gem5
             emitFsuProp("carrier_state", vec_emit.fault_id, 0, ckv);
         vec_emit.generation_root_event =
             vec_emit.install_event ? vec_emit.install_event : carrier;
+        vec_emit.last_carrier_event = carrier;
         vec_emit.last_event = carrier ? carrier : vec_emit.install_event;
         registerVecExitFlush();
 
@@ -312,6 +363,7 @@ namespace gem5
                 {"field", "permanent_stuck"},
                 {"cell_free", free_now ? "1" : "0"},
                 {"cell_allocated", free_now ? "0" : "1"},
+                {"install_event", std::to_string(vec_emit.install_event)},
                 {"state_before", "allocated_generation"},
                 {"state_after", free_now ? "freed" : "reallocated"},
                 {"activated", ""},
@@ -322,6 +374,10 @@ namespace gem5
             const uint64_t eid =
                 emitFsuProp("generation_change", vec_emit.fault_id,
                             parent, kv);
+            // The new generation's L2/L5 chain roots at this lifecycle
+            // event. Never reuse the old generation's carrier as parent,
+            // even when the generation_change sample cap dropped this event.
+            vec_emit.last_carrier_event = 0;
             if (eid) {
                 ++vec_emit.generation_changes_sampled;
                 vec_emit.generation_root_event = eid;
@@ -371,12 +427,18 @@ namespace gem5
             {"after", propHex(lane)},
             {"phys_reads", std::to_string(reads)},
             {"phys_reads_delta", std::to_string(delta)},
+            {"read_exposures_total", std::to_string(reads)},
+            {"write_exposures_total",
+             std::to_string(vec_emit.write_exposures_total)},
             {"cell_allocated", "1"},
             {"state_before", "written_stuck"},
             {"state_after", "read"},
         };
-        emitFsuProp("carrier_state", vec_emit.fault_id,
-                    vec_emit.generation_root_event, kv);
+        const uint64_t eid =
+            emitFsuProp("carrier_state", vec_emit.fault_id,
+                        vec_emit.generation_root_event, kv);
+        if (eid)
+            vec_emit.last_carrier_event = eid;
     }
 
     void
@@ -396,6 +458,18 @@ namespace gem5
         }
         vec_emit.exposures_dropped =
             vec_emit.exposures_total - vec_emit.exposures_sampled;
+        // Exact final counters. Reads and writes are never merged:
+        //   write_exposures_total = installation write + every re-apply
+        //   read_exposures_total  = every real consumer read of the cell
+        vec_emit.write_exposures_total = vec_emit.exposures_total;
+        vec_emit.read_exposures_total = vec_emit.reads_total;
+        vec_emit.commit_events = l5.commitEvents();
+        vec_emit.squash_events = l5.squashEvents();
+        vec_emit.consumers_recorded = l5.consumersRecorded();
+        // Honest terminal. "committed" requires a REAL L5 commit event; a
+        // squash is never promoted to a commit, and a squash does not clear
+        // the permanent defect (clearPermanentFaults below is run-end only).
+        const char *terminal = l5.terminal(vec_emit.activated_total);
         std::vector<std::pair<std::string, std::string>> kv = {
             {"reg_class", "vec"},
             {"phys_reg", std::to_string(rf.vec_stuck.phys_index)},
@@ -417,21 +491,44 @@ namespace gem5
             {"exposures_dropped", std::to_string(vec_emit.exposures_dropped)},
             {"activated_exposure_count",
              std::to_string(vec_emit.activated_total)},
+            // Empty when the only activation was the installation write
+            // (it has no instruction seqNum); never fabricate a zero SN.
             {"first_activated_sn",
-             std::to_string(vec_emit.first_activated_sn)},
+             vec_emit.first_activated_sn
+                 ? std::to_string(vec_emit.first_activated_sn)
+                 : std::string()},
             {"last_exposure_sn", std::to_string(vec_emit.last_exposure_sn)},
+            {"first_activated_at_install",
+             vec_emit.first_activated_sn ? "0"
+                 : (vec_emit.activated_total ? "1" : "0")},
             {"affected_sn", std::to_string(vec_emit.last_exposure_sn)},
             {"phys_reads", std::to_string(vec_emit.reads_total)},
             {"phys_reads_delta", "0"},
+            {"read_exposures_total",
+             std::to_string(vec_emit.read_exposures_total)},
+            {"write_exposures_total",
+             std::to_string(vec_emit.write_exposures_total)},
+            {"first_impact_sn", std::to_string(vec_emit.first_impact_sn)},
+            {"first_impact_tick", std::to_string(vec_emit.first_impact_tick)},
+            {"first_impact_latency",
+             std::to_string(vec_emit.first_impact_latency)},
+            {"l5_witness_event",
+             std::to_string(vec_emit.l5_witness_event)},
+            {"commit_events", std::to_string(vec_emit.commit_events)},
+            {"squash_events", std::to_string(vec_emit.squash_events)},
+            {"consumers_recorded",
+             std::to_string(vec_emit.consumers_recorded)},
             {"sample_policy", "first_of_generation+first_activated+cap"},
-            {"terminal", "run_end"},
-            {"outcome", vec_emit.activated_total ? "activated_exposure_seen"
-                                                 : "not_activated"},
+            {"terminal", terminal},
+            {"outcome", terminal},
             {"contained", "0"},
             {"detection_layer", ""},
         };
         emitFsuProp("chain_end", vec_emit.fault_id, 0, kv);
         vec_emit.installed = false;
+        // The L5 ledger is end-of-run state only; the permanent cell itself
+        // is cleared below (the ONLY non-reset clear path).
+        l5.reset();
         // End of run: this is the ONLY place (besides an explicit reset) that
         // removes the permanent defect. Squash/free/realloc never do.
         rf.clearPermanentFaults();
@@ -467,6 +564,28 @@ namespace gem5
             if (vec_emit.operand_read_events >= kVecOperandReadCap)
                 continue;
             ++vec_emit.operand_read_events;
+            const uint32_t src_generation = rf.generationOf(src);
+            // Snapshot the value the consumer really reads. The permanent
+            // cell is forced on every write, so a read normally shows the
+            // stuck polarity; recorded consumers are those reads that happen
+            // after at least one activated exposure (i.e. the defect has
+            // demonstrably changed a correct value). An un-activated read is
+            // still emitted as an operand_read observation, but never turns
+            // into an errant L5 commit.
+            uint64_t read_lane = 0;
+            bool read_satisfied = false;
+            const size_t bytes = rf.vecRegBytes();
+            if (bytes >= 16) {
+                std::vector<uint8_t> buf(bytes, 0);
+                rf.readVecRegRaw(src, buf.data());
+                const int lane_bytes = t.lane_width / 8;
+                const int base = t.lane_offset * lane_bytes;
+                if (base + lane_bytes <= (int)bytes) {
+                    std::memcpy(&read_lane, buf.data() + base, lane_bytes);
+                    read_satisfied = chaos_vec_stuck::satisfied(
+                        read_lane, t.lane_mask, t.polarity);
+                }
+            }
             int arch_idx = -1;
             if (inst->staticInst &&
                 i < (int)inst->staticInst->numSrcRegs()) {
@@ -474,6 +593,12 @@ namespace gem5
                 if (ar.classValue() == VecRegClass)
                     arch_idx = (int)ar.index();
             }
+            // Parent at the most recent real L1 carrier (same generation),
+            // otherwise at the generation root. Never at an old generation's
+            // carrier after a generation change.
+            const uint64_t l2_parent = vec_emit.last_carrier_event
+                ? vec_emit.last_carrier_event
+                : vec_emit.generation_root_event;
             std::vector<std::pair<std::string, std::string>> kv = {
                 {"dyn_inst_seq", std::to_string(inst->seqNum)},
                 {"pc", propHex(inst->pcState().instAddr())},
@@ -482,8 +607,7 @@ namespace gem5
                 {"thread_id", std::to_string((int)inst->threadNumber)},
                 {"reg_class", "vec"},
                 {"phys_reg", std::to_string(src->index())},
-                {"reg_generation",
-                 std::to_string(rf.generationOf(src))},
+                {"reg_generation", std::to_string(src_generation)},
                 {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx) : ""},
                 {"producer_seq", ""},   // read observation: producer unknown
                 {"consumer_seq", std::to_string(inst->seqNum)},
@@ -494,13 +618,29 @@ namespace gem5
                 {"fixed_mask", propHex(t.lane_mask)},
                 {"stuck_polarity", std::to_string((int)t.polarity)},
                 {"field", "permanent_stuck"},
+                {"before", propHex(read_lane)},
+                {"after", propHex(read_lane)},
+                {"value_hash", propHex(read_lane)},
                 {"activated", ""},
+                {"install_event", std::to_string(vec_emit.install_event)},
+                {"read_exposures_total",
+                 std::to_string(rf.getVecStuckReads())},
+                {"write_exposures_total",
+                 std::to_string(vec_emit.write_exposures_total)},
                 {"cell_allocated", "1"},
                 {"state_before", "written_stuck"},
-                {"state_after", "operand_read"},
+                {"state_after",
+                 read_satisfied ? "operand_read_stuck" : "operand_read_clean"},
             };
-            emitFsuProp("operand_read", vec_emit.fault_id,
-                        vec_emit.generation_root_event, kv);
+            const uint64_t l2_eid = emitFsuProp(
+                "operand_read", vec_emit.fault_id, l2_parent, kv);
+            // Record the consumer for the real L5 hooks. Only a read that
+            // observes the forced bits after a real activated exposure is a
+            // tainted consumer of the permanent defect.
+            if (l2_eid && read_satisfied && vec_emit.activated_total > 0) {
+                l5.record(inst->seqNum, l2_eid, src_generation, read_lane);
+                vec_emit.consumers_recorded = l5.consumersRecorded();
+            }
         }
 
         // L1/L4: every write to the target physical cell re-applies the same
@@ -543,6 +683,10 @@ namespace gem5
                 ++vec_stuck_activated;
             ++vec_emit.exposure_id;
             ++vec_emit.exposures_total;
+            // Write exposures are counted separately from reads: install
+            // write + this re-apply. `read_exposures_total` is the exact
+            // container-side read count at this instant.
+            vec_emit.write_exposures_total = vec_emit.exposures_total;
             if (activated)
                 ++vec_emit.activated_total;
             vec_emit.last_exposure_sn = inst->seqNum;
@@ -550,6 +694,7 @@ namespace gem5
             if (activated && !vec_emit.first_activated_emitted) {
                 vec_emit.first_activated_emitted = true;
                 vec_emit.first_activated_sn = inst->seqNum;
+                vec_emit.first_activated_tick = curTick();
                 first_activated = true;
             }
             const bool first_of_generation =
@@ -622,6 +767,7 @@ namespace gem5
                 {"correct_before", propHex(lane_before)},
                 {"stuck_after", propHex(lane_after)},
                 {"activated", activated ? "1" : "0"},
+                {"install_event", std::to_string(vec_emit.install_event)},
                 {"exposure_id", std::to_string(vec_emit.exposure_id)},
                 {"exposure_count", std::to_string(vec_emit.exposures_total)},
                 {"activated_exposure_count",
@@ -637,6 +783,10 @@ namespace gem5
                  std::to_string(vec_emit.exposures_sampled)},
                 {"exposures_dropped",
                  std::to_string(vec_emit.exposures_dropped)},
+                {"write_exposures_total",
+                 std::to_string(vec_emit.write_exposures_total)},
+                {"read_exposures_total",
+                 std::to_string(rf.getVecStuckReads())},
                 {"generation_changes",
                  std::to_string(vec_emit.generation_changes)},
                 {"cell_allocated", "1"},
@@ -663,6 +813,157 @@ namespace gem5
                 last = ex;
             emitFsuProp("prf_writeback", vec_emit.fault_id, last, kv);
         }
+    }
+
+    // [FR03] L5 real commit. Reached only from Commit::commitHead() AFTER the
+    // instruction really committed. Only a seqNum previously recorded as a
+    // consumer of the permanently stuck cell (a real operand_read after an
+    // activated exposure) can produce an L5 witness. The event is parented at
+    // that consumer's L2 operand_read, so the direct chain is L1→L2→L5.
+    void
+    CHAOSPhysReg::noteCommit(ThreadID tid, o3::DynInst *inst)
+    {
+        if (!cpu || !inst || !vec_emit.installed)
+            return;
+        const auto r = l5.noteCommit(inst->seqNum);
+        if (!r.matched)
+            return;
+        auto &rf = cpu->physRegFile();
+        const auto &t = rf.vec_stuck;
+        const bool first_impact = vec_emit.first_impact_sn == 0;
+        if (first_impact) {
+            // First real architectural impact. Latency is measured from the
+            // first activated exposure when one exists, otherwise from the
+            // installation (documented explicitly; never fabricated).
+            vec_emit.first_impact_sn = inst->seqNum;
+            vec_emit.first_impact_tick = curTick();
+            const uint64_t basis = vec_emit.first_activated_tick
+                ? vec_emit.first_activated_tick : vec_emit.install_tick;
+            vec_emit.first_impact_latency =
+                (basis != 0 && curTick() >= basis)
+                    ? (uint64_t)(curTick() - basis) : 0;
+        }
+        vec_emit.commit_events = l5.commitEvents();
+        vec_emit.consumers_recorded = l5.consumersRecorded();
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"consumer_seq", std::to_string(inst->seqNum)},
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            // commit_seq is this fault chain's real L5 commit ordinal. It is
+            // deliberately distinct from dyn_inst_seq (ROB sequence number).
+            {"commit_seq", std::to_string(r.ordinal)},
+            {"thread_id", std::to_string((int)tid)},
+            {"pc", propHex(inst->pcState().instAddr())},
+            {"opcode",
+             inst->staticInst ? inst->staticInst->getName() : ""},
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(t.phys_index)},
+            // Generation captured when the consumer read the cell, NOT the
+            // cell's current generation. An old consumer can never be
+            // re-labelled as a new-generation event.
+            {"reg_generation", std::to_string(r.generation)},
+            {"install_event", std::to_string(vec_emit.install_event)},
+            {"lane_width", std::to_string(t.lane_width)},
+            {"lane_offset", std::to_string(t.lane_offset)},
+            {"bit_in_lane", std::to_string(t.bit_in_lane)},
+            {"lane_mask", propHex(t.lane_mask)},
+            {"fixed_mask", propHex(t.lane_mask)},
+            {"stuck_polarity", std::to_string((int)t.polarity)},
+            {"field", "permanent_stuck"},
+            {"before", propHex(r.value)},
+            {"after", propHex(r.value)},
+            {"value_hash", propHex(r.value)},
+            {"activated", "1"},
+            {"exposures_total",
+             std::to_string(vec_emit.exposures_total)},
+            {"exposures_sampled",
+             std::to_string(vec_emit.exposures_sampled)},
+            {"exposures_dropped",
+             std::to_string(vec_emit.exposures_dropped)},
+            {"write_exposures_total",
+             std::to_string(vec_emit.write_exposures_total)},
+            {"read_exposures_total",
+             std::to_string(rf.getVecStuckReads())},
+            {"activated_exposure_count",
+             std::to_string(vec_emit.activated_total)},
+            {"first_activated_sn",
+             vec_emit.first_activated_sn
+                 ? std::to_string(vec_emit.first_activated_sn)
+                 : std::string()},
+            {"last_exposure_sn",
+             std::to_string(vec_emit.last_exposure_sn)},
+            {"affected_sn", std::to_string(vec_emit.first_impact_sn)},
+            {"first_impact_sn", std::to_string(vec_emit.first_impact_sn)},
+            {"first_impact_tick", std::to_string(vec_emit.first_impact_tick)},
+            {"first_impact_latency",
+             std::to_string(vec_emit.first_impact_latency)},
+            {"squash_events", std::to_string(l5.squashEvents())},
+            {"sample_policy",
+             "first_of_generation+first_activated+cap"},
+            {"detection_layer", "L5"},
+            {"outcome", "errant_commit"},
+            {"contained", "0"},
+            {"state_before", "read_stuck"},
+            {"state_after", "committed"},
+        };
+        const uint64_t eid = emitFsuProp(
+            "commit", vec_emit.fault_id, r.l2_event, kv);
+        if (eid && vec_emit.l5_witness_event == 0)
+            vec_emit.l5_witness_event = eid;
+    }
+
+    // [FR03] L5 squash observation. Read-only: it never clears the permanent
+    // defect, never consumes a fault, and NEVER emits a commit. A squash of a
+    // recorded consumer produces kind=squash with squashed=1; detection_layer
+    // is left empty because no architectural detection happened at squash.
+    void
+    CHAOSPhysReg::noteSquash(ThreadID tid, o3::DynInst *inst)
+    {
+        if (!cpu || !inst || !vec_emit.installed)
+            return;
+        const auto r = l5.noteSquash(inst->seqNum);
+        if (!r.matched)
+            return;
+        auto &rf = cpu->physRegFile();
+        const auto &t = rf.vec_stuck;
+        vec_emit.squash_events = l5.squashEvents();
+        vec_emit.commit_events = l5.commitEvents();
+        vec_emit.consumers_recorded = l5.consumersRecorded();
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"consumer_seq", std::to_string(inst->seqNum)},
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            {"thread_id", std::to_string((int)tid)},
+            {"pc", propHex(inst->pcState().instAddr())},
+            {"opcode",
+             inst->staticInst ? inst->staticInst->getName() : ""},
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(t.phys_index)},
+            {"reg_generation", std::to_string(r.generation)},
+            {"install_event", std::to_string(vec_emit.install_event)},
+            {"lane_width", std::to_string(t.lane_width)},
+            {"lane_offset", std::to_string(t.lane_offset)},
+            {"bit_in_lane", std::to_string(t.bit_in_lane)},
+            {"lane_mask", propHex(t.lane_mask)},
+            {"fixed_mask", propHex(t.lane_mask)},
+            {"stuck_polarity", std::to_string((int)t.polarity)},
+            {"field", "permanent_stuck"},
+            {"before", propHex(r.value)},
+            {"after", propHex(r.value)},
+            {"value_hash", propHex(r.value)},
+            {"squashed", "1"},
+            {"squash_events", std::to_string(l5.squashEvents())},
+            {"commit_events", std::to_string(l5.commitEvents())},
+            {"write_exposures_total",
+             std::to_string(vec_emit.write_exposures_total)},
+            {"read_exposures_total",
+             std::to_string(rf.getVecStuckReads())},
+            // Not detected at L5; no detection layer claimed.
+            {"detection_layer", ""},
+            {"outcome", "squashed"},
+            {"contained", "0"},
+            {"state_before", "read_stuck"},
+            {"state_after", "squashed"},
+        };
+        emitFsuProp("squash", vec_emit.fault_id, r.l2_event, kv);
     }
 
     CHAOSPhysReg::FaultType
@@ -744,7 +1045,8 @@ namespace gem5
         // 1. Resolve target register class (integer / floating_point / vector).
         // 'both' picks one at random per injection across the three classes (a
         // real cell doesn't know its class either; this mirrors the ITC'23/GeFIN
-        // phys abstraction).
+        // phys abstraction). Reserved/special classes (VecElem/VecPred/Mat/
+        // CC/Misc) are never legal permanent-cell targets.
         gem5::RegClassType target_class = gem5::IntRegClass;
         if (reg_target_class == RegClassSel::FloatingPoint) {
             target_class = gem5::FloatRegClass;
@@ -757,6 +1059,8 @@ namespace gem5
               default: target_class = gem5::VecRegClass; break;
             }
         }
+        if (!isFreeListClass(target_class))
+            return;
 
         // 2. Resolve target physical register id.
         PhysRegIdPtr phys_reg = nullptr;
@@ -825,6 +1129,26 @@ namespace gem5
             bool is_free = cpu->physFreeList().isFree(target_class, phys_reg);
             free_list_size_at_inject = cpu->physFreeList().numFreeRegs(
                 target_class);
+            // [FR03] Real-target policy: with requireAllocated, never burn the
+            // fault on a slot that is currently free. The attack event
+            // reschedules and retries (maxFaults is not consumed here), so a
+            // fixed targetPhysRegIdx eventually lands while an in-flight
+            // instruction really holds the cell. Default false keeps the
+            // historical behaviour byte-identical.
+            if (require_allocated && is_free) {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "VecStuckSkipFree: cycle=" << cpu->curCycle()
+                        << " class=" << (target_class == gem5::VecRegClass
+                                          ? "vec"
+                                          : target_class == gem5::FloatRegClass
+                                            ? "float" : "int")
+                        << " phys=" << chosen_phys_idx
+                        << " (requireAllocated: reschedule, fault not consumed)"
+                        << std::endl;
+                }
+                return;
+            }
             if (!is_free) {
                 // active — also record which arch reg (if any) maps to it now,
                 // for diagnostics (walk rename map; best-effort, not the
@@ -1097,6 +1421,7 @@ namespace gem5
                     << ", FaultType: " << faultTypeToString(chosen)
                 << ", Mask: " << std::bitset<64>(mask)
                 << ", FreeListSize: " << free_list_size_at_inject
+                << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
     }

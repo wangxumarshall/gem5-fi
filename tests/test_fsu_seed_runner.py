@@ -293,6 +293,46 @@ def test_f5_permanent_cli_is_wired():
     assert "--fpu_events_to_skip" not in ccmd
 
 
+def test_physreg_component_is_explicit_and_never_falls_back_to_fpu():
+    m = {
+        "run_id": "FSU-FR03-F5-W3", "model_id": "FR03",
+        "unit": "FSU Pipe", "freq": "F5", "load_id": "W3",
+        "submodel": "FR03", "config_profile": "B0",
+        "workload": {"binary": "wl", "golden": GOLDEN,
+                     "oracle_kind": "array_hash"},
+        "injector": {
+            "component": "physreg",
+            "fault_mask": "0x00000020",
+            "max_faults": 1, "first_clock": 0,
+            "physreg_mode": {
+                "injection_mode": "phys", "reg_class": "vector",
+                "target_phys_idx": 0, "require_allocated": True,
+                "vec_lane_width": 32, "vec_lane_offset": 0,
+                "fault_type": "stuck_at_zero"}},
+        "limits": {"timeout_s": 10},
+    }
+    cmd = R.build_cmd(m, Path("/tmp/out"), 3, 999, False,
+                      Path("/bin/true"), Path("cfg.py"), Path("/"))
+    assert "--chaos_phys" in cmd and "--chaos_fpu" not in cmd
+    assert cmd[cmd.index("--phys_mode") + 1] == "phys"
+    assert cmd[cmd.index("--phys_reg_class") + 1] == "vector"
+    assert cmd[cmd.index("--phys_target_idx") + 1] == "0"
+    assert "--phys_require_allocated" in cmd
+    assert cmd[cmd.index("--fault_type") + 1] == "stuck_at_zero"
+    assert cmd[cmd.index("--fault_mask") + 1] == str(0x20)
+    assert "--chaos_propagation" in cmd
+    # No CHAOSFPU eligible census exists for a permanent physical cell.
+    with pytest.raises(ValueError):
+        R.build_cmd(m, Path("/tmp/out"), 3, 999, True,
+                    Path("/bin/true"), Path("cfg.py"), Path("/"))
+    # Unknown components are rejected, never silently routed to the FPU.
+    bad = json.loads(json.dumps(m))
+    bad["injector"]["component"] = "mystery"
+    with pytest.raises(ValueError):
+        R.build_cmd(bad, Path("/tmp/out"), 3, 999, False,
+                    Path("/bin/true"), Path("cfg.py"), Path("/"))
+
+
 def test_f5_mask_string_is_parsed():
     assert R._mask_int("0x80000000") == 0x80000000
     assert R._mask_int(0x20) == 0x20

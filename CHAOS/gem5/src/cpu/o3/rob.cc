@@ -44,6 +44,7 @@
 
 #include "base/logging.hh"
 #include "cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh"  // FIX-B squash obs
+#include "cpu/o3/CHAOSPhysReg/CHAOSPhysReg.hh"  // [FR03] L5 squash observation
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "debug/Fetch.hh"
@@ -369,6 +370,14 @@ ROB::doSquash(ThreadID tid)
         (*squashIt[tid])->setSquashed();
 
         (*squashIt[tid])->setCanCommit();
+
+        /* gem5-fi [FR03] L5 squash observation: read-only. If THIS squashed
+           instruction had consumed the permanently stuck Vec physical cell,
+           emit kind=squash (never a commit). A squash never clears the
+           permanent defect and never changes control flow. nullptr = no
+           CHAOSPhysReg = zero cost. */
+        if (cpu->chaosPhysReg)
+            cpu->chaosPhysReg->noteSquash(tid, (*squashIt[tid]).get());
 
         /* gem5-fi FIX-B (L3 squash observation): read-only v2-ctrace hook —
            emits one '# squash' event line per squashed instruction

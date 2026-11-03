@@ -1,0 +1,52 @@
+{
+  "run_id": "FSU-FR03-F5-W3",
+  "model_id": "FR03",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "submodel": "FR03",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "physreg",
+    "fault_mask": "0x007f8000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 0,
+      "require_allocated": true,
+      "vec_lane_width": 32,
+      "vec_lane_offset": 0,
+      "fault_type": "stuck_at_zero",
+      "bits_to_change": 1,
+      "semantic_role": "FR03"
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "pre_registration": {
+    "frozen_at": "2026-11-04",
+    "submodel": "FR03",
+    "reg_class": "vector",
+    "target_phys_idx": 0,
+    "require_allocated": true,
+    "lane_width": 32,
+    "lane_offset": 0,
+    "mask": "0x007f8000",
+    "polarity": 0,
+    "fault_type": "stuck_at_zero"
+  },
+  "notes": "FR03 formal seed3: permanent Vec phys 0, lane0 fixed mantissa bits 15..22, SA0. Multi-bit mask stays one fixed cell key."
+}
