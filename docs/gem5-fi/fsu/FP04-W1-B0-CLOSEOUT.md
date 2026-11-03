@@ -79,6 +79,16 @@ workload 不覆盖，不能宣称。
 | scalar + lane_offset1 | 0 | 非 SIMD lane 拒绝 |
 | lane_offset=4 / lane32 | rc=134 | 构造期 panic |
 
+### 3.1 decode-guard 正例注入门禁（不计入 519）
+
+| GATE RunID | decoded 指令 | kind | precision | width/lanes | field | audit | terminal |
+|---|---|---|---|---|---|---|---|
+| FSU-FP04-F0-W4-DECODE-GATE | `0x1f431000` fmadd | scalar_vfp | fp64 | 64/1 | sign bit63 | 67 PASS | full |
+| FSU-FP04-F0-W3-DECODE-GATE | `0x4e21cc40` fmla | neon_vector | fp32 | 32/4 | sign lane2 bit95 | 67 PASS | full |
+
+两个门禁均 oracle=SDC、certified=true；证明 decode_guard 开启后
+FP64 scalar 与 NEON FP32 lane2 仍能形成完整 L0–L5 链。
+
 ## 4. B0-core 平台
 
 工作簿 B0 对应 `O3_ARM_v7a_3` 核心点。真实 B0 countOnly 的

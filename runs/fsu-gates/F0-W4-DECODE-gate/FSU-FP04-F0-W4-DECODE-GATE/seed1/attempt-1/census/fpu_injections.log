@@ -1,0 +1,22 @@
+Tick: 12775455, Site: dyn_inst_execute, sn=10893, pc=0x4005e0, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620042, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12775840, Site: dyn_inst_execute, sn=10895, pc=0x4005e8, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620000, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12775840, Site: dyn_inst_execute, sn=10894, pc=0x4005e4, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620021, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12833205, Site: dyn_inst_execute, sn=10943, pc=0x4005e4, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620021, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12833205, Site: dyn_inst_execute, sn=10942, pc=0x4005e0, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620042, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12833590, Site: dyn_inst_execute, sn=10944, pc=0x4005e8, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620000, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12845525, Site: dyn_inst_execute, sn=10992, pc=0x4005e4, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620021, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12845525, Site: dyn_inst_execute, sn=10991, pc=0x4005e0, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620042, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12845910, Site: dyn_inst_execute, sn=10993, pc=0x4005e8, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620000, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12854380, Site: dyn_inst_execute, sn=11028, pc=0x4005e4, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620021, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12854380, Site: dyn_inst_execute, sn=11027, pc=0x4005e0, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620042, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12854765, Site: dyn_inst_execute, sn=11029, pc=0x4005e8, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620000, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12867085, Site: dyn_inst_execute, sn=11077, pc=0x4005e4, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620021, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12867085, Site: dyn_inst_execute, sn=11076, pc=0x4005e0, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620042, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12867470, Site: dyn_inst_execute, sn=11078, pc=0x4005e8, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620000, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+Tick: 12875940, Site: dyn_inst_execute, sn=11113, pc=0x4005e4, decode_reject=undecoded:fcvt/int-convert, enc=0x9e620021, decoded_kind=cvt, decoded_precision=none, decoded_width=0, decoded_lanes=0, manifest_precision=fp64, manifest_lane_width=64, manifest_lane_offset=0
+CHAOS_ELIGIBLE_COUNT=32771
+CHAOS_DECODE_REJECTS=24576
+CHAOS_DECODE_REJECT_REASON undecoded:fcvt/int-convert=24576
+CHAOS_DECODE_KIND neon_vector=8192
+CHAOS_DECODE_KIND scalar_vfp=32771
+CHAOS_DECODE_KIND unreliable=40966
