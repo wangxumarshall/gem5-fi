@@ -145,23 +145,115 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
           f"{len(faults)} / {chain_report.get('actual_injections', 'N/A')} |",
           ""]
     if f5_installs:
+        # [FSU][F5] Six explicitly separated sections: installation/persistence,
+        # full exposure counting, sampling policy, the fully observed path,
+        # the exposures that are NOT expanded, and the run-level oracle (kept
+        # distinct from the fault chain terminal).
+        inst = f5_installs[0]
         end = f5_end or {}
-        L += ["### F5 永久故障计数（一个 fault，多次 exposure）", "",
+        f5_multi = next(
+            (e for e in events
+             if str(e.get("kind")) == "operand_read"
+             and str(e.get("merged_activated_exposures", "")).strip()),
+            None)
+        path_ids = [str(e.get("event_id"))
+                    for e in fault_paths.get(primary_fid, [])]
+        multi_merged = _v(f5_multi, "merged_activated_exposures") \
+            if f5_multi else "N/A"
+        multi_ids = _v(f5_multi, "observed_exposure_ids") \
+            if f5_multi else "N/A"
+        multi_expanded = _v(f5_multi, "sources_expanded") \
+            if f5_multi else "N/A"
+        multi_unexpanded = _v(f5_multi, "sources_unexpanded") \
+            if f5_multi else "N/A"
+        multi_scope = _v(f5_multi, "observation_scope") \
+            if f5_multi else "N/A"
+        L += ["### 1.1 永久故障安装与存续", "",
               "| 项 | 值 |", "|---|---|",
               f"| 安装次数（fault_installed） | {len(f5_installs)} |",
-              f"| 安装 fault_id / mask / polarity | "
-              f"{_v(f5_installs[0],'fault_id')} / "
-              f"{_v(f5_installs[0],'fixed_mask')} / "
-              f"{_v(f5_installs[0],'stuck_polarity')} |",
-              f"| 已记录 exposure 事件 | {len(f5_exposures)} |",
-              f"| 已记录 activated exposure | {len(f5_activated)} |",
-              f"| 全程 exposures_total | {_v(end,'exposures_total') or 'N/A'} |",
-              f"| sampled / dropped | {_v(end,'exposures_sampled') or 'N/A'} / "
-              f"{_v(end,'exposures_dropped') or 'N/A'} |",
-              f"| 全程 activated_exposure_count | "
-              f"{_v(end,'activated_exposure_count') or 'N/A'} |",
-              f"| sample policy | `{_v(end,'sample_policy') or 'N/A'}` |",
-              f"| terminal | {_v(end,'terminal') or 'N/A'} |", ""]
+              f"| install event_id / fault_id | `{_v(inst,'event_id')}` / "
+              f"`{_v(inst,'fault_id')}` |",
+              f"| install eligible ordinal / install_is_exposure | "
+              f"{_v(inst,'install_eligible_ordinal')} / "
+              f"{_v(inst,'install_is_exposure')} |",
+              f"| warm-up configured / eligible skipped | "
+              f"{_v(inst,'warmup_configured')} / "
+              f"{_v(inst,'warmup_eligible_skipped')} |",
+              f"| fixed mask / polarity | {_v(inst,'fixed_mask')} / "
+              f"{_v(inst,'stuck_polarity')} |",
+              f"| 存续起点（first_eligible_sn） | "
+              f"{_v(inst,'first_eligible_sn')} |",
+              f"| 最近 exposure sn / 终局 sn | "
+              f"{_v(end,'last_exposure_sn')} / {_v(end,'affected_sn')} |",
+              "",
+              "安装事件本身是 **exposure #1**；安装后每个匹配 eligible event "
+              "都重新施加同一固定 mask/polarity，直到运行结束。", ""]
+        L += ["### 1.2 全量 exposure 计数", "",
+              "| 项 | 值 |", "|---|---|",
+              f"| fault-run eligible_seen_total | "
+              f"{_v(end,'eligible_seen_total')} |",
+              f"| warm-up skipped + post-install eligible | "
+              f"{_v(end,'warmup_eligible_skipped')} + "
+              f"{_v(end,'post_install_eligible')} |",
+              f"| eligible_without_writable_dest | "
+              f"{_v(end,'eligible_without_writable_dest')} |",
+              f"| exposures_total（含安装当次） | "
+              f"{_v(end,'exposures_total')} |",
+              f"| activated_exposure_count | "
+              f"{_v(end,'activated_exposure_count')} |",
+              f"| selected_eligible_total（census 参考） | "
+              f"{_v(end,'selected_eligible_total')} |",
+              f"| eligible_delta_vs_census | "
+              f"{_v(end,'eligible_delta_vs_census')} |",
+              f"| census_reference | {_v(end,'census_reference')} |",
+              "",
+              "fault-run eligible 与预注册 census **不要求相等**；"
+              "`eligible_delta_vs_census` 只作算术记录，不是错误。", ""]
+        L += ["### 1.3 采样策略", "",
+              "| 项 | 值 |", "|---|---|",
+              f"| sample policy | `{_v(end,'sample_policy')}` |",
+              f"| sampled / dropped | {_v(end,'exposures_sampled')} / "
+              f"{_v(end,'exposures_dropped')} |",
+              f"| sampled_unique / omitted | {_v(end,'sampled_unique')} / "
+              f"{_v(end,'omitted')} |",
+              f"| applied_to_all_exposures / sampled_is_observation_only | "
+              f"{_v(end,'applied_to_all_exposures')} / "
+              f"{_v(end,'sampled_is_observation_only')} |",
+              f"| cell_sources_overflow | "
+              f"{_v(end,'cell_sources_overflow')} |",
+              "",
+              "**sampled / dropped 只是事件流观测采样统计，不表示故障未施加。** "
+              "`applied_to_all_exposures=1` 表示每个 eligible event 都真实施加了"
+              "同一永久极性；采样只决定保留多少条可读 exposure 事件。", ""]
+        L += ["### 1.4 已完整观测的路径", "",
+              "- 主 fault `" + str(primary_fid) + "` 的完整观测路径"
+              "（直接 parent 链）："
+              + (" → ".join(f"`{i}`" for i in path_ids) if path_ids else "N/A"),
+              f"- 该路径的 chain terminal：**{primary.get('terminal','N/A')}**；"
+              f"路径 admitted/certified 标记：{primary.get('admitted', False)} / "
+              f"{primary.get('certified', False)}。",
+              "- `fsu_chain_check` 的 certified 只认证这条**已记录、已完整观测**"
+              "的路径；它不声称所有 exposure 都被逐条展开或逐条认证。", ""]
+        L += ["### 1.5 未逐条展开的 exposure", "",
+              f"- 未采样 exposure（omitted / exposures_dropped）："
+              f"{_v(end,'omitted')} 条，只保留精确计数，不保留逐条值。",
+              f"- 同一物理 cell 的多来源摘要："
+              f"merged_activated_exposures={multi_merged}，"
+              f"observed_exposure_ids=`{multi_ids}`，"
+              f"sources_expanded={multi_expanded}，"
+              f"sources_unexpanded={multi_unexpanded}，"
+              f"observation_scope={multi_scope}。",
+              "- 同一 consumer 受同一 phys cell 的多次 activated exposure 影响时，"
+              "L2 `operand_read` 携带上述**有界摘要**：第一条来源"
+              "（first activated chain）被展开为真实 L2–L5 链，其余来源只计数、"
+              "不逐条展开；绝不静默只保留第一条来源。", ""]
+        L += ["### 1.6 run-level oracle（与 fault chain terminal 分开）", "",
+              f"- run-level 程序 oracle：**{oracle.get('category','N/A')}**"
+              f"（{oracle.get('reason','')}）。",
+              f"- fault chain terminal：**{primary.get('terminal','N/A')}**。",
+              "- 二者是不同层级的事实：run-level oracle 是程序最终结果，"
+              "chain terminal 是这条已观测故障路径的结局；本文并列保留，"
+              "不互相替代（详见第 7 节）。", ""]
 
     L += ["## 2. 故障注入发生在哪里", ""]
     if faults:

@@ -103,8 +103,10 @@ else:                      keep_first = min(N, budget)
 强制事件始终发射：安装事件、carrier、**首次 exposure**、**首次 activated
 exposure**、首个 activated exposure 的真实 L2–L5、F5 `chain_end`。
 因此最大值 = `keep_first + keep_last + 2` 个 exposure 事件；
-构造函数额外要求该值 + 8 < 190000，确保低于 `EVENT_CAP=200000`，
-不可能静默截断。
+构造函数额外要求该值 + 8（强制事件保守计数）`<= 190000`，确保严格低于
+`EVENT_CAP=200000`，不可能静默截断。该算术由
+`chaos_fsu_fields.hh::f5ResolveSampleBudget()` 提供并做 host 单测；
+超限时构造函数 **panic**，绝不静默 clamp 或截断。
 
 ## 4. 事件与字段
 
@@ -148,6 +150,47 @@ CHAOSFPU 把激活/影响信息放在 `exposure`/`commit` 事件上。
 | `op_class` | fault_installed/carrier/exposure/operand_read/commit/chain_end | 产生该结果的 gem5 OpClass 名（如 `FloatMultAcc`），无空格；exposure 携带各自 producer 的 opClass，chain_end 携带安装事件的 opClass。 |
 | `reg_class` | fault_installed/carrier/exposure/operand_read/commit/chain_end | 目标目的寄存器 class（`vec`/`float`/`vec_elem`）；整条永久链保持一致。 |
 
+### 4.3 eligible / 采样 / 多来源字段（F5 加固）
+
+这些字段在 `fault_installed` 与 `chain_end` 上发射（能拿到的快照值），
+旧证据没有它们时审计器**跳过**对应检查（向后兼容）。
+
+| 字段 | 语义 |
+|---|---|
+| `eligible_seen_total` | fault-run 全程匹配 eligible 的事件数（含 warm-up） |
+| `warmup_configured` | 配置的 `f5Warmup` |
+| `warmup_eligible_skipped` | 因 warm-up 跳过的匹配 eligible 数 |
+| `install_eligible_ordinal` | 安装事件对应的 eligible ordinal |
+| `install_is_exposure` | 固定为 `1`：安装事件就是 exposure #1 |
+| `post_install_eligible` | 安装窗口起的 eligible 数 = `exposures_total + eligible_without_writable_dest` |
+| `eligible_without_writable_dest` | warm-up 后匹配但无可写 FP/vector 目的寄存器、因而无法形成 exposure 的事件数 |
+| `selected_eligible_total` | 预注册 census（`--fsu_eligible_total`）参考值 |
+| `eligible_delta_vs_census` | `eligible_seen_total - selected_eligible_total`（可为负） |
+| `census_reference` | 说明该 census 是预注册参考值，例如 `pre_registered_countOnly` |
+| `sampled_unique` | 实际写入事件流的唯一 `exposure_id` 数（= `exposures_sampled`） |
+| `omitted` | 未采样 exposure 数（= `exposures_dropped`） |
+| `applied_to_all_exposures` | 固定为 `1`：采样只影响证据保留，故障施加到全部 eligible |
+| `sampled_is_observation_only` | 固定为 `1`：sampled/dropped 是观测统计 |
+| `merged_activated_exposures` | L2 `operand_read`：同一物理 cell 累积的 activated exposure 数（有界摘要） |
+| `observed_exposure_ids` | L2：有界首/尾 exposure id，形如 `first:last` |
+| `sources_expanded` | L2：被展开为真实 L2–L5 链的来源数（固定 `1`） |
+| `sources_unexpanded` | L2：只计数、不逐条展开的来源数（`merged - 1`） |
+| `observation_scope` | L2：`first_activated_chain`，说明该事件属于首个 activated exposure 的已观测链 |
+| `cell_sources_overflow` | 有界 per-cell 摘要 map 溢出次数（正常为 `0`，非零时显式报告） |
+
+固定守恒语义：
+
+```
+eligible_seen_total = warmup_eligible_skipped + post_install_eligible
+post_install_eligible = exposures_total + eligible_without_writable_dest
+install_eligible_ordinal = warmup_eligible_skipped + 1
+exposures_total = sampled_unique + omitted
+```
+
+fault-run eligible 与预注册 census 不同**不是错误**：`eligible_delta_vs_census`
+只记录差值，审计器只校验差值算术。采样策略按 `exposure_id` 去重：
+首/尾/first-activated 样本重叠时不会重复计数。
+
 `field`：单 bit mask 且完全落在一个 IEEE754 字段内时写字段名
 （`sign`/`exp_hi`/…）；多 bit mask（FP06-c fixed mantissa）写
 `permanent_stuck`，由 `fixed_mask` 表达真实位集合。这样
@@ -170,10 +213,25 @@ CHAOSFPU 把激活/影响信息放在 `exposure`/`commit` 事件上。
    exposure 精确计数**（`activated_exposure_count`），与是否采样无关。
 4. **有界样本**：`f5SampleLimit` + `f5KeepFirstLastN`，显式记录
    `sample_policy` / `exposures_total` / `exposures_sampled` /
-   `exposures_dropped`。
+   `exposures_dropped` / `sampled_unique` / `omitted`。
 5. **强制事件**（首次 exposure、首次 activated）永不丢弃。
 6. 仅**首个 activated exposure** 获得 L2–L5 真实传播链；后续 exposure
    只计数/采样，不调用 `noteFaultApplied`，不新建 fault。
+
+**采样只是观测，不是施加。** `sampled` / `dropped` / `exposures_sampled` /
+`exposures_dropped` 只描述有多少 exposure 事件被写入事件流；故障本身在每个
+eligible event 上都真实施加（`applied_to_all_exposures=1`，
+`sampled_is_observation_only=1`）。因此“dropped”绝不表示“未施加故障”。
+
+**已完整观测路径 vs 未逐条展开 exposure。** `fsu_chain_check` 的
+`certified` 只针对一条**已记录、已完整观测**的直接 parent 路径
+（install → carrier → first activated exposure → L2–L5 → chain_end）。
+未采样 / 未展开的 exposure 只有精确计数；同一物理 cell 的多次 activated
+exposure 在 L2 `operand_read` 上以
+`merged_activated_exposures` + `observed_exposure_ids=first:last` +
+`sources_expanded=1` / `sources_unexpanded=N` + `observation_scope=
+first_activated_chain` 的有界摘要出现。绝不静默只保留第一条来源，也绝不
+把全部来源展开成独立链。
 
 ### 5.1 已知边界
 
@@ -231,6 +289,25 @@ CHAOSFPU 把激活/影响信息放在 `exposure`/`commit` 事件上。
 8. 非 activated 的 exposure 叶子不参与路径枚举（避免 `MAX_PATHS`
    被数万旁支耗尽）；它们仍完整保留在 `off_chain_event_ids` 与计数中。
 9. `truncated=True` 一律阻断认证（`truncated_stream`）。
+10. **新计数字段（字段存在时）**：
+   - `eligible_seen_total == warmup_eligible_skipped +
+     post_install_eligible`；
+   - `post_install_eligible == exposures_total +
+     eligible_without_writable_dest`；
+   - `install_eligible_ordinal == warmup_eligible_skipped + 1`；
+   - `install_is_exposure == 1`（install 与 chain_end 两处）；
+   - `sampled_unique == exposures_sampled == 流内唯一 exposure_id 数`；
+   - `omitted == exposures_dropped`，且
+     `exposures_total == sampled_unique + omitted`；
+   - `eligible_delta_vs_census == eligible_seen_total -
+     selected_eligible_total`（**不要求** eligibility 等于 census；
+     `census_reference` 必须存在以说明参考来源）。
+11. **多来源摘要（字段存在时）**：L2 `operand_read` 的
+   `sources_expanded + sources_unexpanded == merged_activated_exposures`，
+   `sources_expanded == 1`，`observation_scope == first_activated_chain`，
+   `observed_exposure_ids` 形如 `first:last` 且在 `[1, exposures_total]` 内。
+12. 以上新字段全部是**可选**的：旧 fixture/旧认证 seed 没有这些字段时，
+   对应检查跳过，不因缺失而拒绝旧证据。
 
 ## 7. 与 F0 / F1–F4 的区别
 
@@ -298,8 +375,8 @@ g++ -O0 -std=c++17 -Wall -Wextra -Werror -I CHAOS/gem5/src \
 # -> chaos_fsu_f5: all checks passed
 
 python3 -m pytest tests/test_chaos_fsu_f5_cpp.py \
-    tests/test_fsu_chain_check.py tests/test_chaos_fsu_fields_cpp.py -q
-# -> 40 passed
+    tests/test_fsu_chain_check.py tests/test_fsu_seed_audit.py -q
+# -> 73 passed（2026-11-04 加固后，含新计数字段/去重/多来源 fixture）
 ```
 
 真实 gem5 构建（`scons -j16 build/ARM/gem5.opt`）已完成；W1 gate 与

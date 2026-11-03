@@ -186,10 +186,17 @@ def _field_violations(evt):
             v.append(f"fault {fid}: bit_in_lane {bil} != {rel}")
     lane_mask = _hex_int(evt.get("lane_mask"), default=None)
     if lane_mask is not None:
-        want = mask << lane_base
+        # [FR03] CHAOSPhysReg stores the mask relative to the target lane
+        # and declares that explicitly; CHAOSFPU emits an absolute 128-bit
+        # lane_mask. Never guess the scope.
+        if str(evt.get("lane_mask_scope", "")).strip() == "lane":
+            want = mask
+        else:
+            want = mask << lane_base
         if lane_mask != want:
             v.append(f"fault {fid}: lane_mask 0x{lane_mask:x} != "
-                     f"fault_mask<<{lane_base} (0x{want:x})")
+                     f"expected 0x{want:x} (scope="
+                     f"{evt.get('lane_mask_scope') or 'absolute'})")
     # [FSU][F5] A permanent stuck-at target keeps ONE fixed mask/polarity.
     # Its before/after pair is a FORCED value, not an XOR: when the correct
     # bit already equals the stuck polarity the pair legitimately differs by
@@ -368,8 +375,13 @@ def audit_attempt(attempt: Path):
     check(f"scheduled({scheduled}) = fault_roots({len(roots)})",
           scheduled == len(roots))
     root_ids = {str(e.get("fault_id")) for e in roots}
+    # [FR03] A permanent physical-cell activation is observed on its write
+    # exposure (`phys_write`), exactly as FP06 observes it on `exposure`.
+    # Both are branch kinds of the SAME installed fault; operand_read keeps
+    # its own activation flag for emitters that choose to set it.
     activated_ids = {str(e.get("fault_id")) for e in events
-                     if str(e.get("kind")) == "operand_read"
+                     if (str(e.get("kind")) in P.BRANCH_KINDS
+                         or str(e.get("kind")) == "operand_read")
                      and str(e.get("activated")) == "1"}
     check("每个 injected fault 均真实激活",
           bool(root_ids) and activated_ids == root_ids)
@@ -381,7 +393,7 @@ def audit_attempt(attempt: Path):
             continue
         fid = str(root.get("fault_id"))
         acts = [e for e in events
-                if str(e.get("kind")) == "exposure"
+                if str(e.get("kind")) in P.BRANCH_KINDS
                 and str(e.get("fault_id")) == fid
                 and str(e.get("activated")) == "1"]
         check(f"fault {fid} 永久故障至少一次 activated exposure",
@@ -438,6 +450,18 @@ def audit_attempt(attempt: Path):
         check(f"fault {fid} violations 一致", r.get("violations") == old.get("violations"))
         check(f"fault {fid} admitted 一致", r.get("admitted") == old.get("admitted"))
         check(f"fault {fid} certified 一致", r.get("certified") == old.get("certified"))
+        # [FSU][F5] New accounting fields are OPTIONAL: a legacy certified
+        # seed without them must keep passing. When present, the recomputed
+        # unique-sample / conservation checks must be clean and the declared
+        # sampled_unique must equal the stream's unique exposure_id count.
+        fa = r.get("f5") or {}
+        if fa.get("sampled_unique") is not None:
+            check(f"fault {fid} sampled_unique = 唯一 exposure_id 数",
+                  fa.get("sampled_unique") == fa.get("unique_exposure_ids"))
+        f5_new = [v for v in r.get("violations", []) if v.startswith("f5_")]
+        check(f"fault {fid} F5 计数/去重/守恒校验", not f5_new)
+        if f5_new:
+            failures.extend(f5_new)
 
     # 4. Markdown 事件表 ↔ 原始流
     by_id = {str(e.get("event_id")): e for e in events}

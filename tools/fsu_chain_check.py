@@ -219,8 +219,16 @@ def _f5_accounting(fid, events, root, violations, truncated):
                 violations.append(f"f5_activation_flag_mismatch:{eid}")
         xid = _int_or_none(e, "exposure_id")
         if xid is not None:
-            exp_ids.append(xid)
-    if len(exp_ids) != len(set(exp_ids)):
+            # [FR03] A permanent physical cell restarts exposure_id at 1 for
+            # every allocation generation. Uniqueness is therefore scoped by
+            # (reg_generation, exposure_id); FP06 events have no generation
+            # and reduce to the original global uniqueness rule.
+            gen = _clean(e, "reg_generation")
+            exp_ids.append((gen, xid))
+        else:
+            violations.append(f"f5_exposure_missing_id:{eid}")
+    unique_exp_ids = len(set(exp_ids))
+    if len(exp_ids) != unique_exp_ids:
         violations.append("duplicate_exposure_id")
 
     ends = [e for e in events
@@ -229,12 +237,14 @@ def _f5_accounting(fid, events, root, violations, truncated):
     end = ends[-1] if ends else None
     total = sampled = dropped = activated_total = None
     first_act_sn = None
+    first_at_install = None
     if end is not None:
         total = _int_or_none(end, "exposures_total")
         sampled = _int_or_none(end, "exposures_sampled")
         dropped = _int_or_none(end, "exposures_dropped")
         activated_total = _int_or_none(end, "activated_exposure_count")
         first_act_sn = _int_or_none(end, "first_activated_sn")
+        first_at_install = _int_or_none(end, "first_activated_at_install")
         ie = _clean(end, "install_event")
         if ie and ie != root_id:
             violations.append(f"chain_end_wrong_install_event:{ie}")
@@ -261,11 +271,15 @@ def _f5_accounting(fid, events, root, violations, truncated):
                 f"dropped={dropped}")
         if dropped < 0 or sampled < 0:
             violations.append("f5_capacity_negative")
+    # [FSU][F5] `exposures_sampled` must equal the number of UNIQUE
+    # exposure_ids that reached the stream. The first / tail /
+    # first-activated sample policies are keyed by exposure_id, so an
+    # overlapping sample can never be counted twice.
     if (not truncated and sampled is not None
-            and sampled != len(exposures)):
+            and sampled != unique_exp_ids):
         violations.append(
             f"f5_sampled_mismatch:sampled={sampled},"
-            f"observed={len(exposures)}")
+            f"unique_observed={unique_exp_ids}")
     if activated_total is not None:
         if activated_total < len(activated_events):
             violations.append(
@@ -273,7 +287,11 @@ def _f5_accounting(fid, events, root, violations, truncated):
                 f"observed={len(activated_events)}")
         if activated_total > 0 and not activated_events:
             violations.append("f5_first_activated_exposure_missing")
-        if activated_total > 0 and first_act_sn is None:
+        if (activated_total > 0 and first_act_sn is None
+                and not first_at_install):
+            # [FR03] The installation write has no instruction seqNum. When
+            # it is the first activation, the honest marker is
+            # first_activated_at_install=1, not a fabricated SN.
             violations.append("f5_missing_first_activated_sn")
         if first_act_sn is not None and not any(
                 _int_or_none(e, "dyn_inst_seq") == first_act_sn
@@ -281,15 +299,173 @@ def _f5_accounting(fid, events, root, violations, truncated):
             violations.append("f5_first_activated_sn_not_observed")
     if not exposures and total not in (None, 0):
         violations.append("f5_exposures_total_without_events")
+
+    # ------------------------------------------------------------------
+    # [FSU][F5] Optional eligible / warm-up / census accounting.
+    #
+    # These fields are emitted by the hardened injector on fault_installed
+    # and chain_end. EVERY check below is conditional on the field being
+    # present, so a legacy certified seed without them continues to pass.
+    # A fault-run eligible total different from the pre-registered census is
+    # NOT an error: only the internal arithmetic is checked.
+    # ------------------------------------------------------------------
+    def _opt(evt, key):
+        return _int_or_none(evt, key) if evt is not None else None
+
+    r_seen = _opt(root, "eligible_seen_total")
+    r_cfg = _opt(root, "warmup_configured")
+    r_skip = _opt(root, "warmup_eligible_skipped")
+    r_ord = _opt(root, "install_eligible_ordinal")
+    r_post = _opt(root, "post_install_eligible")
+    r_nowrite = _opt(root, "eligible_without_writable_dest")
+    e_seen = _opt(end, "eligible_seen_total")
+    e_cfg = _opt(end, "warmup_configured")
+    e_skip = _opt(end, "warmup_eligible_skipped")
+    e_ord = _opt(end, "install_eligible_ordinal")
+    e_post = _opt(end, "post_install_eligible")
+    e_nowrite = _opt(end, "eligible_without_writable_dest")
+    e_sel = _opt(end, "selected_eligible_total")
+    e_delta = _opt(end, "eligible_delta_vs_census")
+    su = _opt(end, "sampled_unique")
+    om = _opt(end, "omitted")
+    overflow = _opt(end, "cell_sources_overflow")
+
+    for evt, label in ((root, "install"), (end, "chain_end")):
+        if evt is None:
+            continue
+        v = _clean(evt, "install_is_exposure")
+        if v and v != "1":
+            violations.append(f"f5_install_is_exposure_not_1:{label}")
+    if end is not None:
+        for key in ("applied_to_all_exposures",
+                    "sampled_is_observation_only"):
+            v = _clean(end, key)
+            if v and v != "1":
+                violations.append(f"f5_flag_not_1:{key}")
+
+    # Sampling conservation: total == sampled_unique + omitted, and the
+    # declared unique count agrees with both the sampled count and the
+    # stream's own unique exposure_ids.
+    if su is not None:
+        if not truncated and su != unique_exp_ids:
+            violations.append(
+                f"f5_sampled_unique_mismatch:declared={su},"
+                f"unique_observed={unique_exp_ids}")
+        if sampled is not None and su != sampled:
+            violations.append(
+                f"f5_sampled_unique_disagrees_sampled:{su}!={sampled}")
+    if om is not None and dropped is not None and om != dropped:
+        violations.append(f"f5_omitted_disagrees_dropped:{om}!={dropped}")
+    if su is not None and om is not None and total is not None \
+            and total != su + om:
+        violations.append(
+            f"f5_sampled_conservation_mismatch:total={total},"
+            f"sampled_unique={su},omitted={om}")
+
+    # Warm-up / install ordinal topology.
+    if e_ord is not None and e_skip is not None and e_ord != e_skip + 1:
+        violations.append(
+            f"f5_install_ordinal_mismatch:ordinal={e_ord},"
+            f"warmup_skipped={e_skip}")
+    if e_skip is not None and e_cfg is not None and e_skip > e_cfg:
+        violations.append(
+            f"f5_warmup_skipped_exceeds_configured:skipped={e_skip},"
+            f"configured={e_cfg}")
+    if e_seen is not None and e_skip is not None and e_post is not None \
+            and e_seen != e_skip + e_post:
+        violations.append(
+            f"f5_eligible_seen_mismatch:seen={e_seen},"
+            f"warmup_skipped={e_skip},post_install={e_post}")
+    if e_post is not None and total is not None and e_nowrite is not None \
+            and e_post != total + e_nowrite:
+        violations.append(
+            f"f5_post_install_mismatch:post={e_post},total={total},"
+            f"without_writable_dest={e_nowrite}")
+
+    # The install snapshot must agree with the terminal view on the
+    # installation identity, and it states install_is_exposure (#1)
+    # explicitly: its own post-install window is exactly 1 + no-writable.
+    if r_seen is not None and r_ord is not None and r_seen != r_ord:
+        violations.append(
+            f"f5_install_snapshot_seen_mismatch:seen={r_seen},"
+            f"ordinal={r_ord}")
+    if r_post is not None and r_nowrite is not None \
+            and r_post != 1 + r_nowrite:
+        violations.append(
+            f"f5_install_snapshot_post_mismatch:post={r_post},"
+            f"without_writable_dest={r_nowrite}")
+    for key, rv, ev in (("warmup_configured", r_cfg, e_cfg),
+                        ("warmup_eligible_skipped", r_skip, e_skip),
+                        ("install_eligible_ordinal", r_ord, e_ord)):
+        if rv is not None and ev is not None and rv != ev:
+            violations.append(f"f5_install_snapshot_drift:{key}")
+
+    # Census is a reference only. Arithmetic is checked; equality is not.
+    if e_delta is not None and e_seen is not None and e_sel is not None \
+            and e_delta != e_seen - e_sel:
+        violations.append(
+            f"f5_census_delta_mismatch:delta={e_delta},seen={e_seen},"
+            f"census={e_sel}")
+    if e_sel is not None and e_delta is not None \
+            and not _clean(end, "census_reference"):
+        violations.append("f5_missing_census_reference")
+
+    # Bounded multi-source summary on the L2 operand_read. Several activated
+    # exposures of the same physical cell must be summarized, not silently
+    # reduced to the first source and not fully expanded.
+    for e in events:
+        if _clean(e, "kind") != "operand_read":
+            continue
+        merged = _int_or_none(e, "merged_activated_exposures")
+        if merged is None:
+            continue
+        eid = _clean(e, "event_id")
+        expanded = _int_or_none(e, "sources_expanded")
+        unexpanded = _int_or_none(e, "sources_unexpanded")
+        scope = _clean(e, "observation_scope")
+        ids = _clean(e, "observed_exposure_ids")
+        if expanded is not None and unexpanded is not None \
+                and merged != expanded + unexpanded:
+            violations.append(f"f5_multi_source_mismatch:{eid}")
+        if expanded is not None and expanded != 1:
+            violations.append(f"f5_sources_expanded_not_1:{eid}")
+        if scope and scope != "first_activated_chain":
+            violations.append(f"f5_observation_scope_unexpected:{eid}")
+        if ids:
+            parts = ids.split(":")
+            if len(parts) != 2 or not all(p.isdigit() for p in parts):
+                violations.append(f"f5_observed_ids_malformed:{eid}")
+            else:
+                lo, hi = int(parts[0]), int(parts[1])
+                if lo < 1 or hi < lo:
+                    violations.append(f"f5_observed_ids_range:{eid}")
+                elif total is not None and hi > total:
+                    violations.append(f"f5_observed_ids_beyond_total:{eid}")
+        if merged > 0 and activated_total is not None \
+                and merged > activated_total:
+            violations.append(f"f5_merged_exceeds_activated:{eid}")
+
     return {
         "root_event_id": root_id,
         "exposure_events": len(exposures),
+        "unique_exposure_ids": unique_exp_ids,
         "activated_events": len(activated_events),
         "exposures_total": total,
         "exposures_sampled": sampled,
         "exposures_dropped": dropped,
         "activated_exposure_count": activated_total,
         "first_activated_sn": first_act_sn,
+        "eligible_seen_total": e_seen,
+        "warmup_configured": e_cfg,
+        "warmup_eligible_skipped": e_skip,
+        "install_eligible_ordinal": e_ord,
+        "post_install_eligible": e_post,
+        "eligible_without_writable_dest": e_nowrite,
+        "selected_eligible_total": e_sel,
+        "eligible_delta_vs_census": e_delta,
+        "sampled_unique": su,
+        "omitted": om,
+        "cell_sources_overflow": overflow,
         "chain_end_event_id": _clean(end, "event_id") if end else None,
         "chain_end_terminal": _clean(end, "terminal") if end else None,
     }

@@ -267,12 +267,34 @@ class CHAOSPropagation : public SimObject
         "last_exposure_sn", "affected_sn", "correct_before", "stuck_after",
         "first_impact_latency", "sample_policy", "exposures_total",
         "exposures_sampled", "exposures_dropped",
+        // [FSU][F5] Eligible / warm-up / census accounting emitted on
+        // fault_installed and chain_end. The pre-registered census is only a
+        // reference; `eligible_delta_vs_census` is arithmetic, not an error.
+        "eligible_seen_total", "warmup_configured",
+        "warmup_eligible_skipped", "install_eligible_ordinal",
+        "install_is_exposure", "post_install_eligible",
+        "eligible_without_writable_dest", "selected_eligible_total",
+        "eligible_delta_vs_census", "census_reference",
+        // [FSU][F5] Sample de-duplication / observation-only evidence.
+        "sampled_unique", "omitted", "applied_to_all_exposures",
+        "sampled_is_observation_only",
+        // [FSU][F5] Bounded multi-source summary on the L2 operand_read of a
+        // consumer affected by several activated exposures of one cell.
+        "merged_activated_exposures", "observed_exposure_ids",
+        "sources_expanded", "sources_unexpanded", "observation_scope",
+        "cell_sources_overflow",
         // [FSU][F5-W1] Explicit candidate opClass name (never dropped).
         "op_class",
         // [FR03] Permanent physical-cell lifecycle / generation provenance.
         "generation_old", "generation_new", "generation_changes",
         "cell_allocated", "cell_free", "stuck_reapplied", "phys_reads",
         "phys_reads_delta", "permanent_key",
+        // [FR03] Real L5 commit/squash witnesses and read/write exposure
+        // totals. Emitted by CHAOSPhysReg; without these keys notePropEvt
+        // would warn-and-drop them (never silently keep unknown fields).
+        "first_impact_sn", "first_impact_tick", "l5_witness_event",
+        "commit_events", "squash_events", "consumers_recorded",
+        "read_exposures_total", "write_exposures_total", "lane_mask_scope",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));

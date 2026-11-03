@@ -63,6 +63,21 @@ PROP_EVT_FIELDS = [
     "correct_before", "stuck_after", "first_impact_latency",
     "sample_policy", "exposures_total", "exposures_sampled",
     "exposures_dropped",
+    # [FSU][F5] Eligible / warm-up / census accounting (fault_installed and
+    # chain_end). The pre-registered census is a REFERENCE: a fault-run
+    # eligible total may differ; only the internal arithmetic is required.
+    "eligible_seen_total", "warmup_configured", "warmup_eligible_skipped",
+    "install_eligible_ordinal", "install_is_exposure",
+    "post_install_eligible", "eligible_without_writable_dest",
+    "selected_eligible_total", "eligible_delta_vs_census",
+    "census_reference",
+    # [FSU][F5] Sample de-duplication / observation-only evidence.
+    "sampled_unique", "omitted", "applied_to_all_exposures",
+    "sampled_is_observation_only",
+    # [FSU][F5] Bounded multi-source summary on L2 operand_read.
+    "merged_activated_exposures", "observed_exposure_ids",
+    "sources_expanded", "sources_unexpanded", "observation_scope",
+    "cell_sources_overflow",
 ]
 
 # kind → 层级。None = 生命周期/终局标记，不占 L0–L5。
@@ -97,6 +112,11 @@ KIND_LAYER = {
     # events themselves; these kinds are registered so an emitter that
     # chooses explicit markers cannot drift from the checker.
     "activation": "L2", "first_impact": "L5",
+    # [FR03] Permanent physical-cell write exposures are side branches of
+    # the SINGLE installed fault, exactly like F5 `exposure`. They are not
+    # independent faults and do not occupy a layer of their own.
+    "phys_write": None, "stuck_reapplied": None,
+    "generation_change": None,
 }
 
 CONTAIN_KINDS = frozenset({
@@ -111,7 +131,9 @@ LIFECYCLE_KINDS = frozenset({"chain_end"})
 ROOT_KINDS = frozenset({"fault_applied", "fault_installed"})
 # Exposure events are side-branch evidence of the SAME fault. They must
 # never be grouped/counted as independent faults.
-BRANCH_KINDS = frozenset({"exposure"})
+# [FR03] `phys_write` is the permanent-cell write exposure (same one-fault,
+# many-exposure contract as F5 `exposure`). It must never mint a fault.
+BRANCH_KINDS = frozenset({"exposure", "phys_write"})
 F5_FIELDS = frozenset({
     "install_event", "stuck_polarity", "fixed_mask", "first_eligible_sn",
     "exposure_id", "exposure_count", "activated_exposure_count",
@@ -119,11 +141,42 @@ F5_FIELDS = frozenset({
     "correct_before", "stuck_after", "first_impact_latency",
     "sample_policy", "exposures_total", "exposures_sampled",
     "exposures_dropped",
+    # [FSU][F5] Eligible / warm-up / census accounting.
+    "eligible_seen_total", "warmup_configured", "warmup_eligible_skipped",
+    "install_eligible_ordinal", "install_is_exposure",
+    "post_install_eligible", "eligible_without_writable_dest",
+    "selected_eligible_total", "eligible_delta_vs_census",
+    "census_reference",
+    # [FSU][F5] Sample de-duplication / observation-only evidence.
+    "sampled_unique", "omitted", "applied_to_all_exposures",
+    "sampled_is_observation_only",
+    # [FSU][F5] Bounded multi-source summary.
+    "merged_activated_exposures", "observed_exposure_ids",
+    "sources_expanded", "sources_unexpanded", "observation_scope",
+    "cell_sources_overflow",
+    # [FR03] L5 lifecycle and read/write exposure accounting.
+    "first_impact_sn", "first_impact_tick", "l5_witness_event",
+    "commit_events", "squash_events", "consumers_recorded",
+    "read_exposures_total", "write_exposures_total",
+    "first_activated_at_install", "lane_mask_scope",
 })
 F5_CHAIN_END_FIELDS = frozenset({
     "exposures_total", "activated_exposure_count", "exposures_sampled",
     "exposures_dropped", "sample_policy", "first_eligible_sn",
     "last_exposure_sn",
+    # [FSU][F5] Explicit accounting on the terminal record.
+    "eligible_seen_total", "warmup_configured", "warmup_eligible_skipped",
+    "install_eligible_ordinal", "install_is_exposure",
+    "post_install_eligible", "eligible_without_writable_dest",
+    "selected_eligible_total", "eligible_delta_vs_census",
+    "census_reference", "sampled_unique", "omitted",
+    "applied_to_all_exposures", "sampled_is_observation_only",
+    "cell_sources_overflow",
+    # [FR03] L5 lifecycle and read/write exposure accounting.
+    "first_impact_sn", "first_impact_tick", "l5_witness_event",
+    "commit_events", "squash_events", "consumers_recorded",
+    "read_exposures_total", "write_exposures_total",
+    "first_activated_at_install", "lane_mask_scope",
 })
 
 EMPTY_VALUES = ("", "None", "none", "Unknown", "unknown")

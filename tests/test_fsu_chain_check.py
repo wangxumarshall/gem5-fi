@@ -33,13 +33,29 @@ def chain_full(t0=100):
 
 
 def f5_root(event_id="0", sn="100", mask="0x0000000000000020",
-            polarity="1"):
+            polarity="1", accounting=True, extra=None):
     b = base()
+    fields = {}
+    if accounting:
+        # Install snapshot: exposure #1, no warm-up, its own post-install
+        # window is exactly the installation event.
+        fields.update({
+            "eligible_seen_total": "1",
+            "warmup_configured": "0",
+            "warmup_eligible_skipped": "0",
+            "install_eligible_ordinal": "1",
+            "install_is_exposure": "1",
+            "post_install_eligible": "1",
+            "eligible_without_writable_dest": "0",
+        })
+    if extra:
+        fields.update({k: str(v) for k, v in extra.items()})
     return evt(kind="fault_installed", event_id=event_id, tick="100",
                dyn_inst_seq=sn, first_eligible_sn=sn, fault_mask=mask,
                fixed_mask=mask, stuck_polarity=polarity,
                sample_policy="bounded_first_last(limit=4,first=2,last=2)",
-               field="mant_lo", lane_width="64", lane_offset="0", **b)
+               field="mant_lo", lane_width="64", lane_offset="0",
+               **fields, **b)
 
 
 def f5_exposure(event_id, parent, exposure_id, sn, activated,
@@ -70,8 +86,29 @@ def f5_chain_end(parent, total=3, sampled=2, dropped=1,
                  activated_total="1", first_activated_sn="102",
                  first_eligible_sn="100", last_exposure_sn="105",
                  terminal="committed", mask="0x0000000000000020",
-                 polarity="1"):
+                 polarity="1", accounting=True, extra=None):
     b = base()
+    fields = {}
+    if accounting:
+        # Default: warm-up 0, install ordinal 1, every eligible event after
+        # the warm-up is an exposure (no writable-dest misses). The census
+        # reference is omitted unless a fixture asks for it.
+        fields.update({
+            "eligible_seen_total": str(total),
+            "warmup_configured": "0",
+            "warmup_eligible_skipped": "0",
+            "install_eligible_ordinal": "1",
+            "install_is_exposure": "1",
+            "post_install_eligible": str(total),
+            "eligible_without_writable_dest": "0",
+            "sampled_unique": str(sampled),
+            "omitted": str(dropped),
+            "applied_to_all_exposures": "1",
+            "sampled_is_observation_only": "1",
+            "cell_sources_overflow": "0",
+        })
+    if extra:
+        fields.update({k: str(v) for k, v in extra.items()})
     return evt(kind="chain_end", event_id="9", parent_event_id=str(parent),
                tick="9999", install_event="0", fault_mask=mask,
                fixed_mask=mask, stuck_polarity=polarity,
@@ -83,7 +120,7 @@ def f5_chain_end(parent, total=3, sampled=2, dropped=1,
                exposures_total=str(total), exposures_sampled=str(sampled),
                exposures_dropped=str(dropped),
                sample_policy="bounded_first_last(limit=4,first=2,last=2)",
-               terminal=terminal, outcome=terminal, **b)
+               terminal=terminal, outcome=terminal, **fields, **b)
 
 
 def f5_full(t0=100):
@@ -108,6 +145,36 @@ def f5_full(t0=100):
             outcome="errant_commit", **b),
         f5_chain_end(7, total=3, sampled=2, dropped=1,
                      activated_total="1", first_activated_sn="102"),
+    ]
+
+
+def f5_accounted(root_extra=None, end_extra=None, operand_extra=None,
+                 activated_total="1", accounting=True):
+    """f5_full() plus the optional eligible/sampling accounting fields."""
+    b = base()
+    op = dict(kind="operand_read", event_id="4", parent_event_id="3",
+              tick="202", dyn_inst_seq="102", activated="1")
+    if operand_extra:
+        op.update(operand_extra)
+    return [
+        f5_root(accounting=accounting, extra=root_extra),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="100", **b),
+        f5_exposure(2, 1, 1, 101, "0", activated_total="0"),
+        f5_exposure(3, 1, 2, 102, "1", first_activated_sn="102",
+                    activated_total="1"),
+        evt(**op, **b),
+        evt(kind="execute", event_id="5", parent_event_id="4",
+            tick="203", dyn_inst_seq="102", **b),
+        evt(kind="prf_writeback", event_id="6", parent_event_id="5",
+            tick="204", dyn_inst_seq="102", **b),
+        evt(kind="commit", event_id="7", parent_event_id="6", tick="205",
+            dyn_inst_seq="102", detection_layer="L5",
+            outcome="errant_commit", **b),
+        f5_chain_end(7, total=3, sampled=2, dropped=1,
+                     activated_total=activated_total,
+                     first_activated_sn="102", accounting=accounting,
+                     extra=end_extra),
     ]
 
 
@@ -563,3 +630,178 @@ def test_f5_truncated_stream_blocks_admission(tmp_path, monkeypatch):
     assert r["admitted_faults"] == []
     assert any("truncated_stream" in f["violations"]
                for f in r["faults"].values())
+
+
+# ---------- [FSU][F5] hardened counting / sampling / multi-source ----------
+
+def test_f5_accounting_fields_conserved(tmp_path):
+    f = check(tmp_path, f5_accounted())["faults"]["1"]
+    assert f["violations"] == []
+    assert f["admitted"] is True
+    acc = f["f5"]
+    assert acc["eligible_seen_total"] == 3
+    assert acc["warmup_eligible_skipped"] == 0
+    assert acc["post_install_eligible"] == 3
+    assert acc["install_eligible_ordinal"] == 1
+    assert acc["exposures_total"] == acc["sampled_unique"] + acc["omitted"]
+    assert acc["sampled_unique"] == 2
+    assert acc["unique_exposure_ids"] == 2
+
+
+def test_f5_warmup_one_install_ordinal_and_conservation(tmp_path):
+    root = {"warmup_configured": 1, "warmup_eligible_skipped": 1,
+            "install_eligible_ordinal": 2, "eligible_seen_total": 2,
+            "post_install_eligible": 1}
+    end = {"warmup_configured": 1, "warmup_eligible_skipped": 1,
+           "install_eligible_ordinal": 2, "eligible_seen_total": 4,
+           "post_install_eligible": 3}
+    f = check(tmp_path, f5_accounted(root_extra=root,
+                                     end_extra=end))["faults"]["1"]
+    assert f["violations"] == []
+    assert f["admitted"] is True
+    assert f["f5"]["install_eligible_ordinal"] == 2
+    assert f["f5"]["warmup_eligible_skipped"] == 1
+    assert f["f5"]["eligible_seen_total"] == 4
+
+
+def test_f5_warmup_beyond_eligible_emits_no_fault(tmp_path):
+    # warm-up > eligible: the run ends before installation, so the injector
+    # emits no fault_installed root and no chain_end. The checker must not
+    # invent a permanent fault or fabricate accounting from nothing.
+    r = check(tmp_path, [])
+    assert r["fault_count"] == 0
+    assert r["faults"] == {}
+    assert r["admitted"] is False
+
+
+def test_f5_install_ordinal_must_be_warmup_plus_one(tmp_path):
+    end = {"install_eligible_ordinal": 3, "warmup_configured": 1,
+           "warmup_eligible_skipped": 1, "eligible_seen_total": 4,
+           "post_install_eligible": 3}
+    f = check(tmp_path, f5_accounted(end_extra=end))["faults"]["1"]
+    assert any(v.startswith("f5_install_ordinal_mismatch")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_install_is_exposure_flag(tmp_path):
+    end = {"install_is_exposure": 0}
+    f = check(tmp_path, f5_accounted(end_extra=end))["faults"]["1"]
+    assert any(v.startswith("f5_install_is_exposure_not_1")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_post_install_conservation_mismatch(tmp_path):
+    end = {"post_install_eligible": 5}
+    f = check(tmp_path, f5_accounted(end_extra=end))["faults"]["1"]
+    assert any(v.startswith("f5_eligible_seen_mismatch")
+               for v in f["violations"])
+    assert any(v.startswith("f5_post_install_mismatch")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_sampled_unique_must_match_unique_exposure_ids(tmp_path):
+    end = {"sampled_unique": 3}
+    f = check(tmp_path, f5_accounted(end_extra=end))["faults"]["1"]
+    assert any(v.startswith("f5_sampled_unique_mismatch")
+               for v in f["violations"])
+    assert any(v.startswith("f5_sampled_unique_disagrees_sampled")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_first_last_overlap_is_counted_once(tmp_path):
+    # Two exposures total, but only one event is in the stream: the first
+    # and last sample policies selected the SAME exposure_id. It must count
+    # once (sampled_unique=1), never twice.
+    b = base()
+    lines = [
+        f5_root(),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="100", **b),
+        f5_exposure(2, 1, 1, 101, "1", first_activated_sn="101",
+                    activated_total="1"),
+        f5_chain_end(2, total=2, sampled=1, dropped=1,
+                     activated_total="1", first_activated_sn="101",
+                     last_exposure_sn="102", terminal="exposed_unconsumed"),
+    ]
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert f["violations"] == []
+    assert f["f5"]["unique_exposure_ids"] == 1
+    assert f["f5"]["sampled_unique"] == 1
+    assert f["f5"]["exposures_total"] == 2
+
+
+def test_f5_duplicate_exposure_id_is_not_double_counted(tmp_path):
+    lines = f5_accounted()
+    lines[3] = lines[3].replace("exposure_id=2", "exposure_id=1")
+    f = check(tmp_path, lines)["faults"]["1"]
+    assert "duplicate_exposure_id" in f["violations"]
+    assert any(v.startswith("f5_sampled_mismatch")
+               for v in f["violations"])
+    assert f["f5"]["unique_exposure_ids"] == 1
+    assert f["admitted"] is False
+
+
+def test_f5_census_delta_is_arithmetic_not_equality(tmp_path):
+    # A fault-run eligible total of 3 vs a pre-registered census of 100 is
+    # NOT an error, as long as the delta is recorded correctly.
+    ok = {"selected_eligible_total": 100,
+          "eligible_delta_vs_census": -97,
+          "census_reference": "pre_registered_countOnly"}
+    f = check(tmp_path, f5_accounted(end_extra=ok))["faults"]["1"]
+    assert f["violations"] == []
+    assert f["admitted"] is True
+    assert f["f5"]["eligible_delta_vs_census"] == -97
+
+    bad = dict(ok, eligible_delta_vs_census=-96)
+    f = check(tmp_path, f5_accounted(end_extra=bad))["faults"]["1"]
+    assert any(v.startswith("f5_census_delta_mismatch")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+    no_ref = {"selected_eligible_total": 100,
+              "eligible_delta_vs_census": -97}
+    f = check(tmp_path, f5_accounted(end_extra=no_ref))["faults"]["1"]
+    assert "f5_missing_census_reference" in f["violations"]
+    assert f["admitted"] is False
+
+
+def test_f5_multi_source_summary_is_bounded(tmp_path):
+    op = {"merged_activated_exposures": 2,
+          "observed_exposure_ids": "2:3",
+          "sources_expanded": 1, "sources_unexpanded": 1,
+          "observation_scope": "first_activated_chain"}
+    f = check(tmp_path, f5_accounted(operand_extra=op,
+                                     activated_total="2"))["faults"]["1"]
+    assert f["violations"] == []
+    assert f["admitted"] is True
+
+    # The summary must account for every merged source exactly once: one
+    # expanded + the rest unexpanded.
+    bad = dict(op, sources_unexpanded=0)
+    f = check(tmp_path, f5_accounted(operand_extra=bad,
+                                     activated_total="2"))["faults"]["1"]
+    assert any(v.startswith("f5_multi_source_mismatch")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_observation_only_flags_are_explicit(tmp_path):
+    end = {"applied_to_all_exposures": 0,
+           "sampled_is_observation_only": 0}
+    f = check(tmp_path, f5_accounted(end_extra=end))["faults"]["1"]
+    assert any(v.startswith("f5_flag_not_1")
+               for v in f["violations"])
+    assert f["admitted"] is False
+
+
+def test_f5_legacy_fixture_without_new_fields_still_passes(tmp_path):
+    # Old certified evidence has none of the new fields; it must keep
+    # passing (the new checks are conditional on field presence).
+    f = check(tmp_path, f5_accounted(accounting=False))["faults"]["1"]
+    assert f["violations"] == []
+    assert f["admitted"] is True
+    assert f["f5"]["eligible_seen_total"] is None

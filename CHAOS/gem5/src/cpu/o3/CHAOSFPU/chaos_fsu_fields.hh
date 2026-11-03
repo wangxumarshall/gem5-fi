@@ -251,6 +251,134 @@ stuckActivated(uint64_t correct, uint64_t mask, int polarity)
     return polarity ? ((~correct & mask) != 0) : ((correct & mask) != 0);
 }
 
+// ---------------------------------------------------------------------------
+// [FSU][F5] Bounded sample budget + eligible/warm-up accounting.
+//
+// These are pure functions so the exact arithmetic used by CHAOSFPU's
+// constructor and chain_end emitter can be unit-tested on the host, without a
+// gem5 build:
+//
+//   budget  = f5SampleLimit
+//   N > 0:  keep_first = min(N, budget)
+//           keep_last  = min(N, budget - keep_first)
+//   N == 0: keep_first = budget, keep_last = 0
+//
+// The mandatory events (install, carrier, first exposure, first activated
+// exposure, its L2-L5 chain, chain_end) are extra. `F5_MANDATORY_EVENTS` is a
+// conservative count of those; the auditable budget (190000) plus them must
+// stay strictly below the PROP-EVT cap (200000), so a run can never be
+// silently truncated. A configuration over the cap must PANIC (the injector
+// does), never silently clamp.
+// ---------------------------------------------------------------------------
+struct F5SampleBudget
+{
+    uint64_t keep_first = 0;
+    uint64_t keep_last = 0;
+    uint64_t total_with_mandatory = 0;
+    bool within_cap = false;
+};
+
+static constexpr uint64_t F5_MANDATORY_EVENTS = 8;
+static constexpr uint64_t F5_AUDITABLE_BUDGET = 190000;
+static constexpr uint64_t F5_EVENT_CAP = 200000;
+
+inline F5SampleBudget
+f5ResolveSampleBudget(uint64_t sample_limit, uint64_t keep_first_last_n)
+{
+    F5SampleBudget b;
+    if (keep_first_last_n == 0) {
+        b.keep_first = sample_limit;
+    } else {
+        b.keep_first = keep_first_last_n < sample_limit
+                       ? keep_first_last_n : sample_limit;
+        const uint64_t rest = sample_limit - b.keep_first;
+        b.keep_last = keep_first_last_n < rest
+                      ? keep_first_last_n : rest;
+    }
+    if (b.keep_first > UINT64_MAX - b.keep_last) {
+        b.total_with_mandatory = UINT64_MAX;
+    } else {
+        const uint64_t sum = b.keep_first + b.keep_last;
+        b.total_with_mandatory = sum > UINT64_MAX - F5_MANDATORY_EVENTS
+                                 ? UINT64_MAX
+                                 : sum + F5_MANDATORY_EVENTS;
+    }
+    b.within_cap = b.total_with_mandatory <= F5_AUDITABLE_BUDGET
+                   && b.total_with_mandatory < F5_EVENT_CAP;
+    return b;
+}
+
+// Warm-up counts MATCHED eligible events. If the fault was installed, exactly
+// `warmup_configured` eligible events were skipped; if the run ended before
+// installation, every eligible event seen was a warm-up skip. Never reports
+// more skips than events actually seen.
+inline uint64_t
+f5WarmupEligibleSkipped(uint64_t warmup_configured,
+                        uint64_t eligible_seen_total, bool installed)
+{
+    if (!installed)
+        return eligible_seen_total;
+    return warmup_configured < eligible_seen_total
+           ? warmup_configured : eligible_seen_total;
+}
+
+// Eligible events from the installation window onward. The installation event
+// itself is exposure #1, so this includes it.
+inline uint64_t
+f5PostInstallEligible(uint64_t eligible_seen_total,
+                      uint64_t warmup_eligible_skipped)
+{
+    return eligible_seen_total >= warmup_eligible_skipped
+           ? eligible_seen_total - warmup_eligible_skipped : 0;
+}
+
+inline uint64_t
+f5InstallEligibleOrdinal(uint64_t warmup_eligible_skipped)
+{
+    return warmup_eligible_skipped + 1;
+}
+
+// The three identities emitted on fault_installed / chain_end:
+//   eligible_seen_total = warmup_eligible_skipped + post_install_eligible
+//   post_install_eligible = exposures_total + eligible_without_writable_dest
+//   install_eligible_ordinal = warmup_eligible_skipped + 1
+// A fault-run eligible total different from the pre-registered census is NOT
+// an error; only this internal arithmetic is required to hold.
+inline bool
+f5EligibleAccountingValid(uint64_t eligible_seen_total,
+                          uint64_t warmup_eligible_skipped,
+                          uint64_t post_install_eligible,
+                          uint64_t exposures_total,
+                          uint64_t eligible_without_writable_dest,
+                          uint64_t install_eligible_ordinal)
+{
+    return eligible_seen_total ==
+               warmup_eligible_skipped + post_install_eligible
+        && post_install_eligible ==
+               exposures_total + eligible_without_writable_dest
+        && install_eligible_ordinal == warmup_eligible_skipped + 1;
+}
+
+// A consumer that reads a physical cell touched by several activated
+// exposures gets ONE expanded source (the first activated exposure's recorded
+// chain) plus a bounded summary of the rest. It never expands every source.
+struct F5SourceSummary
+{
+    uint64_t expanded = 0;
+    uint64_t unexpanded = 0;
+};
+
+inline F5SourceSummary
+f5SourceSummary(uint64_t merged_activated_exposures)
+{
+    F5SourceSummary s;
+    if (merged_activated_exposures == 0)
+        return s;
+    s.expanded = 1;
+    s.unexpanded = merged_activated_exposures - 1;
+    return s;
+}
+
 } // namespace chaos_fsu
 } // namespace gem5
 

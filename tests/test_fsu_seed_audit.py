@@ -219,7 +219,94 @@ def f5_chain():
     ]
 
 
-def make_f5_attempt(tmp_path):
+def f5_chain_accounted():
+    """f5_chain() plus the hardened eligible/sampling accounting fields.
+
+    Exposure #3 is activated but NOT sampled (total=3, sampled=2, dropped=1),
+    so the L2 operand_read carries a bounded two-source summary (one expanded
+    + one unexpanded). This exercises both the counting identities and the
+    multi-source fields through the full seed audit.
+    """
+    b = dict(run_id=F5_RUNID, sample_run_id="s1", fault_id="1",
+             model_id="FP06", unit="FSU Pipe", freq="F5", load_id="W3",
+             submodel="FP06-b", field="permanent_stuck", precision="fp32",
+             lane_width="32", lane_offset="2", bit_indices="95",
+             bit_in_lane="31", field_lo="31", field_hi="31",
+             fault_mask="0x0000000080000000",
+             fixed_mask="0x0000000080000000",
+             stuck_polarity="1",
+             lane_mask="0x00000000800000000000000000000000",
+             instruction_bits="0x4e20d420", decoded_kind="neon_vector",
+             decoded_precision="fp32", decoded_element_width="32",
+             decoded_lanes="4", decoded_reliable="1",
+             manifest_precision="fp32", manifest_lane_width="32",
+             manifest_lane_offset="2", precision_match="1", lane_match="1")
+    common = dict(b)
+    accounting_install = dict(
+        eligible_seen_total="1", warmup_configured="0",
+        warmup_eligible_skipped="0", install_eligible_ordinal="1",
+        install_is_exposure="1", post_install_eligible="1",
+        eligible_without_writable_dest="0")
+    accounting_end = dict(
+        eligible_seen_total="3", warmup_configured="0",
+        warmup_eligible_skipped="0", install_eligible_ordinal="1",
+        install_is_exposure="1", post_install_eligible="3",
+        eligible_without_writable_dest="0",
+        selected_eligible_total="100", eligible_delta_vs_census="-97",
+        census_reference="pre_registered_countOnly",
+        sampled_unique="2", omitted="1",
+        applied_to_all_exposures="1",
+        sampled_is_observation_only="1", cell_sources_overflow="0")
+    return [
+        evt(kind="fault_installed", event_id="0", tick="100",
+            dyn_inst_seq="100", first_eligible_sn="100",
+            before="0x3e7ff79e", after="0xbe7ff79e",
+            full_before="0x3f9170e73e7ff79e3e7efbb53f1b9433",
+            full_after="0x3f9170e7be7ff79e3e7efbb53f1b9433",
+            **accounting_install, **common),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="101", install_event="0", **common),
+        evt(kind="exposure", event_id="2", parent_event_id="1", tick="102",
+            dyn_inst_seq="101", exposure_id="1", exposure_count="1",
+            activated_exposure_count="0", activated="0",
+            correct_before="0xbe7ff79e", stuck_after="0xbe7ff79e",
+            affected_sn="", last_exposure_sn="101", install_event="0",
+            exposures_total="3", sample_policy="bounded_first_last(2,1,1)",
+            **common),
+        evt(kind="exposure", event_id="3", parent_event_id="1", tick="103",
+            dyn_inst_seq="102", exposure_id="2", exposure_count="2",
+            activated_exposure_count="2", activated="1",
+            first_activated_sn="102", correct_before="0x3e7ff79e",
+            stuck_after="0xbe7ff79e", affected_sn="102",
+            last_exposure_sn="103", install_event="0",
+            exposures_total="3", sample_policy="bounded_first_last(2,1,1)",
+            **common),
+        evt(kind="operand_read", event_id="4", parent_event_id="3",
+            tick="104", dyn_inst_seq="103", activated="1",
+            first_activated_sn="102", install_event="0",
+            merged_activated_exposures="2",
+            observed_exposure_ids="2:3", sources_expanded="1",
+            sources_unexpanded="1",
+            observation_scope="first_activated_chain", **common),
+        evt(kind="execute", event_id="5", parent_event_id="4", tick="105",
+            **common),
+        evt(kind="prf_writeback", event_id="6", parent_event_id="5",
+            tick="106", **common),
+        evt(kind="commit", event_id="7", parent_event_id="6", tick="107",
+            detection_layer="L5", outcome="errant_commit",
+            first_impact_latency="4", install_event="0", **common),
+        evt(kind="chain_end", event_id="8", parent_event_id="7", tick="108",
+            install_event="0", exposures_total="3", exposures_sampled="2",
+            exposures_dropped="1", exposure_count="3",
+            activated_exposure_count="2", first_activated_sn="102",
+            last_exposure_sn="103", first_eligible_sn="100",
+            sample_policy="bounded_first_last(2,1,1)",
+            terminal="committed", outcome="committed", activated="1",
+            **accounting_end, **common),
+    ]
+
+
+def make_f5_attempt(tmp_path, chain=None):
     tmp_path.mkdir(parents=True, exist_ok=True)
     wl = tmp_path / "wl"
     wl.write_text("#!/bin/sh\nexit 0\n")
@@ -247,7 +334,8 @@ def make_f5_attempt(tmp_path):
     mp.write_text(json.dumps(m), encoding="utf-8")
     res = R.run_seed(mp, 1, out_root=tmp_path / "runs", gem5=gem5,
                      root=Path(__file__).resolve().parents[1],
-                     runner=fake_runner(f5_chain()))
+                     runner=fake_runner(chain if chain is not None
+                                        else f5_chain()))
     assert res["status"] == "admitted", res
     return Path(res["attempt"])
 
@@ -260,6 +348,36 @@ def test_f5_permanent_audit_passes(tmp_path):
     rep = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
     assert len(rep["chain"]["faults"]) == 1
     assert rep["chain"]["fault_terminals"]["1"] == "full"
+
+
+def test_f5_new_accounting_fields_audit_passes(tmp_path):
+    attempt = make_f5_attempt(tmp_path, chain=f5_chain_accounted())
+    res = A.audit_attempt(attempt)
+    assert res["ok"] is True, res["failures"]
+    # The recomputed chain carries the new fields and the unique-sample check.
+    rep = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
+    f5 = rep["chain"]["faults"]["1"]["f5"]
+    assert f5["eligible_seen_total"] == 3
+    assert f5["sampled_unique"] == 2
+    assert f5["unique_exposure_ids"] == 2
+    assert f5["eligible_delta_vs_census"] == -97
+
+
+def test_f5_new_field_tamper_fails_audit(tmp_path):
+    attempt = make_f5_attempt(tmp_path, chain=f5_chain_accounted())
+    rewrite_prop(attempt, lambda t: t.replace(
+        "sampled_unique=2", "sampled_unique=3"))
+    res = A.audit_attempt(attempt)
+    assert res["ok"] is False
+    assert any("violations" in f or "F5" in f for f in res["failures"])
+
+
+def test_f5_legacy_seed_without_new_fields_still_audits(tmp_path):
+    # Old certified evidence has none of the new accounting fields; it must
+    # still pass (new-field checks are conditional on presence).
+    attempt = make_f5_attempt(tmp_path, chain=f5_chain())
+    res = A.audit_attempt(attempt)
+    assert res["ok"] is True, res["failures"]
 
 
 def test_field_violations_permanent_stuck_force_not_xor():

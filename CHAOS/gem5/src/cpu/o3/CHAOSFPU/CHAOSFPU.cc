@@ -270,21 +270,19 @@ namespace gem5
             // Bounded evidence: mandatory first/first-activated events plus
             // the first/last sample budget must stay well below the
             // authoritative PROP-EVT cap (200000) so a run can never be
-            // silently truncated by EVENT_CAP.
-            const uint64_t budget = f5_sample_limit;
-            uint64_t kf = 0, kl = 0;
-            if (f5_keep_first_last_n == 0) {
-                kf = budget;
-            } else {
-                kf = std::min(f5_keep_first_last_n, budget);
-                kl = std::min(f5_keep_first_last_n, budget - kf);
-            }
-            if (kf + kl + 8 > 190000)
+            // silently truncated by EVENT_CAP. The arithmetic lives in the
+            // pure header helper (unit-tested on the host) so the runtime
+            // panic and the offline audit cannot drift.
+            const auto budget = chaos_fsu::f5ResolveSampleBudget(
+                f5_sample_limit, f5_keep_first_last_n);
+            if (!budget.within_cap)
                 panic("CHAOSFPU: permanentStuck sample budget %llu exceeds "
-                      "the auditable PROP-EVT budget (190000)\n",
-                      (unsigned long long)(kf + kl + 8));
-            f5_keep_first = kf;
-            f5_keep_last = kl;
+                      "the auditable PROP-EVT budget (%llu of %llu)\n",
+                      (unsigned long long)budget.total_with_mandatory,
+                      (unsigned long long)chaos_fsu::F5_AUDITABLE_BUDGET,
+                      (unsigned long long)chaos_fsu::F5_EVENT_CAP);
+            f5_keep_first = budget.keep_first;
+            f5_keep_last = budget.keep_last;
         } else {
             if (stuck_polarity != -1)
                 panic("CHAOSFPU: stuckPolarity requires permanentStuck\n");
@@ -942,6 +940,13 @@ namespace gem5
             }
         }
         if (!ok) {
+            // [FSU][F5] A matched post-warmup eligible event with no writable
+            // FP/vector destination cannot carry an exposure. Count it
+            // explicitly instead of letting it silently disappear from the
+            // eligible accounting (post_install_eligible =
+            // exposures_total + eligible_without_writable_dest).
+            if (permanent_stuck && eligible_ordinal > f5_warmup)
+                ++f5_eligible_without_writable_dest;
             if (rate_mode)
                 panic("CHAOSFPU: rate ordinal %llu matched but no writable "
                       "FP/vector dest (fault not applied)\n",
@@ -1209,6 +1214,84 @@ namespace gem5
                ",last=" + std::to_string(f5_keep_last) + ")";
     }
 
+    void
+    CHAOSFPU::appendF5Accounting(
+        std::vector<std::pair<std::string, std::string>> &kv,
+        bool install_snapshot) const
+    {
+        // `eligible_ordinal` is the run's ground-truth count of matched
+        // eligible events. The installation event is exposure #1, so the
+        // post-warmup window is [warmup_skipped + 1 .. eligible_seen_total]
+        // and every event in it is either an exposure or a matched event
+        // with no writable destination.
+        const uint64_t seen = eligible_ordinal;
+        const uint64_t post = install_snapshot
+            ? 1 + f5_eligible_without_writable_dest
+            : f5_exposures_total + f5_eligible_without_writable_dest;
+        kv.push_back({"eligible_seen_total", std::to_string(seen)});
+        kv.push_back({"warmup_configured", std::to_string(f5_warmup)});
+        kv.push_back({"warmup_eligible_skipped",
+                      std::to_string(f5_warmup_eligible_skipped)});
+        kv.push_back({"install_eligible_ordinal",
+                      std::to_string(f5_install_eligible_ordinal)});
+        kv.push_back({"install_is_exposure", "1"});
+        kv.push_back({"post_install_eligible", std::to_string(post)});
+        kv.push_back({"eligible_without_writable_dest",
+                      std::to_string(f5_eligible_without_writable_dest)});
+        // The pre-registered census is a REFERENCE, not a required equality:
+        // a fault-run eligible total may legitimately differ from it (the
+        // census was measured on a possibly different/earlier stream). Only
+        // the delta arithmetic is authoritative.
+        if (fsu_eligible_total) {
+            kv.push_back({"selected_eligible_total",
+                          std::to_string(fsu_eligible_total)});
+            const long long delta =
+                (long long)seen - (long long)fsu_eligible_total;
+            kv.push_back({"eligible_delta_vs_census",
+                          std::to_string(delta)});
+            kv.push_back({"census_reference", "pre_registered_countOnly"});
+        }
+    }
+
+    bool
+    CHAOSFPU::markF5Sample(uint64_t exposure_id)
+    {
+        // insert() is the single source of truth for "already sampled": the
+        // first / tail / first-activated policies may select the same
+        // exposure, but it is emitted and counted exactly once.
+        if (!f5_sampled_exposure_ids.insert(exposure_id).second)
+            return false;
+        ++f5_exposures_sampled;
+        return true;
+    }
+
+    void
+    CHAOSFPU::noteF5CellActivation(const FaultInfo &fi, uint64_t exposure_id)
+    {
+        // Bounded per-(reg_class, phys_index) accumulation. The key is the
+        // physical cell identity, not the fault_id: a consumer reading that
+        // cell can be affected by several activated exposures of the same
+        // permanent fault.
+        const std::pair<int, int> key(fi.reg_class, fi.reg_index);
+        auto it = f5_cell_sources.find(key);
+        if (it == f5_cell_sources.end()) {
+            if (f5_cell_sources.size() >= F5_MAX_CELL_SOURCES) {
+                // Bounded map: never grow without limit. The overflow is
+                // reported on chain_end; it is never silent.
+                ++f5_cell_sources_overflow;
+                return;
+            }
+            F5CellSourceSummary s;
+            s.merged_activated = 1;
+            s.first_exposure_id = exposure_id;
+            s.last_exposure_id = exposure_id;
+            f5_cell_sources.emplace(key, s);
+            return;
+        }
+        ++it->second.merged_activated;
+        it->second.last_exposure_id = exposure_id;
+    }
+
     std::vector<std::pair<std::string, std::string>>
     CHAOSFPU::buildF5Kv(o3::DynInst *inst, const FaultInfo &fi) const
     {
@@ -1377,7 +1460,15 @@ namespace gem5
             f5_op_class = fi.op_class;
             f5_reg_class = regClassName(fi.reg_class);
             ++faults_injected_count;
+            // The installation event is the first post-warmup eligible
+            // event and exposure #1. Record its ordinal and the number of
+            // warm-up eligible events that were skipped, then emit the full
+            // eligible accounting on the L0 root (and L1 carrier).
+            f5_install_eligible_ordinal = eligible_ordinal;
+            f5_warmup_eligible_skipped = chaos_fsu::f5WarmupEligibleSkipped(
+                f5_warmup, eligible_ordinal, true);
             auto kv = buildF5Kv(inst, fi);
+            appendF5Accounting(kv, true);
             f5_install_event = emitFsu("fault_installed", f5_fault_id,
                                        FSU_NO_PARENT, kv);
             f5_last_event_id = f5_install_event;
@@ -1413,8 +1504,15 @@ namespace gem5
         ++f5_exposures_total;
         const bool activated = chaos_fsu::stuckActivated(
             fi.before, fi.mask, f5_polarity);
-        if (activated)
+        if (activated) {
             ++f5_activated_total;
+            // [FSU][F5] Accumulate per-physical-cell activated-exposure
+            // sources for the eventual consumer. This is NOT sampling:
+            // every activated exposure is counted, whether or not its
+            // exposure event reaches the bounded sample stream. The map is
+            // erased when the cell is consumed (noteConsumerExecute).
+            noteF5CellActivation(fi, f5_exposures_total);
+        }
         const bool first_activated = activated && !f5_first_activated_done;
         if (first_activated) {
             f5_first_activated_done = true;
@@ -1462,28 +1560,34 @@ namespace gem5
         }
 
         if (action == F5_EMIT_NOW) {
-            ++f5_exposures_sampled;
-            const uint64_t sampled = f5_exposures_sampled;
-            const uint64_t dropped = f5_exposures_total > sampled
-                ? f5_exposures_total - sampled : 0;
-            f5SetKv(ekv, "exposures_sampled", std::to_string(sampled));
-            f5SetKv(ekv, "exposures_dropped", std::to_string(dropped));
-            const uint64_t parent = f5_carrier_event
-                ? f5_carrier_event : f5_install_event;
-            const uint64_t eid = emitF5Exposure(ekv, parent);
-            if (first_activated) {
-                if (eid)
-                    f5_terminal_parent = eid;
-                registerF5Taint(inst, fi,
-                                eid ? eid : (f5_carrier_event
-                                             ? f5_carrier_event
-                                             : f5_install_event));
+            // Every sample is keyed by exposure_id: the first / tail /
+            // first-activated policies may overlap, but an exposure can
+            // never be counted or emitted twice. markF5Sample() owns the
+            // single increment of f5_exposures_sampled.
+            if (markF5Sample(f5_exposures_total)) {
+                const uint64_t sampled = f5_exposures_sampled;
+                const uint64_t dropped = f5_exposures_total > sampled
+                    ? f5_exposures_total - sampled : 0;
+                f5SetKv(ekv, "exposures_sampled", std::to_string(sampled));
+                f5SetKv(ekv, "exposures_dropped", std::to_string(dropped));
+                const uint64_t parent = f5_carrier_event
+                    ? f5_carrier_event : f5_install_event;
+                const uint64_t eid = emitF5Exposure(ekv, parent);
+                if (first_activated) {
+                    if (eid)
+                        f5_terminal_parent = eid;
+                    registerF5Taint(inst, fi,
+                                    eid ? eid : (f5_carrier_event
+                                                 ? f5_carrier_event
+                                                 : f5_install_event));
+                }
             }
         } else if (action == F5_KEEP_TAIL) {
-            // Bounded tail sample: emitted by the exit callback. Its
+            // Bounded tail sample: emitted by the tracer's exit hook. Its
             // counters are rewritten at flush time (sampled events may
             // still grow afterwards) and the authoritative totals live on
-            // chain_end.
+            // chain_end. The exposure_id travels with the sample so the
+            // flush uses the SAME deduplication key.
             f5SetKv(ekv, "exposures_sampled",
                     std::to_string(f5_exposures_sampled + 1));
             f5SetKv(ekv, "exposures_dropped",
@@ -1492,7 +1596,10 @@ namespace gem5
                                        ? f5_exposures_total -
                                          (f5_exposures_sampled + 1)
                                        : 0));
-            f5_last_samples.push_back(std::move(ekv));
+            F5Sample sample;
+            sample.exposure_id = f5_exposures_total;
+            sample.kv = std::move(ekv);
+            f5_last_samples.push_back(std::move(sample));
             while (f5_last_samples.size() > (size_t)f5_keep_last)
                 f5_last_samples.pop_front();
         }
@@ -1504,9 +1611,12 @@ namespace gem5
         const uint64_t parent = f5_carrier_event
             ? f5_carrier_event : f5_install_event;
         while (!f5_last_samples.empty()) {
-            auto kv = std::move(f5_last_samples.front());
+            F5Sample sample = std::move(f5_last_samples.front());
             f5_last_samples.pop_front();
-            ++f5_exposures_sampled;
+            // Same exposure_id key as the in-run samples: a tail sample can
+            // never double-count an exposure that was already emitted.
+            if (!markF5Sample(sample.exposure_id))
+                continue;
             const uint64_t sampled = f5_exposures_sampled;
             // These events were queued during the run; at flush time the
             // authoritative total is known. Rewrite the TOTAL as well as
@@ -1515,13 +1625,13 @@ namespace gem5
             // would make the tail samples internally inconsistent).
             const uint64_t dropped = f5_exposures_total > sampled
                 ? f5_exposures_total - sampled : 0;
-            f5SetKv(kv, "exposures_total",
+            f5SetKv(sample.kv, "exposures_total",
                     std::to_string(f5_exposures_total));
-            f5SetKv(kv, "activated_exposure_count",
+            f5SetKv(sample.kv, "activated_exposure_count",
                     std::to_string(f5_activated_total));
-            f5SetKv(kv, "exposures_sampled", std::to_string(sampled));
-            f5SetKv(kv, "exposures_dropped", std::to_string(dropped));
-            emitF5Exposure(kv, parent);
+            f5SetKv(sample.kv, "exposures_sampled", std::to_string(sampled));
+            f5SetKv(sample.kv, "exposures_dropped", std::to_string(dropped));
+            emitF5Exposure(sample.kv, parent);
         }
     }
 
@@ -1565,10 +1675,21 @@ namespace gem5
             {"terminal", terminal},
             {"outcome", terminal},
             {"activated", f5_activated_total ? "1" : "0"},
+            // [FSU][F5] Sampling is OBSERVATION ONLY: the fault is applied
+            // to every eligible event regardless of how many observations
+            // fit in the bounded sample stream. These flags make that
+            // explicit on the terminal record.
+            {"applied_to_all_exposures", "1"},
+            {"sampled_is_observation_only", "1"},
+            {"sampled_unique", std::to_string(f5_exposures_sampled)},
+            {"omitted", std::to_string(f5_exposures_dropped)},
             // Lifecycle terminus only: no detection_layer, never an L5
             // witness. The real L5 is the commit event of the first
             // activated exposure's chain.
         };
+        appendF5Accounting(kv, false);
+        kv.push_back({"cell_sources_overflow",
+                      std::to_string(f5_cell_sources_overflow)});
         emitFsu("chain_end", f5_fault_id,
                 f5_terminal_parent ? f5_terminal_parent
                                    : (f5_carrier_event
@@ -1652,6 +1773,36 @@ namespace gem5
                                   f5_first_activated_sn
                                       ? std::to_string(f5_first_activated_sn)
                                       : std::string()});
+                    // [FSU][F5] A consumer reading this physical cell may be
+                    // affected by several activated exposures of the same
+                    // permanent fault. Do NOT silently keep only the first
+                    // source, and do NOT expand every source: carry the
+                    // merged count plus a bounded first:last exposure-id
+                    // range. sources_expanded=1 is the one source whose real
+                    // L2-L5 chain this event belongs to; the rest are
+                    // counted as unexpanded.
+                    auto cs = f5_cell_sources.find(
+                        std::make_pair(f.reg_class, f.reg_index));
+                    if (cs != f5_cell_sources.end()) {
+                        const uint64_t merged = cs->second.merged_activated;
+                        const auto summary =
+                            chaos_fsu::f5SourceSummary(merged);
+                        kv.push_back({"merged_activated_exposures",
+                                      std::to_string(merged)});
+                        kv.push_back({"observed_exposure_ids",
+                                      std::to_string(
+                                          cs->second.first_exposure_id) + ":" +
+                                      std::to_string(
+                                          cs->second.last_exposure_id)});
+                        kv.push_back({"sources_expanded",
+                                      std::to_string(summary.expanded)});
+                        kv.push_back({"sources_unexpanded",
+                                      std::to_string(summary.unexpanded)});
+                        kv.push_back({"observation_scope",
+                                      "first_activated_chain"});
+                        // Consumed: the summary belongs to THIS consumer.
+                        f5_cell_sources.erase(cs);
+                    }
                 }
                 const uint64_t l2 = emitFsu("operand_read", f.fault_id,
                                             f.l1_id, kv);

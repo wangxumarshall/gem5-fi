@@ -5,6 +5,7 @@
 #include <map>
 #include <ostream>
 #include <random>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -134,6 +135,15 @@ class CHAOSFPU : public SimObject
     uint64_t f5_fixed_mask = 0;
     int f5_polarity = -1;
     uint64_t f5_first_eligible_sn = 0;
+    // [FSU][F5] Fault-run eligible accounting. `eligible_ordinal` is the
+    // ground-truth count of matched eligible events; the installation event
+    // is exposure #1 and `eligible_without_writable_dest` records matched
+    // events after the warm-up that had no writable FP/vector destination
+    // (they are eligible but cannot carry an exposure). These are emitted on
+    // fault_installed and chain_end, never inferred offline.
+    uint64_t f5_install_eligible_ordinal = 0;
+    uint64_t f5_warmup_eligible_skipped = 0;
+    uint64_t f5_eligible_without_writable_dest = 0;
     uint64_t f5_exposures_total = 0;
     uint64_t f5_activated_total = 0;
     uint64_t f5_exposures_sampled = 0;
@@ -160,10 +170,39 @@ class CHAOSFPU : public SimObject
     // happened, else the first activated exposure, else the L1 carrier.
     // Sample-branch events never become the terminal's parent.
     uint64_t f5_terminal_parent = 0;
+    // [FSU][F5] Sampled exposure ids. This is the authoritative de-dup set:
+    // the first / tail / first-activated samples are all keyed by
+    // exposure_id, so overlapping sample policies can never double-count an
+    // exposure. `f5_exposures_sampled` is incremented ONLY through
+    // markF5Sample(), so it always equals the number of unique sampled ids.
+    std::set<uint64_t> f5_sampled_exposure_ids;
+
+    // [FSU][F5] Bounded summary of activated exposures per physical cell.
+    // A consumer can be affected by several activated exposures of the SAME
+    // physical register; we never silently keep only the first source and
+    // never expand every source. The map is keyed by (reg_class,
+    // phys_index), accumulates the merged count + first/last exposure id,
+    // and is erased when a consumer consumes the cell.
+    struct F5CellSourceSummary
+    {
+        uint64_t merged_activated = 0;
+        uint64_t first_exposure_id = 0;
+        uint64_t last_exposure_id = 0;
+    };
+    static constexpr uint64_t F5_MAX_CELL_SOURCES = 65536;
+    std::map<std::pair<int, int>, F5CellSourceSummary> f5_cell_sources;
+    uint64_t f5_cell_sources_overflow = 0;
+
     // Bounded tail buffer; only the LAST f5_keep_last samples are retained.
-    // Flushed by the exit callback, so EVENT_CAP is never silently exceeded.
-    std::deque<std::vector<std::pair<std::string, std::string>>>
-        f5_last_samples;
+    // Each entry keeps its exposure_id so flush-time sampling is de-duplicated
+    // by the same key as the in-run samples. Flushed by the tracer's exit
+    // hook, so EVENT_CAP is never silently exceeded.
+    struct F5Sample
+    {
+        uint64_t exposure_id = 0;
+        std::vector<std::pair<std::string, std::string>> kv;
+    };
+    std::deque<F5Sample> f5_last_samples;
 
     std::mt19937 rng;
     std::random_device rd;
@@ -300,6 +339,11 @@ class CHAOSFPU : public SimObject
         const std::vector<std::pair<std::string, std::string>> &kv,
         uint64_t parent);
     std::string f5PolicyString() const;
+    void appendF5Accounting(
+        std::vector<std::pair<std::string, std::string>> &kv,
+        bool install_snapshot) const;
+    bool markF5Sample(uint64_t exposure_id);
+    void noteF5CellActivation(const FaultInfo &info, uint64_t exposure_id);
     void flushF5Samples();
     void emitF5ChainEnd();
     static std::string hex64(uint64_t v);

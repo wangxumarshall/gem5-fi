@@ -236,6 +236,98 @@ test_activation_formula_matches_every_sampled_exposure()
     CHECK(stuckActivated(0x0000000080000000ULL, mask, 1) == false);
 }
 
+static void
+test_f5_sample_budget_cap_is_explicit()
+{
+    // 189992 ordinary samples + 8 mandatory events == 190000: the largest
+    // budget that is still inside the auditable cap.
+    const F5SampleBudget at_cap = f5ResolveSampleBudget(189992, 0);
+    CHECK(at_cap.keep_first == 189992);
+    CHECK(at_cap.keep_last == 0);
+    CHECK(at_cap.total_with_mandatory == 190000);
+    CHECK(at_cap.within_cap);
+
+    // One more sample crosses the auditable cap. It must be reported as
+    // over budget so the injector PANICS instead of silently truncating.
+    const F5SampleBudget over = f5ResolveSampleBudget(189993, 0);
+    CHECK(over.total_with_mandatory == 190001);
+    CHECK(!over.within_cap);
+
+    // The historical 1024/256 configuration is comfortably inside.
+    const F5SampleBudget formal = f5ResolveSampleBudget(1024, 256);
+    CHECK(formal.keep_first == 256);
+    CHECK(formal.keep_last == 256);
+    CHECK(formal.total_with_mandatory == 520);
+    CHECK(formal.within_cap);
+
+    // A huge (or overflow-prone) request is rejected, never wrapped into a
+    // small value that would silently look safe.
+    const F5SampleBudget huge = f5ResolveSampleBudget(~0ULL, 0);
+    CHECK(huge.total_with_mandatory == ~0ULL);
+    CHECK(!huge.within_cap);
+
+    // keepFirstLastN == 0 is the prefix policy.
+    const F5SampleBudget prefix = f5ResolveSampleBudget(3, 0);
+    CHECK(prefix.keep_first == 3 && prefix.keep_last == 0);
+    // N > budget is clamped: first = budget, last = 0.
+    const F5SampleBudget clamped = f5ResolveSampleBudget(3, 10);
+    CHECK(clamped.keep_first == 3 && clamped.keep_last == 0);
+}
+
+static void
+test_f5_warmup_boundaries()
+{
+    // warm-up = 0: no eligible event is skipped; the first eligible event
+    // installs and is exposure #1.
+    {
+        const uint64_t seen = 7;
+        const uint64_t skipped = f5WarmupEligibleSkipped(0, seen, true);
+        const uint64_t post = f5PostInstallEligible(seen, skipped);
+        CHECK(skipped == 0);
+        CHECK(f5InstallEligibleOrdinal(skipped) == 1);
+        CHECK(post == 7);
+    }
+    // warm-up = 1: exactly one matched eligible event is skipped; install
+    // ordinal is 2.
+    {
+        const uint64_t seen = 7;
+        const uint64_t skipped = f5WarmupEligibleSkipped(1, seen, true);
+        const uint64_t post = f5PostInstallEligible(seen, skipped);
+        CHECK(skipped == 1);
+        CHECK(f5InstallEligibleOrdinal(skipped) == 2);
+        CHECK(post == 6);
+    }
+    // warm-up > eligible: the run ends before installation. Every eligible
+    // event seen was a warm-up skip and there is no post-install window.
+    {
+        const uint64_t seen = 3;
+        const uint64_t skipped =
+            f5WarmupEligibleSkipped(100, seen, false);
+        CHECK(skipped == seen);
+        CHECK(f5PostInstallEligible(seen, skipped) == 0);
+    }
+    // Internal accounting identities: eligible_seen = skipped + post,
+    // post = exposures + no-writable-dest, ordinal = skipped + 1. The
+    // fault-run eligible total is NOT required to equal the census.
+    CHECK(f5EligibleAccountingValid(7, 1, 6, 5, 1, 2));
+    CHECK(!f5EligibleAccountingValid(7, 1, 5, 5, 1, 2));
+    CHECK(!f5EligibleAccountingValid(7, 1, 6, 4, 1, 2));
+    CHECK(!f5EligibleAccountingValid(7, 1, 6, 5, 1, 3));
+}
+
+static void
+test_f5_bounded_source_summary()
+{
+    // One expanded source (the first activated chain) plus the rest counted
+    // as unexpanded; every source is never expanded.
+    const F5SourceSummary one = f5SourceSummary(1);
+    CHECK(one.expanded == 1 && one.unexpanded == 0);
+    const F5SourceSummary many = f5SourceSummary(17);
+    CHECK(many.expanded == 1 && many.unexpanded == 16);
+    const F5SourceSummary none = f5SourceSummary(0);
+    CHECK(none.expanded == 0 && none.unexpanded == 0);
+}
+
 int
 main()
 {
@@ -250,6 +342,9 @@ main()
     test_full_stuck_run_sequence();
     test_multibit_accounting_across_exposures();
     test_activation_formula_matches_every_sampled_exposure();
+    test_f5_sample_budget_cap_is_explicit();
+    test_f5_warmup_boundaries();
+    test_f5_bounded_source_summary();
     if (failures) {
         std::fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

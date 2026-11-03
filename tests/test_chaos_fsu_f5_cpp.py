@@ -84,3 +84,114 @@ def test_f5_chain_end_reports_capacity():
     assert '"exposures_dropped"' in text
     assert '"sample_policy"' in text
     assert 'emitFsu("chain_end"' in text
+
+
+ACCOUNTING_FIELDS = (
+    "eligible_seen_total", "warmup_configured", "warmup_eligible_skipped",
+    "install_eligible_ordinal", "install_is_exposure",
+    "post_install_eligible", "eligible_without_writable_dest",
+    "selected_eligible_total", "eligible_delta_vs_census",
+    "census_reference",
+)
+
+
+def test_f5_install_and_chain_end_emit_eligible_accounting():
+    text = (FPU / "CHAOSFPU.cc").read_text(encoding="utf-8")
+    for name in ACCOUNTING_FIELDS:
+        assert f'"{name}"' in text, name
+    # The install snapshot is built once, before the L0 root is emitted, and
+    # the same helper is reused on chain_end (single arithmetic source).
+    assert "appendF5Accounting(kv, true);" in text
+    assert "appendF5Accounting(kv, false);" in text
+    assert text.index("appendF5Accounting(kv, true);") < \
+        text.index('emitFsu("fault_installed"')
+    # Install is exposure #1 and carries its own eligible ordinal/warm-up.
+    assert "f5_install_eligible_ordinal = eligible_ordinal;" in text
+    assert "f5WarmupEligibleSkipped(" in text
+    # Matched eligible events with no writable destination are counted, not
+    # silently dropped from the eligible accounting.
+    assert "++f5_eligible_without_writable_dest;" in text
+    # The census is a reference, not a required equality: only the delta
+    # arithmetic is emitted and checked.
+    assert "pre_registered_countOnly" in text
+    assert "eligible_delta_vs_census" in text
+
+
+def test_f5_event_budget_panics_loudly():
+    text = (FPU / "CHAOSFPU.cc").read_text(encoding="utf-8")
+    assert "chaos_fsu::f5ResolveSampleBudget(" in text
+    assert "budget.within_cap" in text
+    assert re.search(
+        r"if\s*\(!budget\.within_cap\)[\s\S]{0,220}panic\(", text)
+    # The pure arithmetic helper is header-only and unit-tested.
+    hh = (FPU / "chaos_fsu_fields.hh").read_text(encoding="utf-8")
+    assert "F5_AUDITABLE_BUDGET = 190000" in hh
+    assert "F5_EVENT_CAP = 200000" in hh
+    assert "f5ResolveSampleBudget" in hh
+
+
+def test_f5_samples_are_deduplicated_by_exposure_id():
+    hh = (FPU / "CHAOSFPU.hh").read_text(encoding="utf-8")
+    cc = (FPU / "CHAOSFPU.cc").read_text(encoding="utf-8")
+    assert "std::set<uint64_t> f5_sampled_exposure_ids;" in hh
+    assert "markF5Sample(f5_exposures_total)" in cc
+    assert "markF5Sample(sample.exposure_id)" in cc
+    assert cc.count("++f5_exposures_sampled;") == 1   # only inside markF5Sample
+    for name in ("sampled_unique", "omitted", "applied_to_all_exposures",
+                 "sampled_is_observation_only"):
+        assert f'"{name}"' in cc, name
+
+
+def test_f5_l2_carries_bounded_multi_source_summary():
+    hh = (FPU / "CHAOSFPU.hh").read_text(encoding="utf-8")
+    cc = (FPU / "CHAOSFPU.cc").read_text(encoding="utf-8")
+    assert "f5_cell_sources" in hh and "f5_cell_sources" in cc
+    assert "F5_MAX_CELL_SOURCES" in hh
+    assert "noteF5CellActivation(" in cc
+    assert "f5_cell_sources.erase(cs);" in cc
+    for name in ("merged_activated_exposures", "observed_exposure_ids",
+                 "sources_expanded", "sources_unexpanded",
+                 "observation_scope", "cell_sources_overflow"):
+        assert f'"{name}"' in cc, name
+    assert '"observation_scope",' in cc
+    assert "first_activated_chain" in cc
+    # The summary hangs off the L2 operand_read event.
+    idx = cc.index('emitFsu("operand_read"')
+    assert cc.index('"merged_activated_exposures"') < idx
+
+
+def test_f5_terminal_flush_runs_before_tracer_close():
+    cc = (FPU / "CHAOSFPU.cc").read_text(encoding="utf-8")
+    # The injector's terminal events are registered on the tracer's late
+    # flush hook (not a global exit callback whose order is construction-
+    # order dependent).
+    assert "registerExitFlush(" in cc
+    assert "flushF5Samples(); emitF5ChainEnd();" in cc
+    assert "registerExitCallback([this]() { emitF5ChainEnd(); })" not in cc
+    # The first activated exposure is emitted IN-RUN (never deferred to the
+    # tail buffer), so its L2-L5 chain exists before the tracer closes.
+    assert re.search(
+        r"if\s*\(first_exposure \|\| first_activated\)\s*\{\s*"
+        r"action = F5_EMIT_NOW;", cc)
+
+    prop = (ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/"
+                  "CHAOSPropagation.cc").read_text(encoding="utf-8")
+    hook = prop.index("for (auto &hook : exit_flush_hooks)")
+    evt_close = prop.index("gzclose(evt_gz_file);", hook)
+    raw_close = prop.index("gzclose(gz_file);", hook)
+    assert hook < evt_close, "injector flush must run before the evt gzclose"
+    assert hook < raw_close, "injector flush must run before the raw gzclose"
+
+
+def test_f5_new_event_fields_are_registered():
+    # notePropEvt DROPS unknown keys; every newly emitted F5 field must be in
+    # the injector-facing allowlist or the evidence would silently vanish.
+    hh = (ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/"
+                 "CHAOSPropagation.hh").read_text(encoding="utf-8")
+    for name in ACCOUNTING_FIELDS + (
+            "sampled_unique", "omitted", "applied_to_all_exposures",
+            "sampled_is_observation_only", "merged_activated_exposures",
+            "observed_exposure_ids", "sources_expanded",
+            "sources_unexpanded", "observation_scope",
+            "cell_sources_overflow"):
+        assert f'"{name}"' in hh, name
