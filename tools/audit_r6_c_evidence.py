@@ -112,10 +112,48 @@ def audit(root):
     cfaults = chain.get("faults") or {}
     ck("fault_set_matches", set(rfaults) == set(cfaults),
        (sorted(rfaults), sorted(cfaults)))
+    # [LSU][C-UNIT] Strict injected_not_activated terminal.
+    ina = chain.get("terminal") == CHAIN.INJECTED_NOT_ACTIVATED
+    if ina:
+        inj_rows = ev.parse_injection_log(s["paths"]["inj_log"])
+        verdict = CHAIN.injected_not_activated_verdict(
+            events,
+            oracle_outcome=chain.get("oracle_outcome"),
+            exit_code=chain.get("exit_code"),
+            truncated=(chain.get("truncated") is True
+                       or chain.get("evidence_truncated") is True),
+            stats=stats,
+            inj_rows=len(inj_rows),
+            binary_sha256=man.get("binary_sha256"),
+            binary_source_head=man.get("binary_source_head"),
+            analysis_tool_head=man.get("analysis_tool_head"),
+            consumer_summary_accounting=chain.get(
+                "consumer_summary_accounting"),
+        )
+        ck("injected_not_activated_strict", verdict["ok"],
+           verdict["reasons"][:3])
+        ck("ina_provable_to_l0", chain.get("provable_to") == "L0")
+        ck("ina_beyond_empty", chain.get("beyond") in ("", None))
+        ck("ina_subkind", (chain.get("injected_not_activated") or {}).get(
+            "subkind") == CHAIN.INA_SUBKIND)
+        rec["injected_not_activated"] = {
+            "ok": verdict["ok"], "reasons": verdict["reasons"],
+            "l0": verdict.get("l0"), "line": verdict.get("line"),
+        }
+
     mism = []
     for fid in sorted(set(rfaults) & set(cfaults), key=lambda x: int(x)):
         a, b = rfaults[fid], cfaults[fid]
         for key in ("terminal", "provable_to"):
+            if key == "terminal" and b.get("terminal") == \
+                    CHAIN.INJECTED_NOT_ACTIVATED:
+                # The report's terminal is the strict certified terminal;
+                # the structural re-derivation must still prove L0 only.
+                if a.get("provable_to") != "L0" or b.get("provable_to") != "L0":
+                    mism.append(f"fault {fid} injected_not_activated has "
+                                f"provable_to rederived={a.get('provable_to')!r} "
+                                f"report={b.get('provable_to')!r}")
+                continue
             if a.get(key) != b.get(key):
                 mism.append(f"fault {fid} {key}: rederived={a.get(key)!r} "
                             f"report={b.get(key)!r}")

@@ -295,6 +295,65 @@ def generate(root):
                   f"{d.get('contained') or '—'} | {d.get('outcome') or '—'} | "
                   f"{d.get('containment_layer') or '—'}:{d.get('containment_reason') or '—'} |")
             a("")
+    if chain.get("terminal") == "injected_not_activated":
+        ina = chain.get("injected_not_activated") or {}
+        l0 = ina.get("l0") or {}
+        fid = str(ina.get("fault_id", ""))
+        row = inj_by_fid.get(fid, {})
+        a("### Injected-not-activated 终局（严格证明）")
+        a("")
+        a("该样本**真实注入了故障**，但被改变的 cache line 在程序结束前**没有被再次访问或消费**，"
+          "因此没有形成 L1–L5 传播链，也没有下游架构影响。这不是 C++ 传播模型缺陷，"
+          "不得伪造任何 L1–L5 事件。")
+        a("")
+        a("| 项 | 值 |")
+        a("|---|---|")
+        a(f"| terminal | `{chain.get('terminal')}` |")
+        a(f"| provable_to | `{chain.get('provable_to')}` |")
+        a(f"| subkind | `{ina.get('subkind', 'not_consumed')}` |")
+        a(f"| 注入 Tick | `{l0.get('tick', '—')}` |")
+        a(f"| 注入地址（VA/block） | {hx(l0.get('va'))} |")
+        a(f"| cache line | {hx(l0.get('cache_line'))} |")
+        a(f"| 故障字段 | `{l0.get('field', '—')}` |")
+        a(f"| 注入日志原始行 | `{row.get('Field', row.get('FaultType', '—'))}` |")
+        a(f"| 注入计数（log / stream / stats） | "
+          f"`{ina.get('log_rows')}` / `{events['kind_counts'].get('inj', 0)}` / "
+          f"`{ina.get('stats_injected')}` |")
+        a(f"| simTicks | `{ina.get('simTicks')}` |")
+        a(f"| oracle | `{ina.get('oracle')}` |")
+        a("")
+        a("**为什么判为未激活**：注入后（Tick `%s`）直到仿真结束（`simTicks=%s`），"
+          "原始事件流中该 cache line（`%s`）没有任何 `cache_access` / `cache_return` / "
+          "`resp` / `taint_reg` / `consumer` / `errant_commit` 事件；"
+          "事件流只有 `inj`（L0）与 `chain_end`（生命周期标记，`contained=0`、"
+          "`outcome=run_end`、`corr=none`，**不是 L5**）。"
+          % (l0.get("tick", "—"), ina.get("simTicks", "—"),
+             hx(l0.get("cache_line"))))
+        a("")
+        a("**十项强证明条件（逐项核验）**")
+        a("")
+        a("| # | 条件 | 结果 |")
+        a("|---|---|---|")
+        labels = [
+            ("1", "gzip 正常 EOF，非截断", "gzip_eof"),
+            ("2", "stats 非空且 simTicks>0", "stats_nonempty_simticks_gt_0"),
+            ("3", "注入日志/事件流/stats 计数一致", "counts_log_stream_stats_equal"),
+            ("4", "注入地址/line/字段可核验", "l0_address_and_field_verifiable"),
+            ("5", "注入后无该行后续访问/消费", "no_downstream_access_of_line"),
+            ("6", "无伪造 L1–L5 事件", "no_fabricated_l1_to_l5"),
+            ("7", "无 errant_commit/异常 containment", "no_errant_commit_or_containment"),
+            ("8", "chain_end 仅生命周期、非 L5", "chain_end_is_lifecycle_only"),
+            ("9", "consumer/conservation 守恒", "consumer_conservation_ok"),
+            ("10", "二进制 SHA/source/tool head 已记录", "binary_and_tool_identity_recorded"),
+        ]
+        conds = ina.get("conditions") or {}
+        for num, text, key in labels:
+            a(f"| {num} | {text} | `{conds.get(key)}` |")
+        a("")
+        a("outcome 归入 `Masked`，`subkind=not_consumed/latent_no_effect`："
+          "故障真实注入，但故障缓存行在程序结束前未被再次使用，因此没有形成下游架构影响。")
+        a("")
+
     cs = chain.get("consumer_summary") or []
     if isinstance(cs, list) and cs:
         a("### consumer summary（原始 `CONSUMER-SUMMARY` 字段）")

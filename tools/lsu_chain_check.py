@@ -706,6 +706,207 @@ def check_chain(events, spec_nodes=None, oracle_outcome=None):
 
 
 # ---------------------------------------------------------------------------
+# [LSU][C-UNIT] Injected-not-activated terminal (2026-11-03 user ruling)
+#
+# A real injection whose corrupted cache line is never consumed/accessed
+# again before the program ends produces an honest L0-only stream. This is
+# NOT a propagation-model defect and MUST NOT be pushed to fabricate L1-L5.
+# It is admissible ONLY as a strictly proven `injected_not_activated`
+# terminal, and only when EVERY condition below holds. The function is the
+# single source of truth used by the campaign, the offline regrade and the
+# independent auditor; it never relaxes any other L0-only stream.
+INJECTED_NOT_ACTIVATED = "injected_not_activated"
+INA_SUBKIND = "not_consumed"
+
+_CACHE_STRUCTURAL_KINDS = frozenset({
+    "cache_access", "cache_return", "cache_fill", "cache_evict",
+    "cache_writeback", "mshr_alloc", "mshr_merge", "mshr_fill", "mshr_free",
+    "resp", "lq_complete", "request_fork", "taint_reg", "consumer",
+    "errant_commit", "store_not_retired", "squash_discarded", "squash_masked",
+})
+
+
+def _hex_or_none(text):
+    t = str(text or "").strip()
+    if not t:
+        return None
+    try:
+        return int(t, 16)
+    except ValueError:
+        return None
+
+
+def injected_not_activated_verdict(
+        events, *, oracle_outcome=None, exit_code=None, truncated=False,
+        stats=None, inj_rows=None, binary_sha256=None,
+        binary_source_head=None, analysis_tool_head=None,
+        consumer_summary_accounting=None):
+    """Strict proof for the `injected_not_activated` terminal.
+
+    Returns {ok, applicable, terminal, provable_to, subkind, fault_id, l0,
+    reasons}. `ok` is True only when all ten conditions hold:
+
+      1. not truncated (caller also proves gzip EOF);
+      2. stats non-empty with simTicks > 0;
+      3. log rows == stream L0 events == stats numFaultsInjected == 1;
+      4. L0 has a verifiable cache line + field;
+      5. no downstream event after L0 touches that line / any non-life event;
+      6. exactly one fault and exactly one non-lifecycle L0 event;
+      7. no errant_commit / containment / consumer / structural event;
+      8. chain_end is lifecycle-only (never L5 / containment);
+      9. consumer/conservation accounting clean;
+     10. binary SHA + source head + analysis-tool head recorded.
+    """
+    reasons = []
+    res = {"ok": False, "applicable": False,
+           "terminal": INJECTED_NOT_ACTIVATED, "provable_to": "L0",
+           "subkind": INA_SUBKIND, "fault_id": None, "l0": None,
+           "reasons": reasons}
+
+    def bad(msg):
+        reasons.append(msg)
+        return res
+
+    events = list(events or [])
+    by_fault = {}
+    for e in events:
+        by_fault.setdefault(str(e.get("fault_id", "")), []).append(e)
+    faults = {k: v for k, v in by_fault.items() if k not in ("", "0")}
+    if len(faults) != 1:
+        return bad(f"expected exactly one fault, got {sorted(faults)}")
+    fid, chain = next(iter(faults.items()))
+    nonlife = [e for e in chain if e.get("kind") != "chain_end"]
+    if len(nonlife) != 1 or nonlife[0].get("kind") != "inj":
+        kinds = sorted({str(e.get("kind", "")) for e in nonlife
+                        if e.get("kind") != "inj"})
+        return bad(f"downstream/structural events present in the fault chain: "
+                   f"{kinds or 'missing inj'} (not exactly one L0 inj)")
+    inj = nonlife[0]
+    line = (_hex_or_none(inj.get("cache_line"))
+            or _hex_or_none(inj.get("va")))
+    if not line:
+        return bad("L0 injection has no verifiable cache_line/va")
+    tick0 = inj.get("tick")
+    try:
+        tick0 = int(tick0)
+    except (TypeError, ValueError):
+        return bad("L0 injection has no valid tick")
+    field = str(inj.get("field", "")).strip()
+
+    # (8) lifecycle marker must be lifecycle-only.
+    for e in chain:
+        if e.get("kind") != "chain_end":
+            continue
+        if (str(e.get("detection_layer", "")).strip()
+                or str(e.get("contained", "")).strip() not in ("", "0")
+                or str(e.get("outcome", "")).strip() not in ("", "run_end")
+                or str(e.get("corr", "")).strip() not in ("", "none")):
+            return bad("chain_end carries L5/containment fields (lifecycle only)")
+
+    # (6) no structural/terminal event in this fault's chain.
+    for e in nonlife:
+        if e is inj:
+            continue
+        if e.get("kind") in _CACHE_STRUCTURAL_KINDS:
+            return bad(f"structural event {e.get('kind')} present in L0 chain")
+
+    # (5) after the injection: no event may touch the corrupted line, and no
+    # non-lifecycle event may exist at all (any such event would be an
+    # unproven downstream claim).
+    for e in events:
+        if e is inj or e.get("kind") == "chain_end":
+            continue
+        try:
+            te = int(e.get("tick") or -1)
+        except (TypeError, ValueError):
+            te = -1
+        if te < tick0:
+            continue
+        for key in ("pa", "cache_line", "va"):
+            val = _hex_or_none(e.get(key))
+            if val is not None and val == line:
+                return bad(f"downstream event {e.get('event_id')} kind="
+                           f"{e.get('kind')} touches the injected line")
+        return bad(f"downstream event after L0 without a proven chain: kind="
+                   f"{e.get('kind')}")
+
+    # (1) stream completeness.
+    if truncated:
+        return bad("truncated stream")
+    # (2) stats.
+    if not isinstance(stats, dict) or not stats:
+        return bad("stats empty/missing")
+    try:
+        simticks = int(stats.get("simTicks") or 0)
+    except (TypeError, ValueError):
+        simticks = 0
+    if simticks <= 0:
+        return bad("stats.simTicks missing/zero")
+    raw_stat = stats.get("board.chaos_l1d.numFaultsInjected")
+    try:
+        stat_inj = int(raw_stat)
+    except (TypeError, ValueError):
+        return bad("stats.numFaultsInjected missing")
+    # (3) counts: log rows == stream L0 == stats.
+    try:
+        rows = int(inj_rows)
+    except (TypeError, ValueError):
+        return bad("injection log row count missing")
+    if rows != 1:
+        return bad(f"injection log rows={rows} != 1")
+    n_l0 = sum(1 for e in events
+               if e.get("kind") == "inj"
+               and str(e.get("fault_id", "")) not in ("", "0"))
+    if n_l0 != rows:
+        return bad(f"stream L0 events={n_l0} != log rows={rows}")
+    if stat_inj != rows:
+        return bad(f"stats numFaultsInjected={stat_inj} != log rows={rows}")
+    # (7) outcome/oracle must not contradict not-activated.
+    if oracle_outcome not in ("Masked",):
+        return bad(f"oracle {oracle_outcome!r} contradicts not-activated")
+    try:
+        rc = int(exit_code)
+    except (TypeError, ValueError):
+        rc = None
+    if rc != 0:
+        return bad(f"exit_code={exit_code!r} is not a normal completion")
+    # (9) consumer / conservation.
+    acct = consumer_summary_accounting or {}
+    if int(acct.get("emitted") or 0) or int(acct.get("suppressed") or 0):
+        return bad("consumer events present")
+    if acct.get("conservation") not in ("ok", "n/a"):
+        return bad(f"conservation={acct.get('conservation')!r}")
+    # (10) identity.
+    if not (isinstance(binary_sha256, str) and len(binary_sha256) == 64
+            and all(c in "0123456789abcdef" for c in binary_sha256.lower())):
+        return bad("binary SHA-256 missing/invalid")
+    if not str(binary_source_head or "").strip():
+        return bad("binary_source_head missing")
+    if not str(analysis_tool_head or "").strip():
+        return bad("analysis_tool_head missing")
+
+    res.update({
+        "ok": True, "applicable": True, "fault_id": fid,
+        "l0": {
+            "event_id": str(inj.get("event_id", "")),
+            "tick": tick0,
+            "va": inj.get("va", ""),
+            "pa": inj.get("pa", ""),
+            "cache_line": inj.get("cache_line", ""),
+            "field": field,
+            "before": inj.get("before", ""),
+            "after": inj.get("after", ""),
+        },
+        "line": line,
+        "oracle": oracle_outcome,
+        "stats_injected": stat_inj,
+        "log_rows": rows,
+        "simTicks": simticks,
+    })
+    return res
+
+
+# ---------------------------------------------------------------------------
 # [MDSPEC][R6-F5-NOEFFECT] ESCAPE-FIRST fault selection (user ruling 2026-10-26c)
 #
 # A multi-injection sample carries several faults at once.  Three separate

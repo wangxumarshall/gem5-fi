@@ -60,6 +60,13 @@ def audit_doc(path):
         m = rx.search(txt)
         if not m or m.group(1) != str(chain.get(key)):
             errs.append(f"{key} mismatch")
+    if chain.get("terminal") == "injected_not_activated":
+        if "Injected-not-activated" not in txt:
+            errs.append("injected_not_activated section missing")
+        if chain.get("provable_to") != "L0":
+            errs.append("injected_not_activated provable_to != L0")
+        if "未被再次" not in txt:
+            errs.append("injected_not_activated explanation missing")
 
     events, _trunc, _summ, _issues = __import__("lsu_prop_fields").read_stream(prop_evt)
     by_id = {str(e.get("event_id")): e for e in events}

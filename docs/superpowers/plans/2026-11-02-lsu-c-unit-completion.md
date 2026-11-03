@@ -443,3 +443,9 @@ tail -n 5 /home/sdc/gem5-fi-ding-cleanup-20261029/r6c-regression.log
 - **回归**：`263 passed, 9 failed`；9 项与基线 f1291067 逐名一致 → **NEW FAIL = 0**。
 - **报告**：`runs/lsu/r6_reports/R6-C-UNIT-FINAL-REPORT.md`、`R6-C-UNIT-STATUS.json`。
 - **部署位置**：权威主树 `/home/sdc/gem5-fi-ding/runs/lsu/`（runs/ 产物未新增到 git，沿用 S 轮做法）。
+
+### 语义收口（2026-11-03）
+五个 Injected-not-activated seed1 经离线严格复判（原始流未改）认证为
+`terminal=injected_not_activated / provable_to=L0 / subkind=not_consumed`；
+C 单元最终 **93/93 合格、31/31 RunID 3/3、93 份文档、断链 0**；
+新增 11 项负控测试，完整回归 274 passed / 9 failed（与基线逐名一致，NEW FAIL=0）。
