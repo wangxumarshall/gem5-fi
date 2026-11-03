@@ -1,0 +1,98 @@
+"""Active-scope (F0/F5) policy, dual-view index, and runner gate tests."""
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+import fsu_index as I
+import fsu_scope as S
+import fsu_seed_runner as R
+
+
+def test_scope_matches_registry():
+    res = S.verify_scope_against_registry()
+    assert res["ok"] is True, res["errors"]
+    assert res["counts"]["F0"] == 72
+    assert res["counts"]["F5"] == 8
+    assert res["active_runid_count"] == 80
+    assert res["active_seed_target"] == 240
+
+
+def test_active_frequencies_and_enforcement():
+    for f in ("F0", "F5"):
+        assert S.is_active_freq(f)
+        S.enforce_active_freq(f, f"FSU-X-{f}-W1")
+    for f in ("F1", "F2", "F3", "F4", "F6"):
+        assert not S.is_active_freq(f)
+        with pytest.raises(S.ScopeError) as e:
+            S.enforce_active_freq(f, f"FSU-X-{f}-W1")
+        assert "frequency outside active scope" in str(e.value)
+        assert "DEFERRED_BY_USER" in str(e.value)
+
+
+def test_scope_status_labels_priority():
+    assert S.scope_status("F0", 3) == "ACTIVE_COMPLETE_3_OF_3"
+    assert S.scope_status("F0", 0) == "ACTIVE_NOT_RUN"
+    assert (S.scope_status("F1", 3)
+            == "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE")
+    assert S.scope_status("F2", 0) == "DEFERRED_BY_USER"
+    # completed history wins over the deferred label
+    assert S.scope_status("F3", 3) != "DEFERRED_BY_USER"
+
+
+def test_scope_test_mode_cannot_write_formal_root(tmp_path):
+    ok, _ = S.formal_out_root_allowed(
+        {"scope_test_mode": True}, tmp_path / "runs")
+    assert ok is True
+    ok, why = S.formal_out_root_allowed(
+        {"scope_test_mode": True}, ROOT / "runs/fsu")
+    assert ok is False and "formal runs/fsu" in why
+
+
+def test_runner_rejects_deferred_frequency_before_attempt(tmp_path):
+    manifest = {
+        "run_id": "FSU-FP04-F1-W4", "model_id": "FP04",
+        "freq": "F1", "load_id": "W4", "submodel": "FP04-c",
+        "workload": {"binary": str(tmp_path / "wl"), "golden": "a" * 64,
+                     "oracle_kind": "array_hash"},
+        "injector": {"component": "fsu", "fpu_mode": {"bitseg": "mant_lo"},
+                     "rate": {"rate_divisor": 1000000, "jitter_pct": 50,
+                              "warmup": 0},
+                     "max_faults": 1, "first_clock": 0},
+        "limits": {"timeout_s": 1},
+    }
+    mp = tmp_path / "m.json"
+    mp.write_text(json.dumps(manifest), encoding="utf-8")
+    out = tmp_path / "runs"
+    with pytest.raises(S.ScopeError):
+        R.run_seed(mp, 1, out_root=out)
+    assert not (out / "FSU-FP04-F1-W4" / "seed1" / "attempt-1").exists()
+
+
+def test_index_dual_view_counts():
+    runids = I._load_runids(ROOT / "docs/gem5-fi/fsu/runids.json")
+    rows, summary, active = I.scan(
+        runids, ROOT / "runs/fsu",
+        ROOT / "docs/gem5-fi/fsu/IMPLEMENTATION_MATRIX.json")
+    # historical full-registry view
+    assert summary["total_runids"] == 173
+    assert summary["target_seeds"] == 519
+    assert summary["admitted_seeds_total"] == 18
+    assert summary["complete_3_of_3"] == 6
+    # active F0/F5 view
+    assert active["active_runids"] == 80
+    assert active["active_seed_target"] == 240
+    assert active["active_admitted_seeds"] == 9
+    assert active["active_complete_runids"] == 3
+    assert active["deferred_by_user_runids"] == 90
+    assert active["historical_complete_out_of_scope_runids"] == 3
+    assert active["historical_complete_out_of_scope_seeds"] == 9
+    by_id = {r["runid"]: r for r in rows}
+    assert by_id["FSU-FP04-F0-W4"]["scope_class"] == "ACTIVE_SCOPE"
+    assert (by_id["FSU-FP04-F1-W4"]["scope_class"]
+            == "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE")
+    assert by_id["FSU-FP04-F2-W5"]["scope_class"] == "DEFERRED_BY_USER"
+    assert by_id["FSU-FP04-F1-W4"]["status"] == "COMPLETE_3_OF_3"

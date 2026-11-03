@@ -15,6 +15,14 @@
 | 部分完成 RunID | **0 / 173** |
 | 其余 167 个 RunID | 0/3 |
 
+> **活跃范围裁决（2026-11-03）**：ACTIVE = F0/F5。源注册表仍为
+> 173 RunID / 519 seed（历史视图 18/519，6 个 RunID 3/3）；当前活跃范围
+> 为 **80 RunID / 240 seed**，其中已完成 **9 seed / 3 RunID**。F1–F4 为
+> **DEFERRED_BY_USER**（不是失败/缺失/删除）；F1/F2/F3-W4 的历史完成标为
+> **HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE**，不追溯改标。详见
+> `configs/fsu/ACTIVE_SCOPE.json`、`docs/gem5-fi/fsu/ACTIVE_SCOPE.md`
+> 与 `INDEX.json` 的 `active_scope` 段。
+>
 > 频率批次（F0/F1/F2/F3-W4，12 个 seed）的总审计见
 > `docs/gem5-fi/fsu/FP04-W4-FREQUENCY-CLOSEOUT.md`。
 > 字段/FP32/NEON lane 的门禁与 `FSU-FP04-F0-W3` 正式试点见

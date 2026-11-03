@@ -157,6 +157,9 @@ def _manifest(tmp_path, freq="F3", rate=None):
         "workload": {"binary": str(wl), "golden": "a" * 64,
                      "oracle_kind": "array_hash", "oracle_tol": 0},
         "config_family": "C3", "injector": injector,
+        # F3 is DEFERRED_BY_USER in the active F0/F5 scope; this fixture
+        # exercises legacy rate parsing only, in a temporary out-root.
+        "scope_test_mode": True,
         "limits": {"timeout_s": 10},
     }
     p = tmp_path / "manifest.json"

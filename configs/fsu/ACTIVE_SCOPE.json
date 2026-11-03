@@ -1,0 +1,16 @@
+{
+  "policy_version": "1",
+  "decision_date": "2026-11-03",
+  "active_frequencies": ["F0", "F5"],
+  "deferred_frequencies": ["F1", "F2", "F3", "F4"],
+  "source_registry_count": 173,
+  "source_seed_target": 519,
+  "active_runid_count": 80,
+  "active_seed_target": 240,
+  "active_frequency_counts": {"F0": 72, "F5": 8},
+  "deferred_policy": "DEFERRED_BY_USER",
+  "policy_note": "F1/F2/F3/F4 and any future frequency outside F0/F5 are deferred by the user. They are not failures, missing artifacts, or deleted evidence. Historical completed F1/F2/F3 seeds remain HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE and are never relabelled as F5 or as failures.",
+  "source_registry": "docs/gem5-fi/fsu/runids.json",
+  "source_registry_sha256": "dbdb5962031aaf3443dc98bc475718a1c9c51481066892fb6e706385c2e61ae5",
+  "historical_complete_policy": "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE"
+}

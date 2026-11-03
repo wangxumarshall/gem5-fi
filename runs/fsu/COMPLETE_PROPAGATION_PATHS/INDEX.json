@@ -17,12 +17,44 @@
       "BLOCKED_NOT_IMPLEMENTED": 87,
       "PILOT_SUBMODEL_ONLY": 1
     },
-    "generated_at": "2026-11-03T13:11:41",
-    "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS"
+    "generated_at": "2026-11-03T14:49:10",
+    "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS",
+    "active_scope": {
+      "policy_version": "1",
+      "decision_date": "2026-11-03",
+      "active_frequencies": [
+        "F0",
+        "F5"
+      ],
+      "deferred_frequencies": [
+        "F1",
+        "F2",
+        "F3",
+        "F4"
+      ],
+      "active_runids": 80,
+      "active_seed_target": 240,
+      "active_admitted_seeds": 9,
+      "active_complete_runids": 3,
+      "deferred_by_user_runids": 90,
+      "historical_complete_out_of_scope_runids": 3,
+      "historical_complete_out_of_scope_seeds": 9,
+      "scope_status_counts": {
+        "ACTIVE_NOT_RUN": 77,
+        "DEFERRED_BY_USER": 90,
+        "ACTIVE_COMPLETE_3_OF_3": 3,
+        "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE": 3
+      },
+      "note": "F1-F4 are DEFERRED_BY_USER; historical completed seeds are HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE, never failures."
+    }
   },
   "runids": [
     {
       "runid": "FSU-FQ01-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -42,6 +74,10 @@
     },
     {
       "runid": "FSU-FQ01-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -61,6 +97,10 @@
     },
     {
       "runid": "FSU-FQ01-F2-W2",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -80,6 +120,10 @@
     },
     {
       "runid": "FSU-FQ01-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -99,6 +143,10 @@
     },
     {
       "runid": "FSU-FQ02-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -118,6 +166,10 @@
     },
     {
       "runid": "FSU-FQ02-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -137,6 +189,10 @@
     },
     {
       "runid": "FSU-FQ02-F2-W2",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -156,6 +212,10 @@
     },
     {
       "runid": "FSU-FQ02-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -175,6 +235,10 @@
     },
     {
       "runid": "FSU-FQ03-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -194,6 +258,10 @@
     },
     {
       "runid": "FSU-FQ03-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -213,6 +281,10 @@
     },
     {
       "runid": "FSU-FQ03-F2-W2",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -232,6 +304,10 @@
     },
     {
       "runid": "FSU-FQ03-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -251,6 +327,10 @@
     },
     {
       "runid": "FSU-FQ04-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -270,6 +350,10 @@
     },
     {
       "runid": "FSU-FQ04-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -289,6 +373,10 @@
     },
     {
       "runid": "FSU-FQ04-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -308,6 +396,10 @@
     },
     {
       "runid": "FSU-FQ04-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -327,6 +419,10 @@
     },
     {
       "runid": "FSU-FQ05-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -346,6 +442,10 @@
     },
     {
       "runid": "FSU-FQ05-F0-W7",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -365,6 +465,10 @@
     },
     {
       "runid": "FSU-FQ05-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -384,6 +488,10 @@
     },
     {
       "runid": "FSU-FQ05-F4-W7",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -403,6 +511,10 @@
     },
     {
       "runid": "FSU-FQ06-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -422,6 +534,10 @@
     },
     {
       "runid": "FSU-FQ06-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -441,6 +557,10 @@
     },
     {
       "runid": "FSU-FQ06-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -460,6 +580,10 @@
     },
     {
       "runid": "FSU-FQ06-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -479,6 +603,10 @@
     },
     {
       "runid": "FSU-FQ06-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -498,6 +626,10 @@
     },
     {
       "runid": "FSU-FQ06-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -517,6 +649,10 @@
     },
     {
       "runid": "FSU-FQ07-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -536,6 +672,10 @@
     },
     {
       "runid": "FSU-FQ07-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -555,6 +695,10 @@
     },
     {
       "runid": "FSU-FQ07-F2-W2",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -574,6 +718,10 @@
     },
     {
       "runid": "FSU-FQ07-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -593,6 +741,10 @@
     },
     {
       "runid": "FSU-FQ08-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -612,6 +764,10 @@
     },
     {
       "runid": "FSU-FQ08-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -631,6 +787,10 @@
     },
     {
       "runid": "FSU-FQ08-F3-W2",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -650,6 +810,10 @@
     },
     {
       "runid": "FSU-FQ08-F3-W5",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -669,6 +833,10 @@
     },
     {
       "runid": "FSU-FQ08-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -688,6 +856,10 @@
     },
     {
       "runid": "FSU-FQ08-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -707,6 +879,10 @@
     },
     {
       "runid": "FSU-FQ09-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -726,6 +902,10 @@
     },
     {
       "runid": "FSU-FQ09-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -745,6 +925,10 @@
     },
     {
       "runid": "FSU-FQ09-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -764,6 +948,10 @@
     },
     {
       "runid": "FSU-FQ09-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -783,6 +971,10 @@
     },
     {
       "runid": "FSU-FQ10-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -802,6 +994,10 @@
     },
     {
       "runid": "FSU-FQ10-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -821,6 +1017,10 @@
     },
     {
       "runid": "FSU-FQ10-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -840,6 +1040,10 @@
     },
     {
       "runid": "FSU-FQ10-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -859,6 +1063,10 @@
     },
     {
       "runid": "FSU-FR01-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -878,6 +1086,10 @@
     },
     {
       "runid": "FSU-FR01-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -897,6 +1109,10 @@
     },
     {
       "runid": "FSU-FR01-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -916,6 +1132,10 @@
     },
     {
       "runid": "FSU-FR01-F1-W1",
+      "frequency": "F1",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -935,6 +1155,10 @@
     },
     {
       "runid": "FSU-FR01-F1-W3",
+      "frequency": "F1",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -954,6 +1178,10 @@
     },
     {
       "runid": "FSU-FR01-F1-W5",
+      "frequency": "F1",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -973,6 +1201,10 @@
     },
     {
       "runid": "FSU-FR01-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -992,6 +1224,10 @@
     },
     {
       "runid": "FSU-FR01-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1011,6 +1247,10 @@
     },
     {
       "runid": "FSU-FR01-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1030,6 +1270,10 @@
     },
     {
       "runid": "FSU-FR01-F3-W1",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1049,6 +1293,10 @@
     },
     {
       "runid": "FSU-FR01-F3-W3",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1068,6 +1316,10 @@
     },
     {
       "runid": "FSU-FR01-F3-W5",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1087,6 +1339,10 @@
     },
     {
       "runid": "FSU-FR02-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1106,6 +1362,10 @@
     },
     {
       "runid": "FSU-FR02-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1125,6 +1385,10 @@
     },
     {
       "runid": "FSU-FR02-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1144,6 +1408,10 @@
     },
     {
       "runid": "FSU-FR02-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1163,6 +1431,10 @@
     },
     {
       "runid": "FSU-FR02-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1182,6 +1454,10 @@
     },
     {
       "runid": "FSU-FR02-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1201,6 +1477,10 @@
     },
     {
       "runid": "FSU-FR03-F5-W3",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1220,6 +1500,10 @@
     },
     {
       "runid": "FSU-FR03-F5-W5",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1239,6 +1523,10 @@
     },
     {
       "runid": "FSU-FR03-F5-W6",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1258,6 +1546,10 @@
     },
     {
       "runid": "FSU-FR04-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1277,6 +1569,10 @@
     },
     {
       "runid": "FSU-FR04-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1296,6 +1592,10 @@
     },
     {
       "runid": "FSU-FR04-F2-W2",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1315,6 +1615,10 @@
     },
     {
       "runid": "FSU-FR04-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1334,6 +1638,10 @@
     },
     {
       "runid": "FSU-FR05-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1353,6 +1661,10 @@
     },
     {
       "runid": "FSU-FR05-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1372,6 +1684,10 @@
     },
     {
       "runid": "FSU-FR05-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1391,6 +1707,10 @@
     },
     {
       "runid": "FSU-FR05-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1410,6 +1730,10 @@
     },
     {
       "runid": "FSU-FR05-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1429,6 +1753,10 @@
     },
     {
       "runid": "FSU-FR05-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1448,6 +1776,10 @@
     },
     {
       "runid": "FSU-FR06-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1467,6 +1799,10 @@
     },
     {
       "runid": "FSU-FR06-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1486,6 +1822,10 @@
     },
     {
       "runid": "FSU-FR06-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1505,6 +1845,10 @@
     },
     {
       "runid": "FSU-FR06-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1524,6 +1868,10 @@
     },
     {
       "runid": "FSU-FR07-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1543,6 +1891,10 @@
     },
     {
       "runid": "FSU-FR07-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1562,6 +1914,10 @@
     },
     {
       "runid": "FSU-FR07-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1581,6 +1937,10 @@
     },
     {
       "runid": "FSU-FR07-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1600,6 +1960,10 @@
     },
     {
       "runid": "FSU-FR07-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1619,6 +1983,10 @@
     },
     {
       "runid": "FSU-FR07-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1638,6 +2006,10 @@
     },
     {
       "runid": "FSU-FR08-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1657,6 +2029,10 @@
     },
     {
       "runid": "FSU-FR08-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1676,6 +2052,10 @@
     },
     {
       "runid": "FSU-FR08-F2-W2",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1695,6 +2075,10 @@
     },
     {
       "runid": "FSU-FR08-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1714,6 +2098,10 @@
     },
     {
       "runid": "FSU-FR09-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1733,6 +2121,10 @@
     },
     {
       "runid": "FSU-FR09-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1752,6 +2144,10 @@
     },
     {
       "runid": "FSU-FR09-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1771,6 +2167,10 @@
     },
     {
       "runid": "FSU-FR09-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1790,6 +2190,10 @@
     },
     {
       "runid": "FSU-FR10-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1809,6 +2213,10 @@
     },
     {
       "runid": "FSU-FR10-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1828,6 +2236,10 @@
     },
     {
       "runid": "FSU-FR10-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1847,6 +2259,10 @@
     },
     {
       "runid": "FSU-FR10-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1866,6 +2282,10 @@
     },
     {
       "runid": "FSU-FR10-F4-W3",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1885,6 +2305,10 @@
     },
     {
       "runid": "FSU-FR10-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1904,6 +2328,10 @@
     },
     {
       "runid": "FSU-FP01-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1923,6 +2351,10 @@
     },
     {
       "runid": "FSU-FP01-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1942,6 +2374,10 @@
     },
     {
       "runid": "FSU-FP01-F0-W4",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1961,6 +2397,10 @@
     },
     {
       "runid": "FSU-FP01-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1980,6 +2420,10 @@
     },
     {
       "runid": "FSU-FP01-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -1999,6 +2443,10 @@
     },
     {
       "runid": "FSU-FP01-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2018,6 +2466,10 @@
     },
     {
       "runid": "FSU-FP01-F2-W4",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2037,6 +2489,10 @@
     },
     {
       "runid": "FSU-FP01-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2056,6 +2512,10 @@
     },
     {
       "runid": "FSU-FP02-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2075,6 +2535,10 @@
     },
     {
       "runid": "FSU-FP02-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2094,6 +2558,10 @@
     },
     {
       "runid": "FSU-FP02-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2113,6 +2581,10 @@
     },
     {
       "runid": "FSU-FP02-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2132,6 +2604,10 @@
     },
     {
       "runid": "FSU-FP02-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2151,6 +2627,10 @@
     },
     {
       "runid": "FSU-FP02-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2170,6 +2650,10 @@
     },
     {
       "runid": "FSU-FP03-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2189,6 +2673,10 @@
     },
     {
       "runid": "FSU-FP03-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2208,6 +2696,10 @@
     },
     {
       "runid": "FSU-FP03-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2227,6 +2719,10 @@
     },
     {
       "runid": "FSU-FP03-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2246,6 +2742,10 @@
     },
     {
       "runid": "FSU-FP04-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_COMPLETE_3_OF_3",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
           "state": "admitted",
@@ -2286,6 +2786,10 @@
     },
     {
       "runid": "FSU-FP04-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_COMPLETE_3_OF_3",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
           "state": "admitted",
@@ -2326,6 +2830,10 @@
     },
     {
       "runid": "FSU-FP04-F0-W4",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_COMPLETE_3_OF_3",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
           "state": "admitted",
@@ -2366,6 +2874,10 @@
     },
     {
       "runid": "FSU-FP04-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2385,6 +2897,10 @@
     },
     {
       "runid": "FSU-FP04-F0-W6",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2404,6 +2920,10 @@
     },
     {
       "runid": "FSU-FP04-F1-W1",
+      "frequency": "F1",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2423,6 +2943,10 @@
     },
     {
       "runid": "FSU-FP04-F1-W3",
+      "frequency": "F1",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2442,6 +2966,10 @@
     },
     {
       "runid": "FSU-FP04-F1-W4",
+      "frequency": "F1",
+      "scope_class": "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE",
+      "scope_status": "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
           "state": "admitted",
@@ -2483,6 +3011,10 @@
     },
     {
       "runid": "FSU-FP04-F1-W5",
+      "frequency": "F1",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2502,6 +3034,10 @@
     },
     {
       "runid": "FSU-FP04-F1-W6",
+      "frequency": "F1",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2521,6 +3057,10 @@
     },
     {
       "runid": "FSU-FP04-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2540,6 +3080,10 @@
     },
     {
       "runid": "FSU-FP04-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2559,6 +3103,10 @@
     },
     {
       "runid": "FSU-FP04-F2-W4",
+      "frequency": "F2",
+      "scope_class": "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE",
+      "scope_status": "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
           "state": "admitted",
@@ -2658,6 +3206,10 @@
     },
     {
       "runid": "FSU-FP04-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2677,6 +3229,10 @@
     },
     {
       "runid": "FSU-FP04-F2-W6",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2696,6 +3252,10 @@
     },
     {
       "runid": "FSU-FP04-F3-W1",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2715,6 +3275,10 @@
     },
     {
       "runid": "FSU-FP04-F3-W3",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -2734,6 +3298,10 @@
     },
     {
       "runid": "FSU-FP04-F3-W4",
+      "frequency": "F3",
+      "scope_class": "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE",
+      "scope_status": "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
           "state": "admitted",
@@ -3389,6 +3957,10 @@
     },
     {
       "runid": "FSU-FP04-F3-W5",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3408,6 +3980,10 @@
     },
     {
       "runid": "FSU-FP04-F3-W6",
+      "frequency": "F3",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3427,6 +4003,10 @@
     },
     {
       "runid": "FSU-FP05-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3446,6 +4026,10 @@
     },
     {
       "runid": "FSU-FP05-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3465,6 +4049,10 @@
     },
     {
       "runid": "FSU-FP05-F0-W6",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3484,6 +4072,10 @@
     },
     {
       "runid": "FSU-FP05-F4-W3",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3503,6 +4095,10 @@
     },
     {
       "runid": "FSU-FP05-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3522,6 +4118,10 @@
     },
     {
       "runid": "FSU-FP05-F4-W6",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3541,6 +4141,10 @@
     },
     {
       "runid": "FSU-FP06-F5-W1",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3560,6 +4164,10 @@
     },
     {
       "runid": "FSU-FP06-F5-W3",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3579,6 +4187,10 @@
     },
     {
       "runid": "FSU-FP06-F5-W4",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3598,6 +4210,10 @@
     },
     {
       "runid": "FSU-FP06-F5-W5",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3617,6 +4233,10 @@
     },
     {
       "runid": "FSU-FP06-F5-W6",
+      "frequency": "F5",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3636,6 +4256,10 @@
     },
     {
       "runid": "FSU-FP07-F0-W4",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3655,6 +4279,10 @@
     },
     {
       "runid": "FSU-FP07-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3674,6 +4302,10 @@
     },
     {
       "runid": "FSU-FP07-F0-W6",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3693,6 +4325,10 @@
     },
     {
       "runid": "FSU-FP07-F2-W4",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3712,6 +4348,10 @@
     },
     {
       "runid": "FSU-FP07-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3731,6 +4371,10 @@
     },
     {
       "runid": "FSU-FP07-F2-W6",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3750,6 +4394,10 @@
     },
     {
       "runid": "FSU-FP08-F0-W1",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3769,6 +4417,10 @@
     },
     {
       "runid": "FSU-FP08-F0-W7",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3788,6 +4440,10 @@
     },
     {
       "runid": "FSU-FP08-F2-W1",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3807,6 +4463,10 @@
     },
     {
       "runid": "FSU-FP08-F2-W7",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3826,6 +4486,10 @@
     },
     {
       "runid": "FSU-FP09-F0-W3",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3845,6 +4509,10 @@
     },
     {
       "runid": "FSU-FP09-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3864,6 +4532,10 @@
     },
     {
       "runid": "FSU-FP09-F0-W9",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3883,6 +4555,10 @@
     },
     {
       "runid": "FSU-FP09-F2-W3",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3902,6 +4578,10 @@
     },
     {
       "runid": "FSU-FP09-F2-W5",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3921,6 +4601,10 @@
     },
     {
       "runid": "FSU-FP09-F2-W9",
+      "frequency": "F2",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3940,6 +4624,10 @@
     },
     {
       "runid": "FSU-FP09-F4-W3",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3959,6 +4647,10 @@
     },
     {
       "runid": "FSU-FP09-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3978,6 +4670,10 @@
     },
     {
       "runid": "FSU-FP09-F4-W9",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -3997,6 +4693,10 @@
     },
     {
       "runid": "FSU-FP10-F0-W2",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -4016,6 +4716,10 @@
     },
     {
       "runid": "FSU-FP10-F0-W5",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -4035,6 +4739,10 @@
     },
     {
       "runid": "FSU-FP10-F0-W7",
+      "frequency": "F0",
+      "scope_class": "ACTIVE_SCOPE",
+      "scope_status": "ACTIVE_NOT_RUN",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -4054,6 +4762,10 @@
     },
     {
       "runid": "FSU-FP10-F4-W2",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -4073,6 +4785,10 @@
     },
     {
       "runid": "FSU-FP10-F4-W5",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"
@@ -4092,6 +4808,10 @@
     },
     {
       "runid": "FSU-FP10-F4-W7",
+      "frequency": "F4",
+      "scope_class": "DEFERRED_BY_USER",
+      "scope_status": "DEFERRED_BY_USER",
+      "completion_state": "NOT_RUN",
       "seeds": {
         "1": {
           "state": "pending"

@@ -61,7 +61,10 @@ campaigns belong on a healthy 2nd machine. This driver is machine-agnostic; the
 results it produces on cpu179 are PILOT-only and must be replicated before any
 formal claim (§3.1 S6).
 """
-import sys, os, json, argparse, tempfile, subprocess, itertools, time, signal, math
+import sys, os, json, argparse, tempfile, subprocess, itertools, time, signal, math, re
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fsu_scope as _SCOPE
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -1386,10 +1389,22 @@ def main():
                     help="expand grid + write manifests only, do NOT run gem5.")
     ap.add_argument("--keep_manifests", action="store_true", default=True,
                     help="keep per-rep manifests in runs/ (default on, for provenance).")
+    ap.add_argument("--scope-test-mode", action="store_true",
+                    help="allow legacy F1-F4 RunIDs for parser tests only; "
+                         "never use for a formal campaign")
     args = ap.parse_args()
 
     with open(args.campaign) as f:
         campaign = yaml.safe_load(f)
+
+    # [FSU][D3] Active-scope gate: F0/F5 only. F1-F4 are DEFERRED_BY_USER.
+    _rid_freqs = set(re.findall(
+        r"FSU-[A-Za-z0-9]+-(F\d+)-W\d+", json.dumps(campaign)))
+    _deferred = sorted(f for f in _rid_freqs if not _SCOPE.is_active_freq(f))
+    if _deferred and not args.scope_test_mode:
+        sys.exit("[campaign] frequency outside active scope: "
+                 f"{_deferred}; active=F0,F5; policy=DEFERRED_BY_USER. "
+                 "Aborting before any gem5 launch.")
 
     # campaign schema check (best-effort)
     if HAVE_SCHEMA:
@@ -1499,6 +1514,13 @@ def main():
 
     runs_dir = os.path.join(REPO, "runs", campaign["campaign_id"])
     artifacts_dir = os.path.join(REPO, "artifacts", campaign["campaign_id"])
+    if args.scope_test_mode:
+        # Test mode isolates ALL output away from formal runs/ and artifacts/.
+        base = tempfile.mkdtemp(prefix="campaign-scope-test-")
+        runs_dir = os.path.join(base, "runs")
+        artifacts_dir = os.path.join(base, "artifacts")
+        print("[campaign] scope test mode: output redirected to "
+              f"{base} (formal runs/ untouched)")
     os.makedirs(runs_dir, exist_ok=True)
     os.makedirs(artifacts_dir, exist_ok=True)
 

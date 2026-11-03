@@ -41,6 +41,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fsu_rate_ordinals as O  # noqa: E402
 import fsu_config_profile as CP  # noqa: E402
+import fsu_scope as S  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GEM5 = ROOT / "CHAOS/gem5/build/ARM/gem5.opt"
@@ -228,6 +229,16 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
 
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
     run_id = manifest["run_id"]
+    # [FSU][D3] Active-scope gate: F1–F4 (and any future frequency outside
+    # F0/F5) are DEFERRED_BY_USER. Reject before creating an attempt or
+    # starting gem5. Test mode may exercise legacy parsing only with a
+    # non-formal out-root.
+    scope_test_mode = bool(manifest.get("scope_test_mode"))
+    allowed, why = S.formal_out_root_allowed(manifest, out_root)
+    if not allowed:
+        raise S.ScopeError(why)
+    if not scope_test_mode:
+        S.enforce_active_freq(manifest.get("freq", ""), run_id)
     # F1/F2/F3 必须在创建任何 attempt 之前证明真实 rate 语义；
     # 只改 --fsu_freq 标签的 manifest 在这里被拒绝。
     rate_cfg = O.validate_rate_for_freq(
@@ -522,8 +533,14 @@ def main(argv=None):
     ap.add_argument("--timeout", type=int, default=None)
     ap.add_argument("--allow-rerun", action="store_true")
     a = ap.parse_args(argv)
-    res = run_seed(Path(a.manifest), a.seed, Path(a.out_root), Path(a.gem5),
-                   Path(a.root), timeout_s=a.timeout, allow_rerun=a.allow_rerun)
+    try:
+        res = run_seed(Path(a.manifest), a.seed, Path(a.out_root),
+                       Path(a.gem5), Path(a.root), timeout_s=a.timeout,
+                       allow_rerun=a.allow_rerun)
+    except S.ScopeError as e:
+        print(json.dumps({"status": "rejected", "reason": str(e)},
+                         ensure_ascii=False, indent=2))
+        return 2
     print(json.dumps(res, ensure_ascii=False, indent=2))
     return 0 if res["status"] in ("admitted", "already_admitted") else 1
 

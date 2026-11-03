@@ -12,7 +12,7 @@ implements the plan §9.1 mutually-exclusive order.
 
 Usage: python3 tools/runner.py <manifest.yaml> <golden_stdout_hash>
 """
-import sys, os, json, subprocess, hashlib, argparse, tempfile, gzip
+import sys, os, json, subprocess, hashlib, argparse, tempfile, gzip, re
 
 # Shared honest classifier (plan §9.1; report issue #4 fix).
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -475,10 +475,25 @@ def main():
                          "RESULT line - opt-in evidence for ooo_golden.py "
                          "registry cross-check; absent = byte-identical "
                          "stdout.")
+    ap.add_argument("--scope-test-mode", action="store_true",
+                    help="allow legacy F1-F4 manifests for parser tests only; "
+                         "never use for a formal run")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
         m = yaml.safe_load(f)
+
+    # [FSU][D3] Active-scope frequency gate (F0/F5). F1-F4 are deferred by
+    # the user; reject before any gem5 launch unless this is an explicit
+    # parser/legacy test.
+    _freq = m.get("freq") or (m.get("fault") or {}).get("freq") or ""
+    if _freq and re.fullmatch(r"F\d+", str(_freq)) and not args.scope_test_mode:
+        sys.path.insert(0, os.path.dirname(__file__))
+        import fsu_scope as _S
+        try:
+            _S.enforce_active_freq(str(_freq), m.get("run_id", ""))
+        except _S.ScopeError as e:
+            sys.exit(f"[runner] {e}. Aborting before gem5 launch.")
 
     # resolve config family: manifest platform.config_family overrides the
     # --config CLI default (so a C2 manifest runs on kp920_proxy.py without

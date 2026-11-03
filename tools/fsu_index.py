@@ -12,6 +12,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+import fsu_scope as S
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RUNIDS = ROOT / "docs/gem5-fi/fsu/runids.json"
 DEFAULT_OUT = ROOT / "runs/fsu"
@@ -72,9 +74,10 @@ def _coverage_map(matrix_path):
             for r in data.get("runids", data.get("runids", []))}
 
 
-def scan(runids, out_root: Path, matrix_path=None):
+def scan(runids, out_root: Path, matrix_path=None, scope=None):
     complete_root = Path(out_root) / "COMPLETE_PROPAGATION_PATHS"
     cov = _coverage_map(matrix_path)
+    scope = scope or S.load_scope()
     rows = []
     for rid in runids:
         base = Path(out_root) / rid
@@ -82,7 +85,28 @@ def scan(runids, out_root: Path, matrix_path=None):
         n = sum(1 for s in seeds.values() if s["state"] == "admitted")
         c = cov.get(rid, {"coverage_status": "UNKNOWN",
                           "coverage_reason": "implementation matrix not found"})
-        rows.append({"runid": rid, "seeds": seeds, "admitted_seeds": n,
+        freq = S.frequency_from_runid(rid)
+        scope_status = S.scope_status(freq, n, scope)
+        scope_class = ("ACTIVE_SCOPE" if S.is_active_freq(freq, scope)
+                       else scope_status)
+        states = {s["state"] for s in seeds.values()}
+        if n == 3:
+            completion_state = "COMPLETE"
+        elif n > 0:
+            completion_state = "PARTIAL"
+        elif "failed" in states:
+            completion_state = "FAILED"
+        elif "invalid" in states:
+            completion_state = "INVALID_EVIDENCE"
+        elif "incomplete" in states:
+            completion_state = "INCOMPLETE"
+        else:
+            completion_state = "NOT_RUN"
+        rows.append({"runid": rid, "frequency": freq,
+                     "scope_class": scope_class,
+                     "scope_status": scope_status,
+                     "completion_state": completion_state,
+                     "seeds": seeds, "admitted_seeds": n,
                      "seed_completion": f"{n}/3",
                      "coverage_status": c["coverage_status"],
                      "coverage_reason": c["coverage_reason"],
@@ -107,11 +131,35 @@ def scan(runids, out_root: Path, matrix_path=None):
     from collections import Counter
     summary["seed_completion_counts"] = dict(Counter(r["seed_completion"] for r in rows))
     summary["coverage_status_counts"] = dict(Counter(r["coverage_status"] for r in rows))
-    return rows, summary
+    active_rows = [r for r in rows if S.is_active_freq(r["frequency"], scope)]
+    scope_summary = {
+        "policy_version": scope["policy_version"],
+        "decision_date": scope["decision_date"],
+        "active_frequencies": scope["active_frequencies"],
+        "deferred_frequencies": scope["deferred_frequencies"],
+        "active_runids": len(active_rows),
+        "active_seed_target": len(active_rows) * 3,
+        "active_admitted_seeds": sum(r["admitted_seeds"] for r in active_rows),
+        "active_complete_runids": sum(1 for r in active_rows
+                                      if r["admitted_seeds"] == 3),
+        "deferred_by_user_runids": sum(
+            1 for r in rows if r["scope_status"] == "DEFERRED_BY_USER"),
+        "historical_complete_out_of_scope_runids": sum(
+            1 for r in rows
+            if r["scope_status"] == "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE"),
+        "historical_complete_out_of_scope_seeds": sum(
+            r["admitted_seeds"] for r in rows
+            if r["scope_status"].startswith("HISTORICAL_COMPLETE")),
+        "scope_status_counts": dict(Counter(r["scope_status"] for r in rows)),
+        "note": "F1-F4 are DEFERRED_BY_USER; historical completed seeds are "
+                "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE, never failures.",
+    }
+    return rows, summary, scope_summary
 
 
 def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
-    rows, summary = scan(runids, out_root, matrix_path)
+    rows, summary, scope_summary = scan(runids, out_root, matrix_path)
+    summary["active_scope"] = scope_summary
     cr = Path(out_root) / "COMPLETE_PROPAGATION_PATHS"
     cr.mkdir(parents=True, exist_ok=True)
     (cr / "INDEX.json").write_text(
@@ -120,6 +168,7 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
     lines = ["# FSU 三 seed 完成度索引", "",
              f"> 生成时间：{summary['generated_at']}；RunID 清单：`{runids_path}`。",
              "",
+             "## 历史全量视图（source registry）", "",
              f"- 总 RunID：**{summary['total_runids']}**",
              f"- 目标 seed：**{summary['target_seeds']}**",
              f"- 已完成合格 seed：**{summary['admitted_seeds_total']}**",
@@ -130,8 +179,21 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
              + "、".join(f"{k} {v}" for k, v in sorted(summary['coverage_status_counts'].items())),
              f"- 1/3：{summary['with_1_of_3']}；2/3：{summary['with_2_of_3']}；"
              f"0/3：{summary['with_0_of_3']}", "",
-             "| RunID | seed1 | seed2 | seed3 | seed_completion | coverage_status | 状态 |",
-             "|---|---|---|---|---|---|---|"]
+             "## 当前活跃范围视图（F0/F5）", "",
+             f"- active_frequencies：{scope_summary['active_frequencies']}",
+             f"- 活跃 RunID：**{scope_summary['active_runids']}**；"
+             f"目标 seed：**{scope_summary['active_seed_target']}**",
+             f"- 活跃范围已完成 seed：**{scope_summary['active_admitted_seeds']}**；"
+             f"3/3 RunID：**{scope_summary['active_complete_runids']}**",
+             f"- DEFERRED_BY_USER RunID：{scope_summary['deferred_by_user_runids']}",
+             f"- HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE RunID："
+             f"{scope_summary['historical_complete_out_of_scope_runids']}"
+             f"（seed {scope_summary['historical_complete_out_of_scope_seeds']}）",
+             "",
+             "> F1–F4 是 DEFERRED_BY_USER，不是失败、缺失或删除；"
+             "历史完成项不追溯改标。", "",
+             "| RunID | seed1 | seed2 | seed3 | seed_completion | coverage_status | 状态 | frequency | scope_class | completion_state |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         cells = []
         for s in (1, 2, 3):
@@ -140,7 +202,9 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
                           "incomplete": "…", "pending": "—",
                           "invalid": "!"}.get(st, st))
         lines.append(f"| {r['runid']} | " + " | ".join(cells) +
-                     f" | {r['seed_completion']} | {r['coverage_status']} | {r['status']} |")
+                     f" | {r['seed_completion']} | {r['coverage_status']} | "
+                     f"{r['status']} | {r['frequency']} | "
+                     f"{r['scope_class']} | {r['completion_state']} |")
     (cr / "INDEX.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     readme = ["# FSU 完整传播链（COMPLETE_PROPAGATION_PATHS）", "",
               "目录规则：`<RunID>/<RunID>-seed<N>.md`（仅 admitted seed 复制到此）。",
@@ -149,8 +213,16 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
               f"- 总 RunID：{summary['total_runids']}；目标 seed：{summary['target_seeds']}",
               f"- 已完成合格 seed：{summary['admitted_seeds_total']}",
               f"- COMPLETE_3_OF_3：{summary['complete_3_of_3']}",
+              f"- 活跃范围（{'/'.join(scope_summary['active_frequencies'])}）："
+              f"{scope_summary['active_admitted_seeds']}/"
+              f"{scope_summary['active_seed_target']} seed，"
+              f"{scope_summary['active_complete_runids']}/"
+              f"{scope_summary['active_runids']} RunID 3/3；"
+              f"DEFERRED_BY_USER {scope_summary['deferred_by_user_runids']} RunID",
               "- seed_completion 与 coverage_status 独立：3/3 只表示三个真实 seed，"
               "不代表模型覆盖完整。",
+              "- 历史全量视图（173/519）与活跃范围视图（80/240）分别记录；"
+              "F1–F4 不是失败。",
               "", "详细状态见 `INDEX.md` / `INDEX.json`。", ""]
     (cr / "README.md").write_text("\n".join(readme), encoding="utf-8")
     return summary, rows
