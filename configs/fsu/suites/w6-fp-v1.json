@@ -157,6 +157,29 @@
       }
     }
   ],
-  "suite_hash": "93e5d770502b4d355da4bbf52bd8710138bdc188f1a59ebb097f167f2bda8511",
-  "notes": "W6 artifact suite. The injector block is only a base F0 configuration; SVD is fp64 while FFT/sparse-cg are fp32, so the formal per-RunID mask/polarity/seed pre-registration MUST be frozen by the main agent before any W6 seed. native golden is 3x byte-identical; gem5 B0/fault goldens are not yet run."
+  "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+  "notes": "W6 artifact suite. The injector block is only a base F0 configuration; SVD is fp64 while FFT/sparse-cg are fp32, so the formal per-RunID mask/polarity/seed pre-registration MUST be frozen by the main agent before any W6 seed. native golden is 3x byte-identical; gem5 B0/fault goldens are not yet run.",
+  "program_overrides": {
+    "svd": {
+      "fpu_mode": {
+        "precision": "fp64",
+        "lane_width": 64,
+        "lane_offset": 0
+      }
+    },
+    "fft": {
+      "fpu_mode": {
+        "precision": "fp32",
+        "lane_width": 32,
+        "lane_offset": 0
+      }
+    },
+    "sparse-cg": {
+      "fpu_mode": {
+        "precision": "fp32",
+        "lane_width": 32,
+        "lane_offset": 0
+      }
+    }
+  }
 }

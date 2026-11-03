@@ -98,7 +98,8 @@ def test_docs_do_not_deny_certified_fp06_capability():
     assert "FSU-FP06-F5-W3" in f5
     assert "COMPLETE_3_OF_3" in f5
     assert "FP06-d" in f5 and "MISSING" in f5
-    assert "FR03-F5-W3" in f5 and "BLOCKED" in f5
+    assert "FR03-F5-W3" in f5 and "COMPLETE_3_OF_3" in f5
+    assert "FR03-F5-W5" in f5 and "BLOCKED" in f5
     # 分开表述：不能把 FP06-d 的缺失写成 a/b/c 未实现。
     assert "FP06-a" in f5 and "FP06-b" in f5 and "FP06-c" in f5
 
@@ -110,10 +111,10 @@ def test_docs_do_not_deny_certified_fp06_capability():
     fr03_row = next(l for l in audit.splitlines()
                     if l.startswith("| FR03 |"))
     assert "generation" in fr03_row
-    # FR03 now has a partial real FSU_PROP path; L5/squash/oracle remain
-    # unimplemented and must stay visible as a gap.
+    # FR03-W3 now has a real FSU_PROP L0-L5 path; W5/W6 remain blocked.
     assert "FSU_PROP" in fr03_row
-    assert "L5" in fr03_row and "未实现" in fr03_row
+    assert "L5" in fr03_row
+    assert "W5/W6" in fr03_row and "BLOCKED" in fr03_row
     for stale in ("三 seed 状态一律 0/3", "未运行 gem5",
                   "当前无 FSU PROP 事件", "2mm 缺失"):
         assert stale not in audit, stale
@@ -133,13 +134,16 @@ def test_matrix_f5_rows_reflect_disk_truth():
     assert w1["f5_readiness"] == "COMPLETE_3_OF_3"
     assert "certified 3/3" in w1["coverage_reason"]
     assert "FP06-d" in w1["coverage_reason"]
-    for rid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5", "FSU-FP06-F5-W6"):
-        assert by_id[rid]["seed_completion"] == "0/3"
-        assert by_id[rid]["f5_readiness"] == "NOT_RUN"
-    for rid in ("FSU-FR03-F5-W3", "FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
+    for rid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5"):
+        assert by_id[rid]["seed_completion"] == "3/3"
+        assert by_id[rid]["f5_readiness"] == "COMPLETE_3_OF_3"
+    assert by_id["FSU-FP06-F5-W6"]["seed_completion"] == "0/3"
+    assert by_id["FSU-FR03-F5-W3"]["seed_completion"] == "3/3"
+    assert by_id["FSU-FR03-F5-W3"]["f5_readiness"] == "COMPLETE_3_OF_3"
+    for rid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
         assert by_id[rid]["seed_completion"] == "0/3"
         assert by_id[rid]["f5_readiness"] == "BLOCKED"
-        assert "PARTIAL/BLOCKED" in by_id[rid]["coverage_reason"]
+        assert "BLOCKED" in by_id[rid]["coverage_reason"]
     assert set(summary["f5_readiness_counts"].keys()) <= {
         "COMPLETE_3_OF_3", "GATE_NOT_COMPLETE", "NOT_RUN", "BLOCKED"}
 
@@ -155,11 +159,10 @@ def test_matrix_f5_rows_reflect_disk_truth():
     fr03 = cap["FR03"]
     assert fr03["vec_stuck_write_path"]["code_present"] is True
     assert fr03["permanent_cell_across_generations"]["code_present"] is True
-    # FR03 代码可能正在实现（工作区并发改动）；无论 code_present 如何，
-    # 没有正式 seed 就绝不能 certified。
-    assert fr03["chaosphysreg_fsu_prop"]["certified"] is False
-    assert fr03["runner_chaosphysreg_path"]["certified"] is False
-    assert fr03["fr03_formal_seeds"]["certified"] is False
+    # FR03-W3 has real 3/3 certification; W5/W6 must still not borrow it.
+    assert fr03["chaosphysreg_fsu_prop"]["certified"] is True
+    assert fr03["runner_chaosphysreg_path"]["certified"] is True
+    assert fr03["fr03_formal_seeds"]["certified"] is True
     assert cap["W5_suite"]["five_programs_including_2mm"]["certified"] is True
 
 
@@ -183,8 +186,9 @@ def test_matrix_seed_completion_matches_authoritative_index():
     assert w5["seed_completion_count"] == 3
     assert sum(1 for s in w5["seed_states"].values()
                if s == "admitted") == 3
-    assert summary["seed_index"]["suite_seed_admitted"] == 3
-    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 15
+    # F0-W5 and F5-W5 each contribute 3 suite seeds (15 components each).
+    assert summary["seed_index"]["suite_seed_admitted"] == 6
+    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 30
     assert summary["seed_index"]["admitted_seeds_total"] != 15
     assert all(m["seed_completion_count"] <= 3 for m in matrix)
 

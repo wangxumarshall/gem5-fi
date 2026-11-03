@@ -25,13 +25,13 @@ RID = "FSU-TEST-F0-W5"
 GATE_ID = "FSU-TEST-F5-W5-GATE"
 
 PLAN = [
-    {"suite_seed": 1, "submodel": "FP06-a", "bitseg": "sign",
+    {"suite_seed": 1, "submodel": "FP06-a",
      "precision": "fp32", "lane_width": 32, "lane_offset": 0,
      "mask": "0x80000000", "polarity": 0, "warmup": 1024,
      "sample": {"limit": 1024, "keep_first_last_n": 256},
      "op_classes": [], "reg_class": "any", "decode_guard": True,
      "permanent_stuck": True},
-    {"suite_seed": 2, "submodel": "FP06-b", "bitseg": "sign",
+    {"suite_seed": 2, "submodel": "FP06-b",
      "precision": "fp32", "lane_width": 32, "lane_offset": 0,
      "mask": "0x80000000", "polarity": 1, "warmup": 1024,
      "sample": {"limit": 1024, "keep_first_last_n": 256},

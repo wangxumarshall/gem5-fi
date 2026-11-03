@@ -251,11 +251,10 @@
     {
       "suite_seed": 1,
       "submodel": "FP06-a",
-      "bitseg": "sign",
       "precision": "fp32",
       "lane_width": 32,
       "lane_offset": 0,
-      "mask": "0x80000000",
+      "mask": "0x00400000",
       "polarity": 0,
       "warmup": 1024,
       "sample": {
@@ -270,11 +269,10 @@
     {
       "suite_seed": 2,
       "submodel": "FP06-b",
-      "bitseg": "sign",
       "precision": "fp32",
       "lane_width": 32,
       "lane_offset": 0,
-      "mask": "0x80000000",
+      "mask": "0x20000000",
       "polarity": 1,
       "warmup": 1024,
       "sample": {
@@ -305,5 +303,6 @@
       "permanent_stuck": true
     }
   ],
-  "suite_hash": "98873018cb49c2d6bfaf0ed7e09bb245d5d4af94c1bd49c2d89c8f117060c74a"
+  "notes": " Gate finding (2026-11-04): PolyBench gemm/2mm/jacobi-2d produce strictly positive results, so FP06-a sign SA0 never activates. The gate seed_plan was revised BEFORE any formal run to result bits with observed mixed distributions so every component can activate. This is activation coverage, not a post-hoc search for SDC.",
+  "suite_hash": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581"
 }

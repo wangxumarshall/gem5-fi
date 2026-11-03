@@ -17,7 +17,7 @@
   },
   "injector": {
     "component": "physreg",
-    "fault_mask": "0x007f8000",
+    "fault_mask": "0x80000000",
     "max_faults": 1,
     "first_clock": 0,
     "probability": 1.0,
@@ -28,7 +28,7 @@
       "require_allocated": true,
       "vec_lane_width": 32,
       "vec_lane_offset": 0,
-      "fault_type": "stuck_at_zero",
+      "fault_type": "stuck_at_one",
       "bits_to_change": 1,
       "semantic_role": "FR03"
     }
@@ -44,9 +44,10 @@
     "require_allocated": true,
     "lane_width": 32,
     "lane_offset": 0,
-    "mask": "0x007f8000",
-    "polarity": 0,
-    "fault_type": "stuck_at_zero"
+    "mask": "0x80000000",
+    "polarity": 1,
+    "fault_type": "stuck_at_one",
+    "revision_note": "attempt-1 used fixed mantissa 0x7f8000 SA0 lane0. It activated only in generations 3/6; the generation-8 value that committed was never changed by the fault, so the chain audit honestly refused full. attempt-1 is kept as a failed pre-registration. attempt-2 freezes sign SA1 lane0 BEFORE the run: it is a target with guaranteed activation on these strictly positive results, not a post-hoc search for SDC."
   },
-  "notes": "FR03 formal seed3: permanent Vec phys 0, lane0 fixed mantissa bits 15..22, SA0. Multi-bit mask stays one fixed cell key."
+  "notes": "FR03 formal seed3 (attempt-2): permanent Vec phys 0, lane0 sign SA1. attempt-1 (fixed mantissa SA0 lane0) is preserved and not certified because its L5 generation was never activated."
 }

@@ -51,7 +51,8 @@
     "f5_sample_limit": 1024,
     "f5_keep_first_last_n": 256,
     "decode_guard": true,
-    "eligible_census_reference": 2097155
+    "eligible_census_reference": 1310723,
+    "eligible_census_reference_note": "Measured 2026-11-04 with the exact formal config (B0, fp64, decode_guard, no opClass allowlist): 1,310,723. The historical W4-RATE-V1 value 2,097,155 came from the older unfiltered D2 run and is NOT the eligible stream of this formal configuration."
   },
   "notes": "F5 formal seed3: FP06-c fixed mantissa mask (bits 15..22) SA0 on W4-rate-v1. Multi-bit mask stays field=permanent_stuck. Frozen BEFORE the run."
 }

@@ -112,6 +112,9 @@ p.add_argument("--phys_reg_class", default="integer",
                choices=["integer", "floating_point", "vector", "both"])
 p.add_argument("--vec_lane_width", type=int, default=32, choices=[8, 16, 32, 64])
 p.add_argument("--vec_lane_offset", type=int, default=-1)
+p.add_argument("--phys_semantic_role", default="",
+               help="[FR03] semantic role written into FSU_PROP submodel"
+                    " (e.g. FR03); empty = omit")
 p.add_argument("--chaos_mem", action="store_true")
 p.add_argument("--addr_map_sub", action="store_true",
                help="§2.17 F5: CHAOSMem displaced write (addr map substitution)")
@@ -600,6 +603,7 @@ if args.chaos_phys:
         regTargetClass=args.phys_reg_class,
         vecLaneWidth=args.vec_lane_width,
         vecLaneOffset=args.vec_lane_offset,
+        semanticRole=args.phys_semantic_role,
         probability=args.probability,
         bitsToChange=args.bits_to_change,
         faultMask=args.fault_mask,

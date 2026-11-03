@@ -28,7 +28,7 @@
       "require_allocated": true,
       "vec_lane_width": 32,
       "vec_lane_offset": 2,
-      "fault_type": "stuck_at_zero",
+      "fault_type": "stuck_at_one",
       "bits_to_change": 1,
       "semantic_role": "FR03"
     }
@@ -45,8 +45,8 @@
     "lane_width": 32,
     "lane_offset": 2,
     "mask": "0x80000000",
-    "polarity": 0,
-    "fault_type": "stuck_at_zero"
+    "polarity": 1,
+    "fault_type": "stuck_at_one"
   },
-  "notes": "FR03 formal seed1: one permanent Vec physical cell (phys 0, lane2 sign bit 95), SA0. The fault survives every write, free/realloc and squash; only run end/reset clears it. The fault-run oracle is classified independently from the per-fault L5 chain."
+  "notes": "FR03 formal seed1: one permanent Vec physical cell (phys 0, lane2 sign bit 95), SA1. The fault survives every write, free/realloc and squash; only run end/reset clears it. The fault-run oracle is classified independently from the per-fault L5 chain."
 }

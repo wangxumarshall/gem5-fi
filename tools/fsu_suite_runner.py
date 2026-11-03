@@ -127,45 +127,26 @@ def _component_seed_dir(seed_dir: Path, program_id: str, run_id: str,
             f"seed{component_seed}")
 
 
-def _apply_seed_plan(injector: dict, defaults: dict, entry: dict):
-    """Override the component injector/run identity with one seed_plan entry.
-
-    The suite's `injector` block is only the F5 base configuration; the
-    pre-registered per-suite-seed entry is authoritative for the submodel,
-    precision, mask, polarity, lane geometry, op/reg filtering, warm-up and
-    bounded sample window. Unknown/extra values are never inferred.
-    """
-    fpu = dict(injector.get("fpu_mode") or {})
-    fpu.update({
-        "precision": entry["precision"],
-        "lane_width": entry["lane_width"],
-        "lane_offset": entry["lane_offset"],
-        "decode_guard": entry["decode_guard"],
-        "permanent_stuck": entry["permanent_stuck"],
-        "stuck_polarity": entry["polarity"],
-        "f5_warmup": entry["warmup"],
-        "f5_sample_limit": entry["sample"]["limit"],
-        "f5_keep_first_last_n": entry["sample"]["keep_first_last_n"],
-        "op_classes": list(entry["op_classes"]),
-        "reg_class": entry["reg_class"],
-    })
-    if "bitseg" in entry:
-        fpu["bitseg"] = entry["bitseg"]
-    else:
-        fpu.pop("bitseg", None)
-    injector["fpu_mode"] = fpu
-    injector["fault_mask"] = entry["mask"]
-    defaults["submodel"] = entry["submodel"]
-    return injector, defaults
+def _program_override(suite, program_id):
+    overrides = S.normalise_program_overrides(suite)
+    if overrides is None:
+        return None
+    return overrides.get(program_id)
 
 
 def _component_run_manifest(suite, program, run_id, suite_seed,
                             component_seed, suite_hash, policy_version,
                             plan_entry=None):
     defaults = copy.deepcopy(suite.get("run_defaults") or {})
-    injector = copy.deepcopy(suite.get("injector") or {})
+    override = _program_override(suite, program["program_id"])
+    # Application order: suite.injector -> program_overrides[pid] ->
+    # seed_plan. Omitted seed_plan geometry fields inherit the per-program
+    # override (W6 SVD fp64 vs FFT/sparse fp32).
+    injector = S.resolve_program_injector(
+        suite.get("injector") or {}, override, plan_entry,
+        program["program_id"])
     if plan_entry is not None:
-        injector, defaults = _apply_seed_plan(injector, defaults, plan_entry)
+        defaults["submodel"] = plan_entry["submodel"]
     limits = copy.deepcopy(defaults.pop("limits", {}) or {})
     workload = {
         "binary": str(program["binary"]),
@@ -198,6 +179,9 @@ def _component_run_manifest(suite, program, run_id, suite_seed,
         "notes": ("W5 suite component run: exactly one program and exactly "
                   "one injected fault; not a formal suite seed by itself."),
     }
+    out["program_override"] = (
+        S.program_override_identity(override) if override else None)
+    out["effective_injector"] = copy.deepcopy(injector)
     if plan_entry is not None:
         out["seed_plan_entry"] = S.seed_plan_identity(plan_entry)
         out["pre_registration"] = copy.deepcopy(out["seed_plan_entry"])
@@ -337,6 +321,12 @@ def _component_manifest(suite, program, suite_hash, suite_seed, component_seed,
         "component_certified": bool(certified),
         "attempt": str(attempt),
     }
+    override = _program_override(suite, program["program_id"])
+    out["program_override"] = (
+        S.program_override_identity(override) if override else None)
+    out["effective_injector"] = S.resolve_program_injector(
+        suite.get("injector") or {}, override, plan_entry,
+        program["program_id"])
     if plan_entry is not None:
         out["seed_plan_entry"] = S.seed_plan_identity(plan_entry)
     return out
@@ -397,6 +387,14 @@ def _reuse_component(seed_dir: Path, program_id: str, run_id: str,
     if plan_entry is not None and cm.get("seed_plan_entry") != \
             S.seed_plan_identity(plan_entry):
         return None
+    overrides = S.normalise_program_overrides(suite)
+    if overrides is not None:
+        want = overrides.get(program_id)
+        want = S.program_override_identity(want) if want else None
+        got = cm.get("program_override")
+        if (want is None and got not in (None, {})) or \
+                (want is not None and got != want):
+            return None
     return cm
 
 
@@ -456,6 +454,10 @@ def _run_one_component(suite, program, suite_hash, suite_seed, component_seed,
             "component_audit_ok": False, "component_certified": False,
             "attempt": str(attempt), "run_status": res.get("status"),
             "reason": res.get("reason", "no attempt created"),
+            "program_override": (
+                S.program_override_identity(
+                    _program_override(suite, pid))
+                if _program_override(suite, pid) else None),
             **({"seed_plan_entry": S.seed_plan_identity(plan_entry)}
                if plan_entry is not None else {}),
         }
@@ -732,7 +734,7 @@ def run_suite(suite_path: Path = DEFAULT_SUITE, suite_seed: int = 1,
             "component_eligible", "component_activated", "component_faults",
             "component_terminal", "component_oracle",
             "component_audit_ok", "component_certified", "attempt",
-            "seed_plan_entry")
+            "seed_plan_entry", "program_override")
     } for c in results]
     suite_manifest = {
         "suite": suite,

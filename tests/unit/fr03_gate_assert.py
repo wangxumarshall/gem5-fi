@@ -261,21 +261,39 @@ def analyze(events, truncated=False):
         t = _tick(e)
         if not any(_tick(w) > t for w in writes):
             v.append(f"no_write_after_squash:{eid}")
-    for e in evts:
-        if _c(e, "kind") != "generation_change":
-            continue
+    gen_changes = [e for e in evts if _c(e, "kind") == "generation_change"]
+    realloc_with_write = 0
+    for gi, e in enumerate(gen_changes):
         new_gen = _c(e, "generation_new")
-        if not any(_c(w, "reg_generation") == new_gen for w in writes):
-            v.append(f"no_write_after_generation_change:{_c(e, 'event_id')}")
+        later_writes = [w for w in writes
+                        if _c(w, "reg_generation") == new_gen]
+        if later_writes:
+            realloc_with_write += 1
+            continue
+        # The FINAL generation change may be the end-of-run free: no later
+        # write is physically possible. Every earlier generation must show
+        # a real post-reallocation write (the defect survives realloc).
+        is_last = gi == len(gen_changes) - 1
+        later_any_write = any(_tick(w) > _tick(e) for w in writes)
+        if not (is_last and not later_any_write):
+            v.append(f"no_write_after_generation_change:"
+                     f"{_c(e, 'event_id')}")
+    if gen_changes and realloc_with_write == 0:
+        v.append("no_generation_change_with_real_write")
 
     # ------------------------------------------------------------------
     # chain_end: unique, honest terminal, exact split counters.
     # ------------------------------------------------------------------
-    ends = [e for e in evts if _c(e, "kind") == "chain_end"]
+    # The tracer may emit its own lifecycle chain_end for the ptag; the
+    # FR03 terminal is the ONE chain_end carrying exposures_total. Require
+    # exactly one injector terminal, and never accept zero.
+    all_ends = [e for e in evts if _c(e, "kind") == "chain_end"]
+    ends = [e for e in all_ends if _c(e, "exposures_total")]
     if len(ends) != 1:
-        v.append(f"chain_end_count:{len(ends)}")
+        v.append(f"injector_chain_end_count:{len(ends)}"
+                 f"/{len(all_ends)}")
         return report
-    end = ends[0]
+    end = ends[-1]
     terminal = _c(end, "terminal")
     report["counts"] = {
         "exposures_total": _int(end, "exposures_total"),

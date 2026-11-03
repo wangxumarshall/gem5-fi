@@ -82,3 +82,9 @@ python3 -m pytest tests/test_fsu_*.py tests/test_chaos_fsu_*.py tests/test_chaos
 ## 5. 进度日志（只追加）
 
 - 2026-11-04 00:00 基线核对完成；建立队列；启动 A/B/C 三个 subagent。
+- 2026-11-04 01:10 gem5 重建成功（-j16，exit 0；仅保留既有 unused `tid` 警告）。
+- 2026-11-04 01:24 FP06-F5-W4 非正式 gate PASS：短 W4 full 32,643 exposures vs bounded 32,643（activated 4,077 完全相同、oracle 均 SDC）；正式规模 1,309,699 exposures（census 1,310,723）、bounded 513 事件、prop_evt 73 KB、注入日志 382 MB→gzip 13 MB；提前终止 fail-closed。
+- 事实修正：当前正式配置（B0/FP64/decode/no opClass allowlist）真实 census = **1,310,723**；历史 W4-RATE-V1 的 2,097,155 是旧未过滤 D2 配置，不作为本 RunID 的 eligible 参考。
+- 2026-11-04 01:35 FSU-FP06-F5-W4 seed1 admitted/certified：SDC，exposures 1,309,699，activated 130,814，audit PASS。
+- 2026-11-04 01:43 FSU-FP06-F5-W4 seed2 admitted/certified：SDC，audit PASS；证据日志已无损 gzip。
+- 2026-11-04 01:45 W5 gate v1/v2 失败证据保留：v1=bitseg+mask 冲突 panic；v2=PolyBench gemm/2mm/jacobi 全正导致 sign SA0 无激活。gate 阶段修正 seed_plan 为混合分布结果位（FP06-a bit22 SA0 / FP06-b bit29 SA1 / FP06-c fixed mantissa SA0），重跑 v3。

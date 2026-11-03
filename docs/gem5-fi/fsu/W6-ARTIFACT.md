@@ -28,8 +28,10 @@ svd → fft → sparse-cg
 当前：
 
 ```
-suite_hash = 93e5d770502b4d355da4bbf52bd8710138bdc188f1a59ebb097f167f2bda8511
+suite_hash = 7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a
 ```
+
+（这是加入 `program_overrides` 后的 F0 `w6-fp-v1.json` 哈希；F5 见 §8。）
 
 ## 2. 组件身份（真实磁盘 SHA-256）
 
@@ -150,9 +152,10 @@ golden 文件：`configs/fsu/suites/w6-fp-v1/golden/{svd,fft,sparse-cg}.bin`。
 
 1. **gem5 golden 未运行**：本 agent 被禁止运行 scons/gem5。gem5 B0
    无故障 3× 与 fault-run golden 由主 agent 在组件齐全后执行。
-2. **W6 suite runner 未接入**：`w6-fp-v1.json` 目前是 artifact/身份
-   预注册；F0/F5 W6 的 seed_plan、component runner 路径和 gate 尚未
-   由主 agent 绑定。W6 正式 seed 计数仍为 0。
+2. **W6 gate 已准备但未真实运行**：`tools/fsu_w6_gate.py` 已实现
+   `--print-commands` / `--verify-only` / 运行路径，F0 与 F5 预注册也已
+   建立；但 gem5 执行与 3 seed 正式计数仍由主 agent 完成。W6 正式 seed
+   计数仍为 0。
 3. **SVD dump 域与 FINAL 域不同**：FINAL 只覆盖对角线 double；元素
    oracle 覆盖完整 8×8 矩阵。两者都已固定，不存在“用 dump 重算 FINAL”
    的假设。
@@ -163,3 +166,83 @@ golden 文件：`configs/fsu/suites/w6-fp-v1/golden/{svd,fft,sparse-cg}.bin`。
    事后放宽容差。
 6. 本文不把 native golden 当作 gem5 golden，也不把 W6 artifact 完成
    当作 RunID 完成。
+
+## 8. 逐程序精度覆盖 / F0-F5 预注册 / gate
+
+### 8.1 为什么需要 `program_overrides`
+
+W6 三个组件精度不同：SVD 是 **fp64**（lane 64，64-bit mask），FFT 与
+sparse-CG 是 **fp32**（lane 32，32-bit mask）。单一 suite injector 无法
+同时通过 CHAOSFPU 的 decode_guard。因此 suite 增加
+`program_overrides`（program_id -> 覆盖块）：
+
+应用顺序（`tools/fsu_suite.resolve_program_injector`）：
+
+```
+suite.injector
+  → program_overrides[pid]        # 精度/lane/bitseg/op/reg；可带 fault_mask
+  → seed_plan                     # F5：只覆盖它实际声明的字段
+```
+
+- seed_plan 省略的几何字段（W6 F5 全部省略）继承 per-program override；
+- seed_plan 声明的几何字段（W5 PolyBench F5）最后生效；
+- F5 permanent_stuck 一律丢弃 `bitseg`：CHAOSFPU 明确 panic
+  （`permanentStuck uses the explicit faultMask; bitseg is not allowed`），
+  目标位由 fixed `fault_mask` 唯一决定；F0 仍保留基础 `bitseg=sign`；
+- mask 优先级（最具体者胜）：
+  `suite base < seed_plan.mask < program_overrides[pid].fault_mask
+   < seed_plan.program_mask[pid]`；
+- `program_overrides`、`seed_plan`（含 `program_mask`）全部进入
+  `suite_hash`；component manifest 记录 `program_override` 与
+  `effective_injector`。
+
+### 8.2 配置
+
+| 文件 | 用途 | suite_hash |
+|---|---|---|
+| `configs/fsu/suites/w6-fp-v1.json` | F0-W6 预注册（复用为 F0 artifact） | `7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a` |
+| `configs/fsu/suites/w6-fp-v1-f5.json` | FP06-F5-W6 预注册（3 seeds） | `2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804` |
+
+两者使用同一组真实 golden/binary/source 哈希与 golden 数组，未改动。
+
+F5 seed_plan：
+
+| seed | submodel | polarity | SVD mask (fp64) | fft/sparse mask (fp32) |
+|---|---|---|---|---|
+| 1 | FP06-a | 0 | `0x8000000000000000` | `0x80000000` |
+| 2 | FP06-b | 1 | `0x8000000000000000` | `0x80000000` |
+| 3 | FP06-c | 0 | `0x0007f80000000000` | `0x007f8000` |
+
+所有 seed 的 warm-up = 1024，sample limit = 1024，
+keep_first_last_n = 256。
+
+### 8.3 gate 工具
+
+`tools/fsu_w6_gate.py`：一个 gate suite seed 固定 3 个 component run
+（svd → fft → sparse-cg），**3/3** 组件独立 `audit.ok=true` +
+`certified=true` + element oracle（SDC/MASKED）才 PASS。gate 不计正式
+seed（`formal_suite_seed_count = 0`），证据只允许写
+`runs/fsu-gates/`。
+
+```bash
+# 只打印命令（不运行 gem5）
+python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1.json --print-commands
+python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1-f5.json \
+    --print-commands --all-seeds
+# 正式 gate（主 agent 构建 gem5 后执行；证据不计 seed）
+python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1.json \
+    --outdir runs/fsu-gates/W6-F0-GATE
+python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1-f5.json \
+    --suite-seed 1 --outdir runs/fsu-gates/W6-F5-GATE
+# 复核既有证据
+python3 tools/fsu_w6_gate.py --suite configs/fsu/suites/w6-fp-v1-f5.json \
+    --suite-seed 1 --outdir runs/fsu-gates/W6-F5-GATE --verify-only
+```
+
+### 8.4 仍未完成
+
+- gem5 侧的 3/3 gate、CSV/audit 证据与 F0/F5 正式 seed 全部未运行；
+- F0 artifact 的 `suite.injector` 只有 `bitseg=sign`（无 fault_mask），
+  正式 F0 注入的 mask/polarity 仍需主 agent 在运行清单中固定并记录；
+- 未创建 `w6-fp-v1-f0.json`：F0 artifact 直接复用 `w6-fp-v1.json`，
+  因为 gate 工具按 `--suite` 选择 F0/F5，不需要重复文件。

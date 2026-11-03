@@ -75,6 +75,14 @@
       "type": "object",
       "description": "F5: canonical pre-registered seed_plan entry for this component's suite_seed (identity, covered by suite_hash)."
     },
+    "program_override": {
+      "type": ["object", "null"],
+      "description": "W6: canonical per-program injector override actually applied (identity, covered by suite_hash)."
+    },
+    "effective_injector": {
+      "type": "object",
+      "description": "W6: the fully resolved injector for this component (base -> program override -> seed_plan)."
+    },
     "attempt": {"type": "string", "minLength": 1}
   }
 }

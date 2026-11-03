@@ -4,7 +4,7 @@
 > `FSU-FP04-F0-W3`（真实 NEON FP32 lane2）、`FSU-FP04-F0-W5`
 > （PolyBench suite，每 suite seed 计 1）、`FSU-FP06-F5-W3`
 > （FP06-a/b/c）与 `FSU-FP06-F5-W1`（FP06-a/b/c，W1 scalar FP）
-> 均已 admitted（**27/519**）。
+> 均已 admitted（**36/519**）。
 > 数据源：`runs/fsu` 的 AUTHORITATIVE + audit 证据、
 > `runs/fsu/COMPLETE_PROPAGATION_PATHS/INDEX.json`、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
@@ -15,15 +15,16 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **27 / 519** |
-| seed-complete RunID | **9 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1`（B0-core）、`FSU-FP04-F0-W3`、`FSU-FP04-F0-W5`（suite 3 seed）、`FSU-FP06-F5-W3`、`FSU-FP06-F5-W1`，均 3/3） |
+| 已完成合格 seed | **36 / 519** |
+| seed-complete RunID | **12 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1`、`FSU-FP04-F0-W3`、`FSU-FP04-F0-W5`（suite 3 seed）、`FSU-FP06-F5-W1`、`FSU-FP06-F5-W3`、`FSU-FP06-F5-W4`、`FSU-FR03-F5-W3`、`FSU-FP06-F5-W5`（F5 suite 3 seed，15 component 只计 3），均 3/3） |
 | 部分完成 RunID | **0 / 173** |
-| 其余 164 个 RunID | 0/3 |
+| 其余 161 个 RunID | 0/3 |
 
 > **活跃范围裁决（2026-11-03）**：ACTIVE = F0/F5。源注册表仍为
-> 173 RunID / 519 seed（历史视图 27/519，9 个 RunID 3/3）；当前活跃范围
-> 为 **80 RunID / 240 seed**，其中已完成 **18 seed / 6 RunID**（F0-W1、
-> F0-W3、F0-W4、F0-W5、FP06-F5-W3、FP06-F5-W1）。F1–F4 为
+> 173 RunID / 519 seed（历史视图 36/519，12 个 RunID 3/3）；当前活跃范围
+> 为 **80 RunID / 240 seed**，其中已完成 **27 seed / 9 RunID**（F0-W1、
+> F0-W3、F0-W4、F0-W5、FP06-F5-W1、FP06-F5-W3、FP06-F5-W4、
+> FR03-F5-W3）。F1–F4 为
 > **DEFERRED_BY_USER**（不是失败/缺失/删除）；F1/F2/F3-W4 的历史完成标为
 > **HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE**，不追溯改标。详见
 > `configs/fsu/ACTIVE_SCOPE.json`、`docs/gem5-fi/fsu/ACTIVE_SCOPE.md`
@@ -45,7 +46,7 @@
 | F2 | **3/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；seed1（21/21）、seed2（22/22）、seed3（19/19）正式完成，全部 fault `full`、audit PASS |
 | F3 | **3/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；seed1（206/206）、seed2（202/202）、seed3（210/210）正式完成，全部 fault `full`、audit PASS |
 | F4 | 0/3 | DEFERRED_BY_USER（burst 语义不在当前活跃范围） |
-| F5 | **6 seed / 2 RunID（各 3/3）** | `FSU-FP06-F5-W3`（FP32 lane2）与 `FSU-FP06-F5-W1`（scalar FP32/FP64）各 3/3；FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa 已认证；FP06-d MISSING；FP06-F5-W4/W5/W6 均 0/3；FR03-F5-W3/W5/W6 BLOCKED |
+| F5 | **12 seed / 4 RunID（各 3/3）** | `FSU-FP06-F5-W3`（FP32 lane2）与 `FSU-FP06-F5-W1`（scalar FP32/FP64）各 3/3；FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa 已认证；FP06-d MISSING；FP06-F5-W4 3/3（W4-rate-v1，SDC）、FP06-F5-W5 3/3（五程序 F5 suite，15 component 只计 3 seed，SDC）、FR03-F5-W3 3/3（永久 Vec cell，SDC/Masked）；FP06-F5-W6 0/3；FR03-F5-W5/W6 BLOCKED |
 
 > F3 门禁（4 个独立 fault、逐 fault full 链）是机制证据，不是正式 seed；
 > 不能计为 1/3。
@@ -71,8 +72,11 @@
 | FP06-c（固定 mantissa） | **已认证**：`FSU-FP06-F5-W3` seed3，mask `0x007f8000`，16,384 exposures |
 | FP06-d（partial-product proxy） | **MISSING**：gem5 ARM FP 为功能级模型，无部分积注入点；不得用最终结果位冒充 |
 | FP06-F5-W1 | **COMPLETE_3_OF_3**：FP06-a FP32 sign SA0、FP06-b FP64 sign SA1、FP06-c FP32 fixed mantissa SA0；每 seed eligible 41,216、exposures 40,192、terminal=full、oracle=SDC、audit certified |
-| FP06-F5-W4/W5/W6 | **未正式完成**：0/3（W4 百万级 eligible 需 bounded trace；W5/W6 模型门禁未过） |
-| FR03-F5-W3/W5/W6 | **PARTIAL/BLOCKED**：Vec 写路径 stuck + 永久物理 cell 跨 generation 语义有代码/host 单测；CHAOSPhysReg FSU_PROP 部分层已构建，仍缺 L5 commit/squash/oracle、runner 显式路径与 O3 容器级 squash/free/realloc 验证；0/3 不得认证 |
+| FP06-F5-W4 | **COMPLETE_3_OF_3**：W4-rate-v1，真实 census 1,310,723，每 seed exposures 1,309,699、activated 130,814/1,132,901/1,300,553，SDC/full/audit.ok |
+| FP06-F5-W5 | **COMPLETE_3_OF_3**：suite gate 5/5 PASS；正式 suite seed1/2/3 均 5/5 component admitted、suite audit ok；15 component 只计 3 seed |
+| FP06-F5-W6 | **0/3**：artifact native golden 已成立，gem5 golden/正式 seed 未运行 |
+| FR03-F5-W3 | **COMPLETE_3_OF_3**：L5 commit/squash/first-impact、runner 显式 CHAOSPhysReg 路径与容器级生命周期测试已落地；gate `runs/fsu-gates/F5-FR03-W3-GATE-v3/` PASS（78,022 写/151,749 读、2,046 commits、1 squash）；正式 seed1/2/3 audit.ok |
+| FR03-F5-W5/W6 | **BLOCKED**：W3 机制已认证，但 W5/W6 的 suite 与 W6 artifact 正式门禁未完成；不得借用 W3 证据认证 |
 
 ## 4. workload_coverage
 
@@ -83,7 +87,7 @@
 | W2 | NO_TRUE_ARTIFACT | 未覆盖（缺 FP/NEON fan-out、双源非交换、ready 竞争） |
 | W3 | PARTIAL | 仅 32-bit lane |
 | W5 | PARTIAL | gemm/2mm/lu/cholesky/jacobi-2d（2mm 已 vendored）；`FSU-FP04-F0-W5` suite 3/3，每 suite seed 计 1；PolyBench 全集/其他规模未覆盖 |
-| W6 | PARTIAL | SVD；FFT/稀疏缺失 |
+| W6 | PARTIAL | SVD + FFT + 真实稀疏 CG 的 native golden/身份已成立；gem5 golden 与正式 seed 未运行 |
 | W7 | NO_FP_ARTIFACT | 未覆盖 |
 | W9 | REAL | libjpeg NEON，尚未绑定 FSU RunID |
 | W0/W8/W10 | UNUSED | 173 RunID 未使用 |
@@ -107,5 +111,5 @@
 | 缺口 | 状态 |
 |---|---|
 | B0 配置（ROB=40、IQ=32、3/3/3、dispatch6、8/8/8） | **B0-core 已实现并验证**（F0-W1 的 config.ini 逐项匹配）；完整 v7a_3 的 FP FUPool=2 未实现。历史 15 个 W4/W3 seed 仍为 C3-valid，不追溯改标 |
-| 30 模型逐模型行为测试 | 未齐全（FSU 测试基线 216 passed，覆盖编排/链/rate/F5/vec-stuck/矩阵，但不等于 30 模型逐模型全覆盖） |
+| 30 模型逐模型行为测试 | 未齐全（FSU 测试基线 314 passed，覆盖编排/链/rate/F5/vec-stuck/矩阵，但不等于 30 模型逐模型全覆盖） |
 | F1/F2/F3 正式三 seed | **全部完成 3/3**（F1-W4、F2-W4、F3-W4） |

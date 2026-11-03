@@ -598,7 +598,13 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         if not inject_profile_check["ok"]:
             return fail("config_profile_mismatch(inject)",
                         {"config_profile_check": inject_profile_check})
-    inj_log = _read(inject_dir / "fpu_injections.log")
+    # [FR03] CHAOSPhysReg writes `fault_injections.log` (its historical
+    # name); CHAOSFPU writes `fpu_injections.log`. Reading only the FPU name
+    # silently turned a real PhysReg injection into "0 faults".
+    inj_log_path = inject_dir / "fpu_injections.log"
+    if not inj_log_path.exists() and physreg:
+        inj_log_path = inject_dir / "fault_injections.log"
+    inj_log = _read(inj_log_path)
     faults = count_injections(inj_log)
     golden = manifest["workload"].get("golden") or \
         manifest["workload"].get("golden_id", "")

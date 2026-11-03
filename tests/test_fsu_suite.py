@@ -35,13 +35,13 @@ def complete_suite():
 
 
 SEED_PLAN = [
-    {"suite_seed": 1, "submodel": "FP06-a", "bitseg": "sign",
+    {"suite_seed": 1, "submodel": "FP06-a",
      "precision": "fp32", "lane_width": 32, "lane_offset": 0,
      "mask": "0x80000000", "polarity": 0, "warmup": 1024,
      "sample": {"limit": 1024, "keep_first_last_n": 256},
      "op_classes": [], "reg_class": "any", "decode_guard": True,
      "permanent_stuck": True},
-    {"suite_seed": 2, "submodel": "FP06-b", "bitseg": "sign",
+    {"suite_seed": 2, "submodel": "FP06-b",
      "precision": "fp32", "lane_width": 32, "lane_offset": 0,
      "mask": "0x80000000", "polarity": 1, "warmup": 1024,
      "sample": {"limit": 1024, "keep_first_last_n": 256},
@@ -490,7 +490,7 @@ def test_real_f5_suite_identity_matches_disk():
     assert [e["suite_seed"] for e in plan] == [1, 2, 3]
     assert [e["submodel"] for e in plan] == ["FP06-a", "FP06-b", "FP06-c"]
     assert [(e["mask"], e["polarity"]) for e in plan] == [
-        ("0x80000000", 0), ("0x80000000", 1), ("0x007f8000", 0)]
+        ("0x00400000", 0), ("0x20000000", 1), ("0x007f8000", 0)]
     # Real on-disk identities, not copied tokens.
     for p in suite["programs"]:
         assert S.sha256_file(ROOT / p["source"]) == p["source_sha256"]
@@ -534,7 +534,8 @@ def test_seed_plan_hash_covers_every_pre_registered_field():
         "reg_class": lambda e: e.__setitem__("reg_class", "vec"),
         "decode_guard": lambda e: e.__setitem__("decode_guard", False),
         "permanent_stuck": lambda e: e.__setitem__("permanent_stuck", False),
-        "bitseg": lambda e: e.__setitem__("bitseg", "mant_lo"),
+        "bitseg": lambda e: (e.__setitem__("permanent_stuck", False),
+                                e.__setitem__("bitseg", "mant_lo")),
         "lane_offset": lambda e: e.__setitem__("lane_offset", 1),
     }
     for name, fn in mutations.items():
@@ -612,3 +613,171 @@ def test_component_manifest_requires_matching_seed_plan_entry():
         S.seed_plan_entry(suite, 1))
     with pytest.raises(S.SuiteError, match="seed_plan_entry drift"):
         S.validate_component_manifest(bad, suite)
+
+
+# ---------- per-program injector overrides (W6 mixed precision) ----------
+
+def test_program_overrides_are_identity_and_validate():
+    suite = f5_suite()
+    h0 = S.compute_suite_hash(suite)
+    suite["program_overrides"] = {
+        "gemm": {"fpu_mode": {"precision": "fp64", "lane_width": 64,
+                              "lane_offset": 0}},
+        "2mm": {"fpu_mode": {"precision": "fp32", "lane_width": 32},
+                "fault_mask": "0x80000000"},
+    }
+    h1 = S.compute_suite_hash(suite)
+    assert h1 != h0
+    suite["suite_hash"] = h1
+    assert S.validate_suite_manifest(suite, require_suite_hash=True)["ok"]
+
+    ovs = S.normalise_program_overrides(suite)
+    assert ovs["gemm"]["fpu_mode"]["precision"] == "fp64"
+    assert ovs["2mm"]["fault_mask"] == "0x0000000080000000"
+    # Changing any override field changes the hash.
+    d = copy.deepcopy(suite)
+    d["program_overrides"]["gemm"]["fpu_mode"]["lane_offset"] = 1
+    assert S.compute_suite_hash(d) != h1
+    d = copy.deepcopy(suite)
+    d["program_overrides"]["2mm"]["fault_mask"] = "0x007f8000"
+    assert S.compute_suite_hash(d) != h1
+
+
+def test_program_overrides_reject_unknown_program_and_field():
+    suite = f5_suite()
+    suite["program_overrides"] = {"nope": {"fpu_mode": {"precision": "fp32"}}}
+    with pytest.raises(S.SuiteError, match="unknown program_id"):
+        S.validate_suite_manifest(suite)
+
+    suite = f5_suite()
+    suite["program_overrides"] = {"gemm": {"fpu_mode": {"precision": "fp32"},
+                                           "bogus": 1}}
+    with pytest.raises(S.SuiteError, match="unknown field"):
+        S.validate_suite_manifest(suite)
+
+    suite = f5_suite()
+    suite["program_overrides"] = {"gemm": {"fpu_mode": {"not_a_knob": 1}}}
+    with pytest.raises(S.SuiteError, match="unknown field"):
+        S.validate_suite_manifest(suite)
+
+    suite = f5_suite()
+    suite["program_overrides"] = {"gemm": {"fault_mask": "0x0"}}
+    with pytest.raises(S.SuiteError, match="non-zero"):
+        S.validate_suite_manifest(suite)
+
+
+def test_program_override_application_order_and_mask_precedence():
+    base = {
+        "component": "fsu", "max_faults": 1, "first_clock": 0,
+        "fpu_mode": {"bitseg": "sign", "precision": "fp32",
+                     "lane_width": 32, "lane_offset": 0},
+    }
+    override = {"fpu_mode": {"precision": "fp64", "lane_width": 64},
+                "fault_mask": "0x8000000000000000"}
+    # F0: base -> override.
+    inj = S.resolve_program_injector(base, override, None, "svd")
+    assert inj["fpu_mode"]["precision"] == "fp64"
+    assert inj["fpu_mode"]["lane_width"] == 64
+    assert inj["fault_mask"] == "0x8000000000000000"
+
+    # F5 with geometry in the seed: seed geometry is applied last. Use an
+    # override without a mask, otherwise a 64-bit mask would be rejected
+    # against the seed's fp32 lane (fail closed).
+    geo_only = {"fpu_mode": {"precision": "fp64", "lane_width": 64}}
+    seed = S.normalise_seed_plan_entry({
+        "suite_seed": 1, "submodel": "FP06-a", "precision": "fp32",
+        "lane_width": 32, "mask": "0x80000000", "polarity": 0,
+        "warmup": 1024,
+        "sample": {"limit": 1024, "keep_first_last_n": 256},
+    }, 0)
+    inj = S.resolve_program_injector(base, geo_only, seed, "svd")
+    assert inj["fpu_mode"]["precision"] == "fp32"
+    assert inj["fpu_mode"]["lane_width"] == 32
+    assert inj["fault_mask"] == "0x80000000"
+
+    # Mask precedence: program_overrides.fault_mask wins over seed.mask,
+    # and seed.program_mask has the final say.
+    override_mask = {"fpu_mode": {"precision": "fp32", "lane_width": 32},
+                     "fault_mask": "0x00400000"}
+    inj = S.resolve_program_injector(base, override_mask, seed, "svd")
+    assert inj["fault_mask"] == "0x00400000"
+    seed_pm = S.normalise_seed_plan_entry({
+        "suite_seed": 1, "submodel": "FP06-a", "mask": "0x80000000",
+        "polarity": 0, "warmup": 1024,
+        "sample": {"limit": 1024, "keep_first_last_n": 256},
+        "program_mask": {"svd": "0x00200000"},
+    }, 0, allowed_programs=("svd",))
+    inj = S.resolve_program_injector(base, override_mask, seed_pm, "svd")
+    assert inj["fault_mask"] == "0x00200000"
+
+    # Seed geometry omitted: the program override survives (W6 semantics).
+    seed_no_geo = S.normalise_seed_plan_entry({
+        "suite_seed": 1, "submodel": "FP06-a", "mask": "0x80000000",
+        "polarity": 0, "warmup": 1024,
+        "sample": {"limit": 1024, "keep_first_last_n": 256},
+        "program_mask": {"svd": "0x8000000000000000"},
+    }, 0, allowed_programs=("svd",))
+    inj = S.resolve_program_injector(base, override, seed_no_geo, "svd")
+    assert inj["fpu_mode"]["precision"] == "fp64"
+    assert inj["fpu_mode"]["lane_width"] == 64
+    assert inj["fault_mask"] == "0x8000000000000000"
+
+
+def test_seed_plan_program_mask_validation():
+    suite = f5_suite()
+    seed = S.normalise_seed_plan_entry({
+        "suite_seed": 1, "submodel": "FP06-a", "mask": "0x80000000",
+        "polarity": 0, "warmup": 1024,
+        "sample": {"limit": 1024, "keep_first_last_n": 256},
+        "program_mask": {"gemm": "0x80000000"},
+    }, 0, allowed_programs=S.PROGRAM_ORDER)
+    assert seed["program_mask"]["gemm"] == "0x0000000080000000"
+    with pytest.raises(S.SuiteError, match="unknown program_id"):
+        S.normalise_seed_plan_entry({
+            "suite_seed": 1, "submodel": "FP06-a", "mask": "0x80000000",
+            "polarity": 0, "warmup": 1024,
+            "sample": {"limit": 1024, "keep_first_last_n": 256},
+            "program_mask": {"nope": "0x80000000"},
+        }, 0, allowed_programs=S.PROGRAM_ORDER)
+
+
+def test_component_manifest_requires_matching_program_override():
+    suite = f5_suite()
+    suite["program_overrides"] = {
+        "gemm": {"fpu_mode": {"precision": "fp64", "lane_width": 64}}}
+    suite["suite_hash"] = S.compute_suite_hash(suite)
+    comp = component_for(suite, "gemm")
+    comp["program_override"] = S.program_override_identity(
+        S.normalise_program_overrides(suite)["gemm"])
+    assert S.validate_component_manifest(comp, suite)["ok"] is True
+    bad = copy.deepcopy(comp)
+    bad["program_override"]["fpu_mode"]["lane_width"] = 32
+    with pytest.raises(S.SuiteError, match="program_override drift"):
+        S.validate_component_manifest(bad, suite)
+
+
+def test_w5_f5_suite_hash_survives_program_override_support():
+    path = ROOT / "configs/fsu/suites/polybench-fp-v1-f5.json"
+    suite = json.loads(path.read_text(encoding="utf-8"))
+    assert S.compute_suite_hash(suite) == suite["suite_hash"]
+    assert S.validate_suite_manifest(
+        suite, require_hashes=True, require_suite_hash=True)["ok"]
+
+
+def test_suite_schema_accepts_program_overrides_and_geoless_seed_plan():
+    suite = f5_suite()
+    suite["program_overrides"] = {
+        "gemm": {"fpu_mode": {"precision": "fp64", "lane_width": 64,
+                              "lane_offset": 0}},
+        "2mm": {"fpu_mode": {"precision": "fp32"}, "fault_mask": "0x80000000"},
+    }
+    for entry in suite["seed_plan"]:
+        entry.pop("precision", None)
+        entry.pop("lane_width", None)
+        entry.pop("lane_offset", None)
+    jsonschema.validate(suite, SCHEMA)
+
+    bad = json.loads(json.dumps(suite))
+    bad["program_overrides"]["gemm"]["max_faults"] = 2
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, SCHEMA)

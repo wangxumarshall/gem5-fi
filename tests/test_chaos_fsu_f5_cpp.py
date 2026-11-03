@@ -195,3 +195,16 @@ def test_f5_new_event_fields_are_registered():
             "sources_unexpanded", "observation_scope",
             "cell_sources_overflow"):
         assert f'"{name}"' in hh, name
+
+
+def test_f5_single_bit_inside_named_field_reports_full_field_range():
+    # A one-bit permanent mask inside mant_hi/exp_lo/... is still labelled by
+    # that IEEE field. field_lo/hi must then describe the FIELD range (the
+    # audit validates the name against it); bit_in_lane/fault_mask keep the
+    # exact targeted bit. Reporting the single-bit range here made the seed
+    # audit reject every such seed (W5 gate v3).
+    cc = (FPU / "CHAOSFPU.cc").read_text(encoding="utf-8")
+    m = re.search(
+        r"info\.field = seg;[\s\S]{0,500}info\.field_lo = r\.lo;"
+        r"[\s\S]{0,120}info\.field_hi = r\.hi;", cc)
+    assert m, "named-field branch must report the field's full range"

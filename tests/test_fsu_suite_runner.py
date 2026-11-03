@@ -423,13 +423,13 @@ def test_suite_audit_detects_broken_component(tmp_path):
 # ---------- F5: pre-registered seed_plan drives every component ----------
 
 F5_PLAN = [
-    {"suite_seed": 1, "submodel": "FP06-a", "bitseg": "sign",
+    {"suite_seed": 1, "submodel": "FP06-a",
      "precision": "fp32", "lane_width": 32, "lane_offset": 0,
      "mask": "0x80000000", "polarity": 0, "warmup": 1024,
      "sample": {"limit": 1024, "keep_first_last_n": 256},
      "op_classes": [], "reg_class": "any", "decode_guard": True,
      "permanent_stuck": True},
-    {"suite_seed": 2, "submodel": "FP06-b", "bitseg": "sign",
+    {"suite_seed": 2, "submodel": "FP06-b",
      "precision": "fp32", "lane_width": 32, "lane_offset": 0,
      "mask": "0x80000000", "polarity": 1, "warmup": 1024,
      "sample": {"limit": 1024, "keep_first_last_n": 256},
@@ -512,11 +512,9 @@ def test_f5_seed_plan_overrides_fpu_mode_and_mask(tmp_path):
             assert fpu["f5_keep_first_last_n"] == 256
             assert fpu["op_classes"] == []
             assert fpu["reg_class"] == "any"
-            # seed 3 is the fixed-mantissa entry: the base injector has no
-            # bitseg, so the plan must not leak seed 1/2's "sign" into it.
-            assert ("bitseg" in fpu) == (seed != 3)
-            if seed != 3:
-                assert fpu["bitseg"] == "sign"
+            # permanentStuck forbids bitseg in CHAOSFPU; the fixed mask
+            # owns the target for every F5 seed.
+            assert "bitseg" not in fpu
             assert m["seed_plan_entry"] == S.seed_plan_identity(
                 S.seed_plan_entry(suite, seed))
             masks.add(m["injector"]["fault_mask"])
@@ -569,3 +567,64 @@ def test_f5_disk_binary_identity_mismatch_refused(tmp_path):
         run(tmp_path, path, gem5, fake_runner(suite, goldens, calls=calls))
     assert calls == []
     assert not (tmp_path / "runs" / RID / "seed1").exists()
+
+
+# ---------- W6 program_overrides in component manifests ----------
+
+def test_f0_program_overrides_reach_component_manifest(tmp_path):
+    path, suite, gem5, goldens = make_suite(tmp_path)
+    suite["program_overrides"] = {
+        "gemm": {"fpu_mode": {"precision": "fp64", "lane_width": 64,
+                              "lane_offset": 0},
+                 "fault_mask": "0x8000000000000000"},
+        "2mm": {"fpu_mode": {"precision": "fp32", "lane_width": 32,
+                             "lane_offset": 0}},
+    }
+    suite["suite_hash"] = S.compute_suite_hash(suite)
+    path.write_text(json.dumps(suite, ensure_ascii=False, indent=2),
+                    encoding="utf-8")
+    calls = []
+    res = run(tmp_path, path, gem5, recording_failure_runner(calls))
+    assert res["status"] == "failed"  # fake runner has no census
+    root = tmp_path / "runs" / RID / "seed1"
+    for pid, precision, lane, mask in (
+            ("gemm", "fp64", 64, "0x8000000000000000"),
+            ("2mm", "fp32", 32, None)):
+        attempt = next(root.glob(f"components/{pid}/*/seed*/attempt-1"))
+        m = json.loads((attempt / "manifest.json").read_text(
+            encoding="utf-8"))
+        assert m["injector"]["fpu_mode"]["precision"] == precision
+        assert m["injector"]["fpu_mode"]["lane_width"] == lane
+        assert m["effective_injector"] == m["injector"]
+        assert m["program_override"] == S.program_override_identity(
+            S.normalise_program_overrides(suite)[pid])
+        if mask:
+            assert m["injector"]["fault_mask"] == mask
+        else:
+            assert "fault_mask" not in m["injector"]
+    # Programs without an override keep the suite base injector.
+    att = next(root.glob("components/lu/*/seed*/attempt-1"))
+    m = json.loads((att / "manifest.json").read_text(encoding="utf-8"))
+    assert m["program_override"] is None
+    # No override: the resolver materialises the fp32/lane32 defaults.
+    assert m["injector"]["fpu_mode"]["precision"] == "fp32"
+    assert m["injector"]["fpu_mode"]["lane_width"] == 32
+
+
+def test_f5_seed_plan_geometry_wins_over_program_override(tmp_path):
+    path, suite, gem5, goldens = make_f5_suite(tmp_path)
+    suite["program_overrides"] = {
+        "gemm": {"fpu_mode": {"precision": "fp64", "lane_width": 64}}}
+    suite["suite_hash"] = S.compute_suite_hash(suite)
+    path.write_text(json.dumps(suite, ensure_ascii=False, indent=2),
+                    encoding="utf-8")
+    calls = []
+    run(tmp_path, path, gem5, recording_failure_runner(calls), seed=1)
+    root = tmp_path / "runs" / RID / "seed1"
+    attempt = next(root.glob("components/gemm/*/seed*/attempt-1"))
+    m = json.loads((attempt / "manifest.json").read_text(encoding="utf-8"))
+    # The W5 seed_plan declares fp32 and is applied last.
+    assert m["injector"]["fpu_mode"]["precision"] == "fp32"
+    assert m["injector"]["fpu_mode"]["lane_width"] == 32
+    # The override is still recorded as the applied per-program override.
+    assert m["program_override"]["fpu_mode"]["precision"] == "fp64"

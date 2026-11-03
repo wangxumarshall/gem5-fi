@@ -37,12 +37,11 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 # results without a loud suite_hash drift error.
 SEED_PLAN_COUNT = 3
 SEED_PLAN_REQUIRED = (
-    "suite_seed", "submodel", "precision", "mask", "polarity",
-    "warmup", "sample",
+    "suite_seed", "submodel", "mask", "polarity", "warmup", "sample",
 )
 SEED_PLAN_OPTIONAL = (
-    "bitseg", "lane_width", "lane_offset", "op_classes", "reg_class",
-    "decode_guard", "permanent_stuck",
+    "precision", "bitseg", "lane_width", "lane_offset", "op_classes",
+    "reg_class", "decode_guard", "permanent_stuck", "program_mask",
 )
 SEED_PLAN_ALLOWED = frozenset(SEED_PLAN_REQUIRED + SEED_PLAN_OPTIONAL)
 PRECISIONS = ("fp32", "fp64")
@@ -57,6 +56,24 @@ FPU_OP_CLASSES = (
     "SimdFloatMisc",
 )
 FPU_REG_CLASSES = ("any", "vec", "float", "vec_elem")
+
+# [FSU][W6] Per-program injector overrides. W6 mixes SVD (fp64) with FFT /
+# sparse-CG (fp32), so one suite-wide precision/lane cannot decode both.
+# Application order:
+#   suite.injector -> program_overrides[pid] -> seed_plan (F5)
+# with two deliberate precedence rules:
+#   * a mask in program_overrides is a per-program FINAL mask and wins over
+#     the seed_plan's global mask;
+#   * seed_plan.program_mask[pid] (if present) is the highest-precedence
+#     mask, so each suite seed can pin different masks per precision.
+# seed_plan fields that are omitted (e.g. precision for W6) inherit the
+# resolved per-program injector instead of being overwritten.
+PROGRAM_OVERRIDE_TOP = ("fpu_mode", "fault_mask", "max_faults", "first_clock")
+PROGRAM_OVERRIDE_FPU = (
+    "bitseg", "precision", "lane_width", "lane_offset", "decode_guard",
+    "permanent_stuck", "stuck_polarity", "f5_warmup", "f5_sample_limit",
+    "f5_keep_first_last_n", "op_classes", "reg_class",
+)
 
 
 class SuiteError(ValueError):
@@ -193,7 +210,247 @@ def _normalise_sample(entry: dict, where: str) -> dict:
     return {"limit": limit, "keep_first_last_n": keep}
 
 
-def normalise_seed_plan_entry(entry: dict, index: int) -> dict:
+def _normalise_fpu_patch(patch, where: str) -> dict:
+    """Validate one nested fpu_mode override; reject unknown/ill-typed keys."""
+    if not isinstance(patch, dict):
+        raise SuiteError(f"{where} must be an object")
+    unknown = sorted(set(patch) - set(PROGRAM_OVERRIDE_FPU))
+    if unknown:
+        raise SuiteError(f"{where} has unknown field(s): {unknown}")
+    out = {}
+    if "precision" in patch:
+        precision = str(patch["precision"]).strip()
+        if precision not in PRECISIONS:
+            raise SuiteError(f"{where}.precision must be one of "
+                             f"{list(PRECISIONS)}, got {precision!r}")
+        out["precision"] = precision
+    if "lane_width" in patch:
+        lane_width = _int(patch["lane_width"], f"{where}.lane_width",
+                          minimum=8)
+        if lane_width not in LANE_WIDTHS:
+            raise SuiteError(f"{where}.lane_width must be one of "
+                             f"{list(LANE_WIDTHS)}, got {lane_width}")
+        out["lane_width"] = lane_width
+    if "precision" in out and "lane_width" in out:
+        if out["precision"] == "fp64" and out["lane_width"] != 64:
+            raise SuiteError(f"{where}: fp64 requires lane_width 64")
+        if out["precision"] == "fp32" and out["lane_width"] < 32:
+            raise SuiteError(f"{where}: fp32 requires lane_width >= 32")
+    if "lane_offset" in patch:
+        lane_offset = _int(patch["lane_offset"], f"{where}.lane_offset",
+                           minimum=0)
+        width = out.get("lane_width", 8)
+        if lane_offset >= 128 // width:
+            raise SuiteError(f"{where}.lane_offset {lane_offset} >= "
+                             f"{128 // width} for lane_width {width}")
+        out["lane_offset"] = lane_offset
+    if "bitseg" in patch:
+        bitseg = str(patch["bitseg"]).strip()
+        if bitseg not in BITSEGS:
+            raise SuiteError(f"{where}.bitseg must be one of "
+                             f"{list(BITSEGS)}, got {bitseg!r}")
+        out["bitseg"] = bitseg
+    for key in ("decode_guard", "permanent_stuck"):
+        if key in patch:
+            if not isinstance(patch[key], bool):
+                raise SuiteError(f"{where}.{key} must be a boolean")
+            out[key] = patch[key]
+    if "stuck_polarity" in patch:
+        polarity = _int(patch["stuck_polarity"],
+                        f"{where}.stuck_polarity", minimum=0)
+        if polarity not in (0, 1):
+            raise SuiteError(f"{where}.stuck_polarity must be 0 or 1")
+        out["stuck_polarity"] = polarity
+    for key in ("f5_warmup", "f5_sample_limit", "f5_keep_first_last_n"):
+        if key in patch:
+            out[key] = _int(patch[key], f"{where}.{key}", minimum=0)
+    if "op_classes" in patch:
+        raw = patch["op_classes"]
+        if not isinstance(raw, (list, tuple)):
+            raise SuiteError(f"{where}.op_classes must be an array")
+        ops = [str(x) for x in raw]
+        bad = [x for x in ops if x not in FPU_OP_CLASSES]
+        if bad:
+            raise SuiteError(f"{where}.op_classes has unknown name(s): {bad}")
+        if len(set(ops)) != len(ops):
+            raise SuiteError(f"{where}.op_classes contains duplicates")
+        out["op_classes"] = ops
+    if "reg_class" in patch:
+        reg = str(patch["reg_class"]).strip()
+        if reg not in FPU_REG_CLASSES:
+            raise SuiteError(f"{where}.reg_class must be one of "
+                             f"{list(FPU_REG_CLASSES)}, got {reg!r}")
+        out["reg_class"] = reg
+    return out
+
+
+def normalise_program_overrides(suite: dict):
+    """Return canonical per-program overrides, or None when absent.
+
+    Keys are the suite's real program ids; an unknown program or an unknown
+    field is a loud error. The canonical form is part of suite_hash and is
+    recorded in each component manifest as `program_override`.
+    """
+    if "program_overrides" not in suite:
+        return None
+    raw = suite.get("program_overrides")
+    if not isinstance(raw, dict):
+        raise SuiteError("suite.program_overrides must be an object keyed by "
+                         "program_id")
+    if not raw:
+        raise SuiteError("suite.program_overrides must not be empty")
+    by_id = _program_map(suite)
+    out = {}
+    for pid, override in raw.items():
+        pid = str(pid)
+        if pid not in by_id:
+            raise SuiteError(f"program_overrides has unknown program_id "
+                             f"{pid!r}; suite programs are {sorted(by_id)}")
+        where = f"program_overrides[{pid}]"
+        if not isinstance(override, dict) or not override:
+            raise SuiteError(f"{where} must be a non-empty object")
+        unknown = sorted(set(override) - set(PROGRAM_OVERRIDE_TOP))
+        if unknown:
+            raise SuiteError(f"{where} has unknown field(s): {unknown}")
+        canon = {}
+        if "fpu_mode" in override:
+            canon["fpu_mode"] = _normalise_fpu_patch(
+                override["fpu_mode"], f"{where}.fpu_mode")
+        if "fault_mask" in override:
+            mask = _mask_value(override["fault_mask"], 64,
+                               f"{where}.fault_mask")
+            canon["fault_mask"] = _mask_text(mask, 64)
+        if "max_faults" in override:
+            value = _int(override["max_faults"], f"{where}.max_faults",
+                         minimum=0)
+            if value != 1:
+                raise SuiteError(f"{where}.max_faults must be 1 (one "
+                                 f"component fault), got {value}")
+            canon["max_faults"] = value
+        if "first_clock" in override:
+            canon["first_clock"] = _int(override["first_clock"],
+                                        f"{where}.first_clock", minimum=0)
+        out[pid] = canon
+    return out
+
+
+def program_override_identity(override) -> dict:
+    """Identity projection for one canonical per-program override."""
+    if override is None:
+        return {}
+    return json.loads(json.dumps(override, sort_keys=True))
+
+
+def effective_geometry(base_injector: dict, override: dict | None):
+    """Resolve (fpu_mode, precision, lane_width, lane_offset) before seed_plan."""
+    fpu = dict((base_injector or {}).get("fpu_mode") or {})
+    if override:
+        fpu.update(override.get("fpu_mode") or {})
+    return _finalise_geometry(fpu)
+
+
+def _finalise_geometry(fpu: dict):
+    precision = str(fpu.get("precision", "fp32"))
+    if precision not in PRECISIONS:
+        raise SuiteError(f"fpu_mode.precision must be one of "
+                         f"{list(PRECISIONS)}, got {precision!r}")
+    lane_width = _int(fpu.get("lane_width",
+                              64 if precision == "fp64" else 32),
+                      "fpu_mode.lane_width", minimum=8)
+    if lane_width not in LANE_WIDTHS:
+        raise SuiteError(f"fpu_mode.lane_width must be one of "
+                         f"{list(LANE_WIDTHS)}, got {lane_width}")
+    if precision == "fp64" and lane_width != 64:
+        raise SuiteError("fpu_mode: fp64 requires lane_width 64")
+    if precision == "fp32" and lane_width < 32:
+        raise SuiteError("fpu_mode: fp32 requires lane_width >= 32")
+    lane_offset = _int(fpu.get("lane_offset", 0), "fpu_mode.lane_offset",
+                       minimum=0)
+    if lane_offset >= 128 // lane_width:
+        raise SuiteError(f"fpu_mode.lane_offset {lane_offset} >= "
+                         f"{128 // lane_width} for lane_width {lane_width}")
+    fpu["precision"] = precision
+    fpu["lane_width"] = lane_width
+    fpu["lane_offset"] = lane_offset
+    return fpu, precision, lane_width, lane_offset
+
+
+def resolve_program_injector(base_injector: dict, override: dict | None,
+                             seed_entry: dict | None, program_id: str):
+    """Resolve ONE component's injector: base -> override -> seed_plan.
+
+    Mask precedence (most specific wins):
+      suite base < seed_plan.mask < program_overrides[pid].fault_mask
+      < seed_plan.program_mask[pid]
+    The seed_plan's geometry fields only override fields it actually
+    declares; omitted fields (e.g. precision for W6) keep the per-program
+    override, which is what lets SVD be fp64 while FFT/sparse-CG stay fp32.
+    """
+    injector = json.loads(json.dumps(base_injector or {}))
+    override = override or {}
+    if "max_faults" in override:
+        injector["max_faults"] = override["max_faults"]
+    if "first_clock" in override:
+        injector["first_clock"] = override["first_clock"]
+    fpu = dict(injector.get("fpu_mode") or {})
+    if override.get("fpu_mode"):
+        fpu.update(override["fpu_mode"])
+
+    if seed_entry is not None:
+        for key in ("precision", "lane_width", "lane_offset", "bitseg",
+                    "op_classes", "reg_class", "decode_guard",
+                    "permanent_stuck"):
+            if key in seed_entry:
+                fpu[key] = seed_entry[key]
+        if "bitseg" in seed_entry:
+            fpu["bitseg"] = seed_entry["bitseg"]
+        elif seed_entry.get("permanent_stuck", True):
+            # Permanent stuck uses the explicit fault_mask; CHAOSFPU
+            # forbids a simultaneous bitseg (base or override).
+            fpu.pop("bitseg", None)
+        fpu["stuck_polarity"] = seed_entry["polarity"]
+        fpu["f5_warmup"] = seed_entry["warmup"]
+        fpu["f5_sample_limit"] = seed_entry["sample"]["limit"]
+        fpu["f5_keep_first_last_n"] = seed_entry["sample"]["keep_first_last_n"]
+
+    fpu, precision, lane_width, lane_offset = _finalise_geometry(fpu)
+
+    base_raw = injector.get(
+        "fault_mask", (injector.get("fpu_mode") or {}).get("fault_mask"))
+    mask = None
+    if base_raw not in (None, ""):
+        value = int(str(base_raw), 0)
+        mask = value if value else None
+    if seed_entry is not None:
+        mask = _mask_value(seed_entry["mask"], 64, "seed_plan.mask")
+    if override.get("fault_mask") is not None:
+        mask = _mask_value(override["fault_mask"], 64,
+                           "program_overrides.fault_mask")
+    if seed_entry is not None and program_id in \
+            (seed_entry.get("program_mask") or {}):
+        mask = _mask_value(seed_entry["program_mask"][program_id], 64,
+                           f"seed_plan.program_mask[{program_id}]")
+    if mask is None:
+        # Legacy F0 suites may omit fault_mask entirely (the injector picks
+        # its own target); only an F5 seed is required to pin one.
+        if seed_entry is not None:
+            raise SuiteError(
+                f"{program_id}: resolved fault_mask is missing/zero")
+    else:
+        if mask == 0:
+            raise SuiteError(
+                f"{program_id}: resolved fault_mask is missing/zero")
+        if lane_width < 64 and (mask >> lane_width):
+            raise SuiteError(
+                f"{program_id}: fault_mask 0x{mask:x} does not fit effective "
+                f"lane_width {lane_width} (precision {precision})")
+        injector["fault_mask"] = _mask_text(mask, lane_width)
+    injector["fpu_mode"] = fpu
+    return injector
+
+
+def normalise_seed_plan_entry(entry: dict, index: int,
+                              allowed_programs=None) -> dict:
     """Validate one seed_plan entry and return its canonical identity form.
 
     Canonical form is what suite_hash binds; it is also what the runner
@@ -216,29 +473,39 @@ def normalise_seed_plan_entry(entry: dict, index: int) -> dict:
     submodel = str(entry["submodel"] or "").strip()
     if not submodel:
         raise SuiteError(f"{where}.submodel is required")
-    precision = str(entry["precision"] or "").strip()
-    if precision not in PRECISIONS:
-        raise SuiteError(f"{where}.precision must be one of {list(PRECISIONS)}, "
-                         f"got {precision!r}")
-    lane_width = _int(entry.get("lane_width",
-                                64 if precision == "fp64" else 32),
-                      f"{where}.lane_width", minimum=8)
-    if lane_width not in LANE_WIDTHS:
-        raise SuiteError(f"{where}.lane_width must be one of "
-                         f"{list(LANE_WIDTHS)}, got {lane_width}")
-    if precision == "fp64" and lane_width != 64:
-        raise SuiteError(f"{where}: fp64 requires lane_width 64")
-    if precision == "fp32" and lane_width < 32:
-        raise SuiteError(f"{where}: fp32 requires lane_width >= 32")
-    lane_offset = _int(entry.get("lane_offset", 0),
-                       f"{where}.lane_offset", minimum=0)
-    if lane_offset >= 128 // lane_width:
-        raise SuiteError(f"{where}.lane_offset {lane_offset} >= "
-                         f"{128 // lane_width} for lane_width {lane_width}")
+    # Geometry fields are OPTIONAL: when omitted (W6 F5) the component
+    # keeps the per-program override; when present (W5 F5) they are part of
+    # the seed and override the program default, as documented.
+    precision = entry.get("precision")
+    if precision is not None:
+        precision = str(precision).strip()
+        if precision not in PRECISIONS:
+            raise SuiteError(f"{where}.precision must be one of "
+                             f"{list(PRECISIONS)}, got {precision!r}")
+    lane_width = entry.get("lane_width")
+    if lane_width is None:
+        if precision is not None:
+            lane_width = 64 if precision == "fp64" else 32
+    else:
+        lane_width = _int(lane_width, f"{where}.lane_width", minimum=8)
+        if lane_width not in LANE_WIDTHS:
+            raise SuiteError(f"{where}.lane_width must be one of "
+                             f"{list(LANE_WIDTHS)}, got {lane_width}")
+    if precision is not None and lane_width is not None:
+        if precision == "fp64" and lane_width != 64:
+            raise SuiteError(f"{where}: fp64 requires lane_width 64")
+        if precision == "fp32" and lane_width < 32:
+            raise SuiteError(f"{where}: fp32 requires lane_width >= 32")
+    lane_offset = entry.get("lane_offset")
+    if lane_offset is not None:
+        lane_offset = _int(lane_offset, f"{where}.lane_offset", minimum=0)
+        if lane_width is not None and lane_offset >= 128 // lane_width:
+            raise SuiteError(f"{where}.lane_offset {lane_offset} >= "
+                             f"{128 // lane_width} for lane_width {lane_width}")
     polarity = _int(entry["polarity"], f"{where}.polarity", minimum=0)
     if polarity not in (0, 1):
         raise SuiteError(f"{where}.polarity must be 0 or 1, got {polarity}")
-    mask = _mask_value(entry["mask"], lane_width, f"{where}.mask")
+    mask = _mask_value(entry["mask"], lane_width or 64, f"{where}.mask")
     warmup = _int(entry["warmup"], f"{where}.warmup", minimum=0)
     sample = _normalise_sample(entry, where)
 
@@ -248,6 +515,12 @@ def normalise_seed_plan_entry(entry: dict, index: int) -> dict:
         if bitseg not in BITSEGS:
             raise SuiteError(f"{where}.bitseg must be one of "
                              f"{list(BITSEGS)}, got {bitseg!r}")
+        if bool(entry.get("permanent_stuck", True)):
+            # CHAOSFPU panics on permanentStuck + bitseg: the fixed mask is
+            # authoritative. Reject it here instead of at gem5 startup.
+            raise SuiteError(
+                f"{where}: bitseg is not allowed with permanent_stuck "
+                "(the explicit fault_mask is authoritative)")
 
     raw_ops = entry.get("op_classes")
     if raw_ops is None:
@@ -267,13 +540,26 @@ def normalise_seed_plan_entry(entry: dict, index: int) -> dict:
         raise SuiteError(f"{where}.reg_class must be one of "
                          f"{list(FPU_REG_CLASSES)}, got {reg_class!r}")
 
+    program_mask = entry.get("program_mask")
+    masks = {}
+    if program_mask is not None:
+        if not isinstance(program_mask, dict) or not program_mask:
+            raise SuiteError(f"{where}.program_mask must be a non-empty "
+                             "object keyed by program_id")
+        if allowed_programs is not None:
+            unknown_pids = sorted(set(program_mask) - set(allowed_programs))
+            if unknown_pids:
+                raise SuiteError(f"{where}.program_mask unknown program_id(s): "
+                                 f"{unknown_pids}")
+        for pid, value in program_mask.items():
+            parsed = _mask_value(value, 64,
+                                 f"{where}.program_mask[{pid}]")
+            masks[str(pid)] = _mask_text(parsed, 64)
+
     out = {
         "suite_seed": suite_seed,
         "submodel": submodel,
-        "precision": precision,
-        "lane_width": lane_width,
-        "lane_offset": lane_offset,
-        "mask": _mask_text(mask, lane_width),
+        "mask": _mask_text(mask, lane_width or 64),
         "mask_value": mask,
         "polarity": polarity,
         "warmup": warmup,
@@ -283,8 +569,16 @@ def normalise_seed_plan_entry(entry: dict, index: int) -> dict:
         "decode_guard": bool(entry.get("decode_guard", True)),
         "permanent_stuck": bool(entry.get("permanent_stuck", True)),
     }
+    if precision is not None:
+        out["precision"] = precision
+    if lane_width is not None:
+        out["lane_width"] = lane_width
+    if lane_offset is not None:
+        out["lane_offset"] = lane_offset
     if bitseg is not None:
         out["bitseg"] = bitseg
+    if masks:
+        out["program_mask"] = masks
     return out
 
 
@@ -298,7 +592,9 @@ def normalise_seed_plan(suite: dict):
     if len(plan) != SEED_PLAN_COUNT:
         raise SuiteError(f"suite.seed_plan must contain exactly "
                          f"{SEED_PLAN_COUNT} entries, got {len(plan)}")
-    entries = [normalise_seed_plan_entry(e, i) for i, e in enumerate(plan)]
+    allowed_programs = tuple(_program_map(suite))
+    entries = [normalise_seed_plan_entry(e, i, allowed_programs)
+               for i, e in enumerate(plan)]
     seeds = [e["suite_seed"] for e in entries]
     if set(seeds) != set(range(1, SEED_PLAN_COUNT + 1)):
         raise SuiteError(f"seed_plan suite_seed values must be exactly "
@@ -334,11 +630,12 @@ def seed_plan_entry(suite: dict, suite_seed: int):
 def seed_plan_identity(entry: dict) -> dict:
     """Identity-only projection of a canonical seed_plan entry."""
     out = {k: entry[k] for k in (
-        "suite_seed", "submodel", "precision", "lane_width", "lane_offset",
-        "mask", "polarity", "warmup", "sample", "op_classes", "reg_class",
-        "decode_guard", "permanent_stuck")}
-    if "bitseg" in entry:
-        out["bitseg"] = entry["bitseg"]
+        "suite_seed", "submodel", "mask", "polarity", "warmup", "sample",
+        "op_classes", "reg_class", "decode_guard", "permanent_stuck")}
+    for key in ("precision", "lane_width", "lane_offset", "bitseg",
+                "program_mask"):
+        if key in entry:
+            out[key] = entry[key]
     return out
 
 
@@ -446,6 +743,12 @@ def suite_identity_document(suite: dict, allow_pending: bool = True) -> dict:
             "max_faults": int(injector.get("max_faults", 0) or 0),
             "first_clock": int(injector.get("first_clock", 0) or 0),
         }
+    # [FSU][W6] Per-program precision/lane/mask overrides are identity and
+    # are covered by suite_hash. Legacy suites without program_overrides
+    # keep their historical hash byte-for-byte.
+    overrides = normalise_program_overrides(suite)
+    if overrides is not None:
+        doc["program_overrides"] = overrides
     return doc
 
 
@@ -618,6 +921,17 @@ def validate_component_manifest(component: dict, suite: dict | None = None) -> d
         if got_entry != seed_plan_identity(want_entry):
             raise SuiteError(f"{pid}.seed_plan_entry drift for suite_seed "
                              f"{suite_seed}")
+    if suite is not None:
+        overrides = normalise_program_overrides(suite)
+        if overrides is not None:
+            want_override = overrides.get(pid)
+            got_override = component.get("program_override")
+            if want_override is None:
+                if got_override not in (None, {}):
+                    raise SuiteError(f"{pid}.program_override drift: suite "
+                                     "has no override for this program")
+            elif got_override != program_override_identity(want_override):
+                raise SuiteError(f"{pid}.program_override drift")
     try:
         attempt = int(component.get("component_attempt"))
     except (TypeError, ValueError):

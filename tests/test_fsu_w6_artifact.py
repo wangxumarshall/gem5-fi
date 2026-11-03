@@ -214,3 +214,120 @@ def test_fft_component_is_fixed_input_radix2():
     assert "#include <time.h>" not in src
     assert "FINAL=" in src
     assert fft["element_oracle"]["meta"]["count"] == 1024
+
+
+# ---------- W6 per-program precision / program_overrides ----------
+
+F5_W6 = ROOT / "configs/fsu/suites/w6-fp-v1-f5.json"
+EXPECTED_GEOMETRY = {
+    "svd": ("fp64", 64, 0),
+    "fft": ("fp32", 32, 0),
+    "sparse-cg": ("fp32", 32, 0),
+}
+
+
+def test_w6_f0_program_overrides_are_identity():
+    suite = real_suite()
+    ovs = WS._normalise_program_overrides(suite)
+    for pid, (precision, lane, offset) in EXPECTED_GEOMETRY.items():
+        fpu = ovs[pid]["fpu_mode"]
+        assert fpu["precision"] == precision
+        assert fpu["lane_width"] == lane
+        assert fpu["lane_offset"] == offset
+        inj = WS.resolved_injector(suite, pid)
+        assert inj["fpu_mode"]["precision"] == precision
+        assert inj["fpu_mode"]["lane_width"] == lane
+    # The base injector is unchanged: bitseg=sign.
+    assert suite["injector"]["fpu_mode"]["bitseg"] == "sign"
+
+
+def test_w6_f5_config_identity_and_per_program_masks():
+    suite = json.loads(F5_W6.read_text(encoding="utf-8"))
+    info = WS.validate_suite_manifest(suite, require_hashes=True,
+                                      require_suite_hash=True)
+    assert info["ok"] is True
+    assert suite["run_defaults"]["freq"] == "F5"
+    assert suite["run_defaults"]["model_id"] == "FP06"
+    assert suite["run_defaults"]["load_id"] == "W6"
+    assert suite["run_defaults"]["limits"]["timeout_s"] == 3600
+    plan = WS._normalise_seed_plan(suite)
+    assert [e["suite_seed"] for e in plan] == [1, 2, 3]
+    assert [e["submodel"] for e in plan] == ["FP06-a", "FP06-b", "FP06-c"]
+    # Golden/binary/source identity is the same real artifact as F0.
+    f0 = real_suite()
+    f0_by = {p["program_id"]: p for p in f0["programs"]}
+    for p in suite["programs"]:
+        q = f0_by[p["program_id"]]
+        assert p["source_sha256"] == q["source_sha256"]
+        assert p["binary_sha256"] == q["binary_sha256"]
+        assert p["golden_array_sha256"] == q["golden_array_sha256"]
+        assert p["golden"] == q["golden"]
+
+    expected = {
+        1: {"svd": ("0x8000000000000000", 0),
+            "fft": ("0x80000000", 0), "sparse-cg": ("0x80000000", 0)},
+        2: {"svd": ("0x8000000000000000", 1),
+            "fft": ("0x80000000", 1), "sparse-cg": ("0x80000000", 1)},
+        3: {"svd": ("0x0007f80000000000", 0),
+            "fft": ("0x007f8000", 0), "sparse-cg": ("0x007f8000", 0)},
+    }
+    for entry in plan:
+        for pid in WS.W6_PROGRAM_ORDER:
+            inj = WS.resolved_injector(suite, pid, entry)
+            mask, polarity = expected[entry["suite_seed"]][pid]
+            assert inj["fault_mask"] == mask, (entry["suite_seed"], pid)
+            assert inj["fpu_mode"]["stuck_polarity"] == polarity
+            precision, lane, _ = EXPECTED_GEOMETRY[pid]
+            assert inj["fpu_mode"]["precision"] == precision
+            assert inj["fpu_mode"]["lane_width"] == lane
+            assert inj["fpu_mode"]["permanent_stuck"] is True
+            # CHAOSFPU forbids permanentStuck + bitseg; the fixed mask owns
+            # the target, so the F0 base bitseg=sign must be dropped.
+            assert "bitseg" not in inj["fpu_mode"]
+            assert inj["fpu_mode"]["f5_warmup"] == 1024
+            assert inj["fpu_mode"]["f5_sample_limit"] == 1024
+            assert inj["fpu_mode"]["f5_keep_first_last_n"] == 256
+    # A 64-bit SVD mask would be invalid under fp32; the per-program mask
+    # is what keeps this configuration decodable.
+    assert int(expected[2]["svd"][0], 0) >> 32 != 0
+    assert int(expected[2]["fft"][0], 0) >> 32 == 0
+
+
+def test_w6_program_overrides_hash_and_rejection():
+    suite = real_suite()
+    h0 = WS.compute_suite_hash(suite)
+    d = json.loads(json.dumps(suite))
+    d["program_overrides"]["svd"]["fpu_mode"]["lane_offset"] = 1
+    assert WS.compute_suite_hash(d) != h0
+    d = json.loads(json.dumps(suite))
+    d["program_overrides"]["nope"] = {"fpu_mode": {"precision": "fp32"}}
+    with pytest.raises(WS.W6SuiteError, match="unknown program_id"):
+        WS.validate_suite_manifest(d)
+    d = json.loads(json.dumps(suite))
+    d["program_overrides"]["svd"]["fpu_mode"]["bogus"] = 1
+    with pytest.raises(WS.W6SuiteError, match="unknown field"):
+        WS.validate_suite_manifest(d)
+
+
+def test_w6_f5_requires_seed_plan_and_fitting_masks():
+    suite = json.loads(F5_W6.read_text(encoding="utf-8"))
+    d = json.loads(json.dumps(suite))
+    del d["seed_plan"]
+    with pytest.raises(WS.W6SuiteError, match="seed_plan"):
+        WS.validate_suite_manifest(d)
+    # Remove SVD's 64-bit program_mask: the fp32 global mask then targets a
+    # 64-bit lane and is still valid; force an explicitly too-wide fp32 mask
+    # to prove the fail-closed check.
+    d = json.loads(json.dumps(suite))
+    d["seed_plan"][0]["mask"] = "0x8000000000000000"
+    d["seed_plan"][0]["program_mask"] = {"svd": "0x8000000000000000"}
+    with pytest.raises(WS.W6SuiteError, match="does not fit"):
+        WS.validate_suite_manifest(d)
+
+
+def test_w6_f5_unknown_program_mask_rejected():
+    suite = json.loads(F5_W6.read_text(encoding="utf-8"))
+    d = json.loads(json.dumps(suite))
+    d["seed_plan"][0]["program_mask"] = {"nope": "0x80000000"}
+    with pytest.raises(WS.W6SuiteError, match="unknown program_id"):
+        WS.validate_suite_manifest(d)

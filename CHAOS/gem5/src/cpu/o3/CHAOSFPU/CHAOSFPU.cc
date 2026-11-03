@@ -825,6 +825,13 @@ namespace gem5
                         fm |= ((uint64_t)1 << b);
                     if ((mi.lane_mask & ~fm) == 0) {
                         info.field = seg;
+                        // The SINGLE-bit mask lies inside this named IEEE
+                        // field. field_lo/hi describe the FIELD's full
+                        // range (the audit validates the name against this
+                        // range); bit_in_lane + fault_mask still describe
+                        // the exact targeted bit.
+                        info.field_lo = r.lo;
+                        info.field_hi = r.hi;
                         break;
                     }
                 }

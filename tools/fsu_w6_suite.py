@@ -30,6 +30,7 @@ import json
 import re
 from pathlib import Path
 
+import fsu_suite as S  # generic program_overrides / seed_plan helpers
 import fsu_w6_oracle as WO
 
 W6_PROGRAM_ORDER = ("svd", "fft", "sparse-cg")
@@ -106,6 +107,20 @@ def _validate_order_and_count(suite: dict):
         raise W6SuiteError(f"program_count must be {W6_PROGRAM_COUNT}")
 
 
+def _normalise_program_overrides(suite: dict):
+    try:
+        return S.normalise_program_overrides(suite)
+    except S.SuiteError as e:
+        raise W6SuiteError(str(e)) from e
+
+
+def _normalise_seed_plan(suite: dict):
+    try:
+        return S.normalise_seed_plan(suite)
+    except S.SuiteError as e:
+        raise W6SuiteError(str(e)) from e
+
+
 def suite_identity_document(suite: dict, allow_pending: bool = True) -> dict:
     if not isinstance(suite, dict):
         raise W6SuiteError("suite manifest must be an object")
@@ -175,7 +190,7 @@ def suite_identity_document(suite: dict, allow_pending: bool = True) -> dict:
     oracle = suite.get("oracle") or {}
     if not str(oracle.get("version") or "").strip():
         raise W6SuiteError("suite.oracle.version is required")
-    return {
+    doc = {
         "suite_id": suite_id,
         "suite_version": suite_version,
         "program_order": list(W6_PROGRAM_ORDER),
@@ -184,14 +199,76 @@ def suite_identity_document(suite: dict, allow_pending: bool = True) -> dict:
         "compiler": {"version": version, "cflags": cflags},
         "oracle": {"version": str(oracle["version"])},
     }
+    # [FSU][W6] Per-program precision/lane/mask overrides are identity
+    # (SVD fp64 vs FFT/sparse-CG fp32) and are covered by suite_hash.
+    overrides = _normalise_program_overrides(suite)
+    if overrides is not None:
+        doc["program_overrides"] = overrides
+    # An F5 W6 suite additionally freezes three suite seeds and per-program
+    # masks. A suite without a seed_plan keeps the legacy identity shape.
+    plan = _normalise_seed_plan(suite)
+    if plan is not None:
+        doc["seed_plan"] = [S.seed_plan_identity(e) for e in plan]
+        defaults = suite.get("run_defaults") or {}
+        doc["run_defaults_identity"] = {
+            k: str(defaults.get(k, "")) for k in (
+                "model_id", "unit", "freq", "load_id", "submodel",
+                "config_family", "config_profile")
+        }
+        injector = suite.get("injector") or {}
+        doc["injector_identity"] = {
+            "component": str(injector.get("component", "")),
+            "max_faults": int(injector.get("max_faults", 0) or 0),
+            "first_clock": int(injector.get("first_clock", 0) or 0),
+        }
+    return doc
 
 
 def compute_suite_hash(suite: dict) -> str:
     return sha256_bytes(canonical_bytes(suite_identity_document(suite)))
 
 
+def validate_seed_plan_masks(suite: dict):
+    """Every suite seed must yield a mask that fits each program's lane.
+
+    The effective lane width per program comes from suite.injector +
+    program_overrides (seed_plan geometry is intentionally omitted for W6).
+    A seed's `program_mask[pid]` is authoritative for that program;
+    otherwise the seed's global mask is used.
+    """
+    plan = _normalise_seed_plan(suite)
+    if plan is None:
+        return
+    overrides = _normalise_program_overrides(suite) or {}
+    base = suite.get("injector") or {}
+    for entry in plan:
+        for pid in W6_PROGRAM_ORDER:
+            try:
+                _, precision, lane_width, _ = S.effective_geometry(
+                    base, overrides.get(pid))
+            except S.SuiteError as e:
+                raise W6SuiteError(f"{pid}: invalid effective geometry: {e}") \
+                    from e
+            text = (entry.get("program_mask") or {}).get(pid, entry["mask"])
+            mask = int(str(text), 0)
+            if mask == 0:
+                raise W6SuiteError(
+                    f"seed{entry['suite_seed']} {pid}: zero mask")
+            if mask >> lane_width:
+                raise W6SuiteError(
+                    f"seed{entry['suite_seed']} {pid}: mask 0x{mask:x} does "
+                    f"not fit effective lane_width {lane_width} "
+                    f"(precision {precision})")
+
+
 def validate_suite_manifest(suite: dict, require_hashes: bool = False,
                             require_suite_hash: bool = False) -> dict:
+    defaults = suite.get("run_defaults") or {}
+    if str(defaults.get("freq", "") or "").strip() == "F5" \
+            and "seed_plan" not in suite:
+        raise W6SuiteError(
+            "an F5 W6 suite must pre-register a seed_plan (3 suite seeds)")
+    validate_seed_plan_masks(suite)
     doc = suite_identity_document(suite, allow_pending=not require_hashes)
     if require_hashes:
         for p in doc["programs"]:
@@ -244,3 +321,48 @@ def load_suite(path: Path, root: Path = Path("."),
                                f"{p['golden_array_sha256']}")
     return {"suite": suite, "suite_hash": info["suite_hash"],
             "identity": info["identity"]}
+
+
+# ---------------------------------------------------------------------------
+# Component seed + injector resolution (W6 program ids differ from W5)
+# ---------------------------------------------------------------------------
+DEFAULT_COMPONENT_SEED_POLICY = "w5-component-seed-v1"
+
+
+def derive_component_seed(suite_seed: int, program_id: str,
+                          policy_version: str = DEFAULT_COMPONENT_SEED_POLICY,
+                          suite_id: str = DEFAULT_SUITE_ID,
+                          suite_version: str = DEFAULT_SUITE_VERSION) -> int:
+    if program_id not in W6_PROGRAM_ORDER:
+        raise W6SuiteError(f"unknown W6 program_id {program_id!r}")
+    seed_int = int(suite_seed)
+    if seed_int < 0:
+        raise W6SuiteError("suite_seed must be >= 0")
+    material = "|".join([str(suite_id), str(suite_version), str(seed_int),
+                         str(program_id), str(policy_version)]).encode("utf-8")
+    digest = hashlib.sha256(material).digest()
+    value = int.from_bytes(digest[:8], "big")
+    return value if value else 1
+
+
+def derive_component_seeds(suite_seed: int,
+                           policy_version: str = DEFAULT_COMPONENT_SEED_POLICY,
+                           suite_id: str = DEFAULT_SUITE_ID,
+                           suite_version: str = DEFAULT_SUITE_VERSION):
+    seeds = {pid: derive_component_seed(suite_seed, pid, policy_version,
+                                        suite_id, suite_version)
+             for pid in W6_PROGRAM_ORDER}
+    if len(set(seeds.values())) != W6_PROGRAM_COUNT:
+        raise W6SuiteError(f"component seed collision: {seeds}")
+    return seeds
+
+
+def resolved_injector(suite: dict, program_id: str, seed_entry=None) -> dict:
+    """Resolve one component's injector using the shared W5/W6 rules."""
+    overrides = _normalise_program_overrides(suite) or {}
+    try:
+        return S.resolve_program_injector(
+            suite.get("injector") or {}, overrides.get(program_id),
+            seed_entry, program_id)
+    except S.SuiteError as e:
+        raise W6SuiteError(str(e)) from e

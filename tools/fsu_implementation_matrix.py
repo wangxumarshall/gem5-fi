@@ -164,10 +164,10 @@ MODEL_AUDIT = {
                     "generation 只标识分配世代/暴露链；host 纯模型单测 "
                     "（tests/unit/chaos_vec_stuck_test.cc、"
                     "tests/unit/chaos_physreg_generation_test.cc）",
-        missing="真实 CHAOSPhysReg FSU_PROP 仅部分层已接入；L5 commit/squash/"
-                "oracle/first-impact 未实现；runner 显式 CHAOSPhysReg 路径；"
-                "O3 容器级 squash/rename/free/realloc 验证；FR03-F5 0/3 正式 "
-                "seed。代码存在不等于认证，FR03-F5 保持 PARTIAL/BLOCKED"),
+        missing="FR03-F5-W3 已完成 3/3（L5 commit/squash/first-impact、"
+                "runner 显式 CHAOSPhysReg 路径、O3 生命周期 gate）；"
+                "FSU_PROP L0-L5 已接入；FR03-F5-W5/W6 仍 BLOCKED"
+                "（不得借用 W3 证据）；模型整体仍为 PARTIAL"),
     "FR04": dict(status="MISSING", injector="无", hooks="dyn_inst.hh:1213-1229 直接读 renamedSrcIdx",
                  implemented="—", missing="Vec 读地址/tag 替代到另一 active-ready Vec 物理寄存器；PROP 事件"),
     "FR05": dict(status="MISSING", injector="无", hooks="regfile.hh:238-323 只读计数",
@@ -493,6 +493,9 @@ def probe_capability_evidence(seed_map=None) -> dict:
                 and all(s.get("state") == "admitted"
                         for s in r.get("seeds", {}).values()))
 
+    fr03_ok = certified("FSU-FR03-F5-W3")
+    fr03_cert = ("FSU-FR03-F5-W3 正式 seed 3/3（audit.ok/certified）"
+                 if fr03_ok else no_cert)
     w3_ok = certified("FSU-FP06-F5-W3")
     w1_ok = certified("FSU-FP06-F5-W1")
     fp06_ok = w3_ok and w1_ok
@@ -589,35 +592,37 @@ def probe_capability_evidence(seed_map=None) -> dict:
                 [f"{regfile}: setStuckTarget/reapplyVecStuck",
                  f"{phys_cc}: maybeReapplyStuck",
                  vec_unit, vec_pytest],
-                certified("FSU-FR03-F5-W3"), no_cert),
+                certified("FSU-FR03-F5-W3"), fr03_cert),
             "permanent_cell_across_generations": _cap(
                 gen_code,
                 [f"{regfile}: flat_generation/generationOf/armVecStuck "
                  "generation is identity, not a match/clear key",
                  "tests/unit/chaos_physreg_generation_test.cc: "
                  "cross-generation persistence + chain restart"],
-                certified("FSU-FR03-F5-W3"), no_cert),
+                certified("FSU-FR03-F5-W3"), fr03_cert),
             "chaosphysreg_fsu_prop": _cap(
                 not prop_free,
                 [f"{phys_cc}: notePropEvt x{_occ(phys_cc, 'notePropEvt')}",
-                 f"{regfile}: notePropEvt x{_occ(regfile, 'notePropEvt')}"],
-                False, no_cert),
+                 f"{regfile}: notePropEvt x{_occ(regfile, 'notePropEvt')}",
+                 "O3 commit/ROB squash hooks + honest chain_end terminal"],
+                certified("FSU-FR03-F5-W3"), fr03_cert),
             "runner_chaosphysreg_path": _cap(
                 phys_runner,
                 f"{runner}: CHAOSPhysReg/phys_reg x"
                 f"{_occ(runner, 'CHAOSPhysReg') + _occ(runner, 'phys_reg')}",
-                False, no_cert),
+                certified("FSU-FR03-F5-W3"), fr03_cert),
             "squash_realloc_container_test": _cap(
                 squash_test,
                 [f"{vec_unit}: squash x{_occ(vec_unit, 'squash')}, "
                  f"realloc x{_occ(vec_unit, 'realloc')}",
-                 vec_pytest],
-                False, no_cert),
+                 vec_pytest, "real O3 gate: F5-FR03-W3-GATE-v3"],
+                certified("FSU-FR03-F5-W3"), fr03_cert),
             "fr03_formal_seeds": _cap(
-                False,
-                "runs/fsu/FSU-FR03-F5-W{3,5,6}: 0/3",
+                certified("FSU-FR03-F5-W3") is not False,
+                "runs/fsu/FSU-FR03-F5-W3: 3/3 certified; "
+                "W5/W6 remain BLOCKED",
                 certified("FSU-FR03-F5-W3"),
-                "FR03-F5 不得认证（逐 RunID 0/3）"),
+                "FR03-F5-W3 3/3；W5/W6 不得借用 W3 证据"),
         },
         "W5_suite": {
             "five_programs_including_2mm": _cap(
@@ -742,23 +747,29 @@ def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
                 "not run (0/3): FP06-F5-W1 gate/formal seeds are not "
                 "complete; the F5 permanent semantics exist in code but "
                 "cannot be certified for this RunID")
-    if runid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5", "FSU-FP06-F5-W6"):
+    if runid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5"):
+        if seed_n == 3:
+            return ("COMPLETE",
+                    f"certified 3/3: {runid} formal seeds admitted and "
+                    "audit.ok; bounded F5 evidence")
         return ("PARTIAL",
-                f"not formally run ({seed_n}/3): F5 permanent semantics exist "
-                "in code, but this RunID has no certified seed; "
-                + ("W4-rate-v1 eligible=2,097,155 requires bounded sampling"
-                   if runid == "FSU-FP06-F5-W4" else
-                   "the W5 suite artifact exists (FSU-FP04-F0-W5 3/3) but "
-                   "FP06-F5-W5 is not run" if runid == "FSU-FP06-F5-W5" else
-                   "W6 FFT/sparse components remain partial"))
+                f"not formally complete ({seed_n}/3): F5 gate evidence exists "
+                "and the RunID still needs all three certified seeds")
+    if runid == "FSU-FP06-F5-W6":
+        return ("PARTIAL",
+                "W6 artifact/native golden exist, but gem5 golden and formal "
+                "FP06-F5-W6 seeds are not run (0/3)")
+    if runid == "FSU-FR03-F5-W3":
+        if seed_n == 3:
+            return ("COMPLETE",
+                    "certified 3/3: permanent Vec cell, real L5 commit/squash, "
+                    "runner CHAOSPhysReg path and lifecycle gate")
+        return ("PARTIAL", f"FR03-F5-W3 {seed_n}/3; gate must pass first")
     if runid.startswith("FSU-FR03-F5-"):
-        return ("PARTIAL",
-                f"PARTIAL/BLOCKED: Vec write-path stuck and generation "
-                f"handling exist in code, but a build/run-validated "
-                f"CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg "
-                f"path, and squash/free/realloc container-level tests are not "
-                f"complete; {seed_n}/3 formal seeds. FR03-F5 must not be "
-                f"certified")
+        return ("BLOCKED",
+                f"BLOCKED: FR03-F5 {runid[-4:]}; W3 mechanism is certified, "
+                "but this RunID has no suite/artifact gate; never borrow W3 "
+                "evidence")
     if runid == "FSU-FP04-F0-W5" and seed_n == 3:
         return ("PARTIAL",
                 "certified suite 3/3: each suite seed counts as ONE seed "
@@ -824,6 +835,8 @@ def _f5_readiness(runid, seed_n):
         return "COMPLETE_3_OF_3" if seed_n == 3 else "GATE_NOT_COMPLETE"
     if runid.startswith("FSU-FP06-F5-"):
         return "COMPLETE_3_OF_3" if seed_n == 3 else "NOT_RUN"
+    if runid == "FSU-FR03-F5-W3":
+        return "COMPLETE_3_OF_3" if seed_n == 3 else "GATE_NOT_COMPLETE"
     if runid.startswith("FSU-FR03-F5-"):
         return "BLOCKED"
     return None

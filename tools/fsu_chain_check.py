@@ -595,15 +595,40 @@ def _check_one(fid, events, truncated=False):
         ct = f5.get("chain_end_terminal") or ""
         if l5_evt is not None and act > 0:
             first_sn = f5.get("first_activated_sn")
-            through = any(
-                _clean(e, "kind") in P.BRANCH_KINDS
-                and _clean(e, "activated") == "1"
-                and (first_sn is None
-                     or _int_or_none(e, "dyn_inst_seq") == first_sn)
-                for e in best)
+            # [FR03] A permanent physical cell is reused across generations:
+            # the FIRST activated write can be freed/squashed long before
+            # the generation whose value actually commits. Requiring the
+            # first activation itself on the final L5 path is therefore
+            # wrong for a cell-scoped fault. Require the L5 path to carry a
+            # real operand_read from a generation that had an activated
+            # exposure. FP06 (no reg_generation) keeps the stricter rule.
+            fr03 = any(_clean(e, "reg_generation") for e in events)
+            if fr03:
+                act_gens = {_clean(e, "reg_generation")
+                            for e in events
+                            if _clean(e, "kind") in P.BRANCH_KINDS
+                            and _clean(e, "activated") == "1"}
+                through = any(
+                    _clean(e, "kind") == "operand_read"
+                    and _clean(e, "reg_generation") in act_gens
+                    for e in best) or any(
+                        _clean(e, "kind") in P.BRANCH_KINDS
+                        and _clean(e, "activated") == "1"
+                        for e in best)
+            else:
+                through = any(
+                    _clean(e, "kind") in P.BRANCH_KINDS
+                    and _clean(e, "activated") == "1"
+                    and (first_sn is None
+                         or _int_or_none(e, "dyn_inst_seq") == first_sn)
+                    for e in best)
             if not through:
                 violations.append(
                     "activation_chain_not_through_first_activated")
+                # A commit on a value whose generation never activated is
+                # NOT evidence that this permanent fault reached L5. Never
+                # call it full; report the honest unresolved state.
+                terminal = "exposed_unconsumed"
         if l5_evt is None:
             if act > 0:
                 terminal = "exposed_unconsumed"

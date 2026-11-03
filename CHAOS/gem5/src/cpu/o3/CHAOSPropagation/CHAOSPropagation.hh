@@ -295,6 +295,7 @@ class CHAOSPropagation : public SimObject
         "first_impact_sn", "first_impact_tick", "l5_witness_event",
         "commit_events", "squash_events", "consumers_recorded",
         "read_exposures_total", "write_exposures_total", "lane_mask_scope",
+        "first_activated_at_install",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));

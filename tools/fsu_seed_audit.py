@@ -545,7 +545,16 @@ def audit_attempt(attempt: Path):
     # retroactively re-labelled.
     profile = str(manifest.get("config_profile", "") or "")
     if profile == "B0":
-        for sub in ("census", "inject"):
+        # [FR03] A permanent CHAOSPhysReg run has no CHAOSFPU eligible
+        # census. That skip is explicit on disk; the injection config is
+        # still verified. A missing census WITHOUT the skip marker fails.
+        subs = ["inject"]
+        if (attempt / "census/config.ini").exists():
+            subs.insert(0, "census")
+        else:
+            check("physreg census explicitly skipped",
+                  (attempt / "census_skipped.json").exists())
+        for sub in subs:
             chk = CP.verify_config_profile(
                 attempt / sub / "config.ini", "B0")
             check(f"B0 运行态配置匹配（{sub}）", chk["ok"])

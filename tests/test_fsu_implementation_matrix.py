@@ -54,7 +54,10 @@ def test_every_runid_has_required_fields():
                     "FSU-FP04-F0-W1": "3/3",
                     "FSU-FP04-F0-W5": "3/3",
                     "FSU-FP06-F5-W3": "3/3",
-                    "FSU-FP06-F5-W1": "3/3"}.get(r["runid"], "0/3")
+                    "FSU-FP06-F5-W1": "3/3",
+                    "FSU-FP06-F5-W4": "3/3",
+                    "FSU-FP06-F5-W5": "3/3",
+                    "FSU-FR03-F5-W3": "3/3"}.get(r["runid"], "0/3")
         assert r["three_seed_status"] == expected
         assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")
@@ -158,16 +161,17 @@ def test_f5_rows_and_capability_evidence():
     assert "FP06-d" in by_id["FSU-FP06-F5-W3"]["coverage_reason"]
     assert by_id["FSU-FP06-F5-W1"]["seed_completion"] == "3/3"
     assert by_id["FSU-FP06-F5-W1"]["f5_readiness"] == "COMPLETE_3_OF_3"
-    for rid in ("FSU-FR03-F5-W3", "FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
+    assert by_id["FSU-FR03-F5-W3"]["f5_readiness"] == "COMPLETE_3_OF_3"
+    for rid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
         assert by_id[rid]["f5_readiness"] == "BLOCKED"
     cap = summary["capability_evidence"]
     assert cap["FP06"]["permanent_stuck"]["code_present"] is True
     assert cap["FP06"]["partial_product_proxy_fp06d"]["code_present"] is False
-    # 代码存在不得自动等价于正式认证（FR03 有代码但无认证）。
-    assert cap["FR03"]["vec_stuck_write_path"]["certified"] is False
-    assert cap["FR03"]["chaosphysreg_fsu_prop"]["certified"] is False
-    assert cap["FR03"]["runner_chaosphysreg_path"]["certified"] is False
-    assert cap["FR03"]["fr03_formal_seeds"]["certified"] is False
+    # FR03-W3 已有正式 3/3 认证；W5/W6 仍不得借用该证据。
+    assert cap["FR03"]["vec_stuck_write_path"]["certified"] is True
+    assert cap["FR03"]["chaosphysreg_fsu_prop"]["certified"] is True
+    assert cap["FR03"]["runner_chaosphysreg_path"]["certified"] is True
+    assert cap["FR03"]["fr03_formal_seeds"]["certified"] is True
 
 
 def test_generator_is_idempotent(tmp_path, monkeypatch):

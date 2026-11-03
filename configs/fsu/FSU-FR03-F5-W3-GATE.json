@@ -28,7 +28,7 @@
       "require_allocated": true,
       "vec_lane_width": 32,
       "vec_lane_offset": 2,
-      "fault_type": "stuck_at_zero",
+      "fault_type": "stuck_at_one",
       "bits_to_change": 1,
       "semantic_role": "FR03"
     }
@@ -47,8 +47,8 @@
     "vec_lane_width": 32,
     "vec_lane_offset": 2,
     "mask": "0x80000000",
-    "polarity": 0,
-    "fault_type": "stuck_at_zero"
+    "polarity": 1,
+    "fault_type": "stuck_at_one"
   },
   "notes": "Non-formal FR03 gate. Must live under runs/fsu-gates and never counts toward 519/240. It uses the real CHAOSPhysReg path (no CHAOSFPU eligible census)."
 }
