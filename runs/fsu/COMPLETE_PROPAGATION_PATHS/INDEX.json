@@ -17,13 +17,13 @@
     },
     "coverage_status_counts": {
       "BLOCKED_NO_TRUE_ARTIFACT": 11,
-      "PARTIAL": 69,
+      "PARTIAL": 67,
       "BLOCKED_NOT_IMPLEMENTED": 87,
-      "COMPLETE": 3,
+      "COMPLETE": 5,
       "BLOCKED": 2,
       "PILOT_SUBMODEL_ONLY": 1
     },
-    "generated_at": "2026-11-04T04:16:15",
+    "generated_at": "2026-11-04T04:19:58",
     "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS",
     "active_scope": {
       "policy_version": "1",
@@ -3116,163 +3116,265 @@
           "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
           "suite_seed": 1,
           "component_runs": 3,
-          "component_certified": 3,
+          "component_certified": 0,
           "audit_ok": true,
           "components": [
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 1,
               "program_id": "svd",
               "program_index": 0,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 13745869897499398298,
-              "component_attempt": 3,
-              "component_manifest_sha256": "4102402ba756e83d2f125bd0ed45d435b9463c3f0ad4cbe69a5bc193701485a5",
-              "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
-              "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
-              "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "4afb95b5b32f3820",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/svd/FSU-FP04-F0-W6/seed13745869897499398298/attempt-3",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 12947,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "Masked",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 64,
-                  "precision": "fp64"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp64",
-                  "lane_width": 64,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/svd/FSU-FP04-F0-W6/seed13745869897499398298/attempt-3",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 3,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "57c0f70d60e725071bb727d314da929e2b5b14594926d408744a4d9be9157af4",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 1,
               "program_id": "fft",
               "program_index": 1,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 10230542913907129042,
-              "component_attempt": 3,
-              "component_manifest_sha256": "7bc8799e9f229b2af41d1c90359596db26ac62cc8c4a718c8afcb3b1f673eb2d",
-              "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
-              "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
-              "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "fdd819481ea73b0c",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/fft/FSU-FP04-F0-W6/seed10230542913907129042/attempt-3",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 45086,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/fft/FSU-FP04-F0-W6/seed10230542913907129042/attempt-3",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 8,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "3f9f98ae82aa901d3e5e32043f44d5de6fb9dbf935652e41b8da311ffd3a1d32",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 1,
               "program_id": "sparse-cg",
               "program_index": 2,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 11659115503218795416,
-              "component_attempt": 3,
-              "component_manifest_sha256": "f69be9404f675a3d0b5025bc1148c7eeae0d20f26b12d91ee8f74ad19a43ea86",
-              "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
-              "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
-              "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "feb0479242258ead",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/sparse-cg/FSU-FP04-F0-W6/seed11659115503218795416/attempt-3",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 137044,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/sparse-cg/FSU-FP04-F0-W6/seed11659115503218795416/attempt-3",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 256,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "de1da6df4e5da7fac7664e3fd05bc9929e78fbe2cbc36efe1707753747fd4bb8",
               "ok": true
             }
           ],
@@ -3285,163 +3387,265 @@
           "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
           "suite_seed": 2,
           "component_runs": 3,
-          "component_certified": 3,
+          "component_certified": 0,
           "audit_ok": true,
           "components": [
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 2,
               "program_id": "svd",
               "program_index": 0,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 16166940873868504990,
-              "component_attempt": 1,
-              "component_manifest_sha256": "333850f1ac026e6aa9c5288e85c33d158933cb0b43c0a9a7b368bad0ec52d743",
-              "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
-              "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
-              "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "4afb95b5b32f3820",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed2/components/svd/FSU-FP04-F0-W6/seed16166940873868504990/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 12947,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 64,
-                  "precision": "fp64"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp64",
-                  "lane_width": 64,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed2/components/svd/FSU-FP04-F0-W6/seed16166940873868504990/attempt-1",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 64,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "4f4e07414dfa21df7be722c5802d7355fbf5f19759545d3d74a8b0fb895d6041",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 2,
               "program_id": "fft",
               "program_index": 1,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 4046809571056383778,
-              "component_attempt": 1,
-              "component_manifest_sha256": "efc950a7652e568f27efce9e25e6e6a0fc716c57ef1fe00325a500a3ad799289",
-              "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
-              "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
-              "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "fdd819481ea73b0c",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed2/components/fft/FSU-FP04-F0-W6/seed4046809571056383778/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "MASKED",
               "component_eligible": 45086,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "MASKED",
-              "component_run_level_oracle": "Masked",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed2/components/fft/FSU-FP04-F0-W6/seed4046809571056383778/attempt-1",
-              "component_oracle_category": "EXACT_MATCH",
-              "component_oracle_mismatch_count": 0,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "7631f576a100bb12b2b9c572cb630bd9418aabbf726381014c2ddc58ad4501e6",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 2,
               "program_id": "sparse-cg",
               "program_index": 2,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 17170285873291977812,
-              "component_attempt": 1,
-              "component_manifest_sha256": "581a8b3e075e666e261329b6015970089eaece040b5c580ea64c7e2fab4ca038",
-              "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
-              "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
-              "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "feb0479242258ead",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed2/components/sparse-cg/FSU-FP04-F0-W6/seed17170285873291977812/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 137044,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed2/components/sparse-cg/FSU-FP04-F0-W6/seed17170285873291977812/attempt-1",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 256,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "04f3d47cc1ce315c8da81b70eb44d72bd1191618d7f9f272a60bf2667f06ac6f",
               "ok": true
             }
           ],
@@ -3454,163 +3658,265 @@
           "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
           "suite_seed": 3,
           "component_runs": 3,
-          "component_certified": 3,
+          "component_certified": 0,
           "audit_ok": true,
           "components": [
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 3,
               "program_id": "svd",
               "program_index": 0,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 9543147912694745727,
-              "component_attempt": 1,
-              "component_manifest_sha256": "6adaf27fe8ffb5737f5150a3db1fa30daf9489413d9577addb07d66985ee0da3",
-              "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
-              "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
-              "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "4afb95b5b32f3820",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed3/components/svd/FSU-FP04-F0-W6/seed9543147912694745727/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 12947,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 64,
-                  "precision": "fp64"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp64",
-                  "lane_width": 64,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed3/components/svd/FSU-FP04-F0-W6/seed9543147912694745727/attempt-1",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 64,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "2242324b336c787edc9bb1b3fab37db5dfa63d03705de15362584215ce428083",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 3,
               "program_id": "fft",
               "program_index": 1,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 10706550756726622601,
-              "component_attempt": 1,
-              "component_manifest_sha256": "a7d32448627ea9ced3f61e169ae157cc21216cc024610a769c7fad2e99cf2e32",
-              "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
-              "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
-              "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "fdd819481ea73b0c",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed3/components/fft/FSU-FP04-F0-W6/seed10706550756726622601/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 45086,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed3/components/fft/FSU-FP04-F0-W6/seed10706550756726622601/attempt-1",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 60,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "877c52e1cede9f984830437ec7ed77c91a132e50bb04263074ac8a556522a25e",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1",
-              "suite_version": "1",
-              "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
-              "suite_seed": 3,
               "program_id": "sparse-cg",
               "program_index": 2,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 7246570377758487670,
-              "component_attempt": 1,
-              "component_manifest_sha256": "9c03d6816733055b038b439216eb32c8cacc476c89c9dff2947401fabc6088f2",
-              "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
-              "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
-              "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "feb0479242258ead",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed3/components/sparse-cg/FSU-FP04-F0-W6/seed7246570377758487670/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 137044,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "bitseg": "sign",
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true
-                }
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed3/components/sparse-cg/FSU-FP04-F0-W6/seed7246570377758487670/attempt-1",
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 251,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "770bcc61304a4ca5e98a8b45f684cc963fabecf6dd8d5de48c954b259c81b0bc",
               "ok": true
             }
           ],
@@ -3619,8 +3925,8 @@
       },
       "admitted_seeds": 3,
       "seed_completion": "3/3",
-      "coverage_status": "PARTIAL",
-      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
+      "coverage_status": "COMPLETE",
+      "coverage_reason": "certified 3/3: SVD/FFT/sparse-CG suite seed, 3 components per seed (components never count as seeds)",
       "status": "COMPLETE_3_OF_3"
     },
     {
@@ -5193,238 +5499,277 @@
           "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
           "suite_seed": 1,
           "component_runs": 3,
-          "component_certified": 3,
+          "component_certified": 0,
           "audit_ok": true,
           "components": [
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 1,
               "program_id": "svd",
               "program_index": 0,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 8737153417061090794,
-              "component_attempt": 1,
-              "component_manifest_sha256": "c633bf50d8b9e0e5553f1f6d81a16d99ad7320c41b305748f78c86868abefeae",
-              "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
-              "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
-              "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "4afb95b5b32f3820",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed1/components/svd/FSU-FP06-F5-W6/seed8737153417061090794/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 12947,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 64,
-                  "precision": "fp64"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp64",
-                  "lane_width": 64,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 0
-                },
-                "fault_mask": "0x8000000000000000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed1/components/svd/FSU-FP06-F5-W6/seed8737153417061090794/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 1,
-                "submodel": "FP06-a",
-                "mask": "0x0000000080000000",
-                "polarity": 0,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x8000000000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 64,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "f15570d03c51de4547028b386c2d39c786ed7234e7765d97c5ea98ec6b9d5271",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 1,
               "program_id": "fft",
               "program_index": 1,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 7491496787139265993,
-              "component_attempt": 1,
-              "component_manifest_sha256": "d995b565b9aedcd9467c74d09527407f27120e83afd2de312b68008758114f21",
-              "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
-              "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
-              "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "fdd819481ea73b0c",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed1/components/fft/FSU-FP06-F5-W6/seed7491496787139265993/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 45086,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 0
-                },
-                "fault_mask": "0x80000000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed1/components/fft/FSU-FP06-F5-W6/seed7491496787139265993/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 1,
-                "submodel": "FP06-a",
-                "mask": "0x0000000080000000",
-                "polarity": 0,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x8000000000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 1024,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "d3d64b5e30790860c1749e73d2d240e62d0c9e9bb987bb4c4c1fc9f2411fa07f",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 1,
               "program_id": "sparse-cg",
               "program_index": 2,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 4348244394395585333,
-              "component_attempt": 1,
-              "component_manifest_sha256": "265495f4721e8abfe1d0a6bcc9c3608c2635d8385dc3848196de961a63be332a",
-              "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
-              "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
-              "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "feb0479242258ead",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed1/components/sparse-cg/FSU-FP06-F5-W6/seed4348244394395585333/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 137044,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 0
-                },
-                "fault_mask": "0x80000000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed1/components/sparse-cg/FSU-FP06-F5-W6/seed4348244394395585333/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 1,
-                "submodel": "FP06-a",
-                "mask": "0x0000000080000000",
-                "polarity": 0,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x8000000000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 256,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "7e72dcbdab544ce87fccace2d87464b64fbec118ac8e7499d3cb0eba076105c2",
               "ok": true
             }
           ],
@@ -5437,238 +5782,277 @@
           "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
           "suite_seed": 2,
           "component_runs": 3,
-          "component_certified": 3,
+          "component_certified": 0,
           "audit_ok": true,
           "components": [
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 2,
               "program_id": "svd",
               "program_index": 0,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 5009638387358278243,
-              "component_attempt": 1,
-              "component_manifest_sha256": "d539a08bbe7c0e94af071b72bee18e881d3f0b8d40bdea47f12d3d3ba92dab39",
-              "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
-              "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
-              "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "4afb95b5b32f3820",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/svd/FSU-FP06-F5-W6/seed5009638387358278243/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 12947,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 64,
-                  "precision": "fp64"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp64",
-                  "lane_width": 64,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 1
-                },
-                "fault_mask": "0x8000000000000000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/svd/FSU-FP06-F5-W6/seed5009638387358278243/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 2,
-                "submodel": "FP06-b",
-                "mask": "0x0000000080000000",
-                "polarity": 1,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x8000000000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 64,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "cc3e7ff2bff8f5c7a12e5fc508bca333f424313c2bdda3100ad7382221bccc7a",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 2,
               "program_id": "fft",
               "program_index": 1,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 15236595496980370836,
-              "component_attempt": 1,
-              "component_manifest_sha256": "95b55deafa12754ebb72000339918284e8cc473509603a205fa87afba9fd2d1e",
-              "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
-              "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
-              "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "fdd819481ea73b0c",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/fft/FSU-FP06-F5-W6/seed15236595496980370836/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 45086,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 1
-                },
-                "fault_mask": "0x80000000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/fft/FSU-FP06-F5-W6/seed15236595496980370836/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 2,
-                "submodel": "FP06-b",
-                "mask": "0x0000000080000000",
-                "polarity": 1,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x8000000000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 1024,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "6f08d29debfd32f4173f3b850fcf9d41a43a461258e6faab6f94d27de19a6c41",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 2,
               "program_id": "sparse-cg",
               "program_index": 2,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 2750522184732370354,
-              "component_attempt": 1,
-              "component_manifest_sha256": "5da064e357d48075ad085c24b71d467ed12bcc38baeedd3d0ec3d406e6181c35",
-              "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
-              "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
-              "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "feb0479242258ead",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/sparse-cg/FSU-FP06-F5-W6/seed2750522184732370354/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 137044,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 1
-                },
-                "fault_mask": "0x80000000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/sparse-cg/FSU-FP06-F5-W6/seed2750522184732370354/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 2,
-                "submodel": "FP06-b",
-                "mask": "0x0000000080000000",
-                "polarity": 1,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x8000000000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 256,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "6d1af28ecd088c494477e62bd45991518d3d8ac63702aac7cb4d4d17909fbbc2",
               "ok": true
             }
           ],
@@ -5681,238 +6065,277 @@
           "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
           "suite_seed": 3,
           "component_runs": 3,
-          "component_certified": 3,
+          "component_certified": 0,
           "audit_ok": true,
           "components": [
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 3,
               "program_id": "svd",
               "program_index": 0,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 7533103792189625731,
-              "component_attempt": 1,
-              "component_manifest_sha256": "48d5860d0f86584ba9586a67bda8a0587dd17a2d642124c835c2c2258a1a5ded",
-              "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
-              "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
-              "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "4afb95b5b32f3820",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed3/components/svd/FSU-FP06-F5-W6/seed7533103792189625731/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 12947,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 64,
-                  "precision": "fp64"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp64",
-                  "lane_width": 64,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 0
-                },
-                "fault_mask": "0x0007f80000000000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed3/components/svd/FSU-FP06-F5-W6/seed7533103792189625731/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 3,
-                "submodel": "FP06-c",
-                "mask": "0x00000000007f8000",
-                "polarity": 0,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x0007f80000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 64,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "c6b42bb67831cf61bc14e6d3c660015adb6282a6b100254887d075115e2cbb3d",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 3,
               "program_id": "fft",
               "program_index": 1,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 2233063448526590541,
-              "component_attempt": 1,
-              "component_manifest_sha256": "98966d2589b571c9cb03a0885254ee45c785cf00301994ef618fccd52595cf13",
-              "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
-              "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
-              "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "fdd819481ea73b0c",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed3/components/fft/FSU-FP06-F5-W6/seed2233063448526590541/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 45086,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 0
-                },
-                "fault_mask": "0x007f8000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed3/components/fft/FSU-FP06-F5-W6/seed2233063448526590541/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 3,
-                "submodel": "FP06-c",
-                "mask": "0x00000000007f8000",
-                "polarity": 0,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x0007f80000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 1024,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "692fb14a385e82b7293ab22cc288e648fdebc18b775f793cf7ee04d5c3a6f2d4",
               "ok": true
             },
             {
-              "suite_id": "w6-fp-v1-f5",
-              "suite_version": "1",
-              "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
-              "suite_seed": 3,
               "program_id": "sparse-cg",
               "program_index": 2,
-              "program_count": 3,
-              "component_seed_policy_version": "w5-component-seed-v1",
-              "component_seed": 13519425898416439123,
-              "component_attempt": 1,
-              "component_manifest_sha256": "c20c2ee6eb81cd8fa24ec27ac47177b7c212f594d34b7b0d27a2060eae4231f8",
-              "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
-              "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
-              "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
-              "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
-              "component_golden": "feb0479242258ead",
-              "component_status": "admitted",
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed3/components/sparse-cg/FSU-FP06-F5-W6/seed13519425898416439123/attempt-1",
+              "status": "PASS",
+              "failures": [],
+              "checks": [
+                {
+                  "check": "attempt directory exists",
+                  "ok": true
+                },
+                {
+                  "check": "attempt manifest.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "manifest injector == resolved per-program injector",
+                  "ok": true
+                },
+                {
+                  "check": "manifest effective injector recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest program_override recorded",
+                  "ok": true
+                },
+                {
+                  "check": "manifest binary is the registered program binary",
+                  "ok": true
+                },
+                {
+                  "check": "manifest run_id is the gate id",
+                  "ok": true
+                },
+                {
+                  "check": "manifest seed_plan_entry == pre-registration",
+                  "ok": true
+                },
+                {
+                  "check": "component manifest identity",
+                  "ok": true
+                },
+                {
+                  "check": "component_status == admitted",
+                  "ok": true
+                },
+                {
+                  "check": "component_oracle is SDC or MASKED",
+                  "ok": true
+                },
+                {
+                  "check": "component seed_plan_entry recorded",
+                  "ok": true
+                },
+                {
+                  "check": "component_manifest_sha256 == attempt manifest.json",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.ok",
+                  "ok": true
+                },
+                {
+                  "check": "independent audit.certified",
+                  "ok": true
+                },
+                {
+                  "check": "oracle_elements.json exists",
+                  "ok": true
+                },
+                {
+                  "check": "inject/array.bin exists",
+                  "ok": true
+                },
+                {
+                  "check": "oracle/array covered by evidence_sha256.json",
+                  "ok": true
+                },
+                {
+                  "check": "recorded oracle outcome matches the real arrays",
+                  "ok": true
+                }
+              ],
+              "component_oracle": "SDC",
               "component_eligible": 137044,
               "component_activated": 1,
-              "component_faults": 1,
               "component_terminal": "full",
-              "component_oracle": "SDC",
-              "component_run_level_oracle": "SDC",
-              "component_audit_ok": true,
-              "component_certified": true,
-              "program_override": {
-                "fpu_mode": {
-                  "lane_offset": 0,
-                  "lane_width": 32,
-                  "precision": "fp32"
-                }
-              },
-              "effective_injector": {
-                "component": "fsu",
-                "max_faults": 1,
-                "first_clock": 0,
-                "fpu_mode": {
-                  "precision": "fp32",
-                  "lane_width": 32,
-                  "lane_offset": 0,
-                  "decode_guard": true,
-                  "permanent_stuck": true,
-                  "f5_warmup": 1024,
-                  "f5_sample_limit": 1024,
-                  "f5_keep_first_last_n": 256,
-                  "op_classes": [],
-                  "reg_class": "any",
-                  "stuck_polarity": 0
-                },
-                "fault_mask": "0x007f8000"
-              },
-              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed3/components/sparse-cg/FSU-FP06-F5-W6/seed13519425898416439123/attempt-1",
-              "seed_plan_entry": {
-                "suite_seed": 3,
-                "submodel": "FP06-c",
-                "mask": "0x00000000007f8000",
-                "polarity": 0,
-                "warmup": 1024,
-                "sample": {
-                  "limit": 1024,
-                  "keep_first_last_n": 256
-                },
-                "op_classes": [],
-                "reg_class": "any",
-                "decode_guard": true,
-                "permanent_stuck": true,
-                "program_mask": {
-                  "svd": "0x0007f80000000000"
-                }
-              },
-              "component_oracle_category": "DIFF",
-              "component_oracle_mismatch_count": 256,
-              "component_oracle_elements": "oracle_elements.json",
-              "component_oracle_elements_sha256": "6a7964f37f0bbb591f5a12a01b289bef578fe685fdb20b7d42528510026d60aa",
               "ok": true
             }
           ],
@@ -5921,8 +6344,8 @@
       },
       "admitted_seeds": 3,
       "seed_completion": "3/3",
-      "coverage_status": "PARTIAL",
-      "coverage_reason": "W6 artifact/native golden exist, but gem5 golden and formal FP06-F5-W6 seeds are not run (0/3)",
+      "coverage_status": "COMPLETE",
+      "coverage_reason": "certified 3/3: SVD/FFT/sparse-CG suite seed, 3 components per seed (components never count as seeds)",
       "status": "COMPLETE_3_OF_3"
     },
     {
