@@ -383,9 +383,15 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
           and st.get("PARTIAL", 0) == 0
           and [r["run_id"] for r in rows if r["status"] == "READY"]
           == ["T05-F0-W4"], str(st))
+    # [R6-O-UNIT 2026-11-03] O01/O02/O03-F0-W7 seed1..3 are now registered in
+    # pilot_evidence.json (campaign2/campaign3; admitted=True, certified=True).
+    # They remain upstream BLOCKED (FS-MULTICORE); READY is still ONLY
+    # T05-F0-W4.  The invariant "chain admission != eligibility unlock" is
+    # unchanged — the expected admitted set is updated, not relaxed.
     check("除 T05 外，链已准入的行仍被上游独立阻塞（准入≠解锁）",
-          cg["admitted"] == 1
-          and not cg["blocked_upstream_admitted"]
+          cg["admitted"] == 4
+          and sorted(cg["blocked_upstream_admitted"])
+          == ["O01-F0-W7", "O02-F0-W7", "O03-F0-W7"]
           and all((r.get("chain") or {}).get("admitted") is not True
                   or r["status"] != "READY" or r["run_id"] == "T05-F0-W4"
                   for r in rows),
@@ -393,11 +399,11 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
     # [R6-FIXB] 旧值 = [T06-F0-W4, T08-F0-W4]：两行都是**截断流**上的含住准入
     # （缺陷 #5）。收口后二者一律不准入；当前 325 行里唯一凭真实含住准入的是
     # T05-F0-W4（完整运行：truncated=False + 真实检测事件收口）。
-    check("准入行 = T05-F0-W4（完整运行的显式含住；T06/T08 截断流不再准入）",
-          cg["admitted"] == 1
+    check("准入行 = T05-F0-W4 + O01/O02/O03-F0-W7（完整运行的显式含住；T06/T08 截断流不再准入）",
+          cg["admitted"] == 4
           and sorted(r["run_id"] for r in rows
                      if (r.get("chain") or {}).get("admitted") is True)
-          == ["T05-F0-W4"]
+          == ["O01-F0-W7", "O02-F0-W7", "O03-F0-W7", "T05-F0-W4"]
           and "T06-F0-W4" not in [r["run_id"] for r in rows
                                   if (r.get("chain") or {}).get("admitted") is True]
           and "T08-F0-W4" not in [r["run_id"] for r in rows

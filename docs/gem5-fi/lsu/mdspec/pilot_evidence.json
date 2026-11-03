@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/lsu_r6_register_evidence.py",
- "generated_at": "2026-10-23T04:08:45+00:00",
- "generator_repo_head": "97f74786",
+ "generated_at": "2026-11-03T22:50:00+0800",
+ "generator_repo_head": "f87627176cb6e048fa5f0a3611d4bdc520b53419",
  "evidence_root": "/home/sdc/gem5-fi-ding",
  "runs_roots": [
   {
@@ -1617,45 +1617,51 @@
   "O01-F0-W7-seed1": {
    "unit": "原子与同步",
    "unit_source": "exact",
-   "path": "runs/lsu/r6_mc_O01-F0-W7/O01-F0-W7/seed1/prop_evt.txt.gz",
+   "path": "runs/lsu/r6_o_unit/campaign2_20261103/O01-F0-W7/seed1/prop_evt.txt.gz",
    "path_kind": "relative",
    "kinds": [
     "addr_form",
     "chain_end",
-    "consumer",
-    "errant_commit",
     "exmon_monitor",
     "exmon_rmw",
     "exmon_stxr",
-    "inj",
-    "lq_complete",
-    "resp",
-    "taint_reg"
+    "inj"
    ],
-   "events": 222056,
+   "events": 6,
    "truncated": false,
    "truncated_reasons": [],
    "faults": 1,
    "seed": 1,
-   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu",
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign2_20261103",
    "shadowed_paths": [
+    "runs/lsu/r6_mc_O01-F0-W7/O01-F0-W7/seed1/prop_evt.txt.gz",
     "mdspec_pilot/O01-F0-W7/s1/prop_evt.txt.gz"
-   ]
+   ],
+   "shadowed_note": "pre-fix/historical stream retained on disk; not deleted"
   },
   "O02-F0-W7-seed1": {
    "unit": "原子与同步",
    "unit_source": "exact",
-   "path": "runs/lsu/r6_mc_O02-F0-W7/O02-F0-W7/seed1/prop_evt.txt.gz",
+   "path": "runs/lsu/r6_o_unit/campaign2_20261103/O02-F0-W7/seed1/prop_evt.txt.gz",
    "path_kind": "relative",
-   "kinds": [],
-   "events": 0,
-   "truncated": true,
-   "truncated_reasons": [
-    "gzip_read_incomplete"
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj"
    ],
-   "faults": 0,
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
    "seed": 1,
-   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign2_20261103",
+   "shadowed_paths": [
+    "runs/lsu/r6_mc_O02-F0-W7/O02-F0-W7/seed1/prop_evt.txt.gz"
+   ],
+   "shadowed_note": "pre-fix/historical stream retained on disk; not deleted"
   },
   "O02-F5-W7-seed1": {
    "unit": "原子与同步",
@@ -1675,17 +1681,26 @@
   "O03-F0-W7-seed1": {
    "unit": "原子与同步",
    "unit_source": "exact",
-   "path": "runs/lsu/r6_mc_O03-F0-W7/O03-F0-W7/seed1/prop_evt.txt.gz",
+   "path": "runs/lsu/r6_o_unit/campaign2_20261103/O03-F0-W7/seed1/prop_evt.txt.gz",
    "path_kind": "relative",
-   "kinds": [],
-   "events": 0,
-   "truncated": true,
-   "truncated_reasons": [
-    "gzip_read_incomplete"
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj",
+    "sq_complete"
    ],
-   "faults": 0,
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
    "seed": 1,
-   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu"
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign2_20261103",
+   "shadowed_paths": [
+    "runs/lsu/r6_mc_O03-F0-W7/O03-F0-W7/seed1/prop_evt.txt.gz"
+   ],
+   "shadowed_note": "pre-fix/historical stream retained on disk; not deleted"
   },
   "P01-F0-W8-seed1": {
    "unit": "数据预取器",
@@ -3736,6 +3751,126 @@
    "seed": null,
    "runs_root": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/runs/lsu",
    "fields_source": "carried-over (旧条目沿用，未重读 PROP-EVT)"
+  },
+  "O01-F0-W7-seed2": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_o_unit/campaign3_seed23_20261103/O01-F0-W7/seed2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj"
+   ],
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 2,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign3_seed23_20261103"
+  },
+  "O01-F0-W7-seed3": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_o_unit/campaign3_seed23_20261103/O01-F0-W7/seed3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj"
+   ],
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 3,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign3_seed23_20261103"
+  },
+  "O02-F0-W7-seed2": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_o_unit/campaign3_seed23_20261103/O02-F0-W7/seed2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj"
+   ],
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 2,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign3_seed23_20261103"
+  },
+  "O02-F0-W7-seed3": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_o_unit/campaign3_seed23_20261103/O02-F0-W7/seed3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_monitor",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj"
+   ],
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 3,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign3_seed23_20261103"
+  },
+  "O03-F0-W7-seed2": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_o_unit/campaign3_seed23_20261103/O03-F0-W7/seed2/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj",
+    "sq_complete"
+   ],
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 2,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign3_seed23_20261103"
+  },
+  "O03-F0-W7-seed3": {
+   "unit": "原子与同步",
+   "unit_source": "exact",
+   "path": "runs/lsu/r6_o_unit/campaign3_seed23_20261103/O03-F0-W7/seed3/prop_evt.txt.gz",
+   "path_kind": "relative",
+   "kinds": [
+    "addr_form",
+    "chain_end",
+    "exmon_rmw",
+    "exmon_stxr",
+    "inj",
+    "sq_complete"
+   ],
+   "events": 6,
+   "truncated": false,
+   "truncated_reasons": [],
+   "faults": 1,
+   "seed": 3,
+   "runs_root": "/home/sdc/gem5-fi-ding/runs/lsu/r6_o_unit/campaign3_seed23_20261103"
   }
  },
  "kinds_observed": [
