@@ -267,6 +267,12 @@ class CHAOSPropagation : public SimObject
         "last_exposure_sn", "affected_sn", "correct_before", "stuck_after",
         "first_impact_latency", "sample_policy", "exposures_total",
         "exposures_sampled", "exposures_dropped",
+        // [FSU][F5-W1] Explicit candidate opClass name (never dropped).
+        "op_class",
+        // [FR03] Permanent physical-cell lifecycle / generation provenance.
+        "generation_old", "generation_new", "generation_changes",
+        "cell_allocated", "cell_free", "stuck_reapplied", "phys_reads",
+        "phys_reads_delta", "permanent_key",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));

@@ -55,6 +55,16 @@ FAULT_STAGES = ("raw_pre_protection", "post_check_escape",
                 "metadata_or_checker", "no_protection_model")
 ORACLE_KINDS = ("exact_hash", "invariant", "allowed_set",
                 "array_hash", "per_element_diff", "fp_ulp")
+# [FSU][FP06] fpu_mode eligibility filters. These mirror CHAOSFPU.cc /
+# tools/fsu_seed_runner.py exactly; an unknown name is rejected before gem5.
+FPU_OP_CLASSES = ("FloatAdd", "FloatCmp", "FloatCvt", "FloatMult",
+                  "FloatMultAcc", "FloatDiv", "FloatMisc", "FloatSqrt",
+                  "SimdFloatAdd", "SimdFloatAlu", "SimdFloatCmp",
+                  "SimdFloatCvt", "SimdFloatMult", "SimdFloatMultAcc",
+                  "SimdFloatDiv", "SimdFloatSqrt", "SimdFloatMisc")
+FPU_REG_CLASSES = ("any", "vec", "float", "vec_elem")
+FPU_F5_UINT_FIELDS = ("f5_warmup", "f5_sample_limit",
+                      "f5_keep_first_last_n")
 
 REQUIRED_TOP = ("schema_version", "run_id", "source", "platform", "workload",
                 "trigger", "target", "fault", "rng", "limits")
@@ -83,6 +93,51 @@ def _check_required(d, reqs, path, errs):
     for k in reqs:
         if k not in d:
             errs.append(f"{path}: missing required key '{k}'")
+
+
+def _validate_fpu_mode(fpu, errs):
+    """Validate the CHAOSFPU mode block (only keys that are present).
+
+    [FSU][FP06] op_classes/reg_class and the F5 permanent-fault knobs are
+    checked here because a wrong value would either panic inside gem5 or
+    silently change the eligible stream. Legacy manifests without these keys
+    are unaffected.
+    """
+    p = "fault.fpu_mode"
+    if "op_classes" in fpu:
+        oc = fpu["op_classes"]
+        if not isinstance(oc, list):
+            errs.append(f"{p}.op_classes: not an array")
+        else:
+            for i, name in enumerate(oc):
+                if not isinstance(name, str):
+                    errs.append(f"{p}.op_classes[{i}]: not a string")
+                elif name not in FPU_OP_CLASSES:
+                    errs.append(f"{p}.op_classes[{i}]: '{name}' not in "
+                                f"{list(FPU_OP_CLASSES)}")
+            if len(set(oc)) != len(oc):
+                errs.append(f"{p}.op_classes: duplicate names")
+    if "reg_class" in fpu:
+        rc = fpu["reg_class"]
+        if not isinstance(rc, str):
+            errs.append(f"{p}.reg_class: not a string")
+        elif rc not in FPU_REG_CLASSES:
+            errs.append(f"{p}.reg_class: '{rc}' not in "
+                        f"{list(FPU_REG_CLASSES)}")
+    if "decode_guard" in fpu and not isinstance(fpu["decode_guard"], bool):
+        errs.append(f"{p}.decode_guard: not a boolean")
+    if "permanent_stuck" in fpu and not isinstance(
+            fpu["permanent_stuck"], bool):
+        errs.append(f"{p}.permanent_stuck: not a boolean")
+    if "stuck_polarity" in fpu:
+        sp = fpu["stuck_polarity"]
+        if not _is_int(sp) or sp not in (-1, 0, 1):
+            errs.append(f"{p}.stuck_polarity: must be -1, 0 or 1 (got {sp!r})")
+    for key in FPU_F5_UINT_FIELDS:
+        if key in fpu:
+            v = fpu[key]
+            if not _is_int(v) or v < 0:
+                errs.append(f"{p}.{key}: must be an integer >= 0 (got {v!r})")
 
 
 def validate(m):
@@ -159,6 +214,12 @@ def validate(m):
             errs.append(f"fault.bit_indices: not an array")
         if "f6_phase_offset" in f and not _is_int(f["f6_phase_offset"]):
             errs.append(f"fault.f6_phase_offset: not an integer")
+        fpu = f.get("fpu_mode")
+        if fpu is not None:
+            if not isinstance(fpu, dict):
+                errs.append("fault.fpu_mode: not an object")
+            else:
+                _validate_fpu_mode(fpu, errs)
 
     # rng
     r = m.get("rng", {})

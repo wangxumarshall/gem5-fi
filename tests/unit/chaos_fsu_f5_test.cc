@@ -182,6 +182,60 @@ test_full_stuck_run_sequence()
     CHECK(activated == 2);
 }
 
+static void
+test_multibit_accounting_across_exposures()
+{
+    // FP06-c style fixed mantissa mask (FP32 bits 15..22). The SAME fault
+    // is exposed many times; activation is recomputed from the correct
+    // pre-forced value every time, and the forced write never XORs.
+    const uint64_t mask = 0x007f8000ULL;
+    const uint64_t correct[] = {
+        0x00000000ULL,  // SA0: no target bit set -> not activated
+        0x00008000ULL,  // SA0: bit15 set -> activated
+        0x00000000ULL,  // not activated
+        0x007f8000ULL,  // activated (all set)
+    };
+    int activated = 0;
+    for (uint64_t c : correct) {
+        const bool act = stuckActivated(c, mask, 0);
+        if (act)
+            ++activated;
+        const uint64_t after = applyStuck(c, mask, 0);
+        CHECK((after & mask) == 0);
+        CHECK((after & ~mask) == (c & ~mask));
+        if (act)
+            CHECK(onlyTargetBitsChanged(c, after, mask));
+        else
+            CHECK(after == c);
+    }
+    CHECK(activated == 2);
+
+    // SA1 is the complement: the zero target bits are the activated ones.
+    activated = 0;
+    for (uint64_t c : correct) {
+        if (stuckActivated(c, mask, 1))
+            ++activated;
+        const uint64_t after = applyStuck(c, mask, 1);
+        CHECK((after & mask) == mask);
+        CHECK((after & ~mask) == (c & ~mask));
+    }
+    // SA1 activates on any CLEAR target bit: 0, 0x8000 and 0 activate;
+    // only the fully-set 0x007f8000 is exposed-but-not-activated.
+    CHECK(activated == 3);
+}
+
+static void
+test_activation_formula_matches_every_sampled_exposure()
+{
+    // The seed/gate auditor re-derives `activated` from correct_before and
+    // the fixed polarity. Pin the two branches it relies on.
+    const uint64_t mask = 0x80000000ULL;   // FP32 sign inside a 32-bit lane
+    CHECK(stuckActivated(0x0000000000000000ULL, mask, 0) == false);
+    CHECK(stuckActivated(0x0000000080000000ULL, mask, 0) == true);
+    CHECK(stuckActivated(0x0000000000000000ULL, mask, 1) == true);
+    CHECK(stuckActivated(0x0000000080000000ULL, mask, 1) == false);
+}
+
 int
 main()
 {
@@ -194,6 +248,8 @@ main()
     test_exposed_but_not_activated();
     test_narrow_lane();
     test_full_stuck_run_sequence();
+    test_multibit_accounting_across_exposures();
+    test_activation_formula_matches_every_sampled_exposure();
     if (failures) {
         std::fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

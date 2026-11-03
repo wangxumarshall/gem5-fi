@@ -50,6 +50,18 @@ class CHAOSFPU(SimObject):
     decodeGuard = Param.Bool(False,
         "Reject candidates whose decoded precision/element width/lane does "
         "not match the manifest (fail closed). Formal D3 runs enable this.")
+    # [FSU][FP06] Explicit eligible-stream filters. opClasses is a
+    # comma-separated allowlist of gem5 OpClass names (FloatAdd,
+    # FloatMultAcc, ..., SimdFloat*); '' = every FP opClass the injector
+    # already accepted (legacy behavior). regClass restricts the TARGET
+    # destination register class: '' / any | vec | float | vec_elem.
+    # Unknown names panic in the constructor (fail closed). The countOnly
+    # census and the injection path share the exact same predicate, and the
+    # census emits CHAOS_ELIGIBLE_OPCLASS / CHAOS_ELIGIBLE_REGCLASS counts.
+    opClasses = Param.String("",
+        "Comma-separated OpClass allowlist (empty = all FP opClasses)")
+    regClass = Param.String("",
+        "Target destination register class: ''/any | vec | float | vec_elem")
     # v1.1 Phase 9 patch 1a mode 2 — fma_intermediate (E3 BEHAVIORAL
     # PROXY, not a microarchitectural replay): gem5's ARM FP is a pure
     # functional model (arch/arm/fplib.cc fplibMulAdd) with no real

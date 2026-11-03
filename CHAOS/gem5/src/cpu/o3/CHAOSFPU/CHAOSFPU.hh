@@ -3,6 +3,7 @@
 
 #include <deque>
 #include <map>
+#include <ostream>
 #include <random>
 #include <string>
 #include <utility>
@@ -83,6 +84,19 @@ class CHAOSFPU : public SimObject
     uint64_t decode_reject_count = 0;
     std::map<std::string, uint64_t> decode_reject_reasons;
     std::map<std::string, uint64_t> decode_kind_counts;
+    // [FSU][FP06] Explicit eligible-stream filters. `opClasses` is a
+    // comma-separated allowlist of gem5 OpClass names (empty = every FP
+    // opClass this injector already accepted). `regClass` restricts the
+    // TARGET destination register class (empty/any = legacy behavior).
+    // Unknown names panic in the constructor (fail closed). Both the
+    // countOnly census and the injection path use the SAME predicate.
+    std::vector<int> op_class_allow;      // empty = no opClass filter
+    int required_reg_class = -1;          // -1 = any FP register class
+    // Census evidence: eligible events per opClass / regClass. Emitted only
+    // in countOnly mode so a gate can prove the filter really narrowed the
+    // stream instead of only relabeling it.
+    std::map<std::string, uint64_t> eligible_opclass_counts;
+    std::map<std::string, uint64_t> eligible_regclass_counts;
     // mode 2 — fma_intermediate weighted proxy (E3).
     bool fma_weighted = false;
     // mode 3 — recurring_result_stuck: same fixed mask every event.
@@ -138,6 +152,10 @@ class CHAOSFPU : public SimObject
     bool f5_flush_registered = false;
     uint64_t f5_ordinary_emitted = 0;
     uint64_t f5_last_event_id = 0;
+    // Identity of the single installation (chain_end is emitted outside any
+    // dynamic instruction, so it cannot re-derive these from a DynInst).
+    std::string f5_op_class;
+    std::string f5_reg_class;
     // Direct parent for the terminal chain_end: the real commit when one
     // happened, else the first activated exposure, else the L1 carrier.
     // Sample-branch events never become the terminal's parent.
@@ -198,6 +216,7 @@ class CHAOSFPU : public SimObject
         bool lane_match = false;
         bool is_vec = false;
         bool consumed = false;
+        std::string op_class;   // gem5 OpClass name of the producer
         // [FSU][F5] The taint belongs to a permanent fault: its terminal is
         // reported by the F5 chain_end (with exposure accounting), never by
         // a generic not_activated event (which would contradict
@@ -224,6 +243,8 @@ class CHAOSFPU : public SimObject
         bool lane_match = false;
         bool is_store = false;
         bool has_l3 = false, has_l4 = false, committed = false;
+        std::string op_class;   // gem5 OpClass name of the producer
+        std::string reg_class;  // vec | float | vec_elem
     };
 
     // Everything an injection site needs to describe itself to the chain
@@ -249,6 +270,7 @@ class CHAOSFPU : public SimObject
         bool lane_match = false;
         bool is_vec = false;
         std::string field;
+        std::string op_class;   // gem5 OpClass name of this instruction
     };
     std::vector<FaultedReg> faulted_regs;
     std::map<uint64_t, TaintedConsumer> tainted_consumers;
@@ -258,6 +280,11 @@ class CHAOSFPU : public SimObject
     uint64_t emitFsu(const char *kind, uint64_t fault_id, uint64_t parent,
                      std::vector<std::pair<std::string, std::string>> kv);
     void noteNotActivated();
+    void dumpCensus(std::ostream &os) const;
+    bool regClassMatches(int cls) const
+    {
+        return required_reg_class < 0 || cls == required_reg_class;
+    }
 
     // [FSU][F5] Permanent stuck-at path. One install (L0 root + L1 carrier),
     // then one exposure event per eligible event (bounded samples) while the

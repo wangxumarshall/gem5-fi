@@ -22,6 +22,11 @@
 namespace gem5
 {
 
+    // [FSU][FP06] Defined with the other filter helpers below; declared here
+    // because the constructor validates the params before that block.
+    static bool opClassFromName(const std::string &name, OpClass &out);
+    static bool regClassFromName(const std::string &name, int &out);
+
     CHAOSFPU::CHAOSFPU(const CHAOSFPUParams &p)
         : SimObject(p),
           cpu(p.cpu),
@@ -204,6 +209,32 @@ namespace gem5
                              lane_offset != 0))
             panic("CHAOSFPU: f3_dependent is FP64/lane64/offset0 only\n");
 
+        // [FSU][FP06] Explicit opClass / regClass filters. Unknown names are
+        // a configuration error, never silently ignored (fail closed).
+        if (!p.opClasses.empty()) {
+            std::stringstream ss(p.opClasses);
+            std::string tok;
+            while (std::getline(ss, tok, ',')) {
+                if (tok.empty())
+                    panic("CHAOSFPU: empty opClasses token in '%s'\n",
+                          p.opClasses.c_str());
+                OpClass oc;
+                if (!opClassFromName(tok, oc))
+                    panic("CHAOSFPU: unknown opClasses name '%s'\n",
+                          tok.c_str());
+                if (std::find(op_class_allow.begin(), op_class_allow.end(),
+                              (int)oc) == op_class_allow.end())
+                    op_class_allow.push_back((int)oc);
+            }
+            if (op_class_allow.empty())
+                panic("CHAOSFPU: opClasses parsed to an empty allowlist\n");
+        }
+        if (!regClassFromName(p.regClass, required_reg_class))
+            panic("CHAOSFPU: unknown regClass '%s' (expected any|vec|float|"
+                  "vec_elem or empty)\n", p.regClass.c_str());
+        // opClasses and regClass are orthogonal: scalar FP opClasses may use
+        // the VecReg storage class on AArch64, so a cross product is valid.
+
         // [FSU][F5] Permanent stuck-at (one install, many exposures).
         // Fail closed on every ambiguous configuration: this mode MUST NOT
         // be a relabeled rate/random mode, and it MUST NOT fall back to XOR
@@ -274,10 +305,23 @@ namespace gem5
     {
         // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
         // N_eligible from this line (campaign.py parses the log).
-        if (count_only && log_stream && log_stream->stream()) {
-            *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT=" << eligible_count
-                << std::endl;
-        }
+        if (count_only && log_stream && log_stream->stream())
+            dumpCensus(*(log_stream->stream()));
+    }
+
+    void
+    CHAOSFPU::dumpCensus(std::ostream &os) const
+    {
+        os << "CHAOS_ELIGIBLE_COUNT=" << eligible_count << "\n";
+        // [FSU][FP06] Per-opClass / per-regClass eligible counts. Only the
+        // FILTERED stream is counted: a name outside the allowlist can never
+        // appear, and the counts must sum to CHAOS_ELIGIBLE_COUNT.
+        for (const auto &kv : eligible_opclass_counts)
+            os << "CHAOS_ELIGIBLE_OPCLASS " << kv.first << "=" << kv.second
+               << "\n";
+        for (const auto &kv : eligible_regclass_counts)
+            os << "CHAOS_ELIGIBLE_REGCLASS " << kv.first << "=" << kv.second
+               << "\n";
     }
 
     bool
@@ -312,6 +356,55 @@ namespace gem5
                oc == SimdFloatMultOp || oc == SimdFloatMultAccOp ||
                oc == SimdFloatDivOp || oc == SimdFloatSqrtOp ||
                oc == SimdFloatMiscOp;
+    }
+
+    // [FSU][FP06] The ONLY opClass names accepted by --fpu_op_classes. This
+    // is exactly the injector's FP-domain (scalar Float* + SIMD FP).
+    struct OpClassName { const char *name; OpClass oc; };
+    static const OpClassName kOpClassNames[] = {
+        {"FloatAdd", FloatAddOp},
+        {"FloatCmp", FloatCmpOp},
+        {"FloatCvt", FloatCvtOp},
+        {"FloatMult", FloatMultOp},
+        {"FloatMultAcc", FloatMultAccOp},
+        {"FloatDiv", FloatDivOp},
+        {"FloatMisc", FloatMiscOp},
+        {"FloatSqrt", FloatSqrtOp},
+        {"SimdFloatAdd", SimdFloatAddOp},
+        {"SimdFloatAlu", SimdFloatAluOp},
+        {"SimdFloatCmp", SimdFloatCmpOp},
+        {"SimdFloatCvt", SimdFloatCvtOp},
+        {"SimdFloatMult", SimdFloatMultOp},
+        {"SimdFloatMultAcc", SimdFloatMultAccOp},
+        {"SimdFloatDiv", SimdFloatDivOp},
+        {"SimdFloatSqrt", SimdFloatSqrtOp},
+        {"SimdFloatMisc", SimdFloatMiscOp},
+    };
+
+    static bool opClassFromName(const std::string &name, OpClass &out) {
+        for (const auto &e : kOpClassNames) {
+            if (name == e.name) {
+                out = e.oc;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static const char *opClassName(OpClass oc) {
+        for (const auto &e : kOpClassNames) {
+            if (oc == e.oc)
+                return e.name;
+        }
+        return "unknown";
+    }
+
+    static bool regClassFromName(const std::string &name, int &out) {
+        if (name.empty() || name == "any") { out = -1; return true; }
+        if (name == "vec")      { out = (int)VecRegClass;    return true; }
+        if (name == "float")    { out = (int)FloatRegClass;  return true; }
+        if (name == "vec_elem") { out = (int)VecElemClass;   return true; }
+        return false;
     }
 
     static const char *regClassName(int cls) {
@@ -384,21 +477,34 @@ namespace gem5
         if (!inWindow()) return false;
         OpClass oc = dyn_inst->opClass();
         if (!isFpOpClass(oc)) return false;
+        // [FSU][FP06] Explicit opClass allowlist. Empty = legacy (every FP
+        // opClass accepted). A non-matching candidate is not eligible and is
+        // not counted anywhere (the census counts only the filtered stream).
+        if (!op_class_allow.empty() &&
+            std::find(op_class_allow.begin(), op_class_allow.end(),
+                      (int)oc) == op_class_allow.end())
+            return false;
 
         // v1.1 Phase 9 patch 1a-0: with the PRF-dest rewrite the corruptible
         // stream is 'inst has an FP/vector destination register' — checkable
         // directly from the dest-reg list (no InstResult involved).
-        bool has_fp_dest = false;
+        // [FSU][FP06] `regClass` restricts the TARGET dest class. The target
+        // is the first FP/vector dest whose class matches the filter (the
+        // injection loop below applies the same rule, so eligibility and
+        // injection can never pick different registers).
+        int target_class = -1;
         for (int i = 0; i < dyn_inst->numDestRegs(); i++) {
             PhysRegIdPtr d = dyn_inst->renamedDestIdx(i);
             if (d && !d->is(InvalidRegClass) &&
                 (d->classValue() == VecRegClass ||
                  d->classValue() == FloatRegClass ||
-                 d->classValue() == VecElemClass)) {
-                has_fp_dest = true;
+                 d->classValue() == VecElemClass) &&
+                regClassMatches((int)d->classValue())) {
+                target_class = (int)d->classValue();
                 break;
             }
         }
+        const bool has_fp_dest = target_class >= 0;
 
         // A non-zero lane offset only makes sense for a SIMD instruction;
         // scalar FP results use lane 0 (AArch64 scalar FP is stored in a
@@ -469,7 +575,11 @@ namespace gem5
         // corrupt. The counted stream is identical to the stream the
         // fixed-skip draw indexes into.
         if (count_only) {
-            if (eligible) ++eligible_count;
+            if (eligible) {
+                ++eligible_count;
+                ++eligible_opclass_counts[opClassName(oc)];
+                ++eligible_regclass_counts[regClassName(target_class)];
+            }
             return false;
         }
 
@@ -681,6 +791,7 @@ namespace gem5
         info.abs_lo = mi.abs_lo;
         info.abs_hi = mi.abs_hi;
         info.instruction_bits = dec_enc;
+        info.op_class = opClassName(oc);
         if (want_decode) {
             info.decoded_kind = chaos_fsu::fpKindName(dec.kind);
             info.decoded_precision_bits = dec.precision_bits;
@@ -759,6 +870,8 @@ namespace gem5
         for (int i = 0; i < dyn_inst->numDestRegs() && !ok; i++) {
             PhysRegIdPtr dest = dyn_inst->renamedDestIdx(i);
             if (!dest || dest->is(InvalidRegClass)) continue;
+            // [FSU][FP06] Same regClass predicate as eligibility.
+            if (!regClassMatches((int)dest->classValue())) continue;
             switch (dest->classValue()) {
               case VecRegClass: {
                 // Full 128-bit vector register: read/write only the selected
@@ -1079,6 +1192,7 @@ namespace gem5
         fr.lane_match = fi.lane_match;
         fr.is_vec = fi.is_vec;
         fr.consumed = false;
+        fr.op_class = fi.op_class;
         faulted_regs.push_back(fr);
     }
 
@@ -1114,6 +1228,7 @@ namespace gem5
             {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
             {"phys_reg", std::to_string(fi.reg_index)},
             {"reg_class", regClassName(fi.reg_class)},
+            {"op_class", fi.op_class},
             {"field", fld},
             {"precision", precision},
             {"fault_mask", hex64(fi.mask)},
@@ -1240,6 +1355,7 @@ namespace gem5
         fr.lane_match = fi.lane_match;
         fr.is_vec = fi.is_vec;
         fr.consumed = false;
+        fr.op_class = fi.op_class;
         fr.f5 = true;
         faulted_regs.push_back(fr);
         f5_taint_registered = true;
@@ -1258,6 +1374,8 @@ namespace gem5
             // L1. No later event increments next_fault_id.
             f5_fault_id = next_fault_id++;
             f5_first_eligible_sn = inst->seqNum;
+            f5_op_class = fi.op_class;
+            f5_reg_class = regClassName(fi.reg_class);
             ++faults_injected_count;
             auto kv = buildF5Kv(inst, fi);
             f5_install_event = emitFsu("fault_installed", f5_fault_id,
@@ -1306,6 +1424,11 @@ namespace gem5
         f5_last_exposure_sn = inst->seqNum;
 
         auto ekv = buildF5Kv(inst, fi);
+        // Every exposure names the ONE installation root, including the
+        // ordinary prefix samples emitted during the run. The gate/audit
+        // contract requires this field on every exposure, not only on the
+        // commit/chain_end summary.
+        ekv.push_back({"install_event", std::to_string(f5_install_event)});
         ekv.push_back({"exposure_id", std::to_string(f5_exposures_total)});
         ekv.push_back({"exposure_count", std::to_string(f5_exposures_total)});
         ekv.push_back({"activated_exposure_count",
@@ -1385,8 +1508,17 @@ namespace gem5
             f5_last_samples.pop_front();
             ++f5_exposures_sampled;
             const uint64_t sampled = f5_exposures_sampled;
+            // These events were queued during the run; at flush time the
+            // authoritative total is known. Rewrite the TOTAL as well as
+            // sampled/dropped so every exposure satisfies the conservation
+            // identity total == sampled + dropped (a stale per-event total
+            // would make the tail samples internally inconsistent).
             const uint64_t dropped = f5_exposures_total > sampled
                 ? f5_exposures_total - sampled : 0;
+            f5SetKv(kv, "exposures_total",
+                    std::to_string(f5_exposures_total));
+            f5SetKv(kv, "activated_exposure_count",
+                    std::to_string(f5_activated_total));
             f5SetKv(kv, "exposures_sampled", std::to_string(sampled));
             f5SetKv(kv, "exposures_dropped", std::to_string(dropped));
             emitF5Exposure(kv, parent);
@@ -1407,6 +1539,8 @@ namespace gem5
             {"install_event", std::to_string(f5_install_event)},
             {"stuck_polarity", std::to_string(f5_polarity)},
             {"fixed_mask", hex64(f5_fixed_mask)},
+            {"op_class", f5_op_class},
+            {"reg_class", f5_reg_class},
             {"first_eligible_sn", std::to_string(f5_first_eligible_sn)},
             {"exposure_count", std::to_string(f5_exposures_total)},
             {"activated_exposure_count",
@@ -1506,6 +1640,9 @@ namespace gem5
                     // self-describing, not just the install/exposure.
                     kv.push_back({"install_event",
                                   std::to_string(f5_install_event)});
+                    // reg_class is already present in the operand_read kv;
+                    // only op_class needs to be added here.
+                    kv.push_back({"op_class", f.op_class});
                     kv.push_back({"stuck_polarity",
                                   std::to_string(f5_polarity)});
                     kv.push_back({"fixed_mask", hex64(f5_fixed_mask)});
@@ -1540,6 +1677,8 @@ namespace gem5
                 tc.decoded_reliable = f.decoded_reliable;
                 tc.precision_match = f.precision_match;
                 tc.lane_match = f.lane_match;
+                tc.op_class = f.op_class;
+                tc.reg_class = regClassName(f.reg_class);
                 tc.is_store = inst->isStore();
                 if (!tc.is_store && isFpOpClass(inst->opClass())) {
                     tc.l3_id = emitFsu("execute", f.fault_id, l2, kv);
@@ -1597,6 +1736,8 @@ namespace gem5
         // is the FIRST REAL IMPACT. Record its latency from activation and
         // carry the permanent-fault identity onto the L5 witness.
         if (permanent_stuck && f5_armed && tc.fault_id == f5_fault_id) {
+            kv.push_back({"op_class", tc.op_class});
+            kv.push_back({"reg_class", tc.reg_class});
             f5_commit_seen = true;
             f5_first_impact_sn = inst->seqNum;
             f5_first_impact_tick = curTick();
@@ -1714,8 +1855,7 @@ namespace gem5
         if (count_only) {
             registerExitCallback([this]() {
                 if (log_stream && log_stream->stream())
-                    *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
-                        << eligible_count << std::endl;
+                    dumpCensus(*(log_stream->stream()));
             });
         }
         // [FSU][D3] Honest decode-rejection accounting. A mismatch rejects

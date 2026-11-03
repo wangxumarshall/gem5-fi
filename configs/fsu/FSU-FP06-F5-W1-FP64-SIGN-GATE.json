@@ -1,0 +1,71 @@
+{
+  "run_id": "FSU-FP06-F5-W1-FP64-SIGN-GATE",
+  "gate": true,
+  "counts_toward_519": false,
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W1",
+  "submodel": "FP06-b",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "identity": "W1-fp-scalar-probe-v1",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp64",
+      "lane_width": 64,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 1,
+      "f5_warmup": 10000,
+      "f5_sample_limit": 2048,
+      "f5_keep_first_last_n": 1024,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec"
+    },
+    "fault_mask": "0x8000000000000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "pre_registration": {
+    "frozen_at": "2026-11-03",
+    "precision": "fp64",
+    "lane_width": 64,
+    "lane_offset": 0,
+    "mask": "0x8000000000000000",
+    "polarity": 1,
+    "op_classes": [
+      "FloatAdd",
+      "FloatMult",
+      "FloatMultAcc",
+      "FloatDiv",
+      "FloatSqrt"
+    ],
+    "reg_class": "vec",
+    "decode_guard": true,
+    "f5_warmup": 10000,
+    "f5_sample_limit": 2048,
+    "f5_keep_first_last_n": 1024
+  },
+  "notes": "FP06-F5-W1 gate (NOT a formal RunID; never counted in 519/240). Pre-registered BEFORE execution: FP64 scalar sign bit, SA1, fixed mask 0x8000000000000000, lane_width=64, op_class allowlist = scalar FloatAdd/FloatMult/FloatMultAcc/FloatDiv/FloatSqrt, reg_class=vec, decode_guard=true. Warm-up 64 eligible events, 64 ordinary samples (first 8 + last 8). One installation, many exposures. Golden ARRAYHASH is the no-fault W1 value. Gate PASS/FAIL is decided by tools/fsu_f5_w1_gate.py from real evidence, never inferred from this file. Gate sampling window widened (warmup=10000, sample=2048, first_last=1024) BEFORE the re-run so the FP64 SA1 stream can witness exposed-but-not-activated exposures. Mask/polarity/precision/op_classes/reg_class are unchanged."
+}

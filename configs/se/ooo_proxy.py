@@ -304,6 +304,13 @@ p.add_argument("--fpu_lane_offset", type=lambda x: int(x, 0), default=0)
 # [FSU][D3] Reject candidates whose real instruction decode disagrees with
 # the manifest precision/element width/lane (fail closed).
 p.add_argument("--fpu_decode_guard", action="store_true")
+# [FSU][F5-W1] Explicit manifest filter: only candidates whose opClass and
+# destination reg class match are eligible/exposed (empty = legacy all-FP).
+p.add_argument("--fpu_op_classes", default="",
+               help="comma-separated gem5 OpClass allowlist (empty = all FP)")
+p.add_argument("--fpu_reg_class", default="",
+               choices=["", "any", "vec", "float", "vec_elem"],
+               help="target destination register class")
 p.add_argument("--fpu_fma_weighted", action="store_true")
 p.add_argument("--fpu_recurring_stuck", action="store_true")
 # [FSU][F5] One permanent stuck-at fault, many exposures. Requires
@@ -795,6 +802,8 @@ if args.chaos_fpu:
         laneWidth=args.fpu_lane_width,
         laneOffset=args.fpu_lane_offset,
         decodeGuard=args.fpu_decode_guard,
+        opClasses=args.fpu_op_classes,
+        regClass=args.fpu_reg_class,
         fmaWeighted=args.fpu_fma_weighted,
         recurringStuck=args.fpu_recurring_stuck,
         permanentStuck=args.fpu_permanent_stuck,

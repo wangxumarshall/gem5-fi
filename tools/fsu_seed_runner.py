@@ -50,6 +50,59 @@ DEFAULT_OUT = ROOT / "runs/fsu"
 COMPLETE_ROOT = DEFAULT_OUT / "COMPLETE_PROPAGATION_PATHS"
 MASK64 = (1 << 64) - 1
 
+# [FSU][FP06] Accepted fpu_mode.op_classes names. MUST stay identical to
+# CHAOSFPU.cc kOpClassNames (gem5 OpClass names); the C++ constructor panics
+# on anything else, so the runner rejects the same set before gem5 starts.
+FPU_OP_CLASSES = (
+    "FloatAdd", "FloatCmp", "FloatCvt", "FloatMult", "FloatMultAcc",
+    "FloatDiv", "FloatMisc", "FloatSqrt",
+    "SimdFloatAdd", "SimdFloatAlu", "SimdFloatCmp", "SimdFloatCvt",
+    "SimdFloatMult", "SimdFloatMultAcc", "SimdFloatDiv", "SimdFloatSqrt",
+    "SimdFloatMisc",
+)
+FPU_REG_CLASSES = ("any", "vec", "float", "vec_elem")
+
+
+def _fpu_filter_args(fpu: dict):
+    """Translate manifest op_classes/reg_class into CLI flags (fail closed).
+
+    Returns a list of argv fragments. An unknown opClass or register class is
+    a hard error: silently ignoring it would make the census/injection stream
+    disagree with the manifest.
+    """
+    args = []
+    raw = fpu.get("op_classes")
+    if raw is None or raw == "" or raw == []:
+        names = []
+    elif isinstance(raw, str):
+        names = [x.strip() for x in raw.split(",") if x.strip()]
+    elif isinstance(raw, list):
+        names = raw
+    else:
+        raise ValueError(
+            f"fpu_mode.op_classes must be an array of OpClass names, got "
+            f"{type(raw).__name__}")
+    for name in names:
+        if not isinstance(name, str) or name not in FPU_OP_CLASSES:
+            raise ValueError(
+                f"unknown fpu_mode.op_classes name {name!r}; expected one of "
+                f"{list(FPU_OP_CLASSES)}")
+    if len(set(names)) != len(names):
+        raise ValueError("fpu_mode.op_classes contains duplicate names")
+    if names:
+        args += ["--fpu_op_classes", ",".join(names)]
+
+    reg = fpu.get("reg_class")
+    if reg is None or reg == "":
+        reg = "any"
+    if reg not in FPU_REG_CLASSES:
+        raise ValueError(
+            f"unknown fpu_mode.reg_class {reg!r}; expected one of "
+            f"{list(FPU_REG_CLASSES)}")
+    if reg != "any":
+        args += ["--fpu_reg_class", reg]
+    return args
+
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -163,6 +216,9 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         cmd += ["--fpu_lane_offset", str(fpu["lane_offset"])]
     if fpu.get("decode_guard"):
         cmd += ["--fpu_decode_guard"]
+    # [FSU][FP06] Explicit precision/opClass/regClass filtering. Both census
+    # and injection receive the SAME flags so they count/inject one stream.
+    cmd += _fpu_filter_args(fpu)
     profile = str(manifest.get("config_profile", "") or "")
     if profile == "B0":
         cmd += ["--config_profile", "B0"]
@@ -262,7 +318,8 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
              runner=None, timeout_s=None, allow_rerun=False,
              seed_dir: Path | None = None, component: dict | None = None,
              write_authoritative: bool = True,
-             copy_to_complete: bool = True):
+             copy_to_complete: bool = True,
+             config: Path = DEFAULT_CONFIG):
     """运行一个 seed（或 suite component）。
 
     [W5 suite] 向后兼容扩展：
@@ -351,7 +408,7 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     # ---- census (countOnly) ----
     census_dir = attempt / "census"
     census_cmd = build_cmd(seed_manifest, census_dir, seed, None, True,
-                           gem5, DEFAULT_CONFIG, Path(root))
+                           gem5, Path(config), Path(root))
     rc, out, err, timed_out = runner(census_cmd, timeout)
     (attempt / "census.out").write_text(out, encoding="utf-8")
     (attempt / "census.err").write_text(err, encoding="utf-8")
@@ -426,7 +483,7 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     # ---- injection ----
     inject_dir = attempt / "inject"
     inj_cmd = build_cmd(seed_manifest, inject_dir, seed, skip, False,
-                        gem5, DEFAULT_CONFIG, Path(root), rate_doc=rate_doc)
+                        gem5, Path(config), Path(root), rate_doc=rate_doc)
     inj_cmd += ["--fsu_eligible_total", str(eligible)]
     rc, out, err, timed_out = runner(inj_cmd, timeout)
     (attempt / "run.out").write_text(out, encoding="utf-8")

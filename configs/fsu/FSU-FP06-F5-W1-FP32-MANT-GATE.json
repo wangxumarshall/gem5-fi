@@ -1,0 +1,59 @@
+{
+  "run_id": "FSU-FP06-F5-W1-FP32-MANT-GATE",
+  "gate": true,
+  "counts_toward_519": false,
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W1",
+  "submodel": "FP06-c",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "identity": "W1-fp-scalar-probe-v1",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 0,
+      "f5_warmup": 64,
+      "f5_sample_limit": 64,
+      "f5_keep_first_last_n": 8,
+      "op_classes": ["FloatAdd", "FloatMult", "FloatMultAcc", "FloatDiv", "FloatSqrt"],
+      "reg_class": "vec"
+    },
+    "fault_mask": "0x007f8000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "pre_registration": {
+    "frozen_at": "2026-11-03",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0,
+    "mask": "0x007f8000",
+    "polarity": 0,
+    "op_classes": ["FloatAdd", "FloatMult", "FloatMultAcc", "FloatDiv", "FloatSqrt"],
+    "reg_class": "vec",
+    "decode_guard": true,
+    "f5_warmup": 64,
+    "f5_sample_limit": 64,
+    "f5_keep_first_last_n": 8
+  },
+  "notes": "FP06-F5-W1 gate (NOT a formal RunID; never counted in 519/240). Pre-registered BEFORE execution: FP32 scalar fixed MANTISSA mask 0x007f8000 (bits 15..22, FP06-c), SA0, op_class allowlist = scalar FloatAdd/FloatMult/FloatMultAcc/FloatDiv/FloatSqrt, reg_class=vec, decode_guard=true. Multi-bit mask: field=permanent_stuck, real bit set is fixed_mask. Warm-up 64 eligible events, 64 ordinary samples (first 8 + last 8). Golden ARRAYHASH is the no-fault W1 value."
+}

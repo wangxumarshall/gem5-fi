@@ -308,6 +308,62 @@
             },
             "fpsr_suppress": {
               "type": "boolean"
+            },
+            "op_classes": {
+              "type": "array",
+              "description": "[FSU][FP06] Explicit eligible-opClass allowlist. An empty/absent list keeps the legacy behavior (every FP opClass this injector accepts). Names are exact gem5 OpClass names.",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "FloatAdd",
+                  "FloatCmp",
+                  "FloatCvt",
+                  "FloatMult",
+                  "FloatMultAcc",
+                  "FloatDiv",
+                  "FloatMisc",
+                  "FloatSqrt",
+                  "SimdFloatAdd",
+                  "SimdFloatAlu",
+                  "SimdFloatCmp",
+                  "SimdFloatCvt",
+                  "SimdFloatMult",
+                  "SimdFloatMultAcc",
+                  "SimdFloatDiv",
+                  "SimdFloatSqrt",
+                  "SimdFloatMisc"
+                ]
+              },
+              "uniqueItems": true
+            },
+            "reg_class": {
+              "type": "string",
+              "description": "[FSU][FP06] Target destination register class. Only a dest of this class is eligible; empty/absent = any FP register class (legacy).",
+              "enum": ["any", "vec", "float", "vec_elem"]
+            },
+            "permanent_stuck": {
+              "type": "boolean",
+              "description": "[FSU][F5] Install exactly ONE permanent stuck-at fault (one fault_id, one fault_mask, one polarity) on the first eligible event after f5_warmup; every later eligible event is an exposure of the SAME fault. This is forced polarity, NOT XOR. Requires freq=F5, probability=1.0, an explicit fault_mask, max_faults=0/1, and is mutually exclusive with rate/recurring_stuck/rounding_sub/f3_dependent/fpsr_suppress/fma_weighted/bitseg."
+            },
+            "stuck_polarity": {
+              "type": "integer",
+              "enum": [-1, 0, 1],
+              "description": "[FSU][F5] -1 = draw the polarity ONCE at installation from rngSeed and keep it fixed; 0 = SA0 (force target bits to 0); 1 = SA1 (force target bits to 1). Formal seeds must pin 0 or 1 before the run."
+            },
+            "f5_warmup": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "[FSU][F5] Number of eligible events observed before the single installation. The first eligible event with ordinal > f5_warmup installs the fault."
+            },
+            "f5_sample_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "[FSU][F5] Budget for ORDINARY exposure samples (mandatory install/first/first-activated/chain_end events are extra). 0 = mandatory events only. The resolved budget must stay below the 200000 PROP-EVT cap (constructor requires +8 < 190000)."
+            },
+            "f5_keep_first_last_n": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "[FSU][F5] 0 = prefix sampling (first f5_sample_limit ordinary samples); N>0 = keep the first N and the last N inside the same budget. Totals/dropped remain exact on chain_end."
             }
           }
         },

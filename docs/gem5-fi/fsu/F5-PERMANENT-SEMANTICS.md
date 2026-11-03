@@ -4,9 +4,10 @@
 > `CHAOS/gem5/src/cpu/o3/CHAOSFPU/`。本文是实现与离线审计的合同；
 > 不与 F0/F1–F4 的数字混用。
 >
-> 状态：代码 + host 单测 + 合成事件流审计已验证；**真实 gem5 构建与
-> 正式 seed 未在本轮运行**（宿主 loadavg > 90）。构建由主 agent 在负载
-> 恢复后执行。
+> 状态：代码 + host 单测 + 合成事件流审计已验证；真实 gem5 已构建。
+> `FSU-FP06-F5-W3` 与 `FSU-FP06-F5-W1` 各 3 个正式 seed 全部
+> `audit.ok/certified`；FP06-W1 的非正式 gate 在
+> `runs/fsu-gates/F5-FP06-F5-W1-v3/` 通过（不计 519/240）。
 
 ## 1. 四个定义
 
@@ -52,11 +53,43 @@ inline bool stuckActivated(uint64_t correct, uint64_t mask, int polarity);
 | `f5Warmup` | UInt64 / 0 | 安装前跳过的 eligible 数。eligible ordinal `> f5Warmup` 的第一个事件安装。 |
 | `f5SampleLimit` | UInt64 / 0 | **普通** exposure 样本预算；强制事件（首次 exposure、首次 activated exposure）不计入。`0` = 只保留强制事件。 |
 | `f5KeepFirstLastN` | UInt64 / 0 | `0` = 前缀策略（前 `f5SampleLimit` 个）；`N>0` = 在预算内保留前 N + 后 N。 |
+| `opClasses` | String / "" | 逗号分隔的 gem5 OpClass allowlist（如 `FloatAdd,FloatMult,FloatMultAcc,FloatDiv,FloatSqrt`）。空 = 保留原有全部 FP opClass（向后兼容）。未知名字构造期 panic。 |
+| `regClass` | String / "" | 目标目的寄存器的 class：`""`/`any`（原有行为）/`vec`/`float`/`vec_elem`。只有目标 dest 的 class 匹配才 eligible；注入循环使用同一谓词。未知值构造期 panic。 |
 
 构造函数 fail-closed：`permanentStuck` 与 rate / `recurringStuck` /
 `roundingSub` / `f3Dependent` / `fpsrSuppress` / `fmaWeighted` / `bitseg` /
 显式 `eventsToSkip` 互斥；裸 `fsuFreq=F5` 而没有 `permanentStuck` 直接
-panic（`countOnly` census 除外）。
+panic（`countOnly` census 除外）。`opClasses` 只接受注入器已知的 17 个 FP
+opClass 名（8 个 scalar `Float*` + 9 个 `SimdFloat*`）；`regClass` 只接受
+`any|vec|float|vec_elem`。任何未知名字都是构造期 panic，不会静默忽略。
+
+### 3.2 eligible 谓词（precision / regClass / opClass 同时成立）
+
+```
+eligible =
+    isFpOpClass(opClass)
+ && (opClasses 为空 || opClass ∈ opClasses)
+ && 目标 dest ∈ {VecRegClass, FloatRegClass, VecElemClass}
+ && (regClass 为 any || 目标 dest 的 class == regClass)
+ && decode_guard 要求的 precision / element width / lane 全部匹配
+```
+
+目标 dest 是 dest 列表里**第一个**满足 regClass 的 FP/vector 目的寄存器；
+注入循环跳过不匹配的 dest，因此 countOnly 的 eligible 流与真实注入流不会
+选中不同寄存器。`decode_guard` 对 FCVT/int-convert 仍 fail closed
+（decoded unreliable），`opClasses` 再把 `FloatCvt`/`SimdFloatCvt` 显式
+排除，使 gate 可以从 census 与事件流两侧证明“只统计匹配项”。
+
+census（`countOnly`）在退出时输出：
+
+```
+CHAOS_ELIGIBLE_COUNT=<n>
+CHAOS_ELIGIBLE_OPCLASS <OpClassName>=<n>      # 仅 allowlist 内出现
+CHAOS_ELIGIBLE_REGCLASS <vec|float|vec_elem>=<n>
+```
+
+逐类计数之和必须等于 `CHAOS_ELIGIBLE_COUNT`；allowlist 之外的 opClass
+不会出现在 census 中。该不变量由 `tools/fsu_f5_w1_gate.py` 校验。
 
 ### 3.1 采样预算解析
 
@@ -112,6 +145,8 @@ CHAOSFPU 把激活/影响信息放在 `exposure`/`commit` 事件上。
 | `exposures_total` | exposure/commit/chain_end | 总 exposure 数（含安装当次） |
 | `exposures_sampled` | exposure/commit/chain_end | 实际写入事件流的 exposure 数 |
 | `exposures_dropped` | exposure/commit/chain_end | `total - sampled`（没有采样的暴露，计数仍精确） |
+| `op_class` | fault_installed/carrier/exposure/operand_read/commit/chain_end | 产生该结果的 gem5 OpClass 名（如 `FloatMultAcc`），无空格；exposure 携带各自 producer 的 opClass，chain_end 携带安装事件的 opClass。 |
+| `reg_class` | fault_installed/carrier/exposure/operand_read/commit/chain_end | 目标目的寄存器 class（`vec`/`float`/`vec_elem`）；整条永久链保持一致。 |
 
 `field`：单 bit mask 且完全落在一个 IEEE754 字段内时写字段名
 （`sign`/`exp_hi`/…）；多 bit mask（FP06-c fixed mantissa）写
@@ -267,26 +302,68 @@ python3 -m pytest tests/test_chaos_fsu_f5_cpp.py \
 # -> 40 passed
 ```
 
-真实 gem5 构建（`scons -j16 build/ARM/gem5.opt`）与 F5 gate/seed 由主
-agent 在负载恢复后执行；本文件不声称这些运行已完成。
+真实 gem5 构建（`scons -j16 build/ARM/gem5.opt`）已完成；W1 gate 与
+W1/W3 正式 seed 结果见 §12 与 `runs/fsu/COMPLETE_PROPAGATION_PATHS/`。
 
 ## 11. 集成注意（owner 边界）
 
 - `CHAOSPropagation.hh` 的 `PROP_EVT_EXT_FIELDS` 已包含本文全部 F5 字段
-  （主 agent 已加入）；否则 `notePropEvt` 会丢弃未知键。
+  （主 agent 已加入），并**新增** `op_class`（本文件 owner 不改共享头，
+  由主 agent 加入 allowlist）；否则 `notePropEvt` 会丢弃未知键。
 - `configs/se/ooo_proxy.py` 已暴露 `--fpu_permanent_stuck` /
   `--fpu_stuck_polarity` / `--fpu_f5_warmup` / `--fpu_f5_sample_limit` /
-  `--fpu_f5_keep_first_last_n`。
-- **`tools/fsu_seed_runner.py` 尚未把 manifest 的 `injector.fpu_mode`
-  转成上述 CLI**；F5 正式运行前必须由该文件 owner 补齐。
-- **`tools/fsu_seed_audit.py` 仍只把 `fault_applied` 当 L0 根**；F5 运行前
-  必须让它：
-  1. 接受 `fault_installed` 作为 L0 根（`scheduled` 计数仍是 1）；
-  2. 把 `exposure` 排除出独立 fault 计数；
-  3. 对 F5 用 `stuck_after == applyStuck(correct_before, fixed_mask,
-     stuck_polarity)` 校验，而**不是** `before ^ after == mask`
-     （SA0/SA1 下“正确位已是该极性”的 exposure 不会翻转任何 bit）；
-  4. 把 `permanent_stuck` 加入 `MODE_FIELDS`，多 bit FP06-c mask 不做
-     `fault_mask == 1<<bit` 的单 bit 校验（由 `fixed_mask` 表达）。
+  `--fpu_f5_keep_first_last_n`，以及 `--fpu_op_classes`（字符串，原样传给
+  `CHAOSFPU.opClasses`）与 `--fpu_reg_class`（字符串，原样传给
+  `CHAOSFPU.regClass`）。
+- `tools/fsu_seed_runner.py` 已把 manifest 的
+  `injector.fpu_mode.op_classes` / `reg_class` 转成上述 CLI（未知名字在
+  启动 gem5 前 `ValueError`）。census 与 injection 收到完全相同的过滤参数。
+- `tools/fsu_seed_audit.py` 已接受 `fault_installed` 作为 L0 根、把
+  `exposure` 排除出独立 fault 计数、用 `applyStuck` 校验强制值，并把
+  `permanent_stuck` 加入 `MODE_FIELDS`。
 - F5 运行时不要传 `--fpu_events_to_skip`（默认哨兵即可）；构造函数会对
   非哨兵值 panic。
+
+## 12. FP06-F5-W1 预注册（非正式 gate + 3 正式 seed）
+
+W1 使用 `workloads/directed/w1_fp_scalar_probe`（FP32/FP64 scalar
+add/sub/mul/div/sqrt/FMA，NaN/Inf/±0/subnormal，4 种舍入，FPSR/FPCR；
+golden ARRAYHASH = `ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183`）。
+所有 W1 运行固定 `decode_guard=true`、`opClasses=FloatAdd,FloatMult,
+FloatMultAcc,FloatDiv,FloatSqrt`、`regClass=vec`、`permanentStuck=true`。
+
+| 用途 | manifest | precision | lane | mask | polarity | warmup / samples |
+|---|---|---|---|---|---|---|
+| gate FP32 sign | `FSU-FP06-F5-W1-FP32-SIGN-GATE.json` | fp32 | 32 | `0x80000000` | 0 (SA0) | 64 / 64, first+last 8 |
+| gate FP64 sign | `FSU-FP06-F5-W1-FP64-SIGN-GATE.json` | fp64 | 64 | `0x8000000000000000` | 1 (SA1) | 10000 / 2048, first+last 1024 |
+| gate FP32 mantissa | `FSU-FP06-F5-W1-FP32-MANT-GATE.json` | fp32 | 32 | `0x007f8000` | 0 (SA0) | 64 / 64, first+last 8 |
+| gate precision mismatch | `FSU-FP06-F5-W1-PRECISION-MISMATCH-GATE.json` | fp64 | 64 | `0x8000000000000000` | 0 | census only, expected eligible=0 |
+| formal seed1 (FP06-a) | `FSU-FP06-F5-W1-seed1.json` | fp32 | 32 | `0x80000000` | 0 (SA0) | 1024 / 1024, first+last 256 |
+| formal seed2 (FP06-b) | `FSU-FP06-F5-W1-seed2.json` | fp64 | 64 | `0x8000000000000000` | 1 (SA1) | 1024 / 1024, first+last 256 |
+| formal seed3 (FP06-c) | `FSU-FP06-F5-W1-seed3.json` | fp32 | 32 | `0x007f8000` | 0 (SA0) | 1024 / 1024, first+last 256 |
+
+mask/polarity/precision/opClasses/regClass 在运行前写入每个 manifest 的
+`pre_registration` 块并由 `tools/fsu_f5_w1_gate.py` 与运行时 block 逐项
+比对；**不得看结果后修改**。gate 只写 `runs/fsu-gates/`，不计入
+519/240。precision mismatch gate 的 eligible=0 必须是
+`decode_guard` 的 `precision_mismatch` 拒绝所致（gate 工具要求
+`CHAOS_DECODE_REJECT_REASON precision_mismatch>0`），不能由 opClass 过滤
+造成的空集冒充。
+
+### 12.1 真实结果（2026-11-03）
+
+gate `runs/fsu-gates/F5-FP06-F5-W1-v3/`：**PASS**（四项全过；FP32/FP64/
+MANT 每项 eligible=41,216；precision-mismatch eligible=0 且由
+`precision_mismatch` 拒绝造成）。FP64 gate 的采样窗口在**正式 seed 之前**
+调整为 warmup=10000 / sample=2048 / first+last=1024，以在真实 FP64 流中
+同时见证 activated 与 exposed-not-activated；mask/polarity/precision/
+opClass/regClass 未改。
+
+| 正式 seed | 预注册 | eligible | exposures | sampled | dropped | activated | terminal | oracle | audit |
+|---|---|---:|---:|---:|---:|---:|---|---|---|
+| 1 | FP06-a FP32 sign SA0 | 41,216 | 40,192 | 513 | 39,679 | 15,027 | full | SDC | ok/certified |
+| 2 | FP06-b FP64 sign SA1 | 41,216 | 40,192 | 514 | 39,678 | 25,543 | full | SDC | ok/certified |
+| 3 | FP06-c FP32 mantissa SA0 | 41,216 | 40,192 | 514 | 39,678 | 29,559 | full | SDC | ok/certified |
+
+gate 的 PASS/FAIL 由 `tools/fsu_f5_w1_gate.py` 基于真实 gem5 证据判定；
+gate 产物不计入 519/240。
