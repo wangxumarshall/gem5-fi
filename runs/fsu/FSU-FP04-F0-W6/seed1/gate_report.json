@@ -1,0 +1,182 @@
+{
+  "gate": "W6",
+  "gate_id": "FSU-FP04-F0-W6",
+  "created_at": "2026-11-04T04:07:21",
+  "non_formal": false,
+  "counts_toward_519": false,
+  "formal_suite_seed_count": 1,
+  "suite_id": "w6-fp-v1",
+  "suite_version": "1",
+  "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+  "freq": "F0",
+  "suite_seed": 1,
+  "seed_plan_entry": null,
+  "program_order": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "program_count": 3,
+  "component_run_count": 3,
+  "component_pass_count": 3,
+  "records": [
+    {
+      "suite_id": "w6-fp-v1",
+      "suite_version": "1",
+      "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+      "suite_seed": 1,
+      "program_id": "svd",
+      "program_index": 0,
+      "program_count": 3,
+      "component_seed_policy_version": "w5-component-seed-v1",
+      "component_seed": 13745869897499398298,
+      "component_attempt": 3,
+      "component_manifest_sha256": "4102402ba756e83d2f125bd0ed45d435b9463c3f0ad4cbe69a5bc193701485a5",
+      "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
+      "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
+      "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
+      "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+      "component_golden": "4afb95b5b32f3820",
+      "component_status": "admitted",
+      "component_eligible": 12947,
+      "component_activated": 1,
+      "component_faults": 1,
+      "component_terminal": "full",
+      "component_oracle": "SDC",
+      "component_run_level_oracle": "Masked",
+      "component_audit_ok": true,
+      "component_certified": true,
+      "program_override": {
+        "fpu_mode": {
+          "lane_offset": 0,
+          "lane_width": 64,
+          "precision": "fp64"
+        }
+      },
+      "effective_injector": {
+        "component": "fsu",
+        "max_faults": 1,
+        "first_clock": 0,
+        "fpu_mode": {
+          "bitseg": "sign",
+          "precision": "fp64",
+          "lane_width": 64,
+          "lane_offset": 0,
+          "decode_guard": true
+        }
+      },
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/svd/FSU-FP04-F0-W6/seed13745869897499398298/attempt-3",
+      "component_oracle_category": "DIFF",
+      "component_oracle_mismatch_count": 3,
+      "component_oracle_elements": "oracle_elements.json",
+      "component_oracle_elements_sha256": "57c0f70d60e725071bb727d314da929e2b5b14594926d408744a4d9be9157af4",
+      "ok": true
+    },
+    {
+      "suite_id": "w6-fp-v1",
+      "suite_version": "1",
+      "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+      "suite_seed": 1,
+      "program_id": "fft",
+      "program_index": 1,
+      "program_count": 3,
+      "component_seed_policy_version": "w5-component-seed-v1",
+      "component_seed": 10230542913907129042,
+      "component_attempt": 3,
+      "component_manifest_sha256": "7bc8799e9f229b2af41d1c90359596db26ac62cc8c4a718c8afcb3b1f673eb2d",
+      "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
+      "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
+      "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
+      "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+      "component_golden": "fdd819481ea73b0c",
+      "component_status": "admitted",
+      "component_eligible": 45086,
+      "component_activated": 1,
+      "component_faults": 1,
+      "component_terminal": "full",
+      "component_oracle": "SDC",
+      "component_run_level_oracle": "SDC",
+      "component_audit_ok": true,
+      "component_certified": true,
+      "program_override": {
+        "fpu_mode": {
+          "lane_offset": 0,
+          "lane_width": 32,
+          "precision": "fp32"
+        }
+      },
+      "effective_injector": {
+        "component": "fsu",
+        "max_faults": 1,
+        "first_clock": 0,
+        "fpu_mode": {
+          "bitseg": "sign",
+          "precision": "fp32",
+          "lane_width": 32,
+          "lane_offset": 0,
+          "decode_guard": true
+        }
+      },
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/fft/FSU-FP04-F0-W6/seed10230542913907129042/attempt-3",
+      "component_oracle_category": "DIFF",
+      "component_oracle_mismatch_count": 8,
+      "component_oracle_elements": "oracle_elements.json",
+      "component_oracle_elements_sha256": "3f9f98ae82aa901d3e5e32043f44d5de6fb9dbf935652e41b8da311ffd3a1d32",
+      "ok": true
+    },
+    {
+      "suite_id": "w6-fp-v1",
+      "suite_version": "1",
+      "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+      "suite_seed": 1,
+      "program_id": "sparse-cg",
+      "program_index": 2,
+      "program_count": 3,
+      "component_seed_policy_version": "w5-component-seed-v1",
+      "component_seed": 11659115503218795416,
+      "component_attempt": 3,
+      "component_manifest_sha256": "f69be9404f675a3d0b5025bc1148c7eeae0d20f26b12d91ee8f74ad19a43ea86",
+      "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
+      "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
+      "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
+      "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+      "component_golden": "feb0479242258ead",
+      "component_status": "admitted",
+      "component_eligible": 137044,
+      "component_activated": 1,
+      "component_faults": 1,
+      "component_terminal": "full",
+      "component_oracle": "SDC",
+      "component_run_level_oracle": "SDC",
+      "component_audit_ok": true,
+      "component_certified": true,
+      "program_override": {
+        "fpu_mode": {
+          "lane_offset": 0,
+          "lane_width": 32,
+          "precision": "fp32"
+        }
+      },
+      "effective_injector": {
+        "component": "fsu",
+        "max_faults": 1,
+        "first_clock": 0,
+        "fpu_mode": {
+          "bitseg": "sign",
+          "precision": "fp32",
+          "lane_width": 32,
+          "lane_offset": 0,
+          "decode_guard": true
+        }
+      },
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1/components/sparse-cg/FSU-FP04-F0-W6/seed11659115503218795416/attempt-3",
+      "component_oracle_category": "DIFF",
+      "component_oracle_mismatch_count": 256,
+      "component_oracle_elements": "oracle_elements.json",
+      "component_oracle_elements_sha256": "de1da6df4e5da7fac7664e3fd05bc9929e78fbe2cbc36efe1707753747fd4bb8",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "outdir": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W6/seed1"
+}

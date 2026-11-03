@@ -1,0 +1,181 @@
+{
+  "gate": "W6",
+  "gate_id": "FSU-FP04-F0-W6-GATE",
+  "created_at": "2026-11-04T03:56:11",
+  "non_formal": true,
+  "counts_toward_519": false,
+  "formal_suite_seed_count": 0,
+  "suite_id": "w6-fp-v1",
+  "suite_version": "1",
+  "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+  "freq": "F0",
+  "suite_seed": 1,
+  "seed_plan_entry": null,
+  "program_order": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "program_count": 3,
+  "component_run_count": 3,
+  "component_pass_count": 3,
+  "records": [
+    {
+      "suite_id": "w6-fp-v1",
+      "suite_version": "1",
+      "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+      "suite_seed": 1,
+      "program_id": "svd",
+      "program_index": 0,
+      "program_count": 3,
+      "component_seed_policy_version": "w5-component-seed-v1",
+      "component_seed": 13745869897499398298,
+      "component_attempt": 1,
+      "component_manifest_sha256": "555c9884888f04f9febbb8608311d0df0a54f09ecee4f173b3d0917a5c0971d4",
+      "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
+      "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
+      "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
+      "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+      "component_golden": "4afb95b5b32f3820",
+      "component_status": "admitted",
+      "component_eligible": 12947,
+      "component_activated": 1,
+      "component_faults": 1,
+      "component_terminal": "full",
+      "component_oracle": "SDC",
+      "component_run_level_oracle": "Masked",
+      "component_audit_ok": true,
+      "component_certified": true,
+      "program_override": {
+        "fpu_mode": {
+          "lane_offset": 0,
+          "lane_width": 64,
+          "precision": "fp64"
+        }
+      },
+      "effective_injector": {
+        "component": "fsu",
+        "max_faults": 1,
+        "first_clock": 0,
+        "fpu_mode": {
+          "bitseg": "sign",
+          "precision": "fp64",
+          "lane_width": 64,
+          "lane_offset": 0,
+          "decode_guard": true
+        }
+      },
+      "attempt": "runs/fsu-gates/W6-F0-GATE-v2/seed1/components/svd/FSU-FP04-F0-W6-GATE/seed13745869897499398298/attempt-1",
+      "component_oracle_category": "DIFF",
+      "component_oracle_mismatch_count": 3,
+      "component_oracle_elements": "oracle_elements.json",
+      "component_oracle_elements_sha256": "c2c1ef97f1177822cc2d33cc24394f0e1cceae69506d1a0271fa29fb614f7eea",
+      "ok": true
+    },
+    {
+      "suite_id": "w6-fp-v1",
+      "suite_version": "1",
+      "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+      "suite_seed": 1,
+      "program_id": "fft",
+      "program_index": 1,
+      "program_count": 3,
+      "component_seed_policy_version": "w5-component-seed-v1",
+      "component_seed": 10230542913907129042,
+      "component_attempt": 1,
+      "component_manifest_sha256": "9e6bc676bca8f1e79822cc8f047dfed682c94f3672cbdf213a1c04ddedac7a55",
+      "component_binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
+      "component_source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
+      "component_golden_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
+      "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+      "component_golden": "fdd819481ea73b0c",
+      "component_status": "admitted",
+      "component_eligible": 45086,
+      "component_activated": 1,
+      "component_faults": 1,
+      "component_terminal": "full",
+      "component_oracle": "SDC",
+      "component_run_level_oracle": "SDC",
+      "component_audit_ok": true,
+      "component_certified": true,
+      "program_override": {
+        "fpu_mode": {
+          "lane_offset": 0,
+          "lane_width": 32,
+          "precision": "fp32"
+        }
+      },
+      "effective_injector": {
+        "component": "fsu",
+        "max_faults": 1,
+        "first_clock": 0,
+        "fpu_mode": {
+          "bitseg": "sign",
+          "precision": "fp32",
+          "lane_width": 32,
+          "lane_offset": 0,
+          "decode_guard": true
+        }
+      },
+      "attempt": "runs/fsu-gates/W6-F0-GATE-v2/seed1/components/fft/FSU-FP04-F0-W6-GATE/seed10230542913907129042/attempt-1",
+      "component_oracle_category": "DIFF",
+      "component_oracle_mismatch_count": 8,
+      "component_oracle_elements": "oracle_elements.json",
+      "component_oracle_elements_sha256": "19aa04cb157ef3a5021fd500767c2e3eb10d30cf76419f4d33c6a6f2fff7cc4e",
+      "ok": true
+    },
+    {
+      "suite_id": "w6-fp-v1",
+      "suite_version": "1",
+      "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+      "suite_seed": 1,
+      "program_id": "sparse-cg",
+      "program_index": 2,
+      "program_count": 3,
+      "component_seed_policy_version": "w5-component-seed-v1",
+      "component_seed": 11659115503218795416,
+      "component_attempt": 1,
+      "component_manifest_sha256": "1f6d05eeb3beacc72ee64a549b91afc9e324a3774068d93c9675f8f1d80f1aa3",
+      "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
+      "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
+      "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
+      "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+      "component_golden": "feb0479242258ead",
+      "component_status": "admitted",
+      "component_eligible": 137044,
+      "component_activated": 1,
+      "component_faults": 1,
+      "component_terminal": "full",
+      "component_oracle": "SDC",
+      "component_run_level_oracle": "SDC",
+      "component_audit_ok": true,
+      "component_certified": true,
+      "program_override": {
+        "fpu_mode": {
+          "lane_offset": 0,
+          "lane_width": 32,
+          "precision": "fp32"
+        }
+      },
+      "effective_injector": {
+        "component": "fsu",
+        "max_faults": 1,
+        "first_clock": 0,
+        "fpu_mode": {
+          "bitseg": "sign",
+          "precision": "fp32",
+          "lane_width": 32,
+          "lane_offset": 0,
+          "decode_guard": true
+        }
+      },
+      "attempt": "runs/fsu-gates/W6-F0-GATE-v2/seed1/components/sparse-cg/FSU-FP04-F0-W6-GATE/seed11659115503218795416/attempt-1",
+      "component_oracle_category": "DIFF",
+      "component_oracle_mismatch_count": 256,
+      "component_oracle_elements": "oracle_elements.json",
+      "component_oracle_elements_sha256": "e1f3abe4c86c6efb531ce2a2af6b3f2a29c3e6271032a9093003cf85ce9c3c97",
+      "ok": true
+    }
+  ],
+  "ok": true
+}

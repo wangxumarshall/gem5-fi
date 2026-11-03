@@ -1,0 +1,13 @@
+{
+  "category": "SDC",
+  "reason": "completed exit=0, checksum d4fb85449e9bb194 != golden feb0479242258ead — silent data corruption",
+  "faults_injected": 1,
+  "eligible_count": 137044,
+  "selection_seed": 11659115503218795416,
+  "injection_seed": 11659115503218795416,
+  "skip": 5256,
+  "oracle_kind": "exact_hash",
+  "golden": "feb0479242258ead",
+  "returncode": 0,
+  "timed_out": false
+}

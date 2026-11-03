@@ -1,0 +1,97 @@
+{
+  "run_id": "FSU-FP04-F0-W6",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W6",
+  "submodel": "FP04-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/svd_iterative_kernel",
+    "source": "workloads/directed/svd_iterative_kernel.c",
+    "identity": "W6-svd-v1",
+    "golden": "4afb95b5b32f3820",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/w6-fp-v1/golden/svd.bin",
+      "oracle_version": "fsu-w6-oracle-v1",
+      "meta": {
+        "program_id": "svd",
+        "golden_id": "w6-svd-golden-v1",
+        "dtype": "fp64",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          8,
+          8
+        ],
+        "count": 64,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0,
+        "oracle_version": "fsu-w6-oracle-v1"
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp64",
+      "lane_width": 64,
+      "lane_offset": 0,
+      "decode_guard": true
+    }
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "component": {
+    "suite_id": "w6-fp-v1",
+    "suite_version": "1",
+    "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+    "suite_seed": 1,
+    "program_id": "svd",
+    "program_index": 0,
+    "program_count": 3,
+    "component_seed": 13745869897499398298,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "program_override": {
+    "fpu_mode": {
+      "lane_offset": 0,
+      "lane_width": 64,
+      "precision": "fp64"
+    }
+  },
+  "effective_injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp64",
+      "lane_width": 64,
+      "lane_offset": 0,
+      "decode_guard": true
+    }
+  },
+  "notes": "W6 gate component run: one real program and exactly one fault; never a formal seed by itself.",
+  "seed": 13745869897499398298,
+  "sample_run_id": "s13745869897499398298",
+  "selection_seed": 13745869897499398298,
+  "injection_seed": 13745869897499398298,
+  "attempt": 2,
+  "created_at": "2026-11-04T04:04:14",
+  "source_head": "0ec1f9ae8b491a76e2c41c0bb5d5ae596dd672be",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "04be57c3a2383fb53b1beff2b4358abe1c8c589baae7808228ed593db5344dda",
+  "runner_tool_sha256": "3417b6abebea8a683f348584cf87cfc34d56863fbd004813bfa929fd10bbc6b9",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/svd_iterative_kernel",
+  "workload_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244"
+}

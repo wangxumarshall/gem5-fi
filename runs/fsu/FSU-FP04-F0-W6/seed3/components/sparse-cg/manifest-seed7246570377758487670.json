@@ -1,0 +1,85 @@
+{
+  "run_id": "FSU-FP04-F0-W6",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W6",
+  "submodel": "FP04-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/sparse_cg_kernel",
+    "source": "workloads/directed/sparse_cg_kernel.c",
+    "identity": "W6-sparse-cg-v1",
+    "golden": "feb0479242258ead",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/w6-fp-v1/golden/sparse-cg.bin",
+      "oracle_version": "fsu-w6-oracle-v1",
+      "meta": {
+        "program_id": "sparse-cg",
+        "golden_id": "w6-sparse-cg-golden-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          1,
+          256
+        ],
+        "count": 256,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0,
+        "oracle_version": "fsu-w6-oracle-v1"
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    }
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "component": {
+    "suite_id": "w6-fp-v1",
+    "suite_version": "1",
+    "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+    "suite_seed": 3,
+    "program_id": "sparse-cg",
+    "program_index": 2,
+    "program_count": 3,
+    "component_seed": 7246570377758487670,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "program_override": {
+    "fpu_mode": {
+      "lane_offset": 0,
+      "lane_width": 32,
+      "precision": "fp32"
+    }
+  },
+  "effective_injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    }
+  },
+  "notes": "W6 gate component run: one real program and exactly one fault; never a formal seed by itself."
+}

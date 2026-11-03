@@ -1,0 +1,76 @@
+{
+  "suite_id": "w6-fp-v1-f5",
+  "suite_version": "1",
+  "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
+  "suite_seed": 2,
+  "program_id": "sparse-cg",
+  "program_index": 2,
+  "program_count": 3,
+  "component_seed_policy_version": "w5-component-seed-v1",
+  "component_seed": 2750522184732370354,
+  "component_attempt": 1,
+  "component_manifest_sha256": "5da064e357d48075ad085c24b71d467ed12bcc38baeedd3d0ec3d406e6181c35",
+  "component_binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
+  "component_source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
+  "component_golden_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
+  "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+  "component_golden": "feb0479242258ead",
+  "component_status": "admitted",
+  "component_eligible": 137044,
+  "component_activated": 1,
+  "component_faults": 1,
+  "component_terminal": "full",
+  "component_oracle": "SDC",
+  "component_run_level_oracle": "SDC",
+  "component_audit_ok": true,
+  "component_certified": true,
+  "program_override": {
+    "fpu_mode": {
+      "lane_offset": 0,
+      "lane_width": 32,
+      "precision": "fp32"
+    }
+  },
+  "effective_injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "f5_warmup": 1024,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256,
+      "op_classes": [],
+      "reg_class": "any",
+      "stuck_polarity": 1
+    },
+    "fault_mask": "0x80000000"
+  },
+  "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/sparse-cg/FSU-FP06-F5-W6/seed2750522184732370354/attempt-1",
+  "seed_plan_entry": {
+    "suite_seed": 2,
+    "submodel": "FP06-b",
+    "mask": "0x0000000080000000",
+    "polarity": 1,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true,
+    "program_mask": {
+      "svd": "0x8000000000000000"
+    }
+  },
+  "component_oracle_category": "DIFF",
+  "component_oracle_mismatch_count": 256,
+  "component_oracle_elements": "oracle_elements.json",
+  "component_oracle_elements_sha256": "6d1af28ecd088c494477e62bd45991518d3d8ac63702aac7cb4d4d17909fbbc2"
+}

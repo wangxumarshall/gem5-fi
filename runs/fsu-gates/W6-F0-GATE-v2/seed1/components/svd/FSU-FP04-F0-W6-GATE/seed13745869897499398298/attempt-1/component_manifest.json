@@ -1,0 +1,51 @@
+{
+  "suite_id": "w6-fp-v1",
+  "suite_version": "1",
+  "suite_hash": "7af52ddcbc1ad03d71e7f683fe87c804a7ddbc0a9ed73a0a5d06e18dc43adf1a",
+  "suite_seed": 1,
+  "program_id": "svd",
+  "program_index": 0,
+  "program_count": 3,
+  "component_seed_policy_version": "w5-component-seed-v1",
+  "component_seed": 13745869897499398298,
+  "component_attempt": 1,
+  "component_manifest_sha256": "555c9884888f04f9febbb8608311d0df0a54f09ecee4f173b3d0917a5c0971d4",
+  "component_binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
+  "component_source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
+  "component_golden_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
+  "component_golden_sha256_scheme": "sha256-of-canonical-golden-array-v1",
+  "component_golden": "4afb95b5b32f3820",
+  "component_status": "admitted",
+  "component_eligible": 12947,
+  "component_activated": 1,
+  "component_faults": 1,
+  "component_terminal": "full",
+  "component_oracle": "SDC",
+  "component_run_level_oracle": "Masked",
+  "component_audit_ok": true,
+  "component_certified": true,
+  "program_override": {
+    "fpu_mode": {
+      "lane_offset": 0,
+      "lane_width": 64,
+      "precision": "fp64"
+    }
+  },
+  "effective_injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp64",
+      "lane_width": 64,
+      "lane_offset": 0,
+      "decode_guard": true
+    }
+  },
+  "attempt": "runs/fsu-gates/W6-F0-GATE-v2/seed1/components/svd/FSU-FP04-F0-W6-GATE/seed13745869897499398298/attempt-1",
+  "component_oracle_category": "DIFF",
+  "component_oracle_mismatch_count": 3,
+  "component_oracle_elements": "oracle_elements.json",
+  "component_oracle_elements_sha256": "c2c1ef97f1177822cc2d33cc24394f0e1cceae69506d1a0271fa29fb614f7eea"
+}
