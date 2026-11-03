@@ -22,30 +22,52 @@ Distribution License（`workloads/ooo/polybench/LICENSE.txt`）。
 | lu | `f9241eeb…9d82fd` | `f1b0cc90…46f8ea9` | 84 | `74ffe5eb77ea9257` |
 | cholesky | `c0f74bb7…884828` | `fd2912c4…fc6f005` | 88 | `ea7e0d0e7c86582d` |
 | jacobi-2d | `ac9e915f…e56af098` | `a1b29cf2…410ed07` | T=8,N=160 | `dc867b5f02998c1e` |
+| 2mm | `31685308…7711d`（patched） | `996168f0…6ee6f3` | NI=NJ=NK=NL=72 | `41ebd3d0a77ab3d2` |
 
-四个 native 二进制本次只读复跑各 1 次，输出与上表 golden 一致。
+2mm 于 2026-11-03 从同一上游 commit 取得：
+上游原始 source SHA `9e4d9524…62e481`，vendored patched source SHA
+`31685308…7711d`，header SHA `1265ba7c…60c037`；native 3 次与 gem5 B0
+3 次输出逐字节一致，`FINAL=41ebd3d0a77ab3d2`。
+其余四个 native 二进制复跑与上表 golden 一致。
+
+### 1.1.1 B0+decode 逐程序 eligible（真实 countOnly）
+
+| program | eligible | decode rejects | census 证据 |
+|---|---:|---:|---|
+| gemm | 1,370,774 | 0 | `runs/fsu-gates/W5-ARTIFACT-CENSUS/gemm` |
+| lu | 800,959 | 0 | `runs/fsu-gates/W5-ARTIFACT-CENSUS/lu` |
+| cholesky | 810,712 | 0 | `runs/fsu-gates/W5-ARTIFACT-CENSUS/cholesky` |
+| jacobi-2d | 2,099,622 | 51,458 | `runs/fsu-gates/W5-ARTIFACT-CENSUS/jacobi-2d` |
+| 2mm | 1,145,697 | 20,774 | `runs/fsu-gates/W5-ARTIFACT-CENSUS/2mm` |
+
+每个目录含真实 `config.ini`（B0 逐项校验通过）、`fpu_injections.log`、
+`SHA256SUMS`；2mm 另有 gem5 golden 3 次的 `golden/`。
+
+2mm decode-gate（不计 519）：`FSU-FP04-F0-W5-2MM-DECODE-GATE` seed1
+为真实 `0x1f020401 fmadd`，scalar_vfp/fp32、match=1，完整 L0–L5、
+SDC、audit 69 PASS。
 
 ### 1.2 阻塞点
 
-1. **2mm 不存在**：仓库、`/home/sdc/gem5-fi-ding`、`/home/sdc` 均无
-   `2mm.c/2mm.h/2mm` 二进制；无 Makefile target、无 golden、无 config/run。
-   上游同版本存在，但本机网络不可达，未能 vendoring/验证 SHA。
-2. **suite 身份未定义**：工作簿要求五个程序的 suite；现有 runner/manifest/
+1. **suite 身份未定义**：工作簿要求五个程序的 suite；现有 runner/manifest/
    事件/Markdown 只支持单二进制，无 `program_id`/`suite_hash`。
+2. **3-seed 计数规则未裁决**：一个 RunID 是“每个程序 3 seed（共 15）”还是
+   “suite 级 3 seed”？前者改变 519 的 RunID×3 语义，后者无法覆盖 5 个
+   程序的独立 eligible/activated；需要工作簿/负责人裁决。
 3. **oracle 不足**：现有只有 `FINAL=<16hex>` 精确哈希；工作簿要求
    “输出数组逐元素+容差”。没有 per-element 输出/golden 数组。
-4. **无 W5 census/activation**：没有 `CHAOS_ELIGIBLE_COUNT` 实测，
-   也没有 W5 prop_evt。不能按 committed FP 指令数替代 census。
+4. **activation 尚未实测**：W5 还没有正式 L0–L5 prop_evt；2mm gate 已
+   证明单程序可链，但 suite 级 activation 尚未定义。
 5. FP04-d（NEON lane）在这些标量 PolyBench 二进制上 eligible=0；
    不能用标量 PolyBench 宣称 FP04-d。
 
 ### 1.3 裁决
 
-**BLOCKED（artifact 4/5 + suite/program_id/oracle 未定义）**。
-在 2mm 真实 vendoring、suite hash/program_id、逐程序 3-seed 计数规则、
-per-element oracle 偏差登记、每程序 census 完成前，不得运行正式
-`FSU-FP04-F0-W5`，也不得把任一单程序结果登记为该 RunID 的正式 seed。
-允许的替代只有独立 GATE（不计 519）或明确标注的 PARTIAL pilot。
+**artifact 5/5 已完成；正式 F0-W5 仍 BLOCKED**，原因是 suite/program_id/
+3-seed 计数规则/逐元素 oracle 未裁决。2mm 已真实 vendoring、golden 3×、
+B0+decode eligible 与单程序 gate 全部通过；但不能用单程序结果冒充
+suite RunID。允许的替代只有独立 GATE（不计 519）或明确标注的
+PARTIAL pilot。
 
 ## 2. F0-W6（SVD-FFT-Sparse）
 

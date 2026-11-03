@@ -1,0 +1,48 @@
+{
+  "run_id": "FSU-FP04-F0-W5-2MM-DECODE-GATE",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W5",
+  "submodel": "FP04-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/ooo/polybench/2mm/2mm",
+    "identity": "W5-polybench-2mm-72-v1",
+    "source": "workloads/ooo/polybench/linear-algebra/kernels/2mm/2mm.c",
+    "golden_id": "polybench2mm-golden-v1",
+    "golden": "41ebd3d0a77ab3d2",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "W5 2mm decode-ready gate; not an official RunID and not counted in 519.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 1,
+  "created_at": "2026-11-03T15:14:33",
+  "source_head": "68f1127488d909ab4ce74a98d7270f894ad861da",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "62f2f55a75fa1f8c9097ede2d6dfaae4a649c521b1609787d903e838a993740e",
+  "runner_tool_sha256": "fe2fe930cb85198d8c55f5e13d2165e86857223cf05a955252aafef4213a6bc3",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/ooo/polybench/2mm/2mm",
+  "workload_sha256": "996168f090560f98a9c1698bdc5663ff95535173861f96db91517c1fac6ee6f3"
+}

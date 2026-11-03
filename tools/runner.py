@@ -132,6 +132,7 @@ GOLDEN_IDS = {
     "polybenchlu-golden-v1": "74ffe5eb77ea9257",
     "polybenchcholesky-golden-v1": "ea7e0d0e7c86582d",
     "polybenchjacobi2d-golden-v1": "dc867b5f02998c1e",
+    "polybench2mm-golden-v1": "41ebd3d0a77ab3d2",    # W5 2mm N=72, upstream 3e872547
     "gap-golden-v1": "2ec8c1e59f2808c5",             # W1.4a GAP semantic proxy (BFS=2/PR=2)
     "libjpeg-golden-v1": "c712f8f6fb9e21ec",         # W1.4b libjpeg-turbo NEON decode (rounds=3)
     # W2.3 (registered for the trace two-pass toy campaign): the W1.0 smoke

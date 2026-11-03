@@ -236,9 +236,11 @@ POLYBENCH_LU_N    ?= 84     # N=84          -> ~6.6M insts / ~51 s
 POLYBENCH_CHO_N   ?= 88     # N=88          -> ~6.5M insts / ~51 s
 POLYBENCH_JAC_T   ?= 8      # TSTEPS=8
 POLYBENCH_JAC_N   ?= 160    # N=160         -> ~6.4M insts / ~50 s
+POLYBENCH_2MM_N   ?= 72     # NI=NJ=NK=NL=72 -> ~0.75M MACs, ~50 s proxy
 
 POLYBENCH_BINS := polybench/gemm/gemm polybench/lu/lu \
-                  polybench/cholesky/cholesky polybench/jacobi-2d/jacobi-2d
+                  polybench/cholesky/cholesky polybench/jacobi-2d/jacobi-2d \
+                  polybench/2mm/2mm
 polybench: $(POLYBENCH_BINS)
 
 # Binaries land in flat polybench/<kernel>/ dirs (short runner paths);
@@ -264,6 +266,13 @@ polybench/cholesky/cholesky: polybench/linear-algebra/solvers/cholesky/cholesky.
 polybench/jacobi-2d/jacobi-2d: polybench/stencils/jacobi-2d/jacobi-2d.c \
                                polybench/stencils/jacobi-2d/jacobi-2d.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
 	$(POLYBENCH_COMPILE) -DTSTEPS=$(POLYBENCH_JAC_T) -DN=$(POLYBENCH_JAC_N)
+
+# W5: PolyBench 2mm from upstream commit
+# 3e872547cef7e5c9909422ef1e6af03cf4e56072 (linear-algebra/kernels/2mm).
+polybench/2mm/2mm: polybench/linear-algebra/kernels/2mm/2mm.c \
+                   polybench/linear-algebra/kernels/2mm/2mm.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+	$(POLYBENCH_COMPILE) -DNI=$(POLYBENCH_2MM_N) -DNJ=$(POLYBENCH_2MM_N) \
+	    -DNK=$(POLYBENCH_2MM_N) -DNL=$(POLYBENCH_2MM_N)
 
 # W1.4b libjpeg — libjpeg-turbo NEON decode workload.  PROVENANCE (upstream
 # repo/commit, vendored inventory, checked-in cmake-generated headers under

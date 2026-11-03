@@ -24,17 +24,18 @@
   (`*_StrictFP` recompute + `check_FP` epsilon compare, `FMA_DISABLED`,
   `print_element` stderr dump) which are **absent** from the vendored
   pristine sources; the pristine text was preferred.
-- **Files kept** (12, no `.git`; upstream `LICENSE.txt` and `README`
+- **Files kept** (14, no `.git`; upstream `LICENSE.txt` and `README`
   verbatim): `LICENSE.txt`, `README`,
   `utilities/{polybench.c,polybench.h}`,
   `linear-algebra/blas/gemm/{gemm.c,gemm.h}`,
   `linear-algebra/solvers/lu/{lu.c,lu.h}`,
   `linear-algebra/solvers/cholesky/{cholesky.c,cholesky.h}`,
-  `stencils/jacobi-2d/{jacobi-2d.c,jacobi-2d.h}`.
+  `stencils/jacobi-2d/{jacobi-2d.c,jacobi-2d.h}`,
+  `linear-algebra/kernels/2mm/{2mm.c,2mm.h}` (added for W5).
 
 ## Local deviations from upstream (all marked `/* gem5-fi W1.3 */`)
 
-1. Each of the four kernel `.c` files gets exactly one
+1. Each of the five kernel `.c` files gets exactly one
    `#include <stdint.h>` line and one FINAL block at the end of `main()`
    (between the `polybench_prevent_dce` reference and
    `POLYBENCH_FREE_ARRAY`), printing `FINAL=<16hex>` — an FNV-1a 64-bit
@@ -43,7 +44,7 @@
    `print_array` dumps: full `C` (ni×nj) for gemm, full `A` (n×n) for
    lu and jacobi-2d, lower triangle incl. diagonal (j<=i) for cholesky
    (its kernel only writes the lower triangle; the upper one is dead
-   after init). Heap rows are contiguous because
+   after init), full `D` (ni×nl) for 2mm. Heap rows are contiguous because
    `POLYBENCH_PADDING_FACTOR` defaults to 0. Kernel/benchmark logic is
    untouched.
 2. Nothing else. All other files are byte-identical to the upstream
@@ -74,7 +75,10 @@
 
 - `-DDATA_TYPE_IS_FLOAT` — fp32 (03-workloads.md assigns PolyBench to
   FP/SIMD unit coverage; also the W1.2 flFloatMin cross-check load).
-- Sizes via `-DNI/-DNJ/-DNK`, `-DN`, `-DTSTEPS`+`-DN`: the headers'
+- 2mm: `-DNI=72 -DNJ=72 -DNK=72 -DNL=72` (W5 fixed size), upstream
+  `linear-algebra/kernels/2mm/{2mm.c,2mm.h}` at the same commit
+  `3e872547cef7e5c9909422ef1e6af03cf4e56072`.
+- Sizes via `-DNI/-DNJ/-DNK/-DNL`, `-DN`, `-DTSTEPS`+`-DN`: the headers'
   `#if !defined(...)` guards skip the default dataset block when the
   size macros are predefined on the command line (all of a kernel's
   size macros must be defined together). This replaces the upstream
@@ -112,3 +116,25 @@ GOLDEN_IDS as `polybenchgemm-golden-v1` etc.). FINAL is
 size-dependent — a different `-D` size computes a different array — so
 the Makefile's size variables and the golden values must be changed
 together.
+
+## W5 2mm vendoring (2026-11-03)
+
+- Upstream: `MatthiasJReisinger/PolyBenchC-4.2.1` commit
+  `3e872547cef7e5c9909422ef1e6af03cf4e56072`,
+  `linear-algebra/kernels/2mm/{2mm.c,2mm.h}`. The upstream source hash
+  (before the gem5-fi FINAL hunk) is
+  `9e4d952429dfebe2130ce86de6c894f35f43fac899e8e65e94b413e79462e481`.
+- Local patched source SHA-256:
+  `3168530842af4a556c6629fa96a8895ef11a43b1b2f47125dbc49d2cf557711d`;
+  header SHA-256:
+  `1265ba7c461e5d4be896c34fdefab8e91b2b643136ee6426fda6597b2060c037`.
+- Build: `make -C workloads/ooo polybench/2mm/2mm`, fp32,
+  `NI=NJ=NK=NL=72`; binary SHA-256:
+  `996168f090560f98a9c1698bdc5663ff95535173861f96db91517c1fac6ee6f3`.
+- Golden: native 3× and gem5 B0 3× output byte-identical,
+  `FINAL=41ebd3d0a77ab3d2`; registered as
+  `polybench2mm-golden-v1` in `tools/runner.py`.
+- B0+decode countOnly eligible: 1,145,697
+  (`runs/fsu-gates/W5-ARTIFACT-CENSUS/2mm`).
+- W5 2mm decode gate: FMADD fp32 scalar, full L0–L5, SDC, audit 69 PASS
+  (`runs/fsu-gates/F0-W5-2MM-DECODE-gate`); not an official seed.
