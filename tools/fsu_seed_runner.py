@@ -40,6 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fsu_rate_ordinals as O  # noqa: E402
+import fsu_config_profile as CP  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GEM5 = ROOT / "CHAOS/gem5/build/ARM/gem5.opt"
@@ -136,6 +137,11 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         cmd += ["--fpu_lane_offset", str(fpu["lane_offset"])]
     if fpu.get("decode_guard"):
         cmd += ["--fpu_decode_guard"]
+    profile = str(manifest.get("config_profile", "") or "")
+    if profile == "B0":
+        cmd += ["--config_profile", "B0"]
+    elif profile not in ("", "C3"):
+        raise ValueError(f"unknown config_profile {profile!r}")
     if fpu.get("fma_weighted"):
         cmd += ["--fpu_fma_weighted"]
     if fpu.get("recurring_stuck"):
@@ -289,6 +295,14 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         return fail(f"census failed rc={rc} timed_out={timed_out} eligible={eligible}")
     if eligible == 0:
         return fail("eligible=0 (no FSU event in window) — not Masked")
+    profile = str(seed_manifest.get("config_profile", "") or "")
+    census_profile_check = None
+    if profile == "B0":
+        census_profile_check = CP.verify_config_profile(
+            census_dir / "config.ini", "B0")
+        if not census_profile_check["ok"]:
+            return fail("config_profile_mismatch(census)",
+                        {"config_profile_check": census_profile_check})
 
     # ---- F1/F2/F3 rate ordinals (deterministic; no probability proxy) ----
     rate_doc = None
@@ -352,6 +366,13 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     (attempt / "run.out").write_text(out, encoding="utf-8")
     (attempt / "run.err").write_text(err, encoding="utf-8")
     stats = _copy_stats(inject_dir, attempt)
+    inject_profile_check = None
+    if profile == "B0":
+        inject_profile_check = CP.verify_config_profile(
+            inject_dir / "config.ini", "B0")
+        if not inject_profile_check["ok"]:
+            return fail("config_profile_mismatch(inject)",
+                        {"config_profile_check": inject_profile_check})
     inj_log = _read(inject_dir / "fpu_injections.log")
     faults = count_injections(inj_log)
     golden = manifest["workload"].get("golden") or \
@@ -420,6 +441,11 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         "violations": chain.get("violations", []),
         "source_head": source_head, "gem5_sha256": binary_sha,
         "workload_sha256": seed_manifest["workload_sha256"],
+        "config_profile": profile,
+        "config_profile_fingerprint": (CP.fingerprint(profile) if profile
+                                       else ""),
+        "config_profile_check": (inject_profile_check
+                                 or census_profile_check),
         "command": {"census": census_cmd, "inject": inj_cmd},
         "stats_nonempty": stats.exists() and stats.stat().st_size > 0,
         "prop_evt_exists": prop.exists(),

@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fsu_chain_check as C  # noqa: E402
 import fsu_prop_fields as P  # noqa: E402
+import fsu_config_profile as CP  # noqa: E402
 
 
 def _sha(path: Path) -> str:
@@ -450,6 +451,18 @@ def audit_attempt(attempt: Path):
     stats = attempt / "stats.txt"
     check("stats.txt 非空", stats.exists() and stats.stat().st_size > 0)
 
+    # 7.1 [FSU][D3] Platform profile: a B0 declaration must match the real
+    # config.ini of BOTH census and injection. Legacy C3 attempts are not
+    # retroactively re-labelled.
+    profile = str(manifest.get("config_profile", "") or "")
+    if profile == "B0":
+        for sub in ("census", "inject"):
+            chk = CP.verify_config_profile(
+                attempt / sub / "config.ini", "B0")
+            check(f"B0 运行态配置匹配（{sub}）", chk["ok"])
+    elif profile not in ("", "C3"):
+        check(f"未知 config_profile {profile!r}", False)
+
     # 8. 结论
     if admitted_fid is not None:
         r = chain["faults"][admitted_fid]
@@ -567,6 +580,7 @@ def write_audit(attempt: Path):
             and not str(e.get("decoded_kind", "")).strip()),
         "decode_guard": bool(((manifest.get("injector") or {}).get("fpu_mode")
                               or {}).get("decode_guard")),
+        "config_profile": profile,
         "admitted": primary.get("admitted", False),
         "certified": bool(res["ok"]) and bool(fault_audits)
         and all(x["certified"] for x in fault_audits),

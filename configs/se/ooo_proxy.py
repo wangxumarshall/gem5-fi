@@ -25,7 +25,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, IQUnit
 # [FSU] propagation tracer is optional (absent in binaries built before the
 # unified PROP-EVT implementation). Import failure must not break unrelated
 # OoO runs; --chaos_propagation fails loudly below if it is really needed.
@@ -72,6 +72,10 @@ p.add_argument("--phys_float", type=int, default=OOO["phys_float"],
                help=f"numPhysFloatRegs (north star fp={OOO['phys_float']})")
 p.add_argument("--phys_vec", type=int, default=OOO["phys_vec"],
                help=f"numPhysVecRegs (north star vec48={OOO['phys_vec']})")
+# [FSU][D3] Platform profile. B0-core is the workbook/O3_ARM_v7a_3 point:
+# ROB=40, IQ=32, 3/3/3 fetch/decode/rename, dispatch=6, 8/8/8 issue/wb/commit.
+# Empty = legacy C3 behavior (byte-identical commands).
+p.add_argument("--config_profile", default="", choices=["", "C3", "B0"])
 # --- CHAOS injector args (identical surface to arm_chaos.py) ---
 p.add_argument("--chaos_reg", action="store_true")
 p.add_argument("--probability", type=float, default=1.0)
@@ -497,6 +501,29 @@ if args.cpu == "O3":
           f"physInt={args.phys_int}, physFloat={args.phys_float}, "
           f"physVec={args.phys_vec} (IQ=64 unified default; LQ/SQ=gem5 "
           f"default, north star silent; 2.6GHz)")
+    if args.config_profile == "B0":
+        # [FSU][D3] B0-core: workbook rows + O3_ARM_v7a_3 values. The runner
+        # verifies these against the actual config.ini; a mismatch fails the
+        # seed before .done/AUTHORITATIVE.
+        cpu0.fetchWidth = 3
+        cpu0.decodeWidth = 3
+        cpu0.renameWidth = 3
+        cpu0.dispatchWidth = 6
+        cpu0.issueWidth = 8
+        cpu0.wbWidth = 8
+        cpu0.commitWidth = 8
+        cpu0.numROBEntries = 40
+        cpu0.numPhysIntRegs = 128
+        cpu0.numPhysFloatRegs = 192
+        cpu0.numPhysVecRegs = 48
+        cpu0.LQEntries = 16
+        cpu0.SQEntries = 16
+        cpu0.fetchBufferSize = 16
+        cpu0.squashWidth = 8
+        cpu0.instQueues = [IQUnit(numEntries=32)]
+        print("[ooo_proxy] B0-core params applied: fetch/decode/rename=3/3/3, "
+              "dispatch=6, issue/wb/commit=8/8/8, ROB=40, IQ=32, "
+              "PRF 128/192/48, LQ/SQ=16, fetchBuffer=16, squash=8")
 
 board = SimpleBoard(
     clk_freq=OOO["clk"],    # 2.6GHz (north star 00-overview, 公开资料折算)

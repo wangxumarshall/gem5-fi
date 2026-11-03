@@ -1,0 +1,36 @@
+{
+  "run_id": "FSU-FP04-F0-W1",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FP04-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "identity": "W1-fp-scalar-probe-v1",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "B0-authoritative FSU-FP04-F0-W1. config_profile=B0 applies the workbook/O3_ARM_v7a_3 point (ROB40, IQ32, fetch/decode/rename 3/3/3, dispatch6, issue/wb/commit 8/8/8, PRF 128/192/48, LQ/SQ16, fetchBuffer16, squash8). The runner verifies config.ini after census and injection; mismatch fails the seed. The earlier C3 attempt-1 remains as superseded pilot evidence."
+}
