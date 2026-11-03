@@ -1,0 +1,34 @@
+{
+  "run_id": "FSU-FP04-F0-W4-GATE",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W4",
+  "submodel": "FP04-a",
+  "workload": {
+    "binary": "workloads/directed/elemwise_fma_kernel",
+    "identity": "W4-short",
+    "source": "workloads/directed/elemwise_fma_kernel.c",
+    "golden_id": "elemwisefma-golden-v1",
+    "golden": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp64",
+      "lane_width": 64,
+      "lane_offset": 0
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "Field gate FP04-a/sign (FP64 bit 63) on the real short W4 carrier. Not an official 173 RunID; evidence lives under runs/fsu-gates and does not count toward 519."
+}

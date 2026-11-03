@@ -1,0 +1,34 @@
+{
+  "run_id": "FSU-FP04-F0-W1-GATE",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FP04-a",
+  "workload": {
+    "binary": "workloads/directed/fp32_fma_kernel",
+    "identity": "W1-fp32-scalar-v1",
+    "source": "workloads/directed/fp32_fma_kernel.c",
+    "golden_id": "fp32fma-scalar-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "FP32 scalar field gate FP04-a/sign (FP32 bit 31) on a real scalar binary32 FMA workload. Not an official 173 RunID; does not count toward 519."
+}
