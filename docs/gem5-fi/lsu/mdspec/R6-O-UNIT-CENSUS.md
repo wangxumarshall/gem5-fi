@@ -10,6 +10,29 @@ sha256 `deecd9e3b58d493271afc93b67126128c31ecba082163dcaecf5bb958c3d848b`
 (the boot/checkpoint binary). Repairs are built from this worktree and will have
 a new SHA, recorded with every run.
 
+## Measured results (2026-11-03 evening) — supersedes the pending rows above
+
+- **O01/O02/O03-F0-W7: COMPLETE_3_OF_3.** All 9 seeds: oracle `Masked`,
+  `terminal=detected_contained`, `admitted=True`, `certified=True`,
+  `chain_valid=True`, `violations=[]`, events=6, faults=1, exit=0, gzip EOF OK,
+  stats non-zero, not truncated. O01/O02 `provable_to=L2`; O03 `provable_to=L3`
+  (real `sq_complete` after the forced-fail detection event).
+- **O02-F5-W7 seed1: UNDER_MEASURED / Timeout (ruling required).** Bounded solo
+  run (`f5_diag_20261103_r2`, inner 1200 s, graceful SIGINT): 1010 injections,
+  1008/1008 SC `mismatch_fail` + STXR `fail_retry`, no successful STXR after
+  injection, guest stalls in the atomic phase. Run oracle `Timeout` and chain
+  `detected_contained/L2` are reported side by side; **not promoted to PASS**.
+  See `runs/lsu/r6_o_unit/f5_diag_20261103_r2/DIAGNOSTIC.md`.
+- Executed binary: this worktree `CHAOS/gem5/build/ARM/gem5.opt`, sha256
+  `c6cccf5b490823d216d01bd2449031aef2d892c88cec5cd291c852bbe86ca87b`; sources
+  mtime 19:14–19:17 precede build 19:23 and `scons -n` shows no C++ recompiles.
+  Source/tool HEAD `f8762717` (C++ repair `f9a9756c`).
+- Docs: 9 seed files under `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/O0{1,2,3}-F0-W7/`;
+  independent audit 9/9 PASS, broken links 0. Closeout:
+  `R6-O-UNIT-CLOSEOUT.md`.
+- O04/O05/O06/O07/O09 remain blocked exactly as classified below; no workload,
+  fault-model, or single-core substitution was made.
+
 ## Platform status (measured)
 
 - Checkpoint `runs/lsu/r6_o_unit/mc_boot/cpt.243414599076`: 2-core Ruby/CHI,
