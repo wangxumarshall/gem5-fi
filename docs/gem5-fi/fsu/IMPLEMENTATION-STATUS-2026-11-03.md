@@ -124,3 +124,51 @@ python3 tools/fsu_index.py
 > 数：
 > - W5 完成：历史 21/519、7/173；活跃 12/240、4/80。
 > - 再完成 FP06-F5-W3：历史 24/519、8/173；活跃 15/240、5/80。
+
+## 7. 正式实验结果（2026-11-03 20:00–21:00，负载恢复后）
+
+### 7.1 W5 element-oracle gate
+
+`runs/fsu-gates/W5-ELEMENT-ORACLE-GATE/`：**PASS**。五个程序 native 3× 与
+gemm5 B0 3× 的 canonical array SHA-256 完全一致，逐元素 mismatch=0，
+FINAL 与注册 golden 一致，suite_hash `7282decf…` 稳定。
+
+### 7.2 F0-W5（FSU-FP04-F0-W5）COMPLETE_3_OF_3
+
+| suite seed | gemm | 2mm | lu | cholesky | jacobi-2d | suite audit |
+|---|---|---|---|---|---|---|
+| 1 | admitted/SDC | admitted/SDC | admitted/SDC | admitted/MASKED | admitted/SDC | ok |
+| 2 | admitted/SDC | admitted/SDC | admitted/SDC | admitted/SDC | admitted/SDC | ok |
+| 3 | admitted/SDC | admitted/SDC | admitted/SDC | admitted/SDC | admitted/SDC | ok |
+
+seed1 的 attempt-1 因 submodel=FP04-c 审计失败，证据保留；attempt-2 修正后
+5/5 通过。每个 suite seed 在
+`runs/fsu/COMPLETE_PROPAGATION_PATHS/FSU-FP04-F0-W5/` 只有 1 个 suite-level
+Markdown，链接 5 个 component attempt。
+
+### 7.3 FP06-F5-W3（FSU-FP06-F5-W3）COMPLETE_3_OF_3
+
+| seed | 预注册 | mask | polarity | exposures | activated | terminal | oracle |
+|---|---|---|---|---:|---:|---|---|
+| 1 | FP06-a SA0 | `0x80000000` | 0 | 16,384 | 764 | full | SDC |
+| 2 | FP06-b SA1 | `0x80000000` | 1 | 16,384 | 15,620 | full | SDC |
+| 3 | FP06-c fixed mantissa | `0x007f8000` | 0 | 16,384 | 16,296 | full | SDC |
+
+每 seed 只有 1 次安装、1 个 fault_id、固定 mask/polarity；`total =
+sampled + dropped`；三个 attempt 独立 audit/certified 全部通过。
+
+### 7.4 计数（磁盘权威审计结果）
+
+- 历史视图：**24/519 seed，8/173 RunID**
+- 活跃视图（F0/F5）：**15/240 seed，5/80 RunID**
+- FSU 测试：**216 passed**
+- 历史 18 个正式 seed + F5 3 个正式 seed 单 seed 只读审计全部 ok；
+  3 个 W5 suite seed 的 suite audit 全部 ok。
+
+### 7.5 FR03 状态（仍不运行正式 seed）
+
+- 已完成：Vec 写路径重施加、generation 隔离、Vec 不再误写 int PRF、
+  连续写 host 单测。
+- 仍未完成：CHAOSPhysReg 真实 FSU_PROP L0–L5、runner 显式
+  CHAOSPhysReg 路径、squash/rename/free/realloc 的容器级测试。
+- 因此 FR03-F5-W3 保持 BLOCKED；未借用 FP06 结果侧证据认证 FR03。
