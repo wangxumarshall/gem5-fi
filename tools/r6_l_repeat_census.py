@@ -43,9 +43,12 @@ LCG_MUL = 6364136223846793005
 LCG_ADD = 1442695040888963407
 U64 = (1 << 64) - 1
 INTERVAL = {"F1": 1000000, "F2": 100000, "F4": 100000}
+# NOT anchored at line start: an injected guest SEGV ends the simulation
+# between the last ITER line's hex and its newline, so the teardown line can
+# be concatenated onto that ITER line (real L01-F1-W5 r119056 case).
 TRIGGER_RE = re.compile(
-    r"^CHAOS_LSU_TRIGGER: injector=(\S+) tier=(\S+) attempted=(\d+) "
-    r"eligible=(\d+) injected=(\d+)", re.M)
+    r"CHAOS_LSU_TRIGGER: injector=(\S+) tier=(\S+) attempted=(\d+) "
+    r"eligible=(\d+) injected=(\d+)")
 DRAW_RE = re.compile(r"draw_next_fire=(\d+)")
 
 KEYS = [
@@ -161,7 +164,7 @@ def run_once(rec, repeat, outroot, gem5, timeout=3600, force_no_fire=False):
             "binary_sha256": man["binary_sha256"]}
 
 
-def measure(key, outroot, gem5, timeout):
+def measure(key, outroot, gem5, timeout, start_r=None):
     rec = BY_KEY[key]
     tier = rec[6]
     repeats = (1, 2, 5) if tier == "F0" else (1, 5, 10)
@@ -204,13 +207,52 @@ def measure(key, outroot, gem5, timeout):
     if delta is None or delta <= 0:
         raise SystemExit("%s: non-positive delta %r" % (key, delta))
     need = 1.2 * target - E1
-    R = 1 + int(math.ceil(need / delta)) if need > 0 else 1
+    R0 = 1 + int(math.ceil(need / delta)) if need > 0 else 1
+    # [R6-L-UNIT] Small-repeat delta is only a LOCAL estimate. The observed
+    # L03-F4-W5 stream decelerates (delta 12.0 at r5 -> 6.11 at r10 -> ~3.0
+    # asymptotically), so a linear extrapolation from r=5/10 under-covered
+    # the target. Verify AT THE TARGET SCALE and correct with the observed
+    # effective delta; at most three bounded attempts, cap/timeout enforced.
+    R = int(start_r) if start_r else R0
+    if R < 1:
+        R = 1
+    R = min(R, LC.REPEAT_MAX)
+    attempts = []
+    verify_ok = False
+    for _ in range(3):
+        vr = run_once(rec, R, outroot, gem5, timeout)
+        vtrig = vr["trigger"] or {}
+        velig = vtrig.get("eligible")
+        vinj = int(vtrig.get("injected", 0))
+        attempts.append({"R": R, "eligible": velig, "injected": vinj,
+                         "seconds": vr["seconds"], "outdir": vr["outdir"]})
+        if vinj > 0:
+            verify_ok = True
+            break
+        if velig is None:
+            break
+        coverage = 1.2 * target
+        if velig >= coverage:
+            # Stream covers the window but no fire: a real defect signal,
+            # recorded as verify_ok=False rather than papered over.
+            break
+        d_eff = (velig - E1) / (R - 1) if R > 1 else 0.0
+        if d_eff <= 0:
+            break
+        R2 = 1 + int(math.ceil((coverage - E1) / d_eff))
+        if R2 <= R:
+            R2 = R + 1
+        if R2 > LC.REPEAT_MAX:
+            R = LC.REPEAT_MAX
+            break
+        R = R2
     return {
         "key": key, "runid": rec[1], "model": rec[2], "binary": rec[4],
         "seed": rec[5], "tier": tier, "target": target,
         "stream_mode": stream_mode, "eligible": el,
         "E1": E1, "delta": round(delta, 6), "delta_source": source,
-        "R": R, "R_within_cap": R <= LC.REPEAT_MAX,
+        "R0": R0, "R": R, "R_within_cap": R <= LC.REPEAT_MAX,
+        "verify_ok": verify_ok, "verify_attempts": attempts,
         "seconds": {k: v["seconds"] for k, v in runs.items()},
         "iter_lines": {k: v["iters"] for k, v in runs.items()},
         "exit_codes": {k: v["exit_code"] for k, v in runs.items()},
@@ -229,31 +271,43 @@ def main():
         "CHAOS/gem5/build/ARM/gem5.opt"))
     ap.add_argument("--timeout", type=int, default=3600)
     ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--start-R", default="",
+                    help="key=R,... initial verify R (skips the local "
+                         "small-repeat extrapolation for that key)")
     args = ap.parse_args()
     keys = args.keys.split(",") if args.keys else [k[0] for k in KEYS]
+    start_map = {}
+    for part in (args.start_R or "").split(","):
+        if not part.strip():
+            continue
+        k, v = part.split("=", 1)
+        start_map[k.strip()] = int(v)
     jobs = max(1, min(2, args.jobs))
     outroot = Path(args.outroot)
     outroot.mkdir(parents=True, exist_ok=True)
     gem5 = Path(args.gem5)
     summary = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
-        futs = {pool.submit(measure, k, outroot, gem5, args.timeout): k
-                for k in keys}
+        futs = {pool.submit(measure, k, outroot, gem5, args.timeout,
+                            start_map.get(k)): k for k in keys}
         for f in concurrent.futures.as_completed(futs):
             k = futs[f]
             try:
                 summary[k] = f.result()
-                print("[census] %-14s E1=%-7s delta=%-9s R=%s"
-                      % (k, summary[k]["E1"], summary[k]["delta"],
-                         summary[k]["R"]), flush=True)
+                print("[census] %-14s E1=%-7s delta=%-9s R0=%-7s R=%s "
+                      "verify=%s" % (k, summary[k]["E1"],
+                                     summary[k]["delta"], summary[k]["R0"],
+                                     summary[k]["R"],
+                                     summary[k]["verify_ok"]), flush=True)
             except Exception as exc:  # noqa: BLE001 — recorded, not hidden
                 summary[k] = {"key": k, "error": repr(exc)}
                 print("[census] %-14s ERROR %r" % (k, exc), flush=True)
     (outroot / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=1) + "\n")
     lines = ["# R6-L 有界重复 census（真实 gem5 运行）", ""]
-    lines += ["| key | tier | E1 | delta | source | target | R | within cap |",
-              "|---|---|---|---|---|---|---|---|"]
+    lines += ["| key | tier | E1 | delta | source | target | R | verify | "
+              "within cap |",
+              "|---|---|---|---|---|---|---|---|---|"]
     for k in keys:
         s = summary[k]
         if "error" in s:
@@ -262,7 +316,7 @@ def main():
             continue
         lines.append("| %(key)s | %(tier)s | %(E1)s | %(delta)s | "
                      "%(delta_source)s | %(target)s | %(R)s | "
-                     "%(R_within_cap)s |" % s)
+                     "%(verify_ok)s | %(R_within_cap)s |" % s)
     (outroot / "summary.md").write_text("\n".join(lines) + "\n")
     print(json.dumps({k: (v.get("R"), v.get("error")) for k, v in
                       summary.items()}, ensure_ascii=False))

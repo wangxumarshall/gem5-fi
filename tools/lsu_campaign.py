@@ -1222,13 +1222,13 @@ REPEAT_FACTOR = {
     # tools/r6_l_repeat_census.py on binary deecd9e3… (summary.json):
     #   W5 delta 16.33/iter (addrpath), 6.11/iter (L03 violation stream);
     #   W12 delta 11867.75/iter (addrpath), 19872.75/iter (L03).
-    ("L01", "F1", "sq_forward", ""): 94759,
+    ("L01", "F1", "sq_forward", ""): 119056,
     ("L01", "F1", "sqlite_like", ""): 131,
-    ("L01", "F2", "sq_forward", ""): 10269,
+    ("L01", "F2", "sq_forward", ""): 12901,
     ("L01", "F2", "sqlite_like", ""): 15,
-    ("L02", "F2", "sq_forward", ""): 10269,
+    ("L02", "F2", "sq_forward", ""): 12901,
     ("L02", "F2", "sqlite_like", ""): 15,
-    ("L03", "F4", "sq_forward", ""): 27562,
+    ("L03", "F4", "sq_forward", ""): 56143,
     ("L03", "F4", "sqlite_like", ""): 9,
 }
 
@@ -1326,7 +1326,9 @@ REPEAT_EVIDENCE = {
     ("L01", "F1", "sq_forward", ""): {
         "E1": 1262, "eligible@5": 1341, "delta": 16.333333,
         "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 1290806,
-        "cover_1.2max": 1548967.2, "R": 94759,
+        "cover_1.2max": 1548967.2, "R": 119056,
+        "verify_ok": True,
+        "note": "target-scale verify at R=119056 injected=1 eligible=1256412 (seed1 first fire); local r5/r10 delta 16.33 under-estimated the asymptotic 13.0",
         "census": "runs/lsu/r6_l_census_20261103/L01-F1-W5_r10"},
     ("L01", "F1", "sqlite_like", ""): {
         "E1": 13193, "eligible@5": 60664, "delta": 11867.75,
@@ -1336,7 +1338,9 @@ REPEAT_EVIDENCE = {
     ("L01", "F2", "sq_forward", ""): {
         "E1": 1262, "eligible@5": 1341, "delta": 16.333333,
         "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 140806,
-        "cover_1.2max": 168967.2, "R": 10269,
+        "cover_1.2max": 168967.2, "R": 12901,
+        "verify_ok": True,
+        "note": "target-scale verify at R=12901 injected=1; corrected from the asymptotic delta 13.0",
         "census": "runs/lsu/r6_l_census_20261103/L01-F2-W5_r10"},
     ("L01", "F2", "sqlite_like", ""): {
         "E1": 13193, "eligible@5": 60664, "delta": 11867.75,
@@ -1346,7 +1350,9 @@ REPEAT_EVIDENCE = {
     ("L02", "F2", "sq_forward", ""): {
         "E1": 1262, "eligible@5": 1341, "delta": 16.333333,
         "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 140806,
-        "cover_1.2max": 168967.2, "R": 10269,
+        "cover_1.2max": 168967.2, "R": 12901,
+        "verify_ok": True,
+        "note": "target-scale verify at R=12901 injected=1; corrected from the asymptotic delta 13.0",
         "census": "runs/lsu/r6_l_census_20261103/L02-F2-W5_r10"},
     ("L02", "F2", "sqlite_like", ""): {
         "E1": 13193, "eligible@5": 60664, "delta": 11867.75,
@@ -1356,7 +1362,9 @@ REPEAT_EVIDENCE = {
     ("L03", "F4", "sq_forward", ""): {
         "E1": 540, "eligible@5": 588, "delta": 6.111111,
         "delta_source": "min(repeat=5,repeat=10)", "max_first_fire": 140806,
-        "cover_1.2max": 168967.2, "R": 27562,
+        "cover_1.2max": 168967.2, "R": 56143,
+        "verify_ok": True,
+        "note": "target-scale verify at R=56143 injected=1; r5/r10 delta 6.11 under-estimated the asymptotic 3.0",
         "census": "runs/lsu/r6_l_census_20261103/L03-F4-W5_r10"},
     ("L03", "F4", "sqlite_like", ""): {
         "E1": 20432, "eligible@5": 99923, "delta": 19872.75,

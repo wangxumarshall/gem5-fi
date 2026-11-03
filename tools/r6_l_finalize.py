@@ -27,9 +27,11 @@ import lsu_prop_fields as PF  # noqa: E402
 import lsu_chain_check as CHAIN  # noqa: E402
 import lsu_campaign as LC  # noqa: E402
 
+# Not line-anchored: an abrupt guest-SEGV teardown can concatenate the
+# CHAOS_LSU_TRIGGER line onto the last (newline-less) ITER line.
 _TRIG = re.compile(
-    r"^CHAOS_LSU_TRIGGER: injector=(\S+) tier=(\S+) attempted=(\d+) "
-    r"eligible=(\d+) injected=(\d+)", re.M)
+    r"CHAOS_LSU_TRIGGER: injector=(\S+) tier=(\S+) attempted=(\d+) "
+    r"eligible=(\d+) injected=(\d+)")
 _REPEAT = re.compile(r"--chaos_repeat\s+(\d+)")
 _CMDLINE = re.compile(r"^command line: (.*)$", re.M)
 _CMDPATH = re.compile(r"--cmd\s+(\S+)")
@@ -202,7 +204,13 @@ def run(root, regrade=False):
                 "admitted": rep.get("admitted"),
                 "certified": rep.get("certified"),
                 "log_rows": len(inj),
-                "binary_sha256": man.get("binary_sha256")})
+                "binary_sha256": man.get("binary_sha256"),
+                "binary_source_head": man.get("binary_source_head"),
+                "binary_source_commit": man.get("binary_source_commit"),
+                "analysis_tool_head": man.get("analysis_tool_head"),
+                "seed_dir": sd,
+                "fault_count": len(rep.get("faults") or {}),
+                "violations": (rep.get("admission") or {}).get("violations") or []})
     meta = run_meta(paths)
     rec.update({"repeat_factor": meta.get("repeat_factor"),
                 "workload": meta.get("workload"),

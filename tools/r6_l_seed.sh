@@ -85,8 +85,8 @@ runout = os.path.join(os.environ["DIR"], os.environ["RUN_ID"],
                       "seed%s" % os.environ["SEED"], "run.out")
 text = open(runout, errors="replace").read() if os.path.isfile(runout) else ""
 rep = re.search(r"--chaos_repeat\s+(\d+)", text)
-trig = re.findall(r"^CHAOS_LSU_TRIGGER: injector=(\S+) tier=(\S+) "
-                  r"attempted=(\d+) eligible=(\d+) injected=(\d+)", text, re.M)
+trig = re.findall(r"CHAOS_LSU_TRIGGER: injector=(\S+) tier=(\S+) "
+                  r"attempted=(\d+) eligible=(\d+) injected=(\d+)", text)
 t = trig[-1] if trig else None
 draw = re.search(r"draw_next_fire=(\d+)", text)
 iters = len(re.findall(r"^ITER:\d+:[0-9a-f]{16}\s*$", text, re.M))
