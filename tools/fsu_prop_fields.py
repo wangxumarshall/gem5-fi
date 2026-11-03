@@ -31,6 +31,8 @@ PROP_EVT_FIELDS = [
     "iq_slot", "src_slot", "producer_seq", "consumer_seq",
     "arch_reg", "phys_reg", "reg_generation",
     "lane_width", "lane_offset", "lane_mask",
+    "precision", "field_lo", "field_hi", "full_before", "full_after",
+    "reg_class", "bit_in_lane",
     "fu_class", "fu_index", "field", "bit_indices", "fault_mask",
     "before", "after", "before_hash", "after_hash", "value_hash",
     "eligible_ordinal", "eligible_total", "attempted", "activated",

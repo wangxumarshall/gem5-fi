@@ -242,6 +242,9 @@ class CHAOSPropagation : public SimObject
         "model_id", "submodel", "unit", "freq", "load_id",
         "iq_slot", "src_slot", "producer_seq", "consumer_seq",
         "reg_generation", "lane_width", "lane_offset", "lane_mask",
+        // [FSU][D3] FP precision + named-field range + full 128-bit values.
+        "precision", "field_lo", "field_hi", "full_before", "full_after",
+        "reg_class", "bit_in_lane",
         "fu_class", "fu_index", "bit_indices", "fault_mask",
         "before_hash", "after_hash", "value_hash",
         "eligible_ordinal", "eligible_total", "attempted", "activated",

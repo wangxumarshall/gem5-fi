@@ -36,6 +36,14 @@ class CHAOSFPU(SimObject):
     # '' (default) = legacy uniform whole-register pick.
     bitseg = Param.String("", "FP bit segment: sign | exp_hi | exp_lo | "
                               "mant_hi | mant_mid | mant_lo ('' = uniform)")
+    # [FSU][D3] Precision and lane geometry. The field table is selected by
+    # precision; the selected bit must fit inside the storage lane. FP64
+    # fields require laneWidth=64; FP32 fields require laneWidth >= 32.
+    precision = Param.String("fp64", "FP precision for field selection: "
+                                     "fp64 | fp32")
+    laneWidth = Param.UInt32(64, "Storage lane width in bits: 8 | 16 | 32 | 64")
+    laneOffset = Param.UInt32(0, "Lane index inside the 128-bit register; "
+                                 "valid range [0, 128/laneWidth)")
     # v1.1 Phase 9 patch 1a mode 2 — fma_intermediate (E3 BEHAVIORAL
     # PROXY, not a microarchitectural replay): gem5's ARM FP is a pure
     # functional model (arch/arm/fplib.cc fplibMulAdd) with no real

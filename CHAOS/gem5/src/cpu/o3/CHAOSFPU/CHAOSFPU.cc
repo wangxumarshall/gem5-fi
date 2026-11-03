@@ -31,6 +31,10 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           bitseg(p.bitseg),
+          precision(p.precision),
+          precision_bits(64),
+          lane_width((int)p.laneWidth),
+          lane_offset((int)p.laneOffset),
           fma_weighted(p.fmaWeighted),
           recurring_stuck(p.recurringStuck),
           rounding_sub(p.roundingSub),
@@ -149,6 +153,48 @@ namespace gem5
         if (probability <= 0.0f &&
             (!p.rateOrdinals.empty() || p.fsuRateDivisor != 0))
             panic("CHAOSFPU: rate mode requires probability > 0\n");
+
+        // [FSU][D3] Precision + lane geometry. Every configuration mistake is
+        // rejected here (fail closed) instead of silently injecting into the
+        // wrong bits.
+        std::string ferr;
+        if (!chaos_fsu::parsePrecision(precision, precision_bits))
+            panic("CHAOSFPU: unknown precision '%s' (expected fp64|fp32)\n",
+                  precision.c_str());
+        if (!chaos_fsu::laneGeometryValid(lane_width, lane_offset, ferr))
+            panic("CHAOSFPU: %s\n", ferr.c_str());
+        if (!bitseg.empty()) {
+            const auto fr = chaos_fsu::fieldRange(bitseg, precision_bits);
+            if (!fr.valid)
+                panic("CHAOSFPU: unknown bitseg '%s' for precision '%s'\n",
+                      bitseg.c_str(), precision.c_str());
+            if (fr.hi >= lane_width)
+                panic("CHAOSFPU: field '%s' range [%d,%d] does not fit "
+                      "lane_width %d\n", bitseg.c_str(), fr.lo, fr.hi,
+                      lane_width);
+        }
+        if (fault_mask &&
+            !chaos_fsu::validateExplicitMask(fault_mask, lane_width,
+                                             lane_offset, ferr))
+            panic("CHAOSFPU: %s\n", ferr.c_str());
+        if (precision_bits > lane_width)
+            panic("CHAOSFPU: precision %s requires lane_width >= %d "
+                  "(got %d)\n", precision.c_str(), precision_bits,
+                  lane_width);
+        // Ambiguous mode combinations would make the emitted `field`
+        // disagree with the actual mask. Reject them instead of guessing.
+        if (!bitseg.empty() && (fault_mask || recurring_stuck ||
+                                fma_weighted || rounding_sub))
+            panic("CHAOSFPU: bitseg cannot be combined with explicit "
+                  "fault_mask/recurring_stuck/fma_weighted/rounding_sub\n");
+        // These legacy modes are FP64 low-lane proxies; refuse to label
+        // them as FP32/lane-aware evidence.
+        if (rounding_sub && (precision != "fp64" || lane_width != 64 ||
+                             lane_offset != 0))
+            panic("CHAOSFPU: rounding_sub is FP64/lane64/offset0 only\n");
+        if (f3_dependent && (precision != "fp64" || lane_width != 64 ||
+                             lane_offset != 0))
+            panic("CHAOSFPU: f3_dependent is FP64/lane64/offset0 only\n");
     }
 
     CHAOSFPU::~CHAOSFPU()
@@ -187,6 +233,21 @@ namespace gem5
                oc == SimdFloatDivOp || oc == SimdFloatSqrtOp || oc == SimdFloatMiscOp;
     }
 
+    static bool isSimdOpClass(OpClass oc) {
+        return oc == SimdFloatAddOp || oc == SimdFloatAluOp ||
+               oc == SimdFloatCmpOp || oc == SimdFloatCvtOp ||
+               oc == SimdFloatMultOp || oc == SimdFloatMultAccOp ||
+               oc == SimdFloatDivOp || oc == SimdFloatSqrtOp ||
+               oc == SimdFloatMiscOp;
+    }
+
+    static const char *regClassName(int cls) {
+        if (cls == VecRegClass) return "vec";
+        if (cls == VecElemClass) return "vec_elem";
+        if (cls == FloatRegClass) return "float";
+        return "unknown";
+    }
+
     bool
     CHAOSFPU::maybeCorrupt(o3::DynInst *dyn_inst)
     {
@@ -212,12 +273,20 @@ namespace gem5
             }
         }
 
+        // A non-zero lane offset only makes sense for a SIMD instruction;
+        // scalar FP results use lane 0 (AArch64 scalar FP is stored in a
+        // VecReg container whose upper lanes are zero padding). Keep the
+        // countOnly and injection streams on the SAME predicate.
+        const bool lane_mode = lane_offset != 0;
+        const bool eligible =
+            has_fp_dest && (!lane_mode || isSimdOpClass(oc));
+
         // v1.1 Phase 8.2 countOnlyMode: count only CORRUPTIBLE eligible
         // events (no FP/vector dest = can never take the fault); never
         // corrupt. The counted stream is identical to the stream the
         // fixed-skip draw indexes into.
         if (count_only) {
-            if (has_fp_dest) ++eligible_count;
+            if (eligible) ++eligible_count;
             return false;
         }
 
@@ -225,7 +294,7 @@ namespace gem5
         // stream is the same `has_fp_dest` stream countOnly measured; no
         // probability draw, no geometric skip, no second sampler.
         if (rate_mode) {
-            if (!has_fp_dest) return false;
+            if (!eligible) return false;
             ++eligible_ordinal;
             if (next_rate_index >= rate_ordinals.size())
                 return false;   // max_faults already enforced above
@@ -247,7 +316,7 @@ namespace gem5
             // counted. Legacy geometric mode keeps the old consume-on-
             // eligible behavior (byte-identical replays for existing
             // campaigns).
-            if (fixed_skip_mode && !has_fp_dest) return false;
+            if (fixed_skip_mode && !eligible) return false;
 
             // Sampling-bias fix (findings.md Phase 3.0): skip the first N
             // eligible events (N ~ geometric(0.1) from the seed) so the
@@ -329,51 +398,97 @@ namespace gem5
             return okr;
         }
 
-        RegVal mask;
+        // [FSU][D3] Build a lane-relative mask and its absolute 128-bit
+        // position. The field table is selected by precision; lane geometry
+        // and field fit were already validated in the constructor.
+        chaos_fsu::MaskInfo mi;
+        std::string ferr;
+        const bool field_mode = !bitseg.empty();
+        int field_lo = -1, field_hi = -1;
+
+        auto mask_fail = [&](const std::string &why) {
+            panic("CHAOSFPU: %s\n", why.c_str());
+        };
+
         if (recurring_stuck) {
             // v1.1 Phase 9 mode 3 — the SAME fixed mask every event: the
             // directed --fault_mask if given, else drawn once from the
             // uniform pick and reused for the whole run.
             if (!recurring_mask_drawn) {
                 recurring_mask = fault_mask ? fault_mask
-                                            : (1ULL << (rng() % 64));
+                    : (1ULL << (rng() % (unsigned)lane_width));
                 recurring_mask_drawn = true;
             }
-            mask = recurring_mask;
+            if (!chaos_fsu::buildExplicitMask(recurring_mask, lane_width,
+                                              lane_offset, mi, ferr))
+                mask_fail(ferr);
         } else if (fault_mask) {
-            mask = fault_mask;
+            if (!chaos_fsu::buildExplicitMask(fault_mask, lane_width,
+                                              lane_offset, mi, ferr))
+                mask_fail(ferr);
         } else if (fma_weighted) {
             // v1.1 Phase 9 mode 2 — fma_intermediate (E3 behavioral
             // proxy, plan fallback (b)): draw the field from method3's
             // matched distribution (mant 85% / exp 10% / sign 5%), then
-            // the bit uniformly within the field. Implemented as the
-            // mant_* / exp_* / sign bitseg ranges.
-            int lo, hi;
-            unsigned field = (unsigned)(rng() % 100);
-            if (field < 85)      { lo = 0;  hi = 51; }  // mantissa (52 bits)
-            else if (field < 95) { lo = 52; hi = 62; }  // exponent (11 bits)
-            else                 { lo = 63; hi = 63; }  // sign
-            int bit = lo + (int)(rng() % (unsigned)(hi - lo + 1));
-            mask = (1ULL << bit);
-        } else if (!bitseg.empty()) {
-            int lo = -1, hi = -1;
-            if      (bitseg == "sign")    { lo = 63; hi = 63; }
-            else if (bitseg == "exp_hi")  { lo = 58; hi = 62; }
-            else if (bitseg == "exp_lo")  { lo = 52; hi = 57; }
-            else if (bitseg == "mant_hi") { lo = 35; hi = 51; }
-            else if (bitseg == "mant_mid"){ lo = 18; hi = 34; }
-            else if (bitseg == "mant_lo") { lo = 0;  hi = 17; }
-            if (lo < 0)
-                panic("CHAOSFPU: unknown bitseg '%s'\n", bitseg.c_str());
-            int bit = lo + (int)(rng() % (unsigned)(hi - lo + 1));
-            mask = (1ULL << bit);
+            // the bit uniformly within the field. Field ranges are
+            // precision-aware (FP32: mant 23 bits, exp 8 bits).
+            unsigned f = (unsigned)(rng() % 100);
+            if (f < 85) {
+                field_lo = 0;
+                field_hi = precision_bits == 64 ? 51 : 22;
+            } else if (f < 95) {
+                field_lo = precision_bits == 64 ? 52 : 23;
+                field_hi = precision_bits == 64 ? 62 : 30;
+            } else {
+                field_lo = field_hi = precision_bits - 1;
+            }
+            if (field_hi >= lane_width)
+                mask_fail("fma_intermediate field does not fit lane_width");
+            const int bit = field_lo +
+                (int)(rng() % (unsigned)(field_hi - field_lo + 1));
+            if (!chaos_fsu::buildSingleBitMask(lane_width, lane_offset, bit,
+                                               mi, ferr))
+                mask_fail(ferr);
+        } else if (field_mode) {
+            const auto fr = chaos_fsu::fieldRange(bitseg, precision_bits);
+            field_lo = fr.lo;
+            field_hi = fr.hi;
+            const int bit = fr.lo +
+                (int)(rng() % (unsigned)(fr.hi - fr.lo + 1));
+            if (!chaos_fsu::buildFieldMask(bitseg, precision_bits, lane_width,
+                                           lane_offset, bit, mi, ferr))
+                mask_fail(ferr);
         } else {
-            mask = (1ULL << (rng() % 64));
+            const int bit = (int)(rng() % (unsigned)lane_width);
+            if (!chaos_fsu::buildSingleBitMask(lane_width, lane_offset, bit,
+                                               mi, ferr))
+                mask_fail(ferr);
         }
+
+        FaultInfo info;
+        info.mask = mi.lane_mask;
+        info.precision_bits = precision_bits;
+        info.lane_width = lane_width;
+        info.lane_offset = lane_offset;
+        info.bit_in_lane = mi.bit_in_lane;
+        info.abs_bit = mi.abs_bit;
+        info.field_lo = field_lo;
+        info.field_hi = field_hi;
+        info.abs_lo = mi.abs_lo;
+        info.abs_hi = mi.abs_hi;
+        info.field = field_mode ? bitseg :
+            (recurring_stuck ? "recurring_result_stuck" :
+             fma_weighted ? "fma_intermediate" :
+             rounding_sub ? "rounding_sub" : "uniform");
+
         bool ok = false;
-        int fault_cls = -1, fault_idx = -1;
-        uint64_t oldv = 0, newv = 0;
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu)
+            panic("CHAOSFPU: cpu is not an O3CPU\n");
+        if (o3cpu->physRegFile().vecRegBytes() < 16)
+            panic("CHAOSFPU: vector register storage is %zu bytes, need "
+                  ">=16 for a 128-bit lane inject\n",
+                  o3cpu->physRegFile().vecRegBytes());
         // v1.1 Phase 9 mode 5 — f3_data_dependent gate: corrupt only when
         // the first FP/vector dest's biased exponent is inside
         // [exp_lo, exp_hi] (the --fpu_operand_range proxy; the trigger
@@ -400,26 +515,59 @@ namespace gem5
             if (!dest || dest->is(InvalidRegClass)) continue;
             switch (dest->classValue()) {
               case VecRegClass: {
-                // XOR the low 8 bytes of the vector register's PRF blob.
-                void *vp = o3cpu->getWritableReg(dest, dyn_inst->threadNumber);
+                // Full 128-bit vector register: read/write only the selected
+                // lane. All other lanes stay byte-identical.
+                void *vp = o3cpu->getWritableReg(dest,
+                                                 dyn_inst->threadNumber);
                 if (!vp) break;
-                std::memcpy(&oldv, vp, 8);
-                uint64_t *q = reinterpret_cast<uint64_t*>(vp);
-                *q ^= (uint64_t)mask;
-                std::memcpy(&newv, vp, 8);
-                fault_cls = (int)dest->classValue();
-                fault_idx = dest->index();
+                unsigned char before[16], after[16];
+                std::memcpy(before, vp, 16);
+                std::memcpy(after, vp, 16);
+                const int lane_bytes = lane_width / 8;
+                const int base = lane_offset * lane_bytes;
+                uint64_t lane_before = 0, lane_after = 0;
+                std::memcpy(&lane_before, before + base, lane_bytes);
+                lane_after = lane_before ^ mi.lane_mask;
+                std::memcpy(after + base, &lane_after, lane_bytes);
+                std::memcpy(vp, after, 16);
+                std::memcpy(&info.full_before_lo, before, 8);
+                std::memcpy(&info.full_before_hi, before + 8, 8);
+                std::memcpy(&info.full_after_lo, after, 8);
+                std::memcpy(&info.full_after_hi, after + 8, 8);
+                info.before = lane_before;
+                info.after = lane_after;
+                info.reg_class = (int)dest->classValue();
+                info.reg_index = dest->index();
+                info.is_vec = true;
                 ok = true;
                 break;
               }
               case FloatRegClass:
               case VecElemClass: {
+                // Scalar FP register / vector element: scalar storage has no
+                // lane offset; lane_width 32 preserves the upper 32 bits.
+                if (lane_offset != 0)
+                    panic("CHAOSFPU: scalar dest requires lane_offset=0 "
+                          "(got %d)\n", lane_offset);
+                if (lane_width != 32 && lane_width != 64)
+                    panic("CHAOSFPU: scalar dest requires lane_width 32 or "
+                          "64 (got %d)\n", lane_width);
                 RegVal v = o3cpu->getReg(dest, dyn_inst->threadNumber);
-                oldv = (uint64_t)v;
-                newv = (uint64_t)(v ^ mask);
-                o3cpu->setReg(dest, v ^ mask, dyn_inst->threadNumber);
-                fault_cls = (int)dest->classValue();
-                fault_idx = dest->index();
+                const uint64_t width_mask =
+                    chaos_fsu::laneMaskForWidth(lane_width);
+                const uint64_t oldv = (uint64_t)v;
+                const uint64_t lane_before = oldv & width_mask;
+                const uint64_t lane_after = lane_before ^ mi.lane_mask;
+                const uint64_t newv =
+                    (oldv & ~width_mask) | lane_after;
+                o3cpu->setReg(dest, (RegVal)newv, dyn_inst->threadNumber);
+                info.before = lane_before;
+                info.after = lane_after;
+                info.full_before_lo = oldv;
+                info.full_after_lo = newv;
+                info.reg_class = (int)dest->classValue();
+                info.reg_index = dest->index();
+                info.is_vec = false;
                 ok = true;
                 break;
               }
@@ -435,7 +583,7 @@ namespace gem5
             return false;  // no FP/vector dest register on this inst
         }
         faults_injected_count++;
-        noteFaultApplied(dyn_inst, fault_cls, fault_idx, oldv, newv, mask);
+        noteFaultApplied(dyn_inst, info);
         if (rate_mode) ++next_rate_index;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
@@ -444,7 +592,10 @@ namespace gem5
                 << (bitseg.empty() ? std::string() : ", bitseg=" + bitseg)
                 << (fma_weighted ? ", mode=fma_intermediate" : "")
                 << (recurring_stuck ? ", mode=recurring_result_stuck" : "")
-                << ", mask=0x" << std::hex << mask << std::dec
+                << ", precision=" << precision
+                << ", lane_width=" << lane_width
+                << ", lane_offset=" << lane_offset
+                << ", mask=0x" << std::hex << mi.lane_mask << std::dec
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
@@ -460,6 +611,25 @@ namespace gem5
         char buf[32];
         std::snprintf(buf, sizeof(buf), "0x%016llx",
                       (unsigned long long)v);
+        return std::string(buf);
+    }
+
+    std::string
+    CHAOSFPU::hexWidth(uint64_t v, int bits)
+    {
+        const int digits = bits / 4;
+        char buf[40];
+        std::snprintf(buf, sizeof(buf), "0x%0*llx", digits,
+                      (unsigned long long)v);
+        return std::string(buf);
+    }
+
+    std::string
+    CHAOSFPU::hex128(uint64_t lo, uint64_t hi)
+    {
+        char buf[40];
+        std::snprintf(buf, sizeof(buf), "0x%016llx%016llx",
+                      (unsigned long long)hi, (unsigned long long)lo);
         return std::string(buf);
     }
 
@@ -501,37 +671,45 @@ namespace gem5
     }
 
     void
-    CHAOSFPU::noteFaultApplied(o3::DynInst *inst, int reg_class,
-                               int reg_index, uint64_t oldv, uint64_t newv,
-                               uint64_t mask)
+    CHAOSFPU::noteFaultApplied(o3::DynInst *inst, const FaultInfo &fi)
     {
-        if (!inst || reg_class < 0 || reg_index < 0)
+        if (!inst || fi.reg_class < 0 || fi.reg_index < 0)
             return;
         const uint64_t fid = next_fault_id++;
-        const std::string field = !bitseg.empty() ? bitseg :
-            (recurring_stuck ? "recurring_result_stuck" :
-             fma_weighted ? "fma_intermediate" :
-             rounding_sub ? "rounding_sub" : "uniform");
-        const int bit = mask ? __builtin_ctzll(mask) : -1;
+        int fl = fi.field_lo, fh = fi.field_hi;
+        if (fl < 0 && fi.mask) {
+            fl = __builtin_ctzll(fi.mask);
+            fh = 63 - __builtin_clzll(fi.mask);
+        }
         std::vector<std::pair<std::string, std::string>> kv = {
             {"dyn_inst_seq", std::to_string(inst->seqNum)},
             {"pc", hex64(inst->pcState().instAddr())},
             {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
-            {"phys_reg", std::to_string(reg_index)},
-            {"field", field},
-            {"fault_mask", hex64(mask)},
-            {"bit_indices", bit >= 0 ? std::to_string(bit) : ""},
-            {"lane_width", "64"},
-            {"lane_offset", "0"},
-            {"before", hex64(oldv)},
-            {"after", hex64(newv)},
-            {"before_hash", hash64(oldv)},
-            {"after_hash", hash64(newv)},
-            {"value_hash", hash64(newv)},
+            {"phys_reg", std::to_string(fi.reg_index)},
+            {"reg_class", regClassName(fi.reg_class)},
+            {"field", fi.field},
+            {"precision", precision},
+            {"fault_mask", hex64(fi.mask)},
+            {"bit_indices", std::to_string(fi.abs_bit)},
+            {"bit_in_lane", std::to_string(fi.bit_in_lane)},
+            {"lane_width", std::to_string(fi.lane_width)},
+            {"lane_offset", std::to_string(fi.lane_offset)},
+            {"lane_mask", hex128(fi.abs_lo, fi.abs_hi)},
+            {"before", hexWidth(fi.before, fi.lane_width)},
+            {"after", hexWidth(fi.after, fi.lane_width)},
+            {"full_before", hex128(fi.full_before_lo, fi.full_before_hi)},
+            {"full_after", hex128(fi.full_after_lo, fi.full_after_hi)},
+            {"before_hash", hash64(fi.before)},
+            {"after_hash", hash64(fi.after)},
+            {"value_hash", hash64(fi.after)},
             {"attempted", "1"},
             {"activated", ""},
             {"thread_id", std::to_string((int)inst->threadNumber)},
         };
+        if (fl >= 0)
+            kv.push_back({"field_lo", std::to_string(fl)});
+        if (fh >= 0)
+            kv.push_back({"field_hi", std::to_string(fh)});
         if (fsu_eligible_total)
             kv.push_back({"eligible_total",
                           std::to_string(fsu_eligible_total)});
@@ -557,9 +735,35 @@ namespace gem5
         }
         const uint64_t l0 = emitFsu("fault_applied", fid, FSU_NO_PARENT, kv);
         const uint64_t l1 = emitFsu("carrier_state", fid, l0, kv);
-        faulted_regs.push_back({fid, l0, l1, inst->seqNum, curTick(),
-                                (int)inst->threadNumber, reg_class, reg_index,
-                                oldv, newv, mask, field, false});
+        FaultedReg fr;
+        fr.fault_id = fid;
+        fr.l0_id = l0;
+        fr.l1_id = l1;
+        fr.producer_sn = inst->seqNum;
+        fr.tick = curTick();
+        fr.tid = (int)inst->threadNumber;
+        fr.reg_class = fi.reg_class;
+        fr.reg_index = fi.reg_index;
+        fr.before = fi.before;
+        fr.after = fi.after;
+        fr.mask = fi.mask;
+        fr.field = fi.field;
+        fr.precision_bits = fi.precision_bits;
+        fr.lane_width = fi.lane_width;
+        fr.lane_offset = fi.lane_offset;
+        fr.bit_in_lane = fi.bit_in_lane;
+        fr.abs_bit = fi.abs_bit;
+        fr.field_lo = fi.field_lo;
+        fr.field_hi = fi.field_hi;
+        fr.abs_lo = fi.abs_lo;
+        fr.abs_hi = fi.abs_hi;
+        fr.full_before_lo = fi.full_before_lo;
+        fr.full_before_hi = fi.full_before_hi;
+        fr.full_after_lo = fi.full_after_lo;
+        fr.full_after_hi = fi.full_after_hi;
+        fr.is_vec = fi.is_vec;
+        fr.consumed = false;
+        faulted_regs.push_back(fr);
     }
 
     void
@@ -587,14 +791,26 @@ namespace gem5
                     {"dyn_inst_seq", std::to_string(inst->seqNum)},
                     {"src_slot", std::to_string(i)},
                     {"phys_reg", std::to_string(f.reg_index)},
+                    {"reg_class", regClassName(f.reg_class)},
                     {"pc", hex64(inst->pcState().instAddr())},
                     {"opcode", inst->staticInst
                                    ? inst->staticInst->getName() : ""},
                     {"activated", "1"},
                     {"value_hash", hash64(f.after)},
                     {"field", f.field},
+                    {"precision", precision},
+                    {"lane_width", std::to_string(f.lane_width)},
+                    {"lane_offset", std::to_string(f.lane_offset)},
+                    {"bit_indices", std::to_string(f.abs_bit)},
+                    {"bit_in_lane", std::to_string(f.bit_in_lane)},
+                    {"fault_mask", hex64(f.mask)},
+                    {"lane_mask", hex128(f.abs_lo, f.abs_hi)},
                     {"thread_id", std::to_string((int)inst->threadNumber)},
                 };
+                if (f.field_lo >= 0)
+                    kv.push_back({"field_lo", std::to_string(f.field_lo)});
+                if (f.field_hi >= 0)
+                    kv.push_back({"field_hi", std::to_string(f.field_hi)});
                 const uint64_t l2 = emitFsu("operand_read", f.fault_id,
                                             f.l1_id, kv);
                 TaintedConsumer tc;
@@ -602,6 +818,15 @@ namespace gem5
                 tc.l2_id = l2;
                 tc.consumer_sn = inst->seqNum;
                 tc.field = f.field;
+                tc.precision_bits = f.precision_bits;
+                tc.lane_width = f.lane_width;
+                tc.lane_offset = f.lane_offset;
+                tc.bit_in_lane = f.bit_in_lane;
+                tc.abs_bit = f.abs_bit;
+                tc.field_lo = f.field_lo;
+                tc.field_hi = f.field_hi;
+                tc.abs_lo = f.abs_lo;
+                tc.abs_hi = f.abs_hi;
                 tc.is_store = inst->isStore();
                 if (!tc.is_store && isFpOpClass(inst->opClass())) {
                     tc.l3_id = emitFsu("execute", f.fault_id, l2, kv);
@@ -633,7 +858,17 @@ namespace gem5
             {"pc", hex64(inst->pcState().instAddr())},
             {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
             {"field", tc.field},
+            {"precision", precision},
+            {"lane_width", std::to_string(tc.lane_width)},
+            {"lane_offset", std::to_string(tc.lane_offset)},
+            {"bit_indices", std::to_string(tc.abs_bit)},
+            {"bit_in_lane", std::to_string(tc.bit_in_lane)},
+            {"lane_mask", hex128(tc.abs_lo, tc.abs_hi)},
         };
+        if (tc.field_lo >= 0)
+            kv.push_back({"field_lo", std::to_string(tc.field_lo)});
+        if (tc.field_hi >= 0)
+            kv.push_back({"field_hi", std::to_string(tc.field_hi)});
         if (!tc.has_l4) {
             kv.push_back({"outcome", "arch_side_effect"});
             tc.l4_id = emitFsu("consumer", tc.fault_id, tc.l2_id, kv);
@@ -655,7 +890,15 @@ namespace gem5
             std::vector<std::pair<std::string, std::string>> kv = {
                 {"producer_seq", std::to_string(f.producer_sn)},
                 {"phys_reg", std::to_string(f.reg_index)},
+                {"reg_class", regClassName(f.reg_class)},
                 {"field", f.field},
+                {"precision", precision},
+                {"lane_width", std::to_string(f.lane_width)},
+                {"lane_offset", std::to_string(f.lane_offset)},
+                {"bit_indices", std::to_string(f.abs_bit)},
+                {"bit_in_lane", std::to_string(f.bit_in_lane)},
+                {"fault_mask", hex64(f.mask)},
+                {"lane_mask", hex128(f.abs_lo, f.abs_hi)},
                 {"activated", "0"},
                 {"value_hash", hash64(f.after)},
             };

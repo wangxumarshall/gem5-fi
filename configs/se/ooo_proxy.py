@@ -284,6 +284,11 @@ p.add_argument("--fpu_count_only", action="store_true")
 p.add_argument("--fpu_bitseg", default="",
                choices=["", "sign", "exp_hi", "exp_lo", "mant_hi", "mant_mid",
                         "mant_lo"])
+# [FSU][D3] FP precision and lane geometry for field-level injection.
+p.add_argument("--fpu_precision", default="fp64", choices=["fp64", "fp32"])
+p.add_argument("--fpu_lane_width", type=lambda x: int(x, 0), default=64,
+               choices=[8, 16, 32, 64])
+p.add_argument("--fpu_lane_offset", type=lambda x: int(x, 0), default=0)
 p.add_argument("--fpu_fma_weighted", action="store_true")
 p.add_argument("--fpu_recurring_stuck", action="store_true")
 p.add_argument("--fpu_rounding_sub", action="store_true")
@@ -732,6 +737,9 @@ if args.chaos_fpu:
                       else args.fpu_events_to_skip),
         countOnly=args.fpu_count_only,
         bitseg=args.fpu_bitseg,
+        precision=args.fpu_precision,
+        laneWidth=args.fpu_lane_width,
+        laneOffset=args.fpu_lane_offset,
         fmaWeighted=args.fpu_fma_weighted,
         recurringStuck=args.fpu_recurring_stuck,
         roundingSub=args.fpu_rounding_sub,

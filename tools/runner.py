@@ -1245,6 +1245,12 @@ def main():
         fm_mode = inj.get("fpu_mode") or {}
         if fm_mode.get("bitseg"):
             cmd += ["--fpu_bitseg", str(fm_mode["bitseg"])]
+        if fm_mode.get("precision"):
+            cmd += ["--fpu_precision", str(fm_mode["precision"])]
+        if fm_mode.get("lane_width") is not None:
+            cmd += ["--fpu_lane_width", str(fm_mode["lane_width"])]
+        if fm_mode.get("lane_offset") is not None:
+            cmd += ["--fpu_lane_offset", str(fm_mode["lane_offset"])]
         if fm_mode.get("fma_weighted"):
             cmd += ["--fpu_fma_weighted"]
         if fm_mode.get("recurring_stuck"):

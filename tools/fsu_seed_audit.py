@@ -57,6 +57,119 @@ def _md_value(md: str, label: str):
     return m.group(1).strip() if m else None
 
 
+FP_FIELDS = {
+    "fp64": {
+        "sign": (63, 63), "exp_hi": (58, 62), "exp_lo": (52, 57),
+        "mant_hi": (35, 51), "mant_mid": (18, 34), "mant_lo": (0, 17),
+    },
+    "fp32": {
+        "sign": (31, 31), "exp_hi": (27, 30), "exp_lo": (23, 26),
+        "mant_hi": (15, 22), "mant_mid": (8, 14), "mant_lo": (0, 7),
+    },
+}
+FIELD_SUBMODEL = {
+    "sign": "FP04-a", "exp_hi": "FP04-b", "exp_lo": "FP04-b",
+    "mant_hi": "FP04-c", "mant_mid": "FP04-c", "mant_lo": "FP04-c",
+}
+MODE_FIELDS = {"uniform", "recurring_result_stuck", "fma_intermediate",
+               "rounding_sub"}
+
+
+def _hex_int(value, default=0):
+    text = str(value or "").strip()
+    if not text:
+        return default
+    try:
+        return int(text, 16)
+    except ValueError:
+        return None
+
+
+def _field_violations(evt):
+    """Validate one L0 root's field/lane/mask semantics.
+
+    Legacy D2 events have no `precision`/`lane_mask`/`full_*`; they are
+    interpreted as FP64, lane_width=64, lane_offset=0 (their emitted
+    contract). New D3 events carry all fields explicitly.
+    """
+    v = []
+    fid = str(evt.get("fault_id", "?"))
+    field = str(evt.get("field", "")).strip()
+    lane_w = int(str(evt.get("lane_width") or 64))
+    lane_o = int(str(evt.get("lane_offset") or 0))
+    if lane_w not in (8, 16, 32, 64):
+        v.append(f"fault {fid}: invalid lane_width {lane_w}")
+        return v
+    if lane_o < 0 or lane_o >= 128 // lane_w:
+        v.append(f"fault {fid}: invalid lane_offset {lane_o} for width {lane_w}")
+        return v
+    prec = str(evt.get("precision", "")).strip()
+    if not prec and field in FP_FIELDS["fp64"]:
+        prec = "fp64"  # legacy D2 event (only FP64 fields existed)
+    if field not in MODE_FIELDS:
+        if prec not in FP_FIELDS:
+            v.append(f"fault {fid}: unknown field '{field}' / precision '{prec}'")
+            return v
+        lo, hi = FP_FIELDS[prec][field] if field in FP_FIELDS[prec] else (None, None)
+        if lo is None:
+            v.append(f"fault {fid}: field '{field}' not in {prec} table")
+            return v
+        want_sub = FIELD_SUBMODEL.get(field)
+        sub = str(evt.get("submodel", "")).strip()
+        if want_sub and sub and sub != want_sub:
+            v.append(f"fault {fid}: field {field} requires {want_sub}, "
+                     f"event submodel={sub}")
+    mask = _hex_int(evt.get("fault_mask"))
+    if mask is None or mask == 0:
+        v.append(f"fault {fid}: missing/zero fault_mask")
+        return v
+    if lane_w < 64 and (mask >> lane_w):
+        v.append(f"fault {fid}: fault_mask 0x{mask:x} exceeds lane_width {lane_w}")
+    bit = _hex_int(evt.get("bit_indices"), default=None)
+    if bit is None:
+        v.append(f"fault {fid}: missing bit_indices")
+        return v
+    lane_base = lane_o * lane_w
+    rel = bit - lane_base
+    if rel < 0 or rel >= lane_w:
+        v.append(f"fault {fid}: absolute bit {bit} outside lane "
+                 f"{lane_o} width {lane_w}")
+        return v
+    if field not in MODE_FIELDS:
+        lo, hi = FP_FIELDS[prec][field]
+        if not (lo <= rel <= hi):
+            v.append(f"fault {fid}: bit {rel} outside field {field} [{lo},{hi}]")
+        if mask != (1 << rel):
+            v.append(f"fault {fid}: fault_mask 0x{mask:x} != 1<<{rel}")
+    lane_mask = _hex_int(evt.get("lane_mask"), default=None)
+    if lane_mask is not None:
+        want = mask << lane_base
+        if lane_mask != want:
+            v.append(f"fault {fid}: lane_mask 0x{lane_mask:x} != "
+                     f"fault_mask<<{lane_base} (0x{want:x})")
+    before = _hex_int(evt.get("before"), default=None)
+    after = _hex_int(evt.get("after"), default=None)
+    if before is not None and after is not None:
+        if (before ^ after) != mask:
+            v.append(f"fault {fid}: before^after 0x{before ^ after:x} "
+                     f"!= fault_mask 0x{mask:x}")
+    full_before = _hex_int(evt.get("full_before"), default=None)
+    full_after = _hex_int(evt.get("full_after"), default=None)
+    if full_before is not None and full_after is not None:
+        want = mask << lane_base
+        if (full_before ^ full_after) != want:
+            v.append(f"fault {fid}: full_before^full_after "
+                     f"0x{full_before ^ full_after:x} != lane_mask 0x{want:x}")
+    return v
+
+
+def _scheduled_faults(manifest, report):
+    expected = report.get("expected_injections")
+    if expected is not None:
+        return int(expected)
+    return int((manifest.get("injector") or {}).get("max_faults", 1))
+
+
 def _md_fault_rows(md: str):
     """Parse the '### 逐 fault 终局' table → {fault_id: cells}."""
     rows, inside = {}, False
@@ -120,6 +233,35 @@ def audit_attempt(attempt: Path):
                     if str(e.get("run_id")) != runid
                     or str(e.get("sample_run_id")) != sample]
     check(f"事件身份全为本 seed（越界 {len(bad_identity)}）", not bad_identity)
+
+    # 2.1 字段 / lane / mask 语义（新增门禁，绝不放宽既有门禁）
+    roots = [e for e in events if str(e.get("kind")) == "fault_applied"]
+    scheduled = _scheduled_faults(manifest, report)
+    check(f"scheduled({scheduled}) = fault_applied({len(roots)})",
+          scheduled == len(roots))
+    root_ids = {str(e.get("fault_id")) for e in roots}
+    activated_ids = {str(e.get("fault_id")) for e in events
+                     if str(e.get("kind")) == "operand_read"
+                     and str(e.get("activated")) == "1"}
+    check("每个 injected fault 均真实激活",
+          bool(root_ids) and activated_ids == root_ids)
+    for root in roots:
+        fid = str(root.get("fault_id"))
+        viol = _field_violations(root)
+        check(f"fault {fid} 字段/lane/mask 语义", not viol)
+        if viol:
+            failures.extend(viol)
+    for key in ("model_id", "submodel", "freq", "load_id"):
+        want = manifest.get(key)
+        if want:
+            got = {str(e.get(key)) for e in roots}
+            check(f"事件 {key} 与 manifest 一致", got == {str(want)})
+    by_fault = {}
+    for e in events:
+        by_fault.setdefault(str(e.get("fault_id")), []).append(e)
+    for fid, evs in by_fault.items():
+        fields = {str(e.get("field")) for e in evs if str(e.get("field"))}
+        check(f"fault {fid} 全链 field 一致", len(fields) <= 1)
 
     # 3. 链重算与 chain_report 一致（逐 fault）
     recomputed = C.check_stream(prop, run_id=runid, sample_run_id=sample) \

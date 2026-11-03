@@ -13,6 +13,7 @@
 #include "base/types.hh"
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
+#include "cpu/o3/CHAOSFPU/chaos_fsu_fields.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class DynInst; } }
@@ -67,6 +68,12 @@ class CHAOSFPU : public SimObject
 
     // v1.1 Phase 9 patch 1a mode 1 — bitseg field (empty = uniform).
     std::string bitseg;
+    // [FSU][D3] Precision + lane geometry. Validated in the constructor;
+    // an unknown precision, field or lane configuration panics (fail closed).
+    std::string precision;
+    int precision_bits = 64;
+    int lane_width = 64;
+    int lane_offset = 0;
     // mode 2 — fma_intermediate weighted proxy (E3).
     bool fma_weighted = false;
     // mode 3 — recurring_result_stuck: same fixed mask every event.
@@ -116,6 +123,14 @@ class CHAOSFPU : public SimObject
         int tid = 0, reg_class = 0, reg_index = 0;
         uint64_t before = 0, after = 0, mask = 0;
         std::string field;
+        int precision_bits = 64;
+        int lane_width = 64, lane_offset = 0;
+        int bit_in_lane = 0, abs_bit = 0;
+        int field_lo = -1, field_hi = -1;
+        uint64_t abs_lo = 0, abs_hi = 0;
+        uint64_t full_before_lo = 0, full_before_hi = 0;
+        uint64_t full_after_lo = 0, full_after_hi = 0;
+        bool is_vec = false;
         bool consumed = false;
     };
     struct TaintedConsumer {
@@ -123,19 +138,42 @@ class CHAOSFPU : public SimObject
         uint64_t l2_id = 0, l3_id = 0, l4_id = 0;
         uint64_t consumer_sn = 0;
         std::string field;
+        int precision_bits = 64;
+        int lane_width = 64, lane_offset = 0;
+        int bit_in_lane = 0, abs_bit = 0;
+        int field_lo = -1, field_hi = -1;
+        uint64_t abs_lo = 0, abs_hi = 0;
         bool is_store = false;
         bool has_l3 = false, has_l4 = false, committed = false;
+    };
+
+    // Everything an injection site needs to describe itself to the chain
+    // events. Built once per injected fault so L0-L5 carry identical
+    // field/lane provenance.
+    struct FaultInfo {
+        int reg_class = -1, reg_index = -1;
+        uint64_t before = 0, after = 0, mask = 0;
+        int precision_bits = 64;
+        int lane_width = 64, lane_offset = 0;
+        int bit_in_lane = 0, abs_bit = 0;
+        int field_lo = -1, field_hi = -1;
+        uint64_t abs_lo = 0, abs_hi = 0;
+        uint64_t full_before_lo = 0, full_before_hi = 0;
+        uint64_t full_after_lo = 0, full_after_hi = 0;
+        bool is_vec = false;
+        std::string field;
     };
     std::vector<FaultedReg> faulted_regs;
     std::map<uint64_t, TaintedConsumer> tainted_consumers;
     uint64_t next_fault_id = 1;
 
-    void noteFaultApplied(o3::DynInst *inst, int reg_class, int reg_index,
-                          uint64_t oldv, uint64_t newv, uint64_t mask);
+    void noteFaultApplied(o3::DynInst *inst, const FaultInfo &info);
     uint64_t emitFsu(const char *kind, uint64_t fault_id, uint64_t parent,
                      std::vector<std::pair<std::string, std::string>> kv);
     void noteNotActivated();
     static std::string hex64(uint64_t v);
+    static std::string hexWidth(uint64_t v, int bits);
+    static std::string hex128(uint64_t lo, uint64_t hi);
     static std::string hash64(uint64_t v);
 
     bool inWindow();

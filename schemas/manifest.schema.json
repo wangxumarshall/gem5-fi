@@ -264,6 +264,21 @@
                 "mant_lo"
               ]
             },
+            "precision": {
+              "type": "string",
+              "enum": ["fp64", "fp32"],
+              "description": "FP precision for the field table. FP64 fields require lane_width 64; FP32 fields require lane_width >= 32."
+            },
+            "lane_width": {
+              "type": "integer",
+              "enum": [8, 16, 32, 64],
+              "description": "Storage lane width in bits."
+            },
+            "lane_offset": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Lane index inside the 128-bit vector register; < 128/lane_width."
+            },
             "fma_weighted": {
               "type": "boolean"
             },

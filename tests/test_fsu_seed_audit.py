@@ -22,7 +22,15 @@ def evt(**kw):
 def chain():
     b = dict(run_id=RUNID, sample_run_id="s1", fault_id="1",
              model_id="FP04", unit="FSU Pipe", freq="F0", load_id="W4",
-             submodel="FP04-c")
+             submodel="FP04-c", field="mant_lo", precision="fp64",
+             lane_width="64", lane_offset="0", bit_indices="5",
+             bit_in_lane="5", field_lo="0", field_hi="17",
+             fault_mask="0x0000000000000020",
+             lane_mask="0x00000000000000000000000000000020",
+             before="0x3ff0000000000000",
+             after="0x3ff0000000000020",
+             full_before="0x00000000000000003ff0000000000000",
+             full_after="0x00000000000000003ff0000000000020")
     return [
         evt(kind="fault_applied", event_id="0", tick="100", activated="1", **b),
         evt(kind="carrier_state", event_id="1", parent_event_id="0", tick="101", **b),

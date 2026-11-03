@@ -144,7 +144,10 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
                       f"| tick / cycle | {_v(root,'tick')} / {_v(root,'cycle')} |",
                       f"| sn / PC / opcode | {_v(root,'dyn_inst_seq')} / {_v(root,'pc')} / {_v(root,'opcode')} |",
                       f"| 单元/结构/slot/port/lane | {_v(root,'unit')} / {_v(root,'field')} / {_v(root,'iq_slot')} / {_v(root,'src_slot')} / {_v(root,'lane_width')}@{_v(root,'lane_offset')} |",
-                      f"| fault bit / mask | {_v(root,'bit_indices')} / {_v(root,'fault_mask')} |",
+                      f"| precision / reg_class | {_v(root,'precision')} / {_v(root,'reg_class')} |",
+                      f"| field 范围（lane 内） | {_v(root,'field_lo')}..{_v(root,'field_hi')} |",
+                      f"| fault bit（绝对）/ bit_in_lane | {_v(root,'bit_indices')} / {_v(root,'bit_in_lane')} |",
+                      f"| fault mask（lane 内）/ lane_mask（128-bit 绝对） | {_v(root,'fault_mask')} / {_v(root,'lane_mask')} |",
                       f"| eligible ordinal / total | {_v(root,'eligible_ordinal')} / {_v(root,'eligible_total')} |",
                       f"| rate divisor / jitter / interval / ordinal_index | "
                       f"{_v(root,'rate_divisor')} / {_v(root,'jitter_pct')} / "
@@ -166,7 +169,8 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
             L += [f"### fault {fid}", ""]
             if root:
                 L += ["| 项 | 观测值 |", "|---|---|",
-                      f"| old/new 值 | {_v(root,'before')} → {_v(root,'after')} |",
+                      f"| old/new 值（lane 内） | {_v(root,'before')} → {_v(root,'after')} |",
+                      f"| full 128-bit old/new | {_v(root,'full_before')} → {_v(root,'full_after')} |",
                       f"| old/new hash | {_v(root,'before_hash')} → {_v(root,'after_hash')} |",
                       f"| source/destination phys tag | src={_v(root,'src_slot')} / dest={_v(root,'phys_reg')} |",
                       f"| operand role / lane / width | {_v(root,'src_slot')} / {_v(root,'lane_offset')} / {_v(root,'lane_width')} |",

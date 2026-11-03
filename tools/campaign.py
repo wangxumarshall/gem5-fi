@@ -423,6 +423,12 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir,
     _fpu_mode = {}
     if cell.get("fpu_bitseg"):
         _fpu_mode["bitseg"] = cell["fpu_bitseg"]
+    if cell.get("fpu_precision"):
+        _fpu_mode["precision"] = cell["fpu_precision"]
+    if cell.get("fpu_lane_width") is not None:
+        _fpu_mode["lane_width"] = cell["fpu_lane_width"]
+    if cell.get("fpu_lane_offset") is not None:
+        _fpu_mode["lane_offset"] = cell["fpu_lane_offset"]
     for _flag in ("fma_weighted", "recurring_stuck", "rounding_sub",
                   "f3_dependent", "fpsr_suppress"):
         if cell.get(f"fpu_mode_{_flag}"):
