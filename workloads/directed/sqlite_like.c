@@ -1,10 +1,17 @@
 /* LSU 负载 W12 SQLite-Speedtest1 (06-workloads r13):
    SQLite speedtest1 代理 — B-tree 页遍历、读改写事务、integrity_check。
    用途：AGU、LQ、SQ、L1D-Cache 注入器定向验证。SE。
-   实现：B-tree 页式存储模拟（不是真实 SQLite, 但覆盖同一访问模式）。 */
+   实现：B-tree 页式存储模拟（不是真实 SQLite, 但覆盖同一访问模式）。
+
+   [LSU][MDSPEC][R6-L-UNIT] 同源有界重复载体（chaos_repeat.h）：
+   argv[1]=reps（缺省 1）。reps==1 时输出与旧二进制逐字节一致（只有末行
+   裸 16hex checksum）；reps>1 时每趟打印 `ITER:<n>:<16hex>`，末行仍是裸
+   checksum。每趟都重置页池，保证每趟执行完全相同的第 1–8 步操作序列，
+   因此每个 ITER 行都等于冻结 golden（33f836327a416d35）。 */
 #include <unistd.h>
 #include <stdint.h>
 #include <string.h>
+#include "chaos_repeat.h"
 
 static void put_hex(unsigned long v){
     char buf[16];
@@ -24,10 +31,15 @@ static inline unsigned long fnv(unsigned long a, unsigned long v){
 static unsigned long pages[NPAGES][ORDER];
 static unsigned long meta[NPAGES];  /* page metadata (like SQLite header) */
 
-int main(void)
+static unsigned long probe_once(void)
 {
     unsigned long acc = 0x5a1711523d1ce5eeUL;
-    unsigned i, j, k;
+    unsigned i, j;
+
+    /* Every iteration is a fresh database: reset the page pool so repeats
+       execute the identical operation sequence and yield the same checksum. */
+    memset(pages, 0, sizeof pages);
+    memset(meta, 0, sizeof meta);
 
     /* 1. Initialize: "CREATE TABLE" — bulk sequential insert */
     for (i = 0; i < NPAGES; ++i) {
@@ -89,6 +101,18 @@ int main(void)
     for (i = 0; i < NPAGES; i += 4)
         acc = fnv(acc, pages[i][0]);
 
+    return acc;
+}
+
+int main(int argc, char **argv)
+{
+    int reps = chaos_repeat_count(argc, argv);
+    unsigned long acc = 0;
+    for (int r = 0; r < reps; ++r) {
+        acc = probe_once();
+        if (reps > 1)
+            chaos_emit_iter(r, acc);
+    }
     put_hex(acc);
     return 0;
 }
