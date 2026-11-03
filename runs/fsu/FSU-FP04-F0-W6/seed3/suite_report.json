@@ -275,6 +275,6 @@
       "ok": true
     }
   ],
-  "created_at": "2026-11-04T04:19:49",
+  "created_at": "2026-11-04T04:25:51",
   "counting_note": "component runs/faults are never seeds; one W6 suite seed counts as exactly one admitted seed"
 }
