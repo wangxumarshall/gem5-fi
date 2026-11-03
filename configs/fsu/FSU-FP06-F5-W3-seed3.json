@@ -29,7 +29,7 @@
       "f5_sample_limit": 1024,
       "f5_keep_first_last_n": 256
     },
-    "fault_mask": "0x00400000",
+    "fault_mask": "0x007f8000",
     "max_faults": 1,
     "first_clock": 0,
     "probability": 1.0
@@ -37,6 +37,6 @@
   "limits": {
     "timeout_s": 1800
   },
-  "notes": "F5 seed3：预注册 FP06-c 固定 mantissa mask（bit22），lane2，SA0。 正式 F5 seed 的极性/掩码在运行前固定，不得看结果后修改；不是 gate。",
-  "pre_registration": "seed3: polarity=0, mask=0x00400000, submodel=FP06-c"
+  "notes": "F5 seed3：预注册 FP06-c 固定 mantissa mask（FP32 mant_hi 全字段，multi-bit），lane2，SA0。正式 F5 seed 的极性/掩码在运行前固定，不得看结果后修改；不是 gate。",
+  "pre_registration": "seed3: polarity=0, mask=0x007f8000 (FP32 mant_hi bits 15..22, multi-bit), submodel=FP06-c"
 }

@@ -283,6 +283,19 @@ def test_field_violations_permanent_stuck_force_not_xor():
     bad = dict(same, stuck_polarity="0", after="0xbe7ff79e")
     assert A._field_violations(P.parse_line(evt(**bad)))
 
+    # FP06-c: a multi-bit fixed mantissa mask (bits 15..22) is legal under
+    # field=permanent_stuck and is validated by the forced-value rule.
+    multi = dict(b, field="permanent_stuck", fault_mask="0x007f8000",
+                 fixed_mask="0x007f8000", stuck_polarity="0",
+                 bit_indices="79", bit_in_lane="15", field_lo="15",
+                 field_hi="22", before="0x3e7fffff", after="0x3e007fff",
+                 lane_mask="0x00000000007f80000000000000000000",
+                 full_before="0x3f9170e73e7fffff3e7efbb53f1b9433",
+                 full_after="0x3f9170e73e007fff3e7efbb53f1b9433")
+    assert A._field_violations(P.parse_line(evt(**multi))) == []
+    multi_bad = dict(multi, stuck_polarity="1")
+    assert A._field_violations(P.parse_line(evt(**multi_bad)))
+
 
 def test_field_violations_decimal_bit_and_fp04d_lane_domain():
     # bit_indices is decimal: "63" must mean bit 63, not 0x63=99.
