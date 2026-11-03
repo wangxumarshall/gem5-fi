@@ -22,9 +22,21 @@ mkdir -p "$OUTROOT" "$STATE_DIR"
 
 IFS=',' read -r -a IDS <<< "$RUNIDS"
 TASKS=()
-for rid in "${IDS[@]}"; do
-  for s in 1 2 3; do TASKS+=("$rid|$s"); done
-done
+# [R6-L-UNIT] Explicit seed-level task list (RUNID:SEED,...) for the
+# repeat reruns: the 25 NO_INJECTION seeds only. Without it, the historical
+# 14-RunID x 3-seed allocation is used. Never let a qualified seed rerun.
+if [ -n "${R6L_TASKS:-}" ]; then
+  IFS=',' read -r -a SPECS <<< "$R6L_TASKS"
+  for spec in "${SPECS[@]}"; do
+    spec="$(echo "$spec" | tr -d '[:space:]')"
+    [ -z "$spec" ] && continue
+    TASKS+=("${spec/:/|}")
+  done
+else
+  for rid in "${IDS[@]}"; do
+    for s in 1 2 3; do TASKS+=("$rid|$s"); done
+  done
+fi
 
 if [ "${1:-}" = "--dry-run" ]; then
   declare -A seen=()
@@ -33,8 +45,10 @@ if [ "${1:-}" = "--dry-run" ]; then
     [ -n "${seen[$t]:-}" ] && dup=$((dup+1))
     seen[$t]=1
   done
+  expected=42
+  [ -n "${R6L_TASKS:-}" ] && expected=${#TASKS[@]}
   echo "tasks=${#TASKS[@]} unique=${#seen[@]} dup=$dup runids=${#IDS[@]}"
-  if [ "${#TASKS[@]}" -eq 42 ] && [ "${#seen[@]}" -eq 42 ] && [ "$dup" -eq 0 ]; then
+  if [ "${#TASKS[@]}" -eq "$expected" ] && [ "${#seen[@]}" -eq "$expected" ] && [ "$dup" -eq 0 ]; then
     echo "ALLOCATION_OK"
     exit 0
   fi
