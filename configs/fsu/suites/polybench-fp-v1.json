@@ -73,7 +73,7 @@
         "NK": 88
       },
       "golden": "116849d3adf3227b",
-      "binary_hash_state": "rebuilt_awaiting_element_gate",
+      "binary_hash_state": "gated",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/gemm.bin",
         "oracle_version": "polybench-element-v1",
@@ -111,7 +111,7 @@
         "NL": 72
       },
       "golden": "41ebd3d0a77ab3d2",
-      "binary_hash_state": "rebuilt_awaiting_element_gate",
+      "binary_hash_state": "gated",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/2mm.bin",
         "oracle_version": "polybench-element-v1",
@@ -146,7 +146,7 @@
         "N": 84
       },
       "golden": "74ffe5eb77ea9257",
-      "binary_hash_state": "rebuilt_awaiting_element_gate",
+      "binary_hash_state": "gated",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
         "oracle_version": "polybench-element-v1",
@@ -181,7 +181,7 @@
         "N": 88
       },
       "golden": "ea7e0d0e7c86582d",
-      "binary_hash_state": "rebuilt_awaiting_element_gate",
+      "binary_hash_state": "gated",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/cholesky.bin",
         "oracle_version": "polybench-element-v1",
@@ -217,7 +217,7 @@
         "N": 160
       },
       "golden": "dc867b5f02998c1e",
-      "binary_hash_state": "rebuilt_awaiting_element_gate",
+      "binary_hash_state": "gated",
       "element_oracle": {
         "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/jacobi-2d.bin",
         "oracle_version": "polybench-element-v1",
