@@ -49,10 +49,52 @@ def _suite_seed_state(seed_dir: Path):
     }
 
 
+def _w6_suite_seed_state(seed_dir: Path):
+    """A W6 (SVD/FFT/sparse) suite seed counts as exactly ONE seed."""
+    try:
+        sm = json.loads((seed_dir / "suite_manifest.json").read_text(
+            encoding="utf-8"))
+        rep = json.loads((seed_dir / "suite_report.json").read_text(
+            encoding="utf-8"))
+        audit = json.loads((seed_dir / "audit.json").read_text(
+            encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return {"state": "invalid", "suite": True,
+                "reason": f"W6 suite state error: {e}"}
+    comps = sm.get("components") or []
+    ok = (audit.get("ok") is True
+          and rep.get("suite_admitted") is True
+          and int(rep.get("component_run_count", 0)) == 3
+          and len(comps) == 3
+          and all(c.get("ok") is True for c in comps)
+          and (seed_dir / "AUTHORITATIVE").exists())
+    return {
+        "state": "admitted" if ok else "invalid",
+        "suite": True,
+        "suite_id": sm.get("suite_id"),
+        "suite_hash": sm.get("suite_hash"),
+        "suite_seed": sm.get("suite_seed"),
+        "component_runs": len(comps),
+        "component_certified": sum(1 for c in comps
+                                   if c.get("component_certified") is True),
+        "audit_ok": audit.get("ok") is True,
+        "components": comps,
+        "reason": None if ok else "W6 suite audit/report/authoritative "
+                                  "not all admitted",
+    }
+
+
 def _seed_state(seed_dir: Path):
-    # Presence of suite_manifest.json makes this a formal W5 suite seed:
-    # its 5 component runs must never enter admitted_seeds_total as 5 seeds.
+    # Presence of suite_manifest.json makes this a formal suite seed:
+    # its component runs must never enter admitted_seeds_total as N seeds.
     if (seed_dir / "suite_manifest.json").exists():
+        try:
+            sm = json.loads((seed_dir / "suite_manifest.json").read_text(
+                encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            sm = {}
+        if str(sm.get("suite_id", "")).startswith("w6-"):
+            return _w6_suite_seed_state(seed_dir)
         return _suite_seed_state(seed_dir)
     auth = seed_dir / "AUTHORITATIVE"
     if auth.exists():

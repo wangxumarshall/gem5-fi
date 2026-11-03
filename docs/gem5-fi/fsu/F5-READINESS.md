@@ -8,7 +8,7 @@
 >
 > 当前：**FP06-F5-W3 COMPLETE_3_OF_3**、**FP06-F5-W1 COMPLETE_3_OF_3**、
 > **FP06-F5-W4 COMPLETE_3_OF_3**、**FP06-F5-W5 COMPLETE_3_OF_3**
-> （gate PASS 后正式 suite seed 全部 audit.ok/certified）；FP06-F5-W6 未正式运行；
+> （gate PASS 后正式 suite seed 全部 audit.ok/certified）、**FP06-F5-W6 COMPLETE_3_OF_3**（SVD/FFT/sparse）；
 > FR03-F5-W3 COMPLETE_3_OF_3；FR03-F5-W5/W6 BLOCKED；
 > **FP06-d partial-product proxy MISSING**。
 
@@ -34,13 +34,13 @@
 | FSU-FP06-F5-W3 | COMPLETE_3_OF_3 | 3/3 | 已认证 FP06-a SA0、FP06-b SA1、FP06-c 固定 mantissa（每 seed 16,384 exposures）；仅覆盖结果侧代理与 W3 32-bit lane2 sign/mantissa 域；**FP06-d MISSING**；其他 lane/字段未覆盖 |
 | FSU-FP06-F5-W4 | COMPLETE_3_OF_3 | 3/3 | gate PASS 后完成 3 个正式 seed（W4-rate-v1，B0/FP64/decode，真实 census 1,310,723）：seed1 FP06-a sign SA0、seed2 FP06-b sign SA1、seed3 FP06-c fixed mantissa SA0；每 seed exposures 1,309,699、activated 130,814/1,132,901/1,300,553、terminal=full、oracle=SDC、audit.ok/certified。历史文档中的 2,097,155 是旧未过滤 D2 配置，不是本 RunID 的 eligible 流；**FP06-d 仍 MISSING** |
 | FSU-FP06-F5-W5 | COMPLETE_3_OF_3 | 3/3 | suite gate `runs/fsu-gates/F5-FP06-W5-GATE-v5/` 5/5 PASS；正式 suite seed1/2/3 均 5/5 component admitted + suite audit ok；每 suite seed 只计 1，15 component 不进入 seed 总数；三个 suite seed 均 SDC |
-| FSU-FP06-F5-W6 | NOT_RUN | 0/3 | W6 的 FFT/稀疏组件仍 PARTIAL；无 FP06-F5-W6 正式 seed |
+| FSU-FP06-F5-W6 | COMPLETE_3_OF_3 | 3/3 | W6 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；SVD fp64、FFT/sparse fp32 逐组件精度覆盖；9 component 只计 3 seed |
 | FSU-FR03-F5-W3 | COMPLETE_3_OF_3 | 3/3 | L5 commit/squash/first-impact、runner 显式 CHAOSPhysReg 路径、O3 生命周期 gate（连续写/squash/重分配/generation 身份/真实 consumer）已完成；gate `runs/fsu-gates/F5-FR03-W3-GATE-v3/` PASS；正式 seed1/2/3 audit.ok |
 | FSU-FR03-F5-W5 | BLOCKED | 0/3 | W3 机制已认证，但 W5 的 FR03 suite 尚未运行；不得借用 W3 证据 |
 | FSU-FR03-F5-W6 | BLOCKED | 0/3 | W3 机制已认证；W6 gem5 golden/FR03 suite 尚未运行 |
 
-> 双视图（磁盘权威，W4 完成后）：历史全量 **36/519 seed、12/173 RunID**；
-> 活跃 F0/F5 **27/240 seed、9/80 RunID**。suite seed 3 个对应 15 个
+> 双视图（磁盘权威，W4 完成后）：历史全量 **42/519 seed、14/173 RunID**；
+> 活跃 F0/F5 **33/240 seed、11/80 RunID**。suite seed 3 个对应 15 个
 > component run，component **不进入** seed 总数。
 
 ## 3. FP06 代码能力与认证边界
@@ -107,8 +107,7 @@ FP32 32-bit lane2；W1 为 scalar FP32/FP64）。它们不认证 FP06-d，也不
 - W5：已完成 3/3。非正式 gate `runs/fsu-gates/F5-FP06-W5-GATE-v5/`
   5/5 PASS；正式 suite seed1/2/3 均 5/5 component admitted、suite audit ok，
   15 component 只计 3 seed。
-- W6：artifact native golden 已成立（SVD/FFT/sparse），gem5 golden 与
-  正式 seed 尚未运行；0/3。
+- W6：已完成 3/3（SVD/FFT/sparse suite，9 component 只计 3 seed）。
 
 ## 4. FR03（Vec PRF stuck）状态：PARTIAL / BLOCKED
 

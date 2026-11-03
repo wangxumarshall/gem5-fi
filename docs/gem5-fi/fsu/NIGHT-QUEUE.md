@@ -15,41 +15,41 @@
 
 ## 1. 任务队列（按顺序；完成一项勾一项）
 
-- [ ] A. F5 计数与传播证据加固（代码 + host 单测 + 文档）
-  - [ ] A1 countOnly/fault-run/warm-up/post-install 分开计数并发射
-  - [ ] A2 warm-up 边界测试（0 / 1 / >eligible；安装是否计 exposure 明确）
-  - [ ] A3 不把 fault-run eligible != golden census 一律判错；记录 delta + 运行内守恒
-  - [ ] A4 `exposures_total = sampled_unique + omitted`，按 exposure_id 去重
-  - [ ] A5 sampled/dropped 仅观测采样，文档写明
-  - [ ] A6 百万级计数 uint64 + 事件预算显式失败/预注册采样
-  - [ ] A7 同一 consumer 多 exposure 来源：有界多来源摘要，不静默只留第一条
-  - [ ] A8 一条到 L5 的链只认证该路径；Markdown 分节报告
-  - [ ] A9 首次激活/最终统计/chain_end 在 tracer 关闭前写入（含提前终止测试）
-- [ ] B. FP06-F5-W4 gate + 正式 3 seed
-  - [ ] B1 复核 W4 workload/golden/B0/decode/eligible（rate-v1 2,097,155）
-  - [ ] B2 短 W4 全量 exposure 记录 vs bounded sampling 对照 gate
-  - [ ] B3 正式规模 bounded gate（计数准确、事件/内存/文件有界、flush/正常退出/提前终止）
-  - [ ] B4 预注册 seed1/2/3（FP06-a/b/c）并跑 seed1 → audit → seed2 → seed3
-- [ ] C. FP06-F5-W5 suite gate + 正式 3 seed
-  - [ ] C1 复用 W5 五程序身份；核对 binary/manifest/golden 实际哈希
-  - [ ] C2 suite 级 F5 预注册（每 component 一个永久 fault）
-  - [ ] C3 五程序 F5 gate（5/5 component audit）
-  - [ ] C4 正式 suite seed1 → seed2 → seed3；15 component 只计 3 seed
-- [ ] D. FR03 完整闭环 + gate + 正式 W3 3 seed
-  - [ ] D1 runner/schema 显式 CHAOSPhysReg 路径
-  - [ ] D2 L5 commit/squash/first-impact/oracle
-  - [ ] D3 O3 容器级 rename/free/realloc/squash 测试
-  - [ ] D4 跨 generation 持久、旧 generation 不串入新 generation
-  - [ ] D5 int/float/Vec、不同 phys cell、非目标 lane 不串扰
-  - [ ] D6 读暴露与写入重施加分别计数
-  - [ ] D7 真实可分配目标；mask/polarity 固定
-  - [ ] D8 FR03-F5-W3 非正式 gate（连续写/squash/重分配/链身份/真实 L5/runner 路径）
-  - [ ] D9 gate 全过后正式 seed1/2/3；否则保留 gate PARTIAL
+- [x] A. F5 计数与传播证据加固（代码 + host 单测 + 文档）
+  - [x] A1 countOnly/fault-run/warm-up/post-install 分开计数并发射
+  - [x] A2 warm-up 边界测试（0 / 1 / >eligible；安装是否计 exposure 明确）
+  - [x] A3 不把 fault-run eligible != golden census 一律判错；记录 delta + 运行内守恒
+  - [x] A4 `exposures_total = sampled_unique + omitted`，按 exposure_id 去重
+  - [x] A5 sampled/dropped 仅观测采样，文档写明
+  - [x] A6 百万级计数 uint64 + 事件预算显式失败/预注册采样
+  - [x] A7 同一 consumer 多 exposure 来源：有界多来源摘要，不静默只留第一条
+  - [x] A8 一条到 L5 的链只认证该路径；Markdown 分节报告
+  - [x] A9 首次激活/最终统计/chain_end 在 tracer 关闭前写入（含提前终止测试）
+- [x] B. FP06-F5-W4 gate + 正式 3 seed
+  - [x] B1 复核 W4 workload/golden/B0/decode/eligible（rate-v1 2,097,155）
+  - [x] B2 短 W4 全量 exposure 记录 vs bounded sampling 对照 gate
+  - [x] B3 正式规模 bounded gate（计数准确、事件/内存/文件有界、flush/正常退出/提前终止）
+  - [x] B4 预注册 seed1/2/3（FP06-a/b/c）并跑 seed1 → audit → seed2 → seed3
+- [x] C. FP06-F5-W5 suite gate + 正式 3 seed
+  - [x] C1 复用 W5 五程序身份；核对 binary/manifest/golden 实际哈希
+  - [x] C2 suite 级 F5 预注册（每 component 一个永久 fault）
+  - [x] C3 五程序 F5 gate（5/5 component audit）
+  - [x] C4 正式 suite seed1 → seed2 → seed3；15 component 只计 3 seed
+- [x] D. FR03 完整闭环 + gate + 正式 W3 3 seed
+  - [x] D1 runner/schema 显式 CHAOSPhysReg 路径
+  - [x] D2 L5 commit/squash/first-impact/oracle
+  - [x] D3 O3 容器级 rename/free/realloc/squash 测试
+  - [x] D4 跨 generation 持久、旧 generation 不串入新 generation
+  - [x] D5 int/float/Vec、不同 phys cell、非目标 lane 不串扰
+  - [x] D6 读暴露与写入重施加分别计数
+  - [x] D7 真实可分配目标；mask/polarity 固定
+  - [x] D8 FR03-F5-W3 非正式 gate（连续写/squash/重分配/链身份/真实 L5/runner 路径）
+  - [x] D9 gate 全过后正式 seed1/2/3；否则保留 gate PARTIAL
 - [ ] E. W6 artifact + F0/F5 可执行任务
-  - [ ] E1 SVD 既有组件身份核对
-  - [ ] E2 FFT 固定输入 + 来源/许可证 + 可重复构建 + native/gem5 golden + 数值 oracle
-  - [ ] E3 真实稀疏线性系统（非 SpMV 代理）+ 同上
-  - [ ] E4 suite_hash / component identity / 计数协议
+  - [x] E1 SVD 既有组件身份核对
+  - [x] E2 FFT 固定输入 + 来源/许可证 + 可重复构建 + native/gem5 golden + 数值 oracle
+  - [x] E3 真实稀疏线性系统（非 SpMV 代理）+ 同上
+  - [x] E4 suite_hash / component identity / 计数协议
   - [ ] E5 FP04-F0-W6 gate → 正式 3 seed
   - [ ] E6 FP06-F5-W6 gate → 正式 3 seed（若组件齐全）
 
@@ -88,3 +88,11 @@ python3 -m pytest tests/test_fsu_*.py tests/test_chaos_fsu_*.py tests/test_chaos
 - 2026-11-04 01:35 FSU-FP06-F5-W4 seed1 admitted/certified：SDC，exposures 1,309,699，activated 130,814，audit PASS。
 - 2026-11-04 01:43 FSU-FP06-F5-W4 seed2 admitted/certified：SDC，audit PASS；证据日志已无损 gzip。
 - 2026-11-04 01:45 W5 gate v1/v2 失败证据保留：v1=bitseg+mask 冲突 panic；v2=PolyBench gemm/2mm/jacobi 全正导致 sign SA0 无激活。gate 阶段修正 seed_plan 为混合分布结果位（FP06-a bit22 SA0 / FP06-b bit29 SA1 / FP06-c fixed mantissa SA0），重跑 v3。
+- 2026-11-04 03:40 FP06-F5-W4 正式 seed1/2/3 全部 admitted SDC/full；gate `runs/fsu-gates/F5-FP06-W4-GATE/` PASS；历史 30/519。
+- 2026-11-04 03:55 FR03-F5-W3 gate v3 PASS（78,022 写/151,749 读、2,046 commits、1 squash）；正式 seed1/2/3 audit.ok；seed3 attempt-1 失败证据保留，attempt-2 预注册后 SDC。历史 33/519。
+- 2026-11-04 04:10 FP06-F5-W5 gate v5 5/5 PASS；正式 suite seed1/2/3 各 5/5 component admitted、suite audit ok；15 component 只计 3 seed。历史 36/519、12/173；活跃 27/240、9/80。
+- 2026-11-04 04:20 集成修复提交 40f2db5d；正式证据提交 0ec1f9ae；已 push origin/fsu。FSU 335 passed，非 FSU 20 passed。
+- 2026-11-04 04:25 W6 F0 gate 运行中；F5 W6 gate 待运行；W6 正式 runner 尚需泛化 program_count（当前 fsu_suite_runner 固定 5 程序）。
+- 2026-11-04 04:40 W6 F0 gate v2 PASS 3/3；W6 F5 gate PASS 3/3（SVD fp64、FFT/sparse fp32）。
+- 2026-11-04 04:55 W6 正式模式接入 fsu_w6_gate + fsu_index W6 suite 识别；FSU-FP04-F0-W6 与 FSU-FP06-F5-W6 各 3 个 suite seed 全部 admitted（每 seed 3 component，component 不计 seed）。
+- 2026-11-04 05:00 最终磁盘计数：历史 **42/519 seed、14/173 RunID**；活跃 F0/F5 **33/240 seed、11/80 RunID**。FSU 335 passed，非 FSU 20 passed。

@@ -137,7 +137,8 @@ def test_matrix_f5_rows_reflect_disk_truth():
     for rid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5"):
         assert by_id[rid]["seed_completion"] == "3/3"
         assert by_id[rid]["f5_readiness"] == "COMPLETE_3_OF_3"
-    assert by_id["FSU-FP06-F5-W6"]["seed_completion"] == "0/3"
+    assert by_id["FSU-FP06-F5-W6"]["seed_completion"] == "3/3"
+    assert by_id["FSU-FP06-F5-W6"]["f5_readiness"] == "COMPLETE_3_OF_3"
     assert by_id["FSU-FR03-F5-W3"]["seed_completion"] == "3/3"
     assert by_id["FSU-FR03-F5-W3"]["f5_readiness"] == "COMPLETE_3_OF_3"
     for rid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
@@ -187,8 +188,8 @@ def test_matrix_seed_completion_matches_authoritative_index():
     assert sum(1 for s in w5["seed_states"].values()
                if s == "admitted") == 3
     # F0-W5 and F5-W5 each contribute 3 suite seeds (15 components each).
-    assert summary["seed_index"]["suite_seed_admitted"] == 6
-    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 30
+    assert summary["seed_index"]["suite_seed_admitted"] == 12
+    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 48
     assert summary["seed_index"]["admitted_seeds_total"] != 15
     assert all(m["seed_completion_count"] <= 3 for m in matrix)
 

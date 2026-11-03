@@ -624,6 +624,20 @@ def probe_capability_evidence(seed_map=None) -> dict:
                 certified("FSU-FR03-F5-W3"),
                 "FR03-F5-W3 3/3；W5/W6 不得借用 W3 证据"),
         },
+        "W6_suite": {
+            "svd_fft_sparse_real_artifacts": _cap(
+                (ROOT / "workloads/directed/fft_radix2_kernel.c").exists()
+                and (ROOT / "workloads/directed/sparse_cg_kernel.c").exists()
+                and (ROOT / "configs/fsu/suites/w6-fp-v1.json").exists(),
+                ["workloads/directed/svd_iterative_kernel.c",
+                 "workloads/directed/fft_radix2_kernel.c",
+                 "workloads/directed/sparse_cg_kernel.c",
+                 "configs/fsu/suites/w6-fp-v1.json"],
+                certified("FSU-FP04-F0-W6") and certified("FSU-FP06-F5-W6"),
+                ("FSU-FP04-F0-W6 与 FSU-FP06-F5-W6 suite seed 各 3/3"
+                 if (certified("FSU-FP04-F0-W6")
+                     and certified("FSU-FP06-F5-W6")) else no_cert)),
+        },
         "W5_suite": {
             "five_programs_including_2mm": _cap(
                 (ROOT / "workloads/ooo/polybench/2mm").exists()
@@ -755,10 +769,13 @@ def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
         return ("PARTIAL",
                 f"not formally complete ({seed_n}/3): F5 gate evidence exists "
                 "and the RunID still needs all three certified seeds")
-    if runid == "FSU-FP06-F5-W6":
+    if runid in ("FSU-FP04-F0-W6", "FSU-FP06-F5-W6"):
+        if seed_n == 3:
+            return ("COMPLETE",
+                    "certified 3/3: SVD/FFT/sparse-CG suite seed, 3 "
+                    "components per seed (components never count as seeds)")
         return ("PARTIAL",
-                "W6 artifact/native golden exist, but gem5 golden and formal "
-                "FP06-F5-W6 seeds are not run (0/3)")
+                f"W6 suite {seed_n}/3; gate/model artifacts exist")
     if runid == "FSU-FR03-F5-W3":
         if seed_n == 3:
             return ("COMPLETE",

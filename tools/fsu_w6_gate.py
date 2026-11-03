@@ -484,16 +484,85 @@ def _verify_seed_components(suite, info, seed_dir, gate_id, plan_entry,
     return records
 
 
+def _write_formal(seed_dir: Path, run_id: str, suite, info, plan_entry,
+                  records, ok: bool):
+    """Write the formal suite-seed records for a passing W6 gate."""
+    seed_dir.mkdir(parents=True, exist_ok=True)
+    suite_manifest = {
+        "run_id": run_id,
+        "suite_id": suite["suite_id"],
+        "suite_version": suite["suite_version"],
+        "suite_hash": info["suite_hash"],
+        "suite_seed": info["suite_seed"],
+        "seed_plan_entry": (S.seed_plan_identity(plan_entry)
+                            if plan_entry is not None else None),
+        "program_order": list(WS.W6_PROGRAM_ORDER),
+        "program_count": WS.W6_PROGRAM_COUNT,
+        "component_seed_policy_version": str(
+            suite.get("component_seed_policy_version")
+            or WS.DEFAULT_COMPONENT_SEED_POLICY),
+        "components": records,
+    }
+    (seed_dir / "suite_manifest.json").write_text(
+        json.dumps(suite_manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+    report = {
+        "run_id": run_id,
+        "suite_id": suite["suite_id"],
+        "suite_version": suite["suite_version"],
+        "suite_hash": info["suite_hash"],
+        "suite_seed": info["suite_seed"],
+        "program_order": list(WS.W6_PROGRAM_ORDER),
+        "program_count": WS.W6_PROGRAM_COUNT,
+        "suite_status": "admitted" if ok else "failed",
+        "suite_admitted": bool(ok),
+        "formal_suite_seed_count": 1 if ok else 0,
+        "component_run_count": len(records),
+        "component_fault_total": sum(int(r.get("component_faults", 0))
+                                     for r in records),
+        "components": records,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "counting_note": ("component runs/faults are never seeds; one W6 "
+                          "suite seed counts as exactly one admitted seed"),
+    }
+    (seed_dir / "suite_report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+    failures = [f"{r.get('program_id')}:{x}" for r in records
+                for x in r.get("failures", [])]
+    audit = {"ok": bool(ok), "certified": bool(ok),
+             "checks": [{"check": "3/3 W6 components PASS", "ok": bool(ok)}],
+             "failures": failures,
+             "run_id": run_id, "suite_seed": info["suite_seed"],
+             "suite_hash": info["suite_hash"]}
+    (seed_dir / "audit.json").write_text(
+        json.dumps(audit, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+    (seed_dir / "audit.md").write_text(
+        f"# {run_id} seed{info['suite_seed']} W6 suite audit\n\n"
+        f"- result: **{'PASS' if ok else 'FAIL'}**\n"
+        f"- components: {len(records)}/{WS.W6_PROGRAM_COUNT}\n"
+        f"- formal suite seeds: {1 if ok else 0}\n",
+        encoding="utf-8")
+    if ok:
+        (seed_dir / "AUTHORITATIVE").write_text(
+            str(seed_dir) + "\n", encoding="utf-8")
+
+
 def _write_report(outdir: Path, gate_id: str, suite, info, plan_entry,
-                  records):
+                  records, formal_run_id=None):
     ok = len(records) == WS.W6_PROGRAM_COUNT and all(r["ok"] for r in records)
+    formal = formal_run_id is not None
+    if formal:
+        _write_formal(outdir, formal_run_id, suite, info, plan_entry,
+                      records, ok)
     report = {
         "gate": "W6",
         "gate_id": gate_id,
         "created_at": datetime.now().isoformat(timespec="seconds"),
-        "non_formal": True,
+        "non_formal": not formal,
         "counts_toward_519": False,
-        "formal_suite_seed_count": 0,
+        "formal_suite_seed_count": 1 if (formal and ok) else 0,
         "suite_id": suite["suite_id"],
         "suite_version": suite["suite_version"],
         "suite_hash": info["suite_hash"],
@@ -507,6 +576,7 @@ def _write_report(outdir: Path, gate_id: str, suite, info, plan_entry,
         "component_pass_count": sum(1 for r in records if r["ok"]),
         "records": records,
         "ok": ok,
+        "outdir": str(outdir),
     }
     (outdir / "gate_report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
@@ -532,7 +602,8 @@ def _write_report(outdir: Path, gate_id: str, suite, info, plan_entry,
         lines.append(
             f"| {i} | {r['program_id']} | {fpu.get('precision')} | "
             f"{fpu.get('lane_width')} | `{inj.get('fault_mask')}` | "
-            f"{r.get('component_oracle', '—')} | {r['status']} |")
+            f"{r.get('component_oracle', '—')} | "
+            f"{'PASS' if r.get('ok') else 'FAIL'} |")
     lines += ["", "## 逐 component 检查", ""]
     for r in records:
         lines += [f"### {r['program_id']}", "", "| 检查 | 结果 |", "|---|---|"]
@@ -604,7 +675,7 @@ def print_commands(suite, info, seed, plan_entry, root, gem5, config,
 def run_gate(suite_path=DEFAULT_SUITE_F0, outdir=None, gem5=DEFAULT_GEM5,
              config=DEFAULT_CONFIG, root=ROOT, timeout=3600, suite_seed=1,
              gate_id=None, allow_rerun=False, verify_only=False, runner=None,
-             print_only=False, all_seeds=False):
+             print_only=False, all_seeds=False, formal_run_id=None):
     root = Path(root)
     # Resolve suite-relative assets against `root` when it holds them,
     # otherwise against the repository root (tests pass a tmp out-root).
@@ -619,12 +690,16 @@ def run_gate(suite_path=DEFAULT_SUITE_F0, outdir=None, gem5=DEFAULT_GEM5,
     info = {"suite_hash": loaded["suite_hash"],
             "identity": loaded["identity"],
             "suite_seed": int(suite_seed)}
-    if gate_id is None:
+    if formal_run_id is not None:
+        gate_id = str(formal_run_id)
+        outdir = Path(root) / "runs/fsu" / gate_id
+    elif gate_id is None:
         gate_id = default_gate_id(suite)
     if outdir is None:
         outdir = Path(root) / default_outdir(suite).relative_to(ROOT)
     outdir = Path(outdir)
-    _assert_gate_outdir(outdir, root)
+    if formal_run_id is None:
+        _assert_gate_outdir(outdir, root)
     plan_entry = S.seed_plan_entry(suite, suite_seed)
     if plan_entry is None and _suite_freq(suite) == "F5":
         raise WS.W6SuiteError("an F5 W6 gate needs a seed_plan entry")
@@ -659,7 +734,10 @@ def run_gate(suite_path=DEFAULT_SUITE_F0, outdir=None, gem5=DEFAULT_GEM5,
         records = _run_seed_components(
             suite, info, seed_dir, gate_id, plan_entry, gem5, config,
             asset_root, timeout, allow_rerun, runner)
-    return _write_report(outdir, gate_id, suite, info, plan_entry, records)
+    report_dir = (outdir / f"seed{suite_seed}" if formal_run_id is not None
+                  else outdir)
+    return _write_report(report_dir, gate_id, suite, info, plan_entry,
+                         records, formal_run_id=formal_run_id)
 
 
 def main(argv=None):
@@ -676,12 +754,15 @@ def main(argv=None):
     ap.add_argument("--verify-only", action="store_true")
     ap.add_argument("--print-commands", action="store_true")
     ap.add_argument("--all-seeds", action="store_true")
+    ap.add_argument("--formal-run-id", default=None,
+                    help="write a formal suite seed under runs/fsu/<RunID>")
     a = ap.parse_args(argv)
     try:
         res = run_gate(Path(a.suite), Path(a.outdir) if a.outdir else None,
                        Path(a.gem5), Path(a.config), Path(a.root), a.timeout,
                        a.suite_seed, a.gate_id, a.allow_rerun, a.verify_only,
-                       print_only=a.print_commands, all_seeds=a.all_seeds)
+                       print_only=a.print_commands, all_seeds=a.all_seeds,
+                       formal_run_id=a.formal_run_id)
     except WS.W6SuiteError as e:
         print(json.dumps({"ok": False, "reason": str(e)},
                          ensure_ascii=False, indent=2))
@@ -690,9 +771,7 @@ def main(argv=None):
         return res
     print(json.dumps({"ok": res["ok"], "gate_id": res["gate_id"],
                       "component_pass_count": res["component_pass_count"],
-                      "outdir": str(a.outdir or default_outdir(
-                          json.loads(Path(a.suite).read_text(
-                              encoding="utf-8"))))},
+                      "outdir": res.get("outdir", "")},
                      ensure_ascii=False, indent=2))
     return 0 if res["ok"] else 1
 

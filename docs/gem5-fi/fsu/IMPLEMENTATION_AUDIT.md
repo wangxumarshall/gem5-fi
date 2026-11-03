@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`f7473c545c2483f5cc74c720405a8188725f7d11`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`0ec1f9ae8b491a76e2c41c0bb5d5ae596dd672be`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -12,7 +12,7 @@
 
 工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型：FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0/F5 传播链已落地，并已有正式 seed；但子模型覆盖仍不完整。FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。
 
-- 磁盘权威 seed 索引：历史全量 36/519，活跃 F0/F5 27/240；suite seed 6 个对应 30 个 component run（component 不计 seed）。
+- 磁盘权威 seed 索引：历史全量 42/519，活跃 F0/F5 33/240；suite seed 12 个对应 48 个 component run（component 不计 seed）。
 
 ## 2. 30 模型审计表
 
@@ -51,8 +51,8 @@
 
 ## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）
 
-- seed_completion：0/3 161、3/3 12
-- coverage_status：BLOCKED 2、BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、COMPLETE 3、PARTIAL 69、PILOT_SUBMODEL_ONLY 1
+- seed_completion：0/3 159、3/3 14
+- coverage_status：BLOCKED 2、BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、COMPLETE 5、PARTIAL 67、PILOT_SUBMODEL_ONLY 1
 
 | RunID | seed_completion | coverage_status | coverage_reason |
 |---|---|---|---|
@@ -177,7 +177,7 @@
 | FSU-FP04-F0-W3 | 3/3 | PARTIAL | official seeds 3/3 admitted with the real NEON FP32 lane workload; evidence covers FP04-d lane2 sign bit only (32-bit lane domain); FP04-a/b/c fields and the other lanes are not covered |
 | FSU-FP04-F0-W4 | 3/3 | PILOT_SUBMODEL_ONLY | pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, FP04-d NEON lane result, plus F1/F2/F3 semantics |
 | FSU-FP04-F0-W5 | 3/3 | PARTIAL | certified suite 3/3: each suite seed counts as ONE seed (5 PolyBench component runs per seed, never added to seed totals); workbook W5 submodel coverage is still partial |
-| FSU-FP04-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FP04-F0-W6 | 3/3 | COMPLETE | certified 3/3: SVD/FFT/sparse-CG suite seed, 3 components per seed (components never count as seeds) |
 | FSU-FP04-F1-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W4 | 3/3 | PARTIAL | W4-rate-v1 official seeds 3/3 admitted; 0 remaining. |
@@ -203,7 +203,7 @@
 | FSU-FP06-F5-W3 | 3/3 | PARTIAL | certified 3/3: FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa, 16,384 exposures each; covers the F5 result-side proxy of FP06-a/b/c only. FP06-d partial-product proxy is MISSING; evidence stays in the W3 32-bit lane2 sign/mantissa domain |
 | FSU-FP06-F5-W4 | 3/3 | COMPLETE | certified 3/3: FSU-FP06-F5-W4 formal seeds admitted and audit.ok; bounded F5 evidence |
 | FSU-FP06-F5-W5 | 3/3 | COMPLETE | certified 3/3: FSU-FP06-F5-W5 formal seeds admitted and audit.ok; bounded F5 evidence |
-| FSU-FP06-F5-W6 | 0/3 | PARTIAL | W6 artifact/native golden exist, but gem5 golden and formal FP06-F5-W6 seeds are not run (0/3) |
+| FSU-FP06-F5-W6 | 3/3 | COMPLETE | certified 3/3: SVD/FFT/sparse-CG suite seed, 3 components per seed (components never count as seeds) |
 | FSU-FP07-F0-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP07-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP07-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -241,7 +241,7 @@
 | FSU-FP06-F5-W3 | COMPLETE_3_OF_3 | 3/3 | certified 3/3: FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa, 16,384 exposures each; covers the F5 result-side proxy of FP06-a/b/c only. FP06-d partial-product proxy is MISSING; evidence stays in the W3 32-bit lane2 sign/mantissa domain |
 | FSU-FP06-F5-W4 | COMPLETE_3_OF_3 | 3/3 | certified 3/3: FSU-FP06-F5-W4 formal seeds admitted and audit.ok; bounded F5 evidence |
 | FSU-FP06-F5-W5 | COMPLETE_3_OF_3 | 3/3 | certified 3/3: FSU-FP06-F5-W5 formal seeds admitted and audit.ok; bounded F5 evidence |
-| FSU-FP06-F5-W6 | NOT_RUN | 0/3 | W6 artifact/native golden exist, but gem5 golden and formal FP06-F5-W6 seeds are not run (0/3) |
+| FSU-FP06-F5-W6 | COMPLETE_3_OF_3 | 3/3 | certified 3/3: SVD/FFT/sparse-CG suite seed, 3 components per seed (components never count as seeds) |
 
 ## 2.3 capability_evidence（静态代码/测试探测，不等于认证）
 
@@ -261,6 +261,7 @@
 | FR03 | runner_chaosphysreg_path | True | True | tools/fsu_seed_runner.py: CHAOSPhysReg/phys_reg x5；FSU-FR03-F5-W3 正式 seed 3/3（audit.ok/certified） |
 | FR03 | squash_realloc_container_test | False | True | tests/unit/chaos_vec_stuck_test.cc: squash x0, realloc x1; tests/test_chaos_vec_stuck_cpp.py; real O3 gate: F5-FR03-W3-GATE-v3；FSU-FR03-F5-W3 正式 seed 3/3（audit.ok/certified） |
 | FR03 | fr03_formal_seeds | True | True | runs/fsu/FSU-FR03-F5-W3: 3/3 certified; W5/W6 remain BLOCKED；FR03-F5-W3 3/3；W5/W6 不得借用 W3 证据 |
+| W6_suite | svd_fft_sparse_real_artifacts | True | True | workloads/directed/svd_iterative_kernel.c; workloads/directed/fft_radix2_kernel.c; workloads/directed/sparse_cg_kernel.c; configs/fsu/suites/w6-fp-v1.json；FSU-FP04-F0-W6 与 FSU-FP06-F5-W6 suite seed 各 3/3 |
 | W5_suite | five_programs_including_2mm | True | True | workloads/ooo/polybench/2mm; configs/fsu/suites/polybench-fp-v1.json；FSU-FP04-F0-W5 suite seed 3/3（component run 不计 seed） |
 
 ## 3. 基线缺口 vs 当前状态
@@ -276,7 +277,7 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`f7473c545c2483f5cc74c720405a8188725f7d11`（branch `fsu`）
+- HEAD：`0ec1f9ae8b491a76e2c41c0bb5d5ae596dd672be`（branch `fsu`）
 - gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`04be57c3a2383fb53b1beff2b4358abe1c8c589baae7808228ed593db5344dda`；size=1234720536
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）

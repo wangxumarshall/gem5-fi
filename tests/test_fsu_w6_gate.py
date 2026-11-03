@@ -54,7 +54,7 @@ def test_print_commands_f0_per_program_precision(tmp_path, capsys):
         assert inject[inject.index("--fpu_precision") + 1] == precision
         assert inject[inject.index("--fpu_lane_width") + 1] == str(lane)
         assert "--fpu_permanent_stuck" not in inject
-        assert cmd["submodel"] == "FP04-W6"
+        assert cmd["submodel"] == "FP04-a"
     # Nothing was executed.
     assert not outdir.exists()
 
