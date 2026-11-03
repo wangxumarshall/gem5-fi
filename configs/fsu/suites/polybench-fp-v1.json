@@ -1,0 +1,246 @@
+{
+  "suite_id": "polybench-fp-v1",
+  "suite_version": "1",
+  "component_seed_policy_version": "w5-component-seed-v1",
+  "program_order": [
+    "gemm",
+    "2mm",
+    "lu",
+    "cholesky",
+    "jacobi-2d"
+  ],
+  "program_count": 5,
+  "run_defaults": {
+    "model_id": "FP04",
+    "unit": "FSU Pipe",
+    "freq": "F0",
+    "load_id": "W5",
+    "submodel": "FP04-c",
+    "config_family": "C3",
+    "config_profile": "B0",
+    "limits": {
+      "timeout_s": 1800
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true
+    },
+    "max_faults": 1,
+    "first_clock": 0
+  },
+  "compiler": {
+    "cc": "gcc",
+    "version": "10.3.1",
+    "cflags": [
+      "-O2",
+      "-static",
+      "-Wall",
+      "-Wextra",
+      "-Wno-unknown-pragmas",
+      "-Wno-unused-variable",
+      "-Wno-misleading-indentation",
+      "-DDATA_TYPE_IS_FLOAT",
+      "-I",
+      "polybench/utilities",
+      "-lm"
+    ]
+  },
+  "oracle": {
+    "id": "polybench-element-v1",
+    "version": "polybench-element-v1",
+    "kind": "exact_hash",
+    "element_oracle": true,
+    "element_oracle_status": "pending_generation",
+    "note": "W5 formal certification requires the per-element oracle result (oracle_elements.json) in addition to the exact FINAL hash; golden arrays and rebuilt binaries are still pending."
+  },
+  "programs": [
+    {
+      "program_id": "gemm",
+      "program_index": 0,
+      "source": "workloads/ooo/polybench/linear-algebra/blas/gemm/gemm.c",
+      "source_sha256": "02940868580434b4d2771d0a6cff6346f050dd9dad041088f3958e502bebabc4",
+      "binary": "workloads/ooo/polybench/gemm/gemm",
+      "binary_sha256": "pending",
+      "scale": {
+        "NI": 88,
+        "NJ": 88,
+        "NK": 88
+      },
+      "golden": "116849d3adf3227b",
+      "binary_hash_state": "pending_rebuild_after_oracle_hunk",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/gemm.bin",
+        "golden_array_status": "pending_generation",
+        "meta": {
+          "program_id": "gemm",
+          "golden_id": "polybenchgemm-golden-v1",
+          "dtype": "fp32",
+          "layout": "row-major",
+          "endianness": "little",
+          "count": 7744,
+          "shape": [
+            88,
+            88
+          ],
+          "domain": "full",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "polybench-element-v1"
+        },
+        "oracle_version": "polybench-element-v1"
+      }
+    },
+    {
+      "program_id": "2mm",
+      "program_index": 1,
+      "source": "workloads/ooo/polybench/linear-algebra/kernels/2mm/2mm.c",
+      "source_sha256": "bdf4d26014e82edf6a8743a2dcde797f41e549979aa9c1022a332a253e185072",
+      "binary": "workloads/ooo/polybench/2mm/2mm",
+      "binary_sha256": "pending",
+      "scale": {
+        "NI": 72,
+        "NJ": 72,
+        "NK": 72,
+        "NL": 72
+      },
+      "golden": "41ebd3d0a77ab3d2",
+      "binary_hash_state": "pending_rebuild_after_oracle_hunk",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/2mm.bin",
+        "golden_array_status": "pending_generation",
+        "meta": {
+          "program_id": "2mm",
+          "golden_id": "polybench2mm-golden-v1",
+          "dtype": "fp32",
+          "layout": "row-major",
+          "endianness": "little",
+          "count": 5184,
+          "shape": [
+            72,
+            72
+          ],
+          "domain": "full",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "polybench-element-v1"
+        },
+        "oracle_version": "polybench-element-v1"
+      }
+    },
+    {
+      "program_id": "lu",
+      "program_index": 2,
+      "source": "workloads/ooo/polybench/linear-algebra/solvers/lu/lu.c",
+      "source_sha256": "617a23c3bf9c723f58c3d1752d99451a78358890c10ff6aa7e1c6bd0d724d23b",
+      "binary": "workloads/ooo/polybench/lu/lu",
+      "binary_sha256": "pending",
+      "scale": {
+        "N": 84
+      },
+      "golden": "74ffe5eb77ea9257",
+      "binary_hash_state": "pending_rebuild_after_oracle_hunk",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
+        "golden_array_status": "pending_generation",
+        "meta": {
+          "program_id": "lu",
+          "golden_id": "polybenchlu-golden-v1",
+          "dtype": "fp32",
+          "layout": "row-major",
+          "endianness": "little",
+          "count": 7056,
+          "shape": [
+            84,
+            84
+          ],
+          "domain": "full",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "polybench-element-v1"
+        },
+        "oracle_version": "polybench-element-v1"
+      }
+    },
+    {
+      "program_id": "cholesky",
+      "program_index": 3,
+      "source": "workloads/ooo/polybench/linear-algebra/solvers/cholesky/cholesky.c",
+      "source_sha256": "8f5178ffafdc8f3d2bd847f2cda8902ba4e9ccd2b755cc8e3cc49ed76371f1b3",
+      "binary": "workloads/ooo/polybench/cholesky/cholesky",
+      "binary_sha256": "pending",
+      "scale": {
+        "N": 88
+      },
+      "golden": "ea7e0d0e7c86582d",
+      "binary_hash_state": "pending_rebuild_after_oracle_hunk",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/cholesky.bin",
+        "golden_array_status": "pending_generation",
+        "meta": {
+          "program_id": "cholesky",
+          "golden_id": "polybenchcholesky-golden-v1",
+          "dtype": "fp32",
+          "layout": "row-major",
+          "endianness": "little",
+          "count": 3916,
+          "shape": [
+            88,
+            88
+          ],
+          "domain": "lower_triangle_incl_diag",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "polybench-element-v1"
+        },
+        "oracle_version": "polybench-element-v1"
+      }
+    },
+    {
+      "program_id": "jacobi-2d",
+      "program_index": 4,
+      "source": "workloads/ooo/polybench/stencils/jacobi-2d/jacobi-2d.c",
+      "source_sha256": "76e1612765bcb64b44d2b529e0b013e4ca72d370047cb9120a65a804e69d3c93",
+      "binary": "workloads/ooo/polybench/jacobi-2d/jacobi-2d",
+      "binary_sha256": "pending",
+      "scale": {
+        "TSTEPS": 8,
+        "N": 160
+      },
+      "golden": "dc867b5f02998c1e",
+      "binary_hash_state": "pending_rebuild_after_oracle_hunk",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/jacobi-2d.bin",
+        "golden_array_status": "pending_generation",
+        "meta": {
+          "program_id": "jacobi-2d",
+          "golden_id": "polybenchjacobi2d-golden-v1",
+          "dtype": "fp32",
+          "layout": "row-major",
+          "endianness": "little",
+          "count": 25600,
+          "shape": [
+            160,
+            160
+          ],
+          "domain": "full",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "polybench-element-v1"
+        },
+        "oracle_version": "polybench-element-v1"
+      }
+    }
+  ],
+  "suite_hash": "d6d665ad1e1a40d9c5364d0ae1f017b307f5e0aa61adf4542590b78fde94475a"
+}

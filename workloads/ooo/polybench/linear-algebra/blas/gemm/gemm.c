@@ -14,6 +14,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>		/* gem5-fi W1.3 */
+#include <gem5fi_oracle.h>	/* gem5-fi W5: optional element dump */
 
 /* Include polybench common header. */
 #include <polybench.h>
@@ -159,6 +160,13 @@ int main(int argc, char** argv)
       }
     printf ("FINAL=%016llx\n", (unsigned long long) h);
   }
+
+  /* gem5-fi W5: optional raw little-endian dump of the same C domain
+     (full C, ni x nj) for tools/fsu_oracle.py.  No-op unless
+     --array-dump=<path> or POLYBENCH_ARRAY_DUMP is set. */
+  gem5fi_oracle_dump_from_argv(argc, argv, POLYBENCH_ARRAY(C),
+                               (unsigned long) ni * (unsigned long) nj,
+                               sizeof(DATA_TYPE));
 
   /* Be clean. */
   POLYBENCH_FREE_ARRAY(C);

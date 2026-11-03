@@ -73,7 +73,19 @@ FIELD_SUBMODEL = {
     "mant_hi": "FP04-c", "mant_mid": "FP04-c", "mant_lo": "FP04-c",
 }
 MODE_FIELDS = {"uniform", "recurring_result_stuck", "fma_intermediate",
-               "rounding_sub"}
+               "rounding_sub", "permanent_stuck"}
+ROOT_KINDS = ("fault_applied", "fault_installed")
+
+
+def _mask_hex(value, default=None):
+    """Parse a PROP-EVT mask (0x... string or decimal) to int."""
+    text = str(value or "").strip()
+    if not text:
+        return default
+    try:
+        return int(text, 0)
+    except ValueError:
+        return None
 
 
 def _hex_int(value, default=0):
@@ -170,17 +182,43 @@ def _field_violations(evt):
         if lane_mask != want:
             v.append(f"fault {fid}: lane_mask 0x{lane_mask:x} != "
                      f"fault_mask<<{lane_base} (0x{want:x})")
+    # [FSU][F5] A permanent stuck-at target keeps ONE fixed mask/polarity.
+    # Its before/after pair is a FORCED value, not an XOR: when the correct
+    # bit already equals the stuck polarity the pair legitimately differs by
+    # zero (exposed-but-not-activated).
+    permanent = field == "permanent_stuck"
+    pol = None
+    if permanent:
+        fixed = _mask_hex(evt.get("fixed_mask"), default=None)
+        if fixed is None or fixed != mask:
+            v.append(f"fault {fid}: fixed_mask {evt.get('fixed_mask')!r} "
+                     f"!= fault_mask 0x{mask:x}")
+        pol = _dec_int(evt.get("stuck_polarity"), default=None)
+        if pol not in (0, 1):
+            v.append(f"fault {fid}: stuck_polarity {evt.get('stuck_polarity')!r} "
+                     "must be 0 (SA0) or 1 (SA1)")
+            pol = None
     before = _hex_int(evt.get("before"), default=None)
     after = _hex_int(evt.get("after"), default=None)
     if before is not None and after is not None:
-        if (before ^ after) != mask:
+        if permanent and pol is not None:
+            want = (before | mask) if pol else (before & ~mask)
+            if after != want:
+                v.append(f"fault {fid}: stuck_after 0x{after:x} != "
+                         f"forced(before, mask, pol={pol}) 0x{want:x}")
+        elif (before ^ after) != mask:
             v.append(f"fault {fid}: before^after 0x{before ^ after:x} "
                      f"!= fault_mask 0x{mask:x}")
     full_before = _hex_int(evt.get("full_before"), default=None)
     full_after = _hex_int(evt.get("full_after"), default=None)
     if full_before is not None and full_after is not None:
         want = mask << lane_base
-        if (full_before ^ full_after) != want:
+        if permanent and pol is not None:
+            forced = (full_before | want) if pol else (full_before & ~want)
+            if full_after != forced:
+                v.append(f"fault {fid}: full_after 0x{full_after:x} != "
+                         f"forced full_before 0x{forced:x}")
+        elif (full_before ^ full_after) != want:
             v.append(f"fault {fid}: full_before^full_after "
                      f"0x{full_before ^ full_after:x} != lane_mask 0x{want:x}")
     return v
@@ -317,9 +355,9 @@ def audit_attempt(attempt: Path):
     check(f"事件身份全为本 seed（越界 {len(bad_identity)}）", not bad_identity)
 
     # 2.1 字段 / lane / mask 语义（新增门禁，绝不放宽既有门禁）
-    roots = [e for e in events if str(e.get("kind")) == "fault_applied"]
+    roots = [e for e in events if str(e.get("kind")) in ROOT_KINDS]
     scheduled = _scheduled_faults(manifest, report)
-    check(f"scheduled({scheduled}) = fault_applied({len(roots)})",
+    check(f"scheduled({scheduled}) = fault_roots({len(roots)})",
           scheduled == len(roots))
     root_ids = {str(e.get("fault_id")) for e in roots}
     activated_ids = {str(e.get("fault_id")) for e in events
@@ -327,6 +365,19 @@ def audit_attempt(attempt: Path):
                      and str(e.get("activated")) == "1"}
     check("每个 injected fault 均真实激活",
           bool(root_ids) and activated_ids == root_ids)
+    # [FSU][F5] Activation is a property of an exposure, not of a new fault.
+    # A permanent-fault root must have at least one activated exposure; the
+    # exposure events must never mint additional fault_ids.
+    for root in roots:
+        if str(root.get("kind")) != "fault_installed":
+            continue
+        fid = str(root.get("fault_id"))
+        acts = [e for e in events
+                if str(e.get("kind")) == "exposure"
+                and str(e.get("fault_id")) == fid
+                and str(e.get("activated")) == "1"]
+        check(f"fault {fid} 永久故障至少一次 activated exposure",
+              bool(acts))
     for root in roots:
         fid = str(root.get("fault_id"))
         viol = _field_violations(root)
@@ -581,11 +632,11 @@ def write_audit(attempt: Path):
         "cross_seed_ok": cross_ok,
         "decoded_roots": sum(
             1 for e in events
-            if str(e.get("kind")) == "fault_applied"
+            if str(e.get("kind")) in ROOT_KINDS
             and str(e.get("decoded_kind", "")).strip()),
         "legacy_roots": sum(
             1 for e in events
-            if str(e.get("kind")) == "fault_applied"
+            if str(e.get("kind")) in ROOT_KINDS
             and not str(e.get("decoded_kind", "")).strip()),
         "decode_guard": bool(((manifest.get("injector") or {}).get("fpu_mode")
                               or {}).get("decode_guard")),
@@ -646,12 +697,217 @@ def write_audit(attempt: Path):
     return audit
 
 
+def _suite_components(suite_manifest):
+    components = suite_manifest.get("components")
+    if not isinstance(components, list) or len(components) != 5:
+        raise ValueError("suite_manifest.components must contain 5 entries")
+    return components
+
+
+def audit_suite(seed_dir: Path):
+    """Audit a W5 suite seed directory.
+
+    Unlike a single-seed audit, a suite seed is `ok` only when all 5
+    component attempts are present, in fixed order, independently audited
+    (`audit.json.ok` and `certified`) and their component manifests still
+    match the on-disk attempt manifests. Legacy single-seed auditing is
+    untouched (`audit_attempt`).
+    """
+    import fsu_suite as S
+    seed_dir = Path(seed_dir)
+    checks, failures = [], []
+
+    def check(name, ok, detail=None):
+        checks.append((name, ok))
+        if not ok:
+            failures.append(name if detail is None else f"{name}: {detail}")
+
+    sm_path = seed_dir / "suite_manifest.json"
+    check("suite_manifest.json 存在", sm_path.exists())
+    if not sm_path.exists():
+        return {"ok": False, "checks": checks, "failures": failures,
+                "suite_seed_dir": str(seed_dir)}
+    try:
+        sm = json.loads(sm_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        check("suite_manifest.json 可解析", False, str(e))
+        return {"ok": False, "checks": checks, "failures": failures,
+                "suite_seed_dir": str(seed_dir)}
+
+    suite = sm.get("suite")
+    suite_hash = ""
+    try:
+        v = S.validate_suite_manifest(suite, require_hashes=True,
+                                      require_suite_hash=True)
+        suite_hash = v["suite_hash"]
+        check("suite 身份与 suite_hash", True)
+    except S.SuiteError as e:
+        check("suite 身份与 suite_hash", False, str(e))
+    if suite_hash and str(sm.get("suite_hash")) != suite_hash:
+        check("suite_manifest.suite_hash 与重算一致", False,
+              f"{sm.get('suite_hash')} != {suite_hash}")
+    else:
+        check("suite_manifest.suite_hash 与重算一致", bool(suite_hash))
+
+    try:
+        components = _suite_components(sm)
+    except ValueError as e:
+        check("5 个 component 齐全", False, str(e))
+        return {"ok": False, "checks": checks, "failures": failures,
+                "suite_seed_dir": str(seed_dir)}
+    try:
+        S.validate_component_manifests(components, suite)
+        check("component manifest 结构/顺序/哈希", True)
+    except S.SuiteError as e:
+        check("component manifest 结构/顺序/哈希", False, str(e))
+
+    total_eligible = 0
+    total_activated = 0
+    total_faults = 0
+    for comp in components:
+        pid = comp.get("program_id")
+        attempt = Path(comp.get("attempt", ""))
+        if not attempt.is_absolute():
+            attempt = seed_dir / attempt
+        cm_path = attempt / "component_manifest.json"
+        check(f"{pid} attempt 存在", attempt.is_dir())
+        check(f"{pid} component_manifest.json 存在", cm_path.exists())
+        if not cm_path.exists():
+            continue
+        try:
+            cm = json.loads(cm_path.read_text(encoding="utf-8"))
+            S.validate_component_manifest(cm, suite)
+            check(f"{pid} component manifest 校验", True)
+        except (OSError, json.JSONDecodeError, S.SuiteError) as e:
+            check(f"{pid} component manifest 校验", False, str(e))
+            continue
+        man = attempt / "manifest.json"
+        if man.exists():
+            check(f"{pid} component_manifest_sha256 与 attempt manifest 一致",
+                  _sha(man) == cm.get("component_manifest_sha256"))
+        else:
+            check(f"{pid} attempt manifest.json 存在", False)
+        a = audit_attempt(attempt)
+        check(f"{pid} 独立 audit.ok", a["ok"],
+              "; ".join(a["failures"][:3]) if a["failures"] else None)
+        a_path = attempt / "audit.json"
+        aud = {}
+        if a_path.exists():
+            try:
+                aud = json.loads(a_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                aud = {}
+        check(f"{pid} audit.certified", aud.get("certified") is True)
+        check(f"{pid} component_status=admitted",
+              cm.get("component_status") == "admitted")
+        # Element oracle: result + raw array must be real and SHA-covered.
+        oracle_path = attempt / "oracle_elements.json"
+        array_path = attempt / "inject/array.bin"
+        check(f"{pid} oracle_elements.json 存在", oracle_path.exists())
+        check(f"{pid} inject/array.bin 存在", array_path.exists())
+        oracle_covered = False
+        hp = attempt / "evidence_sha256.json"
+        if oracle_path.exists() and array_path.exists() and hp.exists():
+            try:
+                hashes = json.loads(hp.read_text(encoding="utf-8"))
+                oracle_covered = (
+                    hashes.get("oracle_elements.json") == _sha(oracle_path)
+                    and hashes.get("inject/array.bin") == _sha(array_path))
+            except (OSError, json.JSONDecodeError):
+                oracle_covered = False
+        check(f"{pid} oracle/array 已被证据 SHA 覆盖", oracle_covered)
+        check(f"{pid} component_oracle 为 SDC/MASKED",
+              cm.get("component_oracle") in ("SDC", "MASKED"))
+        total_eligible += int(cm.get("component_eligible", 0))
+        total_activated += int(cm.get("component_activated", 0))
+        total_faults += int(cm.get("component_faults", 0))
+
+    report_path = seed_dir / "suite_report.json"
+    check("suite_report.json 存在", report_path.exists())
+    if report_path.exists():
+        try:
+            rep = json.loads(report_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            rep = {}
+        check("suite_report 声明 5 个 component run",
+              int(rep.get("component_run_count", -1)) == 5)
+        check("suite_report 未把 component 数当 seed 数",
+              int(rep.get("formal_suite_seed_count", -1)) == 1)
+        check("suite_report suite_hash 一致",
+              str(rep.get("suite_hash")) == suite_hash)
+        check("suite_report eligible/activated 汇总一致",
+              int(rep.get("component_eligible_total", total_eligible))
+              == total_eligible
+              and int(rep.get("component_activated_total", total_activated))
+              == total_activated)
+
+    return {"ok": not failures, "checks": checks, "failures": failures,
+            "suite_seed_dir": str(seed_dir), "suite_id": sm.get("suite_id"),
+            "suite_hash": suite_hash, "suite_seed": sm.get("suite_seed"),
+            "component_run_count": len(components),
+            "component_eligible_total": total_eligible,
+            "component_activated_total": total_activated,
+            "component_fault_total": total_faults}
+
+
+def write_suite_audit(seed_dir: Path):
+    """Persist suite-level audit.json / audit.md from real component evidence."""
+    seed_dir = Path(seed_dir)
+    res = audit_suite(seed_dir)
+    sm_path = seed_dir / "suite_manifest.json"
+    sm = json.loads(sm_path.read_text(encoding="utf-8")) if sm_path.exists() else {}
+    audit = {
+        "suite_id": sm.get("suite_id"),
+        "suite_version": sm.get("suite_version"),
+        "suite_hash": sm.get("suite_hash"),
+        "suite_seed": sm.get("suite_seed"),
+        "run_id": sm.get("run_id"),
+        "component_run_count": res.get("component_run_count", 0),
+        "component_eligible_total": res.get("component_eligible_total", 0),
+        "component_activated_total": res.get("component_activated_total", 0),
+        "component_fault_total": res.get("component_fault_total", 0),
+        "formal_suite_seed_count": 1 if res["ok"] else 0,
+        "checks": [{"check": n, "ok": ok} for n, ok in res["checks"]],
+        "failures": res["failures"],
+        "ok": res["ok"],
+    }
+    (seed_dir / "audit.json").write_text(
+        json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
+    lines = [f"# {audit.get('suite_id')} suite seed{audit.get('suite_seed')} 审计",
+             "",
+             f"- suite_hash：`{audit.get('suite_hash')}`",
+             f"- component run：**{audit['component_run_count']}**"
+             "（不等于 seed 数；本 suite seed 正式计数为 1）",
+             f"- component eligible 合计：{audit['component_eligible_total']}",
+             f"- component activated 合计：{audit['component_activated_total']}",
+             "", "| 检查 | 结果 |", "|---|---|"]
+    for c in audit["checks"]:
+        lines.append(f"| {c['check']} | {'PASS' if c['ok'] else 'FAIL'} |")
+    lines += ["", f"**结论：{'PASS' if audit['ok'] else 'FAIL'}**", ""]
+    (seed_dir / "audit.md").write_text("\n".join(lines), encoding="utf-8")
+    return audit
+
+
+def _is_suite_dir(path: Path):
+    p = Path(path)
+    return p.is_dir() and (p / "suite_manifest.json").exists()
+
+
 def main(argv=None):
     import argparse
-    ap = argparse.ArgumentParser(description="FSU 单 seed 审计器")
-    ap.add_argument("attempt")
+    ap = argparse.ArgumentParser(description="FSU seed/suite 审计器")
+    ap.add_argument("attempt", help="single attempt dir or suite seed dir")
     a = ap.parse_args(argv)
-    res = audit_attempt(Path(a.attempt))
+    path = Path(a.attempt)
+    if _is_suite_dir(path):
+        res = audit_suite(path)
+        for name, ok in res["checks"]:
+            print(f"  [{'PASS' if ok else 'FAIL'}] {name}")
+        print(json.dumps({"ok": res["ok"], "failures": res["failures"],
+                          "suite_seed_dir": str(path)},
+                         ensure_ascii=False, indent=2))
+        return 0 if res["ok"] else 1
+    res = audit_attempt(path)
     for name, ok in res["checks"]:
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}")
     print(json.dumps({"ok": res["ok"], "failures": res["failures"]},

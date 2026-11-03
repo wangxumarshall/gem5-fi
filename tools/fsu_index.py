@@ -26,7 +26,34 @@ def _load_runids(path: Path):
     return [x["RunID"] for x in items]
 
 
+def _suite_seed_state(seed_dir: Path):
+    """A W5 suite seed counts as exactly ONE seed, never as 5 components."""
+    import fsu_suite as S
+    try:
+        st = S.suite_seed_state(seed_dir)
+    except Exception as e:  # malformed suite evidence must not inflate counts
+        return {"state": "invalid", "suite": True,
+                "reason": f"suite state error: {e}"}
+    state = st.get("state", "invalid")
+    return {
+        "state": state,
+        "suite": True,
+        "suite_id": st.get("suite_id"),
+        "suite_hash": st.get("suite_hash"),
+        "suite_seed": st.get("suite_seed"),
+        "component_runs": st.get("component_runs", 0),
+        "component_certified": st.get("component_certified", 0),
+        "audit_ok": st.get("suite_audit_ok", False),
+        "components": st.get("components", []),
+        "reason": st.get("reason"),
+    }
+
+
 def _seed_state(seed_dir: Path):
+    # Presence of suite_manifest.json makes this a formal W5 suite seed:
+    # its 5 component runs must never enter admitted_seeds_total as 5 seeds.
+    if (seed_dir / "suite_manifest.json").exists():
+        return _suite_seed_state(seed_dir)
     auth = seed_dir / "AUTHORITATIVE"
     if auth.exists():
         attempt = Path(auth.read_text(encoding="utf-8").strip())
@@ -122,6 +149,18 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
         "with_2_of_3": sum(1 for r in rows if r["admitted_seeds"] == 2),
         "with_0_of_3": sum(1 for r in rows if r["admitted_seeds"] == 0),
         "admitted_seeds_total": sum(r["admitted_seeds"] for r in rows),
+        "suite_seed_dirs": sum(
+            1 for r in rows for s in r["seeds"].values() if s.get("suite")),
+        "suite_seed_admitted": sum(
+            1 for r in rows for s in r["seeds"].values()
+            if s.get("suite") and s.get("state") == "admitted"),
+        "component_runs_in_admitted_suites": sum(
+            int(s.get("component_runs", 0)) for r in rows
+            for s in r["seeds"].values()
+            if s.get("suite") and s.get("state") == "admitted"),
+        "component_faults_note": (
+            "component runs/faults are reported separately and never added "
+            "to admitted_seeds_total"),
         "target_seeds": len(runids) * 3,
         "seed_completion_counts": {},
         "coverage_status_counts": {},
@@ -172,6 +211,11 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
              f"- 总 RunID：**{summary['total_runids']}**",
              f"- 目标 seed：**{summary['target_seeds']}**",
              f"- 已完成合格 seed：**{summary['admitted_seeds_total']}**",
+             f"- suite seed（5 component run 只计 1 seed）："
+             f"目录 {summary['suite_seed_dirs']}，admitted "
+             f"{summary['suite_seed_admitted']}，"
+             f"component run {summary['component_runs_in_admitted_suites']}"
+             "（不进入 seed 总数）",
              f"- COMPLETE_3_OF_3：**{summary['complete_3_of_3']}**",
              "- seed_completion："
              + "、".join(f"{k} {v}" for k, v in sorted(summary['seed_completion_counts'].items())),
@@ -212,6 +256,9 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
               f"- 生成时间：{summary['generated_at']}",
               f"- 总 RunID：{summary['total_runids']}；目标 seed：{summary['target_seeds']}",
               f"- 已完成合格 seed：{summary['admitted_seeds_total']}",
+              f"- suite seed（component run 不计 seed）：admitted "
+              f"{summary['suite_seed_admitted']}，component run "
+              f"{summary['component_runs_in_admitted_suites']}",
               f"- COMPLETE_3_OF_3：{summary['complete_3_of_3']}",
               f"- 活跃范围（{'/'.join(scope_summary['active_frequencies'])}）："
               f"{scope_summary['active_admitted_seeds']}/"

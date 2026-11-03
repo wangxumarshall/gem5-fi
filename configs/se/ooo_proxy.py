@@ -61,6 +61,14 @@ OOO = {
 
 p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
+# [W5 element oracle] Guest argv entries, repeatable. PolyBench reads
+# --array-dump=<host path> and writes its canonical output array there.
+p.add_argument("--cmd_arg", action="append", default=[],
+               help="Extra guest argv entry (repeatable)")
+# Guest environment entries KEY=VALUE (repeatable); used as a fallback for
+# POLYBENCH_ARRAY_DUMP when argv is not available.
+p.add_argument("--guest_env", action="append", default=[],
+               help="Guest environment entry KEY=VALUE (repeatable)")
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
 p.add_argument("--maxinsts", type=int, default=0)
 # --- OOO window sweep knobs (north star; default = OOO) ---
@@ -298,6 +306,18 @@ p.add_argument("--fpu_lane_offset", type=lambda x: int(x, 0), default=0)
 p.add_argument("--fpu_decode_guard", action="store_true")
 p.add_argument("--fpu_fma_weighted", action="store_true")
 p.add_argument("--fpu_recurring_stuck", action="store_true")
+# [FSU][F5] One permanent stuck-at fault, many exposures. Requires
+# --fsu_freq F5 + an explicit --fpu_fault_mask + exactly one installation.
+p.add_argument("--fpu_permanent_stuck", action="store_true")
+p.add_argument("--fpu_stuck_polarity", type=int, default=-1,
+               choices=[-1, 0, 1],
+               help="-1 draw once at install; 0 SA0; 1 SA1")
+p.add_argument("--fpu_f5_warmup", type=lambda x: int(x, 0), default=0,
+               help="eligible events before the single installation")
+p.add_argument("--fpu_f5_sample_limit", type=lambda x: int(x, 0), default=0,
+               help="bounded ordinary exposure samples (mandatory extra)")
+p.add_argument("--fpu_f5_keep_first_last_n", type=lambda x: int(x, 0),
+               default=0, help="0 = prefix; N = first N + last N")
 p.add_argument("--fpu_rounding_sub", action="store_true")
 p.add_argument("--fpu_f3_dependent", action="store_true")
 p.add_argument("--fpu_exp_range", default="-1,-1")
@@ -532,7 +552,11 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-board.set_se_binary_workload(binary=FileResource(args.cmd, override=True))
+board.set_se_binary_workload(
+    binary=FileResource(args.cmd, override=True),
+    arguments=list(args.cmd_arg),
+    env_list=(list(args.guest_env) if args.guest_env else None),
+)
 
 # CHAOS injector mount blocks — identical to arm_chaos.py / kp920_proxy.py
 # (same 16 injectors, same arg mapping) so runner.py-style command lines work
@@ -773,6 +797,11 @@ if args.chaos_fpu:
         decodeGuard=args.fpu_decode_guard,
         fmaWeighted=args.fpu_fma_weighted,
         recurringStuck=args.fpu_recurring_stuck,
+        permanentStuck=args.fpu_permanent_stuck,
+        stuckPolarity=args.fpu_stuck_polarity,
+        f5Warmup=args.fpu_f5_warmup,
+        f5SampleLimit=args.fpu_f5_sample_limit,
+        f5KeepFirstLastN=args.fpu_f5_keep_first_last_n,
         roundingSub=args.fpu_rounding_sub,
         f3Dependent=args.fpu_f3_dependent,
         expLo=int(args.fpu_exp_range.split(",")[0]),

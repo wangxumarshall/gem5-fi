@@ -138,3 +138,31 @@ together.
   (`runs/fsu-gates/W5-ARTIFACT-CENSUS/2mm`).
 - W5 2mm decode gate: FMADD fp32 scalar, full L0–L5, SDC, audit 69 PASS
   (`runs/fsu-gates/F0-W5-2MM-DECODE-gate`); not an official seed.
+
+## W5 element-oracle dump (2026-11-03) — the only NEW deviation
+
+Each of the five kernel `.c` files gets exactly two additions on top of the
+W1.3 FINAL hunk: one `#include <gem5fi_oracle.h>` and one dump call placed
+AFTER the FINAL block (before `POLYBENCH_FREE_ARRAY`).  Kernel, init and
+oracle semantics are untouched: the call is a no-op unless
+`--array-dump=<path>` or the `POLYBENCH_ARRAY_DUMP` environment variable is
+set, in which case stdout gains exactly one line
+`ARRAY_DUMP path=<p> count=<n> elem_size=<s> fnv1a=<16hex>` and FINAL is
+still printed unchanged.
+
+- Shared header: `utilities/gem5fi_oracle.h` (new; `static inline`, no
+  dependency beyond libc).  It writes **raw canonical bytes**: row-major,
+  fp32 = 4 bytes, each element little-endian byte order independent of the
+  host.  `fnv1a` is FNV-1a 64 over exactly those bytes (same offset basis /
+  prime as the FINAL hash).  SHA-256 is intentionally NOT in C; the host
+  tool `tools/fsu_oracle.py` hashes the saved file.
+- Dump domain is identical to the FINAL domain:
+  gemm = full `C` (ni×nj), 2mm = full `D` (ni×nl), lu = full `A` (n×n),
+  cholesky = lower triangle incl. diagonal (j <= i, count = n(n+1)/2),
+  jacobi-2d = full `A` (n×n).  Consequently, on this little-endian host the
+  dump's `fnv1a` equals FINAL for the contiguous domains (and equals the
+  lower-triangle FINAL for cholesky).
+- Build: `workloads/ooo/Makefile` adds the header as a prerequisite of all
+  five polybench binaries; no compile flags change.
+- This is the only NEW source deviation.  All other text remains as
+  described above (upstream + the W1.3 `#include <stdint.h>` / FINAL hunk).

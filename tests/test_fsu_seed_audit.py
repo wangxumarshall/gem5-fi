@@ -155,6 +155,135 @@ def test_audit_detects_missing_event(tmp_path):
     assert any("MD event 4" in f or "主链全部事件" in f for f in res["failures"])
 
 
+F5_RUNID = "FSU-FP06-F5-W3"
+
+
+def f5_chain():
+    """One permanent fault: install + carrier + exposures + L2-L5 + chain_end."""
+    b = dict(run_id=F5_RUNID, sample_run_id="s1", fault_id="1",
+             model_id="FP06", unit="FSU Pipe", freq="F5", load_id="W3",
+             submodel="FP06-b", field="permanent_stuck", precision="fp32",
+             lane_width="32", lane_offset="2", bit_indices="95",
+             bit_in_lane="31", field_lo="31", field_hi="31",
+             fault_mask="0x0000000080000000",
+             fixed_mask="0x0000000080000000",
+             stuck_polarity="1",
+             lane_mask="0x00000000800000000000000000000000",
+             instruction_bits="0x4e20d420", decoded_kind="neon_vector",
+             decoded_precision="fp32", decoded_element_width="32",
+             decoded_lanes="4", decoded_reliable="1",
+             manifest_precision="fp32", manifest_lane_width="32",
+             manifest_lane_offset="2", precision_match="1", lane_match="1")
+    common = dict(b)
+    return [
+        evt(kind="fault_installed", event_id="0", tick="100",
+            dyn_inst_seq="100", first_eligible_sn="100",
+            before="0x3e7ff79e", after="0xbe7ff79e",
+            full_before="0x3f9170e73e7ff79e3e7efbb53f1b9433",
+            full_after="0x3f9170e7be7ff79e3e7efbb53f1b9433", **common),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="101", install_event="0", **common),
+        evt(kind="exposure", event_id="2", parent_event_id="1", tick="102",
+            dyn_inst_seq="101", exposure_id="1", exposure_count="1",
+            activated_exposure_count="0", activated="0",
+            correct_before="0xbe7ff79e", stuck_after="0xbe7ff79e",
+            affected_sn="", last_exposure_sn="101", install_event="0",
+            exposures_total="2", sample_policy="bounded_first_last(2,1,1)",
+            **common),
+        evt(kind="exposure", event_id="3", parent_event_id="1", tick="103",
+            dyn_inst_seq="102", exposure_id="2", exposure_count="2",
+            activated_exposure_count="1", activated="1",
+            first_activated_sn="102", correct_before="0x3e7ff79e",
+            stuck_after="0xbe7ff79e", affected_sn="102",
+            last_exposure_sn="102", install_event="0",
+            exposures_total="2", sample_policy="bounded_first_last(2,1,1)",
+            **common),
+        evt(kind="operand_read", event_id="4", parent_event_id="3",
+            tick="104", dyn_inst_seq="103", activated="1",
+            first_activated_sn="102", install_event="0", **common),
+        evt(kind="execute", event_id="5", parent_event_id="4", tick="105",
+            **common),
+        evt(kind="prf_writeback", event_id="6", parent_event_id="5",
+            tick="106", **common),
+        evt(kind="commit", event_id="7", parent_event_id="6", tick="107",
+            detection_layer="L5", outcome="errant_commit",
+            first_impact_latency="4", install_event="0", **common),
+        evt(kind="chain_end", event_id="8", parent_event_id="7", tick="108",
+            install_event="0", exposures_total="2", exposures_sampled="2",
+            exposures_dropped="0", exposure_count="2",
+            activated_exposure_count="1", first_activated_sn="102",
+            last_exposure_sn="102", first_eligible_sn="100",
+            sample_policy="bounded_first_last(2,1,1)",
+            terminal="committed", outcome="committed", activated="1",
+            **common),
+    ]
+
+
+def make_f5_attempt(tmp_path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    wl = tmp_path / "wl"
+    wl.write_text("#!/bin/sh\nexit 0\n")
+    wl.chmod(0o755)
+    gem5 = tmp_path / "gem5"
+    gem5.write_text("#!/bin/sh\nexit 0\n")
+    gem5.chmod(0o755)
+    m = {
+        "run_id": F5_RUNID, "model_id": "FP06", "unit": "FSU Pipe",
+        "freq": "F5", "load_id": "W3", "submodel": "FP06-b",
+        "workload": {"binary": str(wl), "golden": GOLDEN,
+                     "oracle_kind": "array_hash"},
+        "injector": {"component": "fsu",
+                     "fpu_mode": {"precision": "fp32", "lane_width": 32,
+                                  "lane_offset": 2, "decode_guard": True,
+                                  "permanent_stuck": True,
+                                  "stuck_polarity": 1,
+                                  "f5_sample_limit": 2,
+                                  "f5_keep_first_last_n": 1},
+                     "fault_mask": "0x80000000",
+                     "max_faults": 1, "first_clock": 0},
+        "limits": {"timeout_s": 10},
+    }
+    mp = tmp_path / "manifest.json"
+    mp.write_text(json.dumps(m), encoding="utf-8")
+    res = R.run_seed(mp, 1, out_root=tmp_path / "runs", gem5=gem5,
+                     root=Path(__file__).resolve().parents[1],
+                     runner=fake_runner(f5_chain()))
+    assert res["status"] == "admitted", res
+    return Path(res["attempt"])
+
+
+def test_f5_permanent_audit_passes(tmp_path):
+    res = A.audit_attempt(make_f5_attempt(tmp_path))
+    assert res["ok"] is True, res["failures"]
+    # One installed fault, not two exposures-as-faults.
+    attempt = make_f5_attempt(tmp_path / "two")
+    rep = json.loads((attempt / "chain_report.json").read_text(encoding="utf-8"))
+    assert len(rep["chain"]["faults"]) == 1
+    assert rep["chain"]["fault_terminals"]["1"] == "full"
+
+
+def test_field_violations_permanent_stuck_force_not_xor():
+    b = dict(kind="fault_installed", field="permanent_stuck",
+             precision="fp32", lane_width="32", lane_offset="2",
+             bit_indices="95", bit_in_lane="31", field_lo="31",
+             field_hi="31", fault_mask="0x80000000",
+             fixed_mask="0x80000000", stuck_polarity="1",
+             lane_mask="0x00000000800000000000000000000000",
+             before="0x3e7ff79e", after="0xbe7ff79e",
+             full_before="0x3f9170e73e7ff79e3e7efbb53f1b9433",
+             full_after="0x3f9170e7be7ff79e3e7efbb53f1b9433")
+    assert A._field_violations(P.parse_line(evt(**b))) == []
+    # SA1 already satisfied (before == after) is a legal exposed-not-activated
+    # pair, not an error.
+    same = dict(b, before="0xbe7ff79e", after="0xbe7ff79e",
+                full_before="0x3f9170e7be7ff79e3e7efbb53f1b9433",
+                full_after="0x3f9170e7be7ff79e3e7efbb53f1b9433")
+    assert A._field_violations(P.parse_line(evt(**same))) == []
+    # A polarity flip / wrong forced value is rejected.
+    bad = dict(same, stuck_polarity="0", after="0xbe7ff79e")
+    assert A._field_violations(P.parse_line(evt(**bad)))
+
+
 def test_field_violations_decimal_bit_and_fp04d_lane_domain():
     # bit_indices is decimal: "63" must mean bit 63, not 0x63=99.
     e = P.parse_line(evt(

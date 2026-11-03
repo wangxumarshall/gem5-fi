@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import fsu_prop_fields as P
 import fsu_seed_runner as R
@@ -216,6 +218,87 @@ def test_contained_chain_doc_marks_na(tmp_path):
     text = (attempt / f"{RUNID}-seed1.md").read_text(encoding="utf-8")
     assert "N/A（本 seed 真实未到达" in text
     assert "contained_L3" in text
+
+
+def test_component_seed_dir_override_and_metadata(tmp_path):
+    manifest, gem5 = make_manifest(tmp_path)
+    cdir = tmp_path / "suite" / "components" / "gemm" / RUNID / "seed1"
+    component = {
+        "suite_id": "suite-test", "suite_version": "1",
+        "suite_hash": "a" * 64, "suite_seed": 1,
+        "program_id": "gemm", "program_index": 0, "program_count": 5,
+    }
+    runner = fake_runner_factory(full_chain(), "ARRAYHASH=" + "0" * 64)
+    res = R.run_seed(manifest, 1, out_root=tmp_path / "runs", gem5=gem5,
+                     root=Path(__file__).resolve().parents[1],
+                     runner=runner, seed_dir=cdir, component=component,
+                     write_authoritative=False, copy_to_complete=False)
+    assert res["status"] == "admitted"
+    attempt = Path(res["attempt"])
+    assert attempt.parent == cdir and attempt.name == "attempt-1"
+    written = json.loads((attempt / "manifest.json").read_text(encoding="utf-8"))
+    assert written["component"] == component
+    assert written["seed"] == 1
+    assert written["sample_run_id"] == "s1"
+    assert (attempt / ".done").exists()
+    # Component evidence must never look like a formal seed.
+    assert not (cdir / "AUTHORITATIVE").exists()
+    assert not (tmp_path / "runs/COMPLETE_PROPAGATION_PATHS").exists()
+
+
+def test_old_seed_dir_behavior_unchanged(tmp_path):
+    res = run(tmp_path, fake_runner_factory(full_chain(),
+                                            "ARRAYHASH=" + "0" * 64))
+    assert res["status"] == "admitted"
+    attempt = Path(res["attempt"])
+    assert attempt.parent == (tmp_path / "runs" / RUNID / "seed1")
+    assert (attempt.parent / "AUTHORITATIVE").exists()
+    assert (tmp_path / "runs/COMPLETE_PROPAGATION_PATHS" / RUNID /
+            f"{RUNID}-seed1.md").exists()
+
+
+def test_f5_permanent_cli_is_wired():
+    m = {
+        "run_id": "FSU-FP06-F5-W3", "model_id": "FP06", "unit": "FSU Pipe",
+        "freq": "F5", "load_id": "W3", "submodel": "FP06-b",
+        "workload": {"binary": "wl", "golden": GOLDEN,
+                     "oracle_kind": "array_hash"},
+        "injector": {
+            "component": "fsu",
+            "fault_mask": "0x80000000",
+            "max_faults": 1, "first_clock": 0,
+            "fpu_mode": {"precision": "fp32", "lane_width": 32,
+                         "lane_offset": 2, "decode_guard": True,
+                         "permanent_stuck": True, "stuck_polarity": 1,
+                         "f5_warmup": 7, "f5_sample_limit": 1024,
+                         "f5_keep_first_last_n": 256}},
+        "limits": {"timeout_s": 10},
+    }
+    cmd = R.build_cmd(m, Path("/tmp/out"), 3, 999, False,
+                      Path("/bin/true"), Path("cfg.py"), Path("/"))
+    assert "--fpu_permanent_stuck" in cmd
+    assert cmd[cmd.index("--fpu_stuck_polarity") + 1] == "1"
+    assert cmd[cmd.index("--fpu_fault_mask") + 1] == str(0x80000000)
+    assert cmd[cmd.index("--fpu_f5_warmup") + 1] == "7"
+    assert cmd[cmd.index("--fpu_f5_sample_limit") + 1] == "1024"
+    assert cmd[cmd.index("--fpu_f5_keep_first_last_n") + 1] == "256"
+    # Permanent mode uses f5Warmup, never the F0 uniform skip (C++ panics).
+    assert "--fpu_events_to_skip" not in cmd
+    assert "--chaos_propagation" in cmd
+    # Census keeps the same permanent identity so the stream predicate is
+    # identical, but adds --fpu_count_only and never the skip.
+    ccmd = R.build_cmd(m, Path("/tmp/out"), 3, 999, True,
+                       Path("/bin/true"), Path("cfg.py"), Path("/"))
+    assert "--fpu_count_only" in ccmd and "--fpu_permanent_stuck" in ccmd
+    assert "--fpu_events_to_skip" not in ccmd
+
+
+def test_f5_mask_string_is_parsed():
+    assert R._mask_int("0x80000000") == 0x80000000
+    assert R._mask_int(0x20) == 0x20
+    assert R._mask_int(None) == 0
+    with pytest.raises(ValueError):
+        R._mask_int(True)
 
 
 def test_skip_matches_cpp_formula():

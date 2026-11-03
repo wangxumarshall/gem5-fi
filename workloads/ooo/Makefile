@@ -230,6 +230,9 @@ POLYBENCH_INC := -I polybench/utilities
 # make gcc try to precompile it).
 POLYBENCH_UTIL_SRC := polybench/utilities/polybench.c
 POLYBENCH_UTIL_DEP := polybench/utilities/polybench.h
+# W5: shared opt-in element-dump header (no-op unless --array-dump= /
+# POLYBENCH_ARRAY_DUMP is set); rebuild all five binaries when it changes.
+POLYBENCH_ORACLE_DEP := polybench/utilities/gem5fi_oracle.h
 
 POLYBENCH_GEMM_N  ?= 88     # NI=NJ=NK; 88^3  -> ~6.5M insts / ~50 s
 POLYBENCH_LU_N    ?= 84     # N=84          -> ~6.6M insts / ~51 s
@@ -252,25 +255,30 @@ $(CC) $(CFLAGS) $(POLYBENCH_NOWARN) -DDATA_TYPE_IS_FLOAT $(POLYBENCH_INC) \
 endef
 
 polybench/gemm/gemm: polybench/linear-algebra/blas/gemm/gemm.c \
-                     polybench/linear-algebra/blas/gemm/gemm.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+                     polybench/linear-algebra/blas/gemm/gemm.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP) \
+                     $(POLYBENCH_ORACLE_DEP)
 	$(POLYBENCH_COMPILE) -DNI=$(POLYBENCH_GEMM_N) -DNJ=$(POLYBENCH_GEMM_N) -DNK=$(POLYBENCH_GEMM_N)
 
 polybench/lu/lu: polybench/linear-algebra/solvers/lu/lu.c \
-                 polybench/linear-algebra/solvers/lu/lu.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+                 polybench/linear-algebra/solvers/lu/lu.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP) \
+                 $(POLYBENCH_ORACLE_DEP)
 	$(POLYBENCH_COMPILE) -DN=$(POLYBENCH_LU_N)
 
 polybench/cholesky/cholesky: polybench/linear-algebra/solvers/cholesky/cholesky.c \
-                             polybench/linear-algebra/solvers/cholesky/cholesky.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+                             polybench/linear-algebra/solvers/cholesky/cholesky.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP) \
+                             $(POLYBENCH_ORACLE_DEP)
 	$(POLYBENCH_COMPILE) -DN=$(POLYBENCH_CHO_N)
 
 polybench/jacobi-2d/jacobi-2d: polybench/stencils/jacobi-2d/jacobi-2d.c \
-                               polybench/stencils/jacobi-2d/jacobi-2d.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+                               polybench/stencils/jacobi-2d/jacobi-2d.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP) \
+                               $(POLYBENCH_ORACLE_DEP)
 	$(POLYBENCH_COMPILE) -DTSTEPS=$(POLYBENCH_JAC_T) -DN=$(POLYBENCH_JAC_N)
 
 # W5: PolyBench 2mm from upstream commit
 # 3e872547cef7e5c9909422ef1e6af03cf4e56072 (linear-algebra/kernels/2mm).
 polybench/2mm/2mm: polybench/linear-algebra/kernels/2mm/2mm.c \
-                   polybench/linear-algebra/kernels/2mm/2mm.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+                   polybench/linear-algebra/kernels/2mm/2mm.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP) \
+                   $(POLYBENCH_ORACLE_DEP)
 	$(POLYBENCH_COMPILE) -DNI=$(POLYBENCH_2MM_N) -DNJ=$(POLYBENCH_2MM_N) \
 	    -DNK=$(POLYBENCH_2MM_N) -DNL=$(POLYBENCH_2MM_N)
 

@@ -90,7 +90,19 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
     injection_lines = (inject / "fpu_injections.log")
     inj_text = injection_lines.read_text(encoding="utf-8", errors="replace") if injection_lines.exists() else ""
 
-    attempted = sum(1 for e in events if str(e.get("kind")) == "fault_applied")
+    attempted = sum(1 for e in events
+                    if str(e.get("kind")) in ("fault_applied",
+                                              "fault_installed"))
+    # [FSU][F5] One permanent fault with many exposures: expose the install /
+    # exposure / activation counts explicitly, never as N independent faults.
+    f5_installs = [e for e in events
+                   if str(e.get("kind")) == "fault_installed"]
+    f5_exposures = [e for e in events if str(e.get("kind")) == "exposure"]
+    f5_activated = [e for e in f5_exposures
+                    if str(e.get("activated")).strip() == "1"]
+    f5_end = next((e for e in events
+                   if str(e.get("kind")) == "chain_end"
+                   and str(e.get("exposures_total")).strip()), None)
     # activated 只认“故障值被真实消费”的 L2 事件；按 fault_id 去重。
     activated = len({str(e.get("fault_id"))
                      for e in events
@@ -132,6 +144,24 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
           f"| fault 数（事件流/injection log） | "
           f"{len(faults)} / {chain_report.get('actual_injections', 'N/A')} |",
           ""]
+    if f5_installs:
+        end = f5_end or {}
+        L += ["### F5 永久故障计数（一个 fault，多次 exposure）", "",
+              "| 项 | 值 |", "|---|---|",
+              f"| 安装次数（fault_installed） | {len(f5_installs)} |",
+              f"| 安装 fault_id / mask / polarity | "
+              f"{_v(f5_installs[0],'fault_id')} / "
+              f"{_v(f5_installs[0],'fixed_mask')} / "
+              f"{_v(f5_installs[0],'stuck_polarity')} |",
+              f"| 已记录 exposure 事件 | {len(f5_exposures)} |",
+              f"| 已记录 activated exposure | {len(f5_activated)} |",
+              f"| 全程 exposures_total | {_v(end,'exposures_total') or 'N/A'} |",
+              f"| sampled / dropped | {_v(end,'exposures_sampled') or 'N/A'} / "
+              f"{_v(end,'exposures_dropped') or 'N/A'} |",
+              f"| 全程 activated_exposure_count | "
+              f"{_v(end,'activated_exposure_count') or 'N/A'} |",
+              f"| sample policy | `{_v(end,'sample_policy') or 'N/A'}` |",
+              f"| terminal | {_v(end,'terminal') or 'N/A'} |", ""]
 
     L += ["## 2. 故障注入发生在哪里", ""]
     if faults:
@@ -158,7 +188,8 @@ def write_doc(attempt: Path, manifest: dict, chain_report: dict) -> Path:
                       f"{_v(root,'interval')} / {_v(root,'ordinal_index')} |",
                       f"| terminal | {fr.get('terminal', 'N/A')} |", ""]
             else:
-                L += [f"未找到 `fault_applied` 根事件（fault {fid} terminal="
+                L += [f"未找到 `fault_applied`/`fault_installed` 根事件"
+                      f"（fault {fid} terminal="
                       f"`{fr.get('terminal','unknown')}`）。", ""]
         L += ["注入日志原文（本 seed `fpu_injections.log` 最后 5 行）：", "",
               "```", "\n".join(inj_text.splitlines()[-5:]) or "（无）", "```", ""]

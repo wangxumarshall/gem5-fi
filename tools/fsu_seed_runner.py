@@ -101,6 +101,17 @@ def _read(path: Path) -> str:
         return ""
 
 
+def _mask_int(value, default=0):
+    """Accept an int or a '0x...' string; never silently truncate."""
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        raise ValueError(f"fault_mask must be an integer, got {value!r}")
+    if isinstance(value, int):
+        return value
+    return int(str(value), 0)
+
+
 def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
               gem5: Path, config: Path, root: Path, rate_doc=None):
     wl = manifest["workload"]
@@ -111,6 +122,8 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
     fpu = inj.get("fpu_mode") or {}
     max_faults = (len(rate_doc["ordinals"]) if rate_doc
                   else inj.get("max_faults", 1))
+    fault_mask = _mask_int(inj.get("fault_mask", fpu.get("fault_mask", 0)))
+    permanent = bool(fpu.get("permanent_stuck"))
     cmd = [
         str(gem5), "--quiet", "-d", str(outdir), str(config),
         "--cmd", str(binary), "--cpu", "O3",
@@ -120,9 +133,21 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         "--chaos_fpu",
         "--fpu_first_clock", str(inj.get("first_clock", 0)),
         "--fpu_max_faults", str(max_faults),
-        "--fpu_fault_mask", "0",
+        "--fpu_fault_mask", str(fault_mask),
         "--fpu_rng_seed", str(seed),
     ]
+    if permanent:
+        # [FSU][F5] One permanent stuck-at installation, then every eligible
+        # event is an exposure of the same fault. Polarity/mask are pinned
+        # before the run (formal seeds pre-register them).
+        cmd += [
+            "--fpu_permanent_stuck",
+            "--fpu_stuck_polarity", str(int(fpu.get("stuck_polarity", -1))),
+            "--fpu_f5_warmup", str(int(fpu.get("f5_warmup", 0))),
+            "--fpu_f5_sample_limit", str(int(fpu.get("f5_sample_limit", 0))),
+            "--fpu_f5_keep_first_last_n",
+            str(int(fpu.get("f5_keep_first_last_n", 0))),
+        ]
     for flag, key in (("--fsu_model", "model_id"), ("--fsu_freq", "freq"),
                       ("--fsu_load", "load_id"),
                       ("--fsu_submodel", "submodel")):
@@ -154,6 +179,11 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
     if count_only:
         cmd += ["--fpu_count_only"]
     else:
+        # [W5 element oracle] The injection run must dump ONE live-out array
+        # as raw fp32 bytes for tools/fsu_oracle.py. The census run does not
+        # need a dump (and would only add a second, unused artifact).
+        if (manifest.get("workload") or {}).get("element_oracle"):
+            cmd += ["--cmd_arg", f"--array-dump={Path(outdir) / 'array.bin'}"]
         if rate_doc is not None:
             # F1/F2/F3: exact eligible ordinals, no probability/geometric draw.
             cmd += ["--fpu_events_to_skip", "0",
@@ -162,7 +192,10 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
                     "--fpu_rate_warmup", str(rate_doc["warmup"]),
                     "--fsu_rate_divisor", str(rate_doc["rate_divisor"]),
                     "--fsu_jitter_pct", str(rate_doc["jitter_pct"])]
-        else:
+        elif not permanent:
+            # F5 uses f5Warmup, not the F0 uniform skip. Passing
+            # --fpu_events_to_skip in permanent mode is a constructor panic
+            # (the skip would index a different stream than the exposures).
             cmd += ["--fpu_events_to_skip", str(skip)]
         cmd += ["--chaos_propagation",
                 "--prop_run_id", manifest["run_id"],
@@ -223,7 +256,21 @@ def write_hashes(attempt: Path):
 
 def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
              gem5: Path = DEFAULT_GEM5, root: Path = ROOT,
-             runner=None, timeout_s=None, allow_rerun=False):
+             runner=None, timeout_s=None, allow_rerun=False,
+             seed_dir: Path | None = None, component: dict | None = None,
+             write_authoritative: bool = True,
+             copy_to_complete: bool = True):
+    """运行一个 seed（或 suite component）。
+
+    [W5 suite] 向后兼容扩展：
+      - seed_dir：覆盖默认 <out_root>/<run_id>/seed<N>；
+      - component：suite component 身份元数据，写入 manifest["component"]；
+      - write_authoritative=False：由 suite runner 在 component audit 通过后
+        再写 AUTHORITATIVE；
+      - copy_to_complete=False：component Markdown 不得冒充正式 seed 复制到
+        COMPLETE_PROPAGATION_PATHS。
+    旧调用（不传新参数）行为完全不变。
+    """
     from classify import classify_run
     import fsu_chain_check as C
 
@@ -243,7 +290,10 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     # 只改 --fsu_freq 标签的 manifest 在这里被拒绝。
     rate_cfg = O.validate_rate_for_freq(
         manifest.get("freq", ""), O.rate_config_from_manifest(manifest))
-    seed_dir = Path(out_root) / run_id / f"seed{seed}"
+    if seed_dir is None:
+        seed_dir = Path(out_root) / run_id / f"seed{seed}"
+    else:
+        seed_dir = Path(seed_dir)
     auth = seed_dir / "AUTHORITATIVE"
     if auth.exists() and not allow_rerun:
         return {"status": "already_admitted", "authoritative": _read(auth).strip()}
@@ -277,6 +327,8 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         "workload_binary": str(binary),
         "workload_sha256": sha256_file(binary) if binary.exists() else "",
     }
+    if component is not None:
+        seed_manifest["component"] = component
     (attempt / "manifest.json").write_text(
         json.dumps(seed_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -488,17 +540,20 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
     hashes = write_hashes(attempt)
     if admitted and doc_ok:
         (attempt / ".done").write_text("admitted\n", encoding="utf-8")
-        auth.write_text(str(attempt), encoding="utf-8")
-        dst = (Path(out_root) / "COMPLETE_PROPAGATION_PATHS" / run_id /
-               f"{run_id}-seed{seed}.md")
-        dst.parent.mkdir(parents=True, exist_ok=True)
+        if write_authoritative:
+            auth.write_text(str(attempt), encoding="utf-8")
         md = attempt / f"{run_id}-seed{seed}.md"
-        if md.exists():
-            shutil.copy2(md, dst)
+        dst = None
+        if copy_to_complete:
+            dst = (Path(out_root) / "COMPLETE_PROPAGATION_PATHS" / run_id /
+                   f"{run_id}-seed{seed}.md")
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if md.exists():
+                shutil.copy2(md, dst)
         write_hashes(attempt)
         return {"status": "admitted", "attempt": str(attempt),
                 "chain_terminal": _terminal(chain), "oracle": category,
-                "md": str(dst)}
+                "md": str(dst) if dst is not None else str(md)}
     (attempt / ".failed").write_text(
         f"not admitted: oracle={category} faults={faults} "
         f"expected={chain_report['expected_injections']} rate_ok={rate_ok} "
