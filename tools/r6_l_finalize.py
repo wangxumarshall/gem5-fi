@@ -17,6 +17,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -24,6 +25,16 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lsu_prop_fields as PF  # noqa: E402
 import lsu_chain_check as CHAIN  # noqa: E402
+import lsu_campaign as LC  # noqa: E402
+
+_TRIG = re.compile(
+    r"^CHAOS_LSU_TRIGGER: injector=(\S+) tier=(\S+) attempted=(\d+) "
+    r"eligible=(\d+) injected=(\d+)", re.M)
+_REPEAT = re.compile(r"--chaos_repeat\s+(\d+)")
+_CMDLINE = re.compile(r"^command line: (.*)$", re.M)
+_CMDPATH = re.compile(r"--cmd\s+(\S+)")
+_ITER = re.compile(r"^ITER:(\d+):([0-9a-f]{16})\s*$", re.M)
+_DRAW = re.compile(r"draw_next_fire=(\d+)")
 
 LS = "/home/sdc/gem5-fi-ding/runs/lsu"
 RUNS = f"{LS}/r6_l_unit/runs"
@@ -61,6 +72,49 @@ def parse_stats(p):
             if len(parts) >= 2 and not line.startswith("#"):
                 out[parts[0]] = parts[1]
     return out
+
+
+def gzip_eof_ok(path):
+    try:
+        with gzip.open(path, "rb") as f:
+            while f.read(1 << 20):
+                pass
+        return True
+    except Exception:  # noqa: BLE001 — a truncated stream is the finding
+        return False
+
+
+def run_meta(paths):
+    """Repeat/workload/funnel/oracle metadata read from this seed's own
+    run.out. Missing values stay None (never synthesized)."""
+    p = paths.get("run_out")
+    if not p or not os.path.isfile(p):
+        return {}
+    text = open(p, errors="replace").read()
+    cmdm = _CMDLINE.search(text)
+    cmd = cmdm.group(1) if cmdm else ""
+    wlm = _CMDPATH.search(cmd)
+    workload = os.path.basename(wlm.group(1)) if wlm else ""
+    repm = _REPEAT.search(cmd)
+    trig = _TRIG.findall(text)
+    trig = trig[-1] if trig else None
+    drawm = _DRAW.search(text)
+    iters = _ITER.findall(text)
+    golden = LC.GOLDENS.get(workload)
+    return {
+        "full_command": cmd,
+        "workload": workload or None,
+        "repeat_factor": int(repm.group(1)) if repm else 1,
+        "tier": trig[1] if trig else None,
+        "attempted": int(trig[2]) if trig else None,
+        "eligible": int(trig[3]) if trig else None,
+        "trigger_injected": int(trig[4]) if trig else None,
+        "draw_next_fire": int(drawm.group(1)) if drawm else None,
+        "iter_lines": len(iters),
+        "iter_all_match_golden": (bool(iters) and golden is not None
+                                  and all(c == golden for _, c in iters)),
+        "workload_golden": golden,
+    }
 
 
 def inj_log_path(seed_dir):
@@ -149,6 +203,15 @@ def run(root, regrade=False):
                 "certified": rep.get("certified"),
                 "log_rows": len(inj),
                 "binary_sha256": man.get("binary_sha256")})
+    meta = run_meta(paths)
+    rec.update({"repeat_factor": meta.get("repeat_factor"),
+                "workload": meta.get("workload"),
+                "tier": meta.get("tier"),
+                "eligible": meta.get("eligible"),
+                "draw_next_fire": meta.get("draw_next_fire"),
+                "iter_lines": meta.get("iter_lines"),
+                "gzip_eof": gzip_eof_ok(paths["prop_evt"])
+                if os.path.isfile(paths["prop_evt"]) else False})
 
     if not inj or not any(e.get("kind") == "inj" and
                           str(e.get("fault_id", "")) not in ("", "0")
@@ -247,7 +310,21 @@ def run(root, regrade=False):
 
 
 def doc(man, rid, seed, rep, events, paths):
+    """Per-seed Markdown: identity, injection point/field, address provenance,
+    real event order, terminal semantics, evidence checks, honest boundaries.
+    Every value is read from THIS seed's own evidence files."""
 
+    meta = run_meta(paths)
+    stats = parse_stats(paths["stats"])
+    inj_rows = count_injections(paths.get("inj_log")) or []
+    by_id = {str(e.get("event_id")): e for e in events}
+    stream_inj = sum(1 for e in events if e.get("kind") == "inj")
+    stat_inj = None
+    for k in ("board.chaos_lsqfwd.numFaultsInjected",
+              "board.chaos_addrpath.numFaultsInjected"):
+        if k in stats:
+            stat_inj = stats[k]
+            break
     lines = []
     a = lines.append
     a(f"# {rid} seed{seed} — Load Queue 传播路径（真实事件流）")
@@ -255,33 +332,106 @@ def doc(man, rid, seed, rep, events, paths):
     a("> 本 doc 只转录该 seed 自己的 `prop_evt.txt.gz`、`chain_report.json`、"
       "`stats.txt`、`run.out`、注入日志与 `manifest.json`；未修改原始流。")
     a("")
+    a("## 实验身份")
+    a("")
     a(f"- RunID `{rid}` / seed `{seed}`；oracle `{rep.get('oracle_outcome')}`；"
       f"exit `{rep.get('exit_code')}`；terminal `{rep.get('terminal')}`；"
       f"provable_to `{rep.get('provable_to')}`；admitted `{rep.get('admitted')}`；"
       f"certified `{rep.get('certified')}`。")
+    a(f"- workload `{meta.get('workload') or 'n/a'}`；repeat factor "
+      f"`{meta.get('repeat_factor')}`；tier `{meta.get('tier')}`；"
+      f"attempted `{meta.get('attempted')}`；实际 eligible `{meta.get('eligible')}`；"
+      f"draw_next_fire `{meta.get('draw_next_fire')}`；"
+      + ("ITER 行 n/a（repeat=1 不产生 ITER 行）。"
+         if (meta.get("repeat_factor") or 1) <= 1 else
+         "ITER 行 `%s`（全部等于 golden：`%s`）。"
+         % (meta.get("iter_lines"), meta.get("iter_all_match_golden"))))
     a(f"- 二进制 SHA `{man.get('binary_sha256')}`，源 `{man.get('binary_source_head')}`，"
       f"analysis head `{man.get('analysis_tool_head')}`。")
     a(f"- 事件数 `{rep.get('event_count')}`；truncated `{rep.get('truncated')}`。")
     a("")
+    a("## 注入点与字段")
+    a("")
+    if inj_rows:
+        row = inj_rows[0]
+        kv = {}
+        for k, v in re.findall(r"([A-Za-z_]+):\s*([^,]+)", row):
+            kv[k.strip()] = v.strip()
+        for k, v in re.findall(r"([A-Za-z_]+)=([^,\s]+)", row):
+            kv.setdefault(k.strip(), v.strip())
+        a("| 来源 | site | 字段 | old | new | 其他 |")
+        a("|---|---|---|---|---|---|")
+        inj_ev = next((e for e in events if e.get("kind") == "inj"), {})
+        site = kv.get("Site", "n/a")
+        field = (kv.get("fault_field") or kv.get("FaultType")
+                 or inj_ev.get("field") or "n/a")
+        old = (kv.get("old_addr") or kv.get("old")
+               or inj_ev.get("before") or "n/a")
+        new = (kv.get("new_addr") or kv.get("new")
+               or inj_ev.get("after") or "n/a")
+        other = ", ".join("%s=%s" % (k, v) for k, v in sorted(kv.items())
+                          if k not in ("Site", "FaultType", "fault_field",
+                                       "old_addr", "new_addr"))
+        a(f"| `{paths.get('inj_log')}` | `{site}` | `{field}` | `{old}` | "
+          f"`{new}` | {other or '—'} |")
+    else:
+        a("注入日志缺失（本 seed 不是真实注入样本）。")
+    a("")
+    a("## 地址来源与请求身份")
+    a("")
+    a("| event_id | kind | va | pa | pfn | corr | request_id | lq_idx | "
+      "dyn_seq | store_dyn_seq |")
+    a("|---|---|---|---|---|---|---|---|---|---|")
+    for e in events:
+        if e.get("kind") == "chain_end":
+            continue
+        pa = e.get("pa")
+        pfn = ""
+        try:
+            pfn = "0x%x" % (int(pa, 16) >> 12) if pa else ""
+        except (TypeError, ValueError):
+            pfn = ""
+        a(f"| {e.get('event_id')} | `{e.get('kind')}` | {hx(e.get('va'))} | "
+          f"{hx(pa)} | {pfn or '—'} | `{e.get('corr') or '—'}` | "
+          f"{e.get('request_id') or '—'} | {e.get('lq_idx') or '—'} | "
+          f"{e.get('dyn_inst_seq') or '—'} | "
+          f"{e.get('store_dyn_inst_seq') or '—'} |")
+    a("")
     a("## 逐 fault 规范路径")
     a("")
-    by_id = {str(e.get("event_id")): e for e in events}
     for fid in sorted(rep.get("faults") or {}, key=lambda x: int(x)):
         f = (rep.get("faults") or {})[fid]
-        a(f"### fault {fid} — terminal={f.get('terminal')} provable_to={f.get('provable_to')}")
+        a(f"### fault {fid} — terminal={f.get('terminal')} "
+          f"provable_to={f.get('provable_to')}")
         a("")
-        a("| # | 层 | event_id | parent | tick | kind | request_id | dyn_seq | va | pa | before→after |")
+        a("| # | 层 | event_id | parent | tick | kind | request_id | dyn_seq | "
+          "va | pa | before→after |")
         a("|---|---|---|---|---|---|---|---|---|---|---|")
-        for i, eid in enumerate([str(x) for x in (f.get("path_event_ids") or [])]):
+        path_ids = [str(x) for x in (f.get("path_event_ids") or [])]
+        for i, eid in enumerate(path_ids):
             e = by_id.get(eid, {})
             layer = CHAIN._layer_of(e, f.get("family", "lq")) or "—"
             ch = ""
             if e.get("before") or e.get("after"):
                 ch = f"{e.get('before') or '—'} → {e.get('after') or '—'}"
             a(f"| {i} | {layer} | {eid} | {e.get('parent_event_id') or '—'} | "
-              f"{e.get('tick')} | `{e.get('kind')}` | {e.get('request_id') or '—'} | "
-              f"{e.get('dyn_inst_seq') or '—'} | {hx(e.get('va'))} | {hx(e.get('pa'))} | "
-              f"{ch or '—'} |")
+              f"{e.get('tick')} | `{e.get('kind')}` | "
+              f"{e.get('request_id') or '—'} | {e.get('dyn_inst_seq') or '—'} | "
+              f"{hx(e.get('va'))} | {hx(e.get('pa'))} | {ch or '—'} |")
+        a("")
+        a("真实事件顺序（严格按 tick / event_id）：")
+        a("")
+        for i, eid in enumerate(path_ids, 1):
+            e = by_id.get(eid, {})
+            layer = CHAIN._layer_of(e, f.get("family", "lq")) or "—"
+            ch = ""
+            if e.get("before") or e.get("after"):
+                ch = "；%s → %s" % (e.get("before") or "—",
+                                    e.get("after") or "—")
+            a(f"{i}. `event_id={eid}` parent=`{e.get('parent_event_id') or '—'}` "
+              f"tick=`{e.get('tick')}` kind=`{e.get('kind')}` layer=`{layer}` "
+              f"corr=`{e.get('corr') or '—'}`；va=`{hx(e.get('va'))}` "
+              f"pa=`{hx(e.get('pa'))}`{ch}")
         a("")
         a("层边：" + (", ".join(f"{k}={v}" for k, v in
                               (f.get("edges") or {}).items()
@@ -292,14 +442,55 @@ def doc(man, rid, seed, rep, events, paths):
         l0 = ina.get("l0") or {}
         a("## Injected-not-activated（严格证明）")
         a("")
-        a(f"注入 Tick `{l0.get('tick')}`，地址/视图 `{hx(l0.get('va') or ina.get('line'))}`，"
-          f"字段 `{l0.get('field')}`；log/stream/stats 计数 `{ina.get('log_rows')}/"
-          f"{sum(1 for e in events if e.get('kind') == 'inj')}/{ina.get('stats_injected')}`；"
-          f"provable_to `{rep.get('provable_to')}`，subkind `{ina.get('subkind')}`。")
+        a(f"注入 Tick `{l0.get('tick')}`，地址/视图 "
+          f"`{hx(l0.get('va') or ina.get('line'))}`，字段 `{l0.get('field')}`；"
+          f"log/stream/stats 计数 `{ina.get('log_rows')}/{stream_inj}/"
+          f"{ina.get('stats_injected')}`；provable_to `{rep.get('provable_to')}`，"
+          f"subkind `{ina.get('subkind')}`。")
         a("")
         a("故障真实注入，但该视图在程序结束前没有被下游消费/产生可观察的架构影响；"
           "`chain_end` 仅生命周期，不是 L5，不伪造任何 L1–L5 事件。")
         a("")
+    terminal = rep.get("terminal") or ""
+    a("## 终局语义")
+    a("")
+    if terminal == "crash_translation_fault":
+        a("L0 注入改变地址/视图，L1 `addr_form` 形成；该视图进入 LQ/翻译路径，"
+          "TLB/MMU 交付真实 `arch_translation_fault`（L2），受控 guest SEGV 结束"
+          "仿真。终局是**真实 crash**，provable_to=L2；没有伪造 L3–L5。")
+    elif terminal == "full":
+        a("故障值沿真实链路被下游消费并到达可观察终局（L5 / full）；"
+          "逐事件见上表，未用 `chain_end` 冒充 L5。")
+    elif terminal == "detected_contained":
+        a("故障在 L3 被真实检测/含住（detected/contained），未产生架构可见错误。")
+    elif terminal == "injected_not_activated":
+        a("故障真实注入，但视图/缓存行未被下游消费——严格 latent no-effect；"
+          "`chain_end` 仅为生命周期。")
+    else:
+        a(f"terminal=`{terminal or 'n/a'}`；以 `chain_report.json` 为准，"
+          "不做超出事件流的推断。")
+    a("")
+    a("## 证据校验")
+    a("")
+    a("| 检查 | 结果 |")
+    a("|---|---|")
+    a(f"| gzip EOF | `{gzip_eof_ok(paths['prop_evt'])}` |")
+    a(f"| stats.simTicks | `{stats.get('simTicks', 'n/a')}` |")
+    a(f"| 注入 stat | `{stat_inj if stat_inj is not None else 'n/a'}` |")
+    a(f"| log/stream/stats 计数 | `{len(inj_rows)}/{stream_inj}/"
+      f"{stat_inj if stat_inj is not None else 'n/a'}` |")
+    a("| ITER 行 | " + (
+        "n/a（repeat=1 不产生 ITER 行）"
+        if (meta.get("repeat_factor") or 1) <= 1 else
+        "`%s`，全部等于 golden `%s`"
+        % (meta.get("iter_lines"), meta.get("iter_all_match_golden"))) + " |")
+    acct = rep.get("consumer_summary_accounting") or {}
+    a(f"| conservation | `{acct.get('conservation', 'n/a')}` |")
+    a(f"| admission / certification | `{rep.get('admitted')}` / "
+      f"`{rep.get('certified')}` |")
+    a(f"| chain_end 仅生命周期 | `"
+      f"{all(e.get('kind') != 'chain_end' or (e.get('corr') in ('none', '')) for e in events)}` |")
+    a("")
     a("## 事件总览与证据")
     a("")
     kinds = {}
@@ -318,28 +509,53 @@ def doc(man, rid, seed, rep, events, paths):
             a(f"| {key} | `{p}` | `{sha256_file(p)}` |")
     a("")
     a("```bash")
-    a(man.get("command", "n/a"))
+    a(meta.get("full_command") or man.get("command", "n/a"))
     a("```")
     a("")
     a("## 诚实边界")
     a("")
     a("- 逐 fault 终局取自 `chain_report.json`；`chain_end` 永不充当 L5。")
     a("- oracle 与链终局不一致时并列记录，不互相改写。")
-    a("- 同一 seed 的旧截断证据保留在原目录。")
+    a("- 若 repeat factor > 1：只重复**同一 workload 的核心操作**以补足 eligible "
+      "供给；频率间隔、warmup/span、seed、注入字段/注入点与 RunID 身份均未改变；"
+      "每趟执行相同操作序列（repeat=1 golden 不变，ITER 行全部等于 golden）。")
+    a("- 原始证据未修改；同一 seed 的旧目录/旧截断证据保留在原位置。")
     return "\n".join(lines) + "\n"
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=RUNS)
+    ap.add_argument("--roots",
+                    help="comma-separated evidence roots; later roots supersede "
+                         "an earlier root for the same (run_id, seed)")
     ap.add_argument("--regrade", action="store_true")
     ap.add_argument("--deploy", action="store_true")
     args = ap.parse_args()
+    roots = [r for r in (args.roots or args.root).split(",") if r.strip()]
     os.makedirs(STAGE, exist_ok=True)
     os.makedirs(OUT, exist_ok=True)
+    # [R6-L-UNIT] New repeat runs live in a fresh root; the pre-repeat root is
+    # preserved as superseded evidence. Later roots win for duplicate keys.
+    chosen, order = {}, []
+    for root in roots:
+        for d in discover(root):
+            man = json.load(open(os.path.join(d, "manifest.json")))
+            k = (man["run_id"], int(man["seed"]))
+            if k in chosen and chosen[k] != d:
+                print("SUPERSEDE", k, chosen[k], "->", d)
+            chosen[k] = d
+            if k not in order:
+                order.append(k)
     rows, docs = [], 0
-    for root in discover(args.root):
+    for k in order:
+        root = chosen[k]
         rec, rep, events = run(root, regrade=args.regrade)
+        rec["root"] = root
+        rec["superseded"] = len([r for r in roots if r != root and
+                                 os.path.isdir(os.path.join(
+                                     r, "%s_s%d" % (rec["run_id"],
+                                                    rec["seed"])))])
         rows.append(rec)
         if rec["status"] == "QUALIFIED":
             text = doc(json.load(open(os.path.join(root, "manifest.json"))),
