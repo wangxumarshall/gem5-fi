@@ -1,0 +1,53 @@
+{
+  "run_id": "FSU-FP06-F5-W3-PERMANENT-GATE",
+  "model_id": "FP06",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "load_id": "W3",
+  "submodel": "FP06-b",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 2,
+      "decode_guard": true,
+      "permanent_stuck": true,
+      "stuck_polarity": 1,
+      "f5_warmup": 0,
+      "f5_sample_limit": 1024,
+      "f5_keep_first_last_n": 256
+    },
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "F5 permanent-stuck gate (NOT a formal RunID; does NOT count toward 519/240). Pre-registered: FP06-b SA1 on the FP32 sign bit of NEON lane 2. One installation at the first eligible SimdFloatMultAcc result, then every eligible result is an exposure of the same fault_id/mask/polarity. Golden ARRAYHASH is the no-fault W3 value.",
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 2,
+  "created_at": "2026-11-03T19:46:22",
+  "source_head": "2b70e6d98da487087a2ca154c3bc2f8ac772cc17",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "8b1080971957cd47f395e62f2e56f85cd0eeeab451777bd4a7bb0dcd49f5dda6",
+  "runner_tool_sha256": "5495363ff5d0e5052e63dbb5a8480b8d8dd3ecc40636e86bcb056af693979594",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/neon_fp32_lane_kernel",
+  "workload_sha256": "d8b01bc0ac140f43c4f7462e1f3b376802e75dfeaca40a0257b4cad5ede92a92"
+}

@@ -1,0 +1,39 @@
+{
+  "gate": "F5-FP06-W3-PERMANENT-GATE",
+  "run_id": "FSU-FP06-F5-W3-PERMANENT-GATE",
+  "not_counted_in_519": true,
+  "attempt": "runs/fsu-gates/F5-FP06-W3-PERMANENT-GATE/FSU-FP06-F5-W3-PERMANENT-GATE/seed1/attempt-2",
+  "pre_registration": {
+    "submodel": "FP06-b",
+    "fault": "SA1",
+    "mask": "0x80000000",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 2,
+    "warmup": 0
+  },
+  "observed": {
+    "install_events": 1,
+    "exposures_total": 16384,
+    "activated_exposure_count": 15620,
+    "exposure_events": 513,
+    "exposures_sampled": 513,
+    "exposures_dropped": 15871,
+    "chain_terminal": "full",
+    "oracle": "SDC",
+    "event_stream_events": 521
+  },
+  "checks": {
+    "one_install": true,
+    "mask_polarity_constant": true,
+    "every_exposure_forced": true,
+    "same_polarity_not_activated": true,
+    "different_polarity_changes_result": true,
+    "non_target_lane_bit_unchanged": true,
+    "one_fault_full_L0_L5_chain": true,
+    "exposure_total_matches_census_16384": true,
+    "event_cap_no_silent_truncation": true,
+    "markdown_separates_install_exposure_activation_terminal": true
+  },
+  "ok": true
+}
