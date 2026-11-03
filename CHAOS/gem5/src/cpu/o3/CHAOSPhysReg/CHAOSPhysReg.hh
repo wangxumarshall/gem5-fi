@@ -18,6 +18,7 @@
 // wrapper. CHAOSPhysReg only supports O3CPU; dynamic_cast fails at construct
 // time otherwise.
 namespace gem5 { namespace o3 { class CPU; } }
+namespace gem5 { namespace o3 { class DynInst; } }
 
 namespace gem5
 {
@@ -28,7 +29,16 @@ class CHAOSPhysReg : public SimObject
     CHAOSPhysReg(const CHAOSPhysRegParams &p);
     ~CHAOSPhysReg();
 
+    void startup() override;   // self-attach to CPU.chaosPhysReg
+
+    /** [FR03] Called from DynInst::execute() after staticInst->execute().
+     *  Re-asserts the permanent Vec stuck bits after every write to the
+     *  target physical cell. Read-only for every other instruction/register. */
+    void maybeReapplyStuck(o3::DynInst *inst);
+
   private:
+    uint64_t vec_stuck_writes = 0;   // re-applies actually performed
+    uint64_t vec_stuck_activated = 0;  // writes whose correct bit differed
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     enum class Mode { Phys, ArchFrontend, ArchCommit };
     enum class RegClassSel { Integer, FloatingPoint, Vector, Both };
@@ -38,6 +48,10 @@ class CHAOSPhysReg : public SimObject
         FaultType fault_type;
         uint64_t mask;
         bool update;
+        // [FR03] The physical space the index belongs to. Int/float/vec are
+        // independently numbered from 0; the legacy periodic re-apply only
+        // touches IntRegClass (int/float/vec write-path masks are authoritative).
+        RegClassType reg_class = InvalidRegClass;
     };
 
     o3::CPU *cpu;      // dynamic_cast<o3::CPU*> in the .cc

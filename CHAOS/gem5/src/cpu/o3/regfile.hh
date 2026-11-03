@@ -48,6 +48,7 @@
 #include "arch/generic/isa.hh"
 #include "base/trace.hh"
 #include "cpu/o3/comm.hh"
+#include "cpu/o3/CHAOSPhysReg/chaos_vec_stuck.hh"
 #include "cpu/regfile.hh"
 #include "debug/IEW.hh"
 
@@ -228,6 +229,71 @@ class PhysRegFile
     void clearStuckTarget() {
         stuck_type = InvalidRegClass; stuck_idx = -1;
         stuck_mask = 0; stuck_polarity = 0;
+    }
+
+    /** [FR03] VecRegClass permanent stuck-at target.
+     *
+     *  Vector instructions write the PRF through getWritableReg() (a raw
+     *  pointer consumed during staticInst->execute()), so a mask applied in
+     *  setReg() alone cannot survive a vector write. The O3 execute hook
+     *  (DynInst::execute → CHAOSPhysReg::maybeReapplyStuck) calls
+     *  reapplyVecStuck() after EVERY write to a destination vector register.
+     *  The target is generation-scoped: when the physical slot is released
+     *  (UnifiedFreeList::addReg) its generation increments, so a fault
+     *  installed for an older logical value never leaks into the new one.
+     *  The pure mask/activate semantics live in chaos_vec_stuck.hh and are
+     *  host-unit-tested. */
+    std::vector<uint32_t> flat_generation;
+    chaos_vec_stuck::Target vec_stuck;
+
+    uint32_t generationOf(PhysRegIdPtr p) const {
+        const RegIndex flat = p->flatIndex();
+        if (flat < 0 || (size_t)flat >= flat_generation.size())
+            return 0;
+        return flat_generation[flat];
+    }
+
+    void noteRegFreed(PhysRegIdPtr p) {
+        const RegIndex flat = p->flatIndex();
+        if (flat >= 0 && (size_t)flat < flat_generation.size())
+            ++flat_generation[flat];
+    }
+
+    void armVecStuck(int idx, uint32_t gen, int lane_width, int lane_offset,
+                     uint64_t lane_mask, uint8_t polarity) {
+        vec_stuck.reg_class = (int)VecRegClass;
+        vec_stuck.phys_index = idx;
+        vec_stuck.generation = gen;
+        vec_stuck.lane_width = lane_width;
+        vec_stuck.lane_offset = lane_offset;
+        vec_stuck.bit_in_lane = __builtin_ctzll(lane_mask);
+        vec_stuck.lane_mask = lane_mask;
+        vec_stuck.polarity = polarity;
+        vec_stuck.valid = true;
+    }
+
+    void clearVecStuck() { vec_stuck = chaos_vec_stuck::Target(); }
+
+    bool isVecStuckTarget(PhysRegIdPtr p) const {
+        return vec_stuck.valid && p->classValue() == VecRegClass &&
+               (int)p->index() == vec_stuck.phys_index &&
+               generationOf(p) == vec_stuck.generation;
+    }
+
+    /** Force the target lane's stuck bits on the current cell value. This is
+     *  idempotent and only touches the target lane. Returns true iff the
+     *  target matched (class/index/generation) and the cell was examined. */
+    bool reapplyVecStuck(PhysRegIdPtr p) {
+        if (!isVecStuckTarget(p))
+            return false;
+        void *vp = vectorRegFile.ptr(p->index());
+        if (!vp)
+            return false;
+        return chaos_vec_stuck::applyToVec16((uint8_t *)vp,
+                                             vec_stuck.lane_width,
+                                             vec_stuck.lane_offset,
+                                             vec_stuck.lane_mask,
+                                             vec_stuck.polarity);
     }
 
     /** Gets a misc register PhysRegIdPtr. */
@@ -417,6 +483,10 @@ class PhysRegFile
             DPRINTF(IEW, "RegFile: Setting vector register %i to %s\n",
                     idx, vectorRegFile.regClass.valString(val));
             vectorRegFile.set(idx, val);
+            // [FR03] Re-assert the stuck bits after an explicit void* write
+            // (the vector execute path uses getWritableReg + a post-execute
+            // hook; this covers the setReg route too).
+            reapplyVecStuck(phys_reg);
             break;
           case VecElemClass:
             setReg(phys_reg, *(RegVal *)val);

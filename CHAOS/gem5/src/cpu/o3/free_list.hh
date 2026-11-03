@@ -262,6 +262,11 @@ class UnifiedFreeList
             return;
         }
         freeLists[freed_reg->classValue()].addReg(freed_reg);
+        // [FR03] A released physical slot starts a new logical generation.
+        // A permanent Vec fault is generation-scoped, so the old defect does
+        // not propagate into the next allocation of this physical cell.
+        if (regFile)
+            regFile->noteRegFreed(freed_reg);
     }
 
     /** Checks if there are any free registers of type type. */

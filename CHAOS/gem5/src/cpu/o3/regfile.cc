@@ -82,6 +82,11 @@ PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
                    _numPhysicalCCRegs +
                    reg_classes.at(MiscRegClass)->numRegs())
 {
+    // [FR03] Per-physical-slot logical generation. Bumped when a slot is
+    // released (UnifiedFreeList::addReg), so a permanent Vec fault installed
+    // for one logical value cannot leak into the next allocation.
+    flat_generation.assign(totalNumRegs, 0);
+
     RegIndex phys_reg;
     RegIndex flat_reg_idx = 0;
 

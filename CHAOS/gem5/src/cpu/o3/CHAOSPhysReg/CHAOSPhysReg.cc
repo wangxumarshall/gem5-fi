@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <random>
 #include <bitset>
@@ -11,8 +12,10 @@
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
+#include "cpu/o3/dyn_inst.hh"     // [FR03] post-execute Vec stuck re-apply
 #include "cpu/o3/regfile.hh"
 #include "cpu/o3/rename_map.hh"
+#include "cpu/o3/CHAOSPhysReg/chaos_vec_stuck.hh"
 #include "arch/generic/isa.hh"
 #include "sim/sim_exit.hh"        // registerExitCallback (W2.5 CHAOS_L0 line)
 
@@ -93,6 +96,66 @@ namespace gem5
     {}
 
     CHAOSPhysReg::~CHAOSPhysReg() {}
+
+    void
+    CHAOSPhysReg::startup()
+    {
+        SimObject::startup();
+        // [FR03] Self-attach so DynInst::execute() can re-assert a permanent
+        // Vec stuck target after every vector write.
+        if (cpu)
+            cpu->setChaosPhysReg(this);
+    }
+
+    void
+    CHAOSPhysReg::maybeReapplyStuck(o3::DynInst *inst)
+    {
+        if (!cpu || !inst)
+            return;
+        for (int i = 0; i < inst->numDestRegs(); i++) {
+            PhysRegIdPtr dest = inst->renamedDestIdx(i);
+            if (!dest || dest->is(InvalidRegClass))
+                continue;
+            if (dest->classValue() != VecRegClass)
+                continue;
+            if (!cpu->physRegFile().isVecStuckTarget(dest))
+                continue;
+
+            // Snapshot the CORRECT value the instruction wrote, then force
+            // the stuck bits. A write whose target bits already equal the
+            // stuck polarity is an exposure but NOT an activation.
+            const size_t bytes = cpu->physRegFile().vecRegBytes();
+            if (bytes < 16)
+                continue;
+            std::vector<uint8_t> before(bytes, 0);
+            cpu->physRegFile().getReg(dest, before.data());
+            const auto &t = cpu->physRegFile().vec_stuck;
+            const int lane_bytes = t.lane_width / 8;
+            const int base = t.lane_offset * lane_bytes;
+            uint64_t lane_before = 0;
+            std::memcpy(&lane_before, before.data() + base, lane_bytes);
+            const bool activated = !chaos_vec_stuck::satisfied(
+                lane_before, t.lane_mask, t.polarity);
+            if (!cpu->physRegFile().reapplyVecStuck(dest))
+                continue;
+            ++vec_stuck_writes;
+            if (activated)
+                ++vec_stuck_activated;
+            if (write_log && log_stream && log_stream->stream() &&
+                vec_stuck_writes <= 64) {
+                std::ostringstream os;
+                os << "VecStuckApply: cycle=" << cpu->curCycle()
+                   << " phys=" << t.phys_index
+                   << " gen=" << t.generation
+                   << " lane=" << t.lane_offset
+                   << " mask=0x" << std::hex << t.lane_mask << std::dec
+                   << " polarity=" << (int)t.polarity
+                   << " before=0x" << std::hex << lane_before << std::dec
+                   << " activated=" << (activated ? 1 : 0) << std::endl;
+                *(log_stream->stream()) << os.str();
+            }
+        }
+    }
 
     CHAOSPhysReg::FaultType
     CHAOSPhysReg::stringToFaultType(const std::string &s) {
@@ -366,13 +429,27 @@ namespace gem5
                 lane_val &= ~lane_mask;
                 stats->numStuckAtZero++;
                 stats->numPermanentFaults++;
-                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                permanent_faults[{tid, chosen_phys_idx}] =
+                    {chosen, mask, true, target_class};
+                // [FR03] Arm the generation-scoped Vec write-path mask. The
+                // post-execute hook re-forces it after every later write to
+                // this physical cell; a reallocation bumps the generation and
+                // disarms it.
+                cpu->physRegFile().armVecStuck(
+                    chosen_phys_idx,
+                    cpu->physRegFile().generationOf(phys_reg),
+                    lw, lane, lane_mask, 0);
                 break;
               case FaultType::StuckAtOne:
                 lane_val |= lane_mask;
                 stats->numStuckAtOne++;
                 stats->numPermanentFaults++;
-                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                permanent_faults[{tid, chosen_phys_idx}] =
+                    {chosen, mask, true, target_class};
+                cpu->physRegFile().armVecStuck(
+                    chosen_phys_idx,
+                    cpu->physRegFile().generationOf(phys_reg),
+                    lw, lane, lane_mask, 1);
                 break;
               case FaultType::BitFlip:
                 lane_val ^= lane_mask;
@@ -422,7 +499,8 @@ namespace gem5
                 reg_val &= ~mask;
                 stats->numStuckAtZero++;
                 stats->numPermanentFaults++;
-                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                permanent_faults[{tid, chosen_phys_idx}] =
+                    {chosen, mask, true, target_class};
                 // G2: arm the write-path stuck mask so the bit is forced on
                 // EVERY subsequent write to this phys slot — the correct
                 // permanent (cell-stuck) model. Survives program re-writes,
@@ -434,7 +512,8 @@ namespace gem5
                 reg_val |= mask;
                 stats->numStuckAtOne++;
                 stats->numPermanentFaults++;
-                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                permanent_faults[{tid, chosen_phys_idx}] =
+                    {chosen, mask, true, target_class};
                 // G2: write-path stuck mask, polarity 1 = stuck_at_one.
                 cpu->physRegFile().setStuckTarget(target_class, chosen_phys_idx,
                                                   (uint64_t)mask, 1);
@@ -545,6 +624,10 @@ namespace gem5
         // the write-path mask to be correct.
         for (auto &entry : permanent_faults) {
             if (!entry.second.update) continue;
+            // [FR03] int/float/vec write-path masks are authoritative; this
+            // legacy poll is only a fallback for the int space. Never treat a
+            // vec index as an int index (the old bug wrote the int PRF).
+            if (entry.second.reg_class != IntRegClass) continue;
             ThreadID tid = entry.first.first;
             int phys_idx = entry.first.second;
             if (phys_idx < 0 || phys_idx >= cpu->physRegFile().numIntPhysRegs()) continue;

@@ -90,6 +90,7 @@ class Process;
 class CHAOSLSQFwd;
 class CHAOSExec;  // §2.12 integer execution-unit injector (forward decl)
 class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
+class CHAOSPhysReg;  // [FR03] physical-register-file injector (forward decl)
 class CHAOSL1DForward;  // §2.7 post-check-escape injector (forward decl)
 class CHAOSAddrPath;    // §2.4 AGU address-path injector (forward decl)
 class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
@@ -503,6 +504,11 @@ class CPU : public BaseCPU
     // §2.6 CHAOSFPU: raw pointer to the FP/vector-exec fault injector.
     CHAOSFPU *chaosFPU = nullptr;
     void setChaosFPU(CHAOSFPU *p) { chaosFPU = p; }
+    // [FR03] CHAOSPhysReg: raw pointer to the physical-register-file injector.
+    // Used by DynInst::execute() to re-assert a permanent Vec stuck target
+    // after every vector write. nullptr = no injection (zero regression).
+    CHAOSPhysReg *chaosPhysReg = nullptr;
+    void setChaosPhysReg(CHAOSPhysReg *p) { chaosPhysReg = p; }
     // §2.7 CHAOSL1DForward: raw pointer to the post-check-escape injector.
     CHAOSL1DForward *chaosL1DFwd = nullptr;
     void setChaosL1DFwd(CHAOSL1DForward *p) { chaosL1DFwd = p; }

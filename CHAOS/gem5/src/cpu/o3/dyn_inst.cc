@@ -45,6 +45,7 @@
 #include "base/intmath.hh"
 #include "cpu/o3/CHAOSExec/CHAOSExec.hh"  // §2.12 full def for maybeCorrupt call
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"    // §2.6 full def for maybeCorrupt call
+#include "cpu/o3/CHAOSPhysReg/CHAOSPhysReg.hh"  // [FR03] Vec stuck re-apply
 #include "debug/DynInst.hh"
 #include "debug/IQ.hh"
 #include "debug/O3PipeView.hh"
@@ -366,6 +367,10 @@ DynInst::execute()
     if (fault == NoFault && cpu) {
         if (cpu->chaosExec) cpu->chaosExec->maybeCorrupt(this);
         if (cpu->chaosFPU)   cpu->chaosFPU->maybeCorrupt(this);
+        // [FR03] A vector instruction writes its PRF cell through a raw
+        // getWritableReg() pointer during execute(). Re-assert a permanent
+        // Vec stuck target AFTER the write, on every such instruction.
+        if (cpu->chaosPhysReg) cpu->chaosPhysReg->maybeReapplyStuck(this);
         // [FSU] Read-only taint observation: if this instruction reads a
         // physical register holding an injected FSU result, emit the L2
         // operand_read (and L3/L4 for FP consumers). No state mutation.
