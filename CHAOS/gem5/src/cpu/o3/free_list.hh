@@ -263,8 +263,12 @@ class UnifiedFreeList
         }
         freeLists[freed_reg->classValue()].addReg(freed_reg);
         // [FR03] A released physical slot starts a new logical generation.
-        // A permanent Vec fault is generation-scoped, so the old defect does
-        // not propagate into the next allocation of this physical cell.
+        // This generation is allocation/exposure IDENTITY only: a permanent
+        // Vec fault is keyed by reg_class + phys_index + lane/bit + polarity,
+        // so it deliberately SURVIVES this increment and the next allocation
+        // of the same physical cell (workbook table 3 FR03: "永久缺陷跨物理
+        // 槽复用"). CHAOSPhysReg observes the new generation and restarts the
+        // exposure chain without ever joining the old producer/consumer edges.
         if (regFile)
             regFile->noteRegFreed(freed_reg);
     }

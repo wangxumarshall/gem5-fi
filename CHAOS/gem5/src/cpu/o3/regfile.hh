@@ -238,13 +238,25 @@ class PhysRegFile
      *  setReg() alone cannot survive a vector write. The O3 execute hook
      *  (DynInst::execute → CHAOSPhysReg::maybeReapplyStuck) calls
      *  reapplyVecStuck() after EVERY write to a destination vector register.
-     *  The target is generation-scoped: when the physical slot is released
-     *  (UnifiedFreeList::addReg) its generation increments, so a fault
-     *  installed for an older logical value never leaks into the new one.
-     *  The pure mask/activate semantics live in chaos_vec_stuck.hh and are
-     *  host-unit-tested. */
+     *
+     *  The PERMANENT KEY is reg_class + phys_index + lane/bit/mask + polarity
+     *  (workbook table 3 FR03: "永久缺陷跨物理槽复用和多次读写暴露"). The
+     *  physical slot's `generation` is recorded for provenance/event identity
+     *  ONLY; it is NOT a matching condition. Freeing/reallocating the slot
+     *  (UnifiedFreeList::addReg → noteRegFreed) therefore does NOT clear the
+     *  defect — the next allocation of the same physical cell still gets the
+     *  same stuck mask. Only an explicit end-of-run reset
+     *  (clearPermanentFaults) clears it; squash never does.
+     *
+     *  The pure mask/activate/generation-chain semantics live in
+     *  chaos_vec_stuck.hh and are host-unit-tested. */
     std::vector<uint32_t> flat_generation;
     chaos_vec_stuck::Target vec_stuck;
+    /** Reads of the target Vec physical cell, counted in the container read
+     *  path (getReg void*). The permanent defect belongs to the physical
+     *  cell, so this counter deliberately does not filter by generation;
+     *  CHAOSPhysReg turns the delta into explicit phys_read/carrier events. */
+    mutable uint64_t vec_stuck_reads = 0;
 
     uint32_t generationOf(PhysRegIdPtr p) const {
         const RegIndex flat = p->flatIndex();
@@ -275,14 +287,34 @@ class PhysRegFile
     void clearVecStuck() { vec_stuck = chaos_vec_stuck::Target(); }
 
     bool isVecStuckTarget(PhysRegIdPtr p) const {
-        return vec_stuck.valid && p->classValue() == VecRegClass &&
-               (int)p->index() == vec_stuck.phys_index &&
-               generationOf(p) == vec_stuck.generation;
+        // Permanent physical-cell match: class + index only. Generation is
+        // NOT part of the key (see the FR03 comment above).
+        return vec_stuck.matches((int)p->classValue(), (int)p->index());
+    }
+
+    /** End-of-run / explicit reset only. Squash and free/realloc must never
+     *  call this: the permanent defect survives them by contract. */
+    void clearPermanentFaults() {
+        clearStuckTarget();
+        clearVecStuck();
+        vec_stuck_reads = 0;
+    }
+
+    bool vecStuckActive() const { return vec_stuck.valid; }
+    uint64_t getVecStuckReads() const { return vec_stuck_reads; }
+
+    /** Injector-internal snapshot of a VecReg physical cell. Does NOT count
+     *  as a program read (the FR03 read/carrier counter must report real
+     *  consumer reads, not the injector's own observation). */
+    void readVecRegRaw(PhysRegIdPtr p, void *val) const {
+        if (p && p->classValue() == VecRegClass)
+            vectorRegFile.get(p->index(), val);
     }
 
     /** Force the target lane's stuck bits on the current cell value. This is
      *  idempotent and only touches the target lane. Returns true iff the
-     *  target matched (class/index/generation) and the cell was examined. */
+     *  permanent physical-cell key (class/index) matched and the cell was
+     *  examined. */
     bool reapplyVecStuck(PhysRegIdPtr p) {
         if (!isVecStuckTarget(p))
             return false;
@@ -359,6 +391,10 @@ class PhysRegFile
             break;
           case VecRegClass:
             vectorRegFile.get(idx, val);
+            // [FR03] Count reads of the permanent stuck physical cell. The
+            // defect belongs to the cell, so this is not generation-filtered.
+            if (vec_stuck.valid && (int)idx == vec_stuck.phys_index)
+                ++vec_stuck_reads;
             // CHAOSPhysReg read-trace (vector): symmetric to int/float — count
             // reads of the injected VecReg cell until it is overwritten.
             if (trace_type == VecRegClass && !trace_overwritten

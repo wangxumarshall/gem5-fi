@@ -16,6 +16,7 @@
 #include "cpu/o3/regfile.hh"
 #include "cpu/o3/rename_map.hh"
 #include "cpu/o3/CHAOSPhysReg/chaos_vec_stuck.hh"
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // FSU_PROP stream
 #include "arch/generic/isa.hh"
 #include "sim/sim_exit.hh"        // registerExitCallback (W2.5 CHAOS_L0 line)
 
@@ -105,6 +106,335 @@ namespace gem5
         // Vec stuck target after every vector write.
         if (cpu)
             cpu->setChaosPhysReg(this);
+        // If CHAOSPropagation is already attached, make sure the FR03
+        // terminal (chain_end) is flushed while its stream is open. If it
+        // attaches later, the first install registers the hook instead.
+        registerVecExitFlush();
+    }
+
+    namespace
+    {
+    std::string
+    propHex(uint64_t v)
+    {
+        std::ostringstream os;
+        os << "0x" << std::hex << v;
+        return os.str();
+    }
+    } // anonymous namespace
+
+    const char *
+    CHAOSPhysReg::vecRegClassName(int cls)
+    {
+        if (cls == VecRegClass) return "vec";
+        if (cls == FloatRegClass) return "float";
+        if (cls == IntRegClass) return "int";
+        return "unknown";
+    }
+
+    uint64_t
+    CHAOSPhysReg::emitFsuProp(
+        const char *kind, uint64_t fault_id, uint64_t parent,
+        std::vector<std::pair<std::string, std::string>> kv)
+    {
+        if (!cpu || !cpu->chaosPropagation)
+            return 0;
+        kv.push_back({"fault_id", std::to_string(fault_id)});
+        if (parent != 0)
+            kv.push_back({"parent_event_id", std::to_string(parent)});
+        kv.push_back({"model_id", "FR03"});
+        kv.push_back({"freq", "F5"});
+        kv.push_back({"unit", "PRF_Vec"});
+        if (!semantic_role.empty())
+            kv.push_back({"submodel", semantic_role});
+        // fault_installed is the L0 fault root; all FR03 follow-up events
+        // belong to the same permanent fault (fsu_taint). generation_change
+        // is a lifecycle transition of the same fault, not a new fault.
+        kv.push_back({"corr", std::string(kind) == "fault_installed"
+                              ? "origin" : "fsu_taint"});
+        const uint64_t eid = cpu->chaosPropagation->notePropEvt(kind, kv);
+        if (eid)
+            vec_emit.last_event = eid;
+        return eid;
+    }
+
+    void
+    CHAOSPhysReg::registerVecExitFlush()
+    {
+        if (vec_emit.exit_flush_registered || !cpu ||
+            !cpu->chaosPropagation)
+            return;
+        cpu->chaosPropagation->registerExitFlush(
+            [this]() { this->emitVecTerminal(); });
+        vec_emit.exit_flush_registered = true;
+    }
+
+    void
+    CHAOSPhysReg::noteVecStuckInstalled(
+        uint32_t generation, uint64_t correct_lane,
+        uint64_t stuck_lane, bool cell_allocated)
+    {
+        auto &rf = cpu->physRegFile();
+        const auto &t = rf.vec_stuck;
+        const bool already_registered = vec_emit.exit_flush_registered;
+        vec_emit = VecStuckEmission();
+        vec_emit.exit_flush_registered = already_registered;
+        vec_emit.installed = true;
+        vec_emit.fault_id = next_fsu_fault_id++;
+        vec_emit.install_generation = generation;
+        vec_emit.observed_generation = generation;
+        vec_emit.reads_total = rf.getVecStuckReads();
+        vec_emit.reads_reported = vec_emit.reads_total;
+        // The installation write itself is exposure #1 of generation 0.
+        vec_emit.exposure_id = 1;
+        vec_emit.exposures_total = 1;
+        vec_emit.exposures_sampled = 1;
+        const bool activated = !chaos_vec_stuck::satisfied(
+            correct_lane, t.lane_mask, t.polarity);
+        if (activated) {
+            vec_emit.activated_total = 1;
+            vec_emit.activated_events = 1;
+            vec_emit.first_activated_emitted = true;
+            vec_emit.last_exposure_sn = 0;
+        }
+
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"reg_class", vecRegClassName(t.reg_class)},
+            {"phys_reg", std::to_string(t.phys_index)},
+            {"reg_generation", std::to_string(generation)},
+            {"lane_width", std::to_string(t.lane_width)},
+            {"lane_offset", std::to_string(t.lane_offset)},
+            {"bit_in_lane", std::to_string(t.bit_in_lane)},
+            {"lane_mask", propHex(t.lane_mask)},
+            {"fixed_mask", propHex(t.lane_mask)},
+            {"stuck_polarity", std::to_string((int)t.polarity)},
+            {"field", "permanent_stuck"},
+            {"correct_before", propHex(correct_lane)},
+            {"stuck_after", propHex(stuck_lane)},
+            {"before", propHex(correct_lane)},
+            {"after", propHex(stuck_lane)},
+            {"activated", activated ? "1" : "0"},
+            {"exposure_id", "1"},
+            {"exposure_count", "1"},
+            {"activated_exposure_count", activated ? "1" : "0"},
+            {"exposures_total", "1"},
+            {"exposures_sampled", "1"},
+            {"exposures_dropped", "0"},
+            {"generation_changes", "0"},
+            {"cell_allocated", cell_allocated ? "1" : "0"},
+            {"cell_free", cell_allocated ? "0" : "1"},
+            {"stuck_reapplied", "1"},
+            {"sample_policy", "first_of_generation+first_activated+cap"},
+            {"state_before", "warmup_cell"},
+            {"state_after", "fault_installed"},
+        };
+        vec_emit.install_event =
+            emitFsuProp("fault_installed", vec_emit.fault_id, 0, kv);
+
+        std::vector<std::pair<std::string, std::string>> ckv = {
+            {"reg_class", vecRegClassName(t.reg_class)},
+            {"phys_reg", std::to_string(t.phys_index)},
+            {"reg_generation", std::to_string(generation)},
+            {"lane_width", std::to_string(t.lane_width)},
+            {"lane_offset", std::to_string(t.lane_offset)},
+            {"bit_in_lane", std::to_string(t.bit_in_lane)},
+            {"lane_mask", propHex(t.lane_mask)},
+            {"fixed_mask", propHex(t.lane_mask)},
+            {"stuck_polarity", std::to_string((int)t.polarity)},
+            {"field", "permanent_stuck"},
+            {"before", propHex(stuck_lane)},
+            {"after", propHex(stuck_lane)},
+            {"activated", activated ? "1" : "0"},
+            {"install_event", std::to_string(vec_emit.install_event)},
+            {"cell_allocated", cell_allocated ? "1" : "0"},
+            {"cell_free", cell_allocated ? "0" : "1"},
+            {"state_before", "allocated"},
+            {"state_after", "carrier_armed"},
+        };
+        const uint64_t carrier =
+            emitFsuProp("carrier_state", vec_emit.fault_id, 0, ckv);
+        vec_emit.generation_root_event =
+            vec_emit.install_event ? vec_emit.install_event : carrier;
+        vec_emit.last_event = carrier ? carrier : vec_emit.install_event;
+        registerVecExitFlush();
+
+        if (write_log && log_stream && log_stream->stream()) {
+            std::ostringstream os;
+            os << "VecStuckInstall: cycle=" << cpu->curCycle()
+               << " fault=" << vec_emit.fault_id
+               << " phys=" << t.phys_index
+               << " gen=" << generation
+               << " lane=" << t.lane_offset
+               << " mask=0x" << std::hex << t.lane_mask
+               << " polarity=" << (int)t.polarity << std::dec
+               << " correct=0x" << std::hex << correct_lane
+               << " stuck=0x" << stuck_lane << std::dec
+               << " activated=" << (activated ? 1 : 0) << std::endl;
+            *(log_stream->stream()) << os.str();
+        }
+    }
+
+    void
+    CHAOSPhysReg::observeVecGeneration(uint32_t generation)
+    {
+        if (!vec_emit.installed || generation == vec_emit.observed_generation)
+            return;
+        auto &rf = cpu->physRegFile();
+        if (rf.vec_stuck.phys_index < 0 ||
+            rf.vec_stuck.phys_index >= (int)rf.numVecPhysRegs())
+            return;
+        const uint32_t old_generation = vec_emit.observed_generation;
+        const auto &t = rf.vec_stuck;
+        PhysRegIdPtr target_reg = rf.vecPhysRegId(t.phys_index);
+        const bool free_now =
+            cpu->physFreeList().isFree(VecRegClass, target_reg);
+        ++vec_emit.generation_changes;
+        vec_emit.observed_generation = generation;
+        // A new allocation generation gets a fresh exposure chain. The
+        // per-generation exposure_id restarts; no old producer/consumer edge
+        // is joined to the new generation.
+        vec_emit.exposure_id = 0;
+        if (vec_emit.generation_changes_sampled < kVecGenerationEventCap) {
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"reg_class", vecRegClassName(t.reg_class)},
+                {"phys_reg", std::to_string(t.phys_index)},
+                {"reg_generation", std::to_string(generation)},
+                {"generation_old", std::to_string(old_generation)},
+                {"generation_new", std::to_string(generation)},
+                {"generation_changes",
+                 std::to_string(vec_emit.generation_changes)},
+                {"lane_width", std::to_string(t.lane_width)},
+                {"lane_offset", std::to_string(t.lane_offset)},
+                {"bit_in_lane", std::to_string(t.bit_in_lane)},
+                {"lane_mask", propHex(t.lane_mask)},
+                {"fixed_mask", propHex(t.lane_mask)},
+                {"stuck_polarity", std::to_string((int)t.polarity)},
+                {"field", "permanent_stuck"},
+                {"cell_free", free_now ? "1" : "0"},
+                {"cell_allocated", free_now ? "0" : "1"},
+                {"state_before", "allocated_generation"},
+                {"state_after", free_now ? "freed" : "reallocated"},
+                {"activated", ""},
+            };
+            // Lifecycle link only (old generation's chain root); the new
+            // generation's producer/consumer edges start from here.
+            const uint64_t parent = vec_emit.generation_root_event;
+            const uint64_t eid =
+                emitFsuProp("generation_change", vec_emit.fault_id,
+                            parent, kv);
+            if (eid) {
+                ++vec_emit.generation_changes_sampled;
+                vec_emit.generation_root_event = eid;
+            }
+        }
+    }
+
+    void
+    CHAOSPhysReg::noteVecStuckCarrier(uint32_t generation,
+                                      PhysRegIdPtr phys_reg)
+    {
+        if (!vec_emit.installed || !phys_reg)
+            return;
+        auto &rf = cpu->physRegFile();
+        const uint64_t reads = rf.getVecStuckReads();
+        if (reads <= vec_emit.reads_reported)
+            return;
+        const uint64_t delta = reads - vec_emit.reads_reported;
+        vec_emit.reads_total = reads;
+        vec_emit.reads_reported = reads;
+        if (vec_emit.read_events >= kVecReadEventCap)
+            return;
+        ++vec_emit.read_events;
+        const auto &t = rf.vec_stuck;
+        const size_t bytes = rf.vecRegBytes();
+        uint64_t lane = 0;
+        if (bytes >= 16) {
+            std::vector<uint8_t> buf(bytes, 0);
+            rf.readVecRegRaw(phys_reg, buf.data());
+            const int lane_bytes = t.lane_width / 8;
+            const int base = t.lane_offset * lane_bytes;
+            if (base + lane_bytes <= (int)bytes)
+                std::memcpy(&lane, buf.data() + base, lane_bytes);
+        }
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"reg_class", vecRegClassName(t.reg_class)},
+            {"phys_reg", std::to_string(t.phys_index)},
+            {"reg_generation", std::to_string(generation)},
+            {"lane_width", std::to_string(t.lane_width)},
+            {"lane_offset", std::to_string(t.lane_offset)},
+            {"bit_in_lane", std::to_string(t.bit_in_lane)},
+            {"lane_mask", propHex(t.lane_mask)},
+            {"fixed_mask", propHex(t.lane_mask)},
+            {"stuck_polarity", std::to_string((int)t.polarity)},
+            {"field", "permanent_stuck"},
+            {"before", propHex(lane)},
+            {"after", propHex(lane)},
+            {"phys_reads", std::to_string(reads)},
+            {"phys_reads_delta", std::to_string(delta)},
+            {"cell_allocated", "1"},
+            {"state_before", "written_stuck"},
+            {"state_after", "read"},
+        };
+        emitFsuProp("carrier_state", vec_emit.fault_id,
+                    vec_emit.generation_root_event, kv);
+    }
+
+    void
+    CHAOSPhysReg::emitVecTerminal()
+    {
+        if (!vec_emit.installed)
+            return;
+        auto &rf = cpu->physRegFile();
+        // Flush the final read/carrier delta before the terminal.
+        if (rf.vec_stuck.valid &&
+            rf.vec_stuck.phys_index >= 0 &&
+            rf.vec_stuck.phys_index < (int)rf.numVecPhysRegs()) {
+            const uint32_t gen =
+                rf.generationOf(rf.vecPhysRegId(rf.vec_stuck.phys_index));
+            observeVecGeneration(gen);
+            noteVecStuckCarrier(gen, rf.vecPhysRegId(rf.vec_stuck.phys_index));
+        }
+        vec_emit.exposures_dropped =
+            vec_emit.exposures_total - vec_emit.exposures_sampled;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(rf.vec_stuck.phys_index)},
+            {"reg_generation",
+             std::to_string(vec_emit.observed_generation)},
+            {"generation_changes",
+             std::to_string(vec_emit.generation_changes)},
+            {"lane_width", std::to_string(rf.vec_stuck.lane_width)},
+            {"lane_offset", std::to_string(rf.vec_stuck.lane_offset)},
+            {"bit_in_lane", std::to_string(rf.vec_stuck.bit_in_lane)},
+            {"lane_mask", propHex(rf.vec_stuck.lane_mask)},
+            {"fixed_mask", propHex(rf.vec_stuck.lane_mask)},
+            {"stuck_polarity", std::to_string((int)rf.vec_stuck.polarity)},
+            {"field", "permanent_stuck"},
+            {"install_event", std::to_string(vec_emit.install_event)},
+            {"exposure_count", std::to_string(vec_emit.exposures_total)},
+            {"exposures_total", std::to_string(vec_emit.exposures_total)},
+            {"exposures_sampled", std::to_string(vec_emit.exposures_sampled)},
+            {"exposures_dropped", std::to_string(vec_emit.exposures_dropped)},
+            {"activated_exposure_count",
+             std::to_string(vec_emit.activated_total)},
+            {"first_activated_sn",
+             std::to_string(vec_emit.first_activated_sn)},
+            {"last_exposure_sn", std::to_string(vec_emit.last_exposure_sn)},
+            {"affected_sn", std::to_string(vec_emit.last_exposure_sn)},
+            {"phys_reads", std::to_string(vec_emit.reads_total)},
+            {"phys_reads_delta", "0"},
+            {"sample_policy", "first_of_generation+first_activated+cap"},
+            {"terminal", "run_end"},
+            {"outcome", vec_emit.activated_total ? "activated_exposure_seen"
+                                                 : "not_activated"},
+            {"contained", "0"},
+            {"detection_layer", ""},
+        };
+        emitFsuProp("chain_end", vec_emit.fault_id, 0, kv);
+        vec_emit.installed = false;
+        // End of run: this is the ONLY place (besides an explicit reset) that
+        // removes the permanent defect. Squash/free/realloc never do.
+        rf.clearPermanentFaults();
     }
 
     void
@@ -112,48 +442,226 @@ namespace gem5
     {
         if (!cpu || !inst)
             return;
-        for (int i = 0; i < inst->numDestRegs(); i++) {
+        auto &rf = cpu->physRegFile();
+        if (!rf.vec_stuck.valid)
+            return;
+        const auto &t = rf.vec_stuck;
+        if (t.phys_index < 0 || t.phys_index >= (int)rf.numVecPhysRegs())
+            return;
+        PhysRegIdPtr target_reg = rf.vecPhysRegId(t.phys_index);
+        const uint32_t target_generation = rf.generationOf(target_reg);
+        // Free/realloc is observed at the first execute after the change (or
+        // at exit). The generation change is an explicit lifecycle event and
+        // restarts the exposure chain; it does not depend on this particular
+        // instruction touching the cell.
+        observeVecGeneration(target_generation);
+        noteVecStuckCarrier(target_generation, target_reg);
+
+        // L2: real source-operand reads of the permanently stuck cell.
+        for (int i = 0; i < (int)inst->numSrcRegs(); ++i) {
+            PhysRegIdPtr src = inst->renamedSrcIdx(i);
+            if (!src || src->classValue() != VecRegClass)
+                continue;
+            if (!rf.isVecStuckTarget(src))
+                continue;
+            if (vec_emit.operand_read_events >= kVecOperandReadCap)
+                continue;
+            ++vec_emit.operand_read_events;
+            int arch_idx = -1;
+            if (inst->staticInst &&
+                i < (int)inst->staticInst->numSrcRegs()) {
+                const RegId &ar = inst->staticInst->srcRegIdx(i);
+                if (ar.classValue() == VecRegClass)
+                    arch_idx = (int)ar.index();
+            }
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"pc", propHex(inst->pcState().instAddr())},
+                {"opcode", inst->staticInst
+                               ? inst->staticInst->getName() : ""},
+                {"thread_id", std::to_string((int)inst->threadNumber)},
+                {"reg_class", "vec"},
+                {"phys_reg", std::to_string(src->index())},
+                {"reg_generation",
+                 std::to_string(rf.generationOf(src))},
+                {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx) : ""},
+                {"producer_seq", ""},   // read observation: producer unknown
+                {"consumer_seq", std::to_string(inst->seqNum)},
+                {"lane_width", std::to_string(t.lane_width)},
+                {"lane_offset", std::to_string(t.lane_offset)},
+                {"bit_in_lane", std::to_string(t.bit_in_lane)},
+                {"lane_mask", propHex(t.lane_mask)},
+                {"fixed_mask", propHex(t.lane_mask)},
+                {"stuck_polarity", std::to_string((int)t.polarity)},
+                {"field", "permanent_stuck"},
+                {"activated", ""},
+                {"cell_allocated", "1"},
+                {"state_before", "written_stuck"},
+                {"state_after", "operand_read"},
+            };
+            emitFsuProp("operand_read", vec_emit.fault_id,
+                        vec_emit.generation_root_event, kv);
+        }
+
+        // L1/L4: every write to the target physical cell re-applies the same
+        // permanent mask, across generations.
+        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
             PhysRegIdPtr dest = inst->renamedDestIdx(i);
             if (!dest || dest->is(InvalidRegClass))
                 continue;
             if (dest->classValue() != VecRegClass)
                 continue;
-            if (!cpu->physRegFile().isVecStuckTarget(dest))
+            if (!rf.isVecStuckTarget(dest))
                 continue;
+            const uint32_t gen = rf.generationOf(dest);
+            observeVecGeneration(gen);
 
             // Snapshot the CORRECT value the instruction wrote, then force
             // the stuck bits. A write whose target bits already equal the
             // stuck polarity is an exposure but NOT an activation.
-            const size_t bytes = cpu->physRegFile().vecRegBytes();
+            const size_t bytes = rf.vecRegBytes();
             if (bytes < 16)
                 continue;
             std::vector<uint8_t> before(bytes, 0);
-            cpu->physRegFile().getReg(dest, before.data());
-            const auto &t = cpu->physRegFile().vec_stuck;
+            rf.readVecRegRaw(dest, before.data());
             const int lane_bytes = t.lane_width / 8;
             const int base = t.lane_offset * lane_bytes;
             uint64_t lane_before = 0;
             std::memcpy(&lane_before, before.data() + base, lane_bytes);
             const bool activated = !chaos_vec_stuck::satisfied(
                 lane_before, t.lane_mask, t.polarity);
-            if (!cpu->physRegFile().reapplyVecStuck(dest))
+            if (!rf.reapplyVecStuck(dest))
                 continue;
+            // reapplyVecStuck wrote the PRF; re-read for the event's after.
+            uint64_t lane_after = 0;
+            std::vector<uint8_t> after(bytes, 0);
+            rf.readVecRegRaw(dest, after.data());
+            std::memcpy(&lane_after, after.data() + base, lane_bytes);
+
             ++vec_stuck_writes;
             if (activated)
                 ++vec_stuck_activated;
+            ++vec_emit.exposure_id;
+            ++vec_emit.exposures_total;
+            if (activated)
+                ++vec_emit.activated_total;
+            vec_emit.last_exposure_sn = inst->seqNum;
+            bool first_activated = false;
+            if (activated && !vec_emit.first_activated_emitted) {
+                vec_emit.first_activated_emitted = true;
+                vec_emit.first_activated_sn = inst->seqNum;
+                first_activated = true;
+            }
+            const bool first_of_generation =
+                vec_emit.exposure_id == 1;
+            const bool activated_sample =
+                activated && vec_emit.activated_events < kVecActivatedEventCap;
+            // Bound every stream: ordinary exposures by kVecExposureEventCap,
+            // first-of-generation markers by kVecGenerationEventCap, plus the
+            // always-kept first activated exposure. Counts stay exact.
+            const bool sample =
+                first_activated || activated_sample ||
+                vec_emit.exposures_sampled < kVecExposureEventCap ||
+                (first_of_generation &&
+                 vec_emit.generation_changes_sampled < kVecGenerationEventCap);
+            if (activated_sample)
+                ++vec_emit.activated_events;
+
             if (write_log && log_stream && log_stream->stream() &&
                 vec_stuck_writes <= 64) {
                 std::ostringstream os;
                 os << "VecStuckApply: cycle=" << cpu->curCycle()
                    << " phys=" << t.phys_index
-                   << " gen=" << t.generation
+                   << " gen=" << gen
+                   << " exposure=" << vec_emit.exposure_id
                    << " lane=" << t.lane_offset
                    << " mask=0x" << std::hex << t.lane_mask << std::dec
                    << " polarity=" << (int)t.polarity
-                   << " before=0x" << std::hex << lane_before << std::dec
+                   << " before=0x" << std::hex << lane_before
+                   << " after=0x" << lane_after << std::dec
                    << " activated=" << (activated ? 1 : 0) << std::endl;
                 *(log_stream->stream()) << os.str();
             }
+
+            if (!(sample || activated_sample)) {
+                ++vec_emit.exposures_dropped;
+                continue;
+            }
+            ++vec_emit.exposures_sampled;
+            vec_emit.exposures_dropped =
+                vec_emit.exposures_total - vec_emit.exposures_sampled;
+
+            int arch_idx = -1;
+            if (inst->staticInst &&
+                i < (int)inst->staticInst->numDestRegs()) {
+                const RegId &ar = inst->staticInst->destRegIdx(i);
+                if (ar.classValue() == VecRegClass)
+                    arch_idx = (int)ar.index();
+            }
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"pc", propHex(inst->pcState().instAddr())},
+                {"opcode", inst->staticInst
+                               ? inst->staticInst->getName() : ""},
+                {"thread_id", std::to_string((int)inst->threadNumber)},
+                {"reg_class", "vec"},
+                {"phys_reg", std::to_string(dest->index())},
+                {"reg_generation", std::to_string(gen)},
+                {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx) : ""},
+                {"producer_seq", std::to_string(inst->seqNum)},
+                {"consumer_seq", ""},   // write observation: consumer unknown
+                {"lane_width", std::to_string(t.lane_width)},
+                {"lane_offset", std::to_string(t.lane_offset)},
+                {"bit_in_lane", std::to_string(t.bit_in_lane)},
+                {"lane_mask", propHex(t.lane_mask)},
+                {"fixed_mask", propHex(t.lane_mask)},
+                {"stuck_polarity", std::to_string((int)t.polarity)},
+                {"field", "permanent_stuck"},
+                {"before", propHex(lane_before)},
+                {"after", propHex(lane_after)},
+                {"correct_before", propHex(lane_before)},
+                {"stuck_after", propHex(lane_after)},
+                {"activated", activated ? "1" : "0"},
+                {"exposure_id", std::to_string(vec_emit.exposure_id)},
+                {"exposure_count", std::to_string(vec_emit.exposures_total)},
+                {"activated_exposure_count",
+                 std::to_string(vec_emit.activated_total)},
+                {"first_activated_sn",
+                 std::to_string(vec_emit.first_activated_sn)},
+                {"last_exposure_sn",
+                 std::to_string(vec_emit.last_exposure_sn)},
+                {"affected_sn", std::to_string(inst->seqNum)},
+                {"exposures_total",
+                 std::to_string(vec_emit.exposures_total)},
+                {"exposures_sampled",
+                 std::to_string(vec_emit.exposures_sampled)},
+                {"exposures_dropped",
+                 std::to_string(vec_emit.exposures_dropped)},
+                {"generation_changes",
+                 std::to_string(vec_emit.generation_changes)},
+                {"cell_allocated", "1"},
+                {"cell_free", "0"},
+                {"stuck_reapplied", "1"},
+                {"sample_policy", "first_of_generation+first_activated+cap"},
+                {"state_before", "correct_write"},
+                {"state_after", "stuck_write"},
+            };
+            const uint64_t parent = first_of_generation
+                ? vec_emit.generation_root_event : 0;
+            const uint64_t write_eid =
+                emitFsuProp("phys_write", vec_emit.fault_id, parent, kv);
+            uint64_t last = write_eid;
+            if (first_of_generation || first_activated) {
+                const uint64_t reapplied = emitFsuProp(
+                    "stuck_reapplied", vec_emit.fault_id, last, kv);
+                if (reapplied)
+                    last = reapplied;
+            }
+            const uint64_t ex = emitFsuProp(
+                "execute", vec_emit.fault_id, last, kv);
+            if (ex)
+                last = ex;
+            emitFsuProp("prf_writeback", vec_emit.fault_id, last, kv);
         }
     }
 
@@ -424,6 +932,10 @@ namespace gem5
             for (int b = 0; b < lane_bytes; ++b)
                 lane_val |= ((uint64_t)lane_ptr[b]) << (8 * b);
             uint64_t lane_mask = (lw < 64) ? (mask & ((1ULL << lw) - 1)) : mask;
+            const uint64_t correct_lane = lane_val;
+            const uint32_t install_generation =
+                cpu->physRegFile().generationOf(phys_reg);
+            bool vec_stuck_armed = false;
             switch (chosen) {
               case FaultType::StuckAtZero:
                 lane_val &= ~lane_mask;
@@ -431,14 +943,15 @@ namespace gem5
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] =
                     {chosen, mask, true, target_class};
-                // [FR03] Arm the generation-scoped Vec write-path mask. The
-                // post-execute hook re-forces it after every later write to
-                // this physical cell; a reallocation bumps the generation and
-                // disarms it.
+                // [FR03] Arm the PERMANENT physical-cell write-path mask.
+                // The post-execute hook re-forces it after every later write
+                // to this physical cell. The generation is recorded as
+                // allocation/exposure identity only; free/realloc does NOT
+                // clear the defect (workbook table 3 FR03).
                 cpu->physRegFile().armVecStuck(
-                    chosen_phys_idx,
-                    cpu->physRegFile().generationOf(phys_reg),
+                    chosen_phys_idx, install_generation,
                     lw, lane, lane_mask, 0);
+                vec_stuck_armed = true;
                 break;
               case FaultType::StuckAtOne:
                 lane_val |= lane_mask;
@@ -447,9 +960,9 @@ namespace gem5
                 permanent_faults[{tid, chosen_phys_idx}] =
                     {chosen, mask, true, target_class};
                 cpu->physRegFile().armVecStuck(
-                    chosen_phys_idx,
-                    cpu->physRegFile().generationOf(phys_reg),
+                    chosen_phys_idx, install_generation,
                     lw, lane, lane_mask, 1);
+                vec_stuck_armed = true;
                 break;
               case FaultType::BitFlip:
                 lane_val ^= lane_mask;
@@ -460,6 +973,13 @@ namespace gem5
             for (int b = 0; b < lane_bytes; ++b)
                 lane_ptr[b] = (uint8_t)((lane_val >> (8 * b)) & 0xff);
             cpu->physRegFile().setReg(phys_reg, buf.data());
+            if (vec_stuck_armed) {
+                // L0/L1 emission: one fault_id, fixed mask/polarity, explicit
+                // install generation. The install write is exposure #1.
+                noteVecStuckInstalled(
+                    install_generation, correct_lane, lane_val,
+                    !cpu->physFreeList().isFree(target_class, phys_reg));
+            }
             // log the lane for the evidence trail
             if (write_log) {
                 *(log_stream->stream())
@@ -699,6 +1219,12 @@ namespace gem5
     void
     CHAOSPhysReg::l0Final()
     {
+        // [FR03] Terminal backstop: emit the permanent-cell chain_end and
+        // clear the defect at end of run. Idempotent (installed=false after
+        // the first call), so it is safe if CHAOSPropagation's own exit
+        // flush already ran.
+        if (vec_emit.installed)
+            emitVecTerminal();
         // W2.5 L0 lifecycle final line (docs/gem5-fi/ooo/
         // 07-l0-lifecycle-interface.md), printed exactly once at end of
         // sim from the exit callback registered in the constructor.

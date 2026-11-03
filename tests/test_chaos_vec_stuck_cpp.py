@@ -33,4 +33,8 @@ def test_chaos_vec_stuck_unit():
         assert "SA0 does not use XOR" in run.stdout
         assert "SA1 does not use XOR" in run.stdout
         assert "consecutive writes stay SA0" in run.stdout
-        assert "does not apply after reallocation" in run.stdout
+        # Workbook table 3 FR03: the permanent defect survives physical-slot
+        # reuse. Generation is identity, never a clearing condition.
+        assert "still applies after reallocation" in run.stdout
+        assert "matches ignores generation" in run.stdout
+        assert "does not apply after reallocation" not in run.stdout

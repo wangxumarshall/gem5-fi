@@ -1,14 +1,19 @@
 #ifndef __CPU_O3_CHAOS_PHYS_REG_HH__
 #define __CPU_O3_CHAOS_PHYS_REG_HH__
 
+#include <cstdint>
 #include <random>
 #include <bitset>
 #include <map>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "params/CHAOSPhysReg.hh"
 #include "sim/sim_object.hh"
 #include "sim/eventq.hh"
 #include "cpu/base.hh"
+#include "cpu/reg_class.hh"    // PhysRegIdPtr (FR03 event helpers)
 #include "base/output.hh"
 #include "cpu/o3/chaos_l0.hh"  // W2.5 L0 lifecycle interface state
 
@@ -39,6 +44,70 @@ class CHAOSPhysReg : public SimObject
   private:
     uint64_t vec_stuck_writes = 0;   // re-applies actually performed
     uint64_t vec_stuck_activated = 0;  // writes whose correct bit differed
+
+    // ------------------------------------------------------------------
+    // [FR03] Permanent Vec physical-cell event state.
+    //
+    // One permanent fault_id spans the whole run; `generation` is only an
+    // allocation/exposure identity. A generation change emits an explicit
+    // generation_change event and restarts exposure_id at 1. Producer /
+    // consumer edges from an older generation are never joined to the new
+    // generation: the new chain roots at generation_change.
+    //
+    // Event volume is sampled (counts stay exact): at most
+    // kVecExposureEventCap ordinary write exposures, all first-of-generation
+    // and first-activated exposures, kVecActivatedEventCap activated
+    // exposures, kVecGenerationEventCap generation changes and
+    // kVecReadEventCap read/carrier observations. Totals are reported in the
+    // run-end chain_end.
+    // ------------------------------------------------------------------
+    struct VecStuckEmission
+    {
+        bool installed = false;
+        uint64_t fault_id = 0;
+        uint64_t install_event = 0;         // L0 root
+        uint64_t generation_root_event = 0;  // current generation chain root
+        uint64_t last_event = 0;
+        uint32_t install_generation = 0;
+        uint32_t observed_generation = 0;
+        uint64_t generation_changes = 0;
+        uint64_t generation_changes_sampled = 0;
+        uint64_t exposure_id = 0;            // per generation, 1-based
+        uint64_t exposures_total = 0;
+        uint64_t exposures_sampled = 0;
+        uint64_t exposures_dropped = 0;
+        uint64_t activated_total = 0;
+        uint64_t activated_events = 0;
+        uint64_t first_activated_sn = 0;
+        uint64_t last_exposure_sn = 0;
+        uint64_t reads_total = 0;
+        uint64_t reads_reported = 0;
+        uint64_t read_events = 0;
+        uint64_t operand_read_events = 0;
+        bool first_activated_emitted = false;
+        bool exit_flush_registered = false;
+    };
+    VecStuckEmission vec_emit;
+    uint64_t next_fsu_fault_id = 1;
+
+    static constexpr uint64_t kVecExposureEventCap = 2048;
+    static constexpr uint64_t kVecActivatedEventCap = 256;
+    static constexpr uint64_t kVecGenerationEventCap = 4096;
+    static constexpr uint64_t kVecReadEventCap = 2048;
+    static constexpr uint64_t kVecOperandReadCap = 2048;
+    // emitFsuProp() parent convention: 0 = let notePropEvt auto-link to the
+    // fault_id cursor; a non-zero value is an explicit parent_event_id.
+
+    uint64_t emitFsuProp(
+        const char *kind, uint64_t fault_id, uint64_t parent,
+        std::vector<std::pair<std::string, std::string>> kv);
+    void noteVecStuckInstalled(uint32_t generation, uint64_t correct_lane,
+                               uint64_t stuck_lane, bool cell_allocated);
+    void observeVecGeneration(uint32_t generation);
+    void noteVecStuckCarrier(uint32_t generation, PhysRegIdPtr phys_reg);
+    void emitVecTerminal();
+    void registerVecExitFlush();
+    static const char *vecRegClassName(int cls);
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     enum class Mode { Phys, ArchFrontend, ArchCommit };
     enum class RegClassSel { Integer, FloatingPoint, Vector, Both };

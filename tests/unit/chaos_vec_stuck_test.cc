@@ -1,7 +1,8 @@
 // Host unit test for the FR03 Vec permanent-stuck pure model.
 //
 // Build/run (no gem5, no workload):
-//   g++ -O0 -std=c++17 -I CHAOS/gem5/src/cpu/o3/CHAOSPhysReg \
+//   g++ -O0 -std=c++17 -Wall -Wextra -Werror
+//       -I CHAOS/gem5/src/cpu/o3/CHAOSPhysReg
 //       tests/unit/chaos_vec_stuck_test.cc -o /tmp/chaos_vec_stuck_test
 //   /tmp/chaos_vec_stuck_test
 //
@@ -91,7 +92,10 @@ main()
     }
     check("consecutive writes stay SA0", consecutive_ok);
 
-    // --- generation: freed/reallocated slot is a different generation ------
+    // --- permanent key: generation is identity, NOT a clearing condition ---
+    // Workbook table 3 FR03: "永久缺陷跨物理槽复用和多次读写暴露". The key is
+    // reg_class + phys_index (+ lane/bit/mask + polarity); generation is
+    // recorded on events only.
     Target t;
     t.valid = true;
     t.reg_class = 7;          // opaque class value in the pure model
@@ -102,7 +106,8 @@ main()
     t.lane_mask = 1;
     t.polarity = 0;
     check("applies in install generation", t.applies(7, 11, 3));
-    check("does not apply after reallocation", !t.applies(7, 11, 4));
+    check("still applies after reallocation", t.applies(7, 11, 4));
+    check("matches ignores generation", t.matches(7, 11));
     check("does not apply to another phys index", !t.applies(7, 12, 3));
     check("does not apply to another class", !t.applies(8, 11, 3));
     t.valid = false;
