@@ -7,8 +7,9 @@
 ## 1. 基线
 
 - 分支 `fsu`；开工 HEAD `016aeafd091793578fe651d2929515d1a66dfb24`。
-- 历史视图 18/519 seed、6/173 RunID；活跃视图 9/240 seed、3/80 RunID。
-- 18/18 历史正式 seed 只读复审计通过。
+- **本轮开工时（历史，已被 §7.4 取代）**：历史视图 18/519 seed、6/173
+  RunID；活跃视图 9/240 seed、3/80 RunID。最终事实见 §7.4。
+- 历史 18 个正式 seed 只读复审计通过（最终 24 个见 §7.4）。
 - FSU 测试：`python3 -m pytest tests/test_fsu_*.py tests/test_chaos_fsu_*.py tests/test_chaos_vec_stuck_cpp.py -q`
   → **216 passed**（基线 125 项全部保留）。
 
@@ -53,15 +54,19 @@
 - 已完成：Vec 写路径每次写入后重新施加 SA0/SA1；generation 在释放时递增
   以隔离旧世代；Vec 索引不再被 legacy periodic re-apply 当 int 写入。
 - host 单测：连续 8 次 Vec 写保持 SA0、非 XOR、重分配后不再适用。
-- **仍缺**：真实 CHAOSPhysReg FSU_PROP L0–L5、runner 显式 CHAOSPhysReg
-  路径、squash/重命名/释放/重分配的容器级完整测试。
+- **仍缺**：真实 CHAOSPhysReg FSU_PROP L0–L5 的构建/运行验证、runner
+  显式 CHAOSPhysReg 路径、squash/重命名/释放/重分配的容器级完整测试。
+  （工作区后续未提交代码已开始接入 `notePropEvt`；在构建与正式 seed 前
+  结论不变。）
 - 因此 **FR03-F5 不得运行正式 seed**，也不得借用 FP06 证据认证。
 
-## 3. 双视图计数（代码阶段基线；最终见 §7.4）
+## 3. 双视图计数（本轮开工时历史记录；最终见 §7.4）
 
-- 历史：**18/519 seed，6/173 RunID**。
-- 活跃（F0/F5）：**9/240 seed，3/80 RunID**。
-- 代码阶段：F0-W5 0/3；FP06-F5-W3 0/3；FR03-F5-W3 0/3。
+> 本节是代码阶段的历史快照，明确标注“本轮开工时”，不是当前计数。
+
+- 本轮开工时（历史）：**18/519 seed，6/173 RunID**。
+- 本轮开工时（历史）：活跃（F0/F5）**9/240 seed，3/80 RunID**。
+- 本轮开工时（历史）：F0-W5 0/3；FP06-F5-W3 0/3；FR03-F5-W3 0/3。
 - 最终：F0-W5 3/3、FP06-F5-W3 3/3（§7）；FR03 仍 BLOCKED。
 
 ## 4. 资源规则
@@ -160,16 +165,43 @@ sampled + dropped`；三个 attempt 独立 audit/certified 全部通过。
 
 ### 7.4 计数（磁盘权威审计结果）
 
-- 历史视图：**24/519 seed，8/173 RunID**
-- 活跃视图（F0/F5）：**15/240 seed，5/80 RunID**
-- FSU 测试：**216 passed**
-- 历史 18 个正式 seed + F5 3 个正式 seed 单 seed 只读审计全部 ok；
+- 历史视图：**27/519 seed，9/173 RunID**
+- 活跃视图（F0/F5）：**18/240 seed，6/80 RunID**
+- FSU 测试：**247 passed**（`tests/test_fsu_*.py tests/test_chaos_fsu_*.py
+  tests/test_chaos_vec_stuck_cpp.py tests/test_chaos_physreg_generation_cpp.py`）
+- 历史 18 个正式 seed + F5 6 个正式 seed 单 seed 只读审计全部 ok；
   3 个 W5 suite seed 的 suite audit 全部 ok。
+
+### 7.6 FP06-F5-W1（FSU-FP06-F5-W1）COMPLETE_3_OF_3
+
+gate：`runs/fsu-gates/F5-FP06-F5-W1-v3/`（非正式，不计 519/240）
+四项全部 PASS：FP32 SA0、FP64 SA1、FP32 fixed mantissa、
+precision-mismatch eligible=0；gate 证据另有 opClass/regClass 过滤、
+守恒、采样、chain_end、B0 config、golden/fault oracle 检查。
+
+| seed | 预注册 | precision | mask | polarity | eligible | exposures | sampled | dropped | activated | terminal | oracle |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|
+| 1 | FP06-a | fp32 | `0x80000000` | 0 | 41,216 | 40,192 | 513 | 39,679 | 15,027 | full | SDC |
+| 2 | FP06-b | fp64 | `0x8000000000000000` | 1 | 41,216 | 40,192 | 514 | 39,678 | 25,543 | full | SDC |
+| 3 | FP06-c | fp32 | `0x007f8000` | 0 | 41,216 | 40,192 | 514 | 39,678 | 29,559 | full | SDC |
+
+每 seed 一次永久安装、一个 `fault_id`、mask/polarity/precision/opClass
+固定；`exposures_total = sampled + dropped`；逐 seed audit.ok/certified。
+
+### 7.7 FR03 状态（仍不运行正式 seed；承 §7.5）
+
+工作簿原文裁决：永久 key = reg_class + phys_index + lane/mask + polarity；
+generation 只标识分配世代/暴露链，不是清除条件。已实现并构建通过：
+Vec 写路径重施加、跨 generation 持久、generation 链重启、CHAOSPhysReg
+FSU_PROP 部分层（L0–L4）。仍缺 L5 commit/squash/oracle/first-impact、
+runner 显式 CHAOSPhysReg 路径、O3 容器级验证。FR03-F5 保持 BLOCKED。
 
 ### 7.5 FR03 状态（仍不运行正式 seed）
 
-- 已完成：Vec 写路径重施加、generation 隔离、Vec 不再误写 int PRF、
-  连续写 host 单测。
-- 仍未完成：CHAOSPhysReg 真实 FSU_PROP L0–L5、runner 显式
-  CHAOSPhysReg 路径、squash/rename/free/realloc 的容器级测试。
+- 已完成：Vec 写路径重施加、永久物理 cell 跨 generation 语义、Vec 不再
+  误写 int PRF、连续写/跨代/链重启/squash/reset host 单测；CHAOSPhysReg
+  的 FSU_PROP L0–L4 部分层已构建通过。
+- 仍未完成：L5 commit/squash/oracle/first-impact、runner 显式
+  CHAOSPhysReg 路径、O3 容器级 squash/rename/free/realloc 验证。
+  FR03-F5 仍 0/3，不认证。
 - 因此 FR03-F5-W3 保持 BLOCKED；未借用 FP06 结果侧证据认证 FR03。

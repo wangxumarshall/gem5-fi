@@ -8,6 +8,10 @@
     实现状态）、表 10（模型级声明状态）。
   - 2026-11-02 真实代码审计（本文件 MODEL_AUDIT / WORKLOAD_AUDIT 内嵌，
     每条带 file:line 证据）。
+  - 磁盘权威 seed 状态：复用 fsu_index.scan（AUTHORITATIVE + audit.ok；
+    W5 suite seed 只计 1，component run 不计）。
+  - 当前代码能力探测：probe_capability_evidence（静态 grep/文件证据，
+    code_present 不等于正式认证）。
 
 输出:
   - docs/gem5-fi/fsu/IMPLEMENTATION_MATRIX.json
@@ -30,6 +34,11 @@ import sys
 from pathlib import Path
 
 import openpyxl
+
+# 复用磁盘权威索引的 seed 语义：只有 AUTHORITATIVE + audit.ok 才计 seed，
+# W5 suite seed 的 5 个 component run 只计 1 个 seed。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fsu_index  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 XLSX = ROOT / "docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx"
@@ -148,13 +157,17 @@ MODEL_AUDIT = {
     ),
     "FR03": dict(
         status="PARTIAL",
-        injector="CHAOSPhysReg SA0/SA1 + setStuckTarget（仅标量）",
-        hooks="CHAOSPhysReg.cc:364-447; regfile.hh:363-379",
-        implemented="int/float 标量写路径永久 stuck",
-        missing="Vec 写路径 stuck 未实现（不调用 setStuckTarget）；"
-                "checkPermanent 按键号误伤 int PRF；clearStuckTarget 从未调用；"
-                "exposure/applied 计数；PROP 事件",
-    ),
+        injector="CHAOSPhysReg SA0/SA1 + setStuckTarget；FR03 Vec 写路径按 generation 重施加",
+        hooks="regfile.hh:212-296,363-486; CHAOSPhysReg.cc:111-150,428-451",
+        implemented="标量 int/float 写路径 stuck；Vec 写路径每次写入后重施加 "
+                    "SA0/SA1（非 XOR）；永久物理 cell 跨 generation 保留，"
+                    "generation 只标识分配世代/暴露链；host 纯模型单测 "
+                    "（tests/unit/chaos_vec_stuck_test.cc、"
+                    "tests/unit/chaos_physreg_generation_test.cc）",
+        missing="真实 CHAOSPhysReg FSU_PROP 仅部分层已接入；L5 commit/squash/"
+                "oracle/first-impact 未实现；runner 显式 CHAOSPhysReg 路径；"
+                "O3 容器级 squash/rename/free/realloc 验证；FR03-F5 0/3 正式 "
+                "seed。代码存在不等于认证，FR03-F5 保持 PARTIAL/BLOCKED"),
     "FR04": dict(status="MISSING", injector="无", hooks="dyn_inst.hh:1213-1229 直接读 renamedSrcIdx",
                  implemented="—", missing="Vec 读地址/tag 替代到另一 active-ready Vec 物理寄存器；PROP 事件"),
     "FR05": dict(status="MISSING", injector="无", hooks="regfile.hh:238-323 只读计数",
@@ -198,9 +211,18 @@ MODEL_AUDIT = {
     "FP05": dict(status="PARTIAL", injector="CHAOSFPU faultMask / recurringStuck",
                  hooks="CHAOSFPU.cc:217-256",
                  implemented="结果多位 XOR、可重复同掩码", missing="2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件"),
-    "FP06": dict(status="PARTIAL", injector="CHAOSFPU recurringStuck（结果侧 stuck 代理）",
-                 hooks="CHAOSFPU.cc:217-227",
-                 implemented="同一掩码重复应用于每次 eligible 结果", missing="SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件"),
+    "FP06": dict(
+        status="PARTIAL",
+        injector="CHAOSFPU permanentStuck + f5Warmup（结果侧 stuck；安装一次、多次 exposure）",
+        hooks="CHAOSFPU.cc:213-269,780-812,1438; chaos_trigger.hh:9,57; chaos_fsu_fields.hh applyStuck",
+        implemented="F5 永久语义：warm-up 后唯一安装根；SA0/SA1 强制极性"
+                    "（&~mask / |mask，非 XOR）；有界 exposure 采样；"
+                    "FSU_PROP L0–L5 + chain_end。FP06-a/b/c 已由 "
+                    "FSU-FP06-F5-W3 3/3 正式认证（结果侧代理）",
+        missing="FP06-d partial-product proxy MISSING（不得用最终结果位冒充）；"
+                "全向量宽度超过 128-bit；W4/W5/W6 尚未完成正式认证；"
+                "FP06-a/b/c 的正式认证只覆盖 W3 的 32-bit lane2/结果侧代理",
+    ),
     "FP07": dict(status="PARTIAL", injector="CHAOSFPU fmaWeighted（E3 行为代理）",
                  hooks="CHAOSFPU.cc:229-241",
                  implemented="最终结果按 mant 85%/exp 10%/sign 5% 抽 bit", missing="真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件"),
@@ -255,13 +277,17 @@ WORKLOAD_AUDIT = {
                       "elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba",
                oracle="ARRAYHASH 64-hex + ULP",
                gap="不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）；"
-                   "W4-rate-v1 尚无正式三 seed"),
+                   "W4-rate-v1 的 F1/F2/F3-W4 已各 3/3 正式完成，"
+                   "但 F0-W4 仍是短 W4 pilot"),
     "W5": dict(name="PolyBench-FP", identity="PARTIAL",
-               real="gemm/lu/cholesky/jacobi-2d（2mm 未 vendored）",
+               real="gemm/2mm/lu/cholesky/jacobi-2d（suite polybench-fp-v1，五程序均已 vendored）",
                path="workloads/ooo/polybench/",
-               golden="gemm=116849d3adf3227b; lu=74ffe5eb77ea9257; cholesky=ea7e0d0e7c86582d; jacobi-2d=dc867b5f02998c1e",
-               oracle="精确 FINAL 16-hex",
-               gap="工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签"),
+               golden="gemm=116849d3adf3227b; 2mm/lu/cholesky/jacobi-2d 见 "
+                      "configs/fsu/suites/polybench-fp-v1.json（逐元素 oracle）",
+               oracle="精确 FINAL 16-hex + canonical array 逐元素 abs/rel/ULP",
+               gap="suite 五程序已完成 FSU-FP04-F0-W5 3/3（每 suite seed 只计 1）；"
+                   "workbook 单 RunID 仍绑定 suite 而非单一程序，PolyBench "
+                   "全集与其他规模未覆盖"),
     "W6": dict(name="SVD-FFT-Sparse", identity="PARTIAL",
                real="svd_iterative_kernel；FFT/稀疏线性系统无固定产物",
                path="workloads/directed/svd_iterative_kernel",
@@ -420,6 +446,192 @@ def probe_current_status():
     }
 
 
+def _read_text(path) -> str:
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _occ(rel_path: str, needle: str) -> int:
+    return _read_text(ROOT / rel_path).count(needle)
+
+
+def _has(rel_path: str, needle: str) -> bool:
+    return _occ(rel_path, needle) > 0
+
+
+def _cap(code_present: bool, evidence, certified=False, certification="") -> dict:
+    """一个能力探测条目。
+
+    code_present 只表示静态代码/测试文件存在，绝不等于正式认证；
+    certified 只来自磁盘 AUTHORITATIVE + audit.ok 的正式 seed。
+    """
+    return {
+        "code_present": bool(code_present),
+        "evidence": evidence if isinstance(evidence, list) else [evidence],
+        "certified": bool(certified),
+        "certification": certification,
+        "note": "code/test presence is not formal certification",
+    }
+
+
+def probe_capability_evidence(seed_map=None) -> dict:
+    """当前代码能力探测（静态证据 + 磁盘正式 seed 认证分开记录）。
+
+    seed_map: fsu_index.scan 的 {runid: row}；用于把“代码存在”与
+    “已有 certified 正式 seed”严格区分。未提供时按无认证处理。
+    """
+    seed_map = seed_map or {}
+
+    def rows(rid):
+        return seed_map.get(rid, {})
+
+    def certified(rid):
+        r = rows(rid)
+        return (r.get("admitted_seeds") == 3
+                and all(s.get("state") == "admitted"
+                        for s in r.get("seeds", {}).values()))
+
+    w3_ok = certified("FSU-FP06-F5-W3")
+    w1_ok = certified("FSU-FP06-F5-W1")
+    fp06_ok = w3_ok and w1_ok
+    if fp06_ok:
+        fp06_cert = ("FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，"
+                     "逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理"
+                     "（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），"
+                     "FP06-d 仍 MISSING")
+    elif w3_ok:
+        fp06_cert = ("FSU-FP06-F5-W3 正式 seed 3/3，逐 seed audit.ok；"
+                     "仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域）")
+    else:
+        fp06_cert = "无正式认证 seed"
+    no_cert = "无正式认证 seed"
+
+    fpu_cc = "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc"
+    fpu_py = "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py"
+    fpu_fields = "CHAOS/gem5/src/cpu/o3/CHAOSFPU/chaos_fsu_fields.hh"
+    phys_cc = "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc"
+    regfile = "CHAOS/gem5/src/cpu/o3/regfile.hh"
+    vec_unit = "tests/unit/chaos_vec_stuck_test.cc"
+    vec_pytest = "tests/test_chaos_vec_stuck_cpp.py"
+    f5_pytest = "tests/test_chaos_fsu_f5_cpp.py"
+    runner = "tools/fsu_seed_runner.py"
+
+    f5_schedule = (_has(fpu_cc, "fault_installed")
+                   and _has(fpu_cc, "f5_warmup")
+                   and _has(fpu_py, "f5Warmup"))
+    stuck_apply = (_has(fpu_fields, "applyStuck")
+                   and _has(fpu_fields, "stuckPolarityValid")
+                   and _has(fpu_cc, "applyStuck"))
+    prop_free = (not _has(phys_cc, "notePropEvt")
+                 and not _has(regfile, "notePropEvt"))
+    vec_stuck_code = (_has(regfile, "setStuckTarget")
+                      and _has(regfile, "reapplyVecStuck")
+                      and _has(phys_cc, "maybeReapplyStuck"))
+    gen_code = (_has(regfile, "generationOf")
+                and _has(regfile, "armVecStuck")
+                and _has(regfile, "flat_generation"))
+    squash_test = _has(vec_unit, "squash") and _has(regfile, "squash")
+    phys_runner = _has(runner, "CHAOSPhysReg") or _has(runner, "phys_reg")
+    partial_product = (_has(fpu_cc, "partial_product")
+                       or _has(fpu_cc, "partialProduct")
+                       or _has(fpu_py, "injectPartialProduct"))
+
+    return {
+        "probe_basis": "static grep / file probes at generation time; "
+                       "code_present != formal certification",
+        "FP06": {
+            "permanent_stuck": _cap(
+                _has(fpu_cc, "permanentStuck") and _has(fpu_py, "permanentStuck"),
+                [f"{fpu_cc}: permanentStuck x{_occ(fpu_cc, 'permanentStuck')}",
+                 f"{fpu_py}: permanentStuck parameter"],
+                fp06_ok, fp06_cert),
+            "f5_schedule_install_once": _cap(
+                f5_schedule,
+                [f"{fpu_cc}: fault_installed/f5_warmup",
+                 f"{fpu_py}: f5Warmup"],
+                fp06_ok, fp06_cert),
+            "sa0_sa1_non_xor": _cap(
+                stuck_apply,
+                [f"{fpu_fields}: applyStuck/stuckPolarityValid",
+                 f"{fpu_cc}: applyStuck x{_occ(fpu_cc, 'applyStuck')}"],
+                fp06_ok, fp06_cert),
+            "apply_stuck": _cap(
+                _has(fpu_cc, "applyStuck"),
+                f"{fpu_cc}: applyStuck x{_occ(fpu_cc, 'applyStuck')}",
+                fp06_ok, fp06_cert),
+            "fsu_prop_l0_l5": _cap(
+                _has(fpu_cc, "notePropEvt") and _has(fpu_cc, "emitFsu"),
+                [f"{fpu_cc}: emitFsu -> notePropEvt",
+                 "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/"],
+                fp06_ok, fp06_cert),
+            "chain_end": _cap(
+                _has(fpu_cc, "chain_end"),
+                f"{fpu_cc}: chain_end x{_occ(fpu_cc, 'chain_end')}",
+                fp06_ok, fp06_cert),
+            "bounded_exposure_sampling": _cap(
+                _has(fpu_cc, "f5_sample_limit")
+                and _has(fpu_cc, "exposures_dropped"),
+                [f"{fpu_cc}: f5_sample_limit/exposures_dropped",
+                 f5_pytest],
+                fp06_ok, fp06_cert),
+            "partial_product_proxy_fp06d": _cap(
+                partial_product,
+                [f"{fpu_py}: gem5 ARM FP is a functional model; no "
+                 "partial-product/alignment-shift injection point",
+                 "grep partial_product/partialProduct: no injection code"],
+                False, "FP06-d MISSING；不得用最终结果位冒充部分积"),
+        },
+        "FR03": {
+            "vec_stuck_write_path": _cap(
+                vec_stuck_code,
+                [f"{regfile}: setStuckTarget/reapplyVecStuck",
+                 f"{phys_cc}: maybeReapplyStuck",
+                 vec_unit, vec_pytest],
+                certified("FSU-FR03-F5-W3"), no_cert),
+            "permanent_cell_across_generations": _cap(
+                gen_code,
+                [f"{regfile}: flat_generation/generationOf/armVecStuck "
+                 "generation is identity, not a match/clear key",
+                 "tests/unit/chaos_physreg_generation_test.cc: "
+                 "cross-generation persistence + chain restart"],
+                certified("FSU-FR03-F5-W3"), no_cert),
+            "chaosphysreg_fsu_prop": _cap(
+                not prop_free,
+                [f"{phys_cc}: notePropEvt x{_occ(phys_cc, 'notePropEvt')}",
+                 f"{regfile}: notePropEvt x{_occ(regfile, 'notePropEvt')}"],
+                False, no_cert),
+            "runner_chaosphysreg_path": _cap(
+                phys_runner,
+                f"{runner}: CHAOSPhysReg/phys_reg x"
+                f"{_occ(runner, 'CHAOSPhysReg') + _occ(runner, 'phys_reg')}",
+                False, no_cert),
+            "squash_realloc_container_test": _cap(
+                squash_test,
+                [f"{vec_unit}: squash x{_occ(vec_unit, 'squash')}, "
+                 f"realloc x{_occ(vec_unit, 'realloc')}",
+                 vec_pytest],
+                False, no_cert),
+            "fr03_formal_seeds": _cap(
+                False,
+                "runs/fsu/FSU-FR03-F5-W{3,5,6}: 0/3",
+                certified("FSU-FR03-F5-W3"),
+                "FR03-F5 不得认证（逐 RunID 0/3）"),
+        },
+        "W5_suite": {
+            "five_programs_including_2mm": _cap(
+                (ROOT / "workloads/ooo/polybench/2mm").exists()
+                and (ROOT / "configs/fsu/suites/polybench-fp-v1.json").exists(),
+                ["workloads/ooo/polybench/2mm",
+                 "configs/fsu/suites/polybench-fp-v1.json"],
+                certified("FSU-FP04-F0-W5"),
+                ("FSU-FP04-F0-W5 suite seed 3/3（component run 不计 seed）"
+                 if certified("FSU-FP04-F0-W5") else no_cert)),
+        },
+    }
+
+
 def remaining_gaps(status):
     """只列当前仍成立、尚未解决的缺口。"""
     gaps = []
@@ -493,20 +705,65 @@ def load_workbook_tables():
     return rows7, rows9, rows10
 
 
-def _seed_completion(out_root, runid):
-    n = 0
-    for s in (1, 2, 3):
-        if (Path(out_root) / runid / f"seed{s}" / "AUTHORITATIVE").exists():
-            n += 1
-    return n
+def _seed_state_map(out_root, runids):
+    """磁盘权威 seed 状态：复用 fsu_index.scan/_seed_state。
+
+    只有 AUTHORITATIVE + chain_report + audit.ok 才算 admitted；
+    suite_manifest.json 的 W5 suite seed 只计 1 个 seed（5 component 不计）。
+    """
+    rows, summary, scope = fsu_index.scan(runids, Path(out_root), None)
+    return {r["runid"]: r for r in rows}, summary, scope
 
 
-def _coverage(runid, audited_status, workload_identity, seed_n):
+def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
     """Coverage semantics are independent of seed completion.
 
     PILOT_SUBMODEL_ONLY is only for a RunID whose workbook row requires more
     submodels than the validated pilot actually exercised.
     """
+    if runid == "FSU-FP06-F5-W3":
+        if seed_n == 3:
+            return ("PARTIAL",
+                    "certified 3/3: FP06-a SA0 / FP06-b SA1 / FP06-c fixed "
+                    "mantissa, 16,384 exposures each; covers the F5 "
+                    "result-side proxy of FP06-a/b/c only. FP06-d "
+                    "partial-product proxy is MISSING; evidence stays in the "
+                    "W3 32-bit lane2 sign/mantissa domain")
+        return ("PARTIAL",
+                f"F5 permanent code path exists, but this RunID has "
+                f"{seed_n}/3 formal seeds; no certification")
+    if runid == "FSU-FP06-F5-W1":
+        if seed_n == 3:
+            return ("PARTIAL",
+                    "certified 3/3, but this RunID covers only the FP06 "
+                    "precision/opClass subset exercised by W1; FP06-d remains "
+                    "MISSING and the full workbook submodels are not covered")
+        return ("PARTIAL",
+                "not run (0/3): FP06-F5-W1 gate/formal seeds are not "
+                "complete; the F5 permanent semantics exist in code but "
+                "cannot be certified for this RunID")
+    if runid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5", "FSU-FP06-F5-W6"):
+        return ("PARTIAL",
+                f"not formally run ({seed_n}/3): F5 permanent semantics exist "
+                "in code, but this RunID has no certified seed; "
+                + ("W4-rate-v1 eligible=2,097,155 requires bounded sampling"
+                   if runid == "FSU-FP06-F5-W4" else
+                   "the W5 suite artifact exists (FSU-FP04-F0-W5 3/3) but "
+                   "FP06-F5-W5 is not run" if runid == "FSU-FP06-F5-W5" else
+                   "W6 FFT/sparse components remain partial"))
+    if runid.startswith("FSU-FR03-F5-"):
+        return ("PARTIAL",
+                f"PARTIAL/BLOCKED: Vec write-path stuck and generation "
+                f"handling exist in code, but a build/run-validated "
+                f"CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg "
+                f"path, and squash/free/realloc container-level tests are not "
+                f"complete; {seed_n}/3 formal seeds. FR03-F5 must not be "
+                f"certified")
+    if runid == "FSU-FP04-F0-W5" and seed_n == 3:
+        return ("PARTIAL",
+                "certified suite 3/3: each suite seed counts as ONE seed "
+                "(5 PolyBench component runs per seed, never added to seed "
+                "totals); workbook W5 submodel coverage is still partial")
     if runid == "FSU-FP04-F0-W4":
         return ("PILOT_SUBMODEL_ONLY",
                 "pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID "
@@ -559,6 +816,19 @@ def _coverage(runid, audited_status, workload_identity, seed_n):
     return ("COMPLETE", "")
 
 
+def _f5_readiness(runid, seed_n):
+    """F5 readiness is orthogonal to audited_status and seed_completion."""
+    if runid == "FSU-FP06-F5-W3":
+        return "COMPLETE_3_OF_3" if seed_n == 3 else f"PARTIAL_{seed_n}_OF_3"
+    if runid == "FSU-FP06-F5-W1":
+        return "COMPLETE_3_OF_3" if seed_n == 3 else "GATE_NOT_COMPLETE"
+    if runid.startswith("FSU-FP06-F5-"):
+        return "COMPLETE_3_OF_3" if seed_n == 3 else "NOT_RUN"
+    if runid.startswith("FSU-FR03-F5-"):
+        return "BLOCKED"
+    return None
+
+
 def build(out_root=DEFAULT_RUNS):
     rows7, rows9, rows10 = load_workbook_tables()
     s9 = {r["RunID"]: r for r in rows9}
@@ -570,6 +840,9 @@ def build(out_root=DEFAULT_RUNS):
         sys.exit("[ABORT] 表7 RunID 重复")
     if set(rids) != set(s9):
         sys.exit("[ABORT] 表7/表9 RunID 集合不相等")
+
+    # 磁盘权威 seed 状态（AUTHORITATIVE + audit.ok；suite 只计 1）一次扫描。
+    seed_map, seed_summary, seed_scope = _seed_state_map(out_root, rids)
 
     matrix = []
     for r in rows7:
@@ -593,15 +866,20 @@ def build(out_root=DEFAULT_RUNS):
             blockers.insert(0, "频率语义缺口：F1/F2/F3 需要真实 rate ordinal；"
                                "仅改 --fsu_freq 标签无效")
         if audit["status"] == "PARTIAL":
-            activation = ("注入动作可施加，但 activated 需要额外消费/结果见证；"
-                          "当前无 FSU PROP 事件，无法证明 activation")
+            if model.startswith("FP"):
+                activation = ("注入动作与 FSU_PROP L0–L5 已落地（FPU 路径）；"
+                              "activated 需该 RunID 的真实 consumer/commit 见证")
+            else:
+                activation = ("注入动作可施加，但该模型尚无 FSU_PROP 事件；"
+                              "activated 不能由正式链证据定义")
         elif audit["status"] == "MISSING":
             activation = "该 RunID 的注入动作尚不存在，activated 不可定义"
         else:
             activation = "—"
-        seed_n = _seed_completion(out_root, rid)
+        seed_row = seed_map[rid]
+        seed_n = seed_row["admitted_seeds"]
         coverage_status, coverage_reason = _coverage(
-            rid, audit["status"], wl["identity"], seed_n)
+            rid, audit["status"], wl["identity"], seed_n, model=model)
         matrix.append({
             "runid": rid,
             "model_id": model,
@@ -633,10 +911,17 @@ def build(out_root=DEFAULT_RUNS):
             "required_chain_path": r9.get("完整传播路径（按顺序）"),
             "fsu_fields_model_focus": s10[model].get("模型重点字段"),
             "cross_unit_keys": r9.get("跨单元关联键"),
-            "test_status": "无模型级自动化测试（仅转换器 24 项 + 实施矩阵 5 项）",
+            "test_status": (f"已有 {len(status['model_level_tests'])} 个 FSU "
+                            "测试文件（编排/链/rate/F5/vec-stuck）；30 模型"
+                            "逐模型行为测试未齐全"),
             "three_seed_status": f"{seed_n}/3",
             "seed_completion": f"{seed_n}/3",
             "seed_completion_count": seed_n,
+            "seed_completion_source": ("fsu_index.scan: AUTHORITATIVE + "
+                                       "audit.ok; W5 suite seed counts 1"),
+            "seed_states": {str(s): v.get("state")
+                            for s, v in seed_row["seeds"].items()},
+            "f5_readiness": _f5_readiness(rid, seed_n),
             "coverage_status": coverage_status,
             "coverage_reason": coverage_reason,
             "pilot": rid in ("FSU-FP04-F0-W4",),
@@ -663,6 +948,21 @@ def build(out_root=DEFAULT_RUNS):
                           "resolved_by_commit": g["resolved_by_commit"]}
                          for g in BASELINE_GAPS],
         "current_status": status,
+        # 代码/测试存在性与正式 seed 认证严格分开记录。
+        "capability_evidence": probe_capability_evidence(seed_map),
+        "seed_index": {
+            "admitted_seeds_total": seed_summary["admitted_seeds_total"],
+            "target_seeds": seed_summary["target_seeds"],
+            "suite_seed_dirs": seed_summary["suite_seed_dirs"],
+            "suite_seed_admitted": seed_summary["suite_seed_admitted"],
+            "component_runs_in_admitted_suites":
+                seed_summary["component_runs_in_admitted_suites"],
+            "seed_completion_counts": seed_summary["seed_completion_counts"],
+            "active_admitted_seeds": seed_scope["active_admitted_seeds"],
+            "active_seed_target": seed_scope["active_seed_target"],
+            "active_complete_runids": seed_scope["active_complete_runids"],
+            "active_runids": seed_scope["active_runids"],
+        },
         "resolved_by_commit": resolved_gaps(status),
         "remaining_gaps": remaining_gaps(status),
         "runid_count": len(matrix),
@@ -674,6 +974,8 @@ def build(out_root=DEFAULT_RUNS):
         "workload_identity_counts": dict(Counter(m["workload_identity_status"] for m in matrix)),
         "pilot_candidates": [m["runid"] for m in matrix if m["pilot"]],
         "seed_completion_counts": dict(Counter(m["seed_completion"] for m in matrix)),
+        "f5_readiness_counts": dict(Counter(
+            m["f5_readiness"] for m in matrix if m["f5_readiness"])),
         "coverage_status_counts": dict(Counter(m["coverage_status"] for m in matrix)),
         "coverage_dimensions": {
             "seed_completion": {
@@ -740,9 +1042,9 @@ def write_outputs(matrix, summary):
               "implemented", "missing_hooks", "real_workload_identity",
               "workload_path", "workload_identity_status", "golden_oracle",
               "required_l0_l5", "fsu_fields_model_focus", "test_status",
-              "three_seed_status", "seed_completion", "coverage_status",
-              "coverage_reason", "pilot", "remaining_gaps",
-              "baseline_blockers", "blockers"]
+              "three_seed_status", "seed_completion", "seed_completion_source",
+              "f5_readiness", "coverage_status", "coverage_reason", "pilot",
+              "remaining_gaps", "baseline_blockers", "blockers"]
     with (OUT / "IMPLEMENTATION_MATRIX.csv").open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, lineterminator="\n",
                            extrasaction="ignore")
@@ -773,8 +1075,16 @@ def write_outputs(matrix, summary):
              f"{len(summary['implemented_runids'])}/{summary['runid_count']}**", "",
              "工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型："
              "FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，"
-             "FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0 传播链已落地，"
-             "但子模型覆盖仍不完整；FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。", "",
+             "FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0/F5 传播链已落地，"
+             "并已有正式 seed；但子模型覆盖仍不完整。FR01 仍无 FSU PROP 链，不能直接进入"
+             "三 seed 执行。", "",
+             f"- 磁盘权威 seed 索引：历史全量 {summary['seed_index']['admitted_seeds_total']}/"
+             f"{summary['seed_index']['target_seeds']}，活跃 F0/F5 "
+             f"{summary['seed_index']['active_admitted_seeds']}/"
+             f"{summary['seed_index']['active_seed_target']}；suite seed "
+             f"{summary['seed_index']['suite_seed_admitted']} 个对应 "
+             f"{summary['seed_index']['component_runs_in_admitted_suites']} 个 component run"
+             "（component 不计 seed）。", "",
              "## 2. 30 模型审计表", "",
              "| 模型 | 单元 | 工作簿声明 | 代码审计 | 现有注入器 | 关键缺口 |",
              "|---|---|---|---|---|---|"]
@@ -793,6 +1103,25 @@ def write_outputs(matrix, summary):
     for m in matrix:
         lines.append(f"| {m['runid']} | {m['seed_completion']} | "
                      f"{m['coverage_status']} | {m['coverage_reason']} |")
+    lines += ["", "## 2.2 F5 RunID readiness（代码能力与正式认证分开）", "",
+              "| RunID | f5_readiness | seed_completion | 说明 |",
+              "|---|---|---|---|"]
+    for m in matrix:
+        if m["f5_readiness"]:
+            lines.append(f"| {m['runid']} | {m['f5_readiness']} | "
+                         f"{m['seed_completion']} | {m['coverage_reason']} |")
+    lines += ["", "## 2.3 capability_evidence（静态代码/测试探测，不等于认证）", "",
+              "| 模型 | 能力 | code_present | certified | 证据 |",
+              "|---|---|---|---|---|"]
+    for group, caps in summary["capability_evidence"].items():
+        if not isinstance(caps, dict):
+            continue
+        for name, c in caps.items():
+            if not isinstance(c, dict):
+                continue
+            ev = "; ".join(c["evidence"])
+            lines.append(f"| {group} | {name} | {c['code_present']} | "
+                         f"{c['certified']} | {ev}；{c['certification']} |")
     lines += ["", "## 3. 基线缺口 vs 当前状态", "",
               "### 3.1 baseline_gap（2026-11-02 最初审计原文，保留不删）", ""]
     for g in summary["baseline_gap"]:
@@ -828,12 +1157,23 @@ def write_outputs(matrix, summary):
               "ARRAYHASH/ULP）已完成三 seed：",
               "- seed_completion = 3/3，逐 seed admitted/certified=true、violations=[]；",
               "- coverage_status 仍为 PILOT_SUBMODEL_ONLY（只覆盖 FP04-c 的 mant_lo，"
-              "不是 FP04 全子模型，也不是 F1/F2/F3）。",
+              "不是 FP04 全子模型，也不是 F1/F2/F3）。", "",
+              "**FSU-FP04-F0-W5**（PolyBench suite：gemm/2mm/lu/cholesky/jacobi-2d）"
+              "已完成 3/3 suite seed：每个 suite seed 的 5 个 component run 只计 "
+              "1 个 seed；2mm 已 vendored 且 gate PASS。", "",
+              "**FSU-FP06-F5-W3**（FP06-a SA0 / FP06-b SA1 / FP06-c fixed "
+              "mantissa）已完成 3/3：每 seed 16,384 exposures、audit/certified "
+              "全过；仅认证结果侧代理的 a/b/c，FP06-d partial-product proxy "
+              "仍 MISSING。", "",
               "- 已解决的全局能力见 3.3；仍缺的能力见 3.4。", "",
               "## 6. 诚实边界", "",
-              "- 本表不把“不支持/未激活/缺观测字段”记为 Masked；三 seed 状态一律 0/3。",
+              "- 本表不把“不支持/未激活/缺观测字段”记为 Masked；三 seed 状态"
+              "以磁盘 AUTHORITATIVE + audit.ok 为准，不手写。",
               "- 工作簿声明状态与代码审计状态分列；未观测到的运行时行为标 UNVERIFIED。",
-              "- 未运行 gem5（服务器上无二进制），本阶段结论仅来自静态代码/工作簿/产物审计。", ""]
+              "- capability_evidence 的 code_present 只表示静态代码/测试存在，"
+              "不等于正式认证；certified 只来自磁盘审计通过的正式 seed。",
+              "- gem5 二进制与正式 seed 状态由 current_status / seed_index 实测；"
+              "FR03-F5 保持 PARTIAL/BLOCKED。", ""]
     (OUT / "IMPLEMENTATION_AUDIT.md").write_text("\n".join(lines), encoding="utf-8")
     print(f"[matrix] {len(matrix)} RunID；模型状态 {summary['model_status_counts']}；"
           f"RunID 状态 {summary['runid_status_counts']}")

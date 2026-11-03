@@ -14,11 +14,13 @@
 
 | 视图 | RunID | 目标 seed | 已完成 seed | 3/3 RunID |
 |---|---:|---:|---:|---:|
-| 历史全量（source registry） | 173 | 519 | 18 | 6 |
-| 当前活跃（F0/F5） | 80 | 240 | 9 | 3 |
+| 历史全量（source registry） | 173 | 519 | 27 | 9 |
+| 当前活跃（F0/F5） | 80 | 240 | 18 | 6 |
 
 活跃范围为 F0 72 + F5 8 = 80；已完成的是 `FSU-FP04-F0-W1`、
-`FSU-FP04-F0-W3`、`FSU-FP04-F0-W4`（各 3 seed）。
+`FSU-FP04-F0-W3`、`FSU-FP04-F0-W4`、`FSU-FP04-F0-W5`（W5 suite，每个
+suite seed 的 5 个 component run 只计 1）、`FSU-FP06-F5-W3` 与
+`FSU-FP06-F5-W1`（FP06-a/b/c；FP06-d 仍 MISSING），各 3 seed。
 
 ## 3. 标签
 
@@ -49,5 +51,6 @@
 
 F5 的 8 个 RunID 只属于 FP06（W1/W3/W4/W5/W6）与 FR03（W3/W5/W6）。
 FP04 没有 F5；不得创建 `FP04-F5`、不得新增第 174 个 RunID。
-F5 的数值语义与实现 readiness 以工作簿与 `FP04-F5-READINESS.md`
-（本轮审计产物）为准；定义不明确或模型行为未生效时保持 BLOCKED。
+F5 的数值语义与实现 readiness 以工作簿与 `F5-READINESS.md` 为准；
+FP06-F5-W3 已认证 a/b/c（FP06-d MISSING），FP06-F5-W1/W4/W5/W6 未正式
+完成；FR03-F5-W3/W5/W6 保持 PARTIAL/BLOCKED。

@@ -2,11 +2,15 @@
 
 只读真实工作簿；不运行 gem5。
 """
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import fsu_implementation_matrix as m
+import fsu_index as I
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_matrix_shape_and_provenance():
@@ -49,7 +53,8 @@ def test_every_runid_has_required_fields():
                     "FSU-FP04-F0-W3": "3/3",
                     "FSU-FP04-F0-W1": "3/3",
                     "FSU-FP04-F0-W5": "3/3",
-                    "FSU-FP06-F5-W3": "3/3"}.get(r["runid"], "0/3")
+                    "FSU-FP06-F5-W3": "3/3",
+                    "FSU-FP06-F5-W1": "3/3"}.get(r["runid"], "0/3")
         assert r["three_seed_status"] == expected
         assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")
@@ -66,7 +71,13 @@ def test_seed_completion_and_coverage_status():
     assert pilot["seed_completion"] == "3/3"
     assert pilot["coverage_status"] == "PILOT_SUBMODEL_ONLY"
     assert "FP04-c" in pilot["coverage_reason"]
-    assert summary["seed_completion_counts"] == {"0/3": 165, "3/3": 8}
+    # seed 计数必须来自磁盘权威索引，而不是硬编码或 AUTHORITATIVE 文件存在。
+    runids = I._load_runids(ROOT / "docs/gem5-fi/fsu/runids.json")
+    _, idx_summary, _ = I.scan(runids, ROOT / "runs/fsu", None)
+    assert summary["seed_completion_counts"] == \
+        idx_summary["seed_completion_counts"]
+    assert summary["seed_index"]["admitted_seeds_total"] == \
+        idx_summary["admitted_seeds_total"]
     w1 = next(r for r in matrix if r["runid"] == "FSU-FP04-F0-W1")
     assert w1["seed_completion"] == "3/3"
     assert w1["workload_identity_status"] == "REAL"
@@ -137,3 +148,40 @@ def test_baseline_and_current_status_are_separated():
     for r in s["resolved_by_commit"]:
         assert r["resolved_by_commit"]
         assert r["evidence"]
+
+
+def test_f5_rows_and_capability_evidence():
+    matrix, summary = m.build()
+    by_id = {r["runid"]: r for r in matrix}
+    assert by_id["FSU-FP06-F5-W3"]["seed_completion"] == "3/3"
+    assert by_id["FSU-FP06-F5-W3"]["f5_readiness"] == "COMPLETE_3_OF_3"
+    assert "FP06-d" in by_id["FSU-FP06-F5-W3"]["coverage_reason"]
+    assert by_id["FSU-FP06-F5-W1"]["seed_completion"] == "3/3"
+    assert by_id["FSU-FP06-F5-W1"]["f5_readiness"] == "COMPLETE_3_OF_3"
+    for rid in ("FSU-FR03-F5-W3", "FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
+        assert by_id[rid]["f5_readiness"] == "BLOCKED"
+    cap = summary["capability_evidence"]
+    assert cap["FP06"]["permanent_stuck"]["code_present"] is True
+    assert cap["FP06"]["partial_product_proxy_fp06d"]["code_present"] is False
+    # 代码存在不得自动等价于正式认证（FR03 有代码但无认证）。
+    assert cap["FR03"]["vec_stuck_write_path"]["certified"] is False
+    assert cap["FR03"]["chaosphysreg_fsu_prop"]["certified"] is False
+    assert cap["FR03"]["runner_chaosphysreg_path"]["certified"] is False
+    assert cap["FR03"]["fr03_formal_seeds"]["certified"] is False
+
+
+def test_generator_is_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, "OUT", tmp_path)
+    m.write_outputs(*m.build())
+    first = {p.name: p.read_text(encoding="utf-8")
+             for p in tmp_path.iterdir() if p.is_file()}
+    m.write_outputs(*m.build())
+    second = {p.name: p.read_text(encoding="utf-8")
+              for p in tmp_path.iterdir() if p.is_file()}
+    # 不写 generated_at；两次输出必须逐字节一致。
+    assert first == second
+    assert "generated_at" not in first["IMPLEMENTATION_MATRIX.json"]
+    # JSON 中 capability_evidence 必须存在且含证据路径。
+    data = json.loads(first["IMPLEMENTATION_MATRIX.json"])
+    ev = data["summary"]["capability_evidence"]["FP06"]["chain_end"]
+    assert ev["evidence"] and ev["evidence"][0]

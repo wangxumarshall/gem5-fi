@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`a7b129b4b39e481923e7673db4d46a3dac7a61ca`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`52fece882d56985bdd32560aaef6cd9fc363482e`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -10,7 +10,9 @@
 - workload 身份：NO_FP_ARTIFACT 6、NO_TRUE_ARTIFACT 29、PARTIAL 101、REAL 37
 - **可端到端运行（注入器+workload+oracle+传播链）的 RunID：0/173**
 
-工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型：FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0 传播链已落地，但子模型覆盖仍不完整；FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。
+工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型：FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0/F5 传播链已落地，并已有正式 seed；但子模型覆盖仍不完整。FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。
+
+- 磁盘权威 seed 索引：历史全量 27/519，活跃 F0/F5 18/240；suite seed 3 个对应 15 个 component run（component 不计 seed）。
 
 ## 2. 30 模型审计表
 
@@ -21,7 +23,7 @@
 | FP03 | FSU Pipe | 需新增 | **MISSING** | CHAOSFPU 无；CHAOSDecode 仅有解码级 opcode swap（越界代理） | FSU op-select 换值；PROP 事件 |
 | FP04 | FSU Pipe | 直接已有 | **PARTIAL** | CHAOSFPU 结果 XOR + bitseg(sign/exp_hi/exp_lo/mant_hi/mid/lo) | FP32 字段映射；128-bit Vec 全 lane（FP04-d）；dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义（D2 实现中）。工作簿“直接已有”高估 |
 | FP05 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU faultMask / recurringStuck | 2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件 |
-| FP06 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU recurringStuck（结果侧 stuck 代理） | SA0/SA1 极性、全向量宽度、exposure/applied 列表、部分积代理；PROP 事件 |
+| FP06 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU permanentStuck + f5Warmup（结果侧 stuck；安装一次、多次 exposure） | FP06-d partial-product proxy MISSING（不得用最终结果位冒充）；全向量宽度超过 128-bit；W4/W5/W6 尚未完成正式认证；FP06-a/b/c 的正式认证只覆盖 W3 的 32-bit lane2/结果侧代理 |
 | FP07 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU fmaWeighted（E3 行为代理） | 真实 FMA 中间值不可达（gem5 功能级）；未限定 FMA opClass；partial row drop/dup/align shift；PROP 事件 |
 | FP08 | FSU Pipe | 部分已有 | **PARTIAL** | CHAOSFPU roundingSub / fpsrSuppress | FP32、FTZ/DN、异常/FPCR/FPSR 可观测状态；suppressed_count 未输出；PROP 事件 |
 | FP09 | FSU Pipe | 需新增 | **MISSING** | 无 | lane swap/rotate、元素宽度替代、mask 移位、新旧拼接；PROP 事件 |
@@ -38,7 +40,7 @@
 | FQ10 | FP/SIMD Issue Queue | 需新增 | **MISSING** | 无（dispatch_misroute 不改 FU index/busy/free） | FU index 替代、busy→free/free→busy、release lost；FU 状态与 grant 证据；PROP 事件 |
 | FR01 | FP/SIMD PRF | 直接已有 | **PARTIAL** | CHAOSPhysReg phys/arch modes，VecRegClass，lane 8/16/32/64 | 128-bit lane；FP32/FP64 字段分层；generation；ready/consumer 谓词；old/new value hash；PROP 事件。工作簿“直接已有”高估 |
 | FR02 | FP/SIMD PRF | 部分已有 | **PARTIAL** | CHAOSPhysReg bitsToChange=2 / faultMask | 跨 lane、exp+mant 字段对、bit 距离/相邻性分类；越 lane 掩码丢失；PROP 事件 |
-| FR03 | FP/SIMD PRF | 部分已有 | **PARTIAL** | CHAOSPhysReg SA0/SA1 + setStuckTarget（仅标量） | Vec 写路径 stuck 未实现（不调用 setStuckTarget）；checkPermanent 按键号误伤 int PRF；clearStuckTarget 从未调用；exposure/applied 计数；PROP 事件 |
+| FR03 | FP/SIMD PRF | 部分已有 | **PARTIAL** | CHAOSPhysReg SA0/SA1 + setStuckTarget；FR03 Vec 写路径按 generation 重施加 | 真实 CHAOSPhysReg FSU_PROP 仅部分层已接入；L5 commit/squash/oracle/first-impact 未实现；runner 显式 CHAOSPhysReg 路径；O3 容器级 squash/rename/free/realloc 验证；FR03-F5 0/3 正式 seed。代码存在不等于认证，FR03-F5 保持 PARTIAL/BLOCKED |
 | FR04 | FP/SIMD PRF | 需新增 | **MISSING** | 无 | Vec 读地址/tag 替代到另一 active-ready Vec 物理寄存器；PROP 事件 |
 | FR05 | FP/SIMD PRF | 需新增 | **MISSING** | 无 | Vec 读端口输出 1-bit 翻转（不回写 PRF）；per-read 记录；PROP 事件 |
 | FR06 | FP/SIMD PRF | 需新增 | **MISSING** | 无 | Vec 读端口多位/跨 lane 翻转；PROP 事件 |
@@ -49,7 +51,7 @@
 
 ## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）
 
-- seed_completion：0/3 167、3/3 6
+- seed_completion：0/3 164、3/3 9
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、PARTIAL 74、PILOT_SUBMODEL_ONLY 1
 
 | RunID | seed_completion | coverage_status | coverage_reason |
@@ -116,9 +118,9 @@
 | FSU-FR02-F2-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR02-F2-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR02-F2-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR03-F5-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR03-F5-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FR03-F5-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FR03-F5-W3 | 0/3 | PARTIAL | PARTIAL/BLOCKED: Vec write-path stuck and generation handling exist in code, but a build/run-validated CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg path, and squash/free/realloc container-level tests are not complete; 0/3 formal seeds. FR03-F5 must not be certified |
+| FSU-FR03-F5-W5 | 0/3 | PARTIAL | PARTIAL/BLOCKED: Vec write-path stuck and generation handling exist in code, but a build/run-validated CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg path, and squash/free/realloc container-level tests are not complete; 0/3 formal seeds. FR03-F5 must not be certified |
+| FSU-FR03-F5-W6 | 0/3 | PARTIAL | PARTIAL/BLOCKED: Vec write-path stuck and generation handling exist in code, but a build/run-validated CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg path, and squash/free/realloc container-level tests are not complete; 0/3 formal seeds. FR03-F5 must not be certified |
 | FSU-FR04-F0-W2 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FR04-F0-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FR04-F2-W2 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
@@ -174,7 +176,7 @@
 | FSU-FP04-F0-W1 | 3/3 | PARTIAL | official seeds 3/3 admitted under B0-core with the real W1 FP-ScalarProbe; decoded FP32 scalar instructions only (sign bit). The workload exercises FP64, special values, four rounding modes and FPSR/FPCR, but those are not injected per seed |
 | FSU-FP04-F0-W3 | 3/3 | PARTIAL | official seeds 3/3 admitted with the real NEON FP32 lane workload; evidence covers FP04-d lane2 sign bit only (32-bit lane domain); FP04-a/b/c fields and the other lanes are not covered |
 | FSU-FP04-F0-W4 | 3/3 | PILOT_SUBMODEL_ONLY | pilot covers FP04-c/mant_lo/W4/F0 only; workbook RunID requires FP04-a sign, FP04-b exp_hi/lo, FP04-c mant_hi/mid/lo, FP04-d NEON lane result, plus F1/F2/F3 semantics |
-| FSU-FP04-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FP04-F0-W5 | 3/3 | PARTIAL | certified suite 3/3: each suite seed counts as ONE seed (5 PolyBench component runs per seed, never added to seed totals); workbook W5 submodel coverage is still partial |
 | FSU-FP04-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP04-F1-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -197,11 +199,11 @@
 | FSU-FP05-F4-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP05-F4-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP05-F4-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP06-F5-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP06-F5-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP06-F5-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP06-F5-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
-| FSU-FP06-F5-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
+| FSU-FP06-F5-W1 | 3/3 | PARTIAL | certified 3/3, but this RunID covers only the FP06 precision/opClass subset exercised by W1; FP06-d remains MISSING and the full workbook submodels are not covered |
+| FSU-FP06-F5-W3 | 3/3 | PARTIAL | certified 3/3: FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa, 16,384 exposures each; covers the F5 result-side proxy of FP06-a/b/c only. FP06-d partial-product proxy is MISSING; evidence stays in the W3 32-bit lane2 sign/mantissa domain |
+| FSU-FP06-F5-W4 | 0/3 | PARTIAL | not formally run (0/3): F5 permanent semantics exist in code, but this RunID has no certified seed; W4-rate-v1 eligible=2,097,155 requires bounded sampling |
+| FSU-FP06-F5-W5 | 0/3 | PARTIAL | not formally run (0/3): F5 permanent semantics exist in code, but this RunID has no certified seed; the W5 suite artifact exists (FSU-FP04-F0-W5 3/3) but FP06-F5-W5 is not run |
+| FSU-FP06-F5-W6 | 0/3 | PARTIAL | not formally run (0/3): F5 permanent semantics exist in code, but this RunID has no certified seed; W6 FFT/sparse components remain partial |
 | FSU-FP07-F0-W4 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP07-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FP07-F0-W6 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -228,6 +230,39 @@
 | FSU-FP10-F4-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FP10-F4-W7 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 
+## 2.2 F5 RunID readiness（代码能力与正式认证分开）
+
+| RunID | f5_readiness | seed_completion | 说明 |
+|---|---|---|---|
+| FSU-FR03-F5-W3 | BLOCKED | 0/3 | PARTIAL/BLOCKED: Vec write-path stuck and generation handling exist in code, but a build/run-validated CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg path, and squash/free/realloc container-level tests are not complete; 0/3 formal seeds. FR03-F5 must not be certified |
+| FSU-FR03-F5-W5 | BLOCKED | 0/3 | PARTIAL/BLOCKED: Vec write-path stuck and generation handling exist in code, but a build/run-validated CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg path, and squash/free/realloc container-level tests are not complete; 0/3 formal seeds. FR03-F5 must not be certified |
+| FSU-FR03-F5-W6 | BLOCKED | 0/3 | PARTIAL/BLOCKED: Vec write-path stuck and generation handling exist in code, but a build/run-validated CHAOSPhysReg FSU_PROP L0-L5, an explicit runner CHAOSPhysReg path, and squash/free/realloc container-level tests are not complete; 0/3 formal seeds. FR03-F5 must not be certified |
+| FSU-FP06-F5-W1 | COMPLETE_3_OF_3 | 3/3 | certified 3/3, but this RunID covers only the FP06 precision/opClass subset exercised by W1; FP06-d remains MISSING and the full workbook submodels are not covered |
+| FSU-FP06-F5-W3 | COMPLETE_3_OF_3 | 3/3 | certified 3/3: FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa, 16,384 exposures each; covers the F5 result-side proxy of FP06-a/b/c only. FP06-d partial-product proxy is MISSING; evidence stays in the W3 32-bit lane2 sign/mantissa domain |
+| FSU-FP06-F5-W4 | NOT_RUN | 0/3 | not formally run (0/3): F5 permanent semantics exist in code, but this RunID has no certified seed; W4-rate-v1 eligible=2,097,155 requires bounded sampling |
+| FSU-FP06-F5-W5 | NOT_RUN | 0/3 | not formally run (0/3): F5 permanent semantics exist in code, but this RunID has no certified seed; the W5 suite artifact exists (FSU-FP04-F0-W5 3/3) but FP06-F5-W5 is not run |
+| FSU-FP06-F5-W6 | NOT_RUN | 0/3 | not formally run (0/3): F5 permanent semantics exist in code, but this RunID has no certified seed; W6 FFT/sparse components remain partial |
+
+## 2.3 capability_evidence（静态代码/测试探测，不等于认证）
+
+| 模型 | 能力 | code_present | certified | 证据 |
+|---|---|---|---|---|
+| FP06 | permanent_stuck | True | True | CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc: permanentStuck x13; CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py: permanentStuck parameter；FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），FP06-d 仍 MISSING |
+| FP06 | f5_schedule_install_once | True | True | CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc: fault_installed/f5_warmup; CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py: f5Warmup；FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），FP06-d 仍 MISSING |
+| FP06 | sa0_sa1_non_xor | True | True | CHAOS/gem5/src/cpu/o3/CHAOSFPU/chaos_fsu_fields.hh: applyStuck/stuckPolarityValid; CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc: applyStuck x2；FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），FP06-d 仍 MISSING |
+| FP06 | apply_stuck | True | True | CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc: applyStuck x2；FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），FP06-d 仍 MISSING |
+| FP06 | fsu_prop_l0_l5 | True | True | CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc: emitFsu -> notePropEvt; CHAOS/gem5/src/cpu/o3/CHAOSPropagation/；FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），FP06-d 仍 MISSING |
+| FP06 | chain_end | True | True | CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc: chain_end x6；FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），FP06-d 仍 MISSING |
+| FP06 | bounded_exposure_sampling | True | True | CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc: f5_sample_limit/exposures_dropped; tests/test_chaos_fsu_f5_cpp.py；FSU-FP06-F5-W3 与 FSU-FP06-F5-W1 正式 seed 各 3/3，逐 seed audit.ok；仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域 + W1 scalar FP32/FP64 域），FP06-d 仍 MISSING |
+| FP06 | partial_product_proxy_fp06d | False | False | CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py: gem5 ARM FP is a functional model; no partial-product/alignment-shift injection point; grep partial_product/partialProduct: no injection code；FP06-d MISSING；不得用最终结果位冒充部分积 |
+| FR03 | vec_stuck_write_path | True | False | CHAOS/gem5/src/cpu/o3/regfile.hh: setStuckTarget/reapplyVecStuck; CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc: maybeReapplyStuck; tests/unit/chaos_vec_stuck_test.cc; tests/test_chaos_vec_stuck_cpp.py；无正式认证 seed |
+| FR03 | permanent_cell_across_generations | True | False | CHAOS/gem5/src/cpu/o3/regfile.hh: flat_generation/generationOf/armVecStuck generation is identity, not a match/clear key; tests/unit/chaos_physreg_generation_test.cc: cross-generation persistence + chain restart；无正式认证 seed |
+| FR03 | chaosphysreg_fsu_prop | True | False | CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc: notePropEvt x1; CHAOS/gem5/src/cpu/o3/regfile.hh: notePropEvt x0；无正式认证 seed |
+| FR03 | runner_chaosphysreg_path | False | False | tools/fsu_seed_runner.py: CHAOSPhysReg/phys_reg x0；无正式认证 seed |
+| FR03 | squash_realloc_container_test | False | False | tests/unit/chaos_vec_stuck_test.cc: squash x0, realloc x1; tests/test_chaos_vec_stuck_cpp.py；无正式认证 seed |
+| FR03 | fr03_formal_seeds | False | False | runs/fsu/FSU-FR03-F5-W{3,5,6}: 0/3；FR03-F5 不得认证（逐 RunID 0/3） |
+| W5_suite | five_programs_including_2mm | True | True | workloads/ooo/polybench/2mm; configs/fsu/suites/polybench-fp-v1.json；FSU-FP04-F0-W5 suite seed 3/3（component run 不计 seed） |
+
 ## 3. 基线缺口 vs 当前状态
 
 ### 3.1 baseline_gap（2026-11-02 最初审计原文，保留不删）
@@ -241,13 +276,13 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`a7b129b4b39e481923e7673db4d46a3dac7a61ca`（branch `fsu`）
-- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`62f2f55a75fa1f8c9097ede2d6dfaae4a649c521b1609787d903e838a993740e`；size=1246414544
+- HEAD：`52fece882d56985bdd32560aaef6cd9fc363482e`（branch `fsu`）
+- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`3a087f34b59912518e37c410689175d1d4923d4271cab453730bf574bfd75a62`；size=1247070912
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）
 - FSU 三 seed runner：True（`tools/fsu_seed_runner.py`）
 - rate ordinal 工具：True（`tools/fsu_rate_ordinals.py`）
-- 模型级测试文件：10 个
+- 模型级测试文件：16 个
 - B0 配置匹配：True（B0-core 已实现并经 F0-W1 的 config.ini 逐项校验：ROB=40/IQ=32/fetch-decode-rename 3/3/3/dispatch6/issue-wb-commit 8/8/8/PRF 128/192/48/LQ-SQ16。完整 v7a_3 的 FP FUPool=2 尚未实现，属剩余缺口。）
 
 ### 3.3 resolved_by_commit
@@ -271,8 +306,8 @@
 | W1 | FP-ScalarProbe | **REAL** | `workloads/directed/w1_fp_scalar_probe` w1_fp_scalar_probe（FP32/FP64 add/sub/mul/div/sqrt/FMA；NaN/Inf/±0/subnormal；RN/RP/RM/RZ；FPSR/FPCR 快照） | w1-fpscalarprobe-v1-golden=ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183；ARRAYHASH 64-hex（结果32+结果64+FPSR+FPCR）+ ULP；in-run golden/check | F0-W1 3/3 在 B0-core 下注入 FP32 scalar sign；FP64、特殊值、4 舍入与 FPSR 由 workload 执行但未逐 seed 注入；FPCR trap/异常恢复在 SE 中 N/A |
 | W2 | FP-IQ-Dependency | **NO_TRUE_ARTIFACT** | `workloads/ooo/dep_chain/dep_chain_vec` 无专用产物；dep_chain_vec 仅 NEON FMLA 依赖链 | depchainvec-golden-v1=b1e661a247b95774；16-hex checksum（非逐边 oracle） | 缺 FP/NEON fan-out/fan-in、双源非交换、多 ready 竞争、mispredict 消费者 |
 | W3 | NEON-LaneProbe | **PARTIAL** | `workloads/directed/neon_fp32_lane_kernel` neon_fp32_lane_kernel（float32x4 FMA，4×32-bit lane；真实 golden/census；旧 neon_lane 为整数 NEON，不在 FSU eligible 域） | neonfp32lane-v1-golden=cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e；ARRAYHASH 64-hex + ULP + LANEHASH0..3（非单一 16-hex FINAL） | F0-W3 3/3 仅覆盖 lane2 sign（bit95）；缺其他 lane/字段、8/16/64-bit lane、extract/insert、widen/narrow、permute、reduce |
-| W4 | FMA-DotProduct | **REAL** | `workloads/directed/elemwise_fma_kernel` elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155） | elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP | 不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）；W4-rate-v1 尚无正式三 seed |
-| W5 | PolyBench-FP | **PARTIAL** | `workloads/ooo/polybench/` gemm/lu/cholesky/jacobi-2d（2mm 未 vendored） | gemm=116849d3adf3227b; lu=74ffe5eb77ea9257; cholesky=ea7e0d0e7c86582d; jacobi-2d=dc867b5f02998c1e；精确 FINAL 16-hex | 工作簿点名的 2mm 缺失；单 RunID 需绑定到具体程序而非“PolyBench-FP”标签 |
+| W4 | FMA-DotProduct | **REAL** | `workloads/directed/elemwise_fma_kernel` elemwise_fma_kernel（FP64 c[i]=a[i]*b[i]+d[i]）；D2 另有 W4-rate-v1 扩展版（N=262144，实测 eligible 2,097,155） | elemwisefma-golden-v1=ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7；elemwisefma-rate-v1-golden=e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba；ARRAYHASH 64-hex + ULP | 不是点积归约；FMA 中间值在 gem5 为功能级不可达（工作簿已注明代理）；W4-rate-v1 的 F1/F2/F3-W4 已各 3/3 正式完成，但 F0-W4 仍是短 W4 pilot |
+| W5 | PolyBench-FP | **PARTIAL** | `workloads/ooo/polybench/` gemm/2mm/lu/cholesky/jacobi-2d（suite polybench-fp-v1，五程序均已 vendored） | gemm=116849d3adf3227b; 2mm/lu/cholesky/jacobi-2d 见 configs/fsu/suites/polybench-fp-v1.json（逐元素 oracle）；精确 FINAL 16-hex + canonical array 逐元素 abs/rel/ULP | suite 五程序已完成 FSU-FP04-F0-W5 3/3（每 suite seed 只计 1）；workbook 单 RunID 仍绑定 suite 而非单一程序，PolyBench 全集与其他规模未覆盖 |
 | W6 | SVD-FFT-Sparse | **PARTIAL** | `workloads/directed/svd_iterative_kernel` svd_iterative_kernel；FFT/稀疏线性系统无固定产物 | svditerative-golden-v1=4afb95b5b32f3820；16-hex checksum | FFT/IFFT 组合与稀疏线性系统组件缺失 |
 | W7 | FP-ExceptionRecovery | **NO_FP_ARTIFACT** | `workloads/directed/divzero_loop_kernel` 仅整数除零/NULL 解引用崩溃探针（divzero_loop_kernel/exc_trigger） | 无 golden；无 | 无 FP invalid/div0/overflow/underflow/inexact、FPCR/FPSR、精确恢复载体 |
 | W8 | Embench-FP-Selected | **UNUSED** | `workloads/ooo/embench/` nbody/minver 为 FP 项 | nbody=f39b4e8804f279c3; minver=9792f3ee24af3023；FINAL 16-hex | 无单一 W8 身份；173 RunID 未使用 |
@@ -284,10 +319,16 @@
 **FSU-FP04-F0-W4**（FP04-c/mant_lo + 短 `elemwise_fma_kernel` + ARRAYHASH/ULP）已完成三 seed：
 - seed_completion = 3/3，逐 seed admitted/certified=true、violations=[]；
 - coverage_status 仍为 PILOT_SUBMODEL_ONLY（只覆盖 FP04-c 的 mant_lo，不是 FP04 全子模型，也不是 F1/F2/F3）。
+
+**FSU-FP04-F0-W5**（PolyBench suite：gemm/2mm/lu/cholesky/jacobi-2d）已完成 3/3 suite seed：每个 suite seed 的 5 个 component run 只计 1 个 seed；2mm 已 vendored 且 gate PASS。
+
+**FSU-FP06-F5-W3**（FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa）已完成 3/3：每 seed 16,384 exposures、audit/certified 全过；仅认证结果侧代理的 a/b/c，FP06-d partial-product proxy 仍 MISSING。
+
 - 已解决的全局能力见 3.3；仍缺的能力见 3.4。
 
 ## 6. 诚实边界
 
-- 本表不把“不支持/未激活/缺观测字段”记为 Masked；三 seed 状态一律 0/3。
+- 本表不把“不支持/未激活/缺观测字段”记为 Masked；三 seed 状态以磁盘 AUTHORITATIVE + audit.ok 为准，不手写。
 - 工作簿声明状态与代码审计状态分列；未观测到的运行时行为标 UNVERIFIED。
-- 未运行 gem5（服务器上无二进制），本阶段结论仅来自静态代码/工作簿/产物审计。
+- capability_evidence 的 code_present 只表示静态代码/测试存在，不等于正式认证；certified 只来自磁盘审计通过的正式 seed。
+- gem5 二进制与正式 seed 状态由 current_status / seed_index 实测；FR03-F5 保持 PARTIAL/BLOCKED。
