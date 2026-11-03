@@ -149,9 +149,10 @@ Full code/binary evidence: `R6-O-UNIT-CENSUS.md`.
 ## 7. Repository state
 
 - Branch `fix/r6-o-unit-20261103`, base `bb35c522`; before this F5 round HEAD
-  was `5d23b4d7` (F0 docs/evidence). F5 tooling and docs are committed on top
-  and pushed; `origin/fi-ding` merge happens only after the final
-  divergence/check verification.
+  was `5d23b4d7` (F0 docs/evidence). F5 tooling/docs commits
+  `7ea5c714`, `63480802`, `2be26f67` were pushed and fast-forwarded (non-force)
+  into `origin/fi-ding` after the divergence check; the branch and
+  `origin/fi-ding` point at the same commit chain.
 - The global `R6-STATUS-TABLE` still shows O02-F5-W7 as UNPROVEN/BLOCKED and
   O01/O02 as UNPROVEN / O03 as TRUNCATED because it scans retained historical
   pre-fix streams and does not accept Timeout diagnostics. This is intentional:
