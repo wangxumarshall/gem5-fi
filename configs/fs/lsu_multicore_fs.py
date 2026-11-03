@@ -137,6 +137,11 @@ p.add_argument("--exmon_lsu_tier", default="off",
                choices=["off", "F0", "F1", "F2", "F3", "F4", "F5", "F6"])
 p.add_argument("--exmon_lsu_warmup_events", type=lambda x: int(x, 0), default=0)
 p.add_argument("--exmon_lsu_span_events", type=lambda x: int(x, 0), default=1000)
+# [R6-O-ROI 2026-11-03] Eligible-PC window (0 = whole run). The O-cell
+# campaign passes the litmus text range so the single F0 fault samples the
+# workload's LDXR/STXR, not a kernel/loader LDXR with no paired STXR.
+p.add_argument("--exmon_pc_lo", type=lambda x: int(x, 0), default=0)
+p.add_argument("--exmon_pc_hi", type=lambda x: int(x, 0), default=0)
 # [MDSPEC][R4-8-FSMC-B] CHAOSPropagation unified propagation stream (FS side).
 # WHY: CHAOSExMon already emits the O-series monitor-side chain events
 # (exmon_monitor L1 -> exmon_rmw L2 -> exmon_stxr L3, CHAOSExMon.cc:255/97/113)
@@ -237,6 +242,7 @@ if args.chaos_exmon:
             lsuTier=args.exmon_lsu_tier,
             lsuWarmupEvents=args.exmon_lsu_warmup_events,
             lsuSpanEvents=args.exmon_lsu_span_events,
+            pcLo=args.exmon_pc_lo, pcHi=args.exmon_pc_hi,
             writeLog=True,
         )
         board.chaos_exmon = ex

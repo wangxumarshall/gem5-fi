@@ -40,3 +40,12 @@ class CHAOSExMon(SimObject):
     lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
     lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
     lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
+    # [R6-O-ROI 2026-11-03] Optional eligible-PC window. The FS run replays
+    # the whole guest (kernel + shell + payload); sampling over that stream
+    # can land the single F0 fault on a kernel LDXR, which has no paired STXR
+    # and is therefore Injected-not-activated. The matrix's eligible stream
+    # is the WORKLOAD's LDXR/STXR. pcHi==0 keeps the legacy whole-run stream
+    # (SE default); the FS campaign passes the litmus text range
+    # [0x400000, 0x402000) explicitly and auditably.
+    pcLo = Param.UInt64(0, "eligible-PC lower bound (inclusive; 0=off)")
+    pcHi = Param.UInt64(0, "eligible-PC upper bound (exclusive; 0=no filter)")

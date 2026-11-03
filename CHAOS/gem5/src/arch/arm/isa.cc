@@ -1875,7 +1875,7 @@ ISA::handleLockedRead(const RequestPtr &req)
     // W8 O-series CHAOSExMon (O01/O02): monitor-side corruption at the
     // read (reservation placement). nullptr / non-O mode = zero change.
     if (chaosExMon) {
-        const auto mon = chaosExMon->maybeCorruptMonitor(req);
+        const auto mon = chaosExMon->maybeCorruptMonitor(req, nullptr);
         if (mon) {
             tc->setMiscReg(MISCREG_LOCKADDR, mon->addr);
             tc->setMiscReg(MISCREG_LOCKFLAG, mon->flag);
@@ -1893,7 +1893,7 @@ ISA::handleLockedRead(ExecContext *xc, const RequestPtr &req)
     // W8 O-series CHAOSExMon (O01/O02) — this is the overload the O3 LSQ
     // path takes (same shape as the handleLockedWrite hooks below).
     if (chaosExMon) {
-        const auto mon = chaosExMon->maybeCorruptMonitor(req);
+        const auto mon = chaosExMon->maybeCorruptMonitor(req, xc);
         if (mon) {
             xc->setMiscReg(MISCREG_LOCKADDR, mon->addr);
             xc->setMiscReg(MISCREG_LOCKFLAG, mon->flag);
@@ -1969,7 +1969,7 @@ ISA::handleLockedWrite(const RequestPtr &req, Addr cacheBlockMask)
     // §2.4 CHAOSExMon: invert the STXR verdict (force success/fail). nullptr
     // = no injection (zero regression).
     if (chaosExMon) {
-        result = chaosExMon->maybeCorrupt(req, result);
+        result = chaosExMon->maybeCorrupt(req, result, nullptr);
     }
     return result;
 }
@@ -1982,7 +1982,7 @@ ISA::handleLockedWrite(ExecContext *xc, const RequestPtr &req,
     // §2.4 CHAOSExMon: invert the STXR verdict (this is the overload called
     // from lsq_unit.cc:900 for store conditionals).
     if (chaosExMon) {
-        result = chaosExMon->maybeCorrupt(req, result);
+        result = chaosExMon->maybeCorrupt(req, result, xc);
     }
     return result;
 }
