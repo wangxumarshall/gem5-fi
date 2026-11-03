@@ -1890,12 +1890,29 @@ def _fsmc_tier_flags(model, tier, wl_binary=None):
     其余档位在这里**大声拒绝**（返回 None），resolve_cell 会把它变成 blocked
     理由，而不是悄悄用 maxFaults=1 冒充——这正是本轮的纪律要求。
     """
+    # [R6-O-ROI 2026-11-03] F0 must sample the WORKLOAD's eligible stream
+    # uniformly. The legacy geometric(0.1) pre-draw can exceed a short FS
+    # stream (measured: seed1 draws 55; the litmus loop has 39 LDXRs) and
+    # inject nothing, and the whole-run stream includes kernel/loader LDXRs
+    # with no paired STXR (Injected-not-activated). The span + PC window
+    # below are MEASURED on this checkpoint/carrier by the no-fault smoke
+    # `tries cpu0=39 cpu1=16` (39 LDXRs, 16 successful STXRs on the injector
+    # core) and the litmus ELF's text range 0x400000..0x402000 (objdump:
+    # ldxr/stxr at 0x400230..0x4009a8). Re-measure if the carrier changes.
+    O_ROI_PC = ("--exmon_pc_lo", "0x400000", "--exmon_pc_hi", "0x402000")
+    O_F0_SPAN = {"O01": 39, "O02": 39, "O03": 16}
     if tier == "F0":
         # FAMILY_MOUNT 已经给了 --exmon_max_faults 1（单次瞬态）；这里不再
         # 重复一次，免得同一 flag 出现两遍（argparse last-wins 会掩盖笔误）。
-        return []
+        span = O_F0_SPAN.get(model)
+        if span is None:
+            return None
+        return (["--exmon_lsu_tier", "F0",
+                 "--exmon_lsu_warmup_events", "0",
+                 "--exmon_lsu_span_events", str(span)] + list(O_ROI_PC))
     if tier == "F5":
-        return ["--exmon_max_faults", "0"]
+        return (["--exmon_max_faults", "0", "--exmon_lsu_tier", "F5"]
+                + list(O_ROI_PC))
     return None
 
 
@@ -3007,6 +3024,38 @@ def count_fsmc_injections(ilog_path):
     return n
 
 
+def count_fsmc_activated(outdir):
+    """[R6-O-ACT 2026-11-03] Activation per the O-series spec.
+
+    The matrix's activation clause is "only when the fault value is actually
+    read/selected/consumed between the LDXR and the STXR"; an injected monitor
+    whose STXR never consumes it is `Injected-not-activated`. The injection
+    log cannot distinguish the two, so count DISTINCT fault ids that carry an
+    `exmon_stxr` consumption node in prop_evt.txt.gz (streaming, O(n)).
+    Returns None when no readable stream exists (caller must fall back
+    loudly, never silently equate injected with activated).
+    """
+    import gzip
+    import re as _re
+    p = Path(outdir) / "prop_evt.txt.gz"
+    if not p.exists():
+        return None
+    ids = set()
+    try:
+        with gzip.open(p, "rt", errors="replace") as f:
+            for line in f:
+                if not line.startswith("PROP-EVT:"):
+                    continue
+                if "kind=exmon_stxr" not in line:
+                    continue
+                m = _re.search(r"\bfault_id=(\d+)", line)
+                if m and m.group(1) != "0":
+                    ids.add(m.group(1))
+    except (OSError, EOFError):
+        return None
+    return len(ids)
+
+
 def classify_fsmc_run(outdir, run_stdout, exit_code):
     """[MDSPEC][R4-9-FSMC-A] L5 classification for one FS-multicore litmus run.
 
@@ -3018,8 +3067,10 @@ def classify_fsmc_run(outdir, run_stdout, exit_code):
                     任一 bad>0；或 FINAL 存在但不等于 golden
       Masked:       FINAL == golden（三条禁出现计数全 0）
       Unclassified: 干净退出但没有 FINAL 行（诚实：没有 oracle 就不分类）
-    Injected: exmon_injections.log 的 `Site: ` 行数（与其它注入器同一类
-    "近同义"代理，见 classify_fs_run 的说明）。
+    Injected: exmon_injections.log 的 `Site: ` 行数。
+    Activated: [R6-O-ACT] distinct fault ids with an exmon_stxr consumption
+    node; falls back to Injected ONLY when no stream is readable, and says so
+    in `activation_basis` (never a silent injected==activated equation).
     """
     import re as _re
     terminal = ""
@@ -3027,8 +3078,17 @@ def classify_fsmc_run(outdir, run_stdout, exit_code):
     if tf.exists():
         terminal = tf.read_text(errors="replace")
     injected = count_fsmc_injections(outdir / "exmon_injections.log")
-    out = {"injected": injected, "activated": injected,
-           "attempted": None, "eligible": None, "checksum": None}
+    activated = count_fsmc_activated(outdir)
+    if activated is None:
+        out = {"injected": injected, "activated": injected,
+               "activation_basis":
+                   "injection_log_fallback(no readable prop_evt.txt.gz)",
+               "attempted": None, "eligible": None, "checksum": None}
+    else:
+        out = {"injected": injected, "activated": activated,
+               "activation_basis":
+                   "prop_evt:distinct_fault_id_with_exmon_stxr",
+               "attempted": None, "eligible": None, "checksum": None}
 
     def _num(pat, text):
         m = _re.search(pat, text)
@@ -3067,8 +3127,12 @@ def classify_fsmc_run(outdir, run_stdout, exit_code):
     oc = out["outcome"]
     classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
                               "Crash", "Timeout")}
-    if oc in classes and injected:
-        classes[oc] = injected
+    # [R6-O-ACT] Class counts are ACTIVATED samples, not injection-log lines
+    # (the matrix's activation clause: the corrupted value must be consumed
+    # by the paired STXR). Injected-only samples must not inflate a class.
+    _act = int(out.get("activated") or 0)
+    if oc in classes and _act:
+        classes[oc] = _act
     out["classes"] = classes
     out["mode"] = "FS"
     return out
