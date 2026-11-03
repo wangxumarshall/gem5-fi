@@ -1275,6 +1275,18 @@ namespace gem5
             f5_terminal_parent = f5_carrier_event
                 ? f5_carrier_event : f5_install_event;
             f5_armed = true;
+            // Register the terminal flush on the tracer itself (not as a
+            // global exit callback): it runs after the tracer's chain_end
+            // markers and before the gzip stream is closed, regardless of
+            // SimObject construction order.
+            if (!f5_flush_registered) {
+                auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+                if (o3cpu && o3cpu->chaosPropagation) {
+                    o3cpu->chaosPropagation->registerExitFlush(
+                        [this]() { flushF5Samples(); emitF5ChainEnd(); });
+                    f5_flush_registered = true;
+                }
+            }
         }
 
         // Every eligible event after installation is an exposure: re-apply
@@ -1728,16 +1740,11 @@ namespace gem5
         // The chain checker maps this to terminal=not_activated (never
         // inferred from a missing event).
         registerExitCallback([this]() { noteNotActivated(); });
-        if (permanent_stuck) {
-            // [FSU][F5] Flush the bounded tail samples FIRST (they carry
-            // their real occurrence tick), then close the one permanent
-            // fault's lifecycle with explicit capacity accounting. The F5
-            // chain_end is a lifecycle terminus, never an L5 witness.
-            registerExitCallback([this]() {
-                flushF5Samples();
-                emitF5ChainEnd();
-            });
-        }
+        // [FSU][F5] The terminal chain_end is NOT registered as a global exit
+        // callback: callback order is construction-order dependent and the
+        // propagation tracer may close its event stream first. The flush hook
+        // is registered on the tracer at installation time (see
+        // notePermanentExposure), so it always runs before gzclose.
         if (rate_mode) {
             // Honest end-of-run rate accounting: the driver must see every
             // declared ordinal actually injected. A shortfall is loud.

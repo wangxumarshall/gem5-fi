@@ -122,6 +122,7 @@
 #include <zlib.h>
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
@@ -280,6 +281,17 @@ class CHAOSPropagation : public SimObject
     // parent_event_id for a direct-parent chain.
     uint64_t notePropEvt(const std::string &kind,
                          const std::vector<std::pair<std::string, std::string>> &kv);
+
+    // [FSU][F5] Late-flush hook. The tracer's own exit callback emits its
+    // per-ptag chain_end events and then closes the event stream. Injectors
+    // that need a terminal event carrying their own run-level accounting
+    // (F5 exposure totals) must run BEFORE that close, so they register here
+    // instead of using a separate global exit callback (whose order is
+    // construction-order dependent).
+    void registerExitFlush(std::function<void()> cb)
+    {
+        exit_flush_hooks.push_back(std::move(cb));
+    }
 
 
     // ---- injector-facing registration (fault-injection time) --------------
@@ -811,6 +823,10 @@ class CHAOSPropagation : public SimObject
                           const char *reason);
 
   private:
+    // [FSU][F5] Injector hooks flushed by the tracer's exit callback after
+    // its own chain_end events and before the event stream is closed.
+    std::vector<std::function<void()>> exit_flush_hooks;
+
     // One CSV row: numeric fields with has_x=false print as "".
     // corr labels the PROP-EVT dual-emit ([R4-4-review-I1]): one of the
     // CORR_* constants above (or a correlate* arm label) — nullptr only for

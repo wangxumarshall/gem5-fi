@@ -250,6 +250,14 @@ namespace gem5
                         });
                     }
                 }
+                // [FSU][F5] Injector terminal events (e.g. the permanent
+                // fault's chain_end with exposure totals) must be written
+                // while the stream is still open. They run after the
+                // tracer's own chain_end markers and before gzclose.
+                for (auto &hook : exit_flush_hooks) {
+                    if (hook)
+                        hook();
+                }
                 if (gz_file) {
                     gzclose(gz_file);
                     gz_file = nullptr;

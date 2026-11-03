@@ -133,6 +133,9 @@ class CHAOSFPU : public SimObject
     bool f5_first_activated_done = false;
     bool f5_taint_registered = false;
     bool f5_commit_seen = false;
+    // The terminal chain_end must be written by the tracer's exit callback
+    // (before it closes the stream); register the flush hook once at install.
+    bool f5_flush_registered = false;
     uint64_t f5_ordinary_emitted = 0;
     uint64_t f5_last_event_id = 0;
     // Direct parent for the terminal chain_end: the real commit when one
