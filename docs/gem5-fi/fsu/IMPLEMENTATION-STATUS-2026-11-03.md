@@ -31,7 +31,7 @@
 - 五个程序已加入 canonical array dump（`--array-dump=<path>` / env），
   `FINAL` 域与语义未变；`tools/fsu_oracle.py` 做逐元素 abs/rel/ULP 比较。
 - `configs/fsu/suites/polybench-fp-v1.json` 的 binary SHA / golden 数组
-  仍为 pending：**W5 正式 suite 目前被 load_suite 拒绝，保持 BLOCKED**。
+  已在 §7.1 gate 后回填；W5 正式 suite 已完成（见 §7.2）。
 
 ### 2.2 F5 永久故障
 
@@ -57,11 +57,12 @@
   路径、squash/重命名/释放/重分配的容器级完整测试。
 - 因此 **FR03-F5 不得运行正式 seed**，也不得借用 FP06 证据认证。
 
-## 3. 双视图计数（代码阶段未改变）
+## 3. 双视图计数（代码阶段基线；最终见 §7.4）
 
 - 历史：**18/519 seed，6/173 RunID**。
 - 活跃（F0/F5）：**9/240 seed，3/80 RunID**。
-- F0-W5：0/3；FP06-F5-W3：0/3；FR03-F5-W3：0/3。
+- 代码阶段：F0-W5 0/3；FP06-F5-W3 0/3；FR03-F5-W3 0/3。
+- 最终：F0-W5 3/3、FP06-F5-W3 3/3（§7）；FR03 仍 BLOCKED。
 
 ## 4. 资源规则
 
@@ -78,7 +79,7 @@ ps -eo user,pid,%cpu,cmd --sort=-%cpu | head
 - 不终止、不暂停、不干扰该 root 进程；
 - 只做代码、文档、轻量 Python/host 单测。
 
-## 5. 资源恢复后的执行顺序
+## 5. 资源恢复后的执行顺序（已执行；保留为复现记录）
 
 ```bash
 # 0) 再次确认 loadavg <= 16 且压力进程已退出
