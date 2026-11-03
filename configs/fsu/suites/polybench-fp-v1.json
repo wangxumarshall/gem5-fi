@@ -15,7 +15,7 @@
     "unit": "FSU Pipe",
     "freq": "F0",
     "load_id": "W5",
-    "submodel": "FP04-c",
+    "submodel": "FP04-a",
     "config_family": "C3",
     "config_profile": "B0",
     "limits": {
