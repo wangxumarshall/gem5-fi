@@ -1,22 +1,23 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-03T14:49:10；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-03T20:57:14；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 ## 历史全量视图（source registry）
 
 - 总 RunID：**173**
 - 目标 seed：**519**
-- 已完成合格 seed：**18**
-- COMPLETE_3_OF_3：**6**
-- seed_completion：0/3 167、3/3 6
+- 已完成合格 seed：**24**
+- suite seed（5 component run 只计 1 seed）：目录 3，admitted 3，component run 15（不进入 seed 总数）
+- COMPLETE_3_OF_3：**8**
+- seed_completion：0/3 165、3/3 8
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、PARTIAL 74、PILOT_SUBMODEL_ONLY 1
-- 1/3：0；2/3：0；0/3：167
+- 1/3：0；2/3：0；0/3：165
 
 ## 当前活跃范围视图（F0/F5）
 
 - active_frequencies：['F0', 'F5']
 - 活跃 RunID：**80**；目标 seed：**240**
-- 活跃范围已完成 seed：**9**；3/3 RunID：**3**
+- 活跃范围已完成 seed：**15**；3/3 RunID：**5**
 - DEFERRED_BY_USER RunID：90
 - HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE RunID：3（seed 9）
 
@@ -144,7 +145,7 @@
 | FSU-FP04-F0-W1 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FP04-F0-W3 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FP04-F0-W4 | ✅ | ✅ | ✅ | 3/3 | PILOT_SUBMODEL_ONLY | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
-| FSU-FP04-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
+| FSU-FP04-F0-W5 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FP04-F0-W6 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FP04-F1-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F1 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FP04-F1-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F1 | DEFERRED_BY_USER | NOT_RUN |
@@ -168,7 +169,7 @@
 | FSU-FP05-F4-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F4 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FP05-F4-W6 | — | — | — | 0/3 | PARTIAL | PENDING | F4 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FP06-F5-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F5 | ACTIVE_SCOPE | NOT_RUN |
-| FSU-FP06-F5-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F5 | ACTIVE_SCOPE | NOT_RUN |
+| FSU-FP06-F5-W3 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F5 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FP06-F5-W4 | — | — | — | 0/3 | PARTIAL | PENDING | F5 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FP06-F5-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F5 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FP06-F5-W6 | — | — | — | 0/3 | PARTIAL | PENDING | F5 | ACTIVE_SCOPE | NOT_RUN |

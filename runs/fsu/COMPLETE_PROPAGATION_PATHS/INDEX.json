@@ -1,15 +1,19 @@
 {
   "summary": {
     "total_runids": 173,
-    "complete_3_of_3": 6,
+    "complete_3_of_3": 8,
     "with_1_of_3": 0,
     "with_2_of_3": 0,
-    "with_0_of_3": 167,
-    "admitted_seeds_total": 18,
+    "with_0_of_3": 165,
+    "admitted_seeds_total": 24,
+    "suite_seed_dirs": 3,
+    "suite_seed_admitted": 3,
+    "component_runs_in_admitted_suites": 15,
+    "component_faults_note": "component runs/faults are reported separately and never added to admitted_seeds_total",
     "target_seeds": 519,
     "seed_completion_counts": {
-      "0/3": 167,
-      "3/3": 6
+      "0/3": 165,
+      "3/3": 8
     },
     "coverage_status_counts": {
       "BLOCKED_NO_TRUE_ARTIFACT": 11,
@@ -17,7 +21,7 @@
       "BLOCKED_NOT_IMPLEMENTED": 87,
       "PILOT_SUBMODEL_ONLY": 1
     },
-    "generated_at": "2026-11-03T14:49:10",
+    "generated_at": "2026-11-03T20:57:14",
     "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS",
     "active_scope": {
       "policy_version": "1",
@@ -34,15 +38,15 @@
       ],
       "active_runids": 80,
       "active_seed_target": 240,
-      "active_admitted_seeds": 9,
-      "active_complete_runids": 3,
+      "active_admitted_seeds": 15,
+      "active_complete_runids": 5,
       "deferred_by_user_runids": 90,
       "historical_complete_out_of_scope_runids": 3,
       "historical_complete_out_of_scope_seeds": 9,
       "scope_status_counts": {
-        "ACTIVE_NOT_RUN": 77,
+        "ACTIVE_NOT_RUN": 75,
         "DEFERRED_BY_USER": 90,
-        "ACTIVE_COMPLETE_3_OF_3": 3,
+        "ACTIVE_COMPLETE_3_OF_3": 5,
         "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE": 3
       },
       "note": "F1-F4 are DEFERRED_BY_USER; historical completed seeds are HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE, never failures."
@@ -2876,24 +2880,204 @@
       "runid": "FSU-FP04-F0-W5",
       "frequency": "F0",
       "scope_class": "ACTIVE_SCOPE",
-      "scope_status": "ACTIVE_NOT_RUN",
-      "completion_state": "NOT_RUN",
+      "scope_status": "ACTIVE_COMPLETE_3_OF_3",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
-          "state": "pending"
+          "state": "admitted",
+          "suite": true,
+          "suite_id": "polybench-fp-v1",
+          "suite_hash": "7282decf461243a8fdff38b6f99f66112c18027ee9a9b0a7dd057c4e2a0a7493",
+          "suite_seed": 1,
+          "component_runs": 5,
+          "component_certified": 5,
+          "audit_ok": true,
+          "components": [
+            {
+              "program_id": "gemm",
+              "program_index": 0,
+              "component_seed": 12860380394881460486,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed1/components/gemm/FSU-FP04-F0-W5/seed12860380394881460486/attempt-2",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "2mm",
+              "program_index": 1,
+              "component_seed": 11459609017687405773,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed1/components/2mm/FSU-FP04-F0-W5/seed11459609017687405773/attempt-2",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "lu",
+              "program_index": 2,
+              "component_seed": 17763049110757693680,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed1/components/lu/FSU-FP04-F0-W5/seed17763049110757693680/attempt-2",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "cholesky",
+              "program_index": 3,
+              "component_seed": 664471552991680598,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed1/components/cholesky/FSU-FP04-F0-W5/seed664471552991680598/attempt-2",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "jacobi-2d",
+              "program_index": 4,
+              "component_seed": 933615570083433162,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed1/components/jacobi-2d/FSU-FP04-F0-W5/seed933615570083433162/attempt-2",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            }
+          ],
+          "reason": null
         },
         "2": {
-          "state": "pending"
+          "state": "admitted",
+          "suite": true,
+          "suite_id": "polybench-fp-v1",
+          "suite_hash": "7282decf461243a8fdff38b6f99f66112c18027ee9a9b0a7dd057c4e2a0a7493",
+          "suite_seed": 2,
+          "component_runs": 5,
+          "component_certified": 5,
+          "audit_ok": true,
+          "components": [
+            {
+              "program_id": "gemm",
+              "program_index": 0,
+              "component_seed": 12508894761670525649,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed2/components/gemm/FSU-FP04-F0-W5/seed12508894761670525649/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "2mm",
+              "program_index": 1,
+              "component_seed": 6553109338398911507,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed2/components/2mm/FSU-FP04-F0-W5/seed6553109338398911507/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "lu",
+              "program_index": 2,
+              "component_seed": 9460439000491905388,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed2/components/lu/FSU-FP04-F0-W5/seed9460439000491905388/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "cholesky",
+              "program_index": 3,
+              "component_seed": 17653356909170313410,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed2/components/cholesky/FSU-FP04-F0-W5/seed17653356909170313410/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "jacobi-2d",
+              "program_index": 4,
+              "component_seed": 7539855237097253108,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed2/components/jacobi-2d/FSU-FP04-F0-W5/seed7539855237097253108/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            }
+          ],
+          "reason": null
         },
         "3": {
-          "state": "pending"
+          "state": "admitted",
+          "suite": true,
+          "suite_id": "polybench-fp-v1",
+          "suite_hash": "7282decf461243a8fdff38b6f99f66112c18027ee9a9b0a7dd057c4e2a0a7493",
+          "suite_seed": 3,
+          "component_runs": 5,
+          "component_certified": 5,
+          "audit_ok": true,
+          "components": [
+            {
+              "program_id": "gemm",
+              "program_index": 0,
+              "component_seed": 5536446555532653464,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed3/components/gemm/FSU-FP04-F0-W5/seed5536446555532653464/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "2mm",
+              "program_index": 1,
+              "component_seed": 7449357199526526885,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed3/components/2mm/FSU-FP04-F0-W5/seed7449357199526526885/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "lu",
+              "program_index": 2,
+              "component_seed": 6276452309976705848,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed3/components/lu/FSU-FP04-F0-W5/seed6276452309976705848/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "cholesky",
+              "program_index": 3,
+              "component_seed": 1980858418647436607,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed3/components/cholesky/FSU-FP04-F0-W5/seed1980858418647436607/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            },
+            {
+              "program_id": "jacobi-2d",
+              "program_index": 4,
+              "component_seed": 10590959326789771992,
+              "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP04-F0-W5/seed3/components/jacobi-2d/FSU-FP04-F0-W5/seed10590959326789771992/attempt-1",
+              "status": "admitted",
+              "audit_ok": true,
+              "certified": true,
+              "oracle_evidence_ok": true
+            }
+          ],
+          "reason": null
         }
       },
-      "admitted_seeds": 0,
-      "seed_completion": "0/3",
+      "admitted_seeds": 3,
+      "seed_completion": "3/3",
       "coverage_status": "PARTIAL",
       "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
-      "status": "PENDING"
+      "status": "COMPLETE_3_OF_3"
     },
     {
       "runid": "FSU-FP04-F0-W6",
@@ -4166,24 +4350,45 @@
       "runid": "FSU-FP06-F5-W3",
       "frequency": "F5",
       "scope_class": "ACTIVE_SCOPE",
-      "scope_status": "ACTIVE_NOT_RUN",
-      "completion_state": "NOT_RUN",
+      "scope_status": "ACTIVE_COMPLETE_3_OF_3",
+      "completion_state": "COMPLETE",
       "seeds": {
         "1": {
-          "state": "pending"
+          "state": "admitted",
+          "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W3/seed1/attempt-1",
+          "oracle": "SDC",
+          "terminal": "full",
+          "audit_ok": true,
+          "admitted_faults": [
+            "1"
+          ]
         },
         "2": {
-          "state": "pending"
+          "state": "admitted",
+          "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W3/seed2/attempt-1",
+          "oracle": "SDC",
+          "terminal": "full",
+          "audit_ok": true,
+          "admitted_faults": [
+            "1"
+          ]
         },
         "3": {
-          "state": "pending"
+          "state": "admitted",
+          "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W3/seed3/attempt-1",
+          "oracle": "SDC",
+          "terminal": "full",
+          "audit_ok": true,
+          "admitted_faults": [
+            "1"
+          ]
         }
       },
-      "admitted_seeds": 0,
-      "seed_completion": "0/3",
+      "admitted_seeds": 3,
+      "seed_completion": "3/3",
       "coverage_status": "PARTIAL",
       "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
-      "status": "PENDING"
+      "status": "COMPLETE_3_OF_3"
     },
     {
       "runid": "FSU-FP06-F5-W4",
