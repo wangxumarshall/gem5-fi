@@ -1,0 +1,34 @@
+{
+  "run_id": "FSU-FP04-F0-W3",
+  "model_id": "FP04",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W3",
+  "submodel": "FP04-d",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "bitseg": "sign",
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 2
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "Official FSU-FP04-F0-W3 (NEON-LaneProbe). Real float32x4 FMA workload; F0 single injection; sign bit of 32-bit lane 2 (absolute bit 95). This RunID's workbook submodel list also includes FP04-a/b/c; this run only provides FP04-d lane2 sign evidence, so coverage stays partial."
+}
