@@ -47,6 +47,7 @@
 #include "cpu/checker/cpu.hh"
 #include "cpu/checker/thread_context.hh"
 #include "cpu/o3/dyn_inst.hh"
+#include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"   // [FR07-HOOK v2] WB hooks
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/thread_context.hh"
 #include "cpu/simple_thread.hh"
@@ -1030,6 +1031,14 @@ CPU::getWritableReg(PhysRegIdPtr phys_reg, ThreadID tid)
       default:
         break;
     }
+    // [FSU][FR07-HOOK v2] While a writeback is armed, the ISA writes the FU
+    // result into a shadow WB buffer; the masked value reaches the PRF only
+    // in CHAOSFPU::finalizeWb().
+    if (chaosFPU) {
+        void *shadow = nullptr;
+        if (chaosFPU->shadowForWrite(phys_reg, tid, &shadow))
+            return shadow;
+    }
     return regFile.getWritableReg(phys_reg);
 }
 
@@ -1056,6 +1065,10 @@ CPU::setReg(PhysRegIdPtr phys_reg, RegVal val, ThreadID tid)
       default:
         break;
     }
+    // [FSU][FR07-HOOK v2] Scalar FP result: mask the writeback data BEFORE
+    // it is stored in the PRF. The PRF never holds the unmasked value.
+    if (chaosFPU)
+        chaosFPU->interceptScalarWrite(phys_reg, tid, &val);
     regFile.setReg(phys_reg, val);
 }
 
@@ -1082,6 +1095,11 @@ CPU::setReg(PhysRegIdPtr phys_reg, const void *val, ThreadID tid)
       default:
         break;
     }
+    // [FSU][FR07-HOOK v2] Vector FU result: keep the FU value in the shadow
+    // WB buffer; finalizeWb() applies the mask and performs the PRF write.
+    if (chaosFPU && val &&
+        chaosFPU->interceptVectorWrite(phys_reg, tid, val))
+        return;
     regFile.setReg(phys_reg, val);
 }
 

@@ -325,6 +325,10 @@ DynInst::markSrcRegReady(RegIndex src_idx)
 void
 DynInst::setSquashed()
 {
+    // [FSU][FR07-HOOK v2] If this instruction carried the injected WB, its
+    // value died in a speculative PRF cell: cancel the pending wakeup and
+    // record the squash explicitly.
+    if (cpu && cpu->chaosFPU) cpu->chaosFPU->noteSquash(this);
     status.set(Squashed);
 
     if (!isPinnedRegsRenamed() || isPinnedRegsSquashDone())
@@ -357,7 +361,16 @@ DynInst::execute()
     bool no_squash_from_TC = thread->noSquashFromTC;
     thread->noSquashFromTC = true;
 
+    // [FSU][FR07-HOOK v2] Select/arm the writeback fault BEFORE execute so
+    // the destination write can be intercepted at the WB data boundary.
+    // Legacy (non-hook) modes return false here and keep the post-execute
+    // rewrite byte-identical.
+    if (cpu && cpu->chaosFPU) cpu->chaosFPU->maybeArm(this);
+
     fault = staticInst->execute(this, traceData);
+
+    if (fault != NoFault && cpu && cpu->chaosFPU)
+        cpu->chaosFPU->cancelPendingArm();
 
     // §2.12 CHAOSExec / §2.6 CHAOSFPU: post-execute result corruption.
     // Each injector filters by opClass (IntAlu/IntMult/IntDiv vs Float*/Simd*);

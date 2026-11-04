@@ -1,0 +1,45 @@
+{
+  "run_id": "FSU-FR07-F0-W1-HOOK-NONFP-NEG",
+  "model_id": "FR07",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FR07-a",
+  "workload": {
+    "binary": "workloads/directed/branchy_reduce",
+    "identity": "int-only-negative-v1",
+    "source": "workloads/directed/branchy_reduce.c",
+    "golden_id": "int-only-negative",
+    "golden": "0000000000000000000000000000000000000000000000000000000000000000",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "config_profile": "B0",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec",
+      "prf_wb_hook": true
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fault_mask": "0x80000000"
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "Negative gate: integer-only workload has no FP/vector destination; eligible=0 and no injection. Does not count."
+}

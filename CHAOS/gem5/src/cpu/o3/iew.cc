@@ -49,6 +49,7 @@
 
 #include "cpu/checker/cpu.hh"
 #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // [MDSPEC][R4-5.8] A07
+#include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"  // [FR07-HOOK v2] producer wakeup
                                     // AGU ready hook full definition
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/fu_pool.hh"
@@ -1511,6 +1512,11 @@ IEW::writebackInsts()
         if (!inst->isSquashed() && inst->isExecuted() &&
                 inst->getFault() == NoFault) {
             int dependents = instQueue.wakeDependents(inst);
+
+            // [FSU][FR07-HOOK v2] Producer wakeup evidence: the injected
+            // writeback becomes ready here, after the WB data was masked.
+            if (cpu->chaosFPU)
+                cpu->chaosFPU->noteProducerWakeup(inst.get(), dependents);
 
             for (int i = 0; i < inst->numDestRegs(); i++) {
                 // Mark register as ready if not pinned

@@ -318,6 +318,9 @@ p.add_argument("--fpu_op_classes", default="",
 p.add_argument("--fpu_reg_class", default="",
                choices=["", "any", "vec", "float", "vec_elem"],
                help="target destination register class")
+# [FSU][FR07-HOOK v2] Inject at the PRF writeback-data boundary (arm before
+# execute; shadow/pre-store mask; PRF never holds the unmasked value).
+p.add_argument("--fpu_prf_wb_hook", action="store_true")
 p.add_argument("--fpu_fma_weighted", action="store_true")
 p.add_argument("--fpu_recurring_stuck", action="store_true")
 # [FSU][F5] One permanent stuck-at fault, many exposures. Requires
@@ -813,6 +816,7 @@ if args.chaos_fpu:
         decodeGuard=args.fpu_decode_guard,
         opClasses=args.fpu_op_classes,
         regClass=args.fpu_reg_class,
+        prfWbHook=args.fpu_prf_wb_hook,
         fmaWeighted=args.fpu_fma_weighted,
         recurringStuck=args.fpu_recurring_stuck,
         permanentStuck=args.fpu_permanent_stuck,

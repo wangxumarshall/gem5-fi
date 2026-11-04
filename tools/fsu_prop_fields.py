@@ -51,6 +51,10 @@ PROP_EVT_FIELDS = [
     "rate_divisor", "jitter_pct", "interval", "ordinal_index",
     "ordinal_generator", "ordinal_generator_version", "ordinal_seed",
     "burst_id", "burst_ordinal", "burst_length",
+    # [FSU][FR07-HOOK v2] Writeback-data injection provenance.
+    "injection_site", "hook_version", "dest_operand", "arm_tick",
+    "writeback_tick", "wakeup_tick", "wakeup_dependents", "wakeup_pending",
+    "squash_tick",
     "detection_layer", "contained", "outcome", "oracle_diff",
     "evidence_status", "corr", "golden_id", "config_hash", "binary_hash",
     "terminal",

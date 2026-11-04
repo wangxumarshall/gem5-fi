@@ -101,6 +101,16 @@ def _fpu_filter_args(fpu: dict):
             f"{list(FPU_REG_CLASSES)}")
     if reg != "any":
         args += ["--fpu_reg_class", reg]
+
+    # [FSU][FR07-HOOK v2] Explicit PRF writeback-data boundary mode.
+    hook = fpu.get("prf_wb_hook", False)
+    if not isinstance(hook, bool):
+        raise ValueError(
+            f"fpu_mode.prf_wb_hook must be a boolean, got {type(hook).__name__}")
+    if hook:
+        # The mask lives on the parent injector object, not fpu_mode; the
+        # caller validates it (build_cmd) where fault_mask is in scope.
+        args += ["--fpu_prf_wb_hook"]
     return args
 
 
@@ -304,6 +314,9 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         cmd += ["--fpu_decode_guard"]
     # [FSU][FP06] Explicit precision/opClass/regClass filtering. Both census
     # and injection receive the SAME flags so they count/inject one stream.
+    if fpu.get("prf_wb_hook") and not fault_mask:
+        raise ValueError(
+            "fpu_mode.prf_wb_hook requires an explicit injector.fault_mask")
     cmd += _fpu_filter_args(fpu)
     profile = str(manifest.get("config_profile", "") or "")
     if profile == "B0":

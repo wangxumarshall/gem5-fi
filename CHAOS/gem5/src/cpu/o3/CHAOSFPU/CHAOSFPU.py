@@ -39,6 +39,15 @@ class CHAOSFPU(SimObject):
     # [FSU][D3] Precision and lane geometry. The field table is selected by
     # precision; the selected bit must fit inside the storage lane. FP64
     # fields require laneWidth=64; FP32 fields require laneWidth >= 32.
+    # [FSU][FR07-HOOK v2] Real PRF writeback-data boundary: arm before
+    # execute, route the destination write through a shadow WB buffer /
+    # pre-store mask, then commit the masked value to the PRF. Requires an
+    # explicit faultMask and an F0-style single-fault mode. Default false
+    # keeps every existing (post-execute rewrite) campaign byte-identical.
+    prfWbHook = Param.Bool(False,
+        "FR07 v2: inject at the PRF writeback-data boundary (pre-PRF-write "
+        "shadow/pre-store mask) instead of rewriting the PRF cell after "
+        "execute")
     precision = Param.String("fp64", "FP precision for field selection: "
                                      "fp64 | fp32")
     laneWidth = Param.UInt32(64, "Storage lane width in bits: 8 | 16 | 32 | 64")

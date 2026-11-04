@@ -1,0 +1,45 @@
+{
+  "run_id": "FSU-FR07-F0-W1-HOOK-SQUASH-GATE",
+  "model_id": "FR07",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FR07-a",
+  "workload": {
+    "binary": "workloads/directed/fp_branch_squash_probe",
+    "identity": "W1-fp-branch-squash-v1",
+    "source": "workloads/directed/fp_branch_squash_probe.c",
+    "golden_id": "fp-branch-squash-v1-golden",
+    "golden": "e01f32c74ae4c119a7b1b923148a9bcf1fe0cd38b51b3ee6584e46dceb756430",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "config_profile": "B0",
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec",
+      "prf_wb_hook": true
+    },
+    "max_faults": 1,
+    "first_clock": 5000000,
+    "probability": 1.0,
+    "fault_mask": "0x80000000"
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "FR07-HOOK v2 squash/replay gate: unpredictable data-dependent branches around FP ops. A squashed producer must emit `squash`, cancel the wakeup event, and never inject twice. Gate-only; not an official RunID."
+}

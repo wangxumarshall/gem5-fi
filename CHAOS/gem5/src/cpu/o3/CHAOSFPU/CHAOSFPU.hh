@@ -16,6 +16,7 @@
 #include "base/types.hh"
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
+#include "cpu/reg_class.hh"
 #include "cpu/o3/CHAOSFPU/chaos_fsu_fields.hh"
 #include "cpu/o3/CHAOSFPU/decoded_fp.hh"
 
@@ -32,6 +33,35 @@ class CHAOSFPU : public SimObject
     ~CHAOSFPU();
 
     void startup() override;  // self-attach to CPU.chaosFPU
+
+    // [FSU][FR07-HOOK v2] True PRF-WB data-boundary injection.
+    // maybeArm() runs BEFORE staticInst->execute(); it selects the one
+    // eligible event and reserves the destination's writeback data path.
+    // While armed, Scalar writes are masked in CPU::setReg() BEFORE
+    // regFile.setReg(), and vector destinations are written into a shadow
+    // WB buffer instead of the PRF (CPU::getWritableReg()). After execute,
+    // maybeCorrupt() applies the mask to the shadow and commits it to the
+    // PRF. The FU golden value is captured in the event (`before`), and the
+    // PRF never holds the unmasked value once the writeback lands.
+    bool maybeArm(o3::DynInst *dyn_inst);
+    void cancelPendingArm();
+
+    // Called from CPU::getWritableReg / CPU::setReg. Return true when the
+    // call was consumed by the armed WB path.
+    bool shadowForWrite(PhysRegIdPtr phys_reg, ThreadID tid, void **out);
+    bool interceptScalarWrite(PhysRegIdPtr phys_reg, ThreadID tid,
+                              RegVal *val);
+    bool interceptVectorWrite(PhysRegIdPtr phys_reg, ThreadID tid,
+                              const void *val);
+
+    // Called from IEW::writebackInsts() after wakeDependents(): emits the
+    // producer wakeup evidence for the injected writeback.
+    void noteProducerWakeup(o3::DynInst *dyn_inst, int dependents);
+
+    // Called from DynInst::setSquashed(): cancel the producer wakeup evidence
+    // and emit an explicit squash lifecycle event. The injected value lives
+    // only in a freed speculative PRF cell; it never becomes ready or commits.
+    void noteSquash(o3::DynInst *dyn_inst);
 
     // Called from DynInst::execute() AFTER staticInst->execute(). Filters by
     // opClass (FloatAdd/FloatMult/FloatMultAcc + SimdFloat*); XORs the FP
@@ -69,6 +99,57 @@ class CHAOSFPU : public SimObject
     bool fixed_skip_mode = false;
     bool count_only = false;         // consume + count, never corrupt
     uint64_t eligible_count = 0;     // CHAOS_ELIGIBLE_COUNT=<n> at teardown
+
+    // [FSU][FR07-HOOK v2] Real PRF writeback-data hook. Requires an explicit
+    // faultMask and an F0-style single-fault mode; legacy modes keep using
+    // maybeCorrupt()'s post-execute cell rewrite byte-identically.
+    bool prf_wb_hook = false;
+    struct WbPending
+    {
+        bool valid = false;
+        uint64_t seq = 0;
+        ThreadID tid = 0;
+        int dest_operand = -1;
+        int reg_class = -1;
+        int reg_index = -1;
+        uint64_t lane_mask = 0;
+        int lane_width = 64, lane_offset = 0;
+        int bit_in_lane = 0, abs_bit = 0;
+        int field_lo = -1, field_hi = -1;
+        uint64_t abs_lo = 0, abs_hi = 0;
+        uint64_t before_lane = 0, after_lane = 0;
+        uint64_t before_lo = 0, before_hi = 0;
+        uint64_t after_lo = 0, after_hi = 0;
+        uint32_t enc = 0;
+        std::string op_class;
+        std::string decoded_kind;
+        int decoded_precision_bits = 0;
+        int decoded_element_width = 0;
+        int decoded_lanes = 0;
+        bool decoded_reliable = false;
+        bool precision_match = false, lane_match = false;
+        bool shadow_used = false;   // getWritableReg returned the shadow
+        bool prf_written = false;   // a real PRF write was intercepted
+        Tick arm_tick = 0;
+        // The PRF vector container can be wider than 128 bits in this build;
+        // size the shadow from vecRegBytes() and never assume 16.
+        static constexpr int MAX_VEC_BYTES = 256;
+        int vec_bytes = 16;
+        uint8_t shadow[MAX_VEC_BYTES] = {};
+    };
+    WbPending wb;
+    chaos_fsu::MaskInfo hook_mi;
+    bool hook_mi_ok = false;
+    // At most ONE writeback fault is injected per run, so the producer
+    // wakeup evidence is a single pending record (no map allocation on the
+    // execute path).
+    bool wb_wakeup_valid = false;
+    bool wb_wakeup_woken = false;   // wakeup event already emitted
+    uint64_t wb_wakeup_seq = 0;
+    uint64_t wb_wakeup_fid = 0;
+    uint64_t wb_wakeup_l0 = 0;
+    int wb_wakeup_class = -1;
+    int wb_wakeup_reg = -1;
 
     // v1.1 Phase 9 patch 1a mode 1 — bitseg field (empty = uniform).
     std::string bitseg;
@@ -255,6 +336,10 @@ class CHAOSFPU : public SimObject
         bool lane_match = false;
         bool is_vec = false;
         bool consumed = false;
+        // [FR07-HOOK v2] The producer was squashed: its speculative PRF cell
+        // never becomes architecturally visible. Later reuses of the same
+        // physical index must not be attributed to this fault.
+        bool squashed = false;
         std::string op_class;   // gem5 OpClass name of the producer
         // [FSU][F5] The taint belongs to a permanent fault: its terminal is
         // reported by the F5 chain_end (with exposure accounting), never by
@@ -310,12 +395,20 @@ class CHAOSFPU : public SimObject
         bool is_vec = false;
         std::string field;
         std::string op_class;   // gem5 OpClass name of this instruction
+        // [FSU][FR07-HOOK v2] Self-describing injection-site provenance.
+        std::string injection_site;   // e.g. prf_wb_data
+        std::string hook_version;     // e.g. "2"
+        uint64_t producer_sn = 0;
+        int dest_operand = -1;
+        uint64_t arm_tick = 0;
     };
     std::vector<FaultedReg> faulted_regs;
     std::map<uint64_t, TaintedConsumer> tainted_consumers;
     uint64_t next_fault_id = 1;
 
     void noteFaultApplied(o3::DynInst *inst, const FaultInfo &info);
+    bool finalizeWb(o3::DynInst *inst);
+    bool wbDestMatches(PhysRegIdPtr phys_reg, ThreadID tid) const;
     uint64_t emitFsu(const char *kind, uint64_t fault_id, uint64_t parent,
                      std::vector<std::pair<std::string, std::string>> kv);
     void noteNotActivated();

@@ -37,6 +37,7 @@ namespace gem5
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
+          prf_wb_hook(p.prfWbHook),
           bitseg(p.bitseg),
           precision(p.precision),
           precision_bits(64),
@@ -194,6 +195,25 @@ namespace gem5
             panic("CHAOSFPU: precision %s requires lane_width >= %d "
                   "(got %d)\n", precision.c_str(), precision_bits,
                   lane_width);
+        // [FSU][FR07-HOOK v2] The pre-PRF-write hook is a distinct, explicit
+        // mode. It must not silently coexist with modes that bypass the
+        // writeback path or mint multiple faults.
+        if (prf_wb_hook) {
+            // countOnly is allowed: the census run must measure the same
+            // eligible stream, and maybeArm() returns false in that mode.
+            if (permanent_stuck || rate_mode || recurring_stuck ||
+                fma_weighted || rounding_sub || f3_dependent || fpsr_suppress)
+                panic("CHAOSFPU: prfWbHook is incompatible with "
+                      "permanent_stuck/rate/recurringStuck/fmaWeighted/"
+                      "roundingSub/f3Dependent/fpsrSuppress\n");
+            if (!fault_mask)
+                panic("CHAOSFPU: prfWbHook requires an explicit faultMask\n");
+            std::string hferr;
+            if (!chaos_fsu::buildExplicitMask(fault_mask, lane_width,
+                                              lane_offset, hook_mi, hferr))
+                panic("CHAOSFPU: prfWbHook mask: %s\n", hferr.c_str());
+            hook_mi_ok = true;
+        }
         // Ambiguous mode combinations would make the emitted `field`
         // disagree with the actual mask. Reject them instead of guessing.
         if (!bitseg.empty() && (fault_mask || recurring_stuck ||
@@ -465,6 +485,13 @@ namespace gem5
     bool
     CHAOSFPU::maybeCorrupt(o3::DynInst *dyn_inst)
     {
+        // [FSU][FR07-HOOK v2] In hook mode the decision/arming happened
+        // before execute; this call only commits the shadow WB data (with the
+        // mask applied) to the PRF and emits the L0 evidence.
+        // countOnly is the census pass: it must use the legacy eligible
+        // stream (maybeArm() is inert there), so only the injection run
+        // finalizes the shadow WB.
+        if (prf_wb_hook && !count_only) return finalizeWb(dyn_inst);
         if (!cpu || probability <= 0.0f) return false;
         // [FSU][F5] maxFaults bounds INSTALLATIONS, not exposures: after the
         // single install every eligible event is an exposure of the same
@@ -1009,6 +1036,367 @@ namespace gem5
         return true;
     }
 
+    // ------------------------------------------------------------------
+    // [FSU][FR07-HOOK v2] Real PRF writeback-data boundary.
+    // ------------------------------------------------------------------
+
+    bool
+    CHAOSFPU::wbDestMatches(PhysRegIdPtr phys_reg, ThreadID tid) const
+    {
+        return wb.valid && phys_reg &&
+               (int)phys_reg->classValue() == wb.reg_class &&
+               (int)phys_reg->index() == wb.reg_index && tid == wb.tid;
+    }
+
+    void
+    CHAOSFPU::cancelPendingArm()
+    {
+        wb = WbPending();
+    }
+
+    bool
+    CHAOSFPU::maybeArm(o3::DynInst *dyn_inst)
+    {
+        if (!prf_wb_hook || !dyn_inst || !cpu) return false;
+        if (wb.valid) cancelPendingArm();
+        if (!hook_mi_ok)
+            panic("CHAOSFPU: prfWbHook armed without a validated mask\n");
+        if (permanent_stuck || count_only || rate_mode || recurring_stuck ||
+            fma_weighted || rounding_sub || f3_dependent || fpsr_suppress)
+            return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        if (!inWindow()) return false;
+        // Predicated-off instructions must not install a writeback fault.
+        if (!dyn_inst->readPredicate()) return false;
+
+        const OpClass oc = dyn_inst->opClass();
+        if (!isFpOpClass(oc)) return false;
+        if (!op_class_allow.empty() &&
+            std::find(op_class_allow.begin(), op_class_allow.end(),
+                      (int)oc) == op_class_allow.end())
+            return false;
+
+        // First FP/vector destination matching the configured reg class:
+        // exactly the same target the legacy path picks.
+        int target = -1;
+        int target_class = -1;
+        for (int i = 0; i < dyn_inst->numDestRegs(); i++) {
+            PhysRegIdPtr d = dyn_inst->renamedDestIdx(i);
+            if (d && !d->is(InvalidRegClass) &&
+                (d->classValue() == VecRegClass ||
+                 d->classValue() == FloatRegClass ||
+                 d->classValue() == VecElemClass) &&
+                regClassMatches((int)d->classValue())) {
+                target = i;
+                target_class = (int)d->classValue();
+                break;
+            }
+        }
+        if (target < 0) return false;
+
+        chaos_fsu::DecodedFp dec;
+        uint32_t dec_enc = 0;
+        bool dec_ok = true, dec_pm = false, dec_lm = false;
+        const bool want_decode = decode_guard || !fsu_model.empty();
+        if (want_decode) {
+            dec_ok = false;
+            auto *asi = dynamic_cast<const ArmISA::ArmStaticInst *>(
+                dyn_inst->staticInst.get());
+            if (asi) {
+                dec_enc = asi->encoding();
+                dec = chaos_fsu::decodedPrecision(dec_enc,
+                                                  familyOf(dyn_inst->opClass()));
+                dec_ok = dec.reliable;
+            }
+            if (dec_ok) {
+                dec_pm = dec.precision_bits == precision_bits;
+                if (dec.kind == chaos_fsu::FpKind::ScalarVfp) {
+                    dec_lm = lane_offset == 0 &&
+                        (lane_width == dec.element_width ||
+                         (dec.element_width == 32 && lane_width == 64));
+                } else if (dec.kind == chaos_fsu::FpKind::NeonVector) {
+                    dec_lm = lane_width == dec.element_width &&
+                             lane_offset >= 0 && lane_offset < dec.lanes;
+                }
+            }
+            if (decode_guard) dec_ok = dec_ok && dec_pm && dec_lm;
+        }
+        const bool lane_mode = lane_offset != 0;
+        const bool eligible = target >= 0 && dec_ok &&
+                              (!lane_mode || isSimdOpClass(oc));
+        if (!eligible) return false;
+
+        // Same fixed-skip / probability selection as the legacy path, so the
+        // injected dynamic event is the pre-registered one.
+        if (events_to_skip > 0) {
+            --events_to_skip;
+            return false;
+        }
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return false;
+
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) panic("CHAOSFPU: cpu is not an O3CPU\n");
+        if (o3cpu->physRegFile().vecRegBytes() < 16)
+            panic("CHAOSFPU: vector register storage is %zu bytes, need "
+                  ">=16 for the PRF-WB hook\n",
+                  o3cpu->physRegFile().vecRegBytes());
+
+        PhysRegIdPtr dest = dyn_inst->renamedDestIdx(target);
+        wb = WbPending();
+        wb.valid = true;
+        wb.seq = dyn_inst->seqNum;
+        wb.tid = dyn_inst->threadNumber;
+        wb.dest_operand = target;
+        wb.reg_class = target_class;
+        wb.reg_index = (int)dest->index();
+        wb.lane_mask = hook_mi.lane_mask;
+        wb.lane_width = lane_width;
+        wb.lane_offset = lane_offset;
+        wb.bit_in_lane = hook_mi.bit_in_lane;
+        wb.abs_bit = hook_mi.abs_bit;
+        wb.abs_lo = hook_mi.abs_lo;
+        wb.abs_hi = hook_mi.abs_hi;
+        wb.field_lo = hook_mi.lane_mask
+            ? __builtin_ctzll(hook_mi.lane_mask) : -1;
+        wb.field_hi = hook_mi.lane_mask
+            ? 63 - __builtin_clzll(hook_mi.lane_mask) : -1;
+        wb.enc = dec_enc;
+        wb.op_class = opClassName(oc);
+        wb.decoded_kind = chaos_fsu::fpKindName(dec.kind);
+        wb.decoded_precision_bits = dec.precision_bits;
+        wb.decoded_element_width = dec.element_width;
+        wb.decoded_lanes = dec.lanes;
+        wb.decoded_reliable = dec.reliable;
+        wb.precision_match = dec_pm;
+        wb.lane_match = dec_lm;
+        wb.arm_tick = curTick();
+        if (target_class == VecRegClass) {
+            wb.vec_bytes = (int)o3cpu->physRegFile().vecRegBytes();
+            if (wb.vec_bytes <= 0 ||
+                wb.vec_bytes > WbPending::MAX_VEC_BYTES)
+                panic("CHAOSFPU: vector register storage is %d bytes, "
+                      "PRF-WB shadow supports <= %d\n", wb.vec_bytes,
+                      WbPending::MAX_VEC_BYTES);
+            // Snapshot the destination cell: the ISA will write the FU
+            // result into the shadow, never into the PRF.
+            o3cpu->getReg(dest, wb.shadow, dyn_inst->threadNumber);
+        } else {
+            RegVal v = o3cpu->getReg(dest, dyn_inst->threadNumber);
+            std::memcpy(wb.shadow, &v, sizeof(v));
+        }
+        return true;
+    }
+
+    bool
+    CHAOSFPU::shadowForWrite(PhysRegIdPtr phys_reg, ThreadID tid, void **out)
+    {
+        if (!wb.valid || !wbDestMatches(phys_reg, tid)) return false;
+        if (wb.reg_class != VecRegClass) return false;
+        wb.shadow_used = true;
+        *out = (void *)wb.shadow;
+        return true;
+    }
+
+    bool
+    CHAOSFPU::interceptScalarWrite(PhysRegIdPtr phys_reg, ThreadID tid,
+                                   RegVal *val)
+    {
+        if (!wb.valid || !wbDestMatches(phys_reg, tid)) return false;
+        if (wb.reg_class != FloatRegClass && wb.reg_class != VecElemClass)
+            return false;
+        const uint64_t width_mask = chaos_fsu::laneMaskForWidth(wb.lane_width);
+        const uint64_t oldv = (uint64_t)*val;
+        const uint64_t lane_before = oldv & width_mask;
+        const uint64_t lane_after = lane_before ^ wb.lane_mask;
+        const uint64_t newv = (oldv & ~width_mask) | lane_after;
+        *val = (RegVal)newv;
+        if (!wb.prf_written) {
+            wb.before_lane = lane_before;
+            wb.after_lane = lane_after;
+            wb.before_lo = oldv;
+            wb.before_hi = 0;
+            wb.after_lo = newv;
+            wb.after_hi = 0;
+            wb.prf_written = true;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSFPU::interceptVectorWrite(PhysRegIdPtr phys_reg, ThreadID tid,
+                                   const void *val)
+    {
+        if (!wb.valid || !wbDestMatches(phys_reg, tid)) return false;
+        if (wb.reg_class != VecRegClass || !val) return false;
+        // The ISA's FU result lands in the shadow WB buffer; the PRF write is
+        // deferred to finalizeWb(), where the mask is applied first.
+        std::memcpy(wb.shadow, val, (size_t)wb.vec_bytes);
+        wb.shadow_used = true;
+        return true;
+    }
+
+    bool
+    CHAOSFPU::finalizeWb(o3::DynInst *dyn_inst)
+    {
+        if (!wb.valid || !dyn_inst || wb.seq != dyn_inst->seqNum)
+            return false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        PhysRegIdPtr dest = dyn_inst->renamedDestIdx(wb.dest_operand);
+        if (!o3cpu || !dest ||
+            (int)dest->classValue() != wb.reg_class ||
+            (int)dest->index() != wb.reg_index) {
+            cancelPendingArm();
+            return false;
+        }
+
+        if (wb.shadow_used) {
+            unsigned char after[WbPending::MAX_VEC_BYTES] = {};
+            std::memcpy(after, wb.shadow, (size_t)wb.vec_bytes);
+            const int lane_bytes = wb.lane_width / 8;
+            const int base = wb.lane_offset * lane_bytes;
+            uint64_t lane_before = 0;
+            std::memcpy(&lane_before, wb.shadow + base, lane_bytes);
+            const uint64_t lane_after = lane_before ^ wb.lane_mask;
+            std::memcpy(after + base, &lane_after, lane_bytes);
+            // This is the actual PRF writeback of the FU result, with the
+            // fault applied to the writeback data. No unmasked value is ever
+            // stored in the PRF.
+            if (wb.reg_class == VecRegClass)
+                o3cpu->physRegFile().setReg(dest, (const void *)after);
+            else
+                panic("CHAOSFPU: PRF-WB shadow on a non-vector class\n");
+            std::memcpy(&wb.before_lo, wb.shadow, 8);
+            std::memcpy(&wb.before_hi, wb.shadow + 8, 8);
+            std::memcpy(&wb.after_lo, after, 8);
+            std::memcpy(&wb.after_hi, after + 8, 8);
+            wb.before_lane = lane_before;
+            wb.after_lane = lane_after;
+            wb.prf_written = true;
+        }
+
+        if (!wb.prf_written) {
+            // No real destination write happened (predicated off or the ISA
+            // did not write). This event cannot carry a fault; do not count.
+            cancelPendingArm();
+            return false;
+        }
+
+        FaultInfo fi;
+        fi.reg_class = wb.reg_class;
+        fi.reg_index = wb.reg_index;
+        fi.before = wb.before_lane;
+        fi.after = wb.after_lane;
+        fi.mask = wb.lane_mask;
+        fi.precision_bits = precision_bits;
+        fi.lane_width = wb.lane_width;
+        fi.lane_offset = wb.lane_offset;
+        fi.bit_in_lane = wb.bit_in_lane;
+        fi.abs_bit = wb.abs_bit;
+        fi.field_lo = wb.field_lo;
+        fi.field_hi = wb.field_hi;
+        fi.abs_lo = wb.abs_lo;
+        fi.abs_hi = wb.abs_hi;
+        fi.full_before_lo = wb.before_lo;
+        fi.full_before_hi = wb.before_hi;
+        fi.full_after_lo = wb.after_lo;
+        fi.full_after_hi = wb.after_hi;
+        fi.instruction_bits = wb.enc;
+        fi.decoded_kind = wb.decoded_kind;
+        fi.decoded_precision_bits = wb.decoded_precision_bits;
+        fi.decoded_element_width = wb.decoded_element_width;
+        fi.decoded_lanes = wb.decoded_lanes;
+        fi.decoded_reliable = wb.decoded_reliable;
+        fi.precision_match = wb.precision_match;
+        fi.lane_match = wb.lane_match;
+        fi.is_vec = (wb.reg_class == VecRegClass);
+        fi.field = "uniform";
+        fi.op_class = wb.op_class;
+        fi.injection_site = "prf_wb_data";
+        fi.hook_version = "2";
+        fi.producer_sn = dyn_inst->seqNum;
+        fi.dest_operand = wb.dest_operand;
+        fi.arm_tick = wb.arm_tick;
+        noteFaultApplied(dyn_inst, fi);
+        const uint64_t l0 = faulted_regs.empty()
+            ? 0 : faulted_regs.back().l0_id;
+        const uint64_t fid = faulted_regs.empty()
+            ? 0 : faulted_regs.back().fault_id;
+        wb_wakeup_valid = true;
+        wb_wakeup_woken = false;
+        wb_wakeup_seq = dyn_inst->seqNum;
+        wb_wakeup_fid = fid;
+        wb_wakeup_l0 = l0;
+        wb_wakeup_class = wb.reg_class;
+        wb_wakeup_reg = wb.reg_index;
+        ++faults_injected_count;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: prf_wb_data, hook_version=2"
+                << ", opClass=" << wb.op_class
+                << ", sn=" << dyn_inst->seqNum
+                << ", phys_reg=" << wb.reg_index
+                << ", mask=0x" << std::hex << wb.lane_mask << std::dec
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        cancelPendingArm();
+        return true;
+    }
+
+    void
+    CHAOSFPU::noteProducerWakeup(o3::DynInst *dyn_inst, int dependents)
+    {
+        if (!dyn_inst || !wb_wakeup_valid ||
+            wb_wakeup_seq != dyn_inst->seqNum)
+            return;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"producer_seq", std::to_string(dyn_inst->seqNum)},
+            {"dyn_inst_seq", std::to_string(dyn_inst->seqNum)},
+            {"wakeup_tick", std::to_string(curTick())},
+            {"wakeup_dependents", std::to_string(dependents)},
+            {"injection_site", "prf_wb_data"},
+            {"hook_version", "2"},
+        };
+        kv.push_back({"reg_class", regClassName(wb_wakeup_class)});
+        kv.push_back({"phys_reg", std::to_string(wb_wakeup_reg)});
+        emitFsu("wakeup", wb_wakeup_fid, wb_wakeup_l0, kv);
+        // Keep the record alive: a wakeup can be followed by a squash (the
+        // instruction wrote back but never committed). noteSquash() must be
+        // able to cancel it; noteCommit() clears it on the commit path.
+        wb_wakeup_woken = true;
+    }
+
+    void
+    CHAOSFPU::noteSquash(o3::DynInst *dyn_inst)
+    {
+        if (!dyn_inst || !wb_wakeup_valid ||
+            wb_wakeup_seq != dyn_inst->seqNum)
+            return;
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"producer_seq", std::to_string(dyn_inst->seqNum)},
+            {"dyn_inst_seq", std::to_string(dyn_inst->seqNum)},
+            {"squash_tick", std::to_string(curTick())},
+            {"injection_site", "prf_wb_data"},
+            {"hook_version", "2"},
+            {"outcome", wb_wakeup_woken
+                ? "squashed_after_wakeup" : "squashed_before_wakeup"},
+            {"wakeup_pending", wb_wakeup_woken ? "0" : "1"},
+        };
+        kv.push_back({"reg_class", regClassName(wb_wakeup_class)});
+        kv.push_back({"phys_reg", std::to_string(wb_wakeup_reg)});
+        // Retire the taint: this producer never reaches architectural state.
+        for (auto &f : faulted_regs) {
+            if (f.producer_sn == dyn_inst->seqNum)
+                f.squashed = true;
+        }
+        // `squash` is a lifecycle/containment event, not an L0-L5 layer.
+        emitFsu("squash", wb_wakeup_fid, wb_wakeup_l0, kv);
+        wb_wakeup_valid = false;
+    }
+
     // Sentinel: event_id 0 is valid; do not use 0 to mean "no parent".
     static constexpr uint64_t FSU_NO_PARENT = ~0ULL;
 
@@ -1116,6 +1504,16 @@ namespace gem5
             {"activated", ""},
             {"thread_id", std::to_string((int)inst->threadNumber)},
         };
+        // [FSU][FR07-HOOK v2] Self-describing injection-site provenance.
+        if (!fi.injection_site.empty()) {
+            kv.push_back({"injection_site", fi.injection_site});
+            kv.push_back({"hook_version", fi.hook_version});
+            kv.push_back({"producer_seq", std::to_string(fi.producer_sn)});
+            kv.push_back({"dest_operand", std::to_string(fi.dest_operand)});
+            kv.push_back({"arm_tick", std::to_string(fi.arm_tick)});
+            kv.push_back({"writeback_tick", std::to_string(curTick())});
+            kv.push_back({"wakeup_pending", "1"});
+        }
         if (fl >= 0)
             kv.push_back({"field_lo", std::to_string(fl)});
         if (fh >= 0)
@@ -1713,7 +2111,7 @@ namespace gem5
         if (tainted_consumers.count(inst->seqNum))
             return;
         for (auto &f : faulted_regs) {
-            if (f.consumed)
+            if (f.consumed || f.squashed)
                 continue;
             for (int i = 0; i < inst->numSrcRegs(); i++) {
                 PhysRegIdPtr reg = inst->renamedSrcIdx(i);
@@ -1856,6 +2254,10 @@ namespace gem5
     {
         if (!inst)
             return;
+        // [FR07-HOOK v2] The injected producer committed: it can no longer
+        // be squashed, so its pending wakeup record is retired here.
+        if (wb_wakeup_valid && wb_wakeup_seq == inst->seqNum)
+            wb_wakeup_valid = false;
         auto it = tainted_consumers.find(inst->seqNum);
         if (it == tainted_consumers.end() || it->second.committed)
             return;
@@ -1957,7 +2359,7 @@ namespace gem5
     CHAOSFPU::noteNotActivated()
     {
         for (auto &f : faulted_regs) {
-            if (f.consumed)
+            if (f.consumed || f.squashed)
                 continue;
             // [FSU][F5] A permanent fault's terminal is the F5 chain_end
             // (exposures_total/activated_exposure_count/terminal). A

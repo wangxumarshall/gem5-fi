@@ -296,6 +296,10 @@ class CHAOSPropagation : public SimObject
         "commit_events", "squash_events", "consumers_recorded",
         "read_exposures_total", "write_exposures_total", "lane_mask_scope",
         "first_activated_at_install",
+        // [FR07-HOOK v2] PRF writeback-data injection provenance.
+        "injection_site", "hook_version", "dest_operand", "arm_tick",
+        "writeback_tick", "wakeup_tick", "wakeup_dependents",
+        "wakeup_pending", "squash_tick",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));

@@ -341,6 +341,10 @@
               "description": "[FSU][FP06] Target destination register class. Only a dest of this class is eligible; empty/absent = any FP register class (legacy).",
               "enum": ["any", "vec", "float", "vec_elem"]
             },
+            "prf_wb_hook": {
+              "type": "boolean",
+              "description": "[FSU][FR07-HOOK v2] Inject at the PRF writeback-data boundary: arm before execute, route the destination through a shadow WB buffer (vector) or mask the value before regFile.setReg (scalar), then commit the masked value to the PRF. Requires an explicit fault_mask and an F0-style single-fault mode; incompatible with permanent_stuck/count_only/rate/recurring_stuck/fma_weighted/rounding_sub/f3_dependent/fpsr_suppress."
+            },
             "permanent_stuck": {
               "type": "boolean",
               "description": "[FSU][F5] Install exactly ONE permanent stuck-at fault (one fault_id, one fault_mask, one polarity) on the first eligible event after f5_warmup; every later eligible event is an exposure of the SAME fault. This is forced polarity, NOT XOR. Requires freq=F5, probability=1.0, an explicit fault_mask, max_faults=0/1, and is mutually exclusive with rate/recurring_stuck/rounding_sub/f3_dependent/fpsr_suppress/fma_weighted/bitseg."
