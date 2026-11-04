@@ -1977,7 +1977,6 @@ namespace gem5
             } else {
                 const int K_ACTIVE_RETRY = 32;
                 chosen_phys_idx = -1;
-                int fallback_allocated = -1;
                 for (int t = 0; t < K_ACTIVE_RETRY; t++) {
                     int cand = std::uniform_int_distribution<>(0, n - 1)(rng);
                     PhysRegIdPtr cand_reg =
@@ -1988,22 +1987,33 @@ namespace gem5
                                   : cpu->physRegFile().intPhysRegId(cand);
                     if (cpu->physFreeList().isFree(target_class, cand_reg))
                         continue;
-                    if (fallback_allocated < 0)
-                        fallback_allocated = cand;
-                    // Prefer a cell that an unissued instruction will really
-                    // read: the workbook trigger requires a later consumer
-                    // read, not merely an allocated slot.
+                    // Require a cell that an unissued instruction will really
+                    // read: the workbook trigger is "active, ready and a
+                    // later consumer read", not merely an allocated slot.
+                    // No such cell yet -> reschedule WITHOUT consuming the
+                    // fault (a no-consumer slot would be a wasted injection).
                     if (cpu->o3IEW().instQueue.physRegHasPendingSource(
                             target_class, cand)) {
                         chosen_phys_idx = cand;
                         break;
                     }
                 }
-                if (chosen_phys_idx < 0)
-                    chosen_phys_idx = fallback_allocated;
                 if (chosen_phys_idx < 0) {
-                    // window empty (all K samples free): honest skip —
-                    // reschedule, do NOT consume the fault
+                    ++skip_no_consumer_count;
+                    if (write_log && log_stream && log_stream->stream()
+                        && (skip_no_consumer_count <= 8
+                            || skip_no_consumer_count % 100000 == 0)) {
+                        *(log_stream->stream())
+                            << "VecTargetNoConsumer: cycle="
+                            << cpu->curCycle()
+                            << " class="
+                            << (target_class == gem5::VecRegClass ? "vec"
+                                : target_class == gem5::FloatRegClass
+                                      ? "float" : "int")
+                            << " skips=" << skip_no_consumer_count
+                            << " (no pending source in IQ; retry, fault not "
+                               "consumed)" << std::endl;
+                    }
                     return;  // caller's periodic event reschedules
                 }
             }
