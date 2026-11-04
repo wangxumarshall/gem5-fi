@@ -8,10 +8,12 @@
 
 #include "params/CHAOSIQ.hh"
 #include "sim/sim_object.hh"
+#include "sim/eventq.hh"            // Event (FQ08-c delayed wake)
 #include "base/output.hh"
 #include "base/types.hh"
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
+#include "cpu/o3/CHAOSIQ/chaos_iq_lifecycle.hh"  // FQ08-b/c pure model
 #include "cpu/op_class.hh"          // OpClass (W5.12 D55 fu-class misroute)
 #include "cpu/reg_class.hh"         // RegClassType (W7.4 targetClass)
 
@@ -29,28 +31,66 @@ class CHAOSIQ : public SimObject
 
     void startup() override;  // self-attach to InstructionQueue.chaosIQ
 
-    // Called from InstructionQueue::wakeDependents at the START. If
-    // wake_omit and the RNG fires, returns true (the caller SKIPS the
-    // wakeup broadcast — one dropped wake). Otherwise false (normal wake).
+    // Called from InstructionQueue::wakeDependents at the START.
+    //
+    //  - wake_omit: if the RNG fires, returns true (the caller SKIPS the
+    //    wakeup broadcast — one dropped wake).
+    //  - wake_phase (FQ08-c): also handled HERE, not via shouldDelayWake().
+    //    On a gate hit CHAOSIQ schedules its OWN DelayedWake event (identity +
+    //    physical-register generation checked at fire time) and returns true
+    //    so the caller skips the broadcast now. The caller's
+    //    o3::DelayedWakeEvent path is therefore never taken (shouldDelayWake
+    //    is permanently closed) — that event re-enters wakeDependents with no
+    //    squash/generation check (FQ08-c risk).
     bool shouldOmitWake(ThreadID tid, const o3::DynInstPtr &completed_inst);
 
-    // §2.5 F5 src_ready_bitflip (Phase 4.3, method3 wrong-source wakeup):
-    // GATE only — the dependency-graph surgery (pop a not-ready dependent
-    // from a different reg's chain, markSrcRegReady, addIfReady) lives in
-    // InstructionQueue::wakeDependents, which owns dependGraph/addIfReady/
-    // scoreboard (no internals exposed). Returns true = inject this event.
+    // §2.5 F5 src_ready_bitflip (FQ08-b): ATTEMPT gate only.
+    //
+    // On a gate hit this records an attempt and returns FALSE: the actual
+    // wrong-source ready write is applied later by noteTagWake(), on a live
+    // dependent the caller is really waking. Returning false also disables
+    // the caller's legacy "pop a random other chain" surgery, which could not
+    // report whether a victim existed (the FQ08-b over-count). applied /
+    // activated (and the max_faults budget) move only when a real victim is
+    // modified.
     bool shouldWrongSourceWake(ThreadID tid,
                                const o3::DynInstPtr &completed_inst);
 
-    // §2.5 F6 wake_phase (Phase 4.3, method3 phase collapse): GATE only —
-    // the caller skips this broadcast now and re-issues it after
-    // |phase_offset| cycles via its own scheduled event. Delay only
-    // (advance = wake in the past = no-op; documented E3 proxy limit).
+    // §2.5 F6 wake_phase: permanently closed legacy gate.
+    //
+    // FQ08-c: returning true here would make InstructionQueue schedule its
+    // o3::DelayedWakeEvent, which stores a bare DynInstPtr and calls
+    // wakeDependents() with no squash/generation validation. CHAOSIQ owns the
+    // delayed wake instead (see shouldOmitWake). Kept for call-site ABI.
     bool shouldDelayWake(ThreadID tid, const o3::DynInstPtr &completed_inst);
 
-    // F6: the configured delay in cycles (InstructionQueue reads it when
-    // scheduling the DelayedWakeEvent).
+    // F6: the configured delay in cycles (read by CHAOSIQ when scheduling its
+    // own DelayedWake event; the caller's DelayedWakeEvent is not used).
     int phaseOffset() const { return phase_offset; }
+
+    // FQ08-c: the delayed-wake event CHAOSIQ schedules itself. It holds a
+    // refcounted DynInstPtr (the producer object cannot be freed while the
+    // event holds it) plus a VALUE snapshot of the producer identity and of
+    // every destination physical register's allocation generation. process()
+    // compares the snapshot against the live state and only then re-enters
+    // InstructionQueue::wakeDependents(); squash / free+realloc / identity
+    // mismatch is a logged no-op.
+    class DelayedWake : public Event
+    {
+      public:
+        DelayedWake(CHAOSIQ *_injector, const o3::DynInstPtr &_inst,
+                    const chaos_iq_lifecycle::WakeStamp &_stamp);
+        void process() override;
+        const char *description() const override
+        {
+            return "CHAOSIQ safe delayed wake";
+        }
+
+      private:
+        CHAOSIQ *injector;
+        o3::DynInstPtr inst;
+        chaos_iq_lifecycle::WakeStamp stamp;
+    };
 
     // ------------------------------------------------------------------
     // W5.10-W5.11 (ooo 04-design-matrix D47-D54, Int Dispatch/ROB — the
@@ -99,7 +139,10 @@ class CHAOSIQ : public SimObject
     // Called from the wakeDependents dependent loop for each popped
     // dependent: D53 tag_stuck consumption evidence — log when the ARMED
     // entry is woken through a chain (the wrong tag actually matched a
-    // producer broadcast).
+    // producer broadcast). FQ08-b: in src_ready_bitflip mode this is also
+    // the victim hook — the dependent being woken is a real, live
+    // instruction, so the wrong-source ready write is applied here or not at
+    // all (an attempt with no live victim never counts as applied).
     void noteTagWake(const o3::DynInstPtr &dep_inst, RegIndex chain_flat);
 
     // Called from the issue loop at the non-mem clearInIQ site: record
@@ -179,11 +222,43 @@ class CHAOSIQ : public SimObject
     // stale_departed pattern; the DynInstPtr keeps the record readable).
     std::deque<o3::DynInstPtr> tag_departed;
 
+    // FQ08-b: separate observable counters (eligible / attempted / applied /
+    // activated) and the pending-attempt state. `faults_injected_count` (the
+    // max_faults budget) is incremented ONLY on apply, for every FQ08 mode.
+    chaos_iq_lifecycle::Counters iq_counts;
+    chaos_iq_lifecycle::Attempt ws_attempt;
+    // One-shot suppression of the GENUINE wake of the source slot the
+    // injection already marked ready (the victim stays in that dependency
+    // chain because CHAOSIQ cannot pop it; see the pure header).
+    chaos_iq_lifecycle::DuplicateWake ws_duplicate;
+    // FQ08-c: counters for the CHAOSIQ-owned delayed wake.
+    chaos_iq_lifecycle::DelayedWakeCounters dw_counts;
+    // Set while a delayed wake is being re-issued: the nested
+    // wakeDependents() call must not fire a NEW injection (otherwise an
+    // unlimited-fault wake_phase run would keep delaying its own replay).
+    bool replaying_delayed_wake = false;
+
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
 
     bool inWindow();
+    // FQ08-b: build the VictimView of one woken dependent and apply the
+    // wrong-source ready write if it is a live, eligible victim.
+    void maybeApplyWrongSourceWake(const o3::DynInstPtr &dep_inst,
+                                   RegIndex chain_flat);
+    // FQ08-c: log a delayed wake that was safely ignored (squash / generation
+    // / identity). Every line carries "faults_injected: <n>" so the existing
+    // injection-log parsers keep counting real injections only.
+    void noteDelayedWakeIgnored(chaos_iq_lifecycle::WakeDecision decision,
+                                const o3::DynInstPtr &inst);
+    // Exit summary: CHAOS_IQ_COUNTS ... , faults_injected: <n>
+    void dumpIqCounts();
+    const char *modeName();
+    // FQ08-c: value snapshot of the producer identity + destination physreg
+    // allocation generations at schedule time.
+    chaos_iq_lifecycle::WakeStamp
+    snapshotWakeStamp(o3::CPU *o3cpu, const o3::DynInstPtr &inst);
     // shared gates for the insert/wake/issue-site hooks: window +
     // max_faults + probability + the events_to_skip discipline. Returns
     // true when the injection may fire.

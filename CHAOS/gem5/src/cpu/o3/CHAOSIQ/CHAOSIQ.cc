@@ -106,15 +106,29 @@ namespace gem5
     bool
     CHAOSIQ::shouldOmitWake(ThreadID tid, const o3::DynInstPtr &completed_inst)
     {
-        if (fi_mode != Mode::WakeOmit) return false;
+        // Both dropping modes hook here: wake_omit drops the broadcast
+        // outright; wake_phase drops it now and re-issues it later. FQ08-c:
+        // wake_phase is owned by CHAOSIQ (see shouldDelayWake) so the caller's
+        // unsafe o3::DelayedWakeEvent is never scheduled.
+        const bool wake_omit = (fi_mode == Mode::WakeOmit);
+        const bool wake_phase = (fi_mode == Mode::WakePhase);
+        if (!wake_omit && !wake_phase) return false;
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
+        if (!completed_inst) return false;
+        // A delayed wake being re-issued must not fire a NEW injection.
+        if (replaying_delayed_wake) return false;
         // W7.4 D86 fpOnly: restrict eligibility to FP/SIMD completed
         // instructions (the "FP/SIMD 队列版" scoping) — placed BEFORE the
         // skip counter / RNG draw so non-FP events stay invisible to the
         // sampling discipline.
         if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
+        // F6 wake_phase: delay only; advance = wake in the past = no-op
+        // (documented E3 proxy limit).
+        if (wake_phase && phase_offset <= 0) return false;
+
+        iq_counts.eligible++;
         // Sampling-bias fix (findings.md Phase 3.0): skip the first N
         // eligible wakeup events (N ~ geometric(0.1) from the seed).
         if (count_only) { ++eligible_count; return false; }
@@ -125,9 +139,47 @@ namespace gem5
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return false;
 
+        iq_counts.attempted++;
+
+        if (wake_phase) {
+            // FQ08-c: schedule CHAOSIQ's generation-checked delayed wake
+            // instead of letting the caller schedule o3::DelayedWakeEvent.
+            auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+            if (!o3cpu) return false;
+            const chaos_iq_lifecycle::WakeStamp stamp =
+                snapshotWakeStamp(o3cpu, completed_inst);
+            cpu->schedule(new DelayedWake(this, completed_inst, stamp),
+                          curTick() + (Tick)phase_offset * cpu->clockPeriod());
+            dw_counts.scheduled++;
+            iq_counts.applied++;
+            faults_injected_count++;
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: iq_wakeDependents, mode=wake_phase"
+                    << ", tid=" << (int)tid
+                    << ", completed_sn=" << completed_inst->seqNum
+                    << ", phase_offset=+" << phase_offset
+                    << ", delayed_event=scheduled (CHAOSIQ-owned, identity+"
+                       "generation checked at fire)";
+                if (fp_only)
+                    *(log_stream->stream()) << ", fp_only=1, op_class="
+                        << enums::OpClassStrings[
+                            static_cast<int>(completed_inst->opClass())];
+                *(log_stream->stream())
+                    << ", eligible=" << iq_counts.eligible
+                    << ", attempted=" << iq_counts.attempted
+                    << ", applied=" << iq_counts.applied
+                    << ", activated=" << iq_counts.activated
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return true;  // caller skips the broadcast; the event replays it
+        }
+
         // §2.5 wake_omit (F6): drop this wakeup broadcast. Dependents of the
         // completed inst stay not-ready (one missed wake) — models method3
         // timing-race phase shift / dropped-wake fault.
+        iq_counts.applied++;
         faults_injected_count++;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
@@ -139,6 +191,10 @@ namespace gem5
                     << enums::OpClassStrings[
                         static_cast<int>(completed_inst->opClass())];
             *(log_stream->stream())
+                << ", eligible=" << iq_counts.eligible
+                << ", attempted=" << iq_counts.attempted
+                << ", applied=" << iq_counts.applied
+                << ", activated=" << iq_counts.activated
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
@@ -149,82 +205,63 @@ namespace gem5
     CHAOSIQ::shouldWrongSourceWake(ThreadID tid,
                                    const o3::DynInstPtr &completed_inst)
     {
-        // §2.5 F5 src_ready_bitflip: gate ONLY. The dependency-graph surgery
-        // (pop a not-ready dependent from a different chain, markSrcRegReady,
-        // addIfReady) lives in InstructionQueue::wakeDependents — it owns
-        // dependGraph/addIfReady/scoreboard and we don't want to expose them.
+        // §2.5 F5 src_ready_bitflip (FQ08-b): ATTEMPT gate only.
+        //
+        // The old implementation incremented faults_injected_count and wrote
+        // the injection log HERE, before any victim existed: when the
+        // completed inst had no dependent (or all were ineligible) the run
+        // reported an injection that never happened and the max_faults budget
+        // was consumed. The fault is now applied by noteTagWake() on a real
+        // dependent that the caller is really waking; this gate only records
+        // the attempt. Returning false also disables the caller's legacy
+        // "pop a random different chain" surgery, which had no way to report
+        // whether a victim was found.
         if (fi_mode != Mode::SrcReadyBitflip) return false;
+
+        // A new producer wake invalidates an attempt that never found a
+        // victim on a previous wake (counted as attempted + no_victim; the
+        // fault budget was never consumed).
+        chaos_iq_lifecycle::abortPendingAttempt(ws_attempt, iq_counts);
+
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
         if (!completed_inst) return false;
+        if (replaying_delayed_wake) return false;
         // W7.4 D86 fpOnly (see shouldOmitWake): the trigger wake is
-        // restricted to FP/SIMD producers. HONEST NOTE: the victim
-        // (the not-ready dependent popped from a different chain by the
-        // inst_queue surgery) is selected class-agnostically — the filter
-        // biases the trigger, it does not guarantee the victim's class.
+        // restricted to FP/SIMD producers.
         if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
 
+        iq_counts.eligible++;
         // sampling-bias fix: skip on eligible completed-inst events
         if (count_only) { ++eligible_count; return false; }
         if (events_to_skip > 0) { --events_to_skip; return false; }
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return false;
 
-        faults_injected_count++;
-        if (write_log) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: iq_wakeDependents, mode=src_ready_bitflip"
-                << ", tid=" << (int)tid
-                << ", completed_sn=" << completed_inst->seqNum;
-            if (fp_only)
-                *(log_stream->stream()) << ", fp_only=1, op_class="
-                    << enums::OpClassStrings[
-                        static_cast<int>(completed_inst->opClass())];
-            *(log_stream->stream())
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
-        }
-        return true;
+        // Gate hit = ATTEMPT. No applied/activated count, no budget use.
+        chaos_iq_lifecycle::beginAttempt(ws_attempt, completed_inst->seqNum,
+                                         (unsigned)tid, curTick());
+        iq_counts.attempted++;
+        return false;
     }
 
     bool
     CHAOSIQ::shouldDelayWake(ThreadID tid, const o3::DynInstPtr &completed_inst)
     {
-        // §2.5 F6 wake_phase: gate. The caller (InstructionQueue) skips this
-        // broadcast now and re-issues it after |phase_offset| cycles via its
-        // own scheduled event. phase_offset <= 0 is a config error for this
-        // mode (advance = wake in the past = no-op; documented E3 limit).
-        if (fi_mode != Mode::WakePhase) return false;
-        if (!cpu || probability <= 0.0f) return false;
-        if (phase_offset <= 0) return false;  // delay only; advance not modeled
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
-        if (!completed_inst) return false;
-        // W7.4 D86 fpOnly (see shouldOmitWake).
-        if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
-
-        if (count_only) { ++eligible_count; return false; }
-        if (events_to_skip > 0) { --events_to_skip; return false; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
-
-        faults_injected_count++;
-        if (write_log) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: iq_wakeDependents, mode=wake_phase"
-                << ", tid=" << (int)tid
-                << ", completed_sn=" << completed_inst->seqNum
-                << ", phase_offset=+" << phase_offset;
-            if (fp_only)
-                *(log_stream->stream()) << ", fp_only=1, op_class="
-                    << enums::OpClassStrings[
-                        static_cast<int>(completed_inst->opClass())];
-            *(log_stream->stream())
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
-        }
-        return true;
+        // §2.5 F6 wake_phase — FQ08-c: permanently closed.
+        //
+        // Returning true here makes InstructionQueue schedule its
+        // o3::DelayedWakeEvent, which (a) holds only a DynInstPtr and no
+        // identity/generation stamp and (b) calls iq->wakeDependents(inst)
+        // unconditionally, where `assert(!completed_inst->isSquashed())`
+        // aborts on a producer squashed inside the delay window and a freed/
+        // reallocated destination register would wake the NEW occupant's
+        // dependents. CHAOSIQ now owns the delayed wake (shouldOmitWake ->
+        // DelayedWake), so this legacy gate must never fire.
+        (void)tid;
+        (void)completed_inst;
+        return false;
     }
 
     // ------------------------------------------------------------------
@@ -240,6 +277,7 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
         if (!inWindow()) return false;
+        iq_counts.eligible++;
         if (count_only) { ++eligible_count; return false; }
         if (events_to_skip > 0) { --events_to_skip; return false; }
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
@@ -730,6 +768,31 @@ namespace gem5
                                      RegIndex producer_flat,
                                      unsigned iq_used, unsigned iq_cap)
     {
+        // FQ08-b: the injected wrong-source write marks a slot ready but the
+        // victim stays in that source's dependency chain (CHAOSIQ cannot pop
+        // it without touching dependGraph). When that source's producer later
+        // completes, this callback suppresses the duplicate genuine mark
+        // exactly once, restoring the "one mark per source" invariant and
+        // preventing a second push onto the ready list after issue.
+        if (fi_mode == Mode::SrcReadyBitflip) {
+            if (!ws_duplicate.tracked || !dep_inst) return false;
+            const bool suppress = chaos_iq_lifecycle::suppressDuplicateWake(
+                ws_duplicate, dep_inst->seqNum,
+                (unsigned)dep_inst->threadNumber, (uint64_t)producer_flat);
+            if (suppress && write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: iq_wakeDependents, mode=src_ready_bitflip"
+                    << ", duplicate genuine wake suppressed"
+                    << ", victim_sn=" << dep_inst->seqNum
+                    << ", corrupt_chain_flat=" << (unsigned)producer_flat
+                    << " (the source was already marked ready by the"
+                       " injected wrong-source write)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return suppress;
+        }
+
         // W5.10 D48/D49 (R49/R50, ready位·永不置位): the operand IS ready
         // (its producer completed — this wake carries the value's
         // availability) but the ready bit never sets: SUPPRESS this
@@ -780,6 +843,13 @@ namespace gem5
     CHAOSIQ::noteTagWake(const o3::DynInstPtr &dep_inst,
                          RegIndex chain_flat)
     {
+        // FQ08-b: src_ready_bitflip victim hook. The caller invokes this for
+        // every dependent it is about to wake, before markSrcRegReady().
+        if (fi_mode == Mode::SrcReadyBitflip) {
+            maybeApplyWrongSourceWake(dep_inst, chain_flat);
+            return;
+        }
+
         // D53 tag_stuck persistence evidence: the ARMED entry was woken
         // through a chain — its corrupted tag actually matched a
         // producer's broadcast ("该 IQ 项占用期间是否反复触发同一种
@@ -796,6 +866,263 @@ namespace gem5
                 << ", wrong_chain_wakes: " << tag_stuck_wakes
                 << (tag_stuck_wakes == 10 ? " (logging capped)" : "")
                 << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+    }
+
+    void
+    CHAOSIQ::maybeApplyWrongSourceWake(const o3::DynInstPtr &dep_inst,
+                                       RegIndex chain_flat)
+    {
+        // FQ08-b: apply the wrong-source ready write to a REAL victim.
+        //
+        // The victim is the dependent the caller is currently waking: it is
+        // a live IQ resident (the caller's loop owns it), so a successful
+        // write is genuine evidence. The fault is the "wrong source" part:
+        // ONE OTHER unready source slot of the same target register class is
+        // marked ready by this wake, so the victim can issue before that
+        // slot's producer has written (stale operand / lying ready counter).
+        //
+        // If this dependent is not eligible (squashed, fully ready, or its
+        // only unready target-class slot is the chain being woken — i.e. the
+        // wake is not "wrong" at all), the attempt stays pending and a later
+        // dependent may still be the victim. If the whole wake ends without
+        // one, shouldWrongSourceWake() drops it as no_victim at the next
+        // producer wake: no applied/activated count, no budget use.
+        if (!ws_attempt.pending || !dep_inst) return;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return;
+
+        chaos_iq_lifecycle::VictimView view;
+        view.squashed = dep_inst->isSquashed();
+        view.issued = dep_inst->isIssued();
+        view.ready_regs = dep_inst->readyRegs;
+        view.num_src_regs = (unsigned)dep_inst->numSrcRegs();
+        for (int i = 0; i < (int)dep_inst->numSrcRegs(); i++) {
+            PhysRegIdPtr src = dep_inst->renamedSrcIdx(i);
+            if (!src || src->classValue() != target_reg_class) continue;
+            // An always-ready register is not part of the dependency graph;
+            // marking it ready is not a wrong-source fault.
+            if (src->isAlwaysReady()) continue;
+            view.slot.push_back((unsigned)i);
+            view.flat.push_back((uint64_t)src->flatIndex());
+            view.unready.push_back(dep_inst->readySrcIdx(i) ? 0 : 1);
+        }
+
+        const int slot = chaos_iq_lifecycle::chooseWrongSlot(
+            view, (uint64_t)chain_flat);
+        if (slot < 0) return;   // no victim on this dependent
+
+        PhysRegIdPtr src = dep_inst->renamedSrcIdx(slot);
+        const int src_idx = src->index();
+        const uint32_t src_gen = o3cpu->physRegFile().generationOf(src);
+        const bool issueable_before = dep_inst->readyToIssue();
+        const unsigned ready_before = (unsigned)dep_inst->readyRegs;
+
+        dep_inst->markSrcRegReady((RegIndex)slot);
+
+        const bool issueable_after = dep_inst->readyToIssue();
+        const chaos_iq_lifecycle::ApplyOutcome outcome =
+            chaos_iq_lifecycle::noteApplied(iq_counts, issueable_before,
+                                            issueable_after);
+        faults_injected_count++;
+        ws_attempt.pending = false;
+        chaos_iq_lifecycle::recordDuplicateWake(
+            ws_duplicate, dep_inst->seqNum,
+            (unsigned)dep_inst->threadNumber, (uint64_t)src->flatIndex());
+
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: iq_wakeDependents, mode=src_ready_bitflip"
+                << ", APPLIED wrong-source ready bit"
+                << ", tid=" << (int)dep_inst->threadNumber
+                << ", victim_sn=" << dep_inst->seqNum
+                << ", victim_pc=0x" << std::hex
+                << dep_inst->pcState().as<ArmISA::PCState>().pc() << std::dec
+                << ", victim_op_class="
+                << enums::OpClassStrings[
+                       static_cast<int>(dep_inst->opClass())]
+                << ", class=" << targetClassName()
+                << ", victim_src_slot=" << slot
+                << ", victim_src_phys=" << src_idx
+                << ", victim_src_class=" << src->className()
+                << ", victim_src_flat=" << (unsigned)src->flatIndex()
+                << ", victim_src_generation=" << src_gen
+                << ", wrong_of_chain_flat=" << (unsigned)chain_flat
+                << ", producer_sn=" << ws_attempt.producer_sn
+                << ", producer_tid=" << ws_attempt.producer_tid
+                << ", producer_wake_tick=" << ws_attempt.tick
+                << ", ready_regs " << ready_before << " -> "
+                << (unsigned)dep_inst->readyRegs << " / "
+                << (unsigned)dep_inst->numSrcRegs()
+                << (outcome.activated
+                        ? " (activated: the wrong-source write alone made"
+                          " the victim issueable — stale operand path)"
+                        : " (applied: wrong ready bit set, one wake short)")
+                << ", eligible=" << iq_counts.eligible
+                << ", attempted=" << iq_counts.attempted
+                << ", applied=" << iq_counts.applied
+                << ", activated=" << iq_counts.activated
+                << ", no_victim=" << iq_counts.no_victim
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+    }
+
+    const char *
+    CHAOSIQ::modeName()
+    {
+        switch (fi_mode) {
+          case Mode::WakeOmit: return "wake_omit";
+          case Mode::SrcReadyBitflip: return "src_ready_bitflip";
+          case Mode::WakePhase: return "wake_phase";
+          case Mode::ReadyEarly: return "ready_early";
+          case Mode::ReadyNever: return "ready_never";
+          case Mode::ReadyNeverEvent: return "ready_never_event";
+          case Mode::TagSwap: return "tag_swap";
+          case Mode::TagBitflip: return "tag_bitflip";
+          case Mode::TagBitflip2: return "tag_bitflip2";
+          case Mode::TagStuck: return "tag_stuck";
+          case Mode::TagStaleRead: return "tag_stale_read";
+          case Mode::DispatchMisroute: return "dispatch_misroute";
+        }
+        return "unknown";
+    }
+
+    void
+    CHAOSIQ::dumpIqCounts()
+    {
+        // Observable FQ08 accounting. The trailing "faults_injected: <n>" is
+        // the explicit count both tools/runner.py and
+        // tools/fsu_seed_runner.py use for the injection log, so this summary
+        // line must keep that form (it is the authoritative final value).
+        if (!write_log || !log_stream || !log_stream->stream()) return;
+        *(log_stream->stream())
+            << "CHAOS_IQ_COUNTS mode=" << modeName()
+            << ", eligible=" << iq_counts.eligible
+            << ", attempted=" << iq_counts.attempted
+            << ", applied=" << iq_counts.applied
+            << ", activated=" << iq_counts.activated
+            << ", no_victim=" << iq_counts.no_victim
+            << ", pending_attempt=" << (ws_attempt.pending ? 1 : 0)
+            << ", delayed_scheduled=" << dw_counts.scheduled
+            << ", delayed_fired=" << dw_counts.fired
+            << ", delayed_ignored_no_inst=" << dw_counts.ignored_no_inst
+            << ", delayed_ignored_identity=" << dw_counts.ignored_identity
+            << ", delayed_ignored_squashed=" << dw_counts.ignored_squashed
+            << ", delayed_ignored_generation=" << dw_counts.ignored_generation
+            << ", faults_injected: " << faults_injected_count
+            << std::endl;
+    }
+
+    chaos_iq_lifecycle::WakeStamp
+    CHAOSIQ::snapshotWakeStamp(o3::CPU *o3cpu, const o3::DynInstPtr &inst)
+    {
+        // FQ08-c: value snapshot at schedule time. The event stores this and
+        // the refcounted DynInstPtr; the stamps let process() detect a freed/
+        // reallocated destination physical register (generation bump) before
+        // touching the dependency graph.
+        chaos_iq_lifecycle::WakeStamp stamp;
+        stamp.seq_num = inst->seqNum;
+        stamp.tid = (unsigned)inst->threadNumber;
+        for (int i = 0; i < (int)inst->numDestRegs(); i++) {
+            PhysRegIdPtr dest = inst->renamedDestIdx(i);
+            chaos_iq_lifecycle::DestStamp ds;
+            if (dest) {
+                ds.flat = (uint64_t)dest->flatIndex();
+                ds.generation = o3cpu->physRegFile().generationOf(dest);
+            }
+            stamp.dests.push_back(ds);
+        }
+        return stamp;
+    }
+
+    void
+    CHAOSIQ::noteDelayedWakeIgnored(
+        chaos_iq_lifecycle::WakeDecision decision,
+        const o3::DynInstPtr &inst)
+    {
+        // FQ08-c: a delayed wake hit a dead/absent/reallocated producer and
+        // was safely skipped. Every log line keeps the "faults_injected: <n>"
+        // suffix so log parsers never count it as a second injection.
+        if (!write_log || !log_stream || !log_stream->stream()) return;
+        *(log_stream->stream())
+            << "Tick: " << curTick()
+            << ", Site: iq_delayed_wake, mode=wake_phase"
+            << ", IGNORED reason="
+            << chaos_iq_lifecycle::wakeDecisionName(decision)
+            << ", completed_sn=" << (inst ? inst->seqNum : 0)
+            << ", completed_tid=" << (inst ? (int)inst->threadNumber : -1)
+            << ", delayed_fired=" << dw_counts.fired
+            << ", delayed_ignored_squashed=" << dw_counts.ignored_squashed
+            << ", delayed_ignored_generation=" << dw_counts.ignored_generation
+            << ", delayed_ignored_identity=" << dw_counts.ignored_identity
+            << ", faults_injected: " << faults_injected_count
+            << std::endl;
+    }
+
+    CHAOSIQ::DelayedWake::DelayedWake(
+        CHAOSIQ *_injector, const o3::DynInstPtr &_inst,
+        const chaos_iq_lifecycle::WakeStamp &_stamp)
+        : Event(Default_Pri, AutoDelete), injector(_injector), inst(_inst),
+          stamp(_stamp)
+    {
+    }
+
+    void
+    CHAOSIQ::DelayedWake::process()
+    {
+        auto *o3cpu = dynamic_cast<o3::CPU *>(injector->cpu);
+        if (!o3cpu) return;
+
+        chaos_iq_lifecycle::WakeObserved now;
+        now.has_inst = (inst.get() != nullptr);
+        if (inst) {
+            now.seq_num = inst->seqNum;
+            now.tid = (unsigned)inst->threadNumber;
+            now.squashed = inst->isSquashed();
+            for (int i = 0; i < (int)inst->numDestRegs(); i++) {
+                PhysRegIdPtr dest = inst->renamedDestIdx(i);
+                chaos_iq_lifecycle::DestStamp ds;
+                if (dest) {
+                    ds.flat = (uint64_t)dest->flatIndex();
+                    ds.generation =
+                        o3cpu->physRegFile().generationOf(dest);
+                }
+                now.dests.push_back(ds);
+            }
+        }
+
+        const chaos_iq_lifecycle::WakeDecision decision =
+            chaos_iq_lifecycle::classifyWake(stamp, now);
+        chaos_iq_lifecycle::noteWakeDecision(injector->dw_counts, decision);
+
+        if (decision != chaos_iq_lifecycle::WakeDecision::Fire) {
+            injector->noteDelayedWakeIgnored(decision, inst);
+            return;
+        }
+
+        // The producer is still the same, unsquashed object and still owns
+        // every destination physical register: the delayed broadcast is safe.
+        injector->iq_counts.activated++;
+        injector->replaying_delayed_wake = true;
+        o3cpu->o3IEW().instQueue.wakeDependents(inst);
+        injector->replaying_delayed_wake = false;
+
+        if (injector->write_log && injector->log_stream
+                && injector->log_stream->stream()) {
+            *(injector->log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: iq_delayed_wake, mode=wake_phase"
+                << ", FIRED delayed wake (producer live, generation stable)"
+                << ", completed_sn=" << inst->seqNum
+                << ", completed_tid=" << (int)inst->threadNumber
+                << ", delayed_fired=" << injector->dw_counts.fired
+                << ", eligible=" << injector->iq_counts.eligible
+                << ", attempted=" << injector->iq_counts.attempted
+                << ", applied=" << injector->iq_counts.applied
+                << ", activated=" << injector->iq_counts.activated
+                << ", faults_injected: " << injector->faults_injected_count
                 << std::endl;
         }
     }
@@ -875,6 +1202,13 @@ namespace gem5
                     *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
                         << eligible_count << std::endl;
             });
+        }
+        // FQ08-b/c: observable accounting summary at exit (eligible /
+        // attempted / applied / activated are separate). Emitted for every
+        // logging run so a "0 injections" outcome is explicit, never a
+        // silent zero.
+        if (write_log) {
+            registerExitCallback([this]() { dumpIqCounts(); });
         }
     }
 
