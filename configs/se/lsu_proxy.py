@@ -238,7 +238,7 @@ p.add_argument("--chaos_prefetch", action="store_true",
 p.add_argument("--prefetch_mode", default="p01_stride_bitflip",
                choices=["p01_stride_bitflip","p02_confidence_corrupt",
                         "p03_addr_subst","p05_drop_dup","p08_stride_stuck",
-                        "p06_as_demand"],
+                        "p06_as_demand","p04_queue_valid"],
                help="W8 P-series fault mode (p06_as_demand = P06-a "
                     "prefetch-as-demand fill-classification marking, "
                     "R4-5.4)")

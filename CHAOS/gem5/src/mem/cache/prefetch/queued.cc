@@ -240,6 +240,22 @@ Queued::notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi)
     }
 }
 
+long
+Queued::chaosClearQueueValid(Addr &addr, Addr &pc)
+{
+    size_t idx = 0;
+    for (auto &d : pfq) {
+        if (d.chaosQueueValid) {
+            d.chaosQueueValid = false;
+            addr = d.pfInfo.getAddr();
+            pc = d.pfInfo.getPC();
+            return (long)idx;
+        }
+        ++idx;
+    }
+    return -1;              // no live entry -> ineligible
+}
+
 PacketPtr
 Queued::getPacket()
 {
@@ -251,6 +267,40 @@ Queued::getPacket()
         processMissingTranslations(queueSize);
     }
 
+    // [MDSPEC][R6-P-P04] A live entry with its shadow valid bit cleared is
+    // present but must not issue: the queue pointer advances, which is the
+    // real P04-a effect (distinct from P05 drop: the entry existed and was
+    // counted in the queue).  Record the skip as an L2 observation before
+    // removing it.  No fault => every entry is valid => zero iterations.
+    while (!pfq.empty() && !pfq.front().chaosQueueValid) {
+        const Addr skip_addr = pfq.front().pfInfo.getAddr();
+        if (CHAOSPropagation *h5s = CHAOSPropagation::instance()) {
+            Addr skip_base = 0;
+            const char *skip_corr = nullptr;
+            const uint64_t skip_ptag = h5s->correlateBlock(
+                skip_addr, blkSize, &skip_base, &skip_corr);
+            if (skip_ptag) {
+                std::ostringstream h5s_hex;
+                h5s_hex << std::hex << skip_addr;
+                const uint64_t skip_pfid = h5s->prefetchRequestId(
+                    skip_addr, blkSize);
+                h5s->notePropEvt("pf_queue", {
+                    {"fault_id", std::to_string(skip_ptag)},
+                    {"corr", skip_corr ? skip_corr : ""},
+                    {"pf_request_id", std::to_string(skip_pfid)},
+                    {"va", h5s_hex.str()},
+                    {"field", "queue_valid"},
+                    {"before", "1"},
+                    {"after", "0"},
+                    {"state_after", "invalid_skipped"},
+                });
+            }
+        }
+        pfq.pop_front();
+    }
+    if (pfq.empty()) {
+        processMissingTranslations(queueSize);
+    }
     if (pfq.empty()) {
         DPRINTF(HWPrefetch, "No hardware prefetches available.\n");
         return nullptr;

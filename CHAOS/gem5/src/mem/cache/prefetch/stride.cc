@@ -219,7 +219,7 @@ Stride::calculatePrefetch(const PrefetchInfo &pfi,
     // hit with generated addresses / miss with freshly-inserted entry).
     // Byte-identical when no CHAOSPrefetch is instantiated.
     if (chaosPrefetchHook)
-        chaosPrefetchHook->maybeCorrupt(entry, addresses, pf_addr);
+        chaosPrefetchHook->maybeCorrupt(entry, addresses, pf_addr, this);
 }
 
 uint32_t

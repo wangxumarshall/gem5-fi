@@ -496,7 +496,9 @@ MODEL_FLAGS = {
     "P01": ("prefetch", ["--prefetch_mode", "p01_stride_bitflip"]),
     "P02": ("prefetch", ["--prefetch_mode", "p02_confidence_corrupt"]),
     "P03": ("prefetch", ["--prefetch_mode", "p03_addr_subst"]),
-    "P04": ("prefetch", ["--prefetch_mode", "p05_drop_dup"]),   # approx: queue drop/dup
+    # [R6-P-P04 2026-11-04] faithful P04-a: clear a live queue entry's shadow
+    # valid bit (Queued::getPacket skips it).  Drop/dup is no longer routed.
+    "P04": ("prefetch", ["--prefetch_mode", "p04_queue_valid"]),
     "P05": ("prefetch", ["--prefetch_mode", "p05_drop_dup"]),
     "P07": ("cache", ["--l1d_target_field", "tag"]),            # approx: fill way/tag -> tag
     "P08": ("prefetch", ["--prefetch_mode", "p08_stride_stuck"]),
@@ -1882,6 +1884,14 @@ PF_F0_SPAN = {
     ("P03", "gap_bfs"): 62,            # W9
     ("P05", "prefetch_stride"): 7,     # W8
     ("P05", "stream_chase"): 291,      # W10
+    # [R6-P-P04 2026-11-04] P04-a queue-valid eligible stream = demand
+    # accesses whose prefetch queue holds at least one LIVE entry, measured
+    # with the campaign's EXACT absolute command (span=1e9, seed 1):
+    #   beebs_kernels  : attempted=143 eligible=2 injected=0 SPAN_UNREACHABLE
+    #   prefetch_stride: attempted=131 eligible=2 injected=0 SPAN_UNREACHABLE
+    # warmup=1 + span=N guarantees the draw lands (N=2 -> next_fire in {1,2}).
+    ("P04", "beebs_kernels"): 2,       # W2
+    ("P04", "prefetch_stride"): 2,     # W8
 }
 
 

@@ -3,6 +3,8 @@
 
 #include "mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.hh"
 
+#include <algorithm>
+#include <iterator>
 #include <sstream>
 #include <string>
 
@@ -68,6 +70,7 @@ namespace gem5
         if (s == "p05_drop_dup")           return Mode::P05DropDup;
         if (s == "p08_stride_stuck")       return Mode::P08StrideStuck;
         if (s == "p06_as_demand")          return Mode::P06AsDemand;
+        if (s == "p04_queue_valid")        return Mode::P04QueueValid;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
 
@@ -120,7 +123,7 @@ namespace gem5
     CHAOSPrefetch::maybeCorrupt(prefetch::Stride::StrideEntry *entry,
                                 std::vector<prefetch::Queued::AddrPriority>
                                     &addresses,
-                                Addr pf_addr)
+                                Addr pf_addr, prefetch::Queued *queue)
     {
         // [MDSPEC][R4-5.4] P06-a is NOT a generation-site mode: its event
         // source is the FILL site (maybeMarkFillAsDemand, the fill-
@@ -128,6 +131,64 @@ namespace gem5
         // NOT even onAttempt (P06's attempt stream is the fill hook; a
         // second attempt stream would corrupt the funnel denominator).
         if (fi_mode == Mode::P06AsDemand) return;
+
+        // [MDSPEC][R6-P-P04] P04-a queue valid fault.  The queue entry is
+        // PRESENT (pointer/count unchanged) but its shadow valid bit is
+        // cleared; Queued::getPacket skips it at issue time.  This is the
+        // real queue-valid state, not the P05 drop/dup approximation.
+        // Eligibility = a live (still valid) entry exists, per the spec's
+        // "触发=queue 非空" (here: a valid entry is available to corrupt).
+        if (fi_mode == Mode::P04QueueValid) {
+            if (max_faults != 0 && faults_injected >= max_faults) return;
+            trigger.onAttempt();
+            if (!queue || !queue->chaosHasLiveQueueEntry())
+                return;                       // no live entry to corrupt
+            if (!trigger.onEligible()) return;
+            Addr qaddr = 0, qpc = 0;
+            const long qidx_long = queue->chaosClearQueueValid(qaddr, qpc);
+            if (qidx_long < 0) return;        // defensive; single-threaded
+            ++faults_injected;
+            const auto qidx = (unsigned long)qidx_long;
+            if (trigger.tier == ChaOSLsuTier::F5)
+                trigger.noteOutcome(true);
+            if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+                const uint64_t ptag = h5->registerCacheFault(
+                    qaddr, -1, line_size, "prefetch");
+                if (ptag) {
+                    const uint64_t pfid = h5->notePrefetchRequest(
+                        qaddr, line_size);
+                    h5->registerPtagBlock(ptag, qaddr, qaddr + line_size);
+                    h5->registerPtagPrefetch(pfid, qaddr, line_size);
+                    std::ostringstream pc_hex, addr_hex;
+                    pc_hex << std::hex << qpc;
+                    addr_hex << std::hex << qaddr;
+                    h5->notePropEvt("pf_train", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"pc", pc_hex.str()},
+                        {"va", addr_hex.str()},
+                        {"field", "queue"},
+                        {"before", "valid"},
+                        {"after", "invalid"},
+                    });
+                    h5->notePropEvt("pf_queue", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"corr", "origin"},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"entry_index", std::to_string(qidx)},
+                        {"va", addr_hex.str()},
+                        {"field", "queue_valid"},
+                        {"before", "1"},
+                        {"after", "0"},
+                        {"state_after", "invalid"},
+                    });
+                }
+            }
+            logInjection("P04_queue_valid", qaddr,
+                "queue entry valid -> invalid (index " +
+                std::to_string(qidx) + ")");
+            return;
+        }
 
         trigger.onAttempt();
 

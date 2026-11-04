@@ -85,7 +85,8 @@ class CHAOSPrefetch : public SimObject
 {
   public:
     enum class Mode { P01StrideBitflip, P02ConfidenceCorrupt, P03AddrSubst,
-                      P05DropDup, P08StrideStuck, P06AsDemand };
+                      P05DropDup, P08StrideStuck, P06AsDemand,
+                      P04QueueValid };
     static Mode stringToMode(const std::string &s);
 
     CHAOSPrefetch(const CHAOSPrefetchParams &p);
@@ -101,7 +102,7 @@ class CHAOSPrefetch : public SimObject
     // alias). pf_addr: this demand access's block address.
     void maybeCorrupt(prefetch::Stride::StrideEntry *entry,
                       std::vector<prefetch::Queued::AddrPriority> &addresses,
-                      Addr pf_addr);
+                      Addr pf_addr, prefetch::Queued *queue);
 
     // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill-classification hook.
     // Cache::serviceMSHRTargets calls this (through fillMarkHook below) at

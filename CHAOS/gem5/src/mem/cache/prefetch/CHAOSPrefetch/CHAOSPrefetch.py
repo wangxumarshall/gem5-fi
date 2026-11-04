@@ -19,6 +19,13 @@
 #                          queue-content effect; documented approximation)
 #   p08_stride_stuck       P08: stride stuck-at-0, re-applied on every
 #                          eligible event (F5 nature; tier decides)
+#   p04_queue_valid        P04-a [MDSPEC][R6-P-P04]: clear a live prefetch
+#                          queue entry's shadow valid bit; the entry stays in
+#                          the queue (pointer/count unchanged) but
+#                          Queued::getPacket skips it at issue time.  This is
+#                          the real queue-valid state, not the P05 drop/dup
+#                          approximation.  P04-b (pointer) and P04-c (entry
+#                          selection) remain unimplemented.
 #   p06_as_demand          P06-a [MDSPEC][R4-5.4]: prefetch-as-demand FILL
 #                          CLASSIFICATION marking — one prefetch-owned fill
 #                          classified demand (CacheBlk::Prefetched not set;

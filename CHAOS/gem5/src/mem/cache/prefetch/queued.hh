@@ -76,6 +76,13 @@ class Queued : public Base
         ThreadContext *tc;
         bool ongoingTranslation;
         const CacheAccessor *cache;
+        // [MDSPEC][R6-P-P04] Shadow queue-valid bit for the P04-a model.
+        // gem5's Queued has no explicit valid bit (entries are removed when
+        // consumed); this flag lets the injector clear a live entry's valid
+        // state WITHOUT dropping it from the list.  Queued::getPacket skips
+        // and removes invalid entries at issue time.  Default true => the
+        // issue path is byte-identical when no P04 fault is mounted.
+        bool chaosQueueValid = true;
 
         /**
          * Constructor
@@ -204,6 +211,21 @@ class Queued : public Base
                                    std::vector<AddrPriority> &addresses,
                                    const CacheAccessor &cache) = 0;
     PacketPtr getPacket() override;
+
+    // [MDSPEC][R6-P-P04] P04-a injector-facing queue-valid fault.  Clears
+    // the shadow valid bit of the first LIVE queue entry WITHOUT removing it
+    // (the queue pointer/count are unchanged); getPacket skips it at issue.
+    // On success writes the entry's address/PC and returns its 0-based
+    // index; returns -1 when no live entry exists (ineligible).
+    long chaosClearQueueValid(Addr &addr, Addr &pc);
+    bool chaosHasLiveQueueEntry() const
+    {
+        for (const auto &d : pfq) {
+            if (d.chaosQueueValid)
+                return true;
+        }
+        return false;
+    }
 
     Tick nextPrefetchReadyTime() const override
     {
