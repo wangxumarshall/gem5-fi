@@ -225,13 +225,19 @@ targetClass=vec, fpOnly=1`；无 victim 负例应 `applied=0, faults_injected: 0
 
 **最小测试**：host 单测断言 vec `BitFlip` 后 `vec_stuck.valid == false` 且无 `fault_applied`；把 `generateRandomMask` 抽成 pure 函数后测“bitsToChange=2 时 popcount==2”（当前会失败/暴露碰撞）。本任务的 Python 测试用静态证据锁住现状。
 
-### 4.3 FP08 suppressed_count 是否仍未输出 — **仍存在（present）**
+### 4.3 FP08 suppressed_count 与 roundingSub 早退路径 — **已修复（待 gem5 gate 实证）**
 
-**现状/证据**：`suppressed_count` 声明于 `CHAOSFPU.hh:114`，唯一自增在 `CHAOSFPU.cc:655`（`fpsr_suppress` 分支，随后 `return false`）。全 C++ 无 getter、无 dump、无日志行；`dumpCensus`（310–323）只输出 eligible/opClass/regClass。`fpsrSuppress` 分支也不发射 PROP，所以 FP08 的该子模型既没有值变化也没有可审计事件。`ooo_proxy.py` 有 `--fpu_fpsr_suppress`（338/827），但 `tools/fsu_seed_runner.py` 没有透传该 flag。
+**修复后事实**：`fpsr_suppress` 分支现在分别累计 `fpsr_attempted/applied/
+suppressed`，退出时输出 `CHAOS_FPSR_ATTEMPTED/APPLIED/SUPPRESSED/REASON`
+并发射 `suppress` 事件；`rounding_sub` 早退路径在完成 1-ULP 改动后调用
+`noteFaultApplied`，产生真实 L0/L1，并输出 `CHAOS_ROUNDING_ATTEMPTED/
+APPLIED`。两者均标注为代理边界（`injection_site=fpsr_suppress_proxy` /
+`rounding_sub_one_ulp_proxy`），在 gate 闭合前不产生正式认证。
+host 侧源码检查通过；gem5 gate 尚待主 agent 运行。
 
-**是否需修复**：是。当前等于“静默计数”，与诚实约定（报告 `n/a`，不静默零）冲突。
-
-**最小测试**：静态断言 `suppressed_count` 在 C++ 中只有声明+自增、`dumpCensus` 区间不包含它；修复后 exit census 输出 `CHAOS_FPSR_SUPPRESSED=<n>`，runner 增加 `--fpu_fpsr_suppress` 并在 manifest 中可配置。
+**最小测试**：fpsr_suppress 运行退出应满足
+`attempted == suppressed` 且 `applied == attempted`；rounding_sub 运行应
+出现 `fault_applied` 根与 `CHAOS_ROUNDING_APPLIED>=1`。
 
 ### 4.4 FQ08-c：squash / 延迟唤醒风险 — **已修复（待 gem5 gate 实证）**
 
@@ -1289,27 +1295,27 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-HOOK-LANE
       "minimal_test": "host 单测：vec bit_flip 后 CHAOSPhysReg 不 arm/permanent key 不成立、无 fault_applied/fault_installed 发射；pure mask 生成测试验证 bitsToChange=2 的碰撞概率（抽出 generateRandomMask 后 host 测试）。FR03 现有 tests/unit/chaos_physreg_generation_test.cc 已覆盖。"
     },
     "FP08-suppressed_count": {
-      "verdict": "present",
-      "summary": "`suppressed_count` 只有声明和自增，无 getter、无 dumpCensus、无日志行；fpsrSuppress 分支 return false，因此既不发射 PROP 也不产生可审计输出；runner 也没有 --fpu_fpsr_suppress 透传。",
+      "verdict": "fixed_pending_gem5_gate",
+      "summary": "已修复：fpsr_suppress 输出 attempted/applied/suppressed/reason 并发射 suppress 事件；rounding_sub 早退路径接入 noteFaultApplied（L0/L1），并记录 rounding_attempted/applied。两者均标注为代理边界，未产生正式认证。host 构建通过，gem5 gate 待运行。",
       "evidence": [
         {
-          "file": "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.hh",
-          "pattern": "uint64_t suppressed_count = 0;"
+          "file": "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc",
+          "pattern": "CHAOS_FPSR_SUPPRESSED="
         },
         {
           "file": "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc",
-          "pattern": "++suppressed_count;"
+          "pattern": "rounding_sub_one_ulp_proxy"
         },
         {
           "file": "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc",
-          "pattern": "CHAOSFPU::dumpCensus"
+          "pattern": "++rounding_applied;"
         },
         {
           "file": "tools/fsu_seed_runner.py",
-          "pattern": "if fpu.get(\"rounding_sub\"):"
+          "pattern": "fpu_fpsr_suppress"
         }
       ],
-      "minimal_test": "静态断言 suppressed_count 在 C++ 中只有 1 次出现（自增）且 dumpCensus 区间不含它；修复后 exit census 应输出 CHAOS_FPSR_SUPPRESSED=<n>，runner 增加 --fpu_fpsr_suppress。"
+      "minimal_test": "fpsr_suppress 运行退出应输出 CHAOS_FPSR_ATTEMPTED/APPLIED/SUPPRESSED 且 attempted==suppressed；rounding_sub 运行应产生 fault_applied 根与 CHAOS_ROUNDING_APPLIED。"
     },
     "FQ08-c": {
       "verdict": "fixed_pending_gem5_gate",

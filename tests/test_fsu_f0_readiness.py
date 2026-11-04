@@ -144,7 +144,7 @@ def test_known_defect_verdicts_match_code_evidence():
     expected = {
         "FQ08-b": "fixed_pending_gem5_gate",
         "PRF-identity-generation": "partial",
-        "FP08-suppressed_count": "present",
+        "FP08-suppressed_count": "fixed_pending_gem5_gate",
         "FQ08-c": "fixed_pending_gem5_gate",
     }
     assert set(defects) == set(expected)
@@ -209,18 +209,23 @@ def test_prf_generation_evidence_is_pinned():
     assert "frontRenameMap()[tid].lookup(flat)" in phys
 
 
-def test_fp08_suppressed_count_is_not_emitted():
+def test_fp08_suppressed_count_is_emitted_with_conservation():
     hh = _code("CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.hh")
     cc = _code("CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc")
-    assert "uint64_t suppressed_count = 0;" in hh
-    assert cc.count("suppressed_count") == 1, \
-        "suppressed_count is expected to have exactly one increment and no output"
-    assert "++suppressed_count;" in cc
-    assert "CHAOS_FPSR" not in cc
-    assert "suppressed_count" not in cc[cc.find("CHAOSFPU::dumpCensus"):cc.find("CHAOSFPU::inWindow")]
-    # The runner has no fpsrSuppress pass-through flag.
+    for field in ("fpsr_attempted", "fpsr_applied", "suppressed_count",
+                  "rounding_attempted", "rounding_applied"):
+        assert field in hh
+    assert "CHAOS_FPSR_ATTEMPTED=" in cc
+    assert "CHAOS_FPSR_APPLIED=" in cc
+    assert "CHAOS_FPSR_SUPPRESSED=" in cc
+    assert "CHAOS_ROUNDING_APPLIED=" in cc
+    assert "fpsr_suppress_proxy" in cc
+    assert "rounding_sub_one_ulp_proxy" in cc
+    # The rounding early-return path must reach the real L0 emitter.
+    rnd = cc[cc.find("if (rounding_sub) {"):cc.find("chaos_fsu::MaskInfo mi;")]
+    assert "noteFaultApplied(dyn_inst, fi);" in rnd
     runner = _code("tools/fsu_seed_runner.py")
-    assert "fpu_fpsr_suppress" not in runner
+    assert "fpu_fpsr_suppress" in runner
 
 
 def test_fq08c_delayed_wake_is_squash_and_generation_aware():

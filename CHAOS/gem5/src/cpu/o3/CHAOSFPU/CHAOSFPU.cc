@@ -340,6 +340,20 @@ namespace gem5
         for (const auto &kv : eligible_regclass_counts)
             os << "CHAOS_ELIGIBLE_REGCLASS " << kv.first << "=" << kv.second
                << "\n";
+        // [FSU][FP08] Early-return proxy accounting. `attempted` is every
+        // eligible event reaching the mode; `applied` is a real modeled
+        // effect; `suppressed` is the fpsr placeholder (arch FPSR is not
+        // modeled in SE). Conservation is checked by the gate.
+        if (fpsr_suppress) {
+            os << "CHAOS_FPSR_ATTEMPTED=" << fpsr_attempted << "\n";
+            os << "CHAOS_FPSR_APPLIED=" << fpsr_applied << "\n";
+            os << "CHAOS_FPSR_SUPPRESSED=" << suppressed_count << "\n";
+            os << "CHAOS_FPSR_REASON=fpsr_not_architecturally_modeled\n";
+        }
+        if (rounding_sub) {
+            os << "CHAOS_ROUNDING_ATTEMPTED=" << rounding_attempted << "\n";
+            os << "CHAOS_ROUNDING_APPLIED=" << rounding_applied << "\n";
+        }
     }
 
     bool
@@ -679,7 +693,25 @@ namespace gem5
         // take — count the suppressed-flag events honestly and corrupt
         // nothing. (A real arm would need an MRS-consuming kernel.)
         if (fpsr_suppress) {
+            // [FSU][FP08] Honest proxy accounting: there is no architectural
+            // FPSR write in SE kernels, so "applied" means the modeled flag
+            // was cleared. The counts are emitted at exit and the event says
+            // exactly that; this path never mints a certified fault.
+            ++fpsr_attempted;
             ++suppressed_count;
+            ++fpsr_applied;
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"field", "fpsr_suppress"},
+                {"attempted", "1"},
+                {"applied", "1"},
+                {"suppressed", "1"},
+                {"reason", "fpsr_not_architecturally_modeled"},
+                {"injection_site", "fpsr_suppress_proxy"},
+                {"hook_version", "1"},
+                {"dyn_inst_seq", std::to_string(dyn_inst->seqNum)},
+                {"op_class", opClassName(oc)},
+            };
+            emitFsu("suppress", 0, ~0ULL, kv);
             return false;
         }
 
@@ -688,7 +720,10 @@ namespace gem5
         // FPCR RMODE changing one rounding decision). Applies to the first
         // FP/vector dest.
         if (rounding_sub) {
+            ++rounding_attempted;
             bool okr = false;
+            PhysRegIdPtr rdest = nullptr;
+            uint64_t rbits = 0, robits = 0;
             auto *o3cpur = dynamic_cast<o3::CPU *>(cpu);
             if (o3cpur) {
               for (int i = 0; i < dyn_inst->numDestRegs() && !okr; i++) {
@@ -707,10 +742,36 @@ namespace gem5
                 uint64_t obits; std::memcpy(&obits, &other, 8);
                 std::memcpy(vp, &obits, 8);
                 okr = true;
+                rdest = dest;
+                rbits = bits;
+                robits = obits;
               }
             }
             if (okr) {
+                ++rounding_applied;
                 faults_injected_count++;
+                // [FSU][FP08] Connect the early-return path to the real L0/L1
+                // events so the proxy has an auditable chain boundary. It is
+                // labelled as a one-ULP rounding proxy, never as a hardware
+                // RMODE fault.
+                FaultInfo fi;
+                fi.reg_class = (int)VecRegClass;
+                fi.reg_index = (int)rdest->index();
+                fi.before = rbits;
+                fi.after = robits;
+                fi.mask = rbits ^ robits;
+                fi.precision_bits = precision_bits;
+                fi.lane_width = lane_width;
+                fi.lane_offset = lane_offset;
+                fi.full_before_lo = rbits;
+                fi.full_after_lo = robits;
+                fi.is_vec = true;
+                fi.field = "rounding_sub";
+                fi.op_class = opClassName(oc);
+                fi.injection_site = "rounding_sub_one_ulp_proxy";
+                fi.hook_version = "1";
+                fi.producer_sn = dyn_inst->seqNum;
+                noteFaultApplied(dyn_inst, fi);
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: dyn_inst_execute, opClass=" << (int)oc
@@ -2416,6 +2477,27 @@ namespace gem5
             registerExitCallback([this]() {
                 if (log_stream && log_stream->stream())
                     dumpCensus(*(log_stream->stream()));
+            });
+        }
+        // [FSU][FP08] The early-return proxy counters must be visible in the
+        // injection pass too, not only in the countOnly census.
+        if (fpsr_suppress || rounding_sub) {
+            registerExitCallback([this]() {
+                if (!log_stream || !log_stream->stream())
+                    return;
+                std::ostream &os = *(log_stream->stream());
+                if (fpsr_suppress) {
+                    os << "CHAOS_FPSR_ATTEMPTED=" << fpsr_attempted << "\n";
+                    os << "CHAOS_FPSR_APPLIED=" << fpsr_applied << "\n";
+                    os << "CHAOS_FPSR_SUPPRESSED=" << suppressed_count << "\n";
+                    os << "CHAOS_FPSR_REASON=fpsr_not_architecturally_modeled\n";
+                }
+                if (rounding_sub) {
+                    os << "CHAOS_ROUNDING_ATTEMPTED=" << rounding_attempted
+                       << "\n";
+                    os << "CHAOS_ROUNDING_APPLIED=" << rounding_applied
+                       << "\n";
+                }
             });
         }
         // [FSU][D3] Honest decode-rejection accounting. A mismatch rejects

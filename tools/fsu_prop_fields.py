@@ -55,6 +55,9 @@ PROP_EVT_FIELDS = [
     "injection_site", "hook_version", "dest_operand", "arm_tick",
     "writeback_tick", "wakeup_tick", "wakeup_dependents", "wakeup_pending",
     "squash_tick",
+    # [FSU][FP08] Early-return proxy accounting.
+    "fpsr_attempted", "fpsr_applied", "fpsr_suppressed", "fpsr_reason",
+    "rounding_attempted", "rounding_applied", "suppressed",
     "detection_layer", "contained", "outcome", "oracle_diff",
     "evidence_status", "corr", "golden_id", "config_hash", "binary_hash",
     "terminal",
@@ -109,6 +112,9 @@ KIND_LAYER = {
     "overwrite": None, "mask": None, "crash": None, "timeout": None,
     # 生命周期收口与未激活
     "chain_end": None, "not_activated": None,
+    # [FSU][FP08] fpsr_suppress is a modeled placeholder (no arch FPSR write);
+    # it is not an L0/L5 layer and never certifies a fault.
+    "suppress": None,
     # [FSU][F5] Explicit activation / first-impact markers, mapped to their
     # REAL observation layers (a value change is an L2 operand/execute
     # observation; the first architectural impact is L5). The current

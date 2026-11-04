@@ -323,6 +323,8 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         cmd += ["--config_profile", "B0"]
     elif profile not in ("", "C3"):
         raise ValueError(f"unknown config_profile {profile!r}")
+    if fpu.get("fpsr_suppress"):
+        cmd += ["--fpu_fpsr_suppress"]
     if fpu.get("fma_weighted"):
         cmd += ["--fpu_fma_weighted"]
     if fpu.get("recurring_stuck"):

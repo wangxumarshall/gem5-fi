@@ -193,6 +193,13 @@ class CHAOSFPU : public SimObject
     // mode 6 — fpsr_suppress: logged count of cleared-flag events.
     bool fpsr_suppress = false;
     uint64_t suppressed_count = 0;
+    // [FSU][FP08] Honest accounting for the two early-return proxy paths.
+    // fpsr_suppress: attempted == applied (the modeled flag is cleared) and
+    // suppressed counts the same events; the arch FPSR itself is not modeled.
+    uint64_t fpsr_attempted = 0;
+    uint64_t fpsr_applied = 0;
+    uint64_t rounding_attempted = 0;
+    uint64_t rounding_applied = 0;
     // mode 7 — permanent_stuck (F5): install ONE fixed stuck-at fault
     // (one fault_id / fixed mask / fixed SA0-or-SA1 polarity) on the first
     // eligible event after the warm-up, then apply the SAME forced polarity

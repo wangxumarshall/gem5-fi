@@ -300,6 +300,9 @@ class CHAOSPropagation : public SimObject
         "injection_site", "hook_version", "dest_operand", "arm_tick",
         "writeback_tick", "wakeup_tick", "wakeup_dependents",
         "wakeup_pending", "squash_tick",
+        // [FSU][FP08] Early-return proxy accounting.
+        "fpsr_attempted", "fpsr_applied", "fpsr_suppressed", "fpsr_reason",
+        "rounding_attempted", "rounding_applied", "suppressed",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
