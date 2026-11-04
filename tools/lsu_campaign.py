@@ -1856,24 +1856,45 @@ PF_F0_SPAN = {
     # Per-pair keying, not a family constant (R4-1-review-I2).
     ("P06", "cache_dirtyevict"): 56,   # W6
     ("P06", "prefetch_stride"): 32,    # W8
+    # [R6-P-UNIT 2026-11-04] MEASURED on binary c6cccf5b with the census
+    # command above (span=1e9; teardown eligible= is the whole golden
+    # stream):
+    #   P01 W2 beebs_kernels=142, W8 prefetch_stride=133
+    #   P02 W8=133, W10 stream_chase=417
+    #   P03 W8=7,  W9 gap_bfs=62
+    #   P05 W8=7,  W10=291
+    # P03/P05-W8 have only 7 address-bearing events; the old span=50
+    # never fired (silent zero injection). P04/P07/P09 remain unmeasured
+    # and now resolve loudly BLOCKED(F0-span-unmeasured) instead of the
+    # legacy span=50.
+    ("P01", "beebs_kernels"): 142,     # W2
+    ("P01", "prefetch_stride"): 133,   # W8
+    ("P02", "prefetch_stride"): 133,   # W8
+    ("P02", "stream_chase"): 417,      # W10
+    ("P03", "prefetch_stride"): 7,     # W8
+    ("P03", "gap_bfs"): 62,            # W9
+    ("P05", "prefetch_stride"): 7,     # W8
+    ("P05", "stream_chase"): 291,      # W10
 }
 
 
 def _prefetch_tier_flags(model, tier, wl_binary=None):
-    # [MDSPEC][R4-5.4] P06 (p06_as_demand): per-(model, workload) F0 span
-    # (PF_F0_SPAN above — R4-1-review-I2 uniform parameterization:
-    # warmup=1 + span=N hits each of the N eligible events with
-    # probability 1/N). Unmeasured pair -> None -> resolve_cell's loud
-    # BLOCKED(F0-span-unmeasured) cell.
-    if model == "P06" and tier == "F0":
+    # [MDSPEC][R4-5.4] + [R6-P-UNIT 2026-11-04]: every modelled prefetch
+    # family uses a per-(model, workload) F0 span (PF_F0_SPAN; uniform
+    # parameterization: warmup + span=N hits each of the N eligible events
+    # with probability 1/N). Unmeasured pair -> None -> resolve_cell's loud
+    # BLOCKED(F0-span-unmeasured) cell (never the old silent span=50, which
+    # injected zero on P03/P05-W8 where eligible=7).
+    if tier == "F0" and model in {"P01", "P02", "P03", "P04", "P05",
+                                  "P06", "P07", "P08", "P09"}:
         span = PF_F0_SPAN.get((model, wl_binary))
         if span is None:
             return None
+        warmup = "1" if model == "P06" else "0"
         return ["--prefetch_lsu_tier", tier,
-                "--prefetch_warmup_events", "1",
+                "--prefetch_warmup_events", warmup,
                 "--prefetch_span_events", str(span)]
-    # P01-P08 keep the historical tier flags BYTE-IDENTICAL (their F0
-    # span convention predates the per-pair census — untouched).
+    # F5/F2/F6 and non-modelled families keep the historical tier flags.
     return ["--prefetch_lsu_tier", tier,
             "--prefetch_warmup_events", "0", "--prefetch_span_events", "50"]
 

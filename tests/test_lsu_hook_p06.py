@@ -303,10 +303,17 @@ def main():
           ["--prefetch_lsu_tier", "F6", "--prefetch_warmup_events", "0",
            "--prefetch_span_events", "50"],
           str(LC._prefetch_tier_flags("P06", "F2", "cache_dirtyevict")))
-    check("P01-P08 tier flags 逐字节不变（F0/F2 同旧 lambda）",
+    check("P01-P08 F0 使用实测 per-pair span；未测 pair 响亮 None；F2 旧 lambda",
           LC._prefetch_tier_flags("P01", "F0", "prefetch_stride") ==
           ["--prefetch_lsu_tier", "F0", "--prefetch_warmup_events", "0",
-           "--prefetch_span_events", "50"]
+           "--prefetch_span_events", "133"]
+          and LC._prefetch_tier_flags("P03", "F0", "prefetch_stride") ==
+          ["--prefetch_lsu_tier", "F0", "--prefetch_warmup_events", "0",
+           "--prefetch_span_events", "7"]
+          and LC._prefetch_tier_flags("P05", "F0", "prefetch_stride") ==
+          ["--prefetch_lsu_tier", "F0", "--prefetch_warmup_events", "0",
+           "--prefetch_span_events", "7"]
+          and LC._prefetch_tier_flags("P01", "F0", "no_such_workload") is None
           and LC._prefetch_tier_flags("P08", "F2", "prefetch_stride") ==
           ["--prefetch_lsu_tier", "F2", "--prefetch_warmup_events", "0",
            "--prefetch_span_events", "50"],

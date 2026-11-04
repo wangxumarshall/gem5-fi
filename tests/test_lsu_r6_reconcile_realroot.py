@@ -419,17 +419,22 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
     # upstream-blocked to the chain gate (T05-F0-W4 evaluates and is admitted;
     # its 5 siblings become evidence-missing/unproven).  11 rows leave the
     # upstream block; 3 T08-W9 rows become the explicit WORKLOAD-GAP class.
-    check("已评估=64 / 未准入(有样本)=48 / 无样本=201（R6-A2：A04/A06 路由推进，2 项由 evidence-missing 转 UNRESOLVED）",
+    # [R6-P-UNIT 2026-11-04] The P F0-span census makes every P F0 model
+    # require a measured per-(model, workload) span.  P04 F0 has no measured
+    # pair, so P04-F0-W2/W8 now resolve loudly BLOCKED(F0-span-unmeasured):
+    # two rows move from evidence-missing to UNRESOLVED.  READY is unchanged
+    # (still only T05-F0-W4).  This is a stricter, not relaxed, snapshot.
+    check("已评估=64 / 未准入(有样本)=48 / 无样本=199（A04/A06 2 项 + P04 F0 2 项转 UNRESOLVED）",
           cg["evaluated"] == 64 and cg["unproven"] == 48
-          and cg["evidence_missing"] == 201
-          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 201
+          and cg["evidence_missing"] == 199
+          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 199
           and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 48,
           str({k: cg[k] for k in ("evaluated", "unproven", "evidence_missing")}))
     check("上游独立阻塞分类（RULING6/FS-INFRA13/MODE-UNIMPL0/"
-          "UNRESOLVED6/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
+          "UNRESOLVED8/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
           all(doc["blocked_by_category"].get(k, 0) == v for k, v in
               (("RULING", 6), ("FS-INFRA", 13), ("MODE-UNIMPL", 0),
-               ("UNRESOLVED", 6), ("FS-MULTICORE", 35), ("LICENSE", 12),
+               ("UNRESOLVED", 8), ("FS-MULTICORE", 35), ("LICENSE", 12),
                ("WORKLOAD-GAP", 3)))
           and doc["blocked_by_category"].get("TIER-UNIMPL", 0) == 0,
           str(doc["blocked_by_category"]))
