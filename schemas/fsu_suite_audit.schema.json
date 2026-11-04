@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://gem5-fi.local/schemas/fsu_suite_audit.schema.json",
-  "title": "FSU unified suite seed audit (v1)",
+  "title": "FSU unified suite seed audit (v2)",
   "description": "Versioned, recomputed audit of one FSU suite seed. A suite seed is exactly one formal seed; its component runs never add to the seed count. The audit is recomputed from on-disk component evidence, not copied from the legacy W5/W6 suite audit.json. suite_execution_complete, suite_evidence_valid and suite_certified are deliberately independent. formal_seed_contribution is always 1.",
   "type": "object",
   "required": [
@@ -20,32 +20,68 @@
     "violations",
     "formal_seed_contribution",
     "tool_version",
-    "generated_at"
+    "generated_at",
+    "recompute_status"
   ],
   "additionalProperties": true,
   "properties": {
-    "schema_version": {"const": "fsu-suite-audit/v1"},
-    "suite_id": {"type": ["string", "null"]},
-    "suite_version": {"type": ["string", "null"]},
+    "schema_version": {
+      "const": "fsu-suite-audit/v2"
+    },
+    "suite_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "suite_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "suite_hash": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^([0-9a-f]{64})?$"
     },
     "suite_hash_declared": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^([0-9a-f]{64})?$"
     },
-    "run_id": {"type": ["string", "null"]},
-    "suite_seed": {"type": "integer", "minimum": 0},
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "suite_seed": {
+      "type": "integer",
+      "minimum": 0
+    },
     "expected_programs": {
       "type": "array",
-      "items": {"type": "string", "minLength": 1}
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "actual_programs": {
       "type": "array",
-      "items": {"type": "string", "minLength": 1}
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
-    "component_count": {"type": "integer", "minimum": 0},
+    "component_count": {
+      "type": "integer",
+      "minimum": 0
+    },
     "components": {
       "type": "array",
       "items": {
@@ -65,95 +101,284 @@
         ],
         "additionalProperties": true,
         "properties": {
-          "program_id": {"type": "string", "minLength": 1},
-          "program_index": {"type": "integer", "minimum": 0},
-          "attempt": {"type": ["string", "null"]},
+          "program_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "program_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attempt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "manifest_sha256": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([0-9a-f]{64})?$"
           },
           "audit_sha256": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([0-9a-f]{64})?$"
           },
           "chain_report_sha256": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([0-9a-f]{64})?$"
           },
           "oracle_sha256": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([0-9a-f]{64})?$"
           },
           "evidence_sha256": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([0-9a-f]{64})?$",
             "description": "SHA-256 of evidence_sha256.json itself; per-file hashes live inside that file and are re-verified."
           },
           "component_manifest_sha256": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([0-9a-f]{64})?$"
           },
           "oracle_elements_sha256": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([0-9a-f]{64})?$"
           },
-          "audit_ok": {"type": "boolean"},
-          "certified": {"type": "boolean"},
-          "recomputed_audit_ok": {"type": "boolean"},
-          "recomputed_certified": {"type": "boolean"},
-          "oracle_category": {"type": ["string", "null"]},
-          "element_oracle": {"type": ["string", "null"]},
-          "chain_terminal": {"type": ["string", "null"]},
-          "component_status": {"type": ["string", "null"]},
-          "execution_complete": {"type": "boolean"},
-          "evidence_valid": {"type": "boolean"},
+          "audit_ok": {
+            "type": "boolean"
+          },
+          "certified": {
+            "type": "boolean"
+          },
+          "recomputed_audit_ok": {
+            "type": "boolean"
+          },
+          "recomputed_certified": {
+            "type": "boolean"
+          },
+          "oracle_category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "element_oracle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chain_terminal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "component_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "execution_complete": {
+            "type": "boolean"
+          },
+          "evidence_valid": {
+            "type": "boolean"
+          },
           "violations": {
             "type": "array",
-            "items": {"type": "string"}
+            "items": {
+              "type": "string"
+            }
+          },
+          "plan_binding_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan_binding_ok": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "missing_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "physical_identity": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "warmup_sample": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
           }
         }
       }
     },
-    "suite_execution_complete": {"type": "boolean"},
-    "suite_evidence_valid": {"type": "boolean"},
-    "suite_certified": {"type": "boolean"},
+    "suite_execution_complete": {
+      "type": "boolean"
+    },
+    "suite_evidence_valid": {
+      "type": "boolean"
+    },
+    "suite_certified": {
+      "type": "boolean"
+    },
     "violations": {
       "type": "array",
-      "description": "Category-prefixed: suite:, identity:, execution:, evidence:, certification:.",
-      "items": {"type": "string"}
+      "description": "Category-prefixed: suite:, identity:, execution:, evidence:, certification:, missing_evidence:.",
+      "items": {
+        "type": "string"
+      }
     },
-    "formal_seed_contribution": {"const": 1},
-    "tool_version": {"const": "fsu_suite_audit/v1"},
-    "generated_at": {"type": "string", "minLength": 1},
+    "formal_seed_contribution": {
+      "const": 1
+    },
+    "tool_version": {
+      "const": "fsu_suite_audit/v2"
+    },
+    "generated_at": {
+      "type": "string",
+      "minLength": 1
+    },
     "suite_manifest_sha256": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^([0-9a-f]{64})?$"
     },
-    "frozen_suite_config": {"type": ["string", "null"]},
+    "frozen_suite_config": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "frozen_suite_config_sha256": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^([0-9a-f]{64})?$"
     },
     "legacy_audit": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "Read-only view of the pre-existing suite audit.json. Fields absent in the legacy file are listed in fields_missing and are never fabricated.",
       "properties": {
-        "present": {"type": "boolean"},
-        "path": {"type": ["string", "null"]},
-        "schema_version": {"type": ["string", "null"]},
-        "legacy": {"type": "boolean"},
+        "present": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "legacy": {
+          "type": "boolean"
+        },
         "fields_present": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
         "fields_missing": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "raw": {"type": "object"},
-        "ok_matches_recomputed": {"type": ["boolean", "null"]},
-        "certified_matches_recomputed": {"type": ["boolean", "null"]}
+        "raw": {
+          "type": "object"
+        },
+        "ok_matches_recomputed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "certified_matches_recomputed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
       }
+    },
+    "seed_plan_schema": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "f5-v1",
+        "fr03-v1",
+        null
+      ]
+    },
+    "seed_plan_document": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    },
+    "missing_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recompute_status": {
+      "enum": [
+        "current_verified",
+        "legacy_report_only",
+        "current_verification_failed",
+        "missing_evidence"
+      ]
     }
   }
 }

@@ -50,12 +50,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fsu_chain_check as C  # noqa: E402
 import fsu_seed_audit as A  # noqa: E402
+import fsu_seed_plan_schema as SP  # noqa: E402
 import fsu_suite as S  # noqa: E402
 import fsu_w6_suite as WS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "fsu-suite-audit/v1"
-TOOL_VERSION = "fsu_suite_audit/v1"
+SCHEMA_VERSION = "fsu-suite-audit/v2"
+TOOL_VERSION = "fsu_suite_audit/v2"
 
 # The audit_json itself is not covered by evidence_sha256.json (it is written
 # after the evidence manifest), so it is recomputed instead. Everything else
@@ -200,7 +201,7 @@ def _compare_chain(stored: dict, recomputed: dict):
 def _audit_component(seed_dir: Path, comp: dict, expected_pid: str,
                      expected_index: int, expected_count: int,
                      suite_id: str, suite_version, suite_hash: str,
-                     suite_seed: int, run_id: str, seed_plan_entry,
+                     suite_seed: int, run_id: str, plan_binding,
                      violations: dict):
     pid = str(comp.get("program_id") or expected_pid)
     vlist = []
@@ -232,8 +233,33 @@ def _audit_component(seed_dir: Path, comp: dict, expected_pid: str,
         "component_status": None,
         "execution_complete": False,
         "evidence_valid": False,
+        "plan_binding_key": (plan_binding or {}).get("key"),
+        "plan_binding_ok": None,
+        "missing_evidence": [],
+        "physical_identity": None,
         "violations": vlist,
     }
+
+    def missing(message: str):
+        text = f"{pid}: {message}"
+        entry["missing_evidence"].append(text)
+        violations["missing_evidence"].append(text)
+        vlist.append(text)
+
+    def check_binding(recorded, label: str):
+        if not plan_binding:
+            return
+        schema = plan_binding["schema"]
+        issues = SP.verify_binding(
+            schema, plan_binding["entry"], pid, recorded)
+        for issue in issues:
+            if issue.startswith("missing:"):
+                missing(f"{label} missing {issue.split(':', 1)[1]} "
+                        f"(plan binding {plan_binding['key']})")
+            else:
+                viol("identity", f"{label} {issue}")
+        if not issues:
+            entry["plan_binding_ok"] = True
 
     # ---- suite binding declared by the suite manifest component entry ----
     if int(comp.get("program_index", -1)) != expected_index:
@@ -302,9 +328,11 @@ def _audit_component(seed_dir: Path, comp: dict, expected_pid: str,
         if str(manifest.get("run_id")) != str(run_id):
             viol("identity", f"attempt run_id {manifest.get('run_id')!r} != "
                              f"suite run_id {run_id!r}")
-        if seed_plan_entry is not None:
-            if manifest.get("seed_plan_entry") != seed_plan_entry:
-                viol("identity", "attempt seed_plan_entry != frozen plan")
+        if plan_binding:
+            key = plan_binding["key"]
+            check_binding(manifest.get(key), f"attempt {key}")
+            if key not in manifest:
+                missing(f"attempt manifest has no {key}")
 
     # ---- component manifest identity / binding ----
     cm, err = _load_json(attempt / "component_manifest.json")
@@ -344,9 +372,12 @@ def _audit_component(seed_dir: Path, comp: dict, expected_pid: str,
                     and str(cm.get("component_seed")) \
                     != str(manifest.get("seed")):
                 viol("identity", "component_seed != attempt manifest seed")
-            if seed_plan_entry is not None and "seed_plan_entry" in cm \
-                    and cm.get("seed_plan_entry") != seed_plan_entry:
-                viol("identity", "component seed_plan_entry != frozen plan")
+            if plan_binding:
+                key = plan_binding["key"]
+                if key not in cm:
+                    missing(f"component_manifest has no {key}")
+                else:
+                    check_binding(cm.get(key), f"component {key}")
         if cm.get("component_oracle") not in ("SDC", "MASKED"):
             viol("certification",
                  f"element oracle is not SDC/MASKED: "
@@ -397,6 +428,54 @@ def _audit_component(seed_dir: Path, comp: dict, expected_pid: str,
     else:
         viol("evidence", "chain_report.json has no chain object")
 
+    # ---- plan provenance: warmup/sample units + physical cell identity ----
+    command = ((stored_report or {}).get("command") or {}).get("inject")
+    ini_text = ""
+    ini_path = attempt / "inject/config.ini"
+    if ini_path.exists():
+        try:
+            ini_text = ini_path.read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            missing(f"inject/config.ini unreadable: {e}")
+    if plan_binding:
+        schema = plan_binding["schema"]
+        entry["warmup_sample"] = SP.warmup_sample_contract(
+            schema, plan_binding["entry"])
+        flags = SP.command_flags(command)
+        if not command:
+            missing("chain_report command.inject missing (plan provenance)")
+        elif schema == SP.SCHEMA_F5 and plan_binding["entry"].get(
+                "permanent_stuck"):
+            want = {
+                "--fpu_f5_warmup": plan_binding["entry"]["warmup"],
+                "--fpu_f5_sample_limit":
+                    plan_binding["entry"]["sample"]["limit"],
+                "--fpu_f5_keep_first_last_n":
+                    plan_binding["entry"]["sample"]["keep_first_last_n"],
+            }
+            for flag, value in want.items():
+                if flag not in flags:
+                    missing(f"command missing {flag} (F5 warmup/sample)")
+                elif int(str(flags[flag]), 0) != int(value):
+                    viol("identity", f"command {flag}={flags[flag]!r} != "
+                                     f"frozen {value}")
+        elif schema == SP.SCHEMA_FR03:
+            if "--chaos_phys" not in flags:
+                viol("identity", "FR03 command does not select --chaos_phys")
+            stray = [f for f in flags if f == "--chaos_fpu"
+                     or f.startswith("--fpu_f5_")]
+            if stray:
+                viol("identity",
+                     f"FR03 command carries CHAOSFPU F5 flags: {stray}")
+            phys = SP.physical_identity(
+                schema, plan_binding["entry"], pid, manifest or {}, cm,
+                command, ini_text)
+            entry["physical_identity"] = phys
+            for item in phys.get("missing", []):
+                missing(f"physical identity source missing: {item}")
+            for item in phys.get("violations", []):
+                viol("identity", f"physical identity: {item}")
+
     # ---- component audit: stored vs recomputed ----
     stored_audit, err = _load_json(attempt / "audit.json")
     if err:
@@ -446,7 +525,8 @@ def _audit_component(seed_dir: Path, comp: dict, expected_pid: str,
         x.startswith(f"{pid}: ") and x.split(": ", 1)[1].startswith(
             ("required artifact", "evidence_sha256", "SHA-256", "stale chain",
              "manifest.json", "audit.json", "chain_report.json",
-             "component_manifest.json", "stored audit"))
+             "component_manifest.json", "stored audit", "missing",
+             "physical identity source missing"))
         for x in vlist)
     return entry
 
@@ -455,7 +535,7 @@ def audit_seed(seed_dir: Path, suite_config=None) -> dict:
     seed_dir = Path(seed_dir)
     category_violations = {
         "suite": [], "identity": [], "execution": [], "evidence": [],
-        "certification": [],
+        "certification": [], "missing_evidence": [],
     }
 
     def add(kind: str, message: str):
@@ -479,6 +559,7 @@ def audit_seed(seed_dir: Path, suite_config=None) -> dict:
     cfg_path = _config_path(seed_dir, suite_id, suite_config)
     cfg = {}
     frozen_hash = None
+    plan_schema = None
     if cfg_path is None or not Path(cfg_path).exists():
         add("suite", f"frozen suite config missing: {cfg_path}")
     else:
@@ -488,7 +569,7 @@ def audit_seed(seed_dir: Path, suite_config=None) -> dict:
             cfg = {}
         else:
             try:
-                frozen_hash = hash_fn(cfg)
+                plan_schema, frozen_hash = SP.suite_hash(cfg, kind)
             except Exception as e:  # noqa: BLE001
                 add("suite", f"frozen suite config invalid: {e}")
             if str(cfg.get("suite_id")) != suite_id:
@@ -513,10 +594,11 @@ def audit_seed(seed_dir: Path, suite_config=None) -> dict:
         add("suite", f"program_count {sm.get('program_count')!r} != "
                      f"{expected_count}")
 
-    # W5 suite manifests embed the whole suite document; it must hash the same.
+    # W5 suite manifests embed the whole suite document; it must hash the same
+    # under the same model-specific hash implementation.
     if "suite" in sm and isinstance(sm.get("suite"), dict):
         try:
-            embedded_hash = S.compute_suite_hash(sm["suite"])
+            _, embedded_hash = SP.suite_hash(sm["suite"], kind)
         except Exception as e:  # noqa: BLE001
             add("suite", f"embedded suite invalid: {e}")
         else:
@@ -532,17 +614,45 @@ def audit_seed(seed_dir: Path, suite_config=None) -> dict:
         suite_seed = 0
 
     seed_plan_entry = None
+    plan_binding = None
+    plan_document = None
     if isinstance(cfg.get("seed_plan"), list):
-        for entry in S.normalise_seed_plan(cfg):
-            if int(entry["suite_seed"]) == suite_seed:
-                seed_plan_entry = S.seed_plan_identity(entry)
-                break
-        if seed_plan_entry is None:
-            add("suite", f"suite_seed {suite_seed} not in frozen seed_plan")
-        else:
-            declared = sm.get("seed_plan_entry")
-            if declared is not None and declared != seed_plan_entry:
-                add("suite", "suite_manifest seed_plan_entry drift")
+        try:
+            plan_schema, plan_entry = SP.seed_entry(cfg, suite_seed)
+        except Exception as e:  # noqa: BLE001
+            add("suite", f"frozen seed_plan invalid: {e}")
+            plan_entry = None
+        if plan_entry is not None:
+            plan_document = SP.describe_document(cfg)
+            plan_document["normalised_entry"] = plan_entry
+            plan_document["warmup_sample"] = SP.warmup_sample_contract(
+                plan_schema, plan_entry)
+            key = SP.BINDING_KEY[plan_schema]
+            plan_binding = {"schema": plan_schema, "entry": plan_entry,
+                            "key": key}
+            if plan_schema == SP.SCHEMA_F5:
+                seed_plan_entry = S.seed_plan_identity(plan_entry)
+                declared = sm.get("seed_plan_entry")
+                if declared is not None and declared != seed_plan_entry:
+                    add("suite", "suite_manifest seed_plan_entry drift")
+            else:
+                declared = sm.get("target_plan_entries")
+                if declared is not None and not isinstance(declared, dict):
+                    add("suite", "suite_manifest target_plan_entries is not "
+                                 "an object")
+                if declared:
+                    for pid, recorded in declared.items():
+                        issues = SP.verify_binding(
+                            plan_schema, plan_entry, str(pid), recorded)
+                        for issue in issues:
+                            if issue.startswith("missing:"):
+                                add("missing_evidence",
+                                    f"suite_manifest target_plan_entries[{pid}]"
+                                    f" missing {issue.split(':', 1)[1]}")
+                            else:
+                                add("identity",
+                                    f"suite_manifest target_plan_entries[{pid}]"
+                                    f" {issue}")
 
     comps = sm.get("components")
     if not isinstance(comps, list):
@@ -577,7 +687,7 @@ def audit_seed(seed_dir: Path, suite_config=None) -> dict:
             pass
         component_entries.append(_audit_component(
             seed_dir, matches[0], pid, index, expected_count, suite_id,
-            suite_version, suite_hash, suite_seed, run_id, seed_plan_entry,
+            suite_version, suite_hash, suite_seed, run_id, plan_binding,
             category_violations))
 
     # ---- suite_report consistency (if present) ----
@@ -607,7 +717,8 @@ def audit_seed(seed_dir: Path, suite_config=None) -> dict:
     legacy = _legacy_audit(seed_dir, add)
     return _finish(seed_dir, sm, component_entries, actual_programs,
                    seed_plan_entry, frozen_hash, cfg_path,
-                   category_violations, legacy)
+                   category_violations, legacy,
+                   plan_schema=plan_schema, plan_document=plan_document)
 
 
 def _legacy_audit(seed_dir: Path, add):
@@ -647,7 +758,7 @@ def _legacy_audit(seed_dir: Path, add):
 
 def _finish(seed_dir: Path, sm: dict, components, actual_programs,
             seed_plan_entry, frozen_hash, cfg_path, categories,
-            legacy=None):
+            legacy=None, plan_schema=None, plan_document=None):
     expected_order = None
     if sm:
         kind = _detect_kind(str(sm.get("suite_id") or ""),
@@ -668,7 +779,8 @@ def _finish(seed_dir: Path, sm: dict, components, actual_programs,
     suite_certified = (
         suite_execution_complete and suite_evidence_valid and component_ok
         and not categories["suite"] and not categories["identity"]
-        and not categories["certification"])
+        and not categories["certification"]
+        and not categories.get("missing_evidence"))
 
     if legacy is not None:
         if legacy.get("fields_present"):
@@ -694,8 +806,16 @@ def _finish(seed_dir: Path, sm: dict, components, actual_programs,
 
     violations = []
     for kind in ("suite", "identity", "execution", "evidence",
-                 "certification"):
-        violations.extend(f"{kind}: {m}" for m in categories[kind])
+                 "certification", "missing_evidence"):
+        violations.extend(f"{kind}: {m}" for m in categories.get(kind, []))
+
+    missing_evidence = list(categories.get("missing_evidence", []))
+    if suite_certified:
+        recompute_status = "current_verified"
+    elif missing_evidence:
+        recompute_status = "missing_evidence"
+    else:
+        recompute_status = "current_verification_failed"
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -723,7 +843,11 @@ def _finish(seed_dir: Path, sm: dict, components, actual_programs,
         "frozen_suite_config": str(cfg_path) if cfg_path else None,
         "frozen_suite_config_sha256": _sha(Path(cfg_path))
         if cfg_path and Path(cfg_path).exists() else None,
+        "seed_plan_schema": plan_schema,
+        "seed_plan_document": plan_document,
         "seed_plan_entry": seed_plan_entry,
+        "missing_evidence": missing_evidence,
+        "recompute_status": recompute_status,
     }
 
 
