@@ -1,0 +1,77 @@
+{
+  "schema_version": "fsu-suite-audit/v1",
+  "tool_version": "fsu_fr03_suite_gate/v1",
+  "generated_at": "2026-11-04T13:00:39",
+  "suite_id": "w6-fp-v1-fr03",
+  "suite_version": "1",
+  "suite_family": "W6",
+  "suite_hash": "3b946a51ffb67e2086ed6df32395e90cd54c2d7dcf791654fb5e0312e61c172e",
+  "run_id": "FSU-FR03-F5-W6",
+  "suite_seed": 3,
+  "expected_programs": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "actual_programs": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "component_count": 3,
+  "components": [
+    {
+      "program_id": "svd",
+      "program_index": 0,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W6/seed3/components/svd/FSU-FR03-F5-W6/seed10044515714169597802/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "d141196d6c775fc4abb1556627ffa682cbf318206beeca92d57be9fa07eaf1aa",
+        "audit.json": "00bf2977532bba73e166312e5c5c3beb09ed5ea2e8f3b243e247c60cbe2d856a",
+        "chain_report.json": "acf08bc7bf2557efcd7f9bfa86aa11e06e2502c3f943123f09d7a1c7723361d0",
+        "oracle.json": "76996312f384efd1831863ed80c9e1fdf429851408670fd093cd671a6bb36be8",
+        "evidence_sha256.json": "48cd5b72b5be33b1e8e5c9edd9ad852ffcba219b0c324dcc7f12a62a08a21401",
+        "component_manifest.json": "b6ba42b2f3c1f940bf716588de512e164483fd6feafe4f840559844853a9d2f3"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "MASKED"
+    },
+    {
+      "program_id": "fft",
+      "program_index": 1,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W6/seed3/components/fft/FSU-FR03-F5-W6/seed16215245312477761633/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "f6b70b4295dc0511f9a28cd45289917853faa3ff08e65d8176aada91cbeaafb6",
+        "audit.json": "778f0f4efc8d3f600af7594a96082090cd19286273c3ac164d03365de41ea80b",
+        "chain_report.json": "3f81e5c890ade896a58c52a08ed8c5f0631ae1020773f4850d5e6a3c7be1ad43",
+        "oracle.json": "45c52383d0174b6f5650259705c1a1b98354dfe92c5931b739fa9cf091b1632a",
+        "evidence_sha256.json": "1cce88a79eb59124610ccce53118a357ac9001fb07a99a04f226f4e558f2cd91",
+        "component_manifest.json": "eba995c447d4c072c292ed99d0e14f2674dd26116a2a9f64b1b46cf0379ced63"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "SDC"
+    },
+    {
+      "program_id": "sparse-cg",
+      "program_index": 2,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W6/seed3/components/sparse-cg/FSU-FR03-F5-W6/seed4603101378290111500/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "602dac2ac35e60172fbbace13f64af610a4d1b69b4e47e625be99c18fdaa8e9a",
+        "audit.json": "e1277de312ee807c6d355fa5a936851d310ccd54b7b8bf10b4a006c644a7b729",
+        "chain_report.json": "cde4e4eb9b503d4f2c1b224888250ec05fe6925a881a5b56c9c95f3780fe5762",
+        "oracle.json": "9fec6ee44d50f0162affece1057173279dc90ca0362d6aceb5d73b7307bb24d1",
+        "evidence_sha256.json": "3cb5b1cc26e9d06eb1dd199bc536be49cabcf4106940cd3e4840c024220f93bb",
+        "component_manifest.json": "1f587be700e37b024a343e22a903bd39d595aee644e0b8ac89631be452b07e70"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "SDC"
+    }
+  ],
+  "suite_execution_complete": true,
+  "suite_evidence_valid": true,
+  "suite_certified": true,
+  "violations": [],
+  "formal_seed_contribution": 1
+}

@@ -1,0 +1,20 @@
+VecStuckSkipFree: cycle=0 class=vec phys=47 skips=1 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=100 class=vec phys=47 skips=2 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=200 class=vec phys=47 skips=3 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=300 class=vec phys=47 skips=4 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=400 class=vec phys=47 skips=5 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=500 class=vec phys=47 skips=6 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=600 class=vec phys=47 skips=7 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=700 class=vec phys=47 skips=8 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckInstall: cycle=31300 fault=1 phys=47 gen=2 lane=0 mask=0x10000 polarity=1 correct=0x64732f656d6f682f stuck=0x64732f656d6f682f activated=0
+  [vec lane 0/32 width=64bits mask=0x10000]
+Cycle: 31300, CPU: board.processor.cores.core, Thread: 0, Mode: phys, RegClass: vec, PhysReg[47] (Active, mapped from ArchReg[1]), semanticRole: FR03, FaultType: stuck_at_one, Mask: 0000000000000000000000000000000000000000000000010000000000000000, FreeListSize: 4, faults_injected: 1
+VecStuckApply: cycle=31518 phys=47 gen=3 exposure=1 lane=0 mask=0x10000 polarity=1 before=0x3000000000300000 after=0x3000000000310000 activated=1
+VecStuckApply: cycle=31550 phys=47 gen=4 exposure=1 lane=0 mask=0x10000 polarity=1 before=0x0 after=0x10000 activated=1
+VecStuckApply: cycle=31563 phys=47 gen=5 exposure=1 lane=0 mask=0x10000 polarity=1 before=0x75642d7961727261 after=0x75642d7961737261 activated=1
+VecStuckApply: cycle=31573 phys=47 gen=6 exposure=1 lane=0 mask=0x10000 polarity=1 before=0xc0000000000000 after=0xc0000000010000 activated=1
+VecStuckApply: cycle=116099 phys=47 gen=7 exposure=1 lane=0 mask=0x10000 polarity=1 before=0xa after=0x1000a activated=1
+VecStuckApply: cycle=116132 phys=47 gen=8 exposure=1 lane=0 mask=0x10000 polarity=1 before=0xf00ff00ff00ff00f after=0xf00ff00ff00ff00f activated=0
+VecStuckApply: cycle=122887 phys=47 gen=9 exposure=1 lane=0 mask=0x10000 polarity=1 before=0xcccccc00 after=0xcccdcc00 activated=1
+ReadTracePoll: cycle 131300 PhysReg[47] reads_before_overwrite=10 overwritten=0
+CHAOS_L0: CHAOSPhysReg: target=47 reads=12 overwritten=0 at=0 hit=1

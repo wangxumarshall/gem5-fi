@@ -1,0 +1,3 @@
+protocol deviation / supplemental evidence
+Target changed after attempt-1 result: 0x007f8000 SA0 lane0 -> 0x80000000 SA1 lane0.
+Do not count as the pre-registered formal seed3. See ../protocol_review.json and ../PROTOCOL_REVIEW.md.

@@ -1,0 +1,51 @@
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (8192 Mbytes) does not match the address range assigned (1024 Mbytes)
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:32] into equal-sized buckets. Rounding up.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:8] into equal-sized buckets. Rounding up.
+src/base/remote_gdb.cc:418: warn: Sockets disabled, not accepting gdb connections
+warn: Setting the full_system parameter via the Simulator constructor is deprecated and will be removed in future releases of gem5. The board determines if the simulation is full system or not via it's `is_fullsystem` method.
+warn: No dot file generated. Please install pydot to generate the dot file and pdf.
+src/sim/syscall_emul.cc:86: warn: ignoring syscall set_robust_list(...)
+src/sim/mem_state.cc:443: info: Increasing stack size by one page.
+src/sim/syscall_emul.hh:1127: warn: readlink() called on '/proc/self/exe' may yield unexpected results in various settings.
+      Returning '/home/sdc/gem5-fi-fsu/workloads/directed/fft_radix2_kernel'
+src/sim/syscall_emul.cc:86: warn: ignoring syscall mprotect(...)
+src/sim/faults.cc:128: panic: panic condition !handled && !tc->getSystemPtr()->trapToGdb(GDBSignal::SEGV, tc->contextId()) occurred: Page table fault when accessing virtual address 0x3a33339cffa566ae
+Memory Usage: 1224336 KBytes
+Program aborted at tick 191627975
+--- BEGIN LIBC BACKTRACE ---
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem515print_backtraceEv+0x18)[0x324f608]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem512abortHandlerEi+0x48)[0x327119c]
+linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffffa35e78dc]
+/usr/lib64/libc.so.6(+0x83ce0)[0xffffa3185ce0]
+/usr/lib64/libc.so.6(raise+0x1c)[0xffffa313eefc]
+/usr/lib64/libc.so.6(abort+0xe4)[0xffffa312cd70]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt[0x106c228]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem521GenericPageTableFault6invokeEPNS_13ThreadContextERKNS_14RefCountingPtrINS_10StaticInstEEE+0x340)[0x32d5990]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem52o36Commit10commitHeadERKNS_14RefCountingPtrINS0_7DynInstEEEj+0x554)[0x2eddd54]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem52o36Commit11commitInstsEv+0x374)[0x2eded14]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem52o36Commit6commitEv+0x584)[0x2edfee4]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem52o36Commit4tickEv+0xb8)[0x2ee0578]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem52o33CPU4tickEv+0x140)[0x2ee85f4]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem510EventQueue10serviceOneEv+0xb8)[0x32628a8]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem59doSimLoopEPNS_10EventQueueE+0x74)[0x328a708]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_ZN4gem58simulateEm+0x220)[0x328acb0]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt[0x2c24f04]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt[0x10ae490]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(PyCFunction_Call+0x68)[0xf8d630]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyEval_EvalFrameDefault+0x4dec)[0xffedec]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyEval_EvalCodeWithName+0x2e4)[0xff9154]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyFunction_Vectorcall+0xfc)[0xf8cdc4]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyEval_EvalFrameDefault+0x4208)[0xffe208]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyEval_EvalCodeWithName+0x2e4)[0xff9154]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyFunction_Vectorcall+0xfc)[0xf8cdc4]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyEval_EvalFrameDefault+0x744)[0xffa744]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyEval_EvalCodeWithName+0x2e4)[0xff9154]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(PyEval_EvalCode+0x38)[0xff8e60]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt[0x1067ecc]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt[0xfbd5fc]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyEval_EvalFrameDefault+0x43c)[0xffa43c]
+/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt(_PyFunction_Vectorcall+0x1c4)[0xf8ce8c]
+--- END LIBC BACKTRACE ---
+For more info on how to address this issue, please visit https://www.gem5.org/documentation/general_docs/common-errors/ 
+

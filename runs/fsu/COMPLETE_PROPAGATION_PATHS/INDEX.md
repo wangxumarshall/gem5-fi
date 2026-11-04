@@ -1,23 +1,23 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-04T04:19:58；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-04T13:07:35；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 ## 历史全量视图（source registry）
 
 - 总 RunID：**173**
 - 目标 seed：**519**
-- 已完成合格 seed：**42**
-- suite seed（5 component run 只计 1 seed）：目录 12，admitted 12，component run 48（不进入 seed 总数）
-- COMPLETE_3_OF_3：**14**
-- seed_completion：0/3 159、3/3 14
+- 已完成合格 seed：**47**
+- suite seed（5 component run 只计 1 seed）：目录 18，admitted 18，component run 72（不进入 seed 总数）
+- COMPLETE_3_OF_3：**15**
+- seed_completion：0/3 157、2/3 1、3/3 15
 - coverage_status：BLOCKED 2、BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、COMPLETE 5、PARTIAL 67、PILOT_SUBMODEL_ONLY 1
-- 1/3：0；2/3：0；0/3：159
+- 1/3：0；2/3：1；0/3：157
 
 ## 当前活跃范围视图（F0/F5）
 
 - active_frequencies：['F0', 'F5']
 - 活跃 RunID：**80**；目标 seed：**240**
-- 活跃范围已完成 seed：**33**；3/3 RunID：**11**
+- 活跃范围已完成 seed：**38**；3/3 RunID：**12**
 - DEFERRED_BY_USER RunID：90
 - HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE RunID：3（seed 9）
 
@@ -87,9 +87,9 @@
 | FSU-FR02-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR02-F2-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR02-F2-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
-| FSU-FR03-F5-W3 | ✅ | ✅ | ✅ | 3/3 | COMPLETE | COMPLETE_3_OF_3 | F5 | ACTIVE_SCOPE | COMPLETE |
-| FSU-FR03-F5-W5 | — | — | — | 0/3 | BLOCKED | PENDING | F5 | ACTIVE_SCOPE | NOT_RUN |
-| FSU-FR03-F5-W6 | — | — | — | 0/3 | BLOCKED | PENDING | F5 | ACTIVE_SCOPE | NOT_RUN |
+| FSU-FR03-F5-W3 | ✅ | ✅ | ❌ | 2/3 | COMPLETE | PARTIAL_2_OF_3 | F5 | ACTIVE_SCOPE | PARTIAL |
+| FSU-FR03-F5-W5 | ✅ | ✅ | ✅ | 3/3 | BLOCKED | COMPLETE_3_OF_3 | F5 | ACTIVE_SCOPE | COMPLETE |
+| FSU-FR03-F5-W6 | ✅ | ✅ | ✅ | 3/3 | BLOCKED | COMPLETE_3_OF_3 | F5 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FR04-F0-W2 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR04-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR04-F2-W2 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |

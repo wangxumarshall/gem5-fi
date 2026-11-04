@@ -1,0 +1,77 @@
+VecStuckSkipFree: cycle=0 class=vec phys=47 skips=1 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=100 class=vec phys=47 skips=2 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=200 class=vec phys=47 skips=3 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=300 class=vec phys=47 skips=4 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=400 class=vec phys=47 skips=5 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=500 class=vec phys=47 skips=6 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=600 class=vec phys=47 skips=7 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=700 class=vec phys=47 skips=8 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckInstall: cycle=31300 fault=1 phys=47 gen=2 lane=0 mask=0x80000000 polarity=1 correct=0x64732f656d6f682f stuck=0x64732f65ed6f682f activated=1
+  [vec lane 0/32 width=64bits mask=0x80000000]
+Cycle: 31300, CPU: board.processor.cores.core, Thread: 0, Mode: phys, RegClass: vec, PhysReg[47] (Active, mapped from ArchReg[1]), semanticRole: FR03, FaultType: stuck_at_one, Mask: 0000000000000000000000000000000010000000000000000000000000000000, FreeListSize: 4, faults_injected: 1
+VecStuckApply: cycle=31518 phys=47 gen=3 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x3000000000300000 after=0x3000000080300000 activated=1
+VecStuckApply: cycle=35853 phys=47 gen=4 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4010000000000000 after=0x4010000080000000 activated=1
+VecStuckApply: cycle=35872 phys=47 gen=5 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4014000000000000 after=0x4014000080000000 activated=1
+VecStuckApply: cycle=35892 phys=47 gen=6 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4033000000000000 after=0x4033000080000000 activated=1
+VecStuckApply: cycle=35907 phys=47 gen=7 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4029000000000000 after=0x4029000080000000 activated=1
+VecStuckApply: cycle=35918 phys=47 gen=8 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4041000000000000 after=0x4041000080000000 activated=1
+VecStuckApply: cycle=35933 phys=47 gen=9 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4034000000000000 after=0x4034000080000000 activated=1
+VecStuckApply: cycle=35942 phys=47 gen=10 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4048800000000000 after=0x4048800080000000 activated=1
+VecStuckApply: cycle=35958 phys=47 gen=11 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x403b800000000000 after=0x403b800080000000 activated=1
+VecStuckApply: cycle=36014 phys=47 gen=12 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4050000000000000 after=0x4050000080000000 activated=1
+VecStuckApply: cycle=36030 phys=47 gen=13 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4041800000000000 after=0x4041800080000000 activated=1
+VecStuckApply: cycle=36041 phys=47 gen=14 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4053c00000000000 after=0x4053c00080000000 activated=1
+VecStuckApply: cycle=36134 phys=47 gen=15 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4045400000000000 after=0x4045400080000000 activated=1
+VecStuckApply: cycle=36145 phys=47 gen=16 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4057800000000000 after=0x4057800080000000 activated=1
+VecStuckApply: cycle=36161 phys=47 gen=17 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4049000000000000 after=0x4049000080000000 activated=1
+VecStuckApply: cycle=36208 phys=47 gen=18 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x405b400000000000 after=0x405b400080000000 activated=1
+VecStuckApply: cycle=36224 phys=47 gen=19 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x404cc00000000000 after=0x404cc00080000000 activated=1
+VecStuckApply: cycle=36235 phys=47 gen=20 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x405f000000000000 after=0x405f000080000000 activated=1
+VecStuckApply: cycle=36249 phys=47 gen=21 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4050400000000000 after=0x4050400080000000 activated=1
+VecStuckApply: cycle=36258 phys=47 gen=22 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4061600000000000 after=0x4061600080000000 activated=1
+VecStuckApply: cycle=36274 phys=47 gen=23 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4052200000000000 after=0x4052200080000000 activated=1
+VecStuckApply: cycle=36285 phys=47 gen=24 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4063400000000000 after=0x4063400080000000 activated=1
+VecStuckApply: cycle=36299 phys=47 gen=25 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4054000000000000 after=0x4054000080000000 activated=1
+VecStuckApply: cycle=36310 phys=47 gen=26 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4065200000000000 after=0x4065200080000000 activated=1
+VecStuckApply: cycle=36324 phys=47 gen=27 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4055e00000000000 after=0x4055e00080000000 activated=1
+VecStuckApply: cycle=36333 phys=47 gen=28 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4067000000000000 after=0x4067000080000000 activated=1
+VecStuckApply: cycle=36349 phys=47 gen=29 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4057c00000000000 after=0x4057c00080000000 activated=1
+VecStuckApply: cycle=36492 phys=47 gen=30 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x402b000000000000 after=0x402b000080000000 activated=1
+VecStuckApply: cycle=36543 phys=47 gen=31 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x400c29062fcba0e8 after=0x400c2906afcba0e8 activated=1
+VecStuckApply: cycle=36814 phys=47 gen=32 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x3fca97f3f25d8950 after=0x3fca97f3f25d8950 activated=0
+VecStuckApply: cycle=36888 phys=47 gen=35 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x404c38c59c4e6e66 after=0x404c38c59c4e6e66 activated=0
+VecStuckApply: cycle=36902 phys=47 gen=36 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40497cc2e6ab18f6 after=0x40497cc2e6ab18f6 activated=0
+VecStuckApply: cycle=36954 phys=47 gen=39 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x8000000000000000 after=0x8000000080000000 activated=1
+VecStuckApply: cycle=37021 phys=47 gen=40 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x3fc0274b361af156 after=0x3fc0274bb61af156 activated=1
+VecStuckApply: cycle=37076 phys=47 gen=41 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x400bc797ddb09fb9 after=0x400bc797ddb09fb9 activated=0
+VecStuckApply: cycle=37092 phys=47 gen=42 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x402ec18cb571431f after=0x402ec18cb571431f activated=0
+VecStuckApply: cycle=37114 phys=47 gen=43 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x403b489a38b9531d after=0x403b489ab8b9531d activated=1
+VecStuckApply: cycle=37136 phys=47 gen=44 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x404398370b5d0256 after=0x404398378b5d0256 activated=1
+VecStuckApply: cycle=37158 phys=47 gen=45 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40498c203be0252c after=0x40498c20bbe0252c activated=1
+VecStuckApply: cycle=37180 phys=47 gen=46 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x404f8009eb616bf8 after=0x404f8009eb616bf8 activated=0
+VecStuckApply: cycle=37202 phys=47 gen=47 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4052b9f9cd715962 after=0x4052b9f9cd715962 activated=0
+VecStuckApply: cycle=37224 phys=47 gen=48 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4055b3ef243020be after=0x4055b3efa43020be activated=1
+VecStuckApply: cycle=37363 phys=47 gen=50 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4013bf9abb051b12 after=0x4013bf9abb051b12 activated=0
+VecStuckApply: cycle=37381 phys=47 gen=51 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40190c97ae32e71a after=0x40190c97ae32e71a activated=0
+VecStuckApply: cycle=37448 phys=47 gen=54 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x404c555d72e3aaec after=0x404c555df2e3aaec activated=1
+VecStuckApply: cycle=37469 phys=47 gen=55 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40414db30c75aa03 after=0x40414db38c75aa03 activated=1
+VecStuckApply: cycle=37541 phys=47 gen=58 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x401105d24ca53b3b after=0x401105d2cca53b3b activated=1
+VecStuckApply: cycle=37590 phys=47 gen=59 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x3ff0370812c17cc6 after=0x3ff0370892c17cc6 activated=1
+VecStuckApply: cycle=37664 phys=47 gen=61 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4033191682707b65 after=0x4033191682707b65 activated=0
+VecStuckApply: cycle=37685 phys=47 gen=62 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40237eefb95daac8 after=0x40237eefb95daac8 activated=0
+VecStuckApply: cycle=37754 phys=47 gen=65 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4054b1d27ced7b9b after=0x4054b1d2fced7b9b activated=1
+VecStuckApply: cycle=37767 phys=47 gen=66 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40430473fbfe2506 after=0x40430473fbfe2506 activated=0
+VecStuckApply: cycle=37783 phys=47 gen=67 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4030000000000000 after=0x4030000080000000 activated=1
+VecStuckApply: cycle=37827 phys=47 gen=68 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40219e64ffc15bf0 after=0x40219e64ffc15bf0 activated=0
+VecStuckApply: cycle=37944 phys=47 gen=71 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4046ba7889af3b2c after=0x4046ba7889af3b2c activated=0
+VecStuckApply: cycle=37956 phys=47 gen=72 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x402d394fe65ee09c after=0x402d394fe65ee09c activated=0
+VecStuckApply: cycle=38030 phys=47 gen=75 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4011acf467e343c8 after=0x4011acf4e7e343c8 activated=1
+VecStuckApply: cycle=38079 phys=47 gen=76 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x3ff03323c366bfdf after=0x3ff03323c366bfdf activated=0
+VecStuckApply: cycle=38149 phys=47 gen=78 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4035915fcf576c5f after=0x4035915fcf576c5f activated=0
+VecStuckApply: cycle=38162 phys=47 gen=79 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40028cd253d056dc after=0x40028cd2d3d056dc activated=1
+VecStuckApply: cycle=38224 phys=47 gen=82 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4054e43fb9ab47e5 after=0x4054e43fb9ab47e5 activated=0
+VecStuckApply: cycle=38237 phys=47 gen=83 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4030dce5e3f8346e after=0x4030dce5e3f8346e activated=0
+VecStuckApply: cycle=38253 phys=47 gen=84 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x4036000000000000 after=0x4036000080000000 activated=1
+VecStuckApply: cycle=38297 phys=47 gen=85 exposure=1 lane=0 mask=0x80000000 polarity=1 before=0x40222128624fa2a4 after=0x40222128e24fa2a4 activated=1
+ReadTracePoll: cycle 131300 PhysReg[47] reads_before_overwrite=3946 overwritten=0
+CHAOS_L0: CHAOSPhysReg: target=47 reads=3957 overwritten=0 at=0 hit=1

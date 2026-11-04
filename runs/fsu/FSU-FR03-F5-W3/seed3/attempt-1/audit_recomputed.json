@@ -1,0 +1,348 @@
+{
+  "ok": false,
+  "checks": [
+    [
+      "seed Markdown 存在",
+      true
+    ],
+    [
+      "RunID 一致",
+      true
+    ],
+    [
+      "seed/sample_run_id 一致",
+      true
+    ],
+    [
+      "workload 二进制身份一致",
+      true
+    ],
+    [
+      "gem5 二进制身份一致",
+      true
+    ],
+    [
+      "源码 HEAD 一致",
+      true
+    ],
+    [
+      "prop_evt 存在",
+      true
+    ],
+    [
+      "prop_evt 未截断（reason=ok）",
+      true
+    ],
+    [
+      "事件身份全为本 seed（越界 0）",
+      true
+    ],
+    [
+      "scheduled(1) = fault_roots(1)",
+      true
+    ],
+    [
+      "每个 injected fault 均真实激活",
+      true
+    ],
+    [
+      "fault 1 永久故障至少一次 activated exposure",
+      true
+    ],
+    [
+      "fault 1 字段/lane/mask 语义",
+      true
+    ],
+    [
+      "fault 1 真实指令解码匹配",
+      true
+    ],
+    [
+      "事件 model_id 与 manifest 一致",
+      true
+    ],
+    [
+      "事件 submodel 与 manifest 一致",
+      true
+    ],
+    [
+      "事件 freq 与 manifest 一致",
+      true
+    ],
+    [
+      "fault 1 全链 field 一致",
+      true
+    ],
+    [
+      "重算 admitted_faults 一致",
+      true
+    ],
+    [
+      "重算 truncated 一致",
+      true
+    ],
+    [
+      "事件流 fault 数 = 注入数",
+      true
+    ],
+    [
+      "所有 fault 均 admitted",
+      false
+    ],
+    [
+      "所有 fault 均 certified",
+      false
+    ],
+    [
+      "fault 1 terminal 一致",
+      false
+    ],
+    [
+      "fault 1 violations 一致",
+      true
+    ],
+    [
+      "fault 1 admitted 一致",
+      true
+    ],
+    [
+      "fault 1 certified 一致",
+      true
+    ],
+    [
+      "fault 1 F5 计数/去重/守恒校验",
+      true
+    ],
+    [
+      "MD event 0 存在于原始流",
+      true
+    ],
+    [
+      "MD event 0 kind 一致",
+      true
+    ],
+    [
+      "MD event 0 parent 一致",
+      true
+    ],
+    [
+      "MD event 1 存在于原始流",
+      true
+    ],
+    [
+      "MD event 1 kind 一致",
+      true
+    ],
+    [
+      "MD event 1 parent 一致",
+      true
+    ],
+    [
+      "MD event 2 存在于原始流",
+      true
+    ],
+    [
+      "MD event 2 kind 一致",
+      true
+    ],
+    [
+      "MD event 2 parent 一致",
+      true
+    ],
+    [
+      "MD event 3 存在于原始流",
+      true
+    ],
+    [
+      "MD event 3 kind 一致",
+      true
+    ],
+    [
+      "MD event 3 parent 一致",
+      true
+    ],
+    [
+      "MD event 8 存在于原始流",
+      true
+    ],
+    [
+      "MD event 8 kind 一致",
+      true
+    ],
+    [
+      "MD event 8 parent 一致",
+      true
+    ],
+    [
+      "MD event 23 存在于原始流",
+      true
+    ],
+    [
+      "MD event 23 kind 一致",
+      true
+    ],
+    [
+      "MD event 23 parent 一致",
+      true
+    ],
+    [
+      "MD event 38 存在于原始流",
+      true
+    ],
+    [
+      "MD event 38 kind 一致",
+      true
+    ],
+    [
+      "MD event 38 parent 一致",
+      true
+    ],
+    [
+      "MD event 53 存在于原始流",
+      true
+    ],
+    [
+      "MD event 53 kind 一致",
+      true
+    ],
+    [
+      "MD event 53 parent 一致",
+      true
+    ],
+    [
+      "MD event 65 存在于原始流",
+      true
+    ],
+    [
+      "MD event 65 kind 一致",
+      true
+    ],
+    [
+      "MD event 65 parent 一致",
+      true
+    ],
+    [
+      "MD event 77 存在于原始流",
+      true
+    ],
+    [
+      "MD event 77 kind 一致",
+      true
+    ],
+    [
+      "MD event 77 parent 一致",
+      true
+    ],
+    [
+      "MD event 6169 存在于原始流",
+      true
+    ],
+    [
+      "MD event 6169 kind 一致",
+      true
+    ],
+    [
+      "MD event 6169 parent 一致",
+      true
+    ],
+    [
+      "MD event 6170 存在于原始流",
+      true
+    ],
+    [
+      "MD event 6170 kind 一致",
+      true
+    ],
+    [
+      "MD event 6170 parent 一致",
+      true
+    ],
+    [
+      "MD event 6171 存在于原始流",
+      true
+    ],
+    [
+      "MD event 6171 kind 一致",
+      true
+    ],
+    [
+      "MD event 6171 parent 一致",
+      true
+    ],
+    [
+      "链 admitted=True",
+      false
+    ],
+    [
+      "链 certified=True",
+      false
+    ],
+    [
+      "链 violations=[]",
+      false
+    ],
+    [
+      "存在 admitted fault",
+      false
+    ],
+    [
+      "MD 逐 fault 终局表存在（legacy 单 fault 行）",
+      true
+    ],
+    [
+      "fault 1 MD 覆盖主链全部事件",
+      true
+    ],
+    [
+      "fault 1 MD/原始流 direct parent",
+      true
+    ],
+    [
+      "fault 1 MD 逐 fault 终局行存在",
+      true
+    ],
+    [
+      "fault 1 MD terminal 一致",
+      false
+    ],
+    [
+      "fault 1 MD admitted 一致",
+      true
+    ],
+    [
+      "fault 1 MD certified 一致",
+      true
+    ],
+    [
+      "evidence_sha256.json 存在",
+      true
+    ],
+    [
+      "证据 SHA-256 全部匹配（失配 0）",
+      true
+    ],
+    [
+      "stats.txt 非空",
+      true
+    ],
+    [
+      "physreg census explicitly skipped",
+      true
+    ],
+    [
+      "B0 运行态配置匹配（inject）",
+      true
+    ]
+  ],
+  "failures": [
+    "所有 fault 均 admitted",
+    "所有 fault 均 certified",
+    "fault 1 terminal 一致",
+    "链 admitted=True",
+    "链 certified=True",
+    "链 violations=[]",
+    "存在 admitted fault",
+    "fault 1 MD terminal 一致"
+  ],
+  "attempt": "runs/fsu/FSU-FR03-F5-W3/seed3/attempt-1"
+}

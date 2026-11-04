@@ -1,0 +1,579 @@
+{
+  "run_id": "FSU-FR03-F5-W5",
+  "seed": 8444189732774129999,
+  "sample_run_id": "s8444189732774129999",
+  "attempt": "attempt-1",
+  "gzip_eof_ok": true,
+  "truncation_reason": "",
+  "event_count": 84,
+  "identity_ok": true,
+  "identity_violations": [],
+  "direct_parent_chain": true,
+  "edges": [
+    {
+      "from": "0",
+      "to": "1",
+      "ok": true
+    },
+    {
+      "from": "1",
+      "to": "2",
+      "ok": true
+    },
+    {
+      "from": "2",
+      "to": "16",
+      "ok": true
+    },
+    {
+      "from": "16",
+      "to": "24",
+      "ok": true
+    },
+    {
+      "from": "24",
+      "to": "36",
+      "ok": true
+    },
+    {
+      "from": "36",
+      "to": "45",
+      "ok": true
+    },
+    {
+      "from": "45",
+      "to": "53",
+      "ok": true
+    },
+    {
+      "from": "53",
+      "to": "61",
+      "ok": true
+    },
+    {
+      "from": "61",
+      "to": "72",
+      "ok": true
+    },
+    {
+      "from": "72",
+      "to": "77",
+      "ok": true
+    },
+    {
+      "from": "77",
+      "to": "79",
+      "ok": true
+    },
+    {
+      "from": "79",
+      "to": "80",
+      "ok": true
+    }
+  ],
+  "tick_monotonic": true,
+  "layers": [
+    "L0",
+    "L1",
+    "L1",
+    "L2",
+    "L5"
+  ],
+  "layers_na": [
+    "L3",
+    "L4"
+  ],
+  "l5_witness": {
+    "event_id": "80",
+    "kind": "commit",
+    "outcome": "errant_commit"
+  },
+  "oracle": "Masked",
+  "oracle_reason": "completed exit=0, checksum==golden (74ffe5eb77ea9257) — fault did not propagate",
+  "run_level_oracle": {
+    "category": "Masked",
+    "reason": "completed exit=0, checksum==golden (74ffe5eb77ea9257) — fault did not propagate",
+    "faults_injected": 1,
+    "eligible_count": 0
+  },
+  "chain_terminal": "full",
+  "fault_count": 1,
+  "fault_terminals": {
+    "1": "full"
+  },
+  "all_faults_admitted": true,
+  "all_faults_certified": true,
+  "fault_audit": [
+    {
+      "fault_id": "1",
+      "terminal": "full",
+      "admitted": true,
+      "certified": true,
+      "violations": [],
+      "layers": [
+        "L0",
+        "L1",
+        "L1",
+        "L2",
+        "L5"
+      ],
+      "layers_na": [
+        "L3",
+        "L4"
+      ],
+      "direct_parent_chain": true,
+      "edges": [
+        {
+          "from": "0",
+          "to": "1",
+          "ok": true
+        },
+        {
+          "from": "1",
+          "to": "2",
+          "ok": true
+        },
+        {
+          "from": "2",
+          "to": "16",
+          "ok": true
+        },
+        {
+          "from": "16",
+          "to": "24",
+          "ok": true
+        },
+        {
+          "from": "24",
+          "to": "36",
+          "ok": true
+        },
+        {
+          "from": "36",
+          "to": "45",
+          "ok": true
+        },
+        {
+          "from": "45",
+          "to": "53",
+          "ok": true
+        },
+        {
+          "from": "53",
+          "to": "61",
+          "ok": true
+        },
+        {
+          "from": "61",
+          "to": "72",
+          "ok": true
+        },
+        {
+          "from": "72",
+          "to": "77",
+          "ok": true
+        },
+        {
+          "from": "77",
+          "to": "79",
+          "ok": true
+        },
+        {
+          "from": "79",
+          "to": "80",
+          "ok": true
+        }
+      ],
+      "tick_monotonic": true,
+      "l5_witness": {
+        "event_id": "80",
+        "kind": "commit",
+        "outcome": "errant_commit"
+      },
+      "containment_event_id": null,
+      "containment_layer": null
+    }
+  ],
+  "stats_nonempty": true,
+  "evidence_sha256": {
+    "FSU-FR03-F5-W5-seed8444189732774129999.md": "75fdf7a9113f29449e69123b9f701337f6f711a84b0e29d190b8a94c2bcf56c4",
+    "census_skipped.json": "b9b84111618105c0b4743af95b5d7f74e02edb7ed546178279f14008747f0c94",
+    "chain_report.json": "636c3df40a9b31cfde09cddac7aa2ea32e3dbd64b9d76de4a004d6d470f63e97",
+    "component_manifest.json": "d7fe4e7d30def4470fe94b8f30cf82176b260e075332e09d6219452aba805c51",
+    "inject/array.bin": "46eb754c53cf2ecffe653675230b55272073383f69806a3169a45ba35733dd60",
+    "inject/citations.bib": "107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5",
+    "inject/config.ini": "cb9690dc5871fbd8bed3414d29101cabf6ca0e48955a1884df2ba3e52308d2fb",
+    "inject/config.json": "8234edab290aa4cac208e9add881496677c97b5a1297b487fd3560b2b3fca051",
+    "inject/fault_injections.log": "301932aa5b3461eaf96d31119cbdb97a1b9713ffc2bbd9c1591ca51cef88e84e",
+    "inject/prop_evt.txt.gz": "a489382e17b3d8e53925b5b0b505518fb63da97881faec57a6ba4c801bb5b60d",
+    "inject/prop_trace.csv.gz": "bac917a242450d5cba2c51cf61351aab9afb86ce96c89ed567f6bd9d6a9efafe",
+    "inject/stats.txt": "a1b9ae1b4410447d7a32e8a012f7b71b23ee215485d44352bdfa478ed0f03d56",
+    "manifest.json": "aec691b82cc69b150ba9912c73d8f439c4aff60484180602b626818257f0f2b5",
+    "oracle.json": "757ed252c689adc7455611072b9f4f019d08f47c2d0cb8e03da77503cf61447c",
+    "oracle_elements.json": "cd9057f734a9ebde4bc5404d55ba54e7058e2dab4b948a2b607f348f361a3bf0",
+    "run.err": "d5e752c49b48bbf26d3a7f9e60be67d492f4ff2634911bc62085cd677daeab14",
+    "run.out": "f867ea72866e88615f5b5617a87407c122b376e72a93c8b81f10c335de2e4b9a",
+    "stats.txt": "a1b9ae1b4410447d7a32e8a012f7b71b23ee215485d44352bdfa478ed0f03d56"
+  },
+  "cross_seed_ok": true,
+  "decoded_roots": 0,
+  "legacy_roots": 1,
+  "decode_guard": false,
+  "config_profile": "B0",
+  "legacy_md_format": false,
+  "admitted": true,
+  "certified": true,
+  "violations": [],
+  "audit_checks": [
+    {
+      "check": "seed Markdown 存在",
+      "ok": true
+    },
+    {
+      "check": "RunID 一致",
+      "ok": true
+    },
+    {
+      "check": "seed/sample_run_id 一致",
+      "ok": true
+    },
+    {
+      "check": "workload 二进制身份一致",
+      "ok": true
+    },
+    {
+      "check": "gem5 二进制身份一致",
+      "ok": true
+    },
+    {
+      "check": "源码 HEAD 一致",
+      "ok": true
+    },
+    {
+      "check": "prop_evt 存在",
+      "ok": true
+    },
+    {
+      "check": "prop_evt 未截断（reason=ok）",
+      "ok": true
+    },
+    {
+      "check": "事件身份全为本 seed（越界 0）",
+      "ok": true
+    },
+    {
+      "check": "scheduled(1) = fault_roots(1)",
+      "ok": true
+    },
+    {
+      "check": "每个 injected fault 均真实激活",
+      "ok": true
+    },
+    {
+      "check": "fault 1 永久故障至少一次 activated exposure",
+      "ok": true
+    },
+    {
+      "check": "fault 1 字段/lane/mask 语义",
+      "ok": true
+    },
+    {
+      "check": "fault 1 真实指令解码匹配",
+      "ok": true
+    },
+    {
+      "check": "事件 model_id 与 manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "事件 submodel 与 manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "事件 freq 与 manifest 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 全链 field 一致",
+      "ok": true
+    },
+    {
+      "check": "重算 admitted_faults 一致",
+      "ok": true
+    },
+    {
+      "check": "重算 truncated 一致",
+      "ok": true
+    },
+    {
+      "check": "事件流 fault 数 = 注入数",
+      "ok": true
+    },
+    {
+      "check": "所有 fault 均 admitted",
+      "ok": true
+    },
+    {
+      "check": "所有 fault 均 certified",
+      "ok": true
+    },
+    {
+      "check": "fault 1 terminal 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 violations 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 admitted 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 certified 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 F5 计数/去重/守恒校验",
+      "ok": true
+    },
+    {
+      "check": "MD event 0 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 0 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 0 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 1 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 1 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 1 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 2 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 2 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 2 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 16 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 16 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 16 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 24 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 24 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 24 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 36 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 36 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 36 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 45 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 45 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 45 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 53 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 53 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 53 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 61 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 61 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 61 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 72 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 72 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 72 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 77 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 77 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 77 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 79 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 79 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 79 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 80 存在于原始流",
+      "ok": true
+    },
+    {
+      "check": "MD event 80 kind 一致",
+      "ok": true
+    },
+    {
+      "check": "MD event 80 parent 一致",
+      "ok": true
+    },
+    {
+      "check": "链 admitted=True",
+      "ok": true
+    },
+    {
+      "check": "链 certified=True",
+      "ok": true
+    },
+    {
+      "check": "链 violations=[]",
+      "ok": true
+    },
+    {
+      "check": "存在 admitted fault",
+      "ok": true
+    },
+    {
+      "check": "MD 逐 fault 终局表存在（legacy 单 fault 行）",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD 覆盖主链全部事件",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD/原始流 direct parent",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD 逐 fault 终局行存在",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD terminal 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD admitted 一致",
+      "ok": true
+    },
+    {
+      "check": "fault 1 MD certified 一致",
+      "ok": true
+    },
+    {
+      "check": "MD terminal 与 chain_report 一致",
+      "ok": true
+    },
+    {
+      "check": "MD admitted/certified 与 chain_report 一致",
+      "ok": true
+    },
+    {
+      "check": "evidence_sha256.json 存在",
+      "ok": true
+    },
+    {
+      "check": "证据 SHA-256 全部匹配（失配 0）",
+      "ok": true
+    },
+    {
+      "check": "stats.txt 非空",
+      "ok": true
+    },
+    {
+      "check": "physreg census explicitly skipped",
+      "ok": true
+    },
+    {
+      "check": "B0 运行态配置匹配（inject）",
+      "ok": true
+    },
+    {
+      "check": "admitted=True",
+      "ok": true
+    },
+    {
+      "check": "violations=[]",
+      "ok": true
+    }
+  ],
+  "failures": [],
+  "ok": true
+}

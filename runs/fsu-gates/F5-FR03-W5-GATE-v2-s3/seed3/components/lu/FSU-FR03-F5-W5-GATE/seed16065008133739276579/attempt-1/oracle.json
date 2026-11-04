@@ -1,0 +1,13 @@
+{
+  "category": "Masked",
+  "reason": "completed exit=0, checksum==golden (74ffe5eb77ea9257) — fault did not propagate",
+  "faults_injected": 1,
+  "eligible_count": 0,
+  "selection_seed": 16065008133739276579,
+  "injection_seed": 16065008133739276579,
+  "skip": null,
+  "oracle_kind": "exact_hash",
+  "golden": "74ffe5eb77ea9257",
+  "returncode": 0,
+  "timed_out": false
+}

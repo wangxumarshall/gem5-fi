@@ -1,0 +1,114 @@
+{
+  "run_id": "FSU-FR03-F5-W6",
+  "model_id": "FR03",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "submodel": "FR03",
+  "suite_load_id": "W6",
+  "suite_seed_submodel": "FR03-a",
+  "workload": {
+    "binary": "workloads/directed/svd_iterative_kernel",
+    "source": "workloads/directed/svd_iterative_kernel.c",
+    "identity": "FR03-W6-svd-v1",
+    "golden": "4afb95b5b32f3820",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/w6-fp-v1/golden/svd.bin",
+      "oracle_version": "fsu-w6-oracle-v1",
+      "meta": {
+        "program_id": "svd",
+        "golden_id": "w6-svd-golden-v1",
+        "dtype": "fp64",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          8,
+          8
+        ],
+        "count": 64,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0,
+        "oracle_version": "fsu-w6-oracle-v1"
+      }
+    }
+  },
+  "injector": {
+    "component": "physreg",
+    "fault_mask": "0x0000000080000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rng_seed": 15860628544353997551,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 47,
+      "require_allocated": true,
+      "vec_lane_width": 64,
+      "vec_lane_offset": 0,
+      "fault_type": "stuck_at_one",
+      "fault_mask": "0x0000000080000000",
+      "semantic_role": "FR03",
+      "bits_to_change": 1
+    }
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "component": {
+    "suite_id": "w6-fp-v1-fr03",
+    "suite_version": "1",
+    "suite_family": "W6",
+    "suite_seed": 1,
+    "program_id": "svd",
+    "program_index": 0,
+    "program_count": 3,
+    "component_seed": 15860628544353997551,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "target_plan_entry": {
+    "suite_seed": 1,
+    "submodel": "FR03-a",
+    "program_id": "svd",
+    "target_phys_idx": 47,
+    "vec_lane_width": 64,
+    "vec_lane_offset": 0,
+    "fault_mask": "0x0000000080000000",
+    "fault_mask_value": 2147483648,
+    "polarity": 1,
+    "fault_type": "stuck_at_one",
+    "require_allocated": true,
+    "reg_class": "vector",
+    "injection_mode": "phys",
+    "semantic_role": "FR03",
+    "bits_to_change": 1,
+    "precision": "fp64"
+  },
+  "array_dump_path": "/tmp/fsu-fr03-arrays/seed15860628544353997551.bin",
+  "effective_injector": {
+    "component": "physreg",
+    "fault_mask": "0x0000000080000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rng_seed": 15860628544353997551,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 47,
+      "require_allocated": true,
+      "vec_lane_width": 64,
+      "vec_lane_offset": 0,
+      "fault_type": "stuck_at_one",
+      "fault_mask": "0x0000000080000000",
+      "semantic_role": "FR03",
+      "bits_to_change": 1
+    }
+  },
+  "notes": "FR03 permanent physical-cell gate component: one real program, one fixed Vec phys cell, never a formal seed."
+}

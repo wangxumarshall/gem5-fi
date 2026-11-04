@@ -1,0 +1,13 @@
+{
+  "category": "Crash",
+  "reason": "gem5 panic/abort (exit=-6) with a fault landed (faults_injected=1) and no program checksum — rename-inconsistency / fault-induced crash (DUE per §2.2), NOT a tool failure (a true SimulatorError has faults_injected==0)",
+  "faults_injected": 1,
+  "eligible_count": 0,
+  "selection_seed": 6676007161144852784,
+  "injection_seed": 6676007161144852784,
+  "skip": null,
+  "oracle_kind": "exact_hash",
+  "golden": "fdd819481ea73b0c",
+  "returncode": -6,
+  "timed_out": false
+}

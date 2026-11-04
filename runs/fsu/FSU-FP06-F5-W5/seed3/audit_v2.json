@@ -1,0 +1,453 @@
+{
+  "schema_version": "fsu-suite-audit/v1",
+  "tool_version": "fsu_suite_audit/v1",
+  "generated_at": "2026-11-04T09:51:57",
+  "suite_id": "polybench-fp-v1-f5",
+  "suite_version": "1",
+  "suite_hash": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581",
+  "suite_hash_declared": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581",
+  "run_id": "FSU-FP06-F5-W5",
+  "suite_seed": 3,
+  "expected_programs": [
+    "gemm",
+    "2mm",
+    "lu",
+    "cholesky",
+    "jacobi-2d"
+  ],
+  "actual_programs": [
+    "gemm",
+    "2mm",
+    "lu",
+    "cholesky",
+    "jacobi-2d"
+  ],
+  "component_count": 5,
+  "components": [
+    {
+      "program_id": "gemm",
+      "program_index": 0,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W5/seed3/components/gemm/FSU-FP06-F5-W5/seed1037530707279304836/attempt-1",
+      "manifest_sha256": "7e558ff8f11f5267710e44da87490939c597de190fb7c91f93b8d256a6fd9114",
+      "audit_sha256": "96a702358774d7f7e391fc16654dd45aea19d77e6d82dddd5444696573a79f51",
+      "chain_report_sha256": "4db82f48bed5f63199a056ebacf5859e40b559a7d0f1a2149257765e3b4fa318",
+      "oracle_sha256": "a10d99f1b92aa32203fab13ded6f9aaf29cb2fcfd9d25308b57d673046d8c12a",
+      "evidence_sha256": "1fee1d16e765be193afc3b30ff70d6d9765c0a355654984f40f49a0ce6c4a585",
+      "component_manifest_sha256": "84a85d8997627fdd3097140f5975ff8f76594e260244cf52e693002f07498b95",
+      "oracle_elements_sha256": "3b3491aa7cfb8102e0e77d14ea3ad0f3fd0091e98daf673320115eeb7f018ccd",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    },
+    {
+      "program_id": "2mm",
+      "program_index": 1,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W5/seed3/components/2mm/FSU-FP06-F5-W5/seed16071301530407559455/attempt-1",
+      "manifest_sha256": "792990d2d47d9775e0b1a7bbd2f829f2a98b8327352dd8ea35aafe1af7fb56ad",
+      "audit_sha256": "84ece05f15663f2ab860f889cae45173a0eab42869d417789e4ff8c7628f4413",
+      "chain_report_sha256": "0a9dc00e0308db703a77c265389c0334a61d88cec0468000457db150ceab3b29",
+      "oracle_sha256": "3e6ee2080754164a856d3fa0160093ffae66b56ea46e642878ffce850e169f53",
+      "evidence_sha256": "c80e556b6c473a489574743c2fdafba499d7c95ffcfff01a67d3e35354738390",
+      "component_manifest_sha256": "28913435eacf8a9c92cdeadcfd1e2c4d08643b70f84040ec4ed67990b76be89e",
+      "oracle_elements_sha256": "f9272c49f2e14716dde627f8f47e038ccab43a41666f88d3617198f2ad4c5c13",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    },
+    {
+      "program_id": "lu",
+      "program_index": 2,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W5/seed3/components/lu/FSU-FP06-F5-W5/seed17859275491620881810/attempt-1",
+      "manifest_sha256": "c6d7002088f99f62eb2f2d74c5c2b7692cf8b1304c821dbed50c589d31078cfa",
+      "audit_sha256": "02edc3b47120ed6686ef558ff91bc6c4264c23281d80d89ab782903ad745e644",
+      "chain_report_sha256": "571c8fd4c5478dafa0fe8bf2d4b9fa1567cd54f07a6bcd86321d4514dc941869",
+      "oracle_sha256": "8224163a7ed60a33496e7570002ea86d6fa7a37a53a2981bba9d1cd142550c99",
+      "evidence_sha256": "1d9e5f95d0a4e77c0ac323b9bf16700755fb174bcd54044ffe84f40cd905bf83",
+      "component_manifest_sha256": "9d73f5afdea9a64a48ba94869025c1eee2dc252849fc666d3d9c1b39d6f01923",
+      "oracle_elements_sha256": "38f86789486222bd43d18f659f184f7bb13c918a95398cff5c17ac7a34611b06",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    },
+    {
+      "program_id": "cholesky",
+      "program_index": 3,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W5/seed3/components/cholesky/FSU-FP06-F5-W5/seed9731202158273511969/attempt-1",
+      "manifest_sha256": "d59915178efa330f6260caa4eaa57d9152ae13e63d9c4c973459f725d413f102",
+      "audit_sha256": "382691e495f5a14656d63bac702f29e9297893b1208da6a4d9ebd1c9adebd987",
+      "chain_report_sha256": "73342b05be3952a4478cc8953d61d3cf63c91c3cd5aea3b6415eccdbdd2a179f",
+      "oracle_sha256": "85ae2d492c08a0c519cf2c074b7a67eec351642ec868daac2caa88dcee4cda81",
+      "evidence_sha256": "c5d0626bb573473231b2ef372814df6267aa3c8da76779369cb8a7cda6b69d35",
+      "component_manifest_sha256": "b5b62d6ba22471fd40362a45b33d7713078bd4a42c92284a078e415f1ec609c0",
+      "oracle_elements_sha256": "d87ff77d65b24af73f95eb58055fb2a855c251a0007333bfb5d25c2c38f2d35c",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    },
+    {
+      "program_id": "jacobi-2d",
+      "program_index": 4,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W5/seed3/components/jacobi-2d/FSU-FP06-F5-W5/seed9842723862644389253/attempt-1",
+      "manifest_sha256": "2f4e2692ae64e0aa656adcd09ca00a4adb8f770da3d757459cc525995ee52984",
+      "audit_sha256": "f46fac446d7aa9c3159642f4a862d7c87c61fb584b0f6eadba2a7e5123386c5d",
+      "chain_report_sha256": "692dbb4c52a47f83ad28ae3ef1f4dedad33cc5cbd548eff9fa450e6e78cfee81",
+      "oracle_sha256": "0f33891d054d0912cd378b082413e4372381c8fb726e68bbe710a66cb6e6549a",
+      "evidence_sha256": "14470215ce935832b2aa9176bda5b30f9934f896749703370fc40f434a9181bd",
+      "component_manifest_sha256": "ac7a9a9a30adfde0e95f77c6a569b5f70c9ec9201a8a4de5bf984f81c82ea8a0",
+      "oracle_elements_sha256": "a0b46ad7e69379e5ecfc90658828ac23dcf0795fc552c8acec2375bdf7f7e919",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    }
+  ],
+  "suite_execution_complete": true,
+  "suite_evidence_valid": true,
+  "suite_certified": true,
+  "violations": [],
+  "legacy_audit": {
+    "present": true,
+    "path": "runs/fsu/FSU-FP06-F5-W5/seed3/audit.json",
+    "schema_version": null,
+    "legacy": true,
+    "fields_present": [
+      "ok",
+      "checks",
+      "failures",
+      "run_id",
+      "suite_seed",
+      "suite_hash"
+    ],
+    "fields_missing": [
+      "certified"
+    ],
+    "raw": {
+      "ok": true,
+      "checks": [
+        {
+          "check": "suite_manifest.json 存在",
+          "ok": true
+        },
+        {
+          "check": "suite 身份与 suite_hash",
+          "ok": true
+        },
+        {
+          "check": "suite_manifest.suite_hash 与重算一致",
+          "ok": true
+        },
+        {
+          "check": "component manifest 结构/顺序/哈希",
+          "ok": true
+        },
+        {
+          "check": "gemm attempt 存在",
+          "ok": true
+        },
+        {
+          "check": "gemm component_manifest.json 存在",
+          "ok": true
+        },
+        {
+          "check": "gemm component manifest 校验",
+          "ok": true
+        },
+        {
+          "check": "gemm component_manifest_sha256 与 attempt manifest 一致",
+          "ok": true
+        },
+        {
+          "check": "gemm 独立 audit.ok",
+          "ok": true
+        },
+        {
+          "check": "gemm audit.certified",
+          "ok": true
+        },
+        {
+          "check": "gemm component_status=admitted",
+          "ok": true
+        },
+        {
+          "check": "gemm oracle_elements.json 存在",
+          "ok": true
+        },
+        {
+          "check": "gemm inject/array.bin 存在",
+          "ok": true
+        },
+        {
+          "check": "gemm oracle/array 已被证据 SHA 覆盖",
+          "ok": true
+        },
+        {
+          "check": "gemm component_oracle 为 SDC/MASKED",
+          "ok": true
+        },
+        {
+          "check": "2mm attempt 存在",
+          "ok": true
+        },
+        {
+          "check": "2mm component_manifest.json 存在",
+          "ok": true
+        },
+        {
+          "check": "2mm component manifest 校验",
+          "ok": true
+        },
+        {
+          "check": "2mm component_manifest_sha256 与 attempt manifest 一致",
+          "ok": true
+        },
+        {
+          "check": "2mm 独立 audit.ok",
+          "ok": true
+        },
+        {
+          "check": "2mm audit.certified",
+          "ok": true
+        },
+        {
+          "check": "2mm component_status=admitted",
+          "ok": true
+        },
+        {
+          "check": "2mm oracle_elements.json 存在",
+          "ok": true
+        },
+        {
+          "check": "2mm inject/array.bin 存在",
+          "ok": true
+        },
+        {
+          "check": "2mm oracle/array 已被证据 SHA 覆盖",
+          "ok": true
+        },
+        {
+          "check": "2mm component_oracle 为 SDC/MASKED",
+          "ok": true
+        },
+        {
+          "check": "lu attempt 存在",
+          "ok": true
+        },
+        {
+          "check": "lu component_manifest.json 存在",
+          "ok": true
+        },
+        {
+          "check": "lu component manifest 校验",
+          "ok": true
+        },
+        {
+          "check": "lu component_manifest_sha256 与 attempt manifest 一致",
+          "ok": true
+        },
+        {
+          "check": "lu 独立 audit.ok",
+          "ok": true
+        },
+        {
+          "check": "lu audit.certified",
+          "ok": true
+        },
+        {
+          "check": "lu component_status=admitted",
+          "ok": true
+        },
+        {
+          "check": "lu oracle_elements.json 存在",
+          "ok": true
+        },
+        {
+          "check": "lu inject/array.bin 存在",
+          "ok": true
+        },
+        {
+          "check": "lu oracle/array 已被证据 SHA 覆盖",
+          "ok": true
+        },
+        {
+          "check": "lu component_oracle 为 SDC/MASKED",
+          "ok": true
+        },
+        {
+          "check": "cholesky attempt 存在",
+          "ok": true
+        },
+        {
+          "check": "cholesky component_manifest.json 存在",
+          "ok": true
+        },
+        {
+          "check": "cholesky component manifest 校验",
+          "ok": true
+        },
+        {
+          "check": "cholesky component_manifest_sha256 与 attempt manifest 一致",
+          "ok": true
+        },
+        {
+          "check": "cholesky 独立 audit.ok",
+          "ok": true
+        },
+        {
+          "check": "cholesky audit.certified",
+          "ok": true
+        },
+        {
+          "check": "cholesky component_status=admitted",
+          "ok": true
+        },
+        {
+          "check": "cholesky oracle_elements.json 存在",
+          "ok": true
+        },
+        {
+          "check": "cholesky inject/array.bin 存在",
+          "ok": true
+        },
+        {
+          "check": "cholesky oracle/array 已被证据 SHA 覆盖",
+          "ok": true
+        },
+        {
+          "check": "cholesky component_oracle 为 SDC/MASKED",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d attempt 存在",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d component_manifest.json 存在",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d component manifest 校验",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d component_manifest_sha256 与 attempt manifest 一致",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d 独立 audit.ok",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d audit.certified",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d component_status=admitted",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d oracle_elements.json 存在",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d inject/array.bin 存在",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d oracle/array 已被证据 SHA 覆盖",
+          "ok": true
+        },
+        {
+          "check": "jacobi-2d component_oracle 为 SDC/MASKED",
+          "ok": true
+        },
+        {
+          "check": "suite_report.json 存在",
+          "ok": true
+        },
+        {
+          "check": "suite_report 声明 5 个 component run",
+          "ok": true
+        },
+        {
+          "check": "suite_report 未把 component 数当 seed 数",
+          "ok": true
+        },
+        {
+          "check": "suite_report suite_hash 一致",
+          "ok": true
+        },
+        {
+          "check": "suite_report eligible/activated 汇总一致",
+          "ok": true
+        }
+      ],
+      "failures": [],
+      "run_id": "FSU-FP06-F5-W5",
+      "suite_seed": 3,
+      "suite_hash": "29e2f8d30cabf28281caf302a37d163dfdc0f11e44344b0b365269ad87a03581"
+    },
+    "ok_matches_recomputed": true,
+    "certified_matches_recomputed": null
+  },
+  "formal_seed_contribution": 1,
+  "suite_manifest_sha256": "1833f1dd0dd54b33bcf204420990288cc79eb69fdaafc13081ce27720a208a8e",
+  "frozen_suite_config": "/home/sdc/gem5-fi-fsu/configs/fsu/suites/polybench-fp-v1-f5.json",
+  "frozen_suite_config_sha256": "1123e559c21f26a098b3f3067c4b5e412eb64a62d432f46dd27f75c21dac3088",
+  "seed_plan_entry": {
+    "suite_seed": 3,
+    "submodel": "FP06-c",
+    "mask": "0x007f8000",
+    "polarity": 0,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true,
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  }
+}

@@ -1,0 +1,193 @@
+VecStuckSkipFree: cycle=0 class=vec phys=46 skips=1 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=100 class=vec phys=46 skips=2 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=200 class=vec phys=46 skips=3 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=300 class=vec phys=46 skips=4 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=400 class=vec phys=46 skips=5 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=500 class=vec phys=46 skips=6 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=600 class=vec phys=46 skips=7 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckSkipFree: cycle=700 class=vec phys=46 skips=8 (requireAllocated: retry in >=100 cycles, fault not consumed)
+VecStuckInstall: cycle=32300 fault=1 phys=46 gen=1 lane=0 mask=0x7f8000 polarity=0 correct=0x30033003 stuck=0x30003003 activated=1
+  [vec lane 0/64 width=32bits mask=0x7f8000]
+Cycle: 32300, CPU: board.processor.cores.core, Thread: 0, Mode: phys, RegClass: vec, PhysReg[46] (Active, mapped from ArchReg[4]), semanticRole: FR03, FaultType: stuck_at_zero, Mask: 0000000000000000000000000000000000000000011111111000000000000000, FreeListSize: 4, faults_injected: 1
+ReadTracePoll: cycle 132300 PhysReg[46] reads_before_overwrite=3 overwritten=0
+ReadTracePoll: cycle 232300 PhysReg[46] reads_before_overwrite=3 overwritten=0
+VecStuckApply: cycle=282045 phys=46 gen=5 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282080 phys=46 gen=7 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282146 phys=46 gen=11 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282181 phys=46 gen=13 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282216 phys=46 gen=15 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282251 phys=46 gen=17 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282299 phys=46 gen=19 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282334 phys=46 gen=21 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282369 phys=46 gen=23 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282404 phys=46 gen=25 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282439 phys=46 gen=27 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282474 phys=46 gen=29 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282509 phys=46 gen=31 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282544 phys=46 gen=33 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282579 phys=46 gen=35 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282614 phys=46 gen=37 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282649 phys=46 gen=39 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282702 phys=46 gen=41 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=282726 phys=46 gen=42 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=282811 phys=46 gen=46 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=282831 phys=46 gen=47 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c006b0f after=0x3c006b0f activated=0
+VecStuckApply: cycle=282916 phys=46 gen=51 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=282936 phys=46 gen=52 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c006b0f after=0x3c006b0f activated=0
+VecStuckApply: cycle=283021 phys=46 gen=56 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283041 phys=46 gen=57 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283126 phys=46 gen=61 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283146 phys=46 gen=62 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283231 phys=46 gen=66 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283251 phys=46 gen=67 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283336 phys=46 gen=71 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283356 phys=46 gen=72 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283441 phys=46 gen=76 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283461 phys=46 gen=77 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c006b0f after=0x3c006b0f activated=0
+VecStuckApply: cycle=283546 phys=46 gen=81 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283566 phys=46 gen=82 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283651 phys=46 gen=86 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283671 phys=46 gen=87 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283756 phys=46 gen=91 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283776 phys=46 gen=92 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283861 phys=46 gen=96 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283881 phys=46 gen=97 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=283966 phys=46 gen=101 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=283986 phys=46 gen=102 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c006b0f after=0x3c006b0f activated=0
+VecStuckApply: cycle=284086 phys=46 gen=107 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284106 phys=46 gen=108 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=284191 phys=46 gen=112 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284211 phys=46 gen=113 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=284296 phys=46 gen=117 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284316 phys=46 gen=118 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=284401 phys=46 gen=122 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284421 phys=46 gen=123 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c006b0f after=0x3c006b0f activated=0
+VecStuckApply: cycle=284506 phys=46 gen=127 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284526 phys=46 gen=128 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=284611 phys=46 gen=132 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284631 phys=46 gen=133 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=284716 phys=46 gen=137 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284736 phys=46 gen=138 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=284821 phys=46 gen=142 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284841 phys=46 gen=143 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=284926 phys=46 gen=147 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=284946 phys=46 gen=148 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c006b0f after=0x3c006b0f activated=0
+VecStuckApply: cycle=285031 phys=46 gen=152 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+VecStuckApply: cycle=285051 phys=46 gen=153 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x3c5f6b0f after=0x3c006b0f activated=1
+VecStuckApply: cycle=285136 phys=46 gen=157 exposure=1 lane=0 mask=0x7f8000 polarity=0 before=0x0 after=0x0 activated=0
+ReadTracePoll: cycle 332300 PhysReg[46] reads_before_overwrite=2389 overwritten=0
+ReadTracePoll: cycle 432300 PhysReg[46] reads_before_overwrite=7099 overwritten=0
+ReadTracePoll: cycle 532300 PhysReg[46] reads_before_overwrite=11808 overwritten=0
+ReadTracePoll: cycle 632300 PhysReg[46] reads_before_overwrite=16547 overwritten=0
+ReadTracePoll: cycle 732300 PhysReg[46] reads_before_overwrite=21256 overwritten=0
+ReadTracePoll: cycle 832300 PhysReg[46] reads_before_overwrite=25965 overwritten=0
+ReadTracePoll: cycle 932300 PhysReg[46] reads_before_overwrite=30675 overwritten=0
+ReadTracePoll: cycle 1032300 PhysReg[46] reads_before_overwrite=35384 overwritten=0
+ReadTracePoll: cycle 1132300 PhysReg[46] reads_before_overwrite=40094 overwritten=0
+ReadTracePoll: cycle 1232300 PhysReg[46] reads_before_overwrite=44803 overwritten=0
+ReadTracePoll: cycle 1332300 PhysReg[46] reads_before_overwrite=49543 overwritten=0
+ReadTracePoll: cycle 1432300 PhysReg[46] reads_before_overwrite=54252 overwritten=0
+ReadTracePoll: cycle 1532300 PhysReg[46] reads_before_overwrite=58962 overwritten=0
+ReadTracePoll: cycle 1632300 PhysReg[46] reads_before_overwrite=63670 overwritten=0
+ReadTracePoll: cycle 1732300 PhysReg[46] reads_before_overwrite=68379 overwritten=0
+ReadTracePoll: cycle 1832300 PhysReg[46] reads_before_overwrite=73088 overwritten=0
+ReadTracePoll: cycle 1932300 PhysReg[46] reads_before_overwrite=77797 overwritten=0
+ReadTracePoll: cycle 2032300 PhysReg[46] reads_before_overwrite=82537 overwritten=0
+ReadTracePoll: cycle 2132300 PhysReg[46] reads_before_overwrite=87246 overwritten=0
+ReadTracePoll: cycle 2232300 PhysReg[46] reads_before_overwrite=91956 overwritten=0
+ReadTracePoll: cycle 2332300 PhysReg[46] reads_before_overwrite=96666 overwritten=0
+ReadTracePoll: cycle 2432300 PhysReg[46] reads_before_overwrite=101375 overwritten=0
+ReadTracePoll: cycle 2532300 PhysReg[46] reads_before_overwrite=106084 overwritten=0
+ReadTracePoll: cycle 2632300 PhysReg[46] reads_before_overwrite=110793 overwritten=0
+ReadTracePoll: cycle 2732300 PhysReg[46] reads_before_overwrite=115533 overwritten=0
+ReadTracePoll: cycle 2832300 PhysReg[46] reads_before_overwrite=120242 overwritten=0
+ReadTracePoll: cycle 2932300 PhysReg[46] reads_before_overwrite=124951 overwritten=0
+ReadTracePoll: cycle 3032300 PhysReg[46] reads_before_overwrite=129659 overwritten=0
+ReadTracePoll: cycle 3132300 PhysReg[46] reads_before_overwrite=134370 overwritten=0
+ReadTracePoll: cycle 3232300 PhysReg[46] reads_before_overwrite=139079 overwritten=0
+ReadTracePoll: cycle 3332300 PhysReg[46] reads_before_overwrite=143788 overwritten=0
+ReadTracePoll: cycle 3432300 PhysReg[46] reads_before_overwrite=148528 overwritten=0
+ReadTracePoll: cycle 3532300 PhysReg[46] reads_before_overwrite=153237 overwritten=0
+ReadTracePoll: cycle 3632300 PhysReg[46] reads_before_overwrite=157946 overwritten=0
+ReadTracePoll: cycle 3732300 PhysReg[46] reads_before_overwrite=162655 overwritten=0
+ReadTracePoll: cycle 3832300 PhysReg[46] reads_before_overwrite=167364 overwritten=0
+ReadTracePoll: cycle 3932300 PhysReg[46] reads_before_overwrite=172074 overwritten=0
+ReadTracePoll: cycle 4032300 PhysReg[46] reads_before_overwrite=176784 overwritten=0
+ReadTracePoll: cycle 4132300 PhysReg[46] reads_before_overwrite=181523 overwritten=0
+ReadTracePoll: cycle 4232300 PhysReg[46] reads_before_overwrite=186233 overwritten=0
+ReadTracePoll: cycle 4332300 PhysReg[46] reads_before_overwrite=190941 overwritten=0
+ReadTracePoll: cycle 4432300 PhysReg[46] reads_before_overwrite=195650 overwritten=0
+ReadTracePoll: cycle 4532300 PhysReg[46] reads_before_overwrite=200360 overwritten=0
+ReadTracePoll: cycle 4632300 PhysReg[46] reads_before_overwrite=205069 overwritten=0
+ReadTracePoll: cycle 4732300 PhysReg[46] reads_before_overwrite=209808 overwritten=0
+ReadTracePoll: cycle 4832300 PhysReg[46] reads_before_overwrite=214517 overwritten=0
+ReadTracePoll: cycle 4932300 PhysReg[46] reads_before_overwrite=219227 overwritten=0
+ReadTracePoll: cycle 5032300 PhysReg[46] reads_before_overwrite=223937 overwritten=0
+ReadTracePoll: cycle 5132300 PhysReg[46] reads_before_overwrite=228646 overwritten=0
+ReadTracePoll: cycle 5232300 PhysReg[46] reads_before_overwrite=233356 overwritten=0
+ReadTracePoll: cycle 5332300 PhysReg[46] reads_before_overwrite=238065 overwritten=0
+ReadTracePoll: cycle 5432300 PhysReg[46] reads_before_overwrite=242804 overwritten=0
+ReadTracePoll: cycle 5532300 PhysReg[46] reads_before_overwrite=247513 overwritten=0
+ReadTracePoll: cycle 5632300 PhysReg[46] reads_before_overwrite=252222 overwritten=0
+ReadTracePoll: cycle 5732300 PhysReg[46] reads_before_overwrite=256931 overwritten=0
+ReadTracePoll: cycle 5832300 PhysReg[46] reads_before_overwrite=261640 overwritten=0
+ReadTracePoll: cycle 5932300 PhysReg[46] reads_before_overwrite=266349 overwritten=0
+ReadTracePoll: cycle 6032300 PhysReg[46] reads_before_overwrite=271058 overwritten=0
+ReadTracePoll: cycle 6132300 PhysReg[46] reads_before_overwrite=275798 overwritten=0
+ReadTracePoll: cycle 6232300 PhysReg[46] reads_before_overwrite=280507 overwritten=0
+ReadTracePoll: cycle 6332300 PhysReg[46] reads_before_overwrite=285217 overwritten=0
+ReadTracePoll: cycle 6432300 PhysReg[46] reads_before_overwrite=289926 overwritten=0
+ReadTracePoll: cycle 6532300 PhysReg[46] reads_before_overwrite=294635 overwritten=0
+ReadTracePoll: cycle 6632300 PhysReg[46] reads_before_overwrite=299345 overwritten=0
+ReadTracePoll: cycle 6732300 PhysReg[46] reads_before_overwrite=304054 overwritten=0
+ReadTracePoll: cycle 6832300 PhysReg[46] reads_before_overwrite=308794 overwritten=0
+ReadTracePoll: cycle 6932300 PhysReg[46] reads_before_overwrite=313503 overwritten=0
+ReadTracePoll: cycle 7032300 PhysReg[46] reads_before_overwrite=318213 overwritten=0
+ReadTracePoll: cycle 7132300 PhysReg[46] reads_before_overwrite=322920 overwritten=0
+ReadTracePoll: cycle 7232300 PhysReg[46] reads_before_overwrite=327631 overwritten=0
+ReadTracePoll: cycle 7332300 PhysReg[46] reads_before_overwrite=332340 overwritten=0
+ReadTracePoll: cycle 7432300 PhysReg[46] reads_before_overwrite=337049 overwritten=0
+ReadTracePoll: cycle 7532300 PhysReg[46] reads_before_overwrite=341788 overwritten=0
+ReadTracePoll: cycle 7632300 PhysReg[46] reads_before_overwrite=346497 overwritten=0
+ReadTracePoll: cycle 7732300 PhysReg[46] reads_before_overwrite=351207 overwritten=0
+ReadTracePoll: cycle 7832300 PhysReg[46] reads_before_overwrite=355916 overwritten=0
+ReadTracePoll: cycle 7932300 PhysReg[46] reads_before_overwrite=360625 overwritten=0
+ReadTracePoll: cycle 8032300 PhysReg[46] reads_before_overwrite=365335 overwritten=0
+ReadTracePoll: cycle 8132300 PhysReg[46] reads_before_overwrite=370045 overwritten=0
+ReadTracePoll: cycle 8232300 PhysReg[46] reads_before_overwrite=374784 overwritten=0
+ReadTracePoll: cycle 8332300 PhysReg[46] reads_before_overwrite=379493 overwritten=0
+ReadTracePoll: cycle 8432300 PhysReg[46] reads_before_overwrite=384202 overwritten=0
+ReadTracePoll: cycle 8532300 PhysReg[46] reads_before_overwrite=388911 overwritten=0
+ReadTracePoll: cycle 8632300 PhysReg[46] reads_before_overwrite=393620 overwritten=0
+ReadTracePoll: cycle 8732300 PhysReg[46] reads_before_overwrite=398330 overwritten=0
+ReadTracePoll: cycle 8832300 PhysReg[46] reads_before_overwrite=403069 overwritten=0
+ReadTracePoll: cycle 8932300 PhysReg[46] reads_before_overwrite=407778 overwritten=0
+ReadTracePoll: cycle 9032300 PhysReg[46] reads_before_overwrite=412489 overwritten=0
+ReadTracePoll: cycle 9132300 PhysReg[46] reads_before_overwrite=417198 overwritten=0
+ReadTracePoll: cycle 9232300 PhysReg[46] reads_before_overwrite=421907 overwritten=0
+ReadTracePoll: cycle 9332300 PhysReg[46] reads_before_overwrite=426616 overwritten=0
+ReadTracePoll: cycle 9432300 PhysReg[46] reads_before_overwrite=431326 overwritten=0
+ReadTracePoll: cycle 9532300 PhysReg[46] reads_before_overwrite=436065 overwritten=0
+ReadTracePoll: cycle 9632300 PhysReg[46] reads_before_overwrite=440775 overwritten=0
+ReadTracePoll: cycle 9732300 PhysReg[46] reads_before_overwrite=445484 overwritten=0
+ReadTracePoll: cycle 9832300 PhysReg[46] reads_before_overwrite=450192 overwritten=0
+ReadTracePoll: cycle 9932300 PhysReg[46] reads_before_overwrite=454902 overwritten=0
+ReadTracePoll: cycle 10032300 PhysReg[46] reads_before_overwrite=459612 overwritten=0
+ReadTracePoll: cycle 10132300 PhysReg[46] reads_before_overwrite=464321 overwritten=0
+ReadTracePoll: cycle 10232300 PhysReg[46] reads_before_overwrite=469060 overwritten=0
+ReadTracePoll: cycle 10332300 PhysReg[46] reads_before_overwrite=473769 overwritten=0
+ReadTracePoll: cycle 10432300 PhysReg[46] reads_before_overwrite=478479 overwritten=0
+ReadTracePoll: cycle 10532300 PhysReg[46] reads_before_overwrite=483188 overwritten=0
+ReadTracePoll: cycle 10632300 PhysReg[46] reads_before_overwrite=485976 overwritten=0
+ReadTracePoll: cycle 10732300 PhysReg[46] reads_before_overwrite=485980 overwritten=0
+ReadTracePoll: cycle 10832300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 10932300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11032300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11132300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11232300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11332300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11432300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11532300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11632300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+ReadTracePoll: cycle 11732300 PhysReg[46] reads_before_overwrite=485981 overwritten=0
+CHAOS_L0: CHAOSPhysReg: target=46 reads=485989 overwritten=0 at=0 hit=1

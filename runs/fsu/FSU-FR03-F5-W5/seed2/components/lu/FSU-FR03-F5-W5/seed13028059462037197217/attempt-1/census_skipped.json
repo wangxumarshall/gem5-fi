@@ -1,0 +1,5 @@
+{
+  "status": "skipped",
+  "reason": "physreg permanent-cell target has no CHAOSFPU eligible-event census",
+  "component": "physreg"
+}

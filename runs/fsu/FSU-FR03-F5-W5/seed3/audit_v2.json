@@ -1,0 +1,113 @@
+{
+  "schema_version": "fsu-suite-audit/v1",
+  "tool_version": "fsu_fr03_suite_gate/v1",
+  "generated_at": "2026-11-04T12:40:57",
+  "suite_id": "polybench-fp-v1-fr03",
+  "suite_version": "1",
+  "suite_family": "W5",
+  "suite_hash": "98d88154edeac9992aa73e103cf76d835510cccf03c130c8590d208804a64d17",
+  "run_id": "FSU-FR03-F5-W5",
+  "suite_seed": 3,
+  "expected_programs": [
+    "gemm",
+    "2mm",
+    "lu",
+    "cholesky",
+    "jacobi-2d"
+  ],
+  "actual_programs": [
+    "gemm",
+    "2mm",
+    "lu",
+    "cholesky",
+    "jacobi-2d"
+  ],
+  "component_count": 5,
+  "components": [
+    {
+      "program_id": "gemm",
+      "program_index": 0,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W5/seed3/components/gemm/FSU-FR03-F5-W5/seed11821602483681197302/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "f47e4d6e703c6d3e6b03e36054a44752d9a8d73e476cc3c5e874e9e47bef0d0c",
+        "audit.json": "8c228b630d4ed7a3fd52de53345737a96d50baf133230f0724b1d4d74ba3afdf",
+        "chain_report.json": "876d84b98fce63796b4bc02729f39dad5efc2244388923453ccd37d57e9fa703",
+        "oracle.json": "17551487d5f058f242885683b992dfc1434b777f96c8046a393e8f8c2b5a52f1",
+        "evidence_sha256.json": "f9b4b061b238e038aa6b6bd56b7369aaf3ecc56caa00e53c4b13391a7fcf40c1",
+        "component_manifest.json": "a562826a7a314cdc9f56f3a481912b5d1d4d3e7ecd3d9ed501ea7569a81b7103"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "MASKED"
+    },
+    {
+      "program_id": "2mm",
+      "program_index": 1,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W5/seed3/components/2mm/FSU-FR03-F5-W5/seed15036002611505353583/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "69b1f1f56a792f5a1d8be2db01b4409244b6a5b665741b87d02079bab294f19d",
+        "audit.json": "095fcb2de6ec5ce6dd53fd5408781ccd7beafa8405e99b06e87f4fdb9ea2c19d",
+        "chain_report.json": "e268e2daf6c114129483b311a6908bed4739215c0089d9fb4d8f0407d372627f",
+        "oracle.json": "b485fe7afe629539e7addc506115e8b99f2a4ff2c7c74c3594c37122254f2c75",
+        "evidence_sha256.json": "f1554e97bcc03af9f7dbbdd35027852726f0f88cd2cac373e46a9e6f11ebf31b",
+        "component_manifest.json": "0ad073b404aaa38ea7995f80503ca9a3289916a780d8ddbb74745fbdfd41009c"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "MASKED"
+    },
+    {
+      "program_id": "lu",
+      "program_index": 2,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W5/seed3/components/lu/FSU-FR03-F5-W5/seed16065008133739276579/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "382ca370abd0ae4502a39c405664033e121946f1f681ca3014e656acb851ceed",
+        "audit.json": "ebd9d59e1733a1249ffdd4f1f4f15017664e57ef14767bafa02838f2c464323a",
+        "chain_report.json": "084dd7b75bf36bf8101aa5b8aee6c1652ec5a9ab491d4dd6cca973f31b3eb5f0",
+        "oracle.json": "8b9ce4b1f1f40fb123573117b1b93d00f745a2e4c7cd96c7610a58debd577041",
+        "evidence_sha256.json": "fdf87328c43ddf24d63d104cabefc61141ab2bd1b9359cf15d0d77f62f78f9e9",
+        "component_manifest.json": "f7788533aef59dac4ea6a6c2e338ca024c0c9934f410609ce977567e23f7b07a"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "MASKED"
+    },
+    {
+      "program_id": "cholesky",
+      "program_index": 3,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W5/seed3/components/cholesky/FSU-FR03-F5-W5/seed6976623493032354155/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "c73e48e778040e55d611bebf64a32782291c3c42b932a74a92f83df264a38eb4",
+        "audit.json": "ec38e24ff4831116b598b5fa3b75f1cc6100b2293f53b0af0f3f436f05f5a36d",
+        "chain_report.json": "3928363ae50375714a725642df0371fb4c18425e9504bcbc7f035acf68aeb6f8",
+        "oracle.json": "016459a86826d6430f5963440b4f9ef0520d8536671e425b513cb16ef080b068",
+        "evidence_sha256.json": "5d7bf145adbb38227c7d7491f73859bbe660136fd676c3db9c51032052089195",
+        "component_manifest.json": "0e65039ff9d6a6cf767f06a6eff5df957e7f82b75bb31d09e55ded56a46f947b"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "MASKED"
+    },
+    {
+      "program_id": "jacobi-2d",
+      "program_index": 4,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR03-F5-W5/seed3/components/jacobi-2d/FSU-FR03-F5-W5/seed13794092155614679480/attempt-1",
+      "evidence_hashes": {
+        "manifest.json": "15bd4d934c88b0f3df7cb74cf855f2b49fa6c3fa05c0edb1d14fe3538317f3be",
+        "audit.json": "2f51035fedea48fbdc225abf541d61e52743972714aacaccd9e41b5723b769aa",
+        "chain_report.json": "730d815901b719460e7abdb2ca7df2651cbf4ee52cd5878a821573fd43f7cf16",
+        "oracle.json": "1181e96eb746a7bdbe68f0fe15096fd0702707713b085efbf389591c000b5976",
+        "evidence_sha256.json": "1f7462b24332cde57a7b5062e68493118434f31e5b17df6246c1c43ea3fa06dc",
+        "component_manifest.json": "31110d7c9daf624321c07a503b42f237d1f75f94ff5e15dce7dfe559a72820a3"
+      },
+      "audit_ok": true,
+      "certified": true,
+      "oracle_category": "MASKED"
+    }
+  ],
+  "suite_execution_complete": true,
+  "suite_evidence_valid": true,
+  "suite_certified": true,
+  "violations": [],
+  "formal_seed_contribution": 1
+}

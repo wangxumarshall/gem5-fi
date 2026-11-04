@@ -1,0 +1,113 @@
+{
+  "run_id": "FSU-FR03-F5-W5-GATE",
+  "model_id": "FR03",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "submodel": "FR03",
+  "suite_load_id": "W5",
+  "suite_seed_submodel": "FR03-c",
+  "workload": {
+    "binary": "workloads/ooo/polybench/gemm/gemm",
+    "source": "workloads/ooo/polybench/linear-algebra/blas/gemm/gemm.c",
+    "identity": "FR03-W5-gemm-v1",
+    "golden": "116849d3adf3227b",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/gemm.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "gemm",
+        "golden_id": "polybenchgemm-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          88,
+          88
+        ],
+        "count": 7744,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "physreg",
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rng_seed": 11821602483681197302,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 46,
+      "require_allocated": true,
+      "vec_lane_width": 32,
+      "vec_lane_offset": 2,
+      "fault_type": "stuck_at_one",
+      "fault_mask": "0x80000000",
+      "semantic_role": "FR03",
+      "bits_to_change": 1
+    }
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1-fr03",
+    "suite_version": "1",
+    "suite_family": "W5",
+    "suite_seed": 3,
+    "program_id": "gemm",
+    "program_index": 0,
+    "program_count": 5,
+    "component_seed": 11821602483681197302,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "target_plan_entry": {
+    "suite_seed": 3,
+    "submodel": "FR03-c",
+    "program_id": "gemm",
+    "target_phys_idx": 46,
+    "vec_lane_width": 32,
+    "vec_lane_offset": 2,
+    "fault_mask": "0x80000000",
+    "fault_mask_value": 2147483648,
+    "polarity": 1,
+    "fault_type": "stuck_at_one",
+    "require_allocated": true,
+    "reg_class": "vector",
+    "injection_mode": "phys",
+    "semantic_role": "FR03",
+    "bits_to_change": 1,
+    "precision": "fp32"
+  },
+  "effective_injector": {
+    "component": "physreg",
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rng_seed": 11821602483681197302,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 46,
+      "require_allocated": true,
+      "vec_lane_width": 32,
+      "vec_lane_offset": 2,
+      "fault_type": "stuck_at_one",
+      "fault_mask": "0x80000000",
+      "semantic_role": "FR03",
+      "bits_to_change": 1
+    }
+  },
+  "notes": "FR03 permanent physical-cell gate component: one real program, one fixed Vec phys cell, never a formal seed."
+}

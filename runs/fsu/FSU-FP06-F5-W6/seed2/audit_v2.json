@@ -1,0 +1,151 @@
+{
+  "schema_version": "fsu-suite-audit/v1",
+  "tool_version": "fsu_suite_audit/v1",
+  "generated_at": "2026-11-04T09:52:00",
+  "suite_id": "w6-fp-v1-f5",
+  "suite_version": "1",
+  "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
+  "suite_hash_declared": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804",
+  "run_id": "FSU-FP06-F5-W6",
+  "suite_seed": 2,
+  "expected_programs": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "actual_programs": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "component_count": 3,
+  "components": [
+    {
+      "program_id": "svd",
+      "program_index": 0,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/svd/FSU-FP06-F5-W6/seed5009638387358278243/attempt-1",
+      "manifest_sha256": "d539a08bbe7c0e94af071b72bee18e881d3f0b8d40bdea47f12d3d3ba92dab39",
+      "audit_sha256": "60b1150933f7766aaa481258ce2844a7cd4eaadb144ba2e1a3484564bd7bd62c",
+      "chain_report_sha256": "7b2cda231dabca12e7e3e9118d6983e05f598b00c9df80e3afd85815e66ac5df",
+      "oracle_sha256": "3e4b0858579885e93a7f6546ff0d02a858d3a7bcba5f210a78eb14c3ae95c66e",
+      "evidence_sha256": "338cacf43b2232dbec10c1b277f885c8645ba1c800c844fd2e8e527b943cbfa9",
+      "component_manifest_sha256": "f9438eba29fdf3c9e1ea03b61b225fccd256ef25880413eec3b03e0c6c749932",
+      "oracle_elements_sha256": "cc3e7ff2bff8f5c7a12e5fc508bca333f424313c2bdda3100ad7382221bccc7a",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    },
+    {
+      "program_id": "fft",
+      "program_index": 1,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/fft/FSU-FP06-F5-W6/seed15236595496980370836/attempt-1",
+      "manifest_sha256": "95b55deafa12754ebb72000339918284e8cc473509603a205fa87afba9fd2d1e",
+      "audit_sha256": "4b8f89788685166001335130ba6ba89f9665d3851d6f44816594be8eb5e7ae13",
+      "chain_report_sha256": "0845ccbde61453329950c1f10294fe19f2215db057a31949596a4bd8c6716e54",
+      "oracle_sha256": "9789e3380605cb395a616a04377739db6a57f623751d11b842369d24804b311f",
+      "evidence_sha256": "3b34e658eb4b92647bb4fec9721bfeb5587d0208f09bc25641c0e9719d056721",
+      "component_manifest_sha256": "909e7508ffaa3100bcd5aa15a34015ad62dceb10de5ed152e09c36162ede6925",
+      "oracle_elements_sha256": "6f08d29debfd32f4173f3b850fcf9d41a43a461258e6faab6f94d27de19a6c41",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    },
+    {
+      "program_id": "sparse-cg",
+      "program_index": 2,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FP06-F5-W6/seed2/components/sparse-cg/FSU-FP06-F5-W6/seed2750522184732370354/attempt-1",
+      "manifest_sha256": "5da064e357d48075ad085c24b71d467ed12bcc38baeedd3d0ec3d406e6181c35",
+      "audit_sha256": "ee7c955629101e986c051192ff6a9de3d43e51c415de251447083be2d1d88f75",
+      "chain_report_sha256": "b363851614db7972bef010d0fda7dc3539851883bafa59964609c14177d29335",
+      "oracle_sha256": "df797ef64cb3882d2ae5eda33d69557b9fcd3c2adf20c5e57e9dca69bdda3dcb",
+      "evidence_sha256": "bc1afe7b8f2b2dd85f414df7397c9c042f6880505e59b6778d298a7aa2b8c42a",
+      "component_manifest_sha256": "f19ea4bd21e0a8a54cc6b8012c68be1acd9012df99021b540188af01e4cc7e27",
+      "oracle_elements_sha256": "6d1af28ecd088c494477e62bd45991518d3d8ac63702aac7cb4d4d17909fbbc2",
+      "audit_ok": true,
+      "certified": true,
+      "recomputed_audit_ok": true,
+      "recomputed_certified": true,
+      "oracle_category": "SDC",
+      "element_oracle": "SDC",
+      "chain_terminal": "full",
+      "component_status": "admitted",
+      "execution_complete": true,
+      "evidence_valid": true,
+      "violations": []
+    }
+  ],
+  "suite_execution_complete": true,
+  "suite_evidence_valid": true,
+  "suite_certified": true,
+  "violations": [],
+  "legacy_audit": {
+    "present": true,
+    "path": "runs/fsu/FSU-FP06-F5-W6/seed2/audit.json",
+    "schema_version": null,
+    "legacy": true,
+    "fields_present": [
+      "ok",
+      "certified",
+      "checks",
+      "failures",
+      "run_id",
+      "suite_seed",
+      "suite_hash"
+    ],
+    "fields_missing": [],
+    "raw": {
+      "ok": true,
+      "certified": true,
+      "checks": [
+        {
+          "check": "3/3 W6 components PASS",
+          "ok": true
+        }
+      ],
+      "failures": [],
+      "run_id": "FSU-FP06-F5-W6",
+      "suite_seed": 2,
+      "suite_hash": "2d1a8f9d84d502996724d97adc96b811f81b657fbcbdd0d1026fd34f3c406804"
+    },
+    "ok_matches_recomputed": true,
+    "certified_matches_recomputed": true
+  },
+  "formal_seed_contribution": 1,
+  "suite_manifest_sha256": "1218cef5ddd17ceb7c909d3d4a7ad6a2a6980020369d3b4c355b372f6ea4b27c",
+  "frozen_suite_config": "/home/sdc/gem5-fi-fsu/configs/fsu/suites/w6-fp-v1-f5.json",
+  "frozen_suite_config_sha256": "26556360c959d19e91c2c0b3f4247c3958d85bbb294d8bf5f0d1c57c22579252",
+  "seed_plan_entry": {
+    "suite_seed": 2,
+    "submodel": "FP06-b",
+    "mask": "0x0000000080000000",
+    "polarity": 1,
+    "warmup": 1024,
+    "sample": {
+      "limit": 1024,
+      "keep_first_last_n": 256
+    },
+    "op_classes": [],
+    "reg_class": "any",
+    "decode_guard": true,
+    "permanent_stuck": true,
+    "program_mask": {
+      "svd": "0x8000000000000000"
+    }
+  }
+}

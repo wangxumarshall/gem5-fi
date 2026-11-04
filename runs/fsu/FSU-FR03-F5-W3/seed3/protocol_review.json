@@ -1,0 +1,399 @@
+{
+  "schema": "fsu-fr03-seed3-protocol-review/v1",
+  "generated_at": "2026-11-04",
+  "run_id": "FSU-FR03-F5-W3",
+  "seed": 3,
+  "original_pre_registration": {
+    "target": "Vec phys 0, lane 0, bits 15..22 (mask 0x007f8000), SA0",
+    "fault_mask": "0x007f8000",
+    "fault_type": "stuck_at_zero",
+    "polarity": 0,
+    "lane_offset": 0,
+    "frozen_in_commit": "b365cee5 (2026-11-04 01:12:33 +0800)"
+  },
+  "actual_formal_config_now": {
+    "target": "Vec phys 0, lane 0, sign bit (mask 0x80000000), SA1",
+    "fault_mask": "0x80000000",
+    "fault_type": "stuck_at_one",
+    "polarity": 1,
+    "lane_offset": 0,
+    "working_tree_mtime": "2026-11-04 02:42:06 +0800",
+    "committed_in": "40f2db5d (2026-11-04 03:49:17 +0800)"
+  },
+  "timeline": [
+    {
+      "time": "2026-11-04T01:12:33+08:00",
+      "event": "b365cee5 commits FSU-FR03-F5-W3-seed3.json with 0x007f8000 SA0 lane0"
+    },
+    {
+      "time": "2026-11-04T02:24:13+08:00",
+      "event": "FR03 W3 gate v3 artifacts complete (non-formal)"
+    },
+    {
+      "time": "2026-11-04T02:39:35+08:00",
+      "event": "attempt-1 manifest created (pre-registered 0x007f8000 SA0)"
+    },
+    {
+      "time": "2026-11-04T02:40:00+08:00",
+      "event": "attempt-1 .failed: oracle=Masked, chain admitted_faults=[]"
+    },
+    {
+      "time": "2026-11-04T02:42:06+08:00",
+      "event": "configs/fsu/FSU-FR03-F5-W3-seed3.json mtime changes to 0x80000000 SA1 (after attempt-1 result)"
+    },
+    {
+      "time": "2026-11-04T02:42:12+08:00",
+      "event": "non-formal LANE0-SA1 gate pilot manifest created (same new target)"
+    },
+    {
+      "time": "2026-11-04T02:43:15+08:00",
+      "event": "LANE0-SA1 gate pilot .done: SDC, chain admitted/certified, terminal full"
+    },
+    {
+      "time": "2026-11-04T02:46:22+08:00",
+      "event": "attempt-2 manifest created with the new target; revision_note documents attempt-1 outcome"
+    },
+    {
+      "time": "2026-11-04T02:47:00+08:00",
+      "event": "attempt-2 .done: admitted, SDC"
+    },
+    {
+      "time": "2026-11-04T03:49:17+08:00",
+      "event": "commit 40f2db5d records the retargeted seed3 config and revision_note"
+    }
+  ],
+  "attempts": {
+    "attempt-1": {
+      "attempt": 1,
+      "created_at": "2026-11-04T02:39:35",
+      "fault_mask": "0x007f8000",
+      "fault_type": "stuck_at_zero",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "target_phys_idx": 0,
+      "run_out_arrayhash": "see run.out",
+      "oracle_category": "Masked",
+      "returncode": 0,
+      "timed_out": false,
+      "execution_completed": true,
+      "evidence_valid": true,
+      "event_count": 6179,
+      "event_kinds": {
+        "fault_installed": 1,
+        "exposure": 1,
+        "carrier_state": 2049,
+        "generation_change": 7,
+        "phys_write": 7,
+        "stuck_reapplied": 7,
+        "execute": 7,
+        "prf_writeback": 7,
+        "operand_read": 2048,
+        "commit": 2040,
+        "squash": 3,
+        "chain_end": 2
+      },
+      "activated": true,
+      "activated_generations": [
+        "3",
+        "6"
+      ],
+      "activated_exposure_events": 7,
+      "first_activated_sn_values": [
+        "0",
+        "9538"
+      ],
+      "first_activated_sn": "9538",
+      "first_activated_sn_note": null,
+      "l5_commit_events": 2040,
+      "l5_commits_by_generation": {
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "6": 2,
+        "7": 2,
+        "8": 2030
+      },
+      "squash_events": 3,
+      "chain_end_terminal": "committed",
+      "chain_end_l5_witness_event": "16",
+      "chain_end_exposures_total": "8",
+      "chain_end_read_exposures_total": "65554",
+      "archived_chain_admitted": false,
+      "archived_chain_certified": false,
+      "archived_fault_terminals": {
+        "1": "full"
+      },
+      "archived_violations": [
+        "activation_chain_not_through_first_activated"
+      ],
+      "prop_evt_sha256": "0e7642fc3ab6ef1590d957ddd8bd36d1626b0b25d55ba97d658b976cf83acd47",
+      "manifest_sha256": "0cb15abfe2c84e4dd76f8fe82ed3083c01f036846969fcbccea306e2ba98c4a7",
+      "oracle_sha256": "a6e6801385d7a8b77d6399cecb0bd584c149e9b691c16d36a6b870c46ad2b769",
+      "evidence_files_verified": 15,
+      "current_chain_admitted": false,
+      "current_chain_certified": false,
+      "current_terminal": "exposed_unconsumed",
+      "current_violations": [
+        "activation_chain_not_through_first_activated"
+      ],
+      "current_l5_witness_event_id": "6171",
+      "committed_path_generation": "8",
+      "committed_path_generation_activated": false
+    },
+    "attempt-2": {
+      "attempt": 2,
+      "created_at": "2026-11-04T02:46:22",
+      "fault_mask": "0x80000000",
+      "fault_type": "stuck_at_one",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "target_phys_idx": 0,
+      "run_out_arrayhash": "see run.out",
+      "oracle_category": "SDC",
+      "returncode": 0,
+      "timed_out": false,
+      "execution_completed": true,
+      "evidence_valid": true,
+      "event_count": 6167,
+      "event_kinds": {
+        "fault_installed": 1,
+        "exposure": 1,
+        "carrier_state": 2049,
+        "generation_change": 4,
+        "phys_write": 4,
+        "stuck_reapplied": 4,
+        "execute": 4,
+        "prf_writeback": 4,
+        "operand_read": 2048,
+        "commit": 2045,
+        "squash": 1,
+        "chain_end": 2
+      },
+      "activated": true,
+      "activated_generations": [
+        "2",
+        "4",
+        "5"
+      ],
+      "activated_exposure_events": 4,
+      "first_activated_sn_values": [
+        "0"
+      ],
+      "first_activated_sn": null,
+      "first_activated_sn_note": "install-time activation without dyn_inst_seq",
+      "l5_commit_events": 2045,
+      "l5_commits_by_generation": {
+        "3": 2,
+        "4": 2,
+        "5": 2041
+      },
+      "squash_events": 1,
+      "chain_end_terminal": "committed",
+      "chain_end_l5_witness_event": "16",
+      "chain_end_exposures_total": "5",
+      "chain_end_read_exposures_total": "65543",
+      "archived_chain_admitted": true,
+      "archived_chain_certified": true,
+      "archived_fault_terminals": {
+        "1": "full"
+      },
+      "archived_violations": [],
+      "prop_evt_sha256": "1bf5bd61a96124fc2fe9730fc1fcacf76f8c3890428934aae739438e0c25fb21",
+      "manifest_sha256": "1942f1aa49ebc281b1379cd6accf6a2b397e7880b047808621f8933191ef6484",
+      "oracle_sha256": "63b19c9e971867ef4f1400e14a99f4860835735d3838ad8e90a533abcbefecb7",
+      "evidence_files_verified": 15,
+      "current_chain_admitted": true,
+      "current_chain_certified": true,
+      "current_terminal": "full",
+      "current_violations": [],
+      "current_l5_witness_event_id": "6162",
+      "committed_path_generation": "5",
+      "committed_path_generation_activated": true
+    }
+  },
+  "lane0_sa1_pilot": {
+    "path": "runs/fsu-gates/F5-FR03-W3-LANE0-SA1-GATE/FSU-FR03-F5-W3/seed3/attempt-1",
+    "created_at": "2026-11-04T02:42:12",
+    "fault_mask": "0x80000000",
+    "fault_type": "stuck_at_one",
+    "oracle_category": "SDC",
+    "chain_admitted": true,
+    "chain_certified": true,
+    "prop_evt_sha256": "1bf5bd61a96124fc2fe9730fc1fcacf76f8c3890428934aae739438e0c25fb21",
+    "formal_attempt2_prop_evt_sha256": "1bf5bd61a96124fc2fe9730fc1fcacf76f8c3890428934aae739438e0c25fb21",
+    "byte_identical_to_formal_attempt2_prop_evt": true
+  },
+  "four_quadrant": {
+    "attempt-1": {
+      "execution_completed": true,
+      "evidence_valid": true,
+      "activated": true,
+      "chain_certified": false,
+      "run_level_oracle": "Masked",
+      "note": "activated in generations 3 and 6; the generation-8 value that actually committed was never changed by the fault"
+    },
+    "attempt-2": {
+      "execution_completed": true,
+      "evidence_valid": true,
+      "activated": true,
+      "chain_certified": true,
+      "run_level_oracle": "SDC",
+      "note": "different target (sign SA1 lane0), chosen after attempt-1"
+    }
+  },
+  "verdict": {
+    "attempt-1_status": "real_uncertified_seed_outcome",
+    "attempt-1_is_simulator_failure": false,
+    "attempt-1_reason": "execution completed and evidence is intact; fault activated in some generations but the committed generation-8 value was never activated, so the chain audit honestly refused certification",
+    "attempt-2_status": "protocol_deviation_supplemental_evidence",
+    "attempt-2_is_new_experiment": true,
+    "attempt-2_can_replace_pre_registered_seed3": false,
+    "reason": "the target/mask/polarity changed after seeing attempt-1; the revision_note states the new target was chosen for \"guaranteed activation\"; a lane0 SA1 pilot at 02:43 was byte-identical to formal attempt-2, proving a deterministic retarget-and-rerun rather than the pre-registered target",
+    "re_registration_erases_lookahead": false,
+    "archived_chain_report_note": "the archived attempt-1 chain_report says terminal=full, but the current tools/fsu_chain_check.py recomputes exposed_unconsumed; the archived report is stale and contradicted its own admission failure"
+  },
+  "count_recommendation": {
+    "current_index_view": "FSU-FR03-F5-W3 3/3 (AUTHORITATIVE -> attempt-2)",
+    "recommended": "FSU-FR03-F5-W3 2/3",
+    "counted_formal_seeds": 2,
+    "uncertified_seed3_evidence": "attempt-1 (real Masked outcome, audit did not pass)",
+    "supplemental_evidence": "attempt-2 (SDC, certified, different target)",
+    "expected_index_deltas_if_applied": {
+      "historical_admitted_seeds": "42 -> 41",
+      "historical_complete_runids_3of3": "14 -> 13",
+      "active_admitted_seeds": "33 -> 32",
+      "active_complete_runids_3of3": "11 -> 10"
+    },
+    "note": "index/runs were not modified by this review; this is a recommendation"
+  },
+  "other_seed_scan": {
+    "method": "compare formal component/manifest created_at with gate artifact completion, config mtime and current suite_hash recomputation; target mask/polarity compared with the pre-freeze git version",
+    "w4": {
+      "gate": "runs/fsu-gates/F5-FP06-W4-GATE complete 2026-11-04 01:24:01",
+      "configs_mtime": "2026-11-04 01:26:37 (all three seeds)",
+      "formal_manifest_created_at": [
+        "2026-11-04T01:26:43",
+        "2026-11-04T01:36:13",
+        "2026-11-04T01:48:21"
+      ],
+      "config_change": "only eligible_census_reference 2,097,155 -> 1,310,723 plus note (gate-driven census correction); mask/polarity/precision unchanged",
+      "freeze_before_formal": true,
+      "result_driven_target_change": false,
+      "note": "config was written 6 s before seed1; this is a metadata correction after the gate, not a post-result target change"
+    },
+    "w5_f5": {
+      "gate_v5": "runs/fsu-gates/F5-FP06-W5-GATE-v5 gate_report created_at 2026-11-04T02:41:01, PASS 5/5",
+      "suite_config_mtime": "2026-11-04 01:36:11",
+      "formal_component_created_at": {
+        "seed1": [
+          "2026-11-04T02:42:11",
+          "2026-11-04T02:45:52",
+          "2026-11-04T02:48:55",
+          "2026-11-04T02:52:16",
+          "2026-11-04T02:55:14"
+        ],
+        "seed2": [
+          "2026-11-04T03:01:00",
+          "2026-11-04T03:04:30",
+          "2026-11-04T03:07:37",
+          "2026-11-04T03:10:44",
+          "2026-11-04T03:13:44"
+        ],
+        "seed3": [
+          "2026-11-04T03:19:05",
+          "2026-11-04T03:23:08",
+          "2026-11-04T03:26:24",
+          "2026-11-04T03:29:52",
+          "2026-11-04T03:33:00"
+        ]
+      },
+      "config_change": "at 01:36 (after gate v1/v2 failures, before gate v3/v5): seed plan sign SA0 -> mixed result bits (0x00400000 SA0, 0x20000000 SA1, fixed mantissa SA0); documented in suite notes as gate-phase activation-coverage revision",
+      "suite_hash_current_matches_manifest": true,
+      "freeze_before_formal": true,
+      "result_driven_target_change": false,
+      "note": "NIGHT-QUEUE log says gate v5 PASS at 04:10, but the artifact timestamp is 02:41:01; artifact is authoritative and the formal seed1 started 02:42:11"
+    },
+    "w6_f0": {
+      "gate_v1": "2026-11-04T03:53:08, ok=false",
+      "suite_config_mtime": "2026-11-04 03:55:28 (submodel label FP04-W6 -> FP04-a in 209d0368; suite_hash unchanged)",
+      "gate_v2": "2026-11-04T03:56:11, PASS 3/3",
+      "formal_component_created_at": {
+        "seed1": [
+          "2026-11-04T04:06:46",
+          "2026-11-04T04:06:52",
+          "2026-11-04T04:07:02"
+        ],
+        "seed2": [
+          "2026-11-04T04:07:23",
+          "2026-11-04T04:07:28",
+          "2026-11-04T04:07:40"
+        ],
+        "seed3": [
+          "2026-11-04T04:08:47",
+          "2026-11-04T04:08:53",
+          "2026-11-04T04:09:03"
+        ]
+      },
+      "freeze_before_formal": true,
+      "result_driven_target_change": false,
+      "retry_note": "seed1 uses attempt-3 for all three components; attempts 1/2/3 have identical injector/target and identical element-oracle mismatch counts (SVD 3, FFT 8, sparse 256), so these are deterministic replications/retries, not target changes; SVD run-level oracle is Masked while its element oracle is SDC (separate oracle layers)"
+    },
+    "w6_f5": {
+      "gate": "runs/fsu-gates/W6-F5-GATE created_at 2026-11-04T03:59:35, PASS 3/3",
+      "suite_config_mtime": "2026-11-04 03:13:39 (unchanged after)",
+      "formal_component_created_at": {
+        "seed1": [
+          "2026-11-04T04:11:03",
+          "2026-11-04T04:11:09",
+          "2026-11-04T04:11:23"
+        ],
+        "seed2": [
+          "2026-11-04T04:11:53",
+          "2026-11-04T04:11:59",
+          "2026-11-04T04:12:13"
+        ],
+        "seed3": [
+          "2026-11-04T04:12:27",
+          "2026-11-04T04:12:34",
+          "2026-11-04T04:12:48"
+        ]
+      },
+      "suite_hash_current_matches_manifest": true,
+      "freeze_before_formal": true,
+      "result_driven_target_change": false,
+      "note": "all components are attempt-1"
+    },
+    "fr03_w3_seed1_seed2": {
+      "seed1_config_mtime": "2026-11-04 02:12:51",
+      "seed1_manifest_created_at": "2026-11-04T02:28:45",
+      "seed2_config_mtime": "2026-11-04 00:35:24",
+      "seed2_manifest_created_at": "2026-11-04T02:34:28",
+      "freeze_before_formal": true,
+      "oracle_categories": {
+        "seed1": "Masked",
+        "seed2": "Masked"
+      },
+      "audit_ok_certified": {
+        "seed1": true,
+        "seed2": true
+      }
+    },
+    "only_protocol_deviation_found": "FSU-FR03-F5-W3 seed3 attempt-2"
+  },
+  "evidence_hashes": {
+    "attempt-1/manifest.json": "0cb15abfe2c84e4dd76f8fe82ed3083c01f036846969fcbccea306e2ba98c4a7",
+    "attempt-1/inject/prop_evt.txt.gz": "0e7642fc3ab6ef1590d957ddd8bd36d1626b0b25d55ba97d658b976cf83acd47",
+    "attempt-1/chain_report.json_archived": "45222fac0898fd906b000b8964bee2f7ed7e5d3c3c2b3c1c918f7586f7ca8052",
+    "attempt-1/chain_report_recomputed.json": "d2a814810cb153ce6d0d2f68f96fca0330ec0dbfd27b2de2ede383d14161e3d9",
+    "attempt-1/audit_recomputed.json": "74713aa874d07caca2114adf91c5825397d16a72a049fce8bd5885cfaa559675",
+    "attempt-2/manifest.json": "1942f1aa49ebc281b1379cd6accf6a2b397e7880b047808621f8933191ef6484",
+    "attempt-2/inject/prop_evt.txt.gz": "1bf5bd61a96124fc2fe9730fc1fcacf76f8c3890428934aae739438e0c25fb21",
+    "attempt-2/audit.json": "639e74ca745803bb8d56be7154375babc3298a6a1134c2adf52da2c3a15a7890"
+  },
+  "decision": {
+    "attempt_1_classification": "real outcome, execution_completed=1, evidence_valid=1, activated=1, chain_certified=0, oracle=Masked",
+    "attempt_2_classification": "protocol deviation / supplemental evidence; changed target after seeing attempt-1",
+    "formal_seed_3": "not certified under original pre-registration",
+    "counting": "FR03-F5-W3 3/3 -> 2/3; attempt-2 does not count as formal seed3"
+  }
+}

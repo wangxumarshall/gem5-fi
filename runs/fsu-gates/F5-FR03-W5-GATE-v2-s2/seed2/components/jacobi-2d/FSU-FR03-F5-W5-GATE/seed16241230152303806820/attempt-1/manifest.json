@@ -1,0 +1,125 @@
+{
+  "run_id": "FSU-FR03-F5-W5-GATE",
+  "model_id": "FR03",
+  "unit": "FSU Pipe",
+  "freq": "F5",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "submodel": "FR03",
+  "suite_load_id": "W5",
+  "suite_seed_submodel": "FR03-b",
+  "workload": {
+    "binary": "workloads/ooo/polybench/jacobi-2d/jacobi-2d",
+    "source": "workloads/ooo/polybench/stencils/jacobi-2d/jacobi-2d.c",
+    "identity": "FR03-W5-jacobi-2d-v1",
+    "golden": "dc867b5f02998c1e",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/jacobi-2d.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "jacobi-2d",
+        "golden_id": "polybenchjacobi2d-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          160,
+          160
+        ],
+        "count": 25600,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "physreg",
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rng_seed": 16241230152303806820,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 46,
+      "require_allocated": true,
+      "vec_lane_width": 32,
+      "vec_lane_offset": 1,
+      "fault_type": "stuck_at_one",
+      "fault_mask": "0x80000000",
+      "semantic_role": "FR03",
+      "bits_to_change": 1
+    }
+  },
+  "limits": {
+    "timeout_s": 3600
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1-fr03",
+    "suite_version": "1",
+    "suite_family": "W5",
+    "suite_seed": 2,
+    "program_id": "jacobi-2d",
+    "program_index": 4,
+    "program_count": 5,
+    "component_seed": 16241230152303806820,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "target_plan_entry": {
+    "suite_seed": 2,
+    "submodel": "FR03-b",
+    "program_id": "jacobi-2d",
+    "target_phys_idx": 46,
+    "vec_lane_width": 32,
+    "vec_lane_offset": 1,
+    "fault_mask": "0x80000000",
+    "fault_mask_value": 2147483648,
+    "polarity": 1,
+    "fault_type": "stuck_at_one",
+    "require_allocated": true,
+    "reg_class": "vector",
+    "injection_mode": "phys",
+    "semantic_role": "FR03",
+    "bits_to_change": 1,
+    "precision": "fp32"
+  },
+  "effective_injector": {
+    "component": "physreg",
+    "fault_mask": "0x80000000",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "rng_seed": 16241230152303806820,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": 46,
+      "require_allocated": true,
+      "vec_lane_width": 32,
+      "vec_lane_offset": 1,
+      "fault_type": "stuck_at_one",
+      "fault_mask": "0x80000000",
+      "semantic_role": "FR03",
+      "bits_to_change": 1
+    }
+  },
+  "notes": "FR03 permanent physical-cell gate component: one real program, one fixed Vec phys cell, never a formal seed.",
+  "seed": 16241230152303806820,
+  "sample_run_id": "s16241230152303806820",
+  "selection_seed": 16241230152303806820,
+  "injection_seed": 16241230152303806820,
+  "attempt": 1,
+  "created_at": "2026-11-04T12:03:30",
+  "source_head": "a4de94f8ae677b6943f884858847e094956eb7ad",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "9457531948999dd8241e6c6ad6fb85d0e529d5b7017f238d23c36b3d2302e28d",
+  "runner_tool_sha256": "3417b6abebea8a683f348584cf87cfc34d56863fbd004813bfa929fd10bbc6b9",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/ooo/polybench/jacobi-2d/jacobi-2d",
+  "workload_sha256": "91ca3f4175b7e1177e36463db6e1ef8de349dd2afd399c441b000d7f5f7a423c"
+}
