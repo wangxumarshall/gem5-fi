@@ -1180,8 +1180,14 @@ def main():
     ]
     by_id = {e["event_id"]: e for e in esc}
     path = CC._best_ordered_path(esc, "tlb")
-    check("(21b) 并列长度下所选路径落在 squash 支路（护栏的必要前提）",
-          path and path[-1]["kind"] == "squash_masked",
+    # [R6-P-F0GAP 2026-11-04] Escape-first now applies to path selection too
+    # (user ruling 2026-10-26c): an equal-length genuine errant-commit prefix
+    # wins over the earlier squash prefix.  The old assertion pinned the
+    # *premise* (squash selected) that made the containment guard necessary;
+    # with the escape selected the sample is admitted via full_chain and can
+    # never be read as contained.
+    check("(21b) 并列长度下所选路径落在 errant 支路（escape-first）",
+          path and path[-1]["kind"] == "errant_commit",
           str([e["kind"] for e in path]))
     check("(21b) _errant_commit_escape 认定存在真逃逸收口",
           CC._errant_commit_escape(esc, "tlb", by_id, path) is True)
@@ -1189,8 +1195,10 @@ def main():
     f = max(v["faults"].values(), key=lambda x: len(x["path_event_ids"]))
     check("(21b) 有真逃逸 ⇒ 绝不改判 detected_contained",
           f["terminal"] != "detected_contained", f["terminal"])
-    check("(21b) 有真逃逸 ⇒ 不得凭 squash 含住准入",
-          _adm("T91-F0-W4", esc)["admitted"] is False)
+    _r = _adm("T91-F0-W4", esc)
+    check("(21b) 有真逃逸 ⇒ 只准 full_chain，绝不经 squash 含住准入",
+          _r["admitted"] is True and _r["path"] == "full_chain",
+          str(_r["violations"]))
 
     # ---- (21c) 悬空 errant_commit（祖先无 L4 见证 ⇒ 前缀止于 L0..L3）不得
     #           阻止合法 squash 含住（T02-F2-W4 seed2 的真实形状）。
@@ -1340,6 +1348,33 @@ def main():
     f = max(v["faults"].values(), key=lambda x: len(x["path_event_ids"]))
     check("(21g) full 链旁的悬空 squash_masked 不改判（仍 full）",
           f["terminal"] == "full", f["terminal"])
+
+    # ---- (22) escape-first tie-break: two maximal L0→L5 lanes on one DAG.
+    # The squash lane is emitted first; the errant lane is a later sibling.
+    # Path selection must prefer the equal-length errant escape (user ruling
+    # 2026-10-26c), not the first-seen squash lane.  Measured P01-F0-W2.
+    rid = "T97-F0-W4"
+    base, _ = _tlb_l0_l4(rid)
+    two_lanes = base + [
+        _sq("5", "4", tick=6, dyn_inst_seq=7, request_id=7, va=1000, pa=2000,
+            field="squashed_load", outcome="masked", detection_layer="L4",
+            contained=1, containment_layer="L4",
+            containment_reason="squash_replay", corr="addr_fallback"),
+        _sq("6", "4", kind="errant_commit", tick=7, dyn_inst_seq=7,
+            request_id=7, detection_layer="L5", outcome="errant_commit",
+            contained=0, corr="taint_prop"),
+        _ce(rid, 7, 6, 8),
+    ]
+    v = CC.check_chain(two_lanes)
+    f = v["faults"]["1"]
+    check("(22) 同长 squash/errant 双支路 → terminal=full（escape-first）",
+          f["terminal"] == "full", f["terminal"])
+    check("(22) L5 见证选中 errant_commit 支路（event 6）",
+          str(f["path_event_ids"][-1]) == "6", str(f["path_event_ids"]))
+    check("(22) 仍准入 full_chain（不因旁路 squash 改判）",
+          _adm(rid, two_lanes)["admitted"] is True
+          and _adm(rid, two_lanes)["path"] == "full_chain",
+          str(_adm(rid, two_lanes)))
 
     print()
     if FAILED:

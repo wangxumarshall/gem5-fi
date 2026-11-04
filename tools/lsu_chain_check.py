@@ -253,6 +253,28 @@ def _ordered_prefix(path, family):
     return selected
 
 
+def _path_rank(selected, by_id, family):
+    """Escape-first rank of one maximal ordered prefix (user ruling 2026-10-26c).
+
+    The terminal ranking already says `full` (a genuine errant-commit escape)
+    outranks containment, but path selection used to keep the FIRST maximal
+    prefix.  When a squash lane and an errant lane are both L0→L5 on the same
+    DAG, the squash lane comes first in stream order and masked the escape
+    (measured P01-F0-W2: squash@t609070 selected, errant_commit@t832755
+    reported as a sibling).  This rank only breaks EQUAL-LENGTH ties; it never
+    shortens a path and never converts a non-tie.
+    """
+    if not selected or len(selected) != len(LAYERS):
+        return 0
+    last = selected[-1]
+    if not _explicit_l5(last):
+        return 0
+    if any(e.get("kind") in _L4_TERMINAL_KINDS
+           for e in _ancestry(last, by_id)):
+        return 2                 # full escape: spec terminal (1)
+    return 1                     # explicit L5 without an L4 terminal
+
+
 def _walk_best_ordered_path(chain_events, family):
     """Best contiguous layer prefix on any single parent DAG ancestry.
 
@@ -264,9 +286,22 @@ def _walk_best_ordered_path(chain_events, family):
     by_id = {e.get("event_id", ""): e for e in chain_events
              if e.get("event_id", "") != ""}
     best = []
+    rank_cache = {}
+
+    def _rank_of(sel):
+        if not sel:
+            return 0
+        key = id(sel[-1])
+        r = rank_cache.get(key)
+        if r is None:
+            r = _path_rank(sel, by_id, family)
+            rank_cache[key] = r
+        return r
+
     for evt in chain_events:
         selected = _ordered_prefix(_ancestry(evt, by_id), family)
-        if len(selected) > len(best):
+        if ((len(selected), _rank_of(selected))
+                > (len(best), _rank_of(best))):
             best = selected
     return best
 
@@ -309,7 +344,12 @@ def _linear_best_ordered_path(chain_events, family):
             # 语义与 id() 稳态不等价 —— 交由参考实现（绝不猜测）。
             return _walk_best_ordered_path(chain_events, family)
         by_id[eid] = e
-    state = {}          # id(evt) -> (want_layer_idx, last_tick, selected_tuple)
+    # state: id(evt) -> (want_layer_idx, last_tick, selected_tuple,
+    #                     errant_seen_on_ancestry, escape_rank_of_selection)
+    # The rank is carried through the resolve pass so escape-first tie-breaking
+    # stays O(1) per event (the previous `_path_rank` call per comparison was
+    # O(depth) and reintroduced the very Θ(n·depth) cost this function fixed).
+    state = {}
     busy = set()
 
     def resolve(evt):
@@ -327,31 +367,43 @@ def _linear_best_ordered_path(chain_events, family):
             pid = cur.get("parent_event_id", "")
             nxt = by_id.get(pid) if pid != "" else None
             if nxt is None:
-                st = (0, -1, ())          # 根：`_ordered_prefix` 的初态
+                st = (0, -1, (), False, 0)   # 根：`_ordered_prefix` 的初态
                 break
             cur = nxt
         while stack:
             node = stack.pop()
-            want, last_tick, sel = st
+            want, last_tick, sel, errant_seen, rank = st
+            errant_seen = (errant_seen
+                           or node.get("kind") in _L4_TERMINAL_KINDS)
             if want < n_layers:           # `_ordered_prefix` 满层即止
                 layer = _layer_of(node, family)
                 if layer in LAYERS:
                     idx = LAYERS.index(layer)
                     tick = _tick(node)
                     if idx == want and tick >= last_tick:
-                        st = (want + 1, tick, sel + (node,))
+                        new_want = want + 1
+                        rank = 0
+                        if (new_want == n_layers
+                                and _explicit_l5(node)):
+                            rank = 2 if errant_seen else 1
+                        st = (new_want, tick, sel + (node,),
+                              errant_seen, rank)
+            if st[2] is sel:              # no selection: propagate flags only
+                st = (want, last_tick, sel, errant_seen, rank)
             state[id(node)] = st
             busy.discard(id(node))
         return st
 
     best = []
+    best_rank = 0
     for e in chain_events:
         try:
-            sel = resolve(e)[2]
+            st = resolve(e)
         except _ChainCycle:
             return _walk_best_ordered_path(chain_events, family)
-        if len(sel) > len(best):
-            best = sel
+        sel, rank = st[2], st[4]
+        if (len(sel), rank) > (len(best), best_rank):
+            best, best_rank = sel, rank
     return list(best)
 
 
