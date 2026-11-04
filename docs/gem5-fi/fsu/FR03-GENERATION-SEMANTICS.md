@@ -4,9 +4,16 @@
 > 实现位置：`CHAOS/gem5/src/cpu/o3/regfile.hh`、
 > `CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/`、
 > `CHAOS/gem5/src/cpu/o3/free_list.hh`、`chaos_vec_stuck.hh`。
-> 状态：**语义裁决 + host/C++ 单测完成；L0–L5（含真实 commit/squash 钩子、
-> 首影响、读写分离计数）已实现；真实 gem5 gate 与正式 seed 尚未运行。
-> FR03-F5 仍为 PARTIAL（不可认证）**。本文不把 FR03 标为 COMPLETE。
+> 状态（2026-11-04 磁盘复核）：**语义裁决 + host/C++ 单测完成；L0–L5（含
+> 真实 commit/squash 钩子、首影响、读写分离计数）已实现。**
+> FR03-F5 gate v3 已真实通过；`FSU-FR03-F5-W3` 为 **PARTIAL_2_OF_3**
+> （seed3 attempt-1 是原预注册目标的真实结局 exposed_unconsumed/Masked，
+> attempt-2 属 protocol deviation，不计入原 seed3，详见
+> `FR03-SEED3-PROTOCOL-REVIEW.md`）；`FSU-FR03-F5-W5` 与
+> `FSU-FR03-F5-W6` 各 3/3 suite seed 已认证。持久性有真实事件证据：
+> W5 seed1 gemm 的同一 phys_reg 46 上 2,235 次 `phys_write` 全部伴随
+> `stuck_reapplied`，跨 4,096 次 `generation_change` 保持同一极性，并有
+> errant commit。本文不把 W3 标为 COMPLETE。
 
 ## 1. 工作簿原文依据
 
