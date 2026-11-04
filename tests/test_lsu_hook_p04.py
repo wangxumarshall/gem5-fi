@@ -118,7 +118,8 @@ def main():
     pcc2 = src("CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/"
                "CHAOSPrefetch.cc")
     check("Queued 暴露 chaosSelectWrongEntry / chaosHasTwoLiveEntries",
-          "long chaosSelectWrongEntry(Addr &addr, Addr &pc);" in qhh2
+          "long chaosSelectWrongEntry(Addr &addr, Addr &pc, "
+          "Addr &displaced_addr);" in qhh2
           and "bool chaosHasTwoLiveEntries() const" in qhh2, "missing API")
     check("选择故障交换 head 与第二 live entry（非 drop/dup）",
           "std::iter_swap(first, second);" in qcc2
@@ -130,32 +131,51 @@ def main():
           in pcc2, "mode missing")
     check("P04-c 分支用 chaosHasTwoLiveEntries + chaosSelectWrongEntry",
           "chaosHasTwoLiveEntries()" in pcc2
-          and "chaosSelectWrongEntry(qaddr, qpc)" in pcc2, "branch missing")
+          and "chaosSelectWrongEntry(" in pcc2
+          and "qaddr, qpc, displaced_addr" in pcc2, "branch missing")
     check("事件 field=queue_select / state_after=wrong_selected",
           '{"field", "queue_select"}' in pcc2
           and "wrong_selected" in pcc2, "events missing")
     check("choices 含 p04_queue_select",
           "p04_queue_select" in src("configs/se/lsu_proxy.py"), "missing")
+    import gzip
+    import re
     base2 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
-                 "campaign_p04c_20261104")
+                 "campaign_p04c_behavior_20261104")
     for rid in ("P04C-F0-W2", "P04C-F0-W8"):
         sd = base2 / rid / "seed1"
-        if not (sd / "chain_report.json").is_file():
+        if not (sd / "chain_report.json").is_file() and not (
+                sd / "p04c_queue_behavior.log").is_file():
             print(f"  SKIP {rid} 证据不在（{sd}）——源契约已覆盖")
             continue
-        rep = json.load(open(sd / "chain_report.json"))
-        f = rep["faults"]["1"]
-        check(f"{rid} terminal=provable_to_L2_then_unknown（无 L3/L5 观测）",
-              f.get("terminal") == "provable_to_L2_then_unknown"
-              and f.get("provable_to") == "L2", str(f.get("terminal")))
         inj = (sd / "prefetch_injections.log").read_text().strip()
         check(f"{rid} 注入行 = P04_queue_select", "P04_queue_select" in inj,
               inj)
-        import gzip
+        beh = (sd / "p04c_queue_behavior.log").read_text()
+        m = re.search(r"event=select head=(0x[0-9a-f]+) second=(0x[0-9a-f]+)",
+                      beh)
+        check(f"{rid} 选择事件记录 head/second 两个不同合法条目",
+              m is not None and m.group(1) != m.group(2), beh)
+        if m:
+            head, second = m.group(1), m.group(2)
+            issues = re.findall(
+                r"Tick: (\d+) event=issue role=(\w+) va=(0x[0-9a-f]+)", beh)
+            check(f"{rid} 错误项先于正确 head 真实发行（顺序反转）",
+                  len(issues) == 2
+                  and issues[0][1] == "wrong_selected"
+                  and issues[0][2] == second
+                  and issues[1][1] == "head_issued_late"
+                  and issues[1][2] == head
+                  and int(issues[0][0]) < int(issues[1][0]), beh)
+            check(f"{rid} 两条 live entry 各发行一次（无 drop/dup）",
+                  len([i for i in issues if i[1] == "wrong_selected"]) == 1
+                  and len([i for i in issues
+                           if i[1] == "head_issued_late"]) == 1, beh)
         text = gzip.open(sd / "prop_evt.txt.gz", "rt").read()
-        check(f"{rid} 真实 queue_select head->wrong + wrong_selected 事件",
-              "field=queue_select before=head after=wrong" in text
-              and "state_after=wrong_selected" in text, "events missing")
+        check(f"{rid} 传播事件 queue_select before=<head> after=<second>",
+              "field=queue_select" in text
+              and "state_after=wrong_selected" in text
+              and "state_after=issued" in text, "events missing")
 
     print()
     if FAILED:

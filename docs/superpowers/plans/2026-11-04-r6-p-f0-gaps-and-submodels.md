@@ -504,6 +504,35 @@ Same shape as Task 7, one submodel per commit:
 
 ---
 
+### Task 9: P04-c behavioral verification (takeover round)
+
+**Files:**
+- Modify: `CHAOS/gem5/src/mem/cache/prefetch/queued.hh`, `queued.cc`
+- Modify: `CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.hh`, `.cc`
+- Modify: `tests/test_lsu_hook_p04.py`
+- Modify: `docs/gem5-fi/lsu/evidence/R6-P-P04-EVIDENCE.md`,
+  `R6-P-UNIT-CENSUS.md`, `R6-P-UNIT-CLOSEOUT.md`
+
+- [x] Add observation-only selection/issue shadows (`chaosSelectedWrong`,
+  `chaosDisplacedHead`) and a dedicated `p04c_queue_behavior.log`; no issue
+  decision changes when the mode is unmounted.
+- [x] Record selection identities (head/second) and real issue roles
+  (`wrong_selected` / `head_issued_late`).
+- [x] Build and freeze `gem5.opt-a0d0e8af`
+  (`a0d0e8af9d2242dd6250c24f48bdecf396e4bcc6c220dbbc6e331b65f49cd687`).
+- [x] Run W2/W8 fault pilots + no-fault controls; verify the issue order is
+  exactly reversed and both entries issue once.
+- [x] Add behavior-log assertions to `tests/test_lsu_hook_p04.py`.
+- [x] Full pytest: 309 passed / 10 failed, identical historical failure
+  set (r6a4, results_layout, 8 s_prop_docs) => NEW FAIL=0.
+
+### Task 10: P04-b pointer submodel (next unit)
+
+- [ ] Implement a real tail-pointer -1 insertion fault (no drop/dup), with
+  L0/L1/L2 events and a behavior check; build/freeze a new binary.
+- [ ] Run the exact-command no-fault census for the F0 W2/W8 stream, freeze
+  the span, and run seed1 before seeds 2/3.
+
 ## Self-Review
 
 - **Spec coverage:** P01 (stride), P03 (same-page subst), P06 (fill-class), P04 (queue), P07 (fill way/tag), P09 (dirty writeback) each have a task or a documented block; P03-b cross-page remains explicitly absent; P09-W13 remains asset-blocked.

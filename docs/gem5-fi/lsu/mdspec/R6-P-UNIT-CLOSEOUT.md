@@ -42,13 +42,17 @@ complete and is not claimed complete.**
   the fill gate, time-forward) plus the `pf_request_id` lineage bridge; W8
   seeds 1/2 contain via a real `store_not_retired` event.
 - No admission rule was loosened and no unknown was rewritten as contained.
-- **P04-a implemented (pilot only):** the queue-valid model now uses a real
-  shadow valid bit and a real `Queued::getPacket` skip (no P05 drop/dup
-  substitution). P04-F0-W2/W8 seed1 pilot: `P04_queue_valid` injection, L0
-  inj → L1 `pf_train(queue valid→invalid)` → L2 `pf_queue(queue_valid 1→0)` →
-  L2 `invalid_skipped`, terminal `provable_to_L2_then_unknown`, oracle Masked,
-  not admitted (a skipped prefetch has no architectural data effect). P04-b
-  pointer and P04-c entry-selection remain unimplemented.
+- **P04-a / P04-c implemented (pilot only):** P04-a uses a real shadow valid
+  bit and a real `Queued::getPacket` skip (no P05 drop/dup substitution).
+  P04-c swaps the second live queue entry into the head and retains the
+  correct head (`std::iter_swap`; no erase/duplicate). Behavior-verified on
+  binary `a0d0e8af…`: W2/W8 select `head=0x77980/0x76980`,
+  `second=0x77b40/0x76b40`; the wrong entry is issued first and the correct
+  head is issued late at the next tick, exactly reversing the no-fault
+  control order; both issue once. Both pilots terminate
+  `provable_to_L2_then_unknown`, oracle Masked, not admitted (no
+  architectural data effect observed). **P04-b pointer remains
+  unimplemented**; P04-F5 has not been run.
 - **Model substitution avoided:** P07/P09 (mapped to classic CHAOSCache
   tag/dirty) are not the authoritative prefetch models and were not run.
 - **Asset:** P09-F0-W13 requires PARSEC, absent in this repository.

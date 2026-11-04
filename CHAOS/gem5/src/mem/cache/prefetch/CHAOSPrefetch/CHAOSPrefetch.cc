@@ -18,6 +18,7 @@ namespace gem5
 
     CHAOSPrefetch *CHAOSPrefetch::f6Consumer = nullptr;
     CHAOSPrefetch *CHAOSPrefetch::fillMarkHook = nullptr;
+    OutputStream *CHAOSPrefetch::p04BehaviorStream = nullptr;
 
     CHAOSPrefetch::CHAOSPrefetch(const CHAOSPrefetchParams &p)
         : SimObject(p),
@@ -48,6 +49,15 @@ namespace gem5
         // the gate byte-identical.
         if (fi_mode == Mode::P06AsDemand)
             fillMarkHook = this;
+        // [MDSPEC][R6-P-P04-c] Observation-only behavior log + issue hook.
+        // Neither is installed for any other mode (byte-identical issue
+        // path).
+        if (fi_mode == Mode::P04QueueSelect) {
+            p04BehaviorStream = simout.create(
+                "p04c_queue_behavior.log", false, true);
+            prefetch::Queued::chaosQueueIssueObserver =
+                &CHAOSPrefetch::p04ObserveIssue;
+        }
     }
 
     CHAOSPrefetch::~CHAOSPrefetch()
@@ -60,6 +70,26 @@ namespace gem5
         }
         if (fillMarkHook == this)
             fillMarkHook = nullptr;
+        if (prefetch::Queued::chaosQueueIssueObserver ==
+                &CHAOSPrefetch::p04ObserveIssue)
+            prefetch::Queued::chaosQueueIssueObserver = nullptr;
+        if (p04BehaviorStream) {
+            p04BehaviorStream = nullptr;
+        }
+    }
+
+    void
+    CHAOSPrefetch::p04ObserveIssue(const char *role, Addr addr,
+                                   uint64_t fault_id, uint64_t pfid)
+    {
+        if (!p04BehaviorStream || !p04BehaviorStream->stream())
+            return;
+        (*p04BehaviorStream->stream())
+            << "Tick: " << curTick()
+            << " event=issue role=" << role
+            << " va=0x" << std::hex << addr << std::dec
+            << " fault_id=" << fault_id
+            << " pf_request_id=" << pfid << "\n";
     }
 
     CHAOSPrefetch::Mode
@@ -201,8 +231,9 @@ namespace gem5
             if (!queue || !queue->chaosHasTwoLiveEntries())
                 return;                       // fewer than two live entries
             if (!trigger.onEligible()) return;
-            Addr qaddr = 0, qpc = 0;
-            const long qidx_long = queue->chaosSelectWrongEntry(qaddr, qpc);
+            Addr qaddr = 0, qpc = 0, displaced_addr = 0;
+            const long qidx_long = queue->chaosSelectWrongEntry(
+                qaddr, qpc, displaced_addr);
             if (qidx_long < 0) return;        // defensive; single-threaded
             ++faults_injected;
             const auto qidx = (unsigned long)qidx_long;
@@ -216,17 +247,31 @@ namespace gem5
                         qaddr, line_size);
                     h5->registerPtagBlock(ptag, qaddr, qaddr + line_size);
                     h5->registerPtagPrefetch(pfid, qaddr, line_size);
-                    std::ostringstream pc_hex, addr_hex;
+                    queue->chaosAnnotateSelection(ptag, pfid);
+                    std::ostringstream pc_hex, addr_hex, dis_hex;
                     pc_hex << std::hex << qpc;
                     addr_hex << std::hex << qaddr;
+                    dis_hex << std::hex << displaced_addr;
+                    // Behavior observation: record BOTH identities (the
+                    // displaced correct head and the entry moved into the
+                    // head).  The issue-time observer below records which
+                    // one actually issued first.
+                    if (p04BehaviorStream && p04BehaviorStream->stream()) {
+                        (*p04BehaviorStream->stream())
+                            << "Tick: " << curTick()
+                            << " event=select head=0x" << dis_hex.str()
+                            << " second=0x" << addr_hex.str()
+                            << " fault_id=" << ptag
+                            << " pf_request_id=" << pfid << "\n";
+                    }
                     h5->notePropEvt("pf_train", {
                         {"fault_id", std::to_string(ptag)},
                         {"pf_request_id", std::to_string(pfid)},
                         {"pc", pc_hex.str()},
                         {"va", addr_hex.str()},
                         {"field", "queue_select"},
-                        {"before", "0"},
-                        {"after", "1"},
+                        {"before", dis_hex.str()},
+                        {"after", addr_hex.str()},
                     });
                     h5->notePropEvt("pf_queue", {
                         {"fault_id", std::to_string(ptag)},
@@ -235,15 +280,17 @@ namespace gem5
                         {"entry_index", std::to_string(qidx)},
                         {"va", addr_hex.str()},
                         {"field", "queue_select"},
-                        {"before", "head"},
-                        {"after", "wrong"},
+                        {"before", dis_hex.str()},
+                        {"after", addr_hex.str()},
                         {"state_after", "wrong_selected"},
                     });
                 }
             }
-            logInjection("P04_queue_select", qaddr,
-                "queue head replaced by another live entry (index " +
-                std::to_string(qidx) + ")");
+            std::ostringstream select_detail;
+            select_detail << "queue head 0x" << std::hex << displaced_addr
+                          << " replaced by live entry 0x" << qaddr
+                          << " (index " << std::dec << qidx << ")";
+            logInjection("P04_queue_select", qaddr, select_detail.str());
             return;
         }
 

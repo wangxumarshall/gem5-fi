@@ -258,8 +258,10 @@ Queued::chaosClearQueueValid(Addr &addr, Addr &pc)
     return -1;              // no live entry -> ineligible
 }
 
+Queued::ChaosQueueIssueObserver Queued::chaosQueueIssueObserver = nullptr;
+
 long
-Queued::chaosSelectWrongEntry(Addr &addr, Addr &pc)
+Queued::chaosSelectWrongEntry(Addr &addr, Addr &pc, Addr &displaced_addr)
 {
     auto first = pfq.end();
     auto second = pfq.end();
@@ -279,7 +281,22 @@ Queued::chaosSelectWrongEntry(Addr &addr, Addr &pc)
     std::iter_swap(first, second);
     addr = first->pfInfo.getAddr();
     pc = first->pfInfo.getPC();
+    displaced_addr = second->pfInfo.getAddr();
+    // Observation shadows: marked only; no queue content/pointer change.
+    first->chaosSelectedWrong = true;
+    second->chaosDisplacedHead = true;
     return (long)std::distance(pfq.begin(), first);
+}
+
+void
+Queued::chaosAnnotateSelection(uint64_t fault_id, uint64_t pfid)
+{
+    for (auto &d : pfq) {
+        if (d.chaosSelectedWrong || d.chaosDisplacedHead) {
+            d.chaosSelectionFaultId = fault_id;
+            d.chaosSelectionPfid = pfid;
+        }
+    }
 }
 
 PacketPtr
@@ -330,6 +347,22 @@ Queued::getPacket()
     if (pfq.empty()) {
         DPRINTF(HWPrefetch, "No hardware prefetches available.\n");
         return nullptr;
+    }
+
+    // [MDSPEC][R6-P-P04-c] Observation-only: report the REAL issue of the
+    // selected wrong entry and of the displaced correct head (which is
+    // issued later).  Both are still in the queue and are issued exactly
+    // once; the hook never alters the issue decision.  Null for every run
+    // without a P04-c injector.
+    const DeferredPacket &chaos_front = pfq.front();
+    if (Queued::chaosQueueIssueObserver &&
+            (chaos_front.chaosSelectedWrong || chaos_front.chaosDisplacedHead)) {
+        Queued::chaosQueueIssueObserver(
+            chaos_front.chaosSelectedWrong ? "wrong_selected"
+                                           : "head_issued_late",
+            chaos_front.pfInfo.getAddr(),
+            chaos_front.chaosSelectionFaultId,
+            chaos_front.chaosSelectionPfid);
     }
 
     PacketPtr pkt = pfq.front().pkt;

@@ -84,6 +84,18 @@ class Queued : public Base
         // issue path is byte-identical when no P04 fault is mounted.
         bool chaosQueueValid = true;
 
+        // [MDSPEC][R6-P-P04-c] Observation-only shadows for the
+        // entry-selection fault.  They never change the issue path; they let
+        // the injector record WHICH entry was swapped into the head and
+        // WHICH (correct) head was displaced, and prove at issue time that
+        // both were actually issued (one wrong-first, one late) instead of
+        // being dropped.  Default false / 0 => byte-identical when no P04-c
+        // fault is mounted.
+        bool chaosSelectedWrong = false;
+        bool chaosDisplacedHead = false;
+        uint64_t chaosSelectionFaultId = 0;
+        uint64_t chaosSelectionPfid = 0;
+
         /**
          * Constructor
          * @param o QueuedPrefetcher in charge of this request
@@ -231,7 +243,18 @@ class Queued : public Base
     // The correct head remains in the queue (moved behind it) — this is a
     // selection error, not a drop/dup.  Returns the selected (wrong) head
     // index, or -1 when fewer than two live entries exist.
-    long chaosSelectWrongEntry(Addr &addr, Addr &pc);
+    // displaced_addr receives the entry that WOULD have been issued
+    // (the original correct head); it stays queued and is issued later.
+    long chaosSelectWrongEntry(Addr &addr, Addr &pc, Addr &displaced_addr);
+    // Attach the fault identity to the two shadow-marked entries so the
+    // issue-time observer can report both real issues on the chain.
+    void chaosAnnotateSelection(uint64_t fault_id, uint64_t pfid);
+    // Observation-only real-issue observer (P04-c).  role is
+    // "wrong_selected" or "head_issued_late".  Null by default.
+    using ChaosQueueIssueObserver = void (*)(const char *role, Addr addr,
+                                             uint64_t fault_id,
+                                             uint64_t pfid);
+    static ChaosQueueIssueObserver chaosQueueIssueObserver;
     bool chaosHasTwoLiveEntries() const
     {
         int n = 0;

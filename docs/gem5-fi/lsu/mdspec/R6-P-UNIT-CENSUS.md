@@ -124,7 +124,7 @@ Root-cause and fix (C++ + campaign):
 
 | RunID | blocker |
 |---|---|
-| P04-F0/F5-W2/W8 (4) | **P04-a queue-valid implemented** (faithful shadow valid bit + real `Queued::getPacket` skip; pilot P04-F0-W2/W8 seed1 = `provable_to_L2_then_unknown`, performance-only, not certified). P04-b pointer / P04-c entry-selection NOT implemented; the old P04→P05 drop/dup routing is removed. |
+| P04-F0/F5-W2/W8 (4) | **P04-a queue-valid and P04-c entry-selection implemented** (faithful shadow valid bit + real `Queued::getPacket` skip; real `std::iter_swap` of two live entries with the correct head retained). P04-c is behavior-verified on binary `a0d0e8af…`: W2/W8 show the wrong entry issued first and the displaced head issued late, exactly reversing the no-fault control order, with both entries issued once (no drop/dup). Both pilots remain `provable_to_L2_then_unknown`, performance-only, NOT certified. **P04-b pointer NOT implemented**; P04-F5 not run; the old P04→P05 drop/dup routing is removed. |
 | P07-F0-W6/W8 (2) | campaign maps to classic CHAOSCache `l1d_target_field=tag`; prefetch response fill way/tag hook not implemented — not run |
 | P09-F0-W6/W8 (2) | campaign maps to `l1d_target_field=dirty`; prefetch-caused dirty-eviction writeback loss/done-early/clear not implemented — not run |
 | P09-F0-W13 (1) | PARSEC assets absent (plus model approximation above) — BLOCKED_ASSET |
@@ -154,6 +154,8 @@ new-binary product.
 | F0-gap (6 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-9dafb090` | `9dafb09011cda80cdb295397ed55b97660c4998dc2742654d78ec2dabef269c3` | `d3f7471b` | `campaign_f0gap_20261104`, `campaign_f0gap_seed23_20261104` |
 | P06 schema v2 (6 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-4f3db315` | `4f3db315686908ca9bb290a5c3e15426a52562c696594c4c2a415dd8e45caa2a` | `05793493` | `campaign_p06_schema2_20261104`, `campaign_p06_schema2_seed23_20261104` |
 | P04-a pilot (2 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-d97276d9` | `d97276d90b1c3e9dcfdba840d0d980796b5654703b3cec207fb2f85c916f7333` | `d9be2743` | `campaign_p04_20261104` (not certified) |
+| P04-c pilot (2 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-0cb5073d` | `0cb5073d8d7faec2425ef9f1ffc4fe03a18c70cc6f5416c894b0bda58d477396` | `53561cba` | `campaign_p04c_20261104` (not certified) |
+| P04-c behavior verification (2 pilots + 2 controls) | `runs/lsu/r6_p_unit/binaries/gem5.opt-a0d0e8af` | `a0d0e8af9d2242dd6250c24f48bdecf396e4bcc6c220dbbc6e331b65f49cd687` | `5d6399d8` + P04-c observation patch | `campaign_p04c_behavior_20261104` (not certified) |
 | intermediate (NOT final) | `runs/lsu/r6_p_unit/binaries/gem5.opt-587ea8c3` | `587ea8c34db022edddb10828463621270d27c45944514f0234c65f30d3c5ad6d` | `3f0a5589` | none; never cited as evidence |
 
 The takeover worktree's `CHAOS/gem5/build/ARM/gem5.opt` currently hashes to

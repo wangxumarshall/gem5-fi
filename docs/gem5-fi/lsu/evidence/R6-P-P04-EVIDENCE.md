@@ -84,3 +84,97 @@ still not implemented.
   claim that the fault can never affect a later demand (the correct head was
   delayed, not dropped). Not certified; no fabricated L5; general admission
   and COMPLETE counts are unchanged.
+
+---
+
+## P04-c behavioral verification — real issue reversal (2026-11-04 takeover)
+
+**Status: IMPLEMENTED / BEHAVIOR-VERIFIED PILOT / NOT CERTIFIED.** This
+section answers the fidelity question with runtime behavior, not source
+string matching.
+
+### What the authoritative model requires
+
+Sheet 03 P04: queue entry/valid/head-tail pointers; P04-c = "选择另一个
+合法队列项" (select another legal queue entry); activation only when the
+queue is non-empty and the fault value is actually read/selected/consumed
+downstream. The model must not be a P05 drop/dup.
+
+### What the implementation does
+
+`Queued::chaosSelectWrongEntry` scans the live queue (valid shadow bits),
+takes the first live entry (the correct head) and the second live entry,
+and swaps only their list positions (`std::iter_swap`). No entry is erased,
+no field (address/PC/priority/valid) is changed, and the queue length is
+unchanged. `getPacket` issues `pfq.front()` as usual, so the second entry
+is issued first and the correct head is issued later.
+
+Trigger position: `CHAOSPrefetch::maybeCorrupt` is called at the tail of
+`Stride::calculatePrefetch`, i.e. on the already-queued entries of earlier
+accesses, before this access's new candidates are inserted. Eligibility is
+`chaosHasTwoLiveEntries()` (>= 2 live entries).
+
+### Normal-scheduling comparison (control)
+
+`addToQueue` keeps the queue priority-ordered; `alreadyInQueue` can move an
+entry forward only when that same entry's priority is updated. Neither
+changes the identity of the entry at the head. The fault instead swaps two
+distinct live entries with unchanged priorities. A no-fault control with
+the same binary/mode/seed (`span=1e9`, no fire) shows the normal order:
+
+```
+148525301: ... Generating prefetch for 0x77980.
+148525302: ... Generating prefetch for 0x77b40.
+```
+W8 control: `0x76980` then `0x76b40`.
+
+### Fault run (real behavior log, new evidence)
+
+Binary `runs/lsu/r6_p_unit/binaries/gem5.opt-a0d0e8af`, sha256
+`a0d0e8af9d2242dd6250c24f48bdecf396e4bcc6c220dbbc6e331b65f49cd687`,
+source head `5d6399d8` + this patch. Evidence:
+`runs/lsu/r6_p_unit/campaign_p04c_behavior_20261104/`.
+
+W2 (`P04C-F0-W2`, seed1, span=2):
+
+```
+Tick: 148525300 event=select head=0x77980 second=0x77b40 fault_id=1 pf_request_id=4294967297
+Tick: 148525301 event=issue role=wrong_selected va=0x77b40 fault_id=1 pf_request_id=4294967297
+Tick: 148525302 event=issue role=head_issued_late va=0x77980 fault_id=1 pf_request_id=4294967297
+```
+
+W8 (`P04C-F0-W8`, seed1, span=2):
+
+```
+Tick: 107286025 event=select head=0x76980 second=0x76b40 fault_id=1 pf_request_id=4294967297
+Tick: 107286026 event=issue role=wrong_selected va=0x76b40 fault_id=1 pf_request_id=4294967297
+Tick: 107286027 event=issue role=head_issued_late va=0x76980 fault_id=1 pf_request_id=4294967297
+```
+
+This is a decisive behavioral result:
+- the correct head (`0x77980`/`0x76980`) is **retained** in the queue;
+- the second legal entry (`0x77b40`/`0x76b40`) is **issued first** (wrong
+  selection), then the correct head is issued late;
+- both entries are issued exactly once (queue conservation, no drop/dup);
+- the issue order is exactly reversed relative to the no-fault control.
+
+The propagation stream now carries the two identities
+(`field=queue_select before=<head> after=<second>`,
+`state_after=wrong_selected`) and the existing `pf_issue` node records the
+real wrong-entry issue. Tests in `tests/test_lsu_hook_p04.py` parse the
+behavior log and assert the order, not source strings.
+
+### RunID mapping (no new official RunIDs)
+
+`P04C-F0-W2` / `P04C-F0-W8` are **submodel pilot labels only**. They map to
+the authoritative RunIDs `P04-F0-W2` / `P04-F0-W8` and are not counted as
+new RunIDs or seeds. The authoritative P04 RunIDs remain not certified
+(terminal `provable_to_L2_then_unknown`; no L3/L5 observed, no
+architectural-impact claim).
+
+### Honest boundary
+
+No L3/L5 event was observed. The correct head was delayed, not dropped, so
+the pilot cannot and does not claim "no architectural effect"; it only
+proves that the P04-c mechanism is a real entry-selection error. P04-b
+(pointer) is still not implemented; P04-F5 has not been run.

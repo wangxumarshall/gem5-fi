@@ -133,6 +133,15 @@ class CHAOSPrefetch : public SimObject
     // it — still one cache).
     static CHAOSPrefetch *fillMarkHook;
 
+    // [MDSPEC][R6-P-P04-c] Observation-only issue recorder.  The injector
+    // installs this as Queued::chaosQueueIssueObserver in p04_queue_select
+    // mode; it records the REAL issue order of the swapped entry and of the
+    // displaced correct head.  It never changes the issue decision and is
+    // null for every other mode.
+    static void p04ObserveIssue(const char *role, Addr addr,
+                                uint64_t fault_id, uint64_t pfid);
+    static OutputStream *p04BehaviorStream;
+
   private:
     static ChaOSLsuTier tierFromString(const std::string &s);
     static ChaOSLsuEvent eventFromString(const std::string &s);
