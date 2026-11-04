@@ -168,7 +168,8 @@ class CHAOSPrefetch : public SimObject
     static CHAOSPrefetch *fillWayHook;
     bool maybeMispairFillTag(Addr fill_addr, unsigned fill_set,
                              unsigned fill_way, Addr partner_addr,
-                             unsigned partner_set, unsigned partner_way);
+                             unsigned partner_set, unsigned partner_way,
+                             bool fill_dirty, bool partner_dirty);
 
   private:
     static ChaOSLsuTier tierFromString(const std::string &s);

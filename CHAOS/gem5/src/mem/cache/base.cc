@@ -2056,7 +2056,9 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             CHAOSPrefetch::fillWayHook->maybeMispairFillTag(
                 addr, blk->getSet(), blk->getWay(),
                 regenerateBlkAddr(chaos_partner), chaos_partner->getSet(),
-                chaos_partner->getWay())) {
+                chaos_partner->getWay(),
+                blk->isSet(CacheBlk::DirtyBit),
+                chaos_partner->isSet(CacheBlk::DirtyBit))) {
             const Addr chaos_tag = blk->getTag();
             blk->chaosSetTag(chaos_partner->getTag());
             chaos_partner->chaosSetTag(chaos_tag);

@@ -1900,6 +1900,12 @@ PF_F0_SPAN = {
     # warmup=1 + span=N guarantees the draw lands (N=2 -> next_fire in {1,2}).
     ("P04", "beebs_kernels"): 2,       # W2
     ("P04", "prefetch_stride"): 2,     # W8
+    # [R6-P-P07-b 2026-11-04] P07-b eligible = pure-prefetch fill with a
+    # distinct valid same-set partner, exact absolute command (span=1e9):
+    #   cache_dirtyevict: attempted=2 eligible=2
+    #   prefetch_stride : attempted=5 eligible=5
+    ("P07", "cache_dirtyevict"): 2,    # W6
+    ("P07", "prefetch_stride"): 5,     # W8
 }
 
 
@@ -1925,7 +1931,12 @@ def _prefetch_tier_flags(model, tier, wl_binary=None):
         span = PF_F0_SPAN.get((model, wl_binary))
         if span is None:
             return None
-        warmup = "1" if model == "P06" else "0"
+        # [R6-P-P07-b 2026-11-04] P07's census/frozen rule is warmup=1
+        # (same shape as P06); the legacy P01-P05 runs keep warmup=0 so
+        # their historical evidence is not reinterpreted.  With W6's
+        # 2-event eligible stream this also gives seed diversity across
+        # the 1..2 draw instead of every seed landing on the first event.
+        warmup = "1" if model in {"P06", "P07"} else "0"
         return ["--prefetch_lsu_tier", tier,
                 "--prefetch_warmup_events", warmup,
                 "--prefetch_span_events", str(span)]

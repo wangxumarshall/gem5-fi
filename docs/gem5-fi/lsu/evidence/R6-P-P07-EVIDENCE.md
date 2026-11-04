@@ -1,11 +1,19 @@
 # R6-P-P07 — prefetch-response fill tag/way mispair (P07-b)
 
-**Status: IMPLEMENTED / SEED1 PILOT / NOT CERTIFIED.**
-The authoritative B0 W6/W8 runs have a real eligible stream (W6=2, W8=5
-pure-prefetch fills with a distinct same-set partner). The seed1 pilots
-show the real tag exchange and subsequent demand misses, but the workload
-output hashes stay at the golden values, so **no SDC is claimed**; seeds
-2/3 were not run.
+**Status: P07-F0-W6 CERTIFIED 3/3 as PARTIAL_SUBMODEL (P07-b only);
+P07-F0-W8 remains an unadmitted L1 diagnostic.**
+Formal campaign `campaign_p07_formal_v2_20261104` (binary
+`gem5.opt-91c0e030`, sha256
+`91c0e030bade715e13a6f1b227a5652e810ddefcd7f198e9319282849a6aa818`):
+all three W6 seeds `admitted=True`, `certified=True`, oracle `Masked`,
+terminal `full`/L5, 268 events, no truncation, gzip/stats/exit OK.
+W6 has only 2 eligible fills, so seeds 1/3 sample the first
+(tick 34086360) and seed 2 the second (34091365) — two distinct injection
+points by pigeonhole, each an independent RNG draw. W8 (eligible=5) still
+has no downstream consumer and stays `provable_to_L1_then_unknown`,
+not admitted. No SDC is claimed: the W6 guest output hash remains the
+golden `062e5124df3667f9`, and the real `errant_commit` is a tainted
+commit whose value did not change the final output.
 
 ## 1. Model
 

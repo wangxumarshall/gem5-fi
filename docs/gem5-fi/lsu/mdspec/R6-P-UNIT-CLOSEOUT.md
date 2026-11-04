@@ -1,13 +1,17 @@
 # R6-P-UNIT — partial closeout (2026-11-04)
 
-**Status: PARTIAL — 13 RunIDs × 3 seeds (39 seeds) certified as
-PARTIAL_SUBMODEL: 9 F0 + 4 F5. 10 of the 23 P-F0/F5 RunIDs remain
+**Status: PARTIAL — 14 RunIDs × 3 seeds (42 seeds) certified as
+PARTIAL_SUBMODEL: 10 F0 + 4 F5. 9 of the 23 P-F0/F5 RunIDs remain
 blocked/not certifiable. The full P unit (53 RunIDs across F0–F6) is not
 complete and is not claimed complete.**
 
 ## Completed
 
-- 13 RunIDs, 39 seeds, checker `admitted=True` / `certified=True`.
+- 14 RunIDs, 42 seeds, checker `admitted=True` / `certified=True`.
+  - `P07-F0-W6` (new, PARTIAL_SUBMODEL P07-b): formal campaign 3/3, oracle
+    Masked, full L5, output hash golden (no SDC claim). W6 has 2 eligible
+    events; seeds 1/3 sample the first and seed 2 the second. P07-F0-W8
+    remains an unadmitted L1 diagnostic.
 - F0 (9): `P01-F0-W8`, `P02-F0-W8`, `P02-F0-W10`, `P05-F0-W8`,
   `P05-F0-W10`, the F0-gap batch `P01-F0-W2` / `P03-F0-W8`, and the
   schema-v2 batch `P06-F0-W6` / `P06-F0-W8`.

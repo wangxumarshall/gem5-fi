@@ -635,7 +635,8 @@ namespace gem5
     CHAOSPrefetch::maybeMispairFillTag(Addr fill_addr, unsigned fill_set,
                                        unsigned fill_way, Addr partner_addr,
                                        unsigned partner_set,
-                                       unsigned partner_way)
+                                       unsigned partner_way,
+                                       bool fill_dirty, bool partner_dirty)
     {
         if (fi_mode != Mode::P07FillTagMispair) return false;
         if (max_faults != 0 && faults_injected >= max_faults) return false;
@@ -674,6 +675,15 @@ namespace gem5
                     {"field", "fill_way_tag"},
                     {"before", fhex.str()},
                     {"after", phex.str()},
+                    // Both blocks are same-secure by caller construction.
+                    // Record each side's dirty state: a dirty side's data
+                    // will later be written back under the swapped tag,
+                    // which is the intended mispair consequence, not an
+                    // extra operation.
+                    {"state_before", std::string(fill_dirty ? "dirty"
+                                                            : "clean") +
+                                     "/" + (partner_dirty ? "dirty"
+                                                          : "clean")},
                     {"state_after", "tag_mispair"},
                 });
             }

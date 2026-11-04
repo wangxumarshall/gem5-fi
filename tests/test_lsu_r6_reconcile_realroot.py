@@ -440,17 +440,21 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
     # `p07_fill_tag_mispair` prefetch mode, so its two F0 rows resolve
     # BLOCKED(F0-span-unmeasured): EVIDENCE-MISSING 199->197,
     # UNRESOLVED 8->10.  Stricter, not relaxed.
-    check("已评估=64 / 未准入(有样本)=48 / 无样本=197（A04/A06 2 项 + P09 2 项 + P07 2 项 UNRESOLVED）",
+    # [R6-P-P07-FORMAL 2026-11-04] P07-F0-W6 now has a certified 3/3
+    # formal campaign (P07-b).  The derived realroot snapshot moves one
+    # P07 row accordingly: EVIDENCE-MISSING 197->199, UNRESOLVED 10->8.
+    # P07-F0-W8 stays an unadmitted L1 diagnostic; READY is still T05 only.
+    check("已评估=64 / 未准入(有样本)=48 / 无样本=199（P07-F0-W6 已认证后的派生快照）",
           cg["evaluated"] == 64 and cg["unproven"] == 48
-          and cg["evidence_missing"] == 197
-          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 197
+          and cg["evidence_missing"] == 199
+          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 199
           and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 48,
           str({k: cg[k] for k in ("evaluated", "unproven", "evidence_missing")}))
     check("上游独立阻塞分类（RULING6/FS-INFRA13/MODE-UNIMPL0/"
-          "UNRESOLVED10/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
+          "UNRESOLVED8/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
           all(doc["blocked_by_category"].get(k, 0) == v for k, v in
               (("RULING", 6), ("FS-INFRA", 13), ("MODE-UNIMPL", 0),
-               ("UNRESOLVED", 10), ("FS-MULTICORE", 35), ("LICENSE", 12),
+               ("UNRESOLVED", 8), ("FS-MULTICORE", 35), ("LICENSE", 12),
                ("WORKLOAD-GAP", 3)))
           and doc["blocked_by_category"].get("TIER-UNIMPL", 0) == 0,
           str(doc["blocked_by_category"]))
