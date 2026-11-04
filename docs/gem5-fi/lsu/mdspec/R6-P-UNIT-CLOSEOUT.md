@@ -38,9 +38,15 @@ complete and is not claimed complete.**
   exact-command census; the demand precedes the prefetch fill, so the chain
   remains L2). No admission rule was loosened and no unknown was rewritten as
   contained.
-- **Model substitution avoided:** P04 (mapped to P05 drop/dup), P07/P09 (mapped
-  to classic CHAOSCache tag/dirty) are not the authoritative prefetch models and
-  were not run.
+- **P04-a implemented (pilot only):** the queue-valid model now uses a real
+  shadow valid bit and a real `Queued::getPacket` skip (no P05 drop/dup
+  substitution). P04-F0-W2/W8 seed1 pilot: `P04_queue_valid` injection, L0
+  inj → L1 `pf_train(queue valid→invalid)` → L2 `pf_queue(queue_valid 1→0)` →
+  L2 `invalid_skipped`, terminal `provable_to_L2_then_unknown`, oracle Masked,
+  not admitted (a skipped prefetch has no architectural data effect). P04-b
+  pointer and P04-c entry-selection remain unimplemented.
+- **Model substitution avoided:** P07/P09 (mapped to classic CHAOSCache
+  tag/dirty) are not the authoritative prefetch models and were not run.
 - **Asset:** P09-F0-W13 requires PARSEC, absent in this repository.
 
 ## Partial-submodel boundaries

@@ -111,7 +111,7 @@ Root-cause and fix (C++ + campaign):
 
 | RunID | blocker |
 |---|---|
-| P04-F0/F5-W2/W8 (4) | campaign maps P04 to `p05_drop_dup`; queue valid/pointer/select model not implemented — fault-model substitution, not run |
+| P04-F0/F5-W2/W8 (4) | **P04-a queue-valid implemented** (faithful shadow valid bit + real `Queued::getPacket` skip; pilot P04-F0-W2/W8 seed1 = `provable_to_L2_then_unknown`, performance-only, not certified). P04-b pointer / P04-c entry-selection NOT implemented; the old P04→P05 drop/dup routing is removed. |
 | P07-F0-W6/W8 (2) | campaign maps to classic CHAOSCache `l1d_target_field=tag`; prefetch response fill way/tag hook not implemented — not run |
 | P09-F0-W6/W8 (2) | campaign maps to `l1d_target_field=dirty`; prefetch-caused dirty-eviction writeback loss/done-early/clear not implemented — not run |
 | P09-F0-W13 (1) | PARSEC assets absent (plus model approximation above) — BLOCKED_ASSET |
@@ -123,8 +123,10 @@ Root-cause and fix (C++ + campaign):
 - F0 local blocks: 3 RunIDs (P03-W9 cross-branch L5 not bridged; P06-W6 full
   chain but pf-L1 admission rule; P06-W8 injection fixed, demand-before-fill
   leaves the chain at L2). None of these is written up as contained or SDC.
-- Model not faithful / not implemented: 8 RunIDs (P04 F0/F5 queue; P07 F0
-  fill-way/tag; P09 F0 dirty-writeback), plus P09-W13 asset missing.
+- Model partial / not implemented: P04-a queue-valid is now implemented and
+  piloted (P04-F0-W2/W8 seed1, L0→L2, performance-only, not certified);
+  P04-b/c remain unimplemented. P07 F0 fill-way/tag and P09 F0
+  dirty-writeback remain not implemented; P09-W13 asset missing.
 - The authoritative P unit has **53** RunIDs across F0–F6; this round completed
   only the above subset. No claim of full P-unit completion.
 
