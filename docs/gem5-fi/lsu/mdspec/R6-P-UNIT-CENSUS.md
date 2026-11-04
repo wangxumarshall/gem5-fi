@@ -124,7 +124,7 @@ Root-cause and fix (C++ + campaign):
 
 | RunID | blocker |
 |---|---|
-| P04-F0/F5-W2/W8 (4) | **P04-a queue-valid and P04-c entry-selection implemented** (faithful shadow valid bit + real `Queued::getPacket` skip; real `std::iter_swap` of two live entries with the correct head retained). P04-c is behavior-verified on binary `a0d0e8af…`: W2/W8 show the wrong entry issued first and the displaced head issued late, exactly reversing the no-fault control order, with both entries issued once (no drop/dup). Both pilots remain `provable_to_L2_then_unknown`, performance-only, NOT certified. **P04-b pointer NOT implemented**; P04-F5 not run; the old P04→P05 drop/dup routing is removed. |
+| P04-F0/F5-W2/W8 (4) | **P04-a queue-valid, P04-b pointer, and P04-c entry-selection implemented.** P04-a: shadow valid bit + real `Queued::getPacket` skip. P04-b: one-shot tail-pointer -1 insertion (new entry inserted before the tail; every entry retained, no drop/dup). P04-c: `std::iter_swap` of two live entries with the correct head retained. P04-c is behavior-verified on binary `a0d0e8af…` (wrong entry issued first, displaced head late; exact reversal of the no-fault control, both once). P04-b is behavior-verified on binary `f52461b5…` (arm tail=0x77ec0/0x76ec0, insert=0x77580/0x76580, size=4; inserted entry issued first, former tail late; no-fault controls show tail-first; both once). Both pilots remain `provable_to_L2_then_unknown`, performance-only, NOT certified; seeds 2/3 not run. **P04-F5 not run** (permanent semantics not established); the old P04→P05 drop/dup routing is removed. |
 | P07-F0-W6/W8 (2) | campaign maps to classic CHAOSCache `l1d_target_field=tag`; prefetch response fill way/tag hook not implemented — not run |
 | P09-F0-W6/W8 (2) | campaign maps to `l1d_target_field=dirty`; prefetch-caused dirty-eviction writeback loss/done-early/clear not implemented — not run |
 | P09-F0-W13 (1) | PARSEC assets absent (plus model approximation above) — BLOCKED_ASSET |
@@ -156,6 +156,7 @@ new-binary product.
 | P04-a pilot (2 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-d97276d9` | `d97276d90b1c3e9dcfdba840d0d980796b5654703b3cec207fb2f85c916f7333` | `d9be2743` | `campaign_p04_20261104` (not certified) |
 | P04-c pilot (2 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-0cb5073d` | `0cb5073d8d7faec2425ef9f1ffc4fe03a18c70cc6f5416c894b0bda58d477396` | `53561cba` | `campaign_p04c_20261104` (not certified) |
 | P04-c behavior verification (2 pilots + 2 controls) | `runs/lsu/r6_p_unit/binaries/gem5.opt-a0d0e8af` | `a0d0e8af9d2242dd6250c24f48bdecf396e4bcc6c220dbbc6e331b65f49cd687` | `5d6399d8` + P04-c observation patch | `campaign_p04c_behavior_20261104` (not certified) |
+| P04-b pointer pilot (2 pilots + 2 controls) | `runs/lsu/r6_p_unit/binaries/gem5.opt-f52461b5` | `f52461b56a7758c366d54d2c4a4f5915e528025c7e3931f82378931a128dc4a9` | `a4c0d088` + P04-b patch | `campaign_p04b_20261104`, `census_p04b_20261104` (not certified) |
 | intermediate (NOT final) | `runs/lsu/r6_p_unit/binaries/gem5.opt-587ea8c3` | `587ea8c34db022edddb10828463621270d27c45944514f0234c65f30d3c5ad6d` | `3f0a5589` | none; never cited as evidence |
 
 The takeover worktree's `CHAOS/gem5/build/ARM/gem5.opt` currently hashes to

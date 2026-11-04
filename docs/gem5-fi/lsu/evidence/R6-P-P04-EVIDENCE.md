@@ -176,5 +176,77 @@ architectural-impact claim).
 
 No L3/L5 event was observed. The correct head was delayed, not dropped, so
 the pilot cannot and does not claim "no architectural effect"; it only
-proves that the P04-c mechanism is a real entry-selection error. P04-b
-(pointer) is still not implemented; P04-F5 has not been run.
+proves that the P04-c mechanism is a real entry-selection error. P04-b is
+implemented in the next section; P04-F5 has not been run.
+
+---
+
+## P04-b tail-pointer -1 — implementation and behavior (2026-11-04)
+
+**Status: IMPLEMENTED / BEHAVIOR-VERIFIED PILOT / NOT CERTIFIED.**
+
+### Model
+
+Sheet 03 P04-b is a queue pointer error (±1). The implementation arms a
+one-shot `chaosTailPointerBack` on the prefetch queue; the next
+`addToQueue(pfq, ...)` inserts the new prefetch **before the current tail**
+instead of at the back/priority position. No entry is erased, no entry is
+duplicated, and no address/PC/priority field is changed: the inserted entry
+and the former tail are both retained and both issued, only the order
+changes. Eligibility requires a queue with at least two entries (a tail
+distinct from the head) and a pending generated prefetch.
+
+This is not the P05 drop/dup approximation: the new entry is added exactly
+once and no existing entry is removed; the fault is a pointer position
+error (`tail-1`).
+
+### Binary / census / evidence
+
+- Binary `runs/lsu/r6_p_unit/binaries/gem5.opt-f52461b5`, sha256
+  `f52461b56a7758c366d54d2c4a4f5915e528025c7e3931f82378931a128dc4a9`,
+  source head `a4c0d088` + this patch. Build log
+  `r6o-logs/p04b_build2.log` (zero introduced warnings).
+- Exact absolute-command no-fault census (`span=1e9`, seed 1):
+  `census_p04b_20261104/` — W2 `attempted=143 eligible=1`, W8
+  `attempted=131 eligible=1`. Frozen `warmup=1, span=1` (draw always lands).
+- Fault pilots: `runs/lsu/r6_p_unit/campaign_p04b_20261104/`.
+
+### Real behavior (seed1)
+
+W2 (`P04B-F0-W2`):
+
+```
+Tick: 148525300 event=arm tail=0x77ec0 insert=0x77580 size=4 fault_id=1 pf_request_id=4294967297
+Tick: 148525686 event=issue role=pointer_inserted va=0x77580 fault_id=1 pf_request_id=4294967297
+Tick: 148525687 event=issue role=pointer_tail_shifted va=0x77ec0 fault_id=1 pf_request_id=4294967297
+```
+
+W8 (`P04B-F0-W8`):
+
+```
+Tick: 107286025 event=arm tail=0x76ec0 insert=0x76580 size=4 fault_id=1 pf_request_id=4294967297
+Tick: 107286410 event=issue role=pointer_inserted va=0x76580 fault_id=1 pf_request_id=4294967297
+Tick: 107286411 event=issue role=pointer_tail_shifted va=0x76ec0 fault_id=1 pf_request_id=4294967297
+```
+
+No-fault controls (`control_W2_nofault`, `control_W8_nofault`, HWPrefetch
+debug) show the normal order tail-first:
+
+```
+W2: 148525686 Generating prefetch for 0x77ec0; 148525687 ... 0x77580
+W8: 107286029 Generating prefetch for 0x76ec0; 107286410 ... 0x76580
+```
+
+The fault reverses the relative order of the inserted entry and the former
+tail; both issue exactly once. Propagation events:
+`field=queue_pointer`, `before=<tail index>`, `after=<tail-1 index>`,
+`state_after=tail_minus_one`.
+
+### RunID mapping and boundary
+
+`P04B-F0-W2` / `P04B-F0-W8` are submodel pilot labels mapping to the
+authoritative `P04-F0-W2` / `P04-F0-W8`; they are not new official RunIDs
+or seeds. Terminal `provable_to_L2_then_unknown`, not admitted, no L3/L5
+observed; no architectural-impact claim. Seeds 2/3 were not run (pilot
+only). P04-F5 permanent semantics have not been established and are not
+run.

@@ -96,6 +96,13 @@ class Queued : public Base
         uint64_t chaosSelectionFaultId = 0;
         uint64_t chaosSelectionPfid = 0;
 
+        // [MDSPEC][R6-P-P04-b] Observation-only shadows for the tail-pointer
+        // -1 fault: the newly inserted entry and the entry it was inserted
+        // in front of.  Both remain in the queue and are issued once; the
+        // flags only let the injector record the real issue order.
+        bool chaosPointerInserted = false;
+        bool chaosPointerShifted = false;
+
         /**
          * Constructor
          * @param o QueuedPrefetcher in charge of this request
@@ -255,6 +262,23 @@ class Queued : public Base
                                              uint64_t fault_id,
                                              uint64_t pfid);
     static ChaosQueueIssueObserver chaosQueueIssueObserver;
+    // [MDSPEC][R6-P-P04-b] Arm a one-shot tail-pointer -1 insertion: the
+    // next addToQueue(pfq, ...) inserts BEFORE the current tail (tail-1),
+    // preserving every entry (no drop/dup).  The fault identity is attached
+    // to the inserted entry and the shifted former tail for issue-time
+    // observation.
+    void chaosArmTailPointerBack(uint64_t fault_id, uint64_t pfid)
+    {
+        chaosTailBack = true;
+        chaosPendingFaultId = fault_id;
+        chaosPendingPfid = pfid;
+    }
+    bool chaosTailPointerArmed() const { return chaosTailBack; }
+    Addr chaosTailAddr() const
+    {
+        return pfq.empty() ? 0 : pfq.back().pfInfo.getAddr();
+    }
+    size_t chaosQueueSize() const { return pfq.size(); }
     bool chaosHasTwoLiveEntries() const
     {
         int n = 0;
@@ -273,6 +297,11 @@ class Queued : public Base
     void printQueue(const std::list<DeferredPacket> &queue) const;
 
   private:
+
+    // [MDSPEC][R6-P-P04-b] One-shot tail-pointer -1 state.
+    bool chaosTailBack = false;
+    uint64_t chaosPendingFaultId = 0;
+    uint64_t chaosPendingPfid = 0;
 
     /**
      * Adds a DeferredPacket to the specified queue

@@ -177,6 +177,63 @@ def main():
               and "state_after=wrong_selected" in text
               and "state_after=issued" in text, "events missing")
 
+    print("[5] P04-b tail-pointer -1 submodel + behavior")
+    check("Mode P04QueuePointer + p04_queue_pointer 映射",
+          "P04QueuePointer" in src("CHAOS/gem5/src/mem/cache/prefetch/"
+                                   "CHAOSPrefetch/CHAOSPrefetch.hh")
+          and 'if (s == "p04_queue_pointer")      return Mode::P04QueuePointer;'
+          in pcc2, "mode missing")
+    check("Queued 暴露 arm/tail/size 且 addToQueue 插入 tail-1",
+          "chaosArmTailPointerBack" in qhh2
+          and "chaosTailAddr" in qhh2 and "chaosQueueSize" in qhh2
+          and "&queue == &pfq && chaosTailBack" in qcc2
+          and "--pos;" in qcc2 and "queue.insert(pos, dpp)" in qcc2,
+          "tail-pointer impl missing")
+    check("choices 含 p04_queue_pointer",
+          "p04_queue_pointer" in src("configs/se/lsu_proxy.py"), "missing")
+    base3 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+                 "campaign_p04b_20261104")
+    for rid, w in (("P04B-F0-W2", "W2"), ("P04B-F0-W8", "W8")):
+        sd = base3 / rid / "seed1"
+        if not (sd / "p04b_queue_behavior.log").is_file():
+            print(f"  SKIP {rid} 证据不在（{sd}）")
+            continue
+        inj = (sd / "prefetch_injections.log").read_text().strip()
+        check(f"{rid} 注入行 = P04_queue_pointer", "P04_queue_pointer" in inj,
+              inj)
+        beh = (sd / "p04b_queue_behavior.log").read_text()
+        m = re.search(r"event=arm tail=(0x[0-9a-f]+) insert=(0x[0-9a-f]+) "
+                      r"size=(\d+)", beh)
+        check(f"{rid} arm 记录 tail/insert 不同且 size>=2",
+              m is not None and m.group(1) != m.group(2)
+              and int(m.group(3)) >= 2, beh)
+        if m:
+            tail, ins = m.group(1), m.group(2)
+            issues = re.findall(
+                r"Tick: (\d+) event=issue role=(\w+) va=(0x[0-9a-f]+)", beh)
+            check(f"{rid} 新条目先于原 tail 真实发行（顺序反转）",
+                  len(issues) == 2
+                  and issues[0][1] == "pointer_inserted"
+                  and issues[0][2] == ins
+                  and issues[1][1] == "pointer_tail_shifted"
+                  and issues[1][2] == tail
+                  and int(issues[0][0]) < int(issues[1][0]), beh)
+            check(f"{rid} 插入项与原 tail 各发行一次（无 drop/dup）",
+                  len([i for i in issues if i[1] == "pointer_inserted"]) == 1
+                  and len([i for i in issues
+                           if i[1] == "pointer_tail_shifted"]) == 1, beh)
+        ctl = base3 / f"control_{w}_nofault" / "hwprefetch.log"
+        if ctl.is_file() and m:
+            order = re.findall(
+                r"Generating prefetch for (0x[0-9a-f]+)", ctl.read_text())
+            order = [a for a in order if a in (m.group(1), m.group(2))]
+            check(f"{rid} 无故障对照为 tail 先、新条目后",
+                  order[:2] == [m.group(1), m.group(2)], str(order[:4]))
+        text = gzip.open(sd / "prop_evt.txt.gz", "rt").read()
+        check(f"{rid} 传播事件 queue_pointer tail_minus_one",
+              "field=queue_pointer" in text
+              and "state_after=tail_minus_one" in text, "events missing")
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

@@ -356,11 +356,15 @@ Queued::getPacket()
     // without a P04-c injector.
     const DeferredPacket &chaos_front = pfq.front();
     if (Queued::chaosQueueIssueObserver &&
-            (chaos_front.chaosSelectedWrong || chaos_front.chaosDisplacedHead)) {
+            (chaos_front.chaosSelectedWrong || chaos_front.chaosDisplacedHead
+             || chaos_front.chaosPointerInserted
+             || chaos_front.chaosPointerShifted)) {
+        const char *role = chaos_front.chaosSelectedWrong ? "wrong_selected"
+            : chaos_front.chaosDisplacedHead ? "head_issued_late"
+            : chaos_front.chaosPointerInserted ? "pointer_inserted"
+            : "pointer_tail_shifted";
         Queued::chaosQueueIssueObserver(
-            chaos_front.chaosSelectedWrong ? "wrong_selected"
-                                           : "head_issued_late",
-            chaos_front.pfInfo.getAddr(),
+            role, chaos_front.pfInfo.getAddr(),
             chaos_front.chaosSelectionFaultId,
             chaos_front.chaosSelectionPfid);
     }
@@ -714,6 +718,28 @@ Queued::addToQueue(std::list<DeferredPacket> &queue,
                             "oldest packet, addr: %#x\n",it->pfInfo.getAddr());
         delete it->pkt;
         queue.erase(it);
+    }
+
+    // [MDSPEC][R6-P-P04-b] Tail-pointer -1: insert BEFORE the current tail
+    // instead of at the back/priority position.  Every entry is preserved
+    // (no erase, no duplicate); only the issue order changes.  One-shot,
+    // armed by the injector immediately before this insertion.
+    if (&queue == &pfq && chaosTailBack) {
+        chaosTailBack = false;
+        if (!queue.empty()) {
+            auto pos = queue.end();
+            --pos;
+            auto ins = queue.insert(pos, dpp);
+            ins->chaosPointerInserted = true;
+            ins->chaosSelectionFaultId = chaosPendingFaultId;
+            ins->chaosSelectionPfid = chaosPendingPfid;
+            pos->chaosPointerShifted = true;
+            pos->chaosSelectionFaultId = chaosPendingFaultId;
+            pos->chaosSelectionPfid = chaosPendingPfid;
+            if (debug::HWPrefetchQueue)
+                printQueue(queue);
+            return;
+        }
     }
 
     if ((queue.size() == 0) || (dpp <= queue.back())) {

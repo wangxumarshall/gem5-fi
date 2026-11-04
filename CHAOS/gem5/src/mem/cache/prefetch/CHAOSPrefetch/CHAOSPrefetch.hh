@@ -86,7 +86,7 @@ class CHAOSPrefetch : public SimObject
   public:
     enum class Mode { P01StrideBitflip, P02ConfidenceCorrupt, P03AddrSubst,
                       P05DropDup, P08StrideStuck, P06AsDemand,
-                      P04QueueValid, P04QueueSelect };
+                      P04QueueValid, P04QueueSelect, P04QueuePointer };
     static Mode stringToMode(const std::string &s);
 
     CHAOSPrefetch(const CHAOSPrefetchParams &p);

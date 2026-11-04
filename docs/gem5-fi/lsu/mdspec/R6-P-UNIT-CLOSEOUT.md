@@ -49,10 +49,15 @@ complete and is not claimed complete.**
   binary `a0d0e8af…`: W2/W8 select `head=0x77980/0x76980`,
   `second=0x77b40/0x76b40`; the wrong entry is issued first and the correct
   head is issued late at the next tick, exactly reversing the no-fault
-  control order; both issue once. Both pilots terminate
-  `provable_to_L2_then_unknown`, oracle Masked, not admitted (no
-  architectural data effect observed). **P04-b pointer remains
-  unimplemented**; P04-F5 has not been run.
+  control order; both issue once. **P04-b pointer implemented** as a
+  one-shot tail-pointer -1 insertion (new entry inserted before the tail;
+  no erase/duplicate) and behavior-verified on binary `f52461b5…`:
+  W2/W8 arm with `tail=0x77ec0/0x76ec0`, `insert=0x77580/0x76580`,
+  `size=4`; the inserted entry issues before the former tail, while
+  no-fault controls issue tail-first; both entries issue once. All P04
+  pilots terminate `provable_to_L2_then_unknown`, oracle Masked, not
+  admitted (no architectural data effect observed). P04-F5 has not been
+  run; seeds 2/3 were not run for the pilots.
 - **Model substitution avoided:** P07/P09 (mapped to classic CHAOSCache
   tag/dirty) are not the authoritative prefetch models and were not run.
 - **Asset:** P09-F0-W13 requires PARSEC, absent in this repository.

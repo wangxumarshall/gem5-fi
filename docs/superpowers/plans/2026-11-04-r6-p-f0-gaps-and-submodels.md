@@ -528,10 +528,13 @@ Same shape as Task 7, one submodel per commit:
 
 ### Task 10: P04-b pointer submodel (next unit)
 
-- [ ] Implement a real tail-pointer -1 insertion fault (no drop/dup), with
-  L0/L1/L2 events and a behavior check; build/freeze a new binary.
-- [ ] Run the exact-command no-fault census for the F0 W2/W8 stream, freeze
-  the span, and run seed1 before seeds 2/3.
+- [x] Implement a real tail-pointer -1 insertion fault (no drop/dup), with
+  L0/L1/L2 events and a behavior check; build/freeze `gem5.opt-f52461b5`
+  (`f52461b56a7758c366d54d2c4a4f5915e528025c7e3931f82378931a128dc4a9`).
+- [x] Exact-command no-fault census: W2 eligible=1, W8 eligible=1; frozen
+  `warmup=1, span=1`. Seed1 pilots + no-fault controls show the issue-order
+  reversal (inserted entry first, former tail late); both issue once.
+- [ ] Seeds 2/3: not run (pilot only, terminal L2; no certification claim).
 
 ## Self-Review
 

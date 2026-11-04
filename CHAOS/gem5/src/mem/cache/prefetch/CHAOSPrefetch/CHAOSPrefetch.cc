@@ -57,6 +57,11 @@ namespace gem5
                 "p04c_queue_behavior.log", false, true);
             prefetch::Queued::chaosQueueIssueObserver =
                 &CHAOSPrefetch::p04ObserveIssue;
+        } else if (fi_mode == Mode::P04QueuePointer) {
+            p04BehaviorStream = simout.create(
+                "p04b_queue_behavior.log", false, true);
+            prefetch::Queued::chaosQueueIssueObserver =
+                &CHAOSPrefetch::p04ObserveIssue;
         }
     }
 
@@ -102,6 +107,7 @@ namespace gem5
         if (s == "p06_as_demand")          return Mode::P06AsDemand;
         if (s == "p04_queue_valid")        return Mode::P04QueueValid;
         if (s == "p04_queue_select")       return Mode::P04QueueSelect;
+        if (s == "p04_queue_pointer")      return Mode::P04QueuePointer;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
 
@@ -294,6 +300,75 @@ namespace gem5
             return;
         }
 
+        // [MDSPEC][R6-P-P04-b] P04-b tail-pointer -1 fault.  The next
+        // insertion into the prefetch queue lands BEFORE the current tail
+        // (tail-1) instead of at the back/priority position.  Every entry is
+        // preserved (no erase, no duplicate); only the issue order changes.
+        // Requires a tail distinct from the head (>= 2 live-size entries).
+        if (fi_mode == Mode::P04QueuePointer) {
+            if (max_faults != 0 && faults_injected >= max_faults) return;
+            trigger.onAttempt();
+            if (!queue || queue->chaosQueueSize() < 2 || addresses.empty())
+                return;
+            if (!trigger.onEligible()) return;
+            const Addr tail_addr = queue->chaosTailAddr();
+            const Addr new_addr = addresses.front().first;
+            const size_t qsize = queue->chaosQueueSize();
+            ++faults_injected;
+            if (trigger.tier == ChaOSLsuTier::F5)
+                trigger.noteOutcome(true);
+            if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+                const uint64_t ptag = h5->registerCacheFault(
+                    new_addr, -1, line_size, "prefetch");
+                if (ptag) {
+                    const uint64_t pfid = h5->notePrefetchRequest(
+                        new_addr, line_size);
+                    h5->registerPtagBlock(ptag, new_addr,
+                                          new_addr + line_size);
+                    h5->registerPtagPrefetch(pfid, new_addr, line_size);
+                    queue->chaosArmTailPointerBack(ptag, pfid);
+                    std::ostringstream new_hex, tail_hex;
+                    new_hex << std::hex << new_addr;
+                    tail_hex << std::hex << tail_addr;
+                    if (p04BehaviorStream && p04BehaviorStream->stream()) {
+                        (*p04BehaviorStream->stream())
+                            << "Tick: " << curTick()
+                            << " event=arm tail=0x" << tail_hex.str()
+                            << " insert=0x" << new_hex.str()
+                            << " size=" << qsize
+                            << " fault_id=" << ptag
+                            << " pf_request_id=" << pfid << "\n";
+                    }
+                    h5->notePropEvt("pf_train", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"va", new_hex.str()},
+                        {"field", "queue_pointer"},
+                        {"before", std::to_string(qsize - 1)},
+                        {"after", std::to_string(qsize - 2)},
+                    });
+                    h5->notePropEvt("pf_queue", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"corr", "origin"},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"entry_index", std::to_string(qsize - 1)},
+                        {"va", new_hex.str()},
+                        {"field", "queue_pointer"},
+                        {"before", std::to_string(qsize - 1)},
+                        {"after", std::to_string(qsize - 2)},
+                        {"state_after", "tail_minus_one"},
+                    });
+                }
+            }
+            std::ostringstream detail;
+            detail << "tail 0x" << std::hex << tail_addr
+                   << " -> insert 0x" << new_addr
+                   << " before tail (tail-1, size " << std::dec << qsize
+                   << ")";
+            logInjection("P04_queue_pointer", new_addr, detail.str());
+            return;
+        }
+
         trigger.onAttempt();
 
         // [MDSPEC][H5] Observation-only continuation (2026-10-20 finding).
@@ -362,6 +437,14 @@ namespace gem5
         const int h5_stride_before = entry ? entry->stride : 0;
 
         switch (fi_mode) {
+          // Handled above with an early return (their event source is a
+          // different hook).  Listed explicitly so the switch stays
+          // warning-clean as the mode enum grows.
+          case Mode::P06AsDemand:
+          case Mode::P04QueueValid:
+          case Mode::P04QueueSelect:
+          case Mode::P04QueuePointer:
+            break;
           case Mode::P01StrideBitflip: {
               // P01: training-entry stride single-bit XOR. Bits 0-30 only
               // (bit 31 = sign of int — flipping it yields a negative
