@@ -1,13 +1,21 @@
 # R6-P-UNIT — partial closeout (2026-11-04)
 
-**Status: PARTIAL — 5 F0 RunIDs × 3 seeds certified as PARTIAL_SUBMODEL; 18
-of the 23 P-F0/F5 RunIDs are blocked/not certifiable. The full P unit (53
-RunIDs across F0–F6) is not complete and is not claimed complete.**
+**Status: PARTIAL — 9 RunIDs × 3 seeds (27 seeds) certified as
+PARTIAL_SUBMODEL: 5 F0 + 4 F5. 14 of the 23 P-F0/F5 RunIDs remain
+blocked/not certifiable. The full P unit (53 RunIDs across F0–F6) is not
+complete and is not claimed complete.**
 
 ## Completed
 
-- 5 RunIDs, 15 seeds, checker `admitted=True` / `certified=True`:
-  `P01-F0-W8`, `P02-F0-W8`, `P02-F0-W10`, `P05-F0-W8`, `P05-F0-W10`.
+- 9 RunIDs, 27 seeds, checker `admitted=True` / `certified=True`.
+- F0 (5): `P01-F0-W8`, `P02-F0-W8`, `P02-F0-W10`, `P05-F0-W8`,
+  `P05-F0-W10`.
+- F5 permanent (4): `P02-F5-W8`, `P02-F5-W10`, `P08-F5-W8`, `P08-F5-W10`.
+  F5 was repaired in C++ + campaign: `--prefetch_max_faults 0`, per-fire
+  `noteOutcome(effective)`, effective-only fault registration, `pf_train` on
+  every effective fire. New frozen binary
+  `binaries/gem5.opt-8a2778d4` (sha256 `8a2778d4…`); all 12 F5 seeds are
+  full/L5, no truncation, `fires == injected + no_effect`.
 - All seeds: gzip EOF, stats non-zero, exit 0, not truncated; oracle Masked;
   terminal full or detected_contained at L5.
 - Per-seed docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/<RunID>-seedN.md`.
@@ -17,14 +25,13 @@ RunIDs across F0–F6) is not complete and is not claimed complete.**
 
 ## Not completed (exact reasons)
 
-- **F5 trigger accounting defect (P02-F5-W8/W10, P08-F5-W8/W10):** the injector
-  log and prop stream show one real injection with a full L5 chain, while the
-  trigger summary reports `fires=131/417 outcomes_recorded=0 injected=0` and the
-  campaign records `activated=0`. Seed2/3 were not run. This is an implementation
-  accounting/permanent-mode defect, not an oracle result.
-- **F0 chain not closed:** P01-F0-W2 (`L5_then_unknown`), P03-F0-W8/W9
-  (`L4_then_unknown`; P03-b cross-page also absent), P06-F0-W6
-  (`L0_then_unknown`), P06-F0-W8 (zero injection due to span/warmup fit).
+- **F0 chain not closed:** P01-F0-W2 (`L5_then_unknown`; the checker reports a
+  real errant-commit escape witness that outranks squash containment),
+  P03-F0-W8/W9 (`L4_then_unknown`; cross-branch L5 witness, P03-b cross-page
+  also absent), P06-F0-W6 (`L0_then_unknown`; fill-class mark has no later
+  consumption), P06-F0-W8 (sampling/edge case; a no-fire replay still exists,
+  and the chain remains L0-only). These are chain/observation semantics gaps,
+  not oracle rewrites.
 - **Model substitution avoided:** P04 (mapped to P05 drop/dup), P07/P09 (mapped
   to classic CHAOSCache tag/dirty) are not the authoritative prefetch models and
   were not run.

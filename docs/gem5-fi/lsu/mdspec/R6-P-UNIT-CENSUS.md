@@ -68,15 +68,38 @@ not truncated. Docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/`.
 | P06-F0-W6 | Masked, `provable_to_L0_then_unknown`, admitted=False | P06-a fill-class marking produced no L1.. chain (needs chain-model repair) |
 | P06-F0-W8 | zero events | span=32/warmup=1 draw 29 but formal stream observed 28 eligible — no fire; needs P06 span/warmup re-fit |
 
-### F5 measured — trigger accounting defect
+### F5 fixed and certified 3/3 — PARTIAL_SUBMODEL (4 RunIDs × 3 seeds)
 
-| RunID | observed | blocker |
-|---|---|---|
-| P02-F5-W8 / W10 | injector log 1 line, prop stream 1 inj + full L5 chain | trigger summary `fires=131/417 outcomes_recorded=0 injected=0`; campaign `activated=0`. F5 permanent accounting/per-event outcome is incomplete. Seed2/3 not run. |
-| P08-F5-W8 / W10 | same shape (stride stuck; full L5) | same F5 accounting defect |
+| RunID | fires / injected / no_effect | seed1/2/3 terminal | oracle |
+|---|---|---|---|
+| P02-F5-W8 | 128/64/64, 139/74/65, 130/65/65 | full ×3 (L5) | Masked |
+| P02-F5-W10 | 446/313/133, 445/312/133, 437/270/167 | full ×3 (L5) | Masked |
+| P08-F5-W8 | 131/7/124, 131/7/124, 131/7/124 | full ×3 (L5) | Masked |
+| P08-F5-W10 | 417/291/126, 417/291/126, 417/291/126 | full ×3 (L5) | Masked |
 
-The chain is real (checker full/L5), but the trigger/activation accounting is
-not, so these cells are **not accepted** and not counted complete.
+All 12 seeds: checker `admitted=True` / `certified=True`, full L5, gzip EOF,
+stats non-zero, exit 0, no truncation, `fires == injected + no_effect` on every
+sample.
+
+Root-cause and fix (C++ + campaign):
+1. Campaign F5 did not override `--prefetch_max_faults` to 0 (FAMILY_MOUNT set
+   1) → the injector stopped after the first write while the trigger kept
+   firing. Fixed in `_prefetch_tier_flags` (F5 appends `--prefetch_max_faults 0`).
+2. The injector never called `trigger.noteOutcome`, so `injected`/`no_effect`
+   stayed 0. It now reports every fire, with `effective` computed from the
+   real state change (P02 SatCounter before/after; P08 stride != 0; others by
+   mutation).
+3. Fault/inj registration happened **before** the effectiveness test, so
+   idempotent fires left L0-only records (P08: 133 fires, 7 effective, 130
+   fault ids) and some chains borrowed `cache_access` as L1. Registration now
+   happens only for effective fires.
+4. F5 now emits `pf_train` on every effective fire (same fault_id), so every
+   chain has the prefetcher's own L1 witness instead of `cache_access`.
+5. Built and froze a new binary: `runs/lsu/r6_p_unit/binaries/gem5.opt-8a2778d4`,
+   sha256 `8a2778d4d32644dbb02355ee90a95b3107b56af31723811f663da8940d283204`
+   (build log `r6o-logs/p_build_f5d.log`, no new warnings). No-fault golden W8
+   re-checked: `629727c0ad9ca8ef`. The old `c6cccf5b` binary remains valid for
+   the 15 previously certified F0 seeds (different evidence generation).
 
 ### Model not faithful / assets missing
 
@@ -90,9 +113,11 @@ not, so these cells are **not accepted** and not counted complete.
 ## Honest totals
 
 - P F0/F5 scope: 23 RunIDs.
-- Full 3/3 certified (partial-submodel): **5 RunIDs / 15 seeds**.
-- F0 measured but not certifiable: 5 RunIDs.
-- F5 accounting defect: 4 RunIDs.
-- Model/asset blocked: 9 RunIDs.
+- Certified 3/3 (partial-submodel): **9 RunIDs / 27 seeds** = 5 F0 + 4 F5.
+- F0 measured but not certifiable: 5 RunIDs (P01-W2 L5_then_unknown with a real
+  errant-commit escape witness; P03-W8/W9 L4_then_unknown with a cross-branch
+  L5 witness; P06-W6 L0_then_unknown; P06-W8 sampling/edge case).
+- Model not faithful / not implemented: 8 RunIDs (P04 F0/F5 queue; P07 F0
+  fill-way/tag; P09 F0 dirty-writeback), plus P09-W13 asset missing.
 - The authoritative P unit has **53** RunIDs across F0–F6; this round completed
   only the above subset. No claim of full P-unit completion.
