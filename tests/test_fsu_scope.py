@@ -80,13 +80,13 @@ def test_index_dual_view_counts():
     # historical full-registry view
     assert summary["total_runids"] == 173
     assert summary["target_seeds"] == 519
-    assert summary["admitted_seeds_total"] == 47
-    assert summary["complete_3_of_3"] == 15
+    assert summary["admitted_seeds_total"] == 50
+    assert summary["complete_3_of_3"] == 16
     # active F0/F5 view
     assert active["active_runids"] == 80
     assert active["active_seed_target"] == 240
-    assert active["active_admitted_seeds"] == 38
-    assert active["active_complete_runids"] == 12
+    assert active["active_admitted_seeds"] == 41
+    assert active["active_complete_runids"] == 13
     assert active["deferred_by_user_runids"] == 90
     assert active["historical_complete_out_of_scope_runids"] == 3
     assert active["historical_complete_out_of_scope_seeds"] == 9

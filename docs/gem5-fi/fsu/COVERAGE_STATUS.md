@@ -4,7 +4,7 @@
 > `FSU-FP04-F0-W3`（真实 NEON FP32 lane2）、`FSU-FP04-F0-W5`
 > （PolyBench suite，每 suite seed 计 1）、`FSU-FP06-F5-W3`
 > （FP06-a/b/c）与 `FSU-FP06-F5-W1`（FP06-a/b/c，W1 scalar FP）
-> 均已 admitted（**47/519**）。
+> 均已 admitted（**50/519**）。
 > 数据源：`runs/fsu` 的 AUTHORITATIVE + audit 证据、
 > `runs/fsu/COMPLETE_PROPAGATION_PATHS/INDEX.json`、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
@@ -15,14 +15,14 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **47 / 519** |
-| seed-complete RunID | **15 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1`、`FSU-FP04-F0-W3`、`FSU-FP04-F0-W5`（suite 3 seed）、`FSU-FP06-F5-W1`、`FSU-FP06-F5-W3`、`FSU-FP06-F5-W4`、`FSU-FR03-F5-W3`、`FSU-FP06-F5-W5`（F5 suite 3 seed，15 component 只计 3）、`FSU-FP04-F0-W6` 与 `FSU-FP06-F5-W6`（W6 suite 3 seed，9 component 只计 3），均 3/3） |
+| 已完成合格 seed | **50 / 519** |
+| seed-complete RunID | **16 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1`、`FSU-FP04-F0-W3`、`FSU-FP04-F0-W5`（suite 3 seed）、`FSU-FP06-F5-W1`、`FSU-FP06-F5-W3`、`FSU-FP06-F5-W4`、`FSU-FR03-F5-W3`、`FSU-FP06-F5-W5`（F5 suite 3 seed，15 component 只计 3）、`FSU-FP04-F0-W6` 与 `FSU-FP06-F5-W6`（W6 suite 3 seed，9 component 只计 3），均 3/3） |
 | 部分完成 RunID | **0 / 173** |
-| 其余 158 个 RunID | 0/3 |
+| 其余 157 个 RunID | 0/3 |
 
 > **活跃范围裁决（2026-11-03）**：ACTIVE = F0/F5。源注册表仍为
-> 173 RunID / 519 seed（历史视图 47/519，15 个 RunID 3/3）；当前活跃范围
-> 为 **80 RunID / 240 seed**，其中已完成 **38 seed / 12 RunID**（F0-W1、
+> 173 RunID / 519 seed（历史视图 50/519，16 个 RunID 3/3）；当前活跃范围
+> 为 **80 RunID / 240 seed**，其中已完成 **41 seed / 13 RunID**（F0-W1、
 > F0-W3、F0-W4、F0-W5、FP06-F5-W1、FP06-F5-W3、FP06-F5-W4、
 > FR03-F5-W3）。F1–F4 为
 > **DEFERRED_BY_USER**（不是失败/缺失/删除）；F1/F2/F3-W4 的历史完成标为
@@ -41,7 +41,7 @@
 
 | 档位 | 正式 seed | 机制/预算状态 |
 |---|---|---|
-| F0 | **3/3** | 已实现；短 W4 pilot 三 seed |
+| F0 | **9 seed / 3 RunID** | 短 W4 3/3；F0-W1/W3/W5/W6 各 3/3；FR07-F0-W1 3/3（结果侧 WB 代理） |
 | F1 | **3/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1；seed1（1/1）、seed2（2/2）、seed3（1/1）正式完成，fault `full`、audit PASS |
 | F2 | **3/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；seed1（21/21）、seed2（22/22）、seed3（19/19）正式完成，全部 fault `full`、audit PASS |
 | F3 | **3/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；seed1（206/206）、seed2（202/202）、seed3（210/210）正式完成，全部 fault `full`、audit PASS |

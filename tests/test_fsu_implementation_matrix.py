@@ -61,7 +61,8 @@ def test_every_runid_has_required_fields():
                     "FSU-FP04-F0-W6": "3/3",
                     "FSU-FP06-F5-W6": "3/3",
                     "FSU-FR03-F5-W5": "3/3",
-                    "FSU-FR03-F5-W6": "3/3"}.get(r["runid"], "0/3")
+                    "FSU-FR03-F5-W6": "3/3",
+                    "FSU-FR07-F0-W1": "3/3"}.get(r["runid"], "0/3")
         assert r["three_seed_status"] == expected
         assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")

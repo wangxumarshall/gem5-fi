@@ -761,6 +761,13 @@ def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
                 "not run (0/3): FP06-F5-W1 gate/formal seeds are not "
                 "complete; the F5 permanent semantics exist in code but "
                 "cannot be certified for this RunID")
+    if runid == "FSU-FR07-F0-W1":
+        if seed_n == 3:
+            return ("COMPLETE",
+                    "certified 3/3: result-side WB proxy (FR07-a/c/d masks) "
+                    "on REAL W1 with ARRAYHASH; true PRF-WB hook remains an "
+                    "adapter boundary")
+        return ("PARTIAL", f"FR07-F0-W1 {seed_n}/3 result-side proxy pilot")
     if runid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5"):
         if seed_n == 3:
             return ("COMPLETE",

@@ -36,6 +36,7 @@ DONE_F0 = {
     "FSU-FP04-F0-W4",
     "FSU-FP04-F0-W5",
     "FSU-FP04-F0-W6",
+    "FSU-FR07-F0-W1",
 }
 
 TIER_MIN = {"T1": 7.0, "T2": 5.0, "T3": 3.0, "T4": 1.0, "T5": -999.0}
@@ -84,11 +85,11 @@ def test_doc_covers_exactly_remaining_f0():
     assert set(payload["completed_f0"]) == DONE_F0
 
     remaining = set(f0) - completed
-    assert len(remaining) == 67
+    assert len(remaining) == 66
     row_ids = [r["runid"] for r in payload["rows"]]
-    assert len(row_ids) == len(set(row_ids)) == 67
+    assert len(row_ids) == len(set(row_ids)) == 66
     assert set(row_ids) == remaining
-    assert payload["remaining_f0_count"] == 67
+    assert payload["remaining_f0_count"] == 66
 
 
 def test_rows_agree_with_registry_and_matrix_identity():
@@ -236,7 +237,7 @@ def test_fq08c_delayed_wake_is_not_squash_aware():
 
 def test_document_names_next_pilot_and_real_command():
     payload, text = _doc_payload()
-    assert payload["next_pilot"] == "FSU-FR07-F0-W1"
+    assert payload["next_pilot"] == "FSU-FR07-F0-W3"
     assert payload["next_pilot"] in text
     cmd = payload["minimal_verification_command"]
     assert "tools/fsu_seed_runner.py" in cmd

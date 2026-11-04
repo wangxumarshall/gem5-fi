@@ -167,8 +167,8 @@ sampled + dropped`；三个 attempt 独立 audit/certified 全部通过。
 
 ### 7.4 计数（磁盘权威审计结果）
 
-- 历史视图：**47/519 seed，15/173 RunID**
-- 活跃视图（F0/F5）：**38/240 seed，12/80 RunID**
+- 历史视图：**50/519 seed，16/173 RunID**
+- 活跃视图（F0/F5）：**41/240 seed，13/80 RunID**
 - FSU 测试：**329 passed**（含 W6 gate 测试）（`tests/test_fsu_*.py tests/test_chaos_fsu_*.py
   tests/test_chaos_vec_stuck_cpp.py tests/test_chaos_physreg_generation_cpp.py`）
 - 历史 18 个正式 seed + F5 6 个正式 seed 单 seed 只读审计全部 ok；
