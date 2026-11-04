@@ -1,25 +1,34 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-04T21:12:46；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-05T01:06:09；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 ## 历史全量视图（source registry）
 
 - 总 RunID：**173**
 - 目标 seed：**519**
-- 已完成合格 seed：**56**
-- suite seed（5 component run 只计 1 seed）：目录 21，admitted 21，component run 87（不进入 seed 总数）
-- COMPLETE_3_OF_3：**18**
-- seed_completion：0/3 154、2/3 1、3/3 18
+- 已完成合格 seed：**55**
+- suite seed（5 component run 只计 1 seed）：目录 21，admitted 20，component run 82（不进入 seed 总数）
+- COMPLETE_3_OF_3：**17**
+- seed_completion：0/3 154、2/3 2、3/3 17
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、COMPLETE 6、PARTIAL 68、PILOT_SUBMODEL_ONLY 1
-- 1/3：0；2/3：1；0/3：154
+- 1/3：0；2/3：2；0/3：154
 
 ## 当前活跃范围视图（F0/F5）
 
 - active_frequencies：['F0', 'F5']
 - 活跃 RunID：**80**；目标 seed：**240**
-- 活跃范围已完成 seed：**47**；3/3 RunID：**15**
+- 活跃范围已完成 seed：**46**；3/3 RunID：**14**
 - DEFERRED_BY_USER RunID：90
 - HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE RunID：3（seed 9）
+
+## 当前工具重算状态
+
+- recompute_enabled：**True**
+- current_verified：55
+- current_verification_failed：1
+- missing_evidence：0
+- legacy_report_only：0
+> 旧 audit_v2.json / audit.json 只作历史回显，不参与当前计数。
 
 > F1–F4 是 DEFERRED_BY_USER，不是失败、缺失或删除；历史完成项不追溯改标。
 
@@ -88,7 +97,7 @@
 | FSU-FR02-F2-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR02-F2-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR03-F5-W3 | ✅ | ✅ | ❌ | 2/3 | PARTIAL | PARTIAL_2_OF_3 | F5 | ACTIVE_SCOPE | PARTIAL |
-| FSU-FR03-F5-W5 | ✅ | ✅ | ✅ | 3/3 | COMPLETE | COMPLETE_3_OF_3 | F5 | ACTIVE_SCOPE | COMPLETE |
+| FSU-FR03-F5-W5 | ! | ✅ | ✅ | 2/3 | COMPLETE | PARTIAL_2_OF_3 | F5 | ACTIVE_SCOPE | PARTIAL |
 | FSU-FR03-F5-W6 | ✅ | ✅ | ✅ | 3/3 | COMPLETE | COMPLETE_3_OF_3 | F5 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FR04-F0-W2 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR04-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
