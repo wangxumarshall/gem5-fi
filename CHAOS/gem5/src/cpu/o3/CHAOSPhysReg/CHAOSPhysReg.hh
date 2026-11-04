@@ -17,6 +17,7 @@
 #include "base/output.hh"
 #include "cpu/o3/chaos_l0.hh"  // W2.5 L0 lifecycle interface state
 #include "cpu/o3/CHAOSPhysReg/chaos_vec_stuck.hh"  // [FR03] L5 ledger
+#include "cpu/o3/CHAOSPhysReg/chaos_vec_transient.hh"  // [FR01/FR02]
 
 // o3::CPU (C++ class behind ArmO3CPU) is needed to reach regFile/renameMap.
 // We forward-declare it here (full definition pulled into the .cc via
@@ -127,6 +128,74 @@ class CHAOSPhysReg : public SimObject
     // after at least one activated exposure; a squash never becomes a commit.
     chaos_vec_stuck::L5Ledger l5;
     uint64_t next_fsu_fault_id = 1;
+
+    // ------------------------------------------------------------------
+    // [FR01/FR02] TRANSIENT Vec physical-cell bit-flip state.
+    //
+    // Unlike FR03 there is no permanent write-path mask here: the injector
+    // performs ONE read-modify-write of the target cell and nothing is armed.
+    // The next real write to the cell replaces the value, so the defect is
+    // gone by construction. The state below is evidence only: install
+    // identity (phys/generation/bit positions), consumer reads, the real
+    // overwrite, and the L5 commit/squash witness of a consumer.
+    // ------------------------------------------------------------------
+    struct VecTransientEmission
+    {
+        bool installed = false;
+        uint64_t fault_id = 0;
+        uint64_t root_event = 0;      // L0 fault_applied
+        uint64_t carrier_event = 0;   // L1 carrier_state
+        uint64_t last_event = 0;      // parent for the next event
+        uint64_t install_tick = 0;
+        int phys_index = -1;
+        int arch_index = -1;
+        uint32_t install_generation = 0;
+        int lane_width = 32;
+        chaos_vec_transient::Selection sel;
+        uint64_t install_lane_before = 0;
+        uint64_t install_lane_after = 0;
+        uint64_t last_lane_value = 0;  // most recent observed target lane
+        uint64_t install_reads_baseline = 0;
+        uint64_t read_events = 0;
+        uint64_t reads_total = 0;
+        uint64_t write_exposures_total = 1;  // the install write
+        bool overwritten = false;
+        uint64_t overwrite_event = 0;
+        uint64_t overwrite_sn = 0;
+        uint64_t overwrite_tick = 0;
+        uint64_t first_read_sn = 0;
+        uint64_t commit_events = 0;
+        uint64_t squash_events = 0;
+        uint64_t consumers_recorded = 0;
+        uint64_t first_impact_sn = 0;
+        uint64_t first_impact_tick = 0;
+        uint64_t first_impact_latency = 0;
+        uint64_t l5_witness_event = 0;
+        bool exit_flush_registered = false;
+        chaos_vec_stuck::L5Ledger l5;
+    };
+    VecTransientEmission vec_transient;
+    // A geometry/mask request that cannot be honoured (e.g. FR02 asks for two
+    // bits but the explicit mask has one, or the lane is too narrow) must
+    // fail CLOSED: no injection, no consumed fault, no silent 1-bit fault.
+    // The attack event is unscheduled so a bad manifest cannot spin forever.
+    bool vec_transient_fatal = false;
+
+    uint64_t emitVecModelProp(
+        const char *model, const char *freq, const char *kind,
+        uint64_t fault_id, uint64_t parent,
+        std::vector<std::pair<std::string, std::string>> kv);
+    void noteVecTransientInstalled(
+        ThreadID tid, int phys_idx, int arch_idx, uint32_t generation,
+        const chaos_vec_transient::Selection &sel,
+        const uint8_t *before, const uint8_t *after);
+    void observeVecTransient(o3::DynInst *inst);
+    void noteVecTransientCommit(ThreadID tid, o3::DynInst *inst);
+    void noteVecTransientSquash(ThreadID tid, o3::DynInst *inst);
+    void finalizeVecTransient(const char *terminal);
+    void registerTransientExitFlush();
+    static std::string bitIndices(const chaos_vec_transient::Selection &s);
+    static std::string vec128Hex(const uint8_t *v);
 
     static constexpr uint64_t kVecExposureEventCap = 2048;
     static constexpr uint64_t kVecActivatedEventCap = 256;

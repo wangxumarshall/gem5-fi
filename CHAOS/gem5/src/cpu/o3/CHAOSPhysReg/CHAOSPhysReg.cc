@@ -4,11 +4,13 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <vector>
 #include <random>
 #include <bitset>
 #include <cstring>
 #include <cstdint>
+#include <algorithm>
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
@@ -112,6 +114,7 @@ namespace gem5
         // terminal (chain_end) is flushed while its stream is open. If it
         // attaches later, the first install registers the hook instead.
         registerVecExitFlush();
+        registerTransientExitFlush();
     }
 
     namespace
@@ -122,6 +125,23 @@ namespace gem5
         std::ostringstream os;
         os << "0x" << std::hex << v;
         return os.str();
+    }
+
+    // Read one lane from a little-endian vector image. The lane must be
+    // inside the 128-bit architectural value.
+    uint64_t
+    readLane(const uint8_t *vec, int lane_width, int lane)
+    {
+        if (!vec || lane < 0 || lane_width <= 0 || lane_width > 64)
+            return 0;
+        const int lane_bytes = lane_width / 8;
+        const int base = lane * lane_bytes;
+        if (base + lane_bytes > chaos_vec_transient::kVecBytes)
+            return 0;
+        uint64_t v = 0;
+        for (int b = 0; b < lane_bytes; ++b)
+            v |= (uint64_t)vec[base + b] << (8 * b);
+        return v;
     }
     } // anonymous namespace
 
@@ -146,8 +166,9 @@ namespace gem5
     }
 
     uint64_t
-    CHAOSPhysReg::emitFsuProp(
-        const char *kind, uint64_t fault_id, uint64_t parent,
+    CHAOSPhysReg::emitVecModelProp(
+        const char *model, const char *freq, const char *kind,
+        uint64_t fault_id, uint64_t parent,
         std::vector<std::pair<std::string, std::string>> kv)
     {
         if (!cpu || !cpu->chaosPropagation)
@@ -155,17 +176,28 @@ namespace gem5
         kv.push_back({"fault_id", std::to_string(fault_id)});
         if (parent != 0)
             kv.push_back({"parent_event_id", std::to_string(parent)});
-        kv.push_back({"model_id", "FR03"});
-        kv.push_back({"freq", "F5"});
+        kv.push_back({"model_id", model});
+        kv.push_back({"freq", freq});
         kv.push_back({"unit", "PRF_Vec"});
         if (!semantic_role.empty())
             kv.push_back({"submodel", semantic_role});
-        // fault_installed is the L0 fault root; all FR03 follow-up events
-        // belong to the same permanent fault (fsu_taint). generation_change
-        // is a lifecycle transition of the same fault, not a new fault.
-        kv.push_back({"corr", std::string(kind) == "fault_installed"
+        // The L0 root establishes the taint; every follow-up event belongs to
+        // the same fault (fsu_taint). A lifecycle transition is never a new
+        // fault.
+        const std::string k(kind);
+        kv.push_back({"corr", (k == "fault_installed" ||
+                               k == "fault_applied")
                               ? "origin" : "fsu_taint"});
-        const uint64_t eid = cpu->chaosPropagation->notePropEvt(kind, kv);
+        return cpu->chaosPropagation->notePropEvt(kind, kv);
+    }
+
+    uint64_t
+    CHAOSPhysReg::emitFsuProp(
+        const char *kind, uint64_t fault_id, uint64_t parent,
+        std::vector<std::pair<std::string, std::string>> kv)
+    {
+        const uint64_t eid = emitVecModelProp(
+            "FR03", "F5", kind, fault_id, parent, std::move(kv));
         if (eid)
             vec_emit.last_event = eid;
         return eid;
@@ -180,6 +212,587 @@ namespace gem5
         cpu->chaosPropagation->registerExitFlush(
             [this]() { this->emitVecTerminal(); });
         vec_emit.exit_flush_registered = true;
+    }
+
+    // ------------------------------------------------------------------
+    // [FR01/FR02] Transient Vec bit-flip evidence.
+    // ------------------------------------------------------------------
+    std::string
+    CHAOSPhysReg::bitIndices(const chaos_vec_transient::Selection &s)
+    {
+        std::ostringstream os;
+        for (size_t i = 0; i < s.bits.size(); ++i) {
+            if (i)
+                os << ",";
+            os << s.bits[i].flat;
+        }
+        return os.str();
+    }
+
+    std::string
+    CHAOSPhysReg::vec128Hex(const uint8_t *v)
+    {
+        uint64_t lo = 0, hi = 0;
+        for (int b = 0; b < 8; ++b)
+            lo |= (uint64_t)v[b] << (8 * b);
+        for (int b = 0; b < 8; ++b)
+            hi |= (uint64_t)v[8 + b] << (8 * b);
+        std::ostringstream os;
+        os << "0x" << std::hex << std::setw(16) << std::setfill('0') << hi
+           << std::setw(16) << lo;
+        return os.str();
+    }
+
+    void
+    CHAOSPhysReg::registerTransientExitFlush()
+    {
+        if (vec_transient.exit_flush_registered || !cpu ||
+            !cpu->chaosPropagation)
+            return;
+        cpu->chaosPropagation->registerExitFlush(
+            [this]() { this->finalizeVecTransient(nullptr); });
+        vec_transient.exit_flush_registered = true;
+    }
+
+    void
+    CHAOSPhysReg::noteVecTransientInstalled(
+        ThreadID tid, int phys_idx, int arch_idx, uint32_t generation,
+        const chaos_vec_transient::Selection &sel,
+        const uint8_t *before, const uint8_t *after)
+    {
+        // F0 is one injection per run; if a longer campaign installs a new
+        // transient while the previous one is still live, close the old chain
+        // honestly instead of silently merging two faults.
+        if (vec_transient.installed)
+            finalizeVecTransient(nullptr);
+
+        const bool flush_registered = vec_transient.exit_flush_registered;
+        vec_transient = VecTransientEmission();
+        vec_transient.exit_flush_registered = flush_registered;
+        vec_transient.installed = true;
+        vec_transient.fault_id = next_fsu_fault_id++;
+        vec_transient.install_tick = curTick();
+        vec_transient.phys_index = phys_idx;
+        vec_transient.arch_index = arch_idx;
+        vec_transient.install_generation = generation;
+        vec_transient.lane_width = sel.lane_width;
+        vec_transient.sel = sel;
+        vec_transient.install_lane_before =
+            readLane(before, sel.lane_width, sel.lane_offset);
+        vec_transient.install_lane_after =
+            readLane(after, sel.lane_width, sel.lane_offset);
+        vec_transient.last_lane_value = vec_transient.install_lane_after;
+        vec_transient.write_exposures_total = 1;
+        vec_transient.reads_total = 0;
+        vec_transient.read_events = 0;
+
+        const std::string model =
+            sel.bits.size() == 1 ? "FR01" : "FR02";
+        const uint64_t lane_mask =
+            chaos_vec_transient::laneMask(sel, sel.lane_offset);
+        std::ostringstream mask_os;
+        mask_os << "0x" << std::hex << std::setw(16) << std::setfill('0')
+                << sel.mask_hi << std::setw(16) << sel.mask_lo;
+
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"thread_id", std::to_string((int)tid)},
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(phys_idx)},
+            {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx)
+                                       : std::string()},
+            {"reg_generation", std::to_string(generation)},
+            {"lane_width", std::to_string(sel.lane_width)},
+            {"lane_offset", std::to_string(sel.lane_offset)},
+            {"bit_in_lane", sel.bits.empty()
+                                ? std::string()
+                                : std::to_string(sel.bits[0].bit_in_lane)},
+            {"lane_mask", propHex(lane_mask)},
+            {"bit_indices", bitIndices(sel)},
+            {"fault_mask", mask_os.str()},
+            {"field", "transient_bit_flip"},
+            {"before", propHex(vec_transient.install_lane_before)},
+            {"after", propHex(vec_transient.install_lane_after)},
+            {"correct_before", propHex(vec_transient.install_lane_before)},
+            {"full_before", vec128Hex(before)},
+            {"full_after", vec128Hex(after)},
+            {"value_hash", propHex(vec_transient.install_lane_after)},
+            {"before_hash", propHex(vec_transient.install_lane_before)},
+            {"after_hash", propHex(vec_transient.install_lane_after)},
+            {"activated", "1"},
+            {"contained", "0"},
+            {"state_before", "cell_correct"},
+            {"state_after", "transient_bit_flipped"},
+            {"write_exposures_total", "1"},
+            {"read_exposures_total", "0"},
+            {"phys_reads", "0"},
+            {"sample_policy", "one_shot"},
+            {"detection_layer", ""},
+        };
+        vec_transient.root_event = emitVecModelProp(
+            model.c_str(), "F0", "fault_applied",
+            vec_transient.fault_id, 0, kv);
+
+        // L1 carrier: the cell/generation exists and holds the flipped value.
+        std::vector<std::pair<std::string, std::string>> ckv = {
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(phys_idx)},
+            {"reg_generation", std::to_string(generation)},
+            {"lane_width", std::to_string(sel.lane_width)},
+            {"lane_offset", std::to_string(sel.lane_offset)},
+            {"lane_mask", propHex(lane_mask)},
+            {"bit_indices", bitIndices(sel)},
+            {"fault_mask", mask_os.str()},
+            {"before", propHex(vec_transient.install_lane_after)},
+            {"after", propHex(vec_transient.install_lane_after)},
+            {"cell_allocated", "1"},
+            {"install_event", std::to_string(vec_transient.root_event)},
+            {"phys_reads", "0"},
+            {"state_before", "fault_installed"},
+            {"state_after", "carrier_ready"},
+        };
+        vec_transient.carrier_event = emitVecModelProp(
+            model.c_str(), "F0", "carrier_state",
+            vec_transient.fault_id, vec_transient.root_event, ckv);
+        vec_transient.last_event = vec_transient.carrier_event
+                                       ? vec_transient.carrier_event
+                                       : vec_transient.root_event;
+        registerTransientExitFlush();
+
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "VecTransientInstall: cycle=" << cpu->curCycle()
+                << " fault=" << vec_transient.fault_id
+                << " model=" << model
+                << " phys=" << phys_idx
+                << " gen=" << generation
+                << " lane=" << sel.lane_offset
+                << " lane_width=" << sel.lane_width
+                << " bits=" << bitIndices(sel)
+                << " mask=" << mask_os.str()
+                << " before=" << propHex(vec_transient.install_lane_before)
+                << " after=" << propHex(vec_transient.install_lane_after)
+                << std::endl;
+        }
+    }
+
+    void
+    CHAOSPhysReg::observeVecTransient(o3::DynInst *inst)
+    {
+        if (!cpu || !inst || !vec_transient.installed)
+            return;
+        auto &rf = cpu->physRegFile();
+        const int target = vec_transient.phys_index;
+        if (target < 0 || target >= (int)rf.numVecPhysRegs())
+            return;
+        const size_t bytes = rf.vecRegBytes();
+        if (bytes < (size_t)chaos_vec_transient::kVecBytes)
+            return;
+        std::vector<uint8_t> buf(bytes, 0);
+        const std::string model =
+            vec_transient.sel.bits.size() == 1 ? "FR01" : "FR02";
+
+        // Does this instruction itself write the target cell? Vector
+        // destinations are written through a raw getWritableReg() pointer
+        // during execute(), so a same-cell read+write cannot be separated
+        // after the fact. Treat the write as the terminal observation and do
+        // not manufacture a consumer read from the post-write value.
+        bool writes_target = false;
+        if (!vec_transient.overwritten) {
+            for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+                PhysRegIdPtr dest = inst->renamedDestIdx(i);
+                if (dest && dest->classValue() == VecRegClass &&
+                    (int)dest->index() == target) {
+                    writes_target = true;
+                    break;
+                }
+            }
+        }
+
+        // L2: real source-operand reads of the transiently flipped cell.
+        if (!vec_transient.overwritten && !writes_target) {
+            for (int i = 0; i < (int)inst->numSrcRegs(); ++i) {
+                PhysRegIdPtr src = inst->renamedSrcIdx(i);
+                if (!src || src->classValue() != VecRegClass)
+                    continue;
+                if ((int)src->index() != target)
+                    continue;
+                if (vec_transient.read_events >= 4096)
+                    continue;
+                ++vec_transient.read_events;
+                ++vec_transient.reads_total;
+                rf.readVecRegRaw(src, buf.data());
+                const uint32_t gen = rf.generationOf(src);
+                const uint64_t lane_val = readLane(
+                    buf.data(), vec_transient.lane_width,
+                    vec_transient.sel.lane_offset);
+                vec_transient.last_lane_value = lane_val;
+                if (vec_transient.first_read_sn == 0)
+                    vec_transient.first_read_sn = inst->seqNum;
+                int arch_idx = -1;
+                if (inst->staticInst &&
+                    i < (int)inst->staticInst->numSrcRegs()) {
+                    const RegId &ar = inst->staticInst->srcRegIdx(i);
+                    if (ar.classValue() == VecRegClass)
+                        arch_idx = (int)ar.index();
+                }
+                const uint64_t lane_mask = chaos_vec_transient::laneMask(
+                    vec_transient.sel, vec_transient.sel.lane_offset);
+                std::vector<std::pair<std::string, std::string>> kv = {
+                    {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                    {"pc", propHex(inst->pcState().instAddr())},
+                    {"opcode", inst->staticInst
+                                   ? inst->staticInst->getName() : ""},
+                    {"thread_id", std::to_string((int)inst->threadNumber)},
+                    {"reg_class", "vec"},
+                    {"phys_reg", std::to_string(target)},
+                    {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx)
+                                               : std::string()},
+                    {"reg_generation", std::to_string(gen)},
+                    {"consumer_seq", std::to_string(inst->seqNum)},
+                    {"lane_width", std::to_string(vec_transient.lane_width)},
+                    {"lane_offset",
+                     std::to_string(vec_transient.sel.lane_offset)},
+                    {"bit_in_lane", vec_transient.sel.bits.empty()
+                                        ? std::string()
+                                        : std::to_string(
+                                              vec_transient.sel.bits[0]
+                                                  .bit_in_lane)},
+                    {"lane_mask", propHex(lane_mask)},
+                    {"bit_indices", bitIndices(vec_transient.sel)},
+                    {"field", "transient_bit_flip"},
+                    {"before", propHex(lane_val)},
+                    {"after", propHex(lane_val)},
+                    {"value_hash", propHex(lane_val)},
+                    {"activated", "1"},
+                    {"install_event",
+                     std::to_string(vec_transient.root_event)},
+                    {"read_exposures_total",
+                     std::to_string(vec_transient.reads_total)},
+                    {"write_exposures_total",
+                     std::to_string(vec_transient.write_exposures_total)},
+                    {"phys_reads",
+                     std::to_string(rf.getReadsBeforeOverwrite())},
+                    {"state_before", "cell_flipped"},
+                    {"state_after", "operand_read_flipped"},
+                };
+                const uint64_t parent = vec_transient.last_event
+                                            ? vec_transient.last_event
+                                            : vec_transient.root_event;
+                const uint64_t eid = emitVecModelProp(
+                    model.c_str(), "F0", "operand_read",
+                    vec_transient.fault_id, parent, kv);
+                if (eid) {
+                    vec_transient.last_event = eid;
+                    if (!vec_transient.overwritten)
+                        vec_transient.l5.record(inst->seqNum, eid, gen,
+                                                lane_val);
+                    vec_transient.consumers_recorded =
+                        vec_transient.l5.consumersRecorded();
+                }
+            }
+        }
+
+        // L1 overwrite: a real program write replaces the transient value.
+        // Nothing is re-applied; the defect ends here.
+        if (!vec_transient.overwritten) {
+            for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+                PhysRegIdPtr dest = inst->renamedDestIdx(i);
+                if (!dest || dest->classValue() != VecRegClass)
+                    continue;
+                if ((int)dest->index() != target)
+                    continue;
+                const uint32_t gen = rf.generationOf(dest);
+                rf.readVecRegRaw(dest, buf.data());
+                const uint64_t after_val = readLane(
+                    buf.data(), vec_transient.lane_width,
+                    vec_transient.sel.lane_offset);
+                const uint64_t before_val = vec_transient.last_lane_value;
+                vec_transient.last_lane_value = after_val;
+                vec_transient.overwritten = true;
+                vec_transient.overwrite_sn = inst->seqNum;
+                vec_transient.overwrite_tick = curTick();
+                vec_transient.write_exposures_total = 2;
+                // Vector dest writes bypass setReg(); freeze the container
+                // read-trace so the L0 line never counts post-overwrite reads
+                // as reads of the injected value.
+                rf.noteTraceOverwrite();
+                int arch_idx = -1;
+                if (inst->staticInst &&
+                    i < (int)inst->staticInst->numDestRegs()) {
+                    const RegId &ar = inst->staticInst->destRegIdx(i);
+                    if (ar.classValue() == VecRegClass)
+                        arch_idx = (int)ar.index();
+                }
+                const uint64_t lane_mask = chaos_vec_transient::laneMask(
+                    vec_transient.sel, vec_transient.sel.lane_offset);
+                std::vector<std::pair<std::string, std::string>> kv = {
+                    {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                    {"pc", propHex(inst->pcState().instAddr())},
+                    {"opcode", inst->staticInst
+                                   ? inst->staticInst->getName() : ""},
+                    {"thread_id", std::to_string((int)inst->threadNumber)},
+                    {"reg_class", "vec"},
+                    {"phys_reg", std::to_string(target)},
+                    {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx)
+                                               : std::string()},
+                    {"reg_generation", std::to_string(gen)},
+                    {"producer_seq", std::to_string(inst->seqNum)},
+                    {"lane_width", std::to_string(vec_transient.lane_width)},
+                    {"lane_offset",
+                     std::to_string(vec_transient.sel.lane_offset)},
+                    {"bit_in_lane", vec_transient.sel.bits.empty()
+                                        ? std::string()
+                                        : std::to_string(
+                                              vec_transient.sel.bits[0]
+                                                  .bit_in_lane)},
+                    {"lane_mask", propHex(lane_mask)},
+                    {"bit_indices", bitIndices(vec_transient.sel)},
+                    {"field", "transient_bit_flip"},
+                    {"before", propHex(before_val)},
+                    {"after", propHex(after_val)},
+                    {"value_hash", propHex(after_val)},
+                    {"full_after", vec128Hex(buf.data())},
+                    {"activated", "1"},
+                    {"install_event",
+                     std::to_string(vec_transient.root_event)},
+                    {"read_exposures_total",
+                     std::to_string(vec_transient.reads_total)},
+                    {"write_exposures_total",
+                     std::to_string(vec_transient.write_exposures_total)},
+                    {"phys_reads",
+                     std::to_string(rf.getReadsBeforeOverwrite())},
+                    {"detection_layer", "L1"},
+                    {"contained", "1"},
+                    {"containment_layer", "L1"},
+                    {"containment_reason", "phys_cell_rewritten"},
+                    {"outcome", "contained"},
+                    {"state_before", "transient_flipped"},
+                    {"state_after", "overwritten_by_real_write"},
+                };
+                const uint64_t parent = vec_transient.last_event
+                                            ? vec_transient.last_event
+                                            : vec_transient.root_event;
+                const uint64_t eid = emitVecModelProp(
+                    model.c_str(), "F0", "overwrite",
+                    vec_transient.fault_id, parent, kv);
+                if (eid) {
+                    vec_transient.overwrite_event = eid;
+                    vec_transient.last_event = eid;
+                }
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "VecTransientOverwrite: cycle=" << cpu->curCycle()
+                        << " fault=" << vec_transient.fault_id
+                        << " phys=" << target
+                        << " gen=" << gen
+                        << " sn=" << inst->seqNum
+                        << " before=" << propHex(before_val)
+                        << " after=" << propHex(after_val)
+                        << " (transient terminated; no re-apply)"
+                        << std::endl;
+                }
+                break;
+            }
+        }
+    }
+
+    void
+    CHAOSPhysReg::noteVecTransientCommit(ThreadID tid, o3::DynInst *inst)
+    {
+        if (!vec_transient.installed)
+            return;
+        const auto r = vec_transient.l5.noteCommit(inst->seqNum);
+        if (!r.matched)
+            return;
+        vec_transient.commit_events = vec_transient.l5.commitEvents();
+        vec_transient.consumers_recorded =
+            vec_transient.l5.consumersRecorded();
+        if (vec_transient.first_impact_sn == 0) {
+            vec_transient.first_impact_sn = inst->seqNum;
+            vec_transient.first_impact_tick = curTick();
+            const uint64_t basis = vec_transient.install_tick;
+            vec_transient.first_impact_latency =
+                (basis != 0 && curTick() >= basis)
+                    ? (uint64_t)(curTick() - basis) : 0;
+        }
+        const std::string model =
+            vec_transient.sel.bits.size() == 1 ? "FR01" : "FR02";
+        const uint64_t lane_mask = chaos_vec_transient::laneMask(
+            vec_transient.sel, vec_transient.sel.lane_offset);
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"consumer_seq", std::to_string(inst->seqNum)},
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            {"commit_seq", std::to_string(r.ordinal)},
+            {"thread_id", std::to_string((int)tid)},
+            {"pc", propHex(inst->pcState().instAddr())},
+            {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(vec_transient.phys_index)},
+            {"reg_generation", std::to_string(r.generation)},
+            {"lane_width", std::to_string(vec_transient.lane_width)},
+            {"lane_offset", std::to_string(vec_transient.sel.lane_offset)},
+            {"lane_mask", propHex(lane_mask)},
+            {"bit_indices", bitIndices(vec_transient.sel)},
+            {"install_event", std::to_string(vec_transient.root_event)},
+            {"field", "transient_bit_flip"},
+            {"before", propHex(r.value)},
+            {"after", propHex(r.value)},
+            {"value_hash", propHex(r.value)},
+            {"activated", "1"},
+            {"read_exposures_total",
+             std::to_string(vec_transient.reads_total)},
+            {"write_exposures_total",
+             std::to_string(vec_transient.write_exposures_total)},
+            {"commit_events", std::to_string(vec_transient.commit_events)},
+            {"squash_events", std::to_string(vec_transient.squash_events)},
+            {"consumers_recorded",
+             std::to_string(vec_transient.consumers_recorded)},
+            {"first_impact_sn",
+             std::to_string(vec_transient.first_impact_sn)},
+            {"first_impact_tick",
+             std::to_string(vec_transient.first_impact_tick)},
+            {"first_impact_latency",
+             std::to_string(vec_transient.first_impact_latency)},
+            {"detection_layer", "L5"},
+            {"outcome", "errant_commit"},
+            {"contained", "0"},
+            {"state_before", "operand_read_flipped"},
+            {"state_after", "committed"},
+        };
+        const uint64_t eid = emitVecModelProp(
+            model.c_str(), "F0", "commit", vec_transient.fault_id,
+            r.l2_event, kv);
+        if (eid) {
+            vec_transient.last_event = eid;
+            if (vec_transient.l5_witness_event == 0)
+                vec_transient.l5_witness_event = eid;
+        }
+    }
+
+    void
+    CHAOSPhysReg::noteVecTransientSquash(ThreadID tid, o3::DynInst *inst)
+    {
+        if (!vec_transient.installed)
+            return;
+        const auto r = vec_transient.l5.noteSquash(inst->seqNum);
+        if (!r.matched)
+            return;
+        vec_transient.squash_events = vec_transient.l5.squashEvents();
+        vec_transient.commit_events = vec_transient.l5.commitEvents();
+        vec_transient.consumers_recorded =
+            vec_transient.l5.consumersRecorded();
+        const std::string model =
+            vec_transient.sel.bits.size() == 1 ? "FR01" : "FR02";
+        const uint64_t lane_mask = chaos_vec_transient::laneMask(
+            vec_transient.sel, vec_transient.sel.lane_offset);
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"consumer_seq", std::to_string(inst->seqNum)},
+            {"dyn_inst_seq", std::to_string(inst->seqNum)},
+            {"thread_id", std::to_string((int)tid)},
+            {"pc", propHex(inst->pcState().instAddr())},
+            {"opcode", inst->staticInst ? inst->staticInst->getName() : ""},
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(vec_transient.phys_index)},
+            {"reg_generation", std::to_string(r.generation)},
+            {"lane_width", std::to_string(vec_transient.lane_width)},
+            {"lane_offset", std::to_string(vec_transient.sel.lane_offset)},
+            {"lane_mask", propHex(lane_mask)},
+            {"bit_indices", bitIndices(vec_transient.sel)},
+            {"install_event", std::to_string(vec_transient.root_event)},
+            {"field", "transient_bit_flip"},
+            {"before", propHex(r.value)},
+            {"after", propHex(r.value)},
+            {"value_hash", propHex(r.value)},
+            {"squashed", "1"},
+            {"squash_events", std::to_string(vec_transient.squash_events)},
+            {"commit_events", std::to_string(vec_transient.commit_events)},
+            {"read_exposures_total",
+             std::to_string(vec_transient.reads_total)},
+            {"write_exposures_total",
+             std::to_string(vec_transient.write_exposures_total)},
+            {"detection_layer", ""},
+            {"outcome", "squashed"},
+            {"contained", "0"},
+            {"state_before", "operand_read_flipped"},
+            {"state_after", "squashed"},
+        };
+        const uint64_t eid = emitVecModelProp(
+            model.c_str(), "F0", "squash", vec_transient.fault_id,
+            r.l2_event, kv);
+        if (eid)
+            vec_transient.last_event = eid;
+    }
+
+    void
+    CHAOSPhysReg::finalizeVecTransient(const char *terminal_override)
+    {
+        if (!vec_transient.installed)
+            return;
+        const std::string model =
+            vec_transient.sel.bits.size() == 1 ? "FR01" : "FR02";
+        std::string terminal;
+        if (terminal_override && *terminal_override) {
+            terminal = terminal_override;
+        } else if (vec_transient.l5.commitEvents() > 0) {
+            terminal = "committed";
+        } else if (vec_transient.overwritten) {
+            terminal = "overwritten";
+        } else if (vec_transient.reads_total > 0) {
+            terminal = "exposed_unconsumed";
+        } else {
+            terminal = "not_consumed";
+        }
+        const bool committed = terminal == "committed";
+        const bool contained = terminal == "overwritten";
+        auto &rf = cpu->physRegFile();
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"reg_class", "vec"},
+            {"phys_reg", std::to_string(vec_transient.phys_index)},
+            {"reg_generation",
+             std::to_string(vec_transient.install_generation)},
+            {"lane_width", std::to_string(vec_transient.lane_width)},
+            {"lane_offset",
+             std::to_string(vec_transient.sel.lane_offset)},
+            {"lane_mask", propHex(chaos_vec_transient::laneMask(
+                              vec_transient.sel,
+                              vec_transient.sel.lane_offset))},
+            {"bit_indices", bitIndices(vec_transient.sel)},
+            {"install_event", std::to_string(vec_transient.root_event)},
+            {"field", "transient_bit_flip"},
+            {"terminal", terminal},
+            {"outcome", committed ? "errant_commit_seen"
+                          : contained ? "detected_contained"
+                                      : "run_end"},
+            // chain_end is a lifecycle marker, never a layer claim (the
+            // checker rejects chain_end with detection_layer=L5).
+            {"detection_layer", ""},
+            {"contained", contained ? "1" : "0"},
+            {"read_exposures_total",
+             std::to_string(vec_transient.reads_total)},
+            {"write_exposures_total",
+             std::to_string(vec_transient.write_exposures_total)},
+            {"phys_reads",
+             std::to_string(rf.getReadsBeforeOverwrite())},
+            {"commit_events", std::to_string(vec_transient.l5.commitEvents())},
+            {"squash_events", std::to_string(vec_transient.l5.squashEvents())},
+            {"consumers_recorded",
+             std::to_string(vec_transient.l5.consumersRecorded())},
+            {"first_impact_sn",
+             std::to_string(vec_transient.first_impact_sn)},
+            {"first_impact_tick",
+             std::to_string(vec_transient.first_impact_tick)},
+            {"first_impact_latency",
+             std::to_string(vec_transient.first_impact_latency)},
+            {"l5_witness_event",
+             std::to_string(vec_transient.l5_witness_event)},
+            {"affected_sn", std::to_string(vec_transient.overwrite_sn)},
+            {"state_before", "transient_lifecycle"},
+            {"state_after", terminal},
+        };
+        emitVecModelProp(model.c_str(), "F0", "chain_end",
+                         vec_transient.fault_id,
+                         vec_transient.last_event, kv);
+        vec_transient.installed = false;
     }
 
     void
@@ -539,6 +1152,10 @@ namespace gem5
     {
         if (!cpu || !inst)
             return;
+        // [FR01/FR02] Read-only transient evidence: real consumer reads and
+        // the real program write that overwrites the flipped cell. This runs
+        // even when no permanent (FR03) target is armed.
+        observeVecTransient(inst);
         auto &rf = cpu->physRegFile();
         if (!rf.vec_stuck.valid)
             return;
@@ -823,7 +1440,11 @@ namespace gem5
     void
     CHAOSPhysReg::noteCommit(ThreadID tid, o3::DynInst *inst)
     {
-        if (!cpu || !inst || !vec_emit.installed)
+        if (!cpu || !inst)
+            return;
+        // [FR01/FR02] A real L5 commit of a recorded transient consumer.
+        noteVecTransientCommit(tid, inst);
+        if (!vec_emit.installed)
             return;
         const auto r = l5.noteCommit(inst->seqNum);
         if (!r.matched)
@@ -918,7 +1539,11 @@ namespace gem5
     void
     CHAOSPhysReg::noteSquash(ThreadID tid, o3::DynInst *inst)
     {
-        if (!cpu || !inst || !vec_emit.installed)
+        if (!cpu || !inst)
+            return;
+        // [FR01/FR02] A squash is never a commit and never clears the fault.
+        noteVecTransientSquash(tid, inst);
+        if (!vec_emit.installed)
             return;
         const auto r = l5.noteSquash(inst->seqNum);
         if (!r.matched)
@@ -1042,6 +1667,8 @@ namespace gem5
     void
     CHAOSPhysReg::processFault(ThreadID tid)
     {
+        if (vec_transient_fatal)
+            return;
         // 1. Resolve target register class (integer / floating_point / vector).
         // 'both' picks one at random per injection across the three classes (a
         // real cell doesn't know its class either; this mirrors the ITC'23/GeFIN
@@ -1245,8 +1872,12 @@ namespace gem5
             std::vector<uint8_t> buf(vbytes, 0);
             cpu->physRegFile().getReg(phys_reg, buf.data());
             // Resolve the lane: width in bits -> bytes; clamp to vector width.
-            int lw = vec_lane_width;
-            if (lw != 8 && lw != 16 && lw != 32 && lw != 64) lw = 32;  // default
+            // The legacy stuck paths keep the historical "invalid -> 32"
+            // fallback; the FR01/FR02 transient path fails closed instead.
+            const bool lane_width_valid = vec_lane_width == 8 ||
+                vec_lane_width == 16 || vec_lane_width == 32 ||
+                vec_lane_width == 64;
+            int lw = lane_width_valid ? vec_lane_width : 32;
             int lane_bytes = lw / 8;
             int max_lanes = (int)(vbytes / lane_bytes);
             if (max_lanes < 1) max_lanes = 1;
@@ -1267,56 +1898,141 @@ namespace gem5
             const uint32_t install_generation =
                 cpu->physRegFile().generationOf(phys_reg);
             bool vec_stuck_armed = false;
-            switch (chosen) {
-              case FaultType::StuckAtZero:
-                lane_val &= ~lane_mask;
-                stats->numStuckAtZero++;
-                stats->numPermanentFaults++;
-                permanent_faults[{tid, chosen_phys_idx}] =
-                    {chosen, mask, true, target_class};
-                // [FR03] Arm the PERMANENT physical-cell write-path mask.
-                // The post-execute hook re-forces it after every later write
-                // to this physical cell. The generation is recorded as
-                // allocation/exposure identity only; free/realloc does NOT
-                // clear the defect (workbook table 3 FR03).
-                cpu->physRegFile().armVecStuck(
-                    chosen_phys_idx, install_generation,
-                    lw, lane, lane_mask, 0);
-                vec_stuck_armed = true;
-                break;
-              case FaultType::StuckAtOne:
-                lane_val |= lane_mask;
-                stats->numStuckAtOne++;
-                stats->numPermanentFaults++;
-                permanent_faults[{tid, chosen_phys_idx}] =
-                    {chosen, mask, true, target_class};
-                cpu->physRegFile().armVecStuck(
-                    chosen_phys_idx, install_generation,
-                    lw, lane, lane_mask, 1);
-                vec_stuck_armed = true;
-                break;
-              case FaultType::BitFlip:
-                lane_val ^= lane_mask;
+            if (chosen == FaultType::BitFlip) {
+                // [FR01/FR02] TRANSIENT one-shot flip. The fault domain is the
+                // architectural 128-bit Vec value, and every bit is selected
+                // (or validated) as a distinct identity. Nothing is armed on
+                // the write path: the next real write genuinely removes the
+                // defect. A request that cannot be honoured fails CLOSED.
+                using namespace chaos_vec_transient;
+                if (!lane_width_valid) {
+                    vec_transient_fatal = true;
+                    if (write_log && log_stream && log_stream->stream()) {
+                        *(log_stream->stream())
+                            << "VecFaultFailClosed: cycle=" << cpu->curCycle()
+                            << " phys=" << chosen_phys_idx
+                            << " lane_width=" << vec_lane_width
+                            << " reason=invalid_lane_width"
+                            << " (no injection; fault not consumed)"
+                            << std::endl;
+                    }
+                    return;
+                }
+                Geometry geom = (vec_lane_offset >= 0) ? Geometry::SameLane
+                                                       : Geometry::Any;
+                Geometry hinted;
+                if (parseGeometry(semantic_role, num_bits_to_change,
+                                  hinted))
+                    geom = hinted;
+                Selection sel;
+                if (fault_mask.any()) {
+                    // The explicit mask is authoritative; its popcount and
+                    // geometry must match the requested bit count exactly.
+                    sel = selectionFromMask(lw, vec_lane_offset,
+                                            num_bits_to_change, geom,
+                                            mask, 0);
+                } else {
+                    sel = select(rng, lw, vec_lane_offset,
+                                 num_bits_to_change, geom, semantic_role);
+                }
+                if (!sel.ok) {
+                    vec_transient_fatal = true;
+                    if (write_log && log_stream && log_stream->stream()) {
+                        *(log_stream->stream())
+                            << "VecFaultFailClosed: cycle=" << cpu->curCycle()
+                            << " model=" << (num_bits_to_change == 1
+                                             ? "FR01" : "FR02")
+                            << " phys=" << chosen_phys_idx
+                            << " lane_width=" << lw
+                            << " lane_offset=" << vec_lane_offset
+                            << " bits=" << num_bits_to_change
+                            << " explicit_mask=0x" << std::hex << mask
+                            << std::dec
+                            << " reason=" << sel.reason
+                            << " (no injection; fault not consumed)"
+                            << std::endl;
+                    }
+                    return;
+                }
+                if (vbytes < (size_t)kVecBytes) {
+                    vec_transient_fatal = true;
+                    return;
+                }
+                uint8_t before16[kVecBytes];
+                uint8_t after16[kVecBytes];
+                std::memcpy(before16, buf.data(), kVecBytes);
+                if (!applyToVec(buf.data(), buf.size(), sel)) {
+                    vec_transient_fatal = true;
+                    return;
+                }
+                std::memcpy(after16, buf.data(), kVecBytes);
+                cpu->physRegFile().setReg(phys_reg, buf.data());
                 stats->numBitFlips++;
-                break;
-              default: break;
-            }
-            for (int b = 0; b < lane_bytes; ++b)
-                lane_ptr[b] = (uint8_t)((lane_val >> (8 * b)) & 0xff);
-            cpu->physRegFile().setReg(phys_reg, buf.data());
-            if (vec_stuck_armed) {
-                // L0/L1 emission: one fault_id, fixed mask/polarity, explicit
-                // install generation. The install write is exposure #1.
-                noteVecStuckInstalled(
-                    install_generation, correct_lane, lane_val,
-                    !cpu->physFreeList().isFree(target_class, phys_reg));
-            }
-            // log the lane for the evidence trail
-            if (write_log) {
-                *(log_stream->stream())
-                    << "  [vec lane " << lane << "/" << max_lanes
-                    << " width=" << lw << "bits mask=0x" << std::hex
-                    << lane_mask << std::dec << "]" << std::endl;
+                noteVecTransientInstalled(
+                    tid, chosen_phys_idx, chosen_arch_idx,
+                    install_generation, sel, before16, after16);
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "  [vec transient lane=" << sel.lane_offset
+                        << " width=" << sel.lane_width << "bits bits="
+                        << bitIndices(sel) << " mask=0x" << std::hex
+                        << sel.mask_lo << std::dec
+                        << " (no permanent arm)]" << std::endl;
+                }
+            } else {
+                switch (chosen) {
+                  case FaultType::StuckAtZero:
+                    lane_val &= ~lane_mask;
+                    stats->numStuckAtZero++;
+                    stats->numPermanentFaults++;
+                    permanent_faults[{tid, chosen_phys_idx}] =
+                        {chosen, mask, true, target_class};
+                    // [FR03] Arm the PERMANENT physical-cell write-path mask.
+                    // The post-execute hook re-forces it after every later
+                    // write to this physical cell. The generation is recorded
+                    // as allocation/exposure identity only; free/realloc does
+                    // NOT clear the defect (workbook table 3 FR03).
+                    cpu->physRegFile().armVecStuck(
+                        chosen_phys_idx, install_generation,
+                        lw, lane, lane_mask, 0);
+                    vec_stuck_armed = true;
+                    break;
+                  case FaultType::StuckAtOne:
+                    lane_val |= lane_mask;
+                    stats->numStuckAtOne++;
+                    stats->numPermanentFaults++;
+                    permanent_faults[{tid, chosen_phys_idx}] =
+                        {chosen, mask, true, target_class};
+                    cpu->physRegFile().armVecStuck(
+                        chosen_phys_idx, install_generation,
+                        lw, lane, lane_mask, 1);
+                    vec_stuck_armed = true;
+                    break;
+                  case FaultType::BitFlip:
+                    // Unreachable (handled above); kept so the fault-type
+                    // vocabulary stays explicit in this switch.
+                    lane_val ^= lane_mask;
+                    stats->numBitFlips++;
+                    break;
+                  default: break;
+                }
+                for (int b = 0; b < lane_bytes; ++b)
+                    lane_ptr[b] = (uint8_t)((lane_val >> (8 * b)) & 0xff);
+                cpu->physRegFile().setReg(phys_reg, buf.data());
+                if (vec_stuck_armed) {
+                    // L0/L1 emission: one fault_id, fixed mask/polarity,
+                    // explicit install generation. Install write = exposure 1.
+                    noteVecStuckInstalled(
+                        install_generation, correct_lane, lane_val,
+                        !cpu->physFreeList().isFree(target_class, phys_reg));
+                }
+                // log the lane for the evidence trail
+                if (write_log) {
+                    *(log_stream->stream())
+                        << "  [vec lane " << lane << "/" << max_lanes
+                        << " width=" << lw << "bits mask=0x" << std::hex
+                        << lane_mask << std::dec << "]" << std::endl;
+                }
             }
         } else {
             // Scalar path (int / float / vecelem).
@@ -1443,6 +2159,14 @@ namespace gem5
                 continue;
             processFault(tid);
         }
+        // [FR01/FR02] A geometry/mask that cannot be honoured is a hard
+        // manifest error: stop attacking instead of retrying forever or
+        // silently degrading a two-bit fault to one bit. The fail-closed
+        // line was already written by processFault.
+        if (vec_transient_fatal) {
+            unscheduleAttackEvent();
+            return;
+        }
         // maxFaults cap (mirrors CHAOSReg)
         if (max_faults != 0 && faults_injected_count >= max_faults) {
             unscheduleAttackEvent();
@@ -1564,6 +2288,10 @@ namespace gem5
         // flush already ran.
         if (vec_emit.installed)
             emitVecTerminal();
+        // [FR01/FR02] Backstop terminal; the propagation exit-flush hook is
+        // the primary path (it runs while the event stream is still open).
+        if (vec_transient.installed)
+            finalizeVecTransient(nullptr);
         // W2.5 L0 lifecycle final line (docs/gem5-fi/ooo/
         // 07-l0-lifecycle-interface.md), printed exactly once at end of
         // sim from the exit callback registered in the constructor.

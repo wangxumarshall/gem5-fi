@@ -49,10 +49,10 @@
 | 4 | `FSU-FP07-F0-W6` | FP07/W6 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
 | 5 | `FSU-FP05-F0-W6` | FP05/W6 | ◐ partial | 部分 | ✅ full | ✅ REAL | M/中 | 7.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
 | 6 | `FSU-FP07-F0-W5` | FP07/W5 | △ proxy | 代理 | ✅ full | ◐ PARTIAL | S/中 | 6.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
-| 7 | `FSU-FP05-F0-W3` | FP05/W3 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
-| 8 | `FSU-FP05-F0-W5` | FP05/W5 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
-| 9 | `FSU-FR01-F0-W1` | FR01/W1 | ◐ partial | 部分 | ◐ partial | ✅ REAL | M/中 | 5.0 | CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层 |
-| 10 | `FSU-FR02-F0-W1` | FR02/W1 | ◐ partial | 部分 | ◐ partial | ✅ REAL | M/中 | 5.0 | CHAOSPhysReg `bitsToChange=2`；random mask 可能把两个 bit 抽成同一个（实际 1 bit）；跨 lane/字段对缺失；无 PROP |
+| 7 | `FSU-FR01-F0-W1` | FR01/W1 | ✅ exact | 瞬态 | ◐ partial | ✅ REAL | M/中 | 6.5 | 真实 Vec 瞬态单 bit；L0/L1/overwrite 已发射，seed2 真实写覆盖终止；缺 L2/L5 完整覆盖与正式 3 seed |
+| 8 | `FSU-FR02-F0-W1` | FR02/W1 | ✅ exact | 瞬态 | ◐ partial | ✅ REAL | M/中 | 6.5 | 两个 bit 必互异（碰撞 fail closed）；L0/L1/overwrite 已发射；缺 L2/L5 完整覆盖与正式 3 seed |
+| 9 | `FSU-FP05-F0-W3` | FP05/W3 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
+| 10 | `FSU-FP05-F0-W5` | FP05/W5 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
 | 11 | `FSU-FP08-F0-W1` | FP08/W1 | ◐ partial | 部分 | ✗ none | ✅ REAL | M/中 | 4.0 | CHAOSFPU `roundingSub` 1-ULP 代理真实；该路径提前 return，不发射 PROP；`suppressed_count` 未输出；runner 无 fpsr 开关 |
 | 12 | `FSU-FR01-F0-W3` | FR01/W3 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层 |
 | 13 | `FSU-FR01-F0-W5` | FR01/W5 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层 |
@@ -211,19 +211,18 @@ host 证据：`tests/unit/chaos_iq_lifecycle_test.cc`（正例/负例/预算）�
 targetClass=vec, fpOnly=1`；无 victim 负例应 `applied=0, faults_injected: 0`，
 有 victim 正例应 `applied=1, faults_injected: 1`。
 
-### 4.2 FR03 以外 PRF 模型的身份与 generation — **部分（partial）**
+### 4.2 FR03 以外 PRF 模型的身份与 generation — **已修复（待正式 seed）**
 
 **FR03（已认证，正确）**：永久 key 是 `reg_class + phys_index + lane/bit/mask + polarity`，generation 只作分配/暴露身份。`regfile.hh:289–293` 的 `isVecStuckTarget` 只匹配 class+index；`noteRegFreed` 在 `regfile.hh:268–272` 递增 `flat_generation`；`reapplyVecStuck`（318–329）在每次 Vec 写后重施；`clearPermanentFaults`（297–301）只在 run-end（`CHAOSPhysReg.cc:532–534`）调用。free/realloc/squash 都不清除，generation 变化重启 exposure 链（`CHAOSPhysReg.cc:329–386`）。host 单测 `tests/unit/chaos_physreg_generation_test.cc` 已覆盖。
 
-**FR03 以外（部分/缺口）**：
-- `FR01/FR02` 的 vec 路径在 `FaultType::BitFlip` 只做 `lane_val ^= lane_mask`（`CHAOSPhysReg.cc:1291–1294`），不调用 `armVecStuck`、不调用 `noteVecStuckInstalled`（后者只在 `if (vec_stuck_armed)` 下，1300–1306）。因此**没有 fault_applied/fault_installed 根，也没有 generation/old-new/consumer 事件**，不能过 FSU L0–L5 链审计。
-- `FR02` 的“双 bit”由 `generateRandomMask(rng, bitsToChange=2, 64)` 生成（`CHAOSPhysReg.cc:1029–1035`，调用点 1223–1225）；`while (bits_to_change-- > 0) mask |= (1ULL << bitDist(gen))` 可能两次抽到同一 bit，实际只翻 1 bit；`lane_mask` 在 `lw<64` 时还会被截断（1254–1258），跨 lane/字段对更不成立。
-- `arch_frontend` / `arch_commit` 在 attack 时刻才 lookup front/commit rename map（`CHAOSPhysReg.cc:1185–1206`），随后直接写该 phys cell；没有 generation/ownership 的二次校验，写入可能被后续 producer 覆盖或指向已退役 cell，不能当作“active 且将被读”的身份证据。
-- 树中 **不存在 `CHRIS` 符号**（全仓 grep 无命中）；最接近的 `CHAOSReg` 没有 generation 概念，且是 `ThreadContext::setReg`/commit-map 路径，CLAUDE.md 已指出其在 O3 上不跟踪 in-flight 读取，不适合作为 PRF 模型。
-
-**是否需修复**：FR03 不需要；若要让 FR01/FR02 进入 F0 认证，需要（a）为 vec bit_flip 增加 FSU PROP 根/事件，（b）修双 bit 生成保证两个不同 bit，（c）补 generation/consumer 证据。
-
-**最小测试**：host 单测断言 vec `BitFlip` 后 `vec_stuck.valid == false` 且无 `fault_applied`；把 `generateRandomMask` 抽成 pure 函数后测“bitsToChange=2 时 popcount==2”（当前会失败/暴露碰撞）。本任务的 Python 测试用静态证据锁住现状。
+**FR01/FR02（本轮修复）**：`FaultType::BitFlip` 的 Vec 路径改为真实瞬态注入
+（`chaos_vec_transient.hh`）：FR01 单 bit；FR02 用无放回抽样保证两个不同 bit，
+显式 mask popcount/几何不符时 fail closed 且不消费故障；128-bit 域内只改目标位；
+事件包含 `phys_reg`、`reg_generation`、`bit_indices`、`lane_width/lane_offset`、
+`before/after`；真实写覆盖发射 `overwrite`（L1, `phys_cell_rewritten`）并终止
+故障，不安装永久 stuck。host 单测 36 项与 gem5 W1 gate 均通过（FR01 seed2 /
+FR02 seed2 的 overwrite、FR02 碰撞负例 fail closed）。仍缺 L2 consumer/L5
+commit 的完整覆盖与正式 3 seed。
 
 ### 4.3 FP08 suppressed_count 与 roundingSub 早退路径 — **已修复（待 gem5 gate 实证）**
 
@@ -387,10 +386,38 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-HOOK-LANE
       "gap": "CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass"
     },
     {
+      "runid": "FSU-FR01-F0-W1",
+      "model_id": "FR01",
+      "load_id": "W1",
+      "rank": 7,
+      "score": 6.5,
+      "tier": "T2",
+      "injector": "exact",
+      "chain": "partial",
+      "workload": "real",
+      "cost": "M",
+      "risk": "medium",
+      "gap": "真实 Vec 瞬态单 bit；L0/L1/overwrite 已发射，seed2 真实写覆盖终止；缺 L2 consumer/L5 commit 完整覆盖与正式 3 seed"
+    },
+    {
+      "runid": "FSU-FR02-F0-W1",
+      "model_id": "FR02",
+      "load_id": "W1",
+      "rank": 8,
+      "score": 6.5,
+      "tier": "T2",
+      "injector": "exact",
+      "chain": "partial",
+      "workload": "real",
+      "cost": "M",
+      "risk": "medium",
+      "gap": "两个 bit 必互异（碰撞 fail closed）；L0/L1/overwrite 已发射；缺 L2/L5 完整覆盖与正式 3 seed"
+    },
+    {
       "runid": "FSU-FP05-F0-W3",
       "model_id": "FP05",
       "load_id": "W3",
-      "rank": 7,
+      "rank": 9,
       "score": 6.0,
       "tier": "T2",
       "injector": "partial",
@@ -404,7 +431,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-HOOK-LANE
       "runid": "FSU-FP05-F0-W5",
       "model_id": "FP05",
       "load_id": "W5",
-      "rank": 8,
+      "rank": 10,
       "score": 6.0,
       "tier": "T2",
       "injector": "partial",
@@ -413,34 +440,6 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-HOOK-LANE
       "cost": "M",
       "risk": "medium",
       "gap": "CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id"
-    },
-    {
-      "runid": "FSU-FR01-F0-W1",
-      "model_id": "FR01",
-      "load_id": "W1",
-      "rank": 9,
-      "score": 5.0,
-      "tier": "T2",
-      "injector": "partial",
-      "chain": "partial",
-      "workload": "real",
-      "cost": "M",
-      "risk": "medium",
-      "gap": "CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层"
-    },
-    {
-      "runid": "FSU-FR02-F0-W1",
-      "model_id": "FR02",
-      "load_id": "W1",
-      "rank": 10,
-      "score": 5.0,
-      "tier": "T2",
-      "injector": "partial",
-      "chain": "partial",
-      "workload": "real",
-      "cost": "M",
-      "risk": "medium",
-      "gap": "CHAOSPhysReg `bitsToChange=2`；random mask 可能把两个 bit 抽成同一个（实际 1 bit）；跨 lane/字段对缺失；无 PROP"
     },
     {
       "runid": "FSU-FP08-F0-W1",
@@ -1264,35 +1263,31 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-HOOK-LANE
       "minimal_test": "src_ready_bitflip：无 victim 负例 applied=0/faults_injected: 0；有 victim 正例 applied=1/faults_injected: 1。"
     },
     "PRF-identity-generation": {
-      "verdict": "partial",
-      "summary": "FR03 的永久 cell 身份/generation 语义正确（key=class+index，generation 只作 provenance；free/realloc 不清除；仅 run-end 清）。FR03 以外：FR01/FR02 的 vec bit_flip 路径不 arm/不发 PROP，无 generation/consumer 证据；FR02 的随机 2-bit mask 可能碰撞成 1 bit；arch_* 模式只在 attack 时刻 lookup，无 generation/ownership 校验。树中不存在 CHRIS 符号，最接近的 CHAOSReg 没有 generation 概念且是 TC/commit-map 路径。",
+      "verdict": "fixed_pending_gem5_gate",
+      "summary": "FR03 永久 cell 语义保持正确；FR01/FR02 的 Vec bit_flip 现为真实瞬态路径：单 bit / 两个必互异 bit、128-bit lane/字段域、phys_reg+reg_generation 证据、L0/L1/overwrite/L5 观察；显式 mask popcount 不符时 fail closed。仍缺正式 3 seed 与全字段覆盖。",
       "evidence": [
         {
+          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/chaos_vec_transient.hh",
+          "pattern": "chooseDistinct"
+        },
+        {
+          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/chaos_vec_transient.hh",
+          "pattern": "onlySelectedBitsDiffer"
+        },
+        {
+          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/chaos_vec_transient.hh",
+          "pattern": "TransientCell"
+        },
+        {
+          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc",
+          "pattern": "VecFaultFailClosed"
+        },
+        {
           "file": "CHAOS/gem5/src/cpu/o3/regfile.hh",
-          "pattern": "vec_stuck.matches((int)p->classValue(), (int)p->index())"
-        },
-        {
-          "file": "CHAOS/gem5/src/cpu/o3/regfile.hh",
-          "pattern": "++flat_generation[flat];"
-        },
-        {
-          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc",
-          "pattern": "if (vec_stuck_armed) {"
-        },
-        {
-          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc",
-          "pattern": "case FaultType::BitFlip:"
-        },
-        {
-          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc",
-          "pattern": "while (bits_to_change-- > 0) mask |= (1ULL << bitDist(gen));"
-        },
-        {
-          "file": "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc",
-          "pattern": "commitRenameMapAccess()[tid].lookup(flat)"
+          "pattern": "noteTraceOverwrite"
         }
       ],
-      "minimal_test": "host 单测：vec bit_flip 后 CHAOSPhysReg 不 arm/permanent key 不成立、无 fault_applied/fault_installed 发射；pure mask 生成测试验证 bitsToChange=2 的碰撞概率（抽出 generateRandomMask 后 host 测试）。FR03 现有 tests/unit/chaos_physreg_generation_test.cc 已覆盖。"
+      "minimal_test": "FR01 mask 0x20 -> bit_indices=5, before 0x0/after 0x20, overwrite contained；FR02 mask 0x2000000020 -> bit_indices=5,37；mask popcount 不符 -> fail closed 且无 fault_applied。"
     },
     "FP08-suppressed_count": {
       "verdict": "fixed_pending_gem5_gate",

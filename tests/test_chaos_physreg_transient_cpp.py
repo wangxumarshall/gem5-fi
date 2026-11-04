@@ -1,0 +1,123 @@
+"""tests/test_chaos_physreg_transient_cpp.py — FR01/FR02 transient Vec flips.
+
+Compiles tests/unit/chaos_vec_transient_test.cc with the host g++ (no gem5
+build) and requires every FR01/FR02 check to pass. Static checks below prove
+the transient model is really wired into CHAOSPhysReg:
+
+  * the Vec bit_flip path selects/validates DISTINCT bits (FR02 can never
+    collapse into a one-bit fault) and fails closed on an impossible request;
+  * the bit_flip path never arms the FR03 permanent write-path mask;
+  * L0/L1/L2/L5 evidence is emitted with model_id FR01/FR02 and freq F0;
+  * real consumer reads and the real overwrite are observed on the existing
+    post-execute hook, and the overwrite freezes the read trace.
+"""
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+SRC = REPO / "tests/unit/chaos_vec_transient_test.cc"
+INC = REPO / "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg"
+HEADER = INC / "chaos_vec_transient.hh"
+PHYS_CC = REPO / "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc"
+PHYS_HH = REPO / "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.hh"
+REGFILE_HH = REPO / "CHAOS/gem5/src/cpu/o3/regfile.hh"
+
+
+def test_chaos_vec_transient_unit():
+    cxx = shutil.which("g++")
+    if not cxx:
+        raise AssertionError("g++ is required for the FR01/FR02 host test")
+    with tempfile.TemporaryDirectory() as td:
+        exe = Path(td) / "chaos_vec_transient_test"
+        build = subprocess.run(
+            [cxx, "-O0", "-std=c++17", "-Wall", "-Wextra", "-Werror",
+             "-I", str(INC), str(SRC), "-o", str(exe)],
+            capture_output=True, text=True)
+        assert build.returncode == 0, build.stderr
+        run = subprocess.run([str(exe)], capture_output=True, text=True)
+        assert run.returncode == 0, run.stdout + run.stderr
+        out = run.stdout
+        assert "ALL TRANSIENT CHECKS PASSED" in out
+        # Pin the load-bearing semantics explicitly.
+        assert "FR01 single-bit: only target bit changes" in out
+        assert "FR01 non-target lanes/bytes unchanged" in out
+        assert "FR01 overwrite terminates the transient" in out
+        assert "FR01 overwrite: reads return the written value, not the flip" in out
+        assert "FR01 no permanent/stuck re-apply on later reads" in out
+        assert "FR02 two bits are always distinct" in out
+        assert "FR02 collision in explicit mask rejected (fail closed)" in out
+        assert "FR02 insufficient lane width rejected (fail closed)" in out
+        assert "FR02 out-of-range lane rejected (fail closed)" in out
+        assert "FR02 explicit two-bit mask has two distinct identities" in out
+        assert "FR02 cross-lane geometry is in-range and only target bits change" in out
+        assert "FR02 cross-field geometry uses two 32-bit fields" in out
+        assert "FR02 cross-field inside a directed 64-bit lane" in out
+        assert "FR02 cross-field anchored on a directed 32-bit lane" in out
+        assert "FR02 adjacent geometry: distance exactly 1 in one lane" in out
+        assert "FR02 non-adjacent geometry: distance >= 2 in one lane" in out
+        assert "128-bit boundary bit 127 is addressable" in out
+
+
+def test_transient_really_wired_into_chaosphysreg():
+    header = HEADER.read_text(encoding="utf-8")
+    phys = PHYS_CC.read_text(encoding="utf-8")
+    hh = PHYS_HH.read_text(encoding="utf-8")
+    rf = REGFILE_HH.read_text(encoding="utf-8")
+
+    # Pure model is used by the injector, not a dead header.
+    assert "chaos_vec_transient.hh" in hh
+    assert "selectionFromMask(" in phys
+    assert "select(rng, lw, vec_lane_offset" in phys
+    assert "applyToVec(buf.data(), buf.size(), sel)" in phys
+    assert "noteVecTransientInstalled(" in phys
+    assert "observeVecTransient(inst)" in phys
+    assert "noteVecTransientCommit(tid, inst)" in phys
+    assert "noteVecTransientSquash(tid, inst)" in phys
+    assert "finalizeVecTransient(nullptr)" in phys
+
+    # FR02 collision cannot collapse: the explicit-mask path validates the
+    # popcount/geometry and fails closed.
+    assert "mask_popcount_mismatch" in header
+    assert "VecFaultFailClosed" in phys
+    assert "vec_transient_fatal = true;" in phys
+    assert "if (vec_transient_fatal)" in phys
+
+    # No permanent arm in the transient path: exactly the two FR03 stuck
+    # branches arm the permanent Vec cell.
+    assert phys.count("armVecStuck(") == 2
+    assert "no permanent arm" in phys
+    transient_block = phys[phys.index("if (chosen == FaultType::BitFlip)"):
+                           phys.index("noteVecTransientInstalled(")]
+    assert "armVecStuck" not in transient_block
+
+    # Model identity and bit identities are emitted.
+    assert 'sel.bits.size() == 1 ? "FR01" : "FR02"' in phys
+    assert '"fault_applied"' in phys
+    assert '"bit_indices"' in phys
+    assert '{"fault_mask", mask_os.str()}' in phys
+    assert '"overwrite"' in phys
+    assert '"phys_cell_rewritten"' in phys
+    assert '{"detection_layer", "L5"}' in phys
+
+    # The real overwrite is observed on the post-execute hook and freezes the
+    # container read trace (vector dest writes bypass setReg()).
+    assert "noteTraceOverwrite" in rf
+    assert "rf.noteTraceOverwrite();" in phys
+
+
+def test_fr01_fr02_runids_exist_and_are_f0_w1():
+    import json
+    reg = json.loads(
+        (REPO / "docs/gem5-fi/fsu/runids.json").read_text(encoding="utf-8"))
+    rows = {r["RunID"]: r for r in reg["runids"]}
+    for rid, model in (("FSU-FR01-F0-W1", "FR01"),
+                       ("FSU-FR02-F0-W1", "FR02")):
+        assert rid in rows, rid
+        r = rows[rid]
+        assert r["模型ID"] == model
+        assert r["频率"] == "F0"
+        assert r["负载ID"] == "W1"
+        assert r["负载名称"] == "FP-ScalarProbe"
+        assert "每次运行只注入1次" in r["采样说明"]

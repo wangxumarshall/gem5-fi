@@ -206,6 +206,15 @@ class PhysRegFile
     void clearReadTraceTarget() {
         trace_type = InvalidRegClass; trace_idx = -1;
     }
+    /** [FR01/FR02] A real write to the traced Vec cell was observed on the O3
+     *  post-execute path (vector destinations are written through a raw
+     *  getWritableReg() pointer, which never reaches setReg()). The injected
+     *  transient value is gone; freeze the read counter. Evidence only — this
+     *  never re-applies the flips. */
+    void noteTraceOverwrite() {
+        if (trace_type != InvalidRegClass)
+            trace_overwritten = true;
+    }
     uint64_t getReadsBeforeOverwrite() const { return reads_before_overwrite; }
     bool isTraceOverwritten() const { return trace_overwritten; }
 

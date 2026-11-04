@@ -143,7 +143,7 @@ def test_known_defect_verdicts_match_code_evidence():
     defects = payload["defects"]
     expected = {
         "FQ08-b": "fixed_pending_gem5_gate",
-        "PRF-identity-generation": "partial",
+        "PRF-identity-generation": "fixed_pending_gem5_gate",
         "FP08-suppressed_count": "fixed_pending_gem5_gate",
         "FQ08-c": "fixed_pending_gem5_gate",
     }
