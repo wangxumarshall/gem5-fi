@@ -280,18 +280,22 @@ def main():
     # 普查实测（cache_dirtyevict=56、prefetch_stride=32；见 round4_findings.md §R4-5.4），
     # 断言随之翻转为"**已实测**且按对取值 + 逐对生效"，同时保留"未实测对仍 loud 拒绝"
     # 这条**机制**断言（用一个刻意未实测的负载名验证），以免丢失该纪律的回归网。
-    check("PF_F0_SPAN 表存在且 P06 两条已实测（集成期普查）",
+    # [R6-P-F0GAP 2026-11-04] Re-censused with the campaign's EXACT absolute
+    # --cmd form: the relative-path census (56/32) is a different experiment
+    # because the guest argv[0] shifts stack/cache placement. Formal values:
+    # W6=50, W8=28 (quoted in docs/gem5-fi/lsu/evidence/R6-P-F0GAP-CENSUS.md).
+    check("PF_F0_SPAN 表存在且 P06 两条已按精确绝对命令复测",
           isinstance(LC.PF_F0_SPAN, dict)
-          and LC.PF_F0_SPAN.get(("P06", "cache_dirtyevict")) == 56
-          and LC.PF_F0_SPAN.get(("P06", "prefetch_stride")) == 32,
+          and LC.PF_F0_SPAN.get(("P06", "cache_dirtyevict")) == 50
+          and LC.PF_F0_SPAN.get(("P06", "prefetch_stride")) == 28,
           str(LC.PF_F0_SPAN))
     check("已实测 (P06, workload) F0 逐对生效（span=实测值, warmup=1）",
           LC._prefetch_tier_flags("P06", "F0", "cache_dirtyevict") ==
           ["--prefetch_lsu_tier", "F0", "--prefetch_warmup_events", "1",
-           "--prefetch_span_events", "56"]
+           "--prefetch_span_events", "50"]
           and LC._prefetch_tier_flags("P06", "F0", "prefetch_stride") ==
           ["--prefetch_lsu_tier", "F0", "--prefetch_warmup_events", "1",
-           "--prefetch_span_events", "32"],
+           "--prefetch_span_events", "28"],
           str(LC._prefetch_tier_flags("P06", "F0", "cache_dirtyevict")))
     check("未实测 (P06, workload) F0 仍 loud 拒绝（机制未丢）",
           LC._prefetch_tier_flags("P06", "F0", "no_such_workload") is None)

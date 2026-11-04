@@ -121,3 +121,19 @@ Root-cause and fix (C++ + campaign):
   fill-way/tag; P09 F0 dirty-writeback), plus P09-W13 asset missing.
 - The authoritative P unit has **53** RunIDs across F0–F6; this round completed
   only the above subset. No claim of full P-unit completion.
+
+## Binary identity ledger (2026-11-04 takeover)
+
+Per-batch identity is explicit; an old evidence stream is never rewritten as a
+new-binary product.
+
+| batch | binary | sha256 | source head | evidence |
+|---|---|---|---|---|
+| F0 certified (15 seeds) | O-worktree build | `c6cccf5b490823d216d01bd2449031aef2d892c88cec5cd291c852bbe86ca87b` | `f5055a99` | `campaign_seed1_20261104`, `campaign_seed23_20261104` |
+| F5 certified (12 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-8a2778d4` | `8a2778d4d32644dbb02355ee90a95b3107b56af31723811f663da8940d283204` | `3f0a5589` | `campaign_f5_seed1_v2`, `campaign_f5_seed23_v2`, `campaign_f5_seed3_v2` |
+| intermediate (NOT final) | `runs/lsu/r6_p_unit/binaries/gem5.opt-587ea8c3` | `587ea8c34db022edddb10828463621270d27c45944514f0234c65f30d3c5ad6d` | `3f0a5589` | none; never cited as evidence |
+
+The takeover worktree's `CHAOS/gem5/build/ARM/gem5.opt` currently hashes to
+`8a2778d4…` (the frozen F5 binary), so the build tree is at `3f0a5589` and the
+F0-gap fixes can be built incrementally. The new F0-gap binary is recorded in
+`docs/gem5-fi/lsu/evidence/R6-P-F0GAP-CENSUS.md` once built.

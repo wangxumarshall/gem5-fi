@@ -54,3 +54,12 @@ P03/P06 as above. No full-model P claim is made.
   golden eligible counts; the faults can extend/shorten the downstream stream
   (±1–few events). Alarms on equality (e.g. eligible == span) are the trigger's
   conservative warning, not a missing injection.
+
+## F0-gap supersession policy (2026-11-04 takeover)
+
+The five F0 gap RunIDs (`P01-F0-W2`, `P03-F0-W8`, `P03-F0-W9`, `P06-F0-W6`,
+`P06-F0-W8`) keep their original failed evidence under
+`campaign_seed1_20261104/`. New runs go to `campaign_f0gap_20261104/` (seed1)
+and `campaign_f0gap_seed23_20261104/` (seeds 2/3), on the new F0-gap binary.
+Only those five RunIDs are superseded; the 9 already-certified RunIDs and all
+F5 evidence are untouched. No older evidence file is deleted or rewritten.

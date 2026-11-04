@@ -1841,21 +1841,28 @@ def _cache_tier_flags(model, tier, wl_binary=None):
 PF_F0_SPAN = {
     # (model, workload binary) -> measured eligible event stream size
     #
-    # [R4-5.4 integration] MEASURED 2026-10-21 on binary
-    # 2c5a03913bebfcae with the census command above (span=1e6 so the F0
-    # draw can never land; the teardown `eligible=` is therefore the whole
-    # golden stream, and the SPAN_UNREACHABLE alarm confirms the census
-    # intent). Raw teardown lines:
-    #   cache_dirtyevict: injector=CHAOSPrefetch tier=F0 attempted=56
-    #     eligible=56 injected=0 ... ALARM mode=SPAN_UNREACHABLE
-    #     draw_next_fire=756413 span=1000000 warmup=1
-    #   prefetch_stride : injector=CHAOSPrefetch tier=F0 attempted=32
-    #     eligible=32 injected=0 ... ALARM mode=SPAN_UNREACHABLE
-    #     draw_next_fire=756413 span=1000000 warmup=1
-    # (same seed-1 draw across both, as expected for warmup=1 + span=1e6.)
-    # Per-pair keying, not a family constant (R4-1-review-I2).
-    ("P06", "cache_dirtyevict"): 56,   # W6
-    ("P06", "prefetch_stride"): 32,    # W8
+    # [R6-P-F0GAP 2026-11-04] RE-CENSUSED on binary 8a2778d4 with the
+    # campaign's EXACT absolute command form (--cmd <worktree>/workloads/
+    # directed/<wl>). The 2026-10-21 census used a RELATIVE --cmd and the
+    # guest argv[0] string shifts stack/cache placement (timing-visible:
+    # the same lesson already recorded for LSQFWD_F0_SPAN above). Raw
+    # teardown lines (span=1e9 so the F0 draw can never land):
+    #   cache_dirtyevict: injector=CHAOSPrefetch tier=F0 attempted=50
+    #     eligible=50 injected=0 ... ALARM mode=SPAN_UNREACHABLE
+    #     draw_next_fire=735756413 span=1000000000 warmup=1
+    #   prefetch_stride : injector=CHAOSPrefetch tier=F0 attempted=28
+    #     eligible=28 injected=0 ... ALARM mode=SPAN_UNREACHABLE
+    #     draw_next_fire=735756413 span=1000000000 warmup=1
+    # The old relative-census values (56/32) are NOT the formal stream:
+    # P06-W8's formal seed1 draw_next_fire=29 silently missed a 28-event
+    # stream. warmup=1 + span=N is the true F0-uniform window: next_fire =
+    # 1 + lcg(seed)%N ∈ [1,N] hits every eligible event uniformly and the
+    # draw is guaranteed to land. Evidence:
+    # runs/lsu/r6_p_unit/census_abs_20261104/{P06_cache_dirtyevict,
+    # P06_prefetch_stride}.out and docs/gem5-fi/lsu/evidence/
+    # R6-P-F0GAP-CENSUS.md.
+    ("P06", "cache_dirtyevict"): 50,   # W6
+    ("P06", "prefetch_stride"): 28,    # W8
     # [R6-P-UNIT 2026-11-04] MEASURED on binary c6cccf5b with the census
     # command above (span=1e9; teardown eligible= is the whole golden
     # stream):
