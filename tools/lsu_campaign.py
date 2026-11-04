@@ -1879,6 +1879,16 @@ PF_F0_SPAN = {
 
 
 def _prefetch_tier_flags(model, tier, wl_binary=None):
+    # [R6-P-F5-PERM 2026-11-04] FAMILY_MOUNT gives --prefetch_max_faults 1
+    # (the F0 default). F5 is the permanent tier and must override it to 0
+    # (argparse last-wins), exactly like exmon-fsmc. Without this the
+    # injector stopped after one write (max_faults=1) while the trigger
+    # kept firing: F5 silently degenerated to one-shot.
+    if tier == "F5":
+        return ["--prefetch_lsu_tier", tier,
+                "--prefetch_warmup_events", "0",
+                "--prefetch_span_events", "50",
+                "--prefetch_max_faults", "0"]
     # [MDSPEC][R4-5.4] + [R6-P-UNIT 2026-11-04]: every modelled prefetch
     # family uses a per-(model, workload) F0 span (PF_F0_SPAN; uniform
     # parameterization: warmup + span=N hits each of the N eligible events

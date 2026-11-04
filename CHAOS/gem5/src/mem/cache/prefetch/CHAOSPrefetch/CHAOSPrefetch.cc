@@ -171,7 +171,13 @@ namespace gem5
         }
         if (!go) return;
         if (max_faults != 0 && faults_injected >= max_faults) return;
-        ++faults_injected;
+
+        // [R6-P-F5-EFFECT] F5 separates "fire" from "state actually changed".
+        // A permanent fault is applied at every eligible event; only a fire
+        // that changes the target state is an injection (noteOutcome(true));
+        // idempotent re-applications are no_effect and must not build a
+        // second chain. Non-F5 keeps the historical one-shot semantics.
+        bool effective = true;
 
         // [MDSPEC][H5] Register the prefetch fault with the propagation
         // tracer (the single injection funnel — every mode passes through
@@ -188,20 +194,6 @@ namespace gem5
         // before/after carry the real training-entry change.
         uint64_t h5_ptag = 0;
         uint64_t h5_pfid = 0;
-        // h5_pc is computed once at the top of this function (also used by
-        // the observation-only continuation above).
-        // If this training entry already carries an active fault chain
-        // (e.g. P01's corrupted stride keeps generating wrong addresses on
-        // later calls), the candidates generated on THIS call belong to
-        // that same request chain — reuse its ids.
-        if (entry && corrupted_entries.count(h5_pc)) {
-            h5_ptag = corrupted_entries[h5_pc].first;
-            h5_pfid = corrupted_entries[h5_pc].second;
-        } else if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
-            h5_ptag = h5->registerCacheFault(pf_addr, -1, line_size, "prefetch");
-            if (h5_ptag)
-                h5_pfid = h5->notePrefetchRequest(pf_addr, line_size);
-        }
         const int h5_stride_before = entry ? entry->stride : 0;
 
         switch (fi_mode) {
@@ -213,6 +205,7 @@ namespace gem5
               const unsigned bit = rng() % 31;
               const int old_stride = entry->stride;
               entry->stride ^= (1 << bit);
+              effective = (entry->stride != old_stride);
               logInjection("P01_stride_bitflip", pf_addr,
                            "stride " + std::to_string(old_stride) + " -> " +
                            std::to_string(entry->stride) +
@@ -224,6 +217,7 @@ namespace gem5
               // (fabricated confidence), 50/50. gem5 models confidence as
               // a SatCounter8 — the xlsx row's version/granule sub-fields
               // do not exist in this host structure (documented).
+              const uint8_t conf_before = (uint8_t)entry->confidence;
               if (rng() % 2) {
                   entry->confidence.reset();
                   logInjection("P02_confidence_clear", pf_addr,
@@ -233,6 +227,7 @@ namespace gem5
                   logInjection("P02_confidence_fake", pf_addr,
                                "confidence -> saturated (fake)");
               }
+              effective = ((uint8_t)entry->confidence != conf_before);
               break;
           }
           case Mode::P03AddrSubst: {
@@ -249,6 +244,7 @@ namespace gem5
               const size_t idx = rng() % addresses.size();
               const Addr old_addr = addresses[idx].first;
               addresses[idx].first = alt;
+              effective = (addresses[idx].first != old_addr);
               logInjection("P03_addr_subst", pf_addr,
                            "prefetch addr 0x" + std::to_string(old_addr) +
                            " -> 0x" + std::to_string(alt) + " (same page)");
@@ -279,12 +275,34 @@ namespace gem5
               // transient tier applies it once).
               const int old_stride = entry->stride;
               entry->stride = 0;
+              effective = (old_stride != 0);
               logInjection("P08_stride_stuck", pf_addr,
                            "stride " + std::to_string(old_stride) +
                            " -> 0 (stuck)");
               break;
           }
         }
+
+        if (trigger.tier == ChaOSLsuTier::F5) {
+            trigger.noteOutcome(effective);
+            if (!effective) return;   // idempotent re-application: no new chain
+        }
+
+        // [R6-P-F5-REG] Register the fault/inj node only for an EFFECTIVE
+        // fire. Registering before the effectiveness test created L0-only
+        // records for every idempotent fire (P08: 133 fires, 7 effective,
+        // but 130 fault ids), which the checker rightly rejected.
+        // If this training entry already carries an active fault chain,
+        // reuse its ids (same request chain).
+        if (entry && corrupted_entries.count(h5_pc)) {
+            h5_ptag = corrupted_entries[h5_pc].first;
+            h5_pfid = corrupted_entries[h5_pc].second;
+        } else if (h5) {
+            h5_ptag = h5->registerCacheFault(pf_addr, -1, line_size, "prefetch");
+            if (h5_ptag)
+                h5_pfid = h5->notePrefetchRequest(pf_addr, line_size);
+        }
+        ++faults_injected;
 
         if (h5_ptag && h5) {
             const bool already_chained = corrupted_entries.count(h5_pc) > 0;
@@ -305,7 +323,15 @@ namespace gem5
             // pf_request_id (≠ fault_id) plus the training-entry evidence
             // the spec requires for P01 (PC/tag, old/new stride, the
             // generated candidate address).
-            if (!already_chained) {
+            // [R6-P-F5-TRAIN] F5 re-applies the permanent fault on every
+            // effective fire; each such fire is a real pf-family L1
+            // observation of the training entry. Emit pf_train every time
+            // (same fault_id/pf_request_id for the PC) so no effective
+            // injection's chain is forced to borrow a cache_access as its
+            // L1 witness. Non-F5 stays once-per-PC.
+            const bool emit_train = (trigger.tier == ChaOSLsuTier::F5)
+                                    || !already_chained;
+            if (emit_train) {
                 std::ostringstream h5_pc_hex, h5_addr_hex;
                 h5_pc_hex << std::hex << h5_pc;
                 h5_addr_hex << std::hex << pf_addr;
@@ -318,7 +344,8 @@ namespace gem5
                     {"after", std::to_string(entry ? entry->stride : 0)},
                     {"field", "stride"},
                 });
-                corrupted_entries[h5_pc] = {h5_ptag, h5_pfid};
+                if (!already_chained)
+                    corrupted_entries[h5_pc] = {h5_ptag, h5_pfid};
             }
         }
     }

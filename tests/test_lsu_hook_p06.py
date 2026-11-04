@@ -318,6 +318,14 @@ def main():
           ["--prefetch_lsu_tier", "F2", "--prefetch_warmup_events", "0",
            "--prefetch_span_events", "50"],
           str(LC._prefetch_tier_flags("P01", "F0", "prefetch_stride")))
+    check("P F5 tier 覆盖 max_faults=0（永久，非一次）",
+          LC._prefetch_tier_flags("P02", "F5", "prefetch_stride") ==
+          ["--prefetch_lsu_tier", "F5", "--prefetch_warmup_events", "0",
+           "--prefetch_span_events", "50", "--prefetch_max_faults", "0"]
+          and LC._prefetch_tier_flags("P08", "F5", "stream_chase") ==
+          ["--prefetch_lsu_tier", "F5", "--prefetch_warmup_events", "0",
+           "--prefetch_span_events", "50", "--prefetch_max_faults", "0"],
+          str(LC._prefetch_tier_flags("P02", "F5", "prefetch_stride")))
     check("C11/C12/L04 既有 tier flags 不受影响（跨度表原样）",
           LC._cache_tier_flags("C11", "F0", "cache_dirtyevict") ==
           ["--l1d_lsu_tier", "F0", "--l1d_warmup_events", "1",
