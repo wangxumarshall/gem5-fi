@@ -884,6 +884,22 @@ class CHAOSPropagation : public SimObject
         }
     };
     std::map<std::pair<uint64_t, uint64_t>, LineageSrc> ptag_branch_src;
+
+    // [R6-P-BRIDGE] Prefetch-request lineage source.  A prefetch request is
+    // identified by the tracer-allocated `pf_request_id` (spec sheet 9), not
+    // by a CPU `request_id`; its events (pf_train/pf_queue/pf_issue/pf_fill/
+    // pf_demand) therefore never populate `ptag_branch_src`.  When a later
+    // DEMAND request touches the registered faulted line, the last pf event
+    // on that line is the only verifiable pollution source.  The checker
+    // accepts it as a bridge source for family `pf` (source has an empty
+    // request_id but the matching pf_request_id); every other bridge clause
+    // (shared range, parent edges, layer, chain identity) still applies.
+    struct PfLineageSrc {
+        uint64_t event_id = 0;
+        uint64_t pfid = 0;
+        LineageSrc addr;
+    };
+    std::map<uint64_t, PfLineageSrc> ptag_pf_src;   // ptag -> last pf event
     // Emit the bridge for `dest_request` of `ptag` (returns its event id, or
     // 0 when no verifiable source/object exists).  `kind` is the destination
     // event's kind; `fields` is its pending field map (read-only).

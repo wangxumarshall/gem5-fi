@@ -1376,6 +1376,61 @@ def main():
           and _adm(rid, two_lanes)["path"] == "full_chain",
           str(_adm(rid, two_lanes)))
 
+    # ---- (23) [R6-P-BRIDGE] prefetch-request → demand lineage bridge.
+    # A prefetch request is identified by pf_request_id (not a CPU
+    # request_id); a later demand fill on the same faulted line is a real
+    # consumer and must join through the explicit bridge, not by borrowing
+    # another branch's L5.  The bridge's source identity is accepted for
+    # family `pf` ONLY when source.request_id is empty and source.
+    # pf_request_id == old_request_id.
+    rid = "P99-F0-W8"
+    pf_bridge = _evts([
+        f"PROP-EVT: kind=inj run_id={rid} fault_id=1 event_id=0 "
+        f"parent_event_id= tick=1 corr=origin",
+        f"PROP-EVT: kind=pf_train run_id={rid} fault_id=1 event_id=1 "
+        f"parent_event_id=0 tick=2 pf_request_id=4294967297 va=76440 "
+        f"corr=origin",
+        f"PROP-EVT: kind=pf_fill run_id={rid} fault_id=1 event_id=2 "
+        f"parent_event_id=1 tick=3 pf_request_id=4294967297 "
+        f"cache_line=76440 corr=addr_fallback",
+        f"PROP-EVT: kind=request_fork run_id={rid} fault_id=1 "
+        f"event_id=4294967297 parent_event_id=2 tick=4 "
+        f"old_request_id=4294967297 new_request_id=214831 "
+        f"source_event_id=2 dest_event_id=4 bridge_layer=L2 "
+        f"bridge_reason=addr_fallback_broadcast shared_addr=76440 "
+        f"shared_size=40 corr=addr_fallback",
+        f"PROP-EVT: kind=mshr_fill run_id={rid} fault_id=1 event_id=4 "
+        f"parent_event_id=4294967297 tick=4 request_id=214831 "
+        f"cache_line=76440 corr=addr_fallback state_after=filled",
+        f"PROP-EVT: kind=resp run_id={rid} fault_id=1 event_id=5 "
+        f"parent_event_id=4 tick=5 request_id=214831 pa=76440 "
+        f"corr=addr_fallback",
+        f"PROP-EVT: kind=taint_reg run_id={rid} fault_id=1 event_id=6 "
+        f"parent_event_id=5 tick=6 request_id=214831 phys_reg=3 "
+        f"arch_reg=3 corr=taint_prop",
+        f"PROP-EVT: kind=errant_commit run_id={rid} fault_id=1 event_id=7 "
+        f"parent_event_id=6 tick=7 detection_layer=L5 "
+        f"outcome=errant_commit contained=0 corr=taint_prop",
+        f"PROP-EVT: kind=chain_end run_id={rid} fault_id=1 event_id=8 "
+        f"parent_event_id=7 tick=8 outcome=errant_commit_seen "
+        f"detection_layer=None contained=0 corr=none",
+    ])
+    by_id = {e["event_id"]: e for e in pf_bridge}
+    valid, issues = CC._validate_bridges(pf_bridge, by_id, "pf")
+    check("(23) pf_request_id 来源的 lineage bridge 校验通过",
+          not issues and "4294967297" in valid,
+          f"issues={issues} valid={list(valid)}")
+    v = CC.check_chain(pf_bridge)
+    f = v["faults"]["1"]
+    check("(23) pf 桥接链 terminal=full（L5=errant_commit）",
+          f["terminal"] == "full", f["terminal"])
+    check("(23) 链路径经过桥接后的 demand 分支",
+          str(f["path_event_ids"][-1]) == "7", str(f["path_event_ids"]))
+    _r = _adm(rid, pf_bridge)
+    check("(23) pf 桥接链准入 full_chain",
+          _r["admitted"] is True and _r["path"] == "full_chain",
+          str(_r["violations"]))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

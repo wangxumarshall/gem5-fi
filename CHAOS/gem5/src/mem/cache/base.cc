@@ -1862,6 +1862,15 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 const uint64_t h4f_seq =
                     (pkt->req && pkt->req->hasInstSeqNum())
                         ? pkt->req->getReqInstSeqNum() : 0;
+                // [R6-P-BRIDGE] The filling line's prefetch-request identity
+                // (when a faulted prefetch request registered it).  A demand
+                // fill that merges with / is served by that prefetch is the
+                // real downstream consumer; the identity lets the explicit
+                // lineage bridge connect it without borrowing another
+                // branch's L5.  Prefetch-side fills have no CPU request id
+                // (stamped0 false) and therefore never bridge themselves.
+                const uint64_t h4f_pfid = h4f->prefetchRequestId(
+                    pkt->getAddr(), blkSize);
                 // mshr_fill: the miss completes (fill_id + the mshr it
                 // serviced), then mshr_free releases that mshr id.
                 h4f->notePropEvt("mshr_fill", {
@@ -1869,6 +1878,8 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                     {"corr", h4f_corr ? h4f_corr : ""},
                     {"dyn_inst_seq", std::to_string(h4f_seq)},
                     {"request_id", std::to_string(h4f_seq)},
+                    {"pf_request_id", h4f_pfid ? std::to_string(h4f_pfid)
+                                                : std::string("")},
                     {"cache_line", h4f_hex.str()},
                     {"mshr_id", std::to_string(
                         h4f->noteMshrLookup(h4f_line))},

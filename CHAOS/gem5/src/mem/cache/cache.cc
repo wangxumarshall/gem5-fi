@@ -199,11 +199,21 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 // convention: 0 = unstamped), never a guess.
                 const uint64_t h4_seq = (pkt->req && pkt->req->hasInstSeqNum())
                     ? pkt->req->getReqInstSeqNum() : 0;
+                // [R6-P-BRIDGE] Name the prefetch request whose faulted line
+                // this demand access touches.  This is the real prefetch-
+                // request identity (spec sheet 9 pf_request_id) and is what
+                // lets a later demand request join the fault chain through
+                // the explicit lineage bridge; a line with no registered
+                // prefetch request stays empty (no fabrication).
+                const uint64_t h4_pfid = h4->prefetchRequestId(
+                    pkt->getAddr(), pkt->getSize());
                 h4->notePropEvt("cache_access", {
                     {"fault_id", std::to_string(h4_ptag)},
                     {"corr", h4_corr ? h4_corr : ""},
                     {"dyn_inst_seq", std::to_string(h4_seq)},
                     {"request_id", std::to_string(h4_seq)},
+                    {"pf_request_id", h4_pfid ? std::to_string(h4_pfid)
+                                               : std::string("")},
                     {"va", h4_hex.str()},
                     {"pa", h4_pa},
                 });

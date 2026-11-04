@@ -1489,11 +1489,21 @@ def _validate_bridges(chain_events, by_id, family):
             issues.append(f"invalid_lineage_bridge: bridge {eid} 两端 request_id "
                           f"相同（{b['old_request_id']!r}）——非跨请求，不得充当 bridge")
             continue
-        if str(src.get("request_id", "")).strip() != str(b["old_request_id"]).strip():
+        src_req = str(src.get("request_id", "")).strip()
+        old_req = str(b["old_request_id"]).strip()
+        # [R6-P-F0GAP 2026-11-04] Prefetch-request source identity.  A
+        # prefetch request is identified by pf_request_id (spec sheet 9),
+        # not by a CPU request_id, so its events never carry the latter.
+        # Accept the pfid ONLY as a source identity and ONLY for family
+        # `pf`; every other bridge clause (parent edges, shared range, layer,
+        # chain identity) still has to pass.
+        pf_src_ok = (family == "pf" and src_req == ""
+                     and str(src.get("pf_request_id", "")).strip() == old_req)
+        if src_req != old_req and not pf_src_ok:
             issues.append(f"invalid_lineage_bridge: bridge {eid} source 事件 "
                           f"{b['source_event_id']} 实际 request_id="
                           f"{src.get('request_id')!r}≠old_request_id="
-                          f"{b['old_request_id']!r}")
+                          f"{b['old_request_id']!r}（且非 pf_request_id 来源）")
             continue
         if str(dst.get("request_id", "")).strip() != str(b["new_request_id"]).strip():
             issues.append(f"invalid_lineage_bridge: bridge {eid} dest 事件 "

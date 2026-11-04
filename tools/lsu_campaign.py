@@ -2442,68 +2442,20 @@ class _ChainCycle(Exception):
 
 
 def _linear_best_ordered_path(chain_events, family, module=None):
-    """Drop-in, linear-time `lsu_chain_check._best_ordered_path`.
+    """Delegate to the authoritative checker's O(n) path scan.
 
-    `module` defaults to `lsu_chain_check`. Returns a list of the very same
-    event dicts (identity preserved) that the shipped implementation returns.
+    [R6-P-F0GAP 2026-11-04] This used to be a *second* implementation copied
+    into the campaign.  It drifted: when the authoritative checker gained the
+    escape-first tie-break (P01-F0-W2: a real errant_commit lane must outrank
+    an earlier squash lane), the campaign copy kept the old first-maximal
+    rule and reported `provable_to_L5_then_unknown` while
+    `lsu_chain_check.check_chain` returned `full`.  One classifier, no drift:
+    the campaign now calls the checker's own `_linear_best_ordered_path`
+    (which is also what `_best_ordered_path` ships).
     """
     if module is None:
         import lsu_chain_check as module
-    layers = module.LAYERS
-    layer_of = module._layer_of
-    tick_of = module._tick
-    n_layers = len(layers)
-
-    by_id = {}
-    for e in chain_events:
-        eid = e.get("event_id", "")
-        if eid != "":                 # same by_id rule as the shipped walk
-            by_id[eid] = e
-    state = {}                        # id(event) -> (want, last_tick, tuple)
-    busy = set()
-
-    def resolve(evt):
-        """Greedy state after scanning ancestry(evt) root→evt (iterative)."""
-        stack = []
-        cur = evt
-        while True:
-            key = id(cur)
-            st = state.get(key)
-            if st is not None:
-                break
-            if key in busy:           # cycle: _ancestry would cut here
-                raise _ChainCycle()
-            busy.add(key)
-            stack.append(cur)
-            pid = cur.get("parent_event_id", "")
-            nxt = by_id.get(pid) if pid != "" else None
-            if nxt is None:
-                st = (0, -1, ())      # root: _ordered_prefix's initial state
-                break
-            cur = nxt
-        while stack:
-            node = stack.pop()
-            want, last_tick, sel = st
-            if want < n_layers:       # _ordered_prefix breaks at len(LAYERS)
-                layer = layer_of(node, family)
-                if layer in layers:
-                    idx = layers.index(layer)
-                    tick = tick_of(node)
-                    if idx == want and tick >= last_tick:
-                        st = (want + 1, tick, sel + (node,))
-            state[id(node)] = st
-            busy.discard(id(node))
-        return st
-
-    best = []
-    for e in chain_events:
-        try:
-            sel = resolve(e)[2]
-        except _ChainCycle:
-            return _shipped_best_ordered_path(module)(chain_events, family)
-        if len(sel) > len(best):
-            best = sel
-    return list(best)
+    return module._linear_best_ordered_path(chain_events, family)
 
 
 class _LinearPathSwap:

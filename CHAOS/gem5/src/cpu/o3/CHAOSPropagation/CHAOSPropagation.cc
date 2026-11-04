@@ -480,6 +480,40 @@ namespace gem5
                     fields["parent_event_id"] = std::to_string(it->second);
             }
         }
+        // [R6-P-BRIDGE] Record the last PREFETCH-REQUEST event of this ptag as
+        // a potential lineage source for a later DEMAND request on the same
+        // faulted line.  Recorded AFTER the bridge block so a destination
+        // event can never be used as its own bridge source.
+        if (ptag != 0) {
+            const auto pfit = fields.find("pf_request_id");
+            const std::string &req = fields["request_id"];
+            // A TRUE prefetch-side event carries the pfid but NO CPU request
+            // id.  `pf_demand` also carries the pfid but belongs to the
+            // demand request; using it as a source would make every later
+            // demand on the line its own bridge source (measured: 23 invalid
+            // self-lineage bridges).  Only the prefetch-side identity is a
+            // legal lineage source.
+            // FIRST prefetch-side source only: the fault's own request is
+            // the first pf event of this ptag.  Later prefetch requests on
+            // other candidate lines must not overwrite it (measured P03-W9:
+            // 547 bridges once every later pf_issue became the source).
+            if (pfit != fields.end() && !pfit->second.empty()
+                    && pfit->second != "0"
+                    && (req.empty() || req == "0")
+                    && ptag_pf_src.find(ptag) == ptag_pf_src.end()) {
+                auto hex = [&](const char *k) -> uint64_t {
+                    const auto it = fields.find(k);
+                    return (it == fields.end() || it->second.empty())
+                        ? 0 : strtoull(it->second.c_str(), nullptr, 16);
+                };
+                PfLineageSrc s;
+                s.event_id = event_id;
+                s.pfid = strtoull(pfit->second.c_str(), nullptr, 10);
+                s.addr = LineageSrc{event_id, hex("va"), hex("pa"),
+                                    hex("cache_line")};
+                ptag_pf_src[ptag] = s;
+            }
+        }
         if (!run_id.empty() && fields["run_id"].empty())
             fields["run_id"] = run_id;
         if (!sample_run_id.empty() && fields["sample_run_id"].empty())
@@ -590,17 +624,45 @@ namespace gem5
     {
         if (!write_log || !evt_gz_file || ptag == 0)
             return 0;
-        const auto oit = ptag_owner_request.find(ptag);
-        if (oit == ptag_owner_request.end() || oit->second == dest_request)
-            return 0;
-        const uint64_t src_request = oit->second;
-        // A REAL, VERIFIABLE source event is mandatory: the last request-
-        // stamped event of the owner request (an un-stamped lifecycle event
-        // carries no identity and is never used as a pollution source).  With
-        // no such source there is NO bridge (never fabricated).
-        const auto sit = ptag_branch_src.find({ptag, src_request});
-        if (sit == ptag_branch_src.end() || sit->second.event_id == 0)
-            return 0;               // no source -> no bridge
+        // [R6-P-BRIDGE] Source selection, in priority order:
+        //   1. the PREFETCH-REQUEST source named by the destination's
+        //      pf_request_id (a real source even without a CPU request_id —
+        //      the checker accepts it for family `pf`); the shared-object
+        //      loop below still verifies that both sides address the
+        //      registered faulted range, so a stray pf event cannot carry
+        //      an unrelated request;
+        //   2. the legacy owner-request source (last request-stamped event
+        //      of the chain's own request).
+        // With neither a real source nor a verifiable shared object there is
+        // NO bridge (never fabricated).
+        uint64_t src_request = 0;
+        LineageSrc src;
+        bool have_src = false;
+        const auto pfit = fields.find("pf_request_id");
+        if (pfit != fields.end() && !pfit->second.empty()
+                && pfit->second != "0") {
+            const uint64_t pfid = strtoull(pfit->second.c_str(), nullptr, 10);
+            const auto psit = ptag_pf_src.find(ptag);
+            if (psit != ptag_pf_src.end()
+                    && psit->second.pfid == pfid
+                    && psit->second.event_id != 0
+                    && pfid != dest_request) {
+                src_request = pfid;
+                src = psit->second.addr;
+                have_src = true;
+            }
+        }
+        if (!have_src) {
+            const auto oit = ptag_owner_request.find(ptag);
+            if (oit == ptag_owner_request.end()
+                    || oit->second == dest_request)
+                return 0;
+            src_request = oit->second;
+            const auto sit = ptag_branch_src.find({ptag, src_request});
+            if (sit == ptag_branch_src.end() || sit->second.event_id == 0)
+                return 0;               // no source -> no bridge
+            src = sit->second;
+        }
 
         // The SHARED propagation object: the registered corrupted byte range
         // that BOTH requests really address.  Requiring both sides here (not
@@ -616,7 +678,6 @@ namespace gem5
         dstsrc.va = addr_of("va");
         dstsrc.pa = addr_of("pa");
         dstsrc.line = addr_of("cache_line");
-        const LineageSrc &src = sit->second;
         Addr base = 0, size = 0;
         const char *reason = nullptr;
         for (const auto &kv : blk_registry) {
