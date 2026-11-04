@@ -49,7 +49,8 @@ unchanged).
 
 ## Honesty boundary
 
-- P04-a only; P04-b/c unimplemented; P04-F5 seeds not run.
+- P04-a and P04-c are implemented as pilots; P04-b (pointer) is unimplemented;
+  P04-F5 seeds have not been run.
 - The pilot does not certify P04-F0-W2/W8: the L5 gate correctly refuses a
   chain with no detection/escape/containment.
 - No model substitution: the P05 drop/dup mapping is gone from
