@@ -114,6 +114,14 @@ class BaseCache : public ClockedObject
         MSHRQueue_WriteBuffer
     };
 
+    // [MDSPEC][R6-P-P09] One-fill-lifetime marker.  Set in
+    // BaseCache::recvTimingResp only when the filling MSHR has a prefetch
+    // target and NO CPU/snoop target (a pure-prefetch fill), immediately
+    // before handleFill; cleared immediately after.  Cache::evictBlock
+    // therefore can only observe it during that fill's own victim
+    // eviction — never a stale marker from an earlier fill.
+    bool chaosFillFromPrefetch = false;
+
   public:
     // v1.2 Phase 14 (plan item 2): the CHAOSCache victim-fault registry.
     // The injector wraps (not subclasses) the cache, so it registers here;

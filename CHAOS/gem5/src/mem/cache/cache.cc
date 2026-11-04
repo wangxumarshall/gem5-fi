@@ -1112,6 +1112,20 @@ Cache::evictBlock(CacheBlk *blk)
     if (blk->isSet(CacheBlk::DirtyBit))
         chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
 
+    // [MDSPEC][R6-P-P09] Prefetch-caused dirty eviction: the marker is
+    // true only while the CURRENT fill is a pure-prefetch fill (see
+    // BaseCache::recvTimingResp).  The registered injector may drop this
+    // victim's writeback request: the line is invalidated WITHOUT any
+    // writeback packet (the dirty data is lost at this level).  Null hook
+    // / stale-free marker => zero regression.
+    bool chaos_suppress_wb = false;
+    if (chaosFillFromPrefetch && CHAOSPrefetch::wbLossHook) {
+        chaos_suppress_wb =
+            CHAOSPrefetch::wbLossHook->maybeDropPrefetchWriteback(
+                regenerateBlkAddr(blk), blk->getSet(), blk->getWay(),
+                blk->isSet(CacheBlk::DirtyBit));
+    }
+
     // [MDSPEC][H4] unified cache_evict event (spec sheet 9: L2 — a faulted
     // block is evicted; dirty eviction = the fault PERSISTS to the next
     // level via writeback). Fault-correlated only (blk registry overlap).
@@ -1139,13 +1153,20 @@ Cache::evictBlock(CacheBlk *blk)
                     {"before", h4_tag.str()},
                     {"field", blk->isSet(CacheBlk::DirtyBit)
                         ? "dirty_evict_writeback" : "clean_evict"},
+                    {"state_after", chaos_suppress_wb
+                        ? "writeback_suppressed" : ""},
                 });
             }
         }
     }
 
-    PacketPtr pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean) ?
-        writebackBlk(blk) : cleanEvictBlk(blk);
+    // A suppressed dirty writeback has NO packet: the line is invalidated
+    // below and the victim's dirty data never reaches the next level.
+    PacketPtr pkt = nullptr;
+    if (!chaos_suppress_wb) {
+        pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean) ?
+            writebackBlk(blk) : cleanEvictBlk(blk);
+    }
 
     invalidateBlock(blk);
 

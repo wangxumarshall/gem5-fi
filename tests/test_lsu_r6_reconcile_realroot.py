@@ -429,17 +429,24 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
     # UNRESOLVED class and return to CHAIN-EVIDENCE-MISSING (the P04-a pilot
     # is not a certified run and is not registered as evidence).  2 rows move
     # UNRESOLVED 8->6, EVIDENCE-MISSING 199->201; READY is still T05 only.
-    check("已评估=64 / 未准入(有样本)=48 / 无样本=201（A04/A06 2 项 UNRESOLVED；P04 span 实测后 2 行回 EVIDENCE-MISSING）",
+    # [R6-P-P09-a 2026-11-04] P09 is now routed to the faithful
+    # `p09_wb_loss` prefetch mode (classic cache-dirty approximation removed).
+    # Its two F0 rows (P09-F0-W6/W8) therefore require a measured P09 F0
+    # span and resolve loudly BLOCKED(F0-span-unmeasured): EVIDENCE-MISSING
+    # 201->199, UNRESOLVED 6->8.  The B0 census measured ZERO eligible P09
+    # events, so no span is frozen and the rows must stay UNRESOLVED.  This
+    # is stricter, not a relaxation; READY is still T05 only.
+    check("已评估=64 / 未准入(有样本)=48 / 无样本=199（A04/A06 2 项 + P09 F0 span 未实测 2 项 UNRESOLVED）",
           cg["evaluated"] == 64 and cg["unproven"] == 48
-          and cg["evidence_missing"] == 201
-          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 201
+          and cg["evidence_missing"] == 199
+          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 199
           and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 48,
           str({k: cg[k] for k in ("evaluated", "unproven", "evidence_missing")}))
     check("上游独立阻塞分类（RULING6/FS-INFRA13/MODE-UNIMPL0/"
-          "UNRESOLVED6/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
+          "UNRESOLVED8/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
           all(doc["blocked_by_category"].get(k, 0) == v for k, v in
               (("RULING", 6), ("FS-INFRA", 13), ("MODE-UNIMPL", 0),
-               ("UNRESOLVED", 6), ("FS-MULTICORE", 35), ("LICENSE", 12),
+               ("UNRESOLVED", 8), ("FS-MULTICORE", 35), ("LICENSE", 12),
                ("WORKLOAD-GAP", 3)))
           and doc["blocked_by_category"].get("TIER-UNIMPL", 0) == 0,
           str(doc["blocked_by_category"]))

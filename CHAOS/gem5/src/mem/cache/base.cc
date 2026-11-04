@@ -45,6 +45,7 @@
 
 #include "mem/cache/base.hh"
 #include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
+#include "mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.hh"  // R6-P-P09 fill class
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (CasSuccess)
 // [MDSPEC][H4] cache fill events reach the tracer through the static
 // instance (CHAOSCache precedent — BaseCache has no tracer pointer).
@@ -827,7 +828,19 @@ BaseCache::recvTimingResp(PacketPtr pkt)
         // this observe call is only the W1 event-source counter, it does
         // not itself delay anything.
         chaosLsuF6Observe(ChaOSLsuEvent::SqForward);
+        // [MDSPEC][R6-P-P09] Pure-prefetch fill classification at the REAL
+        // fill point.  A demand-merged fill has a FromCPU target too and is
+        // deliberately NOT marked (the eviction is not solely
+        // prefetch-caused).  The marker lives only across handleFill, so an
+        // eviction in any other fill can never inherit it.
+        chaosFillFromPrefetch =
+            mshr->hasTargetFrom(MSHR::Target::FromPrefetcher) &&
+            !mshr->hasTargetFrom(MSHR::Target::FromCPU) &&
+            !mshr->hasTargetFrom(MSHR::Target::FromSnoop);
+        // Observation-only P09 fill-class accounting (no decision change).
+        CHAOSPrefetch::noteFillClass(chaosFillFromPrefetch);
         blk = handleFill(pkt, blk, writebacks, allocate);
+        chaosFillFromPrefetch = false;
         assert(blk != nullptr);
         ppFill->notify(CacheAccessProbeArg(pkt, accessor));
     }

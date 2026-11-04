@@ -126,8 +126,8 @@ Root-cause and fix (C++ + campaign):
 |---|---|
 | P04-F0/F5-W2/W8 (4) | **P04-a queue-valid, P04-b pointer, and P04-c entry-selection implemented.** P04-a: shadow valid bit + real `Queued::getPacket` skip. P04-b: one-shot tail-pointer -1 insertion (new entry inserted before the tail; every entry retained, no drop/dup). P04-c: `std::iter_swap` of two live entries with the correct head retained. P04-c is behavior-verified on binary `a0d0e8af…` (wrong entry issued first, displaced head late; exact reversal of the no-fault control, both once). P04-b is behavior-verified on binary `f52461b5…` (arm tail=0x77ec0/0x76ec0, insert=0x77580/0x76580, size=4; inserted entry issued first, former tail late; no-fault controls show tail-first; both once). Both pilots remain `provable_to_L2_then_unknown`, performance-only, NOT certified; seeds 2/3 not run. **P04-F5 not run** (permanent semantics not established); the old P04→P05 drop/dup routing is removed. |
 | P07-F0-W6/W8 (2) | campaign maps to classic CHAOSCache `l1d_target_field=tag`; prefetch response fill way/tag hook not implemented — not run |
-| P09-F0-W6/W8 (2) | campaign maps to `l1d_target_field=dirty`; prefetch-caused dirty-eviction writeback loss/done-early/clear not implemented — not run |
-| P09-F0-W13 (1) | PARSEC assets absent (plus model approximation above) — BLOCKED_ASSET |
+| P09-F0-W6/W8 (2) | **P09-a implemented and runtime-verified** (fill-time pure-prefetch MSHR marker; real writeback packet suppressed at the dirty-eviction gate; `pf_wb` L1 + `cache_evict(writeback_suppressed)`). **B0 W6/W8 have zero eligible events**: pure-prefetch fills exist (W6=50, W8=28) but none evicts a victim (1 MiB L2 absorbs them), so the authoritative RunIDs are BLOCKED by workload coverage. A non-B0 L2=16KiB diagnostic control proves the path end-to-end (suppressed writeback → stale re-read → taint → `errant_commit` L5, chain full; output hash differs). That control is **not** a RunID and its oracle is n/a. P09-b (done-early) / P09-c (premature clear) are **not** implemented. |
+| P09-F0-W13 (1) | PARSEC assets absent (plus the B0 coverage issue above) — BLOCKED_ASSET |
 
 ## Honest totals
 
@@ -157,6 +157,7 @@ new-binary product.
 | P04-c pilot (2 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-0cb5073d` | `0cb5073d8d7faec2425ef9f1ffc4fe03a18c70cc6f5416c894b0bda58d477396` | `53561cba` | `campaign_p04c_20261104` (not certified) |
 | P04-c behavior verification (2 pilots + 2 controls) | `runs/lsu/r6_p_unit/binaries/gem5.opt-a0d0e8af` | `a0d0e8af9d2242dd6250c24f48bdecf396e4bcc6c220dbbc6e331b65f49cd687` | `5d6399d8` + P04-c observation patch | `campaign_p04c_behavior_20261104` (not certified) |
 | P04-b pointer pilot (2 pilots + 2 controls) | `runs/lsu/r6_p_unit/binaries/gem5.opt-f52461b5` | `f52461b56a7758c366d54d2c4a4f5915e528025c7e3931f82378931a128dc4a9` | `a4c0d088` + P04-b patch | `campaign_p04b_20261104`, `census_p04b_20261104` (not certified) |
+| P09-a diagnostic (B0 census + non-B0 L2=16KiB control) | `runs/lsu/r6_p_unit/binaries/gem5.opt-c6953bba` | `c6953bba69f7c97634d02c5be8e67629de05017d14708e87cb90cc866a26b0bc` | `88c1d697` + P09 patch | `census_p09_20261104_v4`, `p09_diag_l2small_20261104b`, `p09_diag_l2small_fault_20261104` (not a RunID) |
 | intermediate (NOT final) | `runs/lsu/r6_p_unit/binaries/gem5.opt-587ea8c3` | `587ea8c34db022edddb10828463621270d27c45944514f0234c65f30d3c5ad6d` | `3f0a5589` | none; never cited as evidence |
 
 The takeover worktree's `CHAOS/gem5/build/ARM/gem5.opt` currently hashes to

@@ -169,6 +169,10 @@ p.add_argument("--cmd", required=True)
 p.add_argument("--chaos_repeat", type=int, default=1,
                help="repeat the same SE probe N times (1..4096; default 1)")
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
+p.add_argument("--l2_size", default="1MiB",
+               help="L2 capacity. Default 1MiB = authoritative B0. A "
+                    "non-default value is a DIAGNOSTIC control only (never "
+                    "a RunID evidence configuration).")
 p.add_argument("--maxinsts", type=int, default=0)
 # --- C4-LSU variant knob (02 敏感性配置列; S5=注入器侧, 不在此) ---
 p.add_argument("--variant", default="B0", choices=["B0", "S1", "S2", "S3", "S4"],
@@ -239,7 +243,8 @@ p.add_argument("--prefetch_mode", default="p01_stride_bitflip",
                choices=["p01_stride_bitflip","p02_confidence_corrupt",
                         "p03_addr_subst","p05_drop_dup","p08_stride_stuck",
                         "p06_as_demand","p04_queue_valid",
-                        "p04_queue_select","p04_queue_pointer"],
+                        "p04_queue_select","p04_queue_pointer",
+                        "p09_wb_loss"],
                help="W8 P-series fault mode (p06_as_demand = P06-a "
                     "prefetch-as-demand fill-classification marking, "
                     "R4-5.4)")
@@ -737,7 +742,7 @@ args = p.parse_args()
 # _pre_instantiate 钩子内覆盖 (stdlib 缓存 sim.run() 时才惰性创建,
 # arm_chaos_cache.py:83-113 先例)。B0 三级 = v7a ICache/DCache/L2。
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="1MiB",
+    l1d_size="32KiB", l1i_size="32KiB", l2_size=args.l2_size,
 )
 memory = SingleChannelDDR3_1600("1GiB")
 processor = SimpleProcessor(cpu_type=cpu_map[args.cpu], num_cores=1, isa=ISA.ARM)
@@ -836,7 +841,7 @@ def _lsu_b0_caches(root):
     l1i.mshrs = 2; l1i.tgts_per_mshr = 8; l1i.writeback_clean = True
     l1i.prefetcher = NULL
     # L2 (00 §1 跟随 v7a L2 :236-249, 显式固化)
-    l2.size = "1MiB"; l2.assoc = 16
+    l2.size = args.l2_size; l2.assoc = 16  # default 1MiB = B0
     l2.tag_latency = 12; l2.data_latency = 12; l2.response_latency = 12
     l2.mshrs = 16; l2.tgts_per_mshr = 8; l2.write_buffers = 8
     l2.clusivity = "mostly_excl"
@@ -879,6 +884,9 @@ def _lsu_b0_caches(root):
           f"{'64KiB/4' if args.variant == 'S2' else '32KiB/2'}-way lat222 "
           f"MSHR6/t8/wb16 + L1I 32KiB/2 lat111 MSHR2 + L2 1MiB/16 lat12 "
           f"MSHR16 + StridePrefetcher(8,1,on)@{'L1D' if args.variant == 'S4' else 'L2'}")
+    if args.l2_size != "1MiB":
+        print(f"[lsu_proxy] WARNING: non-B0 DIAGNOSTIC L2 size "
+              f"{args.l2_size} — not an authoritative RunID platform")
 cache_hierarchy._pre_instantiate = _lsu_b0_caches
 
 # CHAOS injector mount blocks — identical to arm_chaos.py / kp920_proxy.py

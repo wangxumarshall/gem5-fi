@@ -510,7 +510,12 @@ MODEL_FLAGS = {
     # additionally stay loudly blocked on the PF_F0_SPAN census until
     # integration measures the two spans.
     "P06": ("prefetch", ["--prefetch_mode", "p06_as_demand"]),
-    "P09": ("cache", ["--l1d_target_field", "dirty"]),          # approx: pf dirty evict -> dirty
+    # [R6-P-P09-a 2026-11-04] faithful prefetch-caused dirty-writeback
+    # loss: CHAOSPrefetch mode p09_wb_loss suppresses the victim's
+    # writeback ONLY for a pure-prefetch fill (MSHR target-source marker at
+    # the real fill point).  The classic cache `dirty` approximation is no
+    # longer routed.
+    "P09": ("prefetch", ["--prefetch_mode", "p09_wb_loss"]),
     # --- Atomic (W8 1b97b714 + existing stxr modes) ---
     # [MDSPEC][R4-9-FSMC-A] O01/O02/O03 的家族从 "exmon"（SE 遗留窗口路径）
     # 改为 "exmon-fsmc"：这三格是 atomic/monitor 模型，只有在**有跨核一致性**

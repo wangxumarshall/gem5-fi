@@ -175,6 +175,12 @@ KIND_LAYER = {
     # it so the pf family's L1 is the unit's own observation, not a cache
     # structural event.  cache_access remains FORBIDDEN as pf-family L1.
     "pf_class": "L1",
+    # [MDSPEC][R6-P-P09-a-SCHEMA-v1 2026-11-04] P09-a unit-side L1
+    # observation at the REAL prefetch-caused dirty-eviction gate.  The
+    # fault is the victim line's writeback request being suppressed; the
+    # event is emitted before the writeback packet is created, so it can
+    # never be impersonated by a later cache structural event.
+    "pf_wb": "L1",
     # [MDSPEC][H6] atomic 事件链
     "atomic_op": "L2",
     # [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE 原子读改写（SwapReq 提交点，
@@ -353,6 +359,10 @@ REQUIRED_FIELDS = {
     # [R6-P-P06-SCHEMA-v2] unit-side L1 classification observation.
     "pf_class": ["fault_id", "pf_request_id", "corr", "va", "field",
                  "before", "after"],
+    # [R6-P-P09-a-SCHEMA-v1] dirty victim writeback request suppressed at
+    # the prefetch-caused eviction gate (set/way + victim identity).
+    "pf_wb": ["fault_id", "pf_request_id", "corr", "va", "set", "way",
+              "field", "before", "after"],
     "pf_queue": ["fault_id", "corr", "pf_request_id", "va", "entry_index"],
     "pf_issue": ["fault_id", "corr", "pf_request_id", "va"],
     "pf_fill": ["fault_id", "pf_request_id", "pa", "cache_line"],

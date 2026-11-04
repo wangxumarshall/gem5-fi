@@ -86,7 +86,8 @@ class CHAOSPrefetch : public SimObject
   public:
     enum class Mode { P01StrideBitflip, P02ConfidenceCorrupt, P03AddrSubst,
                       P05DropDup, P08StrideStuck, P06AsDemand,
-                      P04QueueValid, P04QueueSelect, P04QueuePointer };
+                      P04QueueValid, P04QueueSelect, P04QueuePointer,
+                      P09WbLoss };
     static Mode stringToMode(const std::string &s);
 
     CHAOSPrefetch(const CHAOSPrefetchParams &p);
@@ -141,6 +142,22 @@ class CHAOSPrefetch : public SimObject
     static void p04ObserveIssue(const char *role, Addr addr,
                                 uint64_t fault_id, uint64_t pfid);
     static OutputStream *p04BehaviorStream;
+
+    // [MDSPEC][R6-P-P09-a] Prefetch-caused dirty-writeback-loss hook.
+    // Cache::evictBlock consults this ONLY while the current fill is a
+    // pure-prefetch fill (BaseCache::chaosFillFromPrefetch) and the victim
+    // is dirty.  A true return means the caller must suppress the
+    // writeback packet (the line is invalidated without writeback).
+    static CHAOSPrefetch *wbLossHook;
+    bool maybeDropPrefetchWriteback(Addr victim, unsigned set, unsigned way,
+                                    bool dirty);
+    // Observation-only P09 fill classification (counts, never changes a
+    // decision).  Called once per fill while a P09 injector is mounted.
+    static void noteFillClass(bool pure_prefetch);
+    uint64_t diag_fills = 0;
+    uint64_t diag_pure_pref_fills = 0;
+    uint64_t diag_pref_evictions = 0;
+    uint64_t diag_dirty_pref_evictions = 0;
 
   private:
     static ChaOSLsuTier tierFromString(const std::string &s);

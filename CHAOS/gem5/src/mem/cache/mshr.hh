@@ -467,6 +467,24 @@ class MSHR : public QueueEntry, public Printable
     bool hasTargets() const { return !targets.empty(); }
 
     /**
+     * [MDSPEC][R6-P-P09] True iff any target (serviceable or deferred)
+     * came from the given source.  Read at FILL time, before
+     * extractServiceableTargets(), so a fill can be classified as
+     * pure-prefetch-vs-merged without guessing from the downstream bus
+     * packet (createMissPacket rewrites the request).
+     */
+    bool hasTargetFrom(Target::Source src) const
+    {
+        for (const auto &t : targets)
+            if (t.source == src)
+                return true;
+        for (const auto &t : deferredTargets)
+            if (t.source == src)
+                return true;
+        return false;
+    }
+
+    /**
      * Returns a reference to the first target.
      * @return A pointer to the first target.
      */

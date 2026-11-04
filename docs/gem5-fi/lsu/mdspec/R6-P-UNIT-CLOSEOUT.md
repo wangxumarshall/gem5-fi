@@ -58,8 +58,22 @@ complete and is not claimed complete.**
   pilots terminate `provable_to_L2_then_unknown`, oracle Masked, not
   admitted (no architectural data effect observed). P04-F5 has not been
   run; seeds 2/3 were not run for the pilots.
-- **Model substitution avoided:** P07/P09 (mapped to classic CHAOSCache
-  tag/dirty) are not the authoritative prefetch models and were not run.
+- **P09-a implemented (diagnostic, not a RunID):** the prefetch-caused
+  dirty-writeback loss is modelled at the REAL eviction gate. A fill-time
+  marker (`chaosFillFromPrefetch`) is set only when the MSHR has a
+  `FromPrefetcher` target and no `FromCPU`/`FromSnoop` target, and is
+  cleared immediately after `handleFill` (no stale marker); the victim's
+  writeback packet is then suppressed. B0 W6/W8 have **zero eligible
+  events** (prefetch fills exist — W6=50, W8=28 — but none evicts), so
+  P09-F0-W6/W8 remain blocked by workload coverage. A non-authoritative
+  L2=16KiB diagnostic control proves the path end-to-end: writeback
+  suppressed (`pf_wb`, `cache_evict` suppressed), same-line demand miss
+  re-fills stale data, `taint_reg` and a real `errant_commit` (L5, chain
+  full), output hash differs from the no-fault golden. That control is not
+  a RunID/seed and its oracle is n/a. P09-b/c are not implemented.
+- **Model substitution avoided:** P07 (classic CHAOSCache tag) is not the
+  authoritative prefetch model and was not run; P09's old classic `dirty`
+  routing is removed.
 - **Asset:** P09-F0-W13 requires PARSEC, absent in this repository.
 
 ## Partial-submodel boundaries

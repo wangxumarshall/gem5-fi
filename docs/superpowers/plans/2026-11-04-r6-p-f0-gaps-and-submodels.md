@@ -526,6 +526,27 @@ Same shape as Task 7, one submodel per commit:
 - [x] Full pytest: 309 passed / 10 failed, identical historical failure
   set (r6a4, results_layout, 8 s_prop_docs) => NEW FAIL=0.
 
+### Task 11: P09-a prefetch-caused dirty-writeback loss (takeover round 2)
+
+- [x] Fill-time pure-prefetch marker from MSHR target sources
+  (`hasTargetFrom`; FromPrefetcher && !FromCPU && !FromSnoop), cleared
+  immediately after `handleFill` (no stale marker).
+- [x] Real dirty-eviction gate suppresses the victim writeback packet;
+  unit-side L1 `pf_wb` schema v1 + `cache_evict(writeback_suppressed)`.
+- [x] Remove the P09 classic `cache dirty` routing; campaign P09 now mounts
+  `p09_wb_loss`.
+- [x] Fix the generation-site fall-through that spent the only fault budget
+  (observed injected=1 with no `pf_wb`); old evidence retained.
+- [x] Build/freeze `gem5.opt-c6953bba`
+  (`c6953bba69f7c97634d02c5be8e67629de05017d14708e87cb90cc866a26b0bc`).
+- [x] B0 census: W6 pure-prefetch fills=50, evictions=0; W8 28/0 =>
+  authoritative RunIDs BLOCKED by workload coverage (recorded, no
+  substitution probe).
+- [x] Non-B0 L2=16KiB diagnostic: suppressed writeback -> stale re-read ->
+  taint -> real `errant_commit` L5 (chain full), output hash differs from
+  the no-fault golden. Control is not a RunID; oracle n/a.
+- [ ] P09-b done-early / P09-c premature clear: not implemented.
+
 ### Task 10: P04-b pointer submodel (next unit)
 
 - [x] Implement a real tail-pointer -1 insertion fault (no drop/dup), with
