@@ -211,6 +211,17 @@ class BaseTags : public ClockedObject
     virtual ReplaceableEntry* findBlockBySetAndWay(int set, int way) const;
 
     /**
+     * [MDSPEC][R6-P-P07] Number of ways in the set selected by this key
+     * (the indexing policy's associativity).  Used by the P07 fill-tag
+     * mispair model to enumerate a victim-set partner without hardcoding
+     * the cache geometry.
+     */
+    unsigned getNumWays(const CacheBlk::KeyType &key) const
+    {
+        return indexingPolicy->getPossibleEntries(key).size();
+    }
+
+    /**
      * Align an address to the block size.
      * @param addr the address to align.
      * @return The block address.

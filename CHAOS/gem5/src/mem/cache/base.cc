@@ -2033,6 +2033,35 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
         updateBlockData(blk, pkt, has_old_data);
     }
+
+    // [MDSPEC][R6-P-P07-b] Prefetch-response fill tag/way mispair.  Only a
+    // pure-prefetch fill (same fill-time marker as P09) with a distinct
+    // valid partner in the SAME set is eligible.  On fire, the two blocks'
+    // TAGS are exchanged while their DATA stays in its original way — the
+    // exact tag/data mismatch of P07-b (not a classic cache tag fault).
+    if (chaosFillFromPrefetch && CHAOSPrefetch::fillWayHook) {
+        CacheBlk *chaos_partner = nullptr;
+        const unsigned chaos_ways = tags->getNumWays({addr, is_secure});
+        for (unsigned w = 0; w < chaos_ways; ++w) {
+            auto *cand = static_cast<CacheBlk*>(
+                tags->findBlockBySetAndWay(blk->getSet(), w));
+            if (cand && cand != blk && cand->isValid() &&
+                    cand->isSecure() == blk->isSecure() &&
+                    cand->getTag() != blk->getTag()) {
+                chaos_partner = cand;
+                break;
+            }
+        }
+        if (chaos_partner &&
+            CHAOSPrefetch::fillWayHook->maybeMispairFillTag(
+                addr, blk->getSet(), blk->getWay(),
+                regenerateBlkAddr(chaos_partner), chaos_partner->getSet(),
+                chaos_partner->getWay())) {
+            const Addr chaos_tag = blk->getTag();
+            blk->chaosSetTag(chaos_partner->getTag());
+            chaos_partner->chaosSetTag(chaos_tag);
+        }
+    }
     // The block will be ready when the payload arrives and the fill is done
     blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
                       pkt->payloadDelay);

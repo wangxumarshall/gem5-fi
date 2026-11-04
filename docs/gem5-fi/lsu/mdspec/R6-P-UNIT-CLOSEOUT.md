@@ -71,9 +71,16 @@ complete and is not claimed complete.**
   re-fills stale data, `taint_reg` and a real `errant_commit` (L5, chain
   full), output hash differs from the no-fault golden. That control is not
   a RunID/seed and its oracle is n/a. P09-b/c are not implemented.
-- **Model substitution avoided:** P07 (classic CHAOSCache tag) is not the
-  authoritative prefetch model and was not run; P09's old classic `dirty`
-  routing is removed.
+- **P07-b implemented (seed1 pilot, not a certified RunID):** at the REAL
+  pure-prefetch fill gate, the fill block and a distinct valid same-set
+  partner exchange **tags** (data stays in its own way). B0 census W6=2 /
+  W8=5 eligible. Seed1 W6 fill 0x7ec00↔0x8ec00: real `pf_tag`, subsequent
+  demand misses, checker terminal `full`/L5, but the output hash remains
+  the golden `062e5124df3667f9` — recorded without an SDC claim (oracle
+  n/a). W8 fill 0x76740↔0x86740: no downstream demand, terminal L1,
+  output golden. Seeds 2/3 not run; P07-a/c not implemented.
+- **Model substitution avoided:** the old classic CHAOSCache `tag`/`dirty`
+  routing for P07/P09 is removed.
 - **Asset:** P09-F0-W13 requires PARSEC, absent in this repository.
 
 ## Partial-submodel boundaries

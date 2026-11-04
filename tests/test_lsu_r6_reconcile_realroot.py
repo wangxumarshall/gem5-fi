@@ -436,17 +436,21 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
     # 201->199, UNRESOLVED 6->8.  The B0 census measured ZERO eligible P09
     # events, so no span is frozen and the rows must stay UNRESOLVED.  This
     # is stricter, not a relaxation; READY is still T05 only.
-    check("已评估=64 / 未准入(有样本)=48 / 无样本=199（A04/A06 2 项 + P09 F0 span 未实测 2 项 UNRESOLVED）",
+    # [R6-P-P07-b 2026-11-04] P07 is likewise routed to the faithful
+    # `p07_fill_tag_mispair` prefetch mode, so its two F0 rows resolve
+    # BLOCKED(F0-span-unmeasured): EVIDENCE-MISSING 199->197,
+    # UNRESOLVED 8->10.  Stricter, not relaxed.
+    check("已评估=64 / 未准入(有样本)=48 / 无样本=197（A04/A06 2 项 + P09 2 项 + P07 2 项 UNRESOLVED）",
           cg["evaluated"] == 64 and cg["unproven"] == 48
-          and cg["evidence_missing"] == 199
-          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 199
+          and cg["evidence_missing"] == 197
+          and doc["blocked_by_category"].get("CHAIN-EVIDENCE-MISSING") == 197
           and doc["blocked_by_category"].get("CHAIN-UNPROVEN") == 48,
           str({k: cg[k] for k in ("evaluated", "unproven", "evidence_missing")}))
     check("上游独立阻塞分类（RULING6/FS-INFRA13/MODE-UNIMPL0/"
-          "UNRESOLVED8/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
+          "UNRESOLVED10/FS-MULTICORE35/LICENSE12/WORKLOAD-GAP3；无 TIER-UNIMPL）",
           all(doc["blocked_by_category"].get(k, 0) == v for k, v in
               (("RULING", 6), ("FS-INFRA", 13), ("MODE-UNIMPL", 0),
-               ("UNRESOLVED", 8), ("FS-MULTICORE", 35), ("LICENSE", 12),
+               ("UNRESOLVED", 10), ("FS-MULTICORE", 35), ("LICENSE", 12),
                ("WORKLOAD-GAP", 3)))
           and doc["blocked_by_category"].get("TIER-UNIMPL", 0) == 0,
           str(doc["blocked_by_category"]))

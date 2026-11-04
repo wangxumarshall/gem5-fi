@@ -87,7 +87,8 @@ class CHAOSPrefetch : public SimObject
     enum class Mode { P01StrideBitflip, P02ConfidenceCorrupt, P03AddrSubst,
                       P05DropDup, P08StrideStuck, P06AsDemand,
                       P04QueueValid, P04QueueSelect, P04QueuePointer,
-                      P09WbLoss };
+                      P09WbLoss, P07FillTagMispair };
+
     static Mode stringToMode(const std::string &s);
 
     CHAOSPrefetch(const CHAOSPrefetchParams &p);
@@ -158,6 +159,16 @@ class CHAOSPrefetch : public SimObject
     uint64_t diag_pure_pref_fills = 0;
     uint64_t diag_pref_evictions = 0;
     uint64_t diag_dirty_pref_evictions = 0;
+
+    // [MDSPEC][R6-P-P07-b] Prefetch-response fill tag/way mispair hook.
+    // Called only at the REAL fill point for a pure-prefetch fill and only
+    // when a distinct valid partner way exists in the same set.  Returns
+    // true iff the caller must swap the two blocks' tags (data stays in
+    // its own way), producing the tag/data mispair.
+    static CHAOSPrefetch *fillWayHook;
+    bool maybeMispairFillTag(Addr fill_addr, unsigned fill_set,
+                             unsigned fill_way, Addr partner_addr,
+                             unsigned partner_set, unsigned partner_way);
 
   private:
     static ChaOSLsuTier tierFromString(const std::string &s);

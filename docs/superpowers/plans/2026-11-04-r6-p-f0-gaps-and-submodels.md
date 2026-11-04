@@ -526,6 +526,20 @@ Same shape as Task 7, one submodel per commit:
 - [x] Full pytest: 309 passed / 10 failed, identical historical failure
   set (r6a4, results_layout, 8 s_prop_docs) => NEW FAIL=0.
 
+### Task 12: P07-b prefetch fill tag/way mispair (takeover round 2)
+
+- [x] Pure-prefetch fill gate; distinct valid same-set partner via
+  `getNumWays`/`findBlockBySetAndWay`; exchange TAGS only
+  (`TaggedEntry::chaosSetTag`), data stays in its way.
+- [x] Schema v1 `pf_tag` (L1) + campaign P07 routed to
+  `p07_fill_tag_mispair`; classic `tag` routing removed.
+- [x] Binary `gem5.opt-ebd61101`
+  (`ebd611014b74afbfcba2d125dea5d8591ffdc75c07ce41fc7840cce446457934`).
+- [x] B0 census W6 eligible=2, W8 eligible=5; seed1 pilots show the real
+  tag swap and demand misses. W6 checker full/L5 but output hash stays
+  golden (no SDC claim); W8 terminal L1, output golden.
+- [ ] Seeds 2/3 and P07-a/P07-c: not implemented/run.
+
 ### Task 11: P09-a prefetch-caused dirty-writeback loss (takeover round 2)
 
 - [x] Fill-time pure-prefetch marker from MSHR target sources

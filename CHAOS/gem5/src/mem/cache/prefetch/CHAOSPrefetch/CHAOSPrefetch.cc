@@ -21,6 +21,7 @@ namespace gem5
     CHAOSPrefetch *CHAOSPrefetch::fillMarkHook = nullptr;
     OutputStream *CHAOSPrefetch::p04BehaviorStream = nullptr;
     CHAOSPrefetch *CHAOSPrefetch::wbLossHook = nullptr;
+    CHAOSPrefetch *CHAOSPrefetch::fillWayHook = nullptr;
 
     CHAOSPrefetch::CHAOSPrefetch(const CHAOSPrefetchParams &p)
         : SimObject(p),
@@ -51,6 +52,8 @@ namespace gem5
         // the gate byte-identical.
         if (fi_mode == Mode::P06AsDemand)
             fillMarkHook = this;
+        if (fi_mode == Mode::P07FillTagMispair)
+            fillWayHook = this;
         if (fi_mode == Mode::P09WbLoss) {
             wbLossHook = this;
             registerExitCallback([this]() {
@@ -90,6 +93,8 @@ namespace gem5
             fillMarkHook = nullptr;
         if (wbLossHook == this)
             wbLossHook = nullptr;
+        if (fillWayHook == this)
+            fillWayHook = nullptr;
         if (prefetch::Queued::chaosQueueIssueObserver ==
                 &CHAOSPrefetch::p04ObserveIssue)
             prefetch::Queued::chaosQueueIssueObserver = nullptr;
@@ -124,6 +129,7 @@ namespace gem5
         if (s == "p04_queue_select")       return Mode::P04QueueSelect;
         if (s == "p04_queue_pointer")      return Mode::P04QueuePointer;
         if (s == "p09_wb_loss")            return Mode::P09WbLoss;
+        if (s == "p07_fill_tag_mispair")   return Mode::P07FillTagMispair;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
 
@@ -190,6 +196,9 @@ namespace gem5
         // generation-site registration and leave the real eviction hook
         // capped, i.e. the model would never suppress a writeback.
         if (fi_mode == Mode::P09WbLoss) return;
+        // [MDSPEC][R6-P-P07-b] Same inertness: P07's event source is the
+        // prefetch-response FILL site (BaseCache::handleFill).
+        if (fi_mode == Mode::P07FillTagMispair) return;
 
         // [MDSPEC][R6-P-P04] P04-a queue valid fault.  The queue entry is
         // PRESENT (pointer/count unchanged) but its shadow valid bit is
@@ -467,6 +476,7 @@ namespace gem5
           case Mode::P04QueueSelect:
           case Mode::P04QueuePointer:
           case Mode::P09WbLoss:
+          case Mode::P07FillTagMispair:
             break;
           case Mode::P01StrideBitflip: {
               // P01: training-entry stride single-bit XOR. Bits 0-30 only
@@ -619,6 +629,61 @@ namespace gem5
                     corrupted_entries[h5_pc] = {h5_ptag, h5_pfid};
             }
         }
+    }
+
+    bool
+    CHAOSPrefetch::maybeMispairFillTag(Addr fill_addr, unsigned fill_set,
+                                       unsigned fill_way, Addr partner_addr,
+                                       unsigned partner_set,
+                                       unsigned partner_way)
+    {
+        if (fi_mode != Mode::P07FillTagMispair) return false;
+        if (max_faults != 0 && faults_injected >= max_faults) return false;
+        // Attempted = every pure-prefetch fill that has a distinct valid
+        // partner in its set (the caller's eligibility gate).
+        trigger.onAttempt();
+        if (!trigger.onEligible()) return false;
+        ++faults_injected;
+        if (trigger.tier == ChaOSLsuTier::F5)
+            trigger.noteOutcome(true);
+
+        if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+            const uint64_t ptag = h5->registerCacheFault(
+                fill_addr, -1, line_size, "prefetch");
+            if (ptag) {
+                const uint64_t pfid = h5->notePrefetchRequest(
+                    fill_addr, line_size);
+                // BOTH lines are part of the mispair: register each so a
+                // later demand to either one joins the same chain.
+                h5->registerPtagBlock(ptag, fill_addr,
+                                      fill_addr + line_size);
+                h5->registerPtagBlock(ptag, partner_addr,
+                                      partner_addr + line_size);
+                h5->registerPtagPrefetch(pfid, fill_addr, line_size);
+                std::ostringstream fhex, phex;
+                fhex << std::hex << fill_addr;
+                phex << std::hex << partner_addr;
+                h5->notePropEvt("pf_tag", {
+                    {"fault_id", std::to_string(ptag)},
+                    {"pf_request_id", std::to_string(pfid)},
+                    {"corr", "origin"},
+                    {"va", fhex.str()},
+                    {"set", std::to_string(fill_set)},
+                    {"way", std::to_string(fill_way)},
+                    {"entry_index", std::to_string(partner_way)},
+                    {"field", "fill_way_tag"},
+                    {"before", fhex.str()},
+                    {"after", phex.str()},
+                    {"state_after", "tag_mispair"},
+                });
+            }
+        }
+        std::ostringstream detail;
+        detail << "fill set=" << fill_set << " way=" << fill_way
+               << " -> partner set=" << partner_set << " way=" << partner_way
+               << " (tags swapped; data stays in its way)";
+        logInjection("P07_fill_tag_mispair", fill_addr, detail.str());
+        return true;
     }
 
     void

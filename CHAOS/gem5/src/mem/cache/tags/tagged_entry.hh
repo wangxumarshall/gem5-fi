@@ -147,6 +147,14 @@ class TaggedEntry : public ReplaceableEntry
     virtual Addr getTag() const { return _tag; }
 
     /**
+     * [MDSPEC][R6-P-P07-b] Fault-injection tag write for the fill tag/way
+     * mispair model.  The fault exchanges the tags of two same-set blocks;
+     * data stays in its own way.  Public so the fill-site model can apply
+     * the swap; the normal cache path keeps using protected setTag().
+     */
+    void chaosSetTag(Addr tag) { setTag(tag); }
+
+    /**
      * Checks if the given tag information corresponds to this entry's.
      *
      * @param tag The tag value to compare to.

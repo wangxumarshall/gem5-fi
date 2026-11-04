@@ -500,7 +500,10 @@ MODEL_FLAGS = {
     # valid bit (Queued::getPacket skips it).  Drop/dup is no longer routed.
     "P04": ("prefetch", ["--prefetch_mode", "p04_queue_valid"]),
     "P05": ("prefetch", ["--prefetch_mode", "p05_drop_dup"]),
-    "P07": ("cache", ["--l1d_target_field", "tag"]),            # approx: fill way/tag -> tag
+    # [R6-P-P07-b 2026-11-04] faithful prefetch-response fill tag/way
+    # mispair (two same-set tags exchanged, data stays in its way).  The
+    # classic cache `tag` approximation is no longer routed.
+    "P07": ("prefetch", ["--prefetch_mode", "p07_fill_tag_mispair"]),
     "P08": ("prefetch", ["--prefetch_mode", "p08_stride_stuck"]),
     # [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill-classification
     # marking (CHAOSPrefetch mode p06_as_demand; hook maybeMarkFillAsDemand
