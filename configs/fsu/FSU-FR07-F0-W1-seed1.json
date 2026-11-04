@@ -30,7 +30,8 @@
         "FloatDiv",
         "FloatSqrt"
       ],
-      "reg_class": "vec"
+      "reg_class": "vec",
+      "prf_wb_hook": true
     },
     "max_faults": 1,
     "first_clock": 0,
@@ -40,7 +41,7 @@
   "limits": {
     "timeout_s": 1800
   },
-  "notes": "FR07-F0-W1 formal seed1: FR07-a, result-side WB proxy, mask 0x80000000; frozen before the run. Not a true PRF-WB hook; adapter boundary documented.",
+  "notes": "FR07-F0-W1 formal seed1: real PRF-WB data-boundary hook v2 (FR07-a), mask 0x80000000 unchanged from the original pre-registration; execute-post-write proxy attempts are preserved as PROXY_EVIDENCE.",
   "pre_registration": {
     "frozen_at": "2026-11-04",
     "submodel": "FR07-a",
@@ -48,6 +49,9 @@
     "fault_type": "bit_flip",
     "precision": "fp32",
     "lane_width": 32,
-    "lane_offset": 0
+    "lane_offset": 0,
+    "hook_version": 2,
+    "hook_upgrade_frozen_at": "2026-11-04",
+    "original_mask_preserved": true
   }
 }

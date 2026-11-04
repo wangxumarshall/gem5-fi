@@ -1,0 +1,69 @@
+{
+  "run_id": "FSU-FR07-F0-W1",
+  "model_id": "FR07",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FR07-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "identity": "W1-fp-scalar-probe-v1",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec",
+      "prf_wb_hook": true
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fault_mask": "0x80000000"
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "FR07-F0-W1 formal seed1: real PRF-WB data-boundary hook v2 (FR07-a), mask 0x80000000 unchanged from the original pre-registration; execute-post-write proxy attempts are preserved as PROXY_EVIDENCE.",
+  "pre_registration": {
+    "frozen_at": "2026-11-04",
+    "submodel": "FR07-a",
+    "mask": "0x80000000",
+    "fault_type": "bit_flip",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0,
+    "hook_version": 2,
+    "hook_upgrade_frozen_at": "2026-11-04",
+    "original_mask_preserved": true
+  },
+  "seed": 1,
+  "sample_run_id": "s1",
+  "selection_seed": 1,
+  "injection_seed": 1,
+  "attempt": 2,
+  "created_at": "2026-11-04T19:19:22",
+  "source_head": "d27be05fc65c2650f7a33e305f488c08601674ec",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "fececf6f9dc4b1c6f837f2d792f91bb6cad277428e709aaa1354dbcbb733cd6c",
+  "runner_tool_sha256": "556258d3f13ea1fb0123e28657fcf563a1becbc616bc1f0cb5a16de4cf26549d",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/w1_fp_scalar_probe",
+  "workload_sha256": "c2b8a553bd44c87faaa3d8130d8a897097dc53c4e1627cb2b09b32a59e914754"
+}

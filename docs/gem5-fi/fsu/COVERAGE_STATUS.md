@@ -4,9 +4,10 @@
 > `FSU-FP04-F0-W3`（真实 NEON FP32 lane2）、`FSU-FP04-F0-W5`
 > （PolyBench suite，每 suite seed 计 1）、`FSU-FP06-F5-W3`
 > （FP06-a/b/c）与 `FSU-FP06-F5-W1`（FP06-a/b/c，W1 scalar FP）
-> 均已 admitted。2026-11-04 FR07 位置审计后，`FSU-FR07-F0-W1` 的 3 个
-> execute-post-write seed 保留为 `PROXY_EVIDENCE`、不计认证；磁盘严格
-> 计数为 **47/519**。
+> 均已 admitted。2026-11-04 FR07 位置审计后，`FSU-FR07-F0-W1` 的旧 3 个
+> execute-post-write attempt 保留为 `PROXY_EVIDENCE`（不计认证）；该 RunID
+> 已用真实 PRF-WB 数据边界 hook 重跑 seed1/2/3 并全部认证。磁盘严格计数为
+> **50/519**。
 > 数据源：`runs/fsu` 的 AUTHORITATIVE + audit 证据、
 > `runs/fsu/COMPLETE_PROPAGATION_PATHS/INDEX.json`、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
@@ -17,15 +18,15 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **47 / 519** |
-| seed-complete RunID | **15 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1/W3/W5/W6`、`FSU-FP06-F5-W1/W3/W4/W5/W6`、`FSU-FR03-F5-W5/W6`，均 3/3；suite seed 的 component 只计 1） |
+| 已完成合格 seed | **50 / 519** |
+| seed-complete RunID | **16 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1/W3/W5/W6`、`FSU-FP06-F5-W1/W3/W4/W5/W6`、`FSU-FR03-F5-W5/W6`，均 3/3；suite seed 的 component 只计 1） |
 | 部分完成 RunID | **1 / 173**（`FSU-FR03-F5-W3` 2/3） |
-| PROXY_EVIDENCE（不计认证） | **3 seed / 1 RunID**（`FSU-FR07-F0-W1`，execute-post-write 代理） |
+| PROXY_EVIDENCE（保留的旧 attempt） | **3**（`FSU-FR07-F0-W1` execute-post-write；已由真实 hook seed 取代认证） |
 | 其余 157 个 RunID | 0/3 |
 
 > **活跃范围裁决（2026-11-03）**：ACTIVE = F0/F5。源注册表仍为
-> 173 RunID / 519 seed（历史视图 47/519，15 个 RunID 3/3）；当前活跃范围
-> 为 **80 RunID / 240 seed**，其中已完成 **38 seed / 12 RunID**（F0-W1、
+> 173 RunID / 519 seed（历史视图 50/519，16 个 RunID 3/3）；当前活跃范围
+> 为 **80 RunID / 240 seed**，其中已完成 **41 seed / 13 RunID**（F0-W1、
 > F0-W3、F0-W4、F0-W5、F0-W6、FP06-F5-W1、FP06-F5-W3、FP06-F5-W4、
 > FP06-F5-W5、FP06-F5-W6、FR03-F5-W5、FR03-F5-W6）。F1–F4 为
 > **DEFERRED_BY_USER**（不是失败/缺失/删除）；F1/F2/F3-W4 的历史完成标为
@@ -44,7 +45,7 @@
 
 | 档位 | 正式 seed | 机制/预算状态 |
 |---|---|---|
-| F0 | **9 seed / 3 RunID** | 短 W4 3/3；F0-W1/W3/W5/W6 各 3/3；FR07-F0-W1 的 3 个 execute-post-write seed 为 PROXY_EVIDENCE，不计认证 |
+| F0 | **9 seed / 3 RunID** | 短 W4 3/3；F0-W1/W3/W5/W6 各 3/3；FR07-F0-W1 的旧 3 个 execute-post-write attempt 保留为 PROXY_EVIDENCE；当前 3 seed 已用真实 PRF-WB hook 重新认证 |
 | F1 | **3/3** | rate 语义已实现（1,000,000 ±50%）；W4-rate-v1；seed1（1/1）、seed2（2/2）、seed3（1/1）正式完成，fault `full`、audit PASS |
 | F2 | **3/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；seed1（21/21）、seed2（22/22）、seed3（19/19）正式完成，全部 fault `full`、audit PASS |
 | F3 | **3/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；seed1（206/206）、seed2（202/202）、seed3（210/210）正式完成，全部 fault `full`、audit PASS |
@@ -79,7 +80,7 @@
 | FP06-F5-W5 | **COMPLETE_3_OF_3**：suite gate 5/5 PASS；正式 suite seed1/2/3 均 5/5 component admitted、suite audit ok；15 component 只计 3 seed |
 | FP06-F5-W6 | **COMPLETE_3_OF_3**：SVD/FFT/sparse suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；9 component 只计 3 seed |
 | FR03-F5-W3 | **COMPLETE_3_OF_3**：L5 commit/squash/first-impact、runner 显式 CHAOSPhysReg 路径与容器级生命周期测试已落地；gate `runs/fsu-gates/F5-FR03-W3-GATE-v3/` PASS（78,022 写/151,749 读、2,046 commits、1 squash）；正式 seed1/2/3 audit.ok |
-| FR03-F5-W5/W6 | **BLOCKED**：W3 机制已认证，但 W5/W6 的 suite 与 W6 artifact 正式门禁未完成；不得借用 W3 证据认证 |
+| FR03-F5-W5/W6 | **COMPLETE_3_OF_3**：suite gate 5/5 与 3/3 PASS；正式 seed1/2/3 各 component admitted、suite audit ok；W3 仍为 2/3，不借 W3 证据 |
 
 ## 4. workload_coverage
 

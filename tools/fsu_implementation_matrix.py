@@ -762,16 +762,15 @@ def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
                 "complete; the F5 permanent semantics exist in code but "
                 "cannot be certified for this RunID")
     if runid == "FSU-FR07-F0-W1":
-        # 2026-11-04 position audit: the existing seeds inject AFTER the FU
-        # result was written to the PRF cell; the workbook requires modifying
-        # the writeback data BEFORE the PRF write. They stay as preserved
-        # PROXY_EVIDENCE and are excluded from strict certification until the
-        # real PRF-WB hook gate passes.
+        # 2026-11-04: real PRF-WB data-boundary hook (v2) implemented and
+        # gated; the three formal seeds were re-run under the hook. The old
+        # execute-post-write attempt-1 files remain as PROXY_EVIDENCE.
         return ("PARTIAL",
-                "PROXY_EXCLUDED: 3 preserved execute-post-write proxy seeds "
-                "are not counted as FR07 certification; the workbook "
-                "PRF-WB data-boundary hook is not yet implemented "
-                "(FR07-PRF-WB-POSITION-AUDIT.md)")
+                "certified 3/3 under the real PRF-WB data-boundary hook v2 "
+                "(injection_site=prf_wb_data, hook_version=2; pre-PRF-write "
+                "shadow/scalar mask); execute-post-write attempt-1 preserved "
+                "as PROXY_EVIDENCE. Coverage limited to FR07-a/c/d W1 masks, "
+                "not all workbook submodels/lanes")
     if runid in ("FSU-FP06-F5-W4", "FSU-FP06-F5-W5"):
         if seed_n == 3:
             return ("COMPLETE",

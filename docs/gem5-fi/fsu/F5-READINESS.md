@@ -40,9 +40,9 @@
 | FSU-FR03-F5-W6 | COMPLETE_3_OF_3 | 3/3 | FR03 W6 三组件 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；9 component 只计 3 seed |
 
 > 双视图（磁盘权威，2026-11-04 FR07 位置审计后）：历史全量
-> **47/519 seed、15/173 RunID**；活跃 F0/F5 **38/240 seed、12/80 RunID**。
-> FR07-F0-W1 的 3 个 execute-post-write seed 保留为 PROXY_EVIDENCE，不计
-> 认证；F5 自身 23 seed / 8 RunID 不受影响。suite seed 3 个对应 15 个
+> **50/519 seed、16/173 RunID**；活跃 F0/F5 **41/240 seed、13/80 RunID**。
+> FR07-F0-W1 的旧 3 个 execute-post-write attempt 保留为 PROXY_EVIDENCE；
+> 该 RunID 已用真实 PRF-WB hook 重新认证。F5 自身 23 seed / 8 RunID 不受影响。suite seed 3 个对应 15 个
 > component run，component **不进入** seed 总数。
 
 ## 3. FP06 代码能力与认证边界
@@ -136,7 +136,7 @@ FP32 32-bit lane2；W1 为 scalar FP32/FP64）。它们不认证 FP06-d，也不
    generation 身份，不等于 O3 容器级验证）；
 4. FR03-F5 的正式 seed 与逐 fault 链审计。
 
-结论：**FR03-F5-W3 为 2/3（seed3 protocol deviation）；FR03-F5-W5/W6 保持 BLOCKED，不得借用 W3 证据**；不得借用
+结论：**FR03-F5-W3 为 2/3（seed3 protocol deviation）；FR03-F5-W5/W6 各 3/3 suite seed 已认证**；不得借用
 FP06 结果侧证据认证 FR03。model 级 `audited_status` 仍为 PARTIAL，
 `f5_readiness` 为 BLOCKED。代码存在/已构建不等于认证，只有 L0–L5 完整
 链、runner 路径、容器级测试通过并跑完正式 seed 后才会改变 readiness。

@@ -275,6 +275,12 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
         "proxy_seeds_total": sum(
             1 for r in rows for s in r["seeds"].values()
             if s.get("state") == "proxy"),
+        # Preserved proxy attempts are reported even after a real hook seed
+        # supersedes them (the marker stays on disk, the seed is admitted).
+        "proxy_markers_total": sum(
+            1 for r in rows for s in (1, 2, 3)
+            if (Path(out_root) / r["runid"] / f"seed{s}"
+                / "PROXY_EVIDENCE.json").exists()),
         "proxy_runids": sorted(
             r["runid"] for r in rows
             if any(s.get("state") == "proxy" for s in r["seeds"].values())),
@@ -311,6 +317,10 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
         "active_proxy_seeds": sum(
             1 for r in active_rows for s in r["seeds"].values()
             if s.get("state") == "proxy"),
+        "active_proxy_markers": sum(
+            1 for r in active_rows for s in (1, 2, 3)
+            if (Path(out_root) / r["runid"] / f"seed{s}"
+                / "PROXY_EVIDENCE.json").exists()),
         "active_complete_runids": sum(1 for r in active_rows
                                       if r["admitted_seeds"] == 3),
         "deferred_by_user_runids": sum(

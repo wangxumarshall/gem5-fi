@@ -14,8 +14,8 @@
 
 | 视图 | RunID | 目标 seed | 已完成 seed | 3/3 RunID |
 |---|---:|---:|---:|---:|
-| 历史全量（source registry） | 173 | 519 | 47 | 15 |
-| 当前活跃（F0/F5） | 80 | 240 | 38 | 12 |
+| 历史全量（source registry） | 173 | 519 | 50 | 16 |
+| 当前活跃（F0/F5） | 80 | 240 | 41 | 13 |
 
 活跃范围为 F0 72 + F5 8 = 80；已完成的是 `FSU-FP04-F0-W1`、
 `FSU-FP04-F0-W3`、`FSU-FP04-F0-W4`、`FSU-FP04-F0-W5`（W5 suite，每个
@@ -25,11 +25,12 @@ suite seed 的 5 个 component run 只计 1）、`FSU-FP06-F5-W1`、
 `FSU-FR03-F5-W5` 与 `FSU-FR03-F5-W6`（FR03 suite，每 suite seed 计 1）；
 `FSU-FR03-F5-W3` 为 2/3（seed3 protocol deviation）。
 
-`FSU-FR07-F0-W1` 的 3 个旧 seed 是 **PROXY_EVIDENCE**：原实现于
-`staticInst->execute()` 之后改写 PRF cell，而工作簿要求 “PRF 写入前修改
-WB data”。证据与日志完整保留，但计入 `proxy_seeds_total`（当前 3），
-**不计入** admitted seed；`scope_status=ACTIVE_PROXY_ONLY`。详见
-`FR07-PRF-WB-POSITION-AUDIT.md`。FP06-d 仍 MISSING。
+`FSU-FR07-F0-W1` 的 3 个旧 attempt 是 **PROXY_EVIDENCE**（execute-post-write），
+日志完整保留（`proxy_markers_total=3`）。该 RunID 已用真实 PRF-WB 数据边界 hook
+（`injection_site=prf_wb_data`, `hook_version=2`）重新运行 attempt-2，三个 seed
+均 audit.ok/certified，因此当前按真实 hook 计入 3/3；proxy attempt 不再计入
+admitted。详见 `FR07-PRF-WB-POSITION-AUDIT.md` 与 `FR07-PRF-WB-HOOK.md`。
+FP06-d 仍 MISSING。
 
 ## 3. 标签
 

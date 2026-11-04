@@ -1,6 +1,6 @@
 # FSU 30 模型 × 173 RunID 实施审计（阶段 B + D2 事实刷新）
 
-> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`ed18c54270f99e0a5679ad187fd3cbfd17c94bb1`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
+> 设计时基线：`origin/fi-ding` `46ce66cdb9c22f5e591b43b97b68c7d526704211`；当前 HEAD：`d27be05fc65c2650f7a33e305f488c08601674ec`；生成工具：`tools/fsu_implementation_matrix.py`；数据源：工作簿表 7/9/10 + 初始代码审计 + 当前状态实时探测。
 
 ## 1. 结论
 
@@ -12,7 +12,7 @@
 
 工作簿把 FR01/FP04 标为“直接已有”，但代码审计显示二者均只覆盖部分子模型：FR01 无 128-bit lane/FP 字段分层/generation/consumer；FP04 仅 FP64 低 64 位结果字段，FP32 与 NEON 全 lane（FP04-d）缺失。FP04 的 FSU PROP 发射端与 F0/F5 传播链已落地，并已有正式 seed；但子模型覆盖仍不完整。FR01 仍无 FSU PROP 链，不能直接进入三 seed 执行。
 
-- 磁盘权威 seed 索引：历史全量 47/519，活跃 F0/F5 38/240；suite seed 18 个对应 72 个 component run（component 不计 seed）。
+- 磁盘权威 seed 索引：历史全量 50/519，活跃 F0/F5 41/240；suite seed 18 个对应 72 个 component run（component 不计 seed）。
 
 ## 2. 30 模型审计表
 
@@ -51,7 +51,7 @@
 
 ## 2.1 RunID 状态（seed_completion 与 coverage_status 独立）
 
-- seed_completion：0/3 157、2/3 1、3/3 15
+- seed_completion：0/3 156、2/3 1、3/3 16
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、COMPLETE 6、PARTIAL 68、PILOT_SUBMODEL_ONLY 1
 
 | RunID | seed_completion | coverage_status | coverage_reason |
@@ -135,7 +135,7 @@
 | FSU-FR06-F0-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FR06-F2-W3 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
 | FSU-FR06-F2-W5 | 0/3 | BLOCKED_NOT_IMPLEMENTED | injector/hook for this model is missing in the audited code |
-| FSU-FR07-F0-W1 | 0/3 | PARTIAL | PROXY_EXCLUDED: 3 preserved execute-post-write proxy seeds are not counted as FR07 certification; the workbook PRF-WB data-boundary hook is not yet implemented (FR07-PRF-WB-POSITION-AUDIT.md) |
+| FSU-FR07-F0-W1 | 3/3 | PARTIAL | certified 3/3 under the real PRF-WB data-boundary hook v2 (injection_site=prf_wb_data, hook_version=2; pre-PRF-write shadow/scalar mask); execute-post-write attempt-1 preserved as PROXY_EVIDENCE. Coverage limited to FR07-a/c/d W1 masks, not all workbook submodels/lanes |
 | FSU-FR07-F0-W3 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR07-F0-W5 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
 | FSU-FR07-F2-W1 | 0/3 | PARTIAL | injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID |
@@ -277,13 +277,13 @@
 
 ### 3.2 current_status（当前 fsu HEAD 实测）
 
-- HEAD：`ed18c54270f99e0a5679ad187fd3cbfd17c94bb1`（branch `fsu`）
-- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`9457531948999dd8241e6c6ad6fb85d0e529d5b7017f238d23c36b3d2302e28d`；size=1234734464
+- HEAD：`d27be05fc65c2650f7a33e305f488c08601674ec`（branch `fsu`）
+- gem5 二进制：`/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt`；存在=True；SHA-256=`fececf6f9dc4b1c6f837f2d792f91bb6cad277428e709aaa1354dbcbb733cd6c`；size=1235262104
 - FSU PROP 发射端：True（CHAOSFPU.cc emitFsu -> CHAOSPropagation::notePropEvt）
 - FSU 链审计器：True（`tools/fsu_chain_check.py`）
 - FSU 三 seed runner：True（`tools/fsu_seed_runner.py`）
 - rate ordinal 工具：True（`tools/fsu_rate_ordinals.py`）
-- 模型级测试文件：23 个
+- 模型级测试文件：24 个
 - B0 配置匹配：True（B0-core 已实现并经 F0-W1 的 config.ini 逐项校验：ROB=40/IQ=32/fetch-decode-rename 3/3/3/dispatch6/issue-wb-commit 8/8/8/PRF 128/192/48/LQ-SQ16。完整 v7a_3 的 FP FUPool=2 尚未实现，属剩余缺口。）
 
 ### 3.3 resolved_by_commit

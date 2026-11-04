@@ -102,5 +102,7 @@ def test_old_proxy_seeds_stay_excluded():
         ROOT / "runs/fsu",
         ROOT / "docs/gem5-fi/fsu/IMPLEMENTATION_MATRIX.json")
     fr07 = next(r for r in rows if r["runid"] == "FSU-FR07-F0-W1")
-    assert fr07["status"] == "PROXY_ONLY"
-    assert summary["proxy_seeds_total"] == 3
+    assert fr07["status"] == "COMPLETE_3_OF_3"
+    assert summary["proxy_seeds_total"] == 0
+    # The old execute-post-write attempts are still preserved on disk.
+    assert summary["proxy_markers_total"] == 3

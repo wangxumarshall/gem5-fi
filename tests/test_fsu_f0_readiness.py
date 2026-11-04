@@ -36,8 +36,7 @@ DONE_F0 = {
     "FSU-FP04-F0-W4",
     "FSU-FP04-F0-W5",
     "FSU-FP04-F0-W6",
-    # FSU-FR07-F0-W1 is PROXY_EVIDENCE (execute-post-write) and is excluded
-    # from the strict completion count until the real PRF-WB hook passes.
+    "FSU-FR07-F0-W1",   # real PRF-WB hook v2 certification
 }
 
 TIER_MIN = {"T1": 7.0, "T2": 5.0, "T3": 3.0, "T4": 1.0, "T5": -999.0}
@@ -86,11 +85,11 @@ def test_doc_covers_exactly_remaining_f0():
     assert set(payload["completed_f0"]) == DONE_F0
 
     remaining = set(f0) - completed
-    assert len(remaining) == 67
+    assert len(remaining) == 66
     row_ids = [r["runid"] for r in payload["rows"]]
-    assert len(row_ids) == len(set(row_ids)) == 67
+    assert len(row_ids) == len(set(row_ids)) == 66
     assert set(row_ids) == remaining
-    assert payload["remaining_f0_count"] == 67
+    assert payload["remaining_f0_count"] == 66
 
 
 def test_rows_agree_with_registry_and_matrix_identity():
@@ -143,10 +142,10 @@ def test_known_defect_verdicts_match_code_evidence():
     payload, text = _doc_payload()
     defects = payload["defects"]
     expected = {
-        "FQ08-b": "present",
+        "FQ08-b": "fixed_pending_gem5_gate",
         "PRF-identity-generation": "partial",
         "FP08-suppressed_count": "present",
-        "FQ08-c": "present_risk",
+        "FQ08-c": "fixed_pending_gem5_gate",
     }
     assert set(defects) == set(expected)
     for key, verdict in expected.items():
@@ -166,24 +165,26 @@ def test_known_defect_verdicts_match_code_evidence():
         assert key in text
 
 
-def test_fq08b_count_precedes_victim_application():
-    """The defect claim: the injection counter fires in the gate, while the
-    victim is selected later (and may not exist). Pin that shape."""
+def test_fq08b_counts_only_after_real_victim():
+    """FQ08-b fix: the gate only records an attempt; the injection counter and
+    maxFaults budget move to the real victim application (noteTagWake)."""
     iq = _code("CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.cc")
     m = re.search(r"CHAOSIQ::shouldWrongSourceWake\((.*?)\n    \}\n", iq, re.S)
     assert m, "shouldWrongSourceWake body not found"
     body = m.group(1)
-    assert "faults_injected_count++" in body
-    assert "return true" in body
-
-    iq2 = _code("CHAOS/gem5/src/cpu/o3/inst_queue.cc")
-    gate_at = iq2.find("wrong_source = chaosIQ->shouldWrongSourceWake")
-    apply_at = iq2.find("if (wrong_source) {")
-    while_at = iq2.find("while (dep_inst)")
-    assert gate_at != -1 and apply_at != -1 and while_at != -1
-    assert while_at < apply_at, "victim application must be inside the dependent loop"
-    assert gate_at < while_at
-    assert "wrong_source = false;" in iq2[apply_at:apply_at + 200]
+    # The old defect shape must be gone.
+    assert "faults_injected_count++" not in body
+    assert "return true" not in body
+    assert "attempted" in body
+    # Real application lives in noteTagWake / its lifecycle helper and is
+    # gated on a victim; the attempt-only gate never counts an injection.
+    assert iq.find("CHAOSIQ::noteTagWake") != -1
+    assert "iq_counts.applied++" in iq
+    assert "no_victim" in iq
+    # The lifecycle model keeps attempted/eligible/applied/activated separate.
+    life = _code("CHAOS/gem5/src/cpu/o3/CHAOSIQ/chaos_iq_lifecycle.hh")
+    for field in ("attempted", "eligible", "applied", "activated", "no_victim"):
+        assert field in life
 
 
 def test_prf_generation_evidence_is_pinned():
@@ -222,18 +223,22 @@ def test_fp08_suppressed_count_is_not_emitted():
     assert "fpu_fpsr_suppress" not in runner
 
 
-def test_fq08c_delayed_wake_is_not_squash_aware():
-    iq = _code("CHAOS/gem5/src/cpu/o3/inst_queue.cc")
-    assert "cpu->schedule(new DelayedWakeEvent(this, completed_inst)," in iq
-    assert "DelayedWakeEvent::process() { iq->wakeDependents(inst); }" in iq
-    # The squash path must not mention/cancel the delayed wake event.
-    start = iq.find("InstructionQueue::squash(ThreadID tid)")
-    assert start != -1
-    end = iq.find("\n}\n", start)
-    assert end != -1
-    body = iq[start:end]
-    assert "DelayedWake" not in body
-    assert "chaosIQ->phaseOffset()" in iq
+def test_fq08c_delayed_wake_is_squash_and_generation_aware():
+    """FQ08-c fix: CHAOSIQ's own DelayedWake validates squash/generation/
+    identity before re-waking; the unsafe inst_queue event is unreachable."""
+    life = _code("CHAOS/gem5/src/cpu/o3/CHAOSIQ/chaos_iq_lifecycle.hh")
+    for decision in ("IgnoreSquashed", "IgnoreGeneration", "IgnoreIdentity",
+                     "IgnoreNoInst"):
+        assert decision in life
+    iq = _code("CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.cc")
+    assert "CHAOSIQ::DelayedWake::process()" in iq
+    assert "IGNORED reason=" in iq
+    assert "wakeDecisionName" in iq
+    assert "delayed_ignored_squashed" in iq
+    assert "delayed_scheduled" in iq
+    # wake_phase no longer schedules the legacy o3 DelayedWakeEvent.
+    assert "cpu->schedule(new DelayedWakeEvent" not in iq
+    assert "shouldDelayWake" in iq
 
 
 def test_document_names_next_pilot_and_real_command():
