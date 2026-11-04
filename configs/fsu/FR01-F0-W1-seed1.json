@@ -1,0 +1,39 @@
+{
+  "run_id": "FSU-FR01-F0-W1",
+  "model_id": "FR01",
+  "unit": "FP/SIMD PRF",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FR01-a",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "identity": "W1-fp-scalar-probe-v1",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "physreg",
+    "fault_mask": "0x20",
+    "max_faults": 1,
+    "first_clock": 10000,
+    "probability": 1.0,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "target_phys_idx": -1,
+      "require_allocated": true,
+      "vec_lane_width": 64,
+      "vec_lane_offset": 0,
+      "fault_type": "bit_flip",
+      "bits_to_change": 1,
+      "semantic_role": "FR01-a"
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "config_profile": "C3"
+}

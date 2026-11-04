@@ -1977,6 +1977,7 @@ namespace gem5
             } else {
                 const int K_ACTIVE_RETRY = 32;
                 chosen_phys_idx = -1;
+                int fallback_allocated = -1;
                 for (int t = 0; t < K_ACTIVE_RETRY; t++) {
                     int cand = std::uniform_int_distribution<>(0, n - 1)(rng);
                     PhysRegIdPtr cand_reg =
@@ -1985,11 +1986,21 @@ namespace gem5
                             : (target_class == gem5::VecRegClass)
                                   ? cpu->physRegFile().vecPhysRegId(cand)
                                   : cpu->physRegFile().intPhysRegId(cand);
-                    if (!cpu->physFreeList().isFree(target_class, cand_reg)) {
+                    if (cpu->physFreeList().isFree(target_class, cand_reg))
+                        continue;
+                    if (fallback_allocated < 0)
+                        fallback_allocated = cand;
+                    // Prefer a cell that an unissued instruction will really
+                    // read: the workbook trigger requires a later consumer
+                    // read, not merely an allocated slot.
+                    if (cpu->o3IEW().instQueue.physRegHasPendingSource(
+                            target_class, cand)) {
                         chosen_phys_idx = cand;
                         break;
                     }
                 }
+                if (chosen_phys_idx < 0)
+                    chosen_phys_idx = fallback_allocated;
                 if (chosen_phys_idx < 0) {
                     // window empty (all K samples free): honest skip —
                     // reschedule, do NOT consume the fault

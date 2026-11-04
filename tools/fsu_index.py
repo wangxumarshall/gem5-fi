@@ -395,6 +395,10 @@ def _seed_state(seed_dir: Path, recompute: bool = False,
     failed = [a for a in attempts if (a / ".failed").exists()]
     if failed:
         return {"state": "failed", "attempts": [str(a) for a in attempts]}
+    real = [a for a in attempts if (a / ".real_outcome").exists()]
+    if real:
+        return {"state": "real_outcome", "attempts": [str(a) for a in attempts],
+                "reason": "preserved real outcome, not certified"}
     if attempts:
         return {"state": "incomplete", "attempts": [str(a) for a in attempts]}
     return {"state": "pending"}
@@ -455,6 +459,8 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None,
             completion_state = "INVALID_EVIDENCE"
         elif "incomplete" in states:
             completion_state = "INCOMPLETE"
+        elif "real_outcome" in states:
+            completion_state = "REAL_OUTCOME"
         elif "proxy" in states:
             completion_state = "PROXY_ONLY"
         else:
@@ -518,6 +524,9 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None,
         "current_verification_failed_seeds": 0,
         "missing_evidence_seeds": 0,
         "legacy_report_only_seeds": 0,
+        "real_outcome_seeds": sum(
+            1 for r in rows for s in r["seeds"].values()
+            if s.get("state") == "real_outcome"),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "tool_git_sha": _git_sha(),
         "tool_script_sha256": _script_sha(),

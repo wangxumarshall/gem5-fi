@@ -427,6 +427,15 @@ class InstructionQueue
     /** §2.5 CHAOSIQ accessor (injector sets it at startup). */
     void setChaosIQ(CHAOSIQ *p) { chaosIQ = p; }
 
+    /**
+     * [FR01/FR02] Is `phys_idx` a pending source operand of an instruction
+     * that has not issued yet? Such an instruction will really read the cell
+     * after the injection, which is the workbook trigger condition
+     * ("active, ready and a later consumer read"). Read-only; used only for
+     * target selection, never to mutate the queue.
+     */
+    bool physRegHasPendingSource(RegClassType rc, int phys_idx) const;
+
   private:
     /** The queue to the execute stage.  Issued instructions will be written
      *  into it.

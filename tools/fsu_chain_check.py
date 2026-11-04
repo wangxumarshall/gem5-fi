@@ -639,8 +639,57 @@ def _check_one(fid, events, truncated=False):
         if ct == "not_activated" and act > 0:
             violations.append("f5_chain_end_terminal_contradicts_activation")
 
+    # A non-F5 chain that never reached L5 or a containment event still has an
+    # honest lifecycle terminal from the injector's chain_end (not_consumed /
+    # exposed_unconsumed / squashed). Carry that terminal through instead of
+    # flattening every such chain to "provable_to_LX_then_unknown"; it is not
+    # closed and never counts as admitted, but the outcome is a real one.
+    if (not is_f5 and l5_evt is None and contain is None
+            and (terminal.startswith("provable_to_") or terminal == "unknown")):
+        ce_terms = [e for e in events
+                    if _clean(e, "kind") == "chain_end"
+                    and _clean(e, "terminal")]
+        if ce_terms:
+            terminal = _clean(ce_terms[-1], "terminal")
+
+    # [FR01/FR02] A transient fault installed on a Vec phys cell can close at
+    # a real generation change: the defective generation was freed and
+    # reallocated, so that cell no longer exists. This is NOT a permanent
+    # (F5) fault, whose cell survives free/realloc by design.
+    if (not is_f5 and terminal not in P.CLOSED_TERMINALS
+            and not terminal.startswith("contained_")
+            and l5_evt is None and contain is None):
+        root_gen = _clean(root, "reg_generation")
+        gen_events = [e for e in events
+                      if _clean(e, "kind") in (
+                          "generation_change", "cell_free", "cell_realloc",
+                          "free", "realloc", "cell_reuse")]
+        for ge in gen_events:
+            old = _clean(ge, "generation_old")
+            new = _clean(ge, "generation_new")
+            if not old or not new or old == new:
+                continue
+            if root_gen and old != root_gen:
+                continue
+            change_tick = _int_or_none(ge, "tick")
+            late_reads = [
+                e for e in events
+                if _clean(e, "kind") == "operand_read"
+                and _clean(e, "reg_generation") == root_gen
+                and (change_tick is None
+                     or (_int_or_none(e, "tick") or 0) > change_tick)]
+            if late_reads:
+                violations.append(
+                    "installed_generation_read_after_realloc")
+                break
+            terminal = "free_realloc"
+            contained_id = _clean(ge, "event_id")
+            contained_layer = None
+            break
+
     closed = (terminal in P.CLOSED_TERMINALS
-              or terminal.startswith("contained_"))
+              or terminal.startswith("contained_")
+              or (not is_f5 and terminal == "free_realloc"))
     beyond = "N/A" if closed else "Unknown"
     layers_na = []
     if closed and layers:

@@ -805,3 +805,69 @@ def test_f5_legacy_fixture_without_new_fields_still_passes(tmp_path):
     assert f["violations"] == []
     assert f["admitted"] is True
     assert f["f5"]["eligible_seen_total"] is None
+
+
+# ---------------------------------------------------------------------------
+# [FR01/FR02] Transient lifecycle terminals
+# ---------------------------------------------------------------------------
+def _transient_lines(terminal="free_realloc", gen_event=True):
+    b = base(run="FSU-FR01-F0-W1")
+    b.update(model_id="FR01", reg_class="vec", phys_reg="34",
+             reg_generation="1", lane_width="64", lane_offset="0",
+             lane_mask="0x20", bit_indices="5",
+             field="transient_bit_flip")
+    lines = [
+        evt(kind="fault_applied", event_id="0", tick="100", activated="1",
+            **b),
+        evt(kind="carrier_state", event_id="1", parent_event_id="0",
+            tick="101", **b),
+    ]
+    if gen_event:
+        lines.append(evt(kind="generation_change", event_id="2",
+                         parent_event_id="1", tick="200",
+                         generation_old="1", generation_new="2",
+                         generation_changes="1", **b))
+    lines.append(evt(kind="chain_end", event_id="3",
+                     parent_event_id="2" if gen_event else "1",
+                     tick="300", terminal=terminal, **b))
+    return lines
+
+
+def _check_lines(tmp_path, lines):
+    p = tmp_path / "prop_evt.txt.gz"
+    p.write_bytes(gzip.compress(("\n".join(lines) + "\n").encode()))
+    return C.check_stream(p, run_id="FSU-FR01-F0-W1", sample_run_id="s1")
+
+
+def test_transient_free_realloc_is_a_closed_terminal(tmp_path):
+    r = _check_lines(tmp_path, _transient_lines("free_realloc"))
+    f = r["faults"]["1"]
+    assert f["terminal"] == "free_realloc"
+    assert f["admitted"] is True
+    assert f["certified"] is True
+    assert r["certified"] is True
+
+
+def test_transient_not_consumed_is_real_but_not_admitted(tmp_path):
+    r = _check_lines(tmp_path, _transient_lines("not_consumed",
+                                                gen_event=False))
+    f = r["faults"]["1"]
+    assert f["terminal"] == "not_consumed"
+    assert f["admitted"] is False
+    assert f["certified"] is False
+
+
+def test_transient_read_of_old_generation_after_realloc_is_a_violation(
+        tmp_path):
+    lines = _transient_lines("free_realloc")
+    b = base(run="FSU-FR01-F0-W1")
+    b.update(model_id="FR01", reg_class="vec", phys_reg="34",
+             reg_generation="1", lane_width="64", lane_offset="0",
+             lane_mask="0x20", bit_indices="5")
+    lines.insert(3, evt(kind="operand_read", event_id="9",
+                        parent_event_id="2", tick="250",
+                        activated="1", **b))
+    r = _check_lines(tmp_path, lines)
+    f = r["faults"]["1"]
+    assert "installed_generation_read_after_realloc" in f["violations"]
+    assert f["admitted"] is False

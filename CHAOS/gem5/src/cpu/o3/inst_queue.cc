@@ -141,6 +141,33 @@ IQUnit::setActiveThreads(list<ThreadID> *at_ptr)
     activeThreads = at_ptr;
 }
 
+bool
+IQUnit::physRegHasPendingSource(RegClassType rc, int phys_idx) const
+{
+    auto matches = [rc, phys_idx](const DynInstPtr &inst) {
+        if (!inst || inst->isIssued())
+            return false;
+        for (int i = 0; i < inst->numSrcRegs(); ++i) {
+            PhysRegIdPtr src = inst->renamedSrcIdx(i);
+            if (src && src->classValue() == rc &&
+                (int)src->index() == phys_idx)
+                return true;
+        }
+        return false;
+    };
+    for (ThreadID tid = 0; tid < MaxThreads; ++tid) {
+        for (const auto &inst : instList[tid]) {
+            if (matches(inst))
+                return true;
+        }
+    }
+    for (const auto &inst : instsToExecute) {
+        if (matches(inst))
+            return true;
+    }
+    return false;
+}
+
 void
 IQUnit::resetState()
 {

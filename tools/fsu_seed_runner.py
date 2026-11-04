@@ -752,6 +752,36 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
         return {"status": "admitted", "attempt": str(attempt),
                 "chain_terminal": _terminal(chain), "oracle": category,
                 "md": str(dst) if dst is not None else str(md)}
+    # A real, preserved outcome is NOT a failed run and must not be deleted or
+    # replaced just because it is not certified: no consumer, a pre-consumer
+    # overwrite that has not yet proven removal, or a squash can all be the
+    # honest end of an injected transient fault.
+    real_terminals = {"not_consumed", "exposed_unconsumed", "free_realloc",
+                      "squashed", "overwritten"}
+    terminals = {r.get("terminal") for r in chain.get("faults", {}).values()}
+    real_outcome = (
+        category not in ("SimulatorError", "Inactive", "Timeout")
+        and faults >= 1
+        and all_faults_present
+        and not chain.get("truncated")
+        and chain_report["stats_nonempty"]
+        and prop.exists()
+        and bool(terminals & real_terminals)
+    )
+    if real_outcome:
+        (attempt / ".real_outcome").write_text(
+            f"real experiment outcome, not certified: oracle={category} "
+            f"terminals={sorted(terminals)} faults={faults} "
+            f"faults_in_stream={len(chain_faults)} "
+            f"admitted_faults={chain.get('admitted_faults')}\n",
+            encoding="utf-8")
+        write_hashes(attempt)
+        return {"status": "real_outcome", "attempt": str(attempt),
+                "oracle": category, "reason": reason, "faults": faults,
+                "rate_ok": rate_ok,
+                "terminals": sorted(t for t in terminals if t),
+                "admitted_faults": chain.get("admitted_faults"),
+                "truncated": chain.get("truncated")}
     (attempt / ".failed").write_text(
         f"not admitted: oracle={category} faults={faults} "
         f"expected={chain_report['expected_injections']} rate_ok={rate_ok} "
