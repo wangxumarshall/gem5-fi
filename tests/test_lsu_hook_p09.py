@@ -173,6 +173,92 @@ def main():
         check("pilot 未做 campaign oracle 分类（记 n/a，不冒充 Masked）",
               not (d / "cell_results.json").is_file(), "unexpected oracle file")
 
+    print("[5] P09-c dirty premature clear (distinct faulted field)")
+    phh2 = src("CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/"
+               "CHAOSPrefetch.hh")
+    pcc2 = src("CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/"
+               "CHAOSPrefetch.cc")
+    ccc2 = src("CHAOS/gem5/src/mem/cache/cache.cc")
+    check("Mode P09DirtyClear + p09_dirty_clear 映射",
+          "P09DirtyClear" in phh2
+          and 'if (s == "p09_dirty_clear")        return '
+          "Mode::P09DirtyClear;" in pcc2, "mode missing")
+    check("VictimAction 区分 DropWriteback 与 ClearDirty",
+          "enum class VictimAction { None, DropWriteback, ClearDirty };"
+          in phh2
+          and "maybeHandlePrefetchVictim" in phh2, "action enum missing")
+    check("evictBlock 在驱逐决策前真实清除 DirtyBit（非仅日志）",
+          "blk->clearCoherenceBits(CacheBlk::DirtyBit);" in ccc2
+          and "chaos_premature_clear = true;" in ccc2
+          and "chaos_action == CHAOSPrefetch::VictimAction::ClearDirty"
+          in ccc2, "dirty-clear missing")
+    check("clear 后包类型为 cleanEvict（不生成写回请求）",
+          "blk->isSet(CacheBlk::DirtyBit) || writebackClean" in ccc2
+          and "writebackBlk(blk) : cleanEvictBlk(blk);" in ccc2,
+          "packet decision missing")
+    check("单元侧 L1 pf_dirty(dirty->clean) + 注入行 P09_dirty_clear",
+          'h5->notePropEvt("pf_dirty"' in pcc2
+          and '{"field", "dirty_state"}' in pcc2
+          and '{"before", "dirty"}' in pcc2
+          and '{"after", "clean"}' in pcc2
+          and 'logInjection(dirty_clear ? "P09_dirty_clear"' in pcc2,
+          "event/log missing")
+    check("choices 含 p09_dirty_clear",
+          "p09_dirty_clear" in src("configs/se/lsu_proxy.py"), "missing")
+    d2 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+              "p09c_diag_l2small_fault_20261105/"
+              "P09C-DIAG-W6-L2_16KiB/seed1")
+    ctl2 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+                "p09c_diag_l2small_nofault_20261105/16KiB")
+    if not (d2 / "prop_evt.txt.gz").is_file():
+        print(f"  SKIP P09-c diagnostic 证据不在（{d2}）")
+    else:
+        inj = (d2 / "prefetch_injections.log").read_text()
+        check("P09-c 注入行 = P09_dirty_clear + victim set/way",
+              "P09_dirty_clear" in inj
+              and "dirty state cleared before eviction" in inj, inj)
+        text = gzip.open(d2 / "prop_evt.txt.gz", "rt").read()
+        check("pf_dirty: dirty->clean + dirty_premature_clear",
+              "kind=pf_dirty" in text
+              and "field=dirty_state before=dirty after=clean" in text
+              and "state_after=dirty_premature_clear" in text,
+              "pf_dirty missing")
+        check("cache_evict 为 clean_evict（非 writeback 路径）",
+              "kind=cache_evict" in text
+              and "field=clean_evict" in text, "evict mismatch")
+        check("同线 demand 重读 + taint + errant_commit L5",
+              "kind=cache_access" in text and "kind=pf_demand" in text
+              and "kind=taint_reg" in text
+              and "kind=errant_commit" in text
+              and "detection_layer=L5" in text, "L4/L5 missing")
+        cout = (ctl2 / "run.out").read_text() \
+            if (ctl2 / "run.out").is_file() else ""
+        mc2 = re.search(r"^([0-9a-f]{16})$", cout, re.M)
+        m2 = re.search(r"^([0-9a-f]{16})$",
+                       (d2 / "run.out").read_text(), re.M)
+        check("无故障对照 = B0 golden 062e5124df3667f9",
+              mc2 is not None and mc2.group(1) == "062e5124df3667f9",
+              mc2.group(1) if mc2 else None)
+        check("故障输出哈希 != 对照（真实 SDC）",
+              m2 is not None and mc2 is not None
+              and m2.group(1) != mc2.group(1),
+              f"fault={m2.group(1) if m2 else None} "
+              f"ctl={mc2.group(1) if mc2 else None}")
+        rep2 = subprocess.run(
+            [sys.executable, str(ROOT / "tools/lsu_chain_check.py"),
+             str(d2 / "prop_evt.txt.gz"), "--run-id",
+             "P09C-DIAG-W6-L2_16KiB"],
+            capture_output=True, text=True)
+        try:
+            j2 = json.loads(rep2.stdout)
+            f1 = j2.get("faults", {}).get("1", {})
+            check("链终局 full/L5（真实架构逃逸）",
+                  f1.get("terminal") == "full"
+                  and f1.get("provable_to") == "L5",
+                  str(f1.get("terminal")) + "/" + str(f1.get("provable_to")))
+        except Exception as exc:  # noqa: BLE001
+            check("链终局 full/L5（真实架构逃逸）", False, f"checker: {exc}")
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

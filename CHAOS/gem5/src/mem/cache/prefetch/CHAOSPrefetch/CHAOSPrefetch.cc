@@ -54,10 +54,11 @@ namespace gem5
             fillMarkHook = this;
         if (fi_mode == Mode::P07FillTagMispair)
             fillWayHook = this;
-        if (fi_mode == Mode::P09WbLoss) {
+        if (fi_mode == Mode::P09WbLoss || fi_mode == Mode::P09DirtyClear) {
             wbLossHook = this;
             registerExitCallback([this]() {
-                if (fi_mode != Mode::P09WbLoss) return;
+                if (fi_mode != Mode::P09WbLoss &&
+                        fi_mode != Mode::P09DirtyClear) return;
                 std::cout << "CHAOS_P09_DIAG: fills=" << diag_fills
                           << " pure_pref_fills=" << diag_pure_pref_fills
                           << " pref_evictions=" << diag_pref_evictions
@@ -137,6 +138,7 @@ namespace gem5
         if (s == "p04_queue_select")       return Mode::P04QueueSelect;
         if (s == "p04_queue_pointer")      return Mode::P04QueuePointer;
         if (s == "p09_wb_loss")            return Mode::P09WbLoss;
+        if (s == "p09_dirty_clear")        return Mode::P09DirtyClear;
         if (s == "p07_fill_tag_mispair")   return Mode::P07FillTagMispair;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
@@ -199,11 +201,12 @@ namespace gem5
         // second attempt stream would corrupt the funnel denominator).
         if (fi_mode == Mode::P06AsDemand) return;
         // [MDSPEC][R6-P-P09-a] Same for P09: its event source is the
-        // prefetch-caused dirty-eviction gate (maybeDropPrefetchWriteback).
+        // prefetch-caused dirty-eviction gate (maybeHandlePrefetchVictim).
         // Falling through here would spend the only fault budget on a
         // generation-site registration and leave the real eviction hook
         // capped, i.e. the model would never suppress a writeback.
-        if (fi_mode == Mode::P09WbLoss) return;
+        if (fi_mode == Mode::P09WbLoss ||
+                fi_mode == Mode::P09DirtyClear) return;
         // [MDSPEC][R6-P-P07-b] Same inertness: P07's event source is the
         // prefetch-response FILL site (BaseCache::handleFill).
         if (fi_mode == Mode::P07FillTagMispair) return;
@@ -573,6 +576,7 @@ namespace gem5
           case Mode::P04QueueSelect:
           case Mode::P04QueuePointer:
           case Mode::P09WbLoss:
+          case Mode::P09DirtyClear:
           case Mode::P07FillTagMispair:
             break;
           case Mode::P01StrideBitflip: {
@@ -801,14 +805,17 @@ namespace gem5
         if (pure_prefetch) ++wbLossHook->diag_pure_pref_fills;
     }
 
-    bool
-    CHAOSPrefetch::maybeDropPrefetchWriteback(Addr victim, unsigned set,
-                                              unsigned way, bool dirty)
+    CHAOSPrefetch::VictimAction
+    CHAOSPrefetch::maybeHandlePrefetchVictim(Addr victim, unsigned set,
+                                             unsigned way, bool dirty)
     {
-        if (fi_mode != Mode::P09WbLoss) return false;
+        if (fi_mode != Mode::P09WbLoss &&
+                fi_mode != Mode::P09DirtyClear)
+            return VictimAction::None;
         // Cap-before-attempt (C11/P06 convention): once the budget is spent
         // the funnel freezes exactly at fire time.
-        if (max_faults != 0 && faults_injected >= max_faults) return false;
+        if (max_faults != 0 && faults_injected >= max_faults)
+            return VictimAction::None;
         // Attempted = every victim eviction during a pure-prefetch fill.
         // Eligible = that victim is DIRTY (the spec's "prefetch allocation
         // causes a dirty eviction").  A clean-victim prefetch eviction is
@@ -818,17 +825,22 @@ namespace gem5
         ++diag_pref_evictions;
         if (dirty) ++diag_dirty_pref_evictions;
         trigger.onAttempt();
-        if (!dirty) return false;
-        if (!trigger.onEligible()) return false;
+        if (!dirty) return VictimAction::None;
+        if (!trigger.onEligible()) return VictimAction::None;
         ++faults_injected;
         if (trigger.tier == ChaOSLsuTier::F5)
             trigger.noteOutcome(true);
 
-        // [MDSPEC][R6-P-P09-a] The faulted object is the VICTIM line's
-        // writeback request.  Registering the victim block lets a later
-        // demand re-read of that line join the chain (stale-data consumer);
-        // the unit-side L1 `pf_wb` event is emitted at this real eviction
-        // gate, not at a cache structural event.
+        // Both submodels fault the SAME object class (the prefetch-caused
+        // dirty victim) but a DIFFERENT field:
+        //   P09-a: the writeback REQUEST (created, then destroyed).
+        //   P09-c: the victim's DIRTY STATE (cleared before the eviction
+        //          decision; no writeback request is ever generated).
+        // Registering the victim block lets a later demand re-read of that
+        // line join the chain (stale-data consumer); the unit-side L1 event
+        // is emitted at this real eviction gate, not at a cache structural
+        // event.
+        const bool dirty_clear = (fi_mode == Mode::P09DirtyClear);
         if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
             const uint64_t ptag = h5->registerCacheFault(
                 victim, -1, line_size, "prefetch");
@@ -839,25 +851,45 @@ namespace gem5
                 h5->registerPtagPrefetch(pfid, victim, line_size);
                 std::ostringstream vhex;
                 vhex << std::hex << victim;
-                h5->notePropEvt("pf_wb", {
-                    {"fault_id", std::to_string(ptag)},
-                    {"pf_request_id", std::to_string(pfid)},
-                    {"corr", "origin"},
-                    {"va", vhex.str()},
-                    {"set", std::to_string(set)},
-                    {"way", std::to_string(way)},
-                    {"field", "wb_request"},
-                    {"before", "pending"},
-                    {"after", "lost"},
-                    {"state_after", "writeback_suppressed"},
-                });
+                if (dirty_clear) {
+                    h5->notePropEvt("pf_dirty", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"corr", "origin"},
+                        {"va", vhex.str()},
+                        {"set", std::to_string(set)},
+                        {"way", std::to_string(way)},
+                        {"field", "dirty_state"},
+                        {"before", "dirty"},
+                        {"after", "clean"},
+                        {"state_after", "dirty_premature_clear"},
+                    });
+                } else {
+                    h5->notePropEvt("pf_wb", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"corr", "origin"},
+                        {"va", vhex.str()},
+                        {"set", std::to_string(set)},
+                        {"way", std::to_string(way)},
+                        {"field", "wb_request"},
+                        {"before", "pending"},
+                        {"after", "lost"},
+                        {"state_after", "writeback_suppressed"},
+                    });
+                }
             }
         }
         std::ostringstream detail;
         detail << "dirty victim set=" << set << " way=" << way
-               << " writeback request dropped";
-        logInjection("P09_wb_loss", victim, detail.str());
-        return true;
+               << (dirty_clear
+                   ? " dirty state cleared before eviction"
+                     " (no writeback request generated)"
+                   : " writeback request dropped");
+        logInjection(dirty_clear ? "P09_dirty_clear" : "P09_wb_loss",
+                     victim, detail.str());
+        return dirty_clear ? VictimAction::ClearDirty
+                           : VictimAction::DropWriteback;
     }
 
     // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification

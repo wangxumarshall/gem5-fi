@@ -112,3 +112,96 @@ truncation.
   fault budget) and `f696c48f` (early-return fix, no eligible found) are
   retained but are **not** cited as evidence; `c6953bba` is the final
   diagnostic binary.
+
+---
+
+## P09-c dirty premature clear — implementation and diagnostic (2026-11-05)
+
+**Status: IMPLEMENTED / RUNTIME-VERIFIED DIAGNOSTIC / NOT A RUNID.**
+The authoritative B0 W6/W8 coverage block is unchanged (the eligible
+stream is the same: a prefetch allocation must evict a dirty victim; 1 MiB
+B0 L2 has zero such events), so P09-F0-W6/W8 still cannot be certified.
+This submodel is proven end-to-end on the same explicitly non-B0
+L2=16KiB diagnostic control as P09-a.
+
+### Distinct faulted field (not a relabel of P09-a)
+
+Both submodels target the prefetch-caused dirty victim, but a different
+field is faulted and a different real state transition is applied:
+
+| | P09-a writeback loss | P09-c dirty premature clear |
+|---|---|---|
+| faulted field | writeback request | the victim's dirty state |
+| real operation | request is created, then destroyed (packet suppressed) | `DirtyBit` cleared **before** the eviction decision |
+| eviction packet | none (dirty_evict_writeback suppressed) | `CleanEvict` (no writeback request is ever generated) |
+| unit-side L1 event | `pf_wb` (pending → lost) | `pf_dirty` (dirty → clean) |
+| `cache_evict` | `dirty_evict_writeback`, `writeback_suppressed` | `clean_evict`, `dirty_premature_clear` |
+| writebacks stat | not incremented | not incremented (different code path) |
+
+The eviction gate now returns a `VictimAction` (`None` / `DropWriteback` /
+`ClearDirty`) and `Cache::evictBlock` applies the real operation; the
+packet decision then sees the post-fault state. This is a real storage
+semantic, not a log-only change.
+
+### P09-b (done early) — local model block, not implemented
+
+The authoritative P09-b is "提前报告 writeback done". This platform has
+no such completion handshake at the authoritative site:
+
+- `BaseCache::writebackBlk` creates a `WritebackDirty` packet and clears
+  the block's `WritableBit`/`DirtyBit` at **creation** (base.cc:2214–2224);
+  the L1D has no "pending writeback completion" state for that line — the
+  line is invalidated immediately (`invalidateBlock`).
+- The only completion notion is the lower-level write-buffer acceptance
+  (`WriteQueue` deallocation), which is internal buffer bookkeeping, not a
+  reportable transaction outcome; forcing an early free would corrupt the
+  queue rather than model an acknowledged-but-not-committed write.
+- The other state that could carry "done" is the dirty state, and clearing
+  it early is exactly P09-c.
+
+Therefore P09-b is recorded as **MODEL_NOT_EXPRESSIBLE_AT_SITE** rather
+than implemented as a relabel of P09-c. No log-only or counter-only
+approximation is used.
+
+### Binary / command / control
+
+- Binary: `CHAOS/gem5/build/ARM/gem5.opt`, sha256
+  `c8b0e25f4f2fff41afef5843bddd63884040f6f033997c9a4daeb4896d2ced64`,
+  source `31bbc94b` + this patch; build exit 0, zero warnings
+  (`/tmp/p09c_build.log`).
+- Exact command (fault), same shape as the P09-a diagnostic:
+  `--chaos_prefetch --prefetch_mode p09_dirty_clear --prefetch_lsu_tier F0
+  --prefetch_warmup_events 1 --prefetch_span_events 378
+  --prefetch_max_faults 1 --prefetch_rng_seed 1 --chaos_propagation
+  --prop_run_id P09C-DIAG-W6-L2_16KiB --prop_sample_run_id s1
+  --l2_size 16KiB`.
+- Control: identical, `--prefetch_span_events 1000000000` (never fires),
+  output golden.
+
+### Real event chain
+
+Fault run `p09c_diag_l2small_fault_20261105/P09C-DIAG-W6-L2_16KiB/seed1`:
+
+```
+Site: P09_dirty_clear Tick: 49447090 pf_addr=0x7e740 dirty victim set=13 way=4 dirty state cleared before eviction (no writeback request generated)
+pf_dirty  set=13 way=4 field=dirty_state before=dirty after=clean state_after=dirty_premature_clear  (tick 49447090)
+cache_evict set=13 way=4 field=clean_evict state_after=dirty_premature_clear                       (tick 49447090)
+```
+
+Then: same-line demand miss/re-read, `taint_reg` (tick 53006030), real
+`errant_commit` (pc=0x400620, commit_seq=81337, detection_layer=L5, tick
+53006800); chain checker `full`/L5; workload output
+`8e64d8d4427c2169` vs control `062e5124df3667f9` — a real SDC in this
+non-B0 diagnostic. The only `cache_writeback` of the line is at tick
+62665295 (the stale re-fill, after the errant commit). The trigger
+`attempted=175 eligible=167 injected=1`; gzip intact, stats 1822 lines,
+exit 0, no truncation. The control's no-fault census (fills=4576,
+pure_pref_fills=634, pref_evictions=595, dirty=378) reproduces the
+previously frozen diagnostic shape and the B0 golden.
+
+### Honest boundary
+
+- P09-c is a non-B0 diagnostic control, **not a RunID/seed**; its oracle
+  is n/a. It does not change the B0 coverage block for P09-F0-W6/W8.
+- P09-b is a recorded model block, not a silent approximation.
+- The authoritative P09 RunIDs remain NOT certified.

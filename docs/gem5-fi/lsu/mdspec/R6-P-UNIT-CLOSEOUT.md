@@ -90,7 +90,20 @@ complete and is not claimed complete.**
   suppressed (`pf_wb`, `cache_evict` suppressed), same-line demand miss
   re-fills stale data, `taint_reg` and a real `errant_commit` (L5, chain
   full), output hash differs from the no-fault golden. That control is not
-  a RunID/seed and its oracle is n/a. P09-b/c are not implemented.
+  a RunID/seed and its oracle is n/a. **P09-c implemented (runtime-
+  verified diagnostic, not a RunID):** the victim's dirty state is cleared
+  before the eviction decision, so the eviction is a CleanEvict and no
+  writeback request is generated (`pf_dirty` dirty→clean +
+  `cache_evict` clean_evict/dirty_premature_clear) — a distinct faulted
+  field from P09-a. Same non-B0 L2=16KiB measurement: real stale re-read →
+  taint → `errant_commit` L5 (chain full), output `8e64d8d4427c2169` vs
+  control golden `062e5124df3667f9`; binary `c8b0e25f…`. **P09-b is not
+  expressible at the authoritative site** in classic gem5 (writeback is
+  fire-and-forget: `writebackBlk` clears dirty at creation, the line is
+  invalidated immediately, and there is no completion ack; the only
+  "done" states are internal buffer acceptance or the dirty state, the
+  latter being exactly P09-c). It is recorded as a local model block, not
+  implemented as a relabel.
 - **P07-b implemented (seed1 pilot, not a certified RunID):** at the REAL
   pure-prefetch fill gate, the fill block and a distinct valid same-set
   partner exchange **tags** (data stays in its own way). B0 census W6=2 /

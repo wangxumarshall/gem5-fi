@@ -244,7 +244,8 @@ p.add_argument("--prefetch_mode", default="p01_stride_bitflip",
                         "p03_addr_subst","p05_drop_dup","p08_stride_stuck",
                         "p06_as_demand","p04_queue_valid",
                         "p04_queue_select","p04_queue_pointer",
-                        "p09_wb_loss","p07_fill_tag_mispair"],
+                        "p09_wb_loss","p09_dirty_clear",
+                        "p07_fill_tag_mispair"],
                help="W8 P-series fault mode (p06_as_demand = P06-a "
                     "prefetch-as-demand fill-classification marking, "
                     "R4-5.4)")

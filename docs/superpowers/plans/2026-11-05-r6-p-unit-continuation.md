@@ -34,10 +34,13 @@ claim.
 
 ## Task 3 — P09-c dirty premature clear
 
-- [ ] Prematurely clear the dirty state of the prefetch-caused victim at the
+- [x] Prematurely clear the dirty state of the prefetch-caused victim at the
       real eviction gate; verify the resulting eviction is a clean evict and
       the dirty data is lost at this level.
-- [ ] Behavior test + no-fault control; docs; commit/push.
+- [x] Behavior test + no-fault control; docs; commit/push.
+      Result: non-B0 L2=16KiB diagnostic chain full/L5 (real SDC), control
+      golden; P09-b recorded as MODEL_NOT_EXPRESSIBLE_AT_SITE; regression
+      309/10 same set.
 
 ## Task 4 — P07-a data written to wrong way
 

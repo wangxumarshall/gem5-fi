@@ -1119,11 +1119,23 @@ Cache::evictBlock(CacheBlk *blk)
     // writeback packet (the dirty data is lost at this level).  Null hook
     // / stale-free marker => zero regression.
     bool chaos_suppress_wb = false;
+    bool chaos_premature_clear = false;
     if (chaosFillFromPrefetch && CHAOSPrefetch::wbLossHook) {
-        chaos_suppress_wb =
-            CHAOSPrefetch::wbLossHook->maybeDropPrefetchWriteback(
+        const auto chaos_action =
+            CHAOSPrefetch::wbLossHook->maybeHandlePrefetchVictim(
                 regenerateBlkAddr(blk), blk->getSet(), blk->getWay(),
                 blk->isSet(CacheBlk::DirtyBit));
+        chaos_suppress_wb =
+            (chaos_action == CHAOSPrefetch::VictimAction::DropWriteback);
+        if (chaos_action == CHAOSPrefetch::VictimAction::ClearDirty) {
+            // [MDSPEC][R6-P-P09-c] Premature dirty clear: the victim's
+            // dirty state is cleared BEFORE the eviction decision below,
+            // so the packet becomes a CleanEvict and no writeback request
+            // is ever generated.  The dirty data is lost at this level —
+            // the faulted field is the dirty state, not the request.
+            blk->clearCoherenceBits(CacheBlk::DirtyBit);
+            chaos_premature_clear = true;
+        }
     }
 
     // [MDSPEC][H4] unified cache_evict event (spec sheet 9: L2 — a faulted
@@ -1154,7 +1166,9 @@ Cache::evictBlock(CacheBlk *blk)
                     {"field", blk->isSet(CacheBlk::DirtyBit)
                         ? "dirty_evict_writeback" : "clean_evict"},
                     {"state_after", chaos_suppress_wb
-                        ? "writeback_suppressed" : ""},
+                        ? "writeback_suppressed"
+                        : (chaos_premature_clear
+                               ? "dirty_premature_clear" : "")},
                 });
             }
         }

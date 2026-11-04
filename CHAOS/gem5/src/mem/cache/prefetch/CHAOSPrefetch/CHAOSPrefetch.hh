@@ -87,7 +87,7 @@ class CHAOSPrefetch : public SimObject
     enum class Mode { P01StrideBitflip, P02ConfidenceCorrupt, P03AddrSubst,
                       P05DropDup, P08StrideStuck, P06AsDemand,
                       P04QueueValid, P04QueueSelect, P04QueuePointer,
-                      P09WbLoss, P07FillTagMispair };
+                      P09WbLoss, P09DirtyClear, P07FillTagMispair };
 
     static Mode stringToMode(const std::string &s);
 
@@ -144,14 +144,20 @@ class CHAOSPrefetch : public SimObject
                                 uint64_t fault_id, uint64_t pfid);
     static OutputStream *p04BehaviorStream;
 
-    // [MDSPEC][R6-P-P09-a] Prefetch-caused dirty-writeback-loss hook.
+    // [MDSPEC][R6-P-P09-a/c] Prefetch-caused dirty-victim hook.
     // Cache::evictBlock consults this ONLY while the current fill is a
-    // pure-prefetch fill (BaseCache::chaosFillFromPrefetch) and the victim
-    // is dirty.  A true return means the caller must suppress the
-    // writeback packet (the line is invalidated without writeback).
+    // pure-prefetch fill (BaseCache::chaosFillFromPrefetch).  The action
+    // names the REAL state operation the caller must apply:
+    //   DropWriteback (P09-a): the writeback request is created and then
+    //     destroyed — no packet leaves this level.
+    //   ClearDirty (P09-c): the victim's dirty state is cleared BEFORE the
+    //     eviction decision, so no writeback request is ever generated and
+    //     the eviction becomes a clean evict.  Distinct faulted field
+    //     (dirty state) from P09-a (writeback request), distinct stats.
+    enum class VictimAction { None, DropWriteback, ClearDirty };
     static CHAOSPrefetch *wbLossHook;
-    bool maybeDropPrefetchWriteback(Addr victim, unsigned set, unsigned way,
-                                    bool dirty);
+    VictimAction maybeHandlePrefetchVictim(Addr victim, unsigned set,
+                                           unsigned way, bool dirty);
     // Observation-only P09 fill classification (counts, never changes a
     // decision).  Called once per fill while a P09 injector is mounted.
     static void noteFillClass(bool pure_prefetch);
