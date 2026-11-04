@@ -35,6 +35,20 @@
 - 语义偏差必须显式标注：`fmaWeighted`（FP07-a 允许的代理）、`roundingSub`（FP08-a 代理）、`recurringStuck`（FP05 的 per-event 重复，不是 burst）、结果侧 XOR 用于 FP01/FP02 输入操作数模型属于**错位**。
 - L0–L5 工具：`tools/fsu_prop_fields.py` 定义事件 kind→层映射（`fault_applied`/`fault_installed` 为 L0 根，`commit`/`arch_state`/`oracle_diff`/`first_impact` 为 L5 见证，`chain_end` 不占层），`tools/fsu_chain_check.py` 做单祖先直接 parent 链审计。注入器不发射这些事件时，链审计无法认证。
 
+## 1.1 代理分类（2026-11-04，严格区分，不作为认证捷径）
+
+| 分类 | 当前条目 | 认证含义 |
+|---|---|---|
+| exact implemented | FR07 W1/W3/W5（真实 PRF-WB 数据边界 hook v2，已正式 seed）；FR01/FR02 瞬态单/双 bit（W1 gate 通过，尚无正式 seed） | 只有已通过对应 gate/正式 seed 的条目才进入计数；FR01/FR02 仍为 0/3 |
+| partial implemented | FP05（`recurringStuck` 同 mask 每 event 重复，**不是**工作簿的 2–4 event burst；缺 burst_id/ordinal）；FP07（`fmaWeighted` 行为代理，真实 FMA 中间值不可达） | 只能做 gate/partial 证据，不得直接扩正式计数 |
+| workbook explicitly allowed proxy | FP07 的最终结果字段加权（工作簿原文允许“字段加权结果代理”），但必须逐事件标注 proxy | 可在明确标注下进入 gate；正式认证需预注册且不得冒充硬件中间值 |
+| unapproved proxy / wrong site | FP01/FP02/FP03 结果侧 XOR（工作簿位置是输入操作数/op-select）；FP08 rounding_sub（1-ULP 代理） | 不得用结果侧链认证这些模型 |
+| missing | FP09/FP10/FQ03/FQ05/FQ07/FQ09/FQ10/FR04/FR05/FR06/FR08/FR09/FR10 等 | 0 认证 |
+
+> FP05 的 “2–4 event burst” 与 FP07 的 “partial-product 中间值” 均未实现；
+> 现有 recurring/weighted 路径只能作为 proxy/partial，不能因为“代码存在 +
+> 能发链”就当作模型匹配。
+
 ## 2. 排序表（67 个剩余 F0 RunID）
 
 图例：注入点 ✅ exact / ◐ partial / △ proxy 或错位 / ✗ missing；链 ✅ full / ◐ partial / ✗ none；workload ✅ REAL / ◐ PARTIAL / ✗ 无真实产物。
@@ -108,7 +122,7 @@
 | 63 | `FSU-FR09-F0-W2` | FR09/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 write-enable/ready/wakeup 原子性（lost/early/late/split）注入；W2 本身无 true artifact |
 | 64 | `FSU-FR10-F0-W2` | FR10/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | gem5 O3 无 bypass/forwarding mux hook，未实现 partial-lane merge 注入；W2 本身无 true artifact |
 
-> 认证状态：本表 67 个 RunID 的 `seed_completion` 都是 0/3；所有“注入点存在”都只是代码事实，**不是正式认证**。唯一的 F0 已完成项是 `FSU-FP04-F0-W1/W3/W4/W5/W6`（各 3/3）。
+> 认证状态：本表 64 个 RunID 的 `seed_completion` 都是 0/3；所有“注入点存在”都只是代码事实，**不是正式认证**。已完成的 F0 项是 `FSU-FP04-F0-W1/W3/W4/W5/W6` 与 `FSU-FR07-F0-W1/W3/W5`（各 3/3；FR07 使用真实 PRF-WB hook v2）。
 
 ### 2.1 注入点代码证据（grep `CHAOS/gem5/src`）
 
@@ -125,7 +139,7 @@
 
 | 层 | 数量 | RunID |
 |---|---:|---|
-| T1 | 6 | `FSU-FR07-F0-W1`, `FSU-FR07-F0-W3`, `FSU-FR07-F0-W5`, `FSU-FP07-F0-W4`, `FSU-FP07-F0-W6`, `FSU-FP05-F0-W6` |
+| T1 | 3 | `FSU-FP07-F0-W4`, `FSU-FP07-F0-W6`, `FSU-FP05-F0-W6` |
 | T2 | 5 | `FSU-FP07-F0-W5`, `FSU-FP05-F0-W3`, `FSU-FP05-F0-W5`, `FSU-FR01-F0-W1`, `FSU-FR02-F0-W1` |
 | T3 | 8 | `FSU-FP08-F0-W1`, `FSU-FR01-F0-W3`, `FSU-FR01-F0-W5`, `FSU-FR02-F0-W3`, `FSU-FR02-F0-W5`, `FSU-FQ01-F0-W5`, `FSU-FQ02-F0-W5`, `FSU-FQ04-F0-W5` |
 | T4 | 36 | `FSU-FP01-F0-W1`, `FSU-FP01-F0-W4`, `FSU-FP02-F0-W1`, `FSU-FP03-F0-W1`, `FSU-FQ01-F0-W2`, `FSU-FQ02-F0-W2`, `FSU-FQ06-F0-W1`, `FSU-FQ08-F0-W5`, `FSU-FP08-F0-W7`, `FSU-FP09-F0-W9`, `FSU-FQ04-F0-W2`, `FSU-FR05-F0-W1`, `FSU-FP01-F0-W3`, `FSU-FP01-F0-W5`, `FSU-FP02-F0-W3`, `FSU-FP02-F0-W5`, `FSU-FP03-F0-W5`, `FSU-FQ06-F0-W3`, `FSU-FQ06-F0-W5`, `FSU-FQ08-F0-W2`, `FSU-FP09-F0-W3`, `FSU-FP09-F0-W5`, `FSU-FP10-F0-W5`, `FSU-FQ03-F0-W3`, `FSU-FQ07-F0-W5`, `FSU-FQ09-F0-W5`, `FSU-FQ10-F0-W5`, `FSU-FR04-F0-W5`, `FSU-FR05-F0-W3`, `FSU-FR05-F0-W5`, `FSU-FR06-F0-W3`, `FSU-FR06-F0-W5`, `FSU-FR08-F0-W5`, `FSU-FR09-F0-W5`, `FSU-FR10-F0-W3`, `FSU-FR10-F0-W5` |
@@ -1313,11 +1327,15 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-HOOK-LANE
 
 ## 执行更新（2026-11-04）
 
-- 已选择并完成 `FSU-FR07-F0-W1` 试点：gate seed1/2/3 admitted（SDC/full），正式 seed1/2/3 audit.ok/certified，均为 SDC/full。
+- 已完成 `FSU-FR07-F0-W1`、`FSU-FR07-F0-W3`、`FSU-FR07-F0-W5`：
+  W1/W3 各 3 个单 seed、W5 3 个五程序 suite seed，全部 audit/certified、SDC/full。
 - 配置：W1 FP-ScalarProbe；FR07-a mask 0x80000000、FR07-c mask 0x80000001、
   FR07-d mask 0x00080000。旧 attempt-1 是 execute-post-write 代理并保留为
   `PROXY_EVIDENCE`；当前 attempt-2 使用真实 PRF-WB 数据边界 hook v2
   （`injection_site=prf_wb_data`）。
-- 证据：`runs/fsu/FSU-FR07-F0-W1/seed{1,2,3}/attempt-1/`；gate：`runs/fsu-gates/FR07-F0-W1-GATE/`。
+- 证据：`runs/fsu/FSU-FR07-F0-W1/seed{1,2,3}/attempt-2/`、
+  `runs/fsu/FSU-FR07-F0-W3/seed{1,2,3}/attempt-1/`、
+  `runs/fsu/FSU-FR07-F0-W5/seed{1,2,3}/`；gate：
+  `runs/fsu-gates/FR07-HOOK-GATE-FINAL/` 与 `FR07-HOOK-SQUASH9/`。
 - 矩阵将该 RunID 标为 COMPLETE_3_OF_3，coverage_reason 记录真实 hook 与保留的
-  proxy attempt。
+  旧 execute-post-write proxy attempt；真实 hook 证据见 `FR07-PRF-WB-HOOK.md`。
