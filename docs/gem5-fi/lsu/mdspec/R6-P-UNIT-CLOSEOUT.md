@@ -60,8 +60,24 @@ complete and is not claimed complete.**
   `size=4`; the inserted entry issues before the former tail, while
   no-fault controls issue tail-first; both entries issue once. All P04
   pilots terminate `provable_to_L2_then_unknown`, oracle Masked, not
-  admitted (no architectural data effect observed). P04-F5 has not been
-  run; seeds 2/3 were not run for the pilots.
+  admitted (no architectural data effect observed). Seeds 2/3 were not run
+  for the F0 pilots.
+- **P04-F5 permanent queue-valid stuck implemented (3 seeds, NOT
+  certified):** F5 latches ONE physical fault identity at the first
+  eligible event after warm-up and keeps the queue valid field stuck at
+  invalid to the end of the run (no recovery). Every live entry is
+  invalidated and every later ready-queue entry is born invalid; each
+  birth/skip is a propagation instance of the same `fault_id`. Binary
+  `chaos build` sha256 `cb98fbb5…`, source `f502fd19` + patch. W2/W8,
+  seeds 1/2/3: `attempted=143/131 eligible=1 injected=1 fires=1
+  no_effect=0`, latch tick 148525300/107286025 with 4 live entries,
+  terminal `provable_to_L2_then_unknown`, admitted False, oracle Masked,
+  output hashes exactly the goldens. No-fault controls (warm-up 1e9,
+  no latch) reproduce both goldens. The three seeds are deterministic
+  replications (F5 has no span draw), not independent samples. P04-b/c
+  have no F5 arm. Evidence: `campaign_p04f5_20261105`,
+  `campaign_p04f5_seed23_20261105`; details in
+  `evidence/R6-P-P04-EVIDENCE.md`.
 - **P09-a implemented (diagnostic, not a RunID):** the prefetch-caused
   dirty-writeback loss is modelled at the REAL eviction gate. A fill-time
   marker (`chaosFillFromPrefetch`) is set only when the MSHR has a

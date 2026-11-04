@@ -124,7 +124,7 @@ Root-cause and fix (C++ + campaign):
 
 | RunID | blocker |
 |---|---|
-| P04-F0/F5-W2/W8 (4) | **P04-a queue-valid, P04-b pointer, and P04-c entry-selection implemented.** P04-a: shadow valid bit + real `Queued::getPacket` skip. P04-b: one-shot tail-pointer -1 insertion (new entry inserted before the tail; every entry retained, no drop/dup). P04-c: `std::iter_swap` of two live entries with the correct head retained. P04-c is behavior-verified on binary `a0d0e8af…` (wrong entry issued first, displaced head late; exact reversal of the no-fault control, both once). P04-b is behavior-verified on binary `f52461b5…` (arm tail=0x77ec0/0x76ec0, insert=0x77580/0x76580, size=4; inserted entry issued first, former tail late; no-fault controls show tail-first; both once). Both pilots remain `provable_to_L2_then_unknown`, performance-only, NOT certified; seeds 2/3 not run. **P04-F5 not run** (permanent semantics not established); the old P04→P05 drop/dup routing is removed. |
+| P04-F0/F5-W2/W8 (4) | **P04-a queue-valid, P04-b pointer, and P04-c entry-selection implemented.** P04-a: shadow valid bit + real `Queued::getPacket` skip. P04-b: one-shot tail-pointer -1 insertion (new entry inserted before the tail; every entry retained, no drop/dup). P04-c: `std::iter_swap` of two live entries with the correct head retained. P04-c is behavior-verified on binary `a0d0e8af…` (wrong entry issued first, displaced head late; exact reversal of the no-fault control, both once). P04-b is behavior-verified on binary `f52461b5…` (arm tail=0x77ec0/0x76ec0, insert=0x77580/0x76580, size=4; inserted entry issued first, former tail late; no-fault controls show tail-first; both once). Both F0 pilots remain `provable_to_L2_then_unknown`, performance-only, NOT certified; seeds 2/3 not run. **P04-F5 implemented and 3-seed diagnostic (NOT certified)**: permanent queue-valid stuck-at-invalid, ONE latched physical fault identity from the first eligible event to run end; entries present at latching and every later ready-queue insertion read invalid and are skipped at issue (33 propagation instances of `fault_id=1` in each run, 16 distinct request ids). Binary sha256 `cb98fbb5…`. W2/W8 seeds 1/2/3: terminal L2, admitted False, oracle Masked, output golden; no-fault controls (no latch) reproduce the goldens. F5 seeds are deterministic replications (no span draw). P04-b/c have no F5 arm. The old P04→P05 drop/dup routing is removed. |
 | P07-F0-W6/W8 (2) | **P07-F0-W6 CERTIFIED 3/3 (PARTIAL_SUBMODEL, P07-b only).** Real pure-prefetch fill gate: fill block and a distinct valid same-set partner exchange TAGS (`chaosSetTag`); data stays in its own way (`pf_tag` L1, `state_after=tag_mispair`, `state_before=fill/partner dirty`). B0 census W6 eligible=2/W8=5. Formal campaign `campaign_p07_formal_v2_20261104` (binary `91c0e030…`): W6 all 3 seeds admitted/certified, oracle Masked, full L5, 268 events, no truncation, gzip/stats/exit OK; output hash stays golden `062e5124df3667f9` so **no SDC claim** (the real `errant_commit` is a tainted commit with no output change). W6 has 2 eligible events: seeds 1/3 sample tick 34086360, seed 2 tick 34091365 (2 distinct points; independent draws). **P07-F0-W8 remains NOT admitted**: fill 0x76740(set413/way1)↔0x86740(way0), no downstream consumer, `provable_to_L1_then_unknown`, output golden. P07-a/P07-c not implemented; classic cache-tag routing removed. |
 | P09-F0-W6/W8 (2) | **P09-a implemented and runtime-verified** (fill-time pure-prefetch MSHR marker; real writeback packet suppressed at the dirty-eviction gate; `pf_wb` L1 + `cache_evict(writeback_suppressed)`). **B0 W6/W8 have zero eligible events**: pure-prefetch fills exist (W6=50, W8=28) but none evicts a victim (1 MiB L2 absorbs them), so the authoritative RunIDs are BLOCKED by workload coverage. A non-B0 L2=16KiB diagnostic control proves the path end-to-end (suppressed writeback → stale re-read → taint → `errant_commit` L5, chain full; output hash differs). That control is **not** a RunID and its oracle is n/a. P09-b (done-early) / P09-c (premature clear) are **not** implemented. |
 | P09-F0-W13 (1) | PARSEC assets absent (plus the B0 coverage issue above) — BLOCKED_ASSET |
@@ -132,13 +132,16 @@ Root-cause and fix (C++ + campaign):
 ## Honest totals
 
 - P F0/F5 scope: 23 RunIDs.
-- Certified 3/3 (partial-submodel): **13 RunIDs / 39 seeds** = 9 F0 + 4 F5.
+- Certified 3/3 (partial-submodel): **14 RunIDs / 42 seeds** = 10 F0 + 4 F5
+  (the 14th is P07-F0-W6, certified 3/3).
 - F0 local block: 1 RunID (P03-W9 cross-branch L5 not bridged). It is not
   written up as contained or SDC.
-- Model partial / not implemented: P04-a queue-valid is now implemented and
-  piloted (P04-F0-W2/W8 seed1, L0→L2, performance-only, not certified);
-  P04-b/c remain unimplemented. P07 F0 fill-way/tag and P09 F0
-  dirty-writeback remain not implemented; P09-W13 asset missing.
+- Model partial / not implemented: P04-a/b/c are implemented as F0 pilots
+  (all `provable_to_L2_then_unknown`, performance-only, not certified);
+  P04-a F5 permanent semantics are implemented and 3-seed diagnosed (L2,
+  Masked, not certified). P07-b is certified for W6; P07-a/c remain not
+  implemented. P09-a is implemented (runtime-verified diagnostic); P09-b/c
+  remain not implemented; P09-W13 asset missing.
 - The authoritative P unit has **53** RunIDs across F0–F6; this round completed
   only the above subset. No claim of full P-unit completion.
 

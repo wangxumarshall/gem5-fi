@@ -234,6 +234,72 @@ def main():
               "field=queue_pointer" in text
               and "state_after=tail_minus_one" in text, "events missing")
 
+    print("[6] P04-a F5 permanent queue-valid stuck (run-long)")
+    # F5 is the permanent tier ("warm-up 后第一个 eligible event 起持续到
+    # 运行结束").  Source contract: ONE latched physical fault identity, the
+    # valid field stuck at invalid for every entry born after the latch, and
+    # a real (not log-only) issue-path consequence.
+    check("Queued 暴露 latch / stuck-active / live-entry snapshot",
+          "size_t chaosLatchQueueValidStuck(uint64_t fault_id, "
+          "uint64_t pfid);" in qhh2
+          and "bool chaosQueueValidStuckActive() const" in qhh2
+          and "chaosCollectLiveEntries(" in qhh2, "missing F5 API")
+    check("latch 把已存在 live entry 全部置 invalid 且无恢复路径",
+          "Queued::chaosLatchQueueValidStuck" in qcc2
+          and "chaosQueueValidStuck = true;" in qcc2
+          and "chaosQueueValidStuck = false" not in qcc2,
+          "latch impl missing / recovery path present")
+    check("addToQueue 对之后每个 ready-queue entry 施加 stuck valid",
+          "chaosApplyStuckValid(queue.back())" in qcc2
+          and "chaosApplyStuckValid(*ins)" in qcc2
+          and "invalid_stuck_birth" in qcc2, "birth hook missing")
+    check("F5 分支 latch 一次 + 后续 fire 报 no_effect",
+          "chaosQueueValidStuckActive()" in pcc2
+          and "trigger.noteOutcome(false);" in pcc2
+          and "chaosLatchQueueValidStuck(" in pcc2
+          and 'logInjection("P04_queue_valid_stuck"' in pcc2,
+          "F5 branch missing")
+    check("F5 只有一次物理故障身份（injected=1）而非逐次重注入",
+          pcc2.count("chaosLatchQueueValidStuck(") == 1
+          and "stuck_until_end" in pcc2, "identity contract missing")
+    check("F5 行为日志 p04a_queue_stuck.log",
+          '"p04a_queue_stuck.log"' in pcc2, "behavior log missing")
+    f5_flags = src("tools/lsu_campaign.py").split("if tier == \"F5\":", 1)
+    check("campaign F5 = permanent tier (max_faults 0)",
+          len(f5_flags) == 2
+          and '"--prefetch_max_faults", "0"' in f5_flags[1][:400],
+          "F5 flags missing")
+    for rid in ("P04-F5-W2", "P04-F5-W8"):
+        sd = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+                  f"campaign_p04f5_20261105/{rid}/seed1")
+        if not (sd / "chain_report.json").is_file():
+            print(f"  SKIP {rid} 证据不在（{sd}）——源契约已覆盖")
+            continue
+        beh = (sd / "p04a_queue_stuck.log").read_text()
+        m = re.search(r"event=latch field=queue_valid before=valid "
+                      r"after=invalid state=stuck_until_end "
+                      r"entries=(\d+)", beh)
+        check(f"{rid} latch 记录 stuck_until_end + 实际失效条目数",
+              m is not None and int(m.group(1)) >= 1, beh)
+        inj = (sd / "prefetch_injections.log").read_text()
+        check(f"{rid} 注入行 = P04_queue_valid_stuck（一次物理故障）",
+              inj.count("P04_queue_valid_stuck") == 1, inj)
+        text = gzip.open(sd / "prop_evt.txt.gz", "rt").read()
+        check(f"{rid} 真实 stuck 传播实例（birth/skip）",
+              "state_after=invalid_stuck" in text
+              and "state_after=invalid_skipped" in text, "events missing")
+        ids = set(re.findall(r"fault_id=(\d+)", text))
+        check(f"{rid} 全部传播实例共享同一物理 fault_id",
+              len(ids) == 1, str(ids))
+        rep = json.load(open(sd / "chain_report.json"))
+        check(f"{rid} 终局按真实链报告（不伪造 L5）",
+              rep.get("terminal") in
+              ("provable_to_L2_then_unknown",
+               "provable_to_L3_then_unknown",
+               "provable_to_L4_then_unknown",
+               "full", "detected_contained"),
+              str(rep.get("terminal")))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

@@ -250,3 +250,117 @@ or seeds. Terminal `provable_to_L2_then_unknown`, not admitted, no L3/L5
 observed; no architectural-impact claim. Seeds 2/3 were not run (pilot
 only). P04-F5 permanent semantics have not been established and are not
 run.
+
+---
+
+## P04-F5 permanent queue-valid fault — implementation and 3-seed diagnostic (2026-11-05)
+
+**Status: IMPLEMENTED / BEHAVIOR-VERIFIED / 3 SEEDS / NOT CERTIFIED.**
+F5 is the authoritative permanent tier. The single landed arm is **P04-a
+(queue valid stuck)**; P04-b/c are not part of this F5 pass. The result is
+a real performance-only fault: the checker refuses admission and the
+oracle is Masked on every seed. No L5 is fabricated.
+
+### Authoritative semantics and the faithful mapping
+
+Sheet 03 P04: the queue entry, valid, and head/tail pointer; F5 = "warm-up
+后第一个 eligible event 起持续到运行结束；每次运行仅选一个 bit/字段"
+(permanent; run-level sample).
+
+- **Location**: the prefetch request queue's valid field.
+- **Period**: from the first eligible event after warm-up to the end of
+  the run.
+- **Recovery**: none (permanent until run end).
+- **Physical fault identity**: ONE latched `fault_id` per run.
+- **Trigger opportunities / effective changes / propagation instances**:
+  the latch is the single effective write (injected=1). Every later
+  ready-queue entry born invalid, and every invalid entry skipped at
+  issue, is a propagation instance of that same physical fault — they
+  share the fault_id and carry their own request-level `pf_request_id`.
+
+gem5's prefetch queue is a `std::list` without fixed slots. A stuck valid
+bit on one *dynamic entry* would end when that entry is consumed, i.e. it
+would be a transient fault. The faithful permanent mapping is therefore
+the per-queue valid **field**: every entry present at latching and every
+later insertion into the ready queue reads invalid, while the entry's
+address/PC/priority/request identity are untouched. This is the scheme's
+"one field" granularity and is the minimal implementation that stays
+permanent. It is documented here rather than silently approximated.
+
+### Implementation
+
+- `Queued::chaosLatchQueueValidStuck(fault_id, pfid)` sets the run-long
+  stuck state and invalidates every live ready-queue entry (no entry is
+  removed; the issue path skips it).
+- `Queued::addToQueue` calls `chaosApplyStuckValid()` for every new ready
+  entry (both the normal and the tail-pointer insertion paths); it clears
+  the shadow valid bit and records the birth (`state_after=
+  invalid_stuck_birth`) under the same latched fault id.
+- `CHAOSPrefetch` (mode `p04_queue_valid`, tier F5) latches once at the
+  first eligible event: `noteOutcome(true)`, `injected=1`; every later
+  eligible call would re-write the same value and is reported
+  `noteOutcome(false)` (in this workload the sticky state removes all
+  live entries, so no later fire occurs — `fires=1`).
+- `Queued::getPacket` keeps the real skip (`invalid_skipped`) and records
+  it as an L2 propagation instance.
+- F5 campaign flags are unchanged (`--prefetch_max_faults 0`,
+  warm-up 0); the latch is the single physical fault.
+
+### Binary / census / controls
+
+- Binary: `CHAOS/gem5/build/ARM/gem5.opt`, sha256
+  `cb98fbb5f2d82ed70d26f651a6d12a97f7af740aa176e54869c4f1e3c8b4231b`,
+  source head `f502fd19` + this patch. Build log `/tmp/p04f5_build2.log`
+  (exit 0, zero warnings). Intermediate binary
+  `d241f5b9…` (same semantics, pre-audit-label fix) is **not evidence**.
+- No-fault controls (same binary/mode/workload, warm-up `1e9` so the F5
+  trigger never arms): W2 output `a10b9827edd8a9fb`, W8
+  `629727c0ad9ca8ef` — registry goldens — `fires=0 injected=0`, and the
+  behavior log is empty (no latch).
+- Epoch: `campaign_p04f5_20261105` (seed1), `campaign_p04f5_seed23_20261105`
+  (seeds 2/3). Exact campaign matrix/command preserved by the runner.
+
+### 3-seed diagnostic results (all real output)
+
+| RunID | seed | latch tick / entries | terminal | admitted | oracle | output |
+|---|---|---|---|---|---|---|
+| P04-F5-W2 | 1/2/3 | 148525300, 4 live, 3 latch-invalidated | `provable_to_L2_then_unknown` | False | Masked | `a10b9827edd8a9fb` (golden) |
+| P04-F5-W8 | 1/2/3 | 107286025, 4 live, 3 latch-invalidated | `provable_to_L2_then_unknown` | False | Masked | `629727c0ad9ca8ef` (golden) |
+
+Every run: `attempted=143/131 eligible=1 injected=1 fires=1
+no_effect=0` (W2/W8), `fires == injected + no_effect`, gzip intact,
+stats 1767/1765 lines, exit 0, no truncation. Propagation stream (35
+lines incl. header/chain_end): `pf_train` 1 (`state_after=
+stuck_until_end`), latch `pf_queue` 4 (`invalid_stuck`), birth 12
+(`invalid_stuck_birth`), issue skip 16 (`invalid_skipped`) — **33
+propagation instances of the one physical `fault_id=1`**, each with its
+own request-level `pf_request_id` (16 distinct request ids). Real
+behavior log:
+
+```
+Tick: 148525300 event=latch field=queue_valid before=valid after=invalid state=stuck_until_end entries=4 latch_invalidated=3 va=0x77980 pc=0x416174 fault_id=1 pf_request_id=4294967297
+Tick: 107286025 event=latch field=queue_valid before=valid after=invalid state=stuck_until_end entries=4 latch_invalidated=3 va=0x76980 pc=0x415fb4 fault_id=1 pf_request_id=4294967297
+```
+
+### Seeds are determinism replications, not independent draws
+
+All three seeds latch at the same tick/address. This is by construction:
+the authoritative F5 activation is "the first eligible event after
+warm-up" (warm-up 0 here), and the directed workloads are deterministic.
+The P04-F5 seeds are therefore determinism replications of one activation
+point, exactly like directed controls; they do not add independent
+fault-location samples. This is recorded rather than presented as 3
+independent samples.
+
+### Honesty boundary
+
+- The P04-F5 RunIDs are **NOT certified**: the chain is provably L2 (the
+  queue-valid change) and stops there — each skipped prefetch never
+  issues, so there is no fill/eviction event to follow, and the later
+  demand misses are not causally joined to the skipped request (the
+  workloads show no post-latch demand on those four lines in the stream).
+  The workloads' outputs stay golden on all seeds (performance-only).
+- No L3/L5 was observed and none is fabricated; no containment is
+  auto-added.
+- P04-b/P04-c have no F5 implementation this pass; the F5 landed arm is
+  P04-a only. The unit remains PARTIAL_SUBMODEL.

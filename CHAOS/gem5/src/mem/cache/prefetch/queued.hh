@@ -245,6 +245,23 @@ class Queued : public Base
         }
         return false;
     }
+    // [MDSPEC][R6-P-P04-a-F5] Permanent queue-valid fault.  F5 is the
+    // run-long stuck tier: after the first eligible event the queue's valid
+    // FIELD reads 0 until the run ends (no recovery).  gem5's prefetch queue
+    // is a std::list without fixed slots, so the faithful mapping of one
+    // stuck valid bit cell is the per-queue valid field (documented in the
+    // P04 evidence): every entry present at latching and every later
+    // insertion into the READY queue is invalid, while the entry — with its
+    // address, PC and request identity — stays queued and is skipped at
+    // issue.  Exactly ONE physical fault identity (fault_id/pfid) is latched
+    // per run; each later birth/skip is a propagation instance of that same
+    // fault, never a new physical fault.
+    size_t chaosLatchQueueValidStuck(uint64_t fault_id, uint64_t pfid);
+    bool chaosQueueValidStuckActive() const { return chaosQueueValidStuck; }
+    // Read-only snapshot of the live ready-queue entries (addr, pc) so the
+    // injector can register their lineage under the latched fault identity.
+    size_t chaosCollectLiveEntries(
+        std::vector<std::pair<Addr, Addr>> &out) const;
     // [MDSPEC][R6-P-P04] P04-c entry-selection fault: swap the second live
     // entry into the head position so getPacket issues the WRONG entry next.
     // The correct head remains in the queue (moved behind it) — this is a
@@ -302,6 +319,16 @@ class Queued : public Base
     bool chaosTailBack = false;
     uint64_t chaosPendingFaultId = 0;
     uint64_t chaosPendingPfid = 0;
+
+    // [MDSPEC][R6-P-P04-a-F5] Latched run-long stuck-valid state (see the
+    // public API above).  Default false => the issue/insertion paths are
+    // byte-identical when no P04-F5 fault is mounted.
+    bool chaosQueueValidStuck = false;
+    uint64_t chaosStuckFaultId = 0;
+    uint64_t chaosStuckPfid = 0;
+    // Mark a freshly inserted ready-queue entry invalid under the latched
+    // physical fault and record the birth as a propagation instance.
+    void chaosApplyStuckValid(DeferredPacket &dpp);
 
     /**
      * Adds a DeferredPacket to the specified queue

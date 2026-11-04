@@ -78,6 +78,14 @@ namespace gem5
                 "p04b_queue_behavior.log", false, true);
             prefetch::Queued::chaosQueueIssueObserver =
                 &CHAOSPrefetch::p04ObserveIssue;
+        } else if (fi_mode == Mode::P04QueueValid &&
+                   trigger.tier == ChaOSLsuTier::F5) {
+            // [MDSPEC][R6-P-P04-a-F5] Run-long stuck-valid behavior log.
+            // The propagation stream carries the per-entry instances; this
+            // log records the single physical latch (location/period/
+            // no-recovery) and is what the behavior test parses.
+            p04BehaviorStream = simout.create(
+                "p04a_queue_stuck.log", false, true);
         }
     }
 
@@ -212,6 +220,28 @@ namespace gem5
             if (!queue || !queue->chaosHasLiveQueueEntry())
                 return;                       // no live entry to corrupt
             if (!trigger.onEligible()) return;
+
+            // [MDSPEC][R6-P-P04-a-F5] Permanent stuck-at-invalid.  F5 latches
+            // ONE physical fault at the first eligible event after warm-up
+            // and it persists to the end of the run (no recovery).  The
+            // latched state itself turns every later ready-queue entry
+            // invalid, so later hook calls find no live entry above and do
+            // not fire; the persistence is structural, not a repeated
+            // re-injection.  (The guard below is defensive: if a live entry
+            // ever reappears, the same stuck value is re-written and the
+            // fire is honestly reported as no_effect.)
+            if (trigger.tier == ChaOSLsuTier::F5 &&
+                    queue->chaosQueueValidStuckActive()) {
+                trigger.noteOutcome(false);
+                return;
+            }
+
+            // Snapshot BEFORE the clear: F5 registers every live entry as a
+            // propagation instance of the same latched physical fault.
+            std::vector<std::pair<Addr, Addr>> live;
+            if (trigger.tier == ChaOSLsuTier::F5)
+                queue->chaosCollectLiveEntries(live);
+
             Addr qaddr = 0, qpc = 0;
             const long qidx_long = queue->chaosClearQueueValid(qaddr, qpc);
             if (qidx_long < 0) return;        // defensive; single-threaded
@@ -219,12 +249,17 @@ namespace gem5
             const auto qidx = (unsigned long)qidx_long;
             if (trigger.tier == ChaOSLsuTier::F5)
                 trigger.noteOutcome(true);
+
+            uint64_t f5_ptag = 0;
+            uint64_t f5_pfid = 0;
             if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
                 const uint64_t ptag = h5->registerCacheFault(
                     qaddr, -1, line_size, "prefetch");
                 if (ptag) {
                     const uint64_t pfid = h5->notePrefetchRequest(
                         qaddr, line_size);
+                    f5_ptag = ptag;
+                    f5_pfid = pfid;
                     h5->registerPtagBlock(ptag, qaddr, qaddr + line_size);
                     h5->registerPtagPrefetch(pfid, qaddr, line_size);
                     std::ostringstream pc_hex, addr_hex;
@@ -238,20 +273,82 @@ namespace gem5
                         {"field", "queue"},
                         {"before", "valid"},
                         {"after", "invalid"},
+                        {"state_after", trigger.tier == ChaOSLsuTier::F5
+                            ? "stuck_until_end" : ""},
                     });
-                    h5->notePropEvt("pf_queue", {
-                        {"fault_id", std::to_string(ptag)},
-                        {"corr", "origin"},
-                        {"pf_request_id", std::to_string(pfid)},
-                        {"entry_index", std::to_string(qidx)},
-                        {"va", addr_hex.str()},
-                        {"field", "queue_valid"},
-                        {"before", "1"},
-                        {"after", "0"},
-                        {"state_after", "invalid"},
-                    });
+                    if (trigger.tier != ChaOSLsuTier::F5) {
+                        h5->notePropEvt("pf_queue", {
+                            {"fault_id", std::to_string(ptag)},
+                            {"corr", "origin"},
+                            {"pf_request_id", std::to_string(pfid)},
+                            {"entry_index", std::to_string(qidx)},
+                            {"va", addr_hex.str()},
+                            {"field", "queue_valid"},
+                            {"before", "1"},
+                            {"after", "0"},
+                            {"state_after", "invalid"},
+                        });
+                    }
                 }
             }
+
+            if (trigger.tier == ChaOSLsuTier::F5) {
+                // Latch (invalidates every other live entry) and record each
+                // live entry as one propagation instance of the SAME fault.
+                // Request identity is per entry; the physical fault id is
+                // shared — permanent semantics does not require one id per
+                // instance, and it does not forbid distinct request ids.
+                const size_t n = queue->chaosLatchQueueValidStuck(
+                    f5_ptag, f5_pfid);
+                if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+                    if (f5_ptag) {
+                        for (const auto &ap : live) {
+                            const Addr a = ap.first;
+                            const uint64_t epid = (a == qaddr)
+                                ? f5_pfid
+                                : h5->notePrefetchRequest(a, line_size);
+                            h5->registerPtagBlock(f5_ptag, a,
+                                                  a + line_size);
+                            if (epid)
+                                h5->registerPtagPrefetch(epid, a,
+                                                         line_size);
+                            std::ostringstream ehex;
+                            ehex << std::hex << a;
+                            h5->notePropEvt("pf_queue", {
+                                {"fault_id", std::to_string(f5_ptag)},
+                                {"corr", "origin"},
+                                {"pf_request_id", std::to_string(epid)},
+                                {"va", ehex.str()},
+                                {"field", "queue_valid"},
+                                {"before", "1"},
+                                {"after", "0"},
+                                {"state_after", "invalid_stuck"},
+                            });
+                        }
+                    }
+                }
+                if (p04BehaviorStream && p04BehaviorStream->stream()) {
+                    std::ostringstream ahex, phex;
+                    ahex << std::hex << qaddr;
+                    phex << std::hex << qpc;
+                    (*p04BehaviorStream->stream())
+                        << "Tick: " << curTick()
+                        << " event=latch field=queue_valid"
+                        << " before=valid after=invalid"
+                        << " state=stuck_until_end"
+                        << " entries=" << live.size()
+                        << " latch_invalidated=" << n
+                        << " va=0x" << ahex.str()
+                        << " pc=0x" << phex.str()
+                        << " fault_id=" << f5_ptag
+                        << " pf_request_id=" << f5_pfid << "\n";
+                }
+                logInjection("P04_queue_valid_stuck", qaddr,
+                    "queue valid field stuck-at-invalid (entries=" +
+                    std::to_string(live.size()) + ", run-long)");
+                return;
+            }
+
             logInjection("P04_queue_valid", qaddr,
                 "queue entry valid -> invalid (index " +
                 std::to_string(qidx) + ")");

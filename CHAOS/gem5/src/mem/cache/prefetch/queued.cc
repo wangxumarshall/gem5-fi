@@ -260,6 +260,71 @@ Queued::chaosClearQueueValid(Addr &addr, Addr &pc)
 
 Queued::ChaosQueueIssueObserver Queued::chaosQueueIssueObserver = nullptr;
 
+size_t
+Queued::chaosCollectLiveEntries(
+    std::vector<std::pair<Addr, Addr>> &out) const
+{
+    for (const auto &d : pfq) {
+        if (d.chaosQueueValid)
+            out.emplace_back(d.pfInfo.getAddr(), d.pfInfo.getPC());
+    }
+    return out.size();
+}
+
+size_t
+Queued::chaosLatchQueueValidStuck(uint64_t fault_id, uint64_t pfid)
+{
+    // [MDSPEC][R6-P-P04-a-F5] Latch the run-long stuck-at-invalid state.
+    // This is the ONE physical fault identity for the run; no recovery path
+    // exists (the scheme's F5 "持续到运行结束").  Every ready-queue entry
+    // present now reads invalid; later insertions are marked by
+    // chaosApplyStuckValid().  The entries themselves (address/PC/priority/
+    // request identity) are untouched — only the valid field is stuck.
+    chaosQueueValidStuck = true;
+    chaosStuckFaultId = fault_id;
+    chaosStuckPfid = pfid;
+    size_t n = 0;
+    for (auto &d : pfq) {
+        if (d.chaosQueueValid) {
+            d.chaosQueueValid = false;
+            ++n;
+        }
+    }
+    return n;
+}
+
+void
+Queued::chaosApplyStuckValid(DeferredPacket &dpp)
+{
+    if (!chaosQueueValidStuck)
+        return;
+    dpp.chaosQueueValid = false;
+    // Record the birth as a propagation instance of the same physical
+    // fault (the valid field is stuck; this request is one consumer of the
+    // stuck value).  Registration lets a later demand re-read of this
+    // prefetch address join the same chain.
+    CHAOSPropagation *h5 = CHAOSPropagation::instance();
+    if (!h5 || !chaosStuckFaultId)
+        return;
+    const Addr a = dpp.pfInfo.getAddr();
+    const uint64_t pfid = h5->notePrefetchRequest(a, blkSize);
+    h5->registerPtagBlock(chaosStuckFaultId, a, a + blkSize);
+    if (pfid)
+        h5->registerPtagPrefetch(pfid, a, blkSize);
+    std::ostringstream hex;
+    hex << std::hex << a;
+    h5->notePropEvt("pf_queue", {
+        {"fault_id", std::to_string(chaosStuckFaultId)},
+        {"corr", "origin"},
+        {"pf_request_id", std::to_string(pfid)},
+        {"va", hex.str()},
+        {"field", "queue_valid"},
+        {"before", "1"},
+        {"after", "0"},
+        {"state_after", "invalid_stuck_birth"},
+    });
+}
+
 long
 Queued::chaosSelectWrongEntry(Addr &addr, Addr &pc, Addr &displaced_addr)
 {
@@ -736,6 +801,7 @@ Queued::addToQueue(std::list<DeferredPacket> &queue,
             pos->chaosPointerShifted = true;
             pos->chaosSelectionFaultId = chaosPendingFaultId;
             pos->chaosSelectionPfid = chaosPendingPfid;
+            chaosApplyStuckValid(*ins);
             if (debug::HWPrefetchQueue)
                 printQueue(queue);
             return;
@@ -744,6 +810,8 @@ Queued::addToQueue(std::list<DeferredPacket> &queue,
 
     if ((queue.size() == 0) || (dpp <= queue.back())) {
         queue.emplace_back(dpp);
+        if (&queue == &pfq)
+            chaosApplyStuckValid(queue.back());
     } else {
         iterator it = queue.end();
         do {
@@ -753,7 +821,9 @@ Queued::addToQueue(std::list<DeferredPacket> &queue,
          * or not */
         if (it == queue.begin() && dpp <= *it)
             it++;
-        queue.insert(it, dpp);
+        iterator ins = queue.insert(it, dpp);
+        if (&queue == &pfq)
+            chaosApplyStuckValid(*ins);
     }
 
     if (debug::HWPrefetchQueue)
