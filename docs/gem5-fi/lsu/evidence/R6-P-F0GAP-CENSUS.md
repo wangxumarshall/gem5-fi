@@ -120,3 +120,12 @@ against the measured no-fault eligible counts (P01 W2=142; P03 W8=7).
 
 The old failed evidence under `campaign_seed1_20261104/` is retained; only
 these five RunIDs are superseded by the new batch.
+
+### Supersession note (2026-11-04, schema-v2 batch)
+
+The P06-F0-W6/W8 rows in the table above describe the F0-gap batch
+(`9dafb090`): at that point the pf-family L1 gate still rejected the chain
+and W8 remained at L2.  The **P06 schema-v2 batch** (`4f3db315`, source
+`05793493`) supersedes those two rows: both RunIDs are now 3/3
+admitted/certified. See `R6-P-P06-SCHEMA2-EVIDENCE.md`. The P03-W9 row is
+unchanged and remains a local block.

@@ -40,7 +40,7 @@ would have injected **zero** on P03/P05-W8 (eligible=7).
 
 ## Capability ledger (23 F0/F5 RunIDs)
 
-### Certified 3/3 — PARTIAL_SUBMODEL (7 F0 RunIDs × 3 seeds)
+### Certified 3/3 — PARTIAL_SUBMODEL (9 F0 RunIDs × 3 seeds)
 
 | RunID | landed arm | seed1/2/3 terminal | oracle |
 |---|---|---|---|
@@ -51,12 +51,20 @@ would have injected **zero** on P03/P05-W8 (eligible=7).
 | P05-F0-W10 | P05-a/b drop/dup | detected_contained ×3 (L5) | Masked |
 | P01-F0-W2 | P01-b stride bitflip | full / full / detected_contained (L5) | Masked |
 | P03-F0-W8 | P03-a same-page substitution | full / detected_contained / full (L5) | Masked |
+| P06-F0-W6 | P06-a fill classification | full / full / full (L5) | Masked |
+| P06-F0-W8 | P06-a fill classification | detected_contained / detected_contained / full (L5) | Masked |
 
-The two new rows are the F0-gap batch (`campaign_f0gap_20261104` +
+The P01/P03 rows are the F0-gap batch (`campaign_f0gap_20261104` +
 `campaign_f0gap_seed23_20261104`, binary `9dafb090…`, source `d3f7471b`).
 P01-W2 uses escape-first path selection (the real `errant_commit` lane
 outranks the earlier squash lane); P03-W8 uses the `pf_request_id` lineage
 bridge to connect the substituted prefetch request to its real demand fill.
+
+The P06 rows are the **schema-v2 batch** (`campaign_p06_schema2_20261104` +
+`campaign_p06_schema2_seed23_20261104`, binary `4f3db315…`, source
+`05793493`). Monitoring schema v2 adds the unit-side L1 observation kind
+`pf_class` at the REAL fill-classification gate; the fault semantics are
+unchanged and `cache_access` remains forbidden as pf-family L1.
 
 All 15 seeds: checker admitted/certified, gzip EOF, stats non-zero, exit 0,
 not truncated. Docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/`.
@@ -71,8 +79,13 @@ not truncated. Docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/`.
 | RunID | result | exact local block |
 |---|---|---|
 | P03-F0-W9 | Masked, `provable_to_L4_then_unknown`, admitted=False | The only `errant_commit` is on a different line (`0x80080`) and has no lineage bridge from the faulted prefetch (`0x7fcc0`); the checker correctly refuses cross-branch stitching. Do not borrow that L5. P03-b cross-page is still absent. |
-| P06-F0-W6 | Masked, `full` (L5), admitted=False | Downstream observation fixed: the demand hit on the marked line is linked by a real `pf_request_id` lineage bridge and the chain is full. Admission is blocked only by `cache_access_faked_l1` (pf-family L1 must be the unit observation; P06-a's fill classification has no separate unit-side L1 event and the P06 contract forbids a new kind). Admission was NOT loosened. |
-| P06-F0-W8 | Masked, `provable_to_L2_then_unknown`, admitted=False | Injection fixed by the exact-command census (`span=28`; `attempted=13`, `injected=1`). The downstream demand access precedes the prefetch fill, so no forward pf source exists; the chain remains L2 and is also blocked by the same pf-L1 rule. |
+
+P06-F0-W6/W8 are **no longer blocked**: the schema-v2 unit-side `pf_class`
+L1 (above) satisfies the pf-family L1 gate without weakening it, and the
+`pf_request_id` lineage bridge connects the real demand consumer (including
+W8, whose demand precedes the prefetch fill: `pf_class` is emitted at the
+fill gate and is time-forward). W8's seeds 1/2 terminate in
+`detected_contained` via a real `store_not_retired` containment event.
 
 ### F5 fixed and certified 3/3 — PARTIAL_SUBMODEL (4 RunIDs × 3 seeds)
 
@@ -119,10 +132,9 @@ Root-cause and fix (C++ + campaign):
 ## Honest totals
 
 - P F0/F5 scope: 23 RunIDs.
-- Certified 3/3 (partial-submodel): **11 RunIDs / 33 seeds** = 7 F0 + 4 F5.
-- F0 local blocks: 3 RunIDs (P03-W9 cross-branch L5 not bridged; P06-W6 full
-  chain but pf-L1 admission rule; P06-W8 injection fixed, demand-before-fill
-  leaves the chain at L2). None of these is written up as contained or SDC.
+- Certified 3/3 (partial-submodel): **13 RunIDs / 39 seeds** = 9 F0 + 4 F5.
+- F0 local block: 1 RunID (P03-W9 cross-branch L5 not bridged). It is not
+  written up as contained or SDC.
 - Model partial / not implemented: P04-a queue-valid is now implemented and
   piloted (P04-F0-W2/W8 seed1, L0→L2, performance-only, not certified);
   P04-b/c remain unimplemented. P07 F0 fill-way/tag and P09 F0
@@ -139,6 +151,9 @@ new-binary product.
 |---|---|---|---|---|
 | F0 certified (15 seeds) | O-worktree build | `c6cccf5b490823d216d01bd2449031aef2d892c88cec5cd291c852bbe86ca87b` | `f5055a99` | `campaign_seed1_20261104`, `campaign_seed23_20261104` |
 | F5 certified (12 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-8a2778d4` | `8a2778d4d32644dbb02355ee90a95b3107b56af31723811f663da8940d283204` | `3f0a5589` | `campaign_f5_seed1_v2`, `campaign_f5_seed23_v2`, `campaign_f5_seed3_v2` |
+| F0-gap (6 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-9dafb090` | `9dafb09011cda80cdb295397ed55b97660c4998dc2742654d78ec2dabef269c3` | `d3f7471b` | `campaign_f0gap_20261104`, `campaign_f0gap_seed23_20261104` |
+| P06 schema v2 (6 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-4f3db315` | `4f3db315686908ca9bb290a5c3e15426a52562c696594c4c2a415dd8e45caa2a` | `05793493` | `campaign_p06_schema2_20261104`, `campaign_p06_schema2_seed23_20261104` |
+| P04-a pilot (2 seeds) | `runs/lsu/r6_p_unit/binaries/gem5.opt-d97276d9` | `d97276d90b1c3e9dcfdba840d0d980796b5654703b3cec207fb2f85c916f7333` | `d9be2743` | `campaign_p04_20261104` (not certified) |
 | intermediate (NOT final) | `runs/lsu/r6_p_unit/binaries/gem5.opt-587ea8c3` | `587ea8c34db022edddb10828463621270d27c45944514f0234c65f30d3c5ad6d` | `3f0a5589` | none; never cited as evidence |
 
 The takeover worktree's `CHAOS/gem5/build/ARM/gem5.opt` currently hashes to

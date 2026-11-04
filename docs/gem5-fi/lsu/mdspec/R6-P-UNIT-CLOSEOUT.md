@@ -1,15 +1,16 @@
 # R6-P-UNIT — partial closeout (2026-11-04)
 
-**Status: PARTIAL — 11 RunIDs × 3 seeds (33 seeds) certified as
-PARTIAL_SUBMODEL: 7 F0 + 4 F5. 12 of the 23 P-F0/F5 RunIDs remain
+**Status: PARTIAL — 13 RunIDs × 3 seeds (39 seeds) certified as
+PARTIAL_SUBMODEL: 9 F0 + 4 F5. 10 of the 23 P-F0/F5 RunIDs remain
 blocked/not certifiable. The full P unit (53 RunIDs across F0–F6) is not
 complete and is not claimed complete.**
 
 ## Completed
 
-- 11 RunIDs, 33 seeds, checker `admitted=True` / `certified=True`.
-- F0 (7): `P01-F0-W8`, `P02-F0-W8`, `P02-F0-W10`, `P05-F0-W8`,
-  `P05-F0-W10`, plus the F0-gap batch `P01-F0-W2` and `P03-F0-W8`.
+- 13 RunIDs, 39 seeds, checker `admitted=True` / `certified=True`.
+- F0 (9): `P01-F0-W8`, `P02-F0-W8`, `P02-F0-W10`, `P05-F0-W8`,
+  `P05-F0-W10`, the F0-gap batch `P01-F0-W2` / `P03-F0-W8`, and the
+  schema-v2 batch `P06-F0-W6` / `P06-F0-W8`.
 - F5 permanent (4): `P02-F5-W8`, `P02-F5-W10`, `P08-F5-W8`, `P08-F5-W10`.
 - F0-gap batch (2 RunIDs / 6 seeds): binary `9dafb090…`, source `d3f7471b`.
   P01-W2 uses escape-first path selection; P03-W8 uses the `pf_request_id`
@@ -29,15 +30,18 @@ complete and is not claimed complete.**
 
 ## Not completed (exact reasons)
 
-- **F0 local blocks (3 RunIDs):** `P03-F0-W9` (the only errant_commit is on a
+- **F0 local block (1 RunID):** `P03-F0-W9` — the only errant_commit is on a
   different line and has no lineage bridge from the faulted prefetch; the
-  cross-branch L5 is not borrowed), `P06-F0-W6` (observation fixed: the real
-  demand hit is linked and the chain is `full`; admission is blocked only by
-  `cache_access_faked_l1` — the pf-family L1 must be the unit observation and
-  the P06 contract forbids a new kind), `P06-F0-W8` (injection fixed by the
-  exact-command census; the demand precedes the prefetch fill, so the chain
-  remains L2). No admission rule was loosened and no unknown was rewritten as
-  contained.
+  cross-branch L5 is not borrowed.
+- **P06 schema v2 (resolved):** `P06-F0-W6` / `P06-F0-W8` now certify 3/3.
+  The old "P06 adds no kind" rule was an internal monitoring-schema
+  limitation; schema v2 adds the unit-side L1 kind `pf_class` at the REAL
+  fill-classification gate. Fault semantics are unchanged and the L1 gate is
+  NOT weakened (`cache_access` remains forbidden as pf-family L1). W8's
+  demand-before-fill ordering is handled by the `pf_class` event (emitted at
+  the fill gate, time-forward) plus the `pf_request_id` lineage bridge; W8
+  seeds 1/2 contain via a real `store_not_retired` event.
+- No admission rule was loosened and no unknown was rewritten as contained.
 - **P04-a implemented (pilot only):** the queue-valid model now uses a real
   shadow valid bit and a real `Queued::getPacket` skip (no P05 drop/dup
   substitution). P04-F0-W2/W8 seed1 pilot: `P04_queue_valid` injection, L0

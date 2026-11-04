@@ -38,9 +38,14 @@ implemented.
 | P04-F0-W8 | `P04_queue_valid Tick: 107286025 pf_addr=0x76980 queue entry valid -> invalid (index 0)` | `provable_to_L2_then_unknown` | False | Masked |
 
 All events are real: inj → pf_train(valid→invalid) → pf_queue(queue_valid 1→0)
-→ pf_queue(invalid_skipped). There is no L3/L5 because a skipped prefetch has
-no architectural data effect; the chain stops at L2 honestly and is not
-admitted. This is a performance-only fault, not an SDC claim.
+→ pf_queue(invalid_skipped). The chain is `provable_to_L2_then_unknown`: no
+L3/L5 evidence was observed in this pilot. That is **not** a claim that the
+fault can never have an architectural effect — a later demand could still
+miss because the prefetch was skipped; the pilot simply did not observe it.
+No L5 is fabricated; a dedicated "performance / no-arch-consumption"
+evidence class would be a separate, explicitly versioned classification and
+is not introduced here (general admission and COMPLETE counts are
+unchanged).
 
 ## Honesty boundary
 
