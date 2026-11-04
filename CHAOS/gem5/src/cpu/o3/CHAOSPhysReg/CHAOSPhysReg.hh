@@ -277,9 +277,6 @@ class CHAOSPhysReg : public SimObject
     // produce a same-tick retry loop (which once wrote 294M skip lines).
     bool wait_for_allocation = false;
     uint64_t skip_free_count = 0;
-    // [FR01/FR02] Random phys targets retry until an allocated cell is also a
-    // pending source operand of an unissued instruction (consumer present).
-    uint64_t skip_no_consumer_count = 0;
 
     // Phase 2 item 1: NEON lane stratification. The vec path corrupts ONE
     // lane of vec_lane_width bits at lane vec_lane_offset (within the
