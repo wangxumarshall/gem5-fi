@@ -36,11 +36,11 @@
 | FSU-FP06-F5-W5 | COMPLETE_3_OF_3 | 3/3 | suite gate `runs/fsu-gates/F5-FP06-W5-GATE-v5/` 5/5 PASS；正式 suite seed1/2/3 均 5/5 component admitted + suite audit ok；每 suite seed 只计 1，15 component 不进入 seed 总数；三个 suite seed 均 SDC |
 | FSU-FP06-F5-W6 | COMPLETE_3_OF_3 | 3/3 | W6 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；SVD fp64、FFT/sparse fp32 逐组件精度覆盖；9 component 只计 3 seed |
 | FSU-FR03-F5-W3 | PARTIAL_2_OF_3 | 2/3 | gate v3 PASS（L5/生命周期/runner 均真实）；seed1/2 audit.ok。seed3 attempt-1 是原预注册目标的真实结局（activated gen3/6，但 committed gen8 未被故障改变；terminal=exposed_unconsumed、oracle=Masked、chain_certified=false）；attempt-2 改为 sign SA1 lane0，属于 **protocol deviation / supplemental evidence**，不计入原 seed3。详见 `FR03-SEED3-PROTOCOL-REVIEW.md` |
-| FSU-FR03-F5-W5 | COMPLETE_3_OF_3 | 3/3 | FR03 五程序 suite gate 5/5 PASS；正式 seed1/2/3 各 5/5 component admitted；每 suite seed 只计 1 |
+| FSU-FR03-F5-W5 | PARTIAL_2_OF_3 | 2/3 | FR03 五程序 suite gate 5/5 PASS；seed2/seed3 当前工具重算通过。seed1 的冻结前运行标签 `submodel=FR03-c` 与冻结 plan `FR03-a` 不一致（suite_hash 864c71… != 98d881…），fault 几何值一致；按事实保留，不计 seed1 |
 | FSU-FR03-F5-W6 | COMPLETE_3_OF_3 | 3/3 | FR03 W6 三组件 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；9 component 只计 3 seed |
 
 > 双视图（磁盘权威，2026-11-04 FR07 位置审计后）：历史全量
-> **56/519 seed、18/173 RunID**；活跃 F0/F5 **47/240 seed、15/80 RunID**。
+> **55/519 seed、17/173 RunID**；活跃 F0/F5 **46/240 seed、14/80 RunID**。
 > FR07-F0-W1 的旧 3 个 execute-post-write attempt 保留为 PROXY_EVIDENCE；
 > 该 RunID 已用真实 PRF-WB hook 重新认证。F5 自身 23 seed / 8 RunID 不受影响。suite seed 3 个对应 15 个
 > component run，component **不进入** seed 总数。

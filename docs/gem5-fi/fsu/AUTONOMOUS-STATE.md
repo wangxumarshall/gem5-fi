@@ -43,10 +43,14 @@
   oracle hash 相同但不能据此判 Masked；已重分类为 `.real_outcome`，
   **不计正式 seed**。
 - 发现：W1 是 scalar FP；`reg_class=vector` 的 Vec PRF 注入在该负载
-  找不到 consumer。正在用 directed NEON 与 `reg_class=float` 非正式
-  probe 验证 consumer 路径（见 §4）。
-- 目标选择已改为“IQ 中未发射指令的 pending source”，找不到则重试而
-  不消耗 fault（`VecTargetNoConsumer`）。
+  找不到 consumer。`arch_frontend` 定向 V0 的非正式 probe
+  （`runs/fsu-gates/FR01-FR02-F0-W1-v8/`）取得真实
+  operand_read + commit（gen17149），证明 consumer 路径存在，但
+  `arch_frontend` 不是 FR01/FR02 的 phys 模型，不能当正式证据。
+- 目标选择已优先“IQ 中未发射指令的 pending source”；严格版
+  “找不到 consumer 就无限重试”在 `floating_point` probe 中 31 分钟
+  未注入且拖慢运行，已 revert（67f8eee8），保留“优先 + 最终回退到
+  已分配槽”的版本。Vec 随机目标 probe 仍得到 not_consumed。
 
 ### 1.4 FQ08 / FP08 / FP05
 
