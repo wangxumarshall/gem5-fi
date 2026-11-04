@@ -4,7 +4,7 @@
 > `FSU-FP04-F0-W3`（真实 NEON FP32 lane2）、`FSU-FP04-F0-W5`
 > （PolyBench suite，每 suite seed 计 1）、`FSU-FP06-F5-W3`
 > （FP06-a/b/c）与 `FSU-FP06-F5-W1`（FP06-a/b/c，W1 scalar FP）
-> 均已 admitted（**42/519**）。
+> 均已 admitted（**47/519**）。
 > 数据源：`runs/fsu` 的 AUTHORITATIVE + audit 证据、
 > `runs/fsu/COMPLETE_PROPAGATION_PATHS/INDEX.json`、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
@@ -15,14 +15,14 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **42 / 519** |
-| seed-complete RunID | **14 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1`、`FSU-FP04-F0-W3`、`FSU-FP04-F0-W5`（suite 3 seed）、`FSU-FP06-F5-W1`、`FSU-FP06-F5-W3`、`FSU-FP06-F5-W4`、`FSU-FR03-F5-W3`、`FSU-FP06-F5-W5`（F5 suite 3 seed，15 component 只计 3）、`FSU-FP04-F0-W6` 与 `FSU-FP06-F5-W6`（W6 suite 3 seed，9 component 只计 3），均 3/3） |
+| 已完成合格 seed | **47 / 519** |
+| seed-complete RunID | **15 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1`、`FSU-FP04-F0-W3`、`FSU-FP04-F0-W5`（suite 3 seed）、`FSU-FP06-F5-W1`、`FSU-FP06-F5-W3`、`FSU-FP06-F5-W4`、`FSU-FR03-F5-W3`、`FSU-FP06-F5-W5`（F5 suite 3 seed，15 component 只计 3）、`FSU-FP04-F0-W6` 与 `FSU-FP06-F5-W6`（W6 suite 3 seed，9 component 只计 3），均 3/3） |
 | 部分完成 RunID | **0 / 173** |
-| 其余 159 个 RunID | 0/3 |
+| 其余 158 个 RunID | 0/3 |
 
 > **活跃范围裁决（2026-11-03）**：ACTIVE = F0/F5。源注册表仍为
-> 173 RunID / 519 seed（历史视图 42/519，14 个 RunID 3/3）；当前活跃范围
-> 为 **80 RunID / 240 seed**，其中已完成 **33 seed / 11 RunID**（F0-W1、
+> 173 RunID / 519 seed（历史视图 47/519，15 个 RunID 3/3）；当前活跃范围
+> 为 **80 RunID / 240 seed**，其中已完成 **38 seed / 12 RunID**（F0-W1、
 > F0-W3、F0-W4、F0-W5、FP06-F5-W1、FP06-F5-W3、FP06-F5-W4、
 > FR03-F5-W3）。F1–F4 为
 > **DEFERRED_BY_USER**（不是失败/缺失/删除）；F1/F2/F3-W4 的历史完成标为
@@ -46,7 +46,7 @@
 | F2 | **3/3** | rate 语义已实现（100,000 ±50%）；W4-rate-v1；seed1（21/21）、seed2（22/22）、seed3（19/19）正式完成，全部 fault `full`、audit PASS |
 | F3 | **3/3** | rate 语义已实现（10,000 ±50%）；W4-rate-v1；seed1（206/206）、seed2（202/202）、seed3（210/210）正式完成，全部 fault `full`、audit PASS |
 | F4 | 0/3 | DEFERRED_BY_USER（burst 语义不在当前活跃范围） |
-| F5 | **18 seed / 6 RunID（各 3/3）** | `FSU-FP06-F5-W3`（FP32 lane2）与 `FSU-FP06-F5-W1`（scalar FP32/FP64）各 3/3；FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa 已认证；FP06-d MISSING；FP06-F5-W4 3/3（W4-rate-v1，SDC）、FP06-F5-W5 3/3（五程序 F5 suite，15 component 只计 3 seed，SDC）、FR03-F5-W3 3/3（永久 Vec cell，SDC/Masked）；FP06-F5-W6 3/3（SVD/FFT/sparse suite，SDC）；FR03-F5-W5/W6 BLOCKED |
+| F5 | **23 seed / 8 RunID** | `FSU-FP06-F5-W3`（FP32 lane2）与 `FSU-FP06-F5-W1`（scalar FP32/FP64）各 3/3；FP06-a SA0 / FP06-b SA1 / FP06-c fixed mantissa 已认证；FP06-d MISSING；FP06-F5-W4 3/3（W4-rate-v1，SDC）、FP06-F5-W5 3/3（五程序 F5 suite，15 component 只计 3 seed，SDC）、FR03-F5-W5/W6 各 3/3（FR03 suite，5/3 component 只计 3 seed）；FR03-F5-W3 2/3（seed3 protocol deviation）；FP06-F5-W6 3/3（SVD/FFT/sparse suite，SDC）；FR03-F5-W5/W6 BLOCKED |
 
 > F3 门禁（4 个独立 fault、逐 fault full 链）是机制证据，不是正式 seed；
 > 不能计为 1/3。

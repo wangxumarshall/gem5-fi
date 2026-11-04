@@ -98,8 +98,8 @@ def test_docs_do_not_deny_certified_fp06_capability():
     assert "FSU-FP06-F5-W3" in f5
     assert "COMPLETE_3_OF_3" in f5
     assert "FP06-d" in f5 and "MISSING" in f5
-    assert "FR03-F5-W3" in f5 and "COMPLETE_3_OF_3" in f5
-    assert "FR03-F5-W5" in f5 and "BLOCKED" in f5
+    assert "FR03-F5-W3" in f5 and "PARTIAL_2_OF_3" in f5
+    assert "FR03-F5-W5" in f5 and "COMPLETE_3_OF_3" in f5
     # 分开表述：不能把 FP06-d 的缺失写成 a/b/c 未实现。
     assert "FP06-a" in f5 and "FP06-b" in f5 and "FP06-c" in f5
 
@@ -139,14 +139,14 @@ def test_matrix_f5_rows_reflect_disk_truth():
         assert by_id[rid]["f5_readiness"] == "COMPLETE_3_OF_3"
     assert by_id["FSU-FP06-F5-W6"]["seed_completion"] == "3/3"
     assert by_id["FSU-FP06-F5-W6"]["f5_readiness"] == "COMPLETE_3_OF_3"
-    assert by_id["FSU-FR03-F5-W3"]["seed_completion"] == "3/3"
-    assert by_id["FSU-FR03-F5-W3"]["f5_readiness"] == "COMPLETE_3_OF_3"
+    assert by_id["FSU-FR03-F5-W3"]["seed_completion"] == "2/3"
+    assert by_id["FSU-FR03-F5-W3"]["f5_readiness"] == "PARTIAL_2_OF_3"
     for rid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
-        assert by_id[rid]["seed_completion"] == "0/3"
-        assert by_id[rid]["f5_readiness"] == "BLOCKED"
-        assert "BLOCKED" in by_id[rid]["coverage_reason"]
+        assert by_id[rid]["seed_completion"] == "3/3"
+        assert by_id[rid]["f5_readiness"] == "COMPLETE_3_OF_3"
     assert set(summary["f5_readiness_counts"].keys()) <= {
-        "COMPLETE_3_OF_3", "GATE_NOT_COMPLETE", "NOT_RUN", "BLOCKED"}
+        "COMPLETE_3_OF_3", "GATE_NOT_COMPLETE", "NOT_RUN", "BLOCKED",
+        "PARTIAL_2_OF_3"}
 
     cap = summary["capability_evidence"]
     fp06 = cap["FP06"]
@@ -188,8 +188,8 @@ def test_matrix_seed_completion_matches_authoritative_index():
     assert sum(1 for s in w5["seed_states"].values()
                if s == "admitted") == 3
     # F0-W5 and F5-W5 each contribute 3 suite seeds (15 components each).
-    assert summary["seed_index"]["suite_seed_admitted"] == 12
-    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 48
+    assert summary["seed_index"]["suite_seed_admitted"] == 18
+    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 72
     assert summary["seed_index"]["admitted_seeds_total"] != 15
     assert all(m["seed_completion_count"] <= 3 for m in matrix)
 

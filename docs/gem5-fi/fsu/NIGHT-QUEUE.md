@@ -98,3 +98,18 @@ python3 -m pytest tests/test_fsu_*.py tests/test_chaos_fsu_*.py tests/test_chaos
 - 2026-11-04 05:00 最终磁盘计数：历史 **42/519 seed、14/173 RunID**；活跃 F0/F5 **33/240 seed、11/80 RunID**。FSU 335 passed，非 FSU 20 passed。
 - 2026-11-04 05:10 批量复审计：42 个 authoritative seed 全部 audit ok（含 12 个 suite seed / 48 个 component）；HEAD 与 origin/fsu 同步，工作区 clean。
 - 2026-11-04 05:10 队列 A–E 全部完成。剩余 **FR03-F5-W5/W6 保持 BLOCKED**（未做 suite/artifact 门禁，未借用 W3 证据）；FP06-d 仍 MISSING。当前双视图：历史 42/519、14/173；活跃 33/240、11/80。
+
+## 6. 第二轮队列（2026-11-04 09:15 起）
+
+- [ ] R1 FR03 seed3 协议复核与计数纠正
+- [ ] R2 统一 suite 审计 schema/工具并复验全部 suite
+- [ ] R3 FR03-F5-W5 readiness/gate/正式 3 seed
+- [ ] R4 FR03-F5-W6 readiness/gate/正式 3 seed
+- [ ] R5 剩余 F0 readiness + 已知缺陷复核 + 下一试点
+- [ ] R6 未提交失败 gate 清单与适量证据提交
+
+文件 owner：
+- Agent A：`tools/fsu_suite_audit.py`、`schemas/fsu_suite_audit.schema.json`、`tests/test_fsu_suite_audit.py`、`docs/gem5-fi/fsu/FR03-SEED3-PROTOCOL-REVIEW.md`
+- Agent B：`configs/fsu/suites/*fr03*`、`tools/fsu_fr03_*.py`、`tests/test_fsu_fr03_*.py`（不改 `fsu_suite_runner.py`/`fsu_w6_gate.py`）
+- Agent C：`docs/gem5-fi/fsu/F0-READINESS-ORDER.md`、`tests/test_fsu_f0_readiness.py`（不改核心代码）
+- 主 agent：`runs/**`、`tools/fsu_suite_runner.py`、`tools/fsu_w6_gate.py`、索引/状态文档、git

@@ -57,9 +57,11 @@ def test_every_runid_has_required_fields():
                     "FSU-FP06-F5-W1": "3/3",
                     "FSU-FP06-F5-W4": "3/3",
                     "FSU-FP06-F5-W5": "3/3",
-                    "FSU-FR03-F5-W3": "3/3",
+                    "FSU-FR03-F5-W3": "2/3",
                     "FSU-FP04-F0-W6": "3/3",
-                    "FSU-FP06-F5-W6": "3/3"}.get(r["runid"], "0/3")
+                    "FSU-FP06-F5-W6": "3/3",
+                    "FSU-FR03-F5-W5": "3/3",
+                    "FSU-FR03-F5-W6": "3/3"}.get(r["runid"], "0/3")
         assert r["three_seed_status"] == expected
         assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")
@@ -163,9 +165,9 @@ def test_f5_rows_and_capability_evidence():
     assert "FP06-d" in by_id["FSU-FP06-F5-W3"]["coverage_reason"]
     assert by_id["FSU-FP06-F5-W1"]["seed_completion"] == "3/3"
     assert by_id["FSU-FP06-F5-W1"]["f5_readiness"] == "COMPLETE_3_OF_3"
-    assert by_id["FSU-FR03-F5-W3"]["f5_readiness"] == "COMPLETE_3_OF_3"
+    assert by_id["FSU-FR03-F5-W3"]["f5_readiness"] == "PARTIAL_2_OF_3"
     for rid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
-        assert by_id[rid]["f5_readiness"] == "BLOCKED"
+        assert by_id[rid]["f5_readiness"] == "COMPLETE_3_OF_3"
     cap = summary["capability_evidence"]
     assert cap["FP06"]["permanent_stuck"]["code_present"] is True
     assert cap["FP06"]["partial_product_proxy_fp06d"]["code_present"] is False

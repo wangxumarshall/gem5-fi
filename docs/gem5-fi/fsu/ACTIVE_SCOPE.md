@@ -14,15 +14,16 @@
 
 | 视图 | RunID | 目标 seed | 已完成 seed | 3/3 RunID |
 |---|---:|---:|---:|---:|
-| 历史全量（source registry） | 173 | 519 | 42 | 14 |
-| 当前活跃（F0/F5） | 80 | 240 | 33 | 11 |
+| 历史全量（source registry） | 173 | 519 | 47 | 15 |
+| 当前活跃（F0/F5） | 80 | 240 | 38 | 12 |
 
 活跃范围为 F0 72 + F5 8 = 80；已完成的是 `FSU-FP04-F0-W1`、
 `FSU-FP04-F0-W3`、`FSU-FP04-F0-W4`、`FSU-FP04-F0-W5`（W5 suite，每个
 suite seed 的 5 个 component run 只计 1）、`FSU-FP06-F5-W1`、
 `FSU-FP06-F5-W3`、`FSU-FP06-F5-W4`（W4-rate-v1）、`FSU-FP06-F5-W5`（五程序 F5 suite，
-每 suite seed 计 1）与 `FSU-FR03-F5-W3`（永久 Vec 物理 cell）、`FSU-FP04-F0-W6` 与
-`FSU-FP06-F5-W6`（SVD/FFT/sparse suite，每 suite seed 计 1），各 3 seed；FP06-d 仍 MISSING。
+每 suite seed 计 1）与 `FSU-FP04-F0-W6` 与 `FSU-FP06-F5-W6`（SVD/FFT/sparse suite，每 suite seed 计 1）、
+`FSU-FR03-F5-W5` 与 `FSU-FR03-F5-W6`（FR03 suite，每 suite seed 计 1）；
+`FSU-FR03-F5-W3` 为 2/3（seed3 protocol deviation）；FP06-d 仍 MISSING。
 
 ## 3. 标签
 

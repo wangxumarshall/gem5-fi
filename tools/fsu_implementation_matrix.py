@@ -493,8 +493,9 @@ def probe_capability_evidence(seed_map=None) -> dict:
                 and all(s.get("state") == "admitted"
                         for s in r.get("seeds", {}).values()))
 
-    fr03_ok = certified("FSU-FR03-F5-W3")
-    fr03_cert = ("FSU-FR03-F5-W3 正式 seed 3/3（audit.ok/certified）"
+    no_cert = "无正式认证 seed"
+    fr03_ok = (certified("FSU-FR03-F5-W5") or certified("FSU-FR03-F5-W6"))
+    fr03_cert = ("FSU-FR03-F5-W5/W6 正式 FR03 suite seed 3/3"
                  if fr03_ok else no_cert)
     w3_ok = certified("FSU-FP06-F5-W3")
     w1_ok = certified("FSU-FP06-F5-W1")
@@ -508,8 +509,7 @@ def probe_capability_evidence(seed_map=None) -> dict:
         fp06_cert = ("FSU-FP06-F5-W3 正式 seed 3/3，逐 seed audit.ok；"
                      "仅认证 FP06-a/b/c 的结果侧代理（W3 32-bit lane2 域）")
     else:
-        fp06_cert = "无正式认证 seed"
-    no_cert = "无正式认证 seed"
+        fp06_cert = no_cert
 
     fpu_cc = "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc"
     fpu_py = "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py"
@@ -592,36 +592,36 @@ def probe_capability_evidence(seed_map=None) -> dict:
                 [f"{regfile}: setStuckTarget/reapplyVecStuck",
                  f"{phys_cc}: maybeReapplyStuck",
                  vec_unit, vec_pytest],
-                certified("FSU-FR03-F5-W3"), fr03_cert),
+                fr03_ok, fr03_cert),
             "permanent_cell_across_generations": _cap(
                 gen_code,
                 [f"{regfile}: flat_generation/generationOf/armVecStuck "
                  "generation is identity, not a match/clear key",
                  "tests/unit/chaos_physreg_generation_test.cc: "
                  "cross-generation persistence + chain restart"],
-                certified("FSU-FR03-F5-W3"), fr03_cert),
+                fr03_ok, fr03_cert),
             "chaosphysreg_fsu_prop": _cap(
                 not prop_free,
                 [f"{phys_cc}: notePropEvt x{_occ(phys_cc, 'notePropEvt')}",
                  f"{regfile}: notePropEvt x{_occ(regfile, 'notePropEvt')}",
                  "O3 commit/ROB squash hooks + honest chain_end terminal"],
-                certified("FSU-FR03-F5-W3"), fr03_cert),
+                fr03_ok, fr03_cert),
             "runner_chaosphysreg_path": _cap(
                 phys_runner,
                 f"{runner}: CHAOSPhysReg/phys_reg x"
                 f"{_occ(runner, 'CHAOSPhysReg') + _occ(runner, 'phys_reg')}",
-                certified("FSU-FR03-F5-W3"), fr03_cert),
+                fr03_ok, fr03_cert),
             "squash_realloc_container_test": _cap(
                 squash_test,
                 [f"{vec_unit}: squash x{_occ(vec_unit, 'squash')}, "
                  f"realloc x{_occ(vec_unit, 'realloc')}",
                  vec_pytest, "real O3 gate: F5-FR03-W3-GATE-v3"],
-                certified("FSU-FR03-F5-W3"), fr03_cert),
+                fr03_ok, fr03_cert),
             "fr03_formal_seeds": _cap(
-                certified("FSU-FR03-F5-W3") is not False,
+                fr03_ok is not False,
                 "runs/fsu/FSU-FR03-F5-W3: 3/3 certified; "
                 "W5/W6 remain BLOCKED",
-                certified("FSU-FR03-F5-W3"),
+                fr03_ok,
                 "FR03-F5-W3 3/3；W5/W6 不得借用 W3 证据"),
         },
         "W6_suite": {
@@ -781,12 +781,22 @@ def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
             return ("COMPLETE",
                     "certified 3/3: permanent Vec cell, real L5 commit/squash, "
                     "runner CHAOSPhysReg path and lifecycle gate")
-        return ("PARTIAL", f"FR03-F5-W3 {seed_n}/3; gate must pass first")
+        return ("PARTIAL",
+                f"FR03-F5-W3 {seed_n}/3 after protocol review: seed3 "
+                "attempt-1 is a real Masked/unconsumed outcome; attempt-2 "
+                "changed the target and is supplemental evidence only")
+    if runid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
+        if seed_n == 3:
+            return ("COMPLETE",
+                    "certified 3/3: FR03 permanent Vec-cell suite; components "
+                    "never count as seeds")
+        return ("PARTIAL", f"FR03 FR03 suite {seed_n}/3")
+    if runid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
+        return ("COMPLETE" if seed_n == 3 else "PARTIAL",
+                "FR03 permanent Vec-cell suite, components never count as seeds")
     if runid.startswith("FSU-FR03-F5-"):
         return ("BLOCKED",
-                f"BLOCKED: FR03-F5 {runid[-4:]}; W3 mechanism is certified, "
-                "but this RunID has no suite/artifact gate; never borrow W3 "
-                "evidence")
+                f"BLOCKED: FR03-F5 {runid[-4:]}; no suite/artifact gate")
     if runid == "FSU-FP04-F0-W5" and seed_n == 3:
         return ("PARTIAL",
                 "certified suite 3/3: each suite seed counts as ONE seed "
@@ -853,7 +863,10 @@ def _f5_readiness(runid, seed_n):
     if runid.startswith("FSU-FP06-F5-"):
         return "COMPLETE_3_OF_3" if seed_n == 3 else "NOT_RUN"
     if runid == "FSU-FR03-F5-W3":
-        return "COMPLETE_3_OF_3" if seed_n == 3 else "GATE_NOT_COMPLETE"
+        return ("COMPLETE_3_OF_3" if seed_n == 3
+                else f"PARTIAL_{seed_n}_OF_3")
+    if runid in ("FSU-FR03-F5-W5", "FSU-FR03-F5-W6"):
+        return "COMPLETE_3_OF_3" if seed_n == 3 else "NOT_RUN"
     if runid.startswith("FSU-FR03-F5-"):
         return "BLOCKED"
     return None

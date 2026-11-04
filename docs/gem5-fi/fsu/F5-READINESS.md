@@ -9,7 +9,7 @@
 > 当前：**FP06-F5-W3 COMPLETE_3_OF_3**、**FP06-F5-W1 COMPLETE_3_OF_3**、
 > **FP06-F5-W4 COMPLETE_3_OF_3**、**FP06-F5-W5 COMPLETE_3_OF_3**
 > （gate PASS 后正式 suite seed 全部 audit.ok/certified）、**FP06-F5-W6 COMPLETE_3_OF_3**（SVD/FFT/sparse）；
-> FR03-F5-W3 COMPLETE_3_OF_3；FR03-F5-W5/W6 BLOCKED；
+> FR03-F5-W3 PARTIAL_2_OF_3（seed3 protocol deviation）；FR03-F5-W5/W6 COMPLETE_3_OF_3；
 > **FP06-d partial-product proxy MISSING**。
 
 ## 1. F5 定义（工作簿原文）
@@ -35,12 +35,12 @@
 | FSU-FP06-F5-W4 | COMPLETE_3_OF_3 | 3/3 | gate PASS 后完成 3 个正式 seed（W4-rate-v1，B0/FP64/decode，真实 census 1,310,723）：seed1 FP06-a sign SA0、seed2 FP06-b sign SA1、seed3 FP06-c fixed mantissa SA0；每 seed exposures 1,309,699、activated 130,814/1,132,901/1,300,553、terminal=full、oracle=SDC、audit.ok/certified。历史文档中的 2,097,155 是旧未过滤 D2 配置，不是本 RunID 的 eligible 流；**FP06-d 仍 MISSING** |
 | FSU-FP06-F5-W5 | COMPLETE_3_OF_3 | 3/3 | suite gate `runs/fsu-gates/F5-FP06-W5-GATE-v5/` 5/5 PASS；正式 suite seed1/2/3 均 5/5 component admitted + suite audit ok；每 suite seed 只计 1，15 component 不进入 seed 总数；三个 suite seed 均 SDC |
 | FSU-FP06-F5-W6 | COMPLETE_3_OF_3 | 3/3 | W6 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；SVD fp64、FFT/sparse fp32 逐组件精度覆盖；9 component 只计 3 seed |
-| FSU-FR03-F5-W3 | COMPLETE_3_OF_3 | 3/3 | L5 commit/squash/first-impact、runner 显式 CHAOSPhysReg 路径、O3 生命周期 gate（连续写/squash/重分配/generation 身份/真实 consumer）已完成；gate `runs/fsu-gates/F5-FR03-W3-GATE-v3/` PASS；正式 seed1/2/3 audit.ok |
-| FSU-FR03-F5-W5 | BLOCKED | 0/3 | W3 机制已认证，但 W5 的 FR03 suite 尚未运行；不得借用 W3 证据 |
-| FSU-FR03-F5-W6 | BLOCKED | 0/3 | W3 机制已认证；W6 gem5 golden/FR03 suite 尚未运行 |
+| FSU-FR03-F5-W3 | PARTIAL_2_OF_3 | 2/3 | gate v3 PASS（L5/生命周期/runner 均真实）；seed1/2 audit.ok。seed3 attempt-1 是原预注册目标的真实结局（activated gen3/6，但 committed gen8 未被故障改变；terminal=exposed_unconsumed、oracle=Masked、chain_certified=false）；attempt-2 改为 sign SA1 lane0，属于 **protocol deviation / supplemental evidence**，不计入原 seed3。详见 `FR03-SEED3-PROTOCOL-REVIEW.md` |
+| FSU-FR03-F5-W5 | COMPLETE_3_OF_3 | 3/3 | FR03 五程序 suite gate 5/5 PASS；正式 seed1/2/3 各 5/5 component admitted；每 suite seed 只计 1 |
+| FSU-FR03-F5-W6 | COMPLETE_3_OF_3 | 3/3 | FR03 W6 三组件 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；9 component 只计 3 seed |
 
-> 双视图（磁盘权威，W4 完成后）：历史全量 **42/519 seed、14/173 RunID**；
-> 活跃 F0/F5 **33/240 seed、11/80 RunID**。suite seed 3 个对应 15 个
+> 双视图（磁盘权威，W4 完成后）：历史全量 **47/519 seed、15/173 RunID**；
+> 活跃 F0/F5 **38/240 seed、12/80 RunID**。suite seed 3 个对应 15 个
 > component run，component **不进入** seed 总数。
 
 ## 3. FP06 代码能力与认证边界
@@ -134,7 +134,7 @@ FP32 32-bit lane2；W1 为 scalar FP32/FP64）。它们不认证 FP06-d，也不
    generation 身份，不等于 O3 容器级验证）；
 4. FR03-F5 的正式 seed 与逐 fault 链审计。
 
-结论：**FR03-F5-W3 已完成 3/3；FR03-F5-W5/W6 保持 BLOCKED，不得借用 W3 证据**；不得借用
+结论：**FR03-F5-W3 为 2/3（seed3 protocol deviation）；FR03-F5-W5/W6 保持 BLOCKED，不得借用 W3 证据**；不得借用
 FP06 结果侧证据认证 FR03。model 级 `audited_status` 仍为 PARTIAL，
 `f5_readiness` 为 BLOCKED。代码存在/已构建不等于认证，只有 L0–L5 完整
 链、runner 路径、容器级测试通过并跑完正式 seed 后才会改变 readiness。

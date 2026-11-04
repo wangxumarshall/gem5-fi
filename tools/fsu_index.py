@@ -84,6 +84,32 @@ def _w6_suite_seed_state(seed_dir: Path):
     }
 
 
+def _v2_suite_state(seed_dir: Path, sm: dict):
+    """Unified suite audit v2 (if present) is the counting gate."""
+    try:
+        v2 = json.loads((seed_dir / "audit_v2.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return {"state": "invalid", "suite": True,
+                "reason": f"audit_v2 unreadable: {e}"}
+    ok = (v2.get("schema_version", "").startswith("fsu-suite-audit/")
+          and v2.get("suite_certified") is True
+          and int(v2.get("formal_seed_contribution", 0)) == 1
+          and (seed_dir / "AUTHORITATIVE").exists())
+    return {
+        "state": "admitted" if ok else "invalid",
+        "suite": True,
+        "suite_id": v2.get("suite_id") or sm.get("suite_id"),
+        "suite_hash": v2.get("suite_hash") or sm.get("suite_hash"),
+        "suite_seed": v2.get("suite_seed", sm.get("suite_seed")),
+        "component_runs": int(v2.get("component_count", 0)),
+        "component_certified": int(v2.get("component_count", 0)) if ok else 0,
+        "audit_ok": v2.get("suite_certified") is True,
+        "components": v2.get("components", []),
+        "reason": None if ok else "unified suite audit not certified",
+        "audit_v2": True,
+    }
+
+
 def _seed_state(seed_dir: Path):
     # Presence of suite_manifest.json makes this a formal suite seed:
     # its component runs must never enter admitted_seeds_total as N seeds.
@@ -93,6 +119,8 @@ def _seed_state(seed_dir: Path):
                 encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             sm = {}
+        if (seed_dir / "audit_v2.json").exists():
+            return _v2_suite_state(seed_dir, sm)
         if str(sm.get("suite_id", "")).startswith("w6-"):
             return _w6_suite_seed_state(seed_dir)
         return _suite_seed_state(seed_dir)
