@@ -230,7 +230,9 @@ def _build_physreg_cmd(manifest, outdir: Path, seed: int, max_faults: int,
     elif profile not in ("", "C3"):
         raise ValueError(f"unknown config_profile {profile!r}")
     if (manifest.get("workload") or {}).get("element_oracle"):
-        cmd += [f"--cmd_arg=--array-dump={Path(outdir) / 'array.bin'}"]
+        dump = str(manifest.get("array_dump_path")
+                   or (Path(outdir) / "array.bin"))
+        cmd += [f"--cmd_arg=--array-dump={dump}"]
     cmd += ["--chaos_propagation",
             "--prop_run_id", manifest["run_id"],
             "--prop_sample_run_id", f"s{seed}"]
@@ -325,8 +327,12 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         if (manifest.get("workload") or {}).get("element_oracle"):
             # argparse needs the value in the SAME token when it starts with
             # "--" (a separate "--array-dump=..." would be parsed as an option
-            # and rejected as "expected one argument").
-            cmd += [f"--cmd_arg=--array-dump={Path(outdir) / 'array.bin'}"]
+            # and rejected as "expected one argument"). FR03 suites may pin a
+            # fixed path so gate/formal guest argv is identical; the file is
+            # copied into the evidence dir after the run.
+            dump = str(manifest.get("array_dump_path")
+                       or (Path(outdir) / "array.bin"))
+            cmd += [f"--cmd_arg=--array-dump={dump}"]
         if rate_doc is not None:
             # F1/F2/F3: exact eligible ordinals, no probability/geometric draw.
             cmd += ["--fpu_events_to_skip", "0",
@@ -588,6 +594,14 @@ def run_seed(manifest_path: Path, seed: int, out_root: Path = DEFAULT_OUT,
                         gem5, Path(config), Path(root), rate_doc=rate_doc)
     inj_cmd += ["--fsu_eligible_total", str(eligible)]
     rc, out, err, timed_out = runner(inj_cmd, timeout)
+    # Copy a fixed-path array dump into the evidence dir (FR03 determinism:
+    # the guest argv must not depend on the gate/formal outdir).
+    fixed_dump = manifest.get("array_dump_path")
+    if fixed_dump:
+        src_dump = Path(str(fixed_dump))
+        dst_dump = inject_dir / "array.bin"
+        if src_dump.exists():
+            shutil.copy2(src_dump, dst_dump)
     (attempt / "run.out").write_text(out, encoding="utf-8")
     (attempt / "run.err").write_text(err, encoding="utf-8")
     stats = _copy_stats(inject_dir, attempt)

@@ -1,0 +1,207 @@
+{
+  "suite_id": "w6-fp-v1-fr03",
+  "suite_version": "1",
+  "suite_family": "W6",
+  "component_seed_policy_version": "w5-component-seed-v1",
+  "program_order": [
+    "svd",
+    "fft",
+    "sparse-cg"
+  ],
+  "program_count": 3,
+  "run_defaults": {
+    "model_id": "FR03",
+    "unit": "FSU Pipe",
+    "freq": "F5",
+    "load_id": "W6",
+    "config_family": "C3",
+    "config_profile": "B0",
+    "limits": {
+      "timeout_s": 3600
+    }
+  },
+  "injector": {
+    "component": "physreg",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "physreg_mode": {
+      "injection_mode": "phys",
+      "reg_class": "vector",
+      "require_allocated": true,
+      "semantic_role": "FR03",
+      "bits_to_change": 1
+    }
+  },
+  "target_plan": {
+    "svd": {
+      "target_phys_idx": 47,
+      "vec_lane_width": 64,
+      "precision": "fp64"
+    },
+    "fft": {
+      "target_phys_idx": 47,
+      "vec_lane_width": 32,
+      "precision": "fp32"
+    },
+    "sparse-cg": {
+      "target_phys_idx": 47,
+      "vec_lane_width": 32,
+      "precision": "fp32"
+    }
+  },
+  "seed_plan": [
+    {
+      "suite_seed": 1,
+      "submodel": "FR03-a",
+      "fault_mask": "0x80000000",
+      "polarity": 1,
+      "fault_type": "stuck_at_one",
+      "vec_lane_offset": 0
+    },
+    {
+      "suite_seed": 2,
+      "submodel": "FR03-b",
+      "fault_mask": "0x80000000",
+      "polarity": 1,
+      "fault_type": "stuck_at_one",
+      "vec_lane_offset": 1
+    },
+    {
+      "suite_seed": 3,
+      "submodel": "FR03-c",
+      "fault_mask": "0x00010000",
+      "polarity": 1,
+      "fault_type": "stuck_at_one",
+      "vec_lane_offset": 0
+    }
+  ],
+  "compiler": {
+    "cc": "gcc",
+    "version": "10.3.1",
+    "cflags": [
+      "-O2",
+      "-static",
+      "-Wall",
+      "-Wextra",
+      "-I",
+      "workloads/ooo/polybench/utilities",
+      "-lm"
+    ]
+  },
+  "oracle": {
+    "id": "fsu-w6-oracle-v1",
+    "version": "fsu-w6-oracle-v1",
+    "kind": "element_oracle"
+  },
+  "programs": [
+    {
+      "program_id": "svd",
+      "program_index": 0,
+      "scale": {
+        "N": 8
+      },
+      "input_id": "svd-fixed-A-8x8-v1",
+      "source": "workloads/directed/svd_iterative_kernel.c",
+      "source_sha256": "2db77b5a5528268a31b87b20d7872c2772461e5e324ed9b07a5832078a3d4df6",
+      "binary": "workloads/directed/svd_iterative_kernel",
+      "binary_sha256": "42cfc2441b1c0a563178624bfd288d89bbdf2e920f63a7051b52613e9f5ba244",
+      "golden": "4afb95b5b32f3820",
+      "golden_array_sha256": "c057a7f60984974ab4db131468dbf4f078432f69112593eec44701a207fb531c",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/w6-fp-v1/golden/svd.bin",
+        "oracle_version": "fsu-w6-oracle-v1",
+        "meta": {
+          "program_id": "svd",
+          "golden_id": "w6-svd-golden-v1",
+          "dtype": "fp64",
+          "layout": "row-major",
+          "endianness": "little",
+          "shape": [
+            8,
+            8
+          ],
+          "count": 64,
+          "domain": "full",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "fsu-w6-oracle-v1"
+        }
+      }
+    },
+    {
+      "program_id": "fft",
+      "program_index": 1,
+      "scale": {
+        "N": 1024
+      },
+      "input_id": "fft-radix2-N1024-fixed-v1",
+      "source": "workloads/directed/fft_radix2_kernel.c",
+      "source_sha256": "e801f1dc7055511f59180c9205cc625ec54f78259f6b11b0df9100c0414d8cb7",
+      "binary": "workloads/directed/fft_radix2_kernel",
+      "binary_sha256": "93371215ece1fcfe469ede60d4b154c051c6f6e1b17f5acd8256c7131b7a1bd7",
+      "golden": "fdd819481ea73b0c",
+      "golden_array_sha256": "dde19526f0354b3a61be193aae24b3c11c4cdfac70e8aa6adbac5be9d9b1f177",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/w6-fp-v1/golden/fft.bin",
+        "oracle_version": "fsu-w6-oracle-v1",
+        "meta": {
+          "program_id": "fft",
+          "golden_id": "w6-fft-golden-v1",
+          "dtype": "fp32",
+          "layout": "row-major",
+          "endianness": "little",
+          "shape": [
+            1,
+            1024
+          ],
+          "count": 1024,
+          "domain": "full",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "fsu-w6-oracle-v1"
+        }
+      }
+    },
+    {
+      "program_id": "sparse-cg",
+      "program_index": 2,
+      "scale": {
+        "GRID": 16,
+        "N": 256
+      },
+      "input_id": "sparse-cg-5pt-laplacian-16x16-v1",
+      "source": "workloads/directed/sparse_cg_kernel.c",
+      "source_sha256": "1df074f6fe5e259b8a92b0e594c5ba18000d115cf853602f5e47a133be1bff3d",
+      "binary": "workloads/directed/sparse_cg_kernel",
+      "binary_sha256": "9755159759fc3b20a4c74e205b826463b7dc647d1869f9bac94ee1b7afe376c0",
+      "golden": "feb0479242258ead",
+      "golden_array_sha256": "ea5b57c3795f5b56f2f4c0c374555bd542056f2aad70cf224eabe6abe14bc8f8",
+      "element_oracle": {
+        "golden_array": "configs/fsu/suites/w6-fp-v1/golden/sparse-cg.bin",
+        "oracle_version": "fsu-w6-oracle-v1",
+        "meta": {
+          "program_id": "sparse-cg",
+          "golden_id": "w6-sparse-cg-golden-v1",
+          "dtype": "fp32",
+          "layout": "row-major",
+          "endianness": "little",
+          "shape": [
+            1,
+            256
+          ],
+          "count": 256,
+          "domain": "full",
+          "abs_tol": 0.0,
+          "rel_tol": 0.0,
+          "ulp_tol": 0,
+          "oracle_version": "fsu-w6-oracle-v1"
+        }
+      }
+    }
+  ],
+  "notes": "FR03-F5-W6 permanent physical-cell suite over the certified W6 artifacts (SVD fp64, FFT fp32, sparse-CG fp32). Readiness is the same VecRegClass geometry as W5: numPhysVecRegs=48, NumVecRegs=44, dynamic slots 44..47, special 32..43 excluded; target 0 is V0's normal initial physical cell. Static evidence: gem5 default MIDR 0x410fd070 (Cortex-A57) makes glibc's __libc_memset_ifunc fall through to __memset_generic, whose prologue is `dup v0.16b, w1`; native gdb breakpoint runs show libc memset is invoked 2-3 times per W6 program even though the kernels themselves are scalar FP64/FP32 (static arrays, no calloc). SVD keeps vec_lane_width=64 (fp64 data domain); FFT/sparse-CG use 32. Masks are lane-relative, SA1 on bits memset drives to zero, and fit both widths. Golden arrays/binary/source hashes, inputs and tolerances are unchanged from w6-fp-v1-f5; NaN/Inf/truncated/missing dumps fail through fsu_w6_oracle, and the golden never participates in the injection run. Target selection never depends on a fault-run SDC outcome; generation is identity only and never clears the permanent cell. Gate-phase revision 2026-11-04: target phys 0 (V0/libc memset) crashed with truncated evidence; switched to dynamic-pool slot 47 (highest allocatable dynamic Vec slot) using no-fault PRF geometry and a retry-pacing fix. This is a gate design correction before formal freeze, not an SDC-driven target search. Gate-phase revision: W6 seed2 mask 0x40000000 SA1 lane1 failed chain certification on SVD/sparse (L5 generation not activated); changed to sign SA1 lane1, matching the already-passing sign-SA1 mechanism but a distinct lane.",
+  "suite_hash": "3b946a51ffb67e2086ed6df32395e90cd54c2d7dcf791654fb5e0312e61c172e"
+}

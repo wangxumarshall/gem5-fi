@@ -66,6 +66,7 @@ def pack_attempt(attempt: Path, threshold_mb: int = 64):
     rec = {"attempt": str(attempt), "threshold_mb": threshold_mb,
            "files": []}
     for rel in ("inject/fpu_injections.log",
+                "inject/fault_injections.log",
                 "census/fpu_injections.log"):
         p = attempt / rel
         if not p.exists():

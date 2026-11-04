@@ -185,6 +185,10 @@ class CHAOSPhysReg : public SimObject
     // currently allocated (not in the free list), i.e. held by an in-flight
     // instruction. Default false keeps every existing campaign byte-identical.
     bool require_allocated;
+    // [FR03] requireAllocated retry pacing: a free fixed target must not
+    // produce a same-tick retry loop (which once wrote 294M skip lines).
+    bool wait_for_allocation = false;
+    uint64_t skip_free_count = 0;
 
     // Phase 2 item 1: NEON lane stratification. The vec path corrupts ONE
     // lane of vec_lane_width bits at lane vec_lane_offset (within the

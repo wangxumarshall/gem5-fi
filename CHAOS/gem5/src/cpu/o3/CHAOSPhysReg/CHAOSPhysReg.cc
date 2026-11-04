@@ -1136,7 +1136,12 @@ namespace gem5
             // instruction really holds the cell. Default false keeps the
             // historical behaviour byte-identical.
             if (require_allocated && is_free) {
-                if (write_log && log_stream && log_stream->stream()) {
+                wait_for_allocation = true;
+                ++skip_free_count;
+                // Bounded diagnostics: never one line per retry.
+                if (write_log && log_stream && log_stream->stream()
+                    && (skip_free_count <= 8
+                        || skip_free_count % 100000 == 0)) {
                     *(log_stream->stream())
                         << "VecStuckSkipFree: cycle=" << cpu->curCycle()
                         << " class=" << (target_class == gem5::VecRegClass
@@ -1144,7 +1149,9 @@ namespace gem5
                                           : target_class == gem5::FloatRegClass
                                             ? "float" : "int")
                         << " phys=" << chosen_phys_idx
-                        << " (requireAllocated: reschedule, fault not consumed)"
+                        << " skips=" << skip_free_count
+                        << " (requireAllocated: retry in >=100 cycles, "
+                           "fault not consumed)"
                         << std::endl;
                 }
                 return;
@@ -1450,6 +1457,13 @@ namespace gem5
         }
         if (any_active) {
             Cycles next = Cycles(inter_fault_cycles_dist(rng));
+            if (wait_for_allocation) {
+                // [FR03] Pacing: waiting for a free target must advance
+                // simulation; a same-tick retry loop is never acceptable.
+                if (next < Cycles(100))
+                    next = Cycles(100);
+                wait_for_allocation = false;
+            }
             if (last_clock == 0 || (next + cpu->curCycle()) <= last_clock)
                 scheduleAttackEvent(next);
         } else {

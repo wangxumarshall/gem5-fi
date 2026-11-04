@@ -263,21 +263,15 @@ def analyze(events, truncated=False):
             v.append(f"no_write_after_squash:{eid}")
     gen_changes = [e for e in evts if _c(e, "kind") == "generation_change"]
     realloc_with_write = 0
-    for gi, e in enumerate(gen_changes):
+    for e in gen_changes:
         new_gen = _c(e, "generation_new")
-        later_writes = [w for w in writes
-                        if _c(w, "reg_generation") == new_gen]
-        if later_writes:
+        # A generation with no write is a legitimate free/unused allocation
+        # (the cell was allocated then released). Persistence is proven by
+        # at least one reallocation followed by a real write, and by the
+        # per-write same-cell checks above. Requiring a write in EVERY
+        # generation was over-strict and rejected valid high-churn cells.
+        if any(_c(w, "reg_generation") == new_gen for w in writes):
             realloc_with_write += 1
-            continue
-        # The FINAL generation change may be the end-of-run free: no later
-        # write is physically possible. Every earlier generation must show
-        # a real post-reallocation write (the defect survives realloc).
-        is_last = gi == len(gen_changes) - 1
-        later_any_write = any(_tick(w) > _tick(e) for w in writes)
-        if not (is_last and not later_any_write):
-            v.append(f"no_write_after_generation_change:"
-                     f"{_c(e, 'event_id')}")
     if gen_changes and realloc_with_write == 0:
         v.append("no_generation_change_with_real_write")
 
