@@ -40,7 +40,7 @@ would have injected **zero** on P03/P05-W8 (eligible=7).
 
 ## Capability ledger (23 F0/F5 RunIDs)
 
-### Certified 3/3 — PARTIAL_SUBMODEL (5 RunIDs × 3 seeds)
+### Certified 3/3 — PARTIAL_SUBMODEL (7 F0 RunIDs × 3 seeds)
 
 | RunID | landed arm | seed1/2/3 terminal | oracle |
 |---|---|---|---|
@@ -49,6 +49,14 @@ would have injected **zero** on P03/P05-W8 (eligible=7).
 | P02-F0-W10 | P02-a confidence | detected_contained / full / full (L5) | Masked |
 | P05-F0-W8 | P05-a/b drop/dup | full / detected_contained / full (L5) | Masked |
 | P05-F0-W10 | P05-a/b drop/dup | detected_contained ×3 (L5) | Masked |
+| P01-F0-W2 | P01-b stride bitflip | full / full / detected_contained (L5) | Masked |
+| P03-F0-W8 | P03-a same-page substitution | full / detected_contained / full (L5) | Masked |
+
+The two new rows are the F0-gap batch (`campaign_f0gap_20261104` +
+`campaign_f0gap_seed23_20261104`, binary `9dafb090…`, source `d3f7471b`).
+P01-W2 uses escape-first path selection (the real `errant_commit` lane
+outranks the earlier squash lane); P03-W8 uses the `pf_request_id` lineage
+bridge to connect the substituted prefetch request to its real demand fill.
 
 All 15 seeds: checker admitted/certified, gzip EOF, stats non-zero, exit 0,
 not truncated. Docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/`.
@@ -60,13 +68,11 @@ not truncated. Docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/<RunID>/`.
 
 ### F0 measured but not certifiable
 
-| RunID | result | blocker |
+| RunID | result | exact local block |
 |---|---|---|
-| P01-F0-W2 | Masked, `provable_to_L5_then_unknown`, admitted=False | chain has no closed L5 detection/containment; needs chain-model repair |
-| P03-F0-W8 | Masked, L4 unknown, admitted=False | P03-a same-page substitution; cross-page P03-b missing; chain stops at L4 |
-| P03-F0-W9 | Masked, L4 unknown, admitted=False | same; P03-b missing |
-| P06-F0-W6 | Masked, `provable_to_L0_then_unknown`, admitted=False | P06-a fill-class marking produced no L1.. chain (needs chain-model repair) |
-| P06-F0-W8 | zero events | span=32/warmup=1 draw 29 but formal stream observed 28 eligible — no fire; needs P06 span/warmup re-fit |
+| P03-F0-W9 | Masked, `provable_to_L4_then_unknown`, admitted=False | The only `errant_commit` is on a different line (`0x80080`) and has no lineage bridge from the faulted prefetch (`0x7fcc0`); the checker correctly refuses cross-branch stitching. Do not borrow that L5. P03-b cross-page is still absent. |
+| P06-F0-W6 | Masked, `full` (L5), admitted=False | Downstream observation fixed: the demand hit on the marked line is linked by a real `pf_request_id` lineage bridge and the chain is full. Admission is blocked only by `cache_access_faked_l1` (pf-family L1 must be the unit observation; P06-a's fill classification has no separate unit-side L1 event and the P06 contract forbids a new kind). Admission was NOT loosened. |
+| P06-F0-W8 | Masked, `provable_to_L2_then_unknown`, admitted=False | Injection fixed by the exact-command census (`span=28`; `attempted=13`, `injected=1`). The downstream demand access precedes the prefetch fill, so no forward pf source exists; the chain remains L2 and is also blocked by the same pf-L1 rule. |
 
 ### F5 fixed and certified 3/3 — PARTIAL_SUBMODEL (4 RunIDs × 3 seeds)
 
@@ -113,10 +119,10 @@ Root-cause and fix (C++ + campaign):
 ## Honest totals
 
 - P F0/F5 scope: 23 RunIDs.
-- Certified 3/3 (partial-submodel): **9 RunIDs / 27 seeds** = 5 F0 + 4 F5.
-- F0 measured but not certifiable: 5 RunIDs (P01-W2 L5_then_unknown with a real
-  errant-commit escape witness; P03-W8/W9 L4_then_unknown with a cross-branch
-  L5 witness; P06-W6 L0_then_unknown; P06-W8 sampling/edge case).
+- Certified 3/3 (partial-submodel): **11 RunIDs / 33 seeds** = 7 F0 + 4 F5.
+- F0 local blocks: 3 RunIDs (P03-W9 cross-branch L5 not bridged; P06-W6 full
+  chain but pf-L1 admission rule; P06-W8 injection fixed, demand-before-fill
+  leaves the chain at L2). None of these is written up as contained or SDC.
 - Model not faithful / not implemented: 8 RunIDs (P04 F0/F5 queue; P07 F0
   fill-way/tag; P09 F0 dirty-writeback), plus P09-W13 asset missing.
 - The authoritative P unit has **53** RunIDs across F0–F6; this round completed

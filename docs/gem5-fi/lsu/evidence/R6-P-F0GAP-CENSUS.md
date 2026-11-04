@@ -59,3 +59,64 @@ relative census had 32 eligible, which is a different experiment.
 **W6 effect:** the old span=56 is larger than the 50-event stream; seed1
 happened to draw 13 and fired, but other seeds can draw >50 and miss. The
 correct guaranteed window is 50.
+
+---
+
+## F0-gap batch result (2026-11-04, new binary)
+
+**Binary:** `runs/lsu/r6_p_unit/binaries/gem5.opt-9dafb090`
+(sha256 `9dafb09011cda80cdb295397ed55b97660c4998dc2742654d78ec2dabef269c3`,
+source commit `d3f7471ba93349e04b8a893ed52ebab9fe2c0d73`, incremental build
+log `r6o-logs/p_f0gap_build.log`/`_build2`/`_build3`, zero new errors).
+Evidence: `runs/lsu/r6_p_unit/campaign_f0gap_20261104` (seed1) and
+`campaign_f0gap_seed23_20261104` (seeds 2/3).
+
+### Fixes applied
+
+1. **Escape-first path selection** (`tools/lsu_chain_check.py`): among
+   equal-length maximal L0→L5 prefixes, the real `errant_commit` lane wins
+   over an earlier `squash_masked` lane. P01-F0-W2's old
+   `provable_to_L5_then_unknown` was an analyzer selection artifact.
+2. **Prefetch-request lineage bridge** (`CHAOSPropagation` + `cache.cc` +
+   `base.cc` + checker): the first prefetch-side event of the fault carries
+   `pf_request_id`; a later demand `cache_access`/`mshr_fill` on the same
+   registered line is joined by one `request_fork` bridge whose
+   `old_request_id` is the pfid and `new_request_id` the demand request.
+   The checker accepts a pfid source only for family `pf` when the source
+   event has no CPU request id; every other bridge clause still applies.
+3. **Campaign drift removed** (`tools/lsu_campaign.py`): the campaign's
+   local linear path scan was stale and disagreed with the authoritative
+   checker on P01-W2; it now delegates to `lsu_chain_check`'s implementation.
+4. **Exact-command census** (above): P06 W6=50, W8=28.
+
+### Results (per seed, quoted from `chain_report.json`)
+
+| RunID | seed1 | seed2 | seed3 | verdict |
+|---|---|---|---|---|
+| P01-F0-W2 | full / admitted | full / admitted | detected_contained / admitted | **3/3 certified** |
+| P03-F0-W8 | full / admitted | detected_contained / admitted | full / admitted | **3/3 certified** |
+| P03-F0-W9 | L4_then_unknown / not admitted | — | — | local block |
+| P06-F0-W6 | full / not admitted (`cache_access_faked_l1`) | — | — | local block |
+| P06-F0-W8 | L2_then_unknown / not admitted | — | — | local block |
+
+All six certified seeds: gzip EOF, stats non-empty (1768/1771 lines for the
+seed1 pair), `exit_code=0`, not truncated, oracle Masked, `admitted=True` /
+`certified=True`. The EARLY_BIAS trigger alarms are retained and adjudicated
+against the measured no-fault eligible counts (P01 W2=142; P03 W8=7).
+
+### Local-block reasons (no admission relaxation)
+
+- **P03-W9**: the only errant_commit is on a different line (`0x80080`) with
+  no lineage bridge from the faulted prefetch (`0x7fcc0`); the checker refuses
+  cross-branch stitching. The other branch's L5 is not borrowed.
+- **P06-W6**: the demand hit on the marked line is real and now linked (full
+  chain), but admission is blocked only by `cache_access_faked_l1` (pf-family
+  L1 must be the unit observation; P06-a's fill classification has no separate
+  unit-side L1 event and the P06 contract forbids a new kind). Admission was
+  not loosened.
+- **P06-W8**: injection is fixed (attempted=13, injected=1), but the demand
+  access precedes the prefetch fill, so no forward pf source exists; the chain
+  remains L2 and is also blocked by the same pf-L1 rule.
+
+The old failed evidence under `campaign_seed1_20261104/` is retained; only
+these five RunIDs are superseded by the new batch.

@@ -1,16 +1,20 @@
 # R6-P-UNIT — partial closeout (2026-11-04)
 
-**Status: PARTIAL — 9 RunIDs × 3 seeds (27 seeds) certified as
-PARTIAL_SUBMODEL: 5 F0 + 4 F5. 14 of the 23 P-F0/F5 RunIDs remain
+**Status: PARTIAL — 11 RunIDs × 3 seeds (33 seeds) certified as
+PARTIAL_SUBMODEL: 7 F0 + 4 F5. 12 of the 23 P-F0/F5 RunIDs remain
 blocked/not certifiable. The full P unit (53 RunIDs across F0–F6) is not
 complete and is not claimed complete.**
 
 ## Completed
 
-- 9 RunIDs, 27 seeds, checker `admitted=True` / `certified=True`.
-- F0 (5): `P01-F0-W8`, `P02-F0-W8`, `P02-F0-W10`, `P05-F0-W8`,
-  `P05-F0-W10`.
+- 11 RunIDs, 33 seeds, checker `admitted=True` / `certified=True`.
+- F0 (7): `P01-F0-W8`, `P02-F0-W8`, `P02-F0-W10`, `P05-F0-W8`,
+  `P05-F0-W10`, plus the F0-gap batch `P01-F0-W2` and `P03-F0-W8`.
 - F5 permanent (4): `P02-F5-W8`, `P02-F5-W10`, `P08-F5-W8`, `P08-F5-W10`.
+- F0-gap batch (2 RunIDs / 6 seeds): binary `9dafb090…`, source `d3f7471b`.
+  P01-W2 uses escape-first path selection; P03-W8 uses the `pf_request_id`
+  lineage bridge. Both keep the PARTIAL_SUBMODEL boundaries (P01-b stride
+  only; P03-a same-page only).
   F5 was repaired in C++ + campaign: `--prefetch_max_faults 0`, per-fire
   `noteOutcome(effective)`, effective-only fault registration, `pf_train` on
   every effective fire. New frozen binary
@@ -25,13 +29,15 @@ complete and is not claimed complete.**
 
 ## Not completed (exact reasons)
 
-- **F0 chain not closed:** P01-F0-W2 (`L5_then_unknown`; the checker reports a
-  real errant-commit escape witness that outranks squash containment),
-  P03-F0-W8/W9 (`L4_then_unknown`; cross-branch L5 witness, P03-b cross-page
-  also absent), P06-F0-W6 (`L0_then_unknown`; fill-class mark has no later
-  consumption), P06-F0-W8 (sampling/edge case; a no-fire replay still exists,
-  and the chain remains L0-only). These are chain/observation semantics gaps,
-  not oracle rewrites.
+- **F0 local blocks (3 RunIDs):** `P03-F0-W9` (the only errant_commit is on a
+  different line and has no lineage bridge from the faulted prefetch; the
+  cross-branch L5 is not borrowed), `P06-F0-W6` (observation fixed: the real
+  demand hit is linked and the chain is `full`; admission is blocked only by
+  `cache_access_faked_l1` — the pf-family L1 must be the unit observation and
+  the P06 contract forbids a new kind), `P06-F0-W8` (injection fixed by the
+  exact-command census; the demand precedes the prefetch fill, so the chain
+  remains L2). No admission rule was loosened and no unknown was rewritten as
+  contained.
 - **Model substitution avoided:** P04 (mapped to P05 drop/dup), P07/P09 (mapped
   to classic CHAOSCache tag/dirty) are not the authoritative prefetch models and
   were not run.
