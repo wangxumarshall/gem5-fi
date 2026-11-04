@@ -1,6 +1,6 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-05T01:06:09；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-05T01:43:20；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 ## 历史全量视图（source registry）
 
@@ -78,7 +78,7 @@
 | FSU-FQ10-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FQ10-F4-W2 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F4 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FQ10-F4-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F4 | DEFERRED_BY_USER | NOT_RUN |
-| FSU-FR01-F0-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
+| FSU-FR01-F0-W1 | real_outcome | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | REAL_OUTCOME |
 | FSU-FR01-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR01-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR01-F1-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F1 | DEFERRED_BY_USER | NOT_RUN |
