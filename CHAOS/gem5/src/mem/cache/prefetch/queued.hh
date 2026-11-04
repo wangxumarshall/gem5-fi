@@ -226,6 +226,21 @@ class Queued : public Base
         }
         return false;
     }
+    // [MDSPEC][R6-P-P04] P04-c entry-selection fault: swap the second live
+    // entry into the head position so getPacket issues the WRONG entry next.
+    // The correct head remains in the queue (moved behind it) — this is a
+    // selection error, not a drop/dup.  Returns the selected (wrong) head
+    // index, or -1 when fewer than two live entries exist.
+    long chaosSelectWrongEntry(Addr &addr, Addr &pc);
+    bool chaosHasTwoLiveEntries() const
+    {
+        int n = 0;
+        for (const auto &d : pfq) {
+            if (d.chaosQueueValid && ++n >= 2)
+                return true;
+        }
+        return false;
+    }
 
     Tick nextPrefetchReadyTime() const override
     {

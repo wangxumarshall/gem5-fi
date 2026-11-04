@@ -42,7 +42,9 @@
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
 #include <sstream>
 
+#include <algorithm>
 #include <cassert>
+#include <iterator>
 
 #include "arch/generic/tlb.hh"
 #include "base/logging.hh"
@@ -254,6 +256,30 @@ Queued::chaosClearQueueValid(Addr &addr, Addr &pc)
         ++idx;
     }
     return -1;              // no live entry -> ineligible
+}
+
+long
+Queued::chaosSelectWrongEntry(Addr &addr, Addr &pc)
+{
+    auto first = pfq.end();
+    auto second = pfq.end();
+    for (auto it = pfq.begin(); it != pfq.end(); ++it) {
+        if (!it->chaosQueueValid)
+            continue;
+        if (first == pfq.end()) {
+            first = it;
+        } else {
+            second = it;
+            break;
+        }
+    }
+    if (second == pfq.end())
+        return -1;          // fewer than two live entries -> ineligible
+    // Wrong entry now sits at the head; the correct head stays queued.
+    std::iter_swap(first, second);
+    addr = first->pfInfo.getAddr();
+    pc = first->pfInfo.getPC();
+    return (long)std::distance(pfq.begin(), first);
 }
 
 PacketPtr

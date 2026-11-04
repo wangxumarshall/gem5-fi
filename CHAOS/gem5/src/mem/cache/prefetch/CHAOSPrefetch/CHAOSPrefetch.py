@@ -24,8 +24,11 @@
 #                          the queue (pointer/count unchanged) but
 #                          Queued::getPacket skips it at issue time.  This is
 #                          the real queue-valid state, not the P05 drop/dup
-#                          approximation.  P04-b (pointer) and P04-c (entry
-#                          selection) remain unimplemented.
+#                          approximation.  P04-c (entry selection) is
+#                          `p04_queue_select`: a different live entry is
+#                          swapped into the head and issued next while the
+#                          correct head stays queued (requires >=2 live
+#                          entries).  P04-b (pointer) remains unimplemented.
 #   p06_as_demand          P06-a [MDSPEC][R4-5.4]: prefetch-as-demand FILL
 #                          CLASSIFICATION marking — one prefetch-owned fill
 #                          classified demand (CacheBlk::Prefetched not set;

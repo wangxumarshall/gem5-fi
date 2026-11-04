@@ -71,6 +71,7 @@ namespace gem5
         if (s == "p08_stride_stuck")       return Mode::P08StrideStuck;
         if (s == "p06_as_demand")          return Mode::P06AsDemand;
         if (s == "p04_queue_valid")        return Mode::P04QueueValid;
+        if (s == "p04_queue_select")       return Mode::P04QueueSelect;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
 
@@ -186,6 +187,62 @@ namespace gem5
             }
             logInjection("P04_queue_valid", qaddr,
                 "queue entry valid -> invalid (index " +
+                std::to_string(qidx) + ")");
+            return;
+        }
+
+        // [MDSPEC][R6-P-P04] P04-c entry-selection fault.  The queue's head
+        // selection is wrong: a different live entry is swapped into the head
+        // and will be issued next, while the correct head stays queued (it is
+        // NOT dropped).  Requires at least two live entries; not P05 drop/dup.
+        if (fi_mode == Mode::P04QueueSelect) {
+            if (max_faults != 0 && faults_injected >= max_faults) return;
+            trigger.onAttempt();
+            if (!queue || !queue->chaosHasTwoLiveEntries())
+                return;                       // fewer than two live entries
+            if (!trigger.onEligible()) return;
+            Addr qaddr = 0, qpc = 0;
+            const long qidx_long = queue->chaosSelectWrongEntry(qaddr, qpc);
+            if (qidx_long < 0) return;        // defensive; single-threaded
+            ++faults_injected;
+            const auto qidx = (unsigned long)qidx_long;
+            if (trigger.tier == ChaOSLsuTier::F5)
+                trigger.noteOutcome(true);
+            if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+                const uint64_t ptag = h5->registerCacheFault(
+                    qaddr, -1, line_size, "prefetch");
+                if (ptag) {
+                    const uint64_t pfid = h5->notePrefetchRequest(
+                        qaddr, line_size);
+                    h5->registerPtagBlock(ptag, qaddr, qaddr + line_size);
+                    h5->registerPtagPrefetch(pfid, qaddr, line_size);
+                    std::ostringstream pc_hex, addr_hex;
+                    pc_hex << std::hex << qpc;
+                    addr_hex << std::hex << qaddr;
+                    h5->notePropEvt("pf_train", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"pc", pc_hex.str()},
+                        {"va", addr_hex.str()},
+                        {"field", "queue_select"},
+                        {"before", "0"},
+                        {"after", "1"},
+                    });
+                    h5->notePropEvt("pf_queue", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"corr", "origin"},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"entry_index", std::to_string(qidx)},
+                        {"va", addr_hex.str()},
+                        {"field", "queue_select"},
+                        {"before", "head"},
+                        {"after", "wrong"},
+                        {"state_after", "wrong_selected"},
+                    });
+                }
+            }
+            logInjection("P04_queue_select", qaddr,
+                "queue head replaced by another live entry (index " +
                 std::to_string(qidx) + ")");
             return;
         }

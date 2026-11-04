@@ -112,6 +112,51 @@ def main():
               and "state_after=invalid_skipped" in text,
               "events missing")
 
+    print("[4] P04-c entry-selection (queue_select) contract + pilot")
+    qhh2 = src("CHAOS/gem5/src/mem/cache/prefetch/queued.hh")
+    qcc2 = src("CHAOS/gem5/src/mem/cache/prefetch/queued.cc")
+    pcc2 = src("CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/"
+               "CHAOSPrefetch.cc")
+    check("Queued 暴露 chaosSelectWrongEntry / chaosHasTwoLiveEntries",
+          "long chaosSelectWrongEntry(Addr &addr, Addr &pc);" in qhh2
+          and "bool chaosHasTwoLiveEntries() const" in qhh2, "missing API")
+    check("选择故障交换 head 与第二 live entry（非 drop/dup）",
+          "std::iter_swap(first, second);" in qcc2
+          and "second = it;" in qcc2, "swap missing")
+    check("Mode P04QueueSelect + p04_queue_select 映射",
+          "P04QueueSelect" in src("CHAOS/gem5/src/mem/cache/prefetch/"
+                                  "CHAOSPrefetch/CHAOSPrefetch.hh")
+          and 'if (s == "p04_queue_select")       return Mode::P04QueueSelect;'
+          in pcc2, "mode missing")
+    check("P04-c 分支用 chaosHasTwoLiveEntries + chaosSelectWrongEntry",
+          "chaosHasTwoLiveEntries()" in pcc2
+          and "chaosSelectWrongEntry(qaddr, qpc)" in pcc2, "branch missing")
+    check("事件 field=queue_select / state_after=wrong_selected",
+          '{"field", "queue_select"}' in pcc2
+          and "wrong_selected" in pcc2, "events missing")
+    check("choices 含 p04_queue_select",
+          "p04_queue_select" in src("configs/se/lsu_proxy.py"), "missing")
+    base2 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+                 "campaign_p04c_20261104")
+    for rid in ("P04C-F0-W2", "P04C-F0-W8"):
+        sd = base2 / rid / "seed1"
+        if not (sd / "chain_report.json").is_file():
+            print(f"  SKIP {rid} 证据不在（{sd}）——源契约已覆盖")
+            continue
+        rep = json.load(open(sd / "chain_report.json"))
+        f = rep["faults"]["1"]
+        check(f"{rid} terminal=provable_to_L2_then_unknown（无 L3/L5 观测）",
+              f.get("terminal") == "provable_to_L2_then_unknown"
+              and f.get("provable_to") == "L2", str(f.get("terminal")))
+        inj = (sd / "prefetch_injections.log").read_text().strip()
+        check(f"{rid} 注入行 = P04_queue_select", "P04_queue_select" in inj,
+              inj)
+        import gzip
+        text = gzip.open(sd / "prop_evt.txt.gz", "rt").read()
+        check(f"{rid} 真实 queue_select head->wrong + wrong_selected 事件",
+              "field=queue_select before=head after=wrong" in text
+              and "state_after=wrong_selected" in text, "events missing")
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
