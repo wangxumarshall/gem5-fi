@@ -8,11 +8,157 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
 import fsu_scope as S
+
+
+def _git_sha():
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[1],
+            text=True).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def _script_sha():
+    h = hashlib.sha256()
+    try:
+        h.update(Path(__file__).read_bytes())
+    except OSError:
+        return None
+    return h.hexdigest()
+
+
+def _suite_audit_echo(seed_dir: Path):
+    """Read the historical audit_v2.json for display only (never counting)."""
+    p = Path(seed_dir) / "audit_v2.json"
+    if not p.exists():
+        return None
+    try:
+        v2 = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return {"present": True, "error": str(e)}
+    return {
+        "present": True,
+        "schema_version": v2.get("schema_version"),
+        "tool_version": v2.get("tool_version"),
+        "suite_certified": v2.get("suite_certified"),
+        "generated_at": v2.get("generated_at"),
+        "counted": False,
+    }
+
+
+def _current_suite_state(seed_dir: Path, sm: dict):
+    """Suite seed state from the CURRENT recomputation, not a stored report."""
+    import fsu_suite_audit as U
+    echo = _suite_audit_echo(seed_dir)
+    try:
+        report = U.audit_seed(seed_dir)
+    except Exception as e:  # noqa: BLE001 - never hide a tool failure
+        return {
+            "state": "invalid", "suite": True,
+            "suite_id": sm.get("suite_id"),
+            "suite_hash": sm.get("suite_hash"),
+            "suite_seed": sm.get("suite_seed"),
+            "component_runs": len(sm.get("components") or []),
+            "component_certified": 0,
+            "audit_ok": False,
+            "components": sm.get("components") or [],
+            "reason": f"current suite audit raised {type(e).__name__}: {e}",
+            "recompute_status": "current_verification_failed",
+            "recompute_tool": U.TOOL_VERSION,
+            "legacy_audit_v2": echo,
+        }
+    authoritative = (Path(seed_dir) / "AUTHORITATIVE").exists()
+    ok = bool(report.get("suite_certified")) and authoritative
+    status = report.get("recompute_status")
+    reason = None
+    if not ok:
+        if not authoritative:
+            status = "missing_evidence"
+            reason = "AUTHORITATIVE pointer missing"
+        else:
+            reason = "; ".join((report.get("violations")
+                                or report.get("missing_evidence") or
+                                ["current audit not certified"])[:3])
+    components = report.get("components") or []
+    return {
+        "state": "admitted" if ok else "invalid",
+        "suite": True,
+        "suite_id": report.get("suite_id") or sm.get("suite_id"),
+        "suite_hash": report.get("suite_hash") or sm.get("suite_hash"),
+        "suite_seed": report.get("suite_seed", sm.get("suite_seed")),
+        "component_runs": int(report.get("component_count", 0)),
+        "component_certified": sum(
+            1 for c in components
+            if c.get("recomputed_certified") and c.get("certified")),
+        "audit_ok": report.get("suite_certified") is True,
+        "components": components,
+        "reason": reason,
+        "recompute_status": status,
+        "recompute_tool": report.get("tool_version"),
+        "seed_plan_schema": report.get("seed_plan_schema"),
+        "legacy_audit_v2": echo,
+    }
+
+
+def _current_nonsuite_state(seed_dir: Path, attempt: Path):
+    """Non-suite AUTHORITATIVE seed from the CURRENT seed audit."""
+    import fsu_seed_audit as SA
+    report = {}
+    chain_path = attempt / "chain_report.json"
+    stored_ok = None
+    audit_path = attempt / "audit.json"
+    if audit_path.exists():
+        try:
+            stored_ok = json.loads(audit_path.read_text(
+                encoding="utf-8")).get("ok")
+        except (OSError, json.JSONDecodeError):
+            stored_ok = None
+    if chain_path.exists():
+        try:
+            report = json.loads(chain_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            report = {}
+    chain = report.get("chain", {})
+    terminal = None
+    for _fid, f in sorted(chain.get("faults", {}).items()):
+        if f.get("admitted"):
+            terminal = f.get("terminal")
+            break
+    missing = [rel for rel in ("manifest.json", "chain_report.json",
+                               "inject/prop_evt.txt.gz")
+               if not (attempt / rel).exists()]
+    if missing:
+        return {"state": "invalid", "attempt": str(attempt),
+                "reason": f"missing evidence: {missing}",
+                "recompute_status": "missing_evidence",
+                "recompute_tool": "fsu_seed_audit",
+                "stored_audit_ok": stored_ok}
+    try:
+        result = SA.audit_attempt(attempt)
+        ok = result.get("ok") is True
+        failures = result.get("failures", [])[:3]
+    except Exception as e:  # noqa: BLE001
+        ok, failures = False, [f"{type(e).__name__}: {e}"]
+    return {"state": "admitted" if ok else "invalid",
+            "attempt": str(attempt),
+            "oracle": report.get("oracle", {}).get("category"),
+            "terminal": terminal,
+            "audit_ok": ok,
+            "reason": None if ok else "; ".join(failures),
+            "admitted_faults": chain.get("admitted_faults", []),
+            "stored_audit_ok": stored_ok,
+            "recompute_status": ("current_verified" if ok
+                                 else "current_verification_failed"),
+            "recompute_tool": "fsu_seed_audit"}
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RUNIDS = ROOT / "docs/gem5-fi/fsu/runids.json"
@@ -149,7 +295,47 @@ def _proxy_state(marker, attempt, seed_dir):
             "counts_toward_completion": False}
 
 
-def _seed_state(seed_dir: Path):
+def _external_state(seed_dir: Path, detail: dict):
+    """State from a just-generated current full-audit report (same tool)."""
+    cat = detail.get("category")
+    if cat == "current_verified":
+        state = "admitted"
+    elif cat == "legacy_report_only":
+        state = "legacy"
+    else:
+        state = "invalid"
+    if detail.get("kind") == "suite_seed":
+        comps = detail.get("components", [])
+        return {
+            "state": state, "suite": True,
+            "suite_id": detail.get("suite_id"),
+            "suite_hash": detail.get("suite_hash"),
+            "suite_seed": detail.get("suite_seed"),
+            "component_runs": len(comps),
+            "component_certified": sum(
+                1 for c in comps if c.get("category") == "current_verified"),
+            "audit_ok": cat == "current_verified",
+            "components": comps,
+            "reason": detail.get("reason"),
+            "recompute_status": cat,
+            "recompute_tool": "fsu_full_audit",
+        }
+    return {
+        "state": state,
+        "attempt": detail.get("attempt"),
+        "oracle": detail.get("oracle"),
+        "terminal": detail.get("terminal"),
+        "audit_ok": cat == "current_verified",
+        "reason": detail.get("reason"),
+        "recompute_status": cat,
+        "recompute_tool": "fsu_full_audit",
+    }
+
+
+def _seed_state(seed_dir: Path, recompute: bool = False,
+                external: dict | None = None):
+    if external is not None:
+        return _external_state(seed_dir, external)
     # Presence of suite_manifest.json makes this a formal suite seed:
     # its component runs must never enter admitted_seeds_total as N seeds.
     if (seed_dir / "suite_manifest.json").exists():
@@ -158,6 +344,8 @@ def _seed_state(seed_dir: Path):
                 encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             sm = {}
+        if recompute:
+            return _current_suite_state(seed_dir, sm)
         if (seed_dir / "audit_v2.json").exists():
             return _v2_suite_state(seed_dir, sm)
         if str(sm.get("suite_id", "")).startswith("w6-"):
@@ -167,8 +355,14 @@ def _seed_state(seed_dir: Path):
     marker = _proxy_marker(seed_dir)
     if auth.exists():
         attempt = Path(auth.read_text(encoding="utf-8").strip())
+        if not attempt.is_absolute():
+            root_relative = ROOT / attempt
+            attempt = (root_relative if root_relative.exists()
+                       else seed_dir / attempt)
         if marker and _marker_matches_attempt(marker, seed_dir, attempt):
             return _proxy_state(marker, attempt, seed_dir)
+        if recompute:
+            return _current_nonsuite_state(seed_dir, attempt)
         rep = attempt / "chain_report.json"
         if rep.exists():
             r = json.loads(rep.read_text(encoding="utf-8"))
@@ -215,14 +409,33 @@ def _coverage_map(matrix_path):
             for r in data.get("runids", data.get("runids", []))}
 
 
-def scan(runids, out_root: Path, matrix_path=None, scope=None):
+def _report_map(path):
+    if not path:
+        return None
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    out = {}
+    for key in ("suite_seeds", "non_suite_seeds"):
+        for d in data.get(key, []):
+            seed = d.get("seed") or ""
+            try:
+                n = int(str(seed).replace("seed", ""))
+            except ValueError:
+                continue
+            out[(d.get("run_id"), n)] = d
+    return out
+
+
+def scan(runids, out_root: Path, matrix_path=None, scope=None,
+         recompute: bool = False, external=None):
     complete_root = Path(out_root) / "COMPLETE_PROPAGATION_PATHS"
     cov = _coverage_map(matrix_path)
     scope = scope or S.load_scope()
     rows = []
     for rid in runids:
         base = Path(out_root) / rid
-        seeds = {s: _seed_state(base / f"seed{s}") for s in (1, 2, 3)}
+        seeds = {s: _seed_state(base / f"seed{s}", recompute=recompute,
+                                external=(external or {}).get((rid, s)))
+                 for s in (1, 2, 3)}
         n = sum(1 for s in seeds.values() if s["state"] == "admitted")
         c = cov.get(rid, {"coverage_status": "UNKNOWN",
                           "coverage_reason": "implementation matrix not found"})
@@ -299,10 +512,39 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
         "target_seeds": len(runids) * 3,
         "seed_completion_counts": {},
         "coverage_status_counts": {},
+        "recompute_enabled": bool(recompute),
+        "recompute_status_counts": {},
+        "current_verified_seeds": 0,
+        "current_verification_failed_seeds": 0,
+        "missing_evidence_seeds": 0,
+        "legacy_report_only_seeds": 0,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "tool_git_sha": _git_sha(),
+        "tool_script_sha256": _script_sha(),
         "complete_root": str(complete_root),
     }
+    statuses = []
+    for r in rows:
+        for s in r["seeds"].values():
+            # Only seeds that actually exist as evidence participate in the
+            # recompute counts. Absent/incomplete seeds are not failures.
+            if s.get("state") in ("proxy", "pending", "incomplete"):
+                continue
+            status = s.get("recompute_status")
+            if status is None:
+                if not recompute:
+                    status = "legacy_report_only"
+                else:
+                    continue
+            statuses.append(status)
     from collections import Counter
+    summary["recompute_status_counts"] = dict(Counter(statuses))
+    summary["current_verified_seeds"] = statuses.count("current_verified")
+    summary["current_verification_failed_seeds"] = statuses.count(
+        "current_verification_failed")
+    summary["missing_evidence_seeds"] = statuses.count("missing_evidence")
+    summary["legacy_report_only_seeds"] = statuses.count(
+        "legacy_report_only")
     summary["seed_completion_counts"] = dict(Counter(r["seed_completion"] for r in rows))
     summary["coverage_status_counts"] = dict(Counter(r["coverage_status"] for r in rows))
     active_rows = [r for r in rows if S.is_active_freq(r["frequency"], scope)]
@@ -338,8 +580,12 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
     return rows, summary, scope_summary
 
 
-def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
-    rows, summary, scope_summary = scan(runids, out_root, matrix_path)
+def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None,
+                recompute: bool = False, recompute_report=None):
+    external = _report_map(recompute_report)
+    rows, summary, scope_summary = scan(runids, out_root, matrix_path,
+                                        recompute=recompute,
+                                        external=external)
     summary["active_scope"] = scope_summary
     cr = Path(out_root) / "COMPLETE_PROPAGATION_PATHS"
     cr.mkdir(parents=True, exist_ok=True)
@@ -375,6 +621,16 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
              f"- HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE RunID："
              f"{scope_summary['historical_complete_out_of_scope_runids']}"
              f"（seed {scope_summary['historical_complete_out_of_scope_seeds']}）",
+             "",
+             "## 当前工具重算状态",
+             "",
+             f"- recompute_enabled：**{summary['recompute_enabled']}**",
+             f"- current_verified：{summary['current_verified_seeds']}",
+             f"- current_verification_failed："
+             f"{summary['current_verification_failed_seeds']}",
+             f"- missing_evidence：{summary['missing_evidence_seeds']}",
+             f"- legacy_report_only：{summary['legacy_report_only_seeds']}",
+             "> 旧 audit_v2.json / audit.json 只作历史回显，不参与当前计数。",
              "",
              "> F1–F4 是 DEFERRED_BY_USER，不是失败、缺失或删除；"
              "历史完成项不追溯改标。", "",
@@ -412,6 +668,11 @@ def write_index(runids, out_root: Path, runids_path: Path, matrix_path=None):
               "不代表模型覆盖完整。",
               "- 历史全量视图（173/519）与活跃范围视图（80/240）分别记录；"
               "F1–F4 不是失败。",
+              f"- 当前工具重算：current_verified "
+              f"{summary['current_verified_seeds']}，failed "
+              f"{summary['current_verification_failed_seeds']}，missing "
+              f"{summary['missing_evidence_seeds']}，legacy-only "
+              f"{summary['legacy_report_only_seeds']}。",
               "", "详细状态见 `INDEX.md` / `INDEX.json`。", ""]
     (cr / "README.md").write_text("\n".join(readme), encoding="utf-8")
     return summary, rows
@@ -422,10 +683,18 @@ def main(argv=None):
     ap.add_argument("--runids-json", default=str(DEFAULT_RUNIDS))
     ap.add_argument("--out-root", default=str(DEFAULT_OUT))
     ap.add_argument("--matrix", default=str(DEFAULT_MATRIX))
+    ap.add_argument("--no-recompute", action="store_true",
+                    help="diagnostic only: use stored audit reports and mark "
+                         "every seed legacy_report_only")
+    ap.add_argument("--recompute-report", default=None,
+                    help="use a just-generated fsu_full_audit JSON (same "
+                         "current tool) instead of recomputing every stream")
     a = ap.parse_args(argv)
     runids = _load_runids(Path(a.runids_json))
     summary, _ = write_index(runids, Path(a.out_root),
-                             Path(a.runids_json), Path(a.matrix))
+                             Path(a.runids_json), Path(a.matrix),
+                             recompute=not a.no_recompute,
+                             recompute_report=a.recompute_report)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 
