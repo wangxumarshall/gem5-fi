@@ -1,7 +1,7 @@
 # FSU 当前工具全量复审
 
-- generated_at: `2026-11-05T01:00:01`
-- tool_git_sha: `37aed761a6801a18a3cbfcfc26cedd5fa23c9edd`
+- generated_at: `2026-11-05T02:11:53`
+- tool_git_sha: `b6a3336041306342091cbb3d30912282f25b157c`
 - schema_version: `fsu-full-audit/v1`
 
 | 范围 | total | current_verified | legacy_report_only | current_verification_failed | missing_evidence |
