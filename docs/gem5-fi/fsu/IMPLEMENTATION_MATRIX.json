@@ -2,8 +2,8 @@
   "summary": {
     "generated_from": "/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/gem5-fi-FSU单元故障注入方案_逐RunID传播监控.xlsx",
     "baseline_commit": "46ce66cdb9c22f5e591b43b97b68c7d526704211",
-    "current_head": "d27be05fc65c2650f7a33e305f488c08601674ec",
-    "current_binary_sha256": "fececf6f9dc4b1c6f837f2d792f91bb6cad277428e709aaa1354dbcbb733cd6c",
+    "current_head": "aac1750e704f8eb1a626be25fb06beb318b49399",
+    "current_binary_sha256": "b494ad64badc406343ff1f6c7d7a397cb9bf97f166eefb5753d825b1033c74ca",
     "baseline_gap": [
       {
         "id": "gem5_binary_missing",
@@ -54,15 +54,15 @@
       }
     ],
     "current_status": {
-      "head": "d27be05fc65c2650f7a33e305f488c08601674ec",
+      "head": "aac1750e704f8eb1a626be25fb06beb318b49399",
       "head_note": "probe-time HEAD；本文件由其后继提交写入，故最终 HEAD 通常是该值的子提交",
       "branch": "fsu",
       "gem5_binary": {
         "path": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
         "exists": true,
-        "sha256": "fececf6f9dc4b1c6f837f2d792f91bb6cad277428e709aaa1354dbcbb733cd6c",
-        "size": 1235262104,
-        "mtime": 1793790303.1102934
+        "sha256": "b494ad64badc406343ff1f6c7d7a397cb9bf97f166eefb5753d825b1033c74ca",
+        "size": 1235192880,
+        "mtime": 1793793892.9665442
       },
       "fsu_prop_emitter": {
         "implemented": true,
@@ -285,19 +285,19 @@
       }
     },
     "seed_index": {
-      "admitted_seeds_total": 50,
+      "admitted_seeds_total": 53,
       "target_seeds": 519,
       "suite_seed_dirs": 18,
       "suite_seed_admitted": 18,
       "component_runs_in_admitted_suites": 72,
       "seed_completion_counts": {
-        "0/3": 156,
+        "0/3": 155,
         "2/3": 1,
-        "3/3": 16
+        "3/3": 17
       },
-      "active_admitted_seeds": 41,
+      "active_admitted_seeds": 44,
       "active_seed_target": 240,
-      "active_complete_runids": 13,
+      "active_complete_runids": 14,
       "active_runids": 80
     },
     "resolved_by_commit": [
@@ -381,9 +381,9 @@
       "FSU-FP04-F0-W4"
     ],
     "seed_completion_counts": {
-      "0/3": 156,
+      "0/3": 155,
       "2/3": 1,
-      "3/3": 16
+      "3/3": 17
     },
     "f5_readiness_counts": {
       "PARTIAL_2_OF_3": 1,
@@ -398,9 +398,9 @@
     },
     "coverage_dimensions": {
       "seed_completion": {
-        "admitted_seeds": 50,
+        "admitted_seeds": 53,
         "target_seeds": 519,
-        "complete_runids": 16
+        "complete_runids": 17
       },
       "frequency_coverage": {
         "F0": "3/3",
@@ -7534,18 +7534,18 @@
       "fsu_fields_model_focus": "writer sn/FU、correct/bus/stored hash、dest tag、ready/wakeup、所有后继读",
       "cross_unit_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；arch_reg + reg_class + phys_reg + reg_generation；IQ slot/src_slot + producer_seq/consumer_seq；opClass + FU_class/FU_index。禁止只按tick、PC或寄存器索引单键连接。",
       "test_status": "已有 24 个 FSU 测试文件（编排/链/rate/F5/vec-stuck）；30 模型逐模型行为测试未齐全",
-      "three_seed_status": "0/3",
-      "seed_completion": "0/3",
-      "seed_completion_count": 0,
+      "three_seed_status": "3/3",
+      "seed_completion": "3/3",
+      "seed_completion_count": 3,
       "seed_completion_source": "fsu_index.scan: AUTHORITATIVE + audit.ok; W5 suite seed counts 1",
       "seed_states": {
-        "1": "pending",
-        "2": "pending",
-        "3": "pending"
+        "1": "admitted",
+        "2": "admitted",
+        "3": "admitted"
       },
       "f5_readiness": null,
       "coverage_status": "PARTIAL",
-      "coverage_reason": "injector/model only partially covers the workbook submodels; no 3-seed evidence for this RunID",
+      "coverage_reason": "certified 3/3 under the real PRF-WB data-boundary hook v2 (lane2 sign, two-bit, FP32 mantissa field); W3 workload is a real 4-lane NEON kernel. Coverage limited to lane2; other lanes/fields not covered",
       "pilot": false,
       "baseline_blockers": [
         "无 gem5 二进制：/home/sdc/gem5-fi-fsu/build/ARM/gem5.opt 不存在，任何 RunID 都无法运行",

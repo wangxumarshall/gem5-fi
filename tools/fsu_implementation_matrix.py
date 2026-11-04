@@ -761,6 +761,12 @@ def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
                 "not run (0/3): FP06-F5-W1 gate/formal seeds are not "
                 "complete; the F5 permanent semantics exist in code but "
                 "cannot be certified for this RunID")
+    if runid == "FSU-FR07-F0-W3":
+        return ("PARTIAL",
+                "certified 3/3 under the real PRF-WB data-boundary hook v2 "
+                "(lane2 sign, two-bit, FP32 mantissa field); W3 workload is a "
+                "real 4-lane NEON kernel. Coverage limited to lane2; other "
+                "lanes/fields not covered")
     if runid == "FSU-FR07-F0-W1":
         # 2026-11-04: real PRF-WB data-boundary hook (v2) implemented and
         # gated; the three formal seeds were re-run under the hook. The old

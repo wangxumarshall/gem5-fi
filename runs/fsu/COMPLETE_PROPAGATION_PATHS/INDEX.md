@@ -1,23 +1,23 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-04T19:28:44；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-04T20:25:12；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 ## 历史全量视图（source registry）
 
 - 总 RunID：**173**
 - 目标 seed：**519**
-- 已完成合格 seed：**50**
+- 已完成合格 seed：**53**
 - suite seed（5 component run 只计 1 seed）：目录 18，admitted 18，component run 72（不进入 seed 总数）
-- COMPLETE_3_OF_3：**16**
-- seed_completion：0/3 156、2/3 1、3/3 16
+- COMPLETE_3_OF_3：**17**
+- seed_completion：0/3 155、2/3 1、3/3 17
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、COMPLETE 6、PARTIAL 68、PILOT_SUBMODEL_ONLY 1
-- 1/3：0；2/3：1；0/3：156
+- 1/3：0；2/3：1；0/3：155
 
 ## 当前活跃范围视图（F0/F5）
 
 - active_frequencies：['F0', 'F5']
 - 活跃 RunID：**80**；目标 seed：**240**
-- 活跃范围已完成 seed：**41**；3/3 RunID：**13**
+- 活跃范围已完成 seed：**44**；3/3 RunID：**14**
 - DEFERRED_BY_USER RunID：90
 - HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE RunID：3（seed 9）
 
@@ -105,7 +105,7 @@
 | FSU-FR06-F2-W3 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR06-F2-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR07-F0-W1 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
-| FSU-FR07-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
+| FSU-FR07-F0-W3 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FR07-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR07-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR07-F2-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |

@@ -64,7 +64,8 @@ def test_every_runid_has_required_fields():
                     "FSU-FR03-F5-W6": "3/3",
                     # Real PRF-WB hook seeds; the old proxy attempt is
                     # preserved but superseded.
-                    "FSU-FR07-F0-W1": "3/3"}.get(r["runid"], "0/3")
+                    "FSU-FR07-F0-W1": "3/3",
+                    "FSU-FR07-F0-W3": "3/3"}.get(r["runid"], "0/3")
         assert r["three_seed_status"] == expected
         assert r["seed_completion"] == expected
         assert r["audited_status"] in ("IMPLEMENTED", "PARTIAL", "MISSING")
