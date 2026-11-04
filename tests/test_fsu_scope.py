@@ -1,5 +1,6 @@
 """Active-scope (F0/F5) policy, dual-view index, and runner gate tests."""
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -96,3 +97,60 @@ def test_index_dual_view_counts():
             == "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE")
     assert by_id["FSU-FP04-F2-W5"]["scope_class"] == "DEFERRED_BY_USER"
     assert by_id["FSU-FP04-F1-W4"]["status"] == "COMPLETE_3_OF_3"
+
+
+def _campaign_payload(run_id):
+    return {
+        "schema_version": "arm-chaos-fi/v1",
+        "campaign_id": "fsu_scope_gate_test",
+        "run_id": run_id,
+        "grid": {"target_index": [0]},
+        "n_per_cell": 1,
+        "workload": {"binary": "/bin/true"},
+    }
+
+
+def _write_campaign(path, run_id):
+    path.write_text(json.dumps(_campaign_payload(run_id), indent=2),
+                    encoding="utf-8")
+    return path
+
+
+def _run_campaign_dry(path):
+    return subprocess.run(
+        [sys.executable, str(ROOT / "tools/campaign.py"), str(path), "--dry"],
+        cwd=ROOT, capture_output=True, text=True, timeout=120)
+
+
+def test_campaign_gate_accepts_only_active_frequencies():
+    for f in ("F0", "F5"):
+        assert S.deferred_frequencies_in(
+            _campaign_payload(f"FSU-X-{f}-W1")) == []
+    for f in ("F1", "F2", "F3", "F4"):
+        assert S.deferred_frequencies_in(
+            _campaign_payload(f"FSU-X-{f}-W1")) == [f]
+
+
+@pytest.mark.parametrize("freq", ["F1", "F2", "F3", "F4"])
+def test_campaign_rejects_deferred_frequency_before_gem5(tmp_path, freq):
+    yaml_path = _write_campaign(tmp_path / "campaign.json",
+                                f"FSU-FP04-{freq}-W4")
+    r = _run_campaign_dry(yaml_path)
+    out = r.stdout + r.stderr
+    assert r.returncode != 0
+    assert "frequency outside active scope" in out
+    assert "DEFERRED_BY_USER" in out
+    # gate runs before schema expansion / gem5 and creates no run directory
+    assert not (ROOT / "runs/fsu_scope_gate_test").exists()
+
+
+@pytest.mark.parametrize("freq", ["F0", "F5"])
+def test_campaign_accepts_active_frequency(tmp_path, freq):
+    yaml_path = _write_campaign(tmp_path / "campaign.json",
+                                f"FSU-FP06-{freq}-W4")
+    r = _run_campaign_dry(yaml_path)
+    out = r.stdout + r.stderr
+    assert "frequency outside active scope" not in out
+    # The minimal payload intentionally lacks required campaign fields, so it
+    # stops at schema validation — proof that it passed the frequency gate.
+    assert "schema validation FAILED" in out

@@ -56,6 +56,21 @@ def enforce_active_freq(freq: str, runid: str = "", scope=None):
         f"policy=DEFERRED_BY_USER (not a failure)")
 
 
+RUNID_FREQ_RE = re.compile(r"FSU-[A-Za-z0-9]+-(F\d+)-W\d+")
+
+
+def deferred_frequencies_in(obj, scope=None):
+    """Frequencies referenced by RunIDs inside a campaign payload that are
+    outside the active scope, sorted. Empty list == gate passes.
+
+    Shared by tools/campaign.py so the YAML-wide frequency gate and its
+    regression tests use one implementation.
+    """
+    scope = scope or load_scope()
+    freqs = set(RUNID_FREQ_RE.findall(json.dumps(obj)))
+    return sorted(f for f in freqs if not is_active_freq(f, scope))
+
+
 def scope_status(freq: str, admitted_seeds: int, scope=None):
     """Map a RunID's completion to the active-scope vocabulary."""
     scope = scope or load_scope()

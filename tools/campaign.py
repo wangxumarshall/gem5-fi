@@ -1398,9 +1398,7 @@ def main():
         campaign = yaml.safe_load(f)
 
     # [FSU][D3] Active-scope gate: F0/F5 only. F1-F4 are DEFERRED_BY_USER.
-    _rid_freqs = set(re.findall(
-        r"FSU-[A-Za-z0-9]+-(F\d+)-W\d+", json.dumps(campaign)))
-    _deferred = sorted(f for f in _rid_freqs if not _SCOPE.is_active_freq(f))
+    _deferred = _SCOPE.deferred_frequencies_in(campaign)
     if _deferred and not args.scope_test_mode:
         sys.exit("[campaign] frequency outside active scope: "
                  f"{_deferred}; active=F0,F5; policy=DEFERRED_BY_USER. "
