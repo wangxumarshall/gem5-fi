@@ -49,7 +49,7 @@ def src(path):
 
 def main():
     print("[1] 观测端契约：P06 链复用既有 kind（无新 kind）+ 必录字段")
-    chain_kinds = ["inj", "pf_fill", "pf_demand", "cache_access",
+    chain_kinds = ["inj", "pf_fill", "pf_demand", "pf_class", "cache_access",
                    "mshr_fill", "cache_fill", "mshr_free", "resp",
                    "lq_complete", "taint_reg", "consumer", "errant_commit",
                    "chain_end"]
@@ -64,10 +64,17 @@ def main():
           and "corr" not in P.REQUIRED_FIELDS.get("pf_demand", []),
           str((P.REQUIRED_FIELDS.get("pf_fill"),
                P.REQUIRED_FIELDS.get("pf_demand"))))
-    check("P06 无新 kind（inj/分类值经 before/after 表达，KIND_LAYER 无 "
-          "pf_fill_class 事件 kind）",
-          "pf_fill_class" not in P.KIND_LAYER,
-          str(P.KIND_LAYER.get("pf_fill_class")))
+    # [R6-P-P06-SCHEMA-v2 2026-11-04] Versioned monitoring-schema revision.
+    # The old "P06 adds no kind" rule was an internal observation limitation;
+    # the fault semantics are unchanged (one prefetch-owned fill classified
+    # demand, inj.before/after still carries the pair).  The unit-side L1
+    # observation is now the REAL fill-classification event `pf_class`.
+    # The L1 impersonation gate is NOT weakened: cache_access stays forbidden.
+    check("P06-a 监控 schema v2：pf_class 单元侧 L1 观察点已注册",
+          P.KIND_LAYER.get("pf_class") == "L1",
+          str(P.KIND_LAYER.get("pf_class")))
+    check("旧 L1 门槛保留：cache_access 仍不得冒充 pf 族 L1",
+          "cache_access" in CC._FORCED_L1_KINDS)
 
     # 合成 P06 链（真实发射顺序）：inj(fill 分类门击发, corr=origin,
     # before/after=分类对 prefetch->demand——本模型的被故障值) →
@@ -105,8 +112,11 @@ def main():
         "dyn_inst_seq=99617 phys_reg=5 arch_reg=5 corr=addr_fallback",
         "PROP-EVT: kind=consumer fault_id=1 event_id=10 tick=47120000 "
         "dyn_inst_seq=99620 phys_reg=5 arch_reg=5 corr=taint_prop",
+        # [R6-GATE-D1] L5 evidence must name its layer/outcome; the old
+        # fixture omitted them (a test defect, not a chain-shape claim).
         "PROP-EVT: kind=errant_commit fault_id=1 event_id=11 tick=47121000 "
-        "dyn_inst_seq=99620 corr=taint_prop",
+        "dyn_inst_seq=99620 detection_layer=L5 outcome=errant_commit "
+        "contained=0 corr=taint_prop",
         "PROP-EVT: kind=chain_end fault_id=1 event_id=12 tick=90000000 "
         "outcome=Masked detection_layer=software contained=0 corr=none",
     ]]
@@ -129,14 +139,80 @@ def main():
           f"before={inj['before']} after={inj['after']}")
     check("inj field=pf_fill_class（值类型语义钉死）",
           inj["field"] == "pf_fill_class", inj["field"])
+    # The flat 13-event fixture above has NO parent_event_id edges: it pins
+    # kinds/fields only and cannot prove a chain.  The real DAG proof and
+    # admission are covered by the schema-v2 chain below (explicit parents).
     v = CC.check_chain(chain)
     f1 = v["faults"]["1"]
-    check("P06 链 L0→L4 全边 proven → full",
-          f1["terminal"] == "full", f1["terminal"])
-    check("P06 链 provable_to=L5（chain_end 在案）",
-          f1["provable_to"] == "L5", str(f1["provable_to"]))
-    check("P06 链 beyond 为空（闭合终局）", f1["beyond"] == "",
-          f1["beyond"])
+    check("扁平夹具只钉字段/解析（不作为链证明）",
+          f1["terminal"] == "provable_to_L0_then_unknown",
+          f1["terminal"])
+
+    # [R6-P-P06-SCHEMA-v2] Real P06 chain with the unit-side pf_class L1.
+    # This is the chain shape the real fill-classification site emits; it
+    # must pass the SAME strict admission gate (L1 = unit observation).
+    schema2 = [P.parse_line(l) for l in [
+        "PROP-EVT: kind=inj fault_id=1 event_id=0 parent_event_id= tick=1 "
+        "va=537536 before=prefetch after=demand cache_line=537536 "
+        "field=pf_fill_class corr=origin",
+        "PROP-EVT: kind=pf_class fault_id=1 event_id=1 parent_event_id=0 "
+        "tick=2 pf_request_id=7 va=537536 field=pf_fill_class "
+        "before=prefetch after=demand state_after=demand corr=origin",
+        "PROP-EVT: kind=cache_access fault_id=1 event_id=2 "
+        "parent_event_id=1 tick=3 va=537536 pa=537536 corr=addr_fallback",
+        "PROP-EVT: kind=mshr_fill fault_id=1 event_id=3 parent_event_id=2 "
+        "tick=4 cache_line=537536 mshr_id=2 fill_id=4 "
+        "corr=addr_fallback state_after=filled",
+        "PROP-EVT: kind=cache_fill fault_id=1 event_id=4 parent_event_id=3 "
+        "tick=4 pa=537536 cache_line=537536 fill_id=4 corr=addr_fallback",
+        "PROP-EVT: kind=mshr_free fault_id=1 event_id=5 parent_event_id=4 "
+        "tick=4 cache_line=537536 mshr_id=2 corr=addr_fallback "
+        "state_after=mshr_freed",
+        "PROP-EVT: kind=pf_fill fault_id=1 event_id=6 parent_event_id=5 "
+        "tick=5 pf_request_id=7 pa=537536 cache_line=537536 fill_id=4 "
+        "corr=addr_fallback state_after=filled",
+        "PROP-EVT: kind=pf_demand fault_id=1 event_id=7 parent_event_id=6 "
+        "tick=6 pf_request_id=7 dyn_inst_seq=99617 request_id=99617 "
+        "pa=537536 field=demand_hit corr=addr_fallback",
+        "PROP-EVT: kind=resp fault_id=1 event_id=8 parent_event_id=7 "
+        "tick=7 dyn_inst_seq=99617 request_id=99617 corr=addr_fallback",
+        "PROP-EVT: kind=lq_complete fault_id=1 event_id=9 parent_event_id=8 "
+        "tick=7 dyn_inst_seq=99617 lq_idx=8051 va=537536 pa=537536 "
+        "request_id=99617 corr=addr_fallback",
+        "PROP-EVT: kind=taint_reg fault_id=1 event_id=10 parent_event_id=9 "
+        "tick=8 dyn_inst_seq=99617 phys_reg=5 arch_reg=5 corr=addr_fallback",
+        "PROP-EVT: kind=consumer fault_id=1 event_id=11 parent_event_id=10 "
+        "tick=9 dyn_inst_seq=99620 phys_reg=5 arch_reg=5 corr=taint_prop",
+        "PROP-EVT: kind=errant_commit fault_id=1 event_id=12 "
+        "parent_event_id=11 tick=10 dyn_inst_seq=99620 detection_layer=L5 "
+        "outcome=errant_commit contained=0 corr=taint_prop",
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=13 parent_event_id=12 "
+        "tick=11 outcome=errant_commit_seen detection_layer=None "
+        "contained=0 corr=none",
+    ]]
+    v2 = CC.check_chain(schema2)
+    f2 = v2["faults"]["1"]
+    check("schema-v2 P06 链 terminal=full", f2["terminal"] == "full",
+          f2["terminal"])
+    adm2 = CC.check_admission({"run_id": "P06-F0-W6", "activated": 1,
+                               "events": schema2, "rc": 0,
+                               "oracle_outcome": "Masked"})
+    check("schema-v2 P06 链准入 full_chain（L1=pf_class 单元观察点）",
+          adm2["admitted"] is True and adm2["path"] == "full_chain",
+          str(adm2["violations"]))
+    # Negative: without pf_class the same chain's L1 is cache_access and the
+    # old gate must still reject it (no weakening of the L1 rule).
+    neg = [dict(e) for e in schema2 if e["kind"] != "pf_class"]
+    for e in neg:
+        if e["kind"] == "cache_access":
+            e["parent_event_id"] = "0"
+    admn = CC.check_admission({"run_id": "P06-F0-W6", "activated": 1,
+                               "events": neg, "rc": 0,
+                               "oracle_outcome": "Masked"})
+    check("schema-v2 负例：无 pf_class 时 cache_access 冒充 L1 仍被拒",
+          admn["admitted"] is False
+          and any("cache_access_faked_l1" in v
+                  for v in admn["violations"]), str(admn["violations"]))
 
     print("[2] L0 注入行契约（_INJ_RE 可解析的新行格式）")
     inj_line = ("Tick: 47008115, Site: P06_fill_class_mark, "

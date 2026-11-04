@@ -479,8 +479,29 @@ namespace gem5
         if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
             const uint64_t h5_ptag =
                 h5->registerPfFillClassFault(line, blk_size);
-            if (h5_ptag)
-                h5->notePrefetchRequest(line, blk_size);
+            if (h5_ptag) {
+                const uint64_t h5_pfid =
+                    h5->notePrefetchRequest(line, blk_size);
+                // [R6-P-P06-SCHEMA-v2] Unit-side L1 observation at the REAL
+                // fill-classification site.  The fault VALUE is still the
+                // prefetch->demand classification pair (also on the inj's
+                // before/after); this event only gives the pf-family chain
+                // its own L1 witness, so a cache structural event never has
+                // to impersonate the unit observation.  Fault semantics and
+                // the L1 admission gate are unchanged.
+                std::ostringstream class_hex;
+                class_hex << std::hex << line;
+                h5->notePropEvt("pf_class", {
+                    {"fault_id", std::to_string(h5_ptag)},
+                    {"pf_request_id", std::to_string(h5_pfid)},
+                    {"corr", "origin"},
+                    {"va", class_hex.str()},
+                    {"field", "pf_fill_class"},
+                    {"before", "prefetch"},
+                    {"after", "demand"},
+                    {"state_after", "demand"},
+                });
+            }
         }
 
         // L0 injection detail line — lsu_obs_core._INJ_RE contract

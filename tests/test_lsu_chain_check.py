@@ -1431,6 +1431,46 @@ def main():
           _r["admitted"] is True and _r["path"] == "full_chain",
           str(_r["violations"]))
 
+    print("[23b] lineage bridge negative cases")
+    import copy
+
+    def _variant(mut):
+        evs = copy.deepcopy(pf_bridge)
+        mut(evs)
+        return evs, {e["event_id"]: e for e in evs}
+
+    def _find(evs, kind):
+        return next(e for e in evs if e.get("kind") == kind)
+
+    evs, by = _variant(lambda es: _find(es, "request_fork").update(
+        {"new_request_id": "4294967297"}))
+    _, issues = CC._validate_bridges(evs, by, "pf")
+    check("(23b) 同一请求（old==new）不得充当血缘桥",
+          any("两端 request_id" in i for i in issues), str(issues))
+
+    evs, by = _variant(lambda es: _find(es, "mshr_fill").update(
+        {"cache_line": "99999"}))
+    _, issues = CC._validate_bridges(evs, by, "pf")
+    check("(23b) dest 不触及声明共享地址不得通过",
+          any("未被 dest" in i for i in issues), str(issues))
+
+    evs, by = _variant(lambda es: _find(es, "pf_fill").update(
+        {"cache_line": "99999"}))
+    _, issues = CC._validate_bridges(evs, by, "pf")
+    check("(23b) source 不触及声明共享地址不得通过",
+          any("未被 source" in i for i in issues), str(issues))
+
+    evs, by = _variant(lambda es: _find(es, "mshr_fill").update(
+        {"parent_event_id": "0"}))
+    _, issues = CC._validate_bridges(evs, by, "pf")
+    check("(23b) 独立分支（dest 不挂在桥下）不得通过",
+          any("父子边不连" in i for i in issues), str(issues))
+
+    evs, by = _variant(lambda es: _find(es, "mshr_fill").update(
+        {"tick": "0"}))
+    f = CC.check_chain(evs)["faults"]["1"]
+    check("(23b) 逆时桥不得闭合链", f["terminal"] != "full", f["terminal"])
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

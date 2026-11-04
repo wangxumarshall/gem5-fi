@@ -167,6 +167,14 @@ KIND_LAYER = {
     # [MDSPEC][H5] prefetch 链（训练 L1 → 队列/发射 L2 → fill L3 → demand L4）
     "pf_train": "L1", "pf_queue": "L2", "pf_issue": "L2",
     "pf_fill": "L3", "pf_demand": "L4",
+    # [MDSPEC][R6-P-P06-SCHEMA-v2 2026-11-04] P06-a unit-side L1 observation
+    # point at the REAL fill-classification site.  The fault semantics are
+    # unchanged (one prefetch-owned fill is classified demand; the inj's
+    # before/after still carries the pair).  The earlier "P06 adds no kind"
+    # rule was a monitoring-schema limitation; this versioned kind replaces
+    # it so the pf family's L1 is the unit's own observation, not a cache
+    # structural event.  cache_access remains FORBIDDEN as pf-family L1.
+    "pf_class": "L1",
     # [MDSPEC][H6] atomic 事件链
     "atomic_op": "L2",
     # [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE 原子读改写（SwapReq 提交点，
@@ -342,6 +350,9 @@ REQUIRED_FIELDS = {
     # pf_queue/pf_issue 仅在故障链关联（ptag>0）时发射 → corr 必录；
     # pf_fill/pf_demand 允许 fault_id=0（仅预取请求链）→ corr 可空。
     "pf_train": ["fault_id", "pf_request_id", "pc", "before", "after"],
+    # [R6-P-P06-SCHEMA-v2] unit-side L1 classification observation.
+    "pf_class": ["fault_id", "pf_request_id", "corr", "va", "field",
+                 "before", "after"],
     "pf_queue": ["fault_id", "corr", "pf_request_id", "va", "entry_index"],
     "pf_issue": ["fault_id", "corr", "pf_request_id", "va"],
     "pf_fill": ["fault_id", "pf_request_id", "pa", "cache_line"],
