@@ -1,0 +1,147 @@
+# FSU-FR07-F0-W5 seed3878236598384145833 审计
+
+- attempt：`attempt-1`
+- sample_run_id：`s3878236598384145833`
+
+| 项 | 值 |
+|---|---|
+| gzip EOF 完整 | True（ok） |
+| event_count | 8 |
+| 身份一致 | True |
+| 单祖先直接 parent | True |
+| tick 单调 | True |
+| 层映射 | L0, L1, L2, L3, L4, L5；N/A=[] |
+| L5 witness | {'event_id': '6', 'kind': 'commit', 'outcome': 'errant_commit'} |
+| oracle | SDC |
+| chain terminal | full |
+| stats 非空 | True |
+| 无跨 seed 复制 | True |
+| decode_guard | True |
+| decoded / legacy roots | 1 / 0 |
+| admitted（主 fault） | True |
+| certified（全 fault 门禁） | True |
+| fault 数 | 1 |
+| 所有 fault admitted | True |
+| 所有 fault certified | True |
+| violations（主 fault） | [] |
+
+## 逐 fault 审计
+
+| fault | terminal | admitted | certified | direct parent | tick 单调 | layers | violations |
+|---|---|---|---|---|---|---|---|
+| 1 | full | True | True | True | True | L0, L1, L2, L3, L4, L5 | [] |
+
+## 边（主 fault）
+
+- `0` → `1`：✓
+- `1` → `3`：✓
+- `3` → `4`：✓
+- `4` → `5`：✓
+- `5` → `6`：✓
+- `6` → `7`：✓
+
+## 证据 SHA-256
+
+| 文件 | SHA-256 |
+|---|---|
+| `FSU-FR07-F0-W5-seed3878236598384145833.md` | `be6712010e3c3a5f2286fc5791a050f6f592f34b468339cc7d08b7b434388837` |
+| `census.err` | `34be856a34c5b83967fba3dc4dc9bf29f70b5508c4d27c42439d2ae7c6bfe6e8` |
+| `census.out` | `7a55aea8b3bd6b834ffcf1c6fe9cc2ccaedf2a273080432cce8f8a5121ab862c` |
+| `census/citations.bib` | `107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5` |
+| `census/config.ini` | `9d8456d53b58e4f835161d5bc2b55d7e66f9990009c27023ba19dc508d5e1485` |
+| `census/config.json` | `1360d7cd07bdef8fb7cbd4f7004462ea103e847964f76f0db66ac37e6b66bdf4` |
+| `census/fpu_injections.log` | `6f9016e280ba460670039429e9f0a0256e393cfb5396ebdc914d8115f6905b8f` |
+| `census/stats.txt` | `b8a0902dae93855f4706790f055b8593b53d0edbd1956b712290f44d07b48657` |
+| `chain_report.json` | `123806ad3184a7a89d0ec78682f454d932288a83df375338724b19b0fcd76dac` |
+| `component_manifest.json` | `60d4dbeb1772b039cd9f4760a2656babadc19c78e1b13d607e187e47f452e5b8` |
+| `inject/array.bin` | `3aa74fab8f6e3af625d67d51053a63ff3c3e3adfd1a3084e15232db19e5d225a` |
+| `inject/citations.bib` | `107591e44a9aaf00921aa25e1ff6542570e2a7eb81536764c828f6646f2a8dd5` |
+| `inject/config.ini` | `8a6b2b8d822599fd3d0b8b8f0181980d5809fcef68b7da3662eb6b5f2f126411` |
+| `inject/config.json` | `3c02b101a98af0546397f8266b6cd384af8ac9c9c49231e3713a58db24ae061d` |
+| `inject/fpu_injections.log` | `37761d3443b1321aa4105ba90ded5a8ae8f578d4f9bbe1ecba251c242ef9e5fe` |
+| `inject/prop_evt.txt.gz` | `0415c3c96224c6dac52a84503ee1b336f11e137f9ce1e502460010b5e49e4020` |
+| `inject/prop_trace.csv.gz` | `bac917a242450d5cba2c51cf61351aab9afb86ce96c89ed567f6bd9d6a9efafe` |
+| `inject/stats.txt` | `344d7cced971be9697a295fd05d9e56e64fd6114783979c4cccecc9ac2e1dd05` |
+| `manifest.json` | `160eebd204f2b7e96dbe3b47505e4551ff7ae3bb37fcf3550b5f2444e0ae77e9` |
+| `oracle.json` | `93d99e88b2f09f783fc247ba3d20cc1f0d14ff1a4de80f7962491808f05bd896` |
+| `oracle_elements.json` | `ad979b9e4afc9362eef8a007d5a586918b2ac8d92d732af9a57350a3254b365a` |
+| `run.err` | `34be856a34c5b83967fba3dc4dc9bf29f70b5508c4d27c42439d2ae7c6bfe6e8` |
+| `run.out` | `bf7ae8d33cac79392003978cc7b43f02573d7774588b52082c076e394e5638d9` |
+| `stats.txt` | `344d7cced971be9697a295fd05d9e56e64fd6114783979c4cccecc9ac2e1dd05` |
+
+## 审计检查
+
+| 检查 | 结果 |
+|---|---|
+| seed Markdown 存在 | PASS |
+| RunID 一致 | PASS |
+| seed/sample_run_id 一致 | PASS |
+| workload 二进制身份一致 | PASS |
+| gem5 二进制身份一致 | PASS |
+| 源码 HEAD 一致 | PASS |
+| prop_evt 存在 | PASS |
+| prop_evt 未截断（reason=ok） | PASS |
+| 事件身份全为本 seed（越界 0） | PASS |
+| scheduled(1) = fault_roots(1) | PASS |
+| 每个 injected fault 均真实激活 | PASS |
+| fault 1 字段/lane/mask 语义 | PASS |
+| fault 1 真实指令解码匹配 | PASS |
+| decode_guard: 所有 root 含真实解码字段 | PASS |
+| 事件 model_id 与 manifest 一致 | PASS |
+| 事件 submodel 与 manifest 一致 | PASS |
+| 事件 freq 与 manifest 一致 | PASS |
+| 事件 load_id 与 manifest 一致 | PASS |
+| fault 1 全链 field 一致 | PASS |
+| 重算 admitted_faults 一致 | PASS |
+| 重算 truncated 一致 | PASS |
+| 事件流 fault 数 = 注入数 | PASS |
+| 所有 fault 均 admitted | PASS |
+| 所有 fault 均 certified | PASS |
+| fault 1 terminal 一致 | PASS |
+| fault 1 violations 一致 | PASS |
+| fault 1 admitted 一致 | PASS |
+| fault 1 certified 一致 | PASS |
+| fault 1 F5 计数/去重/守恒校验 | PASS |
+| MD event 0 存在于原始流 | PASS |
+| MD event 0 kind 一致 | PASS |
+| MD event 0 parent 一致 | PASS |
+| MD event 1 存在于原始流 | PASS |
+| MD event 1 kind 一致 | PASS |
+| MD event 1 parent 一致 | PASS |
+| MD event 3 存在于原始流 | PASS |
+| MD event 3 kind 一致 | PASS |
+| MD event 3 parent 一致 | PASS |
+| MD event 4 存在于原始流 | PASS |
+| MD event 4 kind 一致 | PASS |
+| MD event 4 parent 一致 | PASS |
+| MD event 5 存在于原始流 | PASS |
+| MD event 5 kind 一致 | PASS |
+| MD event 5 parent 一致 | PASS |
+| MD event 6 存在于原始流 | PASS |
+| MD event 6 kind 一致 | PASS |
+| MD event 6 parent 一致 | PASS |
+| MD event 7 存在于原始流 | PASS |
+| MD event 7 kind 一致 | PASS |
+| MD event 7 parent 一致 | PASS |
+| 链 admitted=True | PASS |
+| 链 certified=True | PASS |
+| 链 violations=[] | PASS |
+| 存在 admitted fault | PASS |
+| MD 逐 fault 终局表存在（legacy 单 fault 行） | PASS |
+| fault 1 MD 覆盖主链全部事件 | PASS |
+| fault 1 MD/原始流 direct parent | PASS |
+| fault 1 MD 逐 fault 终局行存在 | PASS |
+| fault 1 MD terminal 一致 | PASS |
+| fault 1 MD admitted 一致 | PASS |
+| fault 1 MD certified 一致 | PASS |
+| MD terminal 与 chain_report 一致 | PASS |
+| MD admitted/certified 与 chain_report 一致 | PASS |
+| evidence_sha256.json 存在 | PASS |
+| 证据 SHA-256 全部匹配（失配 0） | PASS |
+| stats.txt 非空 | PASS |
+| B0 运行态配置匹配（census） | PASS |
+| B0 运行态配置匹配（inject） | PASS |
+| admitted=True | PASS |
+| violations=[] | PASS |
+
+**结论：PASS**

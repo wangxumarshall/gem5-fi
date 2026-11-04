@@ -1,0 +1,157 @@
+{
+  "run_id": "FSU-FR07-F0-W5",
+  "model_id": "FR07",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W5",
+  "submodel": "FR07-c",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/ooo/polybench/lu/lu",
+    "source": "workloads/ooo/polybench/linear-algebra/solvers/lu/lu.c",
+    "identity": "W5-polybench-lu-v1",
+    "golden": "74ffe5eb77ea9257",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/lu.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "lu",
+        "golden_id": "polybenchlu-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          84,
+          84
+        ],
+        "count": 7056,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fault_mask": "0x80000001",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "prf_wb_hook": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec",
+      "permanent_stuck": false,
+      "stuck_polarity": 0,
+      "f5_warmup": 0,
+      "f5_sample_limit": 0,
+      "f5_keep_first_last_n": 0
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1-fr07-hook",
+    "suite_version": "1",
+    "suite_hash": "cddba2cccf3ca90cb40695ea242bf8688ff178f505b3c48cf76b8e1143b0aa29",
+    "suite_seed": 2,
+    "program_id": "lu",
+    "program_index": 2,
+    "program_count": 5,
+    "component_seed": 7654021900423392529,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "notes": "W5 suite component run: exactly one program and exactly one injected fault; not a formal suite seed by itself.",
+  "program_override": null,
+  "effective_injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fault_mask": "0x80000001",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "prf_wb_hook": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec",
+      "permanent_stuck": false,
+      "stuck_polarity": 0,
+      "f5_warmup": 0,
+      "f5_sample_limit": 0,
+      "f5_keep_first_last_n": 0
+    }
+  },
+  "seed_plan_entry": {
+    "suite_seed": 2,
+    "submodel": "FR07-c",
+    "mask": "0x80000001",
+    "polarity": 0,
+    "warmup": 0,
+    "sample": {
+      "limit": 0,
+      "keep_first_last_n": 0
+    },
+    "op_classes": [
+      "FloatAdd",
+      "FloatMult",
+      "FloatMultAcc",
+      "FloatDiv",
+      "FloatSqrt"
+    ],
+    "reg_class": "vec",
+    "decode_guard": true,
+    "permanent_stuck": false,
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  },
+  "pre_registration": {
+    "suite_seed": 2,
+    "submodel": "FR07-c",
+    "mask": "0x80000001",
+    "polarity": 0,
+    "warmup": 0,
+    "sample": {
+      "limit": 0,
+      "keep_first_last_n": 0
+    },
+    "op_classes": [
+      "FloatAdd",
+      "FloatMult",
+      "FloatMultAcc",
+      "FloatDiv",
+      "FloatSqrt"
+    ],
+    "reg_class": "vec",
+    "decode_guard": true,
+    "permanent_stuck": false,
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  }
+}

@@ -23,11 +23,11 @@
       mismatch 与非 FP 负例 eligible=0；squash 真实事件链。
 - [x] gate 报告 `docs/gem5-fi/fsu/FR07-PRF-WB-HOOK.md`。
 
-## Task 3 — 正式 seed（待做）
+## Task 3 — 正式 seed（已完成）
 
-- [ ] 预注册真实 hook 的 FR07-F0-W1 seed1/2/3（新 attempt，保留 proxy）。
-- [ ] seed1 L0–L5 + audit.ok 后再 seed2/seed3。
-- [ ] 通过后 FR07-F0-W3 / W5 走同一 hook；W5 每 suite seed 只计 1。
+- [x] 预注册真实 hook 的 FR07-F0-W1 seed1/2/3（新 attempt，保留 proxy）。
+- [x] seed1 L0–L5 + audit.ok 后再 seed2/seed3。
+- [x] 通过后 FR07-F0-W3 / W5 走同一 hook；W5 每 suite seed 只计 1。
 
 ## 验证命令
 

@@ -7,7 +7,7 @@
 > 均已 admitted。2026-11-04 FR07 位置审计后，`FSU-FR07-F0-W1` 的旧 3 个
 > execute-post-write attempt 保留为 `PROXY_EVIDENCE`（不计认证）；该 RunID
 > 已用真实 PRF-WB 数据边界 hook 重跑 seed1/2/3 并全部认证。磁盘严格计数为
-> **53/519**。
+> **56/519**。
 > 数据源：`runs/fsu` 的 AUTHORITATIVE + audit 证据、
 > `runs/fsu/COMPLETE_PROPAGATION_PATHS/INDEX.json`、
 > `IMPLEMENTATION_MATRIX.json`、`W4-RATE-V1.md`、`F3-MULTIFAULT-GATE.md`。
@@ -18,15 +18,15 @@
 
 | 项 | 值 |
 |---|---:|
-| 已完成合格 seed | **53 / 519** |
-| seed-complete RunID | **17 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1/W3/W5/W6`、`FSU-FP06-F5-W1/W3/W4/W5/W6`、`FSU-FR03-F5-W5/W6`，均 3/3；suite seed 的 component 只计 1） |
+| 已完成合格 seed | **56 / 519** |
+| seed-complete RunID | **18 / 173**（F0/F1/F2/F3-W4、`FSU-FP04-F0-W1/W3/W5/W6`、`FSU-FP06-F5-W1/W3/W4/W5/W6`、`FSU-FR03-F5-W5/W6`，均 3/3；suite seed 的 component 只计 1） |
 | 部分完成 RunID | **1 / 173**（`FSU-FR03-F5-W3` 2/3） |
 | PROXY_EVIDENCE（保留的旧 attempt） | **3**（`FSU-FR07-F0-W1` execute-post-write；已由真实 hook seed 取代认证） |
 | 其余 157 个 RunID | 0/3 |
 
 > **活跃范围裁决（2026-11-03）**：ACTIVE = F0/F5。源注册表仍为
-> 173 RunID / 519 seed（历史视图 53/519，17 个 RunID 3/3）；当前活跃范围
-> 为 **80 RunID / 240 seed**，其中已完成 **44 seed / 14 RunID**（F0-W1、
+> 173 RunID / 519 seed（历史视图 56/519，18 个 RunID 3/3）；当前活跃范围
+> 为 **80 RunID / 240 seed**，其中已完成 **47 seed / 15 RunID**（F0-W1、
 > F0-W3、F0-W4、F0-W5、F0-W6、FP06-F5-W1、FP06-F5-W3、FP06-F5-W4、
 > FP06-F5-W5、FP06-F5-W6、FR03-F5-W5、FR03-F5-W6）。F1–F4 为
 > **DEFERRED_BY_USER**（不是失败/缺失/删除）；F1/F2/F3-W4 的历史完成标为

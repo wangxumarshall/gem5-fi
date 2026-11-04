@@ -78,3 +78,18 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-HOOK-FP32
   --seed 1 --out-root runs/fsu-gates/FR07-HOOK-GATE-FINAL
 # FP64 / W3 lane / dual-bit / squash / negatives 同理
 ```
+
+## 7. 正式 seed 结果（真实 hook）
+
+| RunID | seed | 结果 | 关键证据 |
+|---|---|---|---|
+| FSU-FR07-F0-W1 | 1/2/3 | admitted/full/SDC；audit ok | FP32 sign、双 bit、FP32 mantissa field；injection_site=prf_wb_data |
+| FSU-FR07-F0-W3 | 1/2/3 | admitted/full/SDC；audit ok | lane2 sign（bit95）、lane2 bits31+0、lane2 FP32 mantissa field；其他 lane 逐字节不变 |
+| FSU-FR07-F0-W5 | 1/2/3（suite） | suite_admitted=True，5/5 component；每 suite seed 计 1 | 五程序 fixed suite；component 事件均 injection_site=prf_wb_data；suite_hash cddba2cc… |
+
+计数：历史 **56/519 seed、18/173 RunID**；活跃 F0/F5 **47/240、15/80**。
+suite seed 21、component 87；旧 FR07-W1 proxy attempt 保留但不计认证。
+
+`runs/fsu/FSU-FR07-F0-W1/seed{1,2,3}/attempt-2/`、
+`runs/fsu/FSU-FR07-F0-W3/seed{1,2,3}/attempt-1/`、
+`runs/fsu/FSU-FR07-F0-W5/seed{1,2,3}/`。

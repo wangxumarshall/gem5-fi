@@ -40,7 +40,7 @@
 | FSU-FR03-F5-W6 | COMPLETE_3_OF_3 | 3/3 | FR03 W6 三组件 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；9 component 只计 3 seed |
 
 > 双视图（磁盘权威，2026-11-04 FR07 位置审计后）：历史全量
-> **53/519 seed、17/173 RunID**；活跃 F0/F5 **44/240 seed、14/80 RunID**。
+> **56/519 seed、18/173 RunID**；活跃 F0/F5 **47/240 seed、15/80 RunID**。
 > FR07-F0-W1 的旧 3 个 execute-post-write attempt 保留为 PROXY_EVIDENCE；
 > 该 RunID 已用真实 PRF-WB hook 重新认证。F5 自身 23 seed / 8 RunID 不受影响。suite seed 3 个对应 15 个
 > component run，component **不进入** seed 总数。

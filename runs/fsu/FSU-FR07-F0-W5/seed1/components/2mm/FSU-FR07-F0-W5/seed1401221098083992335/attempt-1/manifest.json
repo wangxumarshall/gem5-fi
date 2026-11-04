@@ -1,0 +1,169 @@
+{
+  "run_id": "FSU-FR07-F0-W5",
+  "model_id": "FR07",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W5",
+  "submodel": "FR07-a",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/ooo/polybench/2mm/2mm",
+    "source": "workloads/ooo/polybench/linear-algebra/kernels/2mm/2mm.c",
+    "identity": "W5-polybench-2mm-v1",
+    "golden": "41ebd3d0a77ab3d2",
+    "oracle_kind": "exact_hash",
+    "oracle_tol": 0,
+    "element_oracle": {
+      "golden_array": "configs/fsu/suites/polybench-fp-v1/golden/2mm.bin",
+      "oracle_version": "polybench-element-v1",
+      "meta": {
+        "program_id": "2mm",
+        "golden_id": "polybench2mm-golden-v1",
+        "oracle_version": "polybench-element-v1",
+        "dtype": "fp32",
+        "layout": "row-major",
+        "endianness": "little",
+        "shape": [
+          72,
+          72
+        ],
+        "count": 5184,
+        "domain": "full",
+        "abs_tol": 0.0,
+        "rel_tol": 0.0,
+        "ulp_tol": 0
+      }
+    }
+  },
+  "injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fault_mask": "0x80000000",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "prf_wb_hook": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec",
+      "permanent_stuck": false,
+      "stuck_polarity": 0,
+      "f5_warmup": 0,
+      "f5_sample_limit": 0,
+      "f5_keep_first_last_n": 0
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "component": {
+    "suite_id": "polybench-fp-v1-fr07-hook",
+    "suite_version": "1",
+    "suite_hash": "cddba2cccf3ca90cb40695ea242bf8688ff178f505b3c48cf76b8e1143b0aa29",
+    "suite_seed": 1,
+    "program_id": "2mm",
+    "program_index": 1,
+    "program_count": 5,
+    "component_seed": 1401221098083992335,
+    "component_seed_policy_version": "w5-component-seed-v1"
+  },
+  "notes": "W5 suite component run: exactly one program and exactly one injected fault; not a formal suite seed by itself.",
+  "program_override": null,
+  "effective_injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fault_mask": "0x80000000",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "prf_wb_hook": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec",
+      "permanent_stuck": false,
+      "stuck_polarity": 0,
+      "f5_warmup": 0,
+      "f5_sample_limit": 0,
+      "f5_keep_first_last_n": 0
+    }
+  },
+  "seed_plan_entry": {
+    "suite_seed": 1,
+    "submodel": "FR07-a",
+    "mask": "0x80000000",
+    "polarity": 0,
+    "warmup": 0,
+    "sample": {
+      "limit": 0,
+      "keep_first_last_n": 0
+    },
+    "op_classes": [
+      "FloatAdd",
+      "FloatMult",
+      "FloatMultAcc",
+      "FloatDiv",
+      "FloatSqrt"
+    ],
+    "reg_class": "vec",
+    "decode_guard": true,
+    "permanent_stuck": false,
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  },
+  "pre_registration": {
+    "suite_seed": 1,
+    "submodel": "FR07-a",
+    "mask": "0x80000000",
+    "polarity": 0,
+    "warmup": 0,
+    "sample": {
+      "limit": 0,
+      "keep_first_last_n": 0
+    },
+    "op_classes": [
+      "FloatAdd",
+      "FloatMult",
+      "FloatMultAcc",
+      "FloatDiv",
+      "FloatSqrt"
+    ],
+    "reg_class": "vec",
+    "decode_guard": true,
+    "permanent_stuck": false,
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  },
+  "seed": 1401221098083992335,
+  "sample_run_id": "s1401221098083992335",
+  "selection_seed": 1401221098083992335,
+  "injection_seed": 1401221098083992335,
+  "attempt": 1,
+  "created_at": "2026-11-04T20:30:10",
+  "source_head": "cda44cabded4db44b55421a96aa2fa19cd6fb8d5",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "b494ad64badc406343ff1f6c7d7a397cb9bf97f166eefb5753d825b1033c74ca",
+  "runner_tool_sha256": "0a10a67b6bac15dc997b22c640c9db8a06f78a015f4e1a9144201d01d1c92785",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/ooo/polybench/2mm/2mm",
+  "workload_sha256": "3d05bc1fad10f8730b559397e4be98de6dcfc499207689e056718642d2bf2f77"
+}

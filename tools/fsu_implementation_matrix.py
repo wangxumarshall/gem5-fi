@@ -761,6 +761,12 @@ def _coverage(runid, audited_status, workload_identity, seed_n, model=None):
                 "not run (0/3): FP06-F5-W1 gate/formal seeds are not "
                 "complete; the F5 permanent semantics exist in code but "
                 "cannot be certified for this RunID")
+    if runid == "FSU-FR07-F0-W5":
+        return ("PARTIAL",
+                "certified 3/3 suite seeds under the real PRF-WB hook v2 "
+                "(five-program PolyBench suite; 5 component runs per seed, "
+                "each suite seed counts ONE); masks FR07-a/c/d pre-registered. "
+                "Coverage limited to the fixed suite/scale")
     if runid == "FSU-FR07-F0-W3":
         return ("PARTIAL",
                 "certified 3/3 under the real PRF-WB data-boundary hook v2 "

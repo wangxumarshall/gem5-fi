@@ -1,7 +1,7 @@
 # F0 readiness 排序与已知缺陷复核（2026-11-04）
 
 > 范围：源注册表 **173 RunID** 中的 **72 个 F0 RunID**；排除已完成的 5 个 F0 RunID（`FSU-FP04-F0-W1/W3/W4/W5/W6`，各 3 seed）以及 F1–F4（DEFERRED_BY_USER）。
-> 剩余 **65 个 F0 RunID** 全部在本文排序。数据源：`runids.json`（sha256 `dbdb5962…ae5`）、`IMPLEMENTATION_MATRIX.json`、`CHAOS/gem5/src` 真实代码、`workloads/` 与 suite golden。
+> 剩余 **64 个 F0 RunID** 全部在本文排序。数据源：`runids.json`（sha256 `dbdb5962…ae5`）、`IMPLEMENTATION_MATRIX.json`、`CHAOS/gem5/src` 真实代码、`workloads/` 与 suite golden。
 > **2026-11-04 更新**：`FSU-FR07-F0-W1` 的旧 attempt 是
 > execute-post-write 代理（保留为 `PROXY_EVIDENCE`）；该 RunID 已用真实
 > PRF-WB 数据边界 hook v2 重跑 seed1/2/3 并全部认证，因此回到 completed，
@@ -43,71 +43,70 @@
 
 | # | RunID | 模型/负载 | 注入点 | 语义 | L0–L5 | Workload / oracle | 成本/风险 | 分 | 主要缺口 / 已知缺陷 |
 |---:|---|---|---|---|---|---|---|---:|---|
-| 1 | `FSU-FR07-F0-W5` | FR07/W5 | ✅ exact | 一致 | ✅ full | ◐ PARTIAL | S/低 | 8.0 | CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理） |
-| 2 | `FSU-FP07-F0-W4` | FP07/W4 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
-| 3 | `FSU-FP07-F0-W6` | FP07/W6 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
-| 4 | `FSU-FP05-F0-W6` | FP05/W6 | ◐ partial | 部分 | ✅ full | ✅ REAL | M/中 | 7.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
-| 5 | `FSU-FP07-F0-W5` | FP07/W5 | △ proxy | 代理 | ✅ full | ◐ PARTIAL | S/中 | 6.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
-| 6 | `FSU-FR01-F0-W1` | FR01/W1 | ✅ exact | 瞬态 | ◐ partial | ✅ REAL | M/中 | 6.5 | 真实 Vec 瞬态单 bit；L0/L1/overwrite 已发射，seed2 真实写覆盖终止；缺 L2/L5 完整覆盖与正式 3 seed |
-| 7 | `FSU-FR02-F0-W1` | FR02/W1 | ✅ exact | 瞬态 | ◐ partial | ✅ REAL | M/中 | 6.5 | 两个 bit 必互异（碰撞 fail closed）；L0/L1/overwrite 已发射；缺 L2/L5 完整覆盖与正式 3 seed |
-| 8 | `FSU-FP05-F0-W3` | FP05/W3 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
-| 9 | `FSU-FP05-F0-W5` | FP05/W5 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
-| 10 | `FSU-FP08-F0-W1` | FP08/W1 | ◐ partial | 部分 | ✗ none | ✅ REAL | M/中 | 4.0 | CHAOSFPU `roundingSub` 1-ULP 代理真实；该路径提前 return，不发射 PROP；`suppressed_count` 未输出；runner 无 fpsr 开关 |
-| 11 | `FSU-FR01-F0-W3` | FR01/W3 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层 |
-| 12 | `FSU-FR01-F0-W5` | FR01/W5 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层 |
-| 13 | `FSU-FR02-F0-W3` | FR02/W3 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg `bitsToChange=2`；random mask 可能把两个 bit 抽成同一个（实际 1 bit）；跨 lane/字段对缺失；无 PROP |
-| 14 | `FSU-FR02-F0-W5` | FR02/W5 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg `bitsToChange=2`；random mask 可能把两个 bit 抽成同一个（实际 1 bit）；跨 lane/字段对缺失；无 PROP |
-| 15 | `FSU-FQ01-F0-W5` | FQ01/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/中 | 3.5 | CHAOSIQ `tag_bitflip`(targetClass=vec) 真实改源 tag；缺 src0/src1 子模型选择、producer_sn/ready 证据；无 FSU PROP 根 |
-| 16 | `FSU-FQ02-F0-W5` | FQ02/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/中 | 3.5 | CHAOSIQ `tag_bitflip2` 选两个不同 tag bit；缺相邻/非相邻/跨子字段分类、target writer/首读者证据；无 FSU PROP 根 |
-| 17 | `FSU-FQ04-F0-W5` | FQ04/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/中 | 3.0 | `ready_early` 可作用 Vec；`ready_never/_event` 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；无 stale-ready/PROP |
-| 18 | `FSU-FP01-F0-W1` | FP01/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
-| 19 | `FSU-FP01-F0-W4` | FP01/W4 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
-| 20 | `FSU-FP02-F0-W1` | FP02/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | FP02 的故障位置是 **FSU 输入操作数总线**（同/邻/跨 lane 双 bit）；CHAOSFPU `faultMask` 只改**结果**目的 PRF，属错位代理；矩阵的 "结果侧粗粒度多位 XOR" 正是该代理，不能算输入操作数故障 |
-| 21 | `FSU-FP03-F0-W1` | FP03/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | 无 FSU op-select 换值；仅 CHAOSDecode 解码级 opcode swap 越界代理，且无 FSU 链 |
-| 22 | `FSU-FQ01-F0-W2` | FQ01/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.5 | CHAOSIQ `tag_bitflip`(targetClass=vec) 真实改源 tag；缺 src0/src1 子模型选择、producer_sn/ready 证据；无 FSU PROP 根；W2 本身无 true artifact |
-| 23 | `FSU-FQ02-F0-W2` | FQ02/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.5 | CHAOSIQ `tag_bitflip2` 选两个不同 tag bit；缺相邻/非相邻/跨子字段分类、target writer/首读者证据；无 FSU PROP 根；W2 本身无 true artifact |
-| 24 | `FSU-FQ06-F0-W1` | FQ06/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | `dispatch_misroute` 仅 IntAlu↔IntMult；FP/SIMD add↔mul pipe、compatible FU index 未实现；无 PROP |
-| 25 | `FSU-FQ08-F0-W5` | FQ08/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/高 | 2.5 | wake_omit/src_ready_bitflip/wake_phase 真实；无 PROP；FQ08-b 无 victim 仍计数，FQ08-c 延迟事件不随 squash 取消 |
-| 26 | `FSU-FP08-F0-W7` | FP08/W7 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.0 | CHAOSFPU `roundingSub` 1-ULP 代理真实；该路径提前 return，不发射 PROP；`suppressed_count` 未输出；runner 无 fpsr 开关；W7 本身无 FP artifact/golden |
-| 27 | `FSU-FP09-F0-W9` | FP09/W9 | ✗ missing | 缺失 | ✗ none | ✅ REAL | L/高 | 2.0 | 无 lane swap/rotate、元素宽度替代、mask 移位、新旧拼接注入 |
-| 28 | `FSU-FQ04-F0-W2` | FQ04/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.0 | `ready_early` 可作用 Vec；`ready_never/_event` 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；无 stale-ready/PROP；W2 本身无 true artifact |
-| 29 | `FSU-FR05-F0-W1` | FR05/W1 | ✗ missing | 缺失 | ✗ none | ✅ REAL | L/高 | 2.0 | 无 Vec 读端口输出 1-bit 翻转注入；regfile 只有只读计数 |
-| 30 | `FSU-FP01-F0-W3` | FP01/W3 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
-| 31 | `FSU-FP01-F0-W5` | FP01/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
-| 32 | `FSU-FP02-F0-W3` | FP02/W3 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | FP02 的故障位置是 **FSU 输入操作数总线**（同/邻/跨 lane 双 bit）；CHAOSFPU `faultMask` 只改**结果**目的 PRF，属错位代理；矩阵的 "结果侧粗粒度多位 XOR" 正是该代理，不能算输入操作数故障 |
-| 33 | `FSU-FP02-F0-W5` | FP02/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | FP02 的故障位置是 **FSU 输入操作数总线**（同/邻/跨 lane 双 bit）；CHAOSFPU `faultMask` 只改**结果**目的 PRF，属错位代理；矩阵的 "结果侧粗粒度多位 XOR" 正是该代理，不能算输入操作数故障 |
-| 34 | `FSU-FP03-F0-W5` | FP03/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | 无 FSU op-select 换值；仅 CHAOSDecode 解码级 opcode swap 越界代理，且无 FSU 链 |
-| 35 | `FSU-FQ06-F0-W3` | FQ06/W3 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | `dispatch_misroute` 仅 IntAlu↔IntMult；FP/SIMD add↔mul pipe、compatible FU index 未实现；无 PROP |
-| 36 | `FSU-FQ06-F0-W5` | FQ06/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | `dispatch_misroute` 仅 IntAlu↔IntMult；FP/SIMD add↔mul pipe、compatible FU index 未实现；无 PROP |
-| 37 | `FSU-FQ08-F0-W2` | FQ08/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/高 | 1.5 | wake_omit/src_ready_bitflip/wake_phase 真实；无 PROP；FQ08-b 无 victim 仍计数，FQ08-c 延迟事件不随 squash 取消；W2 本身无 true artifact |
-| 38 | `FSU-FP09-F0-W3` | FP09/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 lane swap/rotate、元素宽度替代、mask 移位、新旧拼接注入 |
-| 39 | `FSU-FP09-F0-W5` | FP09/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 lane swap/rotate、元素宽度替代、mask 移位、新旧拼接注入 |
-| 40 | `FSU-FP10-F0-W5` | FP10/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 completion early/late/drop/duplicate、result/dest swap、stale completion 注入 |
-| 41 | `FSU-FQ03-F0-W3` | FQ03/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 src0↔src1 配对交换；现有 tag_swap 是换成随机 producer，不是配对交换；无 PROP |
-| 42 | `FSU-FQ07-F0-W5` | FQ07/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 ready-list rank/age 注入；seqNum 只用于日志/tag_stuck |
-| 43 | `FSU-FQ09-F0-W5` | FQ09/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | `noteIqDeparture` 只读；无 issue→execute early/late/drop/duplicate/stale slot 注入 |
-| 44 | `FSU-FQ10-F0-W5` | FQ10/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 FU index 替代 / busy↔free / release lost 注入；无 FUPool 证据 |
-| 45 | `FSU-FR04-F0-W5` | FR04/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读地址/tag 替代到另一 active-ready Vec phys reg 的注入 API |
-| 46 | `FSU-FR05-F0-W3` | FR05/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口输出 1-bit 翻转注入；regfile 只有只读计数 |
-| 47 | `FSU-FR05-F0-W5` | FR05/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口输出 1-bit 翻转注入；regfile 只有只读计数 |
-| 48 | `FSU-FR06-F0-W3` | FR06/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口多位/跨 lane 翻转注入 |
-| 49 | `FSU-FR06-F0-W5` | FR06/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口多位/跨 lane 翻转注入 |
-| 50 | `FSU-FR08-F0-W5` | FR08/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 写目标 tag 替代/交换注入 |
-| 51 | `FSU-FR09-F0-W5` | FR09/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 write-enable/ready/wakeup 原子性（lost/early/late/split）注入 |
-| 52 | `FSU-FR10-F0-W3` | FR10/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | gem5 O3 无 bypass/forwarding mux hook，未实现 partial-lane merge 注入 |
-| 53 | `FSU-FR10-F0-W5` | FR10/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | gem5 O3 无 bypass/forwarding mux hook，未实现 partial-lane merge 注入 |
-| 54 | `FSU-FP10-F0-W2` | FP10/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 completion early/late/drop/duplicate、result/dest swap、stale completion 注入；W2 本身无 true artifact |
-| 55 | `FSU-FP10-F0-W7` | FP10/W7 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 completion early/late/drop/duplicate、result/dest swap、stale completion 注入；W7 本身无 FP artifact/golden |
-| 56 | `FSU-FQ03-F0-W2` | FQ03/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 src0↔src1 配对交换；现有 tag_swap 是换成随机 producer，不是配对交换；无 PROP；W2 本身无 true artifact |
-| 57 | `FSU-FQ05-F0-W2` | FQ05/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 valid/issued/squashed 注入 API；IQ slot 生命周期/occupancy 守恒无证据；W2 本身无 true artifact |
-| 58 | `FSU-FQ05-F0-W7` | FQ05/W7 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 valid/issued/squashed 注入 API；IQ slot 生命周期/occupancy 守恒无证据；W7 本身无 FP artifact/golden |
-| 59 | `FSU-FQ07-F0-W2` | FQ07/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 ready-list rank/age 注入；seqNum 只用于日志/tag_stuck；W2 本身无 true artifact |
-| 60 | `FSU-FQ09-F0-W2` | FQ09/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | `noteIqDeparture` 只读；无 issue→execute early/late/drop/duplicate/stale slot 注入；W2 本身无 true artifact |
-| 61 | `FSU-FQ10-F0-W2` | FQ10/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 FU index 替代 / busy↔free / release lost 注入；无 FUPool 证据；W2 本身无 true artifact |
-| 62 | `FSU-FR04-F0-W2` | FR04/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 Vec 读地址/tag 替代到另一 active-ready Vec phys reg 的注入 API；W2 本身无 true artifact |
-| 63 | `FSU-FR08-F0-W2` | FR08/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 Vec 写目标 tag 替代/交换注入；W2 本身无 true artifact |
-| 64 | `FSU-FR09-F0-W2` | FR09/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 write-enable/ready/wakeup 原子性（lost/early/late/split）注入；W2 本身无 true artifact |
-| 65 | `FSU-FR10-F0-W2` | FR10/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | gem5 O3 无 bypass/forwarding mux hook，未实现 partial-lane merge 注入；W2 本身无 true artifact |
+| 1 | `FSU-FP07-F0-W4` | FP07/W4 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
+| 2 | `FSU-FP07-F0-W6` | FP07/W6 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
+| 3 | `FSU-FP05-F0-W6` | FP05/W6 | ◐ partial | 部分 | ✅ full | ✅ REAL | M/中 | 7.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
+| 4 | `FSU-FP07-F0-W5` | FP07/W5 | △ proxy | 代理 | ✅ full | ◐ PARTIAL | S/中 | 6.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
+| 5 | `FSU-FR01-F0-W1` | FR01/W1 | ✅ exact | 瞬态 | ◐ partial | ✅ REAL | M/中 | 6.5 | 真实 Vec 瞬态单 bit；L0/L1/overwrite 已发射，seed2 真实写覆盖终止；缺 L2/L5 完整覆盖与正式 3 seed |
+| 6 | `FSU-FR02-F0-W1` | FR02/W1 | ✅ exact | 瞬态 | ◐ partial | ✅ REAL | M/中 | 6.5 | 两个 bit 必互异（碰撞 fail closed）；L0/L1/overwrite 已发射；缺 L2/L5 完整覆盖与正式 3 seed |
+| 7 | `FSU-FP05-F0-W3` | FP05/W3 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
+| 8 | `FSU-FP05-F0-W5` | FP05/W5 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
+| 9 | `FSU-FP08-F0-W1` | FP08/W1 | ◐ partial | 部分 | ✗ none | ✅ REAL | M/中 | 4.0 | CHAOSFPU `roundingSub` 1-ULP 代理真实；该路径提前 return，不发射 PROP；`suppressed_count` 未输出；runner 无 fpsr 开关 |
+| 10 | `FSU-FR01-F0-W3` | FR01/W3 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层 |
+| 11 | `FSU-FR01-F0-W5` | FR01/W5 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg vec `bit_flip` 真实；但 bit_flip 路径不 arm、不发射 FSU PROP，无 generation/consumer 证据；仅 ≤64-bit lane，无 128-bit/FP 字段分层 |
+| 12 | `FSU-FR02-F0-W3` | FR02/W3 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg `bitsToChange=2`；random mask 可能把两个 bit 抽成同一个（实际 1 bit）；跨 lane/字段对缺失；无 PROP |
+| 13 | `FSU-FR02-F0-W5` | FR02/W5 | ◐ partial | 部分 | ◐ partial | ◐ PARTIAL | M/中 | 4.0 | CHAOSPhysReg `bitsToChange=2`；random mask 可能把两个 bit 抽成同一个（实际 1 bit）；跨 lane/字段对缺失；无 PROP |
+| 14 | `FSU-FQ01-F0-W5` | FQ01/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/中 | 3.5 | CHAOSIQ `tag_bitflip`(targetClass=vec) 真实改源 tag；缺 src0/src1 子模型选择、producer_sn/ready 证据；无 FSU PROP 根 |
+| 15 | `FSU-FQ02-F0-W5` | FQ02/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/中 | 3.5 | CHAOSIQ `tag_bitflip2` 选两个不同 tag bit；缺相邻/非相邻/跨子字段分类、target writer/首读者证据；无 FSU PROP 根 |
+| 16 | `FSU-FQ04-F0-W5` | FQ04/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/中 | 3.0 | `ready_early` 可作用 Vec；`ready_never/_event` 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；无 stale-ready/PROP |
+| 17 | `FSU-FP01-F0-W1` | FP01/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
+| 18 | `FSU-FP01-F0-W4` | FP01/W4 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
+| 19 | `FSU-FP02-F0-W1` | FP02/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | FP02 的故障位置是 **FSU 输入操作数总线**（同/邻/跨 lane 双 bit）；CHAOSFPU `faultMask` 只改**结果**目的 PRF，属错位代理；矩阵的 "结果侧粗粒度多位 XOR" 正是该代理，不能算输入操作数故障 |
+| 20 | `FSU-FP03-F0-W1` | FP03/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | 无 FSU op-select 换值；仅 CHAOSDecode 解码级 opcode swap 越界代理，且无 FSU 链 |
+| 21 | `FSU-FQ01-F0-W2` | FQ01/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.5 | CHAOSIQ `tag_bitflip`(targetClass=vec) 真实改源 tag；缺 src0/src1 子模型选择、producer_sn/ready 证据；无 FSU PROP 根；W2 本身无 true artifact |
+| 22 | `FSU-FQ02-F0-W2` | FQ02/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.5 | CHAOSIQ `tag_bitflip2` 选两个不同 tag bit；缺相邻/非相邻/跨子字段分类、target writer/首读者证据；无 FSU PROP 根；W2 本身无 true artifact |
+| 23 | `FSU-FQ06-F0-W1` | FQ06/W1 | △ wrong-site | 错位 | ✗ none | ✅ REAL | L/高 | 2.5 | `dispatch_misroute` 仅 IntAlu↔IntMult；FP/SIMD add↔mul pipe、compatible FU index 未实现；无 PROP |
+| 24 | `FSU-FQ08-F0-W5` | FQ08/W5 | ◐ partial | 部分 | ✗ none | ◐ PARTIAL | M/高 | 2.5 | wake_omit/src_ready_bitflip/wake_phase 真实；无 PROP；FQ08-b 无 victim 仍计数，FQ08-c 延迟事件不随 squash 取消 |
+| 25 | `FSU-FP08-F0-W7` | FP08/W7 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.0 | CHAOSFPU `roundingSub` 1-ULP 代理真实；该路径提前 return，不发射 PROP；`suppressed_count` 未输出；runner 无 fpsr 开关；W7 本身无 FP artifact/golden |
+| 26 | `FSU-FP09-F0-W9` | FP09/W9 | ✗ missing | 缺失 | ✗ none | ✅ REAL | L/高 | 2.0 | 无 lane swap/rotate、元素宽度替代、mask 移位、新旧拼接注入 |
+| 27 | `FSU-FQ04-F0-W2` | FQ04/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/中 | 2.0 | `ready_early` 可作用 Vec；`ready_never/_event` 硬编码拒绝 FP/vector（CHAOSIQ.cc:745）；无 stale-ready/PROP；W2 本身无 true artifact |
+| 28 | `FSU-FR05-F0-W1` | FR05/W1 | ✗ missing | 缺失 | ✗ none | ✅ REAL | L/高 | 2.0 | 无 Vec 读端口输出 1-bit 翻转注入；regfile 只有只读计数 |
+| 29 | `FSU-FP01-F0-W3` | FP01/W3 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
+| 30 | `FSU-FP01-F0-W5` | FP01/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | CHAOSFPU 仅结果侧 XOR；A/B/C 操作数注入缺失（错注入点） |
+| 31 | `FSU-FP02-F0-W3` | FP02/W3 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | FP02 的故障位置是 **FSU 输入操作数总线**（同/邻/跨 lane 双 bit）；CHAOSFPU `faultMask` 只改**结果**目的 PRF，属错位代理；矩阵的 "结果侧粗粒度多位 XOR" 正是该代理，不能算输入操作数故障 |
+| 32 | `FSU-FP02-F0-W5` | FP02/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | FP02 的故障位置是 **FSU 输入操作数总线**（同/邻/跨 lane 双 bit）；CHAOSFPU `faultMask` 只改**结果**目的 PRF，属错位代理；矩阵的 "结果侧粗粒度多位 XOR" 正是该代理，不能算输入操作数故障 |
+| 33 | `FSU-FP03-F0-W5` | FP03/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | 无 FSU op-select 换值；仅 CHAOSDecode 解码级 opcode swap 越界代理，且无 FSU 链 |
+| 34 | `FSU-FQ06-F0-W3` | FQ06/W3 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | `dispatch_misroute` 仅 IntAlu↔IntMult；FP/SIMD add↔mul pipe、compatible FU index 未实现；无 PROP |
+| 35 | `FSU-FQ06-F0-W5` | FQ06/W5 | △ wrong-site | 错位 | ✗ none | ◐ PARTIAL | L/高 | 1.5 | `dispatch_misroute` 仅 IntAlu↔IntMult；FP/SIMD add↔mul pipe、compatible FU index 未实现；无 PROP |
+| 36 | `FSU-FQ08-F0-W2` | FQ08/W2 | ◐ partial | 部分 | ✗ none | ✗ 无真实产物 | M/高 | 1.5 | wake_omit/src_ready_bitflip/wake_phase 真实；无 PROP；FQ08-b 无 victim 仍计数，FQ08-c 延迟事件不随 squash 取消；W2 本身无 true artifact |
+| 37 | `FSU-FP09-F0-W3` | FP09/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 lane swap/rotate、元素宽度替代、mask 移位、新旧拼接注入 |
+| 38 | `FSU-FP09-F0-W5` | FP09/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 lane swap/rotate、元素宽度替代、mask 移位、新旧拼接注入 |
+| 39 | `FSU-FP10-F0-W5` | FP10/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 completion early/late/drop/duplicate、result/dest swap、stale completion 注入 |
+| 40 | `FSU-FQ03-F0-W3` | FQ03/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 src0↔src1 配对交换；现有 tag_swap 是换成随机 producer，不是配对交换；无 PROP |
+| 41 | `FSU-FQ07-F0-W5` | FQ07/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 ready-list rank/age 注入；seqNum 只用于日志/tag_stuck |
+| 42 | `FSU-FQ09-F0-W5` | FQ09/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | `noteIqDeparture` 只读；无 issue→execute early/late/drop/duplicate/stale slot 注入 |
+| 43 | `FSU-FQ10-F0-W5` | FQ10/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 FU index 替代 / busy↔free / release lost 注入；无 FUPool 证据 |
+| 44 | `FSU-FR04-F0-W5` | FR04/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读地址/tag 替代到另一 active-ready Vec phys reg 的注入 API |
+| 45 | `FSU-FR05-F0-W3` | FR05/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口输出 1-bit 翻转注入；regfile 只有只读计数 |
+| 46 | `FSU-FR05-F0-W5` | FR05/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口输出 1-bit 翻转注入；regfile 只有只读计数 |
+| 47 | `FSU-FR06-F0-W3` | FR06/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口多位/跨 lane 翻转注入 |
+| 48 | `FSU-FR06-F0-W5` | FR06/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 读端口多位/跨 lane 翻转注入 |
+| 49 | `FSU-FR08-F0-W5` | FR08/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 Vec 写目标 tag 替代/交换注入 |
+| 50 | `FSU-FR09-F0-W5` | FR09/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | 无 write-enable/ready/wakeup 原子性（lost/early/late/split）注入 |
+| 51 | `FSU-FR10-F0-W3` | FR10/W3 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | gem5 O3 无 bypass/forwarding mux hook，未实现 partial-lane merge 注入 |
+| 52 | `FSU-FR10-F0-W5` | FR10/W5 | ✗ missing | 缺失 | ✗ none | ◐ PARTIAL | L/高 | 1.0 | gem5 O3 无 bypass/forwarding mux hook，未实现 partial-lane merge 注入 |
+| 53 | `FSU-FP10-F0-W2` | FP10/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 completion early/late/drop/duplicate、result/dest swap、stale completion 注入；W2 本身无 true artifact |
+| 54 | `FSU-FP10-F0-W7` | FP10/W7 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 completion early/late/drop/duplicate、result/dest swap、stale completion 注入；W7 本身无 FP artifact/golden |
+| 55 | `FSU-FQ03-F0-W2` | FQ03/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 src0↔src1 配对交换；现有 tag_swap 是换成随机 producer，不是配对交换；无 PROP；W2 本身无 true artifact |
+| 56 | `FSU-FQ05-F0-W2` | FQ05/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 valid/issued/squashed 注入 API；IQ slot 生命周期/occupancy 守恒无证据；W2 本身无 true artifact |
+| 57 | `FSU-FQ05-F0-W7` | FQ05/W7 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 valid/issued/squashed 注入 API；IQ slot 生命周期/occupancy 守恒无证据；W7 本身无 FP artifact/golden |
+| 58 | `FSU-FQ07-F0-W2` | FQ07/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 ready-list rank/age 注入；seqNum 只用于日志/tag_stuck；W2 本身无 true artifact |
+| 59 | `FSU-FQ09-F0-W2` | FQ09/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | `noteIqDeparture` 只读；无 issue→execute early/late/drop/duplicate/stale slot 注入；W2 本身无 true artifact |
+| 60 | `FSU-FQ10-F0-W2` | FQ10/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 FU index 替代 / busy↔free / release lost 注入；无 FUPool 证据；W2 本身无 true artifact |
+| 61 | `FSU-FR04-F0-W2` | FR04/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 Vec 读地址/tag 替代到另一 active-ready Vec phys reg 的注入 API；W2 本身无 true artifact |
+| 62 | `FSU-FR08-F0-W2` | FR08/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 Vec 写目标 tag 替代/交换注入；W2 本身无 true artifact |
+| 63 | `FSU-FR09-F0-W2` | FR09/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | 无 write-enable/ready/wakeup 原子性（lost/early/late/split）注入；W2 本身无 true artifact |
+| 64 | `FSU-FR10-F0-W2` | FR10/W2 | ✗ missing | 缺失 | ✗ none | ✗ 无真实产物 | L/高 | 0.0 | gem5 O3 无 bypass/forwarding mux hook，未实现 partial-lane merge 注入；W2 本身无 true artifact |
 
 > 认证状态：本表 67 个 RunID 的 `seed_completion` 都是 0/3；所有“注入点存在”都只是代码事实，**不是正式认证**。唯一的 F0 已完成项是 `FSU-FP04-F0-W1/W3/W4/W5/W6`（各 3/3）。
 
@@ -256,7 +255,7 @@ gem5 squash gate 尚待主 agent 运行。
 
 ## 5. 下一试点与最小验证
 
-**建议下一试点：`FSU-FR07-F0-W5`**（真实 PRF-WB hook 已在 W1 认证；W3 使用同一 hook + 预注册 lane mask）。顺序：
+**建议下一试点：`FSU-FP07-F0-W4`**（FR07 的 W1/W3/W5 已在真实 PRF-WB hook 下认证；FP07 是独立模型族，仍为行为代理）。顺序：
 
 1. 模型行为 host 测试：目的 PRF XOR、mask 精确、`fault_applied` 根与 L2–L5 发射存在；
 2. 非正式 gate（`/tmp`，不写 `runs/fsu`，不计 seed）：1 个 seed，chain audit + oracle 分类；
@@ -265,7 +264,7 @@ gem5 squash gate 尚待主 agent 运行。
 **最小验证命令**（需先创建 FR07 manifest；不产生正式 seed）：
 
 ```bash
-python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.json --seed 1 --out-root /tmp/fsu-fr07-w3-gate
+python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-HOOK-LANE-GATE.json --seed 1 --out-root /tmp/fsu-fr07-w3-gate
 ```
 
 或直接最小 gem5 观察（非正式）：
@@ -296,30 +295,17 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
     "FSU-FP04-F0-W5",
     "FSU-FP04-F0-W6",
     "FSU-FR07-F0-W1",
-    "FSU-FR07-F0-W3"
+    "FSU-FR07-F0-W3",
+    "FSU-FR07-F0-W5"
   ],
-  "remaining_f0_count": 65,
+  "remaining_f0_count": 64,
   "scoring": "injector(exact3/partial2/proxy2/wrong1/none0)+chain(full3/partial1/none0)+workload(real3/partial2/none1)-cost(S0/M0.5/L1)-known_defect_penalty",
   "rows": [
-    {
-      "runid": "FSU-FR07-F0-W5",
-      "model_id": "FR07",
-      "load_id": "W5",
-      "rank": 1,
-      "score": 8.0,
-      "tier": "T1",
-      "injector": "exact",
-      "chain": "full",
-      "workload": "partial",
-      "cost": "S",
-      "risk": "low",
-      "gap": "CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理）"
-    },
     {
       "runid": "FSU-FP07-F0-W4",
       "model_id": "FP07",
       "load_id": "W4",
-      "rank": 2,
+      "rank": 1,
       "score": 7.5,
       "tier": "T1",
       "injector": "proxy",
@@ -333,7 +319,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP07-F0-W6",
       "model_id": "FP07",
       "load_id": "W6",
-      "rank": 3,
+      "rank": 2,
       "score": 7.5,
       "tier": "T1",
       "injector": "proxy",
@@ -347,7 +333,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP05-F0-W6",
       "model_id": "FP05",
       "load_id": "W6",
-      "rank": 4,
+      "rank": 3,
       "score": 7.0,
       "tier": "T1",
       "injector": "partial",
@@ -361,7 +347,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP07-F0-W5",
       "model_id": "FP07",
       "load_id": "W5",
-      "rank": 5,
+      "rank": 4,
       "score": 6.5,
       "tier": "T2",
       "injector": "proxy",
@@ -375,7 +361,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR01-F0-W1",
       "model_id": "FR01",
       "load_id": "W1",
-      "rank": 6,
+      "rank": 5,
       "score": 6.5,
       "tier": "T2",
       "injector": "exact",
@@ -389,7 +375,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR02-F0-W1",
       "model_id": "FR02",
       "load_id": "W1",
-      "rank": 7,
+      "rank": 6,
       "score": 6.5,
       "tier": "T2",
       "injector": "exact",
@@ -403,7 +389,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP05-F0-W3",
       "model_id": "FP05",
       "load_id": "W3",
-      "rank": 8,
+      "rank": 7,
       "score": 6.0,
       "tier": "T2",
       "injector": "partial",
@@ -417,7 +403,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP05-F0-W5",
       "model_id": "FP05",
       "load_id": "W5",
-      "rank": 9,
+      "rank": 8,
       "score": 6.0,
       "tier": "T2",
       "injector": "partial",
@@ -431,7 +417,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP08-F0-W1",
       "model_id": "FP08",
       "load_id": "W1",
-      "rank": 10,
+      "rank": 9,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -445,7 +431,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR01-F0-W3",
       "model_id": "FR01",
       "load_id": "W3",
-      "rank": 11,
+      "rank": 10,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -459,7 +445,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR01-F0-W5",
       "model_id": "FR01",
       "load_id": "W5",
-      "rank": 12,
+      "rank": 11,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -473,7 +459,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR02-F0-W3",
       "model_id": "FR02",
       "load_id": "W3",
-      "rank": 13,
+      "rank": 12,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -487,7 +473,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR02-F0-W5",
       "model_id": "FR02",
       "load_id": "W5",
-      "rank": 14,
+      "rank": 13,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -501,7 +487,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ01-F0-W5",
       "model_id": "FQ01",
       "load_id": "W5",
-      "rank": 15,
+      "rank": 14,
       "score": 3.5,
       "tier": "T3",
       "injector": "partial",
@@ -515,7 +501,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ02-F0-W5",
       "model_id": "FQ02",
       "load_id": "W5",
-      "rank": 16,
+      "rank": 15,
       "score": 3.5,
       "tier": "T3",
       "injector": "partial",
@@ -529,7 +515,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ04-F0-W5",
       "model_id": "FQ04",
       "load_id": "W5",
-      "rank": 17,
+      "rank": 16,
       "score": 3.0,
       "tier": "T3",
       "injector": "partial",
@@ -543,7 +529,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP01-F0-W1",
       "model_id": "FP01",
       "load_id": "W1",
-      "rank": 18,
+      "rank": 17,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -557,7 +543,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP01-F0-W4",
       "model_id": "FP01",
       "load_id": "W4",
-      "rank": 19,
+      "rank": 18,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -571,7 +557,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP02-F0-W1",
       "model_id": "FP02",
       "load_id": "W1",
-      "rank": 20,
+      "rank": 19,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -585,7 +571,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP03-F0-W1",
       "model_id": "FP03",
       "load_id": "W1",
-      "rank": 21,
+      "rank": 20,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -599,7 +585,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ01-F0-W2",
       "model_id": "FQ01",
       "load_id": "W2",
-      "rank": 22,
+      "rank": 21,
       "score": 2.5,
       "tier": "T4",
       "injector": "partial",
@@ -613,7 +599,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ02-F0-W2",
       "model_id": "FQ02",
       "load_id": "W2",
-      "rank": 23,
+      "rank": 22,
       "score": 2.5,
       "tier": "T4",
       "injector": "partial",
@@ -627,7 +613,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ06-F0-W1",
       "model_id": "FQ06",
       "load_id": "W1",
-      "rank": 24,
+      "rank": 23,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -641,7 +627,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ08-F0-W5",
       "model_id": "FQ08",
       "load_id": "W5",
-      "rank": 25,
+      "rank": 24,
       "score": 2.5,
       "tier": "T4",
       "injector": "partial",
@@ -655,7 +641,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP08-F0-W7",
       "model_id": "FP08",
       "load_id": "W7",
-      "rank": 26,
+      "rank": 25,
       "score": 2.0,
       "tier": "T4",
       "injector": "partial",
@@ -669,7 +655,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP09-F0-W9",
       "model_id": "FP09",
       "load_id": "W9",
-      "rank": 27,
+      "rank": 26,
       "score": 2.0,
       "tier": "T4",
       "injector": "none",
@@ -683,7 +669,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ04-F0-W2",
       "model_id": "FQ04",
       "load_id": "W2",
-      "rank": 28,
+      "rank": 27,
       "score": 2.0,
       "tier": "T4",
       "injector": "partial",
@@ -697,7 +683,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR05-F0-W1",
       "model_id": "FR05",
       "load_id": "W1",
-      "rank": 29,
+      "rank": 28,
       "score": 2.0,
       "tier": "T4",
       "injector": "none",
@@ -711,7 +697,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP01-F0-W3",
       "model_id": "FP01",
       "load_id": "W3",
-      "rank": 30,
+      "rank": 29,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -725,7 +711,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP01-F0-W5",
       "model_id": "FP01",
       "load_id": "W5",
-      "rank": 31,
+      "rank": 30,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -739,7 +725,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP02-F0-W3",
       "model_id": "FP02",
       "load_id": "W3",
-      "rank": 32,
+      "rank": 31,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -753,7 +739,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP02-F0-W5",
       "model_id": "FP02",
       "load_id": "W5",
-      "rank": 33,
+      "rank": 32,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -767,7 +753,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP03-F0-W5",
       "model_id": "FP03",
       "load_id": "W5",
-      "rank": 34,
+      "rank": 33,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -781,7 +767,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ06-F0-W3",
       "model_id": "FQ06",
       "load_id": "W3",
-      "rank": 35,
+      "rank": 34,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -795,7 +781,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ06-F0-W5",
       "model_id": "FQ06",
       "load_id": "W5",
-      "rank": 36,
+      "rank": 35,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -809,7 +795,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ08-F0-W2",
       "model_id": "FQ08",
       "load_id": "W2",
-      "rank": 37,
+      "rank": 36,
       "score": 1.5,
       "tier": "T4",
       "injector": "partial",
@@ -823,7 +809,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP09-F0-W3",
       "model_id": "FP09",
       "load_id": "W3",
-      "rank": 38,
+      "rank": 37,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -837,7 +823,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP09-F0-W5",
       "model_id": "FP09",
       "load_id": "W5",
-      "rank": 39,
+      "rank": 38,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -851,7 +837,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP10-F0-W5",
       "model_id": "FP10",
       "load_id": "W5",
-      "rank": 40,
+      "rank": 39,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -865,7 +851,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ03-F0-W3",
       "model_id": "FQ03",
       "load_id": "W3",
-      "rank": 41,
+      "rank": 40,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -879,7 +865,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ07-F0-W5",
       "model_id": "FQ07",
       "load_id": "W5",
-      "rank": 42,
+      "rank": 41,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -893,7 +879,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ09-F0-W5",
       "model_id": "FQ09",
       "load_id": "W5",
-      "rank": 43,
+      "rank": 42,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -907,7 +893,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ10-F0-W5",
       "model_id": "FQ10",
       "load_id": "W5",
-      "rank": 44,
+      "rank": 43,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -921,7 +907,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR04-F0-W5",
       "model_id": "FR04",
       "load_id": "W5",
-      "rank": 45,
+      "rank": 44,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -935,7 +921,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR05-F0-W3",
       "model_id": "FR05",
       "load_id": "W3",
-      "rank": 46,
+      "rank": 45,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -949,7 +935,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR05-F0-W5",
       "model_id": "FR05",
       "load_id": "W5",
-      "rank": 47,
+      "rank": 46,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -963,7 +949,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR06-F0-W3",
       "model_id": "FR06",
       "load_id": "W3",
-      "rank": 48,
+      "rank": 47,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -977,7 +963,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR06-F0-W5",
       "model_id": "FR06",
       "load_id": "W5",
-      "rank": 49,
+      "rank": 48,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -991,7 +977,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR08-F0-W5",
       "model_id": "FR08",
       "load_id": "W5",
-      "rank": 50,
+      "rank": 49,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -1005,7 +991,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR09-F0-W5",
       "model_id": "FR09",
       "load_id": "W5",
-      "rank": 51,
+      "rank": 50,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -1019,7 +1005,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR10-F0-W3",
       "model_id": "FR10",
       "load_id": "W3",
-      "rank": 52,
+      "rank": 51,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -1033,7 +1019,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR10-F0-W5",
       "model_id": "FR10",
       "load_id": "W5",
-      "rank": 53,
+      "rank": 52,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -1047,7 +1033,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP10-F0-W2",
       "model_id": "FP10",
       "load_id": "W2",
-      "rank": 54,
+      "rank": 53,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1061,7 +1047,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FP10-F0-W7",
       "model_id": "FP10",
       "load_id": "W7",
-      "rank": 55,
+      "rank": 54,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1075,7 +1061,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ03-F0-W2",
       "model_id": "FQ03",
       "load_id": "W2",
-      "rank": 56,
+      "rank": 55,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1089,7 +1075,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ05-F0-W2",
       "model_id": "FQ05",
       "load_id": "W2",
-      "rank": 57,
+      "rank": 56,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1103,7 +1089,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ05-F0-W7",
       "model_id": "FQ05",
       "load_id": "W7",
-      "rank": 58,
+      "rank": 57,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1117,7 +1103,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ07-F0-W2",
       "model_id": "FQ07",
       "load_id": "W2",
-      "rank": 59,
+      "rank": 58,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1131,7 +1117,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ09-F0-W2",
       "model_id": "FQ09",
       "load_id": "W2",
-      "rank": 60,
+      "rank": 59,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1145,7 +1131,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FQ10-F0-W2",
       "model_id": "FQ10",
       "load_id": "W2",
-      "rank": 61,
+      "rank": 60,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1159,7 +1145,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR04-F0-W2",
       "model_id": "FR04",
       "load_id": "W2",
-      "rank": 62,
+      "rank": 61,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1173,7 +1159,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR08-F0-W2",
       "model_id": "FR08",
       "load_id": "W2",
-      "rank": 63,
+      "rank": 62,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1187,7 +1173,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR09-F0-W2",
       "model_id": "FR09",
       "load_id": "W2",
-      "rank": 64,
+      "rank": 63,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1201,7 +1187,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
       "runid": "FSU-FR10-F0-W2",
       "model_id": "FR10",
       "load_id": "W2",
-      "rank": 65,
+      "rank": 64,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1213,16 +1199,15 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W3-seed1.jso
     }
   ],
   "strict_top3": [
-    "FSU-FR07-F0-W5",
     "FSU-FP07-F0-W4",
-    "FSU-FP07-F0-W6"
+    "FSU-FP07-F0-W6",
+    "FSU-FP05-F0-W6"
   ],
   "recommended_top3_distinct": [
-    "FSU-FR07-F0-W5",
     "FSU-FP07-F0-W4",
     "FSU-FP05-F0-W6"
   ],
-  "next_pilot": "FSU-FR07-F0-W5",
+  "next_pilot": "FSU-FP07-F0-W4",
   "minimal_verification_command": "python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-seed1.json --seed 1 --out-root /tmp/fsu-fr07-w1-gate",
   "defects": {
     "FQ08-b": {

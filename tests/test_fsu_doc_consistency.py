@@ -188,8 +188,8 @@ def test_matrix_seed_completion_matches_authoritative_index():
     assert sum(1 for s in w5["seed_states"].values()
                if s == "admitted") == 3
     # F0-W5 and F5-W5 each contribute 3 suite seeds (15 components each).
-    assert summary["seed_index"]["suite_seed_admitted"] == 18
-    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 72
+    assert summary["seed_index"]["suite_seed_admitted"] == 21
+    assert summary["seed_index"]["component_runs_in_admitted_suites"] == 87
     assert summary["seed_index"]["admitted_seeds_total"] != 15
     assert all(m["seed_completion_count"] <= 3 for m in matrix)
 
