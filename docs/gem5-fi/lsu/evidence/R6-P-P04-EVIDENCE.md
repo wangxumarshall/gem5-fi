@@ -54,3 +54,32 @@ unchanged).
   chain with no detection/escape/containment.
 - No model substitution: the P05 drop/dup mapping is gone from
   `MODEL_FLAGS["P04"]`.
+
+---
+
+## P04-c entry-selection pilot (2026-11-04)
+
+**Status: IMPLEMENTED / PILOT ONLY / NOT CERTIFIED.** P04-b (pointer) is
+still not implemented.
+
+- Model: `Queued::chaosSelectWrongEntry` swaps the **second live entry** into
+  the head position; the correct head stays queued (moved behind it) and the
+  wrong entry is issued next. Requires ≥2 live entries. This is a selection
+  error, not a drop/dup.
+- Binary: `runs/lsu/r6_p_unit/binaries/gem5.opt-0cb5073d`
+  (sha256 `0cb5073d8d7faec2425ef9f1ffc4fe03a18c70cc6f5416c894b0bda58d477396`,
+  source `53561cba`).
+- No-fire goldens with the mode mounted: W2 `a10b9827edd8a9fb`,
+  W8 `629727c0ad9ca8ef` (registry match).
+- Census (exact absolute command, span=1e9): P04c W2 eligible=2, W8
+  eligible=2 (`>=2 live entries` samples).
+- Seed1 (span=2): both W2/W8 inject `P04_queue_select`; events are real:
+  `inj` → `pf_train` (`field=queue_select`, `before=0`, `after=1`) →
+  `pf_queue` (`field=queue_select`, `before=head`, `after=wrong`,
+  `state_after=wrong_selected`). Checker terminal
+  `provable_to_L2_then_unknown` (path `0 -> 1 -> 2`); gzip EOF, stats
+  1768/1765 lines, exit 0.
+- Boundary: no L3/L5 evidence was observed in this pilot. That is not a
+  claim that the fault can never affect a later demand (the correct head was
+  delayed, not dropped). Not certified; no fabricated L5; general admission
+  and COMPLETE counts are unchanged.
