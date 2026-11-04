@@ -113,3 +113,12 @@ python3 -m pytest tests/test_fsu_*.py tests/test_chaos_fsu_*.py tests/test_chaos
 - Agent B：`configs/fsu/suites/*fr03*`、`tools/fsu_fr03_*.py`、`tests/test_fsu_fr03_*.py`（不改 `fsu_suite_runner.py`/`fsu_w6_gate.py`）
 - Agent C：`docs/gem5-fi/fsu/F0-READINESS-ORDER.md`、`tests/test_fsu_f0_readiness.py`（不改核心代码）
 - 主 agent：`runs/**`、`tools/fsu_suite_runner.py`、`tools/fsu_w6_gate.py`、索引/状态文档、git
+- 2026-11-04 12:xx 第二轮完成：
+  - R1 FR03 seed3 protocol review：attempt-1 原目标真实 Masked/exposed_unconsumed；attempt-2 标 PROTOCOL_DEVIATION；FR03-W3 2/3。证据 `runs/fsu/FSU-FR03-F5-W3/seed3/protocol_review.json` 与 `docs/gem5-fi/fsu/FR03-SEED3-PROTOCOL-REVIEW.md`。
+  - R2 统一 suite 审计 v1：`schemas/fsu_suite_audit.schema.json`、`tools/fsu_suite_audit.py`；12 个既有 suite seed 全部 audit_v2；index 优先读取 audit_v2。
+  - R3 FR03-F5-W5：gate 5/5、正式 3 suite seed（每 seed 5/5 component）→ 3/3。
+  - R4 FR03-F5-W6：gate 3/3、正式 3 suite seed（每 seed 3/3 component）→ 3/3。
+  - R5 F0 试点：FR07-F0-W1 gate/formal 3/3，SDC/full；F0 readiness 剩余 66 个，下一候选 FR07-F0-W3。
+  - R6 失败证据清单：`docs/gem5-fi/fsu/FAILED-GATE-INVENTORY.md`；大文件留服务器并记录 SHA-256/解压验证。
+  - 最终：历史 **50/519 seed、16/173 RunID**；活跃 **41/240 seed、13/80 RunID**；18 suite seed / 72 component；FSU 380 passed，非 FSU 20 passed。
+  - 未完成/阻塞：FP06-d partial-product 仍 MISSING；FR07 是结果侧代理非真实 PRF-WB hook；FQ08-b、FP08 suppressed_count、FQ08-c 已复核存在但未修复；FR03-W3 保持 2/3。
