@@ -71,7 +71,7 @@ def deferred_frequencies_in(obj, scope=None):
     return sorted(f for f in freqs if not is_active_freq(f, scope))
 
 
-def scope_status(freq: str, admitted_seeds: int, scope=None):
+def scope_status(freq: str, admitted_seeds: int, scope=None, proxy_seeds=0):
     """Map a RunID's completion to the active-scope vocabulary."""
     scope = scope or load_scope()
     if is_active_freq(freq, scope):
@@ -79,6 +79,10 @@ def scope_status(freq: str, admitted_seeds: int, scope=None):
             return "ACTIVE_COMPLETE_3_OF_3"
         if admitted_seeds > 0:
             return f"ACTIVE_PARTIAL_{admitted_seeds}_OF_3"
+        if proxy_seeds > 0:
+            # Real, preserved evidence at a non-workbook injection site; it
+            # must never read as "not run" or as certified.
+            return "ACTIVE_PROXY_ONLY"
         return "ACTIVE_NOT_RUN"
     if admitted_seeds >= 3:
         return "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE"

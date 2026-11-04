@@ -2,14 +2,20 @@
 
 > 范围：源注册表 **173 RunID** 中的 **72 个 F0 RunID**；排除已完成的 5 个 F0 RunID（`FSU-FP04-F0-W1/W3/W4/W5/W6`，各 3 seed）以及 F1–F4（DEFERRED_BY_USER）。
 > 剩余 **67 个 F0 RunID** 全部在本文排序。数据源：`runids.json`（sha256 `dbdb5962…ae5`）、`IMPLEMENTATION_MATRIX.json`、`CHAOS/gem5/src` 真实代码、`workloads/` 与 suite golden。
+> **2026-11-04 位置审计更新**：`FSU-FR07-F0-W1` 的三个旧 seed 是
+> execute-post-write 代理，不是工作簿要求的 PRF-WB 数据边界；它们已标为
+> `PROXY_EVIDENCE` 并从严格认证计数排除，因此重新进入本文 remaining 集合
+> （injector=proxy）。详见 `FR07-PRF-WB-POSITION-AUDIT.md`。
 > 代码存在 ≠ 已认证；本文只评估 readiness 与缺陷，不产生任何正式 seed，不修改 runids.json。
 
 ## 0. 结论摘要
 
 - 真正具备 **注入点 + FSU L0–L5 全链 + REAL workload + 可判定 oracle** 的剩余 F0 模型只有 CHAOSFPU 结果侧一族：`FR07`（结果→PRF WB）、`FP05`（结果 lane 群/短突发）、`FP07`（FMA 字段加权结果代理）。`FP02` 的故障位置是**输入操作数总线**，结果侧 XOR 是错位代理；`FP08` 的 roundingSub 路径未接链。
-- **严格排序前 3** 是 `FSU-FR07-F0-W1`, `FSU-FR07-F0-W3`, `FSU-FR07-F0-W5`，但三者共用同一 CHAOSFPU 注入器；作为三个独立试点，推荐 **三个不同模型族**：`FSU-FR07-F0-W1`, `FSU-FP07-F0-W4`, `FSU-FP05-F0-W6`。
-- 已知缺陷复核：**FQ08-b 仍存在**、**FP08 suppressed_count 仍未输出**、**FQ08-c 延迟唤醒 squash 风险仍存在**；**PRF 身份/generation 为“部分”**（FR03 正确，FR01/FR02 未接链且 FR02 双 bit 可能碰撞）。
-- 下一试点建议 **`FSU-FR07-F0-W1`**：CHAOSFPU 已是全链实现，W1 是 REAL workload + ARRAYHASH/ULP oracle，成本最低；先做非正式 `/tmp` gate，再决定是否预注册 3 seed。
+- **严格排序前 3** 是 `FSU-FR07-F0-W3`, `FSU-FR07-F0-W5`, `FSU-FP07-F0-W4`；三者共用 CHAOSFPU 结果侧注入器，但语义分别是 exact / exact / proxy。作为三个独立试点，推荐 **三个不同模型族**：`FSU-FR07-F0-W3`, `FSU-FP07-F0-W4`, `FSU-FP05-F0-W6`。
+- 已知缺陷复核（修复前基线）：**FQ08-b 仍存在**、**FP08 suppressed_count 仍未输出**、**FQ08-c 延迟唤醒 squash 风险仍存在**；**PRF 身份/generation 为“部分”**（FR03 正确，FR01/FR02 未接链且 FR02 双 bit 可能碰撞）。
+- 下一试点建议 **`FSU-FR07-F0-W3`**，但必须先完成真实 PRF-WB 数据边界 hook 并让
+  `FSU-FR07-F0-W1` 的真实 hook gate 通过；旧 W1 proxy 证据不能直接外推到 W3。
+  先做非正式 `/tmp` gate，再决定是否预注册 3 seed。
 
 ## 1. 评分口径
 
@@ -36,11 +42,11 @@
 
 | # | RunID | 模型/负载 | 注入点 | 语义 | L0–L5 | Workload / oracle | 成本/风险 | 分 | 主要缺口 / 已知缺陷 |
 |---:|---|---|---|---|---|---|---|---:|---|
-| 1 | `FSU-FR07-F0-W1` | FR07/W1 | ✅ exact | 一致 | ✅ full | ✅ REAL | S/低 | 9.0 | CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理） |
-| 2 | `FSU-FR07-F0-W3` | FR07/W3 | ✅ exact | 一致 | ✅ full | ◐ PARTIAL | S/低 | 8.0 | CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理） |
-| 3 | `FSU-FR07-F0-W5` | FR07/W5 | ✅ exact | 一致 | ✅ full | ◐ PARTIAL | S/低 | 8.0 | CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理） |
-| 4 | `FSU-FP07-F0-W4` | FP07/W4 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
-| 5 | `FSU-FP07-F0-W6` | FP07/W6 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
+| 1 | `FSU-FR07-F0-W3` | FR07/W3 | ✅ exact | 一致 | ✅ full | ◐ PARTIAL | S/低 | 8.0 | CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理） |
+| 2 | `FSU-FR07-F0-W5` | FR07/W5 | ✅ exact | 一致 | ✅ full | ◐ PARTIAL | S/低 | 8.0 | CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理） |
+| 3 | `FSU-FP07-F0-W4` | FP07/W4 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
+| 4 | `FSU-FP07-F0-W6` | FP07/W6 | △ proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
+| 5 | `FSU-FR07-F0-W1` | FR07/W1 | △ unapproved proxy | 代理 | ✅ full | ✅ REAL | S/中 | 7.5 | PROXY_EXCLUDED：现实现于 staticInst->execute() 之后改写 PRF cell，工作簿要求 PRF 写入前修改 WB data；旧 3 seed 保留为 PROXY_EVIDENCE，不计认证；真实 PRF-WB hook 待实现 |
 | 6 | `FSU-FP05-F0-W6` | FP05/W6 | ◐ partial | 部分 | ✅ full | ✅ REAL | M/中 | 7.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
 | 7 | `FSU-FP07-F0-W5` | FP07/W5 | △ proxy | 代理 | ✅ full | ◐ PARTIAL | S/中 | 6.5 | CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass |
 | 8 | `FSU-FP05-F0-W3` | FP05/W3 | ◐ partial | 部分 | ✅ full | ◐ PARTIAL | M/中 | 6.0 | CHAOSFPU `recurringStuck` 同 mask 重复；缺 2–4 事件 burst、burst_id/ordinal；当前每 event 各自 fault_id |
@@ -146,17 +152,29 @@
 
 ### 3.1 严格排序前 3（同族，仅供比较）
 
-1. `FSU-FR07-F0-W1`（FR07/W1，9.0 分）：CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理）
-2. `FSU-FR07-F0-W3`（FR07/W3，8.0 分）：CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理）
-3. `FSU-FR07-F0-W5`（FR07/W5，8.0 分）：CHAOSFPU 目的 PRF 执行后 XOR，L0–L5 全链已发射；名义上是 execute-post-write 而非 WB 边界（语义等价代理）
+1. `FSU-FR07-F0-W3`（FR07/W3，8.0 分）：CHAOSFPU 结果侧注入 + L0–L5；在真实
+   PRF-WB hook 落地前仍沿用 execute-post-write 代理，不能认证。
+2. `FSU-FR07-F0-W5`（FR07/W5，8.0 分）：同上；W5 为五程序 suite。
+3. `FSU-FP07-F0-W4`（FP07/W4，7.5 分）：`fmaWeighted` 行为代理。
+   `FSU-FR07-F0-W1` 的旧 3 seed 已因注入位置不符工作簿降为
+   `PROXY_EVIDENCE`（7.5 分，不计认证）。
 
 ### 3.2 最接近真实端到端运行的前 3 个独立候选（推荐）
 
-#### 1) `FSU-FR07-F0-W1` — 首选
+#### 1) `FSU-FR07-F0-W3` — 首选（真实 PRF-WB hook 落地后）
 
-- **为什么最接近**：`CHAOSFPU::maybeCorrupt` 在 `DynInst::execute` 之后直接改目的 PRF，并在 `noteFaultApplied` / `noteConsumerExecute` / `noteCommit` 发射 `fault_applied→carrier_state→operand_read→execute→prf_writeback→consumer→commit`，L0–L5 全链已在本树真实存在（`CHAOSFPU.cc:1084/1709/1855`，`commit.cc:1349`，`dyn_inst.cc:369/377`）。FR07 的定义就是“执行结果单/多 bit XOR”，与实现语义一致；W1 `w1_fp_scalar_probe` 是 REAL workload，ARRAYHASH 64-hex + ULP，且已有 F0-W1 的 B0/runner 先例。
-- **缺口**：名义上是 execute-post-write，不是单独的 WB stage hook；manifest/模型标签需新建（`configs/fsu/FSU-FR07-F0-W1*.json`），并把 `fsu_model=FR07`、`submodel` 写对。无已知阻断缺陷。
-- **成本/风险**：S / 低。
+> `FSU-FR07-F0-W1` 的旧 proxy 证据只证明结果侧改写能形成 L0–L5；不能用它
+> 绕过 W1 的真实 hook 门禁，也不能直接外推到 W3/W5。
+
+- **为什么最接近**：`CHAOSFPU` 的结果侧 L0–L5 链已在本树真实存在
+  （`CHAOSFPU.cc:1084/1709/1855`，`commit.cc:1349`，`dyn_inst.cc:369/377`）；
+  W3 `neon_fp32_lane_kernel` 是真实的 4×32-bit lane workload，已有
+  ARRAYHASH + LANEHASH golden。W3 的 lane 语义必须在真实 PRF-WB hook 下
+  才能认证。
+- **缺口**：当前共享注入器仍是 execute-post-write，不是工作簿要求的
+  “PRF 写入前修改 WB data”；必须先实现真实 hook 并通过 W1 门禁，再为
+  W3 新建预注册 manifest，把 `fsu_model=FR07`、`submodel` 写对。
+- **成本/风险**：S / 低（前提是真实 hook 先通过 gate）。
 
 #### 2) `FSU-FP07-F0-W4` — 第二（与 W6 并列）
 
@@ -260,10 +278,9 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
     "FSU-FP04-F0-W3",
     "FSU-FP04-F0-W4",
     "FSU-FP04-F0-W5",
-    "FSU-FP04-F0-W6",
-    "FSU-FR07-F0-W1"
+    "FSU-FP04-F0-W6"
   ],
-  "remaining_f0_count": 66,
+  "remaining_f0_count": 67,
   "scoring": "injector(exact3/partial2/proxy2/wrong1/none0)+chain(full3/partial1/none0)+workload(real3/partial2/none1)-cost(S0/M0.5/L1)-known_defect_penalty",
   "rows": [
     {
@@ -323,10 +340,24 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "gap": "CHAOSFPU `fmaWeighted` mant85/exp10/sign5 行为代理 + 全链；真实 FMA 中间值/partial row 不可达，未限定 FMA opClass"
     },
     {
+      "runid": "FSU-FR07-F0-W1",
+      "model_id": "FR07",
+      "load_id": "W1",
+      "rank": 5,
+      "score": 7.5,
+      "tier": "T1",
+      "injector": "proxy",
+      "chain": "full",
+      "workload": "real",
+      "cost": "S",
+      "risk": "medium",
+      "gap": "PROXY_EXCLUDED：现实现于 staticInst->execute() 之后改写 PRF cell，工作簿要求 PRF 写入前修改 WB data；3 个旧 seed 保留为 PROXY_EVIDENCE，不计认证。真实 PRF-WB hook 待实现（FR07-PRF-WB-POSITION-AUDIT.md）"
+    },
+    {
       "runid": "FSU-FP05-F0-W6",
       "model_id": "FP05",
       "load_id": "W6",
-      "rank": 5,
+      "rank": 6,
       "score": 7.0,
       "tier": "T1",
       "injector": "partial",
@@ -340,7 +371,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP07-F0-W5",
       "model_id": "FP07",
       "load_id": "W5",
-      "rank": 6,
+      "rank": 7,
       "score": 6.5,
       "tier": "T2",
       "injector": "proxy",
@@ -354,7 +385,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP05-F0-W3",
       "model_id": "FP05",
       "load_id": "W3",
-      "rank": 7,
+      "rank": 8,
       "score": 6.0,
       "tier": "T2",
       "injector": "partial",
@@ -368,7 +399,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP05-F0-W5",
       "model_id": "FP05",
       "load_id": "W5",
-      "rank": 8,
+      "rank": 9,
       "score": 6.0,
       "tier": "T2",
       "injector": "partial",
@@ -382,7 +413,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR01-F0-W1",
       "model_id": "FR01",
       "load_id": "W1",
-      "rank": 9,
+      "rank": 10,
       "score": 5.0,
       "tier": "T2",
       "injector": "partial",
@@ -396,7 +427,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR02-F0-W1",
       "model_id": "FR02",
       "load_id": "W1",
-      "rank": 10,
+      "rank": 11,
       "score": 5.0,
       "tier": "T2",
       "injector": "partial",
@@ -410,7 +441,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP08-F0-W1",
       "model_id": "FP08",
       "load_id": "W1",
-      "rank": 11,
+      "rank": 12,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -424,7 +455,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR01-F0-W3",
       "model_id": "FR01",
       "load_id": "W3",
-      "rank": 12,
+      "rank": 13,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -438,7 +469,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR01-F0-W5",
       "model_id": "FR01",
       "load_id": "W5",
-      "rank": 13,
+      "rank": 14,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -452,7 +483,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR02-F0-W3",
       "model_id": "FR02",
       "load_id": "W3",
-      "rank": 14,
+      "rank": 15,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -466,7 +497,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR02-F0-W5",
       "model_id": "FR02",
       "load_id": "W5",
-      "rank": 15,
+      "rank": 16,
       "score": 4.0,
       "tier": "T3",
       "injector": "partial",
@@ -480,7 +511,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ01-F0-W5",
       "model_id": "FQ01",
       "load_id": "W5",
-      "rank": 16,
+      "rank": 17,
       "score": 3.5,
       "tier": "T3",
       "injector": "partial",
@@ -494,7 +525,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ02-F0-W5",
       "model_id": "FQ02",
       "load_id": "W5",
-      "rank": 17,
+      "rank": 18,
       "score": 3.5,
       "tier": "T3",
       "injector": "partial",
@@ -508,7 +539,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ04-F0-W5",
       "model_id": "FQ04",
       "load_id": "W5",
-      "rank": 18,
+      "rank": 19,
       "score": 3.0,
       "tier": "T3",
       "injector": "partial",
@@ -522,7 +553,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP01-F0-W1",
       "model_id": "FP01",
       "load_id": "W1",
-      "rank": 19,
+      "rank": 20,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -536,7 +567,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP01-F0-W4",
       "model_id": "FP01",
       "load_id": "W4",
-      "rank": 20,
+      "rank": 21,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -550,7 +581,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP02-F0-W1",
       "model_id": "FP02",
       "load_id": "W1",
-      "rank": 21,
+      "rank": 22,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -564,7 +595,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP03-F0-W1",
       "model_id": "FP03",
       "load_id": "W1",
-      "rank": 22,
+      "rank": 23,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -578,7 +609,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ01-F0-W2",
       "model_id": "FQ01",
       "load_id": "W2",
-      "rank": 23,
+      "rank": 24,
       "score": 2.5,
       "tier": "T4",
       "injector": "partial",
@@ -592,7 +623,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ02-F0-W2",
       "model_id": "FQ02",
       "load_id": "W2",
-      "rank": 24,
+      "rank": 25,
       "score": 2.5,
       "tier": "T4",
       "injector": "partial",
@@ -606,7 +637,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ06-F0-W1",
       "model_id": "FQ06",
       "load_id": "W1",
-      "rank": 25,
+      "rank": 26,
       "score": 2.5,
       "tier": "T4",
       "injector": "wrong",
@@ -620,7 +651,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ08-F0-W5",
       "model_id": "FQ08",
       "load_id": "W5",
-      "rank": 26,
+      "rank": 27,
       "score": 2.5,
       "tier": "T4",
       "injector": "partial",
@@ -634,7 +665,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP08-F0-W7",
       "model_id": "FP08",
       "load_id": "W7",
-      "rank": 27,
+      "rank": 28,
       "score": 2.0,
       "tier": "T4",
       "injector": "partial",
@@ -648,7 +679,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP09-F0-W9",
       "model_id": "FP09",
       "load_id": "W9",
-      "rank": 28,
+      "rank": 29,
       "score": 2.0,
       "tier": "T4",
       "injector": "none",
@@ -662,7 +693,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ04-F0-W2",
       "model_id": "FQ04",
       "load_id": "W2",
-      "rank": 29,
+      "rank": 30,
       "score": 2.0,
       "tier": "T4",
       "injector": "partial",
@@ -676,7 +707,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR05-F0-W1",
       "model_id": "FR05",
       "load_id": "W1",
-      "rank": 30,
+      "rank": 31,
       "score": 2.0,
       "tier": "T4",
       "injector": "none",
@@ -690,7 +721,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP01-F0-W3",
       "model_id": "FP01",
       "load_id": "W3",
-      "rank": 31,
+      "rank": 32,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -704,7 +735,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP01-F0-W5",
       "model_id": "FP01",
       "load_id": "W5",
-      "rank": 32,
+      "rank": 33,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -718,7 +749,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP02-F0-W3",
       "model_id": "FP02",
       "load_id": "W3",
-      "rank": 33,
+      "rank": 34,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -732,7 +763,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP02-F0-W5",
       "model_id": "FP02",
       "load_id": "W5",
-      "rank": 34,
+      "rank": 35,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -746,7 +777,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP03-F0-W5",
       "model_id": "FP03",
       "load_id": "W5",
-      "rank": 35,
+      "rank": 36,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -760,7 +791,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ06-F0-W3",
       "model_id": "FQ06",
       "load_id": "W3",
-      "rank": 36,
+      "rank": 37,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -774,7 +805,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ06-F0-W5",
       "model_id": "FQ06",
       "load_id": "W5",
-      "rank": 37,
+      "rank": 38,
       "score": 1.5,
       "tier": "T4",
       "injector": "wrong",
@@ -788,7 +819,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ08-F0-W2",
       "model_id": "FQ08",
       "load_id": "W2",
-      "rank": 38,
+      "rank": 39,
       "score": 1.5,
       "tier": "T4",
       "injector": "partial",
@@ -802,7 +833,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP09-F0-W3",
       "model_id": "FP09",
       "load_id": "W3",
-      "rank": 39,
+      "rank": 40,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -816,7 +847,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP09-F0-W5",
       "model_id": "FP09",
       "load_id": "W5",
-      "rank": 40,
+      "rank": 41,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -830,7 +861,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP10-F0-W5",
       "model_id": "FP10",
       "load_id": "W5",
-      "rank": 41,
+      "rank": 42,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -844,7 +875,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ03-F0-W3",
       "model_id": "FQ03",
       "load_id": "W3",
-      "rank": 42,
+      "rank": 43,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -858,7 +889,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ07-F0-W5",
       "model_id": "FQ07",
       "load_id": "W5",
-      "rank": 43,
+      "rank": 44,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -872,7 +903,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ09-F0-W5",
       "model_id": "FQ09",
       "load_id": "W5",
-      "rank": 44,
+      "rank": 45,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -886,7 +917,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ10-F0-W5",
       "model_id": "FQ10",
       "load_id": "W5",
-      "rank": 45,
+      "rank": 46,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -900,7 +931,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR04-F0-W5",
       "model_id": "FR04",
       "load_id": "W5",
-      "rank": 46,
+      "rank": 47,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -914,7 +945,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR05-F0-W3",
       "model_id": "FR05",
       "load_id": "W3",
-      "rank": 47,
+      "rank": 48,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -928,7 +959,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR05-F0-W5",
       "model_id": "FR05",
       "load_id": "W5",
-      "rank": 48,
+      "rank": 49,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -942,7 +973,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR06-F0-W3",
       "model_id": "FR06",
       "load_id": "W3",
-      "rank": 49,
+      "rank": 50,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -956,7 +987,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR06-F0-W5",
       "model_id": "FR06",
       "load_id": "W5",
-      "rank": 50,
+      "rank": 51,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -970,7 +1001,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR08-F0-W5",
       "model_id": "FR08",
       "load_id": "W5",
-      "rank": 51,
+      "rank": 52,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -984,7 +1015,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR09-F0-W5",
       "model_id": "FR09",
       "load_id": "W5",
-      "rank": 52,
+      "rank": 53,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -998,7 +1029,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR10-F0-W3",
       "model_id": "FR10",
       "load_id": "W3",
-      "rank": 53,
+      "rank": 54,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -1012,7 +1043,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR10-F0-W5",
       "model_id": "FR10",
       "load_id": "W5",
-      "rank": 54,
+      "rank": 55,
       "score": 1.0,
       "tier": "T4",
       "injector": "none",
@@ -1026,7 +1057,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP10-F0-W2",
       "model_id": "FP10",
       "load_id": "W2",
-      "rank": 55,
+      "rank": 56,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1040,7 +1071,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FP10-F0-W7",
       "model_id": "FP10",
       "load_id": "W7",
-      "rank": 56,
+      "rank": 57,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1054,7 +1085,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ03-F0-W2",
       "model_id": "FQ03",
       "load_id": "W2",
-      "rank": 57,
+      "rank": 58,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1068,7 +1099,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ05-F0-W2",
       "model_id": "FQ05",
       "load_id": "W2",
-      "rank": 58,
+      "rank": 59,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1082,7 +1113,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ05-F0-W7",
       "model_id": "FQ05",
       "load_id": "W7",
-      "rank": 59,
+      "rank": 60,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1096,7 +1127,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ07-F0-W2",
       "model_id": "FQ07",
       "load_id": "W2",
-      "rank": 60,
+      "rank": 61,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1110,7 +1141,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ09-F0-W2",
       "model_id": "FQ09",
       "load_id": "W2",
-      "rank": 61,
+      "rank": 62,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1124,7 +1155,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FQ10-F0-W2",
       "model_id": "FQ10",
       "load_id": "W2",
-      "rank": 62,
+      "rank": 63,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1138,7 +1169,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR04-F0-W2",
       "model_id": "FR04",
       "load_id": "W2",
-      "rank": 63,
+      "rank": 64,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1152,7 +1183,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR08-F0-W2",
       "model_id": "FR08",
       "load_id": "W2",
-      "rank": 64,
+      "rank": 65,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1166,7 +1197,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR09-F0-W2",
       "model_id": "FR09",
       "load_id": "W2",
-      "rank": 65,
+      "rank": 66,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1180,7 +1211,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
       "runid": "FSU-FR10-F0-W2",
       "model_id": "FR10",
       "load_id": "W2",
-      "rank": 66,
+      "rank": 67,
       "score": 0.0,
       "tier": "T5",
       "injector": "none",
@@ -1192,9 +1223,9 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
     }
   ],
   "strict_top3": [
-    "FSU-FR07-F0-W1",
     "FSU-FR07-F0-W3",
-    "FSU-FR07-F0-W5"
+    "FSU-FR07-F0-W5",
+    "FSU-FP07-F0-W4"
   ],
   "recommended_top3_distinct": [
     "FSU-FR07-F0-W3",
@@ -1202,7 +1233,7 @@ python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json
     "FSU-FP05-F0-W6"
   ],
   "next_pilot": "FSU-FR07-F0-W3",
-  "minimal_verification_command": "python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-GATE.json --seed 1 --out-root /tmp/fsu-fr07-w1-gate",
+  "minimal_verification_command": "python3 tools/fsu_seed_runner.py --manifest configs/fsu/FSU-FR07-F0-W1-seed1.json --seed 1 --out-root /tmp/fsu-fr07-w1-gate",
   "defects": {
     "FQ08-b": {
       "verdict": "present",

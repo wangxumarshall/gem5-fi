@@ -81,13 +81,17 @@ def test_index_dual_view_counts():
     # historical full-registry view
     assert summary["total_runids"] == 173
     assert summary["target_seeds"] == 519
-    assert summary["admitted_seeds_total"] == 50
-    assert summary["complete_3_of_3"] == 16
+    assert summary["admitted_seeds_total"] == 47
+    assert summary["complete_3_of_3"] == 15
+    # FR07-W1 execute-post-write evidence is preserved but excluded
+    assert summary["proxy_seeds_total"] == 3
+    assert summary["proxy_runids"] == ["FSU-FR07-F0-W1"]
     # active F0/F5 view
     assert active["active_runids"] == 80
     assert active["active_seed_target"] == 240
-    assert active["active_admitted_seeds"] == 41
-    assert active["active_complete_runids"] == 13
+    assert active["active_admitted_seeds"] == 38
+    assert active["active_proxy_seeds"] == 3
+    assert active["active_complete_runids"] == 12
     assert active["deferred_by_user_runids"] == 90
     assert active["historical_complete_out_of_scope_runids"] == 3
     assert active["historical_complete_out_of_scope_seeds"] == 9
@@ -97,6 +101,13 @@ def test_index_dual_view_counts():
             == "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE")
     assert by_id["FSU-FP04-F2-W5"]["scope_class"] == "DEFERRED_BY_USER"
     assert by_id["FSU-FP04-F1-W4"]["status"] == "COMPLETE_3_OF_3"
+    # Proxy evidence: preserved, honestly labelled, never counted.
+    fr07 = by_id["FSU-FR07-F0-W1"]
+    assert fr07["status"] == "PROXY_ONLY"
+    assert fr07["completion_state"] == "PROXY_ONLY"
+    assert fr07["seed_completion"] == "0/3"
+    assert fr07["scope_status"] == "ACTIVE_PROXY_ONLY"
+    assert all(fr07["seeds"][s]["state"] == "proxy" for s in (1, 2, 3))
 
 
 def _campaign_payload(run_id):
@@ -154,3 +165,39 @@ def test_campaign_accepts_active_frequency(tmp_path, freq):
     # The minimal payload intentionally lacks required campaign fields, so it
     # stops at schema validation — proof that it passed the frequency gate.
     assert "schema validation FAILED" in out
+
+
+def test_proxy_marker_excludes_seed_and_allows_real_rerun(tmp_path):
+    seed = tmp_path / "FSU-X-F0-W1" / "seed1"
+    attempt = seed / "attempt-1"
+    attempt.mkdir(parents=True)
+    (attempt / "chain_report.json").write_text(
+        json.dumps({"chain": {"faults": {}}, "oracle": {}}), encoding="utf-8")
+    (attempt / "audit.json").write_text(json.dumps({"ok": True}),
+                                        encoding="utf-8")
+    (seed / "AUTHORITATIVE").write_text(str(attempt), encoding="utf-8")
+    assert I._seed_state(seed)["state"] == "admitted"
+
+    (seed / "PROXY_EVIDENCE.json").write_text(json.dumps({
+        "classification": "PROXY_EVIDENCE",
+        "attempt": str(attempt),
+        "counts_toward_completion": False,
+        "reason": "wrong injection site",
+    }), encoding="utf-8")
+    st = I._seed_state(seed)
+    assert st["state"] == "proxy"
+    assert st["counts_toward_completion"] is False
+    # Original attempt files are untouched.
+    assert (attempt / "chain_report.json").exists()
+    assert (attempt / "audit.json").exists()
+
+    # A new, real attempt can become AUTHORITATIVE without deleting the proxy
+    # marker; only the marker's own attempt stays excluded.
+    real = seed / "attempt-2"
+    real.mkdir()
+    (real / "chain_report.json").write_text(
+        json.dumps({"chain": {"faults": {}}, "oracle": {}}), encoding="utf-8")
+    (real / "audit.json").write_text(json.dumps({"ok": True}),
+                                     encoding="utf-8")
+    (seed / "AUTHORITATIVE").write_text(str(real), encoding="utf-8")
+    assert I._seed_state(seed)["state"] == "admitted"

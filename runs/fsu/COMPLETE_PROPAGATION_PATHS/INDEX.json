@@ -1,29 +1,33 @@
 {
   "summary": {
     "total_runids": 173,
-    "complete_3_of_3": 16,
+    "complete_3_of_3": 15,
     "with_1_of_3": 0,
     "with_2_of_3": 1,
-    "with_0_of_3": 156,
-    "admitted_seeds_total": 50,
+    "with_0_of_3": 157,
+    "admitted_seeds_total": 47,
+    "proxy_seeds_total": 3,
+    "proxy_runids": [
+      "FSU-FR07-F0-W1"
+    ],
     "suite_seed_dirs": 18,
     "suite_seed_admitted": 18,
     "component_runs_in_admitted_suites": 72,
     "component_faults_note": "component runs/faults are reported separately and never added to admitted_seeds_total",
     "target_seeds": 519,
     "seed_completion_counts": {
-      "0/3": 156,
+      "0/3": 157,
       "2/3": 1,
-      "3/3": 16
+      "3/3": 15
     },
     "coverage_status_counts": {
       "BLOCKED_NO_TRUE_ARTIFACT": 11,
-      "PARTIAL": 67,
+      "PARTIAL": 68,
       "BLOCKED_NOT_IMPLEMENTED": 87,
-      "COMPLETE": 7,
+      "COMPLETE": 6,
       "PILOT_SUBMODEL_ONLY": 1
     },
-    "generated_at": "2026-11-04T13:39:26",
+    "generated_at": "2026-11-04T14:56:14",
     "complete_root": "/home/sdc/gem5-fi-fsu/runs/fsu/COMPLETE_PROPAGATION_PATHS",
     "active_scope": {
       "policy_version": "1",
@@ -40,8 +44,9 @@
       ],
       "active_runids": 80,
       "active_seed_target": 240,
-      "active_admitted_seeds": 41,
-      "active_complete_runids": 13,
+      "active_admitted_seeds": 38,
+      "active_proxy_seeds": 3,
+      "active_complete_runids": 12,
       "deferred_by_user_runids": 90,
       "historical_complete_out_of_scope_runids": 3,
       "historical_complete_out_of_scope_seeds": 9,
@@ -49,7 +54,8 @@
         "ACTIVE_NOT_RUN": 66,
         "DEFERRED_BY_USER": 90,
         "ACTIVE_PARTIAL_2_OF_3": 1,
-        "ACTIVE_COMPLETE_3_OF_3": 13,
+        "ACTIVE_COMPLETE_3_OF_3": 12,
+        "ACTIVE_PROXY_ONLY": 1,
         "HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE": 3
       },
       "note": "F1-F4 are DEFERRED_BY_USER; historical completed seeds are HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE, never failures."
@@ -2345,45 +2351,42 @@
       "runid": "FSU-FR07-F0-W1",
       "frequency": "F0",
       "scope_class": "ACTIVE_SCOPE",
-      "scope_status": "ACTIVE_COMPLETE_3_OF_3",
-      "completion_state": "COMPLETE",
+      "scope_status": "ACTIVE_PROXY_ONLY",
+      "completion_state": "PROXY_ONLY",
       "seeds": {
         "1": {
-          "state": "admitted",
+          "state": "proxy",
+          "proxy": true,
           "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR07-F0-W1/seed1/attempt-1",
-          "oracle": "SDC",
-          "terminal": "full",
-          "audit_ok": true,
-          "admitted_faults": [
-            "1"
-          ]
+          "classification": "PROXY_EVIDENCE",
+          "injection_site": "execute_post_prf_write",
+          "reason": "CHAOSFPU modifies the destination PRF cell after staticInst->execute() already wrote it; the workbook requires modifying the writeback data before the PRF write and preserving the FU golden result. Timing (no observer before injection, wakeup after injection) does not change the injection site.",
+          "counts_toward_completion": false
         },
         "2": {
-          "state": "admitted",
+          "state": "proxy",
+          "proxy": true,
           "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR07-F0-W1/seed2/attempt-1",
-          "oracle": "SDC",
-          "terminal": "full",
-          "audit_ok": true,
-          "admitted_faults": [
-            "1"
-          ]
+          "classification": "PROXY_EVIDENCE",
+          "injection_site": "execute_post_prf_write",
+          "reason": "CHAOSFPU modifies the destination PRF cell after staticInst->execute() already wrote it; the workbook requires modifying the writeback data before the PRF write and preserving the FU golden result. Timing (no observer before injection, wakeup after injection) does not change the injection site.",
+          "counts_toward_completion": false
         },
         "3": {
-          "state": "admitted",
+          "state": "proxy",
+          "proxy": true,
           "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR07-F0-W1/seed3/attempt-1",
-          "oracle": "SDC",
-          "terminal": "full",
-          "audit_ok": true,
-          "admitted_faults": [
-            "1"
-          ]
+          "classification": "PROXY_EVIDENCE",
+          "injection_site": "execute_post_prf_write",
+          "reason": "CHAOSFPU modifies the destination PRF cell after staticInst->execute() already wrote it; the workbook requires modifying the writeback data before the PRF write and preserving the FU golden result. Timing (no observer before injection, wakeup after injection) does not change the injection site.",
+          "counts_toward_completion": false
         }
       },
-      "admitted_seeds": 3,
-      "seed_completion": "3/3",
-      "coverage_status": "COMPLETE",
-      "coverage_reason": "certified 3/3: result-side WB proxy (FR07-a/c/d masks) on REAL W1 with ARRAYHASH; true PRF-WB hook remains an adapter boundary",
-      "status": "COMPLETE_3_OF_3"
+      "admitted_seeds": 0,
+      "seed_completion": "0/3",
+      "coverage_status": "PARTIAL",
+      "coverage_reason": "PROXY_EXCLUDED: 3 preserved execute-post-write proxy seeds are not counted as FR07 certification; the workbook PRF-WB data-boundary hook is not yet implemented (FR07-PRF-WB-POSITION-AUDIT.md)",
+      "status": "PROXY_ONLY"
     },
     {
       "runid": "FSU-FR07-F0-W3",

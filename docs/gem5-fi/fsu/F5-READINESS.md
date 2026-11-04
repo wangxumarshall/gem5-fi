@@ -39,8 +39,10 @@
 | FSU-FR03-F5-W5 | COMPLETE_3_OF_3 | 3/3 | FR03 五程序 suite gate 5/5 PASS；正式 seed1/2/3 各 5/5 component admitted；每 suite seed 只计 1 |
 | FSU-FR03-F5-W6 | COMPLETE_3_OF_3 | 3/3 | FR03 W6 三组件 suite gate 3/3 PASS；正式 seed1/2/3 各 3/3 component admitted；9 component 只计 3 seed |
 
-> 双视图（磁盘权威，W4 完成后）：历史全量 **50/519 seed、16/173 RunID**；
-> 活跃 F0/F5 **41/240 seed、13/80 RunID**。suite seed 3 个对应 15 个
+> 双视图（磁盘权威，2026-11-04 FR07 位置审计后）：历史全量
+> **47/519 seed、15/173 RunID**；活跃 F0/F5 **38/240 seed、12/80 RunID**。
+> FR07-F0-W1 的 3 个 execute-post-write seed 保留为 PROXY_EVIDENCE，不计
+> 认证；F5 自身 23 seed / 8 RunID 不受影响。suite seed 3 个对应 15 个
 > component run，component **不进入** seed 总数。
 
 ## 3. FP06 代码能力与认证边界

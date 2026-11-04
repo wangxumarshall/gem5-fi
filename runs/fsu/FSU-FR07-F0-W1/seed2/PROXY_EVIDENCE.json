@@ -1,0 +1,19 @@
+{
+  "schema_version": "fsu-proxy-evidence/v1",
+  "run_id": "FSU-FR07-F0-W1",
+  "seed": 2,
+  "attempt": "runs/fsu/FSU-FR07-F0-W1/seed2/attempt-1",
+  "classification": "PROXY_EVIDENCE",
+  "injection_site": "execute_post_prf_write",
+  "workbook_site": "fsu_result_to_prf_writeback_data_pre_write",
+  "reason": "CHAOSFPU modifies the destination PRF cell after staticInst->execute() already wrote it; the workbook requires modifying the writeback data before the PRF write and preserving the FU golden result. Timing (no observer before injection, wakeup after injection) does not change the injection site.",
+  "source_evidence": [
+    "CHAOS/gem5/src/cpu/o3/dyn_inst.cc:360-369",
+    "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc:621-628",
+    "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc:880-977",
+    "CHAOS/gem5/src/cpu/o3/iew.cc:1290,1516-1530"
+  ],
+  "audit": "docs/gem5-fi/fsu/FR07-PRF-WB-POSITION-AUDIT.md",
+  "counts_toward_completion": false,
+  "original_evidence_preserved": true
+}

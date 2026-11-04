@@ -14,8 +14,8 @@
 
 | 视图 | RunID | 目标 seed | 已完成 seed | 3/3 RunID |
 |---|---:|---:|---:|---:|
-| 历史全量（source registry） | 173 | 519 | 50 | 16 |
-| 当前活跃（F0/F5） | 80 | 240 | 41 | 13 |
+| 历史全量（source registry） | 173 | 519 | 47 | 15 |
+| 当前活跃（F0/F5） | 80 | 240 | 38 | 12 |
 
 活跃范围为 F0 72 + F5 8 = 80；已完成的是 `FSU-FP04-F0-W1`、
 `FSU-FP04-F0-W3`、`FSU-FP04-F0-W4`、`FSU-FP04-F0-W5`（W5 suite，每个
@@ -23,8 +23,13 @@ suite seed 的 5 个 component run 只计 1）、`FSU-FP06-F5-W1`、
 `FSU-FP06-F5-W3`、`FSU-FP06-F5-W4`（W4-rate-v1）、`FSU-FP06-F5-W5`（五程序 F5 suite，
 每 suite seed 计 1）与 `FSU-FP04-F0-W6` 与 `FSU-FP06-F5-W6`（SVD/FFT/sparse suite，每 suite seed 计 1）、
 `FSU-FR03-F5-W5` 与 `FSU-FR03-F5-W6`（FR03 suite，每 suite seed 计 1）；
-`FSU-FR03-F5-W3` 为 2/3（seed3 protocol deviation）；`FSU-FR07-F0-W1`
-（F0 结果侧 WB 代理试点）3 seed；FP06-d 仍 MISSING。
+`FSU-FR03-F5-W3` 为 2/3（seed3 protocol deviation）。
+
+`FSU-FR07-F0-W1` 的 3 个旧 seed 是 **PROXY_EVIDENCE**：原实现于
+`staticInst->execute()` 之后改写 PRF cell，而工作簿要求 “PRF 写入前修改
+WB data”。证据与日志完整保留，但计入 `proxy_seeds_total`（当前 3），
+**不计入** admitted seed；`scope_status=ACTIVE_PROXY_ONLY`。详见
+`FR07-PRF-WB-POSITION-AUDIT.md`。FP06-d 仍 MISSING。
 
 ## 3. 标签
 
@@ -33,8 +38,9 @@ suite seed 的 5 个 component run 只计 1）、`FSU-FP06-F5-W1`、
 - `HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE`：非活跃频率但历史已完成
   （当前为 F1-W4、F2-W4、F3-W4，共 9 seed）；保持 `COMPLETE_3_OF_3`。
 - `HISTORICAL_PARTIAL_OUT_OF_ACTIVE_SCOPE`：预留（当前无）。
+- `ACTIVE_PROXY_ONLY`：活跃范围内只有保留的代理证据，未被严格认证。
 - `completion_state`：COMPLETE / PARTIAL / FAILED / INVALID_EVIDENCE /
-  INCOMPLETE / NOT_RUN，与 scope 标签正交。
+  INCOMPLETE / PROXY_ONLY / NOT_RUN，与 scope 标签正交。
 
 `INDEX.json` 的 `summary` 是历史全量视图，`summary.active_scope` 是活跃
 视图；`INDEX.md` 同时输出两个视图。

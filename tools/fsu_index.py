@@ -110,6 +110,45 @@ def _v2_suite_state(seed_dir: Path, sm: dict):
     }
 
 
+def _proxy_marker(seed_dir: Path):
+    """PROXY_EVIDENCE.json: real evidence kept on disk but excluded from the
+    strict model certification count (e.g. a proxy injection site)."""
+    p = seed_dir / "PROXY_EVIDENCE.json"
+    if not p.exists():
+        return None
+    try:
+        m = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"classification": "PROXY_EVIDENCE",
+                "counts_toward_completion": False,
+                "reason": "unreadable PROXY_EVIDENCE.json"}
+    if m.get("counts_toward_completion", True):
+        return None
+    return m
+
+
+def _marker_matches_attempt(marker, seed_dir: Path, attempt: Path):
+    ref = marker.get("attempt")
+    if not ref:
+        return True
+    refp = Path(ref)
+    if not refp.is_absolute():
+        refp = ROOT / refp
+    try:
+        return refp.resolve() == attempt.resolve()
+    except OSError:
+        return False
+
+
+def _proxy_state(marker, attempt, seed_dir):
+    return {"state": "proxy", "proxy": True,
+            "attempt": str(attempt),
+            "classification": marker.get("classification", "PROXY_EVIDENCE"),
+            "injection_site": marker.get("injection_site"),
+            "reason": marker.get("reason"),
+            "counts_toward_completion": False}
+
+
 def _seed_state(seed_dir: Path):
     # Presence of suite_manifest.json makes this a formal suite seed:
     # its component runs must never enter admitted_seeds_total as N seeds.
@@ -125,8 +164,11 @@ def _seed_state(seed_dir: Path):
             return _w6_suite_seed_state(seed_dir)
         return _suite_seed_state(seed_dir)
     auth = seed_dir / "AUTHORITATIVE"
+    marker = _proxy_marker(seed_dir)
     if auth.exists():
         attempt = Path(auth.read_text(encoding="utf-8").strip())
+        if marker and _marker_matches_attempt(marker, seed_dir, attempt):
+            return _proxy_state(marker, attempt, seed_dir)
         rep = attempt / "chain_report.json"
         if rep.exists():
             r = json.loads(rep.read_text(encoding="utf-8"))
@@ -153,6 +195,8 @@ def _seed_state(seed_dir: Path):
                     "audit_ok": audit_ok,
                     "admitted_faults": chain.get("admitted_faults", [])}
         return {"state": "invalid", "attempt": str(attempt)}
+    if marker:
+        return _proxy_state(marker, None, seed_dir)
     attempts = sorted(seed_dir.glob("attempt-*")) if seed_dir.exists() else []
     failed = [a for a in attempts if (a / ".failed").exists()]
     if failed:
@@ -183,7 +227,8 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
         c = cov.get(rid, {"coverage_status": "UNKNOWN",
                           "coverage_reason": "implementation matrix not found"})
         freq = S.frequency_from_runid(rid)
-        scope_status = S.scope_status(freq, n, scope)
+        proxy_n = sum(1 for s in seeds.values() if s["state"] == "proxy")
+        scope_status = S.scope_status(freq, n, scope, proxy_seeds=proxy_n)
         scope_class = ("ACTIVE_SCOPE" if S.is_active_freq(freq, scope)
                        else scope_status)
         states = {s["state"] for s in seeds.values()}
@@ -197,6 +242,8 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
             completion_state = "INVALID_EVIDENCE"
         elif "incomplete" in states:
             completion_state = "INCOMPLETE"
+        elif "proxy" in states:
+            completion_state = "PROXY_ONLY"
         else:
             completion_state = "NOT_RUN"
         rows.append({"runid": rid, "frequency": freq,
@@ -211,6 +258,9 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
                                 f"PARTIAL_{n}_OF_3" if n else
                                 ("FAILED" if any(s["state"] == "failed"
                                                  for s in seeds.values())
+                                 else "PROXY_ONLY"
+                                 if any(s["state"] == "proxy"
+                                        for s in seeds.values())
                                  else "PENDING"))})
     summary = {
         "total_runids": len(runids),
@@ -219,6 +269,15 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
         "with_2_of_3": sum(1 for r in rows if r["admitted_seeds"] == 2),
         "with_0_of_3": sum(1 for r in rows if r["admitted_seeds"] == 0),
         "admitted_seeds_total": sum(r["admitted_seeds"] for r in rows),
+        # PROXY_EVIDENCE seeds are real, preserved evidence whose injection
+        # site is not the workbook model boundary. They are reported here and
+        # in the per-seed state, never added to admitted_seeds_total.
+        "proxy_seeds_total": sum(
+            1 for r in rows for s in r["seeds"].values()
+            if s.get("state") == "proxy"),
+        "proxy_runids": sorted(
+            r["runid"] for r in rows
+            if any(s.get("state") == "proxy" for s in r["seeds"].values())),
         "suite_seed_dirs": sum(
             1 for r in rows for s in r["seeds"].values() if s.get("suite")),
         "suite_seed_admitted": sum(
@@ -249,6 +308,9 @@ def scan(runids, out_root: Path, matrix_path=None, scope=None):
         "active_runids": len(active_rows),
         "active_seed_target": len(active_rows) * 3,
         "active_admitted_seeds": sum(r["admitted_seeds"] for r in active_rows),
+        "active_proxy_seeds": sum(
+            1 for r in active_rows for s in r["seeds"].values()
+            if s.get("state") == "proxy"),
         "active_complete_runids": sum(1 for r in active_rows
                                       if r["admitted_seeds"] == 3),
         "deferred_by_user_runids": sum(
