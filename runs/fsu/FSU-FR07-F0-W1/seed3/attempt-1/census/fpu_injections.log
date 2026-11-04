@@ -1,0 +1,26 @@
+Tick: 14917210, Site: dyn_inst_execute, sn=11108, pc=0x400d9c, decode_reject=precision_mismatch, enc=0x1e612800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15007685, Site: dyn_inst_execute, sn=11126, pc=0x400dc8, decode_reject=precision_mismatch, enc=0x1e613800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15106245, Site: dyn_inst_execute, sn=11149, pc=0x400df4, decode_reject=precision_mismatch, enc=0x1e610800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15125495, Site: dyn_inst_execute, sn=11177, pc=0x400e20, decode_reject=precision_mismatch, enc=0x1e611800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15156680, Site: dyn_inst_execute, sn=11195, pc=0x400e50, decode_reject=precision_mismatch, enc=0x1f410040, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15244845, Site: dyn_inst_execute, sn=11298, pc=0x400d9c, decode_reject=precision_mismatch, enc=0x1e612800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15256780, Site: dyn_inst_execute, sn=11309, pc=0x400dc8, decode_reject=precision_mismatch, enc=0x1e613800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15269870, Site: dyn_inst_execute, sn=11320, pc=0x400df4, decode_reject=precision_mismatch, enc=0x1e610800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15286425, Site: dyn_inst_execute, sn=11331, pc=0x400e20, decode_reject=precision_mismatch, enc=0x1e611800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15300285, Site: dyn_inst_execute, sn=11343, pc=0x400e50, decode_reject=precision_mismatch, enc=0x1f410040, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15459290, Site: dyn_inst_execute, sn=11446, pc=0x400d9c, decode_reject=precision_mismatch, enc=0x1e612800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15471225, Site: dyn_inst_execute, sn=11457, pc=0x400dc8, decode_reject=precision_mismatch, enc=0x1e613800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15484700, Site: dyn_inst_execute, sn=11468, pc=0x400df4, decode_reject=precision_mismatch, enc=0x1e610800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15500870, Site: dyn_inst_execute, sn=11479, pc=0x400e20, decode_reject=precision_mismatch, enc=0x1e611800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15515115, Site: dyn_inst_execute, sn=11491, pc=0x400e50, decode_reject=precision_mismatch, enc=0x1f410040, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+Tick: 15928990, Site: dyn_inst_execute, sn=11635, pc=0x400d9c, decode_reject=precision_mismatch, enc=0x1e612800, decoded_kind=scalar_vfp, decoded_precision=fp64, decoded_width=64, decoded_lanes=1, manifest_precision=fp32, manifest_lane_width=32, manifest_lane_offset=0
+CHAOS_ELIGIBLE_COUNT=41216
+CHAOS_ELIGIBLE_OPCLASS FloatAdd=16384
+CHAOS_ELIGIBLE_OPCLASS FloatDiv=8192
+CHAOS_ELIGIBLE_OPCLASS FloatMult=8192
+CHAOS_ELIGIBLE_OPCLASS FloatMultAcc=8192
+CHAOS_ELIGIBLE_OPCLASS FloatSqrt=256
+CHAOS_ELIGIBLE_REGCLASS vec=41216
+CHAOS_DECODE_REJECTS=41216
+CHAOS_DECODE_REJECT_REASON precision_mismatch=41216
+CHAOS_DECODE_KIND scalar_vfp=82432

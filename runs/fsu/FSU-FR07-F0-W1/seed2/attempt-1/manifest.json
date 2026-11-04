@@ -1,0 +1,65 @@
+{
+  "run_id": "FSU-FR07-F0-W1",
+  "model_id": "FR07",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W1",
+  "submodel": "FR07-c",
+  "config_family": "C3",
+  "config_profile": "B0",
+  "workload": {
+    "binary": "workloads/directed/w1_fp_scalar_probe",
+    "identity": "W1-fp-scalar-probe-v1",
+    "source": "workloads/directed/w1_fp_scalar_probe.c",
+    "golden_id": "w1-fpscalarprobe-v1-golden",
+    "golden": "ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "injector": {
+    "component": "fsu",
+    "fpu_mode": {
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "decode_guard": true,
+      "op_classes": [
+        "FloatAdd",
+        "FloatMult",
+        "FloatMultAcc",
+        "FloatDiv",
+        "FloatSqrt"
+      ],
+      "reg_class": "vec"
+    },
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fault_mask": "0x80000001"
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "FR07-F0-W1 formal seed2: FR07-c, result-side WB proxy, mask 0x80000001; frozen before the run. Not a true PRF-WB hook; adapter boundary documented.",
+  "pre_registration": {
+    "frozen_at": "2026-11-04",
+    "submodel": "FR07-c",
+    "mask": "0x80000001",
+    "fault_type": "bit_flip",
+    "precision": "fp32",
+    "lane_width": 32,
+    "lane_offset": 0
+  },
+  "seed": 2,
+  "sample_run_id": "s2",
+  "selection_seed": 2,
+  "injection_seed": 2,
+  "attempt": 1,
+  "created_at": "2026-11-04T13:26:34",
+  "source_head": "68dbd4bef5a582261092cb3f0af0928d542a1a8a",
+  "gem5_binary": "/home/sdc/gem5-fi-fsu/CHAOS/gem5/build/ARM/gem5.opt",
+  "gem5_sha256": "9457531948999dd8241e6c6ad6fb85d0e529d5b7017f238d23c36b3d2302e28d",
+  "runner_tool_sha256": "150453e70b937c226e871f0c3218c0d625307db31af6ca887d82203ef7c4aa72",
+  "workload_binary": "/home/sdc/gem5-fi-fsu/workloads/directed/w1_fp_scalar_probe",
+  "workload_sha256": "c2b8a553bd44c87faaa3d8130d8a897097dc53c4e1627cb2b09b32a59e914754"
+}
