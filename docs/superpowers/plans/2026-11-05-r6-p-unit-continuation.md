@@ -52,18 +52,26 @@ claim.
 
 ## Task 5 — P07-c old tag/valid fill
 
-- [ ] Keep the previous tag/valid combination on a pure-prefetch fill (new
-      data lands under the stale tag).
-- [ ] Behavior test + no-fault control; bounded pilot; docs; commit/push.
+- [ ] NOT IMPLEMENTED THIS PASS (remaining). Faithful implementation needs
+      the victim's pre-allocation tag, which requires a capture hook in
+      `BaseCache::allocateBlock` before `blk->insert()`; P07-a was the
+      priority item with a clear action point and consumption path. No
+      relabel/shortcut was used. Recorded in CENSUS/CLOSEOUT/P07 evidence.
 
 ## Task 6 — Remaining blocks and final closeout
 
-- [ ] P07-F0-W8 downstream-consumer evidence gap: investigate, record exact
-      block; do not borrow another branch's L5.
-- [ ] P03-F0-W9: attempt the real lineage bridge; if impossible, keep the
-      local block.
-- [ ] P09-F0-W13: search for legal PARSEC assets; if absent, BLOCKED_ASSET.
-- [ ] Whole-unit evidence audit, closeout docs, STATE/PROGRESS, push.
+- [x] P07-F0-W8 downstream-consumer evidence gap: seeds 2/3 probe
+      (`campaign_p07_w8probe_20261105`) shows three distinct activation
+      points, all terminal L1 — real workload-coverage block; no
+      cross-branch L5 borrowed.
+- [x] P03-F0-W9: re-checked the existing evidence — terminal L4,
+      admitted=False, errant commit on a different line with no lineage
+      bridge; real lineage bridge impossible without P03-b cross-page
+      support; local block kept.
+- [x] P09-F0-W13: searched for PARSEC assets (`find /home/sdc -maxdepth 4
+      -iname '*parsec*'` empty; no assets dir) — BLOCKED_ASSET confirmed.
+- [x] Whole-unit evidence audit (`pytest tests/test_lsu_prop_doc_audit.py`
+      18 passed), closeout addendum, STATE/PROGRESS updated, pushed.
 
 ## Verification discipline
 
