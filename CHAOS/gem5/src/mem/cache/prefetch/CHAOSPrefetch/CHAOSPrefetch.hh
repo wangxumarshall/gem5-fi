@@ -87,7 +87,8 @@ class CHAOSPrefetch : public SimObject
     enum class Mode { P01StrideBitflip, P02ConfidenceCorrupt, P03AddrSubst,
                       P05DropDup, P08StrideStuck, P06AsDemand,
                       P04QueueValid, P04QueueSelect, P04QueuePointer,
-                      P09WbLoss, P09DirtyClear, P07FillTagMispair };
+                      P09WbLoss, P09DirtyClear, P07FillTagMispair,
+                      P07DataWay };
 
     static Mode stringToMode(const std::string &s);
 
@@ -166,16 +167,23 @@ class CHAOSPrefetch : public SimObject
     uint64_t diag_pref_evictions = 0;
     uint64_t diag_dirty_pref_evictions = 0;
 
-    // [MDSPEC][R6-P-P07-b] Prefetch-response fill tag/way mispair hook.
-    // Called only at the REAL fill point for a pure-prefetch fill and only
-    // when a distinct valid partner way exists in the same set.  Returns
-    // true iff the caller must swap the two blocks' tags (data stays in
-    // its own way), producing the tag/data mispair.
+    // [MDSPEC][R6-P-P07-a/b] Prefetch-response fill mispair hook.  Called
+    // only at the REAL fill point for a pure-prefetch fill and only when a
+    // distinct valid partner way exists in the same set.  The action names
+    // the REAL operation the caller must apply to the pair:
+    //   Tags (P07-b): the two blocks' tags are exchanged; data stays in
+    //     its own way => tag/data mismatch.
+    //   Data (P07-a): the two blocks' DATA arrays are exchanged; tags stay
+    //     in their own way => the response data lands in the wrong way
+    //     under the partner tag while the fill way keeps the partner's old
+    //     data.  (Swap is the spec's legal "exchange" composition; every
+    //     input fragment is preserved, only its way changes.)
+    enum class FillMispair { None, Tags, Data };
     static CHAOSPrefetch *fillWayHook;
-    bool maybeMispairFillTag(Addr fill_addr, unsigned fill_set,
-                             unsigned fill_way, Addr partner_addr,
-                             unsigned partner_set, unsigned partner_way,
-                             bool fill_dirty, bool partner_dirty);
+    FillMispair maybeMispairFill(Addr fill_addr, unsigned fill_set,
+                                 unsigned fill_way, Addr partner_addr,
+                                 unsigned partner_set, unsigned partner_way,
+                                 bool fill_dirty, bool partner_dirty);
 
   private:
     static ChaOSLsuTier tierFromString(const std::string &s);

@@ -44,9 +44,11 @@ claim.
 
 ## Task 4 — P07-a data written to wrong way
 
-- [ ] At the pure-prefetch fill gate write the response data into a distinct
+- [x] At the pure-prefetch fill gate write the response data into a distinct
       valid same-set way while the tag stays in the fill way.
-- [ ] Behavior test + no-fault control; bounded pilot; docs; commit/push.
+- [x] Behavior test + no-fault control; bounded pilot; docs; commit/push.
+      Result: W6 real L5 chain but output golden (no SDC claim); W8 terminal
+      L1; seed1 pilot only, not certified.
 
 ## Task 5 — P07-c old tag/valid fill
 

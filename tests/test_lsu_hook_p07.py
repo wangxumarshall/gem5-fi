@@ -122,6 +122,64 @@ def main():
         check(f"{rid} gzip EOF + stats 非空",
               gz and (sd / "stats.txt").stat().st_size > 0, "gzip/stats")
 
+    print("[4] P07-a data written to wrong way (distinct composition rule)")
+    phh = src("CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/"
+              "CHAOSPrefetch.hh")
+    check("Mode P07DataWay + p07_data_way 映射",
+          "P07DataWay" in phh
+          and 'if (s == "p07_data_way")           return Mode::P07DataWay;'
+          in pcc, "mode missing")
+    check("FillMispair 区分 Tags/Data（一次 attempt，不双计）",
+          "enum class FillMispair { None, Tags, Data };" in phh
+          and "maybeMispairFill" in phh, "action enum missing")
+    check("base.cc 真实交换两个 way 的 data 数组（tag 不动）",
+          "chaos_partner->data[ci] = chaos_tmp;" in bcc
+          and "FillMispair::Data" in bcc, "data swap missing")
+    check("schema v1: pf_data 单元侧 L1",
+          P.KIND_LAYER.get("pf_data") == "L1"
+          and "fault_id" in P.REQUIRED_FIELDS.get("pf_data", []), "schema")
+    check("choices 含 p07_data_way",
+          "p07_data_way" in src("configs/se/lsu_proxy.py"), "missing")
+    base2 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+                 "campaign_p07a_20261105")
+    for rid in ("P07A-F0-W6", "P07A-F0-W8"):
+        sd = base2 / rid / "seed1"
+        if not (sd / "prop_evt.txt.gz").is_file():
+            print(f"  SKIP {rid} 证据不在（{sd}）")
+            continue
+        inj = (sd / "prefetch_injections.log").read_text()
+        check(f"{rid} 注入行 P07_data_wrong_way + set/way",
+              "P07_data_wrong_way" in inj
+              and "data arrays swapped; tags stay in their way" in inj, inj)
+        text = gzip.open(sd / "prop_evt.txt.gz", "rt").read()
+        check(f"{rid} pf_data 记录 fill/partner way + data_wrong_way",
+              "kind=pf_data" in text
+              and "field=fill_data_way" in text
+              and "state_after=data_wrong_way" in text, "pf_data missing")
+        dout = (sd / "run.out").read_text()
+        m = re.search(r"^([0-9a-f]{16})$", dout, re.M)
+        check(f"{rid} 输出哈希 = 无故障 golden（不声称 SDC）",
+              m is not None and m.group(1) in
+              ("062e5124df3667f9", "629727c0ad9ca8ef"),
+              m.group(1) if m else None)
+        rep = subprocess.run(
+            [sys.executable, str(ROOT / "tools/lsu_chain_check.py"),
+             str(sd / "prop_evt.txt.gz"), "--run-id", rid],
+            capture_output=True, text=True)
+        try:
+            j = json.loads(rep.stdout)
+            f1 = j.get("faults", {}).get("1", {})
+            check(f"{rid} 链终局按真实链（L1/L2/full 均可，不伪造）",
+                  f1.get("terminal") in
+                  ("provable_to_L1_then_unknown",
+                   "provable_to_L2_then_unknown",
+                   "provable_to_L3_then_unknown",
+                   "provable_to_L4_then_unknown",
+                   "full", "detected_contained"),
+                  str(f1.get("terminal")))
+        except Exception as exc:  # noqa: BLE001
+            check(f"{rid} 链终局按真实链", False, f"checker: {exc}")
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

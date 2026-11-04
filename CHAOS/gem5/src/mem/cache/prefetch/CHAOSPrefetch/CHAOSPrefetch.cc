@@ -52,7 +52,8 @@ namespace gem5
         // the gate byte-identical.
         if (fi_mode == Mode::P06AsDemand)
             fillMarkHook = this;
-        if (fi_mode == Mode::P07FillTagMispair)
+        if (fi_mode == Mode::P07FillTagMispair ||
+                fi_mode == Mode::P07DataWay)
             fillWayHook = this;
         if (fi_mode == Mode::P09WbLoss || fi_mode == Mode::P09DirtyClear) {
             wbLossHook = this;
@@ -140,6 +141,7 @@ namespace gem5
         if (s == "p09_wb_loss")            return Mode::P09WbLoss;
         if (s == "p09_dirty_clear")        return Mode::P09DirtyClear;
         if (s == "p07_fill_tag_mispair")   return Mode::P07FillTagMispair;
+        if (s == "p07_data_way")           return Mode::P07DataWay;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
 
@@ -209,7 +211,8 @@ namespace gem5
                 fi_mode == Mode::P09DirtyClear) return;
         // [MDSPEC][R6-P-P07-b] Same inertness: P07's event source is the
         // prefetch-response FILL site (BaseCache::handleFill).
-        if (fi_mode == Mode::P07FillTagMispair) return;
+        if (fi_mode == Mode::P07FillTagMispair ||
+                fi_mode == Mode::P07DataWay) return;
 
         // [MDSPEC][R6-P-P04] P04-a queue valid fault.  The queue entry is
         // PRESENT (pointer/count unchanged) but its shadow valid bit is
@@ -578,6 +581,7 @@ namespace gem5
           case Mode::P09WbLoss:
           case Mode::P09DirtyClear:
           case Mode::P07FillTagMispair:
+          case Mode::P07DataWay:
             break;
           case Mode::P01StrideBitflip: {
               // P01: training-entry stride single-bit XOR. Bits 0-30 only
@@ -732,23 +736,27 @@ namespace gem5
         }
     }
 
-    bool
-    CHAOSPrefetch::maybeMispairFillTag(Addr fill_addr, unsigned fill_set,
-                                       unsigned fill_way, Addr partner_addr,
-                                       unsigned partner_set,
-                                       unsigned partner_way,
-                                       bool fill_dirty, bool partner_dirty)
+    CHAOSPrefetch::FillMispair
+    CHAOSPrefetch::maybeMispairFill(Addr fill_addr, unsigned fill_set,
+                                    unsigned fill_way, Addr partner_addr,
+                                    unsigned partner_set,
+                                    unsigned partner_way,
+                                    bool fill_dirty, bool partner_dirty)
     {
-        if (fi_mode != Mode::P07FillTagMispair) return false;
-        if (max_faults != 0 && faults_injected >= max_faults) return false;
+        if (fi_mode != Mode::P07FillTagMispair &&
+                fi_mode != Mode::P07DataWay)
+            return FillMispair::None;
+        if (max_faults != 0 && faults_injected >= max_faults)
+            return FillMispair::None;
         // Attempted = every pure-prefetch fill that has a distinct valid
         // partner in its set (the caller's eligibility gate).
         trigger.onAttempt();
-        if (!trigger.onEligible()) return false;
+        if (!trigger.onEligible()) return FillMispair::None;
         ++faults_injected;
         if (trigger.tier == ChaOSLsuTier::F5)
             trigger.noteOutcome(true);
 
+        const bool data_way = (fi_mode == Mode::P07DataWay);
         if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
             const uint64_t ptag = h5->registerCacheFault(
                 fill_addr, -1, line_size, "prefetch");
@@ -765,36 +773,63 @@ namespace gem5
                 std::ostringstream fhex, phex;
                 fhex << std::hex << fill_addr;
                 phex << std::hex << partner_addr;
-                h5->notePropEvt("pf_tag", {
-                    {"fault_id", std::to_string(ptag)},
-                    {"pf_request_id", std::to_string(pfid)},
-                    {"corr", "origin"},
-                    {"va", fhex.str()},
-                    {"set", std::to_string(fill_set)},
-                    {"way", std::to_string(fill_way)},
-                    {"entry_index", std::to_string(partner_way)},
-                    {"field", "fill_way_tag"},
-                    {"before", fhex.str()},
-                    {"after", phex.str()},
-                    // Both blocks are same-secure by caller construction.
-                    // Record each side's dirty state: a dirty side's data
-                    // will later be written back under the swapped tag,
-                    // which is the intended mispair consequence, not an
-                    // extra operation.
-                    {"state_before", std::string(fill_dirty ? "dirty"
-                                                            : "clean") +
-                                     "/" + (partner_dirty ? "dirty"
-                                                          : "clean")},
-                    {"state_after", "tag_mispair"},
-                });
+                if (data_way) {
+                    // P07-a: the response DATA is written to the partner
+                    // way; the fill way keeps the partner's old data.  The
+                    // tags stay in their own ways, so a demand to either
+                    // line hits the right tag and reads the other line's
+                    // bytes.
+                    h5->notePropEvt("pf_data", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"corr", "origin"},
+                        {"va", fhex.str()},
+                        {"set", std::to_string(fill_set)},
+                        {"way", std::to_string(fill_way)},
+                        {"entry_index", std::to_string(partner_way)},
+                        {"field", "fill_data_way"},
+                        {"before", std::to_string(fill_way)},
+                        {"after", std::to_string(partner_way)},
+                        {"state_before",
+                         std::string(fill_dirty ? "dirty" : "clean") + "/" +
+                             (partner_dirty ? "dirty" : "clean")},
+                        {"state_after", "data_wrong_way"},
+                    });
+                } else {
+                    h5->notePropEvt("pf_tag", {
+                        {"fault_id", std::to_string(ptag)},
+                        {"pf_request_id", std::to_string(pfid)},
+                        {"corr", "origin"},
+                        {"va", fhex.str()},
+                        {"set", std::to_string(fill_set)},
+                        {"way", std::to_string(fill_way)},
+                        {"entry_index", std::to_string(partner_way)},
+                        {"field", "fill_way_tag"},
+                        {"before", fhex.str()},
+                        {"after", phex.str()},
+                        // Both blocks are same-secure by caller
+                        // construction.  Record each side's dirty state: a
+                        // dirty side's data will later be written back
+                        // under the swapped tag, which is the intended
+                        // mispair consequence, not an extra operation.
+                        {"state_before",
+                         std::string(fill_dirty ? "dirty" : "clean") + "/" +
+                             (partner_dirty ? "dirty" : "clean")},
+                        {"state_after", "tag_mispair"},
+                    });
+                }
             }
         }
         std::ostringstream detail;
         detail << "fill set=" << fill_set << " way=" << fill_way
                << " -> partner set=" << partner_set << " way=" << partner_way
-               << " (tags swapped; data stays in its way)";
-        logInjection("P07_fill_tag_mispair", fill_addr, detail.str());
-        return true;
+               << (data_way
+                   ? " (data arrays swapped; tags stay in their way)"
+                   : " (tags swapped; data stays in its way)");
+        logInjection(data_way ? "P07_data_wrong_way"
+                              : "P07_fill_tag_mispair",
+                     fill_addr, detail.str());
+        return data_way ? FillMispair::Data : FillMispair::Tags;
     }
 
     void

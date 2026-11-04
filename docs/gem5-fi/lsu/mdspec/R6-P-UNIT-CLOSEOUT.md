@@ -111,7 +111,15 @@ complete and is not claimed complete.**
   demand misses, checker terminal `full`/L5, but the output hash remains
   the golden `062e5124df3667f9` — recorded without an SDC claim (oracle
   n/a). W8 fill 0x76740↔0x86740: no downstream demand, terminal L1,
-  output golden. Seeds 2/3 not run; P07-a/c not implemented.
+  output golden. Seeds 2/3 not run for the P07-b pilot. **P07-a
+  (data-to-wrong-way) implemented and seed1-piloted** on binary
+  `0f21b4c4…`: the fill and a distinct valid same-set partner exchange
+  their DATA arrays (tags stay), one shared `FillMispair` attempt stream
+  with P07-b. W6 fill 0x7ec00 set944 way1↔way0 reaches a real
+  `errant_commit` L5 (checker full/L5) but the output stays golden (no SDC
+  claim); W8 fill 0x76740 set413 way1↔way0 has no downstream consumer
+  (terminal L1, output golden). NOT certified. **P07-c (old tag/valid) is
+  not implemented.**
 - **Model substitution avoided:** the old classic CHAOSCache `tag`/`dirty`
   routing for P07/P09 is removed.
 - **Asset:** P09-F0-W13 requires PARSEC, absent in this repository.
@@ -142,3 +150,43 @@ The five F0 gap RunIDs (`P01-F0-W2`, `P03-F0-W8`, `P03-F0-W9`, `P06-F0-W6`,
 and `campaign_f0gap_seed23_20261104/` (seeds 2/3), on the new F0-gap binary.
 Only those five RunIDs are superseded; the 9 already-certified RunIDs and all
 F5 evidence are untouched. No older evidence file is deleted or rewritten.
+
+## 2026-11-05 takeover addendum
+
+Completed units this takeover (all PARTIAL_SUBMODEL; none changes the
+certified count of 14 RunIDs / 42 seeds):
+
+- **P04-F5 permanent queue-valid stuck** (P04-a arm): run-long stuck valid
+  field, ONE latched physical fault id, 33 propagation instances per run
+  (birth/skip), 3 seeds on W2/W8; terminal L2, Masked, output golden —
+  NOT certified (performance-only). Seeds are deterministic replications.
+- **P09-c dirty premature clear**: dirty state cleared before the eviction
+  decision (CleanEvict, no writeback request); real end-to-end SDC on the
+  non-B0 L2=16KiB diagnostic (chain full/L5, output differs); NOT a RunID.
+- **P07-a data written to wrong way**: fill/partner data arrays exchanged,
+  tags stay; W6 reaches a real errant commit L5 (checker full/L5) but the
+  output stays golden (no SDC claim); W8 has no downstream consumer;
+  seed1 pilot only, NOT certified.
+
+Recorded blocks (not silently approximated):
+
+- **P09-b done-early**: MODEL_NOT_EXPRESSIBLE_AT_SITE — classic gem5's L1D
+  writeback is fire-and-forget (dirty cleared at packet creation, line
+  invalidated immediately, no completion ack); the only "done" states are
+  internal buffer acceptance or the dirty state, the latter being P09-c.
+- **P07-F0-W8 coverage**: seeds 1/2/3 inject into three eligible fills
+  (0x76740, 0x76740, 0x767c0) and all terminate `provable_to_L1_then_unknown`
+  — no downstream demand in this workload, a real coverage block (probe
+  evidence `campaign_p07_w8probe_20261105`).
+- **P07-c (old tag/valid)**: not implemented.
+- **P03-F0-W9**: terminal L4, admitted False; the only errant commit is on a
+  different line with no lineage bridge; cross-branch L5 not borrowed.
+- **P09-F0-W13**: PARSEC assets absent (`find /home/sdc -maxdepth 4
+  -iname '*parsec*'` empty; no assets dir).
+- **P09-F0-W6/W8** remain blocked by B0 coverage (zero prefetch-caused
+  evictions at 1 MiB L2), unchanged.
+
+Source of truth: `R6-P-UNIT-STATE.json` / `R6-P-UNIT-PROGRESS.md` under
+`/home/sdc/gem5-fi-ding-cleanup-20261029/`; per-unit evidence:
+`evidence/R6-P-P04-EVIDENCE.md`, `R6-P-P07-EVIDENCE.md`,
+`R6-P-P09-EVIDENCE.md`.

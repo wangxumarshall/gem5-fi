@@ -81,3 +81,83 @@ exactly; no L5/SDC is invented.
 - B0 W6/W8 did not produce an output-visible error in these seeds; a
   larger/bounded seed sweep would be the next step if certification is
   pursued.
+
+---
+
+## P07-a data written to the wrong way — implementation and seed1 pilot (2026-11-05)
+
+**Status: IMPLEMENTED / BEHAVIOR-VERIFIED PILOT / NOT CERTIFIED.**
+The landed arm is P07-a (response data written to a different way). P07-b
+(tag mispair) is unchanged and certified for W6; P07-c (old tag/valid) is
+not implemented this pass.
+
+### Model
+
+At the SAME real pure-prefetch fill gate as P07-b, the fill block and a
+distinct valid same-set partner (same secure bit, different tag) exchange
+their **data arrays** (`blk->data` ↔ `partner->data`); the **tags stay in
+their own ways**. The response bytes therefore land under the partner's
+tag while the fill way keeps the partner's old bytes. This is the
+authoritative P07-a "把 data 写入 way A、tag 写入 way B" composition — the
+spec's legal "exchange" rule, with every input fragment preserved and only
+the composition/way changed. It is not a tag fault (P07-b) and not a
+generic cache-tag substitution.
+
+The fill hook now returns `FillMispair` (`None` / `Tags` / `Data`) so one
+fill books exactly one attempt: `maybeMispairFill` is the single attempt
+stream for both P07-b and P07-a.
+
+### Binary / census / evidence
+
+- Binary: `CHAOS/gem5/build/ARM/gem5.opt`, sha256
+  `0f21b4c4a86c51effb7dca135485f278dcb3496cf288b2bcd0eab6fd0c4fddc0`,
+  source `4b701bd4` + this patch; build exit 0, zero warnings
+  (`/tmp/p07a_build.log`).
+- No-fault census (same mode mounted, warm-up 1, span 1e9): the eligible
+  stream is unchanged from the P07-b census — W6 attempted=2 eligible=2,
+  W8 attempted=5 eligible=5; controls reproduce both goldens
+  (`062e5124df3667f9`, `629727c0ad9ca8ef`) with `injected=0`.
+- Pilot (span 2 / 5, seed 1): `campaign_p07a_20261105`.
+
+### Real behavior (seed1)
+
+```
+W6: Site: P07_data_wrong_way Tick: 34086360 pf_addr=0x7ec00 fill set=944 way=1 -> partner set=944 way=0 (data arrays swapped; tags stay in their way)
+W8: Site: P07_data_wrong_way Tick: 107338770 pf_addr=0x76740 fill set=413 way=1 -> partner set=413 way=0 (data arrays swapped; tags stay in their way)
+```
+
+Propagation: `pf_data` (`field=fill_data_way`, before=fill way, after=
+partner way, `state_after=data_wrong_way`, both lines registered under
+the same fault). W6 chain reaches a real `errant_commit` (`pc=0x400620`,
+`commit_seq=81793`, tick 45204775, detection_layer=L5) — checker terminal
+`full`/L5 — but the workload output hash stays golden
+`062e5124df3667f9`, so **no SDC is claimed** (the tainted commit has no
+output effect). W8: fill 0x76740↔0x86740, no downstream demand observed;
+terminal `provable_to_L1_then_unknown`, output golden
+`629727c0ad9ca8ef`.
+
+### Honesty boundary
+
+- Pilot only (seed 1); seeds 2/3 not run; NOT certified.
+- W6's L5 is a real tainted commit, not an output change; the oracle is
+  Masked and no SDC claim is made.
+- W8 has no downstream consumer; terminal L1 is recorded as-is.
+- P07-c (old tag/valid) remains unimplemented; the classic cache-tag
+  routing stays removed.
+
+### P07-F0-W8 coverage probe (2026-11-05)
+
+The P07-F0-W8 RunID is not admitted because the faulted fill has no later
+demand. To distinguish a sampling artifact from a workload-coverage block,
+seeds 2 and 3 were run with the certified P07-b arm (warm-up 1, span 5):
+
+```
+seed2: Site: P07_fill_tag_mispair Tick: 107338770 pf_addr=0x76740 set=413 way=1 -> partner way=0
+seed3: Site: P07_fill_tag_mispair Tick: 107333380 pf_addr=0x767c0 set=415 way=1 -> partner way=0
+```
+
+Both terminate `provable_to_L1_then_unknown` (seed1: same terminal at
+0x76740). Three distinct activation points, no downstream consumer on any
+of them — the W8 block is a real workload-consumption block, not a
+seed-sampling artifact. Evidence: `campaign_p07_w8probe_20261105`. No L5
+was borrowed from another branch.

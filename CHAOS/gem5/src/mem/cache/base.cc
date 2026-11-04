@@ -2052,16 +2052,33 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 break;
             }
         }
-        if (chaos_partner &&
-            CHAOSPrefetch::fillWayHook->maybeMispairFillTag(
-                addr, blk->getSet(), blk->getWay(),
-                regenerateBlkAddr(chaos_partner), chaos_partner->getSet(),
-                chaos_partner->getWay(),
-                blk->isSet(CacheBlk::DirtyBit),
-                chaos_partner->isSet(CacheBlk::DirtyBit))) {
-            const Addr chaos_tag = blk->getTag();
-            blk->chaosSetTag(chaos_partner->getTag());
-            chaos_partner->chaosSetTag(chaos_tag);
+        if (chaos_partner) {
+            const auto chaos_mispair =
+                CHAOSPrefetch::fillWayHook->maybeMispairFill(
+                    addr, blk->getSet(), blk->getWay(),
+                    regenerateBlkAddr(chaos_partner),
+                    chaos_partner->getSet(), chaos_partner->getWay(),
+                    blk->isSet(CacheBlk::DirtyBit),
+                    chaos_partner->isSet(CacheBlk::DirtyBit));
+            if (chaos_mispair == CHAOSPrefetch::FillMispair::Tags) {
+                const Addr chaos_tag = blk->getTag();
+                blk->chaosSetTag(chaos_partner->getTag());
+                chaos_partner->chaosSetTag(chaos_tag);
+            } else if (chaos_mispair ==
+                           CHAOSPrefetch::FillMispair::Data) {
+                // [MDSPEC][R6-P-P07-a] The response data is written into
+                // the WRONG way: exchange the two ways' data arrays.  The
+                // fill block keeps its own tag (address) but now holds the
+                // partner's old bytes; the partner keeps its tag but holds
+                // the response bytes.  Tags are untouched, so a demand to
+                // either line hits the right tag and reads the other line's
+                // data — a real data-wrong-way mispair.
+                for (unsigned ci = 0; ci < blkSize; ++ci) {
+                    const uint8_t chaos_tmp = blk->data[ci];
+                    blk->data[ci] = chaos_partner->data[ci];
+                    chaos_partner->data[ci] = chaos_tmp;
+                }
+            }
         }
     }
     // The block will be ready when the payload arrives and the fill is done
