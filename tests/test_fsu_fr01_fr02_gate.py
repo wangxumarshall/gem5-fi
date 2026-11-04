@@ -453,9 +453,83 @@ def test_preconsumer_overwrite_closure(tmp_path):
     assert rep["lifecycle"]["certified_closure"] is True
     assert rep["lifecycle"]["events"]["overwrite_phase"] == \
         "before_any_consumer_read"
-    # ... but "fault is gone" is still BLOCKED (no write coverage).
+    # ... but "fault is gone" is still BLOCKED on a legacy stream that has
+    # no target-restoration / post-overwrite observation fields.
     assert rep["masked_certification"]["certified"] is False
-    assert "coverage" in rep["masked_certification"]["reason"].lower()
+    assert "post-overwrite" in rep["masked_certification"]["reason"].lower()
+
+
+def test_overwrite_containment_certified_with_full_visibility(tmp_path):
+    """The new evidence closes the chain: target bits restored, every
+    post-overwrite read/write observed and clean."""
+    events = [
+        root_fr01(),
+        carrier(),
+        overwrite(event_id="2", parent="1", tick="30", sn="7", gen="1",
+                  full_before=HEX20, fault_mask=HEX20,
+                  target_bits_before="0x20", target_bits_after="0x0",
+                  target_bits_restored="1"),
+        evt(kind="post_overwrite_read", event_id="3", parent_event_id="2",
+            tick="40", model_id="FR01", submodel="FR01-a",
+            reg_class="vec", phys_reg="1", reg_generation="1",
+            dyn_inst_seq="8", consumer_seq="8", lane_width="64",
+            lane_offset="0", lane_mask="0x20", bit_indices="5",
+            before="0x0", after="0x0", target_bits_flipped="0",
+            same_generation="1", activated="0", install_event="0",
+            state_before="cell_clean", state_after="clean_read"),
+        evt(kind="write_after_overwrite", event_id="4", parent_event_id="3",
+            tick="50", model_id="FR01", submodel="FR01-a",
+            reg_class="vec", phys_reg="1", reg_generation="1",
+            dyn_inst_seq="9", lane_width="64", lane_offset="0",
+            lane_mask="0x20", bit_indices="5", before="0x0", after="0x0",
+            target_bits_flipped="0", activated="0", install_event="0",
+            state_before="cell_clean", state_after="clean_write"),
+        chain_end(event_id="5", parent="4", tick="100",
+                  post_overwrite_reads_total="1",
+                  post_overwrite_reads_emitted="1",
+                  post_overwrite_affected_reads="0",
+                  post_overwrite_writes_total="1",
+                  post_overwrite_writes_emitted="1",
+                  post_overwrite_writes_affected="0",
+                  generation_changes="0"),
+    ]
+    rep = analyze(tmp_path, events, fr01_expect())
+    assert rep["status"] == "PASS", rep["reason"]
+    assert rep["containment"]["certified"] is True, rep["containment"]
+    assert rep["certification"]["status"] == "CERTIFIED"
+    assert rep["masked_certification"]["certified"] is True
+    assert rep["masked_certification"]["verdict"] == "CONTAINED_BY_OVERWRITE"
+
+
+def test_overwrite_containment_blocked_when_a_post_read_is_affected(
+        tmp_path):
+    events = [
+        root_fr01(),
+        carrier(),
+        overwrite(event_id="2", parent="1", tick="30", sn="7", gen="1",
+                  full_before=HEX20, fault_mask=HEX20,
+                  target_bits_restored="1"),
+        evt(kind="post_overwrite_read", event_id="3", parent_event_id="2",
+            tick="40", model_id="FR01", submodel="FR01-a",
+            reg_class="vec", phys_reg="1", reg_generation="1",
+            dyn_inst_seq="8", consumer_seq="8", lane_width="64",
+            lane_offset="0", lane_mask="0x20", bit_indices="5",
+            before="0x20", after="0x20", target_bits_flipped="1",
+            same_generation="1", activated="0", install_event="0",
+            state_before="cell_clean", state_after="affected_read"),
+        chain_end(event_id="5", parent="3", tick="100",
+                  post_overwrite_reads_total="1",
+                  post_overwrite_reads_emitted="1",
+                  post_overwrite_affected_reads="1",
+                  post_overwrite_writes_total="0",
+                  post_overwrite_writes_emitted="0",
+                  post_overwrite_writes_affected="0",
+                  generation_changes="0"),
+    ]
+    rep = analyze(tmp_path, events, fr01_expect())
+    assert rep["masked_certification"]["certified"] is False
+    assert any("affected read" in m
+               for m in rep["containment"]["missing"])
 
 
 def test_overwrite_after_read_before_commit(tmp_path):

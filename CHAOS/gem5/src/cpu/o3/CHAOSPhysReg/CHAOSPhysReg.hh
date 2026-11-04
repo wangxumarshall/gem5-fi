@@ -155,11 +155,30 @@ class CHAOSPhysReg : public SimObject
         uint64_t install_lane_before = 0;
         uint64_t install_lane_after = 0;
         uint64_t last_lane_value = 0;  // most recent observed target lane
+        // Full 128-bit value written by the install read-modify-write. This
+        // is the value the real overwrite must replace; it lets the audit
+        // prove the injected bits are gone instead of only that a write was
+        // observed.
+        uint8_t install_full[16] = {};
+        bool install_full_valid = false;
         uint64_t install_reads_baseline = 0;
         uint64_t read_events = 0;
         uint64_t reads_total = 0;
         uint64_t write_exposures_total = 1;  // the install write
         bool overwritten = false;
+        // Post-overwrite visibility (does the defect survive the real write?)
+        // and post-overwrite writes (is the transient ever re-applied?).
+        uint64_t post_overwrite_reads_total = 0;
+        uint64_t post_overwrite_reads_emitted = 0;
+        uint64_t post_overwrite_affected_reads = 0;
+        uint64_t post_overwrite_writes_total = 0;
+        uint64_t post_overwrite_writes_emitted = 0;
+        uint64_t post_overwrite_writes_affected = 0;
+        // A free/realloc changes the cell generation: the old corrupted cell
+        // no longer exists, which is a lifecycle terminal of its own.
+        bool generation_changed = false;
+        uint64_t generation_change_event = 0;
+        uint32_t latest_generation = 0;
         uint64_t overwrite_event = 0;
         uint64_t overwrite_sn = 0;
         uint64_t overwrite_tick = 0;

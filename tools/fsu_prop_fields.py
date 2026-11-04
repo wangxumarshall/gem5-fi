@@ -85,6 +85,14 @@ PROP_EVT_FIELDS = [
     "merged_activated_exposures", "observed_exposure_ids",
     "sources_expanded", "sources_unexpanded", "observation_scope",
     "cell_sources_overflow",
+    # [FR01/FR02] Transient containment / post-overwrite visibility.
+    "target_bits_before", "target_bits_after", "target_bits_restored",
+    "target_bits_flipped", "same_generation", "generation_changes",
+    "generation_old", "generation_new",
+    "post_overwrite_reads_total", "post_overwrite_reads_emitted",
+    "post_overwrite_affected_reads",
+    "post_overwrite_writes_total", "post_overwrite_writes_emitted",
+    "post_overwrite_writes_affected",
 ]
 
 # kind → 层级。None = 生命周期/终局标记，不占 L0–L5。
@@ -127,6 +135,10 @@ KIND_LAYER = {
     # independent faults and do not occupy a layer of their own.
     "phys_write": None, "stuck_reapplied": None,
     "generation_change": None,
+    # [FR01/FR02] Post-overwrite observation: a clean read/write after the
+    # terminating overwrite is evidence of containment, not a new layer and
+    # never a new fault. It must not count as fault activation.
+    "post_overwrite_read": None, "write_after_overwrite": None,
 }
 
 CONTAIN_KINDS = frozenset({

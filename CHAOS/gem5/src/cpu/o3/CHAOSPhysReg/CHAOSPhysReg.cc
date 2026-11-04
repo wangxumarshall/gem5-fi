@@ -282,6 +282,9 @@ namespace gem5
         vec_transient.install_lane_after =
             readLane(after, sel.lane_width, sel.lane_offset);
         vec_transient.last_lane_value = vec_transient.install_lane_after;
+        std::memcpy(vec_transient.install_full, after, 16);
+        vec_transient.install_full_valid = true;
+        vec_transient.latest_generation = generation;
         vec_transient.write_exposures_total = 1;
         vec_transient.reads_total = 0;
         vec_transient.read_events = 0;
@@ -397,25 +400,163 @@ namespace gem5
         // after the fact. Treat the write as the terminal observation and do
         // not manufacture a consumer read from the post-write value.
         bool writes_target = false;
-        if (!vec_transient.overwritten) {
-            for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
-                PhysRegIdPtr dest = inst->renamedDestIdx(i);
-                if (dest && dest->classValue() == VecRegClass &&
-                    (int)dest->index() == target) {
-                    writes_target = true;
-                    break;
-                }
+        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+            PhysRegIdPtr dest = inst->renamedDestIdx(i);
+            if (dest && dest->classValue() == VecRegClass &&
+                (int)dest->index() == target) {
+                writes_target = true;
+                break;
+            }
+        }
+
+        // Lifecycle: a free/realloc changes the cell generation. The old
+        // corrupted cell no longer exists, so this is a real terminal, not a
+        // missing observation. Emit it once, before any read/write branch.
+        const uint32_t current_generation =
+            rf.generationOf(rf.vecPhysRegId(target));
+        if (!vec_transient.generation_changed &&
+            current_generation != vec_transient.install_generation) {
+            vec_transient.generation_changed = true;
+            vec_transient.latest_generation = current_generation;
+            const uint64_t lane_mask = chaos_vec_transient::laneMask(
+                vec_transient.sel, vec_transient.sel.lane_offset);
+            std::vector<std::pair<std::string, std::string>> gkv = {
+                {"reg_class", "vec"},
+                {"phys_reg", std::to_string(target)},
+                {"reg_generation", std::to_string(current_generation)},
+                {"generation_old",
+                 std::to_string(vec_transient.install_generation)},
+                {"generation_new", std::to_string(current_generation)},
+                {"generation_changes", "1"},
+                {"lane_width", std::to_string(vec_transient.lane_width)},
+                {"lane_offset",
+                 std::to_string(vec_transient.sel.lane_offset)},
+                {"lane_mask", propHex(lane_mask)},
+                {"bit_indices", bitIndices(vec_transient.sel)},
+                {"install_event",
+                 std::to_string(vec_transient.root_event)},
+                {"field", "transient_bit_flip"},
+                {"before", propHex(vec_transient.last_lane_value)},
+                {"after", propHex(vec_transient.last_lane_value)},
+                {"activated", "0"},
+                {"state_before", "old_generation_cell"},
+                {"state_after", "cell_reallocated"},
+            };
+            const uint64_t parent = vec_transient.last_event
+                                        ? vec_transient.last_event
+                                        : vec_transient.root_event;
+            const uint64_t eid = emitVecModelProp(
+                model.c_str(), "F0", "generation_change",
+                vec_transient.fault_id, parent, gkv);
+            if (eid) {
+                vec_transient.generation_change_event = eid;
+                vec_transient.last_event = eid;
             }
         }
 
         // L2: real source-operand reads of the transiently flipped cell.
-        if (!vec_transient.overwritten && !writes_target) {
+        if (!writes_target) {
             for (int i = 0; i < (int)inst->numSrcRegs(); ++i) {
                 PhysRegIdPtr src = inst->renamedSrcIdx(i);
                 if (!src || src->classValue() != VecRegClass)
                     continue;
                 if ((int)src->index() != target)
                     continue;
+                // A read of a reallocated cell is a read of a DIFFERENT
+                // generation, not of the defective cell. It must not be
+                // recorded as a consumer of the transient fault.
+                if (rf.generationOf(src) !=
+                        vec_transient.install_generation)
+                    continue;
+                if (vec_transient.overwritten) {
+                    // Post-overwrite visibility: the defect is gone by
+                    // construction, but only an observed read proves that no
+                    // consumer still sees a flipped target bit.
+                    ++vec_transient.post_overwrite_reads_total;
+                    if (vec_transient.post_overwrite_reads_emitted >= 4096)
+                        continue;
+                    ++vec_transient.post_overwrite_reads_emitted;
+                    rf.readVecRegRaw(src, buf.data());
+                    const uint32_t gen = rf.generationOf(src);
+                    const uint64_t lane_val = readLane(
+                        buf.data(), vec_transient.lane_width,
+                        vec_transient.sel.lane_offset);
+                    const uint64_t lane_mask =
+                        chaos_vec_transient::laneMask(
+                            vec_transient.sel,
+                            vec_transient.sel.lane_offset);
+                    const bool flipped_lane =
+                        (lane_val & lane_mask) ==
+                        (vec_transient.install_lane_after & lane_mask);
+                    const bool same_generation =
+                        gen == vec_transient.install_generation;
+                    if (flipped_lane && same_generation)
+                        ++vec_transient.post_overwrite_affected_reads;
+                    int arch_idx = -1;
+                    if (inst->staticInst &&
+                        i < (int)inst->staticInst->numSrcRegs()) {
+                        const RegId &ar =
+                            inst->staticInst->srcRegIdx(i);
+                        if (ar.classValue() == VecRegClass)
+                            arch_idx = (int)ar.index();
+                    }
+                    std::ostringstream mask_os;
+                    mask_os << "0x" << std::hex << std::setw(16)
+                            << std::setfill('0') << vec_transient.sel.mask_hi
+                            << std::setw(16) << vec_transient.sel.mask_lo;
+                    std::vector<std::pair<std::string, std::string>> pkv = {
+                        {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                        {"pc", propHex(inst->pcState().instAddr())},
+                        {"opcode", inst->staticInst
+                                       ? inst->staticInst->getName() : ""},
+                        {"thread_id",
+                         std::to_string((int)inst->threadNumber)},
+                        {"reg_class", "vec"},
+                        {"phys_reg", std::to_string(target)},
+                        {"arch_reg", arch_idx >= 0
+                                         ? std::to_string(arch_idx)
+                                         : std::string()},
+                        {"reg_generation", std::to_string(gen)},
+                        {"consumer_seq", std::to_string(inst->seqNum)},
+                        {"lane_width",
+                         std::to_string(vec_transient.lane_width)},
+                        {"lane_offset", std::to_string(
+                             vec_transient.sel.lane_offset)},
+                        {"lane_mask", propHex(lane_mask)},
+                        {"bit_indices", bitIndices(vec_transient.sel)},
+                        {"fault_mask", mask_os.str()},
+                        {"field", "transient_bit_flip"},
+                        {"before", propHex(lane_val)},
+                        {"after", propHex(lane_val)},
+                        {"value_hash", propHex(lane_val)},
+                        {"activated", "0"},
+                        {"install_event",
+                         std::to_string(vec_transient.root_event)},
+                        {"post_overwrite_reads_total", std::to_string(
+                             vec_transient.post_overwrite_reads_total)},
+                        {"post_overwrite_reads_emitted", std::to_string(
+                             vec_transient.post_overwrite_reads_emitted)},
+                        {"post_overwrite_affected_reads", std::to_string(
+                             vec_transient.post_overwrite_affected_reads)},
+                        {"target_bits_flipped",
+                         flipped_lane ? "1" : "0"},
+                        {"same_generation",
+                         same_generation ? "1" : "0"},
+                        {"state_before", same_generation
+                             ? "cell_clean" : "cell_reallocated"},
+                        {"state_after", flipped_lane && same_generation
+                             ? "affected_read" : "clean_read"},
+                    };
+                    const uint64_t parent = vec_transient.last_event
+                                                ? vec_transient.last_event
+                                                : vec_transient.overwrite_event;
+                    const uint64_t eid = emitVecModelProp(
+                        model.c_str(), "F0", "post_overwrite_read",
+                        vec_transient.fault_id, parent, pkv);
+                    if (eid)
+                        vec_transient.last_event = eid;
+                    continue;
+                }
                 if (vec_transient.read_events >= 4096)
                     continue;
                 ++vec_transient.read_events;
@@ -494,6 +635,7 @@ namespace gem5
 
         // L1 overwrite: a real program write replaces the transient value.
         // Nothing is re-applied; the defect ends here.
+        bool overwrote_now = false;
         if (!vec_transient.overwritten) {
             for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
                 PhysRegIdPtr dest = inst->renamedDestIdx(i);
@@ -502,6 +644,13 @@ namespace gem5
                 if ((int)dest->index() != target)
                     continue;
                 const uint32_t gen = rf.generationOf(dest);
+                // An overwrite only counts as the transient's terminal when
+                // it lands on the SAME generation the defect was installed
+                // on. A different generation means the old cell was freed
+                // and reallocated; `generation_change` closes that lifecycle
+                // and the new cell's value is unrelated to the old defect.
+                if (gen != vec_transient.install_generation)
+                    continue;
                 rf.readVecRegRaw(dest, buf.data());
                 const uint64_t after_val = readLane(
                     buf.data(), vec_transient.lane_width,
@@ -525,6 +674,13 @@ namespace gem5
                 }
                 const uint64_t lane_mask = chaos_vec_transient::laneMask(
                     vec_transient.sel, vec_transient.sel.lane_offset);
+                const uint64_t target_bits_before =
+                    vec_transient.install_lane_after & lane_mask;
+                const uint64_t target_bits_after = after_val & lane_mask;
+                std::ostringstream mask_os;
+                mask_os << "0x" << std::hex << std::setw(16)
+                        << std::setfill('0') << vec_transient.sel.mask_hi
+                        << std::setw(16) << vec_transient.sel.mask_lo;
                 std::vector<std::pair<std::string, std::string>> kv = {
                     {"dyn_inst_seq", std::to_string(inst->seqNum)},
                     {"pc", propHex(inst->pcState().instAddr())},
@@ -547,11 +703,20 @@ namespace gem5
                                                   .bit_in_lane)},
                     {"lane_mask", propHex(lane_mask)},
                     {"bit_indices", bitIndices(vec_transient.sel)},
+                    {"fault_mask", mask_os.str()},
                     {"field", "transient_bit_flip"},
                     {"before", propHex(before_val)},
                     {"after", propHex(after_val)},
                     {"value_hash", propHex(after_val)},
+                    {"full_before",
+                     vec_transient.install_full_valid
+                         ? vec128Hex(vec_transient.install_full)
+                         : std::string()},
                     {"full_after", vec128Hex(buf.data())},
+                    {"target_bits_before", propHex(target_bits_before)},
+                    {"target_bits_after", propHex(target_bits_after)},
+                    {"target_bits_restored",
+                     target_bits_after != target_bits_before ? "1" : "0"},
                     {"activated", "1"},
                     {"install_event",
                      std::to_string(vec_transient.root_event)},
@@ -579,6 +744,7 @@ namespace gem5
                     vec_transient.overwrite_event = eid;
                     vec_transient.last_event = eid;
                 }
+                overwrote_now = true;
                 if (write_log && log_stream && log_stream->stream()) {
                     *(log_stream->stream())
                         << "VecTransientOverwrite: cycle=" << cpu->curCycle()
@@ -591,6 +757,77 @@ namespace gem5
                         << " (transient terminated; no re-apply)"
                         << std::endl;
                 }
+                break;
+            }
+        }
+
+        // Consecutive writes after the terminating overwrite: prove the
+        // transient is never re-applied. The C++ never arms a write-path
+        // mask, but only observed post-overwrite writes make that claim
+        // auditable.
+        if (!overwrote_now && vec_transient.overwritten && writes_target) {
+            for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+                PhysRegIdPtr dest = inst->renamedDestIdx(i);
+                if (!dest || dest->classValue() != VecRegClass)
+                    continue;
+                if ((int)dest->index() != target)
+                    continue;
+                ++vec_transient.post_overwrite_writes_total;
+                if (vec_transient.post_overwrite_writes_emitted >= 64)
+                    break;
+                ++vec_transient.post_overwrite_writes_emitted;
+                const uint32_t gen = rf.generationOf(dest);
+                rf.readVecRegRaw(dest, buf.data());
+                const uint64_t after_val = readLane(
+                    buf.data(), vec_transient.lane_width,
+                    vec_transient.sel.lane_offset);
+                const uint64_t lane_mask = chaos_vec_transient::laneMask(
+                    vec_transient.sel, vec_transient.sel.lane_offset);
+                const bool flipped_lane =
+                    (after_val & lane_mask) ==
+                    (vec_transient.install_lane_after & lane_mask);
+                if (flipped_lane)
+                    ++vec_transient.post_overwrite_writes_affected;
+                std::vector<std::pair<std::string, std::string>> wkv = {
+                    {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                    {"pc", propHex(inst->pcState().instAddr())},
+                    {"opcode", inst->staticInst
+                                   ? inst->staticInst->getName() : ""},
+                    {"thread_id", std::to_string((int)inst->threadNumber)},
+                    {"reg_class", "vec"},
+                    {"phys_reg", std::to_string(target)},
+                    {"reg_generation", std::to_string(gen)},
+                    {"lane_width", std::to_string(vec_transient.lane_width)},
+                    {"lane_offset",
+                     std::to_string(vec_transient.sel.lane_offset)},
+                    {"lane_mask", propHex(lane_mask)},
+                    {"bit_indices", bitIndices(vec_transient.sel)},
+                    {"field", "transient_bit_flip"},
+                    {"before", propHex(after_val)},
+                    {"after", propHex(after_val)},
+                    {"value_hash", propHex(after_val)},
+                    {"activated", "0"},
+                    {"install_event",
+                     std::to_string(vec_transient.root_event)},
+                    {"post_overwrite_writes_total", std::to_string(
+                         vec_transient.post_overwrite_writes_total)},
+                    {"post_overwrite_writes_emitted", std::to_string(
+                         vec_transient.post_overwrite_writes_emitted)},
+                    {"post_overwrite_writes_affected", std::to_string(
+                         vec_transient.post_overwrite_writes_affected)},
+                    {"target_bits_flipped", flipped_lane ? "1" : "0"},
+                    {"state_before", "cell_clean"},
+                    {"state_after", flipped_lane ? "reapplied"
+                                                 : "clean_write"},
+                };
+                const uint64_t parent = vec_transient.last_event
+                                            ? vec_transient.last_event
+                                            : vec_transient.overwrite_event;
+                const uint64_t eid = emitVecModelProp(
+                    model.c_str(), "F0", "write_after_overwrite",
+                    vec_transient.fault_id, parent, wkv);
+                if (eid)
+                    vec_transient.last_event = eid;
                 break;
             }
         }
@@ -737,6 +974,12 @@ namespace gem5
             terminal = "committed";
         } else if (vec_transient.overwritten) {
             terminal = "overwritten";
+        } else if (vec_transient.l5.squashEvents() > 0) {
+            // A squashed consumer is its own terminal; it used to be folded
+            // into exposed_unconsumed/not_consumed and became unauditable.
+            terminal = "squashed";
+        } else if (vec_transient.generation_changed) {
+            terminal = "free_realloc";
         } else if (vec_transient.reads_total > 0) {
             terminal = "exposed_unconsumed";
         } else {
@@ -762,6 +1005,8 @@ namespace gem5
             {"terminal", terminal},
             {"outcome", committed ? "errant_commit_seen"
                           : contained ? "detected_contained"
+                          : terminal == "squashed" ? "squashed"
+                          : terminal == "free_realloc" ? "released"
                                       : "run_end"},
             // chain_end is a lifecycle marker, never a layer claim (the
             // checker rejects chain_end with detection_layer=L5).
@@ -775,6 +1020,20 @@ namespace gem5
              std::to_string(rf.getReadsBeforeOverwrite())},
             {"commit_events", std::to_string(vec_transient.l5.commitEvents())},
             {"squash_events", std::to_string(vec_transient.l5.squashEvents())},
+            {"post_overwrite_reads_total",
+             std::to_string(vec_transient.post_overwrite_reads_total)},
+            {"post_overwrite_reads_emitted",
+             std::to_string(vec_transient.post_overwrite_reads_emitted)},
+            {"post_overwrite_affected_reads",
+             std::to_string(vec_transient.post_overwrite_affected_reads)},
+            {"post_overwrite_writes_total",
+             std::to_string(vec_transient.post_overwrite_writes_total)},
+            {"post_overwrite_writes_emitted",
+             std::to_string(vec_transient.post_overwrite_writes_emitted)},
+            {"post_overwrite_writes_affected",
+             std::to_string(vec_transient.post_overwrite_writes_affected)},
+            {"generation_changes",
+             vec_transient.generation_changed ? "1" : "0"},
             {"consumers_recorded",
              std::to_string(vec_transient.l5.consumersRecorded())},
             {"first_impact_sn",

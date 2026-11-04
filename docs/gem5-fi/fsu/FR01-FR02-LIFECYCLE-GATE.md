@@ -409,3 +409,62 @@ python3 -m pytest tests/test_fsu_suite.py -q
   在事件流中验证。
 - **FR01/FR02 F0 仍未正式运行**：RunID 状态仍是 Not run；本文不改变
   519/240 计数，也不新增 seed。
+
+---
+
+## 11. 2026-11-05 补充的 C++ 证据与真实非正式 gate
+
+### 11.1 新增证据（CHAOSPhysReg / CHAOSPropagation）
+
+- `overwrite` 事件新增 `full_before`（安装时写入的 128-bit 翻转值）、
+  `fault_mask`、`target_bits_before/after/restored`。审计不再需要猜
+  “写覆盖宽度”：它直接证明目标 bit 是否被该次真实写恢复。
+- 新增 `post_overwrite_read` / `write_after_overwrite` 事件（同 fault、
+  非激活）与 `post_overwrite_reads_total/emitted/affected`、
+  `post_overwrite_writes_total/emitted/affected` 计数。覆盖后的读/写
+  可见性从“未发射”变成“有界但可核对”；若 total != emitted 或
+  affected != 0，审计继续 BLOCKED。
+- 瞬态路径新增 `generation_change` 终局：被注入的 phys cell 被释放/
+  重分配后，旧世代不再存在；之后的读只认安装世代，其他世代不进入
+  消费者链。
+- `finalizeVecTransient` 现在能输出 `squashed` 与 `free_realloc`
+  终局；`chain_end` 带 post-overwrite / generation 计数。
+- 上述新 key 已加入 `CHAOSPropagation.hh` 的 `PROP_EVT_EXT_FIELDS`
+  （否则 `notePropEvt` 会按未知字段丢弃）与
+  `tools/fsu_prop_fields.py` 注册表。
+
+### 11.2 认证规则（门禁）
+
+- `CONTAINED_BY_OVERWRITE`（`masked_certification.certified=true`）要求：
+  覆盖发生在安装世代；`full_before^full_after` 覆盖全部目标 bit；
+  post-overwrite 读/写 `total == emitted` 且 `affected == 0`；链尾边界
+  可追踪。旧流缺字段时保持 BLOCKED，并列出 `evidence_missing`。
+- `CONTAINED_BY_FREE_REALLOC` 要求：
+  `generation_change` 的 old 等于安装世代、new 不同；安装世代之后没有
+  read 或 commit；链尾可追踪。
+- 两者都只说明“该世代故障已消失”，不替代 oracle 的 SDC/benign 判定。
+
+### 11.3 真实非正式 gate（不进入 21/240 计数）
+
+命令见 §8.2 与 §8.3；使用本次重建的
+`CHAOS/gem5/build/ARM/gem5.opt`，输出到
+`runs/fsu-gates/FR01-FR02-F0-W1-v4/`。门禁报告：
+`docs/gem5-fi/fsu/evidence/fr01-fr02-v4-gate.json`。
+
+```text
+FR01/FR02 gate: 2 attempt(s) PASS=2 FAIL=0 SKIP=0 certified=2 blocked=0 failed=0
+FR01-a/seed2 PASS free_realloc free_realloc CERTIFIED contained_by_free_realloc
+FR02-c/seed2 PASS free_realloc free_realloc CERTIFIED contained_by_free_realloc
+```
+
+两次真实运行都在安装世代 free/realloc 处闭合：`generation_change`
+old=1 → new=2，安装世代之后无 read、无 commit，目标 bit 不再存活。
+这是 **containment**，不是 Masked/SDC 结论。
+
+### 11.4 仍缺的真实证据
+
+- 同世代 overwrite 的真实样本（本次 10000-cycle 窗口内先在 gen2 重分配；
+  门禁的 overwrite 认证目前只有合成/旧流测试）。
+- 真实 `squash` 与 `commit` 终局样本（当前 W1 窗口仍没有）。
+- 事件流仍不发射 `precision`/字段名；FR01-a/b、FR02-d 的字段层声明
+  继续按 `evidence_missing` 处理，不以 lane_width 猜测。

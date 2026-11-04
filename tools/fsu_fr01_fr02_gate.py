@@ -34,10 +34,12 @@ Honesty rules (hard-coded, not optional)
   * `Masked` is NOT certified just because a run ended or because the final
     workload hash happens to match. An L1 overwrite event only proves that a
     real write was observed on the target cell; proving the specified
-    generation's defect is gone additionally needs write-coverage evidence
-    (which bytes/width the instruction actually wrote) and visibility of
-    post-overwrite reads. Neither is emitted today, so `masked_certified` is
-    false and the certification is BLOCKED with the missing items listed.
+    generation's defect is gone additionally needs (a) the overwrite event to
+    carry the 128-bit flipped value and mask so the target bits can be shown
+    restored, and (b) every post-overwrite read/write on that generation to
+    be observed and clean. Streams emitted before those fields existed stay
+    BLOCKED with `evidence_missing`; `CONTAINED_BY_OVERWRITE` is only issued
+    when the full observation set is present and accounted for.
   * `not_consumed` / `exposed_unconsumed` are UNKNOWN terminal states, not
     Masked: the defect may still be live in the physical cell at run end.
   * A chain_end terminal that contradicts the events on disk is a FAIL, not a
@@ -985,8 +987,9 @@ def analyze_attempt(attempt, cli_expect=None, rel_name=None):
 
     status = checks.overall()
     closure = lc["closure"]
-    certification = _certification(closure, lc, status)
-    masked = _masked_certification(closure, lc, status)
+    containment = _containment_evidence(root, fault_events)
+    certification = _certification(closure, lc, status, containment)
+    masked = _masked_certification(closure, lc, status, containment)
 
     report = {
         "attempt": rel_name or str(attempt),
@@ -1004,9 +1007,10 @@ def analyze_attempt(attempt, cli_expect=None, rel_name=None):
         "evidence": evidence,
         "identity": identity,
         "lifecycle": lc,
+        "containment": containment,
         "masked_certification": masked,
         "certification": certification,
-        "blockers": _blockers(lc, masked, certification),
+        "blockers": _blockers(lc, masked, certification, containment),
     }
     return report
 
@@ -1628,6 +1632,8 @@ def _check_lifecycle(checks, root, fault_events, exp, sources, stats,
     commits = by_kind.get("commit", [])
     squashes = by_kind.get("squash", [])
     overwrites = by_kind.get("overwrite", [])
+    post_reads = by_kind.get("post_overwrite_read", [])
+    post_writes = by_kind.get("write_after_overwrite", [])
     chain_ends = by_kind.get("chain_end", [])
     gen_events = []
     for kind in ("generation_change", "cell_free", "cell_realloc", "free",
@@ -1642,6 +1648,8 @@ def _check_lifecycle(checks, root, fault_events, exp, sources, stats,
         "commit": len(commits),
         "squash": len(squashes),
         "overwrite": len(overwrites),
+        "post_overwrite_read": len(post_reads),
+        "write_after_overwrite": len(post_writes),
         "chain_end": len(chain_ends),
         "generation": len(gen_events),
         "stuck": len(stuck_events),
@@ -1768,12 +1776,39 @@ def _check_lifecycle(checks, root, fault_events, exp, sources, stats,
                       "transient chain contains permanent-cell event(s): %s"
                       % [_c(e, "kind") for e in stuck_events],
                       source=["prop_evt.txt"])
+    elif post_writes:
+        ce = chain_ends[-1] if chain_ends else {}
+        wt = _i(ce, "post_overwrite_writes_total")
+        we = _i(ce, "post_overwrite_writes_emitted")
+        wa = _i(ce, "post_overwrite_writes_affected")
+        bad = []
+        if None in (wt, we, wa):
+            bad.append("post-overwrite write counters missing")
+        elif wt != we:
+            bad.append("post-overwrite writes not fully observed (%s/%s)"
+                       % (we, wt))
+        elif wa != 0:
+            bad.append("%s post-overwrite write(s) re-flipped the target"
+                       % wa)
+        for e in post_writes:
+            if _c(e, "target_bits_flipped") != "0":
+                bad.append("post-overwrite write at sn=%s still saw a "
+                           "flipped target bit" % _c(e, "dyn_inst_seq"))
+        if bad:
+            checks.failed("consecutive_writes_not_stuck", "; ".join(bad),
+                          source=["prop_evt.txt"])
+        else:
+            checks.passed(
+                "consecutive_writes_not_stuck",
+                "%d post-overwrite real write(s) observed, none re-applied "
+                "the transient (affected=0, all observed)" % len(post_writes),
+                source=["prop_evt.txt"])
     elif len(overwrites) < 2:
         checks.skipped(
             "consecutive_writes_not_stuck",
-            "only %d write observation(s); a second real write is not "
-            "emitted, so 'consecutive writes never re-stick' is not provable "
-            "from this stream" % len(overwrites), critical=False,
+            "only %d overwrite event(s) and no post-overwrite write "
+            "observation; 'consecutive writes never re-stick' is not "
+            "provable from this stream" % len(overwrites), critical=False,
             source=["prop_evt.txt"])
     else:
         bad = []
@@ -2052,7 +2087,153 @@ def _check_boundary(checks, root, fault_events, lc, stats, exp, sources):
 # ---------------------------------------------------------------------------
 # Certification blocks
 # ---------------------------------------------------------------------------
-def _certification(closure, lc, status):
+def _hex128(text):
+    text = str(text or "").strip()
+    if text.lower().startswith("0x"):
+        text = text[2:]
+    if not text:
+        return None
+    try:
+        return int(text, 16)
+    except ValueError:
+        return None
+
+
+def _containment_evidence(root, events):
+    """Prove (or refuse to prove) that a real overwrite removed the defect.
+
+    Requires the post-overwrite emitter: the overwrite event must carry the
+    128-bit flipped value and mask, and chain_end must carry observed
+    post-overwrite read/write totals.  Old streams without those fields are
+    reported `evidence_missing`, never assumed contained.
+    """
+    by_kind = {}
+    for e in events:
+        by_kind.setdefault(_c(e, "kind"), []).append(e)
+    overwrites = by_kind.get("overwrite", [])
+    post_reads = by_kind.get("post_overwrite_read", [])
+    post_writes = by_kind.get("write_after_overwrite", [])
+    chain_ends = by_kind.get("chain_end", [])
+    if not overwrites:
+        # Free/realloc terminal: the installed generation no longer exists.
+        gen = []
+        for kind in ("generation_change", "cell_free", "cell_realloc",
+                     "free", "realloc", "cell_reuse"):
+            gen.extend(by_kind.get(kind, []))
+        if not gen:
+            return None
+        change = gen[0]
+        install_gen = _i(root, "reg_generation")
+        old = _i(change, "generation_old")
+        new = _i(change, "generation_new")
+        missing = []
+        if old is None or new is None:
+            missing.append("generation change old/new missing")
+        elif install_gen is not None and old != install_gen:
+            missing.append("generation change old=%s != install=%s"
+                           % (old, install_gen))
+        elif new == old:
+            missing.append("generation change did not change the generation")
+        change_tick = _i(change, "tick")
+        late_reads = [e for e in by_kind.get("operand_read", [])
+                      if install_gen is not None
+                      and _i(e, "reg_generation") == install_gen
+                      and (change_tick is None
+                           or (_i(e, "tick") or 0) > change_tick)]
+        if late_reads:
+            missing.append("%d read(s) of the installed generation after "
+                           "reallocation" % len(late_reads))
+        ce = chain_ends[-1] if chain_ends else {}
+        if _i(ce, "commit_events") not in (0, None):
+            missing.append("a consumer committed before the cell was "
+                           "reallocated")
+        return {
+            "certified": not missing,
+            "kind": "free_realloc",
+            "generation_old": old,
+            "generation_new": new,
+            "missing": missing,
+        }
+    ow = overwrites[0]
+    ce = chain_ends[-1] if chain_ends else {}
+    missing = []
+    full_before = _hex128(_c(ow, "full_before"))
+    full_after = _hex128(_c(ow, "full_after"))
+    mask = _hex128(_c(ow, "fault_mask"))
+    restored = _c(ow, "target_bits_restored") == "1"
+    if not restored and None not in (full_before, full_after, mask):
+        restored = ((full_before ^ full_after) & mask) == mask
+    install_gen = _i(root, "reg_generation")
+    ow_gen = _i(ow, "reg_generation")
+    if install_gen is not None and ow_gen is not None and \
+            ow_gen != install_gen:
+        missing.append("overwrite generation %s != install generation %s"
+                       % (ow_gen, install_gen))
+    if full_before is None or mask is None:
+        missing.append("overwrite full_before/fault_mask")
+    elif not restored:
+        missing.append("target bits not restored by the overwrite")
+    if _c(ce, "post_overwrite_reads_total") == "":
+        missing.append("post-overwrite read observation counters")
+    else:
+        rt = _i(ce, "post_overwrite_reads_total")
+        re_ = _i(ce, "post_overwrite_reads_emitted")
+        ra = _i(ce, "post_overwrite_affected_reads")
+        if None in (rt, re_, ra):
+            missing.append("post-overwrite read counters malformed")
+        elif rt != re_:
+            missing.append("post-overwrite reads not fully observed "
+                           "(%s/%s)" % (re_, rt))
+        elif ra != 0:
+            missing.append("%s post-overwrite affected read(s)" % ra)
+        elif any(_c(e, "same_generation") == "1"
+                 and _c(e, "target_bits_flipped") != "0"
+                 for e in post_reads):
+            missing.append("a post-overwrite read still saw a flipped target "
+                           "bit on the installed generation")
+    if _c(ce, "post_overwrite_writes_total") == "":
+        missing.append("post-overwrite write observation counters")
+    else:
+        wt = _i(ce, "post_overwrite_writes_total")
+        we = _i(ce, "post_overwrite_writes_emitted")
+        wa = _i(ce, "post_overwrite_writes_affected")
+        if None in (wt, we, wa):
+            missing.append("post-overwrite write counters malformed")
+        elif wt != we:
+            missing.append("post-overwrite writes not fully observed "
+                           "(%s/%s)" % (we, wt))
+        elif wa != 0:
+            missing.append("%s post-overwrite write(s) re-flipped the target"
+                           % wa)
+        elif any(_c(e, "target_bits_flipped") != "0" for e in post_writes):
+            missing.append("a later real write still saw a flipped target "
+                           "bit")
+    gen_changes = _i(ce, "generation_changes")
+    # A generation change AFTER a same-generation overwrite is harmless: the
+    # old cell (already cleaned) is simply freed. It does not invalidate the
+    # overwrite's containment evidence.
+    return {
+        "certified": not missing,
+        "kind": "overwrite",
+        "restored": bool(restored),
+        "post_overwrite_reads_total": _i(
+            ce, "post_overwrite_reads_total"),
+        "post_overwrite_reads_emitted": _i(
+            ce, "post_overwrite_reads_emitted"),
+        "post_overwrite_affected_reads": _i(
+            ce, "post_overwrite_affected_reads"),
+        "post_overwrite_writes_total": _i(
+            ce, "post_overwrite_writes_total"),
+        "post_overwrite_writes_emitted": _i(
+            ce, "post_overwrite_writes_emitted"),
+        "post_overwrite_writes_affected": _i(
+            ce, "post_overwrite_writes_affected"),
+        "generation_changes": gen_changes,
+        "missing": missing,
+    }
+
+
+def _certification(closure, lc, status, containment=None):
     if status == STATUS_FAIL:
         return {
             "status": "FAILED",
@@ -2069,21 +2250,27 @@ def _certification(closure, lc, status):
             "missing": ["oracle_diff/golden comparison (SDC vs benign)"],
         }
     if closure == "overwritten":
+        c = containment or {}
+        if c.get("certified"):
+            return {
+                "status": "CERTIFIED",
+                "verdict": "contained_by_real_overwrite",
+                "basis": "the overwrite restored every injected target bit "
+                         "(full_before/fault_mask vs full_after) and every "
+                         "observed post-overwrite read/write saw no flipped "
+                         "target bit, with all observations accounted for",
+                "missing": ["oracle_diff/golden comparison (SDC vs benign)"],
+            }
         return {
             "status": "BLOCKED",
             "verdict": "l1_containment_event_only",
             "basis": "a real write to the target cell was observed "
                      "(overwrite, containment L1, phys_cell_rewritten) with "
                      "no consumer commit",
-            "missing": [
-                "write coverage/width: which bytes of the 128-bit value the "
-                "producing instruction actually wrote (a partial write can "
-                "leave flipped bits in the untouched part)",
-                "post-overwrite read visibility: the C++ observer suppresses "
-                "consumer reads after overwrite, so their absence is not "
-                "evidence",
-                "oracle_diff/golden comparison",
-            ],
+            "missing": (c.get("missing") or [
+                "post-overwrite read/write visibility",
+                "target-bit restoration by the overwrite"]) +
+                ["oracle_diff/golden comparison"],
         }
     if closure == "squashed":
         return {
@@ -2095,12 +2282,26 @@ def _certification(closure, lc, status):
                         "squashed terminal in the current emitter"],
         }
     if closure == "free_realloc":
+        c = containment or {}
+        if c.get("certified"):
+            return {
+                "status": "CERTIFIED",
+                "verdict": "contained_by_free_realloc",
+                "basis": "the installed generation was freed/reallocated "
+                         "(generation_change old=%s new=%s); the defective "
+                         "cell no longer exists and no later read of that "
+                         "generation or commit was observed"
+                         % (c.get("generation_old"),
+                            c.get("generation_new")),
+                "missing": ["oracle_diff/golden comparison (SDC vs benign)"],
+            }
         return {
             "status": "BLOCKED",
             "verdict": "free_realloc_witnessed",
             "basis": "generation/free event(s) for the transient cell",
-            "missing": ["an explicit terminal mapping for free/realloc",
-                        "oracle_diff/golden comparison"],
+            "missing": (c.get("missing") or [
+                "installed-generation free/realloc evidence"]) +
+                ["oracle_diff/golden comparison"],
         }
     if closure == "exposed_unconsumed":
         return {
@@ -2121,7 +2322,7 @@ def _certification(closure, lc, status):
     }
 
 
-def _masked_certification(closure, lc, status):
+def _masked_certification(closure, lc, status, containment=None):
     base = {
         "certified": False,
         "final_hash_equality_alone_insufficient": True,
@@ -2144,20 +2345,69 @@ def _masked_certification(closure, lc, status):
         })
         return base
     if closure == "overwritten":
+        c = containment or {}
+        present = ["L1 overwrite with containment_reason="
+                   "phys_cell_rewritten",
+                   "chain_end boundary after the overwrite"]
+        if c.get("certified"):
+            present += [
+                "target bits restored",
+                "post-overwrite reads fully observed (%s/%s, affected=%s)"
+                % (c.get("post_overwrite_reads_emitted"),
+                   c.get("post_overwrite_reads_total"),
+                   c.get("post_overwrite_affected_reads")),
+                "post-overwrite writes fully observed (%s/%s, affected=%s)"
+                % (c.get("post_overwrite_writes_emitted"),
+                   c.get("post_overwrite_writes_total"),
+                   c.get("post_overwrite_writes_affected")),
+            ]
+            base.update({
+                "certified": True,
+                "verdict": "CONTAINED_BY_OVERWRITE",
+                "reason": "the specified generation's defect is gone (target "
+                          "bits restored) and no later affected read/write "
+                          "was observed; the chain_end boundary is traceable. "
+                          "This is containment, not an SDC/benign claim.",
+                "present": present,
+                "missing": ["oracle_diff/golden comparison (SDC vs benign)"],
+            })
+            return base
         base.update({
             "verdict": "BLOCKED",
             "reason": "the L1 overwrite event shows a real write, but Masked "
                       "requires the specified generation's defect to be gone "
                       "AND no later affected read/side effect AND a traceable "
-                      "boundary. Write coverage and post-overwrite read "
-                      "visibility are not emitted, so the defect's removal "
-                      "cannot be proven.",
-            "present": ["L1 overwrite with containment_reason="
-                        "phys_cell_rewritten",
-                        "chain_end boundary after the overwrite"],
-            "missing": ["write coverage/width",
-                        "post-overwrite read observation",
-                        "oracle_diff/golden comparison"],
+                      "boundary. The stream does not provide the full "
+                      "post-overwrite observation set.",
+            "present": present,
+            "missing": (c.get("missing") or []) +
+                       ["oracle_diff/golden comparison"],
+        })
+        return base
+    if closure == "free_realloc":
+        c = containment or {}
+        if c.get("certified"):
+            base.update({
+                "certified": True,
+                "verdict": "CONTAINED_BY_FREE_REALLOC",
+                "reason": "the installed generation was freed/reallocated; "
+                          "the defective cell is gone, no later read of that "
+                          "generation and no commit was observed. This is "
+                          "containment, not an SDC/benign claim.",
+                "present": [
+                    "generation_change old=%s new=%s"
+                    % (c.get("generation_old"), c.get("generation_new")),
+                    "chain_end boundary after the reallocation",
+                ],
+                "missing": ["oracle_diff/golden comparison (SDC vs benign)"],
+            })
+            return base
+        base.update({
+            "verdict": "BLOCKED",
+            "reason": "a generation/free event exists, but it does not yet "
+                      "prove the installed generation is gone and unaffected.",
+            "missing": (c.get("missing") or []) +
+                       ["oracle_diff/golden comparison"],
         })
         return base
     if closure == "fail_closed":
@@ -2175,7 +2425,7 @@ def _masked_certification(closure, lc, status):
     return base
 
 
-def _blockers(lc, masked, certification):
+def _blockers(lc, masked, certification, containment=None):
     out = []
     if lc.get("closure") in ("exposed_unconsumed", "not_consumed"):
         out.append("fault state at run end is unknown: no commit, squash, "
@@ -2183,9 +2433,11 @@ def _blockers(lc, masked, certification):
     if lc.get("closure") == "squashed":
         out.append("defect may still be live after squash; no post-squash "
                    "overwrite/free evidence")
-    if lc.get("closure") == "overwritten":
-        out.append("Masked cannot be certified: write coverage and "
-                   "post-overwrite read visibility are not emitted")
+    if lc.get("closure") == "overwritten" and not (
+            containment or {}).get("certified"):
+        out.append("Masked cannot be certified: the stream lacks target-bit "
+                   "restoration and/or full post-overwrite read/write "
+                   "visibility")
     for item in masked.get("missing", []):
         if item not in out and "oracle" not in item:
             out.append(item)

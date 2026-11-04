@@ -303,6 +303,14 @@ class CHAOSPropagation : public SimObject
         // [FSU][FP08] Early-return proxy accounting.
         "fpsr_attempted", "fpsr_applied", "fpsr_suppressed", "fpsr_reason",
         "rounding_attempted", "rounding_applied", "suppressed",
+        // [FR01/FR02] Transient containment and post-overwrite visibility.
+        // Unknown keys are dropped by notePropEvt, so these MUST be listed.
+        "target_bits_before", "target_bits_after", "target_bits_restored",
+        "target_bits_flipped", "same_generation",
+        "post_overwrite_reads_total", "post_overwrite_reads_emitted",
+        "post_overwrite_affected_reads",
+        "post_overwrite_writes_total", "post_overwrite_writes_emitted",
+        "post_overwrite_writes_affected",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));

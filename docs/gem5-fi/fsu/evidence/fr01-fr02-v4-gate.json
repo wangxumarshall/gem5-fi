@@ -1,0 +1,826 @@
+{
+  "attempts": [
+    {
+      "attempt": "FR01-a/seed2",
+      "blockers": [],
+      "certification": {
+        "basis": "the installed generation was freed/reallocated (generation_change old=1 new=2); the defective cell no longer exists and no later read of that generation or commit was observed",
+        "missing": [
+          "oracle_diff/golden comparison (SDC vs benign)"
+        ],
+        "status": "CERTIFIED",
+        "verdict": "contained_by_free_realloc"
+      },
+      "check_counts": {
+        "FAIL": 0,
+        "PASS": 22,
+        "SKIP": 4
+      },
+      "checks": [
+        {
+          "check": "stream_integrity",
+          "critical": true,
+          "detail": "5 event line(s) read",
+          "status": "PASS"
+        },
+        {
+          "check": "root_count",
+          "critical": true,
+          "detail": "exactly one fault_applied root",
+          "status": "PASS"
+        },
+        {
+          "check": "model_and_bit_count",
+          "critical": true,
+          "detail": "FR01 with exactly 1 bit(s) [5]",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "bit_identity",
+          "critical": true,
+          "detail": "distinct, in-domain, ascending bits [5]",
+          "status": "PASS"
+        },
+        {
+          "check": "mask_identity",
+          "critical": true,
+          "detail": "fault_mask popcount=1, exactly the selected bits",
+          "status": "PASS"
+        },
+        {
+          "check": "mask_matches_command",
+          "critical": true,
+          "detail": "root fault_mask matches manifest faultMask 0x20",
+          "fields_source": [
+            "config.ini",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "lane_identity",
+          "critical": true,
+          "detail": "lane_width=64 lane_offset=0 bit_in_lane=5",
+          "status": "PASS"
+        },
+        {
+          "check": "directed_lane",
+          "critical": true,
+          "detail": "all bits in directed lane 0 (lanes=[0])",
+          "fields_source": [
+            "config.ini",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "lane_mask",
+          "critical": true,
+          "detail": "lane_mask=0x20 is the relative mask of the selected bits in lane 0",
+          "status": "PASS"
+        },
+        {
+          "check": "lane_value",
+          "critical": true,
+          "detail": "before=0x0 after=0x20 == before ^ lane_mask",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "non_target_bits",
+          "critical": true,
+          "detail": "only the selected bit(s) differ: full_before^full_after == fault_mask (0x00000000000000000000000000000020); lane values agree with the 128-bit image",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "role_geometry",
+          "critical": true,
+          "detail": "FR01-a lane width 64 consistent with the workbook",
+          "fields_source": [
+            "config.ini",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "precision",
+          "critical": false,
+          "detail": "no precision in manifest; transient events also emit precision= (empty)",
+          "status": "SKIP"
+        },
+        {
+          "check": "field_semantics",
+          "critical": false,
+          "detail": "field=transient_bit_flip only; sign/exp/mant and FP32/FP64 labels are not emitted (candidate from bit position: mant)",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "SKIP"
+        },
+        {
+          "check": "carrier_state",
+          "critical": true,
+          "detail": "L1 carrier holds the flipped value at generation 1",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "run_identity",
+          "critical": true,
+          "detail": "run_id=FSU-FR01-F0-W1 sample_run_id=s2 on every lifecycle event",
+          "fields_source": [
+            "config.ini",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "config_conforms",
+          "critical": true,
+          "detail": "vecRegClass/phys mode/bit_flip/lane parameters agree with the command (phys_reg=1)",
+          "fields_source": [
+            "config.ini/expect.json",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "fault_log_crosscheck",
+          "critical": true,
+          "detail": "install log/summary identity agrees with the L0 root",
+          "fields_source": [
+            "fault_injections.log",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "lifecycle_event_integrity",
+          "critical": true,
+          "detail": "all lifecycle events share cell=1 generation=1; commit/squash/overwrite fields are layer-correct",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "consecutive_writes_not_stuck",
+          "critical": false,
+          "detail": "only 0 overwrite event(s) and no post-overwrite write observation; 'consecutive writes never re-stick' is not provable from this stream",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "SKIP"
+        },
+        {
+          "check": "overwrite_phase",
+          "critical": false,
+          "detail": "no overwrite event; phase is not applicable",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "SKIP"
+        },
+        {
+          "check": "free_realloc_evidence",
+          "critical": true,
+          "detail": "generation/free events for the transient fault: ['generation_change']",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "terminal_honesty",
+          "critical": true,
+          "detail": "chain_end terminal=free_realloc is exactly the event-derived closure; counters match the stream",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "no_permanent_arm",
+          "critical": true,
+          "detail": "transient path armed nothing: no fault_installed/stuck_reapplied/phys_write event and field=transient_bit_flip",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "permanent_counters",
+          "critical": true,
+          "detail": "numPermanentFaults=0 stuckAtZero=0 stuckAtOne=0",
+          "fields_source": [
+            "stats.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "run_boundary",
+          "critical": true,
+          "detail": "chain_end tick 2922408335 <= simTicks 2922408335; stats confirm one bit-flip injection and a completed run",
+          "fields_source": [
+            "prop_evt.txt",
+            "stats.txt"
+          ],
+          "status": "PASS"
+        }
+      ],
+      "containment": {
+        "certified": true,
+        "generation_new": 2,
+        "generation_old": 1,
+        "kind": "free_realloc",
+        "missing": []
+      },
+      "evidence": {
+        "config_ini": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR01-a/seed2/config.ini",
+          "sha256": "3e03571657a3d1b42970787115c41570a9b3474cbceb0e4114cb2c694ed6d8a8",
+          "size_bytes": 58684
+        },
+        "event_stream": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR01-a/seed2/prop_evt.txt.gz",
+          "sha256": "2f78cb9a6f3377fa9d4852326a36fe204ca7f3f849410d5ce5516902b2443c83",
+          "size_bytes": 2343
+        },
+        "expect_json": {
+          "exists": false,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR01-a/seed2/expect.json"
+        },
+        "fault_log": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR01-a/seed2/fault_injections.log",
+          "sha256": "4865c4401fe416df64711c5fe6623e5d1c395216256affa3a7bbc2036032444f",
+          "size_bytes": 6790
+        },
+        "stats": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR01-a/seed2/stats.txt",
+          "sha256": "31875457390965b43f9518c7ea1ef2088e0e3742bc652d9a3251b9009a89b92d",
+          "size_bytes": 275284
+        }
+      },
+      "expectation_sources": {
+        "bits": "config.ini",
+        "fault_mask": "config.ini",
+        "fault_type": "config.ini",
+        "injection_mode": "config.ini",
+        "lane_offset": "config.ini",
+        "lane_width": "config.ini",
+        "max_faults": "config.ini",
+        "model_id": "config.ini",
+        "num_phys_vec_regs": "config.ini",
+        "reg_target_class": "config.ini",
+        "require_allocated": "config.ini",
+        "rng_seed": "config.ini",
+        "run_id": "config.ini",
+        "sample_run_id": "config.ini",
+        "semantic_role": "config.ini",
+        "target_phys_idx": "config.ini"
+      },
+      "expectations": {
+        "bits": 1,
+        "fault_mask": 32,
+        "fault_type": "bit_flip",
+        "injection_mode": "phys",
+        "lane_offset": 0,
+        "lane_width": 64,
+        "max_faults": 1,
+        "model_id": "FR01",
+        "num_phys_vec_regs": 48,
+        "reg_target_class": "vector",
+        "require_allocated": true,
+        "rng_seed": 2,
+        "run_id": "FSU-FR01-F0-W1",
+        "sample_run_id": "s2",
+        "semantic_role": "FR01-a",
+        "target_phys_idx": -1
+      },
+      "fault_id": "1",
+      "identity": {
+        "arch_reg": 1,
+        "bit_in_lane": 5,
+        "bit_indices": "5",
+        "candidate_fp_field": "mant",
+        "carrier_cell_allocated": null,
+        "event_id": 0,
+        "fault_id": "1",
+        "fault_mask": 32,
+        "field": "transient_bit_flip",
+        "flats": [
+          5
+        ],
+        "full_after": 32,
+        "full_before": 0,
+        "geometry": {
+          "adjacent": false,
+          "cross_field": false,
+          "cross_lane": false,
+          "fields": [
+            0
+          ],
+          "label": "same_lane_non_adjacent",
+          "lanes": [
+            0
+          ],
+          "same_lane": true
+        },
+        "lane_after": 32,
+        "lane_before": 0,
+        "lane_mask": 32,
+        "lane_offset": 0,
+        "lane_width": 64,
+        "model_id": "FR01",
+        "phys_reg": 1,
+        "precision": "",
+        "reg_class": "vec",
+        "reg_generation": 1,
+        "submodel": "FR01-a"
+      },
+      "lifecycle": {
+        "certified_closure": true,
+        "chain_end_tick": 2922408335,
+        "closure": "free_realloc",
+        "events": {
+          "commit_sns": [],
+          "counts": {
+            "chain_end": 1,
+            "commit": 0,
+            "generation": 1,
+            "operand_read": 0,
+            "overwrite": 0,
+            "post_overwrite_read": 0,
+            "squash": 0,
+            "stuck": 0,
+            "write_after_overwrite": 0
+          },
+          "first_read_tick": null,
+          "install_generation": 1,
+          "operand_read_sns": [],
+          "overwrite_generation": [],
+          "overwrite_phase": null,
+          "overwrite_sns": [],
+          "overwrite_tick": null,
+          "squash_sns": []
+        },
+        "recorded_terminal": "free_realloc"
+      },
+      "masked_certification": {
+        "certified": true,
+        "final_hash_equality_alone_insufficient": true,
+        "missing": [
+          "oracle_diff/golden comparison (SDC vs benign)"
+        ],
+        "present": [
+          "generation_change old=1 new=2",
+          "chain_end boundary after the reallocation"
+        ],
+        "reason": "the installed generation was freed/reallocated; the defective cell is gone, no later read of that generation and no commit was observed. This is containment, not an SDC/benign claim.",
+        "verdict": "CONTAINED_BY_FREE_REALLOC"
+      },
+      "mode": "transient",
+      "model_id": "FR01",
+      "reason": "PASS: lifecycle closed as free_realloc (recorded terminal=free_realloc); certification may still be BLOCKED",
+      "run_id": "FSU-FR01-F0-W1",
+      "sample_run_id": "s2",
+      "status": "PASS"
+    },
+    {
+      "attempt": "FR02-c/seed2",
+      "blockers": [],
+      "certification": {
+        "basis": "the installed generation was freed/reallocated (generation_change old=1 new=2); the defective cell no longer exists and no later read of that generation or commit was observed",
+        "missing": [
+          "oracle_diff/golden comparison (SDC vs benign)"
+        ],
+        "status": "CERTIFIED",
+        "verdict": "contained_by_free_realloc"
+      },
+      "check_counts": {
+        "FAIL": 0,
+        "PASS": 21,
+        "SKIP": 5
+      },
+      "checks": [
+        {
+          "check": "stream_integrity",
+          "critical": true,
+          "detail": "5 event line(s) read",
+          "status": "PASS"
+        },
+        {
+          "check": "root_count",
+          "critical": true,
+          "detail": "exactly one fault_applied root",
+          "status": "PASS"
+        },
+        {
+          "check": "model_and_bit_count",
+          "critical": true,
+          "detail": "FR02 with exactly 2 bit(s) [5, 37]",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "bit_identity",
+          "critical": true,
+          "detail": "distinct, in-domain, ascending bits [5, 37]",
+          "status": "PASS"
+        },
+        {
+          "check": "mask_identity",
+          "critical": true,
+          "detail": "fault_mask popcount=2, exactly the selected bits",
+          "status": "PASS"
+        },
+        {
+          "check": "mask_matches_command",
+          "critical": true,
+          "detail": "root fault_mask matches manifest faultMask 0x2000000020",
+          "fields_source": [
+            "config.ini",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "lane_identity",
+          "critical": true,
+          "detail": "lane_width=32 lane_offset=0 bit_in_lane=5",
+          "status": "PASS"
+        },
+        {
+          "check": "directed_lane",
+          "critical": false,
+          "detail": "manifest lane is random (-1); only the event lane is authoritative",
+          "fields_source": [
+            "config.ini"
+          ],
+          "status": "SKIP"
+        },
+        {
+          "check": "lane_mask",
+          "critical": true,
+          "detail": "lane_mask=0x20 is the relative mask of the selected bits in lane 0",
+          "status": "PASS"
+        },
+        {
+          "check": "lane_value",
+          "critical": true,
+          "detail": "before=0x0 after=0x20 == before ^ lane_mask",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "non_target_bits",
+          "critical": true,
+          "detail": "only the selected bit(s) differ: full_before^full_after == fault_mask (0x00000000000000000000002000000020); lane values agree with the 128-bit image",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "role_geometry",
+          "critical": true,
+          "detail": "FR02-c matches observed geometry cross_field (lanes=[0, 1] fields=[0, 1])",
+          "fields_source": [
+            "config.ini",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "precision",
+          "critical": false,
+          "detail": "no precision in manifest; transient events also emit precision= (empty)",
+          "status": "SKIP"
+        },
+        {
+          "check": "field_semantics",
+          "critical": false,
+          "detail": "field=transient_bit_flip only; sign/exp/mant and FP32/FP64 labels are not emitted (candidate from bit position: n/a)",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "SKIP"
+        },
+        {
+          "check": "carrier_state",
+          "critical": true,
+          "detail": "L1 carrier holds the flipped value at generation 1",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "run_identity",
+          "critical": true,
+          "detail": "run_id=FSU-FR02-F0-W1 sample_run_id=s2 on every lifecycle event",
+          "fields_source": [
+            "config.ini",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "config_conforms",
+          "critical": true,
+          "detail": "vecRegClass/phys mode/bit_flip/lane parameters agree with the command (phys_reg=1)",
+          "fields_source": [
+            "config.ini/expect.json",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "fault_log_crosscheck",
+          "critical": true,
+          "detail": "install log/summary identity agrees with the L0 root",
+          "fields_source": [
+            "fault_injections.log",
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "lifecycle_event_integrity",
+          "critical": true,
+          "detail": "all lifecycle events share cell=1 generation=1; commit/squash/overwrite fields are layer-correct",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "consecutive_writes_not_stuck",
+          "critical": false,
+          "detail": "only 0 overwrite event(s) and no post-overwrite write observation; 'consecutive writes never re-stick' is not provable from this stream",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "SKIP"
+        },
+        {
+          "check": "overwrite_phase",
+          "critical": false,
+          "detail": "no overwrite event; phase is not applicable",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "SKIP"
+        },
+        {
+          "check": "free_realloc_evidence",
+          "critical": true,
+          "detail": "generation/free events for the transient fault: ['generation_change']",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "terminal_honesty",
+          "critical": true,
+          "detail": "chain_end terminal=free_realloc is exactly the event-derived closure; counters match the stream",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "no_permanent_arm",
+          "critical": true,
+          "detail": "transient path armed nothing: no fault_installed/stuck_reapplied/phys_write event and field=transient_bit_flip",
+          "fields_source": [
+            "prop_evt.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "permanent_counters",
+          "critical": true,
+          "detail": "numPermanentFaults=0 stuckAtZero=0 stuckAtOne=0",
+          "fields_source": [
+            "stats.txt"
+          ],
+          "status": "PASS"
+        },
+        {
+          "check": "run_boundary",
+          "critical": true,
+          "detail": "chain_end tick 2922408335 <= simTicks 2922408335; stats confirm one bit-flip injection and a completed run",
+          "fields_source": [
+            "prop_evt.txt",
+            "stats.txt"
+          ],
+          "status": "PASS"
+        }
+      ],
+      "containment": {
+        "certified": true,
+        "generation_new": 2,
+        "generation_old": 1,
+        "kind": "free_realloc",
+        "missing": []
+      },
+      "evidence": {
+        "config_ini": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR02-c/seed2/config.ini",
+          "sha256": "f31618f0ade648193d34bdba2a589e3c0317aac072021fd670d38f4170ca22d9",
+          "size_bytes": 58695
+        },
+        "event_stream": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR02-c/seed2/prop_evt.txt.gz",
+          "sha256": "c364e16c0cdc34c1dda339e9560581a68040b89a023d49e535a4993d545268cf",
+          "size_bytes": 2344
+        },
+        "expect_json": {
+          "exists": false,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR02-c/seed2/expect.json"
+        },
+        "fault_log": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR02-c/seed2/fault_injections.log",
+          "sha256": "d8a080a2304747bd09a048a2f19eeb4deb09ae241dc0dfbd33ba51cb61072d7e",
+          "size_bytes": 6804
+        },
+        "stats": {
+          "exists": true,
+          "path": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4/FR02-c/seed2/stats.txt",
+          "sha256": "d2cbc16c17591bee13a484315759536c70936c00c2163a333dbfb6655dd2607f",
+          "size_bytes": 275284
+        }
+      },
+      "expectation_sources": {
+        "bits": "config.ini",
+        "fault_mask": "config.ini",
+        "fault_type": "config.ini",
+        "injection_mode": "config.ini",
+        "lane_offset": "config.ini",
+        "lane_width": "config.ini",
+        "max_faults": "config.ini",
+        "model_id": "config.ini",
+        "num_phys_vec_regs": "config.ini",
+        "reg_target_class": "config.ini",
+        "require_allocated": "config.ini",
+        "rng_seed": "config.ini",
+        "run_id": "config.ini",
+        "sample_run_id": "config.ini",
+        "semantic_role": "config.ini",
+        "target_phys_idx": "config.ini"
+      },
+      "expectations": {
+        "bits": 2,
+        "fault_mask": 137438953504,
+        "fault_type": "bit_flip",
+        "injection_mode": "phys",
+        "lane_offset": -1,
+        "lane_width": 32,
+        "max_faults": 1,
+        "model_id": "FR02",
+        "num_phys_vec_regs": 48,
+        "reg_target_class": "vector",
+        "require_allocated": true,
+        "rng_seed": 2,
+        "run_id": "FSU-FR02-F0-W1",
+        "sample_run_id": "s2",
+        "semantic_role": "FR02-c",
+        "target_phys_idx": -1
+      },
+      "fault_id": "1",
+      "identity": {
+        "arch_reg": 1,
+        "bit_in_lane": 5,
+        "bit_indices": "5,37",
+        "carrier_cell_allocated": null,
+        "event_id": 0,
+        "fault_id": "1",
+        "fault_mask": 137438953504,
+        "field": "transient_bit_flip",
+        "flats": [
+          5,
+          37
+        ],
+        "full_after": 137438953504,
+        "full_before": 0,
+        "geometry": {
+          "adjacent": false,
+          "cross_field": true,
+          "cross_lane": true,
+          "field_label": "cross_field",
+          "fields": [
+            0,
+            1
+          ],
+          "label": "cross_lane",
+          "lanes": [
+            0,
+            1
+          ],
+          "same_lane": false
+        },
+        "lane_after": 32,
+        "lane_before": 0,
+        "lane_mask": 32,
+        "lane_offset": 0,
+        "lane_width": 32,
+        "model_id": "FR02",
+        "phys_reg": 1,
+        "precision": "",
+        "reg_class": "vec",
+        "reg_generation": 1,
+        "submodel": "FR02-c"
+      },
+      "lifecycle": {
+        "certified_closure": true,
+        "chain_end_tick": 2922408335,
+        "closure": "free_realloc",
+        "events": {
+          "commit_sns": [],
+          "counts": {
+            "chain_end": 1,
+            "commit": 0,
+            "generation": 1,
+            "operand_read": 0,
+            "overwrite": 0,
+            "post_overwrite_read": 0,
+            "squash": 0,
+            "stuck": 0,
+            "write_after_overwrite": 0
+          },
+          "first_read_tick": null,
+          "install_generation": 1,
+          "operand_read_sns": [],
+          "overwrite_generation": [],
+          "overwrite_phase": null,
+          "overwrite_sns": [],
+          "overwrite_tick": null,
+          "squash_sns": []
+        },
+        "recorded_terminal": "free_realloc"
+      },
+      "masked_certification": {
+        "certified": true,
+        "final_hash_equality_alone_insufficient": true,
+        "missing": [
+          "oracle_diff/golden comparison (SDC vs benign)"
+        ],
+        "present": [
+          "generation_change old=1 new=2",
+          "chain_end boundary after the reallocation"
+        ],
+        "reason": "the installed generation was freed/reallocated; the defective cell is gone, no later read of that generation and no commit was observed. This is containment, not an SDC/benign claim.",
+        "verdict": "CONTAINED_BY_FREE_REALLOC"
+      },
+      "mode": "transient",
+      "model_id": "FR02",
+      "reason": "PASS: lifecycle closed as free_realloc (recorded terminal=free_realloc); certification may still be BLOCKED",
+      "run_id": "FSU-FR02-F0-W1",
+      "sample_run_id": "s2",
+      "status": "PASS"
+    }
+  ],
+  "generated_at": "2026-11-04T17:04:45.616041+00:00",
+  "root": "/home/sdc/gem5-fi-fsu/runs/fsu-gates/FR01-FR02-F0-W1-v4",
+  "summary": {
+    "FAIL": 0,
+    "PASS": 2,
+    "SKIP": 0,
+    "attempts_total": 2,
+    "blockers": [],
+    "certification": {
+      "BLOCKED": 0,
+      "CERTIFIED": 2,
+      "FAILED": 0
+    },
+    "run_ids": [
+      "FSU-FR01-F0-W1",
+      "FSU-FR02-F0-W1"
+    ]
+  },
+  "tool": "fsu_fr01_fr02_gate",
+  "version": 1
+}
