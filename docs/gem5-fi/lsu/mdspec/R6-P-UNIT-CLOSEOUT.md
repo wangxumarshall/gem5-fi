@@ -223,3 +223,22 @@ RunID-level count stays 14 and the RunID-level seed count stays 42.**
 W8 stays `provable_to_L1_then_unknown`, not admitted. Evidence:
 `campaign_p07a_formal_20261105`, `campaign_p07a_seed1_20261105`,
 per-seed docs `P07-F0-W6-p07a-seed{1,2,3}.md`.
+
+### Takeover #2 closeout (2026-11-05)
+
+- P07-a: certified 3/3 submodel on P07-F0-W6 (commit `a7ebdbbd`).
+- P04-F5: fixed-slot v2 correction (commit `a00ab5c7`); 3 seeds on W2/W8,
+  terminal L2, Masked, output golden, controls `injected=0`; old
+  whole-queue evidence superseded (commit `be1ad3e0`).
+- Diagnostic audit (commit `95a6df2e`): P09-a/P07-c PASS; P09-c v2
+  re-run with frozen binary reproduced the outputs; original binary gap
+  recorded.
+- Coverage audit (commit `9589a66d`): 23 F0/F5 RunIDs; **14 certified
+  RunIDs / 42 seeds**; **15 submodel certifications**; 3 non-B0
+  diagnostics; 9 uncertified RunIDs. The full P unit (53 RunIDs) is not
+  complete; F1/F2/F3/F4/F6 not run and not claimed.
+- Regression: `pytest tests -q` = 309 passed / 10 failed, same failure set
+  as baseline; NEW FAIL=0.
+- Remaining: P03-W9 lineage block; P07-W8 consumer block; P09 B0
+  coverage; P09-W13 PARSEC asset; P09-b model not expressible; P04 F0/F5
+  not certified.
