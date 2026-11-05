@@ -175,3 +175,12 @@ def test_fr01_fr02_consumer_identity_and_precision_wiring():
     assert "--phys_load_id" in runner
     assert '"target_selection": "ready_consumer"' in cfg
     assert '"target_precision": 64' in cfg
+
+
+def test_fr_precision_wider_than_lane_fails_closed():
+    phys = PHYS_CC.read_text(encoding="utf-8")
+    assert "requires vecLaneWidth >=" in phys
+    # Construct-time rejection, not a runtime relabel of a narrow lane.
+    ctor = phys[phys.index("CHAOSPhysReg::CHAOSPhysReg"):
+                phys.index("CHAOSPhysReg::CHAOSPhysRegStats")]
+    assert "vec_lane_width < target_precision" in ctor

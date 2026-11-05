@@ -156,6 +156,16 @@ decodedConsumerPrecision(const o3::DynInst *inst)
                 "CHAOSPhysReg: targetPrecision requires "
                 "targetSelection=ready_consumer");
         }
+        // [FR01/FR02] A precision wider than the corrupted lane would label
+        // a 32-bit lane as FP64 (or vice versa). Fail closed before the run.
+        if (target_precision != 0 && vec_lane_width < target_precision) {
+            throw std::runtime_error(
+                "CHAOSPhysReg: targetPrecision " +
+                std::to_string(target_precision) +
+                " requires vecLaneWidth >= " +
+                std::to_string(target_precision) + " (got " +
+                std::to_string(vec_lane_width) + ")");
+        }
         if (probability > 0.0) {
             log_stream = simout.create("fault_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
