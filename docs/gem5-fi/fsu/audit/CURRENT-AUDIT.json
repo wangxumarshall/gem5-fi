@@ -2,8 +2,8 @@
   "schema_version": "fsu-full-audit/v1",
   "tool_version": "fsu_full_audit/v1",
   "scope": "all",
-  "generated_at": "2026-11-05T02:11:53",
-  "tool_git_sha": "b6a3336041306342091cbb3d30912282f25b157c",
+  "generated_at": "2026-11-05T15:15:56",
+  "tool_git_sha": "9bca75c3f0ac6f51ac4b8699c6313e23cd77b1d2",
   "tool_script_sha256": "9a2b0d69a256d834974a8e48a521c99faaf2f890b203b2e3031a7ec7e0880121",
   "out_root": "/home/sdc/gem5-fi-fsu/runs/fsu",
   "inputs": {
@@ -42,18 +42,18 @@
       "total": 87
     },
     "non_suite_seeds": {
-      "current_verified": 35,
+      "current_verified": 41,
       "legacy_report_only": 0,
       "current_verification_failed": 0,
       "missing_evidence": 0,
-      "total": 35
+      "total": 41
     },
     "authoritative_seeds": {
-      "current_verified": 55,
+      "current_verified": 61,
       "legacy_report_only": 0,
       "current_verification_failed": 1,
       "missing_evidence": 0,
-      "total": 56
+      "total": 62
     }
   },
   "suite_seeds": [
@@ -3404,6 +3404,192 @@
       },
       "oracle": "SDC",
       "oracle_reason": "completed exit=0, ARRAYHASH b749bb6446a228127deef7ec960482bf6ed7eabc476366401b45cb4c74aa713e != golden e563e3e1bb7ee0e1b42c1ef7c7a11bc8d5029c6ea462cbd46b62a74a7b525aba — silent data corruption",
+      "terminal": "full",
+      "audit_failures": [],
+      "chain_violations": [],
+      "chain_faults": [
+        "1"
+      ]
+    },
+    {
+      "kind": "non_suite_seed",
+      "seed_dir": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed1",
+      "run_id": "FSU-FR01-F0-W1",
+      "seed": "seed1",
+      "category": "current_verified",
+      "reason": null,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed1/attempt-5",
+      "recomputed_audit_ok": true,
+      "recomputed_chain_certified": true,
+      "stored_audit": {
+        "present": false,
+        "ok": null,
+        "certified": null,
+        "path": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed1/attempt-5/audit.json",
+        "error": "missing/unreadable: [Errno 2] No such file or directory: '/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed1/attempt-5/audit.json'"
+      },
+      "evidence_sha256": {
+        "manifest.json": "7b61fd6261431f16015bf48f1367a67ef992bc711eb9fb9a5842e649042a729c",
+        "chain_report.json": "625ee981a723d9b6d128f4a45692c0927aa22702bead3a7d4690ec6d559f547b",
+        "inject/prop_evt.txt.gz": "795e6c57c2195e6206d67b80e8d6c715af5ff3be9734e3b296dc331e67aea5a9"
+      },
+      "oracle": "SDC",
+      "oracle_reason": "completed exit=0, ARRAYHASH ffe18c8279bf419d94ad7b1592c56fb874d3440506066d93ede75820f2eba183 != golden ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183 — silent data corruption",
+      "terminal": "full",
+      "audit_failures": [],
+      "chain_violations": [],
+      "chain_faults": [
+        "1"
+      ]
+    },
+    {
+      "kind": "non_suite_seed",
+      "seed_dir": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed2",
+      "run_id": "FSU-FR01-F0-W1",
+      "seed": "seed2",
+      "category": "current_verified",
+      "reason": null,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed2/attempt-1",
+      "recomputed_audit_ok": true,
+      "recomputed_chain_certified": true,
+      "stored_audit": {
+        "present": false,
+        "ok": null,
+        "certified": null,
+        "path": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed2/attempt-1/audit.json",
+        "error": "missing/unreadable: [Errno 2] No such file or directory: '/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed2/attempt-1/audit.json'"
+      },
+      "evidence_sha256": {
+        "manifest.json": "e1bdc5793a3bea22453090aace56d82f765647f87c5504ccd1ee57103c3239a9",
+        "chain_report.json": "88a7ef0cefd3072f9968a2be0bc385a698ba495950c07f66b31ccd61c6275859",
+        "inject/prop_evt.txt.gz": "1cfba486ea69ac290f9c9117143f89c889200a2cd6c921bd471ae7a94a366aff"
+      },
+      "oracle": "SDC",
+      "oracle_reason": "completed exit=0, ARRAYHASH ffe18c8279bf419d94ad7b1592c56fb874d3440506066d93ede75820f2eba183 != golden ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183 — silent data corruption",
+      "terminal": "full",
+      "audit_failures": [],
+      "chain_violations": [],
+      "chain_faults": [
+        "1"
+      ]
+    },
+    {
+      "kind": "non_suite_seed",
+      "seed_dir": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed3",
+      "run_id": "FSU-FR01-F0-W1",
+      "seed": "seed3",
+      "category": "current_verified",
+      "reason": null,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed3/attempt-1",
+      "recomputed_audit_ok": true,
+      "recomputed_chain_certified": true,
+      "stored_audit": {
+        "present": false,
+        "ok": null,
+        "certified": null,
+        "path": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed3/attempt-1/audit.json",
+        "error": "missing/unreadable: [Errno 2] No such file or directory: '/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR01-F0-W1/seed3/attempt-1/audit.json'"
+      },
+      "evidence_sha256": {
+        "manifest.json": "a892453cda86bc4359244bb585d90b8e4c1512ec6189da30a4a28ec6fa8c0b74",
+        "chain_report.json": "cef79071e54c8dfed2914eaca1bd03c622fbe21ed93e5af8ba8a78dee3b92486",
+        "inject/prop_evt.txt.gz": "fdb0c062e00f4b78f75d2a7edc9f5861dc62f0fb2e1cce1c576277f1811ac50c"
+      },
+      "oracle": "SDC",
+      "oracle_reason": "completed exit=0, ARRAYHASH ffe18c8279bf419d94ad7b1592c56fb874d3440506066d93ede75820f2eba183 != golden ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183 — silent data corruption",
+      "terminal": "full",
+      "audit_failures": [],
+      "chain_violations": [],
+      "chain_faults": [
+        "1"
+      ]
+    },
+    {
+      "kind": "non_suite_seed",
+      "seed_dir": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed1",
+      "run_id": "FSU-FR02-F0-W1",
+      "seed": "seed1",
+      "category": "current_verified",
+      "reason": null,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed1/attempt-1",
+      "recomputed_audit_ok": true,
+      "recomputed_chain_certified": true,
+      "stored_audit": {
+        "present": false,
+        "ok": null,
+        "certified": null,
+        "path": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed1/attempt-1/audit.json",
+        "error": "missing/unreadable: [Errno 2] No such file or directory: '/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed1/attempt-1/audit.json'"
+      },
+      "evidence_sha256": {
+        "manifest.json": "c7ebee0c3fe06e6731c2ff30edc0ab196b26f8273caa5b6987548966e376ff02",
+        "chain_report.json": "16e21da912036da84f94487c910fae70a2a45adddefc67eb0097916ac5201627",
+        "inject/prop_evt.txt.gz": "28ca0c6cd71f194034544c7d8aa963867e7e4e8549054650e90dfed197c764dc"
+      },
+      "oracle": "SDC",
+      "oracle_reason": "completed exit=0, ARRAYHASH ffe18c8279bf419d58ebfe2d0cc07f5874d3440506066d93ede75820f2eba183 != golden ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183 — silent data corruption",
+      "terminal": "full",
+      "audit_failures": [],
+      "chain_violations": [],
+      "chain_faults": [
+        "1"
+      ]
+    },
+    {
+      "kind": "non_suite_seed",
+      "seed_dir": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed2",
+      "run_id": "FSU-FR02-F0-W1",
+      "seed": "seed2",
+      "category": "current_verified",
+      "reason": null,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed2/attempt-1",
+      "recomputed_audit_ok": true,
+      "recomputed_chain_certified": true,
+      "stored_audit": {
+        "present": false,
+        "ok": null,
+        "certified": null,
+        "path": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed2/attempt-1/audit.json",
+        "error": "missing/unreadable: [Errno 2] No such file or directory: '/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed2/attempt-1/audit.json'"
+      },
+      "evidence_sha256": {
+        "manifest.json": "6c9b195a9b82dd60908af2506ad5bc1925e7f066fbbb158a1e9ef987810bb723",
+        "chain_report.json": "183f8c5036549a2a1fd6ba29d87498377c8d21f44731da4a5a6707625408445c",
+        "inject/prop_evt.txt.gz": "f08a8b616188e7cabdd2546e814def61903f95c14bee41e569213032f2ea6ae0"
+      },
+      "oracle": "SDC",
+      "oracle_reason": "completed exit=0, ARRAYHASH ffe18c8279bf419d58ebfe2d0cc07f5874d3440506066d93ede75820f2eba183 != golden ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183 — silent data corruption",
+      "terminal": "full",
+      "audit_failures": [],
+      "chain_violations": [],
+      "chain_faults": [
+        "1"
+      ]
+    },
+    {
+      "kind": "non_suite_seed",
+      "seed_dir": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed3",
+      "run_id": "FSU-FR02-F0-W1",
+      "seed": "seed3",
+      "category": "current_verified",
+      "reason": null,
+      "attempt": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed3/attempt-1",
+      "recomputed_audit_ok": true,
+      "recomputed_chain_certified": true,
+      "stored_audit": {
+        "present": false,
+        "ok": null,
+        "certified": null,
+        "path": "/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed3/attempt-1/audit.json",
+        "error": "missing/unreadable: [Errno 2] No such file or directory: '/home/sdc/gem5-fi-fsu/runs/fsu/FSU-FR02-F0-W1/seed3/attempt-1/audit.json'"
+      },
+      "evidence_sha256": {
+        "manifest.json": "8df279e74d9ab2b9efe9c8b926d4f5e389a284407bccf5bc10dacd79c24cf7ba",
+        "chain_report.json": "7a6fa032c299e4e765524cfcfa47022a07d32770aff045de94c506de7b6faf72",
+        "inject/prop_evt.txt.gz": "4c052e0ec8a18a216fe5eba704b43e683b551bb2043ab71f2345bf8056395d46"
+      },
+      "oracle": "SDC",
+      "oracle_reason": "completed exit=0, ARRAYHASH ffe18c8279bf419d58ebfe2d0cc07f5874d3440506066d93ede75820f2eba183 != golden ffe18c8279bf419d9b0aad0f5e03901874d3440506066d93ede75820f2eba183 — silent data corruption",
       "terminal": "full",
       "audit_failures": [],
       "chain_violations": [],

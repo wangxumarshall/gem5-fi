@@ -14,8 +14,11 @@
 |---|---:|---:|---:|---:|---:|
 | suite seed | 21 | 20 | 1 | 0 | 0 |
 | component | 87 | 82 | 5 | 0 | 0 |
-| 非 suite 权威 seed | 35 | 35 | 0 | 0 | 0 |
-| 权威 seed 合计 | 56 | 55 | 1 | 0 | 0 |
+| 非 suite 权威 seed | 41 | 41 | 0 | 0 | 0 |
+| 权威 seed 合计 | 62 | 61 | 1 | 0 | 0 |
+
+（2026-11-05 15:15 复审，tool_git_sha `9bca75c3`；新增 FR01 seed2/3、
+FR02 seed1/2/3、FP05-F0-W3 seed1。唯一失败仍为 FR03-W5 seed1 身份漂移。）
 
 唯一失败：`FSU-FR03-F5-W5/seed1`。运行标签 `submodel=FR03-c`，冻结 plan
 是 `FR03-a`；suite_hash `864c71…` vs `98d881…`。所有 fault 几何值

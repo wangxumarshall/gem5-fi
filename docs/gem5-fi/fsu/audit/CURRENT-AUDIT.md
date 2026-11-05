@@ -1,15 +1,15 @@
 # FSU 当前工具全量复审
 
-- generated_at: `2026-11-05T02:11:53`
-- tool_git_sha: `b6a3336041306342091cbb3d30912282f25b157c`
+- generated_at: `2026-11-05T15:15:56`
+- tool_git_sha: `9bca75c3f0ac6f51ac4b8699c6313e23cd77b1d2`
 - schema_version: `fsu-full-audit/v1`
 
 | 范围 | total | current_verified | legacy_report_only | current_verification_failed | missing_evidence |
 |---|---:|---:|---:|---:|---:|
 | suite seed | 21 | 20 | 0 | 1 | 0 |
 | component | 87 | 82 | 0 | 5 | 0 |
-| 非 suite 权威 seed | 35 | 35 | 0 | 0 | 0 |
-| 权威 seed 合计 | 56 | 55 | 0 | 1 | 0 |
+| 非 suite 权威 seed | 41 | 41 | 0 | 0 | 0 |
+| 权威 seed 合计 | 62 | 61 | 0 | 1 | 0 |
 
 ## 未通过/缺证据明细
 
