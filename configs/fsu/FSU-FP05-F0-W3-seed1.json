@@ -1,0 +1,37 @@
+{
+  "run_id": "FSU-FP05-F0-W3",
+  "model_id": "FP05",
+  "unit": "FSU Pipe",
+  "freq": "F0",
+  "load_id": "W3",
+  "submodel": "FP05-a",
+  "workload": {
+    "binary": "workloads/directed/neon_fp32_lane_kernel",
+    "identity": "W3-neon-fp32-lane-v1",
+    "source": "workloads/directed/neon_fp32_lane_kernel.c",
+    "golden_id": "neonfp32lane-v1-golden",
+    "golden": "cb66197d92c7656b9359b312e93180eaaf3c1e774d9264d7d0b595189bce8c2e",
+    "oracle_kind": "array_hash",
+    "oracle_tol": 0
+  },
+  "config_family": "C3",
+  "injector": {
+    "component": "fsu",
+    "max_faults": 1,
+    "first_clock": 0,
+    "probability": 1.0,
+    "fpu_mode": {
+      "burst_mode": "same_lane",
+      "burst_length": 3,
+      "precision": "fp32",
+      "lane_width": 32,
+      "lane_offset": 0,
+      "reg_class": "vec",
+      "op_classes": ["SimdFloatMultAcc"]
+    }
+  },
+  "limits": {
+    "timeout_s": 1800
+  },
+  "notes": "FP05-a same-lane burst pilot: one F0 episode over 3 consecutive eligible SimdFloatMultAcc results; census + fixed uniform ordinal."
+}

@@ -26,6 +26,23 @@ fixed uniform skip = `chaos_pick_skip(seed=1, 16384) = 15571`。
 - recurring/permanent 事件不带 burst 字段；
 - 单 run 单 episode（`maxFaults==1` 构造期强制）。
 
+## 正式试点：FSU-FP05-F0-W3 seed1
+
+manifest：`configs/fsu/FSU-FP05-F0-W3-seed1.json`（same_lane len=3，
+SimdFloatMultAcc，census + fixed uniform ordinal）。
+运行器真实输出：
+
+```
+status=admitted, attempt=runs/fsu/FSU-FP05-F0-W3/seed1/attempt-1
+chain_terminal=full, oracle=SDC
+fsu_seed_audit: ok=true
+fsu_fp05_burst_gate --require-end --expected-episodes 1: PASS
+CHAOS_BURST_EPISODES_COMPLETED=1, EVENTS_APPLIED=3,
+EVENTS_ACTIVATED=3, SHORT=0, ACCOUNTING_OK=1
+```
+
+这是一个真实 workload 的正式试点（一 seed），不是合成流。
+
 ## 未覆盖 / 诚实缺口
 
 - 多来源 consumer 汇合 `merged>1` 未在该 workload 出现；gate 对 >0 的

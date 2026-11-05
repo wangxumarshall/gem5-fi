@@ -79,7 +79,9 @@
   cross_lane_mbu(32-bit lane) 全部 strict PASS；tail short 显式
   `run_exit` 且 strict FAIL（不冒充完成）；64-bit-lane MBU 因元素宽度
   不匹配 fail closed。证据见 `FP05-BURST-GATE-EVIDENCE.md`。
-  未做：正式 F0 试点、merged>1、squash 样本、F4 间隔语义。
+  正式试点：`FSU-FP05-F0-W3/seed1`（same_lane len=3）→ admitted SDC、
+  chain full、burst gate PASS、seed audit ok=true。
+  未做：merged>1、squash 样本、F4 间隔语义、seed2/3。
 - FP06-d 保持 MISSING；FP07 仅允许工作簿明确的字段加权结果代理。
 
 ## 2. 已落地补丁（按单元）
