@@ -228,6 +228,16 @@ def _build_physreg_cmd(manifest, outdir: Path, seed: int, max_faults: int,
     ]
     if phys.get("require_allocated"):
         cmd += ["--phys_require_allocated"]
+    target_selection = str(phys.get("target_selection", "random_allocated"))
+    if target_selection not in ("random_allocated", "ready_consumer"):
+        raise ValueError(
+            f"unknown physreg target_selection {target_selection!r}")
+    cmd += ["--phys_target_selection", target_selection]
+    cmd += ["--phys_target_precision",
+            str(int(phys.get("target_precision", 0) or 0))]
+    load_id = str(manifest.get("load_id", "") or "")
+    if load_id:
+        cmd += ["--phys_load_id", load_id]
     if phys.get("target_arch_reg") is not None:
         cmd += ["--phys_target_arch", str(int(phys["target_arch_reg"]))]
     if phys.get("bits_to_change") is not None:

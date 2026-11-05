@@ -528,6 +528,15 @@ def _check_one(fid, events, truncated=False):
 
     paths = _enumerate_paths(root, children, violations)
     best = max(paths, key=_score)
+    # A transient fault that already reached a real L5 witness is TERMINAL:
+    # a later rewrite/free of the physical cell is post-terminal cleanup, not
+    # containment of the propagated fault. Cut the chain at the first L5
+    # witness so post-overwrite observation events (layer None / late L1)
+    # cannot downgrade a committed SDC to contained_L1 or trip a layer
+    # regression.
+    l5_evt = next((e for e in best if _l5_witness_ok(e)), None)
+    if l5_evt is not None:
+        best = best[:best.index(l5_evt) + 1]
     layered = _path_layers(best)
     layers = [l for _, l in layered]
     path_ids = [_clean(e, "event_id") for e in best]
@@ -538,7 +547,6 @@ def _check_one(fid, events, truncated=False):
         if b < a:
             violations.append("layer_regression")
 
-    l5_evt = next((e for e in best if _l5_witness_ok(e)), None)
     # 任何自称 L5 但无真实见证的事件
     for e, l in layered:
         if l == "L5" and not _l5_witness_ok(e):

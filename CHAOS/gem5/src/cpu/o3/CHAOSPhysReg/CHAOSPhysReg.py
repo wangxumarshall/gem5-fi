@@ -57,6 +57,23 @@ class CHAOSPhysReg(SimObject):
         "'vector' | 'both' (phys mode: random pick across the three classes; "
         "arch modes: selects the rename map). 'vector' targets VecRegClass "
         "(whole SVE/NEON vectors — the actual AArch64 FMA/byte-swap hot path).")
+    targetSelection = Param.String(
+        "random_allocated",
+        "phys random-target policy (targetPhysRegIdx == -1 only). "
+        "'random_allocated' = historical: sample allocated slots, preferring "
+        "a pending IQ source but falling back to any allocated cell. "
+        "'ready_consumer' = FR01/FR02 workbook trigger: pick uniformly among "
+        "cells that are READY pending source operands of unissued "
+        "instructions; if none exists, defer (retry >=100 cycles) WITHOUT "
+        "consuming the fault and never fall back to a cell with no consumer. "
+        "The choice is recorded in fault_injections.log.")
+    loadId = Param.String("", "[FR01/FR02] workload id written into every "
+        "FSU_PROP event (e.g. 'W1'); empty = omit.")
+    targetPrecision = Param.Int(
+        0, "[FR01/FR02] ready_consumer only: require the consumer's REAL "
+        "AArch64 encoding to decode to this FP precision (32 or 64 bits). "
+        "0 = any. FR01-a must use 64; FR01-b must use 32. Undecodable "
+        "instructions are never eligible (fail closed).")
 
     # --- vec lane stratification (Phase 2 item 1: NEON 128-bit lane FI) ---
     vecLaneWidth = Param.Int(32,

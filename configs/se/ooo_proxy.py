@@ -107,6 +107,17 @@ p.add_argument("--phys_require_allocated", action="store_true",
                help="[FR03] phys mode: only install on a currently allocated "
                     "cell (not free); reschedule without consuming the fault "
                     "otherwise. Default off = historical behaviour.")
+p.add_argument("--phys_target_selection", default="random_allocated",
+               choices=["random_allocated", "ready_consumer"],
+               help="[FR01/FR02] phys random-target policy: ready_consumer "
+                    "requires a ready pending IQ source (workbook trigger) "
+                    "and defers without consuming the fault otherwise.")
+p.add_argument("--phys_load_id", default="",
+               help="[FR01/FR02] workload id written into FSU_PROP events")
+p.add_argument("--phys_target_precision", type=int, default=0,
+               choices=[0, 16, 32, 64],
+               help="[FR01/FR02] ready_consumer only: require the consumer's "
+                    "decoded FP precision to match; 0 = any.")
 p.add_argument("--phys_target_arch", type=int, default=0)
 p.add_argument("--phys_reg_class", default="integer",
                choices=["integer", "floating_point", "vector", "both"])
@@ -604,6 +615,9 @@ if args.chaos_phys:
         requireAllocated=args.phys_require_allocated,
         targetArchRegIdx=args.phys_target_arch,
         regTargetClass=args.phys_reg_class,
+        targetSelection=args.phys_target_selection,
+        targetPrecision=args.phys_target_precision,
+        loadId=args.phys_load_id,
         vecLaneWidth=args.vec_lane_width,
         vecLaneOffset=args.vec_lane_offset,
         semanticRole=args.phys_semantic_role,

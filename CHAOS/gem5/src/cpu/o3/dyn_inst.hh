@@ -1210,6 +1210,12 @@ class DynInst : public ExecContext, public RefCounted
     // storage (which is pretty hard to imagine they would have reason
     // to do).
 
+    /** [FR01/FR02] Out-of-line hook (defined in dyn_inst.cc, where the full
+     * CHAOSPhysReg type is visible): capture a vector operand value at the
+     * exact read point, before later frees/reallocations can rewrite the
+     * physical cell. */
+    void noteChaosVecRead(const PhysRegIdPtr &reg, const void *val);
+
     RegVal
     getRegOperand(const StaticInst *si, int idx) override
     {
@@ -1226,6 +1232,8 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return;
         cpu->getReg(reg, val, threadNumber);
+        if (cpu->chaosPhysReg)
+            noteChaosVecRead(reg, val);
     }
 
     void *

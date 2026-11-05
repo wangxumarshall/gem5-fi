@@ -150,8 +150,12 @@ def _field_violations(evt):
         # FP04-d is the NEON lane-result domain, orthogonal to the field
         # axis: a lane-selected run (lane_offset > 0) may carry any field.
         lane_domain = (sub == "FP04-d" and lane_o > 0)
+        # [FR01/FR02] Their submodels encode lane/geometry families, not the
+        # FP04 field axis. The field label must still be valid for the
+        # declared precision (checked above), but FIELD_SUBMODEL is FP04-only.
+        fr01_fr02 = sub.startswith("FR01") or sub.startswith("FR02")
         if (want_sub and sub and sub != want_sub and not lane_domain
-                and not f5_mode):
+                and not f5_mode and not fr01_fr02):
             v.append(f"fault {fid}: field {field} requires {want_sub}, "
                      f"event submodel={sub}")
     mask = _hex_int(evt.get("fault_mask"))

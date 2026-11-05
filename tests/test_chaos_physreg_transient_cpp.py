@@ -121,3 +121,57 @@ def test_fr01_fr02_runids_exist_and_are_f0_w1():
         assert r["负载ID"] == "W1"
         assert r["负载名称"] == "FP-ScalarProbe"
         assert "每次运行只注入1次" in r["采样说明"]
+
+
+def test_fr01_fr02_consumer_identity_and_precision_wiring():
+    """[FR01/FR02] The W1 identity audit must stay wired end-to-end."""
+    phys = PHYS_CC.read_text(encoding="utf-8")
+    hh = PHYS_HH.read_text(encoding="utf-8")
+    py = (REPO / "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.py").read_text(
+        encoding="utf-8")
+    iq = (REPO / "CHAOS/gem5/src/cpu/o3/inst_queue.cc").read_text(
+        encoding="utf-8")
+    iqh = (REPO / "CHAOS/gem5/src/cpu/o3/inst_queue.hh").read_text(
+        encoding="utf-8")
+    dyn = (REPO / "CHAOS/gem5/src/cpu/o3/dyn_inst.hh").read_text(
+        encoding="utf-8")
+    dyncc = (REPO / "CHAOS/gem5/src/cpu/o3/dyn_inst.cc").read_text(
+        encoding="utf-8")
+    runner = (REPO / "tools/fsu_seed_runner.py").read_text(encoding="utf-8")
+    cfg = (REPO / "configs/fsu/FR01-F0-W1-seed1.json").read_text(
+        encoding="utf-8")
+
+    # ARM has no real FloatRegClass: scalar FP sources are VecRegClass.
+    isa = (REPO / "CHAOS/gem5/src/arch/arm/isa.cc").read_text(encoding="utf-8")
+    assert "Not applicable to ARM" in isa
+    assert "RegClass floatRegClass(FloatRegClass, FloatRegClassName, 0" in isa
+
+    # Ready pending sources are collected as EVENTS (instruction, operand).
+    assert "collectReadyPendingSources" in iqh and "collectReadyPendingSources" in iq
+    assert "readySrcIdx" in iq
+
+    # The read hook is at the exact getRegOperand point, not post-execute.
+    assert "noteChaosVecRead" in dyn and "noteChaosVecRead" in dyncc
+    assert "cpu->chaosPhysReg->noteVecOperandRead" in dyncc
+    assert "noteVecOperandRead" in phys
+    # Generation is provenance, not a read filter.
+    assert "generationOf(src) !=" not in phys
+    assert "Generation is provenance, NOT a filter" in phys
+    # Store data reads happen in initiateAcc, after the post-execute hook.
+    assert "inst->isStore()" in phys
+
+    # Event-driven arm at the consumer's execute boundary.
+    assert "maybeInjectBeforeExecute" in phys and "maybeInjectBeforeExecute" in hh
+    assert "cpu->chaosPhysReg->maybeInjectBeforeExecute(this)" in dyncc
+
+    # Precision is decoded from the REAL AArch64 encoding.
+    assert "decodedConsumerPrecision" in phys
+    assert "ArmStaticInst" in phys and "encoding()" in phys
+    assert "targetPrecision" in py and "loadId" in py
+
+    # Runner/config wiring + frozen values.
+    assert "--phys_target_selection" in runner
+    assert "--phys_target_precision" in runner
+    assert "--phys_load_id" in runner
+    assert '"target_selection": "ready_consumer"' in cfg
+    assert '"target_precision": 64' in cfg

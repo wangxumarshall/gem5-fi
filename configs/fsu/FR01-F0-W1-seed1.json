@@ -24,6 +24,8 @@
       "injection_mode": "phys",
       "reg_class": "vector",
       "target_phys_idx": -1,
+      "target_selection": "ready_consumer",
+      "target_precision": 64,
       "require_allocated": true,
       "vec_lane_width": 64,
       "vec_lane_offset": 0,

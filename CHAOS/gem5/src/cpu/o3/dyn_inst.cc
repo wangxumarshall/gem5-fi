@@ -351,6 +351,15 @@ DynInst::setSquashed()
     setPinnedRegsSquashDone();
 }
 
+void
+DynInst::noteChaosVecRead(const PhysRegIdPtr &reg, const void *val)
+{
+    // Full CHAOSPhysReg definition is available in this TU only; see the
+    // inline getRegOperand() call site in dyn_inst.hh.
+    if (cpu && cpu->chaosPhysReg)
+        cpu->chaosPhysReg->noteVecOperandRead(this, reg, val);
+}
+
 Fault
 DynInst::execute()
 {
@@ -360,6 +369,11 @@ DynInst::execute()
     // the TC).  Fix this.
     bool no_squash_from_TC = thread->noSquashFromTC;
     thread->noSquashFromTC = true;
+
+    // [FR01/FR02] Event-driven PRF target: when armed, install the transient
+    // fault into this instruction's source cell BEFORE it reads the value.
+    if (cpu && cpu->chaosPhysReg)
+        cpu->chaosPhysReg->maybeInjectBeforeExecute(this);
 
     // [FSU][FR07-HOOK v2] Select/arm the writeback fault BEFORE execute so
     // the destination write can be intercepted at the WB data boundary.

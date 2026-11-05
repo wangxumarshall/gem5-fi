@@ -22,9 +22,71 @@
 #include "arch/generic/isa.hh"
 #include "sim/core.hh"            // curTick() for L5 first-impact stamping
 #include "sim/sim_exit.hh"        // registerExitCallback (W2.5 CHAOS_L0 line)
+#include "arch/arm/insts/static_inst.hh"  // [FR01/FR02] real encoding()
+#include "cpu/o3/CHAOSFPU/decoded_fp.hh"  // [FR01/FR02] precision decoder
 
 namespace gem5
 {
+
+namespace
+{
+// [FR01/FR02] Decode the consumer's REAL AArch64 encoding. This mirrors
+// CHAOSFPU::familyOf (the only definitions of the FP opClass families); a
+// non-reliable decode returns 0 and must never be eligible.
+chaos_fsu::FpFamily
+fsuFamilyOf(OpClass oc)
+{
+    switch (oc) {
+      case FloatAddOp: case FloatCmpOp: case FloatMultOp:
+      case FloatMultAccOp: case FloatDivOp: case FloatMiscOp:
+      case FloatSqrtOp:
+        return chaos_fsu::FpFamily::ScalarFloat;
+      case FloatCvtOp:
+        return chaos_fsu::FpFamily::Cvt;
+      case SimdFloatAluOp: case SimdFloatCmpOp: case SimdFloatCvtOp:
+      case SimdFloatMultOp: case SimdFloatMultAccOp: case SimdFloatDivOp:
+      case SimdFloatSqrtOp: case SimdFloatMiscOp: case SimdFloatAddOp:
+        return oc == SimdFloatCvtOp ? chaos_fsu::FpFamily::Cvt
+                                    : chaos_fsu::FpFamily::SimdFloat;
+      default:
+        return chaos_fsu::FpFamily::Other;
+    }
+}
+
+std::string
+fpFieldName(int bit_in_lane, int precision)
+{
+    if (precision == 32) {
+        if (bit_in_lane == 31) return "sign";
+        if (bit_in_lane >= 27) return "exp_hi";
+        if (bit_in_lane >= 23) return "exp_lo";
+        if (bit_in_lane >= 15) return "mant_hi";
+        if (bit_in_lane >= 8) return "mant_mid";
+        return "mant_lo";
+    }
+    if (bit_in_lane == 63) return "sign";
+    if (bit_in_lane >= 58) return "exp_hi";
+    if (bit_in_lane >= 52) return "exp_lo";
+    if (bit_in_lane >= 35) return "mant_hi";
+    if (bit_in_lane >= 18) return "mant_mid";
+    return "mant_lo";
+}
+
+int
+decodedConsumerPrecision(const o3::DynInst *inst)
+{
+    if (!inst || !inst->staticInst)
+        return 0;
+    auto *asi = dynamic_cast<const ArmISA::ArmStaticInst *>(
+        inst->staticInst.get());
+    if (!asi)
+        return 0;
+    const auto d = chaos_fsu::decodedPrecision(
+        asi->encoding(), fsuFamilyOf(inst->opClass()));
+    return d.reliable ? d.precision_bits : 0;
+}
+}  // anonymous namespace
+
 
     CHAOSPhysReg::CHAOSPhysReg(const CHAOSPhysRegParams &p)
         : SimObject(p),
@@ -51,6 +113,7 @@ namespace gem5
     trigger_value_mask(p.triggerValueMask),
     trigger_value_pattern(p.triggerValuePattern),
     semantic_role(p.semanticRole),
+    load_id(p.loadId),
           attackEvent([this] { this->attackCheck(); }, name()),
           periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
           readTraceEvent([this] { this->readTraceCheck(); }, name() + ".readTrace"),
@@ -60,6 +123,38 @@ namespace gem5
             throw std::runtime_error(
                 "CHAOSPhysReg: cpu is not an O3CPU. CHAOSPhysReg only supports "
                 "O3CPU (it needs regFile/renameMap). Cast failed.");
+        }
+        // [FR01/FR02] Random-target policy. Unknown values fail closed so a
+        // typo can never silently fall back to the historical dead-slot
+        // selection; an explicit target index contradicts the policy.
+        const std::string &ts = p.targetSelection;
+        if (ts != "random_allocated" && ts != "ready_consumer") {
+            throw std::runtime_error(
+                "CHAOSPhysReg: unknown targetSelection '" + ts +
+                "' (expected 'random_allocated' or 'ready_consumer')");
+        }
+        require_ready_consumer = (ts == "ready_consumer");
+        if (require_ready_consumer && fi_mode != Mode::Phys) {
+            throw std::runtime_error(
+                "CHAOSPhysReg: targetSelection=ready_consumer requires "
+                "injectionMode=phys");
+        }
+        if (require_ready_consumer && target_phys_idx >= 0) {
+            throw std::runtime_error(
+                "CHAOSPhysReg: targetSelection=ready_consumer cannot be "
+                "combined with an explicit targetPhysRegIdx");
+        }
+        target_precision = p.targetPrecision;
+        if (target_precision != 0 && target_precision != 16 &&
+            target_precision != 32 && target_precision != 64) {
+            throw std::runtime_error(
+                "CHAOSPhysReg: targetPrecision must be 0/16/32/64, got " +
+                std::to_string(target_precision));
+        }
+        if (target_precision != 0 && !require_ready_consumer) {
+            throw std::runtime_error(
+                "CHAOSPhysReg: targetPrecision requires "
+                "targetSelection=ready_consumer");
         }
         if (probability > 0.0) {
             log_stream = simout.create("fault_injections.log", false, true);
@@ -181,6 +276,38 @@ namespace gem5
         kv.push_back({"unit", "PRF_Vec"});
         if (!semantic_role.empty())
             kv.push_back({"submodel", semantic_role});
+        // [FR01/FR02] IEEE field/precision identity for the audit. The
+        // injected bits live inside one lane; the lane width (or the decoded
+        // consumer precision) selects the FP32/FP64 field table. FR02-d may
+        // cross fields: the label is the lowest bit's field, and every bit
+        // identity stays in bit_indices for per-bit auditing.
+        const std::string model_s(model);
+        if (model_s == "FR01" || model_s == "FR02") {
+            if (!load_id.empty())
+                kv.push_back({"load_id", load_id});
+            const int prec = target_precision != 0 ? target_precision
+                : (last_selected_precision != 0 ? last_selected_precision
+                   : (vec_transient.lane_width == 32 ? 32 : 64));
+            bool has_prec = false, has_field = false;
+            for (const auto &p : kv) {
+                if (p.first == "precision") has_prec = true;
+                if (p.first == "field") has_field = true;
+            }
+            if (!has_prec)
+                kv.push_back({"precision", prec == 32 ? "fp32" : "fp64"});
+            const int bit = vec_transient.sel.bits.empty()
+                                ? 0
+                                : vec_transient.sel.bits[0].bit_in_lane;
+            const std::string fname = fpFieldName(bit, prec);
+            if (has_field) {
+                for (auto &p : kv)
+                    if (p.first == "field" &&
+                        p.second == "transient_bit_flip")
+                        p.second = fname;
+            } else {
+                kv.push_back({"field", fname});
+            }
+        }
         // The L0 root establishes the taint; every follow-up event belongs to
         // the same fault (fsu_taint). A lifecycle transition is never a new
         // fault.
@@ -378,6 +505,254 @@ namespace gem5
         }
     }
 
+    bool
+    CHAOSPhysReg::maybeInjectBeforeExecute(o3::DynInst *inst)
+    {
+        if (!cpu || !inst || !require_ready_consumer ||
+            !armed_consumer_injection) {
+            return false;
+        }
+        if (vec_transient.installed ||
+            (max_faults != 0 && faults_injected_count >= max_faults)) {
+            armed_consumer_injection = false;
+            return false;
+        }
+        if (!inst->staticInst)
+            return false;
+        // Precision is a property of the INSTRUCTION, not the cell: the same
+        // V-cell can be read as S (FP32) or D (FP64).
+        if (target_precision != 0 &&
+            decodedConsumerPrecision(inst) != target_precision) {
+            return false;
+        }
+        gem5::RegClassType target_class = gem5::IntRegClass;
+        if (reg_target_class == RegClassSel::FloatingPoint)
+            target_class = gem5::FloatRegClass;
+        else if (reg_target_class == RegClassSel::Vector)
+            target_class = gem5::VecRegClass;
+        else if (reg_target_class == RegClassSel::Both)
+            return false;  // ambiguous at the execute boundary
+        std::vector<int> cells;
+        for (int i = 0; i < inst->numSrcRegs(); ++i) {
+            PhysRegIdPtr src = inst->renamedSrcIdx(i);
+            if (!src || src->classValue() != target_class ||
+                src->isAlwaysReady())
+                continue;
+            const int idx = (int)src->index();
+            const int n =
+                (target_class == gem5::FloatRegClass)
+                    ? (int)cpu->physRegFile().numFloatPhysRegs()
+                    : (target_class == gem5::VecRegClass)
+                          ? (int)cpu->physRegFile().numVecPhysRegs()
+                          : (int)cpu->physRegFile().numIntPhysRegs();
+            if (idx < 0 || idx >= n)
+                continue;
+            PhysRegIdPtr r =
+                (target_class == gem5::FloatRegClass)
+                    ? cpu->physRegFile().floatPhysRegId(idx)
+                    : (target_class == gem5::VecRegClass)
+                          ? cpu->physRegFile().vecPhysRegId(idx)
+                          : cpu->physRegFile().intPhysRegId(idx);
+            if (cpu->physFreeList().isFree(target_class, r))
+                continue;
+            if (std::find(cells.begin(), cells.end(), idx) == cells.end())
+                cells.push_back(idx);
+        }
+        if (cells.empty())
+            return false;
+        const int pick = cells[std::uniform_int_distribution<size_t>(
+            0, cells.size() - 1)(rng)];
+        forced_target_phys_idx = pick;
+        forced_target_valid = true;
+        armed_consumer_injection = false;
+        last_selected_consumer_sn = inst->seqNum;
+        last_selected_precision = decodedConsumerPrecision(inst);
+        processFault(inst->threadNumber);
+        forced_target_valid = false;
+        return vec_transient.installed;
+    }
+
+    void
+    CHAOSPhysReg::noteVecOperandRead(o3::DynInst *inst, PhysRegIdPtr src,
+                                     const void *val)
+    {
+        if (!cpu || !inst || !vec_transient.installed || !src || !val)
+            return;
+        if (src->classValue() != VecRegClass)
+            return;
+        if ((int)src->index() != vec_transient.phys_index)
+            return;
+        // The value the consumer actually read, captured before any later
+        // free/realloc/rewrite of the physical cell. For stores the data
+        // operand is read in initiateAcc(), i.e. AFTER the post-execute
+        // observer already ran, so this hook must emit the event itself.
+        const uint8_t *bytes = (const uint8_t *)val;
+        const uint64_t lane_val = readLane(
+            bytes, vec_transient.lane_width,
+            vec_transient.sel.lane_offset);
+        const uint32_t gen = cpu->physRegFile().generationOf(src);
+        const uint64_t lane_mask = chaos_vec_transient::laneMask(
+            vec_transient.sel, vec_transient.sel.lane_offset);
+        // The injected defect modifies the low 128-bit architectural value.
+        // Compare the FULL value, not just the target bits: an unrelated
+        // value can coincidentally share bit 5 (e.g. 0xcd6c522b).
+        const bool same_full = vec_transient.install_full_valid &&
+            std::memcmp(bytes, vec_transient.install_full,
+                        chaos_vec_transient::kVecBytes) == 0;
+        const bool overwritten = vec_transient.overwritten;
+        int arch_idx = -1;
+        if (inst->staticInst) {
+            const int n = std::min((int)inst->numSrcRegs(),
+                                   (int)inst->staticInst->numSrcRegs());
+            for (int i = 0; i < n; ++i) {
+                if (inst->renamedSrcIdx(i) != src)
+                    continue;
+                const RegId &ar = inst->staticInst->srcRegIdx(i);
+                if (ar.classValue() == VecRegClass)
+                    arch_idx = (int)ar.index();
+                break;
+            }
+        }
+        std::ostringstream mask_os;
+        mask_os << "0x" << std::hex << std::setw(16)
+                << std::setfill('0') << vec_transient.sel.mask_hi
+                << std::setw(16) << vec_transient.sel.mask_lo;
+
+        if (!overwritten) {
+            if (vec_transient.read_events >= 4096)
+                return;
+            ++vec_transient.read_events;
+            ++vec_transient.reads_total;
+            vec_transient.last_lane_value = lane_val;
+            if (vec_transient.first_read_sn == 0)
+                vec_transient.first_read_sn = inst->seqNum;
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"pc", propHex(inst->pcState().instAddr())},
+                {"opcode", inst->staticInst
+                               ? inst->staticInst->getName() : ""},
+                {"thread_id", std::to_string((int)inst->threadNumber)},
+                {"reg_class", "vec"},
+                {"phys_reg", std::to_string(vec_transient.phys_index)},
+                {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx)
+                                           : std::string()},
+                {"reg_generation", std::to_string(gen)},
+                {"consumer_seq", std::to_string(inst->seqNum)},
+                {"lane_width", std::to_string(vec_transient.lane_width)},
+                {"lane_offset",
+                 std::to_string(vec_transient.sel.lane_offset)},
+                {"lane_mask", propHex(lane_mask)},
+                {"bit_indices", bitIndices(vec_transient.sel)},
+                {"fault_mask", mask_os.str()},
+                {"field", "transient_bit_flip"},
+                {"before", propHex(lane_val)},
+                {"after", propHex(lane_val)},
+                {"value_hash", propHex(lane_val)},
+                {"activated", same_full ? "1" : "0"},
+                {"target_bits_flipped", same_full ? "1" : "0"},
+                {"install_event",
+                 std::to_string(vec_transient.root_event)},
+                {"read_exposures_total",
+                 std::to_string(vec_transient.reads_total)},
+                {"write_exposures_total",
+                 std::to_string(vec_transient.write_exposures_total)},
+                {"state_before", "cell_flipped"},
+                {"state_after", same_full ? "operand_read_flipped"
+                                          : "operand_read_clean"},
+            };
+            const uint64_t parent = vec_transient.last_event
+                                        ? vec_transient.last_event
+                                        : vec_transient.root_event;
+            const uint64_t eid = emitVecModelProp(
+                (vec_transient.sel.bits.size() == 1 ? "FR01" : "FR02"),
+                "F0", "operand_read", vec_transient.fault_id, parent, kv);
+            if (eid) {
+                vec_transient.last_event = eid;
+                vec_transient.read_event_sn = inst->seqNum;
+                if (same_full)
+                    vec_transient.l5.record(inst->seqNum, eid, gen,
+                                            lane_val);
+                vec_transient.consumers_recorded =
+                    vec_transient.l5.consumersRecorded();
+            }
+        } else {
+            ++vec_transient.post_overwrite_reads_total;
+            if (vec_transient.post_overwrite_reads_emitted >= 4096)
+                return;
+            ++vec_transient.post_overwrite_reads_emitted;
+            const bool flipped_lane =
+                (lane_val & lane_mask) ==
+                (vec_transient.install_lane_after & lane_mask);
+            if (flipped_lane && same_full)
+                ++vec_transient.post_overwrite_affected_reads;
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"pc", propHex(inst->pcState().instAddr())},
+                {"opcode", inst->staticInst
+                               ? inst->staticInst->getName() : ""},
+                {"thread_id", std::to_string((int)inst->threadNumber)},
+                {"reg_class", "vec"},
+                {"phys_reg", std::to_string(vec_transient.phys_index)},
+                {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx)
+                                           : std::string()},
+                {"reg_generation", std::to_string(gen)},
+                {"consumer_seq", std::to_string(inst->seqNum)},
+                {"lane_width", std::to_string(vec_transient.lane_width)},
+                {"lane_offset",
+                 std::to_string(vec_transient.sel.lane_offset)},
+                {"lane_mask", propHex(lane_mask)},
+                {"bit_indices", bitIndices(vec_transient.sel)},
+                {"fault_mask", mask_os.str()},
+                {"field", "transient_bit_flip"},
+                {"before", propHex(lane_val)},
+                {"after", propHex(lane_val)},
+                {"value_hash", propHex(lane_val)},
+                {"activated", "0"},
+                {"install_event",
+                 std::to_string(vec_transient.root_event)},
+                {"post_overwrite_reads_total", std::to_string(
+                     vec_transient.post_overwrite_reads_total)},
+                {"post_overwrite_reads_emitted", std::to_string(
+                     vec_transient.post_overwrite_reads_emitted)},
+                {"post_overwrite_affected_reads", std::to_string(
+                     vec_transient.post_overwrite_affected_reads)},
+                {"target_bits_flipped", flipped_lane ? "1" : "0"},
+                {"same_generation", "0"},
+                {"state_before", "cell_reallocated"},
+                {"state_after", flipped_lane && same_full
+                                    ? "affected_read" : "clean_read"},
+            };
+            const uint64_t parent = vec_transient.last_event
+                                        ? vec_transient.last_event
+                                        : vec_transient.overwrite_event;
+            const uint64_t eid = emitVecModelProp(
+                (vec_transient.sel.bits.size() == 1 ? "FR01" : "FR02"),
+                "F0", "post_overwrite_read", vec_transient.fault_id,
+                parent, kv);
+            if (eid) {
+                vec_transient.last_event = eid;
+                vec_transient.read_event_sn = inst->seqNum;
+            }
+        }
+        if (write_log && log_stream && log_stream->stream()
+            && vec_transient.operand_snapshot_count < 16) {
+            ++vec_transient.operand_snapshot_count;
+            *(log_stream->stream())
+                << "VecOperandReadSnapshot: cycle=" << cpu->curCycle()
+                << " sn=" << inst->seqNum
+                << " pc=" << std::hex << inst->pcState().instAddr()
+                << std::dec
+                << " op=" << (inst->staticInst
+                                  ? inst->staticInst->getName() : "")
+                << " phys=" << vec_transient.phys_index
+                << " install_gen=" << vec_transient.install_generation
+                << " lane=" << propHex(lane_val)
+                << " same_full=" << (same_full ? 1 : 0)
+                << " overwritten=" << (overwritten ? 1 : 0)
+                << std::endl;
+        }
+    }
+
     void
     CHAOSPhysReg::observeVecTransient(o3::DynInst *inst)
     {
@@ -391,6 +766,21 @@ namespace gem5
         if (bytes < (size_t)chaos_vec_transient::kVecBytes)
             return;
         std::vector<uint8_t> buf(bytes, 0);
+        // [FR01/FR02] Prefer the value captured at the exact operand-read
+        // point for THIS instruction. Reading the cell again post-execute can
+        // see a different generation (freed/reallocated/rewritten meanwhile).
+        auto operandValue = [&](PhysRegIdPtr r) -> std::pair<uint64_t, uint32_t>
+        {
+            if (vec_transient.operand_snapshot_valid &&
+                vec_transient.operand_snapshot_sn == inst->seqNum) {
+                return {vec_transient.operand_snapshot_lane,
+                        vec_transient.operand_snapshot_gen};
+            }
+            rf.readVecRegRaw(r, buf.data());
+            return {readLane(buf.data(), vec_transient.lane_width,
+                             vec_transient.sel.lane_offset),
+                    rf.generationOf(r)};
+        };
         const std::string model =
             vec_transient.sel.bits.size() == 1 ? "FR01" : "FR02";
 
@@ -454,20 +844,28 @@ namespace gem5
             }
         }
 
-        // L2: real source-operand reads of the transiently flipped cell.
-        if (!writes_target) {
+        // L2: fallback source-operand observation. The authoritative read
+        // event is emitted by noteVecOperandRead() at the exact getRegOperand
+        // point. Skip here when that hook already covered this instruction,
+        // and never emit for stores: a store's vector data operand is read in
+        // initiateAcc(), i.e. AFTER this post-execute observer.
+        const bool read_captured =
+            vec_transient.read_event_sn == inst->seqNum;
+        if (!writes_target && !inst->isStore() && !read_captured) {
             for (int i = 0; i < (int)inst->numSrcRegs(); ++i) {
                 PhysRegIdPtr src = inst->renamedSrcIdx(i);
                 if (!src || src->classValue() != VecRegClass)
                     continue;
                 if ((int)src->index() != target)
                     continue;
-                // A read of a reallocated cell is a read of a DIFFERENT
-                // generation, not of the defective cell. It must not be
-                // recorded as a consumer of the transient fault.
-                if (rf.generationOf(src) !=
-                        vec_transient.install_generation)
-                    continue;
+                // Generation is provenance, NOT a filter. `generationOf()`
+                // reads the cell's CURRENT generation at post-execute time;
+                // the cell can be freed/reallocated between the consumer's
+                // read (during execute) and this hook. Discarding such a read
+                // loses a real consumer: on W1 (v13) the output hash changed
+                // while the chain recorded no read and falsely ended in
+                // free_realloc. Only a real WRITE to the cell (handled below)
+                // removes the flipped value; a generation bump alone does not.
                 if (vec_transient.overwritten) {
                     // Post-overwrite visibility: the defect is gone by
                     // construction, but only an observed read proves that no
@@ -476,11 +874,7 @@ namespace gem5
                     if (vec_transient.post_overwrite_reads_emitted >= 4096)
                         continue;
                     ++vec_transient.post_overwrite_reads_emitted;
-                    rf.readVecRegRaw(src, buf.data());
-                    const uint32_t gen = rf.generationOf(src);
-                    const uint64_t lane_val = readLane(
-                        buf.data(), vec_transient.lane_width,
-                        vec_transient.sel.lane_offset);
+                    const auto [lane_val, gen] = operandValue(src);
                     const uint64_t lane_mask =
                         chaos_vec_transient::laneMask(
                             vec_transient.sel,
@@ -561,11 +955,7 @@ namespace gem5
                     continue;
                 ++vec_transient.read_events;
                 ++vec_transient.reads_total;
-                rf.readVecRegRaw(src, buf.data());
-                const uint32_t gen = rf.generationOf(src);
-                const uint64_t lane_val = readLane(
-                    buf.data(), vec_transient.lane_width,
-                    vec_transient.sel.lane_offset);
+                const auto [lane_val, gen] = operandValue(src);
                 vec_transient.last_lane_value = lane_val;
                 if (vec_transient.first_read_sn == 0)
                     vec_transient.first_read_sn = inst->seqNum;
@@ -578,6 +968,15 @@ namespace gem5
                 }
                 const uint64_t lane_mask = chaos_vec_transient::laneMask(
                     vec_transient.sel, vec_transient.sel.lane_offset);
+                // `activated` must mean "this read really consumed the
+                // flipped bits", not merely "the instruction had the cell as
+                // a source". Fallback path: exact lane equality with the
+                // installed value in the installed generation (bit-mask
+                // equality alone falsely matches unrelated values that share
+                // bit 5).
+                const bool affected =
+                    gen == vec_transient.install_generation &&
+                    lane_val == vec_transient.install_lane_after;
                 std::vector<std::pair<std::string, std::string>> kv = {
                     {"dyn_inst_seq", std::to_string(inst->seqNum)},
                     {"pc", propHex(inst->pcState().instAddr())},
@@ -604,7 +1003,8 @@ namespace gem5
                     {"before", propHex(lane_val)},
                     {"after", propHex(lane_val)},
                     {"value_hash", propHex(lane_val)},
-                    {"activated", "1"},
+                    {"activated", affected ? "1" : "0"},
+                    {"target_bits_flipped", affected ? "1" : "0"},
                     {"install_event",
                      std::to_string(vec_transient.root_event)},
                     {"read_exposures_total",
@@ -614,7 +1014,8 @@ namespace gem5
                     {"phys_reads",
                      std::to_string(rf.getReadsBeforeOverwrite())},
                     {"state_before", "cell_flipped"},
-                    {"state_after", "operand_read_flipped"},
+                    {"state_after", affected ? "operand_read_flipped"
+                                             : "operand_read_clean"},
                 };
                 const uint64_t parent = vec_transient.last_event
                                             ? vec_transient.last_event
@@ -624,7 +1025,10 @@ namespace gem5
                     vec_transient.fault_id, parent, kv);
                 if (eid) {
                     vec_transient.last_event = eid;
-                    if (!vec_transient.overwritten)
+                    // Only a read that really saw the flipped target bits is
+                    // an L5 consumer. A clean read of the cell (e.g. after a
+                    // reallocation) must not produce a false commit witness.
+                    if (!vec_transient.overwritten && affected)
                         vec_transient.l5.record(inst->seqNum, eid, gen,
                                                 lane_val);
                     vec_transient.consumers_recorded =
@@ -644,13 +1048,11 @@ namespace gem5
                 if ((int)dest->index() != target)
                     continue;
                 const uint32_t gen = rf.generationOf(dest);
-                // An overwrite only counts as the transient's terminal when
-                // it lands on the SAME generation the defect was installed
-                // on. A different generation means the old cell was freed
-                // and reallocated; `generation_change` closes that lifecycle
-                // and the new cell's value is unrelated to the old defect.
-                if (gen != vec_transient.install_generation)
-                    continue;
+                // ANY real write to the physical cell removes the transient
+                // value, whether or not the cell was freed/reallocated in
+                // between. The old generation-based filter left a reallocated
+                // cell's write untracked, so later reads were misclassified.
+                // `generation_old/new` below records the lifecycle provenance.
                 rf.readVecRegRaw(dest, buf.data());
                 const uint64_t after_val = readLane(
                     buf.data(), vec_transient.lane_width,
@@ -692,6 +1094,9 @@ namespace gem5
                     {"arch_reg", arch_idx >= 0 ? std::to_string(arch_idx)
                                                : std::string()},
                     {"reg_generation", std::to_string(gen)},
+                    {"generation_old",
+                     std::to_string(vec_transient.install_generation)},
+                    {"generation_new", std::to_string(gen)},
                     {"producer_seq", std::to_string(inst->seqNum)},
                     {"lane_width", std::to_string(vec_transient.lane_width)},
                     {"lane_offset",
@@ -978,10 +1383,14 @@ namespace gem5
             // A squashed consumer is its own terminal; it used to be folded
             // into exposed_unconsumed/not_consumed and became unauditable.
             terminal = "squashed";
+        } else if (vec_transient.reads_total > 0) {
+            // A real consumer read outranks a later free/realloc: the cell
+            // lifecycle ended, but the fault was exposed first. Ordering
+            // free_realloc above reads made the W1 v13 SDC (hash changed)
+            // look contained.
+            terminal = "exposed_unconsumed";
         } else if (vec_transient.generation_changed) {
             terminal = "free_realloc";
-        } else if (vec_transient.reads_total > 0) {
-            terminal = "exposed_unconsumed";
         } else {
             terminal = "not_consumed";
         }
@@ -1972,8 +2381,92 @@ namespace gem5
             // an Inactive slot = effective no-op). Re-sample up to K times
             // for an allocated (non-free) slot; if all K miss (window
             // truly empty), reschedule instead of burning the fault.
-            if (target_phys_idx >= 0) {
+            if (forced_target_valid) {
+                // [FR01/FR02] The consumer's execute boundary chose this
+                // exact source cell; install here so the very next
+                // staticInst->execute() reads the flipped value.
+                chosen_phys_idx = forced_target_phys_idx;
+            } else if (target_phys_idx >= 0) {
                 chosen_phys_idx = target_phys_idx;
+            } else if (require_ready_consumer) {
+                // [FR01/FR02] Workbook trigger: "target Vec phys reg active,
+                // ready AND a later consumer read". Enumerate the exact
+                // candidate set (ready pending source, allocated cell) and
+                // choose uniformly from it. No candidate -> defer without
+                // consuming the fault. The old K-random-samples + fallback
+                // could land on a dead cell (formal seed1 target 34, gen 1,
+                // value 0: never read), which is not an eligible event.
+                // The eligible event is the (instruction, source operand)
+                // pair, not merely the cell: one cell can be consumed by
+                // FP32 and FP64 instructions, so submodel precision must be
+                // decided from the real AArch64 encoding of the consumer.
+                std::vector<o3::InstructionQueue::ReadySource> pending;
+                cpu->o3IEW().instQueue.collectReadyPendingSources(
+                    target_class, pending);
+                std::vector<o3::InstructionQueue::ReadySource> eligible;
+                for (const auto &s : pending) {
+                    PhysRegIdPtr cand_reg =
+                        (target_class == gem5::FloatRegClass)
+                            ? cpu->physRegFile().floatPhysRegId(s.phys_index)
+                            : (target_class == gem5::VecRegClass)
+                                  ? cpu->physRegFile().vecPhysRegId(
+                                        s.phys_index)
+                                  : cpu->physRegFile().intPhysRegId(
+                                        s.phys_index);
+                    if (cpu->physFreeList().isFree(target_class, cand_reg))
+                        continue;
+                    if (target_precision != 0 &&
+                        decodedConsumerPrecision(s.inst.get()) !=
+                            target_precision) {
+                        continue;  // submodel precision mismatch
+                    }
+                    eligible.push_back(s);
+                }
+                last_selection_candidates = eligible.size();
+                if (eligible.empty()) {
+                    ++skip_no_ready_consumer_count;
+                    wait_for_allocation = true;  // >=100-cycle retry pacing
+                    // The O3 IQ issues ready FP ops immediately, so a ready
+                    // *unissued* source is rare. Arm the execute-boundary
+                    // hook: the first precision-qualified consumer will get
+                    // the fault installed into its source cell just before
+                    // its own read.
+                    armed_consumer_injection = true;
+                    if (write_log && log_stream && log_stream->stream()
+                        && (skip_no_ready_consumer_count <= 8
+                            || skip_no_ready_consumer_count % 10000 == 0)) {
+                        int n64 = 0, n32 = 0, n0 = 0;
+                        for (const auto &s : pending) {
+                            const int p = decodedConsumerPrecision(
+                                s.inst.get());
+                            if (p == 64) ++n64;
+                            else if (p == 32) ++n32;
+                            else ++n0;
+                        }
+                        *(log_stream->stream())
+                            << "VecTargetNoReadyConsumer: cycle="
+                            << cpu->curCycle()
+                            << " class="
+                            << (target_class == gem5::VecRegClass ? "vec"
+                                : target_class == gem5::FloatRegClass
+                                      ? "float" : "int")
+                            << " skips=" << skip_no_ready_consumer_count
+                            << " pending=" << pending.size()
+                            << " p64=" << n64 << " p32=" << n32
+                            << " p_other=" << n0
+                            << " want=" << target_precision
+                            << " (no eligible ready pending source in IQ; "
+                               "retry, fault not consumed)" << std::endl;
+                    }
+                    return;
+                }
+                const auto &pick = eligible[
+                    std::uniform_int_distribution<size_t>(
+                        0, eligible.size() - 1)(rng)];
+                chosen_phys_idx = pick.phys_index;
+                last_selected_consumer_sn = pick.inst->seqNum;
+                last_selected_precision =
+                    decodedConsumerPrecision(pick.inst.get());
             } else {
                 const int K_ACTIVE_RETRY = 32;
                 chosen_phys_idx = -1;
@@ -2414,6 +2907,13 @@ namespace gem5
                     << ", FaultType: " << faultTypeToString(chosen)
                 << ", Mask: " << std::bitset<64>(mask)
                 << ", FreeListSize: " << free_list_size_at_inject
+                << ", targetSelection: "
+                << (require_ready_consumer ? "ready_consumer"
+                                           : "random_allocated")
+                << ", selectionCandidates: " << last_selection_candidates
+                << ", targetPrecision: " << target_precision
+                << ", consumerSeq: " << last_selected_consumer_sn
+                << ", consumerPrecision: " << last_selected_precision
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }

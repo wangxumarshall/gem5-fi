@@ -55,6 +55,21 @@ class CHAOSPhysReg : public SimObject
      *  permanent defect. */
     void noteSquash(ThreadID tid, o3::DynInst *inst);
 
+    /** [FR01/FR02] Called from DynInst::getRegOperand() at the exact vector
+     *  operand-read point. Captures the value the consumer actually read
+     *  before the physical cell can be freed/reallocated/rewritten. */
+    void noteVecOperandRead(o3::DynInst *inst, PhysRegIdPtr src,
+                            const void *val);
+
+    /** [FR01/FR02] Event-driven target selection: called from
+     *  DynInst::execute() BEFORE the real execute. If the ready_consumer
+     *  policy is armed (no ready pending IQ source was available at the
+     *  sampled cycle) and this instruction is the first eligible consumer
+     *  (real encoding precision match), inject into its source cell so the
+     *  instruction reads the flipped value in this very execute. Returns
+     *  true iff a fault was installed. */
+    bool maybeInjectBeforeExecute(o3::DynInst *inst);
+
   private:
     uint64_t vec_stuck_writes = 0;   // re-applies actually performed
     uint64_t vec_stuck_activated = 0;  // writes whose correct bit differed
@@ -192,6 +207,17 @@ class CHAOSPhysReg : public SimObject
         uint64_t l5_witness_event = 0;
         bool exit_flush_registered = false;
         chaos_vec_stuck::L5Ledger l5;
+        // Exact operand-read snapshot from DynInst::getRegOperand: the value
+        // the consumer actually read, before any later free/realloc/rewrite.
+        bool operand_snapshot_valid = false;
+        uint64_t operand_snapshot_sn = 0;
+        uint64_t operand_snapshot_lane = 0;
+        uint32_t operand_snapshot_gen = 0;
+        uint64_t operand_snapshot_count = 0;
+        // seqNum for which the operand-read hook already emitted the L2/L1
+        // read event; the post-execute observer must not emit a duplicate
+        // (and, for stores, must not emit before the data read happens).
+        uint64_t read_event_sn = 0;
     };
     VecTransientEmission vec_transient;
     // A geometry/mask request that cannot be honoured (e.g. FR02 asks for two
@@ -277,6 +303,27 @@ class CHAOSPhysReg : public SimObject
     // produce a same-tick retry loop (which once wrote 294M skip lines).
     bool wait_for_allocation = false;
     uint64_t skip_free_count = 0;
+    // [FR01/FR02] Random phys target policy. The workbook trigger is "target
+    // Vec phys reg active, ready AND a later consumer read". With
+    // 'ready_consumer' the injector only picks a cell that is a ready source
+    // of an unissued IQ instruction; if none exists it defers (fault not
+    // consumed) instead of falling back to a dead slot. 'random_allocated'
+    // is the historical behaviour and stays the default.
+    bool require_ready_consumer = false;
+    uint64_t skip_no_ready_consumer_count = 0;
+    size_t last_selection_candidates = 0;
+    // [FR01/FR02] Submodel precision gate: 0 = any, else the consumer's real
+    // AArch64 encoding must decode to this precision (32/64). The chosen
+    // event's identity is logged for the submodel audit.
+    int target_precision = 0;
+    uint64_t last_selected_consumer_sn = 0;
+    int last_selected_precision = 0;
+    std::string load_id;
+    // Event-driven fallback: once armed, the next eligible consumer execute
+    // installs the fault into its source cell just before the read.
+    bool armed_consumer_injection = false;
+    bool forced_target_valid = false;
+    int forced_target_phys_idx = -1;
 
     // Phase 2 item 1: NEON lane stratification. The vec path corrupts ONE
     // lane of vec_lane_width bits at lane vec_lane_offset (within the

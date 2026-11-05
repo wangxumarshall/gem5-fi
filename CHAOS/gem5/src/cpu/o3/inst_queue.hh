@@ -436,6 +436,34 @@ class InstructionQueue
      */
     bool physRegHasPendingSource(RegClassType rc, int phys_idx) const;
 
+    /**
+     * [FR01/FR02] Collect the DISTINCT physical cells of class `rc` that are
+     * ready source operands of instructions which have not issued yet. A ready
+     * source means its producer already wrote the cell, so the value sitting
+     * in the PRF now is exactly what the consumer will read at issue. Cells
+     * are returned sorted, so a caller can pick one uniformly and reproduce
+     * the choice from (rng seed, cycle, candidate list). Read-only.
+     */
+    void collectReadyPendingSourceCells(RegClassType rc,
+                                        std::vector<int> &cells) const;
+
+    /** [FR01/FR02] One eligible EVENT: a real (instruction, source operand)
+     *  pair that will read a ready physical cell after injection. The
+     *  instruction pointer lets the caller decode the operand precision from
+     *  the real AArch64 encoding before choosing. */
+    struct ReadySource
+    {
+        DynInstPtr inst;
+        int phys_index = -1;
+        int src_idx = -1;
+    };
+
+    /** Collect every ready pending source OPERAND (not just distinct cells)
+     *  of class `rc`, in deterministic (tid, seqNum, src_idx) order. Two
+     *  operands of the same instruction are distinct events. Read-only. */
+    void collectReadyPendingSources(RegClassType rc,
+                                    std::vector<ReadySource> &out) const;
+
   private:
     /** The queue to the execute stage.  Issued instructions will be written
      *  into it.

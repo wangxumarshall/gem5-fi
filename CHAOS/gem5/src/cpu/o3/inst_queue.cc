@@ -41,6 +41,7 @@
 
 #include "cpu/o3/inst_queue.hh"
 
+#include <algorithm>
 #include <limits>
 #include <vector>
 
@@ -142,7 +143,8 @@ IQUnit::setActiveThreads(list<ThreadID> *at_ptr)
 }
 
 bool
-IQUnit::physRegHasPendingSource(RegClassType rc, int phys_idx) const
+InstructionQueue::physRegHasPendingSource(RegClassType rc,
+                                          int phys_idx) const
 {
     auto matches = [rc, phys_idx](const DynInstPtr &inst) {
         if (!inst || inst->isIssued())
@@ -166,6 +168,62 @@ IQUnit::physRegHasPendingSource(RegClassType rc, int phys_idx) const
             return true;
     }
     return false;
+}
+
+void
+InstructionQueue::collectReadyPendingSourceCells(RegClassType rc,
+                                                 std::vector<int> &cells) const
+{
+    cells.clear();
+    auto add = [rc, &cells](const DynInstPtr &inst) {
+        if (!inst || inst->isIssued())
+            return;
+        for (int i = 0; i < inst->numSrcRegs(); ++i) {
+            PhysRegIdPtr src = inst->renamedSrcIdx(i);
+            if (!src || src->classValue() != rc || src->isAlwaysReady())
+                continue;
+            // Only a source whose producer already wrote the cell is a safe
+            // target: a not-ready source will be overwritten by its producer
+            // after injection, so the consumer would never see the fault.
+            if (!inst->readySrcIdx(i))
+                continue;
+            const int idx = (int)src->index();
+            if (std::find(cells.begin(), cells.end(), idx) == cells.end())
+                cells.push_back(idx);
+        }
+    };
+    for (ThreadID tid = 0; tid < MaxThreads; ++tid) {
+        for (const auto &inst : instList[tid])
+            add(inst);
+    }
+    for (const auto &inst : instsToExecute)
+        add(inst);
+    std::sort(cells.begin(), cells.end());
+}
+
+void
+InstructionQueue::collectReadyPendingSources(
+    RegClassType rc, std::vector<ReadySource> &out) const
+{
+    out.clear();
+    auto add = [rc, &out](const DynInstPtr &inst) {
+        if (!inst || inst->isIssued())
+            return;
+        for (int i = 0; i < inst->numSrcRegs(); ++i) {
+            PhysRegIdPtr src = inst->renamedSrcIdx(i);
+            if (!src || src->classValue() != rc || src->isAlwaysReady())
+                continue;
+            if (!inst->readySrcIdx(i))
+                continue;
+            out.push_back(ReadySource{inst, (int)src->index(), i});
+        }
+    };
+    for (ThreadID tid = 0; tid < MaxThreads; ++tid) {
+        for (const auto &inst : instList[tid])
+            add(inst);
+    }
+    for (const auto &inst : instsToExecute)
+        add(inst);
 }
 
 void

@@ -40,17 +40,24 @@
   post-overwrite read/write 可见性、generation_change、free_realloc /
   squashed 终局。
 - 正式 `FSU-FR01-F0-W1/seed1`：attempt-1/2 真实终局 `not_consumed`，
-  oracle hash 相同但不能据此判 Masked；已重分类为 `.real_outcome`，
-  **不计正式 seed**。
-- 发现：W1 是 scalar FP；`reg_class=vector` 的 Vec PRF 注入在该负载
-  找不到 consumer。`arch_frontend` 定向 V0 的非正式 probe
-  （`runs/fsu-gates/FR01-FR02-F0-W1-v8/`）取得真实
-  operand_read + commit（gen17149），证明 consumer 路径存在，但
-  `arch_frontend` 不是 FR01/FR02 的 phys 模型，不能当正式证据。
-- 目标选择已优先“IQ 中未发射指令的 pending source”；严格版
-  “找不到 consumer 就无限重试”在 `floating_point` probe 中 31 分钟
-  未注入且拖慢运行，已 revert（67f8eee8），保留“优先 + 最终回退到
-  已分配槽”的版本。Vec 随机目标 probe 仍得到 not_consumed。
+  oracle hash 相同但不能据此判 Masked；保留 `.real_outcome`。
+- **2026-11-05 审计结论（替代旧观察）**，详见
+  `FR01-FR02-PRF-IDENTITY-AUDIT.md` / `FR01-FR02-PROTOCOL-V2.md`：
+  - ARM64 `FloatRegClass` 是 0 寄存器占位；scalar FP 源码/rename 均为
+    `VecRegClass`，与 NEON 共享 Vec PRF。旧 v8/v9/v10 探针实际跑的是
+    `neon_fp32_lane_kernel`，不能作为 W1 证据。
+  - HEAD 存在编译缺陷（`IQUnit::` vs `InstructionQueue::`），
+    05f527f2 之后 consumer-aware 代码从未进入二进制。
+  - attempt-1/2 的 not_consumed 是真实死槽；v13–v16 证明还存在
+    tracking 漏读（generation 过滤、store 在 initiateAcc 读）。
+  - 修复：事件级目标选择（consumer execute 前装填）+ `getRegOperand`
+    精确读快照 + generation 仅 provenance + 任何真实写终止 +
+    precision/field/load_id 事件身份。
+- attempt 处置：attempt-3（v1，无 precision，FP32 store，SDC，子模型不符）
+  保留不计；attempt-4（v2 FP64）保留；**attempt-5 为权威 seed1**：
+  full/admitted/certified、SDC、`fsu_seed_audit ok=true`。
+- 采样偏差：V2 是“首个合格消费者事件”，尚非工作簿要求的
+  countOnly + uniform ordinal；已登记，不外推为无偏样本。
 
 ### 1.4 FQ08 / FP08 / FP05
 
@@ -75,12 +82,16 @@
 
 ## 3. 待办队列
 
-- [ ] FR01/FR02：确认 W1 scalar FP 的合法 PRF class（vector vs float）；
+- [x] FR01/FR02：确认 W1 scalar FP 的合法 PRF class（vector vs float）；
       用非正式 directed gate 取得真实 consumer→commit/squash。
+      → `VecRegClass`；attempt-5 SDC full/admitted/certified。
 - [ ] FR01/FR02：同世代 overwrite、squash、commit、free/realloc、
       连续写、precision/lane fail-closed 的真实样本。
-- [ ] 冻结 FR01-F0-W1 / FR02-F0-W1 正式配置；seed1 审计通过后
-      seed2/3；不得为凑数换 target/seed。
+      （overwrite/free-realloc 已在 v4/v13–v19 gate 出现；squash/连续写
+      与 FR02 双 bit 审计仍待补。）
+- [x] 冻结 FR01-F0-W1 正式配置（ready_consumer + precision 64 + load_id）；
+      seed1 attempt-5 审计通过。FR02-F0-W1 配置待建（双 bit + 几何审计）。
+- [ ] seed2/3（同一冻结配置；不得为凑数换 target/seed）。
 - [ ] FP05 真正 2–4 eligible burst 实现 + burst_id/ordinal/length +
       四处接线；正式计数前 gate 必须从 SKIP 变 PASS。
 - [ ] FP07 只实现工作簿允许的字段加权结果代理；FP06-d 保持 MISSING。
@@ -89,10 +100,13 @@
 ## 4. 阻塞与判定原则
 
 - **FR03-W5 seed1**：证据真实，但身份漂移；不重跑、不改写，保持 2/3。
-- **FR01/FR02 formal W1**：当前未认证；不把 not_consumed 当 SDC/失败，
-  也不因最终 hash 相同判 Masked。
-- **W1 scalar FP**：若确认 VecRegClass 无 consumer，需按工作簿确认
-  FloatRegClass 是否属于同一 FP/SIMD PRF 边界；不得用 W3 结果代替 W1。
+- **FR01/FR02 formal W1**：seed1 attempt-5 已认证（SDC）；attempt-3/4
+  为协议演进保留，不覆盖、不重复计数。V2 采样不是 uniform ordinal，
+  不得把多 seed 当无偏样本；countOnly 实现前如实标注。
+- **W1 scalar FP**：已证实为 `VecRegClass`；`FloatRegClass` 在 ARM 是
+  0 寄存器占位，切换会使注入直接失效。不得用 W3/NEON 结果代替 W1。
+- **构建基线**：仓库根 `build/` 不存在；工具使用
+  `CHAOS/gem5/build/ARM/gem5.opt`。HEAD 9afebbd2 本身无法编译（已修）。
 - **FP05**：实现前 gate 只能 SKIP/BLOCKED，不能开始正式计数。
 
 ## 5. 资源与纪律
