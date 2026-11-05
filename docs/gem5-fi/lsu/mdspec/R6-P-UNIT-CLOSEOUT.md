@@ -63,20 +63,22 @@ complete and is not claimed complete.**
   admitted (no architectural data effect observed). Seeds 2/3 were not run
   for the F0 pilots.
 - **P04-F5 permanent queue-valid stuck implemented (3 seeds, NOT
-  certified):** F5 latches ONE physical fault identity at the first
-  eligible event after warm-up and keeps the queue valid field stuck at
-  invalid to the end of the run (no recovery). Every live entry is
-  invalidated and every later ready-queue entry is born invalid; each
-  birth/skip is a propagation instance of the same `fault_id`. Binary
-  `chaos build` sha256 `cb98fbb5…`, source `f502fd19` + patch. W2/W8,
-  seeds 1/2/3: `attempted=143/131 eligible=1 injected=1 fires=1
-  no_effect=0`, latch tick 148525300/107286025 with 4 live entries,
-  terminal `provable_to_L2_then_unknown`, admitted False, oracle Masked,
-  output hashes exactly the goldens. No-fault controls (warm-up 1e9,
-  no latch) reproduce both goldens. The three seeds are deterministic
-  replications (F5 has no span draw), not independent samples. P04-b/c
-  have no F5 arm. Evidence: `campaign_p04f5_20261105`,
-  `campaign_p04f5_seed23_20261105`; details in
+  certified), fixed-slot v2:** F5 latches ONE physical fault identity at
+  the first eligible event after warm-up. The corrected mapping selects
+  ONE logical queue slot (allocation ordinal mod capacity); that slot's
+  valid bit reads 0 to run end, the latched entry is skipped, and every
+  other live entry still issues. The earlier whole-queue-field latch
+  (binary `cb98fbb5…`) is retained as superseded evidence. Binary
+  `b2bf0cd3…`, source `a00ab5c7`; W2/W8 seeds 1/2/3:
+  `injected=1 fires=2 no_effect=1`, latch tick 148525300 (slot 11) /
+  107286025 (slot 28), `entries=1 latch_invalidated=1`, terminal
+  `provable_to_L2_then_unknown`, admitted False, oracle Masked, output
+  hashes exactly the goldens. No same-slot birth occurred after the latch
+  in these runs (`invalid_stuck_birth=0`), so the permanence is a latched
+  structural state, not an observed later birth. No-fault controls
+  (warm-up 1e9, empty latch log) reproduce both goldens. Seeds are
+  deterministic replications. Evidence: `campaign_p04f5_v2_20261105`,
+  `campaign_p04f5_v2_controls_20261105`; details in
   `evidence/R6-P-P04-EVIDENCE.md`.
 - **P09-a implemented (diagnostic, not a RunID):** the prefetch-caused
   dirty-writeback loss is modelled at the REAL eviction gate. A fill-time
@@ -156,10 +158,12 @@ F5 evidence are untouched. No older evidence file is deleted or rewritten.
 Completed units this takeover (all PARTIAL_SUBMODEL; none changes the
 certified count of 14 RunIDs / 42 seeds):
 
-- **P04-F5 permanent queue-valid stuck** (P04-a arm): run-long stuck valid
-  field, ONE latched physical fault id, 33 propagation instances per run
-  (birth/skip), 3 seeds on W2/W8; terminal L2, Masked, output golden —
-  NOT certified (performance-only). Seeds are deterministic replications.
+- **P04-F5 permanent queue-valid stuck** (P04-a arm): fixed-slot v2 —
+  ONE logical slot's valid bit stuck at 0 to run end, one latched
+  physical fault id, the latched entry skipped while other live entries
+  issue; 3 seeds on W2/W8; terminal L2, Masked, output golden — NOT
+  certified (performance-only). The older whole-queue-field run is
+  retained as superseded evidence. Seeds are deterministic replications.
 - **P09-c dirty premature clear**: dirty state cleared before the eviction
   decision (CleanEvict, no writeback request); real end-to-end SDC on the
   non-B0 L2=16KiB diagnostic (chain full/L5, output differs); NOT a RunID.

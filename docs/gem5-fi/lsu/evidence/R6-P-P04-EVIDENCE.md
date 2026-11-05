@@ -248,12 +248,18 @@ tail; both issue exactly once. Propagation events:
 authoritative `P04-F0-W2` / `P04-F0-W8`; they are not new official RunIDs
 or seeds. Terminal `provable_to_L2_then_unknown`, not admitted, no L3/L5
 observed; no architectural-impact claim. Seeds 2/3 were not run (pilot
-only). P04-F5 permanent semantics have not been established and are not
-run.
+only). At the time of this pilot P04-F5 permanent semantics had not been
+established; see the fixed-slot v2 section below.
 
 ---
 
-## P04-F5 permanent queue-valid fault — implementation and 3-seed diagnostic (2026-11-05)
+## P04-F5 permanent queue-valid fault — v1 whole-queue field (2026-11-05, SUPERSEDED)
+
+> **SUPERSEDED (2026-11-05): the whole-queue valid-field latch below
+> changes N state bits (every live entry plus every later insertion) and is
+> a semantic expansion of the scheme's "每次运行仅选一个 bit/字段". The
+> fixed-slot v2 model in the next section is the authoritative P04-F5
+> evidence. This section is retained unchanged as historical evidence.**
 
 **Status: IMPLEMENTED / BEHAVIOR-VERIFIED / 3 SEEDS / NOT CERTIFIED.**
 F5 is the authoritative permanent tier. The single landed arm is **P04-a
@@ -364,3 +370,95 @@ independent samples.
   auto-added.
 - P04-b/P04-c have no F5 implementation this pass; the F5 landed arm is
   P04-a only. The unit remains PARTIAL_SUBMODEL.
+
+---
+
+## P04-F5 fixed-slot v2 — authoritative permanent semantics (2026-11-05)
+
+**Status: IMPLEMENTED / BEHAVIOR-VERIFIED / 3 SEEDS / NOT CERTIFIED.**
+This section supersedes the whole-queue valid-field latch above. The
+RunID-level result is unchanged (chain L2, oracle Masked, no certification),
+but the fault now changes exactly one physical valid bit.
+
+### Semantic correction
+
+The scheme's F5 is "warm-up 后第一个 eligible event 起持续到运行结束；每次
+运行仅选一个 bit/字段". The v1 implementation invalidated every live entry
+and every later insertion — N state bits, not one. It was a semantic
+expansion, not the only faithful mapping.
+
+gem5's ready queue is a `std::list` without fixed slots. The v2 mapping is a
+**logical fixed slot**: every enqueue advances a write pointer and the entry
+gets `chaosSlot = enqueue_ordinal mod queueSize`, the analogue of a circular
+FIFO slot. At the F5 latch the first live entry's slot is selected; exactly
+that slot's valid bit reads 0 for the rest of the run. Later entries
+allocated to the same slot are born invalid; every other slot is untouched
+and issues normally. One physical fault id, no recovery path.
+
+This is a documented structural abstraction of a list-based queue, not a
+claim that gem5 has a physical circular array. The old whole-queue evidence
+is retained, not rewritten.
+
+### Implementation
+
+- `DeferredPacket::chaosSlot` is assigned in `Queued::addToQueue` for every
+  ready-queue enqueue (`chaosEnqueueSeq++ % queueSize`).
+- `Queued::chaosLatchQueueValidStuck(fault_id, pfid, invalidated)` picks the
+  first live entry's slot, invalidates only entries in that slot, returns
+  the invalidated count and fills `invalidated` for lineage.
+- `Queued::chaosApplyStuckValid` gates on the same slot
+  (`dpp.chaosSlot != chaosStuckSlotIdx`).
+- The F5 path in `CHAOSPrefetch` uses `chaosPeekLiveQueueEntry` (read-only)
+  instead of the F0 pre-clear; a pre-clear would have invalidated one entry
+  and then latched a different slot, changing two bits.
+
+### Binary / build
+
+- Binary `runs/lsu/r6_p_unit/binaries/gem5.opt-b2bf0cd3`, sha256
+  `b2bf0cd37fe77d045a20424c6ba9a7a394f97cb7f10bf8927061bea53000a3a5`.
+- Source: commit `a00ab5c7` (fixed-slot patch). Build log
+  `/tmp/p04f5v2_build3.log`; exit 0, no new warnings (only the pre-existing
+  host capstone/png/HDF5 environment warnings).
+- Intermediates `00ccfd81…` (pre-peek, two-bit pre-clear bug) and the v1
+  `cb98fbb5…` binary are **not evidence**; SHAs retained here.
+
+### Results (campaign `campaign_p04f5_v2_20261105`)
+
+| RunID | seed | latch tick / slot | entries / latch_invalidated | terminal | admitted | oracle | output |
+|---|---|---|---|---|---|---|---|
+| P04-F5-W2 | 1/2/3 | 148525300 / 11 | 1 / 1 | `provable_to_L2_then_unknown` | False | Masked | `a10b9827edd8a9fb` (golden) |
+| P04-F5-W8 | 1/2/3 | 107286025 / 28 | 1 / 1 | `provable_to_L2_then_unknown` | False | Masked | `629727c0ad9ca8ef` (golden) |
+
+Every run: `injected=1`, `fires=2`, `no_effect=1`,
+`fires == injected + no_effect`; gzip intact, stats non-zero, exit 0, no
+truncation. Real behavior lines:
+
+```
+Tick: 148525300 event=latch field=queue_valid before=valid after=invalid state=stuck_until_end slot=11 entries=1 latch_invalidated=1 va=0x77980 pc=0x416174 fault_id=1 pf_request_id=4294967297
+Tick: 107286025 event=latch field=queue_valid before=valid after=invalid state=stuck_until_end slot=28 entries=1 latch_invalidated=1 va=0x76980 pc=0x415fb4 fault_id=1 pf_request_id=4294967297
+```
+
+Propagation stream: `pf_train` 1 (`state_after=stuck_until_end`), latch
+`pf_queue` 1 (`invalid_stuck`, `entry_index` = selected slot), issue skip 1
+(`invalid_skipped`). **No same-slot birth occurred after the latch in these
+short runs** (`invalid_stuck_birth=0`); the permanent slot gate remains
+active to run end, but no birth instance is observed here. The other live
+queue entries (e.g. 0x77b40 in W2) are untouched and issue normally — this
+is the correction the v1 evidence could not show.
+
+### Controls
+
+Same binary/mode/workload with warm-up `1e9` (`campaign_p04f5_v2_controls_20261105`):
+W2 `injected=0`, output `a10b9827edd8a9fb`; W8 `injected=0`, output
+`629727c0ad9ca8ef`; behavior log empty (no latch).
+
+### Seeds and honesty boundary
+
+- Seeds 1/2/3 are determinism replications: F5 has no span draw and the
+  directed workloads are deterministic; all seeds latch at the same
+  tick/address. They are not independent fault-location samples.
+- NOT certified: the chain is provably L2 and stops there; skipped
+  prefetches never issue, so no fill/eviction follows. The output stays
+  golden on all seeds. No L3/L5 is fabricated.
+- The old v1 evidence (`campaign_p04f5_20261105`,
+  `campaign_p04f5_seed23_20261105`) remains on disk as superseded history.
