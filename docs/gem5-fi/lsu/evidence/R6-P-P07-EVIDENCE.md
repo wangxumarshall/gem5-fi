@@ -285,3 +285,13 @@ borrowed from another branch.
 - Per-seed docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/P07-F0-W6/
   P07-F0-W6-p07a-seed{1,2,3}.md`
 - Old pilot evidence `campaign_p07a_20261105` is retained unchanged.
+
+### P07-c diagnostic audit (2026-11-05)
+
+`R6-P-DIAGNOSTIC-AUDIT.md` verifies the P07-c evidence: the `5b26240c…`
+binary is frozen, the fault/control pair reproduces
+`fcecec2dd089d871` vs golden `062e5124df3667f9`, the raw stream carries
+one `pf_stale_tag` origin and one real `errant_commit`, and the checker
+reports `full`/L5. B0 census still has `victim_valid=0`, so the
+authoritative P07 RunIDs remain coverage-blocked. The diagnostic is not a
+RunID (oracle n/a).

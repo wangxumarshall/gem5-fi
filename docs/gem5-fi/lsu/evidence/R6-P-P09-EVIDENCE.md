@@ -208,3 +208,15 @@ previously frozen diagnostic shape and the B0 golden.
   is n/a. It does not change the B0 coverage block for P09-F0-W6/W8.
 - P09-b is a recorded model block, not a silent approximation.
 - The authoritative P09 RunIDs remain NOT certified.
+
+### Diagnostic audit (2026-11-05)
+
+`R6-P-DIAGNOSTIC-AUDIT.md` re-checks the P09-a and P09-c evidence. P09-a's
+frozen binary `c6953bba…` and its control are intact. P09-c's original
+binary `c8b0e25f…` was overwritten by the later P07-c build; the exact
+command was re-run with the frozen `5b26240c…` binary into
+`p09c_diag_l2small_v2_fault_20261105` / `..._v2_nofault...` and reproduced
+the same fault output `8e64d8d4427c2169` and control golden
+`062e5124df3667f9`. The original directory is retained with a
+`BINARY NOT FROZEN` label. Both diagnostics remain non-RunID evidence with
+oracle `n/a`.
