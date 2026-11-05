@@ -1,30 +1,30 @@
 # FSU 三 seed 完成度索引
 
-> 生成时间：2026-11-05T02:12:16；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
+> 生成时间：2026-11-05T15:35:22；RunID 清单：`/home/sdc/gem5-fi-fsu/docs/gem5-fi/fsu/runids.json`。
 
 ## 历史全量视图（source registry）
 
 - 总 RunID：**173**
 - 目标 seed：**519**
-- 已完成合格 seed：**55**
+- 已完成合格 seed：**62**
 - suite seed（5 component run 只计 1 seed）：目录 21，admitted 20，component run 82（不进入 seed 总数）
-- COMPLETE_3_OF_3：**17**
-- seed_completion：0/3 154、2/3 2、3/3 17
+- COMPLETE_3_OF_3：**19**
+- seed_completion：0/3 151、1/3 1、2/3 2、3/3 19
 - coverage_status：BLOCKED_NOT_IMPLEMENTED 87、BLOCKED_NO_TRUE_ARTIFACT 11、COMPLETE 6、PARTIAL 68、PILOT_SUBMODEL_ONLY 1
-- 1/3：0；2/3：2；0/3：154
+- 1/3：1；2/3：2；0/3：151
 
 ## 当前活跃范围视图（F0/F5）
 
 - active_frequencies：['F0', 'F5']
 - 活跃 RunID：**80**；目标 seed：**240**
-- 活跃范围已完成 seed：**46**；3/3 RunID：**14**
+- 活跃范围已完成 seed：**53**；3/3 RunID：**16**
 - DEFERRED_BY_USER RunID：90
 - HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE RunID：3（seed 9）
 
 ## 当前工具重算状态
 
 - recompute_enabled：**True**
-- current_verified：55
+- current_verified：62
 - current_verification_failed：1
 - missing_evidence：0
 - legacy_report_only：0
@@ -78,7 +78,7 @@
 | FSU-FQ10-F0-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FQ10-F4-W2 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F4 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FQ10-F4-W5 | — | — | — | 0/3 | BLOCKED_NOT_IMPLEMENTED | PENDING | F4 | DEFERRED_BY_USER | NOT_RUN |
-| FSU-FR01-F0-W1 | real_outcome | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | REAL_OUTCOME |
+| FSU-FR01-F0-W1 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FR01-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR01-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR01-F1-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F1 | DEFERRED_BY_USER | NOT_RUN |
@@ -90,7 +90,7 @@
 | FSU-FR01-F3-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F3 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR01-F3-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F3 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FR01-F3-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F3 | DEFERRED_BY_USER | NOT_RUN |
-| FSU-FR02-F0-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
+| FSU-FR02-F0-W1 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F0 | ACTIVE_SCOPE | COMPLETE |
 | FSU-FR02-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR02-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FR02-F2-W1 | — | — | — | 0/3 | PARTIAL | PENDING | F2 | DEFERRED_BY_USER | NOT_RUN |
@@ -171,7 +171,7 @@
 | FSU-FP04-F3-W4 | ✅ | ✅ | ✅ | 3/3 | PARTIAL | COMPLETE_3_OF_3 | F3 | HISTORICAL_COMPLETE_OUT_OF_ACTIVE_SCOPE | COMPLETE |
 | FSU-FP04-F3-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F3 | DEFERRED_BY_USER | NOT_RUN |
 | FSU-FP04-F3-W6 | — | — | — | 0/3 | PARTIAL | PENDING | F3 | DEFERRED_BY_USER | NOT_RUN |
-| FSU-FP05-F0-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
+| FSU-FP05-F0-W3 | ✅ | — | — | 1/3 | PARTIAL | PARTIAL_1_OF_3 | F0 | ACTIVE_SCOPE | PARTIAL |
 | FSU-FP05-F0-W5 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FP05-F0-W6 | — | — | — | 0/3 | PARTIAL | PENDING | F0 | ACTIVE_SCOPE | NOT_RUN |
 | FSU-FP05-F4-W3 | — | — | — | 0/3 | PARTIAL | PENDING | F4 | DEFERRED_BY_USER | NOT_RUN |

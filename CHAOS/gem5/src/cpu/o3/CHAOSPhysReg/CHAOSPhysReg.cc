@@ -1201,7 +1201,13 @@ decodedConsumerPrecision(const o3::DynInst *inst)
                 const bool flipped_lane =
                     (after_val & lane_mask) ==
                     (vec_transient.install_lane_after & lane_mask);
-                if (flipped_lane)
+                // Re-application means the FULL 128-bit value equals the
+                // installed value, not merely that the target bit is 1 (that
+                // false-positive made 9 unrelated writes look reapplied).
+                const bool same_full = vec_transient.install_full_valid &&
+                    std::memcmp(buf.data(), vec_transient.install_full,
+                                chaos_vec_transient::kVecBytes) == 0;
+                if (flipped_lane && same_full)
                     ++vec_transient.post_overwrite_writes_affected;
                 std::vector<std::pair<std::string, std::string>> wkv = {
                     {"dyn_inst_seq", std::to_string(inst->seqNum)},
@@ -1232,8 +1238,8 @@ decodedConsumerPrecision(const o3::DynInst *inst)
                          vec_transient.post_overwrite_writes_affected)},
                     {"target_bits_flipped", flipped_lane ? "1" : "0"},
                     {"state_before", "cell_clean"},
-                    {"state_after", flipped_lane ? "reapplied"
-                                                 : "clean_write"},
+                    {"state_after", (flipped_lane && same_full)
+                                        ? "reapplied" : "clean_write"},
                 };
                 const uint64_t parent = vec_transient.last_event
                                             ? vec_transient.last_event

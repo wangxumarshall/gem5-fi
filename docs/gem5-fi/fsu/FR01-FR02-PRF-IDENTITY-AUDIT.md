@@ -104,6 +104,20 @@ v1 选择曾把 FP32 读当成 FR01-a（attempt-3，SDC 但子模型不符）。
 `chaos_fsu::decodedPrecision` 判定 precision，`target_precision=64`
 才进入 FR01-a 的 eligible 集合；事件写入 `precision`/`field`。
 
+## 3.1 旧 v4 含住认证的复核（修复后重跑）
+
+用修复后的 tracker 原样重跑 v4 的 legacy 配置（random_allocated、
+first_clock=10000、rng_seed=2、requireAllocated）：
+
+| gate | 结果 |
+|---|---|
+| `FR01-a`（phys random, lane64, mask 0x20） | 目标 phys=1/gen=1/值 0；cycle 28609 被真实写覆盖；`reads=0`、`post_overwrite_affected_reads=0`、`post_overwrite_writes_affected=0` → `overwritten` |
+| `FR02-c`（phys random, lane32, mask 0x2000000020） | 同上，两 lane bit 均安装；0 读；真实写覆盖 → `overwritten` |
+
+这两条 legacy 样本确实是死槽/无消费者，v4 的含住结论在修复后仍成立。
+同时修复了 post-overwrite affected 的位掩码假阳性（bit 置 1 不等于
+重新施加），改为完整 128-bit 值相等才计数。
+
 ## 4. 修复后仍存在的协议偏差（必须登记）
 
 - 新目标选择是“warm-up 后第一个 precision 合格的消费者事件”，

@@ -27,11 +27,14 @@ FR02 seed1/2/3、FP05-F0-W3 seed1。唯一失败仍为 FR03-W5 seed1 身份漂�
 
 ### 1.2 索引双视图
 
-- 历史：admitted **55 / 519 seed**，COMPLETE_3_OF_3 **17 / 173 RunID**，
+- 历史：admitted **62 / 519 seed**，COMPLETE_3_OF_3 **19 / 173 RunID**，
   2/3 有 2 个（FR03-W3、FR03-W5）。
-- 活跃（F0/F5）：**46 / 240 seed**，**14 / 80 RunID** 3/3。
-- 较基线各下降 1 seed / 1 RunID，原因即 FR03-W5 seed1。
-- 另有 real_outcome seed 1 个：`FSU-FR01-F0-W1/seed1`（不计 admitted）。
+- 活跃（F0/F5）：**53 / 240 seed**，**16 / 80 RunID** 3/3。
+- 增量：FR01 seed1/2/3、FR02 seed1/2/3、FP05-F0-W3 seed1；FR01/FR02
+  达到 3/3（确定性复现，见 §1.3）。
+- FR03-W5 seed1 仍为唯一复审失败（2/3），不改标签/hash。
+- 原 `FSU-FR01-F0-W1/seed1` attempt-1/2 的 `.real_outcome` 仍保留在
+  attempt 目录；当前权威 seed1 是 attempt-5。
 
 ### 1.3 FR01/FR02
 
