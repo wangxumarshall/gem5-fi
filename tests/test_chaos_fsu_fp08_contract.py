@@ -215,7 +215,13 @@ def test_rounding_counts_attempt_before_apply_and_only_on_success():
     assert gate != -1 and gate < applied
     assert "faults_injected_count++" in block[gate:]
     assert "noteFaultApplied(dyn_inst, fi);" in block[gate:]
-    assert "return okr;" in block
+    # The success path returns true from inside the okr block; the failure
+    # path falls through to the explicit reason partition (no silent reject).
+    assert "return true;" in block[gate:]
+    assert "return false;" in block
+    for key in ("rounding_skip_no_o3cpu", "rounding_skip_no_vec_dest",
+                "rounding_skip_no_writable_dest", "rounding_skip_nonfinite"):
+        assert key in block
     # Non-finite / no vector destination increments attempted only.
     assert "std::isfinite(d)" in block
     assert "dest->classValue() != VecRegClass" in block
