@@ -2,6 +2,10 @@
 
 - 生成时间：2026-10-25T19:27:27+0800
 - 证据根：`/home/sdc/gem5-fi-ding`（runs 根 `/home/sdc/gem5-fi-ding/runs/lsu`）
+- **P 单元（P01–P09）的 P 行已陈旧**：本表生成时未纳入
+  `runs/lsu/r6_p_unit`，故 P 行仍显示 NOT_RUN；权威 P 状态见
+  `R6-P-UNIT-COVERAGE-AUDIT.md` 与 `R6-P-UNIT-CENSUS.md`。请勿把本表 P
+  行当作当前 P 证据。
 - 契约 `chain_gate.evidence_root`：`/home/sdc/gem5-fi-ding` —— 一致：是
 - 总 RunID：325
 - 政策 overlay：`/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/docs/gem5-fi/lsu/mdspec/R6-FREQUENCY-POLICY.json` —— 已加载：是
