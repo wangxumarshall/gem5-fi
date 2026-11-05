@@ -136,7 +136,13 @@ FR02 seed1/2/3、FP05-F0-W3 seed1。唯一失败仍为 FR03-W5 seed1 身份漂�
   0 寄存器占位，切换会使注入直接失效。不得用 W3/NEON 结果代替 W1。
 - **构建基线**：仓库根 `build/` 不存在；工具使用
   `CHAOS/gem5/build/ARM/gem5.opt`。HEAD 9afebbd2 本身无法编译（已修）。
-- **FP05**：实现前 gate 只能 SKIP/BLOCKED，不能开始正式计数。
+- **FP05**：burst 已实现并通过 gate + W3 seed1 试点；merged>1、
+  squash、F4 间隔仍缺，不改写为已验证。
+- **FR01/FR02 未闭合**：瞬态 squash 真实样本 BLOCKED；修复后 tracker 的
+  free_realloc 含住样本 BLOCKED（v4 仅为 legacy 证据）；FR02-c 需 NEON
+  负载；V2 采样不是 uniform ordinal。
+- **FQ08-c**：generation/free-reuse 真实忽略样本 BLOCKED；identity N/A。
+- **FP08**：fpsr/rounding 仍是显式代理，不升级为硬件模型认证。
 
 ## 5. 资源与纪律
 

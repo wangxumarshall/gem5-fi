@@ -118,6 +118,19 @@ first_clock=10000、rng_seed=2、requireAllocated）：
 同时修复了 post-overwrite affected 的位掩码假阳性（bit 置 1 不等于
 重新施加），改为完整 128-bit 值相等才计数。
 
+## 3.2 仍未闭合的真实门禁（不得用 host 测试冒充）
+
+- **squash 的瞬态真实样本**：host 单测证明 squash 走 `kind=squash` 且不
+  清除/重放；真实 W1 运行未出现被 squash 的注入消费者 → BLOCKED。
+- **free_realloc 含住（修复后 tracker）**：修复后随机目标重跑（seed 1/2/3）
+  得到 `not_consumed`（phys 33/34、gen 1、0 读）或 `overwritten`（phys 1、
+  0 读），未出现“释放但无写”的 free_realloc 样本。v4 的
+  `CONTAINED_BY_FREE_REALLOC` 是旧二进制证据 → 标记 LEGACY，不作为
+  修复后认证。
+- **FR02-c 跨 lane 在 W1**：scalar FP 只读 lane 0，跨 lane 第二位不会被
+  消费；FR02-c 需要 NEON 负载（W3/W5），尚未做正式 seed。
+- **V2 采样**仍是“首个合格事件”（见协议文档 §3），不是 uniform ordinal。
+
 ## 4. 修复后仍存在的协议偏差（必须登记）
 
 - 新目标选择是“warm-up 后第一个 precision 合格的消费者事件”，
