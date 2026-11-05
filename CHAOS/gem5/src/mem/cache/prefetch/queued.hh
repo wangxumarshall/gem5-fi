@@ -84,6 +84,13 @@ class Queued : public Base
         // issue path is byte-identical when no P04 fault is mounted.
         bool chaosQueueValid = true;
 
+        // [MDSPEC][R6-P-P04-a-F5-v2] Physical slot identity: the entry's
+        // allocation ordinal modulo the queue capacity.  gem5's ready queue
+        // is a std::list without fixed slots; this is the documented logical
+        // analogue of a circular FIFO slot.  Default 0 and unused unless the
+        // fixed-slot F5 model is latched.
+        uint64_t chaosSlot = 0;
+
         // [MDSPEC][R6-P-P04-c] Observation-only shadows for the
         // entry-selection fault.  They never change the issue path; they let
         // the injector record WHICH entry was swapped into the head and
@@ -237,6 +244,10 @@ class Queued : public Base
     // On success writes the entry's address/PC and returns its 0-based
     // index; returns -1 when no live entry exists (ineligible).
     long chaosClearQueueValid(Addr &addr, Addr &pc);
+    // [MDSPEC][R6-P-P04-a-F5-v2] Read the first live entry WITHOUT clearing
+    // it.  The F5 latch selects this entry's fixed slot and performs the
+    // single-bit invalidation itself; a pre-clear would change two bits.
+    bool chaosPeekLiveQueueEntry(Addr &addr, Addr &pc) const;
     bool chaosHasLiveQueueEntry() const
     {
         for (const auto &d : pfq) {
@@ -245,19 +256,23 @@ class Queued : public Base
         }
         return false;
     }
-    // [MDSPEC][R6-P-P04-a-F5] Permanent queue-valid fault.  F5 is the
-    // run-long stuck tier: after the first eligible event the queue's valid
-    // FIELD reads 0 until the run ends (no recovery).  gem5's prefetch queue
-    // is a std::list without fixed slots, so the faithful mapping of one
-    // stuck valid bit cell is the per-queue valid field (documented in the
-    // P04 evidence): every entry present at latching and every later
-    // insertion into the READY queue is invalid, while the entry — with its
-    // address, PC and request identity — stays queued and is skipped at
-    // issue.  Exactly ONE physical fault identity (fault_id/pfid) is latched
-    // per run; each later birth/skip is a propagation instance of that same
-    // fault, never a new physical fault.
-    size_t chaosLatchQueueValidStuck(uint64_t fault_id, uint64_t pfid);
+    // [MDSPEC][R6-P-P04-a-F5-v2] Permanent queue-valid fault, fixed-slot
+    // model.  F5 is the run-long stuck tier: after the first eligible event
+    // ONE physical valid bit reads 0 until the run ends (no recovery).  The
+    // earlier mapping invalidated the whole ready queue plus every later
+    // insertion, which changes N state bits and is a semantic expansion;
+    // it is retained only as historical evidence.  This model latches the
+    // slot of the first live entry and invalidates exactly that slot's
+    // entry (at most one live entry per slot).  Later entries allocated to
+    // the same logical slot are born invalid; every other slot is untouched
+    // and issues normally.  Exactly ONE physical fault identity
+    // (fault_id/pfid) is latched per run; each birth/skip is a propagation
+    // instance of that same fault.
+    size_t chaosLatchQueueValidStuck(
+        uint64_t fault_id, uint64_t pfid,
+        std::vector<std::pair<Addr, Addr>> &invalidated);
     bool chaosQueueValidStuckActive() const { return chaosQueueValidStuck; }
+    uint64_t chaosStuckSlot() const { return chaosStuckSlotIdx; }
     // Read-only snapshot of the live ready-queue entries (addr, pc) so the
     // injector can register their lineage under the latched fault identity.
     size_t chaosCollectLiveEntries(
@@ -320,12 +335,14 @@ class Queued : public Base
     uint64_t chaosPendingFaultId = 0;
     uint64_t chaosPendingPfid = 0;
 
-    // [MDSPEC][R6-P-P04-a-F5] Latched run-long stuck-valid state (see the
-    // public API above).  Default false => the issue/insertion paths are
-    // byte-identical when no P04-F5 fault is mounted.
+    // [MDSPEC][R6-P-P04-a-F5-v2] Latched run-long stuck-valid state (see
+    // the public API above).  Default false => the issue/insertion paths
+    // are byte-identical when no P04-F5 fault is mounted.
     bool chaosQueueValidStuck = false;
     uint64_t chaosStuckFaultId = 0;
     uint64_t chaosStuckPfid = 0;
+    uint64_t chaosStuckSlotIdx = 0;
+    uint64_t chaosEnqueueSeq = 0;
     // Mark a freshly inserted ready-queue entry invalid under the latched
     // physical fault and record the birth as a propagation instance.
     void chaosApplyStuckValid(DeferredPacket &dpp);

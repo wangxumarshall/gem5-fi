@@ -239,20 +239,33 @@ def main():
     # 运行结束").  Source contract: ONE latched physical fault identity, the
     # valid field stuck at invalid for every entry born after the latch, and
     # a real (not log-only) issue-path consequence.
-    check("Queued 暴露 latch / stuck-active / live-entry snapshot",
-          "size_t chaosLatchQueueValidStuck(uint64_t fault_id, "
-          "uint64_t pfid);" in qhh2
+    check("Queued 暴露 fixed-slot latch / stuck-active / slot",
+          "size_t chaosLatchQueueValidStuck(" in qhh2
+          and "uint64_t pfid," in qhh2
+          and "std::vector<std::pair<Addr, Addr>> &invalidated);" in qhh2
           and "bool chaosQueueValidStuckActive() const" in qhh2
-          and "chaosCollectLiveEntries(" in qhh2, "missing F5 API")
-    check("latch 把已存在 live entry 全部置 invalid 且无恢复路径",
-          "Queued::chaosLatchQueueValidStuck" in qcc2
-          and "chaosQueueValidStuck = true;" in qcc2
-          and "chaosQueueValidStuck = false" not in qcc2,
-          "latch impl missing / recovery path present")
-    check("addToQueue 对之后每个 ready-queue entry 施加 stuck valid",
+          and "uint64_t chaosStuckSlot() const" in qhh2,
+          "missing F5 fixed-slot API")
+    check("每个 ready-queue entry 获得物理 slot 身份",
+          "uint64_t chaosSlot = 0;" in qhh2
+          and "dpp.chaosSlot = chaosEnqueueSeq++ % queueSize;" in qcc2,
+          "slot identity missing")
+    check("latch 只失效所选 slot（不是整个队列）",
+          "chaosStuckSlotIdx = chosen->chaosSlot;" in qcc2
+          and "d.chaosSlot == chaosStuckSlotIdx" in qcc2
+          and "dpp.chaosSlot != chaosStuckSlotIdx" in qcc2
+          and qcc2.count("chaosQueueValidStuck = false") == 1
+          and "if (chosen == pfq.end()) {" in qcc2,
+          "global-field expansion / recovery path present")
+    check("addToQueue 对同 slot 的新 entry 施加 stuck valid",
           "chaosApplyStuckValid(queue.back())" in qcc2
           and "chaosApplyStuckValid(*ins)" in qcc2
           and "invalid_stuck_birth" in qcc2, "birth hook missing")
+    check("F5 用 peek 不预清（避免两位同时失效）",
+          "chaosPeekLiveQueueEntry(qaddr, qpc)" in pcc2
+          and "if (trigger.tier == ChaOSLsuTier::F5) {" in pcc2
+          and "qidx_long = queue->chaosClearQueueValid(qaddr, qpc);" in pcc2,
+          "F5 pre-clear still present")
     check("F5 分支 latch 一次 + 后续 fire 报 no_effect",
           "chaosQueueValidStuckActive()" in pcc2
           and "trigger.noteOutcome(false);" in pcc2
@@ -271,16 +284,18 @@ def main():
           "F5 flags missing")
     for rid in ("P04-F5-W2", "P04-F5-W8"):
         sd = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
-                  f"campaign_p04f5_20261105/{rid}/seed1")
+                  f"campaign_p04f5_v2_20261105/{rid}/seed1")
         if not (sd / "chain_report.json").is_file():
             print(f"  SKIP {rid} 证据不在（{sd}）——源契约已覆盖")
             continue
         beh = (sd / "p04a_queue_stuck.log").read_text()
         m = re.search(r"event=latch field=queue_valid before=valid "
                       r"after=invalid state=stuck_until_end "
-                      r"entries=(\d+)", beh)
-        check(f"{rid} latch 记录 stuck_until_end + 实际失效条目数",
-              m is not None and int(m.group(1)) >= 1, beh)
+                      r"slot=(\d+) entries=(\d+) latch_invalidated=(\d+)",
+                      beh)
+        check(f"{rid} latch 记录 fixed slot + 单一失效条目",
+              m is not None and int(m.group(2)) == 1
+              and int(m.group(3)) == 1, beh)
         inj = (sd / "prefetch_injections.log").read_text()
         check(f"{rid} 注入行 = P04_queue_valid_stuck（一次物理故障）",
               inj.count("P04_queue_valid_stuck") == 1, inj)
@@ -291,6 +306,11 @@ def main():
         ids = set(re.findall(r"fault_id=(\d+)", text))
         check(f"{rid} 全部传播实例共享同一物理 fault_id",
               len(ids) == 1, str(ids))
+        # Fixed-slot contract: the latch event carries the selected slot,
+        # and every stuck birth stays in that slot.
+        slots = set(re.findall(r"entry_index=(\d+)", text))
+        check(f"{rid} stuck 事件只落在所选 slot",
+              m is not None and slots == {m.group(1)}, str(slots))
         rep = json.load(open(sd / "chain_report.json"))
         check(f"{rid} 终局按真实链报告（不伪造 L5）",
               rep.get("terminal") in

@@ -258,6 +258,19 @@ Queued::chaosClearQueueValid(Addr &addr, Addr &pc)
     return -1;              // no live entry -> ineligible
 }
 
+bool
+Queued::chaosPeekLiveQueueEntry(Addr &addr, Addr &pc) const
+{
+    for (const auto &d : pfq) {
+        if (d.chaosQueueValid) {
+            addr = d.pfInfo.getAddr();
+            pc = d.pfInfo.getPC();
+            return true;
+        }
+    }
+    return false;
+}
+
 Queued::ChaosQueueIssueObserver Queued::chaosQueueIssueObserver = nullptr;
 
 size_t
@@ -272,21 +285,37 @@ Queued::chaosCollectLiveEntries(
 }
 
 size_t
-Queued::chaosLatchQueueValidStuck(uint64_t fault_id, uint64_t pfid)
+Queued::chaosLatchQueueValidStuck(
+    uint64_t fault_id, uint64_t pfid,
+    std::vector<std::pair<Addr, Addr>> &invalidated)
 {
-    // [MDSPEC][R6-P-P04-a-F5] Latch the run-long stuck-at-invalid state.
-    // This is the ONE physical fault identity for the run; no recovery path
-    // exists (the scheme's F5 "持续到运行结束").  Every ready-queue entry
-    // present now reads invalid; later insertions are marked by
-    // chaosApplyStuckValid().  The entries themselves (address/PC/priority/
-    // request identity) are untouched — only the valid field is stuck.
+    // [MDSPEC][R6-P-P04-a-F5-v2] Latch the run-long stuck-at-invalid state
+    // on ONE fixed logical slot.  The scheme's F5 selects one bit/field per
+    // run; invalidating every live entry plus every future insertion was a
+    // semantic expansion (N state bits).  Here the first live entry's slot
+    // is the selected physical position; only entries in that slot read
+    // invalid, every other slot issues normally.  No recovery path exists.
+    invalidated.clear();
+    auto chosen = pfq.end();
+    for (auto it = pfq.begin(); it != pfq.end(); ++it) {
+        if (it->chaosQueueValid) {
+            chosen = it;
+            break;
+        }
+    }
+    if (chosen == pfq.end()) {
+        chaosQueueValidStuck = false;
+        return 0;
+    }
     chaosQueueValidStuck = true;
     chaosStuckFaultId = fault_id;
     chaosStuckPfid = pfid;
+    chaosStuckSlotIdx = chosen->chaosSlot;
     size_t n = 0;
     for (auto &d : pfq) {
-        if (d.chaosQueueValid) {
+        if (d.chaosSlot == chaosStuckSlotIdx && d.chaosQueueValid) {
             d.chaosQueueValid = false;
+            invalidated.emplace_back(d.pfInfo.getAddr(), d.pfInfo.getPC());
             ++n;
         }
     }
@@ -297,6 +326,8 @@ void
 Queued::chaosApplyStuckValid(DeferredPacket &dpp)
 {
     if (!chaosQueueValidStuck)
+        return;
+    if (dpp.chaosSlot != chaosStuckSlotIdx)
         return;
     dpp.chaosQueueValid = false;
     // Record the birth as a propagation instance of the same physical
@@ -784,6 +815,13 @@ Queued::addToQueue(std::list<DeferredPacket> &queue,
         delete it->pkt;
         queue.erase(it);
     }
+
+    // [MDSPEC][R6-P-P04-a-F5-v2] Assign the logical physical slot before the
+    // entry is copied into the ready queue.  The write pointer advances on
+    // every enqueue; capacity is the queue's fixed depth.  Only the F5
+    // fixed-slot model consumes this value.
+    if (&queue == &pfq)
+        dpp.chaosSlot = chaosEnqueueSeq++ % queueSize;
 
     // [MDSPEC][R6-P-P04-b] Tail-pointer -1: insert BEFORE the current tail
     // instead of at the back/priority position.  Every entry is preserved

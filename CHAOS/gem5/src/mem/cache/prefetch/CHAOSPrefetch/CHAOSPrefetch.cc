@@ -255,15 +255,18 @@ namespace gem5
                 return;
             }
 
-            // Snapshot BEFORE the clear: F5 registers every live entry as a
-            // propagation instance of the same latched physical fault.
-            std::vector<std::pair<Addr, Addr>> live;
-            if (trigger.tier == ChaOSLsuTier::F5)
-                queue->chaosCollectLiveEntries(live);
-
             Addr qaddr = 0, qpc = 0;
-            const long qidx_long = queue->chaosClearQueueValid(qaddr, qpc);
-            if (qidx_long < 0) return;        // defensive; single-threaded
+            long qidx_long = -1;
+            if (trigger.tier == ChaOSLsuTier::F5) {
+                // The permanent latch owns the single-bit clear.  Pre-clearing
+                // here would invalidate one entry and then latch a different
+                // slot, changing two bits (semantic expansion).
+                if (!queue->chaosPeekLiveQueueEntry(qaddr, qpc))
+                    return;
+            } else {
+                qidx_long = queue->chaosClearQueueValid(qaddr, qpc);
+                if (qidx_long < 0) return;    // defensive; single-threaded
+            }
             ++faults_injected;
             const auto qidx = (unsigned long)qidx_long;
             if (trigger.tier == ChaOSLsuTier::F5)
@@ -312,16 +315,19 @@ namespace gem5
             }
 
             if (trigger.tier == ChaOSLsuTier::F5) {
-                // Latch (invalidates every other live entry) and record each
-                // live entry as one propagation instance of the SAME fault.
-                // Request identity is per entry; the physical fault id is
-                // shared — permanent semantics does not require one id per
-                // instance, and it does not forbid distinct request ids.
+                // Latch ONE fixed logical slot.  Only the entry occupying
+                // that slot is invalidated; every other live entry keeps
+                // issuing.  Each invalidated entry (and each later birth in
+                // the same slot) is a propagation instance of the SAME
+                // physical fault.  Request identity is per entry; the fault
+                // id is shared.
+                std::vector<std::pair<Addr, Addr>> invalidated;
                 const size_t n = queue->chaosLatchQueueValidStuck(
-                    f5_ptag, f5_pfid);
+                    f5_ptag, f5_pfid, invalidated);
+                const uint64_t stuck_slot = queue->chaosStuckSlot();
                 if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
                     if (f5_ptag) {
-                        for (const auto &ap : live) {
+                        for (const auto &ap : invalidated) {
                             const Addr a = ap.first;
                             const uint64_t epid = (a == qaddr)
                                 ? f5_pfid
@@ -338,6 +344,8 @@ namespace gem5
                                 {"corr", "origin"},
                                 {"pf_request_id", std::to_string(epid)},
                                 {"va", ehex.str()},
+                                {"entry_index",
+                                 std::to_string(stuck_slot)},
                                 {"field", "queue_valid"},
                                 {"before", "1"},
                                 {"after", "0"},
@@ -355,7 +363,8 @@ namespace gem5
                         << " event=latch field=queue_valid"
                         << " before=valid after=invalid"
                         << " state=stuck_until_end"
-                        << " entries=" << live.size()
+                        << " slot=" << stuck_slot
+                        << " entries=" << invalidated.size()
                         << " latch_invalidated=" << n
                         << " va=0x" << ahex.str()
                         << " pc=0x" << phex.str()
@@ -363,8 +372,9 @@ namespace gem5
                         << " pf_request_id=" << f5_pfid << "\n";
                 }
                 logInjection("P04_queue_valid_stuck", qaddr,
-                    "queue valid field stuck-at-invalid (entries=" +
-                    std::to_string(live.size()) + ", run-long)");
+                    "queue valid bit stuck-at-invalid on slot " +
+                    std::to_string(stuck_slot) + " (entries=" +
+                    std::to_string(invalidated.size()) + ", run-long)");
                 return;
             }
 
