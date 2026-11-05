@@ -491,3 +491,71 @@ def test_decode_violations_new_and_legacy():
         decoded_reliable="0", precision_match="0", lane_match="0"))
     assert any("decoded_kind" in v or "reliable" in v
                for v in A._decode_violations(undecoded))
+
+
+# ---- [FSU][FP05] burst event audit ----------------------------------------
+
+def _burst_evt(**kw):
+    d = dict(kind="fault_applied", fault_id="1", burst_id="7",
+             burst_ordinal="0", burst_length="2", burst_mode="same_lane",
+             field="burst_same_lane", precision="fp64", lane_width="64",
+             lane_offset="0", burst_lane_base="0", burst_lane_step="1",
+             bit_indices="5", bit_in_lane="5",
+             fault_mask="0x0000000000000020",
+             lane_mask="0x00000000000000000000000000000020",
+             before="0x3ff0000000000000",
+             after="0x3ff0000000000020",
+             full_before="0x00000000000000003ff0000000000000",
+             full_after="0x00000000000000003ff0000000000020",
+             attempted="1", applied="1")
+    d.update(kw)
+    return P.parse_line(evt(**d))
+
+
+def test_burst_event_audit_accepts_valid_same_lane():
+    assert A._is_burst_event(_burst_evt())
+    assert A._field_violations(_burst_evt()) == []
+
+
+def test_burst_event_audit_rejects_wrong_ordinal_lane_geometry():
+    # adjacent_lane ordinal 1 must resolve to lane 1, not lane 0.
+    bad = _burst_evt(burst_mode="adjacent_lane",
+                     field="burst_adjacent_lane", burst_ordinal="1",
+                     lane_offset="0")
+    assert any("burst geometry" in v for v in A._field_violations(bad))
+
+
+def test_burst_event_audit_rejects_length_out_of_range():
+    bad = _burst_evt(burst_length="5")
+    assert any("burst_length" in v for v in A._field_violations(bad))
+
+
+def test_burst_event_audit_rejects_attempted_applied_mismatch():
+    bad = _burst_evt(applied="0")
+    assert any("applied" in v for v in A._field_violations(bad))
+
+
+def test_burst_cross_lane_absolute_mask_must_cover_both_lanes():
+    lane_mask = (0x20 << 0) | (0x20 << 64)
+    full_before = 0x3ff00000000000003ff0000000000000
+    good = _burst_evt(
+        burst_mode="cross_lane_mbu", field="burst_cross_lane_mbu",
+        lane_mask=hex(lane_mask), full_before=hex(full_before),
+        full_after=hex(full_before ^ lane_mask))
+    assert A._field_violations(good) == []
+    # Only the base lane was actually changed -> reject.
+    bad = _burst_evt(
+        burst_mode="cross_lane_mbu", field="burst_cross_lane_mbu",
+        lane_mask=hex(lane_mask), full_before=hex(full_before),
+        full_after=hex(full_before ^ 0x20))
+    assert any("full_before^full_after" in v
+               for v in A._field_violations(bad))
+
+
+def test_burst_decode_requires_two_lanes():
+    ev = _burst_evt(decoded_kind="neon_vector", decoded_reliable="1",
+                    precision_match="1", lane_match="1",
+                    instruction_bits="0x4e22d420", decoded_precision="fp64",
+                    manifest_precision="fp64", decoded_element_width="64",
+                    decoded_lanes="1", manifest_lane_width="64")
+    assert any("2" in v for v in A._decode_violations(ev))

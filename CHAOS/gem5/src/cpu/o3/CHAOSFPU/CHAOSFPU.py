@@ -169,3 +169,24 @@ class CHAOSFPU(SimObject):
     fsuRateDivisor = Param.UInt64(0, "F1=1000000, F2=100000, F3=10000 "
                                      "(0 = F0/not rate mode)")
     fsuJitterPct = Param.UInt64(0, "Interval jitter percentage (workbook=50)")
+    # [FSU][FP05] Real 2-4 event result burst (F0 only):
+    #   "在 2–4 个连续 eligible 结果上污染同 lane 或相邻 lane；
+    #    不将 burst 事件当独立 Bernoulli 样本"
+    # One F0 injection unit is ONE episode (FP05-BURST-PREP.md:26), so
+    # maxFaults counts episodes, not events.  '' = disabled (every existing
+    # campaign stays byte-identical).  The four submodels are the workbook's
+    # FP05-a..d.  Burst mode is mutually exclusive with the recurring /
+    # permanent / rate / proxy modes (the constructor panics, fail closed).
+    burstMode = Param.String("", "FP05 burst submodel: '' | same_lane | "
+                                 "adjacent_lane | cross_lane_mbu | lane_mask")
+    burstLength = Param.UInt64(0, "FP05 burst length N in {2,3,4}; "
+                                  "0 = not a burst mode")
+    # adjacent_lane advances the target lane by burstLaneStep per event.
+    # cross_lane_mbu writes the SAME lane mask into the base lane and the
+    # next lane; lane_mask applies the pre-registered multi-bit mask to the
+    # base lane for every event.
+    burstLaneStep = Param.Int(0, "adjacent_lane per-event lane step "
+                                 "(0 = 1)")
+    burstLaneMask = Param.UInt64(0, "lane_mask submodel fixed in-lane mask "
+                                    "(0 = use faultMask)")
+    burstIdBase = Param.UInt64(1, "first burst_id of this run (monotonic)")

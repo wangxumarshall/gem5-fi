@@ -309,6 +309,32 @@
             "fpsr_suppress": {
               "type": "boolean"
             },
+            "burst_mode": {
+              "type": "string",
+              "enum": ["", "same_lane", "adjacent_lane", "cross_lane_mbu",
+                       "lane_mask"],
+              "description": "[FSU][FP05] Real 2-4 event result burst submodel. '' = disabled. Requires burst_length in {2,3,4}; mutually exclusive with recurring_stuck/permanent_stuck/rate/proxy modes. One F0 injection unit is one episode, so max_faults must be 1."
+            },
+            "burst_length": {
+              "type": "integer",
+              "enum": [2, 3, 4],
+              "description": "FP05 burst length N over consecutive eligible results."
+            },
+            "burst_lane_step": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "adjacent_lane per-event lane step."
+            },
+            "burst_lane_mask": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "lane_mask submodel fixed in-lane mask (must fit lane_width)."
+            },
+            "burst_id_base": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "First burst_id of the run (monotonic)."
+            },
             "op_classes": {
               "type": "array",
               "description": "[FSU][FP06] Explicit eligible-opClass allowlist. An empty/absent list keeps the legacy behavior (every FP opClass this injector accepts). Names are exact gem5 OpClass names.",

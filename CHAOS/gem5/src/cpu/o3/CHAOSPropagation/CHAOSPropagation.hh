@@ -254,8 +254,24 @@ class CHAOSPropagation : public SimObject
         "decode_reason",
         "fu_class", "fu_index", "bit_indices", "fault_mask",
         "before_hash", "after_hash", "value_hash",
-        "eligible_ordinal", "eligible_total", "attempted", "activated",
-        "burst_id", "burst_ordinal", "burst_length",
+        "eligible_ordinal", "eligible_total", "attempted", "applied",
+        "activated",
+        // [FSU][FP05] Real result-burst (one episode over 2-4 consecutive
+        // eligible results). Unknown keys are dropped by notePropEvt, so the
+        // complete episode/event accounting MUST be listed here.
+        "burst_id", "burst_ordinal", "burst_length", "burst_mode",
+        "burst_lane_base", "burst_lane_step",
+        "burst_end", "burst_end_reason",
+        "burst_eligible_start", "burst_eligible_last",
+        "burst_episode_events", "burst_episode_complete",
+        "burst_expected_episodes",
+        "burst_episodes_attempted", "burst_episodes_applied",
+        "burst_episodes_completed", "burst_episodes_short",
+        "burst_episodes_lane_rejected",
+        "burst_events_attempted", "burst_events_applied",
+        "burst_events_activated", "burst_events_squashed",
+        "burst_merged_sources", "burst_source_fault_ids",
+        "burst_accounting_ok",
         "golden_id", "config_hash", "binary_hash", "terminal",
         // [FSU][D2] F1/F2/F3 rate provenance.
         "rate_divisor", "jitter_pct", "interval", "ordinal_index",

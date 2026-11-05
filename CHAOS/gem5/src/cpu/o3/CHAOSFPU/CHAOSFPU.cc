@@ -61,6 +61,10 @@ namespace gem5
           fsu_load(p.fsuLoad),
           fsu_submodel(p.fsuSubmodel),
           fsu_eligible_total(p.fsuEligibleTotal),
+          burst_length(p.burstLength),
+          burst_lane_step((int)p.burstLaneStep),
+          burst_lane_mask_cfg(p.burstLaneMask),
+          burst_id_base(p.burstIdBase),
           rate_warmup(p.rateWarmup),
           rate_divisor(p.fsuRateDivisor),
           jitter_pct(p.fsuJitterPct)
@@ -228,6 +232,61 @@ namespace gem5
         if (f3_dependent && (precision != "fp64" || lane_width != 64 ||
                              lane_offset != 0))
             panic("CHAOSFPU: f3_dependent is FP64/lane64/offset0 only\n");
+
+        // [FSU][FP05] Real result burst. One F0 injection unit is ONE
+        // episode over 2-4 consecutive eligible results, so maxFaults
+        // bounds episodes (not events).  Every ambiguous combination is
+        // rejected here; the burst path never relabels a per-event mode.
+        if (!chaos_fsu::parseBurstMode(p.burstMode, burst_submodel))
+            panic("CHAOSFPU: unknown burstMode '%s' (expected same_lane|"
+                  "adjacent_lane|cross_lane_mbu|lane_mask)\n",
+                  p.burstMode.c_str());
+        burst_mode = burst_submodel != chaos_fsu::BurstSubmodel::None;
+        if (!burst_mode) {
+            if (burst_length != 0 || p.burstLaneStep != 0 ||
+                burst_lane_mask_cfg != 0 || p.burstIdBase != 1)
+                panic("CHAOSFPU: burstLength/burstLaneStep/burstLaneMask/"
+                      "burstIdBase require --fpu_burst_mode\n");
+        } else {
+            std::string berr;
+            const int base_lane = lane_offset;
+            const int step = burst_lane_step > 0 ? burst_lane_step : 1;
+            if (!chaos_fsu::burstLaneGeometryValid(
+                    burst_submodel, base_lane, burst_length, step,
+                    lane_width, berr))
+                panic("CHAOSFPU: burst geometry: %s\n", berr.c_str());
+            if (probability != 1.0f)
+                panic("CHAOSFPU: burst mode requires probability=1.0 (every "
+                      "eligible result inside an episode is injected; a "
+                      "burst event is not an independent Bernoulli sample)\n");
+            if (!count_only && max_faults != 1)
+                panic("CHAOSFPU: F0 burst injects exactly ONE episode per "
+                      "run; maxFaults must be 1, got %llu\n",
+                      (unsigned long long)max_faults);
+            if (permanent_stuck || recurring_stuck || rate_mode ||
+                fma_weighted || rounding_sub || f3_dependent ||
+                fpsr_suppress || prf_wb_hook)
+                panic("CHAOSFPU: burst mode is incompatible with permanent/"
+                      "recurring/rate/fma/rounding/f3/fpsr/prf-wb modes\n");
+            if (!bitseg.empty())
+                panic("CHAOSFPU: burst mode uses a pre-registered lane mask, "
+                      "not bitseg\n");
+            if (!count_only && !fsu_freq.empty() && fsu_freq != "F0")
+                panic("CHAOSFPU: F0 burst requires --fsu_freq F0 (got '%s'); "
+                      "F4 burst interval semantics are not implemented\n",
+                      fsu_freq.c_str());
+            if (burst_id_base == 0)
+                panic("CHAOSFPU: burstIdBase must be >= 1\n");
+            if (burst_lane_mask_cfg &&
+                !chaos_fsu::validateExplicitMask(burst_lane_mask_cfg,
+                                                 lane_width, lane_offset,
+                                                 berr))
+                panic("CHAOSFPU: burstLaneMask: %s\n", berr.c_str());
+            if (burst_submodel == chaos_fsu::BurstSubmodel::LaneMask &&
+                !fault_mask && !burst_lane_mask_cfg)
+                panic("CHAOSFPU: lane_mask burst requires an explicit "
+                      "faultMask or burstLaneMask\n");
+        }
 
         // [FSU][FP06] Explicit opClass / regClass filters. Unknown names are
         // a configuration error, never silently ignored (fail closed).
@@ -510,8 +569,11 @@ namespace gem5
         // [FSU][F5] maxFaults bounds INSTALLATIONS, not exposures: after the
         // single install every eligible event is an exposure of the same
         // fault and must still be forced.
-        if (!permanent_stuck && !count_only && max_faults != 0 &&
-            faults_injected_count >= max_faults)
+        // [FSU][FP05] maxFaults bounds EPISODES, not events: a burst event
+        // count reaching 1 must never truncate the remaining ordinals. The
+        // burst state machine below enforces the episode limit itself.
+        if (!permanent_stuck && !burst_mode && !count_only &&
+            max_faults != 0 && faults_injected_count >= max_faults)
             return false;
         if (!inWindow()) return false;
         OpClass oc = dyn_inst->opClass();
@@ -552,7 +614,11 @@ namespace gem5
         // [FSU][D3] Decode the REAL instruction. The guard only changes the
         // eligible stream when explicitly enabled; otherwise the decoded
         // facts are still recorded so a mismatch is visible, never silent.
-        const bool want_decode = decode_guard || !fsu_model.empty();
+        // [FSU][FP05] Burst eligibility REQUIRES the real decode: the
+        // workbook trigger is "向量 op 至少有 2 个 active lane", which cannot
+        // be proven from opClass alone.
+        const bool want_decode = decode_guard || !fsu_model.empty() ||
+                                 burst_mode;
         chaos_fsu::DecodedFp dec;
         uint32_t dec_enc = 0;
         bool dec_ok = true, dec_pm = false, dec_lm = false;
@@ -606,8 +672,23 @@ namespace gem5
         }
 
         const bool lane_mode = lane_offset != 0;
-        const bool eligible = has_fp_dest && dec_ok &&
-                              (!lane_mode || isSimdOpClass(oc));
+        bool eligible = has_fp_dest && dec_ok &&
+                        (!lane_mode || isSimdOpClass(oc));
+        if (burst_mode) {
+            // FP05 trigger: a real NEON vector op with >= 2 active lanes,
+            // and enough decoded lanes to hold the whole pre-registered
+            // span.  Anything unprovable is NOT eligible (fail closed).
+            const int span = chaos_fsu::burstLaneSpan(
+                burst_submodel, burst_length,
+                burst_lane_step > 0 ? burst_lane_step : 1);
+            eligible = eligible && isSimdOpClass(oc) &&
+                       target_class == (int)VecRegClass &&
+                       dec_ok && dec.reliable &&
+                       dec.kind == chaos_fsu::FpKind::NeonVector &&
+                       dec.lanes >= 2 &&
+                       lane_width == dec.element_width &&
+                       lane_offset + span <= dec.lanes;
+        }
 
         // v1.1 Phase 8.2 countOnlyMode: count only CORRUPTIBLE eligible
         // events (no FP/vector dest = can never take the fault); never
@@ -622,11 +703,61 @@ namespace gem5
             return false;
         }
 
-        // [FSU][F5] Permanent stuck-at: warm-up counts eligible events; the
-        // first eligible event AFTER the warm-up installs the fault, and
-        // every later eligible event is an exposure. No probability, no
-        // skip, no new fault_id.
-        if (permanent_stuck) {
+        // [FSU][FP05] Burst episode selector.  Only ELIGIBLE events reach
+        // this block, so a non-eligible event can never consume an ordinal.
+        // The F0 start is an explicit uniform skip over the SAME eligible
+        // stream the countOnly census measured; inside an active episode
+        // every eligible event is injected unconditionally (probability is
+        // pinned to 1.0 in the constructor).
+        uint64_t burst_this_ordinal = 0;
+        int inj_lane = lane_offset;
+        if (burst_mode) {
+            if (!eligible) return false;
+            ++eligible_ordinal;
+            burst_last_eligible_ordinal = eligible_ordinal;
+            const int step = burst_lane_step > 0 ? burst_lane_step : 1;
+            if (!burst_tracker.active) {
+                if (burst_tracker.disabled) return false;
+                if (burst_episodes_applied >= max_faults) return false;
+                if (events_to_skip > 0) {
+                    --events_to_skip;
+                    return false;
+                }
+                std::string gerr;
+                if (!chaos_fsu::burstLaneGeometryValid(
+                        burst_submodel, lane_offset, burst_length, step,
+                        lane_width, gerr)) {
+                    // Fail closed: the pre-registered geometry cannot hold
+                    // the declared length. Never clamp, never emit a
+                    // partial burst.
+                    ++burst_episodes_attempted;
+                    ++burst_episodes_lane_rejected;
+                    burst_tracker.disabled = true;
+                    burst_tracker.id =
+                        burst_id_base + burst_episodes_attempted - 1;
+                    burst_tracker.length = burst_length;
+                    emitBurstEnd("lane_geometry");
+                    return false;
+                }
+                ++burst_episodes_attempted;
+                const uint64_t eid =
+                    burst_id_base + burst_episodes_attempted - 1;
+                if (!burst_tracker.arm(eid, burst_length, eligible_ordinal))
+                    panic("CHAOSFPU: burst arm failed after geometry "
+                          "validation\n");
+                registerBurstExitFlush();
+            }
+            burst_tracker.last_eligible_ordinal = eligible_ordinal;
+            burst_this_ordinal = burst_tracker.currentOrdinal();
+            inj_lane = chaos_fsu::burstLaneAt(
+                burst_submodel, lane_offset, burst_this_ordinal, step);
+            if (inj_lane < 0 || inj_lane >= 128 / lane_width)
+                panic("CHAOSFPU: burst ordinal %llu resolved illegal lane "
+                      "%d\n", (unsigned long long)burst_this_ordinal,
+                      inj_lane);
+            ++burst_events_attempted;
+            injected_eligible_ordinal = eligible_ordinal;
+        } else if (permanent_stuck) {
             if (!eligible) return false;
             ++eligible_ordinal;
             if (eligible_ordinal <= f5_warmup) return false;
@@ -799,7 +930,7 @@ namespace gem5
             // The explicit faultMask is the one permanent mask. It is
             // validated once in the constructor and reused verbatim.
             if (!chaos_fsu::buildExplicitMask(fault_mask, lane_width,
-                                              lane_offset, mi, ferr))
+                                              inj_lane, mi, ferr))
                 mask_fail(ferr);
         } else if (recurring_stuck) {
             // v1.1 Phase 9 mode 3 — the SAME fixed mask every event: the
@@ -811,11 +942,23 @@ namespace gem5
                 recurring_mask_drawn = true;
             }
             if (!chaos_fsu::buildExplicitMask(recurring_mask, lane_width,
-                                              lane_offset, mi, ferr))
+                                              inj_lane, mi, ferr))
+                mask_fail(ferr);
+        } else if (burst_mode &&
+                   burst_submodel == chaos_fsu::BurstSubmodel::LaneMask &&
+                   burst_lane_mask_cfg) {
+            // [FSU][FP05-d] The pre-registered multi-lane mask is applied
+            // unchanged to every event of the episode (no result-dependent
+            // adjustment).
+            if (!chaos_fsu::buildExplicitMask(burst_lane_mask_cfg, lane_width,
+                                              inj_lane, mi, ferr))
                 mask_fail(ferr);
         } else if (fault_mask) {
+            // [FSU][FP05-a/b/c/d] An explicit faultMask is a fixed in-lane
+            // mask; the lane itself comes from the pre-registered burst
+            // geometry (same base lane or base+ordinal*step).
             if (!chaos_fsu::buildExplicitMask(fault_mask, lane_width,
-                                              lane_offset, mi, ferr))
+                                              inj_lane, mi, ferr))
                 mask_fail(ferr);
         } else if (fma_weighted) {
             // v1.1 Phase 9 mode 2 — fma_intermediate (E3 behavioral
@@ -837,7 +980,7 @@ namespace gem5
                 mask_fail("fma_intermediate field does not fit lane_width");
             const int bit = field_lo +
                 (int)(rng() % (unsigned)(field_hi - field_lo + 1));
-            if (!chaos_fsu::buildSingleBitMask(lane_width, lane_offset, bit,
+            if (!chaos_fsu::buildSingleBitMask(lane_width, inj_lane, bit,
                                                mi, ferr))
                 mask_fail(ferr);
         } else if (field_mode) {
@@ -847,11 +990,11 @@ namespace gem5
             const int bit = fr.lo +
                 (int)(rng() % (unsigned)(fr.hi - fr.lo + 1));
             if (!chaos_fsu::buildFieldMask(bitseg, precision_bits, lane_width,
-                                           lane_offset, bit, mi, ferr))
+                                           inj_lane, bit, mi, ferr))
                 mask_fail(ferr);
         } else {
             const int bit = (int)(rng() % (unsigned)lane_width);
-            if (!chaos_fsu::buildSingleBitMask(lane_width, lane_offset, bit,
+            if (!chaos_fsu::buildSingleBitMask(lane_width, inj_lane, bit,
                                                mi, ferr))
                 mask_fail(ferr);
         }
@@ -865,17 +1008,38 @@ namespace gem5
                                          : (int)(rng() % 2);
         }
 
+        // [FSU][FP05-c] cross-lane MBU: ONE event writes the same in-lane
+        // mask into the base lane and the next lane. The two absolute masks
+        // are merged only after both are validated against the vector
+        // geometry; `fault_mask` still names the in-lane mask.
+        chaos_fsu::MaskInfo mi2;
+        const bool burst_cross = burst_mode &&
+            burst_submodel == chaos_fsu::BurstSubmodel::CrossLaneMbu;
+        if (burst_cross) {
+            std::string xerr;
+            if (!chaos_fsu::buildExplicitMask(mi.lane_mask, lane_width,
+                                              inj_lane + 1, mi2, xerr))
+                mask_fail(xerr);
+        }
+
         FaultInfo info;
         info.mask = mi.lane_mask;
         info.precision_bits = precision_bits;
         info.lane_width = lane_width;
-        info.lane_offset = lane_offset;
+        info.lane_offset = inj_lane;
         info.bit_in_lane = mi.bit_in_lane;
         info.abs_bit = mi.abs_bit;
         info.field_lo = field_lo;
         info.field_hi = field_hi;
-        info.abs_lo = mi.abs_lo;
-        info.abs_hi = mi.abs_hi;
+        info.abs_lo = burst_cross ? (mi.abs_lo | mi2.abs_lo) : mi.abs_lo;
+        info.abs_hi = burst_cross ? (mi.abs_hi | mi2.abs_hi) : mi.abs_hi;
+        if (burst_mode) {
+            info.burst = true;
+            info.burst_id = burst_tracker.id;
+            info.burst_ordinal = burst_this_ordinal;
+            info.burst_length = burst_tracker.length;
+            info.burst_mode = chaos_fsu::burstModeName(burst_submodel);
+        }
         info.instruction_bits = dec_enc;
         info.op_class = opClassName(oc);
         if (want_decode) {
@@ -924,6 +1088,12 @@ namespace gem5
                     }
                 }
             }
+        } else if (burst_mode) {
+            // The burst label never pretends to be an IEEE754 field: the
+            // per-event mask is expressed by fault_mask/bit_in_lane and the
+            // submodel is the burst geometry (FP05-a..d).
+            info.field = std::string("burst_") +
+                         chaos_fsu::burstModeName(burst_submodel);
         } else {
             info.field = field_mode ? bitseg :
                 (recurring_stuck ? "recurring_result_stuck" :
@@ -965,6 +1135,9 @@ namespace gem5
             if (!dest || dest->is(InvalidRegClass)) continue;
             // [FSU][FP06] Same regClass predicate as eligibility.
             if (!regClassMatches((int)dest->classValue())) continue;
+            // [FSU][FP05] Burst lane geometry is a VecReg concept; never let
+            // a coincidental scalar dest take the burst ordinal.
+            if (burst_mode && dest->classValue() != VecRegClass) continue;
             switch (dest->classValue()) {
               case VecRegClass: {
                 // Full 128-bit vector register: read/write only the selected
@@ -976,7 +1149,7 @@ namespace gem5
                 std::memcpy(before, vp, 16);
                 std::memcpy(after, vp, 16);
                 const int lane_bytes = lane_width / 8;
-                const int base = lane_offset * lane_bytes;
+                const int base = inj_lane * lane_bytes;
                 uint64_t lane_before = 0, lane_after = 0;
                 std::memcpy(&lane_before, before + base, lane_bytes);
                 // [FSU][F5] Stuck-at forces a polarity (SA0: &~mask,
@@ -986,6 +1159,16 @@ namespace gem5
                     ? chaos_fsu::applyStuck(lane_before, mi.lane_mask, f5_pol)
                     : lane_before ^ mi.lane_mask;
                 std::memcpy(after + base, &lane_after, lane_bytes);
+                if (burst_cross) {
+                    // [FSU][FP05-c] The SAME in-lane mask lands in the next
+                    // lane of the same 128-bit write; the base lane is the
+                    // event's pre-registered lane.
+                    const int base2 = (inj_lane + 1) * lane_bytes;
+                    uint64_t lane2_before = 0, lane2_after = 0;
+                    std::memcpy(&lane2_before, before + base2, lane_bytes);
+                    lane2_after = lane2_before ^ mi2.lane_mask;
+                    std::memcpy(after + base2, &lane2_after, lane_bytes);
+                }
                 std::memcpy(vp, after, 16);
                 std::memcpy(&info.full_before_lo, before, 8);
                 std::memcpy(&info.full_before_hi, before + 8, 8);
@@ -1046,6 +1229,15 @@ namespace gem5
                 panic("CHAOSFPU: rate ordinal %llu matched but no writable "
                       "FP/vector dest (fault not applied)\n",
                       (unsigned long long)injected_eligible_ordinal);
+            if (burst_mode)
+                // Ordinal continuity is a hard burst contract: an applied
+                // ordinal must correspond to a REAL rewritten VecReg cell.
+                // Silently skipping it would make the declared 2-4 length
+                // disagree with the event stream.
+                panic("CHAOSFPU: burst ordinal %llu (eligible %llu) matched "
+                      "but no writable VecReg dest (fault not applied)\n",
+                      (unsigned long long)burst_this_ordinal,
+                      (unsigned long long)injected_eligible_ordinal);
             return false;  // no FP/vector dest register on this inst
         }
         if (permanent_stuck) {
@@ -1062,6 +1254,25 @@ namespace gem5
         } else {
             faults_injected_count++;
             noteFaultApplied(dyn_inst, info);
+            if (burst_mode) {
+                ++burst_events_applied;
+                if (burst_this_ordinal == 0)
+                    ++burst_episodes_applied;
+                uint64_t applied_ordinal = 0;
+                if (!burst_tracker.applyOne(applied_ordinal))
+                    panic("CHAOSFPU: burst trackers out of sync at ordinal "
+                          "%llu\n",
+                          (unsigned long long)burst_this_ordinal);
+                if (applied_ordinal != burst_this_ordinal)
+                    panic("CHAOSFPU: burst ordinal drift %llu != %llu\n",
+                          (unsigned long long)applied_ordinal,
+                          (unsigned long long)burst_this_ordinal);
+                if (burst_tracker.completed()) {
+                    ++burst_episodes_completed;
+                    emitBurstEnd("completed");
+                    burst_tracker.finish();
+                }
+            }
         }
         if (rate_mode) ++next_rate_index;
         if (write_log) {
@@ -1071,6 +1282,15 @@ namespace gem5
                 << (bitseg.empty() ? std::string() : ", bitseg=" + bitseg)
                 << (fma_weighted ? ", mode=fma_intermediate" : "")
                 << (recurring_stuck ? ", mode=recurring_result_stuck" : "")
+                << (burst_mode
+                    ? ", mode=burst, burst_mode=" +
+                      std::string(chaos_fsu::burstModeName(burst_submodel)) +
+                      ", burst_id=" + std::to_string(burst_tracker.id) +
+                      ", burst_ordinal=" +
+                      std::to_string(burst_this_ordinal) +
+                      ", burst_length=" +
+                      std::to_string(burst_tracker.length)
+                    : std::string())
                 << (permanent_stuck
                     ? ", mode=permanent_stuck, polarity=" +
                       std::to_string(f5_polarity) +
@@ -1123,7 +1343,8 @@ namespace gem5
         if (!hook_mi_ok)
             panic("CHAOSFPU: prfWbHook armed without a validated mask\n");
         if (permanent_stuck || count_only || rate_mode || recurring_stuck ||
-            fma_weighted || rounding_sub || f3_dependent || fpsr_suppress)
+            fma_weighted || rounding_sub || f3_dependent || fpsr_suppress ||
+            burst_mode)
             return false;
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
@@ -1433,8 +1654,37 @@ namespace gem5
     void
     CHAOSFPU::noteSquash(o3::DynInst *dyn_inst)
     {
-        if (!dyn_inst || !wb_wakeup_valid ||
-            wb_wakeup_seq != dyn_inst->seqNum)
+        if (!dyn_inst)
+            return;
+        // [FSU][FP05] Explicit per-event squash record. A squashed burst
+        // result never reaches a consumer, so without this event its L0
+        // would look like a silent lost propagation. The episode itself is
+        // NOT terminated (its defined stream is consecutive eligible
+        // execution results, not committed results); the tail accounting
+        // reports the squash explicitly.
+        if (burst_mode) {
+            for (auto &f : faulted_regs) {
+                if (!f.burst || f.squashed || f.burst_squash_reported ||
+                    f.producer_sn != dyn_inst->seqNum)
+                    continue;
+                f.squashed = true;
+                f.burst_squash_reported = true;
+                ++burst_events_squashed;
+                std::vector<std::pair<std::string, std::string>> kv = {
+                    {"dyn_inst_seq", std::to_string(dyn_inst->seqNum)},
+                    {"producer_seq", std::to_string(f.producer_sn)},
+                    {"squash_tick", std::to_string(curTick())},
+                    {"outcome", "burst_event_squashed"},
+                    {"burst_id", std::to_string(f.burst_id)},
+                    {"burst_ordinal", std::to_string(f.burst_ordinal)},
+                    {"burst_length", std::to_string(f.burst_length)},
+                    {"burst_mode", f.burst_mode},
+                    {"activated", "0"},
+                };
+                emitFsu("squash", f.fault_id, f.l1_id, kv);
+            }
+        }
+        if (!wb_wakeup_valid || wb_wakeup_seq != dyn_inst->seqNum)
             return;
         std::vector<std::pair<std::string, std::string>> kv = {
             {"producer_seq", std::to_string(dyn_inst->seqNum)},
@@ -1562,9 +1812,31 @@ namespace gem5
             {"after_hash", hash64(fi.after)},
             {"value_hash", hash64(fi.after)},
             {"attempted", "1"},
+            {"applied", "1"},
             {"activated", ""},
             {"thread_id", std::to_string((int)inst->threadNumber)},
         };
+        // [FSU][FP05] Burst identity. Every applied result inside an episode
+        // is a REAL L0 fault (its own fault_id), but the episode is the F0
+        // injection unit and must be auditable as one cluster.
+        if (fi.burst) {
+            kv.push_back({"burst_id", std::to_string(fi.burst_id)});
+            kv.push_back({"burst_ordinal",
+                          std::to_string(fi.burst_ordinal)});
+            kv.push_back({"burst_length",
+                          std::to_string(fi.burst_length)});
+            kv.push_back({"burst_mode", fi.burst_mode});
+            kv.push_back({"burst_lane_base",
+                          std::to_string(lane_offset)});
+            kv.push_back({"burst_lane_step",
+                          std::to_string(burst_lane_step > 0
+                                             ? burst_lane_step : 1)});
+            // Ground-truth eligible ordinal of this burst event. The gate
+            // verifies the episode's eligible ordinals are consecutive
+            // (+1); non-eligible events never reach this point.
+            kv.push_back({"eligible_ordinal",
+                          std::to_string(injected_eligible_ordinal)});
+        }
         // [FSU][FR07-HOOK v2] Self-describing injection-site provenance.
         if (!fi.injection_site.empty()) {
             kv.push_back({"injection_site", fi.injection_site});
@@ -1627,6 +1899,14 @@ namespace gem5
         }
         const uint64_t l0 = emitFsu("fault_applied", fid, FSU_NO_PARENT, kv);
         const uint64_t l1 = emitFsu("carrier_state", fid, l0, kv);
+        if (fi.burst) {
+            if (fi.burst_ordinal == 0)
+                burst_first_fault_id = fid;
+            // The terminal hangs off the LAST event's own fault chain, so
+            // its parent_event_id never crosses fault ids.
+            burst_last_fault_id = fid;
+            burst_last_event_id = l1;
+        }
         FaultedReg fr;
         fr.fault_id = fid;
         fr.l0_id = l0;
@@ -1664,7 +1944,158 @@ namespace gem5
         fr.is_vec = fi.is_vec;
         fr.consumed = false;
         fr.op_class = fi.op_class;
+        fr.burst = fi.burst;
+        fr.burst_id = fi.burst_id;
+        fr.burst_ordinal = fi.burst_ordinal;
+        fr.burst_length = fi.burst_length;
+        fr.burst_mode = fi.burst_mode;
         faulted_regs.push_back(fr);
+    }
+
+    // ------------------------------------------------------------------
+    // [FSU][FP05] Burst episode accounting / lifecycle.
+    // ------------------------------------------------------------------
+
+    std::vector<std::pair<std::string, std::string>>
+    CHAOSFPU::burstKv() const
+    {
+        std::vector<std::pair<std::string, std::string>> kv = {
+            {"burst_id", std::to_string(burst_tracker.id)},
+            {"burst_length", std::to_string(burst_tracker.length)},
+            {"burst_mode", chaos_fsu::burstModeName(burst_submodel)},
+            {"burst_lane_base", std::to_string(lane_offset)},
+            {"burst_lane_step",
+             std::to_string(burst_lane_step > 0 ? burst_lane_step : 1)},
+            {"burst_eligible_start",
+             std::to_string(burst_tracker.first_eligible_ordinal)},
+            {"burst_eligible_last",
+             std::to_string(burst_tracker.last_eligible_ordinal)},
+        };
+        return kv;
+    }
+
+    void
+    CHAOSFPU::emitBurstEnd(const char *reason)
+    {
+        const bool completed = std::string(reason) == "completed";
+        const bool lane_rej = std::string(reason) == "lane_geometry";
+        std::vector<std::pair<std::string, std::string>> kv = burstKv();
+        kv.push_back({"burst_end_reason", reason});
+        kv.push_back({"burst_end", "1"});
+        kv.push_back({"terminal", reason});
+        kv.push_back({"outcome", reason});
+        kv.push_back({"attempted", "1"});
+        kv.push_back({"applied", lane_rej ? "0" : "1"});
+        kv.push_back({"burst_episode_events",
+                      std::to_string(lane_rej ? 0 : burst_tracker.ordinal)});
+        kv.push_back({"burst_episode_complete", completed ? "1" : "0"});
+        kv.push_back({"burst_expected_episodes", std::to_string(max_faults)});
+        kv.push_back({"burst_episodes_attempted",
+                      std::to_string(burst_episodes_attempted)});
+        kv.push_back({"burst_episodes_applied",
+                      std::to_string(burst_episodes_applied)});
+        kv.push_back({"burst_episodes_completed",
+                      std::to_string(burst_episodes_completed)});
+        kv.push_back({"burst_episodes_short",
+                      std::to_string(burst_episodes_short)});
+        kv.push_back({"burst_episodes_lane_rejected",
+                      std::to_string(burst_episodes_lane_rejected)});
+        kv.push_back({"burst_events_attempted",
+                      std::to_string(burst_events_attempted)});
+        kv.push_back({"burst_events_applied",
+                      std::to_string(burst_events_applied)});
+        kv.push_back({"burst_events_activated",
+                      std::to_string(burst_events_activated)});
+        kv.push_back({"burst_events_squashed",
+                      std::to_string(burst_events_squashed)});
+        kv.push_back({"burst_merged_sources",
+                      std::to_string(burst_merged_consumers)});
+        kv.push_back({"burst_accounting_ok",
+                      chaos_fsu::burstAccountingConserved(
+                          burst_events_attempted, burst_events_applied,
+                          burst_events_activated, burst_events_squashed,
+                          burst_episodes_attempted, burst_episodes_applied,
+                          burst_episodes_completed,
+                          burst_episodes_short,
+                          burst_episodes_lane_rejected)
+                          ? "1" : "0"});
+        emitFsu("burst_end",
+                burst_last_fault_id ? burst_last_fault_id : 0,
+                burst_last_event_id ? burst_last_event_id : FSU_NO_PARENT,
+                kv);
+    }
+
+    void
+    CHAOSFPU::flushBurstAtExit()
+    {
+        if (burst_exit_emitted)
+            return;
+        burst_exit_emitted = true;
+        if (burst_tracker.active && !burst_tracker.completed()) {
+            // Early end: the run exhausted eligible events (or simulation
+            // ended) with an incomplete episode. Record it explicitly; the
+            // declared length is never rewritten to the short count.
+            ++burst_episodes_short;
+            emitBurstEnd("run_exit");
+            burst_tracker.finish();
+        }
+        if (log_stream && log_stream->stream())
+            dumpBurstSummary(*(log_stream->stream()));
+    }
+
+    void
+    CHAOSFPU::registerBurstExitFlush()
+    {
+        if (burst_exit_flush_registered)
+            return;
+        burst_exit_flush_registered = true;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (o3cpu && o3cpu->chaosPropagation) {
+            // Same ordering rule as the F5 chain_end: the terminal must be
+            // written before the tracer closes its stream.
+            o3cpu->chaosPropagation->registerExitFlush(
+                [this]() { flushBurstAtExit(); });
+        } else {
+            // No tracer attached: no event stream exists, but the honest
+            // run-level accounting still has to reach the log.
+            registerExitCallback([this]() { flushBurstAtExit(); });
+        }
+    }
+
+    void
+    CHAOSFPU::dumpBurstSummary(std::ostream &os) const
+    {
+        os << "CHAOS_BURST_MODE="
+           << chaos_fsu::burstModeName(burst_submodel) << "\n";
+        os << "CHAOS_BURST_LENGTH_CONFIG=" << burst_length << "\n";
+        os << "CHAOS_BURST_EXPECTED_EPISODES=" << max_faults << "\n";
+        os << "CHAOS_BURST_EPISODES_ATTEMPTED=" << burst_episodes_attempted
+           << "\n";
+        os << "CHAOS_BURST_EPISODES_APPLIED=" << burst_episodes_applied
+           << "\n";
+        os << "CHAOS_BURST_EPISODES_COMPLETED=" << burst_episodes_completed
+           << "\n";
+        os << "CHAOS_BURST_EPISODES_SHORT=" << burst_episodes_short << "\n";
+        os << "CHAOS_BURST_EPISODES_LANE_REJECTED="
+           << burst_episodes_lane_rejected << "\n";
+        os << "CHAOS_BURST_EVENTS_ATTEMPTED=" << burst_events_attempted
+           << "\n";
+        os << "CHAOS_BURST_EVENTS_APPLIED=" << burst_events_applied << "\n";
+        os << "CHAOS_BURST_EVENTS_ACTIVATED=" << burst_events_activated
+           << "\n";
+        os << "CHAOS_BURST_EVENTS_SQUASHED=" << burst_events_squashed << "\n";
+        os << "CHAOS_BURST_MERGED_CONSUMERS=" << burst_merged_consumers
+           << "\n";
+        os << "CHAOS_BURST_RECURRING_EXCLUDED=1\n";
+        os << "CHAOS_BURST_ACCOUNTING_OK="
+           << (chaos_fsu::burstAccountingConserved(
+                   burst_events_attempted, burst_events_applied,
+                   burst_events_activated, burst_events_squashed,
+                   burst_episodes_attempted, burst_episodes_applied,
+                   burst_episodes_completed, burst_episodes_short,
+                   burst_episodes_lane_rejected)
+                   ? "1" : "0")
+           << "\n";
     }
 
     // ------------------------------------------------------------------
@@ -2171,6 +2602,40 @@ namespace gem5
             return;
         if (tainted_consumers.count(inst->seqNum))
             return;
+
+        // [FSU][FP05] Multi-source merge. ONE consumer instruction may read
+        // several burst-faulted results (e.g. an FMA reading two corrupted
+        // vector operands). Do not silently keep only the first: pre-scan
+        // all burst sources so every L2 event can carry the same explicit
+        // merged count and source fault-id list.
+        std::vector<size_t> burst_matches;
+        for (size_t idx = 0; idx < faulted_regs.size(); ++idx) {
+            auto &bf = faulted_regs[idx];
+            if (bf.consumed || bf.squashed || !bf.burst)
+                continue;
+            for (int i = 0; i < inst->numSrcRegs(); i++) {
+                PhysRegIdPtr reg = inst->renamedSrcIdx(i);
+                if (!reg || reg->is(InvalidRegClass))
+                    continue;
+                if ((int)reg->classValue() == bf.reg_class &&
+                    reg->index() == bf.reg_index &&
+                    (int)inst->threadNumber == bf.tid) {
+                    burst_matches.push_back(idx);
+                    break;
+                }
+            }
+        }
+        const uint64_t burst_merge_total = burst_matches.size();
+        std::string burst_source_ids;
+        for (size_t k = 0; k < burst_matches.size(); ++k) {
+            if (k)
+                burst_source_ids += ",";
+            burst_source_ids +=
+                std::to_string(faulted_regs[burst_matches[k]].fault_id);
+        }
+        if (burst_merge_total > 1)
+            ++burst_merged_consumers;
+
         for (auto &f : faulted_regs) {
             if (f.consumed || f.squashed)
                 continue;
@@ -2270,6 +2735,25 @@ namespace gem5
                         f5_cell_sources.erase(cs);
                     }
                 }
+                if (f.burst) {
+                    // [FSU][FP05] The activated result keeps its episode
+                    // identity on every downstream link.
+                    if (!f.burst_activated) {
+                        f.burst_activated = true;
+                        ++burst_events_activated;
+                    }
+                    kv.push_back({"burst_id",
+                                  std::to_string(f.burst_id)});
+                    kv.push_back({"burst_ordinal",
+                                  std::to_string(f.burst_ordinal)});
+                    kv.push_back({"burst_length",
+                                  std::to_string(f.burst_length)});
+                    kv.push_back({"burst_mode", f.burst_mode});
+                    kv.push_back({"burst_merged_sources",
+                                  std::to_string(burst_merge_total)});
+                    kv.push_back({"burst_source_fault_ids",
+                                  burst_source_ids});
+                }
                 const uint64_t l2 = emitFsu("operand_read", f.fault_id,
                                             f.l1_id, kv);
                 TaintedConsumer tc;
@@ -2297,6 +2781,13 @@ namespace gem5
                 tc.op_class = f.op_class;
                 tc.reg_class = regClassName(f.reg_class);
                 tc.is_store = inst->isStore();
+                tc.burst = f.burst;
+                tc.burst_id = f.burst_id;
+                tc.burst_ordinal = f.burst_ordinal;
+                tc.burst_length = f.burst_length;
+                tc.burst_mode = f.burst_mode;
+                tc.burst_merged_sources = burst_merge_total;
+                tc.burst_source_fault_ids = burst_source_ids;
                 if (!tc.is_store && isFpOpClass(inst->opClass())) {
                     tc.l3_id = emitFsu("execute", f.fault_id, l2, kv);
                     tc.has_l3 = true;
@@ -2304,8 +2795,15 @@ namespace gem5
                                        tc.l3_id, kv);
                     tc.has_l4 = true;
                 }
-                tainted_consumers[inst->seqNum] = tc;
-                return;
+                // Keep the FIRST source as the consumer's primary L4/L5
+                // witness; additional burst sources already have their own
+                // L2/L3/L4 chain above. The merge count travels on the
+                // commit witness via the primary TaintedConsumer.
+                if (!tainted_consumers.count(inst->seqNum))
+                    tainted_consumers[inst->seqNum] = tc;
+                if (!f.burst)
+                    return;
+                break;   // keep scanning: another burst source may follow
             }
         }
     }
@@ -2349,6 +2847,21 @@ namespace gem5
             {"precision_match", tc.precision_match ? "1" : "0"},
             {"lane_match", tc.lane_match ? "1" : "0"},
         };
+        if (tc.burst) {
+            // [FSU][FP05] L5 witnesses keep the episode identity; a merged
+            // consumer says how many burst sources were folded into this
+            // single commit witness (never silently only the first).
+            kv.push_back({"burst_id", std::to_string(tc.burst_id)});
+            kv.push_back({"burst_ordinal",
+                          std::to_string(tc.burst_ordinal)});
+            kv.push_back({"burst_length",
+                          std::to_string(tc.burst_length)});
+            kv.push_back({"burst_mode", tc.burst_mode});
+            kv.push_back({"burst_merged_sources",
+                          std::to_string(tc.burst_merged_sources)});
+            kv.push_back({"burst_source_fault_ids",
+                          tc.burst_source_fault_ids});
+        }
         if (tc.field_lo >= 0)
             kv.push_back({"field_lo", std::to_string(tc.field_lo)});
         if (tc.field_hi >= 0)
@@ -2457,6 +2970,16 @@ namespace gem5
                 {"activated", "0"},
                 {"value_hash", hash64(f.after)},
             };
+            if (f.burst) {
+                // A burst result may legitimately never be read before the
+                // run ends; its terminal still carries the episode identity.
+                kv.push_back({"burst_id", std::to_string(f.burst_id)});
+                kv.push_back({"burst_ordinal",
+                              std::to_string(f.burst_ordinal)});
+                kv.push_back({"burst_length",
+                              std::to_string(f.burst_length)});
+                kv.push_back({"burst_mode", f.burst_mode});
+            }
             emitFsu("not_activated", f.fault_id, f.l1_id, kv);
         }
     }
@@ -2477,6 +3000,19 @@ namespace gem5
             registerExitCallback([this]() {
                 if (log_stream && log_stream->stream())
                     dumpCensus(*(log_stream->stream()));
+            });
+        }
+        // [FSU][FP05] Burst run-level accounting. The episode terminal is
+        // written by the tracer flush hook registered at first arm; this
+        // callback covers the "no episode was ever armed" case (skip not
+        // reached / no eligible burst event) without double-emitting.
+        if (burst_mode) {
+            burst_tracker.next_id = burst_id_base;
+            registerExitCallback([this]() {
+                if (burst_exit_flush_registered)
+                    return;
+                if (log_stream && log_stream->stream())
+                    dumpBurstSummary(*(log_stream->stream()));
             });
         }
         // [FSU][FP08] The early-return proxy counters must be visible in the

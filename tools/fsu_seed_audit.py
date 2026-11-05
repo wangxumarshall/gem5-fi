@@ -75,6 +75,101 @@ FIELD_SUBMODEL = {
 MODE_FIELDS = {"uniform", "recurring_result_stuck", "fma_intermediate",
                "rounding_sub", "permanent_stuck"}
 ROOT_KINDS = ("fault_applied", "fault_installed")
+# [FSU][FP05] One episode over 2-4 consecutive eligible results. Burst
+# events use their own geometry validator; they are never routed through the
+# FP04 IEEE-field table (the field label is "burst_<submodel>").
+BURST_MODES = ("same_lane", "adjacent_lane", "cross_lane_mbu", "lane_mask")
+
+
+def _is_burst_event(evt):
+    return str(evt.get("burst_id", "")).strip() != ""
+
+
+def _burst_violations(evt):
+    """Validate one FP05 burst event's episode/lane/mask identity.
+
+    The episode contract: burst_id fixed, burst_ordinal 0..length-1,
+    burst_length in {2,3,4}; the event's resolved lane must match the
+    pre-registered geometry; every changed bit must be exactly the declared
+    mask (XOR), and a cross-lane MBU must really touch the next lane.
+    """
+    v = []
+    fid = str(evt.get("fault_id", "?"))
+    try:
+        bid = int(str(evt.get("burst_id")), 0)
+        ordinal = int(str(evt.get("burst_ordinal")), 0)
+        length = int(str(evt.get("burst_length")), 0)
+    except ValueError:
+        return [f"fault {fid}: burst fields are not integers"]
+    if bid < 0:
+        v.append(f"fault {fid}: burst_id {bid} < 0")
+    if length not in (2, 3, 4):
+        v.append(f"fault {fid}: burst_length {length} outside {{2,3,4}}")
+        return v
+    if not (0 <= ordinal < length):
+        v.append(f"fault {fid}: burst_ordinal {ordinal} outside [0,{length})")
+    mode = str(evt.get("burst_mode", "")).strip()
+    if mode not in BURST_MODES:
+        v.append(f"fault {fid}: unknown burst_mode {mode!r}")
+        return v
+    field = str(evt.get("field", "")).strip()
+    if field != f"burst_{mode}":
+        v.append(f"fault {fid}: field {field!r} != burst_{mode}")
+    lane_w = int(str(evt.get("lane_width") or 64))
+    lane_o = int(str(evt.get("lane_offset") or 0))
+    if lane_w not in (8, 16, 32, 64):
+        return v + [f"fault {fid}: invalid lane_width {lane_w}"]
+    lanes = 128 // lane_w
+    if not (0 <= lane_o < lanes):
+        return v + [f"fault {fid}: lane_offset {lane_o} outside {lanes} lanes"]
+    try:
+        base = int(str(evt.get("burst_lane_base")), 0)
+        step = int(str(evt.get("burst_lane_step")), 0)
+    except ValueError:
+        return v + [f"fault {fid}: missing burst_lane_base/step"]
+    if not (0 <= base < lanes):
+        v.append(f"fault {fid}: burst_lane_base {base} outside {lanes} lanes")
+    # Resolved lane must be exactly the pre-registered geometry.
+    want_lane = (base + ordinal * step) if mode == "adjacent_lane" else base
+    if lane_o != want_lane:
+        v.append(f"fault {fid}: lane_offset {lane_o} != burst geometry "
+                 f"{want_lane} (mode={mode}, ordinal={ordinal})")
+    if mode == "cross_lane_mbu" and base + 1 >= lanes:
+        v.append(f"fault {fid}: cross_lane_mbu base {base} has no next lane")
+    mask = _hex_int(evt.get("fault_mask"))
+    if mask is None or mask == 0:
+        return v + [f"fault {fid}: missing/zero fault_mask"]
+    if lane_w < 64 and (mask >> lane_w):
+        v.append(f"fault {fid}: fault_mask 0x{mask:x} exceeds lane {lane_w}")
+    rel = int(str(evt.get("bit_in_lane") or 0))
+    if rel < 0 or rel >= lane_w:
+        v.append(f"fault {fid}: bit_in_lane {rel} outside lane")
+    if str(evt.get("attempted", "")).strip() != "1":
+        v.append(f"fault {fid}: burst event attempted != 1")
+    if str(evt.get("applied", "")).strip() != "1":
+        v.append(f"fault {fid}: burst event applied != 1")
+    before = _hex_int(evt.get("before"), default=None)
+    after = _hex_int(evt.get("after"), default=None)
+    if before is not None and after is not None:
+        if (before ^ after) != mask:
+            v.append(f"fault {fid}: before^after 0x{before ^ after:x} "
+                     f"!= fault_mask 0x{mask:x}")
+    full_before = _hex_int(evt.get("full_before"), default=None)
+    full_after = _hex_int(evt.get("full_after"), default=None)
+    lane_base = lane_o * lane_w
+    want_abs = mask << lane_base
+    if mode == "cross_lane_mbu":
+        want_abs |= mask << (lane_base + lane_w)
+    if full_before is not None and full_after is not None:
+        if (full_before ^ full_after) != want_abs:
+            v.append(f"fault {fid}: full_before^full_after "
+                     f"0x{full_before ^ full_after:x} != expected "
+                     f"0x{want_abs:x}")
+    lane_mask = _hex_int(evt.get("lane_mask"), default=None)
+    if lane_mask is not None and lane_mask != want_abs:
+        v.append(f"fault {fid}: lane_mask 0x{lane_mask:x} != expected "
+                 f"0x{want_abs:x}")
+    return v
 
 
 def _mask_hex(value, default=None):
@@ -116,6 +211,9 @@ def _field_violations(evt):
     interpreted as FP64, lane_width=64, lane_offset=0 (their emitted
     contract). New D3 events carry all fields explicitly.
     """
+    # [FSU][FP05] Burst events carry their own episode/lane geometry.
+    if _is_burst_event(evt):
+        return _burst_violations(evt)
     v = []
     fid = str(evt.get("fault_id", "?"))
     field = str(evt.get("field", "")).strip()
@@ -289,6 +387,14 @@ def _decode_violations(evt):
         v.append(f"fault {fid}: invalid decoded width/lanes {ew}/{lanes}")
     if man_lw != lane_w:
         v.append(f"fault {fid}: manifest_lane_width {man_lw} != {lane_w}")
+    if _is_burst_event(evt):
+        # [FSU][FP05] The workbook trigger is a vector op with >= 2 active
+        # lanes; the burst geometry must fit those decoded lanes.
+        if kind != "neon_vector":
+            v.append(f"fault {fid}: burst requires neon_vector, got {kind}")
+        if lanes < 2:
+            v.append(f"fault {fid}: burst requires >=2 decoded lanes, "
+                     f"got {lanes}")
     if kind == "scalar_vfp":
         if lanes != 1 or lane_o != 0:
             v.append(f"fault {fid}: scalar decode lanes={lanes} offset={lane_o}")
@@ -376,8 +482,43 @@ def audit_attempt(attempt: Path):
     # 2.1 字段 / lane / mask 语义（新增门禁，绝不放宽既有门禁）
     roots = [e for e in events if str(e.get("kind")) in ROOT_KINDS]
     scheduled = _scheduled_faults(manifest, report)
-    check(f"scheduled({scheduled}) = fault_roots({len(roots)})",
-          scheduled == len(roots))
+    burst_roots = [r for r in roots if _is_burst_event(r)]
+    plain_roots = [r for r in roots if not _is_burst_event(r)]
+    if burst_roots:
+        # One F0 injection unit is one EPISODE, so scheduled counts
+        # episodes, not fault roots. Each episode's ordinals must be the
+        # exact sequence 0..k-1 with one declared length, and every episode
+        # root must be tagged (no mixed tagging).
+        check("burst 流不混入未标记 root", not plain_roots)
+        episodes = {}
+        for r in burst_roots:
+            try:
+                bid = int(str(r.get("burst_id")), 0)
+                ordinal = int(str(r.get("burst_ordinal")), 0)
+                length = int(str(r.get("burst_length")), 0)
+            except ValueError:
+                episodes.setdefault("?", []).append((-1, -1))
+                continue
+            episodes.setdefault(bid, []).append((ordinal, length))
+        check(f"scheduled({scheduled}) = burst episodes({len(episodes)})",
+              scheduled == len(episodes))
+        for bid, rows in episodes.items():
+            ordinals = sorted(o for o, _ in rows)
+            lengths = {n for _, n in rows}
+            check(f"burst {bid} ordinal 0..len-1 连续",
+                  bool(rows) and ordinals == list(range(len(rows))))
+            check(f"burst {bid} 声明长度一致且在 2..4",
+                  len(lengths) == 1 and
+                  next(iter(lengths), 0) in (2, 3, 4))
+        ends = [e for e in events if str(e.get("kind")) == "burst_end"]
+        for bid in episodes:
+            mine = [e for e in ends if str(e.get("burst_id")) == str(bid)]
+            check(f"burst {bid} 有唯一 completed 终止记录",
+                  len(mine) == 1 and
+                  str(mine[0].get("burst_end_reason")) == "completed")
+    else:
+        check(f"scheduled({scheduled}) = fault_roots({len(roots)})",
+              scheduled == len(roots))
     root_ids = {str(e.get("fault_id")) for e in roots}
     # [FR03] A permanent physical-cell activation is observed on its write
     # exposure (`phys_write`), exactly as FP06 observes it on `exposure`.
@@ -387,8 +528,25 @@ def audit_attempt(attempt: Path):
                      if (str(e.get("kind")) in P.BRANCH_KINDS
                          or str(e.get("kind")) == "operand_read")
                      and str(e.get("activated")) == "1"}
-    check("每个 injected fault 均真实激活",
-          bool(root_ids) and activated_ids == root_ids)
+    if burst_roots:
+        # A burst result may legitimately be squashed or never read before
+        # the run ends. Require an EXPLICIT terminal for every burst event
+        # instead of pretending every event was activated.
+        for r in burst_roots:
+            fid = str(r.get("fault_id"))
+            terminal = [e for e in events
+                        if str(e.get("fault_id")) == fid
+                        and ((str(e.get("kind")) == "operand_read"
+                              and str(e.get("activated")) == "1")
+                             or str(e.get("kind")) in ("squash",
+                                                       "not_activated"))]
+            check(f"burst fault {fid} 有显式激活/终止证据", bool(terminal))
+        check("burst 之外仍无未激活 fault",
+              not plain_roots or activated_ids >=
+              {str(r.get("fault_id")) for r in plain_roots})
+    else:
+        check("每个 injected fault 均真实激活",
+              bool(root_ids) and activated_ids == root_ids)
     # [FSU][F5] Activation is a property of an exposure, not of a new fault.
     # A permanent-fault root must have at least one activated exposure; the
     # exposure events must never mint additional fault_ids.

@@ -1,5 +1,10 @@
 # FP05 burst 准备：语义、只读 gate 与所需 C++ 改动
 
+> **2026-11-05 状态更新**：本文描述的“当前无 burst 实现”已被
+> `FP05-BURST-IMPLEMENTATION.md` 取代。真实 F0 burst 发射端、runner/schema/
+> 审计接线与 strict gate（`--require-end --expected-episodes 1`）已落地；
+> 本文保留为预注册设计与历史 gate 证据，不再代表当前源码状态。
+
 日期：2026-11-04。本文件只做设计与只读校验，**不产生正式计数、不新增
 RunID/seed、不运行 gem5**。结论先行：
 

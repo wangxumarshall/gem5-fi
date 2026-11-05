@@ -65,6 +65,15 @@ FPU_OP_CLASSES = ("FloatAdd", "FloatCmp", "FloatCvt", "FloatMult",
 FPU_REG_CLASSES = ("any", "vec", "float", "vec_elem")
 FPU_F5_UINT_FIELDS = ("f5_warmup", "f5_sample_limit",
                       "f5_keep_first_last_n")
+# [FSU][FP05] Real result burst. Same vocabulary as CHAOSFPU.py /
+# tools/fsu_seed_runner.py / configs/se/ooo_proxy.py.
+FPU_BURST_MODES = ("", "same_lane", "adjacent_lane", "cross_lane_mbu",
+                   "lane_mask")
+FPU_BURST_COMPANIONS = ("burst_length", "burst_lane_step", "burst_lane_mask",
+                        "burst_id_base")
+FPU_BURST_EXCLUSIVE = ("bitseg", "recurring_stuck", "permanent_stuck",
+                       "rounding_sub", "f3_dependent", "fpsr_suppress",
+                       "fma_weighted", "prf_wb_hook")
 
 REQUIRED_TOP = ("schema_version", "run_id", "source", "platform", "workload",
                 "trigger", "target", "fault", "rng", "limits")
@@ -138,6 +147,41 @@ def _validate_fpu_mode(fpu, errs):
             v = fpu[key]
             if not _is_int(v) or v < 0:
                 errs.append(f"{p}.{key}: must be an integer >= 0 (got {v!r})")
+
+    # [FSU][FP05] Burst block. An unknown submodel, an out-of-range length or
+    # a half-routed companion key is rejected here (the C++ constructor and
+    # runner reject the same cases; nothing is silently dropped).
+    if "burst_mode" in fpu:
+        mode = fpu["burst_mode"]
+        if not isinstance(mode, str):
+            errs.append(f"{p}.burst_mode: not a string")
+        elif mode not in FPU_BURST_MODES:
+            errs.append(f"{p}.burst_mode: '{mode}' not in "
+                        f"{list(FPU_BURST_MODES)}")
+        elif mode:
+            blen = fpu.get("burst_length")
+            if not _is_int(blen) or blen not in (2, 3, 4):
+                errs.append(f"{p}.burst_length: burst_mode requires 2, 3 or "
+                            f"4 (got {blen!r})")
+            for key in ("burst_lane_step", "burst_lane_mask",
+                        "burst_id_base"):
+                if key in fpu:
+                    v = fpu[key]
+                    if not _is_int(v) or v < 1:
+                        errs.append(f"{p}.{key}: must be an integer >= 1 "
+                                    f"(got {v!r})")
+            for key in FPU_BURST_EXCLUSIVE:
+                if fpu.get(key):
+                    errs.append(f"{p}.burst_mode is incompatible with "
+                                f"{key}")
+        else:
+            for key in FPU_BURST_COMPANIONS:
+                if key in fpu:
+                    errs.append(f"{p}.{key} requires burst_mode")
+    else:
+        for key in FPU_BURST_COMPANIONS:
+            if key in fpu:
+                errs.append(f"{p}.{key} requires burst_mode")
 
 
 def validate(m):

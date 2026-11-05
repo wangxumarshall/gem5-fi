@@ -63,6 +63,9 @@ PREFIXES = ("FSU_PROP-EVT:", "PROP-EVT:")
 BURST_MIN = 2
 BURST_MAX = 4
 BURST_FIELDS = ("burst_id", "burst_ordinal", "burst_length")
+# The real emitter must also emit the explicit episode terminal; a burst
+# with no end record cannot prove how it ended (completed/run_exit/etc.).
+BURST_LIFECYCLE_FIELDS = ("burst_end",)
 MODEL = "FP05"
 
 # A recurring/permanent stream uses these markers.  They are exposures of one
@@ -169,10 +172,11 @@ def check_source_support(root=ROOT):
             texts[path.name] = ""
     emitter = texts.get("CHAOSFPU.cc", "")
     present = {}
-    for field in BURST_FIELDS:
+    for field in BURST_FIELDS + BURST_LIFECYCLE_FIELDS:
         present[field] = re.search(r'"%s"' % re.escape(field), emitter) \
             is not None
-    missing = [f for f in BURST_FIELDS if not present[f]]
+    missing = [f for f in BURST_FIELDS + BURST_LIFECYCLE_FIELDS
+               if not present[f]]
     return {
         "implemented": not missing,
         "present": present,
@@ -282,8 +286,20 @@ def _episode_report(burst_id, rows):
     return report, ok
 
 
-def check_burst_stream(events):
-    """Validate FP05 burst semantics of one in-memory event list."""
+def check_burst_stream(events, require_end=False, expected_episodes=None):
+    """Validate FP05 burst semantics of one in-memory event list.
+
+    ``require_end`` makes the gate STRICT (used for formal F0 pilots): every
+    episode must have exactly one explicit ``burst_end`` record whose reason
+    is ``completed``, each applied event must carry ``attempted=1`` /
+    ``applied=1`` and a real value hash.  Without it the historical rule-only
+    behaviour is preserved (missing terminals are not silently PASSed: a
+    stream with no burst tags is still SKIP).
+
+    ``expected_episodes`` is the pre-registered F0 episode count (normally 1);
+    a different count is a hard FAIL — one run must never silently start a
+    second episode.
+    """
     events, had_model = _filter_fp05(events)
     applied = [e for e in events if _applied(e)]
 
@@ -307,13 +323,26 @@ def check_burst_stream(events):
     # (an F5 exposure is recurring evidence too).
     result["recurring_event_count"] = sum(1 for e in events if is_recurring(e))
 
+    # A pre-registered formal episode count turns "no evidence" into a
+    # contract failure: the run promised an episode and produced none.
+    def _expected_empty():
+        return expected_episodes is not None and expected_episodes > 0
+
     if had_model and not events:
         result["reason"] = "no FP05 events in the stream"
         result["evidence_missing"] = ["FP05 fault_applied events"]
+        if _expected_empty():
+            result["status"] = "FAIL"
+            result["reason"] += (" (expected %d episode(s), got 0)"
+                                 % expected_episodes)
         return result
     if not applied:
         result["reason"] = "no fault_applied events in the stream"
         result["evidence_missing"] = ["fault_applied events"]
+        if _expected_empty():
+            result["status"] = "FAIL"
+            result["reason"] += (" (expected %d episode(s), got 0)"
+                                 % expected_episodes)
         if result["recurring_event_count"]:
             result["evidence_missing"].extend(BURST_FIELDS)
             result["evidence_missing"].append(
@@ -365,6 +394,10 @@ def check_burst_stream(events):
         if recurring:
             result["evidence_missing"].append(
                 "burst evidence (only recurring/permanent events present)")
+        if _expected_empty():
+            result["status"] = "FAIL"
+            result["reason"] += (" (expected %d episode(s), got 0)"
+                                 % expected_episodes)
         return result
 
     # Every tagged event must have all three fields: a partial tag cannot be
@@ -423,6 +456,162 @@ def check_burst_stream(events):
         all_ok = all_ok and ok
 
     result["burst_episode_count"] = len(runs)
+
+    # ---- explicit episode terminal (`burst_end`) -------------------------
+    # The workbook requires an explicit record when a burst ends (completed,
+    # early run exit, or an impossible pre-registered geometry). A stream
+    # that simply stops is not allowed to look complete.
+    terminates = {}
+    for idx, ev in enumerate(events):
+        if ev.get("kind", "") != "burst_end":
+            continue
+        bid = _int(ev.get("burst_id"))
+        terminates.setdefault(bid, []).append((idx, ev))
+
+    evt_pos = {id(ev): idx for idx, ev in enumerate(events)}
+    for bid, rows in runs:
+        ends = terminates.get(bid, [])
+        if len(ends) > 1:
+            checks.append(_check(
+                "single_burst_end", False,
+                "burst_id=%s has %d burst_end records" % (bid, len(ends))))
+            all_ok = False
+            continue
+        if not ends:
+            if require_end:
+                # Missing evidence, not a contract violation: SKIP (never a
+                # PASS). A formal pilot must supply the terminal.
+                evidence_missing.append("burst_end")
+                checks.append(_check(
+                    "burst_end_present", True,
+                    "burst_id=%s terminal missing -> evidence_missing"
+                    % bid))
+            else:
+                checks.append(_check(
+                    "burst_end_present", True,
+                    "burst_id=%s terminal not required in rule-only mode"
+                    % bid))
+            continue
+        end_idx, end_ev = ends[0]
+        checks.append(_check("burst_end_present", True, ""))
+        reason = str(end_ev.get("burst_end_reason", "")).strip()
+        completed = reason == "completed"
+        checks.append(_check(
+            "burst_end_completed", completed,
+            "burst_id=%s burst_end_reason=%r" % (bid, reason)))
+        all_ok = all_ok and completed
+        if completed:
+            try:
+                declared = int(str(end_ev.get("burst_length", "")), 0)
+            except ValueError:
+                declared = None
+            ep = next((e for e in result["episodes"]
+                       if e["burst_id"] == bid), None)
+            want = ep["declared_length"] if ep else None
+            checks.append(_check(
+                "burst_end_length_matches", declared == want,
+                "burst_id=%s end_length=%s declared=%s" %
+                (bid, declared, want)))
+            all_ok = all_ok and declared == want
+            try:
+                ep_events = int(str(end_ev.get("burst_episode_events", "")), 0)
+            except ValueError:
+                ep_events = None
+            checks.append(_check(
+                "burst_end_event_count", ep_events == len(rows),
+                "burst_id=%s end_events=%s actual=%s" %
+                (bid, ep_events, len(rows))))
+            all_ok = all_ok and ep_events == len(rows)
+        # The terminal must follow the last event of its own episode.
+        last_idx = max((evt_pos[id(r)] for r in rows), default=-1)
+        after = end_idx > last_idx
+        checks.append(_check(
+            "burst_end_after_events", after,
+            "burst_id=%s end_pos=%s last_event_pos=%s" %
+            (bid, end_idx, last_idx)))
+        all_ok = all_ok and after
+        # Accounting must reconcile (explicit, never inferred).
+        acct = str(end_ev.get("burst_accounting_ok", "")).strip()
+        if acct:
+            checks.append(_check(
+                "burst_accounting_ok", acct == "1",
+                "burst_id=%s burst_accounting_ok=%s" % (bid, acct)))
+            all_ok = all_ok and acct == "1"
+
+    if expected_episodes is not None:
+        match = result["burst_episode_count"] == expected_episodes
+        checks.append(_check(
+            "episode_count_matches_expected", match,
+            "expected=%s actual=%s" %
+            (expected_episodes, result["burst_episode_count"])))
+        all_ok = all_ok and match
+
+    if require_end:
+        # Per-event identity/propagation evidence and the multi-source
+        # merge contract are hard requirements for a formal pilot.
+        for ev in tagged:
+            bid = _int(ev.get("burst_id"))
+            ordn = _int(ev.get("burst_ordinal"))
+            tag = "burst_id=%s ordinal=%s" % (bid, ordn)
+            attempted = str(ev.get("attempted", "")).strip() == "1"
+            applied = str(ev.get("applied", "")).strip() == "1"
+            checks.append(_check("event_attempted_applied",
+                                 attempted and applied, tag))
+            all_ok = all_ok and attempted and applied
+            has_hash = bool(str(ev.get("value_hash", "")).strip() or
+                            str(ev.get("after_hash", "")).strip())
+            checks.append(_check("event_value_identity", has_hash, tag))
+            all_ok = all_ok and has_hash
+        # Multi-source merge evidence can live on L2/L4/L5 events (not only
+        # on the L0 roots): every declared merge count must name exactly that
+        # many real burst fault ids, and each named id must be one of the
+        # episode's applied events.
+        # Every applied burst result must have an explicit propagation
+        # terminal: an activated consumer read, an explicit squash, or an
+        # honest not_activated. A fault that simply disappears is rejected.
+        terminals = set()
+        for ev in events:
+            fid = str(ev.get("fault_id", ""))
+            kind = ev.get("kind", "")
+            if kind == "operand_read" and str(
+                    ev.get("activated", "")).strip() == "1":
+                terminals.add(fid)
+            elif kind in ("not_activated", "squash"):
+                terminals.add(fid)
+        for ev in tagged:
+            fid = str(ev.get("fault_id", ""))
+            ok_term = fid in terminals
+            checks.append(_check(
+                "event_terminal_evidence", ok_term,
+                ("fault_id=%s terminal present" % fid) if ok_term else
+                ("fault_id=%s has no activation/squash/not_activated "
+                 "terminal" % fid)))
+            all_ok = all_ok and ok_term
+
+        burst_fault_ids = {str(e.get("fault_id")) for e in tagged}
+        for ev in events:
+            merged = str(ev.get("burst_merged_sources", "")).strip()
+            if not merged:
+                continue
+            try:
+                n = int(merged, 0)
+            except ValueError:
+                n = -1
+            # n == 0 is the aggregate/lifecycle form (e.g. burst_end reports
+            # "no merged sources"). It advertises no merge, so it is not a
+            # lost-merge violation; positive merges still need real source ids.
+            if n == 0:
+                continue
+            src = [s for s in str(
+                ev.get("burst_source_fault_ids", "")).split(",") if s]
+            ok_merge = (n >= 1 and len(src) == n
+                        and all(s in burst_fault_ids for s in src))
+            checks.append(_check(
+                "merged_sources_not_lost", ok_merge,
+                "kind=%s event_id=%s merged=%s sources=%s" %
+                (ev.get("kind", ""), ev.get("event_id", ""), merged, src)))
+            all_ok = all_ok and ok_merge
+
     result["evidence_missing"] = sorted(set(evidence_missing))
     if not all_ok or any(not c["ok"] for c in checks):
         result["status"] = "FAIL"
@@ -436,13 +625,14 @@ def check_burst_stream(events):
         return result
     result["status"] = "PASS"
     result["reason"] = ("%d burst episode(s), %d event(s), all ordinals "
-                        "0..len-1 and length in {%d,%d}" %
+                        "0..len-1 and length in [%d,%d]" %
                         (result["burst_episode_count"],
                          result["burst_event_count"], BURST_MIN, BURST_MAX))
     return result
 
 
-def build_report(stream_path=None, root=ROOT):
+def build_report(stream_path=None, root=ROOT, require_end=False,
+                 expected_episodes=None):
     """Full gate report: source support + optional stream validation."""
     source = check_source_support(root)
     report = {
@@ -461,7 +651,7 @@ def build_report(stream_path=None, root=ROOT):
                        if not source["implemented"] else
                        "burst emitter exists but no stream was supplied"),
             "evidence_missing": (["burst_id", "burst_ordinal",
-                                  "burst_length", "stream"]
+                                  "burst_length", "burst_end", "stream"]
                                  if not source["implemented"]
                                  else ["stream"]),
         })
@@ -478,7 +668,8 @@ def build_report(stream_path=None, root=ROOT):
         })
         return report
 
-    stream = check_burst_stream(events)
+    stream = check_burst_stream(events, require_end=require_end,
+                                expected_episodes=expected_episodes)
     report.update(stream)
     report["source_support"] = source
     # Fail closed: a stream that claims bursts cannot come from a source tree
@@ -523,10 +714,18 @@ def main(argv=None):
     ap.add_argument("--stream", help="PROP/FSU_PROP event file (.gz ok)")
     ap.add_argument("--source-root", default=str(ROOT),
                     help="repo root holding CHAOS/gem5/src/...")
+    ap.add_argument("--require-end", action="store_true",
+                    help="strict formal mode: every episode must have one "
+                         "burst_end with reason=completed + per-event "
+                         "identity/merge evidence")
+    ap.add_argument("--expected-episodes", type=int, default=None,
+                    help="pre-registered F0 episode count (normally 1)")
     ap.add_argument("--json", action="store_true", help="emit JSON")
     args = ap.parse_args(argv)
 
-    report = build_report(args.stream, args.source_root)
+    report = build_report(args.stream, args.source_root,
+                          require_end=args.require_end,
+                          expected_episodes=args.expected_episodes)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

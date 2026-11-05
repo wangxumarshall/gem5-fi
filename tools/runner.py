@@ -1282,6 +1282,37 @@ def main():
                     f"{fm_mode['exp_lo']},{fm_mode['exp_hi']}"]
         if fm_mode.get("fpsr_suppress"):
             cmd += ["--fpu_fpsr_suppress"]
+        # [FSU][FP05] Real result burst. Unknown submodels/lengths are a hard
+        # error before gem5 starts (the injector would also panic); the
+        # manifest must never be half-routed.
+        if fm_mode.get("burst_mode"):
+            bmode = str(fm_mode["burst_mode"])
+            if bmode not in ("same_lane", "adjacent_lane", "cross_lane_mbu",
+                             "lane_mask"):
+                raise SystemExit(
+                    f"unknown fpu_mode.burst_mode {bmode!r}; expected "
+                    "same_lane|adjacent_lane|cross_lane_mbu|lane_mask")
+            blen = fm_mode.get("burst_length")
+            try:
+                blen = int(str(blen), 0)
+            except (TypeError, ValueError):
+                raise SystemExit(
+                    f"fpu_mode.burst_mode requires integer burst_length in "
+                    f"{{2,3,4}}, got {blen!r}")
+            if blen not in (2, 3, 4):
+                raise SystemExit(
+                    f"fpu_mode.burst_length must be 2/3/4, got {blen}")
+            cmd += ["--fpu_burst_mode", bmode,
+                    "--fpu_burst_length", str(blen)]
+            if fm_mode.get("burst_lane_step") is not None:
+                cmd += ["--fpu_burst_lane_step",
+                        str(int(fm_mode["burst_lane_step"]))]
+            if fm_mode.get("burst_lane_mask") is not None:
+                cmd += ["--fpu_burst_lane_mask",
+                        str(int(str(fm_mode["burst_lane_mask"]), 0))]
+            if fm_mode.get("burst_id_base") is not None:
+                cmd += ["--fpu_burst_id_base",
+                        str(int(fm_mode["burst_id_base"]))]
     elif comp == "l1d_fwd":
         # §2.7 CHAOSL1DForward (post-check escape).
         cmd += ["--chaos_l1dfwd", "--l1dfwd_first_clock", str(t["value"]),

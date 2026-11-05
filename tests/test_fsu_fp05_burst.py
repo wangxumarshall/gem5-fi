@@ -1,9 +1,11 @@
 """FP05 burst gate tests (offline; no gem5, no formal runs).
 
 These tests exercise the contract validator with SYNTHETIC event streams.
-They are not evidence that gem5 emits bursts: the real source check below
-proves the opposite for the current tree (CHAOSFPU has no burst emitter), and
-the gate must therefore return SKIP/BLOCKED, never PASS.
+They are NOT evidence that gem5 emitted a burst: the real source check below
+only proves that CHAOSFPU contains the burst emitter literals. Real evidence
+requires a gem5 pilot whose prop_evt stream passes the strict mode
+(``--require-end --expected-episodes 1``); without a stream the gate is SKIP,
+never PASS.
 """
 import json
 import subprocess
@@ -199,17 +201,17 @@ def test_parse_stream_text_roundtrip():
     assert_status(rep, "PASS")
 
 
-def test_current_source_has_no_burst_emitter_and_gate_skips():
+def test_current_source_has_real_burst_emitter():
     source = G.check_source_support(ROOT)
-    # TRUE for the current tree: the workbook itself records FP05 as partial
-    # and F0-READINESS-ORDER.md says burst_id/ordinal are missing.
-    assert source["implemented"] is False, source
-    assert set(source["missing"]) == {"burst_id", "burst_ordinal",
-                                      "burst_length"}
+    # [FSU][FP05] The real emitter (fields + explicit burst_end terminal) is
+    # now in CHAOSFPU.cc; source-only is SKIP because no stream was supplied,
+    # but it is NOT blocked on a missing emitter.
+    assert source["implemented"] is True, source
+    assert source["missing"] == [], source
     rep = G.build_report(None, ROOT)
     assert rep["status"] == "SKIP"
-    assert rep["blocked"] is True
-    assert "burst_id" in rep["evidence_missing"]
+    assert rep["blocked"] is False
+    assert rep["evidence_missing"] == ["stream"]
 
 
 def test_synthetic_burst_cannot_pass_against_a_burstless_source(tmp_path):
@@ -217,13 +219,137 @@ def test_synthetic_burst_cannot_pass_against_a_burstless_source(tmp_path):
     lines = ["PROP-EVT: kind=fault_applied model_id=FP05 burst_id=1 "
              "burst_ordinal=%d burst_length=2" % o for o in (0, 1)]
     stream.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    rep = G.build_report(stream, ROOT)
-    # The validator itself accepts the synthetic stream...
+    # A synthetic source root with no emitter must never validate a burst
+    # stream: fail closed against forged/stale evidence.
+    empty_root = tmp_path / "src"
+    for rel in ("CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.cc",
+                "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.hh",
+                "CHAOS/gem5/src/cpu/o3/CHAOSFPU/CHAOSFPU.py"):
+        p = empty_root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("/* no burst emitter */\n", encoding="utf-8")
+    rep = G.build_report(stream, empty_root)
     assert any(c["check"] == "ordinal_0_to_len_minus_1"
                and c["ok"] for c in rep["checks"])
-    # ...but the gate fails closed because this source cannot emit it.
     assert rep["status"] == "FAIL"
     assert "no burst emitter" in rep["reason"]
+
+
+# ---- strict formal mode (explicit burst_end + identity/merge evidence) ----
+
+def end(burst_id, length, events, reason="completed", **extra):
+    d = {"kind": "burst_end", "model_id": "FP05", "fault_id": "1",
+         "burst_id": str(burst_id), "burst_length": str(length),
+         "burst_end_reason": reason, "burst_episode_events": str(events),
+         "burst_accounting_ok": "1" if reason == "completed" else "0"}
+    d.update({k: str(v) for k, v in extra.items()})
+    return d
+
+
+def strict_burst(burst_id, length, eligible_start=100, reason="completed",
+                 events=None):
+    rows = burst(burst_id, range(length), length, eligible_start)
+    for i, r in enumerate(rows):
+        r["fault_id"] = str(burst_id * 10 + i + 1)
+        r["attempted"] = "1"
+        r["applied"] = "1"
+        r["value_hash"] = "0xdeadbeef"
+        # Every applied result has an explicit honest terminal. The real
+        # emitter emits not_activated at exit for unconsumed results.
+        rows[i] = r
+    for r in list(rows):
+        rows.append({"kind": "not_activated", "model_id": "FP05",
+                     "fault_id": r["fault_id"], "burst_id": str(burst_id),
+                     "burst_ordinal": r["burst_ordinal"],
+                     "burst_length": str(length), "activated": "0"})
+    rows.append(end(burst_id, length,
+                    length if events is None else events, reason=reason))
+    return rows
+
+
+def test_strict_completed_episode_passes():
+    rep = G.check_burst_stream(strict_burst(3, 3), require_end=True,
+                               expected_episodes=1)
+    assert_status(rep, "PASS")
+
+
+def test_strict_lengths_2_3_4_pass():
+    for n in (2, 3, 4):
+        rep = G.check_burst_stream(strict_burst(1, n), require_end=True,
+                                   expected_episodes=1)
+        assert_status(rep, "PASS")
+
+
+def test_strict_missing_burst_end_is_not_pass():
+    rows = strict_burst(2, 2)
+    rows = [r for r in rows if r["kind"] != "burst_end"]
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "SKIP")
+    assert "burst_end" in rep["evidence_missing"]
+
+
+def test_strict_run_exit_short_episode_fails():
+    rows = strict_burst(4, 4, reason="run_exit", events=2)
+    # Declared 4 but only two events + explicit run_exit terminal: the gate
+    # must never accept a truncated burst as complete.
+    rows = [r for r in rows if r["kind"] != "burst_end"][:2] + \
+           [end(4, 4, 2, reason="run_exit")]
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")
+
+
+def test_strict_expected_episode_count():
+    rows = strict_burst(1, 2, 10) + strict_burst(2, 3, 20)
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")
+    assert any(c["check"] == "episode_count_matches_expected"
+               and not c["ok"] for c in rep["checks"])
+
+
+def test_strict_no_second_episode_is_pass():
+    rep = G.check_burst_stream(strict_burst(1, 2), require_end=True,
+                               expected_episodes=1)
+    assert_status(rep, "PASS")
+    assert rep["burst_episode_count"] == 1
+
+
+def test_strict_event_identity_required():
+    rows = strict_burst(1, 2)
+    for r in rows:
+        r.pop("value_hash", None)
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")
+
+
+def test_strict_attempted_applied_required():
+    rows = strict_burst(1, 2)
+    rows[0].pop("applied", None)
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")
+
+
+def test_strict_merged_sources_not_lost():
+    rows = strict_burst(1, 2)
+    ids = [r["fault_id"] for r in rows if r["kind"] == "fault_applied"]
+    rows[0]["burst_merged_sources"] = "2"
+    rows[0]["burst_source_fault_ids"] = ",".join(ids)
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "PASS")
+    # A declared merge count without matching source ids is a hard failure.
+    rows[0]["burst_source_fault_ids"] = ids[0]
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")
+    # Naming a fault id that is not part of this episode also fails.
+    rows[0]["burst_source_fault_ids"] = ids[0] + ",9999"
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")
+
+
+def test_strict_burst_end_must_follow_events():
+    rows = strict_burst(1, 2)
+    rows.insert(0, rows.pop())   # terminal before the events
+    rep = G.check_burst_stream(rows, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")
 
 
 def test_cli_exit_codes(tmp_path):
@@ -242,3 +368,12 @@ def test_cli_exit_codes(tmp_path):
                        capture_output=True, text=True)
     assert p.returncode == 1, p.stdout + p.stderr
     assert json.loads(p.stdout)["status"] == "FAIL"
+
+
+def test_strict_expected_episode_with_no_burst_fails():
+    # A pre-registered F0 episode that produced no burst evidence is a
+    # contract failure, not a SKIP.
+    events = [ev(None, None, None, field="recurring_result_stuck")
+              for _ in range(3)]
+    rep = G.check_burst_stream(events, require_end=True, expected_episodes=1)
+    assert_status(rep, "FAIL")

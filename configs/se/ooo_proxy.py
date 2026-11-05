@@ -350,6 +350,22 @@ p.add_argument("--fpu_rounding_sub", action="store_true")
 p.add_argument("--fpu_f3_dependent", action="store_true")
 p.add_argument("--fpu_exp_range", default="-1,-1")
 p.add_argument("--fpu_fpsr_suppress", action="store_true")
+# [FSU][FP05] Real 2-4 event result burst over consecutive eligible results.
+# Empty burst mode keeps every existing campaign byte-identical. One F0
+# injection unit = one episode, so --fpu_max_faults must be 1.
+p.add_argument("--fpu_burst_mode", default="",
+               choices=["", "same_lane", "adjacent_lane", "cross_lane_mbu",
+                        "lane_mask"],
+               help="FP05 burst submodel (empty = disabled)")
+p.add_argument("--fpu_burst_length", type=lambda x: int(x, 0), default=0,
+               choices=[0, 2, 3, 4],
+               help="burst length N in {2,3,4}; 0 = not a burst mode")
+p.add_argument("--fpu_burst_lane_step", type=int, default=0,
+               help="adjacent_lane per-event lane step (0 = 1)")
+p.add_argument("--fpu_burst_lane_mask", type=lambda x: int(x, 0), default=0,
+               help="lane_mask submodel fixed in-lane mask")
+p.add_argument("--fpu_burst_id_base", type=lambda x: int(x, 0), default=1,
+               help="first burst_id of this run (monotonic)")
 # [FSU] Pilot identity + unified propagation stream. Defaults leave every
 # existing OoO campaign byte-identical (no tracer attached).
 p.add_argument("--fsu_model", default="")
@@ -843,6 +859,11 @@ if args.chaos_fpu:
         expLo=int(args.fpu_exp_range.split(",")[0]),
         expHi=int(args.fpu_exp_range.split(",")[1]),
         fpsrSuppress=args.fpu_fpsr_suppress,
+        burstMode=args.fpu_burst_mode,
+        burstLength=args.fpu_burst_length,
+        burstLaneStep=args.fpu_burst_lane_step,
+        burstLaneMask=args.fpu_burst_lane_mask,
+        burstIdBase=args.fpu_burst_id_base,
         writeLog=True,
         fsuModel=args.fsu_model,
         fsuFreq=args.fsu_freq,

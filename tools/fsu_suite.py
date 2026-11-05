@@ -73,7 +73,12 @@ PROGRAM_OVERRIDE_FPU = (
     "bitseg", "precision", "lane_width", "lane_offset", "decode_guard",
     "permanent_stuck", "stuck_polarity", "f5_warmup", "f5_sample_limit",
     "f5_keep_first_last_n", "op_classes", "reg_class",
+    # [FSU][FP05] Real result burst (F0): one episode over 2-4 consecutive
+    # eligible results. Validated here before it can reach the runner.
+    "burst_mode", "burst_length", "burst_lane_step", "burst_lane_mask",
+    "burst_id_base",
 )
+BURST_MODES = ("same_lane", "adjacent_lane", "cross_lane_mbu", "lane_mask")
 
 
 class SuiteError(ValueError):
@@ -275,6 +280,32 @@ def _normalise_fpu_patch(patch, where: str) -> dict:
         if len(set(ops)) != len(ops):
             raise SuiteError(f"{where}.op_classes contains duplicates")
         out["op_classes"] = ops
+    if "burst_mode" in patch:
+        mode = str(patch["burst_mode"] or "").strip()
+        if mode and mode not in BURST_MODES:
+            raise SuiteError(f"{where}.burst_mode must be one of "
+                             f"{list(BURST_MODES)}, got {mode!r}")
+        out["burst_mode"] = mode
+        if mode:
+            length = _int(patch.get("burst_length"), f"{where}.burst_length")
+            if length not in (2, 3, 4):
+                raise SuiteError(
+                    f"{where}.burst_length must be 2/3/4 for burst_mode "
+                    f"{mode}, got {length}")
+            out["burst_length"] = length
+            if "burst_lane_step" in patch:
+                out["burst_lane_step"] = _int(
+                    patch["burst_lane_step"], f"{where}.burst_lane_step")
+            if "burst_lane_mask" in patch:
+                out["burst_lane_mask"] = _mask_value(
+                    patch["burst_lane_mask"], 64, f"{where}.burst_lane_mask")
+            if "burst_id_base" in patch:
+                base = _int(patch["burst_id_base"],
+                            f"{where}.burst_id_base", minimum=1)
+                out["burst_id_base"] = base
+    elif any(k in patch for k in ("burst_length", "burst_lane_step",
+                                  "burst_lane_mask", "burst_id_base")):
+        raise SuiteError(f"{where}: burst_* fields require burst_mode")
     if "reg_class" in patch:
         reg = str(patch["reg_class"]).strip()
         if reg not in FPU_REG_CLASSES:

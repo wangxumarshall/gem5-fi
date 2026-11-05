@@ -18,6 +18,7 @@
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/o3/CHAOSFPU/chaos_fsu_fields.hh"
+#include "cpu/o3/CHAOSFPU/chaos_fsu_burst.hh"
 #include "cpu/o3/CHAOSFPU/decoded_fp.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
@@ -300,6 +301,47 @@ class CHAOSFPU : public SimObject
     std::string fsu_model, fsu_freq, fsu_load, fsu_submodel;
     uint64_t fsu_eligible_total = 0;
 
+    // [FSU][FP05] Real result burst (F0).  One F0 injection unit is one
+    // EPISODE over `burst_length` consecutive ELIGIBLE results; max_faults
+    // therefore bounds episodes (not events).  The pure state machine and
+    // geometry live in chaos_fsu_burst.hh and are host-unit-tested.
+    bool burst_mode = false;
+    chaos_fsu::BurstSubmodel burst_submodel = chaos_fsu::BurstSubmodel::None;
+    uint64_t burst_length = 0;
+    int burst_lane_step = 0;
+    uint64_t burst_lane_mask_cfg = 0;
+    uint64_t burst_id_base = 1;
+    chaos_fsu::BurstEpisodeTracker burst_tracker;
+    // Episode/event accounting. `events_attempted` counts burst ordinal
+    // selections that reached the injection entry; `events_applied` counts
+    // real value changes (always equal: a missing writable VecReg dest is a
+    // fail-closed panic, never a silent skip). `events_activated` counts
+    // burst events later read by a real consumer.  `episodes_short` is
+    // incremented at run exit for an active, incomplete episode.
+    uint64_t burst_episodes_attempted = 0;
+    uint64_t burst_episodes_applied = 0;
+    uint64_t burst_episodes_completed = 0;
+    uint64_t burst_episodes_short = 0;
+    uint64_t burst_episodes_lane_rejected = 0;
+    uint64_t burst_events_attempted = 0;
+    uint64_t burst_events_applied = 0;
+    uint64_t burst_events_activated = 0;
+    uint64_t burst_events_squashed = 0;
+    uint64_t burst_merged_consumers = 0;
+    uint64_t burst_first_fault_id = 0;
+    uint64_t burst_last_fault_id = 0;
+    uint64_t burst_last_event_id = 0;
+    uint64_t burst_last_eligible_ordinal = 0;
+    bool burst_exit_flush_registered = false;
+    bool burst_exit_emitted = false;
+
+    void registerBurstExitFlush();
+    void flushBurstAtExit();
+    void emitBurstEnd(const char *reason);
+    void dumpBurstSummary(std::ostream &os) const;
+    std::vector<std::pair<std::string, std::string>>
+    burstKv() const;
+
     // [FSU][D2] F1/F2/F3 deterministic rate semantics. The driver supplies
     // exact eligible ordinals; the injector matches them 1:1 and never draws
     // a probability/geometric substitute. Empty vector = F0 mode.
@@ -348,6 +390,13 @@ class CHAOSFPU : public SimObject
         // physical index must not be attributed to this fault.
         bool squashed = false;
         std::string op_class;   // gem5 OpClass name of the producer
+        // [FSU][FP05] Burst identity travels with the taint so every later
+        // L2-L5 event of this result carries the same burst_id/ordinal/len.
+        bool burst = false;
+        uint64_t burst_id = 0, burst_ordinal = 0, burst_length = 0;
+        std::string burst_mode;
+        bool burst_activated = false;
+        bool burst_squash_reported = false;
         // [FSU][F5] The taint belongs to a permanent fault: its terminal is
         // reported by the F5 chain_end (with exposure accounting), never by
         // a generic not_activated event (which would contradict
@@ -376,6 +425,16 @@ class CHAOSFPU : public SimObject
         bool has_l3 = false, has_l4 = false, committed = false;
         std::string op_class;   // gem5 OpClass name of the producer
         std::string reg_class;  // vec | float | vec_elem
+        // [FSU][FP05] Burst identity of the primary source consumed here.
+        // `burst_merged_sources > 1` means this one consumer instruction read
+        // several burst-faulted cells: every source emits its own L2
+        // operand_read, and the L4/L5 witness carries the merged count plus
+        // the source fault ids (never silently keeps only the first).
+        bool burst = false;
+        uint64_t burst_id = 0, burst_ordinal = 0, burst_length = 0;
+        std::string burst_mode;
+        uint64_t burst_merged_sources = 0;
+        std::string burst_source_fault_ids;
     };
 
     // Everything an injection site needs to describe itself to the chain
@@ -408,6 +467,10 @@ class CHAOSFPU : public SimObject
         uint64_t producer_sn = 0;
         int dest_operand = -1;
         uint64_t arm_tick = 0;
+        // [FSU][FP05] Burst episode identity of this result.
+        bool burst = false;
+        uint64_t burst_id = 0, burst_ordinal = 0, burst_length = 0;
+        std::string burst_mode;
     };
     std::vector<FaultedReg> faulted_regs;
     std::map<uint64_t, TaintedConsumer> tainted_consumers;

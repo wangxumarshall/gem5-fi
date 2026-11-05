@@ -339,6 +339,41 @@ def build_cmd(manifest, outdir: Path, seed: int, skip, count_only: bool,
         cmd += ["--fpu_fma_weighted"]
     if fpu.get("recurring_stuck"):
         cmd += ["--fpu_recurring_stuck"]
+    # [FSU][FP05] Real 2-4 event result burst. Fail closed before gem5: an
+    # unknown submodel/length must never be silently dropped (the injector
+    # panics on the same inputs).
+    if fpu.get("burst_mode"):
+        bmode = str(fpu["burst_mode"])
+        if bmode not in ("same_lane", "adjacent_lane", "cross_lane_mbu",
+                         "lane_mask"):
+            raise ValueError(
+                f"unknown fpu_mode.burst_mode {bmode!r}; expected "
+                "same_lane|adjacent_lane|cross_lane_mbu|lane_mask")
+        try:
+            blen = int(str(fpu.get("burst_length")), 0)
+        except (TypeError, ValueError):
+            raise ValueError(
+                "fpu_mode.burst_mode requires integer burst_length in "
+                f"{{2,3,4}}, got {fpu.get('burst_length')!r}")
+        if blen not in (2, 3, 4):
+            raise ValueError(
+                f"fpu_mode.burst_length must be 2/3/4, got {blen}")
+        # One F0 injection unit is one EPISODE: max_faults must be 1.
+        if not count_only and max_faults != 1:
+            raise ValueError(
+                "F0 burst injects exactly one episode per run; "
+                f"injector.max_faults must be 1, got {max_faults}")
+        cmd += ["--fpu_burst_mode", bmode,
+                "--fpu_burst_length", str(blen)]
+        if fpu.get("burst_lane_step") is not None:
+            cmd += ["--fpu_burst_lane_step",
+                    str(int(fpu["burst_lane_step"]))]
+        if fpu.get("burst_lane_mask") is not None:
+            cmd += ["--fpu_burst_lane_mask",
+                    str(int(str(fpu["burst_lane_mask"]), 0))]
+        if fpu.get("burst_id_base") is not None:
+            cmd += ["--fpu_burst_id_base",
+                    str(int(fpu["burst_id_base"]))]
     if fpu.get("rounding_sub"):
         cmd += ["--fpu_rounding_sub"]
     if fpu.get("f3_dependent"):

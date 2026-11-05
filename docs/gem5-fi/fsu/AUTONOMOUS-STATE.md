@@ -64,8 +64,13 @@
 - FQ08-b/c 与 FP08 回归：67 passed；真实日志复核见
   `docs/gem5-fi/fsu/FQ08-FP08-REGRESSION.md`。缺口：generation/identity
   真实 gate、activated 正例、rounding 未 applied 原因、模式组合 fail-closed。
-- FP05：CHACOSFPU 尚无 burst 发射端，gate 返回 SKIP/BLOCKED；
-  设计与 C++ 改动清单见 `docs/gem5-fi/fsu/FP05-BURST-PREP.md`。
+- FP05：**已实现真实 burst 发射端**（`chaos_fsu_burst.hh` + CHAOSFPU
+  burstMode/burstLength/... + runner/schema/审计/Markdown 接线）。
+  真实 gate：same_lane len 2/3/4、lane_mask、adjacent_lane、
+  cross_lane_mbu(32-bit lane) 全部 strict PASS；tail short 显式
+  `run_exit` 且 strict FAIL（不冒充完成）；64-bit-lane MBU 因元素宽度
+  不匹配 fail closed。证据见 `FP05-BURST-GATE-EVIDENCE.md`。
+  未做：正式 F0 试点、merged>1、squash 样本、F4 间隔语义。
 - FP06-d 保持 MISSING；FP07 仅允许工作簿明确的字段加权结果代理。
 
 ## 2. 已落地补丁（按单元）

@@ -208,9 +208,18 @@ MODEL_AUDIT = {
                 "dest phys tag/old-correct/consumer/FPSR；F1/F2/F3 rate 语义"
                 "（D2 实现中）。工作簿“直接已有”高估",
     ),
-    "FP05": dict(status="PARTIAL", injector="CHAOSFPU faultMask / recurringStuck",
-                 hooks="CHAOSFPU.cc:217-256",
-                 implemented="结果多位 XOR、可重复同掩码", missing="2–4 事件 burst、burst_id/ordinal、lane mask/跨 lane；PROP 事件"),
+    "FP05": dict(
+        status="PARTIAL",
+        injector="CHAOSFPU burstMode(same_lane/adjacent_lane/cross_lane_mbu/"
+                 "lane_mask) + chaos_fsu_burst.hh 状态机",
+        hooks="CHAOSFPU.cc maybeCorrupt burst 分支、noteFaultApplied、"
+              "burst_end；chaos_fsu_burst.hh",
+        implemented="F0 真实 2–4 连续 eligible 结果的 burst episode："
+                    "burst_id/ordinal/length、lane 几何、attempted/applied/"
+                    "activated、显式 burst_end（completed/run_exit/"
+                    "lane_geometry）；recurring/permanent 被互斥拒绝",
+        missing="F4 burst interval 语义（构造期 fail closed）；"
+                "更大向量宽度/跨 lane 子模型；正式 gem5 3-seed 认证未跑"),
     "FP06": dict(
         status="PARTIAL",
         injector="CHAOSFPU permanentStuck + f5Warmup（结果侧 stuck；安装一次、多次 exposure）",

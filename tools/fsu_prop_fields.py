@@ -47,10 +47,25 @@ PROP_EVT_FIELDS = [
     "decode_reason",
     "fu_class", "fu_index", "field", "bit_indices", "fault_mask",
     "before", "after", "before_hash", "after_hash", "value_hash",
-    "eligible_ordinal", "eligible_total", "attempted", "activated",
+    "eligible_ordinal", "eligible_total", "attempted", "applied",
+    "activated",
     "rate_divisor", "jitter_pct", "interval", "ordinal_index",
     "ordinal_generator", "ordinal_generator_version", "ordinal_seed",
-    "burst_id", "burst_ordinal", "burst_length",
+    # [FSU][FP05] Real result burst: one episode over 2-4 consecutive
+    # eligible results. `burst_end` is the explicit lifecycle terminal.
+    "burst_id", "burst_ordinal", "burst_length", "burst_mode",
+    "burst_lane_base", "burst_lane_step",
+    "burst_end", "burst_end_reason",
+    "burst_eligible_start", "burst_eligible_last",
+    "burst_episode_events", "burst_episode_complete",
+    "burst_expected_episodes",
+    "burst_episodes_attempted", "burst_episodes_applied",
+    "burst_episodes_completed", "burst_episodes_short",
+    "burst_episodes_lane_rejected",
+    "burst_events_attempted", "burst_events_applied",
+    "burst_events_activated", "burst_events_squashed",
+    "burst_merged_sources", "burst_source_fault_ids",
+    "burst_accounting_ok",
     # [FSU][FR07-HOOK v2] Writeback-data injection provenance.
     "injection_site", "hook_version", "dest_operand", "arm_tick",
     "writeback_tick", "wakeup_tick", "wakeup_dependents", "wakeup_pending",
@@ -120,6 +135,9 @@ KIND_LAYER = {
     "overwrite": None, "mask": None, "crash": None, "timeout": None,
     # 生命周期收口与未激活
     "chain_end": None, "not_activated": None,
+    # [FSU][FP05] Burst episode terminal. Lifecycle only: it never occupies an
+    # L0-L5 layer and is never an independent fault.
+    "burst_end": None,
     # [FSU][FP08] fpsr_suppress is a modeled placeholder (no arch FPSR write);
     # it is not an L0/L5 layer and never certifies a fault.
     "suppress": None,
