@@ -26,13 +26,14 @@ def test_fq08c_fire_records_woken_target_state():
 def test_fp08_rounding_rejection_reasons_are_conserved():
     cc = FPU_CC.read_text(encoding="utf-8")
     hh = FPU_HH.read_text(encoding="utf-8")
-    for key in ("rounding_rejected_no_dest", "rounding_rejected_writable",
-                "rounding_rejected_nonfinite"):
+    for key in ("rounding_skip_no_o3cpu", "rounding_skip_no_vec_dest",
+                "rounding_skip_no_writable_dest", "rounding_skip_nonfinite"):
         assert key in hh and key in cc
     # Both summary sites (census and injection pass) must print all buckets.
-    assert cc.count('CHAOS_ROUNDING_REJECTED_NO_VEC_DEST') == 2
-    assert cc.count('CHAOS_ROUNDING_REJECTED_NO_WRITABLE_DEST') == 2
-    assert cc.count('CHAOS_ROUNDING_REJECTED_NONFINITE') == 2
+    assert cc.count('CHAOS_ROUNDING_SKIP_NO_O3CPU') == 2
+    assert cc.count('CHAOS_ROUNDING_SKIP_NO_VEC_DEST') == 2
+    assert cc.count('CHAOS_ROUNDING_SKIP_NO_WRITABLE_DEST') == 2
+    assert cc.count('CHAOS_ROUNDING_SKIP_NONFINITE') == 2
     assert cc.count('CHAOS_ROUNDING_CONSERVED') == 2
     # Fail closed for ambiguous early-return mode combinations.
     assert "fpsrSuppress is incompatible" in cc

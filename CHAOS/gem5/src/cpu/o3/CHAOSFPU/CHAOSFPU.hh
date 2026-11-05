@@ -204,9 +204,10 @@ class CHAOSFPU : public SimObject
     // [FSU][FP08] Reason-level rejection accounting: every attempted event
     // must land in exactly one of applied / rejected_no_dest /
     // rejected_writable / rejected_nonfinite.
-    uint64_t rounding_rejected_no_dest = 0;
-    uint64_t rounding_rejected_writable = 0;
-    uint64_t rounding_rejected_nonfinite = 0;
+    uint64_t rounding_skip_no_o3cpu = 0;
+    uint64_t rounding_skip_no_vec_dest = 0;
+    uint64_t rounding_skip_no_writable_dest = 0;
+    uint64_t rounding_skip_nonfinite = 0;
     // mode 7 — permanent_stuck (F5): install ONE fixed stuck-at fault
     // (one fault_id / fixed mask / fixed SA0-or-SA1 polarity) on the first
     // eligible event after the warm-up, then apply the SAME forced polarity

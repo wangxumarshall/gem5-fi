@@ -40,8 +40,7 @@ READINESS = ROOT / "docs/gem5-fi/fsu/F0-READINESS-ORDER.md"
 FP08_DOC = ROOT / "docs/gem5-fi/fsu/FP08-SUPPRESS-ROUNDING-GATE.md"
 
 FPSR_GATE = ROOT / "runs/fsu-gates/FP08-FPSR-GATE/fpu_injections.log"
-ROUNDING_GATE = (ROOT / "runs/fsu-gates/FP08-GATE/"
-                 "FSU-FP08-F0-W1-ROUNDING-GATE/seed1/attempt-2/inject/"
+ROUNDING_GATE = (ROOT / "runs/fsu-gates/FP08-ROUNDING-REASON/"
                  "fpu_injections.log")
 ROUNDING_CENSUS = (ROOT / "runs/fsu-gates/FP08-GATE/"
                    "FSU-FP08-F0-W1-ROUNDING-GATE/seed1/attempt-2/census/"
@@ -168,7 +167,7 @@ def parse_fp08_summary(text):
     seen = set()
     for raw in text.splitlines():
         line = raw.strip()
-        m = re.match(r"^(CHAOS_FPSR|CHAOS_ROUNDING)_([A-Z_]+)=(.*)$", line)
+        m = re.match(r"^(CHAOS_FPSR|CHAOS_ROUNDING)_([A-Z0-9_]+)=(.*)$", line)
         if not m:
             continue
         group, key, value = m.group(1), m.group(2), m.group(3)
@@ -370,15 +369,15 @@ def test_real_rounding_gate_attempted_ge_applied_and_one_injection():
     text = _code(ROUNDING_GATE)
     parsed = parse_fp08_summary(text)
     r = parsed["rounding"]
-    assert r["attempted"] == 357
-    assert r["applied"] == 1
+    # 2026-11-05 bounded real run: 2M insts, maxFaults=20.
+    assert r["attempted"] == 73
+    assert r["applied"] == 20
     assert r["attempted"] >= r["applied"]
-    assert text.count("mode=rounding_sub, faults_injected:") == 1
     assert "Site: dyn_inst_execute" in text
-    # The attempt is not zero: the gap is 356 rejections with NO reason split.
+    assert "CHAOS_ROUNDING_CONSERVED=1" in text
     _issues, rejected = check_conservation(
         None, {"attempted": r["attempted"], "applied": r["applied"]})
-    assert rejected == 356
+    assert rejected == 53
 
 
 def test_real_rounding_gate_reason_partition():

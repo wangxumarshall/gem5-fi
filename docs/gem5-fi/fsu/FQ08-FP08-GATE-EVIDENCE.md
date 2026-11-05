@@ -22,8 +22,8 @@
 ## FP08：rounding 原因分区与 fail-closed
 
 `rounding_sub` 现在把每个 attempted 事件归入且只归入：
-`applied` / `rejected_no_vec_dest` / `rejected_no_writable_dest` /
-`rejected_nonfinite`；退出汇总写四个计数与 `CHAOS_ROUNDING_CONSERVED`。
+`applied` / `no_o3cpu` / `no_vec_dest` / `no_writable_dest` /
+`nonfinite`；退出汇总写四个计数与 `CHAOS_ROUNDING_CONSERVED`。
 拒绝日志有界（每原因前 8 条），避免 13 MB 级日志。
 
 真实运行（`w1_fp_scalar_probe`, `--maxinsts 2000000`, rounding_sub fp64/lane64,
@@ -32,9 +32,10 @@
 ```
 CHAOS_ROUNDING_ATTEMPTED=73
 CHAOS_ROUNDING_APPLIED=20
-CHAOS_ROUNDING_REJECTED_NO_VEC_DEST=38
-CHAOS_ROUNDING_REJECTED_NO_WRITABLE_DEST=0
-CHAOS_ROUNDING_REJECTED_NONFINITE=15
+CHAOS_ROUNDING_SKIP_NO_O3CPU=0
+CHAOS_ROUNDING_SKIP_NO_VEC_DEST=38
+CHAOS_ROUNDING_SKIP_NO_WRITABLE_DEST=0
+CHAOS_ROUNDING_SKIP_NONFINITE=15
 CHAOS_ROUNDING_CONSERVED=1
 ```
 

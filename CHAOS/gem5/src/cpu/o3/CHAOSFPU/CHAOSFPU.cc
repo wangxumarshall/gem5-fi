@@ -428,14 +428,17 @@ namespace gem5
         if (rounding_sub) {
             os << "CHAOS_ROUNDING_ATTEMPTED=" << rounding_attempted << "\n";
             os << "CHAOS_ROUNDING_APPLIED=" << rounding_applied << "\n";
-            os << "CHAOS_ROUNDING_REJECTED_NO_VEC_DEST="
-               << rounding_rejected_no_dest << "\n";
-            os << "CHAOS_ROUNDING_REJECTED_NO_WRITABLE_DEST="
-               << rounding_rejected_writable << "\n";
-            os << "CHAOS_ROUNDING_REJECTED_NONFINITE="
-               << rounding_rejected_nonfinite << "\n";
-            const uint64_t rejected_sum = rounding_rejected_no_dest +
-                rounding_rejected_writable + rounding_rejected_nonfinite;
+            os << "CHAOS_ROUNDING_SKIP_NO_O3CPU="
+               << rounding_skip_no_o3cpu << "\n";
+            os << "CHAOS_ROUNDING_SKIP_NO_VEC_DEST="
+               << rounding_skip_no_vec_dest << "\n";
+            os << "CHAOS_ROUNDING_SKIP_NO_WRITABLE_DEST="
+               << rounding_skip_no_writable_dest << "\n";
+            os << "CHAOS_ROUNDING_SKIP_NONFINITE="
+               << rounding_skip_nonfinite << "\n";
+            const uint64_t rejected_sum = rounding_skip_no_o3cpu +
+                rounding_skip_no_vec_dest +
+                rounding_skip_no_writable_dest + rounding_skip_nonfinite;
             os << "CHAOS_ROUNDING_CONSERVED="
                << ((rounding_attempted == rounding_applied + rejected_sum)
                        ? 1 : 0)
@@ -948,18 +951,22 @@ namespace gem5
             // applied, or one explicit rejection reason. No silent reject.
             const char *reason;
             uint64_t reason_count = 0;
-            if (vec_dests == 0) {
-                ++rounding_rejected_no_dest;
+            if (!o3cpur) {
+                ++rounding_skip_no_o3cpu;
+                reason = "no_o3cpu";
+                reason_count = rounding_skip_no_o3cpu;
+            } else if (vec_dests == 0) {
+                ++rounding_skip_no_vec_dest;
                 reason = "no_vec_dest";
-                reason_count = rounding_rejected_no_dest;
+                reason_count = rounding_skip_no_vec_dest;
             } else if (writable_dests == 0) {
-                ++rounding_rejected_writable;
+                ++rounding_skip_no_writable_dest;
                 reason = "no_writable_dest";
-                reason_count = rounding_rejected_writable;
+                reason_count = rounding_skip_no_writable_dest;
             } else {
-                ++rounding_rejected_nonfinite;
-                reason = "nonfinite_result";
-                reason_count = rounding_rejected_nonfinite;
+                ++rounding_skip_nonfinite;
+                reason = "nonfinite";
+                reason_count = rounding_skip_nonfinite;
             }
             // Bounded logging: the counters are authoritative; never write
             // one line per eligible event (a 7M-cycle run produced 13 MB).
@@ -3097,15 +3104,18 @@ namespace gem5
                        << "\n";
                     os << "CHAOS_ROUNDING_APPLIED=" << rounding_applied
                        << "\n";
-                    os << "CHAOS_ROUNDING_REJECTED_NO_VEC_DEST="
-                       << rounding_rejected_no_dest << "\n";
-                    os << "CHAOS_ROUNDING_REJECTED_NO_WRITABLE_DEST="
-                       << rounding_rejected_writable << "\n";
-                    os << "CHAOS_ROUNDING_REJECTED_NONFINITE="
-                       << rounding_rejected_nonfinite << "\n";
-                    const uint64_t rejected_sum = rounding_rejected_no_dest +
-                        rounding_rejected_writable +
-                        rounding_rejected_nonfinite;
+                    os << "CHAOS_ROUNDING_SKIP_NO_O3CPU="
+                       << rounding_skip_no_o3cpu << "\n";
+                    os << "CHAOS_ROUNDING_SKIP_NO_VEC_DEST="
+                       << rounding_skip_no_vec_dest << "\n";
+                    os << "CHAOS_ROUNDING_SKIP_NO_WRITABLE_DEST="
+                       << rounding_skip_no_writable_dest << "\n";
+                    os << "CHAOS_ROUNDING_SKIP_NONFINITE="
+                       << rounding_skip_nonfinite << "\n";
+                    const uint64_t rejected_sum = rounding_skip_no_o3cpu +
+                        rounding_skip_no_vec_dest +
+                        rounding_skip_no_writable_dest +
+                        rounding_skip_nonfinite;
                     os << "CHAOS_ROUNDING_CONSERVED="
                        << ((rounding_attempted ==
                             rounding_applied + rejected_sum) ? 1 : 0)

@@ -240,7 +240,8 @@ def evaluate_iq_evidence(parsed):
 def _all_iq_logs():
     if not GATES.is_dir():
         return []
-    return sorted(GATES.glob("FQ08-*/iq_injections.log"))
+    return sorted(GATES.glob("FQ08-*/iq_injections.log")) + \
+        sorted(GATES.glob("FQ08-*/**/iq_injections.log"))
 
 
 def _search_evidence(kind):
