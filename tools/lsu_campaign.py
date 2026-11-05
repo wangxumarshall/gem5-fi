@@ -2089,7 +2089,7 @@ def check_phase_gate(phase, allow_blocked_models, t08a_canary,
 
 def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
                  t08a_canary=False, t08_submodels_proven=None,
-                 seed=None, repeat_override=None):
+                 seed=None, repeat_override=None, p07_mode=None):
     """Cell -> (flags list, golden, binary) or (None, None, blocked_reason).
 
     Every cell resolves to exactly one of: runnable flags, or a blocked/
@@ -2304,6 +2304,16 @@ def resolve_cell(cell, allow_blocked=False, evidence_pilot=False,
             % (model, binary, span_table, model, binary))
     flags += tier_flags
     flags += extra
+    # [R6-P-P07-A 2026-11-05] Submodel selector.  P07-a/b/c share the same
+    # authoritative RunID (P07-F0-Wn); this replaces the mounted mode
+    # (argparse last-wins) so one RunID can be exercised per submodel without
+    # inventing new RunIDs.  Default None keeps the historical P07-b mount.
+    if model == "P07" and p07_mode:
+        _p07_mode_value = {"tag": "p07_fill_tag_mispair",
+                           "data": "p07_data_way",
+                           "stale": "p07_stale_tag"}[p07_mode]
+        _i = flags.index("--prefetch_mode")
+        flags[_i + 1] = _p07_mode_value
     # [R6-A2-REPEAT / R6-A4] interval tiers must reach their first fire
     # position on the SAME workload (no carrier swap). Unknown = loud
     # refusal. The key carries the seed-parity sub-model (A04/A06/A08), so a
@@ -3349,7 +3359,8 @@ def run_single_cell(cell, args, seed, outdir):
             if getattr(args, "phase", None) == "trial" else None),
         # [R6-A4] the repeat key is (model, freq, binary, submodel) and the
         # sub-model is chosen by seed parity -> resolve WITH the seed.
-        seed=seed)
+        seed=seed,
+        p07_mode=getattr(args, "p07_mode", None))
     if flags is None:
         return {"outcome": "Blocked", "error": golden}
 
@@ -3631,6 +3642,14 @@ def build_parser():
     p.add_argument("--outdir", default="runs/lsu")
     p.add_argument("--max-parallel", type=int, default=4)
     p.add_argument("--cells", help="comma-separated RunIDs to run (default: all)")
+    # [R6-P-P07-A 2026-11-05] P07-a/b/c share P07-F0-Wn; select the submodel
+    # without inventing a RunID. None keeps the historical P07-b mount.
+    p.add_argument("--p07-mode", choices=["tag", "data", "stale"],
+                   default=None,
+                   help="[R6-P-P07-A] P07 submodel for this run: tag=P07-b "
+                        "(default mount), data=P07-a, stale=P07-c. The RunID "
+                        "stays P07-F0-Wn; submodel coverage is recorded "
+                        "separately.")
     p.add_argument("--allow-blocked-models", action="store_true",
                    help="[MDSPEC][R4-6-T08] explicit opt-in to run cells whose "
                         "MODEL is still in MODEL_BLOCKED (a landed-but-"
@@ -3746,7 +3765,8 @@ def main():
             t08a_canary=(a.phase == "trial" and
                          getattr(a, "t08a_canary", False)),
             t08_submodels_proven=(getattr(a, "t08_submodels_proven", None)
-                                  if a.phase == "trial" else None))
+                                  if a.phase == "trial" else None),
+            p07_mode=getattr(a, "p07_mode", None))
         if flags is None:
             key = reason.split("(")[0].split(":")[0]
             counts[key] = counts.get(key, 0) + 1

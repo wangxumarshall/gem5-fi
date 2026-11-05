@@ -280,6 +280,36 @@ def main():
               f"fault={mh.group(1) if mh else None} "
               f"ctl={mc.group(1) if mc else None}")
 
+    print("[7] campaign P07 submodel selector (P07-a/b/c share one RunID)")
+    import csv
+
+    def _matrix_p07_cell():
+        p = ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv"
+        with p.open(encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                if r["RunID"] == "P07-F0-W6":
+                    return list(r.values())
+        raise RuntimeError("P07-F0-W6 not in matrix")
+
+    _cell = _matrix_p07_cell()
+    for _sub, _mode in (("tag", "p07_fill_tag_mispair"),
+                        ("data", "p07_data_way"),
+                        ("stale", "p07_stale_tag")):
+        _flags, _g, _r = LC.resolve_cell(_cell, p07_mode=_sub)
+        check(f"campaign --p07-mode {_sub} -> {_mode}",
+              _flags is not None
+              and _flags[_flags.index("--prefetch_mode") + 1] == _mode,
+              str(_flags))
+    _flags, _g, _r = LC.resolve_cell(_cell)
+    check("campaign default P07 mode unchanged (tag)",
+          _flags is not None
+          and _flags[_flags.index("--prefetch_mode") + 1] ==
+          "p07_fill_tag_mispair", str(_flags))
+    _args = LC.build_parser().parse_args(
+        ["--matrix", "x", "--p07-mode", "data"])
+    check("campaign parser exposes --p07-mode",
+          getattr(_args, "p07_mode", None) == "data", str(vars(_args)))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
