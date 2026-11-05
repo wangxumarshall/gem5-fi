@@ -108,6 +108,10 @@
 - [x] FR02-F0-W1 配置（FR02-d，mask 0x2000000020，precision 64）与
       双 bit 几何审计；seed1 attempt-1：SDC、full/admitted/certified、
       审计 ok=true。
+- [x] FR01/FR02 的 seed2/3 均已运行：均 SDC、full/admitted/certified、
+      审计 ok=true。**但 seed1/2/3 注入身份逐字相同（phys44/gen12/
+      cycle35608/sn13161），是确定性复现，不是独立样本**；3/3 仅为
+      注册完成度。见 `FR01-FR02-PROTOCOL-V2.md §5.2`。
 - [ ] seed2/3（同一冻结配置；不得为凑数换 target/seed）。
 - [ ] FP05 真正 2–4 eligible burst 实现 + burst_id/ordinal/length +
       四处接线；正式计数前 gate 必须从 SKIP 变 PASS。

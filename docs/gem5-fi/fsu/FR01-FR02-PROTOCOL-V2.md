@@ -94,6 +94,22 @@ RunID 计数按 seed 计，不按 attempt 计；attempt-3/4 不额外增加计�
 - 审计器已扩展为逐 bit 校验 FR02 几何（相邻/非相邻/跨 lane/跨字段）
   与 mask popcount；FR01 仍强制单 bit。
 
+## 5.2 seed2/3：确定性复现，不是独立样本
+
+FR01/FR02 的 seed2、seed3 与 seed1 产生**逐字相同的注入事件**：
+phys=44、gen=12、cycle=35608、consumer sn=13161（FR01 `fadd d0`，
+FR02 同指令读双 bit）。原因是 V2 的“warm-up 后首个 precision 合格
+消费者”在确定性执行流上是同一个事件，`rng` 只影响候选集合内的选择
+（该时刻只有 1 个候选）。
+
+因此：
+
+- RunID 的 3/3 是**注册完成度**（3 个 seed 均真实运行、均 SDC、审计
+  通过），**不得**当作 3 个独立样本或用于置信区间；
+- 统计独立性需要 countOnly + fixed uniform ordinal（或路径扰动），
+  在实现前如实标注为 determinism replication；
+- 不因该复现重抽 seed、不修改 hash、不把复现当新信息。
+
 ## 6. 后续 gate 待办（不因本协议自动通过）
 
 - overwrite / squash / free-realloc / 连续写 的含住认证样本；
