@@ -62,8 +62,17 @@
 ### 1.4 FQ08 / FP08 / FP05
 
 - FQ08-b/c 与 FP08 回归：67 passed；真实日志复核见
-  `docs/gem5-fi/fsu/FQ08-FP08-REGRESSION.md`。缺口：generation/identity
-  真实 gate、activated 正例、rounding 未 applied 原因、模式组合 fail-closed。
+  `docs/gem5-fi/fsu/FQ08-FP08-REGRESSION.md`。
+- **2026-11-05 补齐**（`FQ08-FP08-GATE-EVIDENCE.md`）：
+  - FQ08-c 新增 `woken` / `delayed_dependents_woken`；真实 Fire 正例：
+    dep_chain first_clock=5000 phase=1 → sn=1469, **woken=1**；
+    branchy_reduce 同；elemwise_fma Fire 但 woken=0（诚实）。
+    squash 忽略有真实样本；generation/free-reuse 真实样本 BLOCKED；
+    identity 负例 N/A。
+  - FP08 rounding 原因分区真实守恒：
+    attempted=73 = applied 20 + no_vec_dest 38 + nonfinite 15，
+    `CHAOS_ROUNDING_CONSERVED=1`；不兼容组合运行前 panic（exit 134）。
+  - fpsr/rounding 仍是显式代理，不因工具 PASS 升级。
 - FP05：**已实现真实 burst 发射端**（`chaos_fsu_burst.hh` + CHAOSFPU
   burstMode/burstLength/... + runner/schema/审计/Markdown 接线）。
   真实 gate：same_lane len 2/3/4、lane_mask、adjacent_lane、

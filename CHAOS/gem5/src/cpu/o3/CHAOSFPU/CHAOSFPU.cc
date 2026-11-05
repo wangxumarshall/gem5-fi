@@ -232,6 +232,22 @@ namespace gem5
         if (f3_dependent && (precision != "fp64" || lane_width != 64 ||
                              lane_offset != 0))
             panic("CHAOSFPU: f3_dependent is FP64/lane64/offset0 only\n");
+        // [FSU][FP08] fpsr_suppress/rounding_sub are early-return terminal
+        // branches: combining them with another corrupting mode silently
+        // drops that other effect. Fail closed before the run.
+        if (fpsr_suppress &&
+            (fma_weighted || recurring_stuck || f3_dependent ||
+             permanent_stuck || rate_mode || !bitseg.empty() ||
+             fault_mask))
+            panic("CHAOSFPU: fpsrSuppress is incompatible with "
+                  "fmaWeighted/recurringStuck/f3Dependent/permanentStuck/"
+                  "rate/bitseg/explicitMask\n");
+        if (rounding_sub &&
+            (fma_weighted || recurring_stuck || f3_dependent ||
+             permanent_stuck || rate_mode || !bitseg.empty()))
+            panic("CHAOSFPU: roundingSub is incompatible with "
+                  "fmaWeighted/recurringStuck/f3Dependent/permanentStuck/"
+                  "rate/bitseg\n");
 
         // [FSU][FP05] Real result burst. One F0 injection unit is ONE
         // episode over 2-4 consecutive eligible results, so maxFaults
@@ -412,6 +428,18 @@ namespace gem5
         if (rounding_sub) {
             os << "CHAOS_ROUNDING_ATTEMPTED=" << rounding_attempted << "\n";
             os << "CHAOS_ROUNDING_APPLIED=" << rounding_applied << "\n";
+            os << "CHAOS_ROUNDING_REJECTED_NO_VEC_DEST="
+               << rounding_rejected_no_dest << "\n";
+            os << "CHAOS_ROUNDING_REJECTED_NO_WRITABLE_DEST="
+               << rounding_rejected_writable << "\n";
+            os << "CHAOS_ROUNDING_REJECTED_NONFINITE="
+               << rounding_rejected_nonfinite << "\n";
+            const uint64_t rejected_sum = rounding_rejected_no_dest +
+                rounding_rejected_writable + rounding_rejected_nonfinite;
+            os << "CHAOS_ROUNDING_CONSERVED="
+               << ((rounding_attempted == rounding_applied + rejected_sum)
+                       ? 1 : 0)
+               << "\n";
         }
     }
 
@@ -855,15 +883,19 @@ namespace gem5
             bool okr = false;
             PhysRegIdPtr rdest = nullptr;
             uint64_t rbits = 0, robits = 0;
+            int vec_dests = 0;
+            int writable_dests = 0;
             auto *o3cpur = dynamic_cast<o3::CPU *>(cpu);
             if (o3cpur) {
               for (int i = 0; i < dyn_inst->numDestRegs() && !okr; i++) {
                 PhysRegIdPtr dest = dyn_inst->renamedDestIdx(i);
                 if (!dest || dest->is(InvalidRegClass)) continue;
                 if (dest->classValue() != VecRegClass) continue;
+                ++vec_dests;
                 void *vp = o3cpur->getWritableReg(dest,
                                                   dyn_inst->threadNumber);
                 if (!vp) continue;
+                ++writable_dests;
                 uint64_t bits; std::memcpy(&bits, vp, 8);
                 double d; std::memcpy(&d, vp, 8);
                 if (!std::isfinite(d)) continue;
@@ -910,8 +942,40 @@ namespace gem5
                         << ", mode=rounding_sub, faults_injected: "
                         << faults_injected_count << std::endl;
                 }
+                return true;
             }
-            return okr;
+            // [FSU][FP08] Every attempted event lands in exactly one bucket:
+            // applied, or one explicit rejection reason. No silent reject.
+            const char *reason;
+            uint64_t reason_count = 0;
+            if (vec_dests == 0) {
+                ++rounding_rejected_no_dest;
+                reason = "no_vec_dest";
+                reason_count = rounding_rejected_no_dest;
+            } else if (writable_dests == 0) {
+                ++rounding_rejected_writable;
+                reason = "no_writable_dest";
+                reason_count = rounding_rejected_writable;
+            } else {
+                ++rounding_rejected_nonfinite;
+                reason = "nonfinite_result";
+                reason_count = rounding_rejected_nonfinite;
+            }
+            // Bounded logging: the counters are authoritative; never write
+            // one line per eligible event (a 7M-cycle run produced 13 MB).
+            if (write_log && log_stream && log_stream->stream()
+                && reason_count <= 8) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: dyn_inst_execute, opClass=" << (int)oc
+                    << ", sn=" << dyn_inst->seqNum
+                    << ", mode=rounding_sub, SUPPRESSED reason=" << reason
+                    << ", vec_dests=" << vec_dests
+                    << ", writable_dests=" << writable_dests
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return false;
         }
 
         // [FSU][D3] Build a lane-relative mask and its absolute 128-bit
@@ -3032,6 +3096,19 @@ namespace gem5
                     os << "CHAOS_ROUNDING_ATTEMPTED=" << rounding_attempted
                        << "\n";
                     os << "CHAOS_ROUNDING_APPLIED=" << rounding_applied
+                       << "\n";
+                    os << "CHAOS_ROUNDING_REJECTED_NO_VEC_DEST="
+                       << rounding_rejected_no_dest << "\n";
+                    os << "CHAOS_ROUNDING_REJECTED_NO_WRITABLE_DEST="
+                       << rounding_rejected_writable << "\n";
+                    os << "CHAOS_ROUNDING_REJECTED_NONFINITE="
+                       << rounding_rejected_nonfinite << "\n";
+                    const uint64_t rejected_sum = rounding_rejected_no_dest +
+                        rounding_rejected_writable +
+                        rounding_rejected_nonfinite;
+                    os << "CHAOS_ROUNDING_CONSERVED="
+                       << ((rounding_attempted ==
+                            rounding_applied + rejected_sum) ? 1 : 0)
                        << "\n";
                 }
             });

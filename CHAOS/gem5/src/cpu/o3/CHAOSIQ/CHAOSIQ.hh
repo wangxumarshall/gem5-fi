@@ -233,6 +233,10 @@ class CHAOSIQ : public SimObject
     chaos_iq_lifecycle::DuplicateWake ws_duplicate;
     // FQ08-c: counters for the CHAOSIQ-owned delayed wake.
     chaos_iq_lifecycle::DelayedWakeCounters dw_counts;
+    // [FQ08-c] Total dependents whose ready state was really changed by a
+    // FIRED delayed wake. This is the target-state witness (woken > 0), not
+    // an exit-code or log-presence proxy.
+    uint64_t delayed_dependents_woken = 0;
     // Set while a delayed wake is being re-issued: the nested
     // wakeDependents() call must not fire a NEW injection (otherwise an
     // unlimited-fault wake_phase run would keep delaying its own replay).

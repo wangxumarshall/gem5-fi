@@ -1007,6 +1007,7 @@ namespace gem5
             << ", pending_attempt=" << (ws_attempt.pending ? 1 : 0)
             << ", delayed_scheduled=" << dw_counts.scheduled
             << ", delayed_fired=" << dw_counts.fired
+            << ", delayed_dependents_woken=" << delayed_dependents_woken
             << ", delayed_ignored_no_inst=" << dw_counts.ignored_no_inst
             << ", delayed_ignored_identity=" << dw_counts.ignored_identity
             << ", delayed_ignored_squashed=" << dw_counts.ignored_squashed
@@ -1106,7 +1107,12 @@ namespace gem5
         // every destination physical register: the delayed broadcast is safe.
         injector->iq_counts.activated++;
         injector->replaying_delayed_wake = true;
-        o3cpu->o3IEW().instQueue.wakeDependents(inst);
+        // [FQ08-c] The number of dependents actually woken is the target-state
+        // witness: exit code / an "activated" counter alone cannot prove the
+        // delayed event changed ready state.
+        const int woken =
+            o3cpu->o3IEW().instQueue.wakeDependents(inst);
+        injector->delayed_dependents_woken += (uint64_t)woken;
         injector->replaying_delayed_wake = false;
 
         if (injector->write_log && injector->log_stream
@@ -1117,6 +1123,7 @@ namespace gem5
                 << ", FIRED delayed wake (producer live, generation stable)"
                 << ", completed_sn=" << inst->seqNum
                 << ", completed_tid=" << (int)inst->threadNumber
+                << ", woken=" << woken
                 << ", delayed_fired=" << injector->dw_counts.fired
                 << ", eligible=" << injector->iq_counts.eligible
                 << ", attempted=" << injector->iq_counts.attempted
