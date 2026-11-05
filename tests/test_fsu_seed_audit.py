@@ -559,3 +559,38 @@ def test_burst_decode_requires_two_lanes():
                     manifest_precision="fp64", decoded_element_width="64",
                     decoded_lanes="1", manifest_lane_width="64")
     assert any("2" in v for v in A._decode_violations(ev))
+
+
+def test_fr01_fr02_two_bit_geometry_audit():
+    """[FR02] The audit must validate two-bit identity and geometry."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import fsu_seed_audit as A
+
+    base = {
+        "fault_id": "1", "field": "mant_lo", "lane_width": "64",
+        "lane_offset": "0", "precision": "fp64", "submodel": "FR02-d",
+        "fault_mask": "0x2000000020", "bit_indices": "5,37",
+    }
+    assert A._field_violations(base) == []
+
+    # Two distinct 32-bit fields: mant_lo (bit 5) + mant_hi (bit 37).
+    assert A._field_violations({**base, "bit_indices": "5,37",
+                                "fault_mask": "0x2000000020"}) == []
+    # FR02-a adjacent: bits 5,6.
+    assert A._field_violations({**base, "submodel": "FR02-a",
+                                "bit_indices": "5,6",
+                                "fault_mask": "0x60"}) == []
+    # FR02-a with a gap must fail.
+    assert A._field_violations({**base, "submodel": "FR02-a"})
+    # FR02-b non-adjacent: bits 5,9.
+    assert A._field_violations({**base, "submodel": "FR02-b",
+                                "bit_indices": "5,9",
+                                "fault_mask": "0x220"}) == []
+    # Cross-lane needs two lanes (32-bit lanes: bit 5 + bit 37).
+    assert A._field_violations({**base, "submodel": "FR02-c",
+                                "lane_width": "32", "bit_indices": "5,37",
+                                "fault_mask": "0x2000000020"}) == []
+    # Mask popcount must equal the bit count.
+    assert A._field_violations({**base, "bit_indices": "5,37",
+                                "fault_mask": "0x20"})

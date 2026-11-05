@@ -79,6 +79,21 @@ V2 目前是“首个合格事件（或采样时刻的合格事件集合均匀�
 
 RunID 计数按 seed 计，不按 attempt 计；attempt-3/4 不额外增加计数。
 
+## 5.1 FR02-F0-W1 seed1（FR02-d）
+
+冻结配置 `configs/fsu/FR02-F0-W1-seed1.json`：mask `0x2000000020`
+（bit 5 + bit 37，同一 64-bit lane 的两个 32-bit 字段），
+`target_selection=ready_consumer`、`target_precision=64`、
+`semantic_role=FR02-d`。真实结果（attempt-1）：
+
+- fault_applied phys=44/gen=12：`0x7ff8000000000000` →
+  `0x7ff8002000000020`，`bit_indices=5,37`，field=mant_lo；
+- consumer `fadd d0`（pc 0x400d9c, sn 13161, fp64）读同一 128-bit 值；
+- commit → ARRAYHASH 改变（SDC）；chain full/admitted/certified；
+  `fsu_seed_audit ok=true`。
+- 审计器已扩展为逐 bit 校验 FR02 几何（相邻/非相邻/跨 lane/跨字段）
+  与 mask popcount；FR01 仍强制单 bit。
+
 ## 6. 后续 gate 待办（不因本协议自动通过）
 
 - overwrite / squash / free-realloc / 连续写 的含住认证样本；

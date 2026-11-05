@@ -228,6 +228,11 @@ def _field_violations(evt):
     prec = str(evt.get("precision", "")).strip()
     if not prec and field in FP_FIELDS["fp64"]:
         prec = "fp64"  # legacy D2 event (only FP64 fields existed)
+    sub = str(evt.get("submodel", "")).strip()
+    # [FR01/FR02] Their submodels encode lane/geometry families, not the
+    # FP04 field axis. The field label must still be valid for the declared
+    # precision, but FIELD_SUBMODEL is FP04-only.
+    fr01_fr02 = sub.startswith("FR01") or sub.startswith("FR02")
     # [FSU][F5] A permanent stuck-at event may name the IEEE field of its
     # fixed mask (e.g. sign under FP06-b), but the FP04 field→submodel table
     # does not apply: FP06-a/b/c are the F5 submodels. The forced-value rules
@@ -244,14 +249,9 @@ def _field_violations(evt):
             v.append(f"fault {fid}: field '{field}' not in {prec} table")
             return v
         want_sub = FIELD_SUBMODEL.get(field)
-        sub = str(evt.get("submodel", "")).strip()
         # FP04-d is the NEON lane-result domain, orthogonal to the field
         # axis: a lane-selected run (lane_offset > 0) may carry any field.
         lane_domain = (sub == "FP04-d" and lane_o > 0)
-        # [FR01/FR02] Their submodels encode lane/geometry families, not the
-        # FP04 field axis. The field label must still be valid for the
-        # declared precision (checked above), but FIELD_SUBMODEL is FP04-only.
-        fr01_fr02 = sub.startswith("FR01") or sub.startswith("FR02")
         if (want_sub and sub and sub != want_sub and not lane_domain
                 and not f5_mode and not fr01_fr02):
             v.append(f"fault {fid}: field {field} requires {want_sub}, "
@@ -260,8 +260,70 @@ def _field_violations(evt):
     if mask is None or mask == 0:
         v.append(f"fault {fid}: missing/zero fault_mask")
         return v
-    if lane_w < 64 and (mask >> lane_w):
+    # FR02-c legitimately places bits in different lanes; its geometry block
+    # below validates the lane set instead of a single-lane mask bound.
+    if (lane_w < 64 and (mask >> lane_w)
+            and not (fr01_fr02 and sub == "FR02-c")):
         v.append(f"fault {fid}: fault_mask 0x{mask:x} exceeds lane_width {lane_w}")
+    # [FR02] Multi-bit identity: validate every bit, the mask popcount and
+    # the declared geometry. FR01 must stay exactly one bit.
+    bits_text = str(evt.get("bit_indices", "")).strip()
+    raw_bits = [x.strip() for x in bits_text.split(",") if x.strip()]
+    if fr01_fr02 and len(raw_bits) > 1:
+        try:
+            bits = [int(x, 10) for x in raw_bits]
+        except ValueError:
+            v.append(f"fault {fid}: unparsable bit_indices '{bits_text}'")
+            return v
+        if not sub.startswith("FR02"):
+            v.append(f"fault {fid}: {sub} must have exactly one bit")
+            return v
+        if len(set(bits)) != len(bits):
+            v.append(f"fault {fid}: duplicate bit_indices {bits}")
+        if any(b < 0 or b >= 128 for b in bits):
+            v.append(f"fault {fid}: bit outside 128-bit domain {bits}")
+            return v
+        if bin(mask).count("1") != len(bits):
+            v.append(f"fault {fid}: mask popcount {bin(mask).count('1')} "
+                     f"!= {len(bits)} bits")
+        lanes = [b // lane_w for b in bits]
+        if sub == "FR02-c":
+            if len(set(lanes)) < 2:
+                v.append(f"fault {fid}: FR02-c requires >=2 lanes, got {lanes}")
+        else:
+            if any(b // lane_w != lane_o for b in bits):
+                v.append(f"fault {fid}: bits {bits} outside directed lane "
+                         f"{lane_o}")
+            sbits = sorted(bits)
+            diffs = [b - a for a, b in zip(sbits, sbits[1:])]
+            if sub == "FR02-a" and any(d != 1 for d in diffs):
+                v.append(f"fault {fid}: FR02-a requires adjacent bits")
+            if sub == "FR02-b" and any(d < 2 for d in diffs):
+                v.append(f"fault {fid}: FR02-b requires non-adjacent bits")
+            if sub == "FR02-d":
+                fields = {b // 32 for b in bits}
+                if len(fields) < 2:
+                    v.append(f"fault {fid}: FR02-d requires >=2 32-bit fields")
+        # Field label is the lowest bit's IEEE field for the declared
+        # precision; the full bit identities remain in bit_indices.
+        def _fp_field_name(bit_in_lane, precname):
+            if precname == "fp32":
+                return ("sign" if bit_in_lane == 31 else
+                        "exp_hi" if bit_in_lane >= 27 else
+                        "exp_lo" if bit_in_lane >= 23 else
+                        "mant_hi" if bit_in_lane >= 15 else
+                        "mant_mid" if bit_in_lane >= 8 else "mant_lo")
+            return ("sign" if bit_in_lane == 63 else
+                    "exp_hi" if bit_in_lane >= 58 else
+                    "exp_lo" if bit_in_lane >= 52 else
+                    "mant_hi" if bit_in_lane >= 35 else
+                    "mant_mid" if bit_in_lane >= 18 else "mant_lo")
+        want_field = _fp_field_name(min(bits) - lane_o * lane_w, prec)
+        if field != want_field:
+            v.append(f"fault {fid}: field '{field}' != expected "
+                     f"'{want_field}' for lowest bit")
+        return v
+
     bit = _dec_int(evt.get("bit_indices"), default=None)
     if bit is None:
         v.append(f"fault {fid}: missing bit_indices")

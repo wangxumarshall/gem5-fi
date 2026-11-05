@@ -104,7 +104,10 @@
       （overwrite/free-realloc 已在 v4/v13–v19 gate 出现；squash/连续写
       与 FR02 双 bit 审计仍待补。）
 - [x] 冻结 FR01-F0-W1 正式配置（ready_consumer + precision 64 + load_id）；
-      seed1 attempt-5 审计通过。FR02-F0-W1 配置待建（双 bit + 几何审计）。
+      seed1 attempt-5 审计通过。
+- [x] FR02-F0-W1 配置（FR02-d，mask 0x2000000020，precision 64）与
+      双 bit 几何审计；seed1 attempt-1：SDC、full/admitted/certified、
+      审计 ok=true。
 - [ ] seed2/3（同一冻结配置；不得为凑数换 target/seed）。
 - [ ] FP05 真正 2–4 eligible burst 实现 + burst_id/ordinal/length +
       四处接线；正式计数前 gate 必须从 SKIP 变 PASS。
