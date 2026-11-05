@@ -110,8 +110,11 @@ truncation.
 - P09-F0-W13 (PARSEC) remains BLOCKED_ASSET.
 - Intermediate binaries `24f0b5c0` (generation-site fall-through spent the
   fault budget) and `f696c48f` (early-return fix, no eligible found) are
-  retained but are **not** cited as evidence; `c6953bba` is the final
-  diagnostic binary.
+  **not** cited as evidence; `c6953bba` is the final diagnostic binary.
+  On 2026-11-05 the non-evidence intermediates (`24f0b5c0`, `f696c48f`,
+  `587ea8c3`, `9cb528d9`) were removed during the 0101 disk cleanup; their
+  sha256 identities are retained in `R6P_UNIT_STATE.json` and the cleanup
+  manifest `DISK-CLEANUP-20261105.md`. No evidence stream references them.
 
 ---
 
