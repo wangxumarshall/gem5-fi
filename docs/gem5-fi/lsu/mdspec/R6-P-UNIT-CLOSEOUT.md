@@ -190,3 +190,17 @@ Source of truth: `R6-P-UNIT-STATE.json` / `R6-P-UNIT-PROGRESS.md` under
 `/home/sdc/gem5-fi-ding-cleanup-20261029/`; per-unit evidence:
 `evidence/R6-P-P04-EVIDENCE.md`, `R6-P-P07-EVIDENCE.md`,
 `R6-P-P09-EVIDENCE.md`.
+
+### P07-c addendum (2026-11-05)
+
+P07-c (old tag/valid reuse) is now implemented at the real allocation/fill
+path: the victim's pre-insertion tag/valid is captured in
+`BaseCache::allocateBlock` before eviction, and the next pure-prefetch fill
+of that way restores the old tag while keeping the new data (new L1 kind
+`pf_stale_tag`). B0 W6/W8 have **zero eligible events** (all 50/28
+prefetch fills land in invalid ways), so the authoritative RunIDs remain
+coverage-blocked. A non-B0 L2=16KiB diagnostic proves the model end-to-end
+(595 eligible; real `errant_commit` L5, chain full; output
+`fcecec2dd089d871` vs control golden). Binary `5b26240c…`. Evidence:
+`census_p07c_20261105`, `p07c_diag_l2small_20261105`,
+`p07c_diag_l2small_fault_20261105`.

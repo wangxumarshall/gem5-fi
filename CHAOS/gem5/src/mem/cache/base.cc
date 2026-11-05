@@ -2040,6 +2040,17 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     // TAGS are exchanged while their DATA stays in its original way — the
     // exact tag/data mismatch of P07-b (not a classic cache tag fault).
     if (chaosFillFromPrefetch && CHAOSPrefetch::fillWayHook) {
+        // [MDSPEC][R6-P-P07-c] Old tag/valid reuse: if this fill reused a
+        // way whose previous (valid) victim identity was captured, restore
+        // the OLD tag while the NEW response data stays in the block.  The
+        // line then reads as the victim address with the prefetched data;
+        // the prefetched address has no valid line.  Consumed once.
+        Addr chaos_stale_tag = 0, chaos_stale_addr = 0;
+        if (CHAOSPrefetch::fillWayHook->maybeStaleTagFill(
+                addr, blk->getSet(), blk->getWay(), blk->getTag(),
+                &chaos_stale_tag, &chaos_stale_addr)) {
+            blk->chaosSetTag(chaos_stale_tag);
+        }
         CacheBlk *chaos_partner = nullptr;
         const unsigned chaos_ways = tags->getNumWays({addr, is_secure});
         for (unsigned w = 0; w < chaos_ways; ++w) {
@@ -2080,10 +2091,19 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 }
             }
         }
+        // [MDSPEC][R6-P-P07-c] The victim capture lives for this fill only.
+        CHAOSPrefetch::fillWayHook->clearVictimCapture();
     }
     // The block will be ready when the payload arrives and the fill is done
     blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
                       pkt->payloadDelay);
+
+    // [MDSPEC][R6-P-P07-c] Every fill ends the victim-capture lifetime,
+    // including demand fills whose allocation set it but whose (non-
+    // prefetch) fill never queries it.  This is what guarantees the
+    // capture cannot leak into a later request.
+    if (CHAOSPrefetch::fillWayHook)
+        CHAOSPrefetch::fillWayHook->clearVictimCapture();
 
     return blk;
 }
@@ -2129,6 +2149,19 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // Print victim block's information
     DPRINTF(CacheRepl, "Replacement victim: %s\n", victim->print());
+
+    // [MDSPEC][R6-P-P07-c] Capture the victim's pre-insertion identity
+    // BEFORE handleEvictions invalidates it.  Only the P07-c injector
+    // consumes this; clearVictimCapture() runs at the end of the same
+    // fill, so it can never leak into a later request.
+    if (CHAOSPrefetch::fillWayHook) {
+        CHAOSPrefetch::fillWayHook->noteVictimForFill(
+            victim->getTag(),
+            victim->isValid() ? regenerateBlkAddr(victim) : 0,
+            victim->getSet(), victim->getWay(),
+            victim->isValid(), victim->isSet(CacheBlk::DirtyBit),
+            victim->isSecure());
+    }
 
     // Try to evict blocks; if it fails, give up on allocation
     if (!handleEvictions(evict_blks, writebacks)) {

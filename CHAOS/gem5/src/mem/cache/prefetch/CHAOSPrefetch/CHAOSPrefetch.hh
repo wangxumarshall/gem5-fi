@@ -88,7 +88,7 @@ class CHAOSPrefetch : public SimObject
                       P05DropDup, P08StrideStuck, P06AsDemand,
                       P04QueueValid, P04QueueSelect, P04QueuePointer,
                       P09WbLoss, P09DirtyClear, P07FillTagMispair,
-                      P07DataWay };
+                      P07DataWay, P07StaleTag };
 
     static Mode stringToMode(const std::string &s);
 
@@ -185,11 +185,49 @@ class CHAOSPrefetch : public SimObject
                                  unsigned partner_set, unsigned partner_way,
                                  bool fill_dirty, bool partner_dirty);
 
+    // [MDSPEC][R6-P-P07-c] Old tag/valid reuse.  The victim's pre-insertion
+    // state is captured in BaseCache::allocateBlock BEFORE handleEvictions
+    // invalidates it; the fill then restores the OLD tag (and therefore the
+    // old valid line identity) while the NEW response data stays in the
+    // block.  Result: a line keyed by the victim address carrying the
+    // prefetched line's data; the prefetched address has no valid line.
+    // The capture is keyed by (set, way), consumed by the very next pure-
+    // prefetch fill that reuses that way, and cleared unconditionally in
+    // handleFill — it can never survive to a later request.
+    struct VictimCapture
+    {
+        bool valid = false;
+        Addr tag = 0;
+        Addr addr = 0;
+        unsigned set = 0;
+        unsigned way = 0;
+        bool victim_valid = false;
+        bool victim_dirty = false;
+        bool secure = false;
+    };
+    void noteVictimForFill(Addr tag, Addr addr, unsigned set, unsigned way,
+                           bool victim_valid, bool victim_dirty, bool secure);
+    // Returns true iff the caller must set the fill block's tag back to
+    // *old_tag (the captured victim's tag).  Consumes the capture.
+    bool maybeStaleTagFill(Addr fill_addr, unsigned set, unsigned way,
+                           Addr new_tag, Addr *old_tag, Addr *old_addr);
+    void clearVictimCapture();
+    // Observation-only P07-c census counters (never change a decision).
+    uint64_t diag_p07c_queries = 0;
+    uint64_t diag_p07c_captured = 0;
+    uint64_t diag_p07c_setway_ok = 0;
+    uint64_t diag_p07c_victim_valid = 0;
+    uint64_t diag_p07c_tag_diff = 0;
+
   private:
     static ChaOSLsuTier tierFromString(const std::string &s);
     static ChaOSLsuEvent eventFromString(const std::string &s);
 
     Mode fi_mode;
+    // [MDSPEC][R6-P-P07-c] One-slot victim capture, keyed by (set, way) and
+    // consumed/cleared by the next pure-prefetch fill.  Never crosses a
+    // request: allocateBlock overwrites it, handleFill clears it.
+    VictimCapture pending_victim;
     ChaOSLsuTrigger trigger;      // W2 event-normalized (mandatory here)
     uint64_t max_faults;
     uint64_t faults_injected = 0;

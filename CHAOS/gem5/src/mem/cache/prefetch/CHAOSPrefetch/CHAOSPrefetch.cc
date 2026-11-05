@@ -53,7 +53,8 @@ namespace gem5
         if (fi_mode == Mode::P06AsDemand)
             fillMarkHook = this;
         if (fi_mode == Mode::P07FillTagMispair ||
-                fi_mode == Mode::P07DataWay)
+                fi_mode == Mode::P07DataWay ||
+                fi_mode == Mode::P07StaleTag)
             fillWayHook = this;
         if (fi_mode == Mode::P09WbLoss || fi_mode == Mode::P09DirtyClear) {
             wbLossHook = this;
@@ -65,6 +66,16 @@ namespace gem5
                           << " pref_evictions=" << diag_pref_evictions
                           << " dirty_pref_evictions="
                           << diag_dirty_pref_evictions << std::endl;
+            });
+        }
+        if (fi_mode == Mode::P07StaleTag) {
+            registerExitCallback([this]() {
+                if (fi_mode != Mode::P07StaleTag) return;
+                std::cout << "CHAOS_P07C_DIAG: queries=" << diag_p07c_queries
+                          << " captured=" << diag_p07c_captured
+                          << " setway_ok=" << diag_p07c_setway_ok
+                          << " victim_valid=" << diag_p07c_victim_valid
+                          << " tag_diff=" << diag_p07c_tag_diff << std::endl;
             });
         }
         // [MDSPEC][R6-P-P04-c] Observation-only behavior log + issue hook.
@@ -142,6 +153,7 @@ namespace gem5
         if (s == "p09_dirty_clear")        return Mode::P09DirtyClear;
         if (s == "p07_fill_tag_mispair")   return Mode::P07FillTagMispair;
         if (s == "p07_data_way")           return Mode::P07DataWay;
+        if (s == "p07_stale_tag")          return Mode::P07StaleTag;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
 
@@ -212,7 +224,8 @@ namespace gem5
         // [MDSPEC][R6-P-P07-b] Same inertness: P07's event source is the
         // prefetch-response FILL site (BaseCache::handleFill).
         if (fi_mode == Mode::P07FillTagMispair ||
-                fi_mode == Mode::P07DataWay) return;
+                fi_mode == Mode::P07DataWay ||
+                fi_mode == Mode::P07StaleTag) return;
 
         // [MDSPEC][R6-P-P04] P04-a queue valid fault.  The queue entry is
         // PRESENT (pointer/count unchanged) but its shadow valid bit is
@@ -582,6 +595,7 @@ namespace gem5
           case Mode::P09DirtyClear:
           case Mode::P07FillTagMispair:
           case Mode::P07DataWay:
+          case Mode::P07StaleTag:
             break;
           case Mode::P01StrideBitflip: {
               // P01: training-entry stride single-bit XOR. Bits 0-30 only
@@ -830,6 +844,108 @@ namespace gem5
                               : "P07_fill_tag_mispair",
                      fill_addr, detail.str());
         return data_way ? FillMispair::Data : FillMispair::Tags;
+    }
+
+    void
+    CHAOSPrefetch::noteVictimForFill(Addr tag, Addr addr, unsigned set,
+                                     unsigned way, bool victim_valid,
+                                     bool victim_dirty, bool secure)
+    {
+        if (fi_mode != Mode::P07StaleTag)
+            return;
+        pending_victim = VictimCapture{};
+        pending_victim.valid = true;
+        pending_victim.tag = tag;
+        pending_victim.addr = addr;
+        pending_victim.set = set;
+        pending_victim.way = way;
+        pending_victim.victim_valid = victim_valid;
+        pending_victim.victim_dirty = victim_dirty;
+        pending_victim.secure = secure;
+    }
+
+    void
+    CHAOSPrefetch::clearVictimCapture()
+    {
+        pending_victim = VictimCapture{};
+    }
+
+    bool
+    CHAOSPrefetch::maybeStaleTagFill(Addr fill_addr, unsigned set,
+                                     unsigned way, Addr new_tag,
+                                     Addr *old_tag, Addr *old_addr)
+    {
+        if (fi_mode != Mode::P07StaleTag)
+            return false;
+        // Consume the capture unconditionally: it is valid for exactly the
+        // fill that reused that (set, way), never for a later request.
+        const VictimCapture cap = pending_victim;
+        pending_victim = VictimCapture{};
+        ++diag_p07c_queries;
+        if (cap.valid) ++diag_p07c_captured;
+        const bool sw_ok = cap.valid && cap.set == set && cap.way == way;
+        if (sw_ok) ++diag_p07c_setway_ok;
+        if (sw_ok && cap.victim_valid) ++diag_p07c_victim_valid;
+        if (sw_ok && cap.victim_valid && cap.tag != new_tag)
+            ++diag_p07c_tag_diff;
+        // Eligibility: a real allocation for this set/way, the replaced
+        // victim was VALID (so an old tag/valid combination actually
+        // exists), and it was a different line.  An invalid victim has no
+        // meaningful old tag/valid to reuse; it is not eligible.
+        if (!cap.valid || cap.set != set || cap.way != way ||
+                !cap.victim_valid || cap.tag == new_tag)
+            return false;
+        if (max_faults != 0 && faults_injected >= max_faults)
+            return false;
+        trigger.onAttempt();
+        if (!trigger.onEligible()) return false;
+        ++faults_injected;
+        if (trigger.tier == ChaOSLsuTier::F5)
+            trigger.noteOutcome(true);
+        if (old_tag) *old_tag = cap.tag;
+        if (old_addr) *old_addr = cap.addr;
+
+        if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+            const uint64_t ptag = h5->registerCacheFault(
+                fill_addr, -1, line_size, "prefetch");
+            if (ptag) {
+                const uint64_t pfid = h5->notePrefetchRequest(
+                    fill_addr, line_size);
+                // Both identities join the chain: the fill line (which now
+                // has no valid tag) and the victim line (whose old tag now
+                // carries the fill's data).
+                h5->registerPtagBlock(ptag, fill_addr,
+                                      fill_addr + line_size);
+                if (cap.addr)
+                    h5->registerPtagBlock(ptag, cap.addr,
+                                          cap.addr + line_size);
+                h5->registerPtagPrefetch(pfid, fill_addr, line_size);
+                std::ostringstream fhex, ohex;
+                fhex << std::hex << fill_addr;
+                ohex << std::hex << cap.addr;
+                h5->notePropEvt("pf_stale_tag", {
+                    {"fault_id", std::to_string(ptag)},
+                    {"pf_request_id", std::to_string(pfid)},
+                    {"corr", "origin"},
+                    {"va", fhex.str()},
+                    {"set", std::to_string(set)},
+                    {"way", std::to_string(way)},
+                    {"field", "fill_tag"},
+                    {"before", fhex.str()},
+                    {"after", ohex.str()},
+                    {"state_before",
+                     std::string(cap.victim_dirty ? "dirty" : "clean")},
+                    {"state_after", "stale_tag_reused"},
+                });
+            }
+        }
+        std::ostringstream detail;
+        detail << "fill set=" << set << " way=" << way
+               << " new line 0x" << std::hex << fill_addr
+               << " keeps victim tag 0x" << cap.addr
+               << " (old tag/valid reused; new data stays)";
+        logInjection("P07_stale_tag", fill_addr, detail.str());
+        return true;
     }
 
     void

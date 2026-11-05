@@ -180,6 +180,106 @@ def main():
         except Exception as exc:  # noqa: BLE001
             check(f"{rid} 链终局按真实链", False, f"checker: {exc}")
 
+    print("[5] P07-c old tag/valid reuse (victim captured before eviction)")
+    pcc3 = src("CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/"
+               "CHAOSPrefetch.cc")
+    check("Mode P07StaleTag + p07_stale_tag 映射",
+          "P07StaleTag" in src("CHAOS/gem5/src/mem/cache/prefetch/"
+                               "CHAOSPrefetch/CHAOSPrefetch.hh")
+          and 'if (s == "p07_stale_tag")          return Mode::P07StaleTag;'
+          in pcc3, "mode missing")
+    check("allocateBlock 在 handleEvictions 之前捕获 victim 旧状态",
+          "noteVictimForFill(" in bcc
+          and (lambda a: a.index("noteVictimForFill(") <
+               a.index("handleEvictions(evict_blks, writebacks)"))(
+                   bcc[bcc.index("BaseCache::allocateBlock"):]),
+          "capture must precede eviction")
+    check("handleFill 消费并按 (set,way) 校验，且同 fill 清除捕获",
+          "maybeStaleTagFill(" in bcc
+          and "clearVictimCapture();" in bcc
+          and "blk->chaosSetTag(chaos_stale_tag);" in bcc, "consume/clear missing")
+    check("捕获是一次性槽：消费即清空，不跨请求",
+          "const VictimCapture cap = pending_victim;" in pcc3
+          and "pending_victim = VictimCapture{};" in pcc3
+          and "cap.set != set || cap.way != way" in pcc3, "capture lifetime")
+    check("仅回填 VALID victim（旧 tag/valid 才有意义）",
+          "!cap.victim_valid" in pcc3 and "cap.tag == new_tag" in pcc3,
+          "eligibility missing")
+    check("schema v1: pf_stale_tag 单元侧 L1",
+          P.KIND_LAYER.get("pf_stale_tag") == "L1"
+          and "fault_id" in P.REQUIRED_FIELDS.get("pf_stale_tag", []),
+          "schema")
+    check("choices 含 p07_stale_tag",
+          "p07_stale_tag" in src("configs/se/lsu_proxy.py"), "missing")
+
+    cen0 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+                "census_p07c_20261105")
+    for w in ("W6", "W8"):
+        f = cen0 / w / "run.out"
+        if not f.is_file():
+            print(f"  SKIP B0 census {w}")
+            continue
+        t = f.read_text()
+        m = re.search(r"CHAOS_P07C_DIAG: queries=(\d+) captured=(\d+) "
+                      r"setway_ok=(\d+) victim_valid=(\d+) tag_diff=(\d+)", t)
+        check(f"B0 {w}: 捕获生效但所有 fill 落在 invalid way（coverage block）",
+              m is not None and int(m.group(1)) > 0
+              and int(m.group(1)) == int(m.group(3))
+              and int(m.group(4)) == 0
+              and "attempted=0 eligible=0" in t,
+              t[-260:])
+
+    d2 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+              "p07c_diag_l2small_fault_20261105/"
+              "P07C-DIAG-W6-L2_16KiB/seed1")
+    ctl2 = Path("/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/"
+                "p07c_diag_l2small_20261105/16KiB")
+    if not (d2 / "prop_evt.txt.gz").is_file():
+        print(f"  SKIP P07-c diagnostic 证据不在（{d2}）")
+    else:
+        inj = (d2 / "prefetch_injections.log").read_text()
+        check("诊断注入行 P07_stale_tag 且复用 victim tag",
+              "P07_stale_tag" in inj and "keeps victim tag 0x" in inj, inj)
+        text = gzip.open(d2 / "prop_evt.txt.gz", "rt").read()
+        m = re.search(r"kind=pf_stale_tag[^\n]*?va=([0-9a-f]+)[^\n]*?"
+                      r"before=([0-9a-f]+) after=([0-9a-f]+)[^\n]*?"
+                      r"state_after=stale_tag_reused", text)
+        check("pf_stale_tag: 新 line 与复用的 victim line 不同",
+              m is not None and m.group(2) != m.group(3),
+              "event missing" if m is None else str(m.groups()))
+        check("单次故障（一个 pf_stale_tag 实例）",
+              text.count("kind=pf_stale_tag") == 1,
+              str(text.count("kind=pf_stale_tag")))
+        check("真实 L5：errant_commit + 链终局 full/L5",
+              "kind=errant_commit" in text
+              and "detection_layer=L5" in text, "L5 missing")
+        rep = subprocess.run(
+            [sys.executable, str(ROOT / "tools/lsu_chain_check.py"),
+             str(d2 / "prop_evt.txt.gz"), "--run-id",
+             "P07C-DIAG-W6-L2_16KiB"], capture_output=True, text=True)
+        try:
+            j = json.loads(rep.stdout)
+            f1 = j.get("faults", {}).get("1", {})
+            check("链终局 full/L5（真实架构逃逸）",
+                  f1.get("terminal") == "full"
+                  and f1.get("provable_to") == "L5",
+                  str(f1.get("terminal")))
+        except Exception as exc:  # noqa: BLE001
+            check("链终局 full/L5（真实架构逃逸）", False, f"checker: {exc}")
+        mc = re.search(r"^([0-9a-f]{16})$",
+                       (ctl2 / "run.out").read_text(), re.M) \
+            if (ctl2 / "run.out").is_file() else None
+        mh = re.search(r"^([0-9a-f]{16})$",
+                       (d2 / "run.out").read_text(), re.M)
+        check("无故障对照 = golden 062e5124df3667f9",
+              mc is not None and mc.group(1) == "062e5124df3667f9",
+              mc.group(1) if mc else None)
+        check("故障输出哈希 != 对照（真实 SDC）",
+              mh is not None and mc is not None
+              and mh.group(1) != mc.group(1),
+              f"fault={mh.group(1) if mh else None} "
+              f"ctl={mc.group(1) if mc else None}")
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

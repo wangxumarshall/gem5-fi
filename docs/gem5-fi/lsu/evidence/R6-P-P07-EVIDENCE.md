@@ -161,3 +161,66 @@ Both terminate `provable_to_L1_then_unknown` (seed1: same terminal at
 of them — the W8 block is a real workload-consumption block, not a
 seed-sampling artifact. Evidence: `campaign_p07_w8probe_20261105`. No L5
 was borrowed from another branch.
+
+---
+
+## P07-c old tag/valid reuse — implementation + non-B0 diagnostic (2026-11-05)
+
+**Status: IMPLEMENTED / RUNTIME-VERIFIED DIAGNOSTIC / AUTHORITATIVE RunIDs COVERAGE-BLOCKED.**
+
+### Real action point
+
+`BaseCache::allocateBlock` captures the chosen victim's tag/address/set/way/
+valid/dirty **before** `handleEvictions` invalidates it (`noteVictimForFill`).
+The next pure-prefetch fill that reuses exactly that (set, way) consumes the
+capture once and restores the **old tag** while the **new response data**
+stays in the block (`maybeStaleTagFill` → `blk->chaosSetTag(old)`). The
+victim address therefore hits a line carrying the prefetched line's data;
+the prefetched line itself has no valid entry. This is the authoritative
+P07-c "沿用旧 tag/valid" semantics — not a tag flip (P07-b) or data swap
+(P07-a).
+
+- Eligibility: real allocation + victim was VALID + different tag. An
+  invalid victim has no meaningful old tag/valid combination and is
+  ineligible (no invented state).
+- Capture lifetime: one slot keyed by (set, way), overwritten at every
+  allocation and cleared at the end of EVERY fill (including demand fills
+  that never query it) — it cannot cross a request.
+- New unit-side L1 kind `pf_stale_tag` (field=fill_tag, before=new line,
+  after=reused victim line, state_after=stale_tag_reused).
+
+### Binary / census
+
+- Binary sha256 `5b26240ccae3ce6b381c6eead85a4bef7ffa2153522beb3afd3a6a77b3471615`,
+  source `8c45fe68` + this patch; build exit 0, zero warnings.
+- B0 census (1 MiB L2, mode mounted, warm-up 1, span 1e9):
+  W6 queries=50 captured=50 setway_ok=50 **victim_valid=0** tag_diff=0;
+  W8 28/28/28/**0**/0; trigger `attempted=0 eligible=0`; outputs both
+  goldens. Every pure-prefetch fill at B0 lands in an INVALID way, so the
+  old-tag/valid model has **zero eligible events** on the authoritative
+  workloads — a real capacity/workload coverage block (same class as
+  P09), not a sampling artifact.
+
+### Non-B0 diagnostic (L2=16KiB, NOT a RunID, oracle n/a)
+
+Census: queries=634 captured=634 setway_ok=634 victim_valid=595 tag_diff=595;
+no-fault output golden `062e5124df3667f9`; frozen `span=595`.
+
+Fault seed1 (`p07c_diag_l2small_fault_20261105`):
+
+```
+Site: P07_stale_tag Tick: 56444080 pf_addr=0x81080 fill set=2 way=10 new line 0x81080 keeps victim tag 0x77480 (old tag/valid reused; new data stays)
+pf_stale_tag fault_id=1 va=81080 before=81080 after=77480 state_after=stale_tag_reused
+```
+
+Real `errant_commit` (pc=0x400620, commit_seq=85297, tick 56570360,
+detection_layer=L5), checker terminal `full`/L5; workload output
+`fcecec2dd089d871` vs control golden — a real SDC in this non-B0
+diagnostic. gzip/stats/exit OK, no truncation.
+
+### Honesty boundary
+
+- Authoritative P07-F0-W6/W8 remain **not certifiable** on B0 due to the
+  zero-eligible valid-victim coverage block.
+- The 16KiB result is an independent diagnostic, not a RunID/seed; oracle
+  n/a. No L5 is borrowed from any other branch.

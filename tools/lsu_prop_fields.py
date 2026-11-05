@@ -189,6 +189,12 @@ KIND_LAYER = {
     # observation at the SAME real fill gate as pf_tag.  Distinct faulted
     # composition rule (data fragments exchanged) from pf_tag (tags).
     "pf_data": "L1",
+    # [MDSPEC][R6-P-P07-c-SCHEMA-v1 2026-11-05] Prefetch-response fill that
+    # keeps the victim's OLD tag/valid combination: unit-side L1 observation
+    # at the same real fill gate.  Distinct from pf_tag (both tags exchanged
+    # between two ways) and pf_data (data exchanged between two ways): only
+    # the fill way keeps its pre-fill tag identity.
+    "pf_stale_tag": "L1",
     # [MDSPEC][H6] atomic 事件链
     "atomic_op": "L2",
     # [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE 原子读改写（SwapReq 提交点，
@@ -377,6 +383,9 @@ REQUIRED_FIELDS = {
     # [R6-P-P07-a-SCHEMA-v1] fill set/way + the fill/partner ways.
     "pf_data": ["fault_id", "pf_request_id", "corr", "va", "set", "way",
                 "field", "before", "after"],
+    # [R6-P-P07-c-SCHEMA-v1] fill set/way + new line / reused victim line.
+    "pf_stale_tag": ["fault_id", "pf_request_id", "corr", "va", "set",
+                     "way", "field", "before", "after"],
     "pf_queue": ["fault_id", "corr", "pf_request_id", "va", "entry_index"],
     "pf_issue": ["fault_id", "corr", "pf_request_id", "va"],
     "pf_fill": ["fault_id", "pf_request_id", "pa", "cache_line"],

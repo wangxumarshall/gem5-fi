@@ -52,11 +52,12 @@ claim.
 
 ## Task 5 — P07-c old tag/valid fill
 
-- [ ] NOT IMPLEMENTED THIS PASS (remaining). Faithful implementation needs
-      the victim's pre-allocation tag, which requires a capture hook in
-      `BaseCache::allocateBlock` before `blk->insert()`; P07-a was the
-      priority item with a clear action point and consumption path. No
-      relabel/shortcut was used. Recorded in CENSUS/CLOSEOUT/P07 evidence.
+- [x] IMPLEMENTED 2026-11-05: victim tag/valid captured in
+      `BaseCache::allocateBlock` before eviction; fill restores the old tag
+      with the new data (`pf_stale_tag`). B0 W6/W8 zero eligible (all fills
+      land in invalid ways) -> authoritative RunIDs coverage-blocked.
+      Non-B0 L2=16KiB diagnostic: 595 eligible, real errant_commit L5,
+      chain full, output `fcecec2dd089d871` vs control golden. Not a RunID.
 
 ## Task 6 — Remaining blocks and final closeout
 
