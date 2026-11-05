@@ -1,7 +1,10 @@
-# R6-P-P07 — prefetch-response fill tag/way mispair (P07-b)
+# R6-P-P07 — prefetch-response fill tag/way mispair
 
-**Status: P07-F0-W6 CERTIFIED 3/3 as PARTIAL_SUBMODEL (P07-b only);
-P07-F0-W8 remains an unadmitted L1 diagnostic.**
+**Status: P07-F0-W6 CERTIFIED 3/3 at RunID level (PARTIAL_SUBMODEL, P07-b);
+the P07-a submodel is ALSO formally certified 3/3 on the same RunID
+(2026-11-05, see §P07-a formal). Submodel coverage, NOT a new RunID:
+the RunID count stays 14 and seed count stays 42 at RunID level.
+P07-F0-W8 remains an unadmitted L1 diagnostic (both P07-a and P07-b).**
 Formal campaign `campaign_p07_formal_v2_20261104` (binary
 `gem5.opt-91c0e030`, sha256
 `91c0e030bade715e13a6f1b227a5652e810ddefcd7f198e9319282849a6aa818`):
@@ -86,10 +89,12 @@ exactly; no L5/SDC is invented.
 
 ## P07-a data written to the wrong way — implementation and seed1 pilot (2026-11-05)
 
-**Status: IMPLEMENTED / BEHAVIOR-VERIFIED PILOT / NOT CERTIFIED.**
+**Status (historical pilot): IMPLEMENTED / BEHAVIOR-VERIFIED SEED1 PILOT.
+The formal 3/3 result is in §P07-a formal (below); this section is kept as
+the seed1 pilot record and is superseded only for certification status.**
 The landed arm is P07-a (response data written to a different way). P07-b
-(tag mispair) is unchanged and certified for W6; P07-c (old tag/valid) is
-not implemented this pass.
+(tag mispair) is unchanged and certified for W6; P07-c was not implemented
+at the time of this pilot (it is implemented later — see §P07-c).
 
 ### Model
 
@@ -142,8 +147,8 @@ terminal `provable_to_L1_then_unknown`, output golden
 - W6's L5 is a real tainted commit, not an output change; the oracle is
   Masked and no SDC claim is made.
 - W8 has no downstream consumer; terminal L1 is recorded as-is.
-- P07-c (old tag/valid) remains unimplemented; the classic cache-tag
-  routing stays removed.
+- At pilot time P07-c (old tag/valid) was unimplemented; it is implemented
+  in the later §P07-c section. The classic cache-tag routing stays removed.
 
 ### P07-F0-W8 coverage probe (2026-11-05)
 
@@ -224,3 +229,59 @@ diagnostic. gzip/stats/exit OK, no truncation.
   zero-eligible valid-victim coverage block.
 - The 16KiB result is an independent diagnostic, not a RunID/seed; oracle
   n/a. No L5 is borrowed from any other branch.
+
+---
+
+## P07-a formal acceptance (2026-11-05)
+
+**Status: P07-F0-W6 / P07-a CERTIFIED 3/3 as a submodel of the already
+certified RunID. RunID count stays 14; RunID-level seed count stays 42.
+This adds submodel coverage (15th submodel certification), not a RunID or
+a new seed population.**
+
+### Method
+
+- Campaign selector `--p07-mode data` (commit `c4216b11`) keeps the
+  authoritative RunID `P07-F0-W6` and replaces the mounted mode with
+  `p07_data_way`. Frozen binary
+  `runs/lsu/r6_p_unit/binaries/gem5.opt-5b26240c`, sha256
+  `5b26240ccae3ce6b381c6eead85a4bef7ffa2153522beb3afd3a6a77b3471615`
+  (the P07-c/P07-a source tree; P07-a semantics unchanged by P07-c).
+- Seed1 strict-admission pilot (`campaign_p07a_seed1_20261105`):
+  `admitted=True`, `certified=True`, terminal `full`/L5, oracle `Masked`,
+  268 events, not truncated, exit 0, output `062e5124df3667f9`. The
+  strict gate passed, so seeds 2/3 were admitted to the formal batch.
+- Formal batch (`campaign_p07a_formal_20261105`, seeds 1/2/3, one
+  process at a time). No-fault control
+  (`.../control_W6_nofault`): `injected=0`, golden
+  `062e5124df3667f9`.
+
+### Results
+
+| seed | injection tick | fill / partner | admitted | certified | terminal | oracle | output |
+|---|---|---|---|---|---|---|---|
+| 1 | 34086360 | 0x7ec00 set944 way1 ↔ way0 | True | True | full / L5 | Masked | `062e5124df3667f9` |
+| 2 | 34091365 | 0x7ecc0 set947 way1 ↔ way0 | True | True | full / L5 | Masked | `062e5124df3667f9` |
+| 3 | 34086360 | 0x7ec00 set944 way1 ↔ way0 | True | True | full / L5 | Masked | `062e5124df3667f9` |
+
+All three: 268 events, 1 `pf_data` origin event, 1 real `errant_commit`
+at L5, gzip/stats/exit OK, no truncation. Seeds 1/3 and seed 2 hit the
+two distinct W6 eligible fills by pigeonhole; each is an independent RNG
+draw. The real `errant_commit` does not change the guest output, so the
+oracle is `Masked` and **no SDC is claimed**.
+
+### W8 boundary (unchanged)
+
+A one-seed P07-a probe on `P07-F0-W8` (`campaign_p07a_formal_20261105/
+P07-F0-W8/seed1`) injects at tick 107338770, fill `0x76740` set413 way1
+↔ way0, terminal `provable_to_L1_then_unknown`, `admitted=False`, output
+`629727c0ad9ca8ef` (golden). W8 has no downstream consumer; no L5 is
+borrowed from another branch.
+
+### Evidence
+
+- Campaign: `/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/campaign_p07a_formal_20261105`
+- Seed1 pilot: `/home/sdc/gem5-fi-ding/runs/lsu/r6_p_unit/campaign_p07a_seed1_20261105`
+- Per-seed docs: `runs/lsu/R6_COMPLETE_PROPAGATION_PATHS/P07-F0-W6/
+  P07-F0-W6-p07a-seed{1,2,3}.md`
+- Old pilot evidence `campaign_p07a_20261105` is retained unchanged.

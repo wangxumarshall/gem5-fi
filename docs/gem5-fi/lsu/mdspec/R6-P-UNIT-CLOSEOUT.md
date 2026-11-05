@@ -178,7 +178,8 @@ Recorded blocks (not silently approximated):
   (0x76740, 0x76740, 0x767c0) and all terminate `provable_to_L1_then_unknown`
   — no downstream demand in this workload, a real coverage block (probe
   evidence `campaign_p07_w8probe_20261105`).
-- **P07-c (old tag/valid)**: not implemented.
+- **P07-c (old tag/valid)**: implemented at the real allocation/fill path
+  (see the 2026-11-05 addendum); B0 coverage-blocked, not a certified RunID.
 - **P03-F0-W9**: terminal L4, admitted False; the only errant commit is on a
   different line with no lineage bridge; cross-branch L5 not borrowed.
 - **P09-F0-W13**: PARSEC assets absent (`find /home/sdc -maxdepth 4
@@ -204,3 +205,17 @@ coverage-blocked. A non-B0 L2=16KiB diagnostic proves the model end-to-end
 `fcecec2dd089d871` vs control golden). Binary `5b26240c…`. Evidence:
 `census_p07c_20261105`, `p07c_diag_l2small_20261105`,
 `p07c_diag_l2small_fault_20261105`.
+
+### P07-a formal addendum (2026-11-05)
+
+P07-a (data written to the wrong way) is formally certified 3/3 on the
+already-certified `P07-F0-W6` RunID. Campaign selector `--p07-mode data`
+(commit `c4216b11`), frozen binary `5b26240c…`. All three seeds:
+`admitted=True`, `certified=True`, full L5, 268 events, no truncation,
+oracle Masked, output golden `062e5124df3667f9` → **no SDC claim**.
+Seeds 1/3 inject at tick 34086360, seed 2 at 34091365. No-fault control
+`injected=0`, golden. **This is submodel coverage, not a new RunID: the
+RunID-level count stays 14 and the RunID-level seed count stays 42.**
+W8 stays `provable_to_L1_then_unknown`, not admitted. Evidence:
+`campaign_p07a_formal_20261105`, `campaign_p07a_seed1_20261105`,
+per-seed docs `P07-F0-W6-p07a-seed{1,2,3}.md`.

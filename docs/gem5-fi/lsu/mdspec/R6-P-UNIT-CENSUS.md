@@ -120,6 +120,30 @@ Root-cause and fix (C++ + campaign):
    re-checked: `629727c0ad9ca8ef`. The old `c6cccf5b` binary remains valid for
    the 15 previously certified F0 seeds (different evidence generation).
 
+### P07 submodel coverage (2026-11-05)
+
+P07-a and P07-b share the authoritative RunID `P07-F0-W6`; submodel
+certification does **not** add a RunID or a new seed population.
+
+| RunID | submodel | seeds | admitted/certified | oracle | terminal | binary |
+|---|---|---|---|---|---|---|
+| P07-F0-W6 | P07-b (tag mispair) | 1/2/3 | 3/3 True | Masked | full/L5 | `91c0e030…` |
+| P07-F0-W6 | P07-a (data wrong way) | 1/2/3 | 3/3 True | Masked | full/L5 | `5b26240c…` |
+
+P07-a formal campaign `campaign_p07a_formal_20261105` (binary
+`5b26240ccae3ce6b381c6eead85a4bef7ffa2153522beb3afd3a6a77b3471615`;
+selector `--p07-mode data`, commit `c4216b11`). All three W6 seeds:
+`admitted=True`, `certified=True`, full L5, 268 events, no truncation,
+gzip/stats/exit OK, output `062e5124df3667f9` (golden) → **no SDC claim**.
+Seeds 1/3 inject at tick 34086360, seed 2 at 34091365 (the two W6 eligible
+fills; independent RNG draws). No-fault control: `injected=0`, golden.
+W8 (seed1 probe) stays `provable_to_L1_then_unknown`, `admitted=False`,
+output golden — real workload-consumption block, no borrowed L5.
+
+**RunID-level totals are unchanged: 14 RunIDs / 42 seeds.** The
+submodel-level tally is 15 certifications (14 RunIDs with P07-a added as
+a second submodel on P07-F0-W6).
+
 ### Model not faithful / assets missing
 
 | RunID | blocker |
@@ -138,10 +162,14 @@ Root-cause and fix (C++ + campaign):
   written up as contained or SDC.
 - Model partial / not implemented: P04-a/b/c are implemented as F0 pilots
   (all `provable_to_L2_then_unknown`, performance-only, not certified);
-  P04-a F5 permanent semantics are implemented and 3-seed diagnosed (L2,
-  Masked, not certified). P07-b is certified for W6; P07-a/c remain not
-  implemented. P09-a is implemented (runtime-verified diagnostic); P09-b/c
-  remain not implemented; P09-W13 asset missing.
+  P04-F5 permanent semantics are implemented (the 2026-11-05 fixed-slot
+  correction supersedes the earlier whole-queue field, see P04 evidence)
+  and diagnosed, not certified. P07-b is certified for W6 and P07-a is
+  certified 3/3 as a second submodel on the same RunID; P07-c is
+  implemented but B0 coverage-blocked (all pure-prefetch fills land in
+  invalid ways). P09-a/c are implemented (runtime-verified non-B0
+  diagnostics, oracle n/a); P09-b is MODEL_NOT_EXPRESSIBLE_AT_SITE;
+  P09-W13 asset missing.
 - The authoritative P unit has **53** RunIDs across F0–F6; this round completed
   only the above subset. No claim of full P-unit completion.
 
