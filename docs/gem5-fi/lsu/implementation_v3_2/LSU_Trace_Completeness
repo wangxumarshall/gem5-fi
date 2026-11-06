@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Report Trace v3.1 completeness and the four independent terminal fields.
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 "$HERE/platform/trace_completeness.py" "$@"

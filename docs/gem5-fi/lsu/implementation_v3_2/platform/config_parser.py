@@ -38,7 +38,7 @@ REQUIRED_COLUMNS = [
     "BinarySHA256", "InputHash", "Oracle", "WarmUp", "ROI",
     "gem5Commit", "BinaryPath", "ConfigScript", "FullCommand", "Timeout",
     "OutputDir", "RequiredLogs", "PreflightStatus", "ExecutionStatus",
-    "TerminalState", "TraceCompleteness", "EvidencePath", "DecisionStatus",
+    "EvidencePath", "DecisionStatus",
     "ConfigFrozen", "RunStatus", "FaultActivationStatus",
     "TerminalState_v31", "TraceCompleteness_v31",
 ]

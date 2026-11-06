@@ -9,7 +9,7 @@
 
 | Component | Status | Real evidence |
 |---|---|---|
-| Config parser | PASS (structural) | `logs/gate1_config_validation.log`: `samples=60 models=12 seeds=60 workloads_present=15`; 255 deficits enumerated |
+| Config parser | PASS | v3.1 input: 255 deficits correctly rejected; v3.2 workbook: `samples=60 models=12 seeds=60 workloads_present=60`, strict exit 0 |
 | Run manifest | PASS | `tests/test_manifest_oracle.py`: 5 passed; seed copied from Excel (`2108120075`), binary SHA present |
 | Oracle interface | PASS | same test file: PASS/FAIL/MISSING cases |
 | F0/F5/F6 manager | PASS | `tests/test_fault_manager.py`: 7 passed, including F5 `nochange` accounting and F6 named trigger |
@@ -60,6 +60,24 @@ aborted, but every flushed node is present and a terminal `simulator_abort`
 event is appended; `TraceCompleteness=COMPLETE` to that observed terminal.
 Gate 3 (remaining nine models) and Gate 4 (60 formal samples) are not
 started.
+
+## Workbook v3.2
+
+`gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx` was generated from the
+frozen v3.1 workbook. All 60 SampleRunIDs and all 60 seeds are byte-preserved.
+Every row now has a real workload path, real rebuilt-binary SHA256 and real
+golden oracle. The strict parser run is:
+
+```
+CONFIG_OK samples=60 models=12 seeds=60 workloads_present=60
+```
+
+Log: `logs/config_v32_validation.log`. The legacy `TerminalState` /
+`TraceCompleteness` columns are renamed `*_LEGACY_DEPRECATED` and cleared;
+only `TerminalState_v31` / `TraceCompleteness_v31` remain. Formal rows are
+`ExecutionStatus=NOT_RUN`; the three pilot models are `PILOT_VERIFIED_FORMAL_NOT_RUN`,
+the other nine are `BLOCKED_GATE3_NOT_STARTED`. No formal sample is marked
+READY or PASS.
 
 ## Rejected pre-existing artifacts
 

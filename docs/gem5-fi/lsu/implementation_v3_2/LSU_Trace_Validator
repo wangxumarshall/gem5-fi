@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Validate a Trace v3.1 JSONL file against the published v3.2 schema contract.
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 "$HERE/platform/trace_validator.py" "$@"
