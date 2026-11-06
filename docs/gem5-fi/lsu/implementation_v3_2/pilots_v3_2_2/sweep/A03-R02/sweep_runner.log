@@ -32,7 +32,7 @@
     "2"
   ],
   "exit_code": -6,
-  "elapsed_seconds": 3.663,
+  "elapsed_seconds": 3.069,
   "oracle_expected": "728e604ffcec539d",
   "oracle_pass": false,
   "injection": {

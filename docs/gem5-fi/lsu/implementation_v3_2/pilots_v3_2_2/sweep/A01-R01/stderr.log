@@ -137,15 +137,15 @@ src/sim/syscall_emul.cc:86: warn: ignoring syscall set_robust_list(...)
 src/sim/syscall_emul.cc:97: warn: ignoring syscall rseq(...)
       (further warnings will be suppressed)
 src/sim/faults.cc:103: panic: panic condition !handled && !tc->getSystemPtr()->trapToGdb(GDBSignal::SEGV, tc->contextId()) occurred: Page table fault when accessing virtual address 0
-Memory Usage: 1247200 KBytes
+Memory Usage: 1247204 KBytes
 Program aborted at tick 3806880
 --- BEGIN LIBC BACKTRACE ---
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem515print_backtraceEv+0x18)[0x33728b8]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem512abortHandlerEi+0x48)[0x33949bc]
-linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffffbb2057e0]
-/usr/lib64/libc.so.6(+0x812c0)[0xffffba0c12c0]
-/usr/lib64/libc.so.6(raise+0x1c)[0xffffba079f2c]
-/usr/lib64/libc.so.6(abort+0xf0)[0xffffba06703c]
+linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffffbf1207e0]
+/usr/lib64/libc.so.6(+0x812c0)[0xffffbdfd12c0]
+/usr/lib64/libc.so.6(raise+0x1c)[0xffffbdf89f2c]
+/usr/lib64/libc.so.6(abort+0xf0)[0xffffbdf7703c]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0xf461a8]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem521GenericPageTableFault6invokeEPNS_13ThreadContextERKNS_14RefCountingPtrINS_10StaticInstEEE+0xdc)[0x33f6d0c]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem52o36Commit10commitHeadERKNS_14RefCountingPtrINS0_7DynInstEEEj+0x518)[0x109915c]
@@ -158,20 +158,20 @@ linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffffbb2057e0]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem58simulateEm+0x220)[0x33ae1d0]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0x32c3424]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0xf2c744]
-/usr/lib64/libpython3.11.so.1.0(+0x17c500)[0xffffbae0c500]
-/usr/lib64/libpython3.11.so.1.0(_PyObject_Call+0x7c)[0xffffbae23000]
-/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x4974)[0xffffbadf7ca4]
-/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffbadee114]
-/usr/lib64/libpython3.11.so.1.0(PyEval_EvalCode+0x9c)[0xffffbae909dc]
-/usr/lib64/libpython3.11.so.1.0(+0x220a1c)[0xffffbaeb0a1c]
-/usr/lib64/libpython3.11.so.1.0(+0x173880)[0xffffbae03880]
-/usr/lib64/libpython3.11.so.1.0(PyObject_Vectorcall+0x48)[0xffffbae037e8]
-/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x754)[0xffffbadf3a84]
-/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffbadee114]
+/usr/lib64/libpython3.11.so.1.0(+0x17c500)[0xffffbed1c500]
+/usr/lib64/libpython3.11.so.1.0(_PyObject_Call+0x7c)[0xffffbed33000]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x4974)[0xffffbed07ca4]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffbecfe114]
+/usr/lib64/libpython3.11.so.1.0(PyEval_EvalCode+0x9c)[0xffffbeda09dc]
+/usr/lib64/libpython3.11.so.1.0(+0x220a1c)[0xffffbedc0a1c]
+/usr/lib64/libpython3.11.so.1.0(+0x173880)[0xffffbed13880]
+/usr/lib64/libpython3.11.so.1.0(PyObject_Vectorcall+0x48)[0xffffbed137e8]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x754)[0xffffbed03a84]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffbecfe114]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0x32aaf34]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(main+0x16c)[0xf1829c]
-/usr/lib64/libc.so.6(+0x276c4)[0xffffba0676c4]
-/usr/lib64/libc.so.6(__libc_start_main+0x98)[0xffffba0677a8]
+/usr/lib64/libc.so.6(+0x276c4)[0xffffbdf776c4]
+/usr/lib64/libc.so.6(__libc_start_main+0x98)[0xffffbdf777a8]
 --- END LIBC BACKTRACE ---
 For more info on how to address this issue, please visit https://www.gem5.org/documentation/general_docs/common-errors/ 
 

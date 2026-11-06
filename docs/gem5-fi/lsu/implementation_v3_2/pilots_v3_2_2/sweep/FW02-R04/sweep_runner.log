@@ -28,7 +28,7 @@
     "4"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 1.749,
+  "elapsed_seconds": 1.643,
   "oracle_expected": "1f4cbf14327717df",
   "oracle_pass": true,
   "injection": {

@@ -40,6 +40,28 @@ def test_truncated_or_incomplete_can_omit_summary(tmp_path):
     assert report["terminal_state"] is None
 
 
+def test_fragment_and_source_ids_are_top_level(tmp_path):
+    """Defect 1: fragment_id must be a populated JSONL top-level field."""
+    import gzip
+    csv = tmp_path / "prop.csv.gz"
+    with gzip.open(csv, "wt", encoding="utf-8") as fh:
+        fh.write(
+            "1,100,1,resp,48,14,0x7edb0,0,0,"
+            "fragment_id=15;request_id=14;response_id=1;data_len=8;"
+            "data_hex=0000000000000000;data_fnv=a8c7f832281a39c5\n")
+    out = tmp_path / "trace.jsonl"
+    convert(csv, out, sample_run_id="PILOT-A01-TEST",
+            run_id="PILOT-A01", sub_task_id="PILOT-A01-S01",
+            fault_id="A01-CFG01", fault_model_id="A01",
+            run_status="COMPLETED", activation="TRIGGERED",
+            terminal="MASKED", completeness="COMPLETE")
+    resp = next(r for r in (json.loads(line) for line in out.read_text().splitlines())
+                if r.get("event_type") == "memory_response")
+    assert resp["fragment_id"] == 15
+    assert resp["request_id"] == 14
+    assert resp["response_id"] == 1
+
+
 def test_response_address_is_pa_not_va(tmp_path):
     out = tmp_path / "trace.jsonl"
     convert(CSV, out, sample_run_id="PILOT-A01-TEST", run_id="PILOT-A01",

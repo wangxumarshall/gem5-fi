@@ -212,6 +212,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             unit=unit, sub_unit=sub_unit,
             request_id=_int(d.get("request_id")) or _int(req_id),
             response_id=_int(d.get("response_id")),
+            fragment_id=_int(d.get("fragment_id")),
+            source_event_id=_int(d.get("source_event_id")),
+            destination_event_id=_int(d.get("destination_event_id")),
             lq_entry_id=(_int(d.get("index")) if kind == "lq_lifecycle"
                          else _int(d.get("lq_entry_id"))),
             sq_entry_id=(_int(d.get("index")) if kind == "sq_lifecycle"

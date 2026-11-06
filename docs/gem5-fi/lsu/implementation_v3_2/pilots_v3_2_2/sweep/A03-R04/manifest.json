@@ -63,10 +63,10 @@
   ],
   "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/sweep/A03-R04 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_addrpath --agu_pre_mode a03_bit3_stuck0_load --addrpath_lsu_tier F5 --addrpath_max_faults 0 --addrpath_warmup_events 0 --addrpath_rng_seed 2766846323 --addrpath_event_ordinal 4",
   "environment": {
-    "captured_at_utc": "2026-11-06T10:54:51Z",
+    "captured_at_utc": "2026-11-06T11:07:13Z",
     "host": "localhost0101",
     "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
     "python": "3.11.6"
   },
-  "manifest_sha256": "7b04ccaa301409e1bf70b226ddd45d6d322bbfd23a7573023b07a2f543131d20"
+  "manifest_sha256": "7d3a085e97ef6511832a2bd752627b6f7c385b7709f63017d88f82c70720f3ed"
 }
