@@ -226,6 +226,14 @@ namespace gem5
     {
         if (!o3cpu || !inst || !phys || phys->classValue() < 0)
             return "";
+        // PhysRegFile::getReg(PhysRegIdPtr) returns a single RegVal and only
+        // supports the scalar classes below (regfile.hh). A vector/matrix
+        // consumer is still a real edge; its value hash stays null instead of
+        // panicking the simulator (FW02-R03 hit class type 2 = VecRegClass).
+        const RegClassType rc = phys->classValue();
+        if (rc != IntRegClass && rc != FloatRegClass &&
+            rc != VecElemClass && rc != CCRegClass)
+            return "";
         RegVal value = o3cpu->getReg(phys, tid);
         if (value_out) *value_out = (uint64_t)value;
         if (bytes_out) *bytes_out = sizeof(RegVal);
