@@ -1,0 +1,65 @@
+{
+  "workload": "replay_dependency",
+  "fault_none": true,
+  "prop_replay_all": true,
+  "counts": {
+    "lq_lifecycle": 20732,
+    "sq_lifecycle": 6276,
+    "squash": 1203,
+    "fwd": 267,
+    "replay": 5
+  },
+  "replay_events": [
+    {
+      "dyn_inst_seq": 69296,
+      "tick": 31072965,
+      "reason": "partial_forward_mismatch",
+      "pc": "4015fc",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "lq_entry_id": "9200",
+      "entry_generation": "9690"
+    },
+    {
+      "dyn_inst_seq": 70968,
+      "tick": 35427700,
+      "reason": "partial_forward_mismatch",
+      "pc": "42a6d8",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "lq_entry_id": "9348",
+      "entry_generation": "9912"
+    },
+    {
+      "dyn_inst_seq": 70969,
+      "tick": 35428085,
+      "reason": "partial_forward_mismatch",
+      "pc": "42a6dc",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "lq_entry_id": "9349",
+      "entry_generation": "9913"
+    },
+    {
+      "dyn_inst_seq": 71973,
+      "tick": 36564990,
+      "reason": "partial_forward_mismatch",
+      "pc": "422a58",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "lq_entry_id": "9426",
+      "entry_generation": "10046"
+    },
+    {
+      "dyn_inst_seq": 72305,
+      "tick": 37424310,
+      "reason": "partial_forward_mismatch",
+      "pc": "44e2ec",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "lq_entry_id": "9466",
+      "entry_generation": "10093"
+    }
+  ],
+  "note": "probe records every replay; no fault was injected in this probe"
+}

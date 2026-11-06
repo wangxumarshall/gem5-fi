@@ -66,10 +66,10 @@ null stays null; never infer Masked from an incomplete trace.
 
 **Files:** `CHAOSPropagation.{hh,cc,py}`, `configs/se/lsu_proxy.py`.
 
-- [ ] `traceReplayAll` records every LSQ replay/squash, not only fault seqs.
-- [ ] Replay rows carry reason, dyn seq, execution_attempt_id,
+- [x] `traceReplayAll` records every LSQ replay/squash, not only fault seqs.
+- [x] Replay rows carry reason, dyn seq, execution_attempt_id,
       replay_generation, LQ generation.
-- [ ] Build; verify with the replay pilot (Task 7).
+- [x] Build; verify with the replay pilot (Task 7).
 
 ## Task 5 — 15-context sweep with failures (defect 9)
 

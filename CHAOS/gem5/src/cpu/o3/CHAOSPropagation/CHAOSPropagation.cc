@@ -38,6 +38,7 @@ namespace gem5
           cpu(p.cpu),
           trace_file(p.traceFile),
           write_log(p.writeLog),
+          replay_all(p.traceReplayAll),
           addr_expiry_ticks(p.addrExpiryTicks)
     {
         // CHAOSCache (no CPU pointer) reaches the tracer through the static
@@ -618,7 +619,9 @@ namespace gem5
     void
     CHAOSPropagation::noteReplay(o3::DynInst *inst, const char *reason)
     {
-        if (!write_log || !inst || !fault_seqs.count(inst->seqNum))
+        if (!write_log || !inst)
+            return;
+        if (!replay_all && !fault_seqs.count(inst->seqNum))
             return;
         std::ostringstream d;
         d << "reason=" << reason
@@ -637,7 +640,9 @@ namespace gem5
     void
     CHAOSPropagation::noteSquash(o3::DynInst *inst, const char *reason)
     {
-        if (!write_log || !inst || !fault_seqs.count(inst->seqNum))
+        if (!write_log || !inst)
+            return;
+        if (!replay_all && !fault_seqs.count(inst->seqNum))
             return;
         std::ostringstream d;
         d << "reason=" << reason

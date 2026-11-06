@@ -258,6 +258,7 @@ class CHAOSPropagation : public SimObject
     o3::CPU *o3cpu = nullptr;      // resolved at startup(); nullptr = disabled
     std::string trace_file;        // simout.resolve target (.gz, self-managed)
     bool write_log;                // gate ALL tracking + writing
+    bool replay_all;               // record every replay, not just fault seqs
     uint64_t addr_expiry_ticks;    // registry entry lifetime (0 = never expire)
     gzFile gz_file = nullptr;      // raw zlib stream; crash-durability note
 

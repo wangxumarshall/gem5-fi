@@ -585,6 +585,8 @@ p.add_argument("--msnap_file", default="micro_snap.csv.gz",
 # (mounted by tools/lsu_obs_driver.py only for those families).
 p.add_argument("--chaos_propagation", action="store_true",
                help="attach CHAOSPropagation (L3 propagation trace, [LSU][OBS-L3])")
+p.add_argument("--prop_replay_all", action="store_true",
+               help="record every LSQ replay event (replay-tracking pilot)")
 p.add_argument("--prop_trace_file", default="prop_trace.csv.gz",
                help="propagation trace output (relative to --outdir)")
 args = p.parse_args()
@@ -1141,6 +1143,7 @@ if args.chaos_propagation:
         cpu=cpu0,
         traceFile=args.prop_trace_file,
         writeLog=True,
+        traceReplayAll=args.prop_replay_all,
     )
     board.chaos_propagation = prop
     print(f"[lsu_proxy] CHAOSPropagation attached "

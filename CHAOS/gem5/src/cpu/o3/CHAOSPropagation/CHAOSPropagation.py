@@ -22,6 +22,8 @@ class CHAOSPropagation(SimObject):
         "propagation trace output (relative to --outdir; .gz = auto gzip)")
     writeLog = Param.Bool(True,
         "write the propagation trace (false = attached but inert)")
+    traceReplayAll = Param.Bool(False,
+        "record every LSQ replay, not only replayed fault instructions")
     addrExpiryTicks = Param.Unsigned(20000000,
         "registry entry lifetime in ticks (0 = never expire); bounds "
         "address-reuse misattribution (lazy sweep on insert/lookup)")
