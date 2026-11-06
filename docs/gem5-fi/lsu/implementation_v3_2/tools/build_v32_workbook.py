@@ -81,6 +81,8 @@ def main() -> int:
                 ws5.cell(r, c).value = None
 
     hdr = {str(ws5.cell(1, c).value): c for c in range(1, ws5.max_column + 1)}
+    prov_col = ws5.max_column + 1
+    ws5.cell(1, prov_col).value = "v3.2_ConfigProvenance"
     for r in range(2, ws5.max_row + 1):
         sid = ws5.cell(r, hdr["SampleRunID"]).value
         if not sid:
@@ -105,10 +107,12 @@ def main() -> int:
         if model == "A01":
             flags = ("--chaos_addrpath --agu_pre_mode a01_bit3_load "
                      "--addrpath_lsu_tier F0 --addrpath_max_faults 1 "
+                     "--addrpath_warmup_events 0 --addrpath_span_events 10 "
                      f"--addrpath_rng_seed {seed}")
         elif model == "A03":
             flags = ("--chaos_addrpath --agu_pre_mode a03_bit3_stuck0_load "
                      "--addrpath_lsu_tier F5 --addrpath_max_faults 0 "
+                     "--addrpath_warmup_events 0 --addrpath_span_events 10 "
                      f"--addrpath_rng_seed {seed}")
         elif model == "FW02":
             flags = ("--chaos_lsqfwd --lsq_struct_mode f6_fw02 "
@@ -135,6 +139,12 @@ def main() -> int:
         set_if(ws5, r, hdr.get("DecisionStatus"),
                "PILOT_VERIFIED_FORMAL_NOT_RUN" if model in PILOT_MODELS else
                "NEEDS_USER_DECISION")
+        ws5.cell(r, prov_col).value = (
+            "WarmUp=0 and ROI=full workload are explicit v3.2 platform "
+            "choices for this sample; A03 CRASH terminal is allowed. "
+            "EventOrdinal is recorded as design metadata; the current C++ "
+            "F0/F5 hooks select events by the seeded tier, not by ordinal. "
+            "Formal Gate 4 has not run.")
 
     # Model matrix.
     ws3 = wb["3.最终12模型矩阵"]

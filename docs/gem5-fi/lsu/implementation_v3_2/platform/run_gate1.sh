@@ -18,10 +18,18 @@ echo "== pytest =="
 python3 -m pytest tests -v 2>&1 | tee "$LOGS/gate1_tests.log"
 test_rc=${PIPESTATUS[0]}
 
-echo "== config parser (structural; --allow-incomplete reports the frozen workbook gaps) =="
-python3 config_parser.py "$WORKBOOK" "$LOGS/config_v31.json" --allow-incomplete \
+echo "== config parser (strict on the v3.2 workbook) =="
+python3 config_parser.py "$WORKBOOK" "$LOGS/config_v32.json" \
     2>&1 | tee "$LOGS/gate1_config_validation.log"
 cfg_rc=${PIPESTATUS[0]}
+
+# Preserve the frozen v3.1 deficit evidence separately; this is diagnostic
+# only and never feeds the Gate-1 pass/fail decision.
+V31="$LSUS/final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
+if [ -f "$V31" ]; then
+  python3 config_parser.py "$V31" "$LOGS/config_v31.json" --allow-incomplete \
+      > "$LOGS/gate1_config_v31_deficits.log" 2>&1 || true
+fi
 
 echo "== trace sample validator =="
 python3 trace_validator.py "$IMPL/LSU_Trace_Sample_v3.2.jsonl" | tee "$LOGS/gate1_trace_validator.log"

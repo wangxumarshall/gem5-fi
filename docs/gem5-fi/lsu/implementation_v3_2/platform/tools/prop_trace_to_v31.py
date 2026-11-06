@@ -87,6 +87,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
     except (EOFError, OSError):
         truncated = True
 
+    if allow_truncated_complete and terminal != "CRASH":
+        raise SystemExit("REFUSE: a truncated stream may only be completed for CRASH")
     declared = "INCOMPLETE" if truncated and not allow_truncated_complete else completeness
     if not no_summary and declared == "INCOMPLETE" and terminal == "MASKED":
         raise SystemExit("REFUSE: incomplete trace cannot be MASKED")
@@ -94,6 +96,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
     w = TraceWriter(out_path, sample_run_id, run_id, sub_task_id,
                     fault_id, fault_model_id)
     last_by_ptag: dict[int, int] = {}
+    injection_by_ptag: dict[int, int] = {}
+    next_injection = 0
     counts = {"events": 0, "edges": 0, "injections": 0, "activations": 0}
     for row in rows:
         if len(row) < 10:
@@ -108,17 +112,29 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         if kind == "inj":
             injection_status = ("NO_CHANGE" if d.get("value_changed") == "0"
                                 else "INJECTED")
+            next_injection += 1
+            injection_by_ptag[ptag_i] = next_injection
+        injection_event_id = injection_by_ptag.get(ptag_i, 1)
         activation_status = "TRIGGERED" if ptag_i > 0 else "UNKNOWN"
         commit_status = "COMMITTED" if kind in ("consumer", "errant_commit") else "UNKNOWN"
         unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
+        # CHAOSPropagation writes a virtual address for addr_form/mem_req and
+        # a physical packet address for resp. Keep them in separate fields.
+        if kind == "resp":
+            va, pa = None, _hex(addr)
+        elif kind in ("addr_form", "mem_req"):
+            va, pa = _hex(addr), None
+        else:
+            va, pa = None, None
         eid = w.event(
             KIND_MAP.get(kind, kind),
             parent_event_id=last_by_ptag.get(ptag_i),
+            injection_event_id=injection_event_id,
             dyn_inst_seq=_int(dyn_seq),
             timestamp=int(tick or 0),
             unit=unit, sub_unit=sub_unit,
             request_id=_int(req_id),
-            va=(_hex(addr) if kind in ("addr_form", "mem_req", "resp") else None),
+            va=va, pa=pa,
             old_value=old_addr,
             new_value=new_addr,
             injection_status=injection_status,

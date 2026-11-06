@@ -30,7 +30,7 @@
     "663646247"
   ],
   "exit_code": -6,
-  "elapsed_seconds": 3.704,
+  "elapsed_seconds": 2.943,
   "oracle_expected": "728e604ffcec539d",
   "oracle_pass": false,
   "injection": {

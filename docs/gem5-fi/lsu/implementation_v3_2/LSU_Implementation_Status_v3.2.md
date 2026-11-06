@@ -18,11 +18,12 @@
 | Completeness checker | PASS | sample → `COMPLETE`, `terminal_state=MASKED`, 4 events / 3 edges |
 | Trace summary | PASS | `logs/trace_sample_summary.json` |
 | Terminal classification | PASS | `tests/test_terminal.py`: 7 passed; incomplete trace returns `terminal_state=None`, never `MASKED` |
-| Full unit suite | PASS | `logs/gate1_tests.log`: **30 passed** |
+| Full unit suite | PASS | `logs/gate1_tests.log`: **35 passed** |
 
 **Gate 1 verdict:** the common-base components are implemented and unit-verified.
-The frozen v3.1 workbook is **not yet a complete run configuration**: 255
-validation errors remain.
+The frozen v3.1 workbook was **not** a complete run configuration (255
+validation errors); the repaired v3.2 workbook now passes strict validation
+with all 60 paths, SHAs and oracles present.
 
 ## Frozen-workbook deficits (input, not silently defaulted)
 
@@ -36,8 +37,10 @@ From `logs/config_v31.json`:
 | `WarmUp` | 60 | `NEEDS_CONFIG（工作负载专属warm-up）` |
 | `ROI` | 60 | `NEEDS_CONFIG（工作负载专属ROI）` |
 
-The parser exits 2 in strict mode and lists every affected SampleRunID. It
-does not substitute a default seed, path, warm-up or ROI.
+The parser exits 2 in strict mode on this frozen input and lists every
+affected SampleRunID. The v3.2 repair does **not** claim these were present in
+v3.1: it sets `WarmUp=0` and `ROI=full workload` as explicit v3.2 platform
+choices and records that provenance in the new `v3.2_ConfigProvenance` column.
 
 ## Gate 2 — Workloads and pilots
 
@@ -97,5 +100,5 @@ The artifacts found in the main checkout at 2026-11-06 09:43-09:45 are in
    safety review first.
 2. Gate 4: only after Gates 1-3 pass and the researcher confirms, run the 60
    formal samples with the frozen seeds.
-3. Repair the frozen workbook to v3.2 (paths, SHAs, oracles, warm-up/ROI,
-   Chinese text, legacy terminal columns) only where the values are real.
+3. The v3.2 workbook repair is complete; no further workbook edit is needed
+   before Gate 3.

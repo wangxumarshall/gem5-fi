@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import re
 import shutil
@@ -26,7 +27,7 @@ IMPL = PLATFORM.parent
 sys.path.insert(0, str(PLATFORM))
 
 from config_parser import load_config  # noqa: E402
-from manifest import build_manifest, write_manifest  # noqa: E402
+from manifest import build_manifest, canonical_json, write_manifest  # noqa: E402
 from trace_completeness import check_completeness  # noqa: E402
 from trace_validator import validate  # noqa: E402
 from tools.prop_trace_to_v31 import convert  # noqa: E402
@@ -93,6 +94,7 @@ def main(argv=None) -> int:
     cfg = load_config(EXCEL, require_complete=False)
     sample = next(s for s in cfg["samples"] if s["model_id"] == args.model)
     sample = copy.deepcopy(sample)
+    excel_seed = sample["seed"]
     sample["sample_run_id"] = args.pilot_id
     sample["run_id"] = f"PILOT-{args.model}"
     sample["sub_task_id"] = f"PILOT-{args.model}-S01"
@@ -104,11 +106,7 @@ def main(argv=None) -> int:
     out = args.outdir
     out.mkdir(parents=True, exist_ok=True)
 
-    manifest = build_manifest(cfg2, args.pilot_id, args.gem5, CONFIG,
-                              output_dir=out)
-    write_manifest(manifest, out / "manifest.json")
-
-    extra = ["--prob", "unused"] if False else []
+    extra = []
     if args.model == "A01":
         extra = ["--chaos_addrpath", "--agu_pre_mode", "a01_bit3_load",
                  "--addrpath_lsu_tier", "F0", "--addrpath_max_faults", "1",
@@ -130,6 +128,13 @@ def main(argv=None) -> int:
            "--chaos_propagation",
            "--prop_trace_file", "prop_trace.csv.gz"] + extra
     (out / "command.txt").write_text("\n".join(cmd) + "\n")
+    manifest = build_manifest(cfg2, args.pilot_id, args.gem5, CONFIG,
+                              output_dir=out, command=cmd)
+    if args.seed != excel_seed:
+        manifest["seed_source"] = "pilot_cli_override (not Excel)"
+        manifest["manifest_sha256"] = hashlib.sha256(
+            canonical_json(manifest).encode("utf-8")).hexdigest()
+    write_manifest(manifest, out / "manifest.json")
     started = time.time()
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
                           timeout=900)
@@ -216,6 +221,10 @@ def main(argv=None) -> int:
     # particular software outcome: an injected fault whose error does not
     # propagate is recorded as MASKED, and one that changes the oracle is
     # recorded as SDC. Both are valid pilots; zero injections is not.
+    final_terminal = terminal
+    if (completeness_report.get("trace_completeness") != "COMPLETE"
+            and final_terminal == "MASKED"):
+        final_terminal = None
     accepted = (
         (proc.returncode == 0 or crash_by_fault) and injected > 0
         and target_proof.get("events", 1) > 0
@@ -243,7 +252,7 @@ def main(argv=None) -> int:
         "classification": {
             "run_status": run_status,
             "fault_activation_status": activation,
-            "terminal_state": terminal,
+            "terminal_state": final_terminal,
             "trace_completeness": completeness_report.get("trace_completeness"),
         },
         "accepted": accepted,

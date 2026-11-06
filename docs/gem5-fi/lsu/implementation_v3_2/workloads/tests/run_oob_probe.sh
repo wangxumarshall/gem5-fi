@@ -7,5 +7,6 @@ LOG=../../logs
 mkdir -p "$LOG"
 for mode in store_path alignment store_path_fixed alignment_fixed; do
   ./oob_probe "$mode" > "$LOG/probe_${mode}.log" 2>&1
-  echo "$mode exit=$?"
+  rc=$?
+  echo "mode=$mode exit=$rc" | tee -a "$LOG/probe_${mode}.log" >> "$LOG/probe_results.txt"
 done

@@ -1,0 +1,4 @@
+mode=store_path exit=139
+mode=alignment exit=139
+mode=store_path_fixed exit=0
+mode=alignment_fixed exit=0

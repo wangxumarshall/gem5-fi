@@ -6,15 +6,15 @@ src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:32
 src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:8] into equal-sized buckets. Rounding up.
 src/base/remote_gdb.cc:418: warn: Sockets disabled, not accepting gdb connections
 src/sim/faults.cc:103: panic: panic condition !handled && !tc->getSystemPtr()->trapToGdb(GDBSignal::SEGV, tc->contextId()) occurred: Page table fault when accessing virtual address 0xffffffffffb73c50
-Memory Usage: 1247184 KBytes
+Memory Usage: 1247188 KBytes
 Program aborted at tick 1648955
 --- BEGIN LIBC BACKTRACE ---
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem515print_backtraceEv+0x18)[0x336f818]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem512abortHandlerEi+0x48)[0x339191c]
-linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffffb4d857e0]
-/usr/lib64/libc.so.6(+0x812c0)[0xffffb3c412c0]
-/usr/lib64/libc.so.6(raise+0x1c)[0xffffb3bf9f2c]
-/usr/lib64/libc.so.6(abort+0xf0)[0xffffb3be703c]
+linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffff9738c7e0]
+/usr/lib64/libc.so.6(+0x812c0)[0xffff962412c0]
+/usr/lib64/libc.so.6(raise+0x1c)[0xffff961f9f2c]
+/usr/lib64/libc.so.6(abort+0xf0)[0xffff961e703c]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0xf45d28]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem521GenericPageTableFault6invokeEPNS_13ThreadContextERKNS_14RefCountingPtrINS_10StaticInstEEE+0xdc)[0x33f3c6c]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem52o36Commit10commitHeadERKNS_14RefCountingPtrINS0_7DynInstEEEj+0x518)[0x1098cdc]
@@ -27,20 +27,20 @@ linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffffb4d857e0]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(_ZN4gem58simulateEm+0x220)[0x33ab130]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0x32c0384]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0xf2c2c4]
-/usr/lib64/libpython3.11.so.1.0(+0x17c500)[0xffffb498c500]
-/usr/lib64/libpython3.11.so.1.0(_PyObject_Call+0x7c)[0xffffb49a3000]
-/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x4974)[0xffffb4977ca4]
-/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffb496e114]
-/usr/lib64/libpython3.11.so.1.0(PyEval_EvalCode+0x9c)[0xffffb4a109dc]
-/usr/lib64/libpython3.11.so.1.0(+0x220a1c)[0xffffb4a30a1c]
-/usr/lib64/libpython3.11.so.1.0(+0x173880)[0xffffb4983880]
-/usr/lib64/libpython3.11.so.1.0(PyObject_Vectorcall+0x48)[0xffffb49837e8]
-/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x754)[0xffffb4973a84]
-/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffb496e114]
+/usr/lib64/libpython3.11.so.1.0(+0x17c500)[0xffff96f8c500]
+/usr/lib64/libpython3.11.so.1.0(_PyObject_Call+0x7c)[0xffff96fa3000]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x4974)[0xffff96f77ca4]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffff96f6e114]
+/usr/lib64/libpython3.11.so.1.0(PyEval_EvalCode+0x9c)[0xffff970109dc]
+/usr/lib64/libpython3.11.so.1.0(+0x220a1c)[0xffff97030a1c]
+/usr/lib64/libpython3.11.so.1.0(+0x173880)[0xffff96f83880]
+/usr/lib64/libpython3.11.so.1.0(PyObject_Vectorcall+0x48)[0xffff96f837e8]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x754)[0xffff96f73a84]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffff96f6e114]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt[0x32a7e94]
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt(main+0x16c)[0xf17e1c]
-/usr/lib64/libc.so.6(+0x276c4)[0xffffb3be76c4]
-/usr/lib64/libc.so.6(__libc_start_main+0x98)[0xffffb3be77a8]
+/usr/lib64/libc.so.6(+0x276c4)[0xffff961e76c4]
+/usr/lib64/libc.so.6(__libc_start_main+0x98)[0xffff961e77a8]
 --- END LIBC BACKTRACE ---
 For more info on how to address this issue, please visit https://www.gem5.org/documentation/general_docs/common-errors/ 
 

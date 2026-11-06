@@ -65,7 +65,9 @@ the frozen Excel rows; no formal sample ID or seed was changed.
   `RunStatus=SIMULATOR_ERROR`, `FaultActivationStatus=TRIGGERED`,
   `TerminalState=CRASH`.
 - Trace: 563 captured CSV nodes → 564 JSONL events, 489 edges, 73 injection
-  nodes, 417 activation nodes. The gzip trailer is absent because gem5
+  nodes, and 417 nodes carrying `activation_status=TRIGGERED` (a per-node
+  status flag, not a count of distinct activations). gem5 aborted before the
+  stats dump, so `stats.txt` is empty and no stats claim is made. The gzip trailer is absent because gem5
   aborted; every completed node was flushed, and a terminal
   `simulator_abort` event was appended. TraceCompleteness=COMPLETE to the
   observed crash terminal.
@@ -82,7 +84,10 @@ the frozen Excel rows; no formal sample ID or seed was changed.
 - The target load then went to the memory path; the injected suppression is
   recorded at the full-coverage decision point.
 - Trace: 4 events, 3 PropagationEdges: injection → address_formed →
-  memory_response → register_writeback.
+  memory_response → register_writeback. The trigger pair (`load_seq=397`,
+  `store_seq=383`) is recorded in `lsq_fwd_injections.log` and
+  `pilot_meta.json`; the current propagation node does not carry the store
+  seq field, so the pair is not reconstructible from the JSONL alone.
 - Oracle: PASS; terminal `MASKED`; trace COMPLETE.
 - **Pilot accepted.**
 
@@ -96,6 +101,10 @@ runs:
   with a real downstream crash.
 - F6: one named store→load forwarding event triggered one suppression
   (FW02).
+
+Trace identity was corrected after review: every injection now carries a
+unique `injection_event_id`, and memory responses store their physical
+address in `pa` (not `va`). See the regenerated `trace_v31.jsonl` files.
 
 Gate 2 is accepted for the three pilots. Gate 3 (remaining nine models) and
 Gate 4 (60 formal samples) have not started.
