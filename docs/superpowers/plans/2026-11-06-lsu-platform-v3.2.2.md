@@ -143,7 +143,7 @@ association, compile evidence. LQ04 and RP01 get an explicit safety review
 
 ## Task 20 — package + A–H status report
 
-- [ ] `LSU_v3.2.2_Implementation_Package.zip` with git diff/commits, source,
+- [x] `LSU_v3.2.2_Implementation_Package.zip` with git diff/commits, source,
       logs, real JSONL and pilot results.
-- [ ] Report A–H with per-item DESIGNED/IMPLEMENTED/COMPILED/UNIT_TESTED/
+- [x] Report A–H with per-item DESIGNED/IMPLEMENTED/COMPILED/UNIT_TESTED/
       PILOT_RUN/PROPAGATION_VERIFIED. No item is upgraded without evidence.
