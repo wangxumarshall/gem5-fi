@@ -32,6 +32,7 @@ KIND_MAP = {
     "errant_commit": "errant_commit",
     "funnel": "funnel",
     "fwd": "forwarding_decision",
+    "commit": "commit",
     "lq_lifecycle": "lq_lifecycle",
     "sq_lifecycle": "sq_lifecycle",
     "replay": "replay",
@@ -48,7 +49,8 @@ UNIT_MAP = {
     "consumer": ("Commit", "consumer"),
     "errant_commit": ("Commit", "errant_commit"),
     "funnel": ("Funnel", "counts"),
-    "fwd": ("LSU", "Store-to-Load Forwarding"),
+    "fwd": ("FWD", "Store-to-Load Forwarding"),
+    "commit": ("Commit", "commit"),
     "lq_lifecycle": ("LSQ", "LQ lifecycle"),
     "sq_lifecycle": ("LSQ", "SQ lifecycle"),
     "replay": ("LSQ", "replay"),
@@ -150,7 +152,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             injection_by_ptag[ptag_i] = next_injection
         injection_event_id = injection_by_ptag.get(ptag_i, 1)
         activation_status = "TRIGGERED" if ptag_i > 0 else "UNKNOWN"
-        commit_status = "COMMITTED" if kind in ("consumer", "errant_commit") else "UNKNOWN"
+        commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit", "commit")
+                         else "UNKNOWN")
         squash_status = "SQUASHED" if kind == "squash" else "UNKNOWN"
         unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
         if kind in ("lq_lifecycle", "sq_lifecycle"):
@@ -191,6 +194,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                 "byte_begin": _hex(d.get("byte_begin")),
                 "byte_end": _hex(d.get("byte_end")),
                 "forward_decision": d.get("decision"),
+                "normal_decision": d.get("normal_decision"),
+                "fault_decision": d.get("fault_decision"),
                 "memory_path": _int(d.get("memory_path")),
                 "store_data_fnv": d.get("store_data_fnv"),
                 "forward_data_fnv": d.get("forward_data_fnv"),

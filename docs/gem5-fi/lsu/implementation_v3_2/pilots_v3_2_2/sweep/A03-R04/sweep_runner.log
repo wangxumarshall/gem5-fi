@@ -32,7 +32,7 @@
     "4"
   ],
   "exit_code": -6,
-  "elapsed_seconds": 3.134,
+  "elapsed_seconds": 3.658,
   "oracle_expected": "728e604ffcec539d",
   "oracle_pass": false,
   "injection": {
@@ -47,7 +47,7 @@
     "all_load_bit3": true
   },
   "trace": {
-    "csv_rows": 1390,
+    "csv_rows": 1429,
     "truncated": true,
     "validator_errors": [],
     "completeness": {
@@ -69,7 +69,7 @@
       "terminal_state": "CRASH",
       "run_status": "SIMULATOR_ERROR",
       "fault_activation_status": "TRIGGERED",
-      "events": 1329,
+      "events": 1368,
       "edges": 339,
       "injections": 143,
       "activations": 411,

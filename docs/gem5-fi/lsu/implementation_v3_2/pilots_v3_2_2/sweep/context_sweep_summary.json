@@ -29,7 +29,7 @@
       "oracle": "FAIL",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 1004,
+        "events": 1005,
         "edges": 17,
         "injections": 1,
         "activations": 18
@@ -61,7 +61,7 @@
       "oracle": "PASS",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 6730,
+        "events": 6731,
         "edges": 6,
         "injections": 1,
         "activations": 7
@@ -125,7 +125,7 @@
       "oracle": "PASS",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 6696,
+        "events": 6697,
         "edges": 10,
         "injections": 1,
         "activations": 11
@@ -157,7 +157,7 @@
       "oracle": "PASS",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 6686,
+        "events": 6687,
         "edges": 6,
         "injections": 1,
         "activations": 7
@@ -189,7 +189,7 @@
       "oracle": "FAIL",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 1340,
+        "events": 1380,
         "edges": 344,
         "injections": 146,
         "activations": 417
@@ -221,7 +221,7 @@
       "oracle": "FAIL",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 1338,
+        "events": 1378,
         "edges": 344,
         "injections": 145,
         "activations": 417
@@ -253,7 +253,7 @@
       "oracle": "FAIL",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 1331,
+        "events": 1370,
         "edges": 339,
         "injections": 144,
         "activations": 411
@@ -285,7 +285,7 @@
       "oracle": "FAIL",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 1329,
+        "events": 1368,
         "edges": 339,
         "injections": 143,
         "activations": 411
@@ -317,7 +317,7 @@
       "oracle": "FAIL",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 1327,
+        "events": 1366,
         "edges": 339,
         "injections": 142,
         "activations": 411
@@ -383,7 +383,7 @@
       "oracle": "FAIL",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 2551,
+        "events": 2552,
         "edges": 10,
         "injections": 1,
         "activations": 11
@@ -416,7 +416,7 @@
       "oracle": "PASS",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 6862,
+        "events": 6863,
         "edges": 620,
         "injections": 1,
         "activations": 621
@@ -449,7 +449,7 @@
       "oracle": "PASS",
       "trace_completeness": "COMPLETE",
       "trace_counts": {
-        "events": 6190,
+        "events": 6191,
         "edges": 6,
         "injections": 1,
         "activations": 7

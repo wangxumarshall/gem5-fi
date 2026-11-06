@@ -28,7 +28,7 @@
   "roi": "NEEDS_CONFIG（工作负载专属ROI）",
   "gem5": {
     "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
-    "binary_sha256": "55290907d62cf80f1bede99aac35979cf93b344bd575880cb25982daf4aea044",
+    "binary_sha256": "7a584a08d55df148eebe090530f56a14679b38567c936f6ed9723aa59dff278d",
     "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
     "config_script_sha256": "0c0bca13f4a82479621f9ce24d1ecb118e3e6bdf519315ffb5c50233b65fd880"
   },
@@ -65,10 +65,10 @@
   ],
   "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/sweep/A01-R03 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_addrpath --agu_pre_mode a01_bit3_load --addrpath_lsu_tier F0 --addrpath_max_faults 1 --addrpath_warmup_events 0 --addrpath_span_events 10 --addrpath_rng_seed 1302709433 --addrpath_event_ordinal 3",
   "environment": {
-    "captured_at_utc": "2026-11-06T10:42:46Z",
+    "captured_at_utc": "2026-11-06T10:54:20Z",
     "host": "localhost0101",
     "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
     "python": "3.11.6"
   },
-  "manifest_sha256": "b475b623e17ebbc813d20ed5b067e3f0ad559af977e04801124d62b21c722e84"
+  "manifest_sha256": "c33805f8788738a33398c2c7dd9f5b8bbb58ccc608b16390d33f53c20075e986"
 }

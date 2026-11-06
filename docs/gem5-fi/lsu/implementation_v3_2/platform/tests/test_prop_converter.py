@@ -95,6 +95,40 @@ def test_f5_nochange_is_counted_as_an_injection(tmp_path):
     assert check_completeness(out)["injections"] == 1
 
 
+def test_fw02_forwarding_unit_and_fault_instruction_commit(tmp_path):
+    """FW02: FWD unit, explicit normal/fault decision, real commit node."""
+    import gzip
+    csv = tmp_path / "prop.csv.gz"
+    with gzip.open(csv, "wt", encoding="utf-8") as fh:
+        fh.write(
+            "1,100,1,fwd,397,0,0x1000,0,0,"
+            "store_seq=383;load_seq=397;byte_begin=0x1000;byte_end=0x1008;"
+            "size=8;store_data_fnv=aa;forward_data_fnv=bb;"
+            "decision=suppressed;normal_decision=forwarded;"
+            "fault_decision=suppressed;memory_path=1\n")
+        fh.write(
+            "2,200,0,commit,397,0,0,0,0,"
+            "trigger=fault_instruction_commit;pc=0x400;commit_seq=46;"
+            "execution_attempt_id=1;replay_generation=0;is_load=1;is_store=0\n")
+    out = tmp_path / "trace.jsonl"
+    convert(csv, out, sample_run_id="PILOT-FW02-TEST",
+            run_id="PILOT-FW02", sub_task_id="PILOT-FW02-S01",
+            fault_id="FW02-CFG01", fault_model_id="FW02",
+            run_status="COMPLETED", activation="TRIGGERED",
+            terminal="MASKED", completeness="COMPLETE")
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    fwd = next(r for r in rows if r.get("event_type") == "forwarding_decision")
+    assert fwd["unit"] == "FWD"
+    assert fwd["normal_decision"] == "forwarded"
+    assert fwd["fault_decision"] == "suppressed"
+    assert fwd["forward_decision"] == "suppressed"
+    assert fwd["memory_path"] == 1
+    commit = next(r for r in rows if r.get("event_type") == "commit")
+    assert commit["commit_status"] == "COMMITTED"
+    assert commit["commit_seq"] == 46
+    assert commit["dyn_inst_seq"] == 397
+
+
 def test_truncated_complete_requires_crash(tmp_path):
     import pytest
     with pytest.raises(SystemExit):

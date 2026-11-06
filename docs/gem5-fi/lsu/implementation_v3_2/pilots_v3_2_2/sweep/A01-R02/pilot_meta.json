@@ -34,7 +34,7 @@
     "2"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 1.674,
+  "elapsed_seconds": 1.802,
   "oracle_expected": "728e604ffcec539d",
   "oracle_pass": true,
   "injection": {
@@ -49,7 +49,7 @@
     "all_load_bit3": true
   },
   "trace": {
-    "csv_rows": 6731,
+    "csv_rows": 6732,
     "truncated": false,
     "validator_errors": [],
     "completeness": {
@@ -70,7 +70,7 @@
       "terminal_state": "MASKED",
       "run_status": "COMPLETED",
       "fault_activation_status": "TRIGGERED",
-      "events": 6730,
+      "events": 6731,
       "edges": 6,
       "injections": 1,
       "activations": 7,

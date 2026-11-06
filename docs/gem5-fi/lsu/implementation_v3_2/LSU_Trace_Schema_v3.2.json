@@ -375,6 +375,18 @@
             "null"
           ]
         },
+        "normal_decision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fault_decision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "memory_path": {
           "type": [
             "integer",

@@ -695,7 +695,11 @@ namespace gem5
           << ";forward_data_hex="
           << (fwd_data ? bytesToHex(fwd_data, fwd_size) : "null")
           << ";decision=" << (suppressed ? "suppressed" : "forwarded")
+          << ";normal_decision=forwarded"
+          << ";fault_decision=" << (suppressed ? "suppressed" : "none")
           << ";memory_path=" << (memory_path ? 1 : 0);
+        if (suppressed)
+            fault_seqs.insert(load_seq);
         writeNode(ptag, "fwd", load_seq, true, 0, false, vaddr, true,
                   0, false, 0, false, d.str());
     }
@@ -708,6 +712,24 @@ namespace gem5
 
         ++commit_seq;
         const uint64_t pc = head_inst->pcState().instAddr();
+
+        // The fault instruction's own architectural commit is a real node.
+        // For FW02 the suppressed load is registered in fault_seqs by
+        // noteForwarding; A01/A03 faulting loads/stores are registered by
+        // noteInjection.
+        if (fault_seqs.count(head_inst->seqNum)) {
+            std::ostringstream cd;
+            cd << "trigger=fault_instruction_commit"
+               << ";pc=" << std::hex << pc << std::dec
+               << ";commit_seq=" << commit_seq
+               << ";execution_attempt_id=" << head_inst->executionAttemptId
+               << ";replay_generation=" << head_inst->replayGeneration
+               << ";is_load=" << (head_inst->isLoad() ? 1 : 0)
+               << ";is_store=" << (head_inst->isStore() ? 1 : 0);
+            writeNode(0, "commit", head_inst->seqNum, true, 0, false,
+                      0, false, 0, false, 0, false, cd.str());
+        }
+
         uint64_t first_consumed_ptag = 0;
         uint64_t last_consumer_node = 0;
         std::string last_consumer_hash;

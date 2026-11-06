@@ -85,12 +85,12 @@ null stays null; never infer Masked from an incomplete trace.
 
 **Files:** converter `UNIT_MAP`, `CHAOSPropagation` commit path, `lsq_unit.cc`.
 
-- [ ] FW02 unit=`FWD`, sub_unit=`Store-to-Load Forwarding` (Excel model matrix).
-- [ ] Fault-tracked loads emit a real `commit` node from `commit.cc`; the
+- [x] FW02 unit=`FWD`, sub_unit=`Store-to-Load Forwarding` (Excel model matrix).
+- [x] Fault-tracked loads emit a real `commit` node from `commit.cc`; the
       forwarding row keeps store/load seq, store data, decision, memory path.
 - [x] Diagnose R02 (no injection) and R03 (INVALID/PARTIAL) with real logs; fix
       the cause or keep the failure with the exact reason.
-- [ ] Re-run R01–R05; all five present in the sweep with explicit results.
+- [x] Re-run R01–R05; all five present in the sweep with explicit results.
 
 ## Task 7 — replay pilot (Phase 3)
 
