@@ -54,6 +54,14 @@ class CHAOSLSQFwd : public SimObject
                                const uint8_t *alt_src, unsigned alt_size,
                                Addr vaddr);
 
+    // FW02 (LSU v3.2 pilot, F6): at the full-coverage forwarding DECISION
+    // point, return true exactly once for a real older-store/younger-load
+    // pair. The caller skips the forwarding branch and falls through to the
+    // normal memory access for that load. This is a conditional false miss,
+    // not a data corruption of the forwarded buffer.
+    bool maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,
+                                 Addr vaddr, unsigned size);
+
     // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
     // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
     // If the RNG fires, returns the DELAY in CPU cycles to apply to this
@@ -87,7 +95,7 @@ class CHAOSLSQFwd : public SimObject
     //     E3 boundary analysis showed captures scheduler phase, not
     //     forward-path phase).
     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
-                            PhaseOffset };
+                            PhaseOffset, F6Fw02 };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;
@@ -121,6 +129,14 @@ class CHAOSLSQFwd : public SimObject
     // from the driver overrides the legacy geometric(0.1) draw.
     bool count_only = false;         // consume + count, never corrupt
     uint64_t eligible_count = 0;     // CHAOS_ELIGIBLE_COUNT=<n> at teardown
+
+    // FW02 (LSU v3.2 F6 pilot): a real full-coverage older-store/younger-load
+    // pair is the trigger. The first such pair fires once; subsequent pairs
+    // are counted but not suppressed.
+    bool f6_fired = false;
+    uint64_t f6_observed = 0;
+    uint64_t f6_load_seq = 0;
+    uint64_t f6_store_seq = 0;
 
     std::mt19937 rng;
     std::random_device rd;

@@ -1,4 +1,5 @@
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // v3.2 FW02 trace
 #include "sim/sim_exit.hh"
 #include "params/CHAOSLSQFwd.hh"
 
@@ -69,7 +70,7 @@ namespace gem5
                 "O3CPU (it hooks the O3 LSQ store->load forwarding path). "
                 "Cast failed.");
         }
-        if (probability > 0.0f) {
+        if (probability > 0.0f || struct_mode == StructMode::F6Fw02) {
             log_stream = simout.create("lsq_fwd_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSLSQFwd: Could not open log file");
@@ -110,6 +111,21 @@ namespace gem5
             // lsqFwd during execute(), long after SimObject construction.
             cpu->lsqFwd = this;
         }
+        if (struct_mode == StructMode::F6Fw02) {
+            // FW02: attach even with probability==0 (this mode suppresses a
+            // forwarding match, it does not corrupt forwarded bytes).
+            if (!cpu->lsqFwd) cpu->lsqFwd = this;
+            if (max_faults == 0) max_faults = 1;
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_FW02_SUMMARY: observed=" << f6_observed
+                        << " suppressed=" << (f6_fired ? 1 : 0)
+                        << " load_seq=" << f6_load_seq
+                        << " store_seq=" << f6_store_seq << std::endl;
+                }
+            });
+        }
     }
 
     CHAOSLSQFwd::~CHAOSLSQFwd()
@@ -148,6 +164,7 @@ namespace gem5
         if (s == "all_zero") return StructMode::AllZero;
         if (s == "fwd_source_sub") return StructMode::FwdSourceSub;
         if (s == "phase_offset") return StructMode::PhaseOffset;
+        if (s == "f6_fw02") return StructMode::F6Fw02;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -192,6 +209,9 @@ namespace gem5
         // (maybeDelayForward) — no data mutation there either.
         if (struct_mode == StructMode::FwdSourceSub) return;
         if (struct_mode == StructMode::PhaseOffset) return;
+        // FW02 acts only at the forwarding DECISION point (suppress one
+        // match); it must never also mutate the forwarded bytes.
+        if (struct_mode == StructMode::F6Fw02) return;
         // [LSU][SEM-B] L03 hook split: with --lsqfwd_l03 the SQ-forward
         // data path is NOT L03's event source — the trigger stream must be
         // violation checks only (checkViolations site), not the mixed stream.
@@ -403,6 +423,49 @@ namespace gem5
           ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
                    "Stuck-at-1 faults on forwarded data")
     {}
+
+    bool
+    CHAOSLSQFwd::maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,
+                                         Addr vaddr, unsigned size)
+    {
+        if (struct_mode != StructMode::F6Fw02) return false;
+        ++f6_observed;
+        if (f6_fired) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        // The caller reaches this point only inside the FullAddrRangeCoverage
+        // branch, i.e. a real older-store/younger-load pair exists. That pair
+        // IS the F6 trigger; suppress exactly this forwarding match.
+        f6_fired = true;
+        f6_load_seq = load_seq;
+        f6_store_seq = store_seq;
+        ++faults_injected_count;
+        // v3.2 trace bridge: register the false-miss at the decision point.
+        // The subsequent memory request/response for this load is matched by
+        // (dyn_inst_seq, vaddr) and continues the normal L3 chain.
+        if (auto *prop = CHAOSPropagation::instance()) {
+            prop->registerInjection("lsq_fwd_decision", load_seq, vaddr, vaddr,
+                                    true, size, size);
+        }
+        DPRINTF(LSQUnit,
+                "CHAOSFW02: suppress forwarding load_sn:%llu store_sn:%llu "
+                "addr:%#x size:%u\n",
+                (unsigned long long)load_seq, (unsigned long long)store_seq,
+                vaddr, size);
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: store->load_forward_decision"
+                << ", FaultType: f6_fw02_suppress"
+                << ", load_seq: " << load_seq
+                << ", store_seq: " << store_seq
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", FwdSize: " << size
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
 
     bool
     CHAOSLSQFwd::violationCorrupt(Addr& cmp_addr)

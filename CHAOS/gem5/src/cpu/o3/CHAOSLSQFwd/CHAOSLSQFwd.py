@@ -42,7 +42,9 @@ class CHAOSLSQFwd(SimObject):
         "forwarded buffer by laneSkewK bytes — core179 D1 byte-lane phase "
         "signature) | all_zero (zero the whole 8-byte buffer) | "
         "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
-        "entry — method1 wrong-source store->load forwarding)")
+        "entry — method1 wrong-source store->load forwarding) | "
+        "f6_fw02 (LSU v3.2 F6: suppress one real full-coverage "
+        "store->load forwarding match and force the load to memory)")
     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
     l03Mode = Param.Bool(False,
         "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "

@@ -1508,6 +1508,23 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
             }
 
             if (coverage == AddrRangeCoverage::FullAddrRangeCoverage) {
+                // FW02 (LSU v3.2 F6): a real full-coverage older-store /
+                // younger-load pair is the trigger. On the one-shot fire,
+                // skip this forwarding match and fall through to the normal
+                // memory access instead. This is a conditional false miss;
+                // no forwarded bytes are mutated.
+                if (cpu->lsqFwd &&
+                    cpu->lsqFwd->maybeSuppressForwarding(
+                        load_inst->seqNum, store_it->instruction()->seqNum,
+                        request->mainReq()->getVaddr(),
+                        request->mainReq()->getSize())) {
+                    DPRINTF(LSQUnit,
+                            "FW02 suppressed forwarding for load [sn:%lli] "
+                            "from store [sn:%lli]\n",
+                            load_inst->seqNum,
+                            store_it->instruction()->seqNum);
+                    break;
+                }
                 // Get shift amount for offset into the store's data.
                 int shift_amt = request->mainReq()->getVaddr() -
                     store_it->instruction()->effAddr;

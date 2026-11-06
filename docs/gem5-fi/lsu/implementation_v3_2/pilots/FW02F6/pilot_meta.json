@@ -1,0 +1,69 @@
+{
+  "pilot_id": "PILOT-FW02-F6-W4-R01",
+  "model": "FW02",
+  "seed": 2941542370,
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=docs/gem5-fi/lsu/implementation_v3_2/pilots/FW02F6",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_lsqfwd",
+    "--lsq_struct_mode",
+    "f6_fw02",
+    "--max_faults",
+    "1",
+    "--rng_seed",
+    "2941542370"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.56,
+  "oracle_expected": "1f4cbf14327717df",
+  "oracle_pass": true,
+  "injection": {
+    "observed": 6,
+    "suppressed": 1,
+    "load_seq": 397,
+    "store_seq": 383
+  },
+  "target_event_proof": {
+    "site": "store->load_forward_decision",
+    "observed": 6,
+    "suppressed": 1,
+    "load_seq": 397,
+    "store_seq": 383
+  },
+  "trace": {
+    "csv_rows": 4,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "docs/gem5-fi/lsu/implementation_v3_2/pilots/FW02F6/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "terminal_state": "MASKED",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "events": 4,
+      "edges": 3,
+      "injections": 1,
+      "activations": 4,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "terminal_state": "MASKED",
+    "trace_completeness": "COMPLETE"
+  },
+  "accepted": true
+}
