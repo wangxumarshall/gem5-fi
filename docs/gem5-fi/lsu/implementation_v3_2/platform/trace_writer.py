@@ -161,6 +161,14 @@ class TraceWriter:
         self._closed = True
         return summary
 
+    def abort(self) -> None:
+        """Close without a summary. Used only when the trace is known to be
+        incomplete; the validator and completeness checker then report the
+        missing summary instead of a fabricated terminal verdict."""
+        if not self._closed and self._fh is not None:
+            self._fh.close()
+            self._closed = True
+
     def __enter__(self) -> "TraceWriter":
         return self
 
