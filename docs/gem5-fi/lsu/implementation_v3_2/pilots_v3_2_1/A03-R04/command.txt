@@ -1,5 +1,5 @@
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt
---outdir=/tmp/v321_contexts/A03-R04
+--outdir=/tmp/v321_contexts3/A03-R04
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py
 --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes
 --cpu

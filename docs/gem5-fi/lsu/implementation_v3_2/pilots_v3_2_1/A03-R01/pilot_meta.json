@@ -5,7 +5,7 @@
   "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes",
   "command": [
     "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
-    "--outdir=/tmp/v321_contexts/A03-R01",
+    "--outdir=/tmp/v321_contexts3/A03-R01",
     "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
     "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes",
     "--cpu",
@@ -32,7 +32,7 @@
     "1"
   ],
   "exit_code": -6,
-  "elapsed_seconds": 3.053,
+  "elapsed_seconds": 2.857,
   "oracle_expected": "728e604ffcec539d",
   "oracle_pass": false,
   "injection": {
@@ -50,8 +50,21 @@
     "truncated": true,
     "validator_errors": [],
     "completeness": {
-      "trace": "/tmp/v321_contexts/A03-R01/trace_v31.jsonl",
+      "trace": "/tmp/v321_contexts3/A03-R01/trace_v31.jsonl",
       "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "COMPLETE",
+      "propagation_stages": [
+        "injection",
+        "address_formed",
+        "memory_request",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit",
+        "errant_commit",
+        "squash",
+        "simulator_abort"
+      ],
       "terminal_state": "CRASH",
       "run_status": "SIMULATOR_ERROR",
       "fault_activation_status": "TRIGGERED",
@@ -66,7 +79,10 @@
     "run_status": "SIMULATOR_ERROR",
     "fault_activation_status": "TRIGGERED",
     "terminal_state": "CRASH",
-    "trace_completeness": "COMPLETE"
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle_outcome": "FAIL"
   },
   "accepted": true,
   "crash_evidence": "page_table_fault_after_injection_address_match"

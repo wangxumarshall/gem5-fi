@@ -1,0 +1,2 @@
+[lsu_proxy] B0 caches applied (variant=B0): L1D 32KiB/2-way lat222 MSHR6/t8/wb16 + L1I 32KiB/2 lat111 MSHR2 + L2 1MiB/16 lat12 MSHR16 + StridePrefetcher(8,1,on)@L2
+728e604ffcec539d

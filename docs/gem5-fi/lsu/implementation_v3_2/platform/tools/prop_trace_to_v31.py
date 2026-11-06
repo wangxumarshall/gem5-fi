@@ -167,6 +167,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             va, pa = None, None
             old_value, new_value = old_addr, new_addr
         parent = last_by_ptag.get(ptag_i)
+        if ptag_i == 0:
+            parent = None
         if kind == "consumer" and d.get("source_event_id") in node_to_event:
             parent = node_to_event[int(d["source_event_id"])]
         extra = {}

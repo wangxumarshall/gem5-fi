@@ -1,5 +1,5 @@
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt
---outdir=/tmp/v321_contexts/FW02-R04
+--outdir=/tmp/v321_contexts3/FW02-R04
 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py
 --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward
 --cpu

@@ -1,0 +1,43 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/platform
+collecting ... collected 35 items
+
+tests/test_config_parser.py::test_real_excel_has_60_samples_12_models_5_each PASSED [  2%]
+tests/test_config_parser.py::test_absent_workload_is_reported_not_defaulted PASSED [  5%]
+tests/test_config_parser.py::test_duplicate_seed_rejected PASSED         [  8%]
+tests/test_config_parser.py::test_parent_mismatch_rejected PASSED        [ 11%]
+tests/test_config_parser.py::test_sample_sheet_name_is_pinned PASSED     [ 14%]
+tests/test_fault_manager.py::test_f0_fires_exactly_once PASSED           [ 17%]
+tests/test_fault_manager.py::test_f0_honours_warmup_and_ordinal PASSED   [ 20%]
+tests/test_fault_manager.py::test_f5_applies_to_every_post_warmup_eligible PASSED [ 22%]
+tests/test_fault_manager.py::test_f5_counts_nochange_as_applied PASSED   [ 25%]
+tests/test_fault_manager.py::test_f6_requires_named_trigger_then_once PASSED [ 28%]
+tests/test_fault_manager.py::test_f6_never_fires_without_trigger_event PASSED [ 31%]
+tests/test_fault_manager.py::test_invalid_mode_rejected PASSED           [ 34%]
+tests/test_manifest_oracle.py::test_manifest_uses_excel_seed_and_hashes_binary PASSED [ 37%]
+tests/test_manifest_oracle.py::test_manifest_rejects_absent_workload PASSED [ 40%]
+tests/test_manifest_oracle.py::test_manifest_sha_is_stable PASSED        [ 42%]
+tests/test_manifest_oracle.py::test_oracle_pass_fail_missing PASSED      [ 45%]
+tests/test_manifest_oracle.py::test_manifest_rejects_bad_workload_hash PASSED [ 48%]
+tests/test_prop_converter.py::test_real_csv_converts_to_valid_complete_trace PASSED [ 51%]
+tests/test_prop_converter.py::test_truncated_or_incomplete_can_omit_summary PASSED [ 54%]
+tests/test_prop_converter.py::test_response_address_is_pa_not_va PASSED  [ 57%]
+tests/test_prop_converter.py::test_each_injection_gets_its_own_injection_event_id PASSED [ 60%]
+tests/test_prop_converter.py::test_truncated_complete_requires_crash PASSED [ 62%]
+tests/test_terminal.py::test_four_dimensions_are_independent PASSED      [ 65%]
+tests/test_terminal.py::test_no_eligible_keeps_not_triggered PASSED      [ 68%]
+tests/test_terminal.py::test_incomplete_trace_is_never_masked PASSED     [ 71%]
+tests/test_terminal.py::test_timeout_and_simulator_error_win_over_incomplete PASSED [ 74%]
+tests/test_terminal.py::test_squash_and_detected_are_evidence_based PASSED [ 77%]
+tests/test_terminal.py::test_oracle_mismatch_is_sdc_and_arch_bad_without_mismatch_is_corruption PASSED [ 80%]
+tests/test_terminal.py::test_unknown_activation_when_evidence_missing PASSED [ 82%]
+tests/test_trace.py::test_writer_emits_every_v31_field PASSED            [ 85%]
+tests/test_trace.py::test_orphan_edge_rejected PASSED                    [ 88%]
+tests/test_trace.py::test_complete_trace_validates_and_summarizes PASSED [ 91%]
+tests/test_trace.py::test_incomplete_trace_never_masked PASSED           [ 94%]
+tests/test_trace.py::test_missing_field_and_bad_summary_rejected PASSED  [ 97%]
+tests/test_trace.py::test_schema_constants_match_json_schema PASSED      [100%]
+
+============================== 35 passed in 1.97s ==============================

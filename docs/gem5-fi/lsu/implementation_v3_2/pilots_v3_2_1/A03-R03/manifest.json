@@ -32,10 +32,10 @@
     "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
     "config_script_sha256": "337b3cf1531edad3f0aa5a7507af8d0c296dc121e59244e7740fee05ff7faa48"
   },
-  "output_dir": "/tmp/v321_contexts/A03-R03",
+  "output_dir": "/tmp/v321_contexts3/A03-R03",
   "command": [
     "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
-    "--outdir=/tmp/v321_contexts/A03-R03",
+    "--outdir=/tmp/v321_contexts3/A03-R03",
     "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
     "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes",
     "--cpu",
@@ -61,12 +61,12 @@
     "--addrpath_event_ordinal",
     "3"
   ],
-  "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/tmp/v321_contexts/A03-R03 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_addrpath --agu_pre_mode a03_bit3_stuck0_load --addrpath_lsu_tier F5 --addrpath_max_faults 0 --addrpath_warmup_events 0 --addrpath_rng_seed 110775855 --addrpath_event_ordinal 3",
+  "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/tmp/v321_contexts3/A03-R03 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_addrpath --agu_pre_mode a03_bit3_stuck0_load --addrpath_lsu_tier F5 --addrpath_max_faults 0 --addrpath_warmup_events 0 --addrpath_rng_seed 110775855 --addrpath_event_ordinal 3",
   "environment": {
-    "captured_at_utc": "2026-11-06T07:51:34Z",
+    "captured_at_utc": "2026-11-06T08:04:19Z",
     "host": "localhost0101",
     "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
     "python": "3.11.6"
   },
-  "manifest_sha256": "6d52822b7067fe99f54c7d856e86f56fa0cac7e4c1c56a24402396dd27b20f68"
+  "manifest_sha256": "fca58187f0569dce202e2a105f286dc4ba1477339389e71f26fb9fe6a4faa622"
 }

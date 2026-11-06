@@ -5,7 +5,7 @@
   "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
   "command": [
     "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
-    "--outdir=/tmp/v321_contexts/FW02-R03",
+    "--outdir=/tmp/v321_contexts3/FW02-R03",
     "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
     "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
     "--cpu",
@@ -28,7 +28,7 @@
     "3"
   ],
   "exit_code": -6,
-  "elapsed_seconds": 2.949,
+  "elapsed_seconds": 3.122,
   "oracle_expected": "1f4cbf14327717df",
   "oracle_pass": false,
   "injection": {
@@ -51,8 +51,19 @@
       "expected exactly one summary record, got 0"
     ],
     "completeness": {
-      "trace": "/tmp/v321_contexts/FW02-R03/trace_v31.jsonl",
+      "trace": "/tmp/v321_contexts3/FW02-R03/trace_v31.jsonl",
       "trace_completeness": "INCOMPLETE",
+      "record_integrity": "INVALID",
+      "propagation_coverage": "PARTIAL",
+      "propagation_stages": [
+        "injection",
+        "address_formed",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision"
+      ],
       "terminal_state": null,
       "run_status": null,
       "fault_activation_status": null,
@@ -71,7 +82,10 @@
     "run_status": "SIMULATOR_ERROR",
     "fault_activation_status": "TRIGGERED",
     "terminal_state": "CRASH",
-    "trace_completeness": "INCOMPLETE"
+    "trace_completeness": "INCOMPLETE",
+    "record_integrity": "INVALID",
+    "propagation_coverage": "PARTIAL",
+    "oracle_outcome": "FAIL"
   },
   "accepted": false,
   "crash_evidence": null

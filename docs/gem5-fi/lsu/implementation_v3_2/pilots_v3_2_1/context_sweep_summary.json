@@ -10,18 +10,14 @@
       "eligible": 1,
       "injected": 1
     },
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": "page_table_fault_after_injection_no_address_match",
-    "trace_events": 20,
-    "trace_edges": 17,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "SIMULATOR_ERROR",
+    "activation": "TRIGGERED",
+    "terminal": "CRASH",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "FAIL",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": "page_table_fault_after_injection_no_address_match"
   },
   {
     "model": "A01",
@@ -34,18 +30,14 @@
       "eligible": 1477,
       "injected": 1
     },
-    "classification": {
-      "run_status": "COMPLETED",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "MASKED",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": true,
-    "crash_evidence": null,
-    "trace_events": 14,
-    "trace_edges": 6,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "COMPLETED",
+    "activation": "TRIGGERED",
+    "terminal": "MASKED",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "PASS",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": null
   },
   {
     "model": "A01",
@@ -58,18 +50,14 @@
       "eligible": 1477,
       "injected": 1
     },
-    "classification": {
-      "run_status": "COMPLETED",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "MASKED",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": true,
-    "crash_evidence": null,
-    "trace_events": 11,
-    "trace_edges": 2,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "COMPLETED",
+    "activation": "TRIGGERED",
+    "terminal": null,
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "PASS",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": null
   },
   {
     "model": "A01",
@@ -82,18 +70,14 @@
       "eligible": 1466,
       "injected": 1
     },
-    "classification": {
-      "run_status": "COMPLETED",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "MASKED",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": true,
-    "crash_evidence": null,
-    "trace_events": 18,
-    "trace_edges": 10,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "COMPLETED",
+    "activation": "TRIGGERED",
+    "terminal": "MASKED",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "PASS",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": null
   },
   {
     "model": "A01",
@@ -106,18 +90,14 @@
       "eligible": 1466,
       "injected": 1
     },
-    "classification": {
-      "run_status": "COMPLETED",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "MASKED",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": true,
-    "crash_evidence": null,
-    "trace_events": 14,
-    "trace_edges": 6,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "COMPLETED",
+    "activation": "TRIGGERED",
+    "terminal": "MASKED",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "PASS",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": null
   },
   {
     "model": "A03",
@@ -130,18 +110,14 @@
       "eligible": 146,
       "injected": 146
     },
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": "page_table_fault_after_injection_address_match",
-    "trace_events": 595,
-    "trace_edges": 344,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "SIMULATOR_ERROR",
+    "activation": "TRIGGERED",
+    "terminal": "CRASH",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "FAIL",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": "page_table_fault_after_injection_address_match"
   },
   {
     "model": "A03",
@@ -154,18 +130,14 @@
       "eligible": 146,
       "injected": 145
     },
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": "page_table_fault_after_injection_address_match",
-    "trace_events": 594,
-    "trace_edges": 344,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "SIMULATOR_ERROR",
+    "activation": "TRIGGERED",
+    "terminal": "CRASH",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "FAIL",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": "page_table_fault_after_injection_address_match"
   },
   {
     "model": "A03",
@@ -178,18 +150,14 @@
       "eligible": 146,
       "injected": 144
     },
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": "page_table_fault_after_injection_address_match",
-    "trace_events": 587,
-    "trace_edges": 339,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "SIMULATOR_ERROR",
+    "activation": "TRIGGERED",
+    "terminal": "CRASH",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "FAIL",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": "page_table_fault_after_injection_address_match"
   },
   {
     "model": "A03",
@@ -202,18 +170,14 @@
       "eligible": 146,
       "injected": 143
     },
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": "page_table_fault_after_injection_address_match",
-    "trace_events": 586,
-    "trace_edges": 339,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "SIMULATOR_ERROR",
+    "activation": "TRIGGERED",
+    "terminal": "CRASH",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "FAIL",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": "page_table_fault_after_injection_address_match"
   },
   {
     "model": "A03",
@@ -226,18 +190,14 @@
       "eligible": 146,
       "injected": 142
     },
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": "page_table_fault_after_injection_address_match",
-    "trace_events": 585,
-    "trace_edges": 339,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "SIMULATOR_ERROR",
+    "activation": "TRIGGERED",
+    "terminal": "CRASH",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "FAIL",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": "page_table_fault_after_injection_address_match"
   },
   {
     "model": "FW02",
@@ -251,38 +211,14 @@
       "load_seq": 397,
       "store_seq": 383
     },
-    "classification": {
-      "run_status": "COMPLETED",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "MASKED",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": true,
-    "crash_evidence": null,
-    "trace_events": 11,
-    "trace_edges": 4,
-    "record_integrity": null,
-    "propagation_coverage": null
-  },
-  {
-    "model": "FW02",
-    "context": "R02",
-    "seed": 2129071279,
-    "event_ordinal": 2,
-    "accepted": false,
-    "injection": {},
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "NOT_TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "INCOMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": null,
-    "trace_events": 12,
-    "trace_edges": 10,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "COMPLETED",
+    "activation": "TRIGGERED",
+    "terminal": "MASKED",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "PASS",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": null
   },
   {
     "model": "FW02",
@@ -296,18 +232,14 @@
       "load_seq": 10011,
       "store_seq": 10008
     },
-    "classification": {
-      "run_status": "SIMULATOR_ERROR",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "CRASH",
-      "trace_completeness": "INCOMPLETE"
-    },
-    "oracle_pass": false,
-    "crash_evidence": null,
-    "trace_events": 353,
-    "trace_edges": 349,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "SIMULATOR_ERROR",
+    "activation": "TRIGGERED",
+    "terminal": "CRASH",
+    "record_integrity": "INVALID",
+    "propagation_coverage": "PARTIAL",
+    "oracle": "FAIL",
+    "trace_completeness": "INCOMPLETE",
+    "crash_evidence": null
   },
   {
     "model": "FW02",
@@ -321,18 +253,14 @@
       "load_seq": 11101,
       "store_seq": 11099
     },
-    "classification": {
-      "run_status": "COMPLETED",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "MASKED",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": true,
-    "crash_evidence": null,
-    "trace_events": 12,
-    "trace_edges": 6,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "COMPLETED",
+    "activation": "TRIGGERED",
+    "terminal": "MASKED",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "PASS",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": null
   },
   {
     "model": "FW02",
@@ -346,17 +274,13 @@
       "load_seq": 11203,
       "store_seq": 11192
     },
-    "classification": {
-      "run_status": "COMPLETED",
-      "fault_activation_status": "TRIGGERED",
-      "terminal_state": "MASKED",
-      "trace_completeness": "COMPLETE"
-    },
-    "oracle_pass": true,
-    "crash_evidence": null,
-    "trace_events": 11,
-    "trace_edges": 4,
-    "record_integrity": null,
-    "propagation_coverage": null
+    "run_status": "COMPLETED",
+    "activation": "TRIGGERED",
+    "terminal": "MASKED",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle": "PASS",
+    "trace_completeness": "COMPLETE",
+    "crash_evidence": null
   }
 ]
