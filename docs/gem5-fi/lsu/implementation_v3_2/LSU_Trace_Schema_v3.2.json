@@ -51,7 +51,8 @@
         "ARCH_STATE_CORRUPTION",
         "SDC",
         "CRASH",
-        "HANG"
+        "HANG",
+        "UNRESOLVED"
       ],
       "completeness": [
         "COMPLETE",
@@ -334,6 +335,7 @@
             "SDC",
             "CRASH",
             "HANG",
+            "UNRESOLVED",
             null
           ]
         },
@@ -549,7 +551,8 @@
             "ARCH_STATE_CORRUPTION",
             "SDC",
             "CRASH",
-            "HANG"
+            "HANG",
+            "UNRESOLVED"
           ]
         },
         "trace_completeness": {

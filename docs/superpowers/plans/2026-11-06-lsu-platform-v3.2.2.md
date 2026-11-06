@@ -57,10 +57,10 @@ null stays null; never infer Masked from an incomplete trace.
 **Files:** `platform/run_pilot.py`, `platform/trace_schema.py`,
 `LSU_Trace_Schema_v3.2.json`, `platform/terminal.py`, tests.
 
-- [ ] Add `UNRESOLVED` to the terminal enum (trace + summary), never null.
-- [ ] `terminal_state_reason` is written to JSONL summary, pilot_meta and the sweep.
-- [ ] `accepted=true` requires a non-empty, evidence-backed terminal.
-- [ ] Re-run A01 R03; verify meta == JSONL summary == sweep row.
+- [x] Add `UNRESOLVED` to the terminal enum (trace + summary), never null.
+- [x] `terminal_state_reason` is written to JSONL summary, pilot_meta and the sweep.
+- [x] `accepted=true` requires a non-empty, evidence-backed terminal.
+- [x] Re-run A01 R03; verify meta == JSONL summary == sweep row.
 
 ## Task 4 — Replay observation mode (defect 5 groundwork)
 

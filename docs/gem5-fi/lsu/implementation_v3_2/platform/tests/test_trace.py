@@ -106,6 +106,19 @@ def test_nochange_counts_as_injection(tmp_path):
     assert report["injections"] == 1
 
 
+def test_unresolved_is_a_valid_terminal_and_summary_reason(tmp_path):
+    w = make_writer(tmp_path)
+    w.event("injection", dyn_inst_seq=1, injection_status="INJECTED",
+            activation_status="TRIGGERED", trace_completeness="COMPLETE")
+    w.close(run_status="COMPLETED", activation="TRIGGERED",
+            terminal="UNRESOLVED", completeness="COMPLETE",
+            terminal_state_reason="UNRESOLVED_NO_DATA_VALUE_EVIDENCE")
+    summary = json.loads((tmp_path / "t.jsonl").read_text().splitlines()[-1])
+    assert summary["terminal_state"] == "UNRESOLVED"
+    assert summary["terminal_state_reason"] == "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
+    assert validate(tmp_path / "t.jsonl") == []
+
+
 def test_schema_constants_match_json_schema():
     assert schema_required("event") == EVENT_FIELDS
     assert schema_required("edge") == EDGE_FIELDS

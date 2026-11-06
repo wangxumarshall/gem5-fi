@@ -248,9 +248,11 @@ def main(argv=None) -> int:
     # propagate is recorded as MASKED, and one that changes the oracle is
     # recorded as SDC. Both are valid pilots; zero injections is not.
     final_terminal = terminal
+    terminal_reason = None
     if (completeness_report.get("trace_completeness") != "COMPLETE"
             and final_terminal == "MASKED"):
-        final_terminal = None
+        final_terminal = "UNRESOLVED"
+        terminal_reason = "TRACE_INCOMPLETE"
     # MASKED requires actual data-value evidence, not only an equal checksum.
     has_data_value = any(
         r.get("event_type") in ("memory_response", "register_writeback")
@@ -259,10 +261,37 @@ def main(argv=None) -> int:
         if r.get("record_type") == "event"
     ) if jsonl_path.exists() else False
     if final_terminal == "MASKED" and not has_data_value:
-        final_terminal = None
+        final_terminal = "UNRESOLVED"
+        terminal_reason = "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
+    if final_terminal == "UNRESOLVED" and crash_by_fault:
+        final_terminal = "CRASH"
+        terminal_reason = crash_evidence
+    if final_terminal == "UNRESOLVED" and terminal_reason is None:
+        terminal_reason = "UNRESOLVED_NO_TERMINAL_EVIDENCE"
+    # The converted trace was closed with the provisional verdict. Re-emit it
+    # so the JSONL summary carries the same terminal and reason as the meta.
+    if csv_path.exists() and final_terminal != terminal:
+        try:
+            converted = convert(
+                csv_path, jsonl_path,
+                sample_run_id=args.pilot_id, run_id=sample["run_id"],
+                sub_task_id=sample["sub_task_id"],
+                fault_id=sample.get("fault_config_id") or args.model,
+                fault_model_id=args.model, run_status=run_status,
+                activation=activation, terminal=final_terminal,
+                completeness=completeness_report.get("trace_completeness") or completeness,
+                terminal_reason=terminal_reason,
+                allow_truncated_complete=crash_by_fault)
+        except SystemExit:
+            converted = {"rows": 0, "truncated": True, "summary": None}
+        trace_errors = validate(jsonl_path) if jsonl_path.exists() else ["trace missing"]
+        completeness_report = (check_completeness(jsonl_path)
+                               if jsonl_path.exists()
+                               else {"trace_completeness": "INCOMPLETE"})
     accepted = (
         (proc.returncode == 0 or crash_by_fault) and injected > 0
         and target_proof.get("events", 1) > 0
+        and final_terminal not in (None, "UNRESOLVED")
         and not trace_errors
         and completeness_report.get("trace_completeness") == "COMPLETE"
     )
@@ -288,6 +317,7 @@ def main(argv=None) -> int:
             "run_status": run_status,
             "fault_activation_status": activation,
             "terminal_state": final_terminal,
+            "terminal_state_reason": terminal_reason,
             "trace_completeness": completeness_report.get("trace_completeness"),
             "record_integrity": completeness_report.get("record_integrity"),
             "propagation_coverage": completeness_report.get("propagation_coverage"),

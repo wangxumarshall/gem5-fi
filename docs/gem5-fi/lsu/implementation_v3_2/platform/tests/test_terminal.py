@@ -25,7 +25,7 @@ def test_incomplete_trace_is_never_masked():
     r = classify(timed_out=False, simulator_error=False, exit_code=0, eligible=3,
                  injected=1, oracle_match=True, trace_complete=False)
     assert r["terminal_state"] != "MASKED"
-    assert r["terminal_state"] is None
+    assert r["terminal_state"] == "UNRESOLVED"
     assert r["trace_completeness"] == "INCOMPLETE"
 
 

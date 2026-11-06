@@ -2,16 +2,17 @@
 
 The classifier never lets a missing/incomplete trace masquerade as MASKED.
 When the trace is incomplete and no other evidence exists, ``terminal_state``
-is ``None``; the caller must record ``TraceCompleteness=INCOMPLETE`` and keep
-the sample out of any Masked/SDC rate.  ``RunStatus`` and
-``FaultActivationStatus`` remain usable in that case.
+is ``UNRESOLVED``; the caller must record ``TraceCompleteness=INCOMPLETE`` and
+keep the sample out of any Masked/SDC rate.  ``RunStatus`` and
+``FaultActivationStatus`` remain usable in that case.  ``UNRESOLVED`` is never
+accepted as a pilot's final verdict.
 """
 from __future__ import annotations
 
 RUN_STATUS = ("COMPLETED", "NO_ELIGIBLE_EVENT", "TIMEOUT", "SIMULATOR_ERROR")
 ACTIVATION = ("NOT_TRIGGERED", "TRIGGERED", "UNKNOWN")
 TERMINAL = ("MASKED", "SQUASHED", "DETECTED_CONTAINED",
-            "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG")
+            "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG", "UNRESOLVED")
 COMPLETENESS = ("COMPLETE", "INCOMPLETE")
 
 
@@ -53,8 +54,9 @@ def classify(*, exit_code: int | None = None, timed_out: bool = False,
     elif arch_state_bad:
         terminal = "ARCH_STATE_CORRUPTION"
     elif not trace_complete:
-        # Honesty rule: no complete trace means no MASKED verdict.
-        terminal = None
+        # Honesty rule: no complete trace means no MASKED verdict. Record the
+        # state explicitly; an empty terminal is not a verdict.
+        terminal = "UNRESOLVED"
     else:
         terminal = "MASKED"
 
