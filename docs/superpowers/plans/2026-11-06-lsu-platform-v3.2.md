@@ -450,29 +450,29 @@ git push origin lsu-platform-v3.2
 - Modify: `configs/se/lsu_proxy.py` (add `a01_bit3_load` to `--agu_pre_mode` choices)
 - Test: `CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/` unit test or host-side Python harness
 
-- [ ] **Step 1: Add `a01_bit3_load`**
+- [x] **Step 1: Add `a01_bit3_load`**
 
 At `maybeCorruptPre`, before the trigger decision: reject `!isLoad`; after trigger fire, apply `addr ^= 0x8`; record `old_addr/new_addr/dyn_seq`; count `nochange` if unchanged. F0 uses `lsuTier=F0`, `maxFaults=1`; exactly one eligible load fires.
 
-- [ ] **Step 2: Build clean**
+- [x] **Step 2: Build clean**
 
 ```bash
 cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt 2>&1 | tee ../../logs/build_a01.log
 ```
 Expected: zero new warnings/errors. Copy `gem5.opt` to repo-root `build/ARM/gem5.opt` only if the build is clean.
 
-- [ ] **Step 3: Run baseline + pilot on W1**
+- [x] **Step 3: Run baseline + pilot on W1**
 
 Baseline must match golden. Pilot command includes `--agu_pre_mode a01_bit3_load --addrpath_lsu_tier F0 --addrpath_max_faults 1 --addrpath_rng_seed 2108120075 --chaos_propagation`.
 
-- [ ] **Step 4: Verify real evidence**
+- [x] **Step 4: Verify real evidence**
 
 - `addrpath_injections.log` has exactly one `Site: lsq_pushRequest_PRE` line with `new_addr == old_addr ^ 0x8`.
 - propagated trace includes `inj`, `addr_form`, `mem_req`, `resp`, `taint_reg`, `consumer`/`errant_commit` or an honest stop.
 - oracle result recorded; exit code recorded.
 - Convert CSV to JSONL via `tools/prop_trace_to_v31.py`; validator returns VALID; completeness result recorded.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add CHAOS/gem5/src/cpu/o3/CHAOSAddrPath CHAOS/gem5/src/cpu/o3/lsq.cc configs/se/lsu_proxy.py \
@@ -487,15 +487,15 @@ git push origin lsu-platform-v3.2
 - Modify: `CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.{hh,cc,py}`
 - Modify: `configs/se/lsu_proxy.py`
 
-- [ ] **Step 1: Add `a03_bit3_stuck0_load`**
+- [x] **Step 1: Add `a03_bit3_stuck0_load`**
 
 Load-only; every post-warmup eligible load gets `addr &= ~0x8`; count the condition as applied even when the bit was already 0; log `nochange` for those. F5 uses `--addrpath_lsu_tier F5 --addrpath_max_faults 0`.
 
-- [ ] **Step 2: Build, baseline, pilot**
+- [x] **Step 2: Build, baseline, pilot**
 
 Same procedure as Task 10 with seed `663646247`; verify `injected > 0`, `nochange` reported honestly, and at least one downstream event when a corrupted address is consumed.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add CHAOS/gem5/src/cpu/o3/CHAOSAddrPath configs/se/lsu_proxy.py \
@@ -511,21 +511,21 @@ git push origin lsu-platform-v3.2
 - Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.cc` (full-coverage decision point)
 - Modify: `configs/se/lsu_proxy.py`
 
-- [ ] **Step 1: Add `f6_fw02` mode and `maybeSuppressForwarding`**
+- [x] **Step 1: Add `f6_fw02` mode and `maybeSuppressForwarding`**
 
 Method receives `(load_seq, store_seq, vaddr, size)`, fires exactly once when a real full-coverage older store is present (the F6 trigger), logs the trigger pair, and returns true so `lsq_unit.cc` skips the forward branch and falls through to a memory access. F6 state must not fire without a real store-load pair.
 
-- [ ] **Step 2: Build, baseline, pilot on W4**
+- [x] **Step 2: Build, baseline, pilot on W4**
 
 Baseline must match `1f4cbf14327717df`. Pilot includes `--chaos_lsqfwd --lsqfwd_struct_mode f6_fw02 --lsqfwd_lsu_tier F6` plus the Excel seed `2941542370`.
 
-- [ ] **Step 3: Verify real evidence**
+- [x] **Step 3: Verify real evidence**
 
 - `CHAOS_LSU_F6_EVENTS`/injection log shows `SqForward` observed and exactly one suppression with the load/store seq pair.
 - The target Load executes (trace has its seq) and, if the memory value differs, the oracle changes; if not, record `no_effect` honestly.
 - JSONL validator/completeness output saved.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd CHAOS/gem5/src/cpu/o3/lsq_unit.cc configs/se/lsu_proxy.py \
@@ -543,13 +543,13 @@ git push origin lsu-platform-v3.2
 - Create: `docs/gem5-fi/lsu/implementation_v3_2/LSU_Workload_Package_v3.2.zip`
 - Create: `docs/gem5-fi/lsu/implementation_v3_2/LSU_Build_and_Run_Logs_v3.2.zip`
 
-- [ ] **Step 1: Verify all eight baselines and all three pilots from saved artifacts**
+- [x] **Step 1: Verify all eight baselines and all three pilots from saved artifacts**
 
 Run the validator/completeness/oracle checks again from disk; quote exit codes. No pilot may be marked PASS if `injected==0` or the trigger was absent.
 
-- [ ] **Step 2: Package deliverables with SHA256SUMS**
+- [x] **Step 2: Package deliverables with SHA256SUMS**
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2
