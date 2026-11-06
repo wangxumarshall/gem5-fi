@@ -102,3 +102,20 @@ The artifacts found in the main checkout at 2026-11-06 09:43-09:45 are in
    formal samples with the frozen seeds.
 3. The v3.2 workbook repair is complete; no further workbook edit is needed
    before Gate 3.
+
+
+## Residual risks / test gaps
+
+- The A01/A03/FW02 C++ hooks are verified by the committed integration pilots,
+  not by a C++ unit-test harness. The host `FaultManager` unit tests pin the
+  platform state-machine semantics; the actual pilot path is
+  `chaos_lsu_trigger.hh`/`ChaOSLsuTrigger`, whose F0 offset is `warmup +
+  rng%span` (the host model uses `warmup + 1 + rng%span`).
+- The v3.2 workbook stores worktree-absolute paths. Regenerate it with
+  `tools/build_v32_workbook.py` if the worktree is moved.
+- A03 `stats.txt` is empty because gem5 aborted at the page-table fault; its
+  trace is complete to the observed CRASH terminal, and no stats-based claim
+  is made.
+- The `logs/probe_results.txt` guard-page exits are the decisive W6/W8
+  evidence. clang ASan on this host did not flag the W6 partially-OOB 8-byte
+  store, so ASan is not claimed for W6.

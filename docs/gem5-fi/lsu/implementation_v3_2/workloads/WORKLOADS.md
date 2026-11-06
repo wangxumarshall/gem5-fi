@@ -30,7 +30,11 @@ probe_alignment_fixed.log:    exit 0, NO_FAULT
 ```
 
 The fixed binaries and goldens above are the only valid post-fix baselines;
-the old binaries/goldens are not used.
+the old binaries/goldens are not used. The decisive logs are
+`logs/probe_results.txt` and the four `logs/probe_*.log` files. On this host
+clang ASan did not flag the W6 partially-out-of-bounds 8-byte store, so the
+guard-page probe (not ASan) is the W6 evidence; W8's tail read/write is
+additionally caught by ASan.
 
 ## Reproduction
 
