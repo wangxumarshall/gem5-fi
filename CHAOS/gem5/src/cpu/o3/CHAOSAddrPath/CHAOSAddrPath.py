@@ -48,6 +48,8 @@ class CHAOSAddrPath(SimObject):
     preMode = Param.String("off",
         "off | a04_subst | a05_shift | a06_size | a08_subst | "
         "s13_store_addr | s04_store_subst (SQ addr same-page, stores) | "
-        "l01_load_addr (LQ addr single-bit, loads only)")
+        "l01_load_addr (LQ addr single-bit, loads only) | "
+        "a01_bit3_load (LSU v3.2 A01: load bit3 XOR at pushRequest, F0) | "
+        "a03_bit3_stuck0_load (LSU v3.2 A03: load bit3 stuck-at-0, F5)")
     aguSizeTo = Param.UInt64(0,
         "a06_size target size: 1|2|4|8|16 (0 = invalid, no-op)")

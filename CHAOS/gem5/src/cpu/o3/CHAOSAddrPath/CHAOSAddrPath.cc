@@ -223,7 +223,9 @@ namespace gem5
             // stream. The in-switch checks stay as belt-and-braces; OBS-2's
             // pre_opclass counter is the regression detector (must stay 0).
             const bool pre_load_only  = (pre_mode == "l01_load_addr" ||
-                                         pre_mode == "l02_load_state");
+                                         pre_mode == "l02_load_state" ||
+                                         pre_mode == "a01_bit3_load" ||
+                                         pre_mode == "a03_bit3_stuck0_load");
             const bool pre_store_only = (pre_mode == "s13_store_addr" ||
                                          pre_mode == "s04_store_subst" ||
                                          pre_mode == "s05_store_size" ||
@@ -336,6 +338,40 @@ namespace gem5
             if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]  // S13's territory, not ours
             const uint64_t bit = rng() % 48;
             addr = addr ^ (1ULL << bit);
+        } else if (pre_mode == "a01_bit3_load") {
+            // A01 (LSU v3.2 pilot): single transient bit-3 flip of the AGU
+            // effective address at the audited pushRequest entry. LOADS
+            // only. F0 is the tier (maxFaults=1), so exactly one eligible
+            // load is corrupted per run.
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][V3.2]
+            addr = addr ^ (Addr)0x8;
+        } else if (pre_mode == "a03_bit3_stuck0_load") {
+            // A03 (LSU v3.2 pilot): bit-3 stuck-at-0 applied to EVERY
+            // post-warm-up eligible load (F5 reapplication, not a physical
+            // latch). LOADS only. If bit 3 is already 0 the condition is
+            // still applied: count the application and log it as nochange;
+            // there is no corrupted address to propagate.
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][V3.2]
+            addr = addr & ~(Addr)0x8;
+            if (addr == old_addr) {
+                ++obs_pre_nochange;
+                ++l0_funnel.injected;
+                ++faults_injected_count;
+                notifyFunnelAtInjection();
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: lsq_pushRequest_PRE"
+                        << ", mode=" << pre_mode
+                        << ", old_addr=0x" << std::hex << old_addr
+                        << ", new_addr=0x" << addr
+                        << ", old_size=" << std::dec << old_size
+                        << ", new_size=" << size
+                        << ", value_changed=0"
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+                return size;
+            }
         } else {
             { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] unknown pre_mode — config validated in .py choices
         }
@@ -423,11 +459,12 @@ namespace gem5
                     // pre_opclass>0 with fault writes < trigger.injected is
                     // the phantom-activation signature (F-049).
                     printf("CHAOS_L0_DECLINE: pre_fired=%lu pre_opclass=%lu "
-                           "pre_invalid=%lu post_fired=%lu post_nochange=%lu "
-                           "trigger_injected=%lu\n",
+                           "pre_invalid=%lu pre_nochange=%lu post_fired=%lu "
+                           "post_nochange=%lu trigger_injected=%lu\n",
                            (unsigned long)obs_pre_fired,
                            (unsigned long)obs_pre_opclass,
                            (unsigned long)obs_pre_invalid,
+                           (unsigned long)obs_pre_nochange,
                            (unsigned long)obs_post_fired,
                            (unsigned long)obs_post_nochange,
                            (unsigned long)lsuTrigger->injected);

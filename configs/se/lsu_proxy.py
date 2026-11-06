@@ -255,7 +255,7 @@ p.add_argument("--lsq_byte_offset", type=int, default=-1)
 # as Crash => the committed "§2.4 LSQFwd 100% DUE" result is INVALID).
 p.add_argument("--lsq_struct_mode", default="byte_flip",
                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
-                        "all_zero", "fwd_source_sub", "phase_offset"])
+                        "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02"])
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
 p.add_argument("--lsqfwd_lsu_tier", default="off",
@@ -469,7 +469,7 @@ p.add_argument("--addrpath_f6_event", default="sq_forward",
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
 # registers on the PRE pointer instead).
 p.add_argument("--agu_pre_mode", default="off",
-               choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
+               choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state","a01_bit3_load","a03_bit3_stuck0_load"],
                help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08)")
 p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
                help="W4 a06_size: target access size 1|2|4|8|16")

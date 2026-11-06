@@ -1,0 +1,14 @@
+Global frequency set at 1000000000000 ticks per second
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 25.1.0.1
+gem5 compiled Nov  6 2026 12:02:50
+gem5 started Nov  6 2026 12:18:54
+gem5 executing on localhost0101, pid 201292
+command line: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=docs/gem5-fi/lsu/implementation_v3_2/pilots/A03F5 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_addrpath --agu_pre_mode a03_bit3_stuck0_load --addrpath_lsu_tier F5 --addrpath_max_faults 0 --addrpath_warmup_events 0 --addrpath_rng_seed 663646247
+
+info: Standard input is not a terminal, disabling listeners.
+[lsu_proxy] B0 params applied (variant=B0): LQ/SQ=16, DepShift=0, DTLB=32, L2TLB=1280/5, ROB=40, PRF 128/192/48, IQ=32(1L+1S FU opLat=2), width 3/6/8
+[lsu_proxy] CHAOSPropagation attached (trace=prop_trace.csv.gz)
+[lsu_proxy] B0 caches applied (variant=B0): L1D 32KiB/2-way lat222 MSHR6/t8/wb16 + L1I 32KiB/2 lat111 MSHR2 + L2 1MiB/16 lat12 MSHR16 + StridePrefetcher(8,1,on)@L2

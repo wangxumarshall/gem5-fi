@@ -107,6 +107,7 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_pre_fired = 0;      // PRE hook: trigger said "inject now"
     uint64_t obs_pre_opclass = 0;    // PRE: op-class filter declined (phantom)
     uint64_t obs_pre_invalid = 0;    // PRE: invalid target / unknown pre_mode
+    uint64_t obs_pre_nochange = 0;   // PRE: condition applied, value already stuck (A03)
     uint64_t obs_post_fired = 0;     // POST hook: trigger said "inject now"
     uint64_t obs_post_nochange = 0;  // POST: corruption produced identical vaddr
 
