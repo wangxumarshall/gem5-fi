@@ -1,0 +1,32 @@
+== final verification 2026-11-06T04:32:17Z ==
+branch=lsu-platform-v3.2 head=00ba4e7acacb58ae7758efff77600b53c80d4aa9
+gem5=b233a4cbb1085887c1a8533a77a9fa0885dcb36aa34608f7a90245b7395eaabe
+
+== Gate 1 ==
+tests/test_trace.py::test_incomplete_trace_never_masked PASSED           [ 93%]
+tests/test_trace.py::test_missing_field_and_bad_summary_rejected PASSED  [ 96%]
+tests/test_trace.py::test_schema_constants_match_json_schema PASSED      [100%]
+
+============================== 32 passed in 1.91s ==============================
+== config parser (structural; --allow-incomplete reports the frozen workbook gaps) ==
+CONFIG_OK samples=60 models=12 seeds=60 workloads_present=60
+== trace sample validator ==
+VALID
+== trace sample completeness ==
+== summary ==
+pytest_rc=0 config_rc=0 validator_rc=0 completeness_rc=0
+
+== Pilot traces ==
+-- A01F0 --
+VALID
+COMPLETE MASKED 12 10
+-- A03F5 --
+VALID
+COMPLETE CRASH 564 489
+-- FW02F6 --
+VALID
+COMPLETE MASKED 4 3
+
+== Workbook v3.2 strict parse ==
+CONFIG_OK samples=60 models=12 seeds=60 workloads_present=60
+config_exit=0

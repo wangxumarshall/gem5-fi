@@ -6,7 +6,10 @@ set -uo pipefail
 PLATFORM="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMPL="$(dirname "$PLATFORM")"
 LSUS="$(dirname "$IMPL")"
-WORKBOOK="$LSUS/final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
+WORKBOOK="$IMPL/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx"
+if [ ! -f "$WORKBOOK" ]; then
+  WORKBOOK="$LSUS/final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
+fi
 LOGS="$IMPL/logs"
 mkdir -p "$LOGS"
 
