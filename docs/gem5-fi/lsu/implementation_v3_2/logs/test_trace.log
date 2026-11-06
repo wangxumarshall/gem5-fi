@@ -1,0 +1,14 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/platform
+collecting ... collected 6 items
+
+tests/test_trace.py::test_writer_emits_every_v31_field PASSED            [ 16%]
+tests/test_trace.py::test_orphan_edge_rejected PASSED                    [ 33%]
+tests/test_trace.py::test_complete_trace_validates_and_summarizes PASSED [ 50%]
+tests/test_trace.py::test_incomplete_trace_never_masked PASSED           [ 66%]
+tests/test_trace.py::test_missing_field_and_bad_summary_rejected PASSED  [ 83%]
+tests/test_trace.py::test_schema_constants_match_json_schema PASSED      [100%]
+
+============================== 6 passed in 0.05s ===============================

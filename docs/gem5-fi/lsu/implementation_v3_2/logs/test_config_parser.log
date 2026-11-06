@@ -1,0 +1,13 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/platform
+collecting ... collected 5 items
+
+tests/test_config_parser.py::test_real_excel_has_60_samples_12_models_5_each PASSED [ 20%]
+tests/test_config_parser.py::test_absent_workload_is_reported_not_defaulted PASSED [ 40%]
+tests/test_config_parser.py::test_duplicate_seed_rejected PASSED         [ 60%]
+tests/test_config_parser.py::test_parent_mismatch_rejected PASSED        [ 80%]
+tests/test_config_parser.py::test_sample_sheet_name_is_pinned PASSED     [100%]
+
+============================== 5 passed in 1.15s ===============================

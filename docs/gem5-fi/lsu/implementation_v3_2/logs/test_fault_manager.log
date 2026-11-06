@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/platform
+collecting ... collected 7 items
+
+tests/test_fault_manager.py::test_f0_fires_exactly_once PASSED           [ 14%]
+tests/test_fault_manager.py::test_f0_honours_warmup_and_ordinal PASSED   [ 28%]
+tests/test_fault_manager.py::test_f5_applies_to_every_post_warmup_eligible PASSED [ 42%]
+tests/test_fault_manager.py::test_f5_counts_nochange_as_applied PASSED   [ 57%]
+tests/test_fault_manager.py::test_f6_requires_named_trigger_then_once PASSED [ 71%]
+tests/test_fault_manager.py::test_f6_never_fires_without_trigger_event PASSED [ 85%]
+tests/test_fault_manager.py::test_invalid_mode_rejected PASSED           [100%]
+
+============================== 7 passed in 0.03s ===============================

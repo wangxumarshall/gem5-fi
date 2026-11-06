@@ -1,0 +1,47 @@
+{
+  "trace": "../LSU_Trace_Sample_v3.2.jsonl",
+  "events": 4,
+  "edges": 3,
+  "event_types": {
+    "injection": 1,
+    "memory_request": 1,
+    "memory_response": 1,
+    "commit": 1
+  },
+  "units": {
+    "AGU": 1,
+    "LSQ": 1,
+    "L1D": 1,
+    "Commit": 1
+  },
+  "injection_status": {
+    "INJECTED": 1,
+    "NOT_APPLICABLE": 3
+  },
+  "commit_status": {
+    "UNKNOWN": 3,
+    "COMMITTED": 1
+  },
+  "squash_status": {
+    "UNKNOWN": 3,
+    "NONE": 1
+  },
+  "summary": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "terminal_state": "MASKED",
+    "trace_completeness": "COMPLETE"
+  },
+  "completeness_check": {
+    "trace": "../LSU_Trace_Sample_v3.2.jsonl",
+    "trace_completeness": "COMPLETE",
+    "terminal_state": "MASKED",
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "events": 4,
+    "edges": 3,
+    "injections": 1,
+    "activations": 4,
+    "reasons": []
+  }
+}

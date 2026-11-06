@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/platform
+collecting ... collected 7 items
+
+tests/test_terminal.py::test_four_dimensions_are_independent PASSED      [ 14%]
+tests/test_terminal.py::test_no_eligible_keeps_not_triggered PASSED      [ 28%]
+tests/test_terminal.py::test_incomplete_trace_is_never_masked PASSED     [ 42%]
+tests/test_terminal.py::test_timeout_and_simulator_error_win_over_incomplete PASSED [ 57%]
+tests/test_terminal.py::test_squash_and_detected_are_evidence_based PASSED [ 71%]
+tests/test_terminal.py::test_oracle_mismatch_is_sdc_and_arch_bad_without_mismatch_is_corruption PASSED [ 85%]
+tests/test_terminal.py::test_unknown_activation_when_evidence_missing PASSED [100%]
+
+============================== 7 passed in 0.02s ===============================
