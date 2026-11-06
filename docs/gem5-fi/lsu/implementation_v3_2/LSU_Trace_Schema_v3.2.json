@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gem5-fi.local/schemas/LSU_Trace_Schema_v3.2.json",
+  "title": "LSU Trace v3.1 JSONL record",
+  "description": "One JSON object per line. Event records carry instruction identity, fault identity, propagation identity, request identity and state; propagation edges are separate records; exactly one summary record closes a complete trace.",
+  "type": "object",
+  "required": ["record_type", "trace_version"],
+  "properties": {
+    "record_type": {"enum": ["event", "propagation_edge", "summary"]},
+    "trace_version": {"const": "v3.1"}
+  },
+  "oneOf": [{"$ref": "#/$defs/event"}, {"$ref": "#/$defs/edge"}, {"$ref": "#/$defs/summary"}],
+  "$defs": {
+    "enums": {
+      "run_status": ["COMPLETED", "NO_ELIGIBLE_EVENT", "TIMEOUT", "SIMULATOR_ERROR"],
+      "activation": ["NOT_TRIGGERED", "TRIGGERED", "UNKNOWN"],
+      "terminal": ["MASKED", "SQUASHED", "DETECTED_CONTAINED", "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG"],
+      "completeness": ["COMPLETE", "INCOMPLETE"],
+      "injection_status": ["INJECTED", "NO_CHANGE", "DECLINED", "NOT_APPLICABLE"],
+      "commit_status": ["NOT_COMMITTED", "COMMITTED", "SQUASHED", "UNKNOWN"],
+      "squash_status": ["NONE", "SQUASHED", "UNKNOWN"]
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "record_type", "trace_version", "sample_run_id", "run_id", "sub_task_id",
+        "fault_id", "fault_model_id", "injection_event_id", "event_id",
+        "parent_event_id", "event_type", "unit", "sub_unit", "timestamp",
+        "dyn_inst_seq", "execution_attempt_id", "replay_generation", "commit_seq",
+        "source_event_id", "destination_event_id", "propagation_edge_id",
+        "producer_inst_seq", "consumer_inst_seq", "request_id", "response_id",
+        "fragment_id", "va", "pa", "lq_entry_id", "sq_entry_id",
+        "entry_generation", "old_value", "new_value", "injection_status",
+        "activation_status", "commit_status", "squash_status", "terminal_state",
+        "trace_completeness"
+      ],
+      "properties": {
+        "record_type": {"const": "event"},
+        "trace_version": {"const": "v3.1"},
+        "sample_run_id": {"type": "string", "minLength": 1},
+        "run_id": {"type": "string", "minLength": 1},
+        "sub_task_id": {"type": "string", "minLength": 1},
+        "fault_id": {"type": "string", "minLength": 1},
+        "fault_model_id": {"type": "string", "minLength": 1},
+        "injection_event_id": {"type": "integer", "minimum": 1},
+        "event_id": {"type": "integer", "minimum": 1},
+        "parent_event_id": {"type": ["integer", "null"]},
+        "event_type": {"type": "string", "minLength": 1},
+        "unit": {"type": ["string", "null"]},
+        "sub_unit": {"type": ["string", "null"]},
+        "timestamp": {"type": "integer", "minimum": 0},
+        "dyn_inst_seq": {"type": ["integer", "null"]},
+        "execution_attempt_id": {"type": ["integer", "null"]},
+        "replay_generation": {"type": ["integer", "null"]},
+        "commit_seq": {"type": ["integer", "null"]},
+        "source_event_id": {"type": ["integer", "null"]},
+        "destination_event_id": {"type": ["integer", "null"]},
+        "propagation_edge_id": {"type": ["integer", "null"]},
+        "producer_inst_seq": {"type": ["integer", "null"]},
+        "consumer_inst_seq": {"type": ["integer", "null"]},
+        "request_id": {"type": ["integer", "null"]},
+        "response_id": {"type": ["integer", "null"]},
+        "fragment_id": {"type": ["integer", "null"]},
+        "va": {"type": ["string", "null"]},
+        "pa": {"type": ["string", "null"]},
+        "lq_entry_id": {"type": ["integer", "null"]},
+        "sq_entry_id": {"type": ["integer", "null"]},
+        "entry_generation": {"type": ["integer", "null"]},
+        "old_value": {"type": ["string", "number", "null"]},
+        "new_value": {"type": ["string", "number", "null"]},
+        "injection_status": {"enum": ["INJECTED", "NO_CHANGE", "DECLINED", "NOT_APPLICABLE"]},
+        "activation_status": {"enum": ["NOT_TRIGGERED", "TRIGGERED", "UNKNOWN"]},
+        "commit_status": {"enum": ["NOT_COMMITTED", "COMMITTED", "SQUASHED", "UNKNOWN"]},
+        "squash_status": {"enum": ["NONE", "SQUASHED", "UNKNOWN"]},
+        "terminal_state": {"enum": ["MASKED", "SQUASHED", "DETECTED_CONTAINED", "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG", null]},
+        "trace_completeness": {"enum": ["COMPLETE", "INCOMPLETE"]}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": [
+        "record_type", "trace_version", "event_type", "sample_run_id", "fault_id",
+        "fault_model_id", "propagation_edge_id", "source_event_id",
+        "destination_event_id", "producer_inst_seq", "consumer_inst_seq",
+        "edge_kind", "value_hash", "trace_completeness"
+      ],
+      "properties": {
+        "record_type": {"const": "propagation_edge"},
+        "trace_version": {"const": "v3.1"},
+        "event_type": {"const": "propagation_edge"},
+        "sample_run_id": {"type": "string", "minLength": 1},
+        "fault_id": {"type": "string", "minLength": 1},
+        "fault_model_id": {"type": "string", "minLength": 1},
+        "propagation_edge_id": {"type": "integer", "minimum": 1},
+        "source_event_id": {"type": "integer", "minimum": 1},
+        "destination_event_id": {"type": "integer", "minimum": 1},
+        "producer_inst_seq": {"type": ["integer", "null"]},
+        "consumer_inst_seq": {"type": ["integer", "null"]},
+        "edge_kind": {"type": "string", "minLength": 1},
+        "value_hash": {"type": ["string", "null"]},
+        "trace_completeness": {"enum": ["COMPLETE", "INCOMPLETE"]}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "record_type", "trace_version", "sample_run_id", "fault_id",
+        "fault_model_id", "run_status", "fault_activation_status",
+        "terminal_state", "trace_completeness", "counts"
+      ],
+      "properties": {
+        "record_type": {"const": "summary"},
+        "trace_version": {"const": "v3.1"},
+        "sample_run_id": {"type": "string", "minLength": 1},
+        "fault_id": {"type": "string", "minLength": 1},
+        "fault_model_id": {"type": "string", "minLength": 1},
+        "run_status": {"enum": ["COMPLETED", "NO_ELIGIBLE_EVENT", "TIMEOUT", "SIMULATOR_ERROR"]},
+        "fault_activation_status": {"enum": ["NOT_TRIGGERED", "TRIGGERED", "UNKNOWN"]},
+        "terminal_state": {"enum": ["MASKED", "SQUASHED", "DETECTED_CONTAINED", "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG"]},
+        "trace_completeness": {"enum": ["COMPLETE", "INCOMPLETE"]},
+        "terminal_state_reason": {"type": ["string", "null"]},
+        "counts": {
+          "type": "object",
+          "required": ["events", "edges", "injections", "activations"],
+          "properties": {
+            "events": {"type": "integer", "minimum": 0},
+            "edges": {"type": "integer", "minimum": 0},
+            "injections": {"type": "integer", "minimum": 0},
+            "activations": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    }
+  }
+}
