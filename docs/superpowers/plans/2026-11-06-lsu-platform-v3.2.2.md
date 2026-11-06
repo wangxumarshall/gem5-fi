@@ -103,6 +103,11 @@ null stays null; never infer Masked from an incomplete trace.
 
 ## Tasks 8–16 — remaining nine models (Phase 4)
 
+**Status in this round: DESIGNED only (0/9 implemented).** The per-model hook
+points and the LQ04/RP01/SP05 safety reviews are in
+`LSU_Model4_Design_and_Safety_v3.2.2.md`; no unverified hook was committed.
+
+
 Each task = one model = one commit, with: unique fault definition, real source
 hook, config parsing, trigger condition, unit test, target-event proof, trace
 association, compile evidence. LQ04 and RP01 get an explicit safety review
@@ -120,21 +125,21 @@ association, compile evidence. LQ04 and RP01 get an explicit safety review
 
 ## Task 17 — Warm-up/ROI recommendation table (Phase 5)
 
-- [ ] Per W1–W8: init phase, warm-up end condition, ROI start/end events,
+- [x] Per W1–W8: init phase, warm-up end condition, ROI start/end events,
       R01–R05 statistics origin, injection-allowed range.
-- [ ] Mark every row `NEEDS_RESEARCHER_CONFIRMATION`; do not alter the 60 rows.
+- [x] Mark every row `NEEDS_RESEARCHER_CONFIRMATION`; do not alter the 60 rows.
 
 ## Task 18 — final W1–W8 baseline (Phase 6)
 
-- [ ] Rebuild from the final commit; record SHA256.
-- [ ] Run 8 fault-free baselines, save logs + oracle + target-event evidence.
-- [ ] New report; old v3.2/v3.2.1 results stay labelled as old.
+- [x] Rebuild from the final commit; record SHA256.
+- [x] Run 8 fault-free baselines, save logs + oracle + target-event evidence.
+- [x] New report; old v3.2/v3.2.1 results stay labelled as old.
 
 ## Task 19 — disk inventory (Phase 7)
 
-- [ ] Read-only inventory: duplicate builds, regenerable temp files, historical
+- [x] Read-only inventory: duplicate builds, regenerable temp files, historical
       traces, 60-run space estimate, archive recommendation.
-- [ ] No deletion; deletions wait for researcher approval.
+- [x] No deletion; deletions wait for researcher approval.
 
 ## Task 20 — package + A–H status report
 

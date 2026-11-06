@@ -1,0 +1,10 @@
+branch: lsu-platform-v3.2.2
+head: 398f585ce0426ce381200ef5ca9a8ca7e73a6c80
+base: 33e50fa0a48cceee275e3720d7389981034f7b95
+generated_utc: 2026-11-06T11:04:25Z
+gem5_binary_sha256: 7a584a08d55df148eebe090530f56a14679b38567c936f6ed9723aa59dff278d
+scons_product_sha256: 7a584a08d55df148eebe090530f56a14679b38567c936f6ed9723aa59dff278d
+binary_path: build/ARM/gem5.opt (copied from CHAOS/gem5/build/ARM/gem5.opt)
+gcc: gcc (GCC) 12.3.1 (openEuler 12.3.1-111.oe2403sp3)
+python: Python 3.11.6
+note: the two hashes are identical at generation time (same file content).
