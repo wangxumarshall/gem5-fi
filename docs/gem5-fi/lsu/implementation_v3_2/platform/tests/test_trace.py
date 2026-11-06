@@ -95,6 +95,17 @@ def test_missing_field_and_bad_summary_rejected(tmp_path):
     assert any("summary events=99" in e for e in errs)
 
 
+def test_nochange_counts_as_injection(tmp_path):
+    w = make_writer(tmp_path)
+    w.event("injection_nochange", unit="AGU", dyn_inst_seq=7,
+            injection_status="NO_CHANGE", activation_status="TRIGGERED",
+            trace_completeness="COMPLETE")
+    w.close(run_status="COMPLETED", activation="TRIGGERED",
+            terminal="MASKED", completeness="COMPLETE")
+    report = check_completeness(tmp_path / "t.jsonl")
+    assert report["injections"] == 1
+
+
 def test_schema_constants_match_json_schema():
     assert schema_required("event") == EVENT_FIELDS
     assert schema_required("edge") == EDGE_FIELDS

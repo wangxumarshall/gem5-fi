@@ -23,6 +23,7 @@ from trace_writer import TraceWriter  # noqa: E402
 
 KIND_MAP = {
     "inj": "injection",
+    "inj_nochange": "injection_nochange",
     "addr_form": "address_formed",
     "mem_req": "memory_request",
     "resp": "memory_response",
@@ -31,12 +32,15 @@ KIND_MAP = {
     "errant_commit": "errant_commit",
     "funnel": "funnel",
     "fwd": "forwarding_decision",
+    "lq_lifecycle": "lq_lifecycle",
+    "sq_lifecycle": "sq_lifecycle",
     "replay": "replay",
     "squash": "squash",
     "prop_edge": "propagation_edge",
 }
 UNIT_MAP = {
     "inj": ("AGU", "injection"),
+    "inj_nochange": ("AGU", "injection_nochange"),
     "addr_form": ("AGU", "effective_address"),
     "mem_req": ("LSQ", "request"),
     "resp": ("L1D", "response"),
@@ -45,6 +49,8 @@ UNIT_MAP = {
     "errant_commit": ("Commit", "errant_commit"),
     "funnel": ("Funnel", "counts"),
     "fwd": ("LSU", "Store-to-Load Forwarding"),
+    "lq_lifecycle": ("LSQ", "LQ lifecycle"),
+    "sq_lifecycle": ("LSQ", "SQ lifecycle"),
     "replay": ("LSQ", "replay"),
     "squash": ("LSQ", "squash"),
 }
@@ -136,8 +142,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         old_addr = _hex(d.get("old_addr"))
         new_addr = _hex(d.get("new_addr")) or _hex(addr)
         injection_status = "NOT_APPLICABLE"
-        if kind == "inj":
-            injection_status = ("NO_CHANGE" if d.get("value_changed") == "0"
+        if kind in ("inj", "inj_nochange"):
+            injection_status = ("NO_CHANGE" if kind == "inj_nochange"
+                                or d.get("value_changed") == "0"
                                 else "INJECTED")
             next_injection += 1
             injection_by_ptag[ptag_i] = next_injection
@@ -146,6 +153,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         commit_status = "COMMITTED" if kind in ("consumer", "errant_commit") else "UNKNOWN"
         squash_status = "SQUASHED" if kind == "squash" else "UNKNOWN"
         unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
+        if kind in ("lq_lifecycle", "sq_lifecycle"):
+            sub_unit = d.get("action") or kind
         # Address and data are separate fields. resp/t_aint carry actual
         # packet/writeback data; fwd carries the forwarded buffer.
         if kind == "resp":
@@ -159,6 +168,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             va, pa = None, None
             old_value = None
             new_value = d.get("writeback_value") or d.get("writeback_fnv")
+        elif kind in ("lq_lifecycle", "sq_lifecycle"):
+            va, pa = None, None
+            old_value, new_value = None, None
         elif kind == "fwd":
             va, pa = _hex(d.get("byte_begin")), None
             old_value = d.get("store_data_hex") or d.get("store_data_fnv")
@@ -195,9 +207,12 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             unit=unit, sub_unit=sub_unit,
             request_id=_int(d.get("request_id")) or _int(req_id),
             response_id=_int(d.get("response_id")),
-            lq_entry_id=_int(d.get("lq_entry_id")),
-            sq_entry_id=_int(d.get("sq_entry_id")),
-            entry_generation=_int(d.get("entry_generation")),
+            lq_entry_id=(_int(d.get("index")) if kind == "lq_lifecycle"
+                         else _int(d.get("lq_entry_id"))),
+            sq_entry_id=(_int(d.get("index")) if kind == "sq_lifecycle"
+                         else _int(d.get("sq_entry_id"))),
+            entry_generation=(_int(d.get("generation")) or
+                              _int(d.get("entry_generation"))),
             va=va, pa=pa,
             old_value=old_value,
             new_value=new_value,

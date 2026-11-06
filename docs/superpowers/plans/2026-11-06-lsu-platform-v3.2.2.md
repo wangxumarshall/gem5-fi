@@ -21,8 +21,8 @@ null stays null; never infer Masked from an incomplete trace.
 
 ## Task 0 — plan + branch
 
-- [ ] Create branch `lsu-platform-v3.2.2`; commit this plan.
-- [ ] Record carried-over uncommitted v3.2.2 work from the interrupted session
+- [x] Create branch `lsu-platform-v3.2.2`; commit this plan.
+- [x] Record carried-over uncommitted v3.2.2 work from the interrupted session
       (`git diff` inventory) as the starting point of Tasks 1–4.
 
 ## Task 1 — A03 NO_CHANGE events (Trace defect 8)
@@ -31,25 +31,25 @@ null stays null; never infer Masked from an incomplete trace.
 `platform/trace_writer.py`, `platform/tools/prop_trace_to_v31.py`,
 `platform/tests/*`.
 
-- [ ] `maybeCorruptPre` takes the real `dyn_seq` (call site passes `inst->seqNum`).
-- [ ] F5 stuck-at with `addr == old_addr` emits `inj_nochange` with `value_changed=0`.
-- [ ] Converter maps it to `event_type=injection_nochange`,
+- [x] `maybeCorruptPre` takes the real `dyn_seq` (call site passes `inst->seqNum`).
+- [x] F5 stuck-at with `addr == old_addr` emits `inj_nochange` with `value_changed=0`.
+- [x] Converter maps it to `event_type=injection_nochange`,
       `injection_status=NO_CHANGE`; writer counts it as an injection.
-- [ ] Unit test: converter NO_CHANGE row; writer count.
-- [ ] Build (zero new warnings), run A03-R01.
-- [ ] Verify: `FUNNEL injected == count(injection)+count(injection_nochange)`,
+- [x] Unit test: converter NO_CHANGE row; writer count.
+- [x] Build (zero new warnings), run A03-R01.
+- [x] Verify: `FUNNEL injected == count(injection)+count(injection_nochange)`,
       `NO_CHANGE > 0`, every row has non-zero `dyn_inst_seq`.
 
 ## Task 2 — LQ/SQ lifecycle events (Trace defect 4)
 
 **Files:** `lsq_unit.{hh,cc}`, `CHAOSPropagation.{hh,cc}`, converter.
 
-- [ ] alloc on insert, reuse when an index is re-allocated, free on commit/squash
+- [x] alloc on insert, reuse when an index is re-allocated, free on commit/squash
       (`LQ`: commitLoad/squash, `SQ`: completeStore/squash), real index+generation.
-- [ ] Converter/JSONL: `lq_lifecycle`/`sq_lifecycle`, `lq_entry_id`/`sq_entry_id`,
+- [x] Converter/JSONL: `lq_lifecycle`/`sq_lifecycle`, `lq_entry_id`/`sq_entry_id`,
       `entry_generation`, `sub_unit=alloc|reuse|free`.
-- [ ] Build, run A01/A03.
-- [ ] Verify: alloc==free+live at end (or documented truncation on CRASH),
+- [x] Build, run A01/A03.
+- [x] Verify: alloc==free+live at end (or documented truncation on CRASH),
       generation monotonic per index, every event has real seq/gen.
 
 ## Task 3 — A01-R03 terminal consistency (Trace defect 7)

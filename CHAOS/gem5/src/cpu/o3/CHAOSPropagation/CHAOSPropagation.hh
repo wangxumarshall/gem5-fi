@@ -182,6 +182,20 @@ class CHAOSPropagation : public SimObject
     void noteFunnel(const char *site, uint64_t attempted, uint64_t eligible,
                     uint64_t injected);
 
+    // F5 stuck-at application where the value already equals the stuck
+    // value. This is a real condition application and must be counted even
+    // though no address bit changes.
+    void noteNoChange(const char *site, uint64_t dyn_seq, Addr addr,
+                      const char *mode, uint64_t execution_attempt_id,
+                      uint64_t replay_generation);
+
+    // Real LQ/SQ entry lifecycle (alloc/reuse/free), from the circular queue
+    // insert/commit/squash sites.
+    void noteLQLifecycle(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
+                         const char *action, const char *reason);
+    void noteSQLifecycle(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
+                         const char *action, const char *reason);
+
     // ---- pipeline hooks (read-only w.r.t. CPU state) -----------------------
     // LSQ::LSQRequest::sendFragmentToTranslation: the fragment Request is
     // about to leave for translation/memory. Writes a mem_req node when it

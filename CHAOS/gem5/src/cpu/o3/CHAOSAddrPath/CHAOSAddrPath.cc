@@ -206,7 +206,7 @@ namespace gem5
 
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags)
+                               Request::Flags& flags, uint64_t dyn_seq)
     {
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
@@ -358,6 +358,10 @@ namespace gem5
                 ++obs_pre_nochange;
                 ++l0_funnel.injected;
                 ++faults_injected_count;
+                if (o3cpu_resolved && o3cpu_resolved->chaosPropagation)
+                    o3cpu_resolved->chaosPropagation->noteNoChange(
+                        "lsq_pushRequest_PRE", dyn_seq, addr, pre_mode.c_str(),
+                        0, 0);
                 notifyFunnelAtInjection();
                 if (write_log && log_stream && log_stream->stream()) {
                     *(log_stream->stream()) << "Tick: " << curTick()

@@ -116,7 +116,10 @@ def main(argv=None) -> int:
     sample["workload_exists"] = True
     cfg2 = copy.deepcopy(cfg)
     cfg2["samples"] = [sample]
-    out = args.outdir
+    # gem5 runs with cwd=ROOT, so a relative --outdir would land its
+    # artifacts outside this script's output directory. Pin the path at the
+    # caller's cwd before gem5 sees it.
+    out = args.outdir.resolve()
     out.mkdir(parents=True, exist_ok=True)
 
     extra = []

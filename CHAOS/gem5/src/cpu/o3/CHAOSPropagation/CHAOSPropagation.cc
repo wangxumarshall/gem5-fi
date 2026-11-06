@@ -368,6 +368,51 @@ namespace gem5
                   0, false, 0, false, d.str());
     }
 
+    void
+    CHAOSPropagation::noteNoChange(const char *site, uint64_t dyn_seq,
+                                   Addr addr, const char *mode,
+                                   uint64_t execution_attempt_id,
+                                   uint64_t replay_generation)
+    {
+        if (!write_log)
+            return;
+        std::ostringstream d;
+        d << "site=" << site << ";mode=" << mode
+          << ";old_addr=" << std::hex << addr
+          << ";new_addr=" << addr << std::dec
+          << ";value_changed=0"
+          << ";execution_attempt_id=" << execution_attempt_id
+          << ";replay_generation=" << replay_generation;
+        writeNode(0, "inj_nochange", dyn_seq, true, 0, false, addr, true,
+                  0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::noteLQLifecycle(uint64_t dyn_seq, uint64_t idx,
+                                      uint64_t gen, const char *action,
+                                      const char *reason)
+    {
+        if (!write_log) return;
+        std::ostringstream d;
+        d << "queue=LQ;action=" << action << ";index=" << idx
+          << ";generation=" << gen << ";reason=" << reason;
+        writeNode(0, "lq_lifecycle", dyn_seq, true, 0, false, 0, false,
+                  idx, true, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::noteSQLifecycle(uint64_t dyn_seq, uint64_t idx,
+                                      uint64_t gen, const char *action,
+                                      const char *reason)
+    {
+        if (!write_log) return;
+        std::ostringstream d;
+        d << "queue=SQ;action=" << action << ";index=" << idx
+          << ";generation=" << gen << ";reason=" << reason;
+        writeNode(0, "sq_lifecycle", dyn_seq, true, 0, false, 0, false,
+                  idx, true, 0, false, d.str());
+    }
+
     // ------------------------------------------------------------ pipeline
 
     void

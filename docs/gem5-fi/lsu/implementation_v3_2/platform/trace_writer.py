@@ -83,9 +83,9 @@ class TraceWriter:
         self._write(rec)
         self._nodes[eid] = rec
         self._counts["events"] += 1
-        if rec.get("injection_status") == "INJECTED" or event_type == "injection":
-            if rec.get("injection_status") in ("INJECTED", "NO_CHANGE") or event_type == "injection":
-                self._counts["injections"] += 1
+        if (rec.get("injection_status") in ("INJECTED", "NO_CHANGE")
+                or event_type in ("injection", "injection_nochange")):
+            self._counts["injections"] += 1
         if rec.get("activation_status") == "TRIGGERED":
             self._counts["activations"] += 1
         return eid

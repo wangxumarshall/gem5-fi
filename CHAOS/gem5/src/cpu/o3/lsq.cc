@@ -780,7 +780,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         const Addr pre_old_addr = addr;
         const unsigned int pre_old_size = size;
         size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
-                                                      flags);
+                                                      flags, inst->seqNum);
         // [LSU][OBS-L3] register the PRE-family injection with the L3
         // propagation tracer (inj + addr_form nodes + addr registry).
         // lastPreHookInjected() also covers the flag-only modes (S06/L02

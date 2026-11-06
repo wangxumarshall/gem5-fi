@@ -1,0 +1,2 @@
+FUNNEL: attempted=1 eligible=1 injected=1
+Tick: 80080, Site: lsq_pushRequest_PRE, mode=a01_bit3_load, old_addr=0x7ffffefda0, new_addr=0x7ffffefda8, old_size=8, new_size=8, faults_injected: 1

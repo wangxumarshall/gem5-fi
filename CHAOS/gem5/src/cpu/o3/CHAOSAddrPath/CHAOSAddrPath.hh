@@ -44,7 +44,7 @@ class CHAOSAddrPath : public SimObject
     // a06_size (access-size substitution; byte_enable is const at this
     // hook — size only), a08_subst (same-page, no object constraint).
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags);
+                               Request::Flags& flags, uint64_t dyn_seq = 0);
 
     // [LSU][OBS-L3] true iff the PREVIOUS maybeCorruptPre call on this
     // injector performed an injection. The lsq.cc pushRequest call site

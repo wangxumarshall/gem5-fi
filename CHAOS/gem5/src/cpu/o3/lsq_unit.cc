@@ -369,6 +369,13 @@ LSQUnit::insertLoad(const DynInstPtr &load_inst)
     loadQueue.back().set(load_inst);
     load_inst->lqEntryGeneration = ++lqEntryGeneration;
     load_inst->lqIdx = loadQueue.tail();
+    if (cpu->chaosPropagation) {
+        const bool reused = lq_last_alloc.count((uint32_t)load_inst->lqIdx) != 0;
+        cpu->chaosPropagation->noteLQLifecycle(
+            load_inst->seqNum, load_inst->lqIdx, load_inst->lqEntryGeneration,
+            reused ? "reuse" : "alloc", "insert");
+        lq_last_alloc[(uint32_t)load_inst->lqIdx] = load_inst->seqNum;
+    }
     assert(load_inst->lqIdx > 0);
     load_inst->lqIt = loadQueue.getIterator(load_inst->lqIdx);
 
@@ -435,6 +442,13 @@ LSQUnit::insertStore(const DynInstPtr& store_inst)
 
     storeQueue.back().set(store_inst);
     store_inst->sqEntryGeneration = ++sqEntryGeneration;
+    if (cpu->chaosPropagation) {
+        const bool reused = sq_last_alloc.count((uint32_t)store_inst->sqIdx) != 0;
+        cpu->chaosPropagation->noteSQLifecycle(
+            store_inst->seqNum, store_inst->sqIdx, store_inst->sqEntryGeneration,
+            reused ? "reuse" : "alloc", "insert");
+        sq_last_alloc[(uint32_t)store_inst->sqIdx] = store_inst->seqNum;
+    }
 
     stats.sqAvgOccupancy = queueOccupancy(storeQueue);
 }
@@ -795,6 +809,9 @@ LSQUnit::commitLoad()
                     inst->lastWakeDependents - inst->firstIssue));
     }
 
+    if (cpu->chaosPropagation)
+        cpu->chaosPropagation->noteLQLifecycle(
+            inst->seqNum, inst->lqIdx, inst->lqEntryGeneration, "free", "commit");
     loadQueue.front().clear();
     loadQueue.pop_front();
 
@@ -1015,9 +1032,15 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             DPRINTF(HtmCpu, ">> htmStarts (%d) : htmStops-- (%d)\n",
               htmStarts, htmStops);
         }
-        if (cpu->chaosPropagation)
+        if (cpu->chaosPropagation) {
             cpu->chaosPropagation->noteSquash(
                 loadQueue.back().instruction().get(), "lsq_squash");
+            cpu->chaosPropagation->noteLQLifecycle(
+                loadQueue.back().instruction()->seqNum,
+                loadQueue.back().instruction()->lqIdx,
+                loadQueue.back().instruction()->lqEntryGeneration,
+                "free", "squash");
+        }
         // Clear the smart pointer to make sure it is decremented.
         loadQueue.back().instruction()->setSquashed();
         loadQueue.back().clear();
@@ -1087,9 +1110,15 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             stallingStoreIsn = 0;
         }
 
-        if (cpu->chaosPropagation)
+        if (cpu->chaosPropagation) {
             cpu->chaosPropagation->noteSquash(
                 storeQueue.back().instruction().get(), "lsq_squash");
+            cpu->chaosPropagation->noteSQLifecycle(
+                storeQueue.back().instruction()->seqNum,
+                storeQueue.back().instruction()->sqIdx,
+                storeQueue.back().instruction()->sqEntryGeneration,
+                "free", "squash");
+        }
         // Clear the smart pointer to make sure it is decremented.
         storeQueue.back().instruction()->setSquashed();
 
@@ -1219,6 +1248,10 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     /* We 'need' a copy here because we may clear the entry from the
      * store queue. */
     DynInstPtr store_inst = store_idx->instruction();
+    if (cpu->chaosPropagation)
+        cpu->chaosPropagation->noteSQLifecycle(
+            store_inst->seqNum, store_inst->sqIdx,
+            store_inst->sqEntryGeneration, "free", "complete");
     if (store_idx == storeQueue.begin()) {
         do {
             storeQueue.front().clear();

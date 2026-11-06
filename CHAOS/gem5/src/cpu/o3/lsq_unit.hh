@@ -463,6 +463,8 @@ class LSQUnit
     /** gem5-fi v3.2.1: monotonic entry generations (not index aliases). */
     uint64_t lqEntryGeneration = 0;
     uint64_t sqEntryGeneration = 0;
+    std::map<uint32_t, uint64_t> lq_last_alloc;
+    std::map<uint32_t, uint64_t> sq_last_alloc;
 
     StoreQueue storeQueue;
 

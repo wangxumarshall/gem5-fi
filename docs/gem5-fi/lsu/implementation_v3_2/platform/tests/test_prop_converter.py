@@ -67,6 +67,34 @@ def test_each_injection_gets_its_own_injection_event_id(tmp_path):
     assert all(r["injection_event_id"] >= 1 for r in rows if r.get("record_type") == "event")
 
 
+def test_f5_nochange_is_counted_as_an_injection(tmp_path):
+    """A03 F5: the stuck-at condition can apply without changing the value.
+
+    The application is still a real injection and must appear in the trace
+    (defect 8: 146 applications vs 73 INJECTED nodes in v3.2.1).
+    """
+    import gzip
+    csv = tmp_path / "prop.csv.gz"
+    with gzip.open(csv, "wt", encoding="utf-8") as fh:
+        fh.write(
+            "1,100,1,inj_nochange,42,0,0x1000,0,0,"
+            "site=lsq_pushRequest_PRE;mode=a03_bit3_stuck0_load;"
+            "old_addr=0x1000;new_addr=0x1000;value_changed=0\n")
+    out = tmp_path / "trace.jsonl"
+    convert(csv, out, sample_run_id="PILOT-A03-TEST",
+            run_id="PILOT-A03", sub_task_id="PILOT-A03-S01",
+            fault_id="A03-CFG01", fault_model_id="A03",
+            run_status="COMPLETED", activation="TRIGGERED",
+            terminal="MASKED", completeness="COMPLETE")
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    event = next(r for r in rows if r.get("record_type") == "event")
+    assert event["event_type"] == "injection_nochange"
+    assert event["injection_status"] == "NO_CHANGE"
+    assert event["dyn_inst_seq"] == 42
+    assert event["unit"] == "AGU"
+    assert check_completeness(out)["injections"] == 1
+
+
 def test_truncated_complete_requires_crash(tmp_path):
     import pytest
     with pytest.raises(SystemExit):
