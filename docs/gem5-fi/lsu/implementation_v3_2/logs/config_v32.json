@@ -1,6 +1,6 @@
 {
   "schema_version": "lsu-config-v3.2",
-  "source": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx",
+  "source": "../gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx",
   "source_sha256": "864c8479d196520d6a1a07c09813b6674b0eca9c4227138a3f20307f7616bbfe",
   "models": [
     "A01",
