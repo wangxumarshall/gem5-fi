@@ -1193,7 +1193,8 @@ LSQ::LSQRequest::sendFragmentToTranslation(int i)
     // are covered by one call. nullptr tracer = no-op.
     if (_inst && _inst->cpu && _inst->cpu->chaosPropagation)
         _inst->cpu->chaosPropagation->noteMemRequest(
-            "lsq_sendFragmentToTranslation", _inst->seqNum, req(i));
+            "lsq_sendFragmentToTranslation", _inst->seqNum, req(i),
+            _inst->lqIdx, _inst->sqIdx);
     _port.getMMUPtr()->translateTiming(req(i), _inst->thread->getTC(),
             this, isLoad() ? BaseMMU::Read : BaseMMU::Write);
 }

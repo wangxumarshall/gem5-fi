@@ -1,0 +1,362 @@
+[
+  {
+    "model": "A01",
+    "context": "R01",
+    "seed": 2108120075,
+    "event_ordinal": 1,
+    "accepted": true,
+    "injection": {
+      "attempted": 1,
+      "eligible": 1,
+      "injected": 1
+    },
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": "page_table_fault_after_injection_no_address_match",
+    "trace_events": 20,
+    "trace_edges": 17,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A01",
+    "context": "R02",
+    "seed": 1113826800,
+    "event_ordinal": 2,
+    "accepted": true,
+    "injection": {
+      "attempted": 2802,
+      "eligible": 1477,
+      "injected": 1
+    },
+    "classification": {
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "MASKED",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": true,
+    "crash_evidence": null,
+    "trace_events": 14,
+    "trace_edges": 6,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A01",
+    "context": "R03",
+    "seed": 1302709433,
+    "event_ordinal": 3,
+    "accepted": true,
+    "injection": {
+      "attempted": 2802,
+      "eligible": 1477,
+      "injected": 1
+    },
+    "classification": {
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "MASKED",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": true,
+    "crash_evidence": null,
+    "trace_events": 11,
+    "trace_edges": 2,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A01",
+    "context": "R04",
+    "seed": 2194451614,
+    "event_ordinal": 4,
+    "accepted": true,
+    "injection": {
+      "attempted": 2785,
+      "eligible": 1466,
+      "injected": 1
+    },
+    "classification": {
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "MASKED",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": true,
+    "crash_evidence": null,
+    "trace_events": 18,
+    "trace_edges": 10,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A01",
+    "context": "R05",
+    "seed": 3228552887,
+    "event_ordinal": 5,
+    "accepted": true,
+    "injection": {
+      "attempted": 2786,
+      "eligible": 1466,
+      "injected": 1
+    },
+    "classification": {
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "MASKED",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": true,
+    "crash_evidence": null,
+    "trace_events": 14,
+    "trace_edges": 6,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A03",
+    "context": "R01",
+    "seed": 663646247,
+    "event_ordinal": 1,
+    "accepted": true,
+    "injection": {
+      "attempted": 284,
+      "eligible": 146,
+      "injected": 146
+    },
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": "page_table_fault_after_injection_address_match",
+    "trace_events": 595,
+    "trace_edges": 344,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A03",
+    "context": "R02",
+    "seed": 1626885462,
+    "event_ordinal": 2,
+    "accepted": true,
+    "injection": {
+      "attempted": 284,
+      "eligible": 146,
+      "injected": 145
+    },
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": "page_table_fault_after_injection_address_match",
+    "trace_events": 594,
+    "trace_edges": 344,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A03",
+    "context": "R03",
+    "seed": 110775855,
+    "event_ordinal": 3,
+    "accepted": true,
+    "injection": {
+      "attempted": 284,
+      "eligible": 146,
+      "injected": 144
+    },
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": "page_table_fault_after_injection_address_match",
+    "trace_events": 587,
+    "trace_edges": 339,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A03",
+    "context": "R04",
+    "seed": 2766846323,
+    "event_ordinal": 4,
+    "accepted": true,
+    "injection": {
+      "attempted": 284,
+      "eligible": 146,
+      "injected": 143
+    },
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": "page_table_fault_after_injection_address_match",
+    "trace_events": 586,
+    "trace_edges": 339,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "A03",
+    "context": "R05",
+    "seed": 1156093484,
+    "event_ordinal": 5,
+    "accepted": true,
+    "injection": {
+      "attempted": 284,
+      "eligible": 146,
+      "injected": 142
+    },
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": "page_table_fault_after_injection_address_match",
+    "trace_events": 585,
+    "trace_edges": 339,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "FW02",
+    "context": "R01",
+    "seed": 2941542370,
+    "event_ordinal": 1,
+    "accepted": true,
+    "injection": {
+      "observed": 6,
+      "suppressed": 1,
+      "load_seq": 397,
+      "store_seq": 383
+    },
+    "classification": {
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "MASKED",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": true,
+    "crash_evidence": null,
+    "trace_events": 11,
+    "trace_edges": 4,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "FW02",
+    "context": "R02",
+    "seed": 2129071279,
+    "event_ordinal": 2,
+    "accepted": false,
+    "injection": {},
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "NOT_TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "INCOMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": null,
+    "trace_events": 12,
+    "trace_edges": 10,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "FW02",
+    "context": "R03",
+    "seed": 1336081385,
+    "event_ordinal": 3,
+    "accepted": false,
+    "injection": {
+      "observed": 1,
+      "suppressed": 1,
+      "load_seq": 10011,
+      "store_seq": 10008
+    },
+    "classification": {
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "CRASH",
+      "trace_completeness": "INCOMPLETE"
+    },
+    "oracle_pass": false,
+    "crash_evidence": null,
+    "trace_events": 353,
+    "trace_edges": 349,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "FW02",
+    "context": "R04",
+    "seed": 527667424,
+    "event_ordinal": 4,
+    "accepted": true,
+    "injection": {
+      "observed": 6,
+      "suppressed": 1,
+      "load_seq": 11101,
+      "store_seq": 11099
+    },
+    "classification": {
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "MASKED",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": true,
+    "crash_evidence": null,
+    "trace_events": 12,
+    "trace_edges": 6,
+    "record_integrity": null,
+    "propagation_coverage": null
+  },
+  {
+    "model": "FW02",
+    "context": "R05",
+    "seed": 3622278636,
+    "event_ordinal": 5,
+    "accepted": true,
+    "injection": {
+      "observed": 6,
+      "suppressed": 1,
+      "load_seq": 11203,
+      "store_seq": 11192
+    },
+    "classification": {
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "terminal_state": "MASKED",
+      "trace_completeness": "COMPLETE"
+    },
+    "oracle_pass": true,
+    "crash_evidence": null,
+    "trace_events": 11,
+    "trace_edges": 4,
+    "record_integrity": null,
+    "propagation_coverage": null
+  }
+]

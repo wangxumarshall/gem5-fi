@@ -162,7 +162,7 @@ namespace gem5
         }
     }
 
-    void
+    uint64_t
     CHAOSPropagation::writeNode(uint64_t ptag, const char *kind,
                                 uint64_t dyn_seq, bool has_seq,
                                 uint64_t request_id, bool has_req_id,
@@ -172,10 +172,11 @@ namespace gem5
                                 const std::string &detail)
     {
         if (!write_log || !gz_file)
-            return;
+            return 0;
+        const uint64_t node_id = next_node_id;
         // Numeric fields without a value are EMPTY strings (pinned contract).
         std::ostringstream row;
-        row << next_node_id << ',' << curTick() << ',' << ptag << ','
+        row << node_id << ',' << curTick() << ',' << ptag << ','
             << kind << ',';
         if (has_seq) row << dyn_seq;
         row << ',';
@@ -191,11 +192,79 @@ namespace gem5
         if (gzwrite(gz_file, s.data(), (unsigned)s.size())
                 != (int)s.size())
             panic("CHAOSPropagation: node write failed (node %llu kind %s)",
-                  (unsigned long long)next_node_id, kind);
+                  (unsigned long long)node_id, kind);
         // Crash durability (W2.1 contract): one flush per node — an aborted
         // run keeps every completed node readable (trailer-less prefix).
         gzflush(gz_file, Z_SYNC_FLUSH);
         ++next_node_id;
+        return node_id;
+    }
+
+    std::string
+    CHAOSPropagation::bytesToHex(const uint8_t *p, unsigned n) const
+    {
+        if (!p || n == 0)
+            return "";
+        // Keep JSONL bounded: full bytes for <=32B, length+hash otherwise.
+        if (n > 32)
+            return "len" + std::to_string(n);
+        static const char *hx = "0123456789abcdef";
+        std::string out;
+        out.reserve(n * 2);
+        for (unsigned i = 0; i < n; ++i) {
+            out.push_back(hx[p[i] >> 4]);
+            out.push_back(hx[p[i] & 0xf]);
+        }
+        return out;
+    }
+
+    std::string
+    CHAOSPropagation::regValueHash(o3::DynInst *inst, PhysRegIdPtr phys,
+                                   ThreadID tid, uint64_t *value_out,
+                                   unsigned *bytes_out) const
+    {
+        if (!o3cpu || !inst || !phys || phys->classValue() < 0)
+            return "";
+        RegVal value = o3cpu->getReg(phys, tid);
+        if (value_out) *value_out = (uint64_t)value;
+        if (bytes_out) *bytes_out = sizeof(RegVal);
+        const uint64_t h = fnv1a64(&value, sizeof(value));
+        std::ostringstream out;
+        out << std::hex << h << std::dec;
+        return out.str();
+    }
+
+    void
+    CHAOSPropagation::writeEdgeRow(uint64_t ptag, uint64_t source_node,
+                                   uint64_t destination_node,
+                                   uint64_t producer_seq, uint64_t consumer_seq,
+                                   const std::string &source_hash,
+                                   const std::string &destination_hash,
+                                   const char *edge_type)
+    {
+        if (!write_log || !gz_file)
+            return;
+        std::ostringstream d;
+        d << "source_event_id=" << source_node
+          << ";destination_event_id=" << destination_node
+          << ";producer_inst_seq=" << producer_seq
+          << ";consumer_inst_seq=" << consumer_seq
+          << ";source_value_hash=" << (source_hash.empty() ? "null" : source_hash)
+          << ";destination_value_hash="
+          << (destination_hash.empty() ? "null" : destination_hash)
+          << ";edge_type=" << edge_type;
+        // A prop_edge row is a real edge record, not a ptag-order artifact.
+        const uint64_t node_id = next_node_id++;
+        std::ostringstream row;
+        row << node_id << ',' << curTick() << ',' << ptag << ",prop_edge,";
+        row << consumer_seq << ",,,";  // dyn_seq, request_id, addr
+        row << ",,";                   // phys, arch
+        row << d.str() << '\n';
+        const std::string s = row.str();
+        if (gzwrite(gz_file, s.data(), (unsigned)s.size()) != (int)s.size())
+            panic("CHAOSPropagation: edge write failed (node %llu)",
+                  (unsigned long long)node_id);
+        gzflush(gz_file, Z_SYNC_FLUSH);
     }
 
     // ------------------------------------------------------- registration
@@ -209,6 +278,7 @@ namespace gem5
         if (!write_log)
             return 0;
         const uint64_t ptag = ++next_ptag;
+        fault_seqs.insert(dyn_seq);
 
         // inj node: the injection event (addr column = the ORIGINAL addr).
         {
@@ -302,11 +372,21 @@ namespace gem5
 
     void
     CHAOSPropagation::noteMemRequest(const char *site, uint64_t dyn_seq,
-                                     const RequestPtr &req)
+                                     const RequestPtr &req, int64_t lq_idx,
+                                     int64_t sq_idx)
     {
         if (!write_log || !req || !req->hasVaddr())
             return;
         sweepExpired();
+        // Real request identity: one request id per Request object, one
+        // fragment id per sendFragmentToTranslation call. Not dyn_inst_seq.
+        auto &rm = req_meta[req.get()];
+        if (rm.request_id == 0) {
+            rm.request_id = ++next_request_id;
+        }
+        rm.fragment_id = ++next_fragment_id;
+        const uint64_t request_id = rm.request_id;
+        const uint64_t fragment_id = rm.fragment_id;
         const Addr v = req->getVaddr();
         const Addr v_end = v + (Addr)req->getSize();
 
@@ -327,9 +407,13 @@ namespace gem5
                 continue;                       // not the faulting inst
             std::ostringstream d;
             d << "site=" << site << ";family=addrpath;size="
-              << req->getSize();
+              << req->getSize() << ";request_id=" << request_id
+              << ";fragment_id=" << fragment_id
+              << ";lq_entry_id=" << lq_idx
+              << ";sq_entry_id=" << sq_idx
+              ;
             writeNode(e.ptag, "mem_req", dyn_seq, true,
-                      req_seq, stamped, v, true, 0, false, 0, false, d.str());
+                      request_id, true, v, true, 0, false, 0, false, d.str());
         }
 
         // cache faulted-byte registry: range overlap (SE vaddr==paddr).
@@ -338,9 +422,13 @@ namespace gem5
             if (v >= e.byte_end || e.byte_begin >= v_end)
                 continue;
             std::ostringstream d;
-            d << "site=" << site << ";family=cache;size=" << req->getSize();
+            d << "site=" << site << ";family=cache;size=" << req->getSize()
+              << ";request_id=" << request_id
+              << ";fragment_id=" << fragment_id
+              << ";lq_entry_id=" << lq_idx
+              << ";sq_entry_id=" << sq_idx;
             writeNode(e.ptag, "mem_req", dyn_seq, true,
-                      req_seq, stamped, v, true, 0, false, 0, false, d.str());
+                      request_id, true, v, true, 0, false, 0, false, d.str());
         }
     }
 
@@ -388,28 +476,63 @@ namespace gem5
         if (!hit_ptag)
             return;
 
-        // resp node: the memory response delivering the fault.
+        // resp node: the memory response delivering the fault. Address and
+        // data are separate: `addr` is the packet address (PA in this
+        // tracer); `data_*` is the actual returned packet data.
         const uint64_t req_seq =
             (pkt->req && pkt->req->hasInstSeqNum())
                 ? pkt->req->getReqInstSeqNum() : 0;
+        if (pkt->req) {
+            auto &rm = req_meta[pkt->req.get()];
+            if (rm.request_id == 0) rm.request_id = ++next_request_id;
+            if (rm.fragment_id == 0) rm.fragment_id = ++next_fragment_id;
+        }
+        const uint64_t request_id =
+            (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].request_id : 0;
+        const uint64_t fragment_id =
+            (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].fragment_id : 0;
+        const uint64_t response_id = ++next_response_id;
+        const unsigned data_len = pkt->hasData() ? pkt->getSize() : 0;
+        const uint64_t data_hash = data_len
+            ? fnv1a64(pkt->getPtr<uint8_t>(), data_len) : 0;
+        std::ostringstream data_hash_ss;
+        if (data_len) data_hash_ss << std::hex << data_hash << std::dec;
+        const std::string data_hash_str = data_hash_ss.str();
+        const std::string data_hex = data_len
+            ? bytesToHex(pkt->getPtr<uint8_t>(), data_len) : "";
+        uint64_t resp_node = 0;
         {
             std::ostringstream d;
-            d << "family=" << hit_family << ";size=" << pkt->getSize();
-            if (pkt->hasData()) {
-                d << ";data_fnv=" << std::hex
-                  << fnv1a64(pkt->getPtr<uint8_t>(), pkt->getSize())
-                  << std::dec;
-            }
+            d << "family=" << hit_family << ";size=" << pkt->getSize()
+              << ";data_len=" << data_len
+              << ";data_fnv=" << (data_len ? data_hash_str : "null")
+              << ";data_hex=" << (data_hex.empty() ? "null" : data_hex)
+              << ";request_id=" << request_id
+              << ";response_id=" << response_id
+              << ";fragment_id=" << fragment_id
+              << ";lq_entry_id=" << inst->lqIdx
+              << ";sq_entry_id=" << inst->sqIdx
+              << ";entry_generation="
+              << (inst->isLoad() ? inst->lqEntryGeneration
+                                 : inst->sqEntryGeneration)
+              << ";execution_attempt_id=" << inst->executionAttemptId
+              << ";replay_generation=" << inst->replayGeneration
+              << ";pa=" << std::hex << pkt->getAddr() << std::dec;
             if (inst->getFault() != NoFault)
                 d << ";fault=" << inst->getFault()->name();
-            writeNode(hit_ptag, "resp", inst->seqNum, true,
-                      req_seq, req_seq != 0, pkt->getAddr(), true,
-                      0, false, 0, false, d.str());
+            resp_node = writeNode(hit_ptag, "resp", inst->seqNum, true,
+                                  request_id, request_id != 0,
+                                  pkt->getAddr(), true,
+                                  0, false, 0, false, d.str());
+            resp_node_by_ptag[hit_ptag] = resp_node;
+            resp_hash_by_ptag[hit_ptag] = data_hash_str;
         }
 
         // taint_reg: exactly the condition under which LSQUnit::writeback
         // performs completeAcc (needWBToRegister + NoFault) — the load's
-        // dest phys regs receive the fault-delivered data.
+        // dest phys regs receive the fault-delivered data. The writeback
+        // value is the packet data captured at this pre-writeback point
+        // (for the A01/A03 pilots no post-check injector mutates it later).
         if (!wb_to_reg || inst->getFault() != NoFault)
             return;
         const int ndest = (int)inst->numDestRegs();
@@ -422,15 +545,101 @@ namespace gem5
             TaintEntry te;
             te.ptag = hit_ptag;
             te.taintor_seq = inst->seqNum;
-            taint_set[key] = te;
+            te.node_id = 0;
+            te.value_hash = data_hash_str;
             std::ostringstream d;
             d << "class=" << regClassName(phys->classValue())
-              << ";dest_idx=" << i;
-            writeNode(hit_ptag, "taint_reg", inst->seqNum, true,
-                      req_seq, req_seq != 0, pkt->getAddr(), true,
-                      phys->index(), true,
-                      inst->destRegIdx(i).index(), true, d.str());
+              << ";dest_idx=" << i
+              << ";phys_reg=" << phys->index()
+              << ";arch_reg=" << inst->destRegIdx(i).index()
+              << ";writeback_value=" << (data_hex.empty() ? "null" : data_hex)
+              << ";writeback_fnv=" << (data_len ? data_hash_str : "null")
+              << ";source_event_id=" << resp_node
+              << ";source_value_hash=" << (data_len ? data_hash_str : "null")
+              << ";request_id=" << request_id
+              << ";response_id=" << response_id
+              << ";execution_attempt_id=" << inst->executionAttemptId
+              << ";replay_generation=" << inst->replayGeneration;
+            const uint64_t taint_node = writeNode(
+                hit_ptag, "taint_reg", inst->seqNum, true,
+                request_id, request_id != 0, pkt->getAddr(), true,
+                phys->index(), true,
+                inst->destRegIdx(i).index(), true, d.str());
+            te.node_id = taint_node;
+            taint_set[key] = te;
         }
+    }
+
+    void
+    CHAOSPropagation::noteReplay(o3::DynInst *inst, const char *reason)
+    {
+        if (!write_log || !inst || !fault_seqs.count(inst->seqNum))
+            return;
+        std::ostringstream d;
+        d << "reason=" << reason
+          << ";pc=" << std::hex << inst->pcState().instAddr() << std::dec
+          << ";execution_attempt_id=" << inst->executionAttemptId
+          << ";replay_generation=" << inst->replayGeneration
+          << ";lq_entry_id=" << inst->lqIdx
+          << ";sq_entry_id=" << inst->sqIdx
+          << ";entry_generation="
+          << (inst->isLoad() ? inst->lqEntryGeneration
+                             : inst->sqEntryGeneration);
+        writeNode(0, "replay", inst->seqNum, true, 0, false, 0, false,
+                  0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::noteSquash(o3::DynInst *inst, const char *reason)
+    {
+        if (!write_log || !inst || !fault_seqs.count(inst->seqNum))
+            return;
+        std::ostringstream d;
+        d << "reason=" << reason
+          << ";pc=" << std::hex << inst->pcState().instAddr() << std::dec
+          << ";execution_attempt_id=" << inst->executionAttemptId
+          << ";replay_generation=" << inst->replayGeneration
+          << ";lq_entry_id=" << inst->lqIdx
+          << ";sq_entry_id=" << inst->sqIdx
+          << ";entry_generation="
+          << (inst->isLoad() ? inst->lqEntryGeneration
+                             : inst->sqEntryGeneration);
+        writeNode(0, "squash", inst->seqNum, true, 0, false, 0, false,
+                  0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::noteForwarding(uint64_t ptag, uint64_t load_seq,
+                                     uint64_t store_seq, Addr vaddr,
+                                     unsigned size, const uint8_t *store_data,
+                                     unsigned store_size,
+                                     const uint8_t *fwd_data,
+                                     unsigned fwd_size, bool suppressed,
+                                     bool memory_path)
+    {
+        if (!write_log)
+            return;
+        const uint64_t store_hash = store_data
+            ? fnv1a64(store_data, store_size) : 0;
+        const uint64_t fwd_hash = fwd_data
+            ? fnv1a64(fwd_data, fwd_size) : 0;
+        std::ostringstream d;
+        d << "unit=LSU;sub_unit=Store-to-Load Forwarding"
+          << ";load_seq=" << load_seq
+          << ";store_seq=" << store_seq
+          << ";byte_begin=" << vaddr
+          << ";byte_end=" << (vaddr + size)
+          << ";size=" << size
+          << ";store_data_fnv=" << std::hex << store_hash << std::dec
+          << ";store_data_hex="
+          << (store_data ? bytesToHex(store_data, store_size) : "null")
+          << ";forward_data_fnv=" << std::hex << fwd_hash << std::dec
+          << ";forward_data_hex="
+          << (fwd_data ? bytesToHex(fwd_data, fwd_size) : "null")
+          << ";decision=" << (suppressed ? "suppressed" : "forwarded")
+          << ";memory_path=" << (memory_path ? 1 : 0);
+        writeNode(ptag, "fwd", load_seq, true, 0, false, vaddr, true,
+                  0, false, 0, false, d.str());
     }
 
     void
@@ -439,8 +648,11 @@ namespace gem5
         if (!write_log || !head_inst)
             return;
 
+        ++commit_seq;
         const uint64_t pc = head_inst->pcState().instAddr();
         uint64_t first_consumed_ptag = 0;
+        uint64_t last_consumer_node = 0;
+        std::string last_consumer_hash;
         bool any_consumer = false;
         bool self_taint = false;
         uint64_t self_taint_ptag = 0;
@@ -459,12 +671,31 @@ namespace gem5
             any_consumer = true;
             if (!first_consumed_ptag)
                 first_consumed_ptag = it->second.ptag;
+            uint64_t cval = 0;
+            unsigned cbytes = 0;
+            const std::string chash = regValueHash(
+                head_inst, phys, tid, &cval, &cbytes);
             std::ostringstream d;
             d << "class=" << regClassName(phys->classValue())
-              << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec;
-            writeNode(it->second.ptag, "consumer", head_inst->seqNum, true,
-                      0, false, 0, false, phys->index(), true,
-                      head_inst->srcRegIdx(i).index(), true, d.str());
+              << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec
+              << ";source_event_id=" << it->second.node_id
+              << ";source_value_hash="
+              << (it->second.value_hash.empty() ? "null" : it->second.value_hash)
+              << ";consumer_value_hash=" << (chash.empty() ? "null" : chash)
+              << ";consumer_value=" << std::hex << cval << std::dec
+              << ";consumer_value_bytes=" << cbytes
+              << ";commit_seq=" << commit_seq
+              << ";execution_attempt_id=" << head_inst->executionAttemptId
+              << ";replay_generation=" << head_inst->replayGeneration;
+            const uint64_t consumer_node = writeNode(
+                it->second.ptag, "consumer", head_inst->seqNum, true,
+                0, false, 0, false, phys->index(), true,
+                head_inst->srcRegIdx(i).index(), true, d.str());
+            last_consumer_node = consumer_node;
+            last_consumer_hash = chash;
+            writeEdgeRow(it->second.ptag, it->second.node_id, consumer_node,
+                         it->second.taintor_seq, head_inst->seqNum,
+                         it->second.value_hash, chash, "register_dataflow");
         }
 
         // Dests: is this the faulting load itself committing its tainted
@@ -496,7 +727,8 @@ namespace gem5
             std::ostringstream d;
             d << "trigger=" << (any_consumer ? "first_consumer"
                                              : "faulting_load_commit")
-              << ";pc=" << std::hex << pc << std::dec;
+              << ";pc=" << std::hex << pc << std::dec
+              << ";commit_seq=" << commit_seq;
             writeNode(ptag, "errant_commit", head_inst->seqNum, true,
                       0, false, 0, false, 0, false, 0, false, d.str());
             errant_commit_seen = true;
@@ -516,6 +748,8 @@ namespace gem5
                 TaintEntry te;
                 te.ptag = first_consumed_ptag;
                 te.taintor_seq = head_inst->seqNum;
+                te.node_id = last_consumer_node;
+                te.value_hash = last_consumer_hash;
                 taint_set[std::make_pair(phys->classValue(),
                                          phys->index())] = te;
             }

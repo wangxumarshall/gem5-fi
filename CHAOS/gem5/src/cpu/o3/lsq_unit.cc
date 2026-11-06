@@ -367,6 +367,7 @@ LSQUnit::insertLoad(const DynInstPtr &load_inst)
 
     assert(!loadQueue.back().valid());
     loadQueue.back().set(load_inst);
+    load_inst->lqEntryGeneration = ++lqEntryGeneration;
     load_inst->lqIdx = loadQueue.tail();
     assert(load_inst->lqIdx > 0);
     load_inst->lqIt = loadQueue.getIterator(load_inst->lqIdx);
@@ -433,6 +434,7 @@ LSQUnit::insertStore(const DynInstPtr& store_inst)
     store_inst->lqIt = loadQueue.end();
 
     storeQueue.back().set(store_inst);
+    store_inst->sqEntryGeneration = ++sqEntryGeneration;
 
     stats.sqAvgOccupancy = queueOccupancy(storeQueue);
 }
@@ -642,6 +644,7 @@ Fault
 LSQUnit::executeLoad(const DynInstPtr &inst)
 {
     // Execute a specific load.
+    ++inst->executionAttemptId;
     Fault load_fault = NoFault;
 
     DPRINTF(LSQUnit, "Executing load PC %s, [sn:%lli]\n",
@@ -713,6 +716,7 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
 Fault
 LSQUnit::executeStore(const DynInstPtr &store_inst)
 {
+    ++store_inst->executionAttemptId;
     // Make sure that a store exists.
     assert(storeQueue.size() != 0);
 
@@ -1011,6 +1015,9 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             DPRINTF(HtmCpu, ">> htmStarts (%d) : htmStops-- (%d)\n",
               htmStarts, htmStops);
         }
+        if (cpu->chaosPropagation)
+            cpu->chaosPropagation->noteSquash(
+                loadQueue.back().instruction().get(), "lsq_squash");
         // Clear the smart pointer to make sure it is decremented.
         loadQueue.back().instruction()->setSquashed();
         loadQueue.back().clear();
@@ -1080,6 +1087,9 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             stallingStoreIsn = 0;
         }
 
+        if (cpu->chaosPropagation)
+            cpu->chaosPropagation->noteSquash(
+                storeQueue.back().instruction().get(), "lsq_squash");
         // Clear the smart pointer to make sure it is decremented.
         storeQueue.back().instruction()->setSquashed();
 
@@ -1392,6 +1402,10 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         (load_idx != loadQueue.head() || !load_inst->isAtCommit())) {
         // Tell IQ/mem dep unit that this instruction will need to be
         // rescheduled eventually
+        ++load_inst->replayGeneration;
+        if (cpu->chaosPropagation)
+            cpu->chaosPropagation->noteReplay(load_inst.get(),
+                                              "strictly_ordered_load");
         iewStage->rescheduleMemInst(load_inst);
         load_inst->clearIssued();
         load_inst->effAddrValid(false);
@@ -1523,6 +1537,16 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                             "from store [sn:%lli]\n",
                             load_inst->seqNum,
                             store_it->instruction()->seqNum);
+                    if (cpu->chaosPropagation) {
+                        cpu->chaosPropagation->noteForwarding(
+                            cpu->lsqFwd->lastFwdPtag(),
+                            load_inst->seqNum,
+                            store_it->instruction()->seqNum,
+                            request->mainReq()->getVaddr(),
+                            request->mainReq()->getSize(),
+                            (const uint8_t *)store_it->data(),
+                            store_it->size(), nullptr, 0, true, true);
+                    }
                     break;
                 }
                 // Get shift amount for offset into the store's data.
@@ -1581,6 +1605,16 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     cpu->lsqFwd->corrupt(load_inst->memData,
                                          request->mainReq()->getSize(),
                                          request->mainReq()->getVaddr());
+                }
+                if (cpu->chaosPropagation) {
+                    cpu->chaosPropagation->noteForwarding(
+                        0, load_inst->seqNum,
+                        store_it->instruction()->seqNum,
+                        request->mainReq()->getVaddr(),
+                        request->mainReq()->getSize(),
+                        (const uint8_t *)store_it->data(), store_it->size(),
+                        load_inst->memData,
+                        request->mainReq()->getSize(), false, false);
                 }
 
                 // LSU W2 F6 event source (09 §2.1 map): a store-to-load
@@ -1683,6 +1717,10 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
                 // Tell IQ/mem dep unit that this instruction will need to be
                 // rescheduled eventually
+                ++load_inst->replayGeneration;
+                if (cpu->chaosPropagation)
+                    cpu->chaosPropagation->noteReplay(
+                        load_inst.get(), "partial_forward_mismatch");
                 iewStage->rescheduleMemInst(load_inst);
                 load_inst->clearIssued();
                 load_inst->effAddrValid(false);

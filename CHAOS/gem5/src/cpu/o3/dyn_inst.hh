@@ -350,6 +350,11 @@ class DynInst : public ExecContext, public RefCounted
 
     /** Load queue index. */
     ssize_t lqIdx = -1;
+    /** gem5-fi v3.2.1: real execution/replay/entry-generation identity. */
+    uint64_t executionAttemptId = 0;
+    uint64_t replayGeneration = 0;
+    uint64_t lqEntryGeneration = 0;
+    uint64_t sqEntryGeneration = 0;
     typename LSQUnit::LQIterator lqIt;
 
     /** Store queue index. */

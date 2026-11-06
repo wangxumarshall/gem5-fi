@@ -37,6 +37,8 @@ class CHAOSAddrPath(SimObject):
         "eligible events skipped before arming (LSU tiers)")
     lsuSpanEvents = Param.UInt64(1000,
         "F0 uniform window size in eligible events")
+    lsuEventOrdinal = Param.UInt64(0,
+        "R01-R05: 1-based target eligible-event ordinal (0 = legacy)")
     lsuF6Event = Param.String("sq_forward",
         "F6 event: tlb_hit (FS-only) | sq_forward | dirty_eviction | "
         "cas_success")

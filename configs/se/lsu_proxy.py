@@ -262,6 +262,8 @@ p.add_argument("--lsqfwd_lsu_tier", default="off",
                choices=["off","F0","F1","F2","F3","F4","F5","F6"])
 p.add_argument("--lsqfwd_warmup_events", type=lambda x: int(x,0), default=0)
 p.add_argument("--lsqfwd_span_events", type=lambda x: int(x,0), default=1000)
+p.add_argument("--lsqfwd_event_ordinal", type=lambda x: int(x,0), default=0,
+               help="R01-R05: 1-based F6 pair ordinal")
 # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
 p.add_argument("--lsqfwd_l03", action="store_true",
                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
@@ -461,6 +463,8 @@ p.add_argument("--addrpath_warmup_events", type=lambda x: int(x,0), default=0,
                help="W2: eligible events skipped before arming (LSU tiers)")
 p.add_argument("--addrpath_span_events", type=lambda x: int(x,0), default=1000,
                help="W2: F0 uniform window size in eligible events")
+p.add_argument("--addrpath_event_ordinal", type=lambda x: int(x,0), default=0,
+               help="R01-R05: 1-based target eligible-event ordinal")
 p.add_argument("--addrpath_f6_event", default="sq_forward",
                choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
                help="W2: F6 event source (tlb_hit is FS-only in SE)")
@@ -827,6 +831,7 @@ if args.chaos_lsqfwd:
         lsuTier=args.lsqfwd_lsu_tier,
         lsuWarmupEvents=args.lsqfwd_warmup_events,
         lsuSpanEvents=args.lsqfwd_span_events,
+        f6EventOrdinal=args.lsqfwd_event_ordinal,
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
         firstClock=args.first_clock,
         lastClock=args.last_clock,
@@ -1022,6 +1027,7 @@ if args.chaos_addrpath:
         lsuWarmupEvents=args.addrpath_warmup_events,
         lsuSpanEvents=args.addrpath_span_events,
         lsuF6Event=args.addrpath_f6_event,
+        lsuEventOrdinal=args.addrpath_event_ordinal,
         preMode=args.agu_pre_mode,
         aguSizeTo=args.agu_size_to,
     )

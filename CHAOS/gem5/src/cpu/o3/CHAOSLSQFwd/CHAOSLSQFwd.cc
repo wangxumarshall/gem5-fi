@@ -30,6 +30,7 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           l03_mode(p.l03Mode),   // [LSU][SEM-B]
+          f6_event_ordinal(p.f6EventOrdinal),
           rng(rng_seed != 0 ? rng_seed : rd()),
           log_stream(nullptr),
           stats(nullptr)
@@ -44,7 +45,9 @@ namespace gem5
             else if (p.lsuTier == "F5") tier = ChaOSLsuTier::F5;
             else if (p.lsuTier == "F6") tier = ChaOSLsuTier::F6;
             lsuTrigger = new ChaOSLsuTrigger(tier, rng_seed ? rng_seed : 1,
-                                             p.lsuWarmupEvents, p.lsuSpanEvents);
+                                             p.lsuWarmupEvents, p.lsuSpanEvents,
+                                             ChaOSLsuEvent::SqForward,
+                                             p.f6EventOrdinal);
         }
         if (lsuTrigger) {
             // W5: funnel lines at exit (chaos_l0 discipline: log file, not
@@ -431,6 +434,7 @@ namespace gem5
         if (struct_mode != StructMode::F6Fw02) return false;
         ++f6_observed;
         if (f6_fired) return false;
+        if (f6_event_ordinal && f6_observed != f6_event_ordinal) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
         // The caller reaches this point only inside the FullAddrRangeCoverage
@@ -443,9 +447,11 @@ namespace gem5
         // v3.2 trace bridge: register the false-miss at the decision point.
         // The subsequent memory request/response for this load is matched by
         // (dyn_inst_seq, vaddr) and continues the normal L3 chain.
+        last_fwd_ptag = 0;
         if (auto *prop = CHAOSPropagation::instance()) {
-            prop->registerInjection("lsq_fwd_decision", load_seq, vaddr, vaddr,
-                                    true, size, size);
+            last_fwd_ptag = prop->registerInjection(
+                "lsq_fwd_decision", load_seq, vaddr, vaddr,
+                true, size, size);
         }
         DPRINTF(LSQUnit,
                 "CHAOSFW02: suppress forwarding load_sn:%llu store_sn:%llu "

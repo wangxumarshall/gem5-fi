@@ -123,6 +123,7 @@
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -132,6 +133,7 @@
 #include "sim/sim_object.hh"
 #include "base/output.hh"
 #include "cpu/base.hh"
+#include "cpu/reg_class.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class DynInst; } }
@@ -186,7 +188,8 @@ class CHAOSPropagation : public SimObject
     // matches the addr registry (addrpath) or the faulted-byte registry
     // (cache).
     void noteMemRequest(const char *site, uint64_t dyn_inst_seq,
-                        const RequestPtr &req);
+                        const RequestPtr &req, int64_t lq_idx = -1,
+                        int64_t sq_idx = -1);
 
     // LSQUnit::completeDataAccess (pre-writeback, squashed-guarded inside):
     // writes a resp node when the packet delivers a registered fault, and —
@@ -199,12 +202,37 @@ class CHAOSPropagation : public SimObject
     // errant_commit, dest re-taint / clean-overwrite.
     void noteCommit(ThreadID tid, o3::DynInst *head_inst);
 
+    // Real LSQ lifecycle events. These are called only from actual
+    // reschedule/squash sites, never inferred from ptag order.
+    void noteReplay(o3::DynInst *inst, const char *reason);
+    void noteSquash(o3::DynInst *inst, const char *reason);
+
+    // Store-to-load forwarding decision. ptag=0 for an unfaulted normal
+    // forward; the FW02 injection passes its registered ptag so the
+    // decision is attached to the fault chain.
+    void noteForwarding(uint64_t ptag, uint64_t load_seq, uint64_t store_seq,
+                        Addr vaddr, unsigned size,
+                        const uint8_t *store_data, unsigned store_size,
+                        const uint8_t *fwd_data, unsigned fwd_size,
+                        bool suppressed, bool memory_path);
+
   private:
     // One CSV row: numeric fields with has_x=false print as "".
-    void writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
+    uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
                    bool has_seq, uint64_t request_id, bool has_req_id,
                    Addr addr, bool has_addr, uint64_t phys_reg, bool has_phys,
                    uint64_t arch_reg, bool has_arch, const std::string &detail);
+
+    void writeEdgeRow(uint64_t ptag, uint64_t source_node,
+                      uint64_t destination_node, uint64_t producer_seq,
+                      uint64_t consumer_seq, const std::string &source_hash,
+                      const std::string &destination_hash,
+                      const char *edge_type);
+
+    std::string bytesToHex(const uint8_t *p, unsigned n) const;
+    std::string regValueHash(o3::DynInst *inst, PhysRegIdPtr phys,
+                             ThreadID tid, uint64_t *value_out,
+                             unsigned *bytes_out) const;
 
     uint64_t fnv1a64(const void *blob, size_t n) const;
     const char *regClassName(int class_value) const;
@@ -223,7 +251,20 @@ class CHAOSPropagation : public SimObject
 
     uint64_t next_node_id = 0;
     uint64_t next_ptag = 0;        // 0 reserved ("no chain")
+    uint64_t next_request_id = 0;
+    uint64_t next_response_id = 0;
+    uint64_t next_fragment_id = 0;
+    uint64_t commit_seq = 0;
     bool errant_commit_seen = false;
+
+    struct RequestMeta {
+        uint64_t request_id;
+        uint64_t fragment_id;
+    };
+    std::map<const Request *, RequestMeta> req_meta;
+    std::set<uint64_t> fault_seqs;   // dynamic insts that received a fault
+    std::map<uint64_t, uint64_t> resp_node_by_ptag;
+    std::map<uint64_t, std::string> resp_hash_by_ptag;
 
     struct AddrEntry {
         uint64_t ptag;
@@ -245,6 +286,8 @@ class CHAOSPropagation : public SimObject
     struct TaintEntry {
         uint64_t ptag;
         uint64_t taintor_seq;      // DynInst::seqNum of the tainting inst
+        uint64_t node_id;          // taint_reg event node
+        std::string value_hash;    // stable hash of the writeback value
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
 };

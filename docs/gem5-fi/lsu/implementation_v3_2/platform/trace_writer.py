@@ -94,6 +94,9 @@ class TraceWriter:
              producer_inst_seq: int | None = None,
              consumer_inst_seq: int | None = None,
              edge_kind: str = "data", value_hash: str | None = None,
+             source_value_hash: str | None = None,
+             destination_value_hash: str | None = None,
+             edge_type: str | None = None,
              trace_completeness: str = "INCOMPLETE") -> int:
         if self._closed or self._fh is None:
             raise TraceWriteError("writer is closed")
@@ -120,6 +123,9 @@ class TraceWriter:
                                   else dst.get("dyn_inst_seq")),
             "edge_kind": edge_kind,
             "value_hash": value_hash,
+            "source_value_hash": source_value_hash,
+            "destination_value_hash": destination_value_hash,
+            "edge_type": edge_type,
             "trace_completeness": trace_completeness,
         })
         if trace_completeness not in COMPLETENESS:

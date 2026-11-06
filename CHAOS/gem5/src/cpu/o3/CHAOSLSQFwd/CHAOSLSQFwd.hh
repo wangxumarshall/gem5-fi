@@ -62,6 +62,9 @@ class CHAOSLSQFwd : public SimObject
     bool maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,
                                  Addr vaddr, unsigned size);
 
+    // v3.2.1: ptag registered for the FW02 false-miss (0 = none).
+    uint64_t lastFwdPtag() const { return last_fwd_ptag; }
+
     // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
     // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
     // If the RNG fires, returns the DELAY in CPU cycles to apply to this
@@ -137,6 +140,8 @@ class CHAOSLSQFwd : public SimObject
     uint64_t f6_observed = 0;
     uint64_t f6_load_seq = 0;
     uint64_t f6_store_seq = 0;
+    uint64_t last_fwd_ptag = 0;
+    uint64_t f6_event_ordinal = 0;
 
     std::mt19937 rng;
     std::random_device rd;

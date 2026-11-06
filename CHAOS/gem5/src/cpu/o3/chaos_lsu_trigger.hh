@@ -93,6 +93,7 @@ struct ChaOSLsuTrigger
     uint64_t rng;
     uint64_t warmup_events = 0;   // eligible events skipped before arming
     uint64_t span_events   = 0;   // F0: uniform window size (0 = fire at warmup)
+    uint64_t event_ordinal = 0;   // R01-R05: 1-based target event ordinal
 
     // funnel (04 L0; activated lands in W3 — R2)
     uint64_t attempted = 0;
@@ -103,6 +104,7 @@ struct ChaOSLsuTrigger
     // first / last eligible event — observation only, no semantic effect.
     uint64_t first_eligible_tick = 0;
     uint64_t last_eligible_tick  = 0;
+    uint64_t f6_seen = 0;          // F6 occurrences observed
 
   private:
     uint64_t next_fire = 0;       // eligible-count threshold (F1-F4)
@@ -132,9 +134,10 @@ struct ChaOSLsuTrigger
 
   public:
     ChaOSLsuTrigger(ChaOSLsuTier t, uint64_t seed, uint64_t warmup,
-                    uint64_t span, ChaOSLsuEvent ev = ChaOSLsuEvent::SqForward)
+                    uint64_t span, ChaOSLsuEvent ev = ChaOSLsuEvent::SqForward,
+                    uint64_t ordinal = 0)
         : tier(t), f6_event(ev), rng(seed ? seed : 1),
-          warmup_events(warmup), span_events(span)
+          warmup_events(warmup), span_events(span), event_ordinal(ordinal)
     {}
 
     // The injector calls this once per hook invocation (before any filter).
@@ -154,18 +157,24 @@ struct ChaOSLsuTrigger
         last_eligible_tick = curTick();   // [LSU][OBS-3]
         switch (tier) {
           case ChaOSLsuTier::F5: {
-              if (!armed && eligible > warmup_events) armed = true;
+              const uint64_t start = warmup_events +
+                  (event_ordinal ? event_ordinal : 1);
+              if (!armed && eligible >= start) armed = true;
               if (!armed) return false;
-              ++injected;                 // every eligible event from warm-up on
+              ++injected;                 // every eligible event from start on
               return true;
           }
           case ChaOSLsuTier::F0: {
               if (spent) return false;
               if (!armed) {
                   armed = true;
-                  const uint64_t span = span_events ? span_events : 1;
-                  rng = chaosSampleLCG(rng);
-                  next_fire = warmup_events + rng % span;
+                  if (event_ordinal) {
+                      next_fire = warmup_events + event_ordinal;
+                  } else {
+                      const uint64_t span = span_events ? span_events : 1;
+                      rng = chaosSampleLCG(rng);
+                      next_fire = warmup_events + rng % span;
+                  }
               }
               if (eligible >= next_fire) { spent = true; ++injected; return true; }
               return false;
@@ -202,6 +211,8 @@ struct ChaOSLsuTrigger
     onF6Event()
     {
         if (tier != ChaOSLsuTier::F6 || spent) return false;
+        ++f6_seen;
+        if (event_ordinal && f6_seen != event_ordinal) return false;
         spent = true;
         ++attempted; ++eligible; ++injected;
         if (!first_eligible_tick) first_eligible_tick = curTick();

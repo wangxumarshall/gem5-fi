@@ -460,6 +460,10 @@ class LSQUnit
     ThreadID lsqID;
   public:
     /** The store queue. */
+    /** gem5-fi v3.2.1: monotonic entry generations (not index aliases). */
+    uint64_t lqEntryGeneration = 0;
+    uint64_t sqEntryGeneration = 0;
+
     StoreQueue storeQueue;
 
     /** The load queue. */

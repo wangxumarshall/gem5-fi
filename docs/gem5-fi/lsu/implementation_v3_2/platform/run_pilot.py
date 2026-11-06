@@ -62,10 +62,18 @@ def _fw02_summary(path: Path) -> dict:
     text = path.read_text(encoding="utf-8", errors="replace")
     m = re.search(r"CHAOS_FW02_SUMMARY:\s+observed=(\d+)\s+suppressed=(\d+)\s+"
                   r"load_seq=(\d+)\s+store_seq=(\d+)", text)
-    if not m:
+    if m:
+        return {"observed": int(m[1]), "suppressed": int(m[2]),
+                "load_seq": int(m[3]), "store_seq": int(m[4])}
+    # Aborted run: the exit-callback summary is absent, but each suppression
+    # line was flushed. Count those lines and take the last pair.
+    lines = [ln for ln in text.splitlines() if "f6_fw02_suppress" in ln]
+    if not lines:
         return {}
-    return {"observed": int(m[1]), "suppressed": int(m[2]),
-            "load_seq": int(m[3]), "store_seq": int(m[4])}
+    mm = re.search(r"load_seq:\s*(\d+).*store_seq:\s*(\d+)", lines[-1])
+    return {"observed": len(lines), "suppressed": len(lines),
+            "load_seq": int(mm[1]) if mm else None,
+            "store_seq": int(mm[2]) if mm else None}
 
 
 def _addrpath_events(path: Path) -> list[dict]:
@@ -86,15 +94,20 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True, choices=["A01", "A03", "FW02"])
     ap.add_argument("--pilot-id", required=True)
-    ap.add_argument("--seed", type=int, required=True)
+    ap.add_argument("--seed", type=int, default=None,
+                    help="override seed; default = the selected Excel context row")
+    ap.add_argument("--context-index", type=int, default=1, choices=[1,2,3,4,5],
+                    help="R01-R05: select the Excel sample row for this context")
     ap.add_argument("--outdir", type=Path, required=True)
     ap.add_argument("--gem5", type=Path, default=GEM5)
     args = ap.parse_args(argv)
 
     cfg = load_config(EXCEL, require_complete=False)
-    sample = next(s for s in cfg["samples"] if s["model_id"] == args.model)
-    sample = copy.deepcopy(sample)
+    model_rows = [s for s in cfg["samples"] if s["model_id"] == args.model]
+    sample = copy.deepcopy(model_rows[args.context_index - 1])
     excel_seed = sample["seed"]
+    if args.seed is None:
+        args.seed = excel_seed
     sample["sample_run_id"] = args.pilot_id
     sample["run_id"] = f"PILOT-{args.model}"
     sample["sub_task_id"] = f"PILOT-{args.model}-S01"
@@ -111,15 +124,18 @@ def main(argv=None) -> int:
         extra = ["--chaos_addrpath", "--agu_pre_mode", "a01_bit3_load",
                  "--addrpath_lsu_tier", "F0", "--addrpath_max_faults", "1",
                  "--addrpath_warmup_events", "0", "--addrpath_span_events", "10",
-                 "--addrpath_rng_seed", str(args.seed)]
+                 "--addrpath_rng_seed", str(args.seed),
+                 "--addrpath_event_ordinal", str(sample.get("event_ordinal") or 1)]
     elif args.model == "A03":
         extra = ["--chaos_addrpath", "--agu_pre_mode", "a03_bit3_stuck0_load",
                  "--addrpath_lsu_tier", "F5", "--addrpath_max_faults", "0",
                  "--addrpath_warmup_events", "0",
-                 "--addrpath_rng_seed", str(args.seed)]
+                 "--addrpath_rng_seed", str(args.seed),
+                 "--addrpath_event_ordinal", str(sample.get("event_ordinal") or 1)]
     else:
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
-                 "--max_faults", "1", "--rng_seed", str(args.seed)]
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
 
     cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
            f"--cmd={WORKLOADS / _workload_for(args.model)}",
@@ -166,11 +182,18 @@ def main(argv=None) -> int:
         injected = inj.get("suppressed", 0)
 
     crash_by_fault = False
-    if proc.returncode != 0 and args.model in ("A01", "A03"):
-        last = events[-1] if events else None
-        if (last and "page table fault" in proc.stderr.lower()
-                and hex(last["new"]) in proc.stderr.lower()):
+    crash_evidence = None
+    if proc.returncode != 0 and args.model in ("A01", "A03", "FW02") and injected > 0:
+        err = proc.stderr.lower()
+        if "page table fault" in err:
+            # The panic address is not always the injected address (the
+            # corrupted value can become an indirect pointer). Record the
+            # page-table fault as crash evidence after a real injection; do
+            # not claim direct address identity unless it matches.
             crash_by_fault = True
+            match = any(hex(e["new"]) in err for e in events)
+            crash_evidence = ("page_table_fault_after_injection" +
+                              ("_address_match" if match else "_no_address_match"))
     if proc.returncode != 0 and crash_by_fault:
         run_status, activation, terminal, completeness = (
             "SIMULATOR_ERROR", "TRIGGERED", "CRASH", "COMPLETE")
@@ -225,6 +248,15 @@ def main(argv=None) -> int:
     if (completeness_report.get("trace_completeness") != "COMPLETE"
             and final_terminal == "MASKED"):
         final_terminal = None
+    # MASKED requires actual data-value evidence, not only an equal checksum.
+    has_data_value = any(
+        r.get("event_type") in ("memory_response", "register_writeback")
+        and r.get("new_value") not in (None, "")
+        for r in (json.loads(line) for line in jsonl_path.read_text().splitlines())
+        if r.get("record_type") == "event"
+    ) if jsonl_path.exists() else False
+    if final_terminal == "MASKED" and not has_data_value:
+        final_terminal = None
     accepted = (
         (proc.returncode == 0 or crash_by_fault) and injected > 0
         and target_proof.get("events", 1) > 0
@@ -254,8 +286,12 @@ def main(argv=None) -> int:
             "fault_activation_status": activation,
             "terminal_state": final_terminal,
             "trace_completeness": completeness_report.get("trace_completeness"),
+            "record_integrity": completeness_report.get("record_integrity"),
+            "propagation_coverage": completeness_report.get("propagation_coverage"),
+            "oracle_outcome": ("PASS" if oracle_pass else "FAIL"),
         },
         "accepted": accepted,
+        "crash_evidence": crash_evidence,
     }
     (out / "pilot_meta.json").write_text(json.dumps(meta, indent=2))
     print(json.dumps(meta, indent=2))

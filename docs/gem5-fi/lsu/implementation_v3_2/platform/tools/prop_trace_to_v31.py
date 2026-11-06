@@ -30,6 +30,10 @@ KIND_MAP = {
     "consumer": "consumer_commit",
     "errant_commit": "errant_commit",
     "funnel": "funnel",
+    "fwd": "forwarding_decision",
+    "replay": "replay",
+    "squash": "squash",
+    "prop_edge": "propagation_edge",
 }
 UNIT_MAP = {
     "inj": ("AGU", "injection"),
@@ -40,6 +44,9 @@ UNIT_MAP = {
     "consumer": ("Commit", "consumer"),
     "errant_commit": ("Commit", "errant_commit"),
     "funnel": ("Funnel", "counts"),
+    "fwd": ("LSU", "Store-to-Load Forwarding"),
+    "replay": ("LSQ", "replay"),
+    "squash": ("LSQ", "squash"),
 }
 
 
@@ -97,6 +104,7 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                     fault_id, fault_model_id)
     last_by_ptag: dict[int, int] = {}
     injection_by_ptag: dict[int, int] = {}
+    node_to_event: dict[int, int] = {}
     next_injection = 0
     counts = {"events": 0, "edges": 0, "injections": 0, "activations": 0}
     for row in rows:
@@ -106,6 +114,25 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         ptag_i = int(ptag or 0)
         kind = kind.strip()
         d = _detail(detail)
+        if kind == "prop_edge":
+            src = _int(d.get("source_event_id"))
+            dst = _int(d.get("destination_event_id"))
+            if src is None or dst is None or src not in node_to_event or dst not in node_to_event:
+                continue
+            w.edge(node_to_event[src], node_to_event[dst],
+                   producer_inst_seq=_int(d.get("producer_inst_seq")),
+                   consumer_inst_seq=_int(d.get("consumer_inst_seq")),
+                   edge_kind=d.get("edge_type") or "data",
+                   value_hash=(None if d.get("source_value_hash") in (None, "null")
+                               else d.get("source_value_hash")),
+                   source_value_hash=(None if d.get("source_value_hash") in (None, "null")
+                                      else d.get("source_value_hash")),
+                   destination_value_hash=(None if d.get("destination_value_hash") in (None, "null")
+                                           else d.get("destination_value_hash")),
+                   edge_type=d.get("edge_type"),
+                   trace_completeness=("COMPLETE" if declared == "COMPLETE"
+                                       else "INCOMPLETE"))
+            continue
         old_addr = _hex(d.get("old_addr"))
         new_addr = _hex(d.get("new_addr")) or _hex(addr)
         injection_status = "NOT_APPLICABLE"
@@ -117,37 +144,76 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         injection_event_id = injection_by_ptag.get(ptag_i, 1)
         activation_status = "TRIGGERED" if ptag_i > 0 else "UNKNOWN"
         commit_status = "COMMITTED" if kind in ("consumer", "errant_commit") else "UNKNOWN"
+        squash_status = "SQUASHED" if kind == "squash" else "UNKNOWN"
         unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
-        # CHAOSPropagation writes a virtual address for addr_form/mem_req and
-        # a physical packet address for resp. Keep them in separate fields.
+        # Address and data are separate fields. resp/t_aint carry actual
+        # packet/writeback data; fwd carries the forwarded buffer.
         if kind == "resp":
             va, pa = None, _hex(addr)
+            old_value = None
+            new_value = d.get("data_hex") or d.get("data_fnv")
         elif kind in ("addr_form", "mem_req"):
             va, pa = _hex(addr), None
+            old_value, new_value = old_addr, new_addr
+        elif kind == "taint_reg":
+            va, pa = None, None
+            old_value = None
+            new_value = d.get("writeback_value") or d.get("writeback_fnv")
+        elif kind == "fwd":
+            va, pa = _hex(d.get("byte_begin")), None
+            old_value = d.get("store_data_hex") or d.get("store_data_fnv")
+            new_value = d.get("forward_data_hex") or d.get("forward_data_fnv")
         else:
             va, pa = None, None
+            old_value, new_value = old_addr, new_addr
+        parent = last_by_ptag.get(ptag_i)
+        if kind == "consumer" and d.get("source_event_id") in node_to_event:
+            parent = node_to_event[int(d["source_event_id"])]
+        extra = {}
+        if kind == "fwd":
+            extra = {
+                "store_seq": _int(d.get("store_seq")),
+                "load_seq": _int(d.get("load_seq")),
+                "byte_begin": _hex(d.get("byte_begin")),
+                "byte_end": _hex(d.get("byte_end")),
+                "forward_decision": d.get("decision"),
+                "memory_path": _int(d.get("memory_path")),
+                "store_data_fnv": d.get("store_data_fnv"),
+                "forward_data_fnv": d.get("forward_data_fnv"),
+            }
         eid = w.event(
             KIND_MAP.get(kind, kind),
-            parent_event_id=last_by_ptag.get(ptag_i),
+            parent_event_id=parent,
             injection_event_id=injection_event_id,
             dyn_inst_seq=_int(dyn_seq),
+            execution_attempt_id=_int(d.get("execution_attempt_id")),
+            replay_generation=_int(d.get("replay_generation")),
+            commit_seq=_int(d.get("commit_seq")),
             timestamp=int(tick or 0),
             unit=unit, sub_unit=sub_unit,
-            request_id=_int(req_id),
+            request_id=_int(d.get("request_id")) or _int(req_id),
+            response_id=_int(d.get("response_id")),
+            lq_entry_id=_int(d.get("lq_entry_id")),
+            sq_entry_id=_int(d.get("sq_entry_id")),
+            entry_generation=_int(d.get("entry_generation")),
             va=va, pa=pa,
-            old_value=old_addr,
-            new_value=new_addr,
+            old_value=old_value,
+            new_value=new_value,
             injection_status=injection_status,
             activation_status=activation_status,
             commit_status=commit_status,
-            squash_status="UNKNOWN",
+            squash_status=squash_status,
             trace_completeness="COMPLETE" if declared == "COMPLETE" else "INCOMPLETE",
             detail=detail,
             source_node_id=int(node_id or 0),
             ptag=ptag_i,
+            **extra,
         )
+        node_to_event[int(node_id or 0)] = eid
         prev = last_by_ptag.get(ptag_i)
-        if prev is not None:
+        # consumer edges are emitted explicitly from taint-set dependencies;
+        # do not manufacture a ptag-order edge for them.
+        if prev is not None and ptag_i > 0 and kind not in ("consumer", "replay", "squash", "funnel"):
             w.edge(prev, eid, edge_kind=kind,
                    trace_completeness=("COMPLETE" if declared == "COMPLETE"
                                        else "INCOMPLETE"))

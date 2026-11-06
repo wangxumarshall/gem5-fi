@@ -29,7 +29,8 @@ namespace gem5
                                              rng_seed ? rng_seed : 1,
                                              p.lsuWarmupEvents,
                                              p.lsuSpanEvents,
-                                             eventFromString(p.lsuF6Event));
+                                             eventFromString(p.lsuF6Event),
+                                             p.lsuEventOrdinal);
         }
         if (probability > 0.0f) {
             log_stream = simout.create("addrpath_injections.log", false, true);

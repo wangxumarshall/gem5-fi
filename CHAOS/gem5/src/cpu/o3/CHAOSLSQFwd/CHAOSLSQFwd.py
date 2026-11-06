@@ -70,4 +70,6 @@ class CHAOSLSQFwd(SimObject):
     lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
     lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
     lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
+    f6EventOrdinal = Param.UInt64(0,
+        "R01-R05: 1-based F6 pair ordinal (0 = first pair)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

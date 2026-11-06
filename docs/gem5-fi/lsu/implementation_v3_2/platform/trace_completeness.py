@@ -52,9 +52,23 @@ def check_completeness(path: Path) -> dict:
     if trace_completeness == "INCOMPLETE" and terminal == "MASKED":
         reasons.append("downgraded: MASKED requires a complete trace")
         terminal = None
+    kinds = {e.get("event_type") for e in events}
+    stages = []
+    for stage in ("injection", "address_formed", "memory_request",
+                  "memory_response", "register_writeback",
+                  "consumer_commit", "errant_commit", "forwarding_decision",
+                  "replay", "squash", "simulator_abort"):
+        if stage in kinds:
+            stages.append(stage)
+    record_integrity = "INVALID" if errs else "VALID"
+    coverage = "COMPLETE" if not reasons and stages else (
+        "PARTIAL" if stages else "NONE")
     return {
         "trace": str(path),
         "trace_completeness": trace_completeness,
+        "record_integrity": record_integrity,
+        "propagation_coverage": coverage,
+        "propagation_stages": stages,
         "terminal_state": terminal,
         "run_status": summary.get("run_status"),
         "fault_activation_status": summary.get("fault_activation_status"),
