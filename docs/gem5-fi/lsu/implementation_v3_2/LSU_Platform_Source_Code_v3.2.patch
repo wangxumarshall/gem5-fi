@@ -314,10 +314,10 @@ index a56040db..28d881aa 100644
                 help="W4 a06_size: target access size 1|2|4|8|16")
 diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md
 new file mode 100644
-index 00000000..a5ba5b2a
+index 00000000..1ae8789f
 --- /dev/null
 +++ b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,121 @@
 +# LSU Implementation Status v3.2
 +
 +**Updated:** 2026-11-06
@@ -422,6 +422,23 @@ index 00000000..a5ba5b2a
 +   formal samples with the frozen seeds.
 +3. The v3.2 workbook repair is complete; no further workbook edit is needed
 +   before Gate 3.
++
++
++## Residual risks / test gaps
++
++- The A01/A03/FW02 C++ hooks are verified by the committed integration pilots,
++  not by a C++ unit-test harness. The host `FaultManager` unit tests pin the
++  platform state-machine semantics; the actual pilot path is
++  `chaos_lsu_trigger.hh`/`ChaOSLsuTrigger`, whose F0 offset is `warmup +
++  rng%span` (the host model uses `warmup + 1 + rng%span`).
++- The v3.2 workbook stores worktree-absolute paths. Regenerate it with
++  `tools/build_v32_workbook.py` if the worktree is moved.
++- A03 `stats.txt` is empty because gem5 aborted at the page-table fault; its
++  trace is complete to the observed CRASH terminal, and no stats-based claim
++  is made.
++- The `logs/probe_results.txt` guard-page exits are the decisive W6/W8
++  evidence. clang ASan on this host did not flag the W6 partially-OOB 8-byte
++  store, so ASan is not claimed for W6.
 diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Completeness b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Completeness
 new file mode 100755
 index 00000000..f9b731a2
@@ -3327,10 +3344,10 @@ index 00000000..d1edfb45
 +bdbdade6c0967ee83bfbd4c94d04ec2b35beb5430e331c2bf1ee6c47a9710da8  store_path.golden
 diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/WORKLOADS.md b/docs/gem5-fi/lsu/implementation_v3_2/workloads/WORKLOADS.md
 new file mode 100644
-index 00000000..54fdf9a1
+index 00000000..9d2edfa9
 --- /dev/null
 +++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/WORKLOADS.md
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,45 @@
 +# LSU v3.2 workload package
 +
 +All eight workloads compile with host `gcc -O2 -static` on aarch64 and were
@@ -3363,7 +3380,11 @@ index 00000000..54fdf9a1
 +```
 +
 +The fixed binaries and goldens above are the only valid post-fix baselines;
-+the old binaries/goldens are not used.
++the old binaries/goldens are not used. The decisive logs are
++`logs/probe_results.txt` and the four `logs/probe_*.log` files. On this host
++clang ASan did not flag the W6 partially-out-of-bounds 8-byte store, so the
++guard-page probe (not ASan) is the W6 evidence; W8's tail read/write is
++additionally caught by ASan.
 +
 +## Reproduction
 +
