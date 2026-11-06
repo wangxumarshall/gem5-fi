@@ -1,0 +1,1284 @@
+{
+  "schema_version": "lsu-config-v3.2",
+  "source": "../../final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx",
+  "validation": {
+    "errors": [
+      {
+        "sample_run_id": "A01-F0-W1-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A01-F0-W1-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "A03-F5-W1-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "DA04-F0-W8-S02-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW02-F6-W4-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "FW05-F6-W8-S01-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LP01-F0-W5-S01-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "LQ04-F0-W2-S01-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "MD04-F6-W7-S01-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "RP01-F6-W7-S01-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SP05-F6-W6-S01-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ01-F0-W3-S01-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R01",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R01",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R01",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R01",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R01",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R02",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R02",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R02",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R02",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R02",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R03",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R03",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R03",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R03",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R03",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R04",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R04",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R04",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R04",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R04",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R05",
+        "field": "BinarySHA256",
+        "message": "N/A/missing binary SHA256"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R05",
+        "field": "Oracle",
+        "message": "N/A/missing oracle value"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R05",
+        "field": "Roi",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属ROI）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R05",
+        "field": "Warmup",
+        "message": "unresolved value: 'NEEDS_CONFIG（工作负载专属warm-up）'"
+      },
+      {
+        "sample_run_id": "SQ03-F0-W3-S02-R05",
+        "field": "WorkloadPath",
+        "message": "ABSENT/missing workload path"
+      }
+    ],
+    "error_count": 255
+  }
+}
