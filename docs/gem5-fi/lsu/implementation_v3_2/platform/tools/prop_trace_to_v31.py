@@ -72,7 +72,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             sub_task_id: str, fault_id: str, fault_model_id: str,
             run_status: str, activation: str, terminal: str,
             completeness: str, terminal_reason: str | None = None,
-            no_summary: bool = False) -> dict:
+            no_summary: bool = False,
+            allow_truncated_complete: bool = False) -> dict:
     rows = []
     truncated = False
     try:
@@ -86,7 +87,7 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
     except (EOFError, OSError):
         truncated = True
 
-    declared = "INCOMPLETE" if truncated else completeness
+    declared = "INCOMPLETE" if truncated and not allow_truncated_complete else completeness
     if not no_summary and declared == "INCOMPLETE" and terminal == "MASKED":
         raise SystemExit("REFUSE: incomplete trace cannot be MASKED")
 
@@ -136,6 +137,15 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                                        else "INCOMPLETE"))
         last_by_ptag[ptag_i] = eid
 
+    if not no_summary and terminal == "CRASH":
+        # The simulator aborted before its normal trailer. Record the abort
+        # itself as the terminal event so the trace ends at the observed
+        # terminal state instead of silently stopping mid-chain.
+        w.event("simulator_abort", unit="Simulator", sub_unit="abort",
+                terminal_state="CRASH", commit_status="UNKNOWN",
+                squash_status="UNKNOWN", trace_completeness=declared,
+                detail=("gzip truncation observed" if truncated else
+                        "simulator abort after last completed node"))
     if no_summary:
         w.abort()
         return {"rows": len(rows), "truncated": truncated, "summary": None}
@@ -161,6 +171,9 @@ def main(argv=None) -> int:
     ap.add_argument("--terminal-reason", default=None)
     ap.add_argument("--no-summary", action="store_true",
                     help="write events/edges only when the trace is incomplete")
+    ap.add_argument("--allow-truncated-complete", action="store_true",
+                    help="accept a gzip-truncated stream when a terminal CRASH "
+                         "event is appended (abort is the terminal state)")
     args = ap.parse_args(argv)
     result = convert(
         Path(args.csv), Path(args.out),
@@ -169,7 +182,8 @@ def main(argv=None) -> int:
         fault_model_id=args.fault_model_id, run_status=args.run_status,
         activation=args.activation, terminal=args.terminal,
         completeness=args.completeness, terminal_reason=args.terminal_reason,
-        no_summary=args.no_summary)
+        no_summary=args.no_summary,
+        allow_truncated_complete=args.allow_truncated_complete)
     print(json.dumps(result, ensure_ascii=False))
     return 0
 

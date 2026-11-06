@@ -39,7 +39,7 @@
 - Create: `docs/gem5-fi/lsu/implementation_v3_2/preexisting_rejected/README.md`
 - Copy: `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/implementation_v3_2/{platform,pilots,baselines,workloads,patches}` → `preexisting_rejected/`
 
-- [ ] **Step 1: Capture environment facts**
+- [x] **Step 1: Capture environment facts**
 
 Run:
 ```bash
@@ -53,7 +53,7 @@ sha256sum build/ARM/gem5.opt 2>/dev/null || echo "worktree build absent"
 ```
 Expected: real values recorded in `environment.md`; no fabricated values.
 
-- [ ] **Step 2: Quarantine pre-existing artifacts**
+- [x] **Step 2: Quarantine pre-existing artifacts**
 
 Run:
 ```bash
@@ -64,7 +64,7 @@ cp -a /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/implementation_v3_2/platform \
 ```
 Write `preexisting_rejected/README.md` stating the two audit defects and that none of these artifacts are accepted.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/environment.md \
@@ -83,7 +83,7 @@ git push origin lsu-platform-v3.2
 - Produces: `load_config(path: Path, *, require_complete: bool = True) -> dict`; raises `ConfigError` with every validation error; returns `{"source","models","samples","validation"}`.
 - Produces: `normalize_sample(row: dict) -> dict` with keys `model_id, run_id, sub_task_id, sample_run_id, seed, fault_location, target_field, target_bit, normal_value, fault_value, injection_mode, injection_timing, fault_duration, target_instruction, target_event, event_ordinal, workload_path, binary_sha256, oracle, warmup, roi, output_dir, fault_config_id, context_difference_rule`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 def test_real_excel_has_60_samples_12_models_5_each():
@@ -110,16 +110,16 @@ def test_parent_mismatch_rejected():
         validate_samples([make_row(sample="A01-F0-W1-S02-R01", sub="A01-F0-W1-S01")])
 ```
 
-- [ ] **Step 2: Run tests to verify RED**
+- [x] **Step 2: Run tests to verify RED**
 
 Run: `cd docs/gem5-fi/lsu/implementation_v3_2/platform && python3 -m pytest tests/test_config_parser.py -v`
 Expected: FAIL (`load_config` / `validate_samples` missing or incomplete).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Read sheet `5.60个样本执行矩阵`; require all 30 columns; normalize every row; validate 60/12/5, unique IDs/seeds, parent prefixes, mode ∈ {F0,F5,F6}, `Seed` int > 0, `WorkloadPath` existence when not `ABSENT`, and binary SHA when provided. Collect all errors, sort by SampleRunID, raise one `ConfigError`. No defaults.
 
-- [ ] **Step 4: Run GREEN and save parser output**
+- [x] **Step 4: Run GREEN and save parser output**
 
 Run:
 ```bash
@@ -128,7 +128,7 @@ python3 config_parser.py <excel> ../../logs/config_v31.json; echo "exit=$?"
 ```
 Expected: all tests PASS; exit=2 while 45 `ABSENT` rows remain, with all 45 IDs listed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/platform/config_parser.py \
@@ -144,7 +144,7 @@ git push origin lsu-platform-v3.2
 - Create: `docs/gem5-fi/lsu/implementation_v3_2/platform/oracle.py`
 - Test: `docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_manifest_oracle.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 def test_manifest_uses_excel_seed_and_hashes_binary(tmp_path):
@@ -163,12 +163,12 @@ def test_oracle_pass_fail_missing(tmp_path):
     assert check_oracle("728e604ffcec539d", "no checksum\n")["status"] == "MISSING"
 ```
 
-- [ ] **Step 2: RED then implement then GREEN**
+- [x] **Step 2: RED then implement then GREEN**
 
 Run: `python3 -m pytest tests/test_manifest_oracle.py -v`
 Implement `build_manifest` (resolve sample, reject `ABSENT`/missing/hash mismatch, include command + env + output dir + canonical `manifest_sha256`) and `check_oracle` (last `checksum=0x...` line). Re-run to GREEN.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/platform/manifest.py \
@@ -190,7 +190,7 @@ git push origin lsu-platform-v3.2
 - `on_f6_event(event_name, is_target=True) -> bool`
 - `summary() -> dict` with `attempted, eligible, injected, value_changed, nochange, trigger_events, spent`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 def test_f0_fires_exactly_once():
@@ -215,11 +215,11 @@ def test_f6_requires_named_trigger_then_once():
     assert fm.on_f6_event("store_load_forward") is False
 ```
 
-- [ ] **Step 2: RED → implement → GREEN**
+- [x] **Step 2: RED → implement → GREEN**
 
 Run: `python3 -m pytest tests/test_fault_manager.py -v`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/platform/fault_manager.py \
@@ -244,7 +244,7 @@ git push origin lsu-platform-v3.2
 - `edge(source_event_id, destination_event_id, **fields) -> int` writes a separate `propagation_edge` record and rejects unknown endpoints
 - `validate(path) -> list[str]`; `check_completeness(path) -> dict`; `summarize(path) -> dict`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 REQUIRED = {"dyn_inst_seq","execution_attempt_id","replay_generation","commit_seq",
@@ -276,13 +276,13 @@ def test_incomplete_trace_never_masked(tmp_path):
     assert rep["terminal_state"] != "MASKED"
 ```
 
-- [ ] **Step 2: RED → implement → GREEN**
+- [x] **Step 2: RED → implement → GREEN**
 
 Write the JSON Schema (draft-07, `$defs.event/edge/summary`) and the stdlib validator. Validator must reject missing required keys, bad enums, duplicate event IDs, and edges whose endpoints are absent. Completeness reports missing injection/terminal/summary and downgrades `MASKED` to `HANG` only when a hang is evidenced; otherwise it reports `INCOMPLETE` with reasons and `terminal_state="CRASH"` only for simulator errors. Summary counts events/edges/terminal states.
 
 Run: `python3 -m pytest tests/test_trace.py -v`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Schema_v3.2.json \
@@ -298,7 +298,7 @@ git push origin lsu-platform-v3.2
 - Rewrite: `docs/gem5-fi/lsu/implementation_v3_2/platform/terminal.py`
 - Test: `docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 def test_four_dimensions_are_independent():
@@ -321,7 +321,7 @@ def test_incomplete_trace_is_never_masked():
     assert r["trace_completeness"] == "INCOMPLETE"
 ```
 
-- [ ] **Step 2: RED → implement → GREEN; commit**
+- [x] **Step 2: RED → implement → GREEN; commit**
 
 Run: `python3 -m pytest tests/test_terminal.py -v`
 
@@ -340,7 +340,7 @@ git push origin lsu-platform-v3.2
 - Create: `docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md`
 - Create: `docs/gem5-fi/lsu/implementation_v3_2/platform/run_gate1.sh`
 
-- [ ] **Step 1: Run the whole Gate 1 suite and capture stdout/stderr**
+- [x] **Step 1: Run the whole Gate 1 suite and capture stdout/stderr**
 
 ```bash
 cd docs/gem5-fi/lsu/implementation_v3_2/platform
@@ -349,11 +349,11 @@ python3 config_parser.py <excel> ../logs/config_v31.json 2>&1 | tee ../logs/gate
 ```
 Expected: all unit tests pass; config validation exits 2 with exactly the missing workload IDs listed.
 
-- [ ] **Step 2: Write status with real counts and known gaps**
+- [x] **Step 2: Write status with real counts and known gaps**
 
 The status file must state: Gate 1 PASS/FAIL per component, the 45 `ABSENT` rows, and that Gate 2 is not yet accepted. No predicted values.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/logs docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md \
@@ -373,11 +373,11 @@ git push origin lsu-platform-v3.2
 - Create: per workload `compile.sh`, `run.sh`, `<name>.golden`, `oracle_check.py` (shared copy)
 - Create: `docs/gem5-fi/lsu/implementation_v3_2/workloads/SHA256SUMS.txt`
 
-- [ ] **Step 1: Recover W1/W4 sources and verify existing binary hashes**
+- [x] **Step 1: Recover W1/W4 sources and verify existing binary hashes**
 
 `agu_addrmodes` SHA must equal `90a190...b49b`; `sq_forward` SHA must equal `132a84...f297`. If a rebuilt binary differs, record the rebuild provenance and do not overwrite the original binary without a `_rebuilt` suffix.
 
-- [ ] **Step 2: Compile all six with the documented command and run each host-side**
+- [x] **Step 2: Compile all six with the documented command and run each host-side**
 
 ```bash
 gcc -O2 -static -o <name> <name>.c
@@ -385,18 +385,18 @@ gcc -O2 -static -o <name> <name>.c
 ```
 Compare to the frozen golden; record exit code and SHA.
 
-- [ ] **Step 3: Run each under gem5 with the current commit and save the full baseline bundle**
+- [x] **Step 3: Run each under gem5 with the current commit and save the full baseline bundle**
 
 ```bash
 build/ARM/gem5.opt --outdir=... configs/se/lsu_proxy.py --cmd=<bin> --cpu O3 --variant B0
 ```
 Save command, gem5 version, git commit, gcc version, `config.ini`, `stats.txt`, stdout, stderr, exit code, `Exiting @ tick`, binary SHA, oracle result.
 
-- [ ] **Step 4: Prove the target microarchitectural event**
+- [x] **Step 4: Prove the target microarchitectural event**
 
 Use `--debug-flags=LSQUnit` (forwarding / store completion / replay) and a diagnostic counter; grep the debug log for the concrete event and store the excerpt in `baselines/<name>/event_proof.log`.
 
-- [ ] **Step 5: Commit per workload group**
+- [x] **Step 5: Commit per workload group**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/workloads docs/gem5-fi/lsu/implementation_v3_2/baselines
@@ -411,7 +411,7 @@ git push origin lsu-platform-v3.2
 - Modify: `docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment.c`
 - Preserve: `docs/gem5-fi/lsu/implementation_v3_2/workloads/_original_v31/{store_path.c,alignment.c}`
 
-- [ ] **Step 1: Write the failing address-sanitizer baselines**
+- [x] **Step 1: Write the failing address-sanitizer baselines**
 
 Compile the original sources with `-fsanitize=address,undefined` and run:
 ```bash
@@ -420,12 +420,12 @@ gcc -O1 -g -fsanitize=address,undefined -static -o /tmp/alignment_asan alignment
 ```
 Expected: ASan/UBSan reports the tail OOB for both.
 
-- [ ] **Step 2: Fix the sources**
+- [x] **Step 2: Fix the sources**
 
 `store_path.c`: rewrite the four store-width regions as non-overlapping in-bounds ranges; use `memcpy` for every unaligned width store; assert `sizeof(a)==32768`; last 8-byte write ends at `&a[32768]`.
 `alignment.c`: reduce the unaligned loop bound so the last 4-byte `memcpy` ends at `&a[4096]`; keep the subsequent read in bounds.
 
-- [ ] **Step 3: Recompile, regenerate golden, recompute SHA, rerun baseline**
+- [x] **Step 3: Recompile, regenerate golden, recompute SHA, rerun baseline**
 
 ```bash
 gcc -O2 -static -o store_path store_path.c && ./store_path > store_path.golden
@@ -434,7 +434,7 @@ sha256sum store_path alignment > SHA256SUMS.txt
 ```
 Run both under gem5 and save new baseline bundles. Old binaries/goldens stay under `_original_v31/` and are not valid post-fix baselines.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/workloads docs/gem5-fi/lsu/implementation_v3_2/baselines

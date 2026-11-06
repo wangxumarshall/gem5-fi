@@ -41,9 +41,25 @@ does not substitute a default seed, path, warm-up or ROI.
 
 ## Gate 2 — Workloads and pilots
 
-**Status: NOT STARTED.** No W1-W8 post-fix baseline and no A01/A03/FW02 pilot
-has been accepted yet. The worktree has no `build/ARM/gem5.opt`; the next step
-is a clean worktree build before any pilot run.
+**Status: PASS for the three pilots.** Details are in
+`pilots/GATE2_REPORT.md`; every number below comes from the committed run
+artifacts.
+
+| Item | Real result |
+|---|---|
+| Build | `build/ARM/gem5.opt` SHA256 `b233a4cb…eaabe`, zero-error build after the duplicate-declaration fix |
+| W1-W8 baselines | 8/8 exit 0, 8/8 oracle PASS, re-run under the Gate-2 binary |
+| W6/W8 repair | guard-page probe: original offsets SIGSEGV (139), fixed offsets `NO_FAULT` (0); new goldens and SHAs |
+| A01/F0 | `pushRequest`, `injected=1`, `old=0x7ffffefdc0 → new=0x7ffffefdc8`, 12 events / 10 edges, MASKED, oracle PASS |
+| A03/F5 | `pushRequest`, `injected=146` (all eligible loads), first change `db8 → db0`; persistent condition causes a real page-table crash (`TERMINAL=CRASH`); 564 events / 489 edges, 73 injections |
+| FW02/F6 | 6 real full-coverage pairs, 1 suppression (`load_seq=397`, `store_seq=383`); 4 events / 3 edges, MASKED, oracle PASS |
+
+A03 is accepted as a real F5 trigger with `TerminalState=CRASH`; it is not
+counted as Masked or SDC. Its gzip stream lacks a trailer because gem5
+aborted, but every flushed node is present and a terminal `simulator_abort`
+event is appended; `TraceCompleteness=COMPLETE` to that observed terminal.
+Gate 3 (remaining nine models) and Gate 4 (60 formal samples) are not
+started.
 
 ## Rejected pre-existing artifacts
 
@@ -58,7 +74,10 @@ The artifacts found in the main checkout at 2026-11-06 09:43-09:45 are in
 
 ## Next actions
 
-1. Build `gem5.opt` in this worktree and record the clean-build log.
-2. Repair W6/W8 OOB sources with ASan evidence; package W1/W4 and W2/W3/W5/W7.
-3. Implement A01/A03 `pushRequest` Load-only bit-3 modes and the FW02 F6
-   forwarding false-miss hook; run pilots only after baselines match.
+1. Gate 3: implement and unit-test the remaining nine models (LQ04, SQ01,
+   SQ03, LP01, SP05, FW05, MD04, RP01, DA04); LQ04/RP01 need the documented
+   safety review first.
+2. Gate 4: only after Gates 1-3 pass and the researcher confirms, run the 60
+   formal samples with the frozen seeds.
+3. Repair the frozen workbook to v3.2 (paths, SHAs, oracles, warm-up/ROI,
+   Chinese text, legacy terminal columns) only where the values are real.

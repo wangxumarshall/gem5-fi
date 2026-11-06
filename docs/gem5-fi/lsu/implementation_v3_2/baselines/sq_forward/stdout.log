@@ -3,9 +3,9 @@ gem5 Simulator System.  https://www.gem5.org
 gem5 is copyrighted software; use the --copyright option for details.
 
 gem5 version 25.1.0.1
-gem5 compiled Oct 30 2026 15:57:16
-gem5 started Nov  6 2026 10:54:43
-gem5 executing on localhost0101, pid 4109293
+gem5 compiled Nov  6 2026 12:02:50
+gem5 started Nov  6 2026 12:19:40
+gem5 executing on localhost0101, pid 203635
 command line: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/baselines/sq_forward configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward --cpu O3 --variant B0
 
 info: Standard input is not a terminal, disabling listeners.

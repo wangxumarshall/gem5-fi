@@ -19,10 +19,10 @@
   ],
   "final_tick": 55153560,
   "gem5_binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
-  "gem5_binary_sha256": "6db026e7ffa1ec3c95d1bc3065188cffdb61290633c6aa7a7e97456a028f9ef4",
-  "git_commit": "1306a3623b339c4908f4f17f4659926d937a694a",
+  "gem5_binary_sha256": "b233a4cbb1085887c1a8533a77a9fa0885dcb36aa34608f7a90245b7395eaabe",
+  "git_commit": "fd0f7ac5f66b5b7a12a87c0c3d5a3c31b8cfadf7",
   "gcc": "gcc (GCC) 12.3.1 (openEuler 12.3.1-111.oe2403sp3)",
   "binary_sha256": "3779e8ced41a07d798f78c97a1f5d10187c812a24a81b599c19ae68a0753e711",
-  "stats_sha256": "d4a8c7b3b5a2c6a52d78fdaccaa95ab0a995b16fe1a351369278a66e3225740c",
+  "stats_sha256": "deaa979bb3f9dc9be03c5fd071285eabe6bc79991d2361211376e4a6477e2e7d",
   "config_ini_sha256": "d5374329e4e2272143efb0d728591f523821129225047362c77a2acb0f86f3bb"
 }

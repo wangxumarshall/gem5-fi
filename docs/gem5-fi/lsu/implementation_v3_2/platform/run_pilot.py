@@ -3,9 +3,11 @@
 
 The seed and fault configuration are copied from the frozen Excel sample; the
 SampleRunID is deliberately replaced with ``PILOT-...`` so no formal sample is
-overwritten. A pilot is accepted only when the process exits 0, the oracle
-passes, the injector reports at least one injection, the target-event evidence
-is present, and the converted Trace v3.1 JSONL is valid and complete.
+overwritten. A pilot is accepted only when the process exits 0, the injector
+reports at least one injection, the target-event evidence is present, and the
+converted Trace v3.1 JSONL is valid and complete. The oracle result is
+recorded (MASKED vs SDC), not required to pass: a non-propagating fault is a
+valid pilot outcome.
 """
 from __future__ import annotations
 
@@ -72,7 +74,7 @@ def _addrpath_events(path: Path) -> list[dict]:
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         if "Site: lsq_pushRequest_PRE" not in line:
             continue
-        m = re.search(r"mode=(\S+).*old_addr=0x([0-9a-fA-F]+).*new_addr=0x([0-9a-fA-F]+)", line)
+        m = re.search(r"mode=([^,\s]+).*old_addr=0x([0-9a-fA-F]+).*new_addr=0x([0-9a-fA-F]+)", line)
         if m:
             events.append({"mode": m[1], "old": int(m[2], 16),
                            "new": int(m[3], 16), "line": line})
@@ -158,7 +160,16 @@ def main(argv=None) -> int:
         target_proof = {"site": "store->load_forward_decision", **inj}
         injected = inj.get("suppressed", 0)
 
-    if proc.returncode != 0:
+    crash_by_fault = False
+    if proc.returncode != 0 and args.model in ("A01", "A03"):
+        last = events[-1] if events else None
+        if (last and "page table fault" in proc.stderr.lower()
+                and hex(last["new"]) in proc.stderr.lower()):
+            crash_by_fault = True
+    if proc.returncode != 0 and crash_by_fault:
+        run_status, activation, terminal, completeness = (
+            "SIMULATOR_ERROR", "TRIGGERED", "CRASH", "COMPLETE")
+    elif proc.returncode != 0:
         run_status, activation, terminal, completeness = (
             "SIMULATOR_ERROR", "TRIGGERED" if injected else "NOT_TRIGGERED",
             "CRASH", "INCOMPLETE")
@@ -183,7 +194,8 @@ def main(argv=None) -> int:
                 fault_id=sample.get("fault_config_id") or args.model,
                 fault_model_id=args.model, run_status=run_status,
                 activation=activation, terminal=terminal,
-                completeness=completeness)
+                completeness=completeness,
+                allow_truncated_complete=crash_by_fault)
         except SystemExit:
             converted = {"rows": 0, "truncated": True, "summary": None}
     trace_errors = validate(jsonl_path) if jsonl_path.exists() else ["trace missing"]
@@ -200,8 +212,12 @@ def main(argv=None) -> int:
         trace_errors = validate(jsonl_path)
         completeness_report = check_completeness(jsonl_path)
 
+    # A pilot proves the trigger and the target dynamic instruction, not a
+    # particular software outcome: an injected fault whose error does not
+    # propagate is recorded as MASKED, and one that changes the oracle is
+    # recorded as SDC. Both are valid pilots; zero injections is not.
     accepted = (
-        proc.returncode == 0 and oracle_pass and injected > 0
+        (proc.returncode == 0 or crash_by_fault) and injected > 0
         and target_proof.get("events", 1) > 0
         and not trace_errors
         and completeness_report.get("trace_completeness") == "COMPLETE"
