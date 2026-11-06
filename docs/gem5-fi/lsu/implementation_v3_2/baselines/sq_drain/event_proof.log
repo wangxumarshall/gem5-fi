@@ -1,0 +1,11 @@
+--- W3 SQ writeback/complete evidence ---
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:1 PC:(0x4008d0=>0x4008d4).(1=>2) to Addr:0x8cd10, data:0 [sn:18]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:2 PC:(0x4008d0=>0x4008d4).(2=>3) to Addr:0x8cd18, data:0xf0 [sn:19]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:3 PC:(0x4008d8=>0x4008dc).(1=>2) to Addr:0x8cd20, data:0 [sn:23]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:4 PC:(0x4008d8=>0x4008dc).(2=>3) to Addr:0x8cd28, data:0 [sn:24]
+ 204435: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:18], idx:0, store head idx:1
+ 205205: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:19], idx:1, store head idx:2
+ 205206: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:23], idx:2, store head idx:3
+ 205207: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:24], idx:3, store head idx:4
+writeback_store_lines=31092
+completing_store_lines=31092

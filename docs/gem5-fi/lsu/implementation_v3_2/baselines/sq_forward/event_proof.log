@@ -1,0 +1,8 @@
+ 556325: board.processor.cores.core.iew.lsq.thread0: Forwarding from store idx 49 to load to addr 0x7ffffefc28
+8639015: board.processor.cores.core.iew.lsq.thread0: Forwarding from store idx 566 to load to addr 0x496798
+12774685: board.processor.cores.core.iew.lsq.thread0: Forwarding from store idx 798 to load to addr 0x48fb70
+13002990: board.processor.cores.core.iew.lsq.thread0: Forwarding from store idx 844 to load to addr 0x48fb70
+13260555: board.processor.cores.core.iew.lsq.thread0: Forwarding from store idx 860 to load to addr 0x7ffffefcd0
+15192870: board.processor.cores.core.iew.lsq.thread0: Forwarding from store idx 938 to load to addr 0x7ffffefbf0
+forwarding_lines=6
+17040870: board.processor.cores.core.iew.lsq.thread0: Load-store forwarding mis-match. Store idx 1115 to load addr 0x7ffffefb70

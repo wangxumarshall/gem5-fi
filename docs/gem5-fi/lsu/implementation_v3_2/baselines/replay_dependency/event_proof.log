@@ -1,0 +1,10 @@
+--- W7 dependency/replay evidence ---
+31072965: board.processor.cores.core.iew.lsq.thread0: Load-store forwarding mis-match. Store idx 2250 to load addr 0x7ffffefae8
+35427700: board.processor.cores.core.iew.lsq.thread0: Load-store forwarding mis-match. Store idx 2407 to load addr 0x7ffffef890
+35428085: board.processor.cores.core.iew.lsq.thread0: Load-store forwarding mis-match. Store idx 2406 to load addr 0x7ffffef880
+36564990: board.processor.cores.core.iew.lsq.thread0: Load-store forwarding mis-match. Store idx 2469 to load addr 0x7ffffef9c8
+  80080: board.processor.cores.core.iew.lsq.thread0: Executing load PC (0x4005d0=>0x4005d4).(0=>1), [sn:5]
+ 197890: board.processor.cores.core.iew.lsq.thread0: Executing load PC (0x400910=>0x400914).(0=>1), [sn:48]
+ 204820: board.processor.cores.core.iew.lsq.thread0: Executing load PC (0x400910=>0x400914).(0=>1), [sn:48]
+ 575575: board.processor.cores.core.iew.lsq.thread0: Executing load PC (0x4113a0=>0x4113a4).(0=>1), [sn:225]
+violation_lines=0

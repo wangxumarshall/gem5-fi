@@ -1,0 +1,13 @@
+--- W6 store completion evidence ---
+ 204435: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:18], idx:0, store head idx:1
+ 205205: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:19], idx:1, store head idx:2
+ 205206: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:23], idx:2, store head idx:3
+ 205207: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:24], idx:3, store head idx:4
+ 205208: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:28], idx:4, store head idx:5
+ 205209: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:29], idx:5, store head idx:6
+--- W6 writeback evidence ---
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:1 PC:(0x400a10=>0x400a14).(1=>2) to Addr:0x85d10, data:0 [sn:18]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:2 PC:(0x400a10=>0x400a14).(2=>3) to Addr:0x85d18, data:0x30 [sn:19]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:3 PC:(0x400a18=>0x400a1c).(1=>2) to Addr:0x85d20, data:0 [sn:23]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:4 PC:(0x400a18=>0x400a1c).(2=>3) to Addr:0x85d28, data:0 [sn:24]
+completing_store_lines=10609

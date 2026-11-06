@@ -1,0 +1,8 @@
+agu_addrmodes exit 0 oracle 0 tick 19544525
+sq_forward exit 0 oracle 0 tick 19112940
+lq_lifetime exit 0 oracle 0 tick 37983715
+sq_drain exit 0 oracle 0 tick 149995615
+load_response exit 0 oracle 0 tick 55153560
+store_path exit 0 oracle 0 tick 92581720
+replay_dependency exit 0 oracle 0 tick 40653690
+alignment exit 0 oracle 0 tick 34556445

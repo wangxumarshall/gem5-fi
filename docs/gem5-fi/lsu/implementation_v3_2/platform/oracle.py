@@ -8,15 +8,23 @@ import sys
 from pathlib import Path
 
 CHECKSUM_RE = re.compile(r"checksum=0x([0-9a-fA-F]+)")
+BARE_HEX_RE = re.compile(r"^\s*([0-9a-fA-F]{16})\s*$", re.MULTILINE)
 
 
 def normalize(value: str) -> str:
-    return str(value).strip().lower().removeprefix("0x")
+    text = str(value).strip().lower()
+    if "checksum=0x" in text:
+        text = text.split("checksum=0x")[-1]
+    return text.strip().removeprefix("0x")
 
 
 def extract_checksum(text: str) -> str | None:
     matches = CHECKSUM_RE.findall(text)
-    return matches[-1].lower() if matches else None
+    if matches:
+        return matches[-1].lower()
+    # W1/W4 print a bare 16-hex checksum line (no checksum=0x prefix).
+    bare = BARE_HEX_RE.findall(text)
+    return bare[-1].lower() if bare else None
 
 
 def check_oracle(expected: str, stdout_text: str) -> dict:

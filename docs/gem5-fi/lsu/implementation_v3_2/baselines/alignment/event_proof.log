@@ -1,0 +1,7 @@
+--- W8 unaligned access addresses (addr % 8 != 0) ---
+1762145: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 68, store idx: 98, storeHead: 97 addr: 0x7dc0a
+1763685: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 69, store idx: 98, storeHead: 97 addr: 0x7dc0b
+1813350: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 70, store idx: 98, storeHead: 97 addr: 0x7dc0c
+1814505: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 71, store idx: 98, storeHead: 97 addr: 0x7dc0d
+1822975: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 72, store idx: 98, storeHead: 97 addr: 0x7dc0e
+1824130: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 73, store idx: 98, storeHead: 97 addr: 0x7dc0f

@@ -1,0 +1,10 @@
+--- W5 load request/response evidence ---
+  80080: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 0, store idx: 1, storeHead: 0 addr: 0x80da0
+ 225610: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 1, store idx: 17, storeHead: 0 addr: 0x80db8
+ 549395: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 2, store idx: 39, storeHead: 27 addr: 0x80dc0
+ 573650: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 2, store idx: 44, storeHead: 29 addr: 0x80dc0
+  80080: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:5] PC (0x4005d0=>0x4005d4).(0=>1)
+ 225610: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:48] PC (0x400910=>0x400914).(0=>1)
+ 549395: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:169] PC (0x4113a0=>0x4113a4).(0=>1)
+ 573650: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:239] PC (0x4113a0=>0x4113a4).(0=>1)
+read_called_lines=18269

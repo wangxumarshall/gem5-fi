@@ -1,0 +1,11 @@
+--- W2 LQ alloc/squash/reuse evidence ---
+  79310: board.processor.cores.core.iew.lsq.thread0: Inserting load PC (0x400650=>0x400654).(0=>1), idx:0 [sn:5]
+ 197120: board.processor.cores.core.iew.lsq.thread0: Inserting load PC (0x400990=>0x400994).(0=>1), idx:1 [sn:48]
+ 522445: board.processor.cores.core.iew.lsq.thread0: Inserting load PC (0x411420=>0x411424).(0=>1), idx:2 [sn:169]
+ 546700: board.processor.cores.core.iew.lsq.thread0: Inserting load PC (0x411420=>0x411424).(0=>1), idx:2 [sn:239]
+ 523600: board.processor.cores.core.iew.lsq.thread0: Load Instruction PC (0x411420=>0x411424).(0=>1) squashed, [sn:169]
+ 585970: board.processor.cores.core.iew.lsq.thread0: Load Instruction PC (0x411458=>0x41145c).(0=>1) squashed, [sn:254]
+ 585970: board.processor.cores.core.iew.lsq.thread0: Load Instruction PC (0x411454=>0x411458).(0=>1) squashed, [sn:253]
+ 585970: board.processor.cores.core.iew.lsq.thread0: Load Instruction PC (0x411450=>0x411454).(0=>1) squashed, [sn:252]
+inserted_load_lines=6232
+squashed_load_lines=756

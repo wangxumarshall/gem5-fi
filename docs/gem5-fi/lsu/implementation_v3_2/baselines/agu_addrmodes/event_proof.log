@@ -1,0 +1,12 @@
+--- W1 AGU/load address formation evidence ---
+  80080: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 0, store idx: 1, storeHead: 0 addr: 0x7eda0
+ 197890: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 1, store idx: 17, storeHead: 0 addr: 0x7edb8
+ 470085: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 2, store idx: 39, storeHead: 27 addr: 0x7edc0
+ 494340: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 2, store idx: 44, storeHead: 29 addr: 0x7edc0
+ 495880: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 3, store idx: 46, storeHead: 29 addr: 0x7edc8
+ 534765: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 4, store idx: 47, storeHead: 45 addr: 0x7edd0
+--- W1 Doing memory access ---
+  80080: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:5] PC (0x400790=>0x400794).(0=>1)
+ 197890: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:48] PC (0x400ad0=>0x400ad4).(0=>1)
+ 470085: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:169] PC (0x40c0f0=>0x40c0f4).(0=>1)
+ 494340: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:272] PC (0x40c0f0=>0x40c0f4).(0=>1)

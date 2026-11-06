@@ -1,0 +1,28 @@
+{
+  "workload": "lq_lifetime",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/baselines/lq_lifetime",
+    "configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0"
+  ],
+  "exit_code": 0,
+  "oracle_exit": 0,
+  "oracle_expected": "1624d44faff77183",
+  "oracle": [
+    "expected=1624d44faff77183 got=1624d44faff77183",
+    "ORACLE_PASS"
+  ],
+  "final_tick": 37983715,
+  "gem5_binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+  "gem5_binary_sha256": "6db026e7ffa1ec3c95d1bc3065188cffdb61290633c6aa7a7e97456a028f9ef4",
+  "git_commit": "1306a3623b339c4908f4f17f4659926d937a694a",
+  "gcc": "gcc (GCC) 12.3.1 (openEuler 12.3.1-111.oe2403sp3)",
+  "binary_sha256": "7c69fd27fabf406e00b5706469fabfa082be1dbe44ee2e8f49587e6839b0156d",
+  "stats_sha256": "4a0f9e372a71194152aebca244b3232c8dabe9eb24d6b5db11aa111802301683",
+  "config_ini_sha256": "885cfb4cdf0544e4704cdc030e2486249a3f0c2031f2dc806ce5a8731e5222ff"
+}

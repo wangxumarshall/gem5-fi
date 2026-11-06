@@ -63,6 +63,7 @@ def test_oracle_pass_fail_missing():
     assert check_oracle("728e604ffcec539d", "x checksum=0x0000000000000000\n")["status"] == "FAIL"
     assert check_oracle("728e604ffcec539d", "no checksum\n")["status"] == "MISSING"
     assert extract_checksum("a checksum=0x1\nb checksum=0x2\n") == "2"
+    assert check_oracle("728e604ffcec539d", "728e604ffcec539d\n")["status"] == "PASS"
 
 
 def test_manifest_rejects_bad_workload_hash(cfg, fake_gem5):
