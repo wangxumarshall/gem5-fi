@@ -96,10 +96,10 @@ null stays null; never infer Masked from an incomplete trace.
 
 **Files:** `platform/run_replay_pilot.py` (new), RC01 pilot config.
 
-- [ ] Stable replay trigger on W7 `replay_dependency` (partial-forward branch).
-- [ ] JSONL: replay reason, original dyn seq, attempt id, replay generation,
+- [x] Stable replay trigger on W7 `replay_dependency` (partial-forward branch).
+- [x] JSONL: replay reason, original dyn seq, attempt id, replay generation,
       pre/post state, final commit/squash.
-- [ ] PILOT_RUN evidence required; a hook in source is not evidence.
+- [x] PILOT_RUN evidence required; a hook in source is not evidence.
 
 ## Tasks 8–16 — remaining nine models (Phase 4)
 
