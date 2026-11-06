@@ -1,0 +1,4003 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
+index 7b02d56b..8fa6e422 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
+@@ -223,7 +223,9 @@ namespace gem5
+             // stream. The in-switch checks stay as belt-and-braces; OBS-2's
+             // pre_opclass counter is the regression detector (must stay 0).
+             const bool pre_load_only  = (pre_mode == "l01_load_addr" ||
+-                                         pre_mode == "l02_load_state");
++                                         pre_mode == "l02_load_state" ||
++                                         pre_mode == "a01_bit3_load" ||
++                                         pre_mode == "a03_bit3_stuck0_load");
+             const bool pre_store_only = (pre_mode == "s13_store_addr" ||
+                                          pre_mode == "s04_store_subst" ||
+                                          pre_mode == "s05_store_size" ||
+@@ -336,6 +338,40 @@ namespace gem5
+             if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]  // S13's territory, not ours
+             const uint64_t bit = rng() % 48;
+             addr = addr ^ (1ULL << bit);
++        } else if (pre_mode == "a01_bit3_load") {
++            // A01 (LSU v3.2 pilot): single transient bit-3 flip of the AGU
++            // effective address at the audited pushRequest entry. LOADS
++            // only. F0 is the tier (maxFaults=1), so exactly one eligible
++            // load is corrupted per run.
++            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][V3.2]
++            addr = addr ^ (Addr)0x8;
++        } else if (pre_mode == "a03_bit3_stuck0_load") {
++            // A03 (LSU v3.2 pilot): bit-3 stuck-at-0 applied to EVERY
++            // post-warm-up eligible load (F5 reapplication, not a physical
++            // latch). LOADS only. If bit 3 is already 0 the condition is
++            // still applied: count the application and log it as nochange;
++            // there is no corrupted address to propagate.
++            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][V3.2]
++            addr = addr & ~(Addr)0x8;
++            if (addr == old_addr) {
++                ++obs_pre_nochange;
++                ++l0_funnel.injected;
++                ++faults_injected_count;
++                notifyFunnelAtInjection();
++                if (write_log && log_stream && log_stream->stream()) {
++                    *(log_stream->stream()) << "Tick: " << curTick()
++                        << ", Site: lsq_pushRequest_PRE"
++                        << ", mode=" << pre_mode
++                        << ", old_addr=0x" << std::hex << old_addr
++                        << ", new_addr=0x" << addr
++                        << ", old_size=" << std::dec << old_size
++                        << ", new_size=" << size
++                        << ", value_changed=0"
++                        << ", faults_injected: " << faults_injected_count
++                        << std::endl;
++                }
++                return size;
++            }
+         } else {
+             { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] unknown pre_mode — config validated in .py choices
+         }
+@@ -423,11 +459,12 @@ namespace gem5
+                     // pre_opclass>0 with fault writes < trigger.injected is
+                     // the phantom-activation signature (F-049).
+                     printf("CHAOS_L0_DECLINE: pre_fired=%lu pre_opclass=%lu "
+-                           "pre_invalid=%lu post_fired=%lu post_nochange=%lu "
+-                           "trigger_injected=%lu\n",
++                           "pre_invalid=%lu pre_nochange=%lu post_fired=%lu "
++                           "post_nochange=%lu trigger_injected=%lu\n",
+                            (unsigned long)obs_pre_fired,
+                            (unsigned long)obs_pre_opclass,
+                            (unsigned long)obs_pre_invalid,
++                           (unsigned long)obs_pre_nochange,
+                            (unsigned long)obs_post_fired,
+                            (unsigned long)obs_post_nochange,
+                            (unsigned long)lsuTrigger->injected);
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
+index 7ff6f853..bae964d9 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
+@@ -107,6 +107,7 @@ class CHAOSAddrPath : public SimObject
+     uint64_t obs_pre_fired = 0;      // PRE hook: trigger said "inject now"
+     uint64_t obs_pre_opclass = 0;    // PRE: op-class filter declined (phantom)
+     uint64_t obs_pre_invalid = 0;    // PRE: invalid target / unknown pre_mode
++    uint64_t obs_pre_nochange = 0;   // PRE: condition applied, value already stuck (A03)
+     uint64_t obs_post_fired = 0;     // POST hook: trigger said "inject now"
+     uint64_t obs_post_nochange = 0;  // POST: corruption produced identical vaddr
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py
+index 867fbcb9..7f47fa88 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py
+@@ -48,6 +48,8 @@ class CHAOSAddrPath(SimObject):
+     preMode = Param.String("off",
+         "off | a04_subst | a05_shift | a06_size | a08_subst | "
+         "s13_store_addr | s04_store_subst (SQ addr same-page, stores) | "
+-        "l01_load_addr (LQ addr single-bit, loads only)")
++        "l01_load_addr (LQ addr single-bit, loads only) | "
++        "a01_bit3_load (LSU v3.2 A01: load bit3 XOR at pushRequest, F0) | "
++        "a03_bit3_stuck0_load (LSU v3.2 A03: load bit3 stuck-at-0, F5)")
+     aguSizeTo = Param.UInt64(0,
+         "a06_size target size: 1|2|4|8|16 (0 = invalid, no-op)")
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+index c92c54c4..a68d2a09 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+@@ -1,4 +1,5 @@
+ #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
++#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // v3.2 FW02 trace
+ #include "sim/sim_exit.hh"
+ #include "params/CHAOSLSQFwd.hh"
+ 
+@@ -69,7 +70,7 @@ namespace gem5
+                 "O3CPU (it hooks the O3 LSQ store->load forwarding path). "
+                 "Cast failed.");
+         }
+-        if (probability > 0.0f) {
++        if (probability > 0.0f || struct_mode == StructMode::F6Fw02) {
+             log_stream = simout.create("lsq_fwd_injections.log", false, true);
+             if (!log_stream || !log_stream->stream()) {
+                 panic("CHAOSLSQFwd: Could not open log file");
+@@ -110,6 +111,21 @@ namespace gem5
+             // lsqFwd during execute(), long after SimObject construction.
+             cpu->lsqFwd = this;
+         }
++        if (struct_mode == StructMode::F6Fw02) {
++            // FW02: attach even with probability==0 (this mode suppresses a
++            // forwarding match, it does not corrupt forwarded bytes).
++            if (!cpu->lsqFwd) cpu->lsqFwd = this;
++            if (max_faults == 0) max_faults = 1;
++            registerExitCallback([this]() {
++                if (write_log && log_stream && log_stream->stream()) {
++                    *(log_stream->stream())
++                        << "CHAOS_FW02_SUMMARY: observed=" << f6_observed
++                        << " suppressed=" << (f6_fired ? 1 : 0)
++                        << " load_seq=" << f6_load_seq
++                        << " store_seq=" << f6_store_seq << std::endl;
++                }
++            });
++        }
+     }
+ 
+     CHAOSLSQFwd::~CHAOSLSQFwd()
+@@ -148,6 +164,7 @@ namespace gem5
+         if (s == "all_zero") return StructMode::AllZero;
+         if (s == "fwd_source_sub") return StructMode::FwdSourceSub;
+         if (s == "phase_offset") return StructMode::PhaseOffset;
++        if (s == "f6_fw02") return StructMode::F6Fw02;
+         return StructMode::ByteFlip;  // default / unknown
+     }
+ 
+@@ -192,6 +209,9 @@ namespace gem5
+         // (maybeDelayForward) — no data mutation there either.
+         if (struct_mode == StructMode::FwdSourceSub) return;
+         if (struct_mode == StructMode::PhaseOffset) return;
++        // FW02 acts only at the forwarding DECISION point (suppress one
++        // match); it must never also mutate the forwarded bytes.
++        if (struct_mode == StructMode::F6Fw02) return;
+         // [LSU][SEM-B] L03 hook split: with --lsqfwd_l03 the SQ-forward
+         // data path is NOT L03's event source — the trigger stream must be
+         // violation checks only (checkViolations site), not the mixed stream.
+@@ -404,6 +424,49 @@ namespace gem5
+                    "Stuck-at-1 faults on forwarded data")
+     {}
+ 
++    bool
++    CHAOSLSQFwd::maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,
++                                         Addr vaddr, unsigned size)
++    {
++        if (struct_mode != StructMode::F6Fw02) return false;
++        ++f6_observed;
++        if (f6_fired) return false;
++        if (max_faults != 0 && faults_injected_count >= max_faults)
++            return false;
++        // The caller reaches this point only inside the FullAddrRangeCoverage
++        // branch, i.e. a real older-store/younger-load pair exists. That pair
++        // IS the F6 trigger; suppress exactly this forwarding match.
++        f6_fired = true;
++        f6_load_seq = load_seq;
++        f6_store_seq = store_seq;
++        ++faults_injected_count;
++        // v3.2 trace bridge: register the false-miss at the decision point.
++        // The subsequent memory request/response for this load is matched by
++        // (dyn_inst_seq, vaddr) and continues the normal L3 chain.
++        if (auto *prop = CHAOSPropagation::instance()) {
++            prop->registerInjection("lsq_fwd_decision", load_seq, vaddr, vaddr,
++                                    true, size, size);
++        }
++        DPRINTF(LSQUnit,
++                "CHAOSFW02: suppress forwarding load_sn:%llu store_sn:%llu "
++                "addr:%#x size:%u\n",
++                (unsigned long long)load_seq, (unsigned long long)store_seq,
++                vaddr, size);
++        if (write_log && log_stream && log_stream->stream()) {
++            *(log_stream->stream())
++                << "Tick: " << curTick()
++                << ", Site: store->load_forward_decision"
++                << ", FaultType: f6_fw02_suppress"
++                << ", load_seq: " << load_seq
++                << ", store_seq: " << store_seq
++                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
++                << ", FwdSize: " << size
++                << ", faults_injected: " << faults_injected_count
++                << std::endl;
++        }
++        return true;
++    }
++
+     bool
+     CHAOSLSQFwd::violationCorrupt(Addr& cmp_addr)
+     {
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+index ab996cd4..ab1c4f31 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+@@ -54,6 +54,14 @@ class CHAOSLSQFwd : public SimObject
+                                const uint8_t *alt_src, unsigned alt_size,
+                                Addr vaddr);
+ 
++    // FW02 (LSU v3.2 pilot, F6): at the full-coverage forwarding DECISION
++    // point, return true exactly once for a real older-store/younger-load
++    // pair. The caller skips the forwarding branch and falls through to the
++    // normal memory access for that load. This is a conditional false miss,
++    // not a data corruption of the forwarded buffer.
++    bool maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,
++                                 Addr vaddr, unsigned size);
++
+     // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
+     // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
+     // If the RNG fires, returns the DELAY in CPU cycles to apply to this
+@@ -87,7 +95,7 @@ class CHAOSLSQFwd : public SimObject
+     //     E3 boundary analysis showed captures scheduler phase, not
+     //     forward-path phase).
+     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
+-                            PhaseOffset };
++                            PhaseOffset, F6Fw02 };
+     static StructMode stringToStructMode(const std::string &s);
+ 
+     o3::CPU *cpu;
+@@ -122,6 +130,14 @@ class CHAOSLSQFwd : public SimObject
+     bool count_only = false;         // consume + count, never corrupt
+     uint64_t eligible_count = 0;     // CHAOS_ELIGIBLE_COUNT=<n> at teardown
+ 
++    // FW02 (LSU v3.2 F6 pilot): a real full-coverage older-store/younger-load
++    // pair is the trigger. The first such pair fires once; subsequent pairs
++    // are counted but not suppressed.
++    bool f6_fired = false;
++    uint64_t f6_observed = 0;
++    uint64_t f6_load_seq = 0;
++    uint64_t f6_store_seq = 0;
++
+     std::mt19937 rng;
+     std::random_device rd;
+     std::discrete_distribution<int> random_fault_distribution;
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+index a97ce222..def813ca 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+@@ -42,7 +42,9 @@ class CHAOSLSQFwd(SimObject):
+         "forwarded buffer by laneSkewK bytes — core179 D1 byte-lane phase "
+         "signature) | all_zero (zero the whole 8-byte buffer) | "
+         "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
+-        "entry — method1 wrong-source store->load forwarding)")
++        "entry — method1 wrong-source store->load forwarding) | "
++        "f6_fw02 (LSU v3.2 F6: suppress one real full-coverage "
++        "store->load forwarding match and force the load to memory)")
+     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
+     l03Mode = Param.Bool(False,
+         "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index ef8af718..77e5b3ad 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -1508,6 +1508,23 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
+             }
+ 
+             if (coverage == AddrRangeCoverage::FullAddrRangeCoverage) {
++                // FW02 (LSU v3.2 F6): a real full-coverage older-store /
++                // younger-load pair is the trigger. On the one-shot fire,
++                // skip this forwarding match and fall through to the normal
++                // memory access instead. This is a conditional false miss;
++                // no forwarded bytes are mutated.
++                if (cpu->lsqFwd &&
++                    cpu->lsqFwd->maybeSuppressForwarding(
++                        load_inst->seqNum, store_it->instruction()->seqNum,
++                        request->mainReq()->getVaddr(),
++                        request->mainReq()->getSize())) {
++                    DPRINTF(LSQUnit,
++                            "FW02 suppressed forwarding for load [sn:%lli] "
++                            "from store [sn:%lli]\n",
++                            load_inst->seqNum,
++                            store_it->instruction()->seqNum);
++                    break;
++                }
+                 // Get shift amount for offset into the store's data.
+                 int shift_amt = request->mainReq()->getVaddr() -
+                     store_it->instruction()->effAddr;
+diff --git a/configs/se/lsu_proxy.py b/configs/se/lsu_proxy.py
+index a56040db..28d881aa 100644
+--- a/configs/se/lsu_proxy.py
++++ b/configs/se/lsu_proxy.py
+@@ -255,7 +255,7 @@ p.add_argument("--lsq_byte_offset", type=int, default=-1)
+ # as Crash => the committed "§2.4 LSQFwd 100% DUE" result is INVALID).
+ p.add_argument("--lsq_struct_mode", default="byte_flip",
+                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
+-                        "all_zero", "fwd_source_sub", "phase_offset"])
++                        "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02"])
+ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
+ # W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
+ p.add_argument("--lsqfwd_lsu_tier", default="off",
+@@ -469,7 +469,7 @@ p.add_argument("--addrpath_f6_event", default="sq_forward",
+ # pushRequest-entry hook — exactly one hook per run (pre_mode != off
+ # registers on the PRE pointer instead).
+ p.add_argument("--agu_pre_mode", default="off",
+-               choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
++               choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state","a01_bit3_load","a03_bit3_stuck0_load"],
+                help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08)")
+ p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
+                help="W4 a06_size: target access size 1|2|4|8|16")
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md
+new file mode 100644
+index 00000000..69b6ffb1
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Implementation_Status_v3.2.md
+@@ -0,0 +1,101 @@
++# LSU Implementation Status v3.2
++
++**Updated:** 2026-11-06
++**Branch:** `lsu-platform-v3.2` (worktree `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2`)
++**Base commit:** `6f98088a7144d7f6fb22d985be3023ac5658e71b`
++**Environment:** native AArch64, openEuler 24.03, gcc 12.3.1, Python 3.11.6, SCons 4.5.2, gem5 v25.1.0.1 (vendored upstream `62c7bf2848`)
++
++## Gate 1 — Common base
++
++| Component | Status | Real evidence |
++|---|---|---|
++| Config parser | PASS | v3.1 input: 255 deficits correctly rejected; v3.2 workbook: `samples=60 models=12 seeds=60 workloads_present=60`, strict exit 0 |
++| Run manifest | PASS | `tests/test_manifest_oracle.py`: 5 passed; seed copied from Excel (`2108120075`), binary SHA present |
++| Oracle interface | PASS | same test file: PASS/FAIL/MISSING cases |
++| F0/F5/F6 manager | PASS | `tests/test_fault_manager.py`: 7 passed, including F5 `nochange` accounting and F6 named trigger |
++| Trace v3.1 schema/writer | PASS | `LSU_Trace_Schema_v3.2.json`; writer emits all 39 event fields |
++| Trace validator | PASS | `LSU_Trace_Sample_v3.2.jsonl` → `VALID` |
++| Completeness checker | PASS | sample → `COMPLETE`, `terminal_state=MASKED`, 4 events / 3 edges |
++| Trace summary | PASS | `logs/trace_sample_summary.json` |
++| Terminal classification | PASS | `tests/test_terminal.py`: 7 passed; incomplete trace returns `terminal_state=None`, never `MASKED` |
++| Full unit suite | PASS | `logs/gate1_tests.log`: **30 passed** |
++
++**Gate 1 verdict:** the common-base components are implemented and unit-verified.
++The frozen v3.1 workbook is **not yet a complete run configuration**: 255
++validation errors remain.
++
++## Frozen-workbook deficits (input, not silently defaulted)
++
++From `logs/config_v31.json`:
++
++| Field | Count | Meaning |
++|---|---:|---|
++| `WorkloadPath` | 45 | W2-W8 rows are `ABSENT` |
++| `BinarySHA256` | 45 | `N/A` on the same rows |
++| `Oracle` | 45 | `N/A` on the same rows |
++| `WarmUp` | 60 | `NEEDS_CONFIG（工作负载专属warm-up）` |
++| `ROI` | 60 | `NEEDS_CONFIG（工作负载专属ROI）` |
++
++The parser exits 2 in strict mode and lists every affected SampleRunID. It
++does not substitute a default seed, path, warm-up or ROI.
++
++## Gate 2 — Workloads and pilots
++
++**Status: PASS for the three pilots.** Details are in
++`pilots/GATE2_REPORT.md`; every number below comes from the committed run
++artifacts.
++
++| Item | Real result |
++|---|---|
++| Build | `build/ARM/gem5.opt` SHA256 `b233a4cb…eaabe`, zero-error build after the duplicate-declaration fix |
++| W1-W8 baselines | 8/8 exit 0, 8/8 oracle PASS, re-run under the Gate-2 binary |
++| W6/W8 repair | guard-page probe: original offsets SIGSEGV (139), fixed offsets `NO_FAULT` (0); new goldens and SHAs |
++| A01/F0 | `pushRequest`, `injected=1`, `old=0x7ffffefdc0 → new=0x7ffffefdc8`, 12 events / 10 edges, MASKED, oracle PASS |
++| A03/F5 | `pushRequest`, `injected=146` (all eligible loads), first change `db8 → db0`; persistent condition causes a real page-table crash (`TERMINAL=CRASH`); 564 events / 489 edges, 73 injections |
++| FW02/F6 | 6 real full-coverage pairs, 1 suppression (`load_seq=397`, `store_seq=383`); 4 events / 3 edges, MASKED, oracle PASS |
++
++A03 is accepted as a real F5 trigger with `TerminalState=CRASH`; it is not
++counted as Masked or SDC. Its gzip stream lacks a trailer because gem5
++aborted, but every flushed node is present and a terminal `simulator_abort`
++event is appended; `TraceCompleteness=COMPLETE` to that observed terminal.
++Gate 3 (remaining nine models) and Gate 4 (60 formal samples) are not
++started.
++
++## Workbook v3.2
++
++`gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx` was generated from the
++frozen v3.1 workbook. All 60 SampleRunIDs and all 60 seeds are byte-preserved.
++Every row now has a real workload path, real rebuilt-binary SHA256 and real
++golden oracle. The strict parser run is:
++
++```
++CONFIG_OK samples=60 models=12 seeds=60 workloads_present=60
++```
++
++Log: `logs/config_v32_validation.log`. The legacy `TerminalState` /
++`TraceCompleteness` columns are renamed `*_LEGACY_DEPRECATED` and cleared;
++only `TerminalState_v31` / `TraceCompleteness_v31` remain. Formal rows are
++`ExecutionStatus=NOT_RUN`; the three pilot models are `PILOT_VERIFIED_FORMAL_NOT_RUN`,
++the other nine are `BLOCKED_GATE3_NOT_STARTED`. No formal sample is marked
++READY or PASS.
++
++## Rejected pre-existing artifacts
++
++The artifacts found in the main checkout at 2026-11-06 09:43-09:45 are in
++`preexisting_rejected/` and are not used. Reasons:
++
++1. A01 was injected at `sendFragmentToTranslation`, which the v3.1 source audit
++   explicitly rejects (the audited hook is `LSQ::pushRequest`).
++2. A03 recorded `injected=0`, so it cannot be a passing F5 pilot.
++3. The bundled trace writer omits required v3.1 fields and its classifier can
++   report `MASKED` for an incomplete trace.
++
++## Next actions
++
++1. Gate 3: implement and unit-test the remaining nine models (LQ04, SQ01,
++   SQ03, LP01, SP05, FW05, MD04, RP01, DA04); LQ04/RP01 need the documented
++   safety review first.
++2. Gate 4: only after Gates 1-3 pass and the researcher confirms, run the 60
++   formal samples with the frozen seeds.
++3. Repair the frozen workbook to v3.2 (paths, SHAs, oracles, warm-up/ROI,
++   Chinese text, legacy terminal columns) only where the values are real.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Completeness b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Completeness
+new file mode 100755
+index 00000000..f9b731a2
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Completeness
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++# Report Trace v3.1 completeness and the four independent terminal fields.
++set -uo pipefail
++HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++exec python3 "$HERE/platform/trace_completeness.py" "$@"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Schema_v3.2.json b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Schema_v3.2.json
+new file mode 100644
+index 00000000..37c2eb30
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Schema_v3.2.json
+@@ -0,0 +1,135 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "$id": "https://gem5-fi.local/schemas/LSU_Trace_Schema_v3.2.json",
++  "title": "LSU Trace v3.1 JSONL record",
++  "description": "One JSON object per line. Event records carry instruction identity, fault identity, propagation identity, request identity and state; propagation edges are separate records; exactly one summary record closes a complete trace.",
++  "type": "object",
++  "required": ["record_type", "trace_version"],
++  "properties": {
++    "record_type": {"enum": ["event", "propagation_edge", "summary"]},
++    "trace_version": {"const": "v3.1"}
++  },
++  "oneOf": [{"$ref": "#/$defs/event"}, {"$ref": "#/$defs/edge"}, {"$ref": "#/$defs/summary"}],
++  "$defs": {
++    "enums": {
++      "run_status": ["COMPLETED", "NO_ELIGIBLE_EVENT", "TIMEOUT", "SIMULATOR_ERROR"],
++      "activation": ["NOT_TRIGGERED", "TRIGGERED", "UNKNOWN"],
++      "terminal": ["MASKED", "SQUASHED", "DETECTED_CONTAINED", "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG"],
++      "completeness": ["COMPLETE", "INCOMPLETE"],
++      "injection_status": ["INJECTED", "NO_CHANGE", "DECLINED", "NOT_APPLICABLE"],
++      "commit_status": ["NOT_COMMITTED", "COMMITTED", "SQUASHED", "UNKNOWN"],
++      "squash_status": ["NONE", "SQUASHED", "UNKNOWN"]
++    },
++    "event": {
++      "type": "object",
++      "required": [
++        "record_type", "trace_version", "sample_run_id", "run_id", "sub_task_id",
++        "fault_id", "fault_model_id", "injection_event_id", "event_id",
++        "parent_event_id", "event_type", "unit", "sub_unit", "timestamp",
++        "dyn_inst_seq", "execution_attempt_id", "replay_generation", "commit_seq",
++        "source_event_id", "destination_event_id", "propagation_edge_id",
++        "producer_inst_seq", "consumer_inst_seq", "request_id", "response_id",
++        "fragment_id", "va", "pa", "lq_entry_id", "sq_entry_id",
++        "entry_generation", "old_value", "new_value", "injection_status",
++        "activation_status", "commit_status", "squash_status", "terminal_state",
++        "trace_completeness"
++      ],
++      "properties": {
++        "record_type": {"const": "event"},
++        "trace_version": {"const": "v3.1"},
++        "sample_run_id": {"type": "string", "minLength": 1},
++        "run_id": {"type": "string", "minLength": 1},
++        "sub_task_id": {"type": "string", "minLength": 1},
++        "fault_id": {"type": "string", "minLength": 1},
++        "fault_model_id": {"type": "string", "minLength": 1},
++        "injection_event_id": {"type": "integer", "minimum": 1},
++        "event_id": {"type": "integer", "minimum": 1},
++        "parent_event_id": {"type": ["integer", "null"]},
++        "event_type": {"type": "string", "minLength": 1},
++        "unit": {"type": ["string", "null"]},
++        "sub_unit": {"type": ["string", "null"]},
++        "timestamp": {"type": "integer", "minimum": 0},
++        "dyn_inst_seq": {"type": ["integer", "null"]},
++        "execution_attempt_id": {"type": ["integer", "null"]},
++        "replay_generation": {"type": ["integer", "null"]},
++        "commit_seq": {"type": ["integer", "null"]},
++        "source_event_id": {"type": ["integer", "null"]},
++        "destination_event_id": {"type": ["integer", "null"]},
++        "propagation_edge_id": {"type": ["integer", "null"]},
++        "producer_inst_seq": {"type": ["integer", "null"]},
++        "consumer_inst_seq": {"type": ["integer", "null"]},
++        "request_id": {"type": ["integer", "null"]},
++        "response_id": {"type": ["integer", "null"]},
++        "fragment_id": {"type": ["integer", "null"]},
++        "va": {"type": ["string", "null"]},
++        "pa": {"type": ["string", "null"]},
++        "lq_entry_id": {"type": ["integer", "null"]},
++        "sq_entry_id": {"type": ["integer", "null"]},
++        "entry_generation": {"type": ["integer", "null"]},
++        "old_value": {"type": ["string", "number", "null"]},
++        "new_value": {"type": ["string", "number", "null"]},
++        "injection_status": {"enum": ["INJECTED", "NO_CHANGE", "DECLINED", "NOT_APPLICABLE"]},
++        "activation_status": {"enum": ["NOT_TRIGGERED", "TRIGGERED", "UNKNOWN"]},
++        "commit_status": {"enum": ["NOT_COMMITTED", "COMMITTED", "SQUASHED", "UNKNOWN"]},
++        "squash_status": {"enum": ["NONE", "SQUASHED", "UNKNOWN"]},
++        "terminal_state": {"enum": ["MASKED", "SQUASHED", "DETECTED_CONTAINED", "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG", null]},
++        "trace_completeness": {"enum": ["COMPLETE", "INCOMPLETE"]}
++      }
++    },
++    "edge": {
++      "type": "object",
++      "required": [
++        "record_type", "trace_version", "event_type", "sample_run_id", "fault_id",
++        "fault_model_id", "propagation_edge_id", "source_event_id",
++        "destination_event_id", "producer_inst_seq", "consumer_inst_seq",
++        "edge_kind", "value_hash", "trace_completeness"
++      ],
++      "properties": {
++        "record_type": {"const": "propagation_edge"},
++        "trace_version": {"const": "v3.1"},
++        "event_type": {"const": "propagation_edge"},
++        "sample_run_id": {"type": "string", "minLength": 1},
++        "fault_id": {"type": "string", "minLength": 1},
++        "fault_model_id": {"type": "string", "minLength": 1},
++        "propagation_edge_id": {"type": "integer", "minimum": 1},
++        "source_event_id": {"type": "integer", "minimum": 1},
++        "destination_event_id": {"type": "integer", "minimum": 1},
++        "producer_inst_seq": {"type": ["integer", "null"]},
++        "consumer_inst_seq": {"type": ["integer", "null"]},
++        "edge_kind": {"type": "string", "minLength": 1},
++        "value_hash": {"type": ["string", "null"]},
++        "trace_completeness": {"enum": ["COMPLETE", "INCOMPLETE"]}
++      }
++    },
++    "summary": {
++      "type": "object",
++      "required": [
++        "record_type", "trace_version", "sample_run_id", "fault_id",
++        "fault_model_id", "run_status", "fault_activation_status",
++        "terminal_state", "trace_completeness", "counts"
++      ],
++      "properties": {
++        "record_type": {"const": "summary"},
++        "trace_version": {"const": "v3.1"},
++        "sample_run_id": {"type": "string", "minLength": 1},
++        "fault_id": {"type": "string", "minLength": 1},
++        "fault_model_id": {"type": "string", "minLength": 1},
++        "run_status": {"enum": ["COMPLETED", "NO_ELIGIBLE_EVENT", "TIMEOUT", "SIMULATOR_ERROR"]},
++        "fault_activation_status": {"enum": ["NOT_TRIGGERED", "TRIGGERED", "UNKNOWN"]},
++        "terminal_state": {"enum": ["MASKED", "SQUASHED", "DETECTED_CONTAINED", "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG"]},
++        "trace_completeness": {"enum": ["COMPLETE", "INCOMPLETE"]},
++        "terminal_state_reason": {"type": ["string", "null"]},
++        "counts": {
++          "type": "object",
++          "required": ["events", "edges", "injections", "activations"],
++          "properties": {
++            "events": {"type": "integer", "minimum": 0},
++            "edges": {"type": "integer", "minimum": 0},
++            "injections": {"type": "integer", "minimum": 0},
++            "activations": {"type": "integer", "minimum": 0}
++          }
++        }
++      }
++    }
++  }
++}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Summary b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Summary
+new file mode 100755
+index 00000000..eb808ffa
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Summary
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++# Summarize a Trace v3.1 JSONL file (event/edge/terminal counts).
++set -uo pipefail
++HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++exec python3 "$HERE/platform/trace_summary.py" "$@"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Validator b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Validator
+new file mode 100755
+index 00000000..3acdb33d
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LSU_Trace_Validator
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++# Validate a Trace v3.1 JSONL file against the published v3.2 schema contract.
++set -uo pipefail
++HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++exec python3 "$HERE/platform/trace_validator.py" "$@"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/README.md b/docs/gem5-fi/lsu/implementation_v3_2/README.md
+new file mode 100644
+index 00000000..aa93466c
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/README.md
+@@ -0,0 +1,43 @@
++# LSU Platform v3.2 — implementation bundle
++
++This directory is the Gate-1/Gate-2 delivery for the LSU v3.2 task.
++
++## Accepted evidence
++
++- `platform/` — config parser, manifest, F0/F5/F6 manager, Trace v3.1
++  writer/validator/completeness/summary, terminal classifier, oracle adapter.
++- `LSU_Trace_Schema_v3.2.json` — published JSON Schema.
++- `LSU_Trace_Sample_v3.2.jsonl` — validated sample.
++- `workloads/` — W1-W8 sources, binaries, compile/run scripts, goldens,
++  oracle checker and the W6/W8 guard-page probe.
++- `baselines/` — eight no-fault gem5 baselines with config/stats/stdout/
++  stderr/oracle/run metadata and target-event proof logs.
++- `pilots/` — A01/F0, A03/F5 and FW02/F6 with command, manifest, raw gem5
++  logs, `trace_v31.jsonl`, validator/completeness output and `GATE2_REPORT.md`.
++- `gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx` — 60 preserved
++  SampleRunIDs/seeds, all real workload paths/SHAs/goldens, actual statuses.
++- `LSU_Implementation_Status_v3.2.md` — gate-by-gate status, including what
++  is not done.
++- `preexisting_rejected/` — the 09:43-09:45 artifacts, preserved but not used.
++
++## Reproduce Gate 1
++
++```bash
++platform/run_gate1.sh
++```
++
++## Reproduce Gate 2
++
++```bash
++workloads/compile_<name>.sh
++workloads/run_<name>.sh
++baselines/run_baselines.sh
++platform/run_pilot.py --model A01 --pilot-id PILOT-A01-F0-W1-R01 \
++  --seed 2108120075 --outdir pilots/A01F0
++platform/run_pilot.py --model A03 --pilot-id PILOT-A03-F5-W1-R01 \
++  --seed 663646247 --outdir pilots/A03F5
++platform/run_pilot.py --model FW02 --pilot-id PILOT-FW02-F6-W4-R01 \
++  --seed 2941542370 --outdir pilots/FW02F6
++```
++
++Gate 3 and Gate 4 are not started. No formal `SampleRunID` was executed.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/config_parser.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/config_parser.py
+new file mode 100644
+index 00000000..fb45389c
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/config_parser.py
+@@ -0,0 +1,348 @@
++"""Parse the frozen LSU v3.1 Excel into a validated, normalized run configuration.
++
++Authority for every value is the Excel itself.  This module never invents a
++seed, never substitutes a workload path, and never fills a missing field with a
++default.  ``require_complete=True`` raises one ``ConfigError`` listing every
++problem after the whole sheet has been inspected, so a caller can see all 45
++missing WorkloadPath rows (or any other gap) in one run.
++
++The normalized record is the input to ``manifest.py`` and to the pilot runner.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import sys
++from collections import Counter, defaultdict
++from pathlib import Path
++from typing import Any, Iterable
++
++import openpyxl
++
++SAMPLE_SHEET = "5.60个样本执行矩阵"
++MODEL_SHEET = "3.最终12模型矩阵"
++MODEL_COUNT = 12
++SAMPLES_PER_MODEL = 5
++SAMPLE_COUNT = MODEL_COUNT * SAMPLES_PER_MODEL
++VALID_MODES = {"F0", "F5", "F6"}
++
++# Columns the v3.2 platform consumes.  The v3.1 workbook also carries legacy
++# TerminalState/TraceCompleteness columns (34/35); the v3.2 fields are 41/42.
++REQUIRED_COLUMNS = [
++    "SampleRunID", "RunID", "SubTaskID", "Seed", "FaultModelID",
++    "FaultLocation", "TargetField", "BitEntryByteIndex", "NormalValue",
++    "FaultValue", "InjectionMode", "InjectionTiming", "FaultDuration",
++    "TargetInstruction", "EligibleEventCondition", "EventOrdinal",
++    "FaultConfigID", "ContextDifferenceRule", "WorkloadPath",
++    "BinarySHA256", "InputHash", "Oracle", "WarmUp", "ROI",
++    "gem5Commit", "BinaryPath", "ConfigScript", "FullCommand", "Timeout",
++    "OutputDir", "RequiredLogs", "PreflightStatus", "ExecutionStatus",
++    "EvidencePath", "DecisionStatus",
++    "ConfigFrozen", "RunStatus", "FaultActivationStatus",
++    "TerminalState_v31", "TraceCompleteness_v31",
++]
++
++# Excel column -> normalized JSON key.
++FIELD_MAP = {
++    "SampleRunID": "sample_run_id",
++    "RunID": "run_id",
++    "SubTaskID": "sub_task_id",
++    "Seed": "seed",
++    "FaultModelID": "model_id",
++    "FaultLocation": "fault_location",
++    "TargetField": "target_field",
++    "BitEntryByteIndex": "target_bit",
++    "NormalValue": "normal_value",
++    "FaultValue": "fault_value",
++    "InjectionMode": "injection_mode",
++    "InjectionTiming": "injection_timing",
++    "FaultDuration": "fault_duration",
++    "TargetInstruction": "target_instruction",
++    "EligibleEventCondition": "target_event",
++    "EventOrdinal": "event_ordinal",
++    "FaultConfigID": "fault_config_id",
++    "ContextDifferenceRule": "context_difference_rule",
++    "WorkloadPath": "workload_path",
++    "BinarySHA256": "binary_sha256",
++    "InputHash": "input_hash",
++    "Oracle": "oracle",
++    "WarmUp": "warmup",
++    "ROI": "roi",
++    "gem5Commit": "gem5_commit",
++    "BinaryPath": "binary_path",
++    "ConfigScript": "config_script",
++    "FullCommand": "full_command",
++    "Timeout": "timeout",
++    "OutputDir": "output_dir",
++    "RequiredLogs": "required_logs",
++    "PreflightStatus": "preflight_status",
++    "ExecutionStatus": "execution_status",
++    "TerminalState_v31": "terminal_state_v31",
++    "TraceCompleteness_v31": "trace_completeness_v31",
++    "RunStatus": "run_status_v31",
++    "FaultActivationStatus": "fault_activation_status_v31",
++    "DecisionStatus": "decision_status",
++    "ConfigFrozen": "config_frozen",
++    "EvidencePath": "evidence_path",
++}
++
++
++class ConfigError(RuntimeError):
++    """Raised when the frozen workbook cannot produce a complete run config."""
++
++    def __init__(self, message: str, errors: list[dict[str, Any]] | None = None):
++        self.errors = errors or []
++        if self.errors:
++            detail = "\n".join(
++                f"  - {e.get('sample_run_id', '<workbook>')}: "
++                f"{e.get('field', '')}: {e.get('message', '')}"
++                for e in self.errors[:80]
++            )
++            more = ""
++            if len(self.errors) > 80:
++                more = f"\n  ... {len(self.errors) - 80} more"
++            message = f"{message} ({len(self.errors)} error(s))\n{detail}{more}"
++        super().__init__(message)
++
++
++def _repo_root() -> Path:
++    # .../docs/gem5-fi/lsu/implementation_v3_2/platform/config_parser.py
++    return Path(__file__).resolve().parents[5]
++
++
++def _is_blank(value: Any) -> bool:
++    return value is None or (isinstance(value, str) and value.strip() == "")
++
++
++def _sha256(path: Path) -> str:
++    h = hashlib.sha256()
++    with path.open("rb") as fh:
++        for chunk in iter(lambda: fh.read(1 << 20), b""):
++            h.update(chunk)
++    return h.hexdigest()
++
++
++def _resolve_workload(raw_path: Any, repo_root: Path) -> tuple[str, Path | None, str | None]:
++    """Return (normalized_path, existing_path_or_None, warning_or_None).
++
++    The workbook stores absolute paths under /home/sdc/gem5-fi-ding.  When the
++    same repository is checked out in a worktree, prefer the worktree copy of
++    that same relative path.  This is path *mapping*, not a default: the
++    original value is retained in ``workload_path_source``.
++    """
++    if _is_blank(raw_path) or str(raw_path).strip() == "ABSENT":
++        return "ABSENT", None, None
++    raw = str(raw_path)
++    p = Path(raw)
++    if p.exists():
++        return str(p), p, None
++    marker = "/gem5-fi-ding/"
++    if marker in raw:
++        rel = raw.split(marker, 1)[1]
++        candidate = repo_root / rel
++        if candidate.exists():
++            return str(candidate), candidate, (
++                f"workload path mapped from {raw} to worktree {candidate}"
++            )
++    return raw, None, None
++
++
++def normalize_sample(row: dict[str, Any], *, repo_root: Path | None = None) -> dict[str, Any]:
++    repo_root = repo_root or _repo_root()
++    out: dict[str, Any] = {}
++    for col, key in FIELD_MAP.items():
++        out[key] = row.get(col)
++    # ModelID is FaultModelID on the sample sheet; make the v3.2 name explicit.
++    out["model_id"] = row.get("FaultModelID")
++    out["workload_path_source"] = row.get("WorkloadPath")
++    resolved, existing, warning = _resolve_workload(row.get("WorkloadPath"), repo_root)
++    out["workload_path"] = resolved
++    out["workload_exists"] = existing is not None
++    if warning:
++        out["workload_path_warning"] = warning
++    if isinstance(out.get("seed"), str) and out["seed"].strip().isdigit():
++        out["seed"] = int(out["seed"].strip())
++    return out
++
++
++def _err(errors: list[dict[str, Any]], sample_id: Any, field: str, message: str) -> None:
++    errors.append({"sample_run_id": sample_id, "field": field, "message": message})
++
++
++def validate_samples(
++    samples: list[dict[str, Any]],
++    *,
++    expected_models: Iterable[str] | None = None,
++    full: bool = True,
++) -> list[dict[str, Any]]:
++    """Validate normalized samples; return every error (never stop at the first)."""
++    errors: list[dict[str, Any]] = []
++    if len(samples) != SAMPLE_COUNT:
++        _err(errors, "<workbook>", "SAMPLE_COUNT",
++             f"expected {SAMPLE_COUNT}, got {len(samples)}")
++
++    ids = [s.get("sample_run_id") for s in samples]
++    for sid, n in Counter(ids).items():
++        if n > 1:
++            _err(errors, sid, "SampleRunID", f"duplicate SampleRunID ({n} rows)")
++    seeds = [s.get("seed") for s in samples]
++    for seed, n in Counter(seeds).items():
++        if n > 1:
++            _err(errors, "<workbook>", "Seed", f"duplicate Seed {seed!r} ({n} rows)")
++
++    by_model: dict[str, list[dict[str, Any]]] = defaultdict(list)
++    for s in samples:
++        by_model[str(s.get("model_id"))].append(s)
++    if expected_models is not None:
++        expected = set(expected_models)
++        got = set(by_model)
++        if got != expected:
++            _err(errors, "<workbook>", "FaultModelID",
++                 f"model set mismatch: missing={sorted(expected - got)} extra={sorted(got - expected)}")
++    if len(by_model) != MODEL_COUNT:
++        _err(errors, "<workbook>", "FaultModelID",
++             f"expected {MODEL_COUNT} models, got {len(by_model)}")
++    for model, rows in sorted(by_model.items()):
++        if len(rows) != SAMPLES_PER_MODEL:
++            _err(errors, "<workbook>", "FaultModelID",
++                 f"{model}: expected {SAMPLES_PER_MODEL} samples, got {len(rows)}")
++
++    for s in samples:
++        sid = s.get("sample_run_id")
++        rid = s.get("run_id")
++        sub = s.get("sub_task_id")
++        model = s.get("model_id")
++        if _is_blank(sid) or _is_blank(rid) or _is_blank(sub):
++            _err(errors, sid, "identity", "SampleRunID/RunID/SubTaskID must all be present")
++        else:
++            if not str(sid).startswith(str(sub) + "-R"):
++                _err(errors, sid, "SampleRunID", f"parent mismatch with SubTaskID {sub!r}")
++            if not str(sub).startswith(str(rid) + "-S"):
++                _err(errors, sid, "SubTaskID", f"parent mismatch with RunID {rid!r}")
++            if not str(rid).startswith(str(model) + "-"):
++                _err(errors, sid, "RunID", f"RunID {rid!r} does not start with model {model!r}")
++
++        seed = s.get("seed")
++        if not isinstance(seed, int) or seed <= 0:
++            _err(errors, sid, "Seed", f"seed must be a positive integer, got {seed!r}")
++        mode = s.get("injection_mode")
++        if mode not in VALID_MODES:
++            _err(errors, sid, "InjectionMode", f"expected one of {sorted(VALID_MODES)}, got {mode!r}")
++
++        wl = s.get("workload_path")
++        if wl == "ABSENT" or _is_blank(wl):
++            _err(errors, sid, "WorkloadPath", "ABSENT/missing workload path")
++        elif not s.get("workload_exists"):
++            _err(errors, sid, "WorkloadPath", f"path does not exist: {wl}")
++
++        sha = s.get("binary_sha256")
++        if _is_blank(sha) or str(sha).strip().upper() == "N/A":
++            _err(errors, sid, "BinarySHA256", "N/A/missing binary SHA256")
++        elif s.get("workload_exists"):
++            got = _sha256(Path(wl))
++            if str(sha).lower() != got:
++                _err(errors, sid, "BinarySHA256", f"expected {sha}, actual {got}")
++
++        oracle = s.get("oracle")
++        if _is_blank(oracle) or str(oracle).strip().upper() == "N/A":
++            _err(errors, sid, "Oracle", "N/A/missing oracle value")
++
++        if full:
++            for field in ("warmup", "roi"):
++                value = s.get(field)
++                if _is_blank(value) or str(value).startswith("NEEDS_CONFIG"):
++                    _err(errors, sid, field.capitalize(), f"unresolved value: {value!r}")
++            for field in ("fault_location", "target_field", "target_bit",
++                          "normal_value", "fault_value", "injection_timing",
++                          "target_instruction", "target_event"):
++                if _is_blank(s.get(field)):
++                    _err(errors, sid, field, "missing required configuration field")
++
++    errors.sort(key=lambda e: (str(e.get("sample_run_id")), str(e.get("field"))))
++    return errors
++
++
++def load_config(path: Path, *, require_complete: bool = True) -> dict[str, Any]:
++    """Load the frozen workbook.
++
++    ``require_complete=False`` still validates and returns ``validation.errors``;
++    it is used by Gate-1 tests and by the repair tool to enumerate gaps.  The
++    default raises ``ConfigError`` when any error exists.
++    """
++    path = Path(path)
++    if not path.exists():
++        raise ConfigError(f"workbook not found: {path}")
++    wb = openpyxl.load_workbook(path, data_only=True)
++    if SAMPLE_SHEET not in wb.sheetnames:
++        raise ConfigError(f"missing sheet {SAMPLE_SHEET!r}; sheets={wb.sheetnames}")
++    ws = wb[SAMPLE_SHEET]
++    headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
++    header_index = {str(h): i for i, h in enumerate(headers) if h is not None}
++    missing_cols = [c for c in REQUIRED_COLUMNS if c not in header_index]
++    if missing_cols:
++        raise ConfigError(f"missing required columns: {missing_cols}")
++
++    raw_rows: list[dict[str, Any]] = []
++    for r in range(2, ws.max_row + 1):
++        if _is_blank(ws.cell(r, 1).value):
++            continue
++        raw_rows.append({h: ws.cell(r, header_index[h] + 1).value for h in REQUIRED_COLUMNS})
++
++    samples = [normalize_sample(row) for row in raw_rows]
++    expected_models: list[str] | None = None
++    if MODEL_SHEET in wb.sheetnames:
++        mws = wb[MODEL_SHEET]
++        mh = [mws.cell(1, c).value for c in range(1, mws.max_column + 1)]
++        if "ModelID" in mh:
++            col = mh.index("ModelID") + 1
++            expected_models = [str(mws.cell(r, col).value) for r in range(2, mws.max_row + 1)
++                               if not _is_blank(mws.cell(r, col).value)]
++    errors = validate_samples(samples, expected_models=expected_models)
++    if require_complete and errors:
++        raise ConfigError(f"workbook is not a complete frozen configuration: {path}", errors)
++
++    models = sorted({str(s["model_id"]) for s in samples})
++    return {
++        "schema_version": "lsu-config-v3.2",
++        "source": str(path),
++        "source_sha256": _sha256(path),
++        "models": models,
++        "samples": samples,
++        "counts": {
++            "samples": len(samples),
++            "models": len(models),
++            "seeds": len({s["seed"] for s in samples}),
++            "workloads_present": sum(1 for s in samples if s.get("workload_exists")),
++        },
++        "validation": {"errors": errors, "error_count": len(errors)},
++    }
++
++
++def main(argv: list[str] | None = None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("workbook", type=Path)
++    ap.add_argument("output", type=Path)
++    ap.add_argument("--allow-incomplete", action="store_true",
++                    help="write the config plus validation.errors instead of failing")
++    args = ap.parse_args(argv)
++    try:
++        cfg = load_config(args.workbook, require_complete=not args.allow_incomplete)
++    except ConfigError as exc:
++        print(f"CONFIG_INVALID: {exc}", file=sys.stderr)
++        if exc.errors:
++            args.output.parent.mkdir(parents=True, exist_ok=True)
++            args.output.write_text(json.dumps(
++                {"schema_version": "lsu-config-v3.2", "source": str(args.workbook),
++                 "validation": {"errors": exc.errors, "error_count": len(exc.errors)}},
++                ensure_ascii=False, indent=2), encoding="utf-8")
++        return 2
++    args.output.parent.mkdir(parents=True, exist_ok=True)
++    args.output.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
++    print(f"CONFIG_OK samples={cfg['counts']['samples']} models={cfg['counts']['models']} "
++          f"seeds={cfg['counts']['seeds']} workloads_present={cfg['counts']['workloads_present']}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/fault_manager.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/fault_manager.py
+new file mode 100644
+index 00000000..e1a45a3e
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/fault_manager.py
+@@ -0,0 +1,134 @@
++"""F0 / F5 / F6 fault-injection state machines.
++
++Semantics (pinned by the v3.2 task):
++
++F0  one eligible event triggers exactly one injection, then the injector is
++    spent.  The eligible event is chosen by a seeded uniform draw inside
++    ``span_events`` after ``warmup_events`` (or by a fixed 1-based
++    ``event_ordinal`` when supplied).
++F5  while the fault condition is active, *every* eligible event after warm-up
++    receives the same condition.  This is per-event reapplication, not a
++    physical latch.  ``injected`` counts condition applications, including
++    those where the value already equals the stuck value (``nochange``).
++F6  a named trigger condition fires once; the actual injection happens at that
++    trigger event.  ``on_eligible`` never fires F6.
++
++The manager is deliberately independent of gem5 so the semantics can be
++unit-tested on the host.  The C++ hook is responsible for calling it at the
++real hook site and for recording the affected dynamic instruction.
++"""
++from __future__ import annotations
++
++from dataclasses import dataclass, field
++
++VALID_MODES = ("F0", "F5", "F6")
++
++
++@dataclass
++class FaultManager:
++    mode: str
++    warmup_events: int = 0
++    span_events: int = 1
++    max_faults: int = 1
++    rng_seed: int = 1
++    target_event: str | None = None
++    event_ordinal: int = 0
++
++    attempted: int = 0
++    eligible: int = 0
++    injected: int = 0
++    value_changed: int = 0
++    nochange: int = 0
++    trigger_events: int = 0
++    fired: bool = False
++    next_fire: int = 0
++    _rng: int = field(init=False, repr=False)
++
++    def __post_init__(self) -> None:
++        if self.mode not in VALID_MODES:
++            raise ValueError(f"mode must be one of {VALID_MODES}, got {self.mode!r}")
++        if self.warmup_events < 0 or self.span_events < 1:
++            raise ValueError("warmup_events must be >=0 and span_events must be >=1")
++        self._rng = (self.rng_seed or 1) & ((1 << 64) - 1)
++
++    def _lcg(self) -> int:
++        # Deterministic LCG; the reference implementation only needs
++        # reproducibility across host tests, not cryptographic quality.
++        self._rng = (self._rng * 6364136223846793005 + 1442695040888963407) & ((1 << 64) - 1)
++        return self._rng
++
++    def _record(self, value_changed: bool) -> None:
++        self.injected += 1
++        if value_changed:
++            self.value_changed += 1
++        else:
++            self.nochange += 1
++
++    def _budget_left(self) -> bool:
++        return self.max_faults == 0 or self.injected < self.max_faults
++
++    def on_eligible(self, is_target: bool = True, value_changed: bool = True) -> bool:
++        """Register one eligible event; return True iff it receives the fault."""
++        if not is_target:
++            return False
++        self.attempted += 1
++        self.eligible += 1
++
++        if self.mode == "F0":
++            if self.fired or not self._budget_left():
++                return False
++            if self.eligible <= self.warmup_events:
++                return False
++            if self.event_ordinal > 0:
++                fire_at = self.warmup_events + self.event_ordinal
++            else:
++                if self.next_fire == 0:
++                    self.next_fire = (self.warmup_events + 1 +
++                                      (self._lcg() % self.span_events))
++                fire_at = self.next_fire
++            if self.eligible < fire_at:
++                return False
++            self.fired = True
++            self._record(value_changed)
++            return True
++
++        if self.mode == "F5":
++            if self.eligible <= self.warmup_events:
++                return False
++            if not self._budget_left():
++                return False
++            self._record(value_changed)
++            return True
++
++        # F6 never fires on the generic eligible stream.
++        return False
++
++    def on_f6_event(self, event_name: str, is_target: bool = True,
++                    value_changed: bool = True) -> bool:
++        """Register a named F6 trigger event; return True iff it fires."""
++        if not is_target:
++            return False
++        self.trigger_events += 1
++        if self.mode != "F6" or self.fired or not self._budget_left():
++            return False
++        if self.target_event is not None and event_name != self.target_event:
++            return False
++        self.fired = True
++        self._record(value_changed)
++        return True
++
++    def summary(self) -> dict:
++        return {
++            "mode": self.mode,
++            "attempted": self.attempted,
++            "eligible": self.eligible,
++            "injected": self.injected,
++            "value_changed": self.value_changed,
++            "nochange": self.nochange,
++            "trigger_events": self.trigger_events,
++            "fired": self.fired,
++            "warmup_events": self.warmup_events,
++            "span_events": self.span_events,
++            "max_faults": self.max_faults,
++            "target_event": self.target_event,
++        }
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/manifest.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/manifest.py
+new file mode 100644
+index 00000000..ac015385
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/manifest.py
+@@ -0,0 +1,165 @@
++"""Run-manifest generation from the frozen LSU workbook.
++
++A manifest is the *only* place a run gets its identity.  The seed, IDs,
++workload path and fault fields are copied verbatim from the Excel; this module
++never calls a random generator and never fills a missing field with a default.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import platform
++import subprocess
++import sys
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any, Sequence
++
++from config_parser import load_config
++
++
++class ManifestError(RuntimeError):
++    pass
++
++
++def sha256_file(path: Path) -> str:
++    h = hashlib.sha256()
++    with Path(path).open("rb") as fh:
++        for chunk in iter(lambda: fh.read(1 << 20), b""):
++            h.update(chunk)
++    return h.hexdigest()
++
++
++def canonical_json(obj: Any) -> str:
++    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
++
++
++def find_sample(cfg: dict[str, Any], sample_id: str) -> dict[str, Any]:
++    for sample in cfg["samples"]:
++        if sample["sample_run_id"] == sample_id:
++            return sample
++    raise KeyError(f"SampleRunID not found: {sample_id}")
++
++
++def _check_workload(sample: dict[str, Any]) -> Path:
++    raw = sample.get("workload_path")
++    if not raw or raw == "ABSENT":
++        raise FileNotFoundError(
++            f"workload ABSENT for {sample['sample_run_id']}: {sample.get('workload_path_source')!r}")
++    path = Path(raw)
++    if not path.exists():
++        raise FileNotFoundError(f"workload does not exist for {sample['sample_run_id']}: {path}")
++    want = str(sample.get("binary_sha256", "")).lower()
++    got = sha256_file(path)
++    if want and want not in {"n/a", "na", "none"} and want != got:
++        raise ManifestError(
++            f"workload SHA mismatch for {sample['sample_run_id']}: expected {want}, got {got}")
++    return path
++
++
++def build_manifest(
++    cfg: dict[str, Any],
++    sample_id: str,
++    gem5_bin: Path,
++    config_script: Path,
++    *,
++    output_dir: Path | None = None,
++    command: Sequence[str] | None = None,
++    environment: dict[str, Any] | None = None,
++) -> dict[str, Any]:
++    sample = find_sample(cfg, sample_id)
++    workload = _check_workload(sample)
++    gem5_bin = Path(gem5_bin)
++    config_script = Path(config_script)
++    if not gem5_bin.is_file():
++        raise FileNotFoundError(f"gem5 binary does not exist: {gem5_bin}")
++    if not config_script.is_file():
++        raise FileNotFoundError(f"gem5 config script does not exist: {config_script}")
++
++    out_dir = Path(output_dir) if output_dir else Path(sample.get("output_dir") or ".")
++    cmd = list(command) if command is not None else [
++        str(gem5_bin), f"--outdir={out_dir}", str(config_script),
++        f"--cmd={workload}", "--cpu", "O3", "--variant", "B0",
++    ]
++    env = dict(environment or {})
++    env.setdefault("captured_at_utc", datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
++    env.setdefault("host", platform.node())
++    env.setdefault("kernel", platform.release())
++    env.setdefault("python", platform.python_version())
++
++    manifest: dict[str, Any] = {
++        "schema_version": "lsu-run-manifest-v3.2",
++        "sample_run_id": sample["sample_run_id"],
++        "run_id": sample["run_id"],
++        "sub_task_id": sample["sub_task_id"],
++        "fault_id": sample.get("fault_config_id"),
++        "model_id": sample["model_id"],
++        "seed": sample["seed"],
++        "seed_source": "excel:5.60个样本执行矩阵!Seed",
++        "fault": {
++            "location": sample.get("fault_location"),
++            "target_field": sample.get("target_field"),
++            "target_bit": sample.get("target_bit"),
++            "normal_value": sample.get("normal_value"),
++            "fault_value": sample.get("fault_value"),
++            "injection_mode": sample.get("injection_mode"),
++            "injection_timing": sample.get("injection_timing"),
++            "target_event": sample.get("target_event"),
++            "event_ordinal": sample.get("event_ordinal"),
++        },
++        "workload": {
++            "path": str(workload),
++            "path_source": sample.get("workload_path_source"),
++            "sha256": sha256_file(workload),
++            "oracle_expected": sample.get("oracle"),
++        },
++        "warmup": sample.get("warmup"),
++        "roi": sample.get("roi"),
++        "gem5": {
++            "binary": str(gem5_bin.resolve()),
++            "binary_sha256": sha256_file(gem5_bin),
++            "config_script": str(config_script.resolve()),
++            "config_script_sha256": sha256_file(config_script),
++        },
++        "output_dir": str(out_dir),
++        "command": cmd,
++        "command_shell": " ".join(cmd),
++        "environment": env,
++    }
++    manifest["manifest_sha256"] = hashlib.sha256(
++        canonical_json(manifest).encode("utf-8")).hexdigest()
++    return manifest
++
++
++def write_manifest(manifest: dict[str, Any], path: Path) -> Path:
++    path = Path(path)
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
++    return path
++
++
++def main(argv: list[str] | None = None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("workbook", type=Path)
++    ap.add_argument("sample_id")
++    ap.add_argument("gem5_bin", type=Path)
++    ap.add_argument("config_script", type=Path)
++    ap.add_argument("output", type=Path)
++    ap.add_argument("--outdir", type=Path)
++    args = ap.parse_args(argv)
++    cfg = load_config(args.workbook, require_complete=False)
++    try:
++        manifest = build_manifest(cfg, args.sample_id, args.gem5_bin,
++                                  args.config_script, output_dir=args.outdir)
++    except (FileNotFoundError, ManifestError, KeyError) as exc:
++        print(f"MANIFEST_INVALID: {exc}", file=sys.stderr)
++        return 2
++    write_manifest(manifest, args.output)
++    print(f"MANIFEST_OK {manifest['sample_run_id']} seed={manifest['seed']} "
++          f"workload_sha256={manifest['workload']['sha256']}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/oracle.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/oracle.py
+new file mode 100644
+index 00000000..8315baac
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/oracle.py
+@@ -0,0 +1,60 @@
++"""Oracle interface: compare the frozen expected checksum with real gem5 stdout."""
++from __future__ import annotations
++
++import argparse
++import json
++import re
++import sys
++from pathlib import Path
++
++CHECKSUM_RE = re.compile(r"checksum=0x([0-9a-fA-F]+)")
++BARE_HEX_RE = re.compile(r"^\s*([0-9a-fA-F]{16})\s*$", re.MULTILINE)
++
++
++def normalize(value: str) -> str:
++    text = str(value).strip().lower()
++    if "checksum=0x" in text:
++        text = text.split("checksum=0x")[-1]
++    return text.strip().removeprefix("0x")
++
++
++def extract_checksum(text: str) -> str | None:
++    matches = CHECKSUM_RE.findall(text)
++    if matches:
++        return matches[-1].lower()
++    # W1/W4 print a bare 16-hex checksum line (no checksum=0x prefix).
++    bare = BARE_HEX_RE.findall(text)
++    return bare[-1].lower() if bare else None
++
++
++def check_oracle(expected: str, stdout_text: str) -> dict:
++    want = normalize(expected)
++    got = extract_checksum(stdout_text)
++    if got is None:
++        return {"status": "MISSING", "expected": want, "got": None,
++                "reason": "no checksum=0x... line in stdout"}
++    status = "PASS" if got == want else "FAIL"
++    return {"status": status, "expected": want, "got": got}
++
++
++def check_oracle_file(expected: str, stdout_path: Path) -> dict:
++    return check_oracle(expected, Path(stdout_path).read_text(encoding="utf-8", errors="replace"))
++
++
++def main(argv: list[str] | None = None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("expected", help="frozen golden checksum (with or without 0x)")
++    ap.add_argument("stdout", type=Path)
++    ap.add_argument("--json", action="store_true")
++    args = ap.parse_args(argv)
++    result = check_oracle_file(args.expected, args.stdout)
++    if args.json:
++        print(json.dumps(result, ensure_ascii=False))
++    else:
++        print(f"expected={result['expected']} got={result['got']}")
++        print(f"ORACLE_{result['status']}")
++    return 0 if result["status"] == "PASS" else 1
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_gate1.sh b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_gate1.sh
+new file mode 100755
+index 00000000..b48f77bb
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_gate1.sh
+@@ -0,0 +1,39 @@
++#!/usr/bin/env bash
++# Gate-1 reproducible verification. Run from anywhere; all paths are derived
++# from this script's location. Exit 0 = all platform unit tests passed.
++set -uo pipefail
++
++PLATFORM="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++IMPL="$(dirname "$PLATFORM")"
++LSUS="$(dirname "$IMPL")"
++WORKBOOK="$IMPL/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx"
++if [ ! -f "$WORKBOOK" ]; then
++  WORKBOOK="$LSUS/final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
++fi
++LOGS="$IMPL/logs"
++mkdir -p "$LOGS"
++
++cd "$PLATFORM" || exit 2
++echo "== pytest =="
++python3 -m pytest tests -v 2>&1 | tee "$LOGS/gate1_tests.log"
++test_rc=${PIPESTATUS[0]}
++
++echo "== config parser (structural; --allow-incomplete reports the frozen workbook gaps) =="
++python3 config_parser.py "$WORKBOOK" "$LOGS/config_v31.json" --allow-incomplete \
++    2>&1 | tee "$LOGS/gate1_config_validation.log"
++cfg_rc=${PIPESTATUS[0]}
++
++echo "== trace sample validator =="
++python3 trace_validator.py "$IMPL/LSU_Trace_Sample_v3.2.jsonl" | tee "$LOGS/gate1_trace_validator.log"
++val_rc=${PIPESTATUS[0]}
++
++echo "== trace sample completeness =="
++python3 trace_completeness.py "$IMPL/LSU_Trace_Sample_v3.2.jsonl" > "$LOGS/gate1_trace_completeness.json"
++comp_rc=$?
++
++echo "== summary =="
++echo "pytest_rc=$test_rc config_rc=$cfg_rc validator_rc=$val_rc completeness_rc=$comp_rc"
++if [ "$test_rc" -ne 0 ] || [ "$cfg_rc" -ne 0 ] || [ "$val_rc" -ne 0 ] || [ "$comp_rc" -ne 0 ]; then
++  exit 1
++fi
++exit 0
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+new file mode 100644
+index 00000000..b9a1d819
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+@@ -0,0 +1,257 @@
++#!/usr/bin/env python3
++"""Run one v3.2 pilot with a PILOT-only identity.
++
++The seed and fault configuration are copied from the frozen Excel sample; the
++SampleRunID is deliberately replaced with ``PILOT-...`` so no formal sample is
++overwritten. A pilot is accepted only when the process exits 0, the injector
++reports at least one injection, the target-event evidence is present, and the
++converted Trace v3.1 JSONL is valid and complete. The oracle result is
++recorded (MASKED vs SDC), not required to pass: a non-propagating fault is a
++valid pilot outcome.
++"""
++from __future__ import annotations
++
++import argparse
++import copy
++import json
++import re
++import shutil
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++PLATFORM = Path(__file__).resolve().parent
++IMPL = PLATFORM.parent
++sys.path.insert(0, str(PLATFORM))
++
++from config_parser import load_config  # noqa: E402
++from manifest import build_manifest, write_manifest  # noqa: E402
++from trace_completeness import check_completeness  # noqa: E402
++from trace_validator import validate  # noqa: E402
++from tools.prop_trace_to_v31 import convert  # noqa: E402
++
++ROOT = Path(__file__).resolve().parents[5]
++EXCEL = ROOT / "docs/gem5-fi/lsu/final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
++GEM5 = ROOT / "build/ARM/gem5.opt"
++CONFIG = ROOT / "configs/se/lsu_proxy.py"
++WORKLOADS = IMPL / "workloads"
++
++
++def _workload_for(model: str) -> str:
++    return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
++            "FW02": "sq_forward"}[model]
++
++
++def _funnel(path: Path) -> dict:
++    if not path.exists():
++        return {}
++    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
++    out = {}
++    for line in lines:
++        m = re.search(r"FUNNEL:\s+attempted=(\d+)\s+eligible=(\d+)\s+injected=(\d+)", line)
++        if m:
++            out = {"attempted": int(m[1]), "eligible": int(m[2]), "injected": int(m[3])}
++    return out
++
++
++def _fw02_summary(path: Path) -> dict:
++    if not path.exists():
++        return {}
++    text = path.read_text(encoding="utf-8", errors="replace")
++    m = re.search(r"CHAOS_FW02_SUMMARY:\s+observed=(\d+)\s+suppressed=(\d+)\s+"
++                  r"load_seq=(\d+)\s+store_seq=(\d+)", text)
++    if not m:
++        return {}
++    return {"observed": int(m[1]), "suppressed": int(m[2]),
++            "load_seq": int(m[3]), "store_seq": int(m[4])}
++
++
++def _addrpath_events(path: Path) -> list[dict]:
++    if not path.exists():
++        return []
++    events = []
++    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
++        if "Site: lsq_pushRequest_PRE" not in line:
++            continue
++        m = re.search(r"mode=([^,\s]+).*old_addr=0x([0-9a-fA-F]+).*new_addr=0x([0-9a-fA-F]+)", line)
++        if m:
++            events.append({"mode": m[1], "old": int(m[2], 16),
++                           "new": int(m[3], 16), "line": line})
++    return events
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--model", required=True, choices=["A01", "A03", "FW02"])
++    ap.add_argument("--pilot-id", required=True)
++    ap.add_argument("--seed", type=int, required=True)
++    ap.add_argument("--outdir", type=Path, required=True)
++    ap.add_argument("--gem5", type=Path, default=GEM5)
++    args = ap.parse_args(argv)
++
++    cfg = load_config(EXCEL, require_complete=False)
++    sample = next(s for s in cfg["samples"] if s["model_id"] == args.model)
++    sample = copy.deepcopy(sample)
++    sample["sample_run_id"] = args.pilot_id
++    sample["run_id"] = f"PILOT-{args.model}"
++    sample["sub_task_id"] = f"PILOT-{args.model}-S01"
++    sample["seed"] = args.seed
++    sample["workload_path"] = str(WORKLOADS / _workload_for(args.model))
++    sample["workload_exists"] = True
++    cfg2 = copy.deepcopy(cfg)
++    cfg2["samples"] = [sample]
++    out = args.outdir
++    out.mkdir(parents=True, exist_ok=True)
++
++    manifest = build_manifest(cfg2, args.pilot_id, args.gem5, CONFIG,
++                              output_dir=out)
++    write_manifest(manifest, out / "manifest.json")
++
++    extra = ["--prob", "unused"] if False else []
++    if args.model == "A01":
++        extra = ["--chaos_addrpath", "--agu_pre_mode", "a01_bit3_load",
++                 "--addrpath_lsu_tier", "F0", "--addrpath_max_faults", "1",
++                 "--addrpath_warmup_events", "0", "--addrpath_span_events", "10",
++                 "--addrpath_rng_seed", str(args.seed)]
++    elif args.model == "A03":
++        extra = ["--chaos_addrpath", "--agu_pre_mode", "a03_bit3_stuck0_load",
++                 "--addrpath_lsu_tier", "F5", "--addrpath_max_faults", "0",
++                 "--addrpath_warmup_events", "0",
++                 "--addrpath_rng_seed", str(args.seed)]
++    else:
++        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
++                 "--max_faults", "1", "--rng_seed", str(args.seed)]
++
++    cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
++           f"--cmd={WORKLOADS / _workload_for(args.model)}",
++           "--cpu", "O3", "--variant", "B0",
++           "--probability", "1.0",
++           "--chaos_propagation",
++           "--prop_trace_file", "prop_trace.csv.gz"] + extra
++    (out / "command.txt").write_text("\n".join(cmd) + "\n")
++    started = time.time()
++    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
++                          timeout=900)
++    elapsed = time.time() - started
++    (out / "stdout.log").write_text(proc.stdout)
++    (out / "stderr.log").write_text(proc.stderr)
++
++    expected = str(sample.get("oracle"))
++    oracle = subprocess.run(
++        [sys.executable, str(WORKLOADS / "oracle_check.py"), expected,
++         str(out / "stdout.log")], capture_output=True, text=True)
++    (out / "oracle.log").write_text(oracle.stdout + oracle.stderr)
++    oracle_pass = oracle.returncode == 0
++
++    if args.model in ("A01", "A03"):
++        inj = _funnel(out / "addrpath_injections.log")
++        events = _addrpath_events(out / "addrpath_injections.log")
++        target_proof = {
++            "site": "lsq_pushRequest_PRE",
++            "events": len(events),
++            "all_load_bit3": all(
++                (e["new"] == (e["old"] ^ 0x8) if e["mode"] == "a01_bit3_load"
++                 else e["new"] == (e["old"] & ~0x8)) for e in events),
++        }
++        injected = inj.get("injected", 0)
++    else:
++        inj = _fw02_summary(out / "lsq_fwd_injections.log")
++        target_proof = {"site": "store->load_forward_decision", **inj}
++        injected = inj.get("suppressed", 0)
++
++    crash_by_fault = False
++    if proc.returncode != 0 and args.model in ("A01", "A03"):
++        last = events[-1] if events else None
++        if (last and "page table fault" in proc.stderr.lower()
++                and hex(last["new"]) in proc.stderr.lower()):
++            crash_by_fault = True
++    if proc.returncode != 0 and crash_by_fault:
++        run_status, activation, terminal, completeness = (
++            "SIMULATOR_ERROR", "TRIGGERED", "CRASH", "COMPLETE")
++    elif proc.returncode != 0:
++        run_status, activation, terminal, completeness = (
++            "SIMULATOR_ERROR", "TRIGGERED" if injected else "NOT_TRIGGERED",
++            "CRASH", "INCOMPLETE")
++    elif not oracle_pass:
++        run_status, activation, terminal, completeness = (
++            "COMPLETED", "TRIGGERED" if injected else "NOT_TRIGGERED",
++            "SDC", "COMPLETE")
++    else:
++        run_status, activation, terminal, completeness = (
++            "COMPLETED", "TRIGGERED" if injected else "NOT_TRIGGERED",
++            "MASKED", "COMPLETE")
++
++    csv_path = out / "prop_trace.csv.gz"
++    jsonl_path = out / "trace_v31.jsonl"
++    converted = {"rows": 0, "truncated": True, "summary": None}
++    if csv_path.exists():
++        try:
++            converted = convert(
++                csv_path, jsonl_path,
++                sample_run_id=args.pilot_id, run_id=sample["run_id"],
++                sub_task_id=sample["sub_task_id"],
++                fault_id=sample.get("fault_config_id") or args.model,
++                fault_model_id=args.model, run_status=run_status,
++                activation=activation, terminal=terminal,
++                completeness=completeness,
++                allow_truncated_complete=crash_by_fault)
++        except SystemExit:
++            converted = {"rows": 0, "truncated": True, "summary": None}
++    trace_errors = validate(jsonl_path) if jsonl_path.exists() else ["trace missing"]
++    completeness_report = (check_completeness(jsonl_path)
++                           if jsonl_path.exists() else {"trace_completeness": "INCOMPLETE"})
++    if completeness_report.get("trace_completeness") != "COMPLETE" and csv_path.exists():
++        convert(csv_path, jsonl_path,
++                sample_run_id=args.pilot_id, run_id=sample["run_id"],
++                sub_task_id=sample["sub_task_id"],
++                fault_id=sample.get("fault_config_id") or args.model,
++                fault_model_id=args.model, run_status=run_status,
++                activation=activation, terminal=terminal,
++                completeness="INCOMPLETE", no_summary=True)
++        trace_errors = validate(jsonl_path)
++        completeness_report = check_completeness(jsonl_path)
++
++    # A pilot proves the trigger and the target dynamic instruction, not a
++    # particular software outcome: an injected fault whose error does not
++    # propagate is recorded as MASKED, and one that changes the oracle is
++    # recorded as SDC. Both are valid pilots; zero injections is not.
++    accepted = (
++        (proc.returncode == 0 or crash_by_fault) and injected > 0
++        and target_proof.get("events", 1) > 0
++        and not trace_errors
++        and completeness_report.get("trace_completeness") == "COMPLETE"
++    )
++    meta = {
++        "pilot_id": args.pilot_id,
++        "model": args.model,
++        "seed": args.seed,
++        "workload": str(WORKLOADS / _workload_for(args.model)),
++        "command": cmd,
++        "exit_code": proc.returncode,
++        "elapsed_seconds": round(elapsed, 3),
++        "oracle_expected": expected,
++        "oracle_pass": oracle_pass,
++        "injection": inj,
++        "target_event_proof": target_proof,
++        "trace": {
++            "csv_rows": converted.get("rows"),
++            "truncated": converted.get("truncated"),
++            "validator_errors": trace_errors,
++            "completeness": completeness_report,
++        },
++        "classification": {
++            "run_status": run_status,
++            "fault_activation_status": activation,
++            "terminal_state": terminal,
++            "trace_completeness": completeness_report.get("trace_completeness"),
++        },
++        "accepted": accepted,
++    }
++    (out / "pilot_meta.json").write_text(json.dumps(meta, indent=2))
++    print(json.dumps(meta, indent=2))
++    return 0 if accepted else 1
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal.py
+new file mode 100644
+index 00000000..90b3bed5
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal.py
+@@ -0,0 +1,66 @@
++"""Four independent v3.1 terminal dimensions.
++
++The classifier never lets a missing/incomplete trace masquerade as MASKED.
++When the trace is incomplete and no other evidence exists, ``terminal_state``
++is ``None``; the caller must record ``TraceCompleteness=INCOMPLETE`` and keep
++the sample out of any Masked/SDC rate.  ``RunStatus`` and
++``FaultActivationStatus`` remain usable in that case.
++"""
++from __future__ import annotations
++
++RUN_STATUS = ("COMPLETED", "NO_ELIGIBLE_EVENT", "TIMEOUT", "SIMULATOR_ERROR")
++ACTIVATION = ("NOT_TRIGGERED", "TRIGGERED", "UNKNOWN")
++TERMINAL = ("MASKED", "SQUASHED", "DETECTED_CONTAINED",
++            "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG")
++COMPLETENESS = ("COMPLETE", "INCOMPLETE")
++
++
++def classify(*, exit_code: int | None = None, timed_out: bool = False,
++             simulator_error: bool = False, eligible: int = 0,
++             injected: int = 0, oracle_match: bool | None = None,
++             squashed: bool = False, detected: bool = False,
++             arch_state_bad: bool = False, trace_complete: bool = False,
++             activation_evidence: bool = True) -> dict:
++    """Classify one run into the four independent v3.1 dimensions."""
++    if simulator_error:
++        run_status = "SIMULATOR_ERROR"
++    elif timed_out:
++        run_status = "TIMEOUT"
++    elif eligible == 0:
++        run_status = "NO_ELIGIBLE_EVENT"
++    else:
++        run_status = "COMPLETED"
++
++    if not activation_evidence:
++        activation = "UNKNOWN"
++    elif injected > 0:
++        activation = "TRIGGERED"
++    else:
++        activation = "NOT_TRIGGERED"
++
++    if simulator_error:
++        terminal = "CRASH"
++    elif timed_out:
++        terminal = "HANG"
++    elif exit_code not in (0, None):
++        terminal = "CRASH"
++    elif squashed:
++        terminal = "SQUASHED"
++    elif detected:
++        terminal = "DETECTED_CONTAINED"
++    elif oracle_match is False and exit_code == 0:
++        terminal = "SDC"
++    elif arch_state_bad:
++        terminal = "ARCH_STATE_CORRUPTION"
++    elif not trace_complete:
++        # Honesty rule: no complete trace means no MASKED verdict.
++        terminal = None
++    else:
++        terminal = "MASKED"
++
++    return {
++        "run_status": run_status,
++        "fault_activation_status": activation,
++        "terminal_state": terminal,
++        "trace_completeness": "COMPLETE" if trace_complete else "INCOMPLETE",
++    }
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_config_parser.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_config_parser.py
+new file mode 100644
+index 00000000..b9b9353a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_config_parser.py
+@@ -0,0 +1,59 @@
++import sys
++from collections import Counter
++from pathlib import Path
++
++import pytest
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++from config_parser import (  # noqa: E402
++    ConfigError,
++    SAMPLE_SHEET,
++    load_config,
++    validate_samples,
++)
++
++LSUS = PLATFORM.parents[1]
++EXCEL = LSUS / "final_paper_audit_v3_1" / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
++
++
++def test_real_excel_has_60_samples_12_models_5_each():
++    cfg = load_config(EXCEL, require_complete=False)
++    assert len(cfg["samples"]) == 60
++    assert len(cfg["models"]) == 12
++    counts = Counter(s["model_id"] for s in cfg["samples"])
++    assert set(counts.values()) == {5}
++    assert len({s["seed"] for s in cfg["samples"]}) == 60
++
++
++def test_absent_workload_is_reported_not_defaulted():
++    cfg = load_config(EXCEL, require_complete=False)
++    absent = [s for s in cfg["samples"] if s["workload_path"] == "ABSENT"]
++    assert len(absent) == 45
++    with pytest.raises(ConfigError) as excinfo:
++        load_config(EXCEL, require_complete=True)
++    err = excinfo.value
++    assert err.errors
++    error_ids = {e["sample_run_id"] for e in err.errors if e["field"] == "WorkloadPath"}
++    assert {s["sample_run_id"] for s in absent} <= error_ids
++
++
++def test_duplicate_seed_rejected():
++    cfg = load_config(EXCEL, require_complete=False)
++    samples = cfg["samples"]
++    samples[1]["seed"] = samples[0]["seed"]
++    errors = validate_samples(samples, expected_models=cfg["models"], full=False)
++    assert any(e["field"] == "Seed" and "duplicate" in e["message"] for e in errors)
++
++
++def test_parent_mismatch_rejected():
++    cfg = load_config(EXCEL, require_complete=False)
++    samples = cfg["samples"]
++    samples[0]["sub_task_id"] = "A01-F0-W1-S99"
++    errors = validate_samples(samples, expected_models=cfg["models"], full=False)
++    assert any("parent mismatch" in e["message"] for e in errors)
++
++
++def test_sample_sheet_name_is_pinned():
++    assert SAMPLE_SHEET == "5.60个样本执行矩阵"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_fault_manager.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_fault_manager.py
+new file mode 100644
+index 00000000..b1220c77
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_fault_manager.py
+@@ -0,0 +1,58 @@
++import sys
++from pathlib import Path
++
++import pytest
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++
++from fault_manager import FaultManager  # noqa: E402
++
++
++def test_f0_fires_exactly_once():
++    fm = FaultManager("F0", max_faults=1, rng_seed=7)
++    assert sum(fm.on_eligible() for _ in range(100)) == 1
++    assert fm.summary()["injected"] == 1
++    assert fm.summary()["fired"] is True
++
++
++def test_f0_honours_warmup_and_ordinal():
++    fm = FaultManager("F0", warmup_events=5, event_ordinal=3, max_faults=1)
++    hits = [i for i in range(1, 12) if fm.on_eligible()]
++    assert hits == [8]
++    assert fm.summary()["attempted"] == 11
++
++
++def test_f5_applies_to_every_post_warmup_eligible():
++    fm = FaultManager("F5", warmup_events=2, max_faults=0)
++    assert [fm.on_eligible() for _ in range(6)] == [False, False, True, True, True, True]
++
++
++def test_f5_counts_nochange_as_applied():
++    fm = FaultManager("F5", max_faults=0)
++    assert fm.on_eligible(value_changed=False) is True
++    s = fm.summary()
++    assert s["injected"] == 1
++    assert s["nochange"] == 1
++    assert s["value_changed"] == 0
++
++
++def test_f6_requires_named_trigger_then_once():
++    fm = FaultManager("F6", target_event="store_load_forward")
++    assert fm.on_eligible() is False
++    assert fm.on_f6_event("tlb_hit") is False
++    assert fm.on_f6_event("store_load_forward") is True
++    assert fm.on_f6_event("store_load_forward") is False
++    s = fm.summary()
++    assert s["injected"] == 1
++    assert s["trigger_events"] == 3
++
++
++def test_f6_never_fires_without_trigger_event():
++    fm = FaultManager("F6", target_event="missing_event")
++    assert all(fm.on_eligible() is False for _ in range(10))
++    assert fm.summary()["injected"] == 0
++
++
++def test_invalid_mode_rejected():
++    with pytest.raises(ValueError):
++        FaultManager("F2")
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_manifest_oracle.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_manifest_oracle.py
+new file mode 100644
+index 00000000..fc7e295a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_manifest_oracle.py
+@@ -0,0 +1,72 @@
++import json
++import sys
++from pathlib import Path
++
++import pytest
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++from config_parser import load_config  # noqa: E402
++from manifest import ManifestError, build_manifest, canonical_json, write_manifest  # noqa: E402
++from oracle import check_oracle, extract_checksum  # noqa: E402
++
++ROOT = Path(__file__).resolve().parents[6]
++EXCEL = ROOT / "docs/gem5-fi/lsu/final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
++CONFIG_SCRIPT = ROOT / "configs/se/lsu_proxy.py"
++
++
++@pytest.fixture()
++def cfg():
++    return load_config(EXCEL, require_complete=False)
++
++
++@pytest.fixture()
++def fake_gem5(tmp_path):
++    p = tmp_path / "gem5.opt"
++    p.write_bytes(b"not a real simulator, manifest hash input only\n")
++    return p
++
++
++def test_manifest_uses_excel_seed_and_hashes_binary(cfg, fake_gem5, tmp_path):
++    m = build_manifest(cfg, "A01-F0-W1-S01-R01", fake_gem5, CONFIG_SCRIPT,
++                       output_dir=tmp_path / "out")
++    assert m["seed"] == 2108120075
++    assert m["seed_source"] == "excel:5.60个样本执行矩阵!Seed"
++    assert m["sample_run_id"] == "A01-F0-W1-S01-R01"
++    assert len(m["gem5"]["binary_sha256"]) == 64
++    assert m["workload"]["sha256"] == "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b"
++
++
++def test_manifest_rejects_absent_workload(cfg, fake_gem5):
++    with pytest.raises(FileNotFoundError):
++        build_manifest(cfg, "LQ04-F0-W2-S01-R01", fake_gem5, CONFIG_SCRIPT)
++
++
++def test_manifest_sha_is_stable(cfg, fake_gem5, tmp_path):
++    a = build_manifest(cfg, "FW02-F6-W4-S01-R01", fake_gem5, CONFIG_SCRIPT,
++                       output_dir=tmp_path / "out",
++                       environment={"captured_at_utc": "fixed", "host": "h",
++                                    "kernel": "k", "python": "3"})
++    b = build_manifest(cfg, "FW02-F6-W4-S01-R01", fake_gem5, CONFIG_SCRIPT,
++                       output_dir=tmp_path / "out",
++                       environment={"captured_at_utc": "fixed", "host": "h",
++                                    "kernel": "k", "python": "3"})
++    assert a["manifest_sha256"] == b["manifest_sha256"]
++    path = write_manifest(a, tmp_path / "manifest.json")
++    assert json.loads(path.read_text())["manifest_sha256"] == a["manifest_sha256"]
++
++
++def test_oracle_pass_fail_missing():
++    assert check_oracle("728e604ffcec539d", "x checksum=0x728e604ffcec539d\n")["status"] == "PASS"
++    assert check_oracle("0x728e604ffcec539d", "x checksum=0x728E604FFCEC539D\n")["status"] == "PASS"
++    assert check_oracle("728e604ffcec539d", "x checksum=0x0000000000000000\n")["status"] == "FAIL"
++    assert check_oracle("728e604ffcec539d", "no checksum\n")["status"] == "MISSING"
++    assert extract_checksum("a checksum=0x1\nb checksum=0x2\n") == "2"
++    assert check_oracle("728e604ffcec539d", "728e604ffcec539d\n")["status"] == "PASS"
++
++
++def test_manifest_rejects_bad_workload_hash(cfg, fake_gem5):
++    cfg["samples"][0]["binary_sha256"] = "0" * 64
++    with pytest.raises(ManifestError, match="SHA mismatch"):
++        build_manifest(cfg, cfg["samples"][0]["sample_run_id"], fake_gem5, CONFIG_SCRIPT)
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
+new file mode 100644
+index 00000000..2d6ccb84
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
+@@ -0,0 +1,38 @@
++import sys
++from pathlib import Path
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++from tools.prop_trace_to_v31 import convert  # noqa: E402
++from trace_completeness import check_completeness  # noqa: E402
++from trace_validator import validate  # noqa: E402
++
++IMPL = PLATFORM.parent
++CSV = IMPL / "preexisting_rejected/pilots/A01F0/prop_trace.csv.gz"
++
++
++def test_real_csv_converts_to_valid_complete_trace(tmp_path):
++    out = tmp_path / "trace.jsonl"
++    result = convert(
++        CSV, out, sample_run_id="PILOT-A01-TEST", run_id="PILOT-A01",
++        sub_task_id="PILOT-A01-S01", fault_id="A01-CFG01",
++        fault_model_id="A01", run_status="COMPLETED", activation="TRIGGERED",
++        terminal="MASKED", completeness="COMPLETE")
++    assert result["rows"] == 6
++    assert validate(out) == []
++    report = check_completeness(out)
++    assert report["trace_completeness"] == "COMPLETE"
++    assert report["injections"] == 1
++
++
++def test_truncated_or_incomplete_can_omit_summary(tmp_path):
++    out = tmp_path / "trace.jsonl"
++    convert(
++        CSV, out, sample_run_id="PILOT-A01-TEST", run_id="PILOT-A01",
++        sub_task_id="PILOT-A01-S01", fault_id="A01-CFG01",
++        fault_model_id="A01", run_status="COMPLETED", activation="TRIGGERED",
++        terminal="MASKED", completeness="INCOMPLETE", no_summary=True)
++    report = check_completeness(out)
++    assert report["trace_completeness"] == "INCOMPLETE"
++    assert report["terminal_state"] is None
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal.py
+new file mode 100644
+index 00000000..7af564c2
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal.py
+@@ -0,0 +1,54 @@
++import sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++
++from terminal import classify  # noqa: E402
++
++
++def test_four_dimensions_are_independent():
++    r = classify(timed_out=False, simulator_error=False, exit_code=0, eligible=3,
++                 injected=1, oracle_match=True, trace_complete=True,
++                 squashed=False, detected=False, arch_state_bad=False)
++    assert r == {"run_status": "COMPLETED", "fault_activation_status": "TRIGGERED",
++                 "terminal_state": "MASKED", "trace_completeness": "COMPLETE"}
++
++
++def test_no_eligible_keeps_not_triggered():
++    r = classify(timed_out=False, simulator_error=False, exit_code=0, eligible=0,
++                 injected=0, oracle_match=None, trace_complete=True)
++    assert r["run_status"] == "NO_ELIGIBLE_EVENT"
++    assert r["fault_activation_status"] == "NOT_TRIGGERED"
++
++
++def test_incomplete_trace_is_never_masked():
++    r = classify(timed_out=False, simulator_error=False, exit_code=0, eligible=3,
++                 injected=1, oracle_match=True, trace_complete=False)
++    assert r["terminal_state"] != "MASKED"
++    assert r["terminal_state"] is None
++    assert r["trace_completeness"] == "INCOMPLETE"
++
++
++def test_timeout_and_simulator_error_win_over_incomplete():
++    assert classify(timed_out=True, eligible=2, injected=1)["terminal_state"] == "HANG"
++    assert classify(simulator_error=True, eligible=2, injected=1)["terminal_state"] == "CRASH"
++
++
++def test_squash_and_detected_are_evidence_based():
++    assert classify(exit_code=0, eligible=2, injected=1, squashed=True,
++                    trace_complete=False)["terminal_state"] == "SQUASHED"
++    assert classify(exit_code=0, eligible=2, injected=1, detected=True,
++                    trace_complete=False)["terminal_state"] == "DETECTED_CONTAINED"
++
++
++def test_oracle_mismatch_is_sdc_and_arch_bad_without_mismatch_is_corruption():
++    assert classify(exit_code=0, eligible=2, injected=1, oracle_match=False,
++                    trace_complete=True)["terminal_state"] == "SDC"
++    assert classify(exit_code=0, eligible=2, injected=1, oracle_match=True,
++                    arch_state_bad=True, trace_complete=True)["terminal_state"] == "ARCH_STATE_CORRUPTION"
++
++
++def test_unknown_activation_when_evidence_missing():
++    r = classify(exit_code=0, eligible=2, injected=0, activation_evidence=False,
++                 trace_complete=True)
++    assert r["fault_activation_status"] == "UNKNOWN"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace.py
+new file mode 100644
+index 00000000..ad0fc863
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace.py
+@@ -0,0 +1,101 @@
++import json
++import sys
++from pathlib import Path
++
++import pytest
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++from trace_completeness import check_completeness  # noqa: E402
++from trace_schema import EDGE_FIELDS, EVENT_FIELDS, SUMMARY_FIELDS, schema_required  # noqa: E402
++from trace_summary import summarize  # noqa: E402
++from trace_validator import validate  # noqa: E402
++from trace_writer import TraceWriteError, TraceWriter  # noqa: E402
++
++
++def make_writer(tmp_path):
++    return TraceWriter(tmp_path / "t.jsonl", "S-R01", "R", "S", "F1", "A01")
++
++
++def test_writer_emits_every_v31_field(tmp_path):
++    w = make_writer(tmp_path)
++    eid = w.event("injection", unit="AGU", dyn_inst_seq=10,
++                  old_value="0x1000", new_value="0x1008",
++                  injection_status="INJECTED")
++    rec = json.loads((tmp_path / "t.jsonl").read_text().splitlines()[0])
++    assert set(rec) == set(EVENT_FIELDS)
++    assert rec["event_id"] == eid
++    assert rec["dyn_inst_seq"] == 10
++    assert rec["replay_generation"] is None
++
++
++def test_orphan_edge_rejected(tmp_path):
++    w = make_writer(tmp_path)
++    with pytest.raises(TraceWriteError, match="orphan"):
++        w.edge(1, 2)
++
++
++def test_complete_trace_validates_and_summarizes(tmp_path):
++    w = make_writer(tmp_path)
++    e1 = w.event("injection", unit="AGU", dyn_inst_seq=10,
++                 old_value="0x1000", new_value="0x1008",
++                 injection_status="INJECTED", activation_status="TRIGGERED",
++                 trace_completeness="COMPLETE")
++    e2 = w.event("memory_response", parent_event_id=e1, unit="L1D",
++                 dyn_inst_seq=10, request_id=7, va="0x1008", pa="0x1008",
++                 activation_status="TRIGGERED", trace_completeness="COMPLETE")
++    w.edge(e1, e2, value_hash="deadbeef", trace_completeness="COMPLETE")
++    w.close(run_status="COMPLETED", activation="TRIGGERED",
++            terminal="MASKED", completeness="COMPLETE")
++    assert validate(tmp_path / "t.jsonl") == []
++    report = check_completeness(tmp_path / "t.jsonl")
++    assert report["trace_completeness"] == "COMPLETE"
++    assert report["terminal_state"] == "MASKED"
++    summary = summarize(tmp_path / "t.jsonl")
++    assert summary["events"] == 2
++    assert summary["edges"] == 1
++    assert summary["event_types"]["injection"] == 1
++
++
++def test_incomplete_trace_never_masked(tmp_path):
++    w = make_writer(tmp_path)
++    w.event("injection", dyn_inst_seq=1, injection_status="INJECTED",
++            activation_status="TRIGGERED")
++    with pytest.raises(TraceWriteError, match="incomplete trace cannot be classified MASKED"):
++        w.close(run_status="COMPLETED", activation="TRIGGERED",
++                terminal="MASKED", completeness="INCOMPLETE")
++    # Re-create with an honest incomplete terminal; the checker must preserve INCOMPLETE.
++    w2 = make_writer(tmp_path)
++    w2.event("injection", dyn_inst_seq=1, injection_status="INJECTED",
++             activation_status="TRIGGERED")
++    w2.close(run_status="TIMEOUT", activation="TRIGGERED",
++             terminal="HANG", completeness="INCOMPLETE")
++    report = check_completeness(tmp_path / "t.jsonl")
++    assert report["trace_completeness"] == "INCOMPLETE"
++    assert report["terminal_state"] != "MASKED"
++
++
++def test_missing_field_and_bad_summary_rejected(tmp_path):
++    w = make_writer(tmp_path)
++    w.event("injection", dyn_inst_seq=1, injection_status="INJECTED")
++    w.close(run_status="COMPLETED", activation="NOT_TRIGGERED",
++            terminal="HANG", completeness="INCOMPLETE")
++    path = tmp_path / "t.jsonl"
++    lines = path.read_text().splitlines()
++    rec = json.loads(lines[0])
++    del rec["replay_generation"]
++    lines[0] = json.dumps(rec)
++    summary = json.loads(lines[-1])
++    summary["counts"]["events"] = 99
++    lines[-1] = json.dumps(summary)
++    path.write_text("\n".join(lines) + "\n")
++    errs = validate(path)
++    assert any("missing fields" in e for e in errs)
++    assert any("summary events=99" in e for e in errs)
++
++
++def test_schema_constants_match_json_schema():
++    assert schema_required("event") == EVENT_FIELDS
++    assert schema_required("edge") == EDGE_FIELDS
++    assert schema_required("summary") == SUMMARY_FIELDS
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+new file mode 100644
+index 00000000..37e60e42
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+@@ -0,0 +1,192 @@
++#!/usr/bin/env python3
++"""Convert a CHAOSPropagation CSV trace into Trace v3.1 JSONL.
++
++The CSV is the gem5-side real trace (one row per propagation node). This
++adapter preserves its node identity, dyn_inst_seq, request id, address and
++detail fields, and emits the full v3.1 field set plus separate
++``propagation_edge`` records. Fields gem5 does not expose (replay generation,
++LQ/SQ entry generation, response id) are written as null, never guessed.
++"""
++from __future__ import annotations
++
++import argparse
++import csv
++import gzip
++import json
++import sys
++from pathlib import Path
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++from trace_writer import TraceWriter  # noqa: E402
++
++KIND_MAP = {
++    "inj": "injection",
++    "addr_form": "address_formed",
++    "mem_req": "memory_request",
++    "resp": "memory_response",
++    "taint_reg": "register_writeback",
++    "consumer": "consumer_commit",
++    "errant_commit": "errant_commit",
++    "funnel": "funnel",
++}
++UNIT_MAP = {
++    "inj": ("AGU", "injection"),
++    "addr_form": ("AGU", "effective_address"),
++    "mem_req": ("LSQ", "request"),
++    "resp": ("L1D", "response"),
++    "taint_reg": ("RF", "writeback"),
++    "consumer": ("Commit", "consumer"),
++    "errant_commit": ("Commit", "errant_commit"),
++    "funnel": ("Funnel", "counts"),
++}
++
++
++def _detail(text: str) -> dict[str, str]:
++    out = {}
++    for item in (text or "").split(";"):
++        if "=" in item:
++            key, value = item.split("=", 1)
++            out[key.strip()] = value.strip()
++    return out
++
++
++def _hex(value: str | None) -> str | None:
++    if not value:
++        return None
++    value = value.lower()
++    return value if value.startswith("0x") else "0x" + value
++
++
++def _int(value: str | None) -> int | None:
++    if value is None or value == "":
++        return None
++    try:
++        return int(value, 0)
++    except ValueError:
++        return None
++
++
++def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
++            sub_task_id: str, fault_id: str, fault_model_id: str,
++            run_status: str, activation: str, terminal: str,
++            completeness: str, terminal_reason: str | None = None,
++            no_summary: bool = False,
++            allow_truncated_complete: bool = False) -> dict:
++    rows = []
++    truncated = False
++    try:
++        with gzip.open(csv_path, "rt", encoding="utf-8", errors="replace") as fh:
++            for line in fh:
++                if line.startswith("#"):
++                    continue
++                if not line.strip():
++                    continue
++                rows.append(next(csv.reader([line])))
++    except (EOFError, OSError):
++        truncated = True
++
++    declared = "INCOMPLETE" if truncated and not allow_truncated_complete else completeness
++    if not no_summary and declared == "INCOMPLETE" and terminal == "MASKED":
++        raise SystemExit("REFUSE: incomplete trace cannot be MASKED")
++
++    w = TraceWriter(out_path, sample_run_id, run_id, sub_task_id,
++                    fault_id, fault_model_id)
++    last_by_ptag: dict[int, int] = {}
++    counts = {"events": 0, "edges": 0, "injections": 0, "activations": 0}
++    for row in rows:
++        if len(row) < 10:
++            continue
++        node_id, tick, ptag, kind, dyn_seq, req_id, addr, phys, arch, detail = row[:10]
++        ptag_i = int(ptag or 0)
++        kind = kind.strip()
++        d = _detail(detail)
++        old_addr = _hex(d.get("old_addr"))
++        new_addr = _hex(d.get("new_addr")) or _hex(addr)
++        injection_status = "NOT_APPLICABLE"
++        if kind == "inj":
++            injection_status = ("NO_CHANGE" if d.get("value_changed") == "0"
++                                else "INJECTED")
++        activation_status = "TRIGGERED" if ptag_i > 0 else "UNKNOWN"
++        commit_status = "COMMITTED" if kind in ("consumer", "errant_commit") else "UNKNOWN"
++        unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
++        eid = w.event(
++            KIND_MAP.get(kind, kind),
++            parent_event_id=last_by_ptag.get(ptag_i),
++            dyn_inst_seq=_int(dyn_seq),
++            timestamp=int(tick or 0),
++            unit=unit, sub_unit=sub_unit,
++            request_id=_int(req_id),
++            va=(_hex(addr) if kind in ("addr_form", "mem_req", "resp") else None),
++            old_value=old_addr,
++            new_value=new_addr,
++            injection_status=injection_status,
++            activation_status=activation_status,
++            commit_status=commit_status,
++            squash_status="UNKNOWN",
++            trace_completeness="COMPLETE" if declared == "COMPLETE" else "INCOMPLETE",
++            detail=detail,
++            source_node_id=int(node_id or 0),
++            ptag=ptag_i,
++        )
++        prev = last_by_ptag.get(ptag_i)
++        if prev is not None:
++            w.edge(prev, eid, edge_kind=kind,
++                   trace_completeness=("COMPLETE" if declared == "COMPLETE"
++                                       else "INCOMPLETE"))
++        last_by_ptag[ptag_i] = eid
++
++    if not no_summary and terminal == "CRASH":
++        # The simulator aborted before its normal trailer. Record the abort
++        # itself as the terminal event so the trace ends at the observed
++        # terminal state instead of silently stopping mid-chain.
++        w.event("simulator_abort", unit="Simulator", sub_unit="abort",
++                terminal_state="CRASH", commit_status="UNKNOWN",
++                squash_status="UNKNOWN", trace_completeness=declared,
++                detail=("gzip truncation observed" if truncated else
++                        "simulator abort after last completed node"))
++    if no_summary:
++        w.abort()
++        return {"rows": len(rows), "truncated": truncated, "summary": None}
++    summary = w.close(run_status=run_status, activation=activation,
++                      terminal=terminal, completeness=declared,
++                      terminal_state_reason=terminal_reason)
++    return {"rows": len(rows), "truncated": truncated, "summary": summary}
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("csv")
++    ap.add_argument("out")
++    ap.add_argument("--sample-run-id", required=True)
++    ap.add_argument("--run-id", required=True)
++    ap.add_argument("--sub-task-id", required=True)
++    ap.add_argument("--fault-id", required=True)
++    ap.add_argument("--fault-model-id", required=True)
++    ap.add_argument("--run-status", required=True)
++    ap.add_argument("--activation", required=True)
++    ap.add_argument("--terminal", required=True)
++    ap.add_argument("--completeness", required=True)
++    ap.add_argument("--terminal-reason", default=None)
++    ap.add_argument("--no-summary", action="store_true",
++                    help="write events/edges only when the trace is incomplete")
++    ap.add_argument("--allow-truncated-complete", action="store_true",
++                    help="accept a gzip-truncated stream when a terminal CRASH "
++                         "event is appended (abort is the terminal state)")
++    args = ap.parse_args(argv)
++    result = convert(
++        Path(args.csv), Path(args.out),
++        sample_run_id=args.sample_run_id, run_id=args.run_id,
++        sub_task_id=args.sub_task_id, fault_id=args.fault_id,
++        fault_model_id=args.fault_model_id, run_status=args.run_status,
++        activation=args.activation, terminal=args.terminal,
++        completeness=args.completeness, terminal_reason=args.terminal_reason,
++        no_summary=args.no_summary,
++        allow_truncated_complete=args.allow_truncated_complete)
++    print(json.dumps(result, ensure_ascii=False))
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+new file mode 100644
+index 00000000..87373f85
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+@@ -0,0 +1,80 @@
++"""Trace completeness checker.
++
++A trace is COMPLETE only when it validates, has exactly one summary, and the
++summary is internally consistent with the events (TRIGGERED requires an
++injection event).  An incomplete trace never reports a terminal MASKED state.
++"""
++from __future__ import annotations
++
++import json
++import sys
++from pathlib import Path
++
++from trace_validator import read_records, validate
++
++
++def check_completeness(path: Path) -> dict:
++    path = Path(path)
++    reasons: list[str] = []
++    errs = validate(path)
++    if errs:
++        reasons.append(f"validation failed: {len(errs)} error(s)")
++        reasons.extend(errs[:20])
++    records = [r for r in read_records(path) if "__parse_error__" not in r]
++    events = [r for r in records if r.get("record_type") == "event"]
++    edges = [r for r in records if r.get("record_type") == "propagation_edge"]
++    summaries = [r for r in records if r.get("record_type") == "summary"]
++
++    if len(summaries) != 1:
++        reasons.append(f"expected one summary, got {len(summaries)}")
++        summary = summaries[0] if summaries else {}
++    else:
++        summary = summaries[0]
++
++    injections = [e for e in events
++                  if e.get("injection_status") in ("INJECTED", "NO_CHANGE")
++                  or e.get("event_type") == "injection"]
++    activations = [e for e in events if e.get("activation_status") == "TRIGGERED"]
++    if summary.get("fault_activation_status") == "TRIGGERED" and not injections:
++        reasons.append("summary says TRIGGERED but no injection event exists")
++    if summary.get("fault_activation_status") == "TRIGGERED" and not activations:
++        reasons.append("summary says TRIGGERED but no activation event exists")
++
++    declared = summary.get("trace_completeness")
++    if declared == "INCOMPLETE":
++        reasons.append("summary declares INCOMPLETE")
++    terminal = summary.get("terminal_state")
++    if declared == "INCOMPLETE" and terminal == "MASKED":
++        reasons.append("incomplete trace declares MASKED (forbidden)")
++        terminal = None
++
++    trace_completeness = "COMPLETE" if not reasons and declared == "COMPLETE" else "INCOMPLETE"
++    if trace_completeness == "INCOMPLETE" and terminal == "MASKED":
++        reasons.append("downgraded: MASKED requires a complete trace")
++        terminal = None
++    return {
++        "trace": str(path),
++        "trace_completeness": trace_completeness,
++        "terminal_state": terminal,
++        "run_status": summary.get("run_status"),
++        "fault_activation_status": summary.get("fault_activation_status"),
++        "events": len(events),
++        "edges": len(edges),
++        "injections": len(injections),
++        "activations": len(activations),
++        "reasons": reasons,
++    }
++
++
++def main(argv: list[str] | None = None) -> int:
++    argv = list(sys.argv[1:] if argv is None else argv)
++    if len(argv) != 1:
++        print("usage: trace_completeness.py <trace.jsonl[.gz]>", file=sys.stderr)
++        return 2
++    report = check_completeness(Path(argv[0]))
++    print(json.dumps(report, ensure_ascii=False, indent=2))
++    return 0 if report["trace_completeness"] == "COMPLETE" else 1
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_schema.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_schema.py
+new file mode 100644
+index 00000000..f34d89d9
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_schema.py
+@@ -0,0 +1,60 @@
++"""Shared constants for Trace v3.1 records.
++
++The JSON Schema is the published contract; these tuples are the validator's
++stdlib implementation of the same contract (jsonschema is not a dependency of
++this repository).
++"""
++from __future__ import annotations
++
++import json
++from pathlib import Path
++
++TRACE_VERSION = "v3.1"
++SCHEMA_PATH = Path(__file__).resolve().parents[1] / "LSU_Trace_Schema_v3.2.json"
++
++RUN_STATUS = ("COMPLETED", "NO_ELIGIBLE_EVENT", "TIMEOUT", "SIMULATOR_ERROR")
++ACTIVATION = ("NOT_TRIGGERED", "TRIGGERED", "UNKNOWN")
++TERMINAL = ("MASKED", "SQUASHED", "DETECTED_CONTAINED",
++            "ARCH_STATE_CORRUPTION", "SDC", "CRASH", "HANG")
++COMPLETENESS = ("COMPLETE", "INCOMPLETE")
++INJECTION_STATUS = ("INJECTED", "NO_CHANGE", "DECLINED", "NOT_APPLICABLE")
++COMMIT_STATUS = ("NOT_COMMITTED", "COMMITTED", "SQUASHED", "UNKNOWN")
++SQUASH_STATUS = ("NONE", "SQUASHED", "UNKNOWN")
++
++EVENT_FIELDS = (
++    "record_type", "trace_version", "sample_run_id", "run_id", "sub_task_id",
++    "fault_id", "fault_model_id", "injection_event_id", "event_id",
++    "parent_event_id", "event_type", "unit", "sub_unit", "timestamp",
++    "dyn_inst_seq", "execution_attempt_id", "replay_generation", "commit_seq",
++    "source_event_id", "destination_event_id", "propagation_edge_id",
++    "producer_inst_seq", "consumer_inst_seq", "request_id", "response_id",
++    "fragment_id", "va", "pa", "lq_entry_id", "sq_entry_id",
++    "entry_generation", "old_value", "new_value", "injection_status",
++    "activation_status", "commit_status", "squash_status", "terminal_state",
++    "trace_completeness",
++)
++
++EDGE_FIELDS = (
++    "record_type", "trace_version", "event_type", "sample_run_id", "fault_id",
++    "fault_model_id", "propagation_edge_id", "source_event_id",
++    "destination_event_id", "producer_inst_seq", "consumer_inst_seq",
++    "edge_kind", "value_hash", "trace_completeness",
++)
++
++SUMMARY_FIELDS = (
++    "record_type", "trace_version", "sample_run_id", "fault_id",
++    "fault_model_id", "run_status", "fault_activation_status",
++    "terminal_state", "trace_completeness", "counts",
++)
++
++IDENTITY_FIELDS = ("sample_run_id", "run_id", "sub_task_id", "fault_id",
++                   "fault_model_id", "injection_event_id")
++
++
++def load_schema() -> dict:
++    return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
++
++
++def schema_required(kind: str) -> tuple[str, ...]:
++    defs = load_schema()["$defs"]
++    return tuple(defs[kind]["required"])
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_summary.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_summary.py
+new file mode 100644
+index 00000000..53e37362
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_summary.py
+@@ -0,0 +1,49 @@
++"""Summarize a Trace v3.1 JSONL file (counts + terminal dimensions)."""
++from __future__ import annotations
++
++import json
++import sys
++from collections import Counter
++from pathlib import Path
++
++from trace_completeness import check_completeness
++from trace_validator import read_records
++
++
++def summarize(path: Path) -> dict:
++    records = [r for r in read_records(path) if "__parse_error__" not in r]
++    events = [r for r in records if r.get("record_type") == "event"]
++    edges = [r for r in records if r.get("record_type") == "propagation_edge"]
++    summaries = [r for r in records if r.get("record_type") == "summary"]
++    summary = summaries[0] if len(summaries) == 1 else {}
++    completeness = check_completeness(path)
++    return {
++        "trace": str(path),
++        "events": len(events),
++        "edges": len(edges),
++        "event_types": dict(Counter(e.get("event_type") for e in events)),
++        "units": dict(Counter(e.get("unit") for e in events)),
++        "injection_status": dict(Counter(e.get("injection_status") for e in events)),
++        "commit_status": dict(Counter(e.get("commit_status") for e in events)),
++        "squash_status": dict(Counter(e.get("squash_status") for e in events)),
++        "summary": {
++            "run_status": summary.get("run_status"),
++            "fault_activation_status": summary.get("fault_activation_status"),
++            "terminal_state": summary.get("terminal_state"),
++            "trace_completeness": summary.get("trace_completeness"),
++        },
++        "completeness_check": completeness,
++    }
++
++
++def main(argv: list[str] | None = None) -> int:
++    argv = list(sys.argv[1:] if argv is None else argv)
++    if len(argv) != 1:
++        print("usage: trace_summary.py <trace.jsonl[.gz]>", file=sys.stderr)
++        return 2
++    print(json.dumps(summarize(Path(argv[0])), ensure_ascii=False, indent=2))
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+new file mode 100644
+index 00000000..89934675
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+@@ -0,0 +1,178 @@
++"""Stdlib validator for Trace v3.1 JSONL files.
++
++Checks the same required fields and enums as
++``LSU_Trace_Schema_v3.2.json`` plus cross-record integrity (unique event/edge
++ids, edge endpoints exist, exactly one trailing summary, consistent identity).
++"""
++from __future__ import annotations
++
++import gzip
++import json
++import sys
++from pathlib import Path
++from typing import Any
++
++from trace_schema import (
++    ACTIVATION, COMMIT_STATUS, COMPLETENESS, EDGE_FIELDS, EVENT_FIELDS,
++    INJECTION_STATUS, RUN_STATUS, SQUASH_STATUS, SUMMARY_FIELDS, TERMINAL,
++    TRACE_VERSION,
++)
++
++
++def read_records(path: Path) -> list[dict[str, Any]]:
++    path = Path(path)
++    opener = gzip.open if path.suffix == ".gz" else open
++    records: list[dict[str, Any]] = []
++    with opener(path, "rt", encoding="utf-8") as fh:
++        for line_no, line in enumerate(fh, 1):
++            if not line.strip():
++                continue
++            try:
++                rec = json.loads(line)
++            except json.JSONDecodeError as exc:
++                records.append({"__parse_error__": f"line {line_no}: {exc}"})
++                continue
++            rec["__line__"] = line_no
++            records.append(rec)
++    return records
++
++
++def validate_records(records: list[dict[str, Any]]) -> list[str]:
++    errs: list[str] = []
++    events: dict[int, dict[str, Any]] = {}
++    edge_ids: set[int] = set()
++    summaries: list[dict[str, Any]] = []
++    sample_ids: set[str] = set()
++
++    for rec in records:
++        line = rec.get("__line__", "?")
++        if "__parse_error__" in rec:
++            errs.append(rec["__parse_error__"])
++            continue
++        if rec.get("trace_version") != TRACE_VERSION:
++            errs.append(f"line {line}: trace_version must be {TRACE_VERSION!r}")
++        kind = rec.get("record_type")
++        if kind == "event":
++            missing = [k for k in EVENT_FIELDS if k not in rec]
++            if missing:
++                errs.append(f"line {line}: event missing fields {missing}")
++            eid = rec.get("event_id")
++            if not isinstance(eid, int) or eid < 1:
++                errs.append(f"line {line}: event_id must be a positive integer")
++            elif eid in events:
++                errs.append(f"line {line}: duplicate event_id {eid}")
++            else:
++                events[eid] = rec
++            for field_name, allowed in (
++                ("injection_status", INJECTION_STATUS),
++                ("activation_status", ACTIVATION),
++                ("commit_status", COMMIT_STATUS),
++                ("squash_status", SQUASH_STATUS),
++                ("trace_completeness", COMPLETENESS),
++            ):
++                value = rec.get(field_name)
++                if value not in allowed:
++                    errs.append(f"line {line}: {field_name}={value!r} not in {allowed}")
++            terminal = rec.get("terminal_state")
++            if terminal is not None and terminal not in TERMINAL:
++                errs.append(f"line {line}: terminal_state={terminal!r} not in {TERMINAL}")
++            for key in ("sample_run_id", "run_id", "sub_task_id", "fault_id",
++                        "fault_model_id", "event_type"):
++                if not isinstance(rec.get(key), str) or not rec.get(key):
++                    errs.append(f"line {line}: {key} must be a non-empty string")
++            if isinstance(rec.get("sample_run_id"), str):
++                sample_ids.add(rec["sample_run_id"])
++        elif kind == "propagation_edge":
++            missing = [k for k in EDGE_FIELDS if k not in rec]
++            if missing:
++                errs.append(f"line {line}: edge missing fields {missing}")
++            peid = rec.get("propagation_edge_id")
++            if not isinstance(peid, int) or peid < 1:
++                errs.append(f"line {line}: propagation_edge_id must be a positive integer")
++            elif peid in edge_ids:
++                errs.append(f"line {line}: duplicate propagation_edge_id {peid}")
++            else:
++                edge_ids.add(peid)
++            if rec.get("event_type") != "propagation_edge":
++                errs.append(f"line {line}: edge event_type must be 'propagation_edge'")
++            if rec.get("trace_completeness") not in COMPLETENESS:
++                errs.append(f"line {line}: bad edge trace_completeness")
++            if isinstance(rec.get("sample_run_id"), str):
++                sample_ids.add(rec["sample_run_id"])
++        elif kind == "summary":
++            missing = [k for k in SUMMARY_FIELDS if k not in rec]
++            if missing:
++                errs.append(f"line {line}: summary missing fields {missing}")
++            for field_name, allowed in (
++                ("run_status", RUN_STATUS),
++                ("fault_activation_status", ACTIVATION),
++                ("terminal_state", TERMINAL),
++                ("trace_completeness", COMPLETENESS),
++            ):
++                value = rec.get(field_name)
++                if value not in allowed:
++                    errs.append(f"line {line}: {field_name}={value!r} not in {allowed}")
++            if rec.get("trace_completeness") == "INCOMPLETE" and rec.get("terminal_state") == "MASKED":
++                errs.append(f"line {line}: incomplete trace cannot be MASKED")
++            counts = rec.get("counts")
++            if not isinstance(counts, dict) or not all(
++                    k in counts for k in ("events", "edges", "injections", "activations")):
++                errs.append(f"line {line}: summary counts must contain events/edges/injections/activations")
++            summaries.append(rec)
++            if isinstance(rec.get("sample_run_id"), str):
++                sample_ids.add(rec["sample_run_id"])
++        else:
++            errs.append(f"line {line}: unknown record_type {kind!r}")
++
++    # Two-pass endpoint and parent checks.
++    for rec in events.values():
++        parent = rec.get("parent_event_id")
++        if parent is not None and parent not in events:
++            errs.append(f"event {rec.get('event_id')}: parent_event_id {parent} does not exist")
++    for rec in records:
++        if rec.get("record_type") != "propagation_edge":
++            continue
++        for key in ("source_event_id", "destination_event_id"):
++            target = rec.get(key)
++            if target not in events:
++                errs.append(
++                    f"edge {rec.get('propagation_edge_id')}: {key}={target} is not an event")
++    if len(summaries) != 1:
++        errs.append(f"expected exactly one summary record, got {len(summaries)}")
++    elif records and summaries[0].get("__line__") != records[-1].get("__line__"):
++        errs.append("summary record must be the last line")
++    if len(sample_ids) > 1:
++        errs.append(f"trace mixes sample_run_id values: {sorted(sample_ids)}")
++    if summaries:
++        summary = summaries[0]
++        counts = summary.get("counts") or {}
++        if counts.get("events") != len(events):
++            errs.append(
++                f"summary events={counts.get('events')} but trace has {len(events)}")
++        if counts.get("edges") != len(edge_ids):
++            errs.append(
++                f"summary edges={counts.get('edges')} but trace has {len(edge_ids)}")
++    return errs
++
++
++def validate(path: Path) -> list[str]:
++    return validate_records(read_records(path))
++
++
++def main(argv: list[str] | None = None) -> int:
++    argv = list(sys.argv[1:] if argv is None else argv)
++    if len(argv) != 1:
++        print("usage: trace_validator.py <trace.jsonl[.gz]>", file=sys.stderr)
++        return 2
++    errs = validate(Path(argv[0]))
++    if errs:
++        print("INVALID")
++        for err in errs:
++            print(f"  {err}")
++        return 1
++    print("VALID")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_writer.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_writer.py
+new file mode 100644
+index 00000000..b72041c6
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_writer.py
+@@ -0,0 +1,204 @@
++"""Trace v3.1 JSONL writer.
++
++Every event record contains the full field set from
++``LSU_Trace_Schema_v3.2.json``; fields the microarchitecture cannot supply are
++written as JSON null rather than omitted or guessed.  Propagation is always a
++separate ``propagation_edge`` record.  The writer refuses to close a trace that
++would report ``MASKED`` with ``INCOMPLETE`` completeness.
++"""
++from __future__ import annotations
++
++import gzip
++import json
++from dataclasses import dataclass, field
++from pathlib import Path
++from typing import Any, TextIO
++
++from trace_schema import (
++    ACTIVATION, COMMIT_STATUS, COMPLETENESS, EDGE_FIELDS, EVENT_FIELDS,
++    INJECTION_STATUS, RUN_STATUS, SQUASH_STATUS, TERMINAL, TRACE_VERSION,
++)
++
++
++class TraceWriteError(ValueError):
++    pass
++
++
++@dataclass
++class TraceWriter:
++    path: Path
++    sample_run_id: str
++    run_id: str
++    sub_task_id: str
++    fault_id: str
++    fault_model_id: str
++    _event_id: int = 0
++    _edge_id: int = 0
++    _nodes: dict[int, dict[str, Any]] = field(default_factory=dict)
++    _counts: dict[str, int] = field(default_factory=lambda: {
++        "events": 0, "edges": 0, "injections": 0, "activations": 0})
++    _fh: TextIO | None = field(default=None, init=False, repr=False)
++    _closed: bool = field(default=False, init=False, repr=False)
++
++    def __post_init__(self) -> None:
++        self.path = Path(self.path)
++        self.path.parent.mkdir(parents=True, exist_ok=True)
++        if self.path.suffix == ".gz":
++            self._fh = gzip.open(self.path, "wt", encoding="utf-8", compresslevel=1)
++        else:
++            self._fh = self.path.open("w", encoding="utf-8")
++        for key in ("sample_run_id", "run_id", "sub_task_id", "fault_id", "fault_model_id"):
++            if not getattr(self, key):
++                raise TraceWriteError(f"{key} must be non-empty")
++
++    # -- writing ---------------------------------------------------------
++    def event(self, event_type: str, *, parent_event_id: int | None = None,
++              injection_event_id: int = 1, **fields: Any) -> int:
++        if self._closed or self._fh is None:
++            raise TraceWriteError("writer is closed")
++        self._event_id += 1
++        eid = self._event_id
++        rec: dict[str, Any] = {name: None for name in EVENT_FIELDS}
++        rec.update({
++            "record_type": "event",
++            "trace_version": TRACE_VERSION,
++            "sample_run_id": self.sample_run_id,
++            "run_id": self.run_id,
++            "sub_task_id": self.sub_task_id,
++            "fault_id": self.fault_id,
++            "fault_model_id": self.fault_model_id,
++            "injection_event_id": injection_event_id,
++            "event_id": eid,
++            "parent_event_id": parent_event_id,
++            "event_type": event_type,
++            "timestamp": 0,
++            "injection_status": "NOT_APPLICABLE",
++            "activation_status": "UNKNOWN",
++            "commit_status": "UNKNOWN",
++            "squash_status": "UNKNOWN",
++            "trace_completeness": "INCOMPLETE",
++        })
++        rec.update(fields)
++        self._validate_event(rec)
++        self._write(rec)
++        self._nodes[eid] = rec
++        self._counts["events"] += 1
++        if rec.get("injection_status") == "INJECTED" or event_type == "injection":
++            if rec.get("injection_status") in ("INJECTED", "NO_CHANGE") or event_type == "injection":
++                self._counts["injections"] += 1
++        if rec.get("activation_status") == "TRIGGERED":
++            self._counts["activations"] += 1
++        return eid
++
++    def edge(self, source_event_id: int, destination_event_id: int, *,
++             producer_inst_seq: int | None = None,
++             consumer_inst_seq: int | None = None,
++             edge_kind: str = "data", value_hash: str | None = None,
++             trace_completeness: str = "INCOMPLETE") -> int:
++        if self._closed or self._fh is None:
++            raise TraceWriteError("writer is closed")
++        if source_event_id not in self._nodes or destination_event_id not in self._nodes:
++            raise TraceWriteError(
++                f"orphan propagation edge: {source_event_id} -> {destination_event_id}")
++        self._edge_id += 1
++        src = self._nodes[source_event_id]
++        dst = self._nodes[destination_event_id]
++        rec = {name: None for name in EDGE_FIELDS}
++        rec.update({
++            "record_type": "propagation_edge",
++            "trace_version": TRACE_VERSION,
++            "event_type": "propagation_edge",
++            "sample_run_id": self.sample_run_id,
++            "fault_id": self.fault_id,
++            "fault_model_id": self.fault_model_id,
++            "propagation_edge_id": self._edge_id,
++            "source_event_id": source_event_id,
++            "destination_event_id": destination_event_id,
++            "producer_inst_seq": (producer_inst_seq if producer_inst_seq is not None
++                                  else src.get("dyn_inst_seq")),
++            "consumer_inst_seq": (consumer_inst_seq if consumer_inst_seq is not None
++                                  else dst.get("dyn_inst_seq")),
++            "edge_kind": edge_kind,
++            "value_hash": value_hash,
++            "trace_completeness": trace_completeness,
++        })
++        if trace_completeness not in COMPLETENESS:
++            raise TraceWriteError(f"bad edge trace_completeness {trace_completeness!r}")
++        self._write(rec)
++        self._counts["edges"] += 1
++        return self._edge_id
++
++    def close(self, *, run_status: str, activation: str, terminal: str,
++              completeness: str, terminal_state_reason: str | None = None) -> dict:
++        if self._closed or self._fh is None:
++            raise TraceWriteError("writer is already closed")
++        if run_status not in RUN_STATUS:
++            raise TraceWriteError(f"bad run_status {run_status!r}")
++        if activation not in ACTIVATION:
++            raise TraceWriteError(f"bad activation {activation!r}")
++        if terminal not in TERMINAL:
++            raise TraceWriteError(f"bad terminal state {terminal!r}")
++        if completeness not in COMPLETENESS:
++            raise TraceWriteError(f"bad completeness {completeness!r}")
++        if completeness == "INCOMPLETE" and terminal == "MASKED":
++            raise TraceWriteError(
++                "incomplete trace cannot be classified MASKED (v3.2 honesty rule)")
++        summary = {
++            "record_type": "summary",
++            "trace_version": TRACE_VERSION,
++            "sample_run_id": self.sample_run_id,
++            "fault_id": self.fault_id,
++            "fault_model_id": self.fault_model_id,
++            "run_status": run_status,
++            "fault_activation_status": activation,
++            "terminal_state": terminal,
++            "trace_completeness": completeness,
++            "terminal_state_reason": terminal_state_reason,
++            "counts": dict(self._counts),
++        }
++        self._write(summary)
++        self._fh.close()
++        self._closed = True
++        return summary
++
++    def abort(self) -> None:
++        """Close without a summary. Used only when the trace is known to be
++        incomplete; the validator and completeness checker then report the
++        missing summary instead of a fabricated terminal verdict."""
++        if not self._closed and self._fh is not None:
++            self._fh.close()
++            self._closed = True
++
++    def __enter__(self) -> "TraceWriter":
++        return self
++
++    def __exit__(self, exc_type, exc, tb) -> None:
++        if not self._closed and self._fh is not None:
++            self._fh.close()
++            self._closed = True
++
++    # -- helpers ---------------------------------------------------------
++    def _write(self, rec: dict[str, Any]) -> None:
++        assert self._fh is not None
++        self._fh.write(json.dumps(rec, ensure_ascii=False, separators=(",", ":")) + "\n")
++        self._fh.flush()
++
++    def _validate_event(self, rec: dict[str, Any]) -> None:
++        missing = [k for k in EVENT_FIELDS if k not in rec]
++        if missing:
++            raise TraceWriteError(f"event missing fields: {missing}")
++        if rec["record_type"] != "event":
++            raise TraceWriteError("record_type must be event")
++        if rec["trace_version"] != TRACE_VERSION:
++            raise TraceWriteError("trace_version must be v3.1")
++        for field_name, allowed in (
++            ("injection_status", INJECTION_STATUS),
++            ("activation_status", ACTIVATION),
++            ("commit_status", COMMIT_STATUS),
++            ("squash_status", SQUASH_STATUS),
++            ("trace_completeness", COMPLETENESS),
++        ):
++            if rec[field_name] not in allowed:
++                raise TraceWriteError(f"{field_name}={rec[field_name]!r} not in {allowed}")
++        if rec["terminal_state"] is not None and rec["terminal_state"] not in TERMINAL:
++            raise TraceWriteError(f"terminal_state={rec['terminal_state']!r} not in {TERMINAL}")
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/tools/build_v32_workbook.py b/docs/gem5-fi/lsu/implementation_v3_2/tools/build_v32_workbook.py
+new file mode 100644
+index 00000000..3bd95f6a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/tools/build_v32_workbook.py
+@@ -0,0 +1,231 @@
++#!/usr/bin/env python3
++"""Build the v3.2 workbook from the frozen v3.1 workbook.
++
++Only facts are written: real workload paths, real rebuilt-binary SHA256s,
++real golden oracles, and the actual Gate-1/Gate-2 status.  Formal samples are
++marked NOT_RUN; they are never marked READY or PASS.
++"""
++from __future__ import annotations
++
++import hashlib
++import shutil
++from pathlib import Path
++
++import openpyxl
++
++ROOT = Path(__file__).resolve().parents[5]
++IMPL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2"
++SRC = ROOT / "docs/gem5-fi/lsu/final_paper_audit_v3_1/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.1.xlsx"
++DST = IMPL / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.xlsx"
++WL = IMPL / "workloads"
++CONFIG = ROOT / "configs/se/lsu_proxy.py"
++
++MODEL_WORKLOAD = {
++    "A01": "agu_addrmodes", "A03": "agu_addrmodes",
++    "LQ04": "lq_lifetime",
++    "SQ01": "sq_drain", "SQ03": "sq_drain",
++    "LP01": "load_response",
++    "SP05": "store_path",
++    "FW02": "sq_forward",
++    "FW05": "alignment", "DA04": "alignment",
++    "MD04": "replay_dependency", "RP01": "replay_dependency",
++}
++W_NAMES = {
++    "W1": "agu_addrmodes", "W2": "lq_lifetime", "W3": "sq_drain",
++    "W4": "sq_forward", "W5": "load_response", "W6": "store_path",
++    "W7": "replay_dependency", "W8": "alignment",
++}
++PILOT_MODELS = {"A01", "A03", "FW02"}
++PILOT_STATUS = {
++    "A01": "PILOT_IMPLEMENTED_VERIFIED_F0 (pushRequest bit3 XOR, injected=1, MASKED)",
++    "A03": "PILOT_IMPLEMENTED_VERIFIED_F5_CRASH (146 applications, page-table CRASH)",
++    "FW02": "PILOT_IMPLEMENTED_VERIFIED_F6 (6 pairs observed, 1 suppression, MASKED)",
++}
++
++
++def sha(path: Path) -> str:
++    h = hashlib.sha256()
++    h.update(path.read_bytes())
++    return h.hexdigest()
++
++
++def golden(name: str) -> str:
++    text = (WL / f"{name}.golden").read_text(encoding="utf-8", errors="replace").strip()
++    if "checksum=0x" in text:
++        return text.split("checksum=0x")[-1].strip()
++    return text.removeprefix("0x").strip()
++
++
++def find_col(ws, name: str) -> int | None:
++    for c in range(1, ws.max_column + 1):
++        if str(ws.cell(1, c).value).strip() == name:
++            return c
++    return None
++
++
++def set_if(ws, row: int, col: int | None, value) -> None:
++    if col:
++        ws.cell(row, col).value = value
++
++
++def main() -> int:
++    wb = openpyxl.load_workbook(SRC)
++    ws5 = wb["5.60个样本执行矩阵"]
++    # Kill the legacy terminal columns: keep the v3.1 columns only.
++    for old, new in (("TerminalState", "TerminalState_LEGACY_DEPRECATED"),
++                     ("TraceCompleteness", "TraceCompleteness_LEGACY_DEPRECATED")):
++        c = find_col(ws5, old)
++        if c:
++            ws5.cell(1, c).value = new
++            for r in range(2, ws5.max_row + 1):
++                ws5.cell(r, c).value = None
++
++    hdr = {str(ws5.cell(1, c).value): c for c in range(1, ws5.max_column + 1)}
++    for r in range(2, ws5.max_row + 1):
++        sid = ws5.cell(r, hdr["SampleRunID"]).value
++        if not sid:
++            continue
++        model = str(ws5.cell(r, hdr["FaultModelID"]).value)
++        wname = MODEL_WORKLOAD[model]
++        wpath = WL / wname
++        wo = wpath.with_suffix(".golden")
++        seed = ws5.cell(r, hdr["Seed"]).value
++        set_if(ws5, r, hdr.get("WorkloadPath"), str(wpath))
++        set_if(ws5, r, hdr.get("BinaryPath"), str(wpath))
++        set_if(ws5, r, hdr.get("BinarySHA256"), sha(wpath))
++        set_if(ws5, r, hdr.get("Oracle"), golden(wname))
++        set_if(ws5, r, hdr.get("ConfigScript"), str(CONFIG))
++        set_if(ws5, r, hdr.get("WarmUp"), 0)
++        set_if(ws5, r, hdr.get("ROI"), "full workload（至程序退出；A03 允许 CRASH 终止）")
++        set_if(ws5, r, hdr.get("Timeout"), 900)
++        set_if(ws5, r, hdr.get("OutputDir"),
++               str(IMPL / "runs" / str(sid)))
++        set_if(ws5, r, hdr.get("gem5Commit"),
++               "6f98088a7144d7f6fb22d985be3023ac5658e71b")
++        if model == "A01":
++            flags = ("--chaos_addrpath --agu_pre_mode a01_bit3_load "
++                     "--addrpath_lsu_tier F0 --addrpath_max_faults 1 "
++                     f"--addrpath_rng_seed {seed}")
++        elif model == "A03":
++            flags = ("--chaos_addrpath --agu_pre_mode a03_bit3_stuck0_load "
++                     "--addrpath_lsu_tier F5 --addrpath_max_faults 0 "
++                     f"--addrpath_rng_seed {seed}")
++        elif model == "FW02":
++            flags = ("--chaos_lsqfwd --lsq_struct_mode f6_fw02 "
++                     f"--max_faults 1 --rng_seed {seed}")
++        else:
++            flags = "BLOCKED: no executable hook yet"
++        if model in PILOT_MODELS:
++            full_cmd = (
++                f"{ROOT}/build/ARM/gem5.opt --outdir={IMPL}/runs/{sid} "
++                f"{CONFIG} --cmd={wpath} --cpu O3 --variant B0 "
++                f"--chaos_propagation --prop_trace_file prop_trace.csv.gz {flags}")
++        else:
++            full_cmd = "BLOCKED: no executable hook yet"
++        set_if(ws5, r, hdr.get("FullCommand"), full_cmd)
++        set_if(ws5, r, hdr.get("RequiredLogs"),
++               "stdout.log;stderr.log;stats.txt;config.ini;trace_v31.jsonl;oracle.log")
++        set_if(ws5, r, hdr.get("PreflightStatus"),
++               "PILOT_ONLY_NOT_FORMAL" if model in PILOT_MODELS else "BLOCKED_NO_HOOK")
++        set_if(ws5, r, hdr.get("ExecutionStatus"), "NOT_RUN")
++        set_if(ws5, r, hdr.get("RunStatus"), "NOT_RUN")
++        set_if(ws5, r, hdr.get("FaultActivationStatus"), "NOT_RUN")
++        set_if(ws5, r, hdr.get("TerminalState_v31"), "NOT_RUN")
++        set_if(ws5, r, hdr.get("TraceCompleteness_v31"), "NONE")
++        set_if(ws5, r, hdr.get("DecisionStatus"),
++               "PILOT_VERIFIED_FORMAL_NOT_RUN" if model in PILOT_MODELS else
++               "NEEDS_USER_DECISION")
++
++    # Model matrix.
++    ws3 = wb["3.最终12模型矩阵"]
++    h3 = {str(ws3.cell(1, c).value): c for c in range(1, ws3.max_column + 1)}
++    for r in range(2, ws3.max_row + 1):
++        model = str(ws3.cell(r, h3["ModelID"]).value)
++        if model not in MODEL_WORKLOAD:
++            continue
++        set_if(ws3, r, h3.get("WorkloadStatus"), "READY")
++        set_if(ws3, r, h3.get("WorkloadName"), W_NAMES[
++            {v: k for k, v in W_NAMES.items()}[MODEL_WORKLOAD[model]]])
++        if model in PILOT_MODELS:
++            set_if(ws3, r, h3.get("ImplementationStatus"), PILOT_STATUS[model])
++            set_if(ws3, r, h3.get("OverallStatus"),
++                   "PILOT_VERIFIED_WITH_CRASH_FORMAL_NOT_RUN" if model == "A03"
++                   else "PILOT_PASS_FORMAL_NOT_RUN")
++            notes = ws3.cell(r, h3["Notes"]).value or ""
++            ws3.cell(r, h3["Notes"]).value = (
++                f"{notes}；v3.2 Gate 2: {PILOT_STATUS[model]}")
++        else:
++            set_if(ws3, r, h3.get("OverallStatus"), "BLOCKED_GATE3_NOT_STARTED")
++
++    # Hook audit sheet.
++    ws4 = wb["4.源码Hook审计"]
++    h4 = {str(ws4.cell(1, c).value): c for c in range(1, ws4.max_column + 1)}
++    for r in range(2, ws4.max_row + 1):
++        model = str(ws4.cell(r, h4["ModelID"]).value)
++        if model in PILOT_MODELS:
++            set_if(ws4, r, h4.get("ImplementationStatus"), "IMPLEMENTED_VERIFIED")
++            existing = ws4.cell(r, h4["ExistingHook"]).value or ""
++            ws4.cell(r, h4["ExistingHook"]).value = (
++                f"{existing}；v3.2: {PILOT_STATUS[model]}")
++
++    # Workload baseline sheet.
++    ws6 = wb["6.工作负载及无故障基线"]
++    h6 = {str(ws6.cell(1, c).value): c for c in range(1, ws6.max_column + 1)}
++    for r in range(2, ws6.max_row + 1):
++        wid = str(ws6.cell(r, h6["WorkloadID"]).value)
++        if wid not in W_NAMES:
++            continue
++        name = W_NAMES[wid]
++        path = WL / name
++        set_if(ws6, r, h6.get("AbsolutePath"), str(path))
++        set_if(ws6, r, h6.get("Binary"), name)
++        set_if(ws6, r, h6.get("SHA256"), sha(path))
++        set_if(ws6, r, h6.get("Oracle"), golden(name))
++        set_if(ws6, r, h6.get("CurrentStatus"),
++               "BASELINE_PASS_2026-11-06" + ("_REBUILT_FIXED_OOB"
++                                             if wid in ("W6", "W8") else ""))
++        set_if(ws6, r, h6.get("Runnable"), "YES")
++        set_if(ws6, r, h6.get("NeedModify"), "NO")
++        set_if(ws6, r, h6.get("BaselineStatus"),
++               "PASS: exit0 + oracle PASS (branch gem5 b233a4cb)")
++
++    # Execution plan.
++    ws9 = wb["9.实验执行计划"]
++    for r in range(2, ws9.max_row + 1):
++        phase = str(ws9.cell(r, 1).value)
++        if phase.startswith("P0"):
++            ws9.cell(r, 6).value = "COMPLETE: W1-W8 baseline 8/8 pass (2026-11-06)"
++        elif phase.startswith("P1"):
++            ws9.cell(r, 6).value = ("PILOTS PASS 3/3: A01 F0 MASKED; "
++                                    "A03 F5 CRASH; FW02 F6 MASKED")
++        elif phase.startswith("P2"):
++            ws9.cell(r, 6).value = ("NOT_STARTED: Gate 4 requires Gates 1-3 "
++                                    "and researcher confirmation")
++
++    # v3.2 status sheet.
++    if "13.v3.2实施状态" in wb.sheetnames:
++        del wb["13.v3.2实施状态"]
++    ws13 = wb.create_sheet("13.v3.2实施状态")
++    rows = [
++        ["Item", "Status", "Evidence"],
++        ["Gate 1 common base", "PASS", "30/30 unit tests; config 60/12/5; Trace sample VALID/COMPLETE"],
++        ["Gate 2 workloads", "PASS", "W1-W8 8/8 exit0 + oracle PASS; W6/W8 OOB fixed and rebuilt"],
++        ["Gate 2 A01 F0", "PASS", "pushRequest bit3 XOR, injected=1, 12 events/10 edges, MASKED"],
++        ["Gate 2 A03 F5", "PASS (CRASH terminal)", "146 applications, 564 events/489 edges, page-table CRASH"],
++        ["Gate 2 FW02 F6", "PASS", "6 pairs, 1 suppression, 4 events/3 edges, MASKED"],
++        ["Gate 3 nine models", "NOT_STARTED", "LQ04/SQ01/SQ03/LP01/SP05/FW05/MD04/RP01/DA04"],
++        ["Gate 4 formal 60", "NOT_STARTED", "requires Gates 1-3 and researcher confirmation"],
++        ["Formal samples", "NOT_RUN", "this workbook preserves all 60 IDs and seeds; no result is claimed"],
++        ["Build", "CLEAN", "build/ARM/gem5.opt sha256 b233a4cbb1085887c1a8533a77a9fa0885dcb36aa34608f7a90245b7395eaabe"],
++        ["Branch", "lsu-platform-v3.2", "base 6f98088a7144d7f6fb22d985be3023ac5658e71b"],
++    ]
++    for row in rows:
++        ws13.append(row)
++
++    wb.save(DST)
++    print(f"WROTE {DST}")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/SHA256SUMS.txt b/docs/gem5-fi/lsu/implementation_v3_2/workloads/SHA256SUMS.txt
+new file mode 100644
+index 00000000..d1edfb45
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/SHA256SUMS.txt
+@@ -0,0 +1,26 @@
++90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b  agu_addrmodes
++132a84f7f21be052bc1f2c9baf1c12d5bd3462aae03b1d42778c94e69b0af297  sq_forward
++7c69fd27fabf406e00b5706469fabfa082be1dbe44ee2e8f49587e6839b0156d  lq_lifetime
++d423539c68ec2b4f788f206d92cfaac8be9fb9b3bc9d0799dcab3031867f188f  sq_drain
++3779e8ced41a07d798f78c97a1f5d10187c812a24a81b599c19ae68a0753e711  load_response
++906b3798adc618f388c1988389dd67140afeba6c706456fdeebdd524dc55fbcf  store_path
++ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4  replay_dependency
++89ff937a73a01708c5781385e9a9f9740254a456d4f07042b2b480c4677918c0  alignment
++26fd7f61c76fd89b54d000ec3f74cb335a379380c5b8ad71c79d663807107e3a  agu_addrmodes.c
++dd6f70a105443fcce315b078cc0eeb0e516bc27eccf5f4aee323cf2fc04f013a  alignment.c
++411919a1b150d65bebd34c91411a8edc1d9c41518d4b1a972c97d95b0d85651f  load_response.c
++a1d87a3a260a017a59a185642c2b14ef13f80a125bb9d11eb685ee9915bec73d  lq_lifetime.c
++b0a5073d86d72f6d809b8337d46976d4baa61294b6f04f912a94e0515f4d7421  replay_dependency.c
++23f93a3fb6041e3f901cb0e809374fdec4990495cead67f77a63c6fa8b7d0cc2  sq_drain.c
++af19ca80e7725b98df96d0f8373945b72a8f6551232b2c51962c5393422d4bab  sq_forward.c
++8b7076ddc3ff01b24c8ceea745983f2efab7273b7532bd478a4f0a1ca27e5016  store_path.c
++9dd9c083927e4cfd6e36c5e3a4a3f99c64f96818a827d7d1a0eb0a5007e9e369  _original_v31/alignment.c
++8d3971b44a7dbc3123eac5196e837a141031165c3721a103aedd8e207823f8de  _original_v31/store_path.c
++c0401caf124d7e3223b9d9fa5eb0223f4eec1642d4df59b6c8d027d1782aeb2c  agu_addrmodes.golden
++a516070549781b1f2760cbf952e0bb91d9ace02b34d752e55240de58b7270667  alignment.golden
++0e5c3c20ee5869566a7172c1823d790eecb418fec88662a0d7a0a3aa5090c71c  load_response.golden
++b41746b9b192e493a31f5c11bb6607ebc64ae29ff88ea5d970fa70b4f38cbbcd  lq_lifetime.golden
++db33bf135eb56276d17346dbf4daebb5ab195a2eaa594a6a6ba8501e0e5c5cfc  replay_dependency.golden
++b7e346d64bd6beab6a31d131aa5ac7067879689d7a209d5549478a7bdcafa473  sq_drain.golden
++668cacca3762804dcb1c00f0ddc96bb4f43d9b42ad2f2ebea3347457f1a63921  sq_forward.golden
++bdbdade6c0967ee83bfbd4c94d04ec2b35beb5430e331c2bf1ee6c47a9710da8  store_path.golden
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/WORKLOADS.md b/docs/gem5-fi/lsu/implementation_v3_2/workloads/WORKLOADS.md
+new file mode 100644
+index 00000000..54fdf9a1
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/WORKLOADS.md
+@@ -0,0 +1,41 @@
++# LSU v3.2 workload package
++
++All eight workloads compile with host `gcc -O2 -static` on aarch64 and were
++re-run under the branch-root `build/ARM/gem5.opt` (gem5 v25.1.0.1, source
++commit `6f98088a`) after any source change. Baselines and event proofs live in
++`../baselines/<name>/`.
++
++| ID | Workload | Source | Binary SHA256 | Golden | gem5 baseline | Target-event proof |
++|---|---|---|---|---|---|---|
++| W1 | AGU-AddrModes | `agu_addrmodes.c` | `90a19003…b49b` | `728e604ffcec539d` | exit 0, tick 19544525 | 6 `Read called` address formations + `Doing memory access` in `event_proof.log` |
++| W2 | LQ-Lifetime | `lq_lifetime.c` | `7c69fd27…156d` | `1624d44faff77183` | exit 0, tick 37983715 | 6232 `Inserting load`, 756 `Load Instruction … squashed` |
++| W3 | SQ-Drain | `sq_drain.c` | `d423539c…188f` | `ba3b3185e541ad03` | exit 0, tick 149995615 | 31092 `Writing back store` and 31092 `Completing store` |
++| W4 | SQ-Forward | `sq_forward.c` | `132a84f7…f297` | `1f4cbf14327717df` | exit 0, tick 19112940 | 6 `Forwarding from store`, 1 `Load-store forwarding mis-match` |
++| W5 | Load-Response | `load_response.c` | `3779e8ce…e711` | `99c106541150be0e` | exit 0, tick 55153560 | 18269 `Read called` + `Doing memory access` |
++| W6 | Store-Path (rebuilt) | `store_path.c` | `906b3798…fbcf` | `2543a2a60de01795` | exit 0, tick 92581720 | 10609 `Completing store`; guard-page probe: old SIGSEGV, fixed `NO_FAULT` |
++| W7 | Replay-Dependency | `replay_dependency.c` | `ca15390f…38f4` | `59fc61c040618747` | exit 0, tick 40653690 | 267 `forwLoads`, 5 `rescheduledLoads`, 7 `memOrderViolation`, 4 forwarding mis-match lines |
++| W8 | Alignment (rebuilt) | `alignment.c` | `89ff937a…18c0` | `3f89eab79392ce69` | exit 0, tick 34556445 | unaligned addresses `0x…0a..0x…0f` in `Read called`; guard-page probe old SIGSEGV, fixed `NO_FAULT` |
++
++## W6/W8 repair provenance
++
++Original files are preserved under `_original_v31/`. The guard-page probe
++(`tests/oob_probe.c`) places a `PROT_NONE` page immediately after a
++32 KiB/4 KiB object and reproduces the original final offsets:
++
++```
++probe_store_path.log:   exit 139 (SIGSEGV)
++probe_alignment.log:    exit 139 (SIGSEGV)
++probe_store_path_fixed.log:   exit 0, NO_FAULT
++probe_alignment_fixed.log:    exit 0, NO_FAULT
++```
++
++The fixed binaries and goldens above are the only valid post-fix baselines;
++the old binaries/goldens are not used.
++
++## Reproduction
++
++```bash
++./compile_<name>.sh          # gcc -O2 -static -o <name> <name>.c
++./run_<name>.sh              # host run + oracle_check.py
++../baselines/run_baselines.sh  # eight gem5 no-fault baselines
++```
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/_original_v31/alignment.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/_original_v31/alignment.c
+new file mode 100644
+index 00000000..0a379aeb
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/_original_v31/alignment.c
+@@ -0,0 +1,9 @@
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++static uint64_t fnv1a(const void*p,size_t n){const uint8_t*b=p;uint64_t h=1469598103934665603ULL;for(size_t i=0;i<n;i++){h^=b[i];h*=1099511628211ULL;}return h;}
++int main(void){static uint8_t a[4096]; memset(a,0xA5,sizeof a); uint64_t s=0;
++ for(int i=0;i<1024;i++){uint32_t v=(uint32_t)(i*2654435761u); memcpy(a+i*4+1,&v,4); asm volatile("" ::: "memory");}
++ for(int i=0;i<1024;i++){uint32_t v; memcpy(&v,a+i*4+1,4); s+=v;}
++ for(int i=0;i<64;i++){a[i*8+2]=0x3c; a[i*8+5]=0xc3;}
++ printf("checksum=0x%016llx\n",(unsigned long long)(s^fnv1a(a,sizeof a))); return 0;}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/_original_v31/store_path.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/_original_v31/store_path.c
+new file mode 100644
+index 00000000..d22c09cc
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/_original_v31/store_path.c
+@@ -0,0 +1,8 @@
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++static uint64_t fnv1a(const void *p,size_t n){const uint8_t*b=p;uint64_t h=1469598103934665603ULL;for(size_t i=0;i<n;i++){h^=b[i];h*=1099511628211ULL;}return h;}
++int main(void){static uint8_t a[32768]; memset(a,0,sizeof a);
++ for(int i=0;i<4096;i++){a[i]=(uint8_t)i; *(uint16_t*)(a+4096+i*2)=(uint16_t)(i*3); *(uint32_t*)(a+8192+i*4)=(uint32_t)i*7u; *(uint64_t*)(a+16384+i*4)=0x0123456789abcdefULL^(uint64_t)i;}
++ for(int i=0;i<4096;i+=4){a[i+1]^=0x5a; asm volatile("" ::: "memory");}
++ printf("checksum=0x%016llx\n",(unsigned long long)fnv1a(a,sizeof a)); return 0;}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes.c
+new file mode 100644
+index 00000000..a77ff629
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes.c
+@@ -0,0 +1,72 @@
++/* LSU 负载 W3 AGU-AddrModes (06-workloads r5):
++   覆盖 base+imm、base+index、LSL、UXTW/SXTW、pre/post-index、LDP/STP、
++   非对齐和页边界；每地址附软件 oracle。
++   用途：AGU 注入器(A01-A08)的定向验证负载。SE。
++   检测面：每种寻址模式产生确定值参与最终 FNV-1a 校验和。 */
++#include <unistd.h>
++#include <stdint.h>
++
++static void put_hex(unsigned long v){
++    char buf[16];
++    for (int i=15;i>=0;--i){ unsigned d = v & 0xf; buf[i]=d<10?'0'+d:'a'+d-10; v>>=4; }
++    write(1,buf,16); write(1,"\n",1);
++}
++
++static inline unsigned long fnv(unsigned long acc, unsigned long v){
++    acc ^= v; acc *= 0x100000001b3UL; return acc;
++}
++
++#define N 64
++static unsigned long array[N] __attribute__((aligned(4096)));
++static unsigned long output[N];
++
++int main(void)
++{
++    unsigned long acc = 0x42ee1ce4d4e55eedUL;
++    unsigned long base = (unsigned long)array;
++    unsigned i;
++
++    /* 初始化: 每个元素一个确定值 */
++    for (i = 0; i < N; ++i) array[i] = 0x1000UL + i * 0x0123456789ABCDEFUL;
++
++    /* 1. base+imm (immediate offset) */
++    for (i = 0; i < 8; ++i) acc = fnv(acc, *(unsigned long *)(base + i * 8));
++
++    /* 2. base+index (register offset) */
++    for (i = 0; i < 8; ++i) { unsigned long idx = i; acc = fnv(acc, *(unsigned long *)(base + idx * 8)); }
++
++    /* 3. LSL shifted register offset (base + (idx << 3)) */
++    for (i = 0; i < 8; ++i) { unsigned long idx = i; acc = fnv(acc, *(unsigned long *)(base + (idx << 3))); }
++
++    /* 4. UXTW (unsigned extend word: 32-bit index zero-extended) */
++    for (i = 0; i < 8; ++i) { uint32_t widx = (uint32_t)(i + 16); acc = fnv(acc, *(unsigned long *)(base + (unsigned long)widx * 8)); }
++
++    /* 5. SXTW (sign extend word — positive values here for determinism) */
++    for (i = 0; i < 8; ++i) { int32_t sidx = (int32_t)(i + 24); acc = fnv(acc, *(unsigned long *)(base + (long)sidx * 8)); }
++
++    /* 6. pre-index (LDUR with writeback: addr = base+off; base = base+off) */
++    { unsigned long *p = array; for (i = 0; i < 4; ++i) { acc = fnv(acc, *++p); } }
++
++    /* 7. post-index (LDR then base increment) */
++    { unsigned long *p = array; for (i = 0; i < 4; ++i) { acc = fnv(acc, *p++); } }
++
++    /* 8. LDP/STP (load/store pair — reads two consecutive values) */
++    for (i = 0; i < 8; i += 2) {
++        unsigned long a, b;
++        __asm__ volatile("ldp %0, %1, [%2]" : "=r"(a), "=r"(b) : "r"(base + i * 8));
++        acc = fnv(acc, a); acc = fnv(acc, b);
++    }
++
++    /* 9. non-aligned (byte load from odd offsets) */
++    { unsigned char *bp = (unsigned char *)array; for (i = 0; i < 16; ++i) acc = fnv(acc, bp[i * 3 + 1]); }
++
++    /* 10. page-boundary (last 8 bytes of the 4KiB-aligned page) */
++    acc = fnv(acc, *(unsigned long *)(base + 4096 - 8));
++
++    /* store side: write via different modes then read back */
++    for (i = 0; i < N; ++i) output[i] = array[i] ^ 0xDEADBEEFCAFEBABEUL;
++    for (i = 0; i < N; ++i) acc = fnv(acc, output[i]);
++
++    put_hex(acc);
++    return 0;
++}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes.golden
+new file mode 100644
+index 00000000..21ba6a83
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes.golden
+@@ -0,0 +1 @@
++728e604ffcec539d
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment.c
+new file mode 100644
+index 00000000..1cb19baf
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment.c
+@@ -0,0 +1,41 @@
++/* LSU workload W8 Alignment — rebuilt v3.2 (original preserved in
++   _original_v31/alignment.c).
++
++   The v3.1 original copied 4 bytes at a+i*4+1 for i=1023, i.e. bytes
++   4093..4096, one byte past the declared a[4096], and then read the same
++   byte. The loop bound is reduced to 1023 so the last access is bytes
++   4089..4092; the +1 offset keeps every access unaligned. */
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++
++static uint64_t fnv1a(const void *p, size_t n) {
++    const uint8_t *b = p;
++    uint64_t h = 1469598103934665603ULL;
++    for (size_t i = 0; i < n; i++) { h ^= b[i]; h *= 1099511628211ULL; }
++    return h;
++}
++
++int main(void) {
++    static uint8_t a[4096];
++    memset(a, 0xA5, sizeof a);
++    uint64_t s = 0;
++
++    /* 1023 unaligned 4-byte writes; last ends at a[4092]. */
++    for (int i = 0; i < 1023; i++) {
++        uint32_t v = (uint32_t)(i * 2654435761u);
++        memcpy(a + i * 4 + 1, &v, 4);
++        asm volatile("" ::: "memory");
++    }
++    /* The same in-bounds unaligned reads. */
++    for (int i = 0; i < 1023; i++) {
++        uint32_t v;
++        memcpy(&v, a + i * 4 + 1, 4);
++        s += v;
++    }
++    for (int i = 0; i < 64; i++) { a[i * 8 + 2] = 0x3c; a[i * 8 + 5] = 0xc3; }
++
++    printf("checksum=0x%016llx\n",
++           (unsigned long long)(s ^ fnv1a(a, sizeof a)));
++    return 0;
++}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment.golden
+new file mode 100644
+index 00000000..5a615278
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment.golden
+@@ -0,0 +1 @@
++checksum=0x3f89eab79392ce69
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_agu_addrmodes.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_agu_addrmodes.sh
+new file mode 100755
+index 00000000..d33b3c36
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_agu_addrmodes.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o agu_addrmodes agu_addrmodes.c
++sha256sum agu_addrmodes
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_alignment.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_alignment.sh
+new file mode 100755
+index 00000000..5bb389a4
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_alignment.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o alignment alignment.c
++sha256sum alignment
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_load_response.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_load_response.sh
+new file mode 100755
+index 00000000..ad73629a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_load_response.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o load_response load_response.c
++sha256sum load_response
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_lq_lifetime.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_lq_lifetime.sh
+new file mode 100755
+index 00000000..ea91c510
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_lq_lifetime.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o lq_lifetime lq_lifetime.c
++sha256sum lq_lifetime
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_replay_dependency.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_replay_dependency.sh
+new file mode 100755
+index 00000000..60b58320
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_replay_dependency.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o replay_dependency replay_dependency.c
++sha256sum replay_dependency
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_sq_drain.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_sq_drain.sh
+new file mode 100755
+index 00000000..190f2182
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_sq_drain.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o sq_drain sq_drain.c
++sha256sum sq_drain
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_sq_forward.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_sq_forward.sh
+new file mode 100755
+index 00000000..2feaf6a6
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_sq_forward.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o sq_forward sq_forward.c
++sha256sum sq_forward
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_store_path.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_store_path.sh
+new file mode 100755
+index 00000000..9fc8d754
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_store_path.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++gcc -O2 -static -o store_path store_path.c
++sha256sum store_path
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response.c
+new file mode 100644
+index 00000000..fb809faf
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response.c
+@@ -0,0 +1,7 @@
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++static uint64_t fnv1a(const void *p,size_t n){const uint8_t*b=p;uint64_t h=1469598103934665603ULL;for(size_t i=0;i<n;i++){h^=b[i];h*=1099511628211ULL;}return h;}
++int main(void){static volatile uint64_t a[2048]; for(int i=0;i<2048;i++) a[i]=(uint64_t)i*0x9e3779b97f4a7c15ULL;
++ uint64_t s=0; for(int r=0;r<128;r++){uint64_t x=a[(r*131)&2047]; uint64_t y=a[(r*197+7)&2047]; s+=x^y; asm volatile("" ::: "memory");}
++ printf("checksum=0x%016llx\n",(unsigned long long)(s^fnv1a((const void*)a,sizeof a))); return 0;}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response.golden
+new file mode 100644
+index 00000000..c7d94f8a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response.golden
+@@ -0,0 +1 @@
++99c106541150be0e
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime.c
+new file mode 100644
+index 00000000..cfb18b89
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime.c
+@@ -0,0 +1,10 @@
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++static uint64_t fnv1a(const void *p, size_t n){const uint8_t*b=p;uint64_t h=1469598103934665603ULL;for(size_t i=0;i<n;i++){h^=b[i];h*=1099511628211ULL;}return h;}
++int main(void){static volatile uint8_t a[4096]; static uint8_t guard[64]; uint64_t s=0;
++ for(int i=0;i<4096;i++) a[i]=(uint8_t)(i*7+3);
++ memset(guard,0xA5,sizeof guard);
++ for(int r=0;r<64;r++){int idx=(r*97+13)&4095; uint8_t v=a[idx]; uint8_t w=a[(idx+64)&4095]; s+=v*3u+w; if((r&7)==0) s^=0x9e3779b97f4a7c15ULL; asm volatile("" ::: "memory");}
++ for(int i=0;i<64;i++) if(guard[i]!=0xA5){printf("guard_fail=%d\n",i);return 2;}
++ printf("checksum=0x%016llx\n",(unsigned long long)(s^fnv1a(a,sizeof a))); return 0;}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime.golden
+new file mode 100644
+index 00000000..613026f1
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime.golden
+@@ -0,0 +1 @@
++1624d44faff77183
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/oracle_check.py b/docs/gem5-fi/lsu/implementation_v3_2/workloads/oracle_check.py
+new file mode 100755
+index 00000000..e181ad63
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/oracle_check.py
+@@ -0,0 +1,36 @@
++#!/usr/bin/env python3
++"""Compare a workload's frozen checksum with a captured stdout file.
++
++Accepts both `checksum=0x<hex>` (W2/W3/W5/W6/W7/W8) and a bare 16-hex line
++(W1 AGU-AddrModes and W4 SQ-Forward).
++"""
++import re
++import sys
++
++
++def find_checksum(text):
++    matches = re.findall(r"checksum=0x([0-9a-fA-F]+)", text)
++    if matches:
++        return matches[-1].lower()
++    bare = re.findall(r"^\s*([0-9a-fA-F]{16})\s*$", text, re.MULTILINE)
++    return bare[-1].lower() if bare else None
++
++
++def main():
++    if len(sys.argv) != 3:
++        print("usage: oracle_check.py <expected_checksum> <stdout_file>")
++        return 2
++    raw_expected = sys.argv[1].strip().lower()
++    expected = find_checksum(raw_expected) or raw_expected.removeprefix("0x")
++    text = open(sys.argv[2], encoding="utf-8", errors="replace").read()
++    got = find_checksum(text)
++    if got is None:
++        print("ORACLE_FAIL: no checksum line")
++        return 1
++    print(f"expected={expected} got={got}")
++    print("ORACLE_PASS" if got == expected else "ORACLE_FAIL")
++    return 0 if got == expected else 1
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency.c
+new file mode 100644
+index 00000000..c40e3e11
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency.c
+@@ -0,0 +1,7 @@
++#include <stdio.h>
++#include <stdint.h>
++static uint64_t fnv1a(const void*p,size_t n){const uint8_t*b=p;uint64_t h=1469598103934665603ULL;for(size_t i=0;i<n;i++){h^=b[i];h*=1099511628211ULL;}return h;}
++int main(void){static volatile uint64_t a[1024]; for(int i=0;i<1024;i++) a[i]=i;
++ uint64_t s=0; volatile uint64_t *p=a; uint64_t *q=(uint64_t*)(void*)p;
++ for(int r=0;r<256;r++){int idx=(r*37)&1023; q[idx]=r; asm volatile("" ::: "memory"); s+=p[idx];}
++ printf("checksum=0x%016llx\n",(unsigned long long)(s^fnv1a((const void*)a,sizeof a))); return 0;}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency.golden
+new file mode 100644
+index 00000000..089c4712
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency.golden
+@@ -0,0 +1 @@
++59fc61c040618747
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_agu_addrmodes.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_agu_addrmodes.sh
+new file mode 100755
+index 00000000..85dceb5f
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_agu_addrmodes.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="agu_addrmodes.host.out"
++./agu_addrmodes | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < agu_addrmodes.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_alignment.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_alignment.sh
+new file mode 100755
+index 00000000..865820b6
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_alignment.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="alignment.host.out"
++./alignment | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < alignment.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_load_response.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_load_response.sh
+new file mode 100755
+index 00000000..54359f62
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_load_response.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="load_response.host.out"
++./load_response | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < load_response.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_lq_lifetime.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_lq_lifetime.sh
+new file mode 100755
+index 00000000..149671c4
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_lq_lifetime.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="lq_lifetime.host.out"
++./lq_lifetime | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < lq_lifetime.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_replay_dependency.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_replay_dependency.sh
+new file mode 100755
+index 00000000..a24325bd
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_replay_dependency.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="replay_dependency.host.out"
++./replay_dependency | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < replay_dependency.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_sq_drain.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_sq_drain.sh
+new file mode 100755
+index 00000000..bf19e6a8
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_sq_drain.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="sq_drain.host.out"
++./sq_drain | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < sq_drain.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_sq_forward.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_sq_forward.sh
+new file mode 100755
+index 00000000..40c51063
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_sq_forward.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="sq_forward.host.out"
++./sq_forward | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < sq_forward.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_store_path.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_store_path.sh
+new file mode 100755
+index 00000000..24a7f169
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/run_store_path.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")"
++out="store_path.host.out"
++./store_path | tee "$out"
++python3 oracle_check.py "$(tr -d '[:space:]' < store_path.golden)" "$out"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_drain.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_drain.c
+new file mode 100644
+index 00000000..07077754
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_drain.c
+@@ -0,0 +1,8 @@
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++static uint64_t fnv1a(const void *p,size_t n){const uint8_t*b=p;uint64_t h=1469598103934665603ULL;for(size_t i=0;i<n;i++){h^=b[i];h*=1099511628211ULL;}return h;}
++int main(void){static uint8_t a[65536]; memset(a,0,sizeof a);
++ for(int i=0;i<8192;i++){a[i*8]=(uint8_t)i; a[i*8+1]=(uint8_t)(i>>3); *(uint32_t*)(a+i*8+4)=0x11223344u^(uint32_t)i;}
++ for(int i=0;i<8192;i+=2){a[i*8+3]=(uint8_t)(i*5); asm volatile("" ::: "memory");}
++ uint64_t h=fnv1a(a,sizeof a); printf("checksum=0x%016llx\n",(unsigned long long)h); return 0;}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_drain.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_drain.golden
+new file mode 100644
+index 00000000..c928f6b3
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_drain.golden
+@@ -0,0 +1 @@
++ba3b3185e541ad03
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward.c
+new file mode 100644
+index 00000000..d71adb8a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward.c
+@@ -0,0 +1,72 @@
++/* LSU 负载 W5 SQ-Forward (06-workloads r7):
++   同地址与部分重叠 store-to-load forwarding、不同字节掩码、
++   地址晚到/数据晚到、alias、replay。
++   用途：SQ 注入器(S01-S13)与 LQ 注入器(L01-L04)的定向验证负载。SE。
++   检测面：forwarding 路径的数据腐蚀 → 校验和变化（SDC）或崩溃。 */
++#include <unistd.h>
++#include <stdint.h>
++#include <string.h>
++
++static void put_hex(unsigned long v){
++    char buf[16];
++    for (int i=15;i>=0;--i){ unsigned d = v & 0xf; buf[i]=d<10?'0'+d:'a'+d-10; v>>=4; }
++    write(1,buf,16); write(1,"\n",1);
++}
++
++static inline unsigned long fnv(unsigned long acc, unsigned long v){
++    acc ^= v; acc *= 0x100000001b3UL; return acc;
++}
++
++#define N 32
++static unsigned long buf[N];
++
++int main(void)
++{
++    unsigned long acc = 0x5f1e4d7c9b0a8362UL;
++    unsigned i;
++
++    /* 1. full-overlap forwarding: store then immediately load same addr */
++    for (i = 0; i < N; ++i) {
++        buf[i] = 0xA000UL + i * 0x1111111111111111UL;
++        acc = fnv(acc, buf[i]);  /* load right after store = forward */
++    }
++
++    /* 2. partial-overlap forwarding: store 8B, load 4B at +2 */
++    for (i = 0; i < 8; ++i) {
++        buf[i] = 0xB000UL + i;
++        uint32_t *p = (uint32_t *)((char *)&buf[i] + 2);
++        acc = fnv(acc, *p);
++    }
++
++    /* 3. byte-mask forwarding: store 1 byte, then load full word */
++    { unsigned char *bp = (unsigned char *)buf;
++      for (i = 0; i < 16; ++i) { bp[i] = (unsigned char)(0xC0 + i); }
++      for (i = 0; i < 2; ++i) acc = fnv(acc, buf[i]); }
++
++    /* 4. alias: two stores to overlapping addresses, then load */
++    { buf[0] = 0xD111UL; buf[1] = 0xD222UL;
++      unsigned long *p = (unsigned long *)((char *)buf + 4);
++      *p = 0xD333UL;  /* overlaps buf[0] high half and buf[1] low half */
++      acc = fnv(acc, buf[0]); acc = fnv(acc, buf[1]); }
++
++    /* 5. store-to-load with dependency chain (prevents reordering) */
++    { unsigned long prev = 0xE000UL;
++      for (i = 0; i < 8; ++i) {
++          buf[i] = prev + i;
++          prev = buf[i];
++          acc = fnv(acc, prev);
++      } }
++
++    /* 6. interleaved store/load pairs (exercises SQ draining) */
++    for (i = 0; i < N/2; ++i) {
++        buf[i] = buf[i + N/2] = 0xF000UL + i;
++        acc = fnv(acc, buf[i]);
++    }
++
++    /* 7. memset+memcmp pattern (bulk store then bulk load) */
++    memset(buf, 0x5A, sizeof(buf));
++    for (i = 0; i < N; ++i) acc = fnv(acc, buf[i]);
++
++    put_hex(acc);
++    return 0;
++}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward.golden
+new file mode 100644
+index 00000000..d202bcb2
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward.golden
+@@ -0,0 +1 @@
++1f4cbf14327717df
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/store_path.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/store_path.c
+new file mode 100644
+index 00000000..d5347d99
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/store_path.c
+@@ -0,0 +1,55 @@
++/* LSU workload W6 Store-Path — rebuilt v3.2 (original preserved in
++   _original_v31/store_path.c).
++
++   The v3.1 original wrote an 8-byte value at a+16384+i*4 for i=4095
++   (end 32772 > sizeof(a)=32768), used misaligned raw pointer stores, and
++   overlapped the 16/32/64-bit regions. This rebuild keeps the same target
++   (a stream of stores through the SQ/L1D path) while making every region
++   non-overlapping and in-bounds and every width store go through memcpy,
++   which is defined for unaligned addresses. Region starts are deliberately
++   odd so the store stream still exercises unaligned addresses. */
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++
++static uint64_t fnv1a(const void *p, size_t n) {
++    const uint8_t *b = p;
++    uint64_t h = 1469598103934665603ULL;
++    for (size_t i = 0; i < n; i++) { h ^= b[i]; h *= 1099511628211ULL; }
++    return h;
++}
++
++int main(void) {
++    static uint8_t a[32768];
++    memset(a, 0, sizeof a);
++
++    /* Region A: 4096 byte stores [0, 4096). */
++    for (int i = 0; i < 4096; i++) a[i] = (uint8_t)i;
++
++    /* Region B: 4096 unaligned 16-bit stores [4097, 12289). */
++    for (int i = 0; i < 4096; i++) {
++        uint16_t v = (uint16_t)(i * 3);
++        memcpy(a + 4097 + i * 2, &v, sizeof v);
++    }
++
++    /* Region C: 2048 unaligned 32-bit stores [12291, 20483). */
++    for (int i = 0; i < 2048; i++) {
++        uint32_t v = (uint32_t)i * 7u;
++        memcpy(a + 12291 + i * 4, &v, sizeof v);
++    }
++
++    /* Region D: 1024 unaligned 64-bit stores [20483, 28675). */
++    for (int i = 0; i < 1024; i++) {
++        uint64_t v = 0x0123456789abcdefULL ^ (uint64_t)i;
++        memcpy(a + 20483 + i * 8, &v, sizeof v);
++    }
++
++    /* Region E: 4093 byte stores [28675, 32768) — ends exactly at the end. */
++    for (int i = 0; i < 4093; i++) a[28675 + i] = (uint8_t)(i ^ 0x5a);
++
++    /* Same-width byte update, no cross-width overlap. */
++    for (int i = 0; i < 4096; i += 4) a[i + 1] ^= 0x5a;
++
++    printf("checksum=0x%016llx\n", (unsigned long long)fnv1a(a, sizeof a));
++    return 0;
++}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/store_path.golden b/docs/gem5-fi/lsu/implementation_v3_2/workloads/store_path.golden
+new file mode 100644
+index 00000000..91846ca7
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/store_path.golden
+@@ -0,0 +1 @@
++checksum=0x2543a2a60de01795
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/tests/oob_probe.c b/docs/gem5-fi/lsu/implementation_v3_2/workloads/tests/oob_probe.c
+new file mode 100644
+index 00000000..fa2d349b
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/tests/oob_probe.c
+@@ -0,0 +1,61 @@
++/* Diagnostic guard-page probe for the W6/W8 tail overflows.
++ * Not a workload. It reproduces the exact final offset of each original
++ * source on an mmap'd object whose next page is PROT_NONE. A SIGSEGV proves
++ * the access leaves the declared array. */
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/mman.h>
++#include <unistd.h>
++
++static void *guarded(size_t n) {
++    long ps = sysconf(_SC_PAGESIZE);
++    size_t body = ((n + (size_t)ps - 1) / (size_t)ps) * (size_t)ps;
++    uint8_t *base = mmap(NULL, body + (size_t)ps, PROT_READ | PROT_WRITE,
++                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++    if (base == MAP_FAILED) { perror("mmap"); exit(2); }
++    if (mprotect(base + body, (size_t)ps, PROT_NONE) != 0) { perror("mprotect"); exit(2); }
++    return base + body - n;   /* object ends exactly at the guard page */
++}
++
++int main(int argc, char **argv) {
++    if (argc != 2) { fprintf(stderr, "usage: %s store_path|alignment\n", argv[0]); return 2; }
++    if (strcmp(argv[1], "store_path") == 0) {
++        volatile uint8_t *a = guarded(32768);
++        for (int i = 0; i < 4096; i++) {
++            *(volatile uint64_t *)(a + 16384 + i * 4) = 1;  /* original W6 tail */
++        }
++    } else if (strcmp(argv[1], "alignment") == 0) {
++        volatile uint8_t *a = guarded(4096);
++        for (int i = 0; i < 1024; i++) {
++            uint32_t v = (uint32_t)i;
++            memcpy((void *)(a + i * 4 + 1), &v, 4);           /* original W8 tail */
++        }
++    } else if (strcmp(argv[1], "store_path_fixed") == 0) {
++        volatile uint8_t *a = guarded(32768);
++        for (int i = 0; i < 4096; i++) {
++            uint16_t v = (uint16_t)i;
++            memcpy((void *)(a + 4097 + i * 2), &v, 2);
++        }
++        for (int i = 0; i < 2048; i++) {
++            uint32_t v = (uint32_t)i;
++            memcpy((void *)(a + 12291 + i * 4), &v, 4);
++        }
++        for (int i = 0; i < 1024; i++) {
++            uint64_t v = (uint64_t)i;
++            memcpy((void *)(a + 20483 + i * 8), &v, 8);
++        }
++        for (int i = 0; i < 4093; i++) a[28675 + i] = (uint8_t)i;
++    } else if (strcmp(argv[1], "alignment_fixed") == 0) {
++        volatile uint8_t *a = guarded(4096);
++        for (int i = 0; i < 1023; i++) {
++            uint32_t v = (uint32_t)i;
++            memcpy((void *)(a + i * 4 + 1), &v, 4);
++        }
++    } else {
++        return 2;
++    }
++    printf("NO_FAULT\n");
++    return 0;
++}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/workloads/tests/run_oob_probe.sh b/docs/gem5-fi/lsu/implementation_v3_2/workloads/tests/run_oob_probe.sh
+new file mode 100644
+index 00000000..61de9d66
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/workloads/tests/run_oob_probe.sh
+@@ -0,0 +1,11 @@
++#!/usr/bin/env bash
++# Rebuild and run the W6/W8 guard-page probe against original and fixed offsets.
++set -uo pipefail
++cd "$(dirname "$0")"
++gcc -O0 -g -o oob_probe oob_probe.c || exit 2
++LOG=../../logs
++mkdir -p "$LOG"
++for mode in store_path alignment store_path_fixed alignment_fixed; do
++  ./oob_probe "$mode" > "$LOG/probe_${mode}.log" 2>&1
++  echo "$mode exit=$?"
++done
