@@ -1,0 +1,88 @@
+{
+  "pilot_id": "PILOT-FW02-R03",
+  "model": "FW02",
+  "seed": 1336081385,
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/sweep/FW02-R03",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_lsqfwd",
+    "--lsq_struct_mode",
+    "f6_fw02",
+    "--max_faults",
+    "1",
+    "--rng_seed",
+    "1336081385",
+    "--lsqfwd_event_ordinal",
+    "3"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.678,
+  "oracle_expected": "1f4cbf14327717df",
+  "oracle_pass": true,
+  "injection": {
+    "observed": 6,
+    "suppressed": 1,
+    "load_seq": 10011,
+    "store_seq": 10008
+  },
+  "injection_count": 1,
+  "target_event_proof": {
+    "site": "store->load_forward_decision",
+    "observed": 6,
+    "suppressed": 1,
+    "load_seq": 10011,
+    "store_seq": 10008
+  },
+  "trace": {
+    "csv_rows": 7477,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/sweep/FW02-R03/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "COMPLETE",
+      "propagation_stages": [
+        "injection",
+        "address_formed",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision"
+      ],
+      "terminal_state": "MASKED",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "events": 6862,
+      "edges": 620,
+      "injections": 1,
+      "activations": 621,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "terminal_state": "MASKED",
+    "terminal_state_reason": null,
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle_outcome": "PASS"
+  },
+  "accepted": true,
+  "crash_evidence": null
+}

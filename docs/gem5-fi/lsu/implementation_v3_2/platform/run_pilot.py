@@ -186,6 +186,7 @@ def main(argv=None) -> int:
 
     crash_by_fault = False
     crash_evidence = None
+    events = []  # A01/A03 address-path events; empty for FW02
     if proc.returncode != 0 and args.model in ("A01", "A03", "FW02") and injected > 0:
         err = proc.stderr.lower()
         if "page table fault" in err:
@@ -306,6 +307,7 @@ def main(argv=None) -> int:
         "oracle_expected": expected,
         "oracle_pass": oracle_pass,
         "injection": inj,
+        "injection_count": injected,
         "target_event_proof": target_proof,
         "trace": {
             "csv_rows": converted.get("rows"),

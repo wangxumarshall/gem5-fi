@@ -42,7 +42,7 @@ null stays null; never infer Masked from an incomplete trace.
 
 ## Task 2 — LQ/SQ lifecycle events (Trace defect 4)
 
-**Files:** `lsq_unit.{hh,cc}`, `CHAOSPropagation.{hh,cc}`, converter.
+**Files:** `lsq_unit.{hh,cc}`, `CHAOSPropagation.{hh,cc}`, converter, `run_pilot.py`, `run_context_sweep.py`.
 
 - [x] alloc on insert, reuse when an index is re-allocated, free on commit/squash
       (`LQ`: commitLoad/squash, `SQ`: completeStore/squash), real index+generation.
@@ -75,11 +75,11 @@ null stays null; never infer Masked from an incomplete trace.
 
 **Files:** new `platform/run_context_sweep.py`.
 
-- [ ] Runs A01/A03/FW02 × R01–R05, writes per-context dirs and a 15-entry
+- [x] Runs A01/A03/FW02 × R01–R05, writes per-context dirs and a 15-entry
       `context_sweep_summary.json`; failed contexts are entries, not omissions.
-- [ ] Includes accepted, run/activation/terminal + reason, injection funnel,
+- [x] Includes accepted, run/activation/terminal + reason, injection funnel,
       record integrity, coverage, oracle, trace counts.
-- [ ] Run all 15 on the rebuilt binary.
+- [x] Run all 15 on the rebuilt binary.
 
 ## Task 6 — FW02 closure (defect 6, Phase 2)
 
@@ -88,7 +88,7 @@ null stays null; never infer Masked from an incomplete trace.
 - [ ] FW02 unit=`FWD`, sub_unit=`Store-to-Load Forwarding` (Excel model matrix).
 - [ ] Fault-tracked loads emit a real `commit` node from `commit.cc`; the
       forwarding row keeps store/load seq, store data, decision, memory path.
-- [ ] Diagnose R02 (no injection) and R03 (INVALID/PARTIAL) with real logs; fix
+- [x] Diagnose R02 (no injection) and R03 (INVALID/PARTIAL) with real logs; fix
       the cause or keep the failure with the exact reason.
 - [ ] Re-run R01–R05; all five present in the sweep with explicit results.
 
