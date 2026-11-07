@@ -20,3 +20,8 @@ UNIT_TESTED / PILOT_RUN / PROPAGATION_VERIFIED.
 
 Implementation order remains: SQ01 (done) -> DA04 (done) -> LP01 (started)
 -> MD04 -> FW05 -> SQ03 -> SP05 -> LQ04 -> RP01.
+
+**v3.2.5 pointer (2026-11-08):** LP01 now has five W5 pilots and a complete
+injection→response→writeback→consumer→commit chain (all MASKED). The v3.2.4
+DA04 R04/R05 SDC verdicts are **retracted** under request-time causality.
+See `LSU_v3.2.5_Status_Report.md` and `MODEL_STATUS_MATRIX.csv`.
