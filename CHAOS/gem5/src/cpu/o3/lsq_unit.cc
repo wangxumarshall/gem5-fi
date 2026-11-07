@@ -1838,6 +1838,21 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
         !request->req()->isAtomic())
         memcpy(storeQueue[store_idx].data(), data, size);
 
+    // SQ01 (LSU v3.2.3): corrupt the SQ entry's byte0 after the copy, before
+    // forwarding/writeback can consume it. Data-only: the entry, request and
+    // all SQ state stay intact.
+    if (cpu->lsqFwd && !(request->req()->getFlags() & Request::CACHE_BLOCK_ZERO)
+            && !request->req()->isCacheMaintenance()
+            && !request->req()->isAtomic()) {
+        const DynInstPtr &store_inst = storeQueue[store_idx].instruction();
+        if (store_inst) {
+            cpu->lsqFwd->maybeCorruptStoreData(
+                reinterpret_cast<uint8_t *>(storeQueue[store_idx].data()),
+                size, store_inst->seqNum, store_inst->sqIdx,
+                store_inst->sqEntryGeneration);
+        }
+    }
+
     // This function only writes the data to the store queue, so no fault
     // can happen here.
     return NoFault;

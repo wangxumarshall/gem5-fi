@@ -255,7 +255,8 @@ p.add_argument("--lsq_byte_offset", type=int, default=-1)
 # as Crash => the committed "§2.4 LSQFwd 100% DUE" result is INVALID).
 p.add_argument("--lsq_struct_mode", default="byte_flip",
                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
-                        "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02"])
+                        "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02",
+                        "sq01_bit3"])
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
 p.add_argument("--lsqfwd_lsu_tier", default="off",

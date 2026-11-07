@@ -39,9 +39,12 @@ CONFIG = ROOT / "configs/se/lsu_proxy.py"
 WORKLOADS = IMPL / "workloads"
 
 
+LOAD_SIDE_MODELS = ("A01", "A03", "FW02")
+
+
 def _workload_for(model: str) -> str:
     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
-            "FW02": "sq_forward"}[model]
+            "FW02": "sq_forward", "SQ01": "sq_drain"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -74,6 +77,24 @@ def _fw02_summary(path: Path) -> dict:
     return {"observed": len(lines), "suppressed": len(lines),
             "load_seq": int(mm[1]) if mm else None,
             "store_seq": int(mm[2]) if mm else None}
+
+
+def _sq01_summary(path: Path) -> dict:
+    events = []
+    if not path.exists():
+        return {"events": events, "injected": 0}
+    pattern = re.compile(
+        r"seq:\s*(\d+).*sq_idx:\s*(\d+).*entry_generation:\s*(\d+)"
+        r".*old_byte0:\s*0x([0-9a-fA-F]+).*new_byte0:\s*0x([0-9a-fA-F]+)")
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "Site: lsq_write_sq_entry" not in line:
+            continue
+        m = pattern.search(line)
+        if m:
+            events.append({"seq": int(m[1]), "idx": int(m[2]),
+                           "gen": int(m[3]), "old": int(m[4], 16),
+                           "new": int(m[5], 16)})
+    return {"events": events, "injected": len(events)}
 
 
 def _addrpath_events(path: Path) -> list[dict]:
@@ -141,7 +162,7 @@ def _terminal_evidence(events: list[dict], pt_fault_addr: str | None,
 
 
 def _fault_causality(events: list[dict], terminal: str,
-                     pt_fault_addr: str | None) -> str:
+                     pt_fault_addr: str | None, model: str = "A01") -> str:
     """Relation between the injected fault and the observed terminal.
 
     This is deliberately weaker than the terminal itself: a crash that happens
@@ -162,6 +183,14 @@ def _fault_causality(events: list[dict], terminal: str,
             return "INDIRECT_EVIDENCE"
         return "TEMPORAL_ASSOCIATION_ONLY"
     if terminal in ("MASKED", "SDC"):
+        if model == "SQ01":
+            if any(e.get("event_type") == "sq_lifecycle"
+                   and e.get("dyn_inst_seq") == seq
+                   and ("reason=complete" in (e.get("detail") or "")
+                        or "reason=commit" in (e.get("detail") or ""))
+                   for e in events):
+                return "DIRECT_DATAFLOW_EVIDENCE"
+            return "INDIRECT_EVIDENCE"
         if any(e.get("event_type") in ("memory_response", "register_writeback")
                for e in events):
             return "DIRECT_DATAFLOW_EVIDENCE"
@@ -171,7 +200,8 @@ def _fault_causality(events: list[dict], terminal: str,
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--model", required=True, choices=["A01", "A03", "FW02"])
+    ap.add_argument("--model", required=True,
+                    choices=["A01", "A03", "FW02", "SQ01"])
     ap.add_argument("--pilot-id", required=True)
     ap.add_argument("--seed", type=int, default=None,
                     help="override seed; default = the selected Excel context row")
@@ -214,6 +244,12 @@ def main(argv=None) -> int:
                  "--addrpath_warmup_events", "0",
                  "--addrpath_rng_seed", str(args.seed),
                  "--addrpath_event_ordinal", str(sample.get("event_ordinal") or 1)]
+    elif args.model == "SQ01":
+        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sq01_bit3",
+                 "--lsqfwd_lsu_tier", "F0",
+                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
     else:
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
@@ -241,6 +277,12 @@ def main(argv=None) -> int:
     (out / "stderr.log").write_text(proc.stderr)
 
     expected = str(sample.get("oracle"))
+    oracle_source = "excel"
+    if expected.strip().upper() in ("N/A", "NONE", "", "NAN"):
+        golden = WORKLOADS / f"{_workload_for(args.model)}.golden"
+        if golden.exists():
+            expected = golden.read_text().strip()
+            oracle_source = "workload_golden"
     oracle = subprocess.run(
         [sys.executable, str(WORKLOADS / "oracle_check.py"), expected,
          str(out / "stdout.log")], capture_output=True, text=True)
@@ -259,6 +301,16 @@ def main(argv=None) -> int:
                  else e["new"] == (e["old"] & ~0x8)) for e in events),
         }
         injected = inj.get("injected", 0)
+    elif args.model == "SQ01":
+        inj = _sq01_summary(out / "lsq_fwd_injections.log")
+        events = inj.get("events", [])
+        target_proof = {
+            "site": "lsq_write_sq_entry",
+            "events": len(events),
+            "all_store_bit3": all(e["new"] == (e["old"] ^ 0x08)
+                                  for e in events),
+        }
+        injected = len(events)
     else:
         inj = _fw02_summary(out / "lsq_fwd_injections.log")
         target_proof = {"site": "store->load_forward_decision", **inj}
@@ -330,9 +382,11 @@ def main(argv=None) -> int:
         and e.get("new_value") not in (None, "")
         for e in trace_events
     )
-    if final_terminal == "MASKED" and not has_data_value:
+    if (final_terminal == "MASKED" and not has_data_value
+            and args.model in LOAD_SIDE_MODELS):
         # A target instruction squashed before its response/writeback is a real
-        # SQUASHED terminal, not an unresolved run.
+        # SQUASHED terminal, not an unresolved run. Store-side models have no
+        # load response/writeback, so the rule is load-side only.
         final_terminal, terminal_reason = _decide_masked_terminal(trace_events)
     if final_terminal == "UNRESOLVED" and crash_by_fault:
         final_terminal = "CRASH"
@@ -345,7 +399,8 @@ def main(argv=None) -> int:
         crash_evidence += ("_address_match" if evidence["address_match"]
                            else "_no_address_match")
         terminal_reason = crash_evidence
-    fault_causality = _fault_causality(trace_events, final_terminal, pt_fault_addr)
+    fault_causality = _fault_causality(trace_events, final_terminal,
+                                       pt_fault_addr, args.model)
 
     # Close the trace with the adjudicated verdict and the structured evidence,
     # so JSONL, pilot_meta and the sweep carry the same fields.
@@ -386,6 +441,7 @@ def main(argv=None) -> int:
         "exit_code": proc.returncode,
         "elapsed_seconds": round(elapsed, 3),
         "oracle_expected": expected,
+        "oracle_source": oracle_source,
         "oracle_pass": oracle_pass,
         "injection": inj,
         "injection_count": injected,

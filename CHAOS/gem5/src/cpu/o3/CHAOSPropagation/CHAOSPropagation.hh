@@ -189,6 +189,13 @@ class CHAOSPropagation : public SimObject
                       const char *mode, uint64_t execution_attempt_id,
                       uint64_t replay_generation);
 
+    // SQ01: store data was corrupted after it entered the SQ entry. The node is
+    // a real injection with the SQ index, generation and both bytes; the store
+    // is also registered for its real commit node.
+    void noteStoreDataInjection(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
+                                uint8_t old_byte, uint8_t new_byte,
+                                const char *mode);
+
     // Real LQ/SQ entry lifecycle (alloc/reuse/free), from the circular queue
     // insert/commit/squash sites.
     void noteLQLifecycle(uint64_t dyn_seq, uint64_t idx, uint64_t gen,

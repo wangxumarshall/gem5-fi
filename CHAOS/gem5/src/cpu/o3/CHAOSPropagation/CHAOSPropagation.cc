@@ -397,6 +397,26 @@ namespace gem5
     }
 
     void
+    CHAOSPropagation::noteStoreDataInjection(uint64_t dyn_seq, uint64_t idx,
+                                             uint64_t gen, uint8_t old_byte,
+                                             uint8_t new_byte,
+                                             const char *mode)
+    {
+        if (!write_log)
+            return;
+        fault_seqs.insert(dyn_seq);
+        std::ostringstream d;
+        d << "site=lsq_write_sq_entry;mode=" << mode
+          << ";queue=SQ;index=" << idx
+          << ";generation=" << gen
+          << ";old_byte=0x" << std::hex << (unsigned)old_byte
+          << ";new_byte=0x" << (unsigned)new_byte << std::dec
+          << ";value_changed=1";
+        writeNode(0, "inj_store_data", dyn_seq, true, 0, false, 0, false,
+                  idx, true, 0, false, d.str());
+    }
+
+    void
     CHAOSPropagation::noteLQLifecycle(uint64_t dyn_seq, uint64_t idx,
                                       uint64_t gen, const char *action,
                                       const char *reason)

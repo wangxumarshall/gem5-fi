@@ -38,6 +38,9 @@ PROFILES = {
                         "simulator_abort"),
     ("FW02", "SDC"): ("forwarding_decision", "memory_response",
                       "register_writeback", "consumer_commit"),
+    ("SQ01", "MASKED"): ("injection", "sq_lifecycle"),
+    ("SQ01", "SDC"): ("injection", "sq_lifecycle"),
+    ("SQ01", "CRASH"): ("injection", "simulator_abort"),
 }
 DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW02": ("forwarding_decision",)}

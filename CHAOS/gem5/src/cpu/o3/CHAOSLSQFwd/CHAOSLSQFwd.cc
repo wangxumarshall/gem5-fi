@@ -168,6 +168,7 @@ namespace gem5
         if (s == "fwd_source_sub") return StructMode::FwdSourceSub;
         if (s == "phase_offset") return StructMode::PhaseOffset;
         if (s == "f6_fw02") return StructMode::F6Fw02;
+        if (s == "sq01_bit3") return StructMode::Sq01Bit3;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -426,6 +427,43 @@ namespace gem5
           ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
                    "Stuck-at-1 faults on forwarded data")
     {}
+
+    bool
+    CHAOSLSQFwd::maybeCorruptStoreData(uint8_t *data, unsigned size,
+                                       uint64_t dyn_seq, uint64_t store_idx,
+                                       uint64_t generation)
+    {
+        if (struct_mode != StructMode::Sq01Bit3 || !data || size == 0)
+            return false;
+        if (lsuTrigger) {
+            lsuTrigger->onAttempt();
+            if (!lsuTrigger->onEligible())
+                return false;
+        } else if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return false;
+        }
+        const uint8_t old_byte = data[0];
+        const uint8_t new_byte = old_byte ^ 0x08;
+        data[0] = new_byte;
+        ++faults_injected_count;
+        if (auto *prop = CHAOSPropagation::instance()) {
+            prop->noteStoreDataInjection(dyn_seq, store_idx, generation,
+                                         old_byte, new_byte, "sq01_bit3");
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: lsq_write_sq_entry"
+                << ", FaultType: sq01_bit3_flip"
+                << ", seq: " << dyn_seq
+                << ", sq_idx: " << store_idx
+                << ", entry_generation: " << generation
+                << ", old_byte0: 0x" << std::hex << (unsigned)old_byte
+                << ", new_byte0: 0x" << (unsigned)new_byte << std::dec
+                << ", faults_injected: " << faults_injected_count << std::endl;
+        }
+        return true;
+    }
 
     bool
     CHAOSLSQFwd::maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,

@@ -24,6 +24,7 @@ from trace_writer import TraceWriter  # noqa: E402
 KIND_MAP = {
     "inj": "injection",
     "inj_nochange": "injection_nochange",
+    "inj_store_data": "injection",
     "addr_form": "address_formed",
     "mem_req": "memory_request",
     "resp": "memory_response",
@@ -42,6 +43,7 @@ KIND_MAP = {
 UNIT_MAP = {
     "inj": ("AGU", "injection"),
     "inj_nochange": ("AGU", "injection_nochange"),
+    "inj_store_data": ("SQ", "store_data"),
     "addr_form": ("AGU", "effective_address"),
     "mem_req": ("LSQ", "request"),
     "resp": ("L1D", "response"),
@@ -147,14 +149,17 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         old_addr = _hex(d.get("old_addr"))
         new_addr = _hex(d.get("new_addr")) or _hex(addr)
         injection_status = "NOT_APPLICABLE"
-        if kind in ("inj", "inj_nochange"):
+        if kind in ("inj", "inj_nochange", "inj_store_data"):
             injection_status = ("NO_CHANGE" if kind == "inj_nochange"
                                 or d.get("value_changed") == "0"
                                 else "INJECTED")
             next_injection += 1
             injection_by_ptag[ptag_i] = next_injection
         injection_event_id = injection_by_ptag.get(ptag_i, 1)
-        activation_status = "TRIGGERED" if ptag_i > 0 else "UNKNOWN"
+        activation_status = ("TRIGGERED"
+                             if ptag_i > 0 or kind in ("inj", "inj_nochange",
+                                                       "inj_store_data")
+                             else "UNKNOWN")
         commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit", "commit")
                          else "UNKNOWN")
         squash_status = "SQUASHED" if kind == "squash" else "UNKNOWN"
@@ -174,6 +179,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             va, pa = None, None
             old_value = None
             new_value = d.get("writeback_value") or d.get("writeback_fnv")
+        elif kind == "inj_store_data":
+            va, pa = None, None
+            old_value = d.get("old_byte")
+            new_value = d.get("new_byte")
         elif kind in ("lq_lifecycle", "sq_lifecycle"):
             va, pa = None, None
             old_value, new_value = None, None
@@ -220,7 +229,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             destination_event_id=_int(d.get("destination_event_id")),
             lq_entry_id=(_int(d.get("index")) if kind == "lq_lifecycle"
                          else _int(d.get("lq_entry_id"))),
-            sq_entry_id=(_int(d.get("index")) if kind == "sq_lifecycle"
+            sq_entry_id=(_int(d.get("index"))
+                         if kind in ("sq_lifecycle", "inj_store_data")
                          else _int(d.get("sq_entry_id"))),
             entry_generation=(_int(d.get("generation")) or
                               _int(d.get("entry_generation"))),

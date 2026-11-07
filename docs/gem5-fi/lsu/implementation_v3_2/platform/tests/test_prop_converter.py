@@ -151,6 +151,33 @@ def test_fw02_forwarding_unit_and_fault_instruction_commit(tmp_path):
     assert commit["dyn_inst_seq"] == 397
 
 
+def test_sq01_store_data_injection_is_sq_unit(tmp_path):
+    import gzip
+    csv = tmp_path / "prop.csv.gz"
+    with gzip.open(csv, "wt", encoding="utf-8") as fh:
+        fh.write(
+            "1,100,0,inj_store_data,250,0,0,0,0,"
+            "site=lsq_write_sq_entry;mode=sq01_bit3;queue=SQ;index=7;"
+            "generation=9;old_byte=0x10;new_byte=0x18;value_changed=1\n")
+    out = tmp_path / "trace.jsonl"
+    convert(csv, out, sample_run_id="PILOT-SQ01-TEST",
+            run_id="PILOT-SQ01", sub_task_id="PILOT-SQ01-S01",
+            fault_id="SQ01-CFG01", fault_model_id="SQ01",
+            run_status="COMPLETED", activation="TRIGGERED",
+            terminal="MASKED", completeness="COMPLETE")
+    event = next(r for r in (json.loads(line) for line in out.read_text().splitlines())
+                 if r.get("record_type") == "event")
+    assert event["event_type"] == "injection"
+    assert event["unit"] == "SQ"
+    assert event["sub_unit"] == "store_data"
+    assert event["injection_status"] == "INJECTED"
+    assert event["old_value"] == "0x10"
+    assert event["new_value"] == "0x18"
+    assert event["sq_entry_id"] == 7
+    assert event["entry_generation"] == 9
+    assert event["dyn_inst_seq"] == 250
+
+
 def test_truncated_complete_requires_crash(tmp_path):
     import pytest
     with pytest.raises(SystemExit):

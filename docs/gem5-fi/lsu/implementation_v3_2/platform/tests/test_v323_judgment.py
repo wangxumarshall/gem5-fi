@@ -5,7 +5,7 @@ PLATFORM = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLATFORM))
 
 from run_pilot import (_decide_masked_terminal, _fault_causality,
-                       _terminal_evidence)
+                       _sq01_summary, _terminal_evidence)
 
 
 def _events(*rows):
@@ -52,6 +52,18 @@ def test_causality_address_match_and_temporal_only():
     evidence = _terminal_evidence(events, "0xffffffffffb73c50", "")
     assert evidence["address_match"] is True
     assert evidence["last_injection_dyn_seq"] == 1146
+
+
+def test_sq01_log_parser(tmp_path):
+    log = tmp_path / "lsq_fwd_injections.log"
+    log.write_text(
+        "Tick: 140910, Site: lsq_write_sq_entry, FaultType: sq01_bit3_flip, "
+        "seq: 18, sq_idx: 1, entry_generation: 1, old_byte0: 0x0, "
+        "new_byte0: 0x8, faults_injected: 1\n")
+    summary = _sq01_summary(log)
+    assert summary["injected"] == 1
+    assert summary["events"][0] == {"seq": 18, "idx": 1, "gen": 1,
+                                    "old": 0x0, "new": 0x8}
 
 
 def test_dataflow_evidence_for_masked():

@@ -53,10 +53,10 @@ models, 60 samples or seeds.
 
 ## Task 7 — SQ01
 
-- [ ] Unique fault: SQ entry byte0 bit3 after `LSQUnit::write()`.
-- [ ] Real hook, config parsing, F0 trigger, unit test, compile, target-event
+- [x] Unique fault: SQ entry byte0 bit3 after `LSQUnit::write()`.
+- [x] Real hook, config parsing, F0 trigger, unit test, compile, target-event
       proof, trace node, independent pilot on `sq_drain`.
-- [ ] Safety note: data-only, one entry, no state-machine change.
+- [x] Safety note: data-only, one entry, no state-machine change.
 
 ## Task 8 — package
 

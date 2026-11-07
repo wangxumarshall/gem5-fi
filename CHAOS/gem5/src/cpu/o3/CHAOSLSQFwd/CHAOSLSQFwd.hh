@@ -65,6 +65,12 @@ class CHAOSLSQFwd : public SimObject
     // v3.2.1: ptag registered for the FW02 false-miss (0 = none).
     uint64_t lastFwdPtag() const { return last_fwd_ptag; }
 
+    // SQ01 (LSU v3.2.3): after LSQUnit::write() has copied store data into the
+    // SQ entry, flip byte0 bit3 once under the F0 trigger. Data-only: no SQ
+    // state, no request, no pointer is changed.
+    bool maybeCorruptStoreData(uint8_t *data, unsigned size, uint64_t dyn_seq,
+                               uint64_t store_idx, uint64_t generation);
+
     // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
     // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
     // If the RNG fires, returns the DELAY in CPU cycles to apply to this
@@ -98,7 +104,7 @@ class CHAOSLSQFwd : public SimObject
     //     E3 boundary analysis showed captures scheduler phase, not
     //     forward-path phase).
     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
-                            PhaseOffset, F6Fw02 };
+                            PhaseOffset, F6Fw02, Sq01Bit3 };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;
