@@ -1,4 +1,5 @@
 #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"
+#include "cpu/o3/CHAOSL1DForward/lp01_bytewise.hh"
 
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "debug/CHAOSL1DForward.hh"
@@ -98,10 +99,11 @@ namespace gem5
         unsigned sz = pkt->getSize();
         if (sz == 0) return false;
         uint8_t *data = pkt->getPtr<uint8_t>();
-        // XOR the low 8 bytes (or fewer) of the response data.
-        uint64_t *p = reinterpret_cast<uint64_t*>(data);
-        size_t n = sz / 8; if (n == 0) n = 1;
-        for (size_t i = 0; i < n; i++) p[i] ^= mask;
+        // [LP01][LSU v3.2.4] byte-wise, bounds-safe corruption. The old
+        // uint64_t* cast always wrote 8 bytes even when the response was
+        // shorter (size<8): an OOB write. The mask repeats every 8 bytes, so
+        // size>=8 is unchanged.
+        chaos_lp01::xorMask(data, sz, mask);
 
         faults_injected_count++;
         if (write_log) {
