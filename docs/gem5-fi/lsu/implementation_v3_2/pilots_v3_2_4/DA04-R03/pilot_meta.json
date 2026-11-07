@@ -43,7 +43,7 @@
     "16"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 2.088,
+  "elapsed_seconds": 2.133,
   "oracle_expected": "checksum=0x3f89eab79392ce69",
   "oracle_source": "workload_golden",
   "oracle_pass": true,
@@ -87,12 +87,22 @@
         "register_writeback",
         "consumer_commit",
         "errant_commit",
-        "forwarding_decision"
+        "store_writeback",
+        "store_mem_write",
+        "sq_lifecycle"
       ],
       "expected_stages": [
-        "injection"
+        "injection",
+        "store_writeback",
+        "store_mem_write"
       ],
       "missing_stages": [],
+      "chain_ptag": 1,
+      "chain_scoped": true,
+      "chain_source": "ptag",
+      "chain_events": 12,
+      "chain_integrity": "PASS",
+      "chain_reasons": [],
       "terminal_state": "MASKED",
       "run_status": "COMPLETED",
       "fault_activation_status": "TRIGGERED",

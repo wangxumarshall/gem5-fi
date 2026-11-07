@@ -137,6 +137,32 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
             if target not in events:
                 errs.append(
                     f"edge {rec.get('propagation_edge_id')}: {key}={target} is not an event")
+    # v3.2.4: an injection_event_id must not mix different ptag chains.
+    # This is the record-level guard against stitching a "complete" chain out
+    # of events from different dynamic instructions.
+    id_ptag: dict[int, int] = {}
+    injection_ids: set[int] = set()
+    for rec in events.values():
+        ptag = rec.get("ptag") or 0
+        if ptag <= 0:
+            continue
+        iid = rec.get("injection_event_id")
+        if iid is None:
+            continue
+        if rec.get("event_type") in ("injection", "injection_nochange"):
+            injection_ids.add(iid)
+        prev = id_ptag.get(iid)
+        if prev is None:
+            id_ptag[iid] = ptag
+        elif prev != ptag:
+            errs.append(
+                f"event {rec.get('event_id')}: injection_event_id {iid} "
+                f"mixes ptag {prev} and {ptag}")
+    for iid in id_ptag:
+        if iid not in injection_ids:
+            errs.append(
+                f"injection_event_id {iid} has events but no injection event")
+
     if len(summaries) != 1:
         errs.append(f"expected exactly one summary record, got {len(summaries)}")
     elif records and summaries[0].get("__line__") != records[-1].get("__line__"):

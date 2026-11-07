@@ -11,7 +11,7 @@ from trace_writer import TraceWriter  # noqa: E402
 def _write_trace(path, model, terminal, event_types):
     w = TraceWriter(path, "S-R01", "R", "S", "F1", model)
     for i, kind in enumerate(event_types, start=1):
-        w.event(kind, dyn_inst_seq=100 + i,
+        w.event(kind, dyn_inst_seq=100 + i, ptag=1,
                 injection_status=("INJECTED" if kind == "injection"
                                   else "NOT_APPLICABLE"),
                 activation_status="TRIGGERED",
@@ -47,7 +47,7 @@ def test_coverage_is_independent_of_summary_reasons(tmp_path):
     w = TraceWriter(path, "S-R01", "R", "S", "F1", "FW02")
     for kind in ("forwarding_decision", "memory_response",
                  "register_writeback", "consumer_commit"):
-        w.event(kind, dyn_inst_seq=1, trace_completeness="COMPLETE")
+        w.event(kind, dyn_inst_seq=1, ptag=1, trace_completeness="COMPLETE")
     # Deliberately inconsistent: TRIGGERED without an injection event makes
     # TraceCompleteness INCOMPLETE, but the stages are all present.
     w.close(run_status="COMPLETED", activation="TRIGGERED",

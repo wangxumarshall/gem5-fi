@@ -65,10 +65,10 @@
   ],
   "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R05 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/alignment --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_lsqfwd --lsq_struct_mode da04_be_bit0 --lsqfwd_lsu_tier F0 --lsqfwd_warmup_events 0 --lsqfwd_span_events 10 --max_faults 1 --rng_seed 2016743094 --lsqfwd_event_ordinal 200",
   "environment": {
-    "captured_at_utc": "2026-11-07T14:22:54Z",
+    "captured_at_utc": "2026-11-07T14:28:40Z",
     "host": "localhost0101",
     "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
     "python": "3.11.6"
   },
-  "manifest_sha256": "27bca1e93be5636e3993afee26cb5731b0c31909bff5bb2bd3ca025dbeedd9ce"
+  "manifest_sha256": "77f6d9bbd304c2922aaf27f015f732aed4fe847d9042305864fae0152428b579"
 }
