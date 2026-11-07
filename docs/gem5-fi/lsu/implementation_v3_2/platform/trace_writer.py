@@ -135,7 +135,10 @@ class TraceWriter:
         return self._edge_id
 
     def close(self, *, run_status: str, activation: str, terminal: str,
-              completeness: str, terminal_state_reason: str | None = None) -> dict:
+              completeness: str, terminal_state_reason: str | None = None,
+              observed_terminal: str | None = None,
+              fault_causality: str | None = None,
+              terminal_evidence: dict | None = None) -> dict:
         if self._closed or self._fh is None:
             raise TraceWriteError("writer is already closed")
         if run_status not in RUN_STATUS:
@@ -158,8 +161,11 @@ class TraceWriter:
             "run_status": run_status,
             "fault_activation_status": activation,
             "terminal_state": terminal,
+            "observed_terminal": observed_terminal or terminal,
             "trace_completeness": completeness,
             "terminal_state_reason": terminal_state_reason,
+            "fault_causality": fault_causality,
+            "terminal_evidence": terminal_evidence,
             "counts": dict(self._counts),
         }
         self._write(summary)

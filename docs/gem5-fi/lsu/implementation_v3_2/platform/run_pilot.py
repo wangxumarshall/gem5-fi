@@ -90,6 +90,85 @@ def _addrpath_events(path: Path) -> list[dict]:
     return events
 
 
+def _read_events(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    return [r for r in (json.loads(line) for line in path.read_text().splitlines())
+            if r.get("record_type") == "event"]
+
+
+def _fault_injection(events: list[dict]) -> dict | None:
+    injections = [e for e in events
+                  if e.get("event_type") in ("injection", "injection_nochange")]
+    return injections[-1] if injections else None
+
+
+def _seq_events(events: list[dict], seq) -> list[dict]:
+    return [e for e in events if seq is not None and e.get("dyn_inst_seq") == seq]
+
+
+def _decide_masked_terminal(events: list[dict]) -> tuple[str, str]:
+    """Adjudicate a MASKED candidate that has no data-value evidence.
+
+    A target instruction that was squashed and never committed is SQUASHED;
+    anything else stays UNRESOLVED. The squash node must belong to the fault
+    instruction's own dynamic sequence number.
+    """
+    injection = _fault_injection(events)
+    seq = injection.get("dyn_inst_seq") if injection else None
+    own = _seq_events(events, seq)
+    squashed = any(e.get("event_type") == "squash" for e in own)
+    committed = any(e.get("event_type") in ("commit", "consumer_commit",
+                                            "errant_commit") for e in own)
+    if squashed and not committed:
+        return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
+    return "UNRESOLVED", "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
+
+
+def _terminal_evidence(events: list[dict], pt_fault_addr: str | None,
+                       stderr: str) -> dict:
+    injection = _fault_injection(events)
+    new_value = injection.get("new_value") if injection else None
+    match = bool(pt_fault_addr and new_value
+                 and str(new_value).lower() == str(pt_fault_addr).lower())
+    return {
+        "page_table_fault_addr": pt_fault_addr,
+        "last_injection_dyn_seq": injection.get("dyn_inst_seq") if injection else None,
+        "last_injection_new_value": new_value,
+        "address_match": match,
+        "stderr_has_page_table_fault": "page table fault" in stderr.lower(),
+    }
+
+
+def _fault_causality(events: list[dict], terminal: str,
+                     pt_fault_addr: str | None) -> str:
+    """Relation between the injected fault and the observed terminal.
+
+    This is deliberately weaker than the terminal itself: a crash that happens
+    after an injection is not claimed to be caused by it.
+    """
+    injection = _fault_injection(events)
+    if injection is None:
+        return "UNKNOWN"
+    if terminal == "CRASH":
+        new_value = injection.get("new_value")
+        if (pt_fault_addr and new_value
+                and str(new_value).lower() == str(pt_fault_addr).lower()):
+            return "DIRECT_ADDRESS_MATCH"
+        return "TEMPORAL_ASSOCIATION_ONLY"
+    seq = injection.get("dyn_inst_seq")
+    if terminal == "SQUASHED":
+        if any(e.get("event_type") == "squash" for e in _seq_events(events, seq)):
+            return "INDIRECT_EVIDENCE"
+        return "TEMPORAL_ASSOCIATION_ONLY"
+    if terminal in ("MASKED", "SDC"):
+        if any(e.get("event_type") in ("memory_response", "register_writeback")
+               for e in events):
+            return "DIRECT_DATAFLOW_EVIDENCE"
+        return "INDIRECT_EVIDENCE"
+    return "INDIRECT_EVIDENCE"
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True, choices=["A01", "A03", "FW02"])
@@ -168,6 +247,7 @@ def main(argv=None) -> int:
     (out / "oracle.log").write_text(oracle.stdout + oracle.stderr)
     oracle_pass = oracle.returncode == 0
 
+    events: list[dict] = []  # A01/A03 address-path events; empty for FW02
     if args.model in ("A01", "A03"):
         inj = _funnel(out / "addrpath_injections.log")
         events = _addrpath_events(out / "addrpath_injections.log")
@@ -186,18 +266,18 @@ def main(argv=None) -> int:
 
     crash_by_fault = False
     crash_evidence = None
-    events = []  # A01/A03 address-path events; empty for FW02
+    pt_fault_addr = None
     if proc.returncode != 0 and args.model in ("A01", "A03", "FW02") and injected > 0:
         err = proc.stderr.lower()
-        if "page table fault" in err:
-            # The panic address is not always the injected address (the
-            # corrupted value can become an indirect pointer). Record the
-            # page-table fault as crash evidence after a real injection; do
-            # not claim direct address identity unless it matches.
+        pt_match = re.search(
+            r"page table fault when accessing virtual address "
+            r"(0x[0-9a-fA-F]+|0)\b", proc.stderr, re.I)
+        if pt_match:
+            # The panic address is not assumed to be the injected address; it
+            # is recorded separately and compared with the trace later.
             crash_by_fault = True
-            match = any(hex(e["new"]) in err for e in events)
-            crash_evidence = ("page_table_fault_after_injection" +
-                              ("_address_match" if match else "_no_address_match"))
+            pt_fault_addr = pt_match.group(1).lower()
+            crash_evidence = "page_table_fault_after_injection"
     if proc.returncode != 0 and crash_by_fault:
         run_status, activation, terminal, completeness = (
             "SIMULATOR_ERROR", "TRIGGERED", "CRASH", "COMPLETE")
@@ -233,17 +313,6 @@ def main(argv=None) -> int:
     trace_errors = validate(jsonl_path) if jsonl_path.exists() else ["trace missing"]
     completeness_report = (check_completeness(jsonl_path)
                            if jsonl_path.exists() else {"trace_completeness": "INCOMPLETE"})
-    if completeness_report.get("trace_completeness") != "COMPLETE" and csv_path.exists():
-        convert(csv_path, jsonl_path,
-                sample_run_id=args.pilot_id, run_id=sample["run_id"],
-                sub_task_id=sample["sub_task_id"],
-                fault_id=sample.get("fault_config_id") or args.model,
-                fault_model_id=args.model, run_status=run_status,
-                activation=activation, terminal=terminal,
-                completeness="INCOMPLETE", no_summary=True)
-        trace_errors = validate(jsonl_path)
-        completeness_report = check_completeness(jsonl_path)
-
     # A pilot proves the trigger and the target dynamic instruction, not a
     # particular software outcome: an injected fault whose error does not
     # propagate is recorded as MASKED, and one that changes the oracle is
@@ -255,23 +324,32 @@ def main(argv=None) -> int:
         final_terminal = "UNRESOLVED"
         terminal_reason = "TRACE_INCOMPLETE"
     # MASKED requires actual data-value evidence, not only an equal checksum.
+    trace_events = _read_events(jsonl_path)
     has_data_value = any(
-        r.get("event_type") in ("memory_response", "register_writeback")
-        and r.get("new_value") not in (None, "")
-        for r in (json.loads(line) for line in jsonl_path.read_text().splitlines())
-        if r.get("record_type") == "event"
-    ) if jsonl_path.exists() else False
+        e.get("event_type") in ("memory_response", "register_writeback")
+        and e.get("new_value") not in (None, "")
+        for e in trace_events
+    )
     if final_terminal == "MASKED" and not has_data_value:
-        final_terminal = "UNRESOLVED"
-        terminal_reason = "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
+        # A target instruction squashed before its response/writeback is a real
+        # SQUASHED terminal, not an unresolved run.
+        final_terminal, terminal_reason = _decide_masked_terminal(trace_events)
     if final_terminal == "UNRESOLVED" and crash_by_fault:
         final_terminal = "CRASH"
         terminal_reason = crash_evidence
     if final_terminal == "UNRESOLVED" and terminal_reason is None:
         terminal_reason = "UNRESOLVED_NO_TERMINAL_EVIDENCE"
-    # The converted trace was closed with the provisional verdict. Re-emit it
-    # so the JSONL summary carries the same terminal and reason as the meta.
-    if csv_path.exists() and final_terminal != terminal:
+
+    evidence = _terminal_evidence(trace_events, pt_fault_addr, proc.stderr)
+    if crash_evidence:
+        crash_evidence += ("_address_match" if evidence["address_match"]
+                           else "_no_address_match")
+        terminal_reason = crash_evidence
+    fault_causality = _fault_causality(trace_events, final_terminal, pt_fault_addr)
+
+    # Close the trace with the adjudicated verdict and the structured evidence,
+    # so JSONL, pilot_meta and the sweep carry the same fields.
+    if csv_path.exists():
         try:
             converted = convert(
                 csv_path, jsonl_path,
@@ -282,6 +360,9 @@ def main(argv=None) -> int:
                 activation=activation, terminal=final_terminal,
                 completeness=completeness_report.get("trace_completeness") or completeness,
                 terminal_reason=terminal_reason,
+                observed_terminal=terminal,
+                fault_causality=fault_causality,
+                terminal_evidence=evidence,
                 allow_truncated_complete=crash_by_fault)
         except SystemExit:
             converted = {"rows": 0, "truncated": True, "summary": None}
@@ -318,14 +399,18 @@ def main(argv=None) -> int:
         "classification": {
             "run_status": run_status,
             "fault_activation_status": activation,
+            "observed_terminal": terminal,
             "terminal_state": final_terminal,
             "terminal_state_reason": terminal_reason,
+            "fault_causality": fault_causality,
+            "terminal_evidence": evidence,
             "trace_completeness": completeness_report.get("trace_completeness"),
             "record_integrity": completeness_report.get("record_integrity"),
             "propagation_coverage": completeness_report.get("propagation_coverage"),
             "oracle_outcome": ("PASS" if oracle_pass else "FAIL"),
         },
         "accepted": accepted,
+        "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
         "crash_evidence": crash_evidence,
     }
     (out / "pilot_meta.json").write_text(json.dumps(meta, indent=2))

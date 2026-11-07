@@ -87,6 +87,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             sub_task_id: str, fault_id: str, fault_model_id: str,
             run_status: str, activation: str, terminal: str,
             completeness: str, terminal_reason: str | None = None,
+            observed_terminal: str | None = None,
+            fault_causality: str | None = None,
+            terminal_evidence: dict | None = None,
             no_summary: bool = False,
             allow_truncated_complete: bool = False) -> dict:
     rows = []
@@ -246,19 +249,31 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
 
     if not no_summary and terminal == "CRASH":
         # The simulator aborted before its normal trailer. Record the abort
-        # itself as the terminal event so the trace ends at the observed
-        # terminal state instead of silently stopping mid-chain.
+        # itself as the terminal event, with the structured fault evidence,
+        # so the terminal does not live only in stderr text.
+        detail = ("gzip truncation observed" if truncated else
+                  "simulator abort after last completed node")
+        if terminal_evidence:
+            detail += (";page_table_fault_addr={};last_injection_dyn_seq={}"
+                       ";address_match={}").format(
+                           terminal_evidence.get("page_table_fault_addr"),
+                           terminal_evidence.get("last_injection_dyn_seq"),
+                           terminal_evidence.get("address_match"))
         w.event("simulator_abort", unit="Simulator", sub_unit="abort",
                 terminal_state="CRASH", commit_status="UNKNOWN",
                 squash_status="UNKNOWN", trace_completeness=declared,
-                detail=("gzip truncation observed" if truncated else
-                        "simulator abort after last completed node"))
+                fault_causality=fault_causality,
+                terminal_evidence=terminal_evidence,
+                detail=detail)
     if no_summary:
         w.abort()
         return {"rows": len(rows), "truncated": truncated, "summary": None}
     summary = w.close(run_status=run_status, activation=activation,
                       terminal=terminal, completeness=declared,
-                      terminal_state_reason=terminal_reason)
+                      terminal_state_reason=terminal_reason,
+                      observed_terminal=observed_terminal,
+                      fault_causality=fault_causality,
+                      terminal_evidence=terminal_evidence)
     return {"rows": len(rows), "truncated": truncated, "summary": summary}
 
 
