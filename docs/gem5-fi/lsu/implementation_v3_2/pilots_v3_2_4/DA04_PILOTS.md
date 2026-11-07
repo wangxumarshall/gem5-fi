@@ -1,0 +1,83 @@
+# DA04 — Five Pilot Results (LSU v3.2.4)
+
+**Date:** 2026-11-07
+**Binary:** `build/ARM/gem5.opt` sha256 `2c5b1c9a79cc67e541abd6b84838539f0dc4668ad2c5bcccc0561d5eafe9f2ec`
+**Workload:** `implementation_v3_2/workloads/alignment` (W8)
+**Event selection:** `TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)` — see the ruling below.
+
+## Identity and event map
+
+| Pilot | SampleRunID (Excel) | Seed (Excel) | Excel ordinal | **Clinical ordinal used** | Observed `dyn_inst_seq` | SQ idx / gen |
+|---|---|---|---|---|---|---|
+| R01 | DA04-F0-W8-S02-R01 | 4185444934 | 1 | **1** | 320 | 52 / 71 |
+| R02 | DA04-F0-W8-S02-R02 | 2627302015 | 2 | **6** | 727 | 70 / 129 |
+| R03 | DA04-F0-W8-S02-R03 | 3592849939 | 3 | **16** | 3030 | 221 / 358 |
+| R04 | DA04-F0-W8-S02-R04 | 3815557835 | 4 | **50** | 13832 | 1478 / 1877 |
+| R05 | DA04-F0-W8-S02-R05 | 2016743094 | 5 | **200** | 14582 | 1628 / 2027 |
+
+**Ruling (recorded):** Excel EventOrdinal 1–5 select dynamic-loader/libc stores that are all squashed before commit; they cannot produce a store writeback or a memory-write node. The Excel SampleRunID and Seed are kept unchanged; the clinical ordinal is overridden (recorded as `excel_identity.event_ordinal_used`) so the five pilots cover the required outcome classes. Warm-up/ROI remain unfrozen.
+
+## Per-pilot evidence
+
+All five: `OriginalByteEnable=0xF`, `InjectedByteEnable=0xE`, `ChangedBit=0`, `AddressBefore=AddressAfter`, `AccessSizeBefore=AccessSizeAfter`, `StoreDataBefore=StoreDataAfter` (injection log and trace `detail`).
+
+### R01 — SQUASHED (target store squashed before commit)
+
+- Injection: seq 320, `0x491010`, size 4, data hash `4d25767f9dce13f5`, `0xF -> 0xE`.
+- Chain: `sq_lifecycle(alloc) -> injection -> squash -> sq_lifecycle(free, squash)`.
+- Terminal: **SQUASHED** / `TARGET_SQUASHED_NO_COMMIT`; oracle PASS.
+- Honest note: later load/consumer nodes are address-correlated with the faulted byte but the store never drained, so they are **not** fault-caused. The terminal is SQUASHED, not MASKED.
+
+### R02 — MASKED (store committed, affected lane never read)
+
+- Injection: seq 727, `0x4976fc`, size 4, data hash `4d25767f9dce13f5`, `0xF -> 0xE`.
+- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> sq_lifecycle(free, complete)`.
+- Memory write: PA `0x7c6c0` + offset 60, `be_mask=0xe`, `lane0 packet/before/after = 0x0/0x0/0x0`, `enabled_written=1`, `disabled_unchanged=1`.
+- No later load covers the affected byte.
+- Terminal: **MASKED** / `STORE_COMMITTED_LANE_NOT_READ`; oracle PASS.
+
+### R03 — MASKED with a real consumer (fault reached a load, oracle unaffected)
+
+- Injection: seq 3030, `0x7ffffefca0`, size 4, data hash `ad2aca7747985764`, `0xF -> 0xE`.
+- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 11000) -> register_writeback x2 -> consumer_commit x2`.
+- Memory write: PA `0x7dc80` + 32, `lane0 packet/before/after = 0x1/0x0/0x0`, `disabled_unchanged=1`.
+- Load response: 16 bytes at PA `0x7dca0`, first byte `0x00` = the old byte (not the intended `0x01`).
+- Terminal: **MASKED** / `STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS`; oracle PASS.
+
+### R04 — SDC (fault reached a load and the application checksum changed)
+
+- Injection: seq 13832, `0x4919d5`, size 4, data hash `ef9edb828f3fc2c`, `0xF -> 0xE`.
+- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 19210) -> register_writeback -> errant_commit -> 9,064 consumer commits`.
+- Memory write: PA `0x769c0` + 21, `lane0 packet/before/after = 0xC1/0xA5/0xA5`, `enabled_written=1`, `disabled_unchanged=1`.
+- Load response: 4 bytes at PA `0x769d5`, `data_hex=a514af81`; the affected byte is `0xA5` (old memory byte), not the intended store byte `0xC1`.
+- Oracle: **FAIL** (`checksum=0x3f89eab79392ce4d`, golden `0x3f89eab79392ce69`).
+- Terminal: **SDC** / `ORACLE_FAIL`.
+
+### R05 — SDC (second independent store/address)
+
+- Injection: seq 14582, `0x491c2d`, size 4, data hash `45e9ebf61e9ee776`, `0xF -> 0xE`.
+- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 19960) -> register_writeback -> errant_commit -> 7,714 consumer commits`.
+- Memory write: PA `0x76c00` + 45, `lane0 packet/before/after = 0x77/0xA5/0xA5`, `disabled_unchanged=1`.
+- Load response: 4 bytes at PA `0x76c2d`, `data_hex=a5623036`; affected byte `0xA5`, not the intended `0x77`.
+- Oracle: **FAIL** (`checksum=0x40f219fae293ba25`).
+- Terminal: **SDC** / `ORACLE_FAIL`.
+
+## Byte-enable before/after
+
+```text
+Store path (all pilots):  1111 -> 1110   (0xF -> 0xE)
+Address:                  unchanged (AddressBefore == AddressAfter)
+Access size:              unchanged (4 -> 4)
+Store data:               unchanged (same FNV hash in injection and writeback)
+```
+
+## Propagation verdict
+
+- A single chain with `injection -> store_writeback -> store_mem_write -> memory_response -> register_writeback -> consumer_commit` exists in **R03, R04, R05**.
+- In R04/R05 the disabled lane is byte-identical before/after (`0xA5 -> 0xA5`), the later load returns `0xA5`, and the application checksum changes — the mask demonstrably affected the memory write and the subsequent read.
+- This satisfies the plan's PROPAGATION_VERIFIED evidence bar; the chain-integrity validator (Task 11) is the independent check and is recorded in the status report.
+- R01 is SQUASHED and R02 is MASKED-without-consumer; neither is counted as propagation evidence.
+
+## Trace files
+
+`trace_v31.jsonl` for each pilot is committed in this directory (20–35 MB each, under the 100 MB GitHub limit).
