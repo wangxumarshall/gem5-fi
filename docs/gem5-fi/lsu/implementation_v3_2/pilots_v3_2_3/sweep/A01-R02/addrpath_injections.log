@@ -1,0 +1,5 @@
+FUNNEL: attempted=15 eligible=2 injected=1
+Tick: 197890, Site: lsq_pushRequest_PRE, mode=a01_bit3_load, old_addr=0x7ffffefdb8, new_addr=0x7ffffefdb0, old_size=8, new_size=8, faults_injected: 1
+CHAOS_L0: CHAOSAddrPath: target=549755747760 reads=0 overwritten=0 at=0 hit=0
+CHAOS_L0_FUNNEL: CHAOSAddrPath attempted=2802 eligible=1477 injected=1 activated=1
+FUNNEL: attempted=2802 eligible=1477 injected=1

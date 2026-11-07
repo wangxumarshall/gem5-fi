@@ -1,0 +1,108 @@
+{
+  "pilot_id": "PILOT-A03-R04",
+  "model": "A03",
+  "seed": 2766846323,
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_3/sweep/A03-R04",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_addrpath",
+    "--agu_pre_mode",
+    "a03_bit3_stuck0_load",
+    "--addrpath_lsu_tier",
+    "F5",
+    "--addrpath_max_faults",
+    "0",
+    "--addrpath_warmup_events",
+    "0",
+    "--addrpath_rng_seed",
+    "2766846323",
+    "--addrpath_event_ordinal",
+    "4"
+  ],
+  "exit_code": -6,
+  "elapsed_seconds": 2.932,
+  "oracle_expected": "728e604ffcec539d",
+  "oracle_pass": false,
+  "injection": {
+    "attempted": 284,
+    "eligible": 146,
+    "injected": 143
+  },
+  "injection_count": 143,
+  "target_event_proof": {
+    "site": "lsq_pushRequest_PRE",
+    "events": 143,
+    "all_load_bit3": true
+  },
+  "trace": {
+    "csv_rows": 1429,
+    "truncated": true,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_3/sweep/A03-R04/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "COMPLETE",
+      "propagation_stages": [
+        "injection",
+        "address_formed",
+        "memory_request",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit",
+        "errant_commit",
+        "squash",
+        "simulator_abort"
+      ],
+      "expected_stages": [
+        "injection",
+        "address_formed",
+        "memory_request",
+        "simulator_abort"
+      ],
+      "missing_stages": [],
+      "terminal_state": "CRASH",
+      "run_status": "SIMULATOR_ERROR",
+      "fault_activation_status": "TRIGGERED",
+      "events": 1368,
+      "edges": 339,
+      "injections": 143,
+      "activations": 411,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "SIMULATOR_ERROR",
+    "fault_activation_status": "TRIGGERED",
+    "observed_terminal": "CRASH",
+    "terminal_state": "CRASH",
+    "terminal_state_reason": "page_table_fault_after_injection_address_match",
+    "fault_causality": "DIRECT_ADDRESS_MATCH",
+    "terminal_evidence": {
+      "page_table_fault_addr": "0xffffffffffb73c50",
+      "last_injection_dyn_seq": 1146,
+      "last_injection_new_value": "0xffffffffffb73c50",
+      "address_match": true,
+      "stderr_has_page_table_fault": true
+    },
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle_outcome": "FAIL"
+  },
+  "accepted": true,
+  "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
+  "crash_evidence": "page_table_fault_after_injection_address_match"
+}

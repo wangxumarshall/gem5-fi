@@ -1,0 +1,286 @@
+FUNNEL: attempted=47 eligible=4 injected=1
+Tick: 494340, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefdc0, new_addr=0x7ffffefdc0, old_size=8, new_size=8, value_changed=0, faults_injected: 1
+FUNNEL: attempted=50 eligible=5 injected=2
+Tick: 495880, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefdc8, new_addr=0x7ffffefdc0, old_size=8, new_size=8, faults_injected: 2
+FUNNEL: attempted=51 eligible=6 injected=3
+Tick: 534765, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefdd0, new_addr=0x7ffffefdd0, old_size=8, new_size=8, value_changed=0, faults_injected: 3
+FUNNEL: attempted=53 eligible=7 injected=4
+Tick: 535150, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 4
+FUNNEL: attempted=54 eligible=8 injected=5
+Tick: 535535, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 5
+FUNNEL: attempted=55 eligible=9 injected=6
+Tick: 535920, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 6
+FUNNEL: attempted=56 eligible=10 injected=7
+Tick: 540925, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefdd8, new_addr=0x7ffffefdd0, old_size=8, new_size=8, faults_injected: 7
+FUNNEL: attempted=57 eligible=11 injected=8
+Tick: 541310, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefde0, new_addr=0x7ffffefde0, old_size=8, new_size=8, value_changed=0, faults_injected: 8
+FUNNEL: attempted=58 eligible=12 injected=9
+Tick: 541695, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 9
+FUNNEL: attempted=59 eligible=13 injected=10
+Tick: 542080, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 10
+FUNNEL: attempted=60 eligible=14 injected=11
+Tick: 542465, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 11
+FUNNEL: attempted=62 eligible=15 injected=12
+Tick: 547470, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefde8, new_addr=0x7ffffefde0, old_size=8, new_size=8, faults_injected: 12
+FUNNEL: attempted=63 eligible=16 injected=13
+Tick: 547855, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefdf0, new_addr=0x7ffffefdf0, old_size=8, new_size=8, value_changed=0, faults_injected: 13
+FUNNEL: attempted=64 eligible=17 injected=14
+Tick: 548240, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 14
+FUNNEL: attempted=65 eligible=18 injected=15
+Tick: 548625, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 15
+FUNNEL: attempted=66 eligible=19 injected=16
+Tick: 549010, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 16
+FUNNEL: attempted=68 eligible=20 injected=17
+Tick: 554015, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefdf8, new_addr=0x7ffffefdf0, old_size=8, new_size=8, faults_injected: 17
+FUNNEL: attempted=69 eligible=21 injected=18
+Tick: 554400, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe00, new_addr=0x7ffffefe00, old_size=8, new_size=8, value_changed=0, faults_injected: 18
+FUNNEL: attempted=70 eligible=22 injected=19
+Tick: 554785, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 19
+FUNNEL: attempted=71 eligible=23 injected=20
+Tick: 555170, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 20
+FUNNEL: attempted=72 eligible=24 injected=21
+Tick: 555555, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 21
+FUNNEL: attempted=74 eligible=25 injected=22
+Tick: 556325, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc28, new_addr=0x7ffffefc20, old_size=8, new_size=8, faults_injected: 22
+FUNNEL: attempted=77 eligible=26 injected=23
+Tick: 557480, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefbe8, new_addr=0x7ffffefbe0, old_size=16, new_size=16, faults_injected: 23
+FUNNEL: attempted=78 eligible=27 injected=24
+Tick: 557865, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc38, new_addr=0x7ffffefc30, old_size=8, new_size=8, faults_injected: 24
+FUNNEL: attempted=81 eligible=28 injected=25
+Tick: 558250, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb88, new_addr=0x7ffffefb80, old_size=8, new_size=8, faults_injected: 25
+FUNNEL: attempted=82 eligible=29 injected=26
+Tick: 558635, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc40, new_addr=0x7ffffefc40, old_size=8, new_size=8, value_changed=0, faults_injected: 26
+FUNNEL: attempted=83 eligible=30 injected=27
+Tick: 559020, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb98, new_addr=0x7ffffefb90, old_size=8, new_size=8, faults_injected: 27
+FUNNEL: attempted=85 eligible=31 injected=28
+Tick: 559405, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefbf8, new_addr=0x7ffffefbf0, old_size=8, new_size=8, faults_injected: 28
+FUNNEL: attempted=92 eligible=32 injected=29
+Tick: 580580, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc78, new_addr=0x7ffffefc70, old_size=8, new_size=8, faults_injected: 29
+FUNNEL: attempted=93 eligible=33 injected=30
+Tick: 581735, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x400020, new_addr=0x400020, old_size=8, new_size=8, value_changed=0, faults_injected: 30
+FUNNEL: attempted=94 eligible=34 injected=31
+Tick: 582120, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x400038, new_addr=0x400030, old_size=2, new_size=2, faults_injected: 31
+FUNNEL: attempted=96 eligible=35 injected=32
+Tick: 616000, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe08, new_addr=0x7ffffefe00, old_size=8, new_size=8, faults_injected: 32
+FUNNEL: attempted=97 eligible=36 injected=33
+Tick: 616385, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe10, new_addr=0x7ffffefe10, old_size=8, new_size=8, value_changed=0, faults_injected: 33
+FUNNEL: attempted=98 eligible=37 injected=34
+Tick: 616770, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 34
+FUNNEL: attempted=99 eligible=38 injected=35
+Tick: 617155, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 35
+FUNNEL: attempted=100 eligible=39 injected=36
+Tick: 617540, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 36
+FUNNEL: attempted=102 eligible=40 injected=37
+Tick: 617925, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc28, new_addr=0x7ffffefc20, old_size=8, new_size=8, faults_injected: 37
+FUNNEL: attempted=103 eligible=41 injected=38
+Tick: 622545, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe18, new_addr=0x7ffffefe10, old_size=8, new_size=8, faults_injected: 38
+FUNNEL: attempted=104 eligible=42 injected=39
+Tick: 622930, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe20, new_addr=0x7ffffefe20, old_size=8, new_size=8, value_changed=0, faults_injected: 39
+FUNNEL: attempted=105 eligible=43 injected=40
+Tick: 623315, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 40
+FUNNEL: attempted=106 eligible=44 injected=41
+Tick: 623700, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 41
+FUNNEL: attempted=107 eligible=45 injected=42
+Tick: 624085, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 42
+FUNNEL: attempted=109 eligible=46 injected=43
+Tick: 629090, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe28, new_addr=0x7ffffefe20, old_size=8, new_size=8, faults_injected: 43
+FUNNEL: attempted=110 eligible=47 injected=44
+Tick: 629475, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe30, new_addr=0x7ffffefe30, old_size=8, new_size=8, value_changed=0, faults_injected: 44
+FUNNEL: attempted=111 eligible=48 injected=45
+Tick: 629860, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 45
+FUNNEL: attempted=112 eligible=49 injected=46
+Tick: 630245, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 46
+FUNNEL: attempted=113 eligible=50 injected=47
+Tick: 630630, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 47
+FUNNEL: attempted=115 eligible=51 injected=48
+Tick: 635635, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe38, new_addr=0x7ffffefe30, old_size=8, new_size=8, faults_injected: 48
+FUNNEL: attempted=116 eligible=52 injected=49
+Tick: 636020, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe40, new_addr=0x7ffffefe40, old_size=8, new_size=8, value_changed=0, faults_injected: 49
+FUNNEL: attempted=117 eligible=53 injected=50
+Tick: 636405, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 50
+FUNNEL: attempted=118 eligible=54 injected=51
+Tick: 636790, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 51
+FUNNEL: attempted=119 eligible=55 injected=52
+Tick: 637175, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 52
+FUNNEL: attempted=121 eligible=56 injected=53
+Tick: 641795, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 53
+FUNNEL: attempted=122 eligible=57 injected=54
+Tick: 642180, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 54
+FUNNEL: attempted=123 eligible=58 injected=55
+Tick: 642565, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 55
+FUNNEL: attempted=125 eligible=59 injected=56
+Tick: 643720, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc28, new_addr=0x7ffffefc20, old_size=8, new_size=8, faults_injected: 56
+FUNNEL: attempted=127 eligible=60 injected=57
+Tick: 644490, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefbe8, new_addr=0x7ffffefbe0, old_size=16, new_size=16, faults_injected: 57
+FUNNEL: attempted=128 eligible=61 injected=58
+Tick: 644875, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc38, new_addr=0x7ffffefc30, old_size=8, new_size=8, faults_injected: 58
+FUNNEL: attempted=129 eligible=62 injected=59
+Tick: 645260, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb88, new_addr=0x7ffffefb80, old_size=8, new_size=8, faults_injected: 59
+FUNNEL: attempted=131 eligible=63 injected=60
+Tick: 645645, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc40, new_addr=0x7ffffefc40, old_size=8, new_size=8, value_changed=0, faults_injected: 60
+FUNNEL: attempted=133 eligible=64 injected=61
+Tick: 646030, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb98, new_addr=0x7ffffefb90, old_size=8, new_size=8, faults_injected: 61
+FUNNEL: attempted=139 eligible=65 injected=62
+Tick: 697620, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe48, new_addr=0x7ffffefe40, old_size=8, new_size=8, faults_injected: 62
+FUNNEL: attempted=140 eligible=66 injected=63
+Tick: 698005, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe50, new_addr=0x7ffffefe50, old_size=8, new_size=8, value_changed=0, faults_injected: 63
+FUNNEL: attempted=141 eligible=67 injected=64
+Tick: 698390, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 64
+FUNNEL: attempted=142 eligible=68 injected=65
+Tick: 698775, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 65
+FUNNEL: attempted=144 eligible=69 injected=66
+Tick: 699545, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc28, new_addr=0x7ffffefc20, old_size=8, new_size=8, faults_injected: 66
+FUNNEL: attempted=145 eligible=70 injected=67
+Tick: 704165, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe58, new_addr=0x7ffffefe50, old_size=8, new_size=8, faults_injected: 67
+FUNNEL: attempted=146 eligible=71 injected=68
+Tick: 704550, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe60, new_addr=0x7ffffefe60, old_size=8, new_size=8, value_changed=0, faults_injected: 68
+FUNNEL: attempted=147 eligible=72 injected=69
+Tick: 705320, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe68, new_addr=0x7ffffefe60, old_size=8, new_size=8, faults_injected: 69
+FUNNEL: attempted=148 eligible=73 injected=70
+Tick: 705705, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe70, new_addr=0x7ffffefe70, old_size=8, new_size=8, value_changed=0, faults_injected: 70
+FUNNEL: attempted=150 eligible=74 injected=71
+Tick: 706475, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe78, new_addr=0x7ffffefe70, old_size=8, new_size=8, faults_injected: 71
+FUNNEL: attempted=151 eligible=75 injected=72
+Tick: 706860, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe80, new_addr=0x7ffffefe80, old_size=8, new_size=8, value_changed=0, faults_injected: 72
+FUNNEL: attempted=153 eligible=76 injected=73
+Tick: 708015, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe88, new_addr=0x7ffffefe80, old_size=8, new_size=8, faults_injected: 73
+FUNNEL: attempted=155 eligible=77 injected=74
+Tick: 708400, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe90, new_addr=0x7ffffefe90, old_size=8, new_size=8, value_changed=0, faults_injected: 74
+FUNNEL: attempted=156 eligible=78 injected=75
+Tick: 709170, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefe98, new_addr=0x7ffffefe90, old_size=8, new_size=8, faults_injected: 75
+FUNNEL: attempted=157 eligible=79 injected=76
+Tick: 709555, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefea0, new_addr=0x7ffffefea0, old_size=8, new_size=8, value_changed=0, faults_injected: 76
+FUNNEL: attempted=158 eligible=80 injected=77
+Tick: 710325, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefea8, new_addr=0x7ffffefea0, old_size=8, new_size=8, faults_injected: 77
+FUNNEL: attempted=159 eligible=81 injected=78
+Tick: 710710, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefeb0, new_addr=0x7ffffefeb0, old_size=8, new_size=8, value_changed=0, faults_injected: 78
+FUNNEL: attempted=160 eligible=82 injected=79
+Tick: 711480, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefeb8, new_addr=0x7ffffefeb0, old_size=8, new_size=8, faults_injected: 79
+FUNNEL: attempted=161 eligible=83 injected=80
+Tick: 711865, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefec0, new_addr=0x7ffffefec0, old_size=8, new_size=8, value_changed=0, faults_injected: 80
+FUNNEL: attempted=162 eligible=84 injected=81
+Tick: 712635, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefec8, new_addr=0x7ffffefec0, old_size=8, new_size=8, faults_injected: 81
+FUNNEL: attempted=163 eligible=85 injected=82
+Tick: 713020, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefed0, new_addr=0x7ffffefed0, old_size=8, new_size=8, value_changed=0, faults_injected: 82
+FUNNEL: attempted=164 eligible=86 injected=83
+Tick: 781935, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefec0, new_addr=0x7ffffefec0, old_size=8, new_size=8, value_changed=0, faults_injected: 83
+FUNNEL: attempted=165 eligible=87 injected=84
+Tick: 782320, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefec8, new_addr=0x7ffffefec0, old_size=8, new_size=8, faults_injected: 84
+FUNNEL: attempted=166 eligible=88 injected=85
+Tick: 782705, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefed0, new_addr=0x7ffffefed0, old_size=8, new_size=8, value_changed=0, faults_injected: 85
+FUNNEL: attempted=169 eligible=89 injected=86
+Tick: 783860, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefed8, new_addr=0x7ffffefed0, old_size=8, new_size=8, faults_injected: 86
+FUNNEL: attempted=170 eligible=90 injected=87
+Tick: 784245, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefee0, new_addr=0x7ffffefee0, old_size=8, new_size=8, value_changed=0, faults_injected: 87
+FUNNEL: attempted=173 eligible=91 injected=88
+Tick: 785785, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefee8, new_addr=0x7ffffefee0, old_size=8, new_size=8, faults_injected: 88
+FUNNEL: attempted=174 eligible=92 injected=89
+Tick: 786170, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefef0, new_addr=0x7ffffefef0, old_size=8, new_size=8, value_changed=0, faults_injected: 89
+FUNNEL: attempted=175 eligible=93 injected=90
+Tick: 787710, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefef8, new_addr=0x7ffffefef0, old_size=8, new_size=8, faults_injected: 90
+FUNNEL: attempted=176 eligible=94 injected=91
+Tick: 788095, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffeff00, new_addr=0x7ffffeff00, old_size=8, new_size=8, value_changed=0, faults_injected: 91
+FUNNEL: attempted=177 eligible=95 injected=92
+Tick: 788865, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffeff08, new_addr=0x7ffffeff00, old_size=8, new_size=8, faults_injected: 92
+FUNNEL: attempted=178 eligible=96 injected=93
+Tick: 789250, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffeff10, new_addr=0x7ffffeff10, old_size=8, new_size=8, value_changed=0, faults_injected: 93
+FUNNEL: attempted=181 eligible=97 injected=94
+Tick: 795410, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefba0, new_addr=0x7ffffefba0, old_size=8, new_size=8, value_changed=0, faults_injected: 94
+FUNNEL: attempted=182 eligible=98 injected=95
+Tick: 795795, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd08, new_addr=0x7ffffefd00, old_size=8, new_size=8, faults_injected: 95
+FUNNEL: attempted=183 eligible=99 injected=96
+Tick: 796180, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc00, new_addr=0x7ffffefc00, old_size=4, new_size=4, value_changed=0, faults_injected: 96
+FUNNEL: attempted=185 eligible=100 injected=97
+Tick: 798105, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc28, new_addr=0x7ffffefc20, old_size=8, new_size=8, faults_injected: 97
+FUNNEL: attempted=187 eligible=101 injected=98
+Tick: 798490, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefbe8, new_addr=0x7ffffefbe0, old_size=16, new_size=16, faults_injected: 98
+FUNNEL: attempted=188 eligible=102 injected=99
+Tick: 798875, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc38, new_addr=0x7ffffefc30, old_size=8, new_size=8, faults_injected: 99
+FUNNEL: attempted=190 eligible=103 injected=100
+Tick: 799260, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb88, new_addr=0x7ffffefb80, old_size=8, new_size=8, faults_injected: 100
+FUNNEL: attempted=191 eligible=104 injected=101
+Tick: 799645, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc40, new_addr=0x7ffffefc40, old_size=8, new_size=8, value_changed=0, faults_injected: 101
+FUNNEL: attempted=193 eligible=105 injected=102
+Tick: 800030, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb98, new_addr=0x7ffffefb90, old_size=8, new_size=8, faults_injected: 102
+FUNNEL: attempted=195 eligible=106 injected=103
+Tick: 800415, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefbf8, new_addr=0x7ffffefbf0, old_size=8, new_size=8, faults_injected: 103
+FUNNEL: attempted=197 eligible=107 injected=104
+Tick: 800800, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc78, new_addr=0x7ffffefc70, old_size=8, new_size=8, faults_injected: 104
+FUNNEL: attempted=200 eligible=108 injected=105
+Tick: 801570, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x400020, new_addr=0x400020, old_size=8, new_size=8, value_changed=0, faults_injected: 105
+FUNNEL: attempted=202 eligible=109 injected=106
+Tick: 801955, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x400038, new_addr=0x400030, old_size=2, new_size=2, faults_injected: 106
+FUNNEL: attempted=204 eligible=110 injected=107
+Tick: 802340, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb60, new_addr=0x7ffffefb60, old_size=16, new_size=16, value_changed=0, faults_injected: 107
+FUNNEL: attempted=206 eligible=111 injected=108
+Tick: 802725, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefb50, new_addr=0x7ffffefb50, old_size=16, new_size=16, value_changed=0, faults_injected: 108
+FUNNEL: attempted=208 eligible=112 injected=109
+Tick: 803110, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x4980f0, new_addr=0x4980f0, old_size=8, new_size=8, value_changed=0, faults_injected: 109
+FUNNEL: attempted=216 eligible=113 injected=110
+Tick: 889735, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x491000, new_addr=0x491000, old_size=4, new_size=4, value_changed=0, faults_injected: 110
+FUNNEL: attempted=225 eligible=114 injected=111
+Tick: 941325, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefdb8, new_addr=0x7ffffefdb0, old_size=8, new_size=8, faults_injected: 111
+FUNNEL: attempted=226 eligible=115 injected=112
+Tick: 942865, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x0, new_addr=0x0, old_size=1, new_size=1, value_changed=0, faults_injected: 112
+FUNNEL: attempted=227 eligible=116 injected=113
+Tick: 1001770, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc70, new_addr=0x7ffffefc70, old_size=16, new_size=16, value_changed=0, faults_injected: 113
+FUNNEL: attempted=228 eligible=117 injected=114
+Tick: 1002155, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc80, new_addr=0x7ffffefc80, old_size=16, new_size=16, value_changed=0, faults_injected: 114
+FUNNEL: attempted=229 eligible=118 injected=115
+Tick: 1002540, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc90, new_addr=0x7ffffefc90, old_size=16, new_size=16, value_changed=0, faults_injected: 115
+FUNNEL: attempted=230 eligible=119 injected=116
+Tick: 1002925, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefca0, new_addr=0x7ffffefca0, old_size=16, new_size=16, value_changed=0, faults_injected: 116
+FUNNEL: attempted=231 eligible=120 injected=117
+Tick: 1003310, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefcb0, new_addr=0x7ffffefcb0, old_size=16, new_size=16, value_changed=0, faults_injected: 117
+FUNNEL: attempted=232 eligible=121 injected=118
+Tick: 1003695, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefc60, new_addr=0x7ffffefc60, old_size=16, new_size=16, value_changed=0, faults_injected: 118
+FUNNEL: attempted=233 eligible=122 injected=119
+Tick: 1060675, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48e140, new_addr=0x48e140, old_size=4, new_size=4, value_changed=0, faults_injected: 119
+FUNNEL: attempted=234 eligible=123 injected=120
+Tick: 1113805, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48e160, new_addr=0x48e160, old_size=8, new_size=8, value_changed=0, faults_injected: 120
+FUNNEL: attempted=235 eligible=124 injected=121
+Tick: 1116115, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48e168, new_addr=0x48e160, old_size=1, new_size=1, faults_injected: 121
+FUNNEL: attempted=236 eligible=125 injected=122
+Tick: 1116500, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd88, new_addr=0x7ffffefd80, old_size=8, new_size=8, faults_injected: 122
+FUNNEL: attempted=237 eligible=126 injected=123
+Tick: 1117655, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48c3e0, new_addr=0x48c3e0, old_size=8, new_size=8, value_changed=0, faults_injected: 123
+FUNNEL: attempted=238 eligible=127 injected=124
+Tick: 1124200, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48e160, new_addr=0x48e160, old_size=8, new_size=8, value_changed=0, faults_injected: 124
+FUNNEL: attempted=240 eligible=128 injected=125
+Tick: 1205820, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48e168, new_addr=0x48e160, old_size=1, new_size=1, faults_injected: 125
+FUNNEL: attempted=241 eligible=129 injected=126
+Tick: 1206205, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x7ffffefd88, new_addr=0x7ffffefd80, old_size=8, new_size=8, faults_injected: 126
+FUNNEL: attempted=242 eligible=130 injected=127
+Tick: 1207360, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48c3e0, new_addr=0x48c3e0, old_size=8, new_size=8, value_changed=0, faults_injected: 127
+FUNNEL: attempted=243 eligible=131 injected=128
+Tick: 1212365, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x498148, new_addr=0x498140, old_size=8, new_size=8, faults_injected: 128
+FUNNEL: attempted=245 eligible=132 injected=129
+Tick: 1277430, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x498148, new_addr=0x498140, old_size=8, new_size=8, faults_injected: 129
+FUNNEL: attempted=248 eligible=133 injected=130
+Tick: 1277815, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x498150, new_addr=0x498150, old_size=8, new_size=8, value_changed=0, faults_injected: 130
+FUNNEL: attempted=251 eligible=134 injected=131
+Tick: 1280510, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48fcd0, new_addr=0x48fcd0, old_size=8, new_size=8, value_changed=0, faults_injected: 131
+FUNNEL: attempted=254 eligible=135 injected=132
+Tick: 1283590, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48fd38, new_addr=0x48fd30, old_size=8, new_size=8, faults_injected: 132
+FUNNEL: attempted=255 eligible=136 injected=133
+Tick: 1340570, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x493c90, new_addr=0x493c90, old_size=4, new_size=4, value_changed=0, faults_injected: 133
+FUNNEL: attempted=256 eligible=137 injected=134
+Tick: 1340955, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x493c88, new_addr=0x493c80, old_size=8, new_size=8, faults_injected: 134
+FUNNEL: attempted=258 eligible=138 injected=135
+Tick: 1441055, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48ffd8, new_addr=0x48ffd0, old_size=8, new_size=8, faults_injected: 135
+FUNNEL: attempted=270 eligible=139 injected=136
+Tick: 1503810, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48dd18, new_addr=0x48dd10, old_size=8, new_size=8, faults_injected: 136
+FUNNEL: attempted=271 eligible=140 injected=137
+Tick: 1513435, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48ff08, new_addr=0x48ff00, old_size=8, new_size=8, faults_injected: 137
+FUNNEL: attempted=272 eligible=141 injected=138
+Tick: 1513820, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48fc60, new_addr=0x48fc60, old_size=8, new_size=8, value_changed=0, faults_injected: 138
+FUNNEL: attempted=273 eligible=142 injected=139
+Tick: 1568875, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48fd00, new_addr=0x48fd00, old_size=8, new_size=8, value_changed=0, faults_injected: 139
+FUNNEL: attempted=274 eligible=143 injected=140
+Tick: 1570800, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48ff28, new_addr=0x48ff20, old_size=8, new_size=8, faults_injected: 140
+FUNNEL: attempted=276 eligible=144 injected=141
+Tick: 1571185, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x48fe48, new_addr=0x48fe40, old_size=8, new_size=8, faults_injected: 141
+FUNNEL: attempted=279 eligible=145 injected=142
+Tick: 1574650, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0x498188, new_addr=0x498180, old_size=8, new_size=8, faults_injected: 142
+FUNNEL: attempted=284 eligible=146 injected=143
+Tick: 1633555, Site: lsq_pushRequest_PRE, mode=a03_bit3_stuck0_load, old_addr=0xffffffffffb73c58, new_addr=0xffffffffffb73c50, old_size=8, new_size=8, faults_injected: 143

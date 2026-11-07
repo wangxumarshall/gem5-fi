@@ -1,0 +1,108 @@
+{
+  "pilot_id": "PILOT-REPLAY-RW01",
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency",
+  "seed": 3135797961,
+  "fault": "FW02-CFG01 (F6, one suppressed forwarding)",
+  "note": "replays are real partial_forward_mismatch reschedules of replay_dependency; they are observed under a fault run and are not claimed to be caused by the injected bit flip",
+  "run_status": "COMPLETED",
+  "activation": "TRIGGERED",
+  "terminal_state": "MASKED",
+  "oracle_pass": true,
+  "trace_completeness": "COMPLETE",
+  "record_integrity": "VALID",
+  "trace_counts": {
+    "events": 28490,
+    "edges": 4,
+    "injections": 1,
+    "activations": 5
+  },
+  "replay_count": 5,
+  "replays": [
+    {
+      "reason": "partial_forward_mismatch",
+      "dyn_inst_seq": 69296,
+      "tick": 31072965,
+      "pc": "4015fc",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "pre_replay_generation": 0,
+      "pre_state": "issued; not yet rescheduled",
+      "post_state": {
+        "tick": 31129945,
+        "reason": "commit"
+      },
+      "final_result": "COMMITTED",
+      "lq_entry_id": "9200",
+      "entry_generation": "9690"
+    },
+    {
+      "reason": "partial_forward_mismatch",
+      "dyn_inst_seq": 70968,
+      "tick": 35427700,
+      "pc": "42a6d8",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "pre_replay_generation": 0,
+      "pre_state": "issued; not yet rescheduled",
+      "post_state": {
+        "tick": 35429240,
+        "reason": "squash"
+      },
+      "final_result": "SQUASHED",
+      "lq_entry_id": "9348",
+      "entry_generation": "9912"
+    },
+    {
+      "reason": "partial_forward_mismatch",
+      "dyn_inst_seq": 70969,
+      "tick": 35428085,
+      "pc": "42a6dc",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "pre_replay_generation": 0,
+      "pre_state": "issued; not yet rescheduled",
+      "post_state": {
+        "tick": 35429240,
+        "reason": "squash"
+      },
+      "final_result": "SQUASHED",
+      "lq_entry_id": "9349",
+      "entry_generation": "9913"
+    },
+    {
+      "reason": "partial_forward_mismatch",
+      "dyn_inst_seq": 71973,
+      "tick": 36564990,
+      "pc": "422a58",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "pre_replay_generation": 0,
+      "pre_state": "issued; not yet rescheduled",
+      "post_state": {
+        "tick": 36569225,
+        "reason": "commit"
+      },
+      "final_result": "COMMITTED",
+      "lq_entry_id": "9426",
+      "entry_generation": "10046"
+    },
+    {
+      "reason": "partial_forward_mismatch",
+      "dyn_inst_seq": 72305,
+      "tick": 37424310,
+      "pc": "44e2ec",
+      "execution_attempt_id": 1,
+      "replay_generation": 1,
+      "pre_replay_generation": 0,
+      "pre_state": "issued; not yet rescheduled",
+      "post_state": {
+        "tick": 37428545,
+        "reason": "commit"
+      },
+      "final_result": "COMMITTED",
+      "lq_entry_id": "9466",
+      "entry_generation": "10093"
+    }
+  ],
+  "validator_errors": []
+}

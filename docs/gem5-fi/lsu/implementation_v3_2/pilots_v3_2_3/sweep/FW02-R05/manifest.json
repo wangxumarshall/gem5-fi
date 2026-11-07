@@ -1,0 +1,68 @@
+{
+  "schema_version": "lsu-run-manifest-v3.2",
+  "sample_run_id": "PILOT-FW02-R05",
+  "run_id": "PILOT-FW02",
+  "sub_task_id": "PILOT-FW02-S01",
+  "fault_id": "FW02-CFG01",
+  "model_id": "FW02",
+  "seed": 3622278636,
+  "seed_source": "excel:5.60个样本执行矩阵!Seed",
+  "fault": {
+    "location": "Forwarding匹配判定：read()覆盖判断",
+    "target_field": "AddrRangeCoverage result",
+    "target_bit": "目标Load/Store同地址对",
+    "normal_value": "FullAddrRangeCoverage",
+    "fault_value": "NoAddrRangeCoverage一次",
+    "injection_mode": "F6",
+    "injection_timing": "read() forwarding判定",
+    "target_event": "目标Load遇到同地址older Store",
+    "event_ordinal": 5
+  },
+  "workload": {
+    "path": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
+    "path_source": "/home/sdc/gem5-fi-ding/workloads/directed/sq_forward",
+    "sha256": "132a84f7f21be052bc1f2c9baf1c12d5bd3462aae03b1d42778c94e69b0af297",
+    "oracle_expected": "1f4cbf14327717df"
+  },
+  "warmup": "NEEDS_CONFIG（工作负载专属warm-up）",
+  "roi": "NEEDS_CONFIG（工作负载专属ROI）",
+  "gem5": {
+    "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "binary_sha256": "f515850fc1396db6fa272cf64b508e74c54ce31aa803afd5a705eeec699e7abd",
+    "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "config_script_sha256": "0c0bca13f4a82479621f9ce24d1ecb118e3e6bdf519315ffb5c50233b65fd880"
+  },
+  "output_dir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_3/sweep/FW02-R05",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_3/sweep/FW02-R05",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_lsqfwd",
+    "--lsq_struct_mode",
+    "f6_fw02",
+    "--max_faults",
+    "1",
+    "--rng_seed",
+    "3622278636",
+    "--lsqfwd_event_ordinal",
+    "5"
+  ],
+  "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_3/sweep/FW02-R05 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_forward --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_lsqfwd --lsq_struct_mode f6_fw02 --max_faults 1 --rng_seed 3622278636 --lsqfwd_event_ordinal 5",
+  "environment": {
+    "captured_at_utc": "2026-11-07T06:22:26Z",
+    "host": "localhost0101",
+    "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
+    "python": "3.11.6"
+  },
+  "manifest_sha256": "7f18a85f8fc6dcd99ec12ccabfd72781a7b67aa61bb25eda51f1428c14651b77"
+}
