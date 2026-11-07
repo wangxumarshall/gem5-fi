@@ -1,5 +1,10 @@
 # DA04 — Five Pilot Results (LSU v3.2.4)
 
+> **v3.2.5 correction (2026-11-08):** request-time causality removes the
+> R04/R05 consumers; both pilots are now **UNRESOLVED**, not SDC. See
+> `../LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`. The R05 oracle value below is
+> corrected to the committed `oracle.log`.
+
 **Date:** 2026-11-07
 **Binary:** `build/ARM/gem5.opt` sha256 `2c5b1c9a79cc67e541abd6b84838539f0dc4668ad2c5bcccc0561d5eafe9f2ec`
 **Workload:** `implementation_v3_2/workloads/alignment` (W8)
@@ -62,7 +67,9 @@ All five: `OriginalByteEnable=0xF`, `InjectedByteEnable=0xE`, `ChangedBit=0`, `A
 - Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 19960) -> register_writeback -> errant_commit -> 7,714 consumer commits`.
 - Memory write: PA `0x76c00` + 45, `lane0 packet/before/after = 0x77/0xA5/0xA5`, `disabled_unchanged=1`.
 - Load response: 4 bytes at PA `0x76c2d`, `data_hex=a5623036`; affected byte `0xA5`, not the intended `0x77`.
-- Oracle: **FAIL** (`checksum=0x40f219fae293ba25`).
+- Oracle: **FAIL** (`checksum=0xb948f769e7d691f5`, golden `0x3f89eab79392ce69`).
+  (v3.2.5 correction: the v3.2.4 text printed `0x40f219fae293ba25`; the
+  committed `oracle.log` reports `expected=3f89eab79392ce69 got=b948f769e7d691f5`.)
 - Terminal: **SDC** / `ORACLE_FAIL`.
 
 ## Byte-enable before/after
