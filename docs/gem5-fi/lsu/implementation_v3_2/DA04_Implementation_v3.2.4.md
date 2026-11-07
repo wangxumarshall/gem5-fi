@@ -79,6 +79,23 @@ response -> register writeback -> consumer commit, with the DA04 mask
 invariant (`disabled_unchanged=1`) and the load returning the old byte.
 It is **not** inferred from "five runs succeeded".
 
+## 4b. Chain-attribution guard (whole-branch review fix)
+
+The fresh reviewer found that load attachment was address-overlap only. The
+fix (`store_chain_rules.hh`, used in `noteMemResponse`) requires:
+
+- the load is younger than the store (`load_seq > store_seq`),
+- the actual cache write already happened (`written_tick != 0` and
+  `now >= written_tick`),
+- no different store overwrote the faulted byte (`noteStoreWrite` marks the
+  registry entry and emits a `store_overwrite` node).
+
+Effect on the pilots: R03's earlier "consumer" was an address-only match
+after a later overwrite; it is now correctly MASKED/lane-not-read. R04/R05
+keep complete consumer chains (the load responded before the overwrite).
+This is recorded rather than hidden; the five-pilot csv in this directory
+is the post-fix run.
+
 ## 5. Boundary recorded honestly
 
 - The five clinical ordinals are a **TEMPORARY_EVENT_SELECTION**: Excel

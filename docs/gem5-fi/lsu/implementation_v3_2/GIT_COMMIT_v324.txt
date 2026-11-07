@@ -2,11 +2,13 @@ branch: lsu-platform-v3.2.4
 base: 7f54db8d
 head: 46315c85 (LP01 commit; see git log for the full series)
 generated_utc: 2026-11-07T14:55:00Z
-pilot_binary_sha256: dae736b2c627960523579482ac0e2916bd015a290afffa88cdc941dec41a6e9c
-  (binary that produced the DA04/FW02/SQ01 pilot traces in pilots_v3_2_4/)
-final_binary_sha256: 9658f52f62027505628025999e13418fb6ecc140526487c45d43edd79e4e587e
-  (binary after the LP01 originals fix; does not change DA04/FW02/SQ01 results because
-   CHAOSL1DForward is not mounted in those pilots)
+da04_pilot_binary_sha256: 3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297
+  (binary that produced the post-review-fix DA04-R01..R05 traces)
+fw02_sq01_pilot_binary_sha256: dae736b2c627960523579482ac0e2916bd015a290afffa88cdc941dec41a6e9c
+  (binary that produced the FW02-R01/R05 and SQ01-R01..R05 traces; the later
+   review fix only changes load attribution when a faulted store is registered,
+   so FW02/SQ01 verdicts are unaffected and were not rerun)
+final_binary_sha256: 3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297
 binary_path: build/ARM/gem5.opt (copied from CHAOS/gem5/build/ARM/gem5.opt)
 note: every pilot keeps the Excel RunID/SubTaskID/SampleRunID/Seed; DA04 clinical
       ordinals are recorded in pilot_meta.json -> excel_identity.event_ordinal_used.

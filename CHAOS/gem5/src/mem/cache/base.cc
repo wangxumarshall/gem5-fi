@@ -866,6 +866,13 @@ BaseCache::updateBlockData(CacheBlk *blk, const PacketPtr cpkt,
                          blk->data + trace_off + cpkt->getSize());
     }
 
+    // v3.2.4 review fix: a different dynamic store writing over a registered
+    // faulted byte invalidates that byte as a source for later loads.
+    if (cpkt && cpkt->isWrite() && cpkt->req && cpkt->req->hasVaddr() &&
+            CHAOSPropagation::instance()) {
+        CHAOSPropagation::instance()->noteStoreWrite(cpkt);
+    }
+
     // Actually perform the data update
     if (cpkt) {
         cpkt->writeDataToBlock(blk->data, blkSize);

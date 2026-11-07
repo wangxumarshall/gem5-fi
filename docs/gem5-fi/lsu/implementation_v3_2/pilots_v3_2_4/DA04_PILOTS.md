@@ -36,13 +36,16 @@ All five: `OriginalByteEnable=0xF`, `InjectedByteEnable=0xE`, `ChangedBit=0`, `A
 - No later load covers the affected byte.
 - Terminal: **MASKED** / `STORE_COMMITTED_LANE_NOT_READ`; oracle PASS.
 
-### R03 — MASKED with a real consumer (fault reached a load, oracle unaffected)
+### R03 — MASKED (store committed, lane not read after the overwrite guard)
 
 - Injection: seq 3030, `0x7ffffefca0`, size 4, data hash `ad2aca7747985764`, `0xF -> 0xE`.
-- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 11000) -> register_writeback x2 -> consumer_commit x2`.
+- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> sq_lifecycle(free, complete)`.
 - Memory write: PA `0x7dc80` + 32, `lane0 packet/before/after = 0x1/0x0/0x0`, `disabled_unchanged=1`.
-- Load response: 16 bytes at PA `0x7dca0`, first byte `0x00` = the old byte (not the intended `0x01`).
-- Terminal: **MASKED** / `STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS`; oracle PASS.
+- An address-overlapping load existed in the earlier run, but a later store
+  overwrote the byte before that load's response. The v3.2.4 review fix
+  refuses address-only attribution (`mayConsumeFaultByte`), so the load is
+  **not** counted as a consumer.
+- Terminal: **MASKED** / `STORE_COMMITTED_LANE_NOT_READ`; oracle PASS.
 
 ### R04 — SDC (fault reached a load and the application checksum changed)
 
@@ -73,10 +76,11 @@ Store data:               unchanged (same FNV hash in injection and writeback)
 
 ## Propagation verdict
 
-- A single chain with `injection -> store_writeback -> store_mem_write -> memory_response -> register_writeback -> consumer_commit` exists in **R03, R04, R05**.
+- A single chain with `injection -> store_writeback -> store_mem_write -> memory_response -> register_writeback -> consumer_commit` exists in **R04 and R05**.
 - In R04/R05 the disabled lane is byte-identical before/after (`0xA5 -> 0xA5`), the later load returns `0xA5`, and the application checksum changes — the mask demonstrably affected the memory write and the subsequent read.
+- The attribution guard requires the load to be younger than the store, to respond after the actual cache write, and the byte not to have been overwritten. This is what removes R03's earlier address-only consumer.
 - This satisfies the plan's PROPAGATION_VERIFIED evidence bar; the chain-integrity validator (Task 11) is the independent check and is recorded in the status report.
-- R01 is SQUASHED and R02 is MASKED-without-consumer; neither is counted as propagation evidence.
+- R01 is SQUASHED, R02 and R03 are MASKED-without-consumer; none is counted as propagation evidence.
 
 ## Trace files
 

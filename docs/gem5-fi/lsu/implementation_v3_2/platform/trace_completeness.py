@@ -196,9 +196,17 @@ def check_completeness(path: Path) -> dict:
                     chain_reasons.append("response_on_store_seq")
         resp = by_type.get("memory_response", [])
         taints = by_type.get("register_writeback", [])
-        if resp and taints:
-            rh = _d(resp[-1].get("detail")).get("data_fnv")
-            th = _d(taints[-1].get("detail")).get("source_value_hash")
+        # Pair each taint with the response it names (source_event_id is the
+        # mapped JSONL event id). Comparing the last resp with the last taint
+        # would mix two loads when a chain carries more than one.
+        by_id = {e.get("event_id"): e for e in chain}
+        for t in taints:
+            src = t.get("source_event_id")
+            r = by_id.get(src) if src is not None else None
+            if r is None or r.get("event_type") != "memory_response":
+                continue
+            rh = _d(r.get("detail")).get("data_fnv")
+            th = _d(t.get("detail")).get("source_value_hash")
             if rh and th and rh != th:
                 chain_reasons.append("hash_discontinuity_resp_taint")
         # A consumer must be produced by an event on the same chain. The

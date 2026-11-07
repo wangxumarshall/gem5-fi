@@ -2,9 +2,10 @@
 
 **Date:** 2026-11-07
 **Branch:** `lsu-platform-v3.2.4`, base `7f54db8d` (v3.2.3 final)
-**Binary (pilot runs):** `dae736b2c627960523579482ac0e2916bd015a290afffa88cdc941dec41a6e9c`
-**Final binary (after the LP01 fix):** `9658f52f62027505628025999e13418fb6ecc140526487c45d43edd79e4e587e`
-(LP01 is not mounted in the DA04/FW02/SQ01 pilots, so the trace results are unchanged.)
+**Binary (DA04 post-review pilot runs):** `3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297`
+**Binary (FW02/SQ01 pilot runs):** `dae736b2c627960523579482ac0e2916bd015a290afffa88cdc941dec41a6e9c`
+(The review fix only changes load attribution when a faulted store is registered,
+so the FW02/SQ01 verdicts are unaffected and were not rerun.)
 **Scope:** DA04 implementation + five pilots; FW02 terminal fix; chain-scoped PropagationCoverage; SQ01 propagation evidence; LP01 start.
 
 ## 1. Final answers
@@ -27,15 +28,17 @@
    byte-enable mask, packet data, block bytes before/after, and
    `enabled_written`/`disabled_unchanged` flags.
 5. **Were later Load and Consumer tracked?**
-   Yes for R03/R04/R05: `memory_response -> register_writeback ->
-   errant_commit -> consumer_commit` on the same ptag chain, with 2/2 and
-   9064/7714 consumer commits in R04/R05. R02 has no later load of the byte;
-   R01 was squashed.
+   Yes for R04/R05: `memory_response -> register_writeback ->
+   errant_commit -> consumer_commit` on the same ptag chain, with 9,064/7,714
+   consumer commits. The chain requires the load to be younger than the
+   store, to respond after the actual cache write, and the byte not to have
+   been overwritten; R03's earlier address-only consumer was removed by this
+   guard. R02/R03 have no qualifying later load; R01 was squashed.
 6. **What are the five pilot terminal states?**
-   R01 SQUASHED; R02 MASKED (lane not read); R03 MASKED (consumer, oracle
-   pass); R04 SDC; R05 SDC.
+   R01 SQUASHED; R02 MASKED (lane not read); R03 MASKED (lane not read);
+   R04 SDC; R05 SDC.
 7. **Has DA04 reached PROPAGATION_VERIFIED?**
-   **Yes**, on the spec's evidence bar, using R03/R04/R05: one chain with
+   **Yes**, on the spec's evidence bar, using R04/R05: one chain with
    injection -> store writeback -> actual cache write -> load response ->
    register writeback -> consumer commit, `chain_integrity=PASS`, and the
    DA04 mask invariant. It is not claimed from "five runs succeeded".

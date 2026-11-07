@@ -13,6 +13,7 @@
 // (checklist in docs/gem5-fi/lsu/evidence/P4/obs_l3_propagation_design.md).
 
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include "cpu/o3/CHAOSPropagation/store_chain_rules.hh"
 
 #include <cstring>
 #include <sstream>
@@ -540,7 +541,7 @@ namespace gem5
         auto it = fault_store_registry.find(pkt->req->getReqInstSeqNum());
         if (it == fault_store_registry.end())
             return;
-        const FaultStoreEntry &e = it->second;
+        FaultStoreEntry &e = it->second;
         const unsigned n = after.size();
         if (n == 0 || before.size() != n || !packet_data)
             return;
@@ -571,6 +572,37 @@ namespace gem5
           << ";lane0_after=0x" << (unsigned)after[0] << std::dec;
         writeNode(e.ptag, "store_mem", e.dyn_seq, true, 0, false,
                   blk_addr, true, 0, false, 0, false, d.str());
+        // v3.2.4 review fix: from this tick on, a later load can actually
+        // observe the faulted byte in memory.
+        e.written_tick = curTick();
+    }
+
+    void
+    CHAOSPropagation::noteStoreWrite(const PacketPtr &pkt)
+    {
+        if (!write_log || !pkt || !pkt->req || !pkt->req->hasVaddr())
+            return;
+        const uint64_t seq = pkt->req->hasInstSeqNum()
+            ? pkt->req->getReqInstSeqNum() : 0;
+        const Addr a = pkt->req->getVaddr();
+        const Addr a_end = a + (Addr)pkt->req->getSize();
+        for (auto &kv : fault_store_registry) {
+            FaultStoreEntry &e = kv.second;
+            if (e.dyn_seq == seq || e.overwritten)
+                continue;   // the fault store itself / already marked
+            if (a < e.byte_end && e.byte_begin < a_end) {
+                e.overwritten = true;
+                std::ostringstream d;
+                d << "fault_store_seq=" << e.dyn_seq
+                  << ";overwrite_store_seq=" << seq
+                  << ";addr=0x" << std::hex << a << std::dec
+                  << ";size=" << pkt->req->getSize();
+                // ptag=0: this is a boundary event, not part of the fault
+                // store's propagation chain.
+                writeNode(0, "store_overwrite", seq, true, 0, false,
+                          a, true, 0, false, 0, false, d.str());
+            }
+        }
     }
 
     bool
@@ -728,6 +760,12 @@ namespace gem5
             const Addr a_end = a + (Addr)pkt->req->getSize();
             for (const auto &kv : fault_store_registry) {
                 const FaultStoreEntry &e = kv.second;
+                // v3.2.4 review fix: younger load + after the actual write
+                // + not overwritten. See store_chain_rules.hh.
+                if (!chaos_store_chain::mayConsumeFaultByte(
+                        inst->seqNum, e.dyn_seq, e.overwritten,
+                        e.written_tick, curTick()))
+                    continue;
                 if (a < e.byte_end && e.byte_begin < a_end) {
                     hit_ptag = e.ptag;
                     hit_family = e.family;
@@ -915,6 +953,18 @@ namespace gem5
           << ";decision=" << (suppressed ? "suppressed" : "forwarded")
           << ";normal_decision=forwarded"
           << ";fault_decision=" << (suppressed ? "suppressed" : "none")
+          << ";fault_store_seq=" << store_seq
+          << ";fault_store_family="
+          << (fault_store_registry.count(store_seq)
+                  ? fault_store_registry.at(store_seq).family : "none")
+          << ";byte_enable_not_applied_in_forward="
+          << (fault_store_registry.count(store_seq)
+                  && std::string(fault_store_registry.at(store_seq).family)
+                         == "byte_enable" ? 1 : 0)
+          << ";store_data_forwarded="
+          << (fault_store_registry.count(store_seq)
+                  && std::string(fault_store_registry.at(store_seq).family)
+                         == "store_data" ? 1 : 0)
           << ";memory_path=" << (memory_path ? 1 : 0);
         if (suppressed)
             fault_seqs.insert(load_seq);

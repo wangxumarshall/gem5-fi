@@ -43,7 +43,7 @@
     "16"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 2.133,
+  "elapsed_seconds": 2.244,
   "oracle_expected": "checksum=0x3f89eab79392ce69",
   "oracle_source": "workload_golden",
   "oracle_pass": true,
@@ -73,7 +73,7 @@
     "all_addr_unchanged": true
   },
   "trace": {
-    "csv_rows": 21209,
+    "csv_rows": 21202,
     "truncated": false,
     "validator_errors": [],
     "completeness": {
@@ -83,10 +83,6 @@
       "propagation_coverage": "COMPLETE",
       "propagation_stages": [
         "injection",
-        "memory_response",
-        "register_writeback",
-        "consumer_commit",
-        "errant_commit",
         "store_writeback",
         "store_mem_write",
         "sq_lifecycle"
@@ -100,16 +96,16 @@
       "chain_ptag": 1,
       "chain_scoped": true,
       "chain_source": "ptag",
-      "chain_events": 12,
+      "chain_events": 6,
       "chain_integrity": "PASS",
       "chain_reasons": [],
       "terminal_state": "MASKED",
       "run_status": "COMPLETED",
       "fault_activation_status": "TRIGGERED",
-      "events": 21207,
-      "edges": 8,
+      "events": 21202,
+      "edges": 2,
       "injections": 1,
-      "activations": 9,
+      "activations": 3,
       "reasons": []
     }
   },
@@ -118,8 +114,8 @@
     "fault_activation_status": "TRIGGERED",
     "observed_terminal": "MASKED",
     "terminal_state": "MASKED",
-    "terminal_state_reason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
-    "fault_causality": "DIRECT_DATAFLOW_EVIDENCE",
+    "terminal_state_reason": "STORE_COMMITTED_LANE_NOT_READ",
+    "fault_causality": "INDIRECT_EVIDENCE",
     "terminal_evidence": {
       "page_table_fault_addr": null,
       "last_injection_dyn_seq": 3030,

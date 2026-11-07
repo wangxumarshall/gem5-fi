@@ -43,7 +43,7 @@
     "6"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 2.12,
+  "elapsed_seconds": 2.214,
   "oracle_expected": "checksum=0x3f89eab79392ce69",
   "oracle_source": "workload_golden",
   "oracle_pass": true,

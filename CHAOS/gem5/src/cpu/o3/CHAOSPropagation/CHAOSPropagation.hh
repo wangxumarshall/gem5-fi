@@ -225,6 +225,12 @@ class CHAOSPropagation : public SimObject
     bool isFaultStore(uint64_t dyn_seq) const;
     uint64_t faultStorePtag(uint64_t dyn_seq) const;
 
+    // v3.2.4 review fix: called for EVERY cache write. If a different dynamic
+    // store writes over a registered faulted byte, the fault store can no
+    // longer be the source of a later load; mark the entry overwritten and
+    // emit a store_overwrite node so the trace is honest.
+    void noteStoreWrite(const PacketPtr &pkt);
+
     // Real LQ/SQ entry lifecycle (alloc/reuse/free), from the circular queue
     // insert/commit/squash sites.
     void noteLQLifecycle(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
@@ -361,6 +367,8 @@ class CHAOSPropagation : public SimObject
         std::string data_fnv;
         std::string data_hex;
         Tick registered = 0;
+        Tick written_tick = 0;     // actual cache write applied
+        bool overwritten = false;  // a different store rewrote the byte
     };
     std::map<uint64_t, FaultStoreEntry> fault_store_registry;
 

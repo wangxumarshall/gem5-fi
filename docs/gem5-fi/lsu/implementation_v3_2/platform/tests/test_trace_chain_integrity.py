@@ -25,12 +25,13 @@ def _da04_chain(tmp_path, *, store_ptag=1, resp_ptag=1, resp_seq=300,
     w.event("store_mem_write", ptag=store_ptag, dyn_inst_seq=250,
             trace_completeness="COMPLETE",
             detail=f"family=byte_enable;disabled_unchanged={disabled}")
-    w.event("memory_response", ptag=resp_ptag, dyn_inst_seq=resp_seq,
-            trace_completeness="COMPLETE",
-            detail=f"data_fnv={resp_hash}")
+    e_resp = w.event("memory_response", ptag=resp_ptag, dyn_inst_seq=resp_seq,
+                     trace_completeness="COMPLETE",
+                     detail=f"data_fnv={resp_hash}")
     e_taint = w.event("register_writeback", ptag=resp_ptag,
                       dyn_inst_seq=resp_seq,
                       trace_completeness="COMPLETE",
+                      source_event_id=e_resp,
                       detail=f"source_value_hash={taint_hash}")
     src = e_taint if consumer_src == "taint" else None
     w.event("consumer_commit", ptag=resp_ptag, dyn_inst_seq=301,
