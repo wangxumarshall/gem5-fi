@@ -233,6 +233,41 @@ def test_da04_byte_enable_chain_is_sq_unit_and_ordered(tmp_path):
     assert mem["parent_event_id"] == wb["event_id"]
 
 
+def test_lp01_injection_before_after_and_edge_type(tmp_path):
+    """LP01: both payload hashes survive; every edge carries type + hashes."""
+    import gzip
+    csv = tmp_path / "p.csv.gz"
+    rows = [
+        "0,100,1,inj_l1dfwd,7,,80e30,,,orig_data_fnv=aa;orig_data_hex=a514af81;"
+        "inj_data_fnv=bb;inj_data_hex=ad14af81;mask=0x8;eligible_ordinal=5;"
+        "request_tick=90;addr=0x80e30;entry_generation=3",
+        "1,101,1,resp,7,11,80e30,,,family=l1d_fwd;data_fnv=bb;data_hex=ad14af81;"
+        "orig_data_fnv=aa;request_tick=90;response_tick=101",
+        "2,102,1,taint_reg,7,11,80e30,4,0,family=l1d_fwd;writeback_value=0xad14af81;"
+        "writeback_value_fnv=bb;source_value_hash=bb;source_event_id=1",
+    ]
+    with gzip.open(csv, "wt") as fh:
+        fh.write("\n".join(rows) + "\n")
+    out = tmp_path / "t.jsonl"
+    convert(csv, out, sample_run_id="LP01-R01", run_id="LP01-F0-W5",
+            sub_task_id="LP01-F0-W5-S01", fault_id="LP01-CFG01",
+            fault_model_id="LP01", run_status="COMPLETED",
+            activation="TRIGGERED", terminal="SDC", completeness="COMPLETE")
+    recs = [json.loads(line) for line in out.read_text().splitlines()]
+    inj = next(r for r in recs if r.get("event_type") == "injection")
+    assert inj["unit"] == "L1D" and inj["sub_unit"] == "load_response_data"
+    assert inj["old_value"] == "a514af81"
+    assert inj["new_value"] == "ad14af81"
+    assert inj["original_data_fnv"] == "aa"
+    assert inj["injected_data_fnv"] == "bb"
+    assert inj["fault_mask"] == 8
+    assert inj["eligible_event_ordinal"] == 5
+    assert inj["request_timestamp"] == 90
+    edges = [r for r in recs if r.get("record_type") == "propagation_edge"]
+    assert edges and all(e.get("edge_type") for e in edges)
+    assert all(e.get("source_value_hash") for e in edges)
+
+
 def test_truncated_complete_requires_crash(tmp_path):
     import pytest
     with pytest.raises(SystemExit):

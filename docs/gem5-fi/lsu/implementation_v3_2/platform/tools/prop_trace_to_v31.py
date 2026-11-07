@@ -26,6 +26,7 @@ KIND_MAP = {
     "inj_nochange": "injection_nochange",
     "inj_store_data": "injection",
     "inj_store_be": "injection",
+    "inj_l1dfwd": "injection",
     "store_wb": "store_writeback",
     "store_mem": "store_mem_write",
     "store_overwrite": "store_overwrite",
@@ -49,6 +50,7 @@ UNIT_MAP = {
     "inj_nochange": ("AGU", "injection_nochange"),
     "inj_store_data": ("SQ", "store_data"),
     "inj_store_be": ("SQ", "byte_enable"),
+    "inj_l1dfwd": ("L1D", "load_response_data"),
     "store_wb": ("SQ", "writeback"),
     "store_mem": ("L1D", "memory_write"),
     "store_overwrite": ("SQ", "overwrite"),
@@ -150,7 +152,7 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                                       else d.get("source_value_hash")),
                    destination_value_hash=(None if d.get("destination_value_hash") in (None, "null")
                                            else d.get("destination_value_hash")),
-                   edge_type=d.get("edge_type"),
+                   edge_type=d.get("edge_type") or "data",
                    trace_completeness=("COMPLETE" if declared == "COMPLETE"
                                        else "INCOMPLETE"))
             continue
@@ -203,6 +205,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             va, pa = None, _hex(d.get("blk_addr"))
             old_value = d.get("before_hex")
             new_value = d.get("after_hex")
+        elif kind == "inj_l1dfwd":
+            va, pa = None, _hex(d.get("addr"))
+            old_value = d.get("orig_data_hex")
+            new_value = d.get("inj_data_hex")
         elif kind in ("lq_lifecycle", "sq_lifecycle"):
             va, pa = None, None
             old_value, new_value = None, None
@@ -230,6 +236,17 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                 "access_size_after": _int(d.get("size_after")),
                 "store_data_before": d.get("store_data_fnv"),
                 "store_data_after": d.get("store_data_fnv"),
+            }
+        if kind == "inj_l1dfwd":
+            extra = {
+                "original_data_hex": d.get("orig_data_hex"),
+                "original_data_fnv": d.get("orig_data_fnv"),
+                "injected_data_hex": d.get("inj_data_hex"),
+                "injected_data_fnv": d.get("inj_data_fnv"),
+                "fault_mask": _int(d.get("mask")),
+                "eligible_event_ordinal": _int(d.get("eligible_ordinal")),
+                "request_timestamp": _int(d.get("request_tick")),
+                "lq_entry_generation": _int(d.get("entry_generation")),
             }
         if kind == "fwd":
             extra = {
@@ -291,8 +308,21 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         prev = last_by_ptag.get(ptag_i)
         # consumer edges are emitted explicitly from taint-set dependencies;
         # do not manufacture a ptag-order edge for them.
-        if prev is not None and ptag_i > 0 and kind not in ("consumer", "replay", "squash", "funnel"):
-            w.edge(prev, eid, edge_kind=kind,
+        if prev is not None and ptag_i > 0 and kind not in (
+                "consumer", "replay", "squash", "funnel"):
+            # Preserve the data hashes on synthesized ptag-order edges instead
+            # of writing a null-hash edge (v3.2.5 edge-integrity fix).
+            def _node_hash(rec):
+                rd = _detail(rec.get("detail", ""))
+                return (rd.get("data_fnv") or rd.get("inj_data_fnv")
+                        or rd.get("writeback_value_fnv")
+                        or rd.get("packet_data_fnv"))
+            src_hash = _node_hash(w._nodes.get(prev, {}))
+            dst_hash = _node_hash(w._nodes.get(eid, {}))
+            w.edge(prev, eid, edge_kind=kind, edge_type="ptag_sequence",
+                   value_hash=src_hash,
+                   source_value_hash=src_hash,
+                   destination_value_hash=dst_hash,
                    trace_completeness=("COMPLETE" if declared == "COMPLETE"
                                        else "INCOMPLETE"))
         last_by_ptag[ptag_i] = eid
