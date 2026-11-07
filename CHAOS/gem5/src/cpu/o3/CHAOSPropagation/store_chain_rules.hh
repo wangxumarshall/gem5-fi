@@ -8,18 +8,20 @@ namespace gem5
 namespace chaos_store_chain
 {
 
-// LSU v3.2.4 review fix. A load may join a faulted store's chain only when:
+// LSU v3.2.5. A load may join a faulted store's chain only when:
 //   - it is younger than the store in program order (a pre-store load cannot
 //     read the store's value),
 //   - the store's actual cache write has already happened,
-//   - the response is observed at/after that write tick, and
+//   - the load's own REQUEST was issued at/after that write (a request that
+//     left the LSQ before the write can only have observed the old byte —
+//     response time alone is not evidence of causality), and
 //   - no different store has overwritten the byte.
-// This prevents address-overlap-only attribution (a later load reading an
-// overwriting store, or an in-flight older load) from being counted as a
-// fault propagation.
+// The v3.2.4 rule compared the RESPONSE tick, which admitted loads already in
+// flight when the store wrote; the DA04 R04 chain is exactly that case
+// (R04: request 2286900 < store write 17042410 < response 17889795).
 inline bool
 mayConsumeFaultByte(uint64_t load_seq, uint64_t store_seq, bool overwritten,
-                    uint64_t written_tick, uint64_t now)
+                    uint64_t written_tick, uint64_t load_request_tick)
 {
     if (overwritten)
         return false;
@@ -27,7 +29,7 @@ mayConsumeFaultByte(uint64_t load_seq, uint64_t store_seq, bool overwritten,
         return false;
     if (load_seq <= store_seq)
         return false;
-    if (now < written_tick)
+    if (load_request_tick < written_tick)
         return false;
     return true;
 }

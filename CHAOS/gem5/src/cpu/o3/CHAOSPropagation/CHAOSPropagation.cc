@@ -820,13 +820,16 @@ namespace gem5
                 pkt->req->hasVaddr()) {
             const Addr a = pkt->req->getVaddr();
             const Addr a_end = a + (Addr)pkt->req->getSize();
+            // v3.2.5: causality is anchored at the load's REQUEST tick, not
+            // the response tick. See store_chain_rules.hh.
+            const Tick req_tick =
+                (pkt->req && req_meta.count(pkt->req.get()))
+                    ? req_meta[pkt->req.get()].request_tick : 0;
             for (const auto &kv : fault_store_registry) {
                 const FaultStoreEntry &e = kv.second;
-                // v3.2.4 review fix: younger load + after the actual write
-                // + not overwritten. See store_chain_rules.hh.
                 if (!chaos_store_chain::mayConsumeFaultByte(
                         inst->seqNum, e.dyn_seq, e.overwritten,
-                        e.written_tick, curTick()))
+                        e.written_tick, req_tick))
                     continue;
                 if (a < e.byte_end && e.byte_begin < a_end) {
                     hit_ptag = e.ptag;
@@ -894,6 +897,11 @@ namespace gem5
                   << ";response_tick=" << curTick()
                   << ";payload_len=" << lf->second.size
                   << ";writeback_value=null;BEFORE_WB=1";
+            } else {
+                const Tick rt = (pkt->req && req_meta.count(pkt->req.get()))
+                    ? req_meta[pkt->req.get()].request_tick : 0;
+                d << ";request_tick=" << rt
+                  << ";response_tick=" << curTick();
             }
             d << ";pa=" << std::hex << pkt->getAddr() << std::dec;
             if (inst->getFault() != NoFault)
