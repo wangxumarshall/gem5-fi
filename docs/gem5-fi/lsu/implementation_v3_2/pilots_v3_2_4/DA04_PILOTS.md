@@ -6,7 +6,7 @@
 > corrected to the committed `oracle.log`.
 
 **Date:** 2026-11-07
-**Binary:** `build/ARM/gem5.opt` sha256 `2c5b1c9a79cc67e541abd6b84838539f0dc4668ad2c5bcccc0561d5eafe9f2ec`
+**Binary:** `build/ARM/gem5.opt` sha256 `3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297` (all five pilot manifests agree; v3.2.5 correction of the earlier inconsistent line).
 **Workload:** `implementation_v3_2/workloads/alignment` (W8)
 **Event selection:** `TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)` — see the ruling below.
 
