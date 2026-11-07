@@ -30,6 +30,7 @@ from config_parser import load_config  # noqa: E402
 from manifest import build_manifest, canonical_json, write_manifest  # noqa: E402
 from trace_completeness import check_completeness  # noqa: E402
 from trace_validator import validate  # noqa: E402
+import terminal_rules  # noqa: E402
 from tools.prop_trace_to_v31 import convert  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[5]
@@ -39,12 +40,10 @@ CONFIG = ROOT / "configs/se/lsu_proxy.py"
 WORKLOADS = IMPL / "workloads"
 
 
-LOAD_SIDE_MODELS = ("A01", "A03", "FW02")
-
-
 def _workload_for(model: str) -> str:
     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
-            "FW02": "sq_forward", "SQ01": "sq_drain"}[model]
+            "FW02": "sq_forward", "SQ01": "sq_drain",
+            "DA04": "alignment"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -97,6 +96,28 @@ def _sq01_summary(path: Path) -> dict:
     return {"events": events, "injected": len(events)}
 
 
+def _da04_summary(path: Path) -> dict:
+    events = []
+    if not path.exists():
+        return {"events": events, "injected": 0}
+    pattern = re.compile(
+        r"seq:\s*(\d+).*sq_idx:\s*(\d+).*entry_generation:\s*(\d+)"
+        r".*old_addr:\s*0x([0-9a-fA-F]+).*new_addr:\s*0x([0-9a-fA-F]+)"
+        r".*size:\s*(\d+).*old_be:\s*0x([0-9a-fA-F]+)"
+        r".*new_be:\s*0x([0-9a-fA-F]+).*changed_bit:\s*(\d+)")
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "Site: lsq_pushRequest_byte_enable" not in line:
+            continue
+        m = pattern.search(line)
+        if m:
+            events.append({"seq": int(m[1]), "sq_idx": int(m[2]),
+                           "gen": int(m[3]), "old_addr": int(m[4], 16),
+                           "new_addr": int(m[5], 16), "size": int(m[6]),
+                           "old_be": int(m[7], 16), "new_be": int(m[8], 16),
+                           "changed_bit": int(m[9])})
+    return {"events": events, "injected": len(events)}
+
+
 def _addrpath_events(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -126,24 +147,6 @@ def _fault_injection(events: list[dict]) -> dict | None:
 
 def _seq_events(events: list[dict], seq) -> list[dict]:
     return [e for e in events if seq is not None and e.get("dyn_inst_seq") == seq]
-
-
-def _decide_masked_terminal(events: list[dict]) -> tuple[str, str]:
-    """Adjudicate a MASKED candidate that has no data-value evidence.
-
-    A target instruction that was squashed and never committed is SQUASHED;
-    anything else stays UNRESOLVED. The squash node must belong to the fault
-    instruction's own dynamic sequence number.
-    """
-    injection = _fault_injection(events)
-    seq = injection.get("dyn_inst_seq") if injection else None
-    own = _seq_events(events, seq)
-    squashed = any(e.get("event_type") == "squash" for e in own)
-    committed = any(e.get("event_type") in ("commit", "consumer_commit",
-                                            "errant_commit") for e in own)
-    if squashed and not committed:
-        return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
-    return "UNRESOLVED", "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
 
 
 def _terminal_evidence(events: list[dict], pt_fault_addr: str | None,
@@ -201,7 +204,7 @@ def _fault_causality(events: list[dict], terminal: str,
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True,
-                    choices=["A01", "A03", "FW02", "SQ01"])
+                    choices=["A01", "A03", "FW02", "SQ01", "DA04"])
     ap.add_argument("--pilot-id", required=True)
     ap.add_argument("--seed", type=int, default=None,
                     help="override seed; default = the selected Excel context row")
@@ -209,6 +212,9 @@ def main(argv=None) -> int:
                     help="R01-R05: select the Excel sample row for this context")
     ap.add_argument("--outdir", type=Path, required=True)
     ap.add_argument("--gem5", type=Path, default=GEM5)
+    ap.add_argument("--preserve-sample-id", action="store_true",
+                    help="Keep the Excel SampleRunID/RunID/SubTaskID "
+                         "(pilots still write only to --outdir); v3.2.4 DA04")
     args = ap.parse_args(argv)
 
     cfg = load_config(EXCEL, require_complete=False)
@@ -217,9 +223,15 @@ def main(argv=None) -> int:
     excel_seed = sample["seed"]
     if args.seed is None:
         args.seed = excel_seed
-    sample["sample_run_id"] = args.pilot_id
-    sample["run_id"] = f"PILOT-{args.model}"
-    sample["sub_task_id"] = f"PILOT-{args.model}-S01"
+    if args.preserve_sample_id:
+        excel = model_rows[args.context_index - 1]
+        sample["sample_run_id"] = excel["sample_run_id"]
+        sample["run_id"] = excel["run_id"]
+        sample["sub_task_id"] = excel["sub_task_id"]
+    else:
+        sample["sample_run_id"] = args.pilot_id
+        sample["run_id"] = f"PILOT-{args.model}"
+        sample["sub_task_id"] = f"PILOT-{args.model}-S01"
     sample["seed"] = args.seed
     sample["workload_path"] = str(WORKLOADS / _workload_for(args.model))
     sample["workload_exists"] = True
@@ -250,6 +262,13 @@ def main(argv=None) -> int:
                  "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
                  "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
+    elif args.model == "DA04":
+        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "da04_be_bit0",
+                 "--lsqfwd_lsu_tier", "F0",
+                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--lsqfwd_event_ordinal",
+                 str(sample.get("event_ordinal") or 1)]
     else:
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
@@ -311,6 +330,20 @@ def main(argv=None) -> int:
                                   for e in events),
         }
         injected = len(events)
+    elif args.model == "DA04":
+        inj = _da04_summary(out / "lsq_fwd_injections.log")
+        events = inj.get("events", [])
+        target_proof = {
+            "site": "lsq_pushRequest_byte_enable",
+            "events": len(events),
+            "all_store_only": True,   # hook is inside the !isLoad branch
+            "all_mask_0xf_to_0xe": all(
+                e["old_be"] == 0xF and e["new_be"] == 0xE for e in events),
+            "all_size_4": all(e["size"] == 4 for e in events),
+            "all_addr_unchanged": all(
+                e["old_addr"] == e["new_addr"] for e in events),
+        }
+        injected = len(events)
     else:
         inj = _fw02_summary(out / "lsq_fwd_injections.log")
         target_proof = {"site": "store->load_forward_decision", **inj}
@@ -365,29 +398,17 @@ def main(argv=None) -> int:
     trace_errors = validate(jsonl_path) if jsonl_path.exists() else ["trace missing"]
     completeness_report = (check_completeness(jsonl_path)
                            if jsonl_path.exists() else {"trace_completeness": "INCOMPLETE"})
-    # A pilot proves the trigger and the target dynamic instruction, not a
-    # particular software outcome: an injected fault whose error does not
-    # propagate is recorded as MASKED, and one that changes the oracle is
-    # recorded as SDC. Both are valid pilots; zero injections is not.
-    final_terminal = terminal
-    terminal_reason = None
-    if (completeness_report.get("trace_completeness") != "COMPLETE"
-            and final_terminal == "MASKED"):
-        final_terminal = "UNRESOLVED"
-        terminal_reason = "TRACE_INCOMPLETE"
-    # MASKED requires actual data-value evidence, not only an equal checksum.
+    # v3.2.4: chain-scoped adjudication (FW02 defect fix). Only events on the
+    # fault's own chain can justify a verdict; a target Load that produced a
+    # response and a register writeback but was squashed before commit is
+    # SQUASHED, not MASKED. A different dynamic instruction's data cannot
+    # rescue the target chain.
     trace_events = _read_events(jsonl_path)
-    has_data_value = any(
-        e.get("event_type") in ("memory_response", "register_writeback")
-        and e.get("new_value") not in (None, "")
-        for e in trace_events
-    )
-    if (final_terminal == "MASKED" and not has_data_value
-            and args.model in LOAD_SIDE_MODELS):
-        # A target instruction squashed before its response/writeback is a real
-        # SQUASHED terminal, not an unresolved run. Store-side models have no
-        # load response/writeback, so the rule is load-side only.
-        final_terminal, terminal_reason = _decide_masked_terminal(trace_events)
+    final_terminal, terminal_reason = terminal_rules.adjudicate(
+        trace_events, model=args.model, observed_terminal=terminal,
+        oracle_pass=oracle_pass,
+        trace_complete=(completeness_report.get("trace_completeness")
+                        == "COMPLETE"))
     if final_terminal == "UNRESOLVED" and crash_by_fault:
         final_terminal = "CRASH"
         terminal_reason = crash_evidence
@@ -436,6 +457,15 @@ def main(argv=None) -> int:
         "pilot_id": args.pilot_id,
         "model": args.model,
         "seed": args.seed,
+        "event_selection": ("TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; "
+                            "warm-up/ROI not frozen)"),
+        "excel_identity": {
+            "run_id": sample["run_id"],
+            "sub_task_id": sample["sub_task_id"],
+            "sample_run_id": sample["sample_run_id"],
+            "seed": sample["seed"],
+            "event_ordinal": sample.get("event_ordinal"),
+        },
         "workload": str(WORKLOADS / _workload_for(args.model)),
         "command": cmd,
         "exit_code": proc.returncode,

@@ -4,8 +4,14 @@ from pathlib import Path
 PLATFORM = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLATFORM))
 
-from run_pilot import (_decide_masked_terminal, _fault_causality,
-                       _sq01_summary, _terminal_evidence)
+from run_pilot import (_fault_causality, _sq01_summary, _terminal_evidence)
+from terminal_rules import adjudicate
+
+
+def _judge(events):
+    """v3.2.4 chain-scoped adjudication (replaces _decide_masked_terminal)."""
+    return adjudicate(events, model="A01", observed_terminal="MASKED",
+                      oracle_pass=True, trace_complete=True)
 
 
 def _events(*rows):
@@ -18,8 +24,7 @@ def test_target_squash_without_commit_is_squashed():
          "new_value": "0x7ffffefdc8"},
         {"event_type": "squash", "dyn_inst_seq": 169},
     )
-    assert _decide_masked_terminal(events) == (
-        "SQUASHED", "TARGET_SQUASHED_NO_COMMIT")
+    assert _judge(events) == ("SQUASHED", "TARGET_SQUASHED_NO_COMMIT")
 
 
 def test_other_sequence_squash_does_not_count():
@@ -28,7 +33,7 @@ def test_other_sequence_squash_does_not_count():
          "new_value": "0x7ffffefdc8"},
         {"event_type": "squash", "dyn_inst_seq": 170},
     )
-    assert _decide_masked_terminal(events)[0] == "UNRESOLVED"
+    assert _judge(events)[0] == "UNRESOLVED"
 
 
 def test_committed_target_is_not_squashed():
@@ -38,7 +43,7 @@ def test_committed_target_is_not_squashed():
         {"event_type": "squash", "dyn_inst_seq": 169},
         {"event_type": "commit", "dyn_inst_seq": 169},
     )
-    assert _decide_masked_terminal(events)[0] == "UNRESOLVED"
+    assert _judge(events)[0] == "UNRESOLVED"
 
 
 def test_causality_address_match_and_temporal_only():
