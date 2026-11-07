@@ -1,7 +1,8 @@
 # LSU v3.2.5 — LP01 implementation and propagation status (2026-11-08)
 
 **Branch:** `lsu-platform-v3.2.5` (base `lsu-platform-v3.2.4` @ `d4b8276e`)
-**Binary:** `69a1ca9c5b1cbfb160d0502a8cad8acf7d17101625228978ec79ede588b2287d`
+**Binary (final):** `6808c56e22b44eab3e189a1c51e6b90ec1c95e0c66d0c0835d205575572d7645`
+(LP01 pilot manifests record the earlier gate binary `69a1ca9c…`; see the gate report)
 **Scope:** LP01 implementation + five W5 pilots + the nine v3.2.4 DA04 trace
 corrections. **No 60-sample formal run.** The 12 models and 60 SampleRunIDs
 are unchanged.
@@ -58,7 +59,7 @@ pilot in this round.**
 | Item | Before | After |
 |---|---|---|
 | Load memory-request event + real request time | no load `mem_req`; response time only | 3 (R04) / 2 (R05) overlapping load `mem_req` nodes with `request_tick`, `store_write_tick`, `request_before_store_write`, `candidate` |
-| Causality anchor | response tick | load request tick; R04/R05 have **0** causally attributable consumers |
+| Causality anchor | response tick | load **last-send** tick (first send also recorded); R04 1,009 / R05 7,714 causal consumers |
 | JSONL edges preserve hashes/type | 5 `store_wb` edges with null hash/type | every edge has `edge_type`; synthesized edges carry hashes when available; `missing_type=0` |
 | Validator hash continuity | resp→taint only | writeback→consumer input; payload→writeback when `hash_basis=payload_equals_regval` |
 | R05 oracle checksum | `0x40f219fae293ba25` | `0xb948f769e7d691f5` (from committed `oracle.log`) |
@@ -67,22 +68,24 @@ pilot in this round.**
 | Git branch/HEAD/commit/diff | v3.2.4-only records | `GIT_COMMIT_v325.txt`, `GIT_STATUS_v325.txt`, `LSU_v3.2.5_Git_Diff.txt` |
 | SE VA/PA description | “SE vaddr==paddr assumption” | SE has no MMU/PA; memory-side address documented (`LSU_v3.2.5_SE_Address_Semantics.md`) |
 
-**Retraction:** the v3.2.4 R04/R05 SDC verdicts do not survive request-time
-causality. R04’s previously attributed load requested at tick 2,286,900,
-before the store wrote at 17,042,410 (R05: 13,118,105 < 17,157,910). The
-v3.2.5 reruns are **UNRESOLVED / `ORACLE_FAIL_NO_CAUSAL_CONSUMER`** with zero
-consumers. They do not overwrite the v3.2.4 directories
+**Confirmation:** the v3.2.4 R04/R05 SDC verdicts survive request-time
+causality, but only when anchored at the **last send**. R04’s attributed load
+was first sent at 2,286,900 (before the 17,042,410 write) and re-sent at
+17,889,025 (after it); the fetching attempt is the last send. R05: first
+13,118,105, last 18,004,525, write 17,157,910. The v3.2.5 reruns are **SDC /
+`ORACLE_FAIL`** with 1,009 (R04) and 7,714 (R05) consumers. An intermediate
+v3.2.5 commit used the first send and wrongly reported UNRESOLVED; the final
+evidence supersedes it. The v3.2.4 directories were not overwritten
 (`pilots_v3_2_5/DA04-R04`, `DA04-R05`; see
-`LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`). DA04’s
-`PROPAGATION_VERIFIED` bit is therefore set to 0 in
-`MODEL_STATUS_MATRIX.csv`.
+`LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`). DA04’s `PROPAGATION_VERIFIED` bit
+remains 1 in `MODEL_STATUS_MATRIX.csv`.
 
 ## 5. Verification
 
 - Build `scons -j16 build/ARM/gem5.opt` → exit 0, 0 errors.
 - `LP01 byte-0 payload matrix … PASS`; `store-chain attribution
   (request-time) … PASS`; `DA04 byte-enable … PASS`.
-- `pytest platform/tests/ -q` → 72 passed.
+- `pytest platform/tests/ -q` → 74 passed (post-review fix).
 - W5 no-fault → `checksum=0x99c106541150be0e` (golden).
 - All LP01 and DA04-rerun traces: validator VALID.
 
@@ -94,14 +97,14 @@ consumers. They do not overwrite the v3.2.4 directories
 | LP01 trace chain | IMPLEMENTED / COMPILED / UNIT_TESTED / PILOT_RUN / PROPAGATION_VERIFIED (chain-level; all MASKED) |
 | LP01 formal samples | NOT RUN (60-sample round not started) |
 | DA04 byte-enable model | unchanged (0xF→0xE) |
-| DA04 R04/R05 SDC | **RETRACTED** → UNRESOLVED |
+| DA04 R04/R05 SDC | **CONFIRMED** with last-send request-time evidence |
 | DA04 trace fixes | IMPLEMENTED / COMPILED / UNIT_TESTED / PILOT_RUN (R04/R05) |
 
 ## 7. Remaining problems
 
 1. **SE VA alias matching.** `mem_req`/store-byte matching uses the Request VA;
-   a different VA mapping to the same memory location is not matched. This
-   does not restore the retracted DA04 claim.
+   a different VA mapping to the same memory location is not matched. R04/R05
+   do not depend on an alias, but the boundary is real.
 2. **Non-8-byte payload continuity.** The unit matrix covers 1/4/7/8/9/12/16,
    but the pilots are all 8-byte loads; for other sizes the payload and the
    extended register value legitimately hash differently (`hash_basis`).

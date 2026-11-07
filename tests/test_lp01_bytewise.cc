@@ -36,6 +36,13 @@ main()
     for (uint8_t b : m0)
         assert(b == 0);
 
+    // A mask with no byte-0 bit is outside the LP01 lane (review fix: do not
+    // silently discard random bits 8..63).
+    uint8_t hi[8] = {0};
+    assert(!corruptByte0(hi, 8, 0x100));
+    for (uint8_t b : hi)
+        assert(b == 0);
+
     // Only the low byte of the mask is in the modeled lane.
     uint8_t wide[4] = {0, 0, 0, 0};
     assert(corruptByte0(wide, 4, 0x1122334455667708ULL));

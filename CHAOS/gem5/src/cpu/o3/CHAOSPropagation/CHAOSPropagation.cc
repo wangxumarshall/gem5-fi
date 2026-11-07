@@ -672,13 +672,16 @@ namespace gem5
             rm.request_id = ++next_request_id;
         }
         if (rm.request_tick == 0) {
-            rm.request_tick = curTick();      // true request-issue tick
+            rm.request_tick = curTick();      // first request-issue tick
             rm.vaddr = req->getVaddr();
             rm.size = req->getSize();
             rm.dyn_seq = dyn_seq;
             rm.lq_idx = lq_idx;
             rm.sq_idx = sq_idx;
         }
+        // The fetch that produced a response is the most recent send, not the
+        // first one: a re-sent Request discards the earlier attempt.
+        rm.last_send_tick = curTick();
         rm.fragment_id = ++next_fragment_id;
         const uint64_t request_id = rm.request_id;
         const uint64_t fragment_id = rm.fragment_id;
@@ -739,13 +742,16 @@ namespace gem5
         if (lq_idx >= 0 && !req->isInstFetch()) {
             for (const auto &kv : fault_store_registry) {
                 const FaultStoreEntry &e = kv.second;
-                if (e.written_tick == 0)
-                    continue;
                 if (v >= e.byte_end || e.byte_begin >= v_end)
                     continue;
-                const bool candidate = chaos_store_chain::mayConsumeFaultByte(
-                    dyn_seq, e.dyn_seq, e.overwritten, e.written_tick,
-                    rm.request_tick);
+                // Emit for EVERY overlapping send, including sends before the
+                // store write (written_tick == 0 or later tick): otherwise a
+                // load whose only recorded sends precede the write leaves no
+                // request-time evidence at all.
+                const bool candidate = e.written_tick != 0
+                    && chaos_store_chain::mayConsumeFaultByte(
+                        dyn_seq, e.dyn_seq, e.overwritten, e.written_tick,
+                        rm.last_send_tick);
                 std::ostringstream sd;
                 sd << "site=" << site << ";family=" << e.family
                    << ";candidate=" << (candidate ? 1 : 0)
@@ -753,15 +759,18 @@ namespace gem5
                    << ";request_id=" << request_id
                    << ";fragment_id=" << fragment_id
                    << ";request_tick=" << rm.request_tick
+                   << ";last_send_tick=" << rm.last_send_tick
                    << ";store_write_tick=" << e.written_tick
-                   << ";request_before_store_write="
-                   << (rm.request_tick < e.written_tick ? 1 : 0)
+                   << ";last_send_before_store_write="
+                   << (e.written_tick != 0
+                       && rm.last_send_tick < e.written_tick ? 1 : 0)
+                   << ";store_not_written_yet=" << (e.written_tick == 0 ? 1 : 0)
                    << ";overwritten=" << (e.overwritten ? 1 : 0)
                    << ";lq_entry_id=" << lq_idx
                    << ";sq_entry_id=" << sq_idx;
                 writeNode(e.ptag, "mem_req", dyn_seq, true,
                           request_id, true, v, true, 0, false, 0, false,
-                          sd.str(), rm.request_tick);
+                          sd.str(), rm.last_send_tick);
             }
         }
     }
@@ -829,11 +838,15 @@ namespace gem5
             const Tick req_tick =
                 (pkt->req && req_meta.count(pkt->req.get()))
                     ? req_meta[pkt->req.get()].request_tick : 0;
+            const Tick send_tick =
+                (pkt->req && req_meta.count(pkt->req.get()))
+                    ? req_meta[pkt->req.get()].last_send_tick : 0;
             for (const auto &kv : fault_store_registry) {
                 const FaultStoreEntry &e = kv.second;
+                // The last send is the attempt whose response we are seeing.
                 if (!chaos_store_chain::mayConsumeFaultByte(
                         inst->seqNum, e.dyn_seq, e.overwritten,
-                        e.written_tick, req_tick))
+                        e.written_tick, send_tick))
                     continue;
                 if (a < e.byte_end && e.byte_begin < a_end) {
                     hit_ptag = e.ptag;
@@ -1048,6 +1061,33 @@ namespace gem5
         if (e.resp_node == 0)
             return;                 // response was squashed away: no WB claim
 
+        // writeback() skips completeAcc when the instruction already carries a
+        // fault (ReExec / partial translation). In that case the PRF keeps its
+        // stale value; emitting value_matches_payload=0 would be a false
+        // "hash discontinuity". Record the honest no-writeback condition.
+        if (inst->getFault() != NoFault) {
+            std::ostringstream d;
+            d << "family=l1d_fwd;writeback_value=null;"
+              << "writeback_value_fnv=null;payload_fnv=" << e.inj_fnv
+              << ";hash_basis=no_writeback_fault;value_matches_payload=0"
+              << ";source_value_hash=" << e.inj_fnv
+              << ";source_event_id=" << e.resp_node
+              << ";fault=" << inst->getFault()->name()
+              << ";request_id=" << e.request_id
+              << ";response_id=" << e.response_id
+              << ";eligible_ordinal=" << e.eligible_ordinal
+              << ";lq_entry_id=" << inst->lqIdx
+              << ";entry_generation=" << inst->lqEntryGeneration
+              << ";execution_attempt_id=" << inst->executionAttemptId
+              << ";replay_generation=" << inst->replayGeneration
+              << ";writeback_tick=" << curTick();
+            writeNode(e.ptag, "taint_reg", inst->seqNum, true,
+                      e.request_id, e.request_id != 0, 0, false, 0, false,
+                      0, false, d.str());
+            l1dfwd_registry.erase(it);
+            return;
+        }
+
         const int ndest = (int)inst->numDestRegs();
         for (int i = 0; i < ndest; ++i) {
             const PhysRegIdPtr phys = inst->renamedDestIdx(i);
@@ -1059,8 +1099,13 @@ namespace gem5
                 inst, phys, inst->threadNumber, &value, &bytes);
             std::ostringstream vb;
             vb << std::hex << value << std::dec;
-            const bool basis_ok = (e.size == 8 && bytes == 8
-                                   && vhash == e.inj_fnv);
+            // A vector/matrix destination has no scalar PRF hash; do not call
+            // that an extension mismatch or a continuity failure.
+            const bool scalar8 = (e.size == 8 && bytes == 8
+                                  && !vhash.empty());
+            const bool basis_ok = scalar8 && vhash == e.inj_fnv;
+            const char *basis = scalar8 ? "payload_equals_regval"
+                : (vhash.empty() ? "no_scalar_regval" : "regval_extension");
             std::ostringstream d;
             d << "family=l1d_fwd;class=" << regClassName(phys->classValue())
               << ";dest_idx=" << i
@@ -1071,8 +1116,7 @@ namespace gem5
               << ";payload_fnv=" << e.inj_fnv
               << ";payload_hex=" << e.inj_hex
               << ";payload_len=" << e.size
-              << ";hash_basis="
-              << (e.size == 8 ? "payload_equals_regval" : "regval_extension")
+              << ";hash_basis=" << basis
               << ";value_matches_payload=" << (basis_ok ? 1 : 0)
               << ";source_value_hash=" << e.inj_fnv
               << ";source_event_id=" << e.resp_node

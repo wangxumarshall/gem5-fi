@@ -90,9 +90,17 @@ namespace gem5
         }
 
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        if (pd(rng) > probability) {
+            // This eligible event was declined; it still occupies an ordinal.
+            ++post_skip_eligible;
+            return false;
+        }
 
-        uint64_t mask = fault_mask ? fault_mask : (1ULL << (rng() % 64));
+        // LP01 models byte lane 0 only: a random mask must pick a bit inside
+        // that lane (bits 8..63 would be silently discarded).
+        uint64_t mask = fault_mask ? fault_mask : (1ULL << (rng() % 8));
+        if ((mask & 0xffULL) == 0)
+            return false;   // not a byte-0 fault; do not count it
         unsigned sz = pkt->getSize();
         if (sz == 0) return false;
         uint8_t *data = pkt->getPtr<uint8_t>();
@@ -102,7 +110,7 @@ namespace gem5
         if (!chaos_lp01::corruptByte0(data, sz, mask)) return false;
 
         last_eligible_ordinal = chaos_lp01::eligibleOrdinal(
-            events_to_skip_initial, events_to_skip);
+            events_to_skip_initial, events_to_skip) + post_skip_eligible;
         if (mask_out) *mask_out = mask;
         faults_injected_count++;
         if (write_log) {

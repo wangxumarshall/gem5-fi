@@ -1,70 +1,68 @@
 # DA04 trace fixes — v3.2.5 rerun evidence (R04/R05)
 
 **Date:** 2026-11-08
-**Binary:** `build/ARM/gem5.opt` sha256 `69a1ca9c5b1cbfb160d0502a8cad8acf7d17101625228978ec79ede588b2287d`
-**Scope:** only R04/R05 were rerun (the other three pilots are unaffected by
-the trace-hook changes). The v3.2.4 directories were **not** overwritten; the
-reruns live in `pilots_v3_2_5/`.
+**Binary (final rerun):** `build/ARM/gem5.opt` sha256
+`6808c56e22b44eab3e189a1c51e6b90ec1c95e0c66d0c0835d205575572d7645`
+**Scope:** only R04/R05 were rerun. The v3.2.4 directories were **not**
+overwritten; reruns live in `pilots_v3_2_5/`.
 
 ## What changed
 
-1. **Load memory-request events + real request time.** `noteMemRequest` now
-   emits a `mem_req` node for every load whose range overlaps a registered
-   faulted store byte, with `request_tick=`, `store_write_tick=`,
-   `request_before_store_write=`, `candidate=`, `lq_entry_id` and `sq_id`.
-   The JSONL timestamp of that node is the request tick, not the response tick.
-2. **Causality anchored at the request tick.** `mayConsumeFaultByte` takes the
-   load's request tick; a load that left the LSQ before the store's cache write
-   cannot have observed the fault byte.
-3. **Lossless edges.** Every synthesized ptag-order edge now carries
-   `edge_type=ptag_sequence` and the source/destination hashes when present;
-   C++ `prop_edge` rows default `edge_type` to `data` instead of null.
+1. **Load memory-request events + real request time.** `noteMemRequest` emits
+   a `mem_req` node for every load send overlapping a registered faulted byte,
+   with `request_tick` (first send), `last_send_tick` (the send whose response
+   is being observed), `store_write_tick`, `candidate`, `store_not_written_yet`
+   and the LQ/SQ ids. The node timestamp is `last_send_tick`.
+2. **Causality anchored at the last send.** A re-sent Request discards its
+   earlier attempt; the fetching attempt is the most recent send, not the
+   first. The v3.2.5 review caught that the first-send anchor alone was
+   insufficient; both are now recorded and the decision uses the last send.
+3. **Lossless edges.** Every synthesized ptag-order edge carries
+   `edge_type=ptag_sequence` and source/destination hashes when present;
+   C++ `prop_edge` rows default `edge_type` to `data`.
 
 ## R04 evidence
 
-Command shape: `run_pilot.py --model DA04 --context-index 4
---preserve-sample-id --pilot-id DA04-R04 --event-ordinal 50`.
+Command: `run_pilot.py --model DA04 --context-index 4 --preserve-sample-id
+--pilot-id DA04-R04 --event-ordinal 50`.
 
-Overlapping load requests (all `candidate=0`):
+Overlapping load sends:
 
-| load seq | request tick | store write tick | request before write? |
-|---|---|---|---|
-| 19210 (previous "consumer") | 2286900 | 17042410 | **yes** |
-| 24465 | 16934225 | 17042410 | yes |
-| 25523 | 10235610 | 17042410 | yes |
+| load seq | first send | last send | store write | candidate |
+|---|---|---|---|---|
+| 19210 (previous "consumer") | 2286900 | **17889025** | 17042410 | **1** |
+| 24465 | 16934225 | 18710230 | 17042410 | 1 |
+| 25523 | 10235610 | 18977420 | 17042410 | 0 (overwritten) |
 
-The v3.2.4 chain used the seq-19210 response (tick 17889795), which arrives
-after the write but whose **request left 14.7M ticks earlier** than the write.
-That is precisely the response-time false positive the user identified.
+The first send precedes the write by 14.7M ticks, but the **last send is
+788k ticks after the write** — the earlier request was re-sent, and the
+fetch that produced the response at 17,889,795 is post-write. The load is a
+causal consumer.
 
-New verdict: **UNRESOLVED / `ORACLE_FAIL_NO_CAUSAL_CONSUMER`**; 0 consumer
-commits; oracle FAIL (`3f89eab79392ce4d` vs golden `3f89eab79392ce69`).
-Trace: validator VALID, completeness COMPLETE (UNRESOLVED profile), chain PASS.
-Edges: 5, `missing_type=0`.
+Verdict: **SDC / ORACLE_FAIL**; **1,009** consumer commits; oracle
+`3f89eab79392ce4d` vs golden `3f89eab79392ce69`. Trace: validator VALID,
+completeness COMPLETE, chain PASS, every edge typed.
 
 ## R05 evidence
 
-Overlapping load requests (all `candidate=0`):
+| load seq | first send | last send | store write | candidate |
+|---|---|---|---|---|
+| 19960 (previous "consumer") | 13118105 | **18004525** | 17157910 | **1** |
+| 29123 | 10235225 | 19901420 | 17157910 | 1 |
 
-| load seq | request tick | store write tick | request before write? |
-|---|---|---|---|
-| 19960 (previous "consumer") | 13118105 | 17157910 | **yes** |
-| 29123 | 10235225 | 17157910 | yes |
+Verdict: **SDC / ORACLE_FAIL**; **7,714** consumer commits; oracle
+`b948f769e7d691f5` vs golden `3f89eab79392ce69`. Trace: validator VALID,
+completeness COMPLETE, chain PASS.
 
-New verdict: **UNRESOLVED / `ORACLE_FAIL_NO_CAUSAL_CONSUMER`**; 0 consumers;
-oracle FAIL (`b948f769e7d691f5` vs golden `3f89eab79392ce69`). Trace:
-validator VALID, completeness COMPLETE (UNRESOLVED), chain PASS. Edges: 4,
-`missing_type=0`.
+## Correction of the intermediate v3.2.5 claim
 
-## Honest consequence
+An intermediate commit used the *first* send tick and concluded R04/R05 were
+UNRESOLVED. That conclusion was wrong: re-sends exist, and the fetching send
+is the last one. The evidence above supersedes it. The v3.2.4 R04/R05 SDC
+verdicts stand, now with request-time evidence rather than response-time
+association and with the correct R04 consumer count (1,009, not 9,064).
 
-The v3.2.4 claim that R04/R05 are SDC **does not survive request-time
-causality**. The checksum still changes, but no traced load causally consumed
-the faulted byte, so the failure is not attributable to the injected fault
-through the observed chain. R04/R05 are therefore **UNRESOLVED**, not SDC.
-
-Open question (recorded, not hidden): SE maps different virtual addresses to
-the same memory location, and `mem_req` matching uses the Request VA. A later
-reader through a different VA alias would not be matched. This does not
-restore the retracted claim; it marks where a future PA-based matcher would
-be needed.
+Open question (unchanged): SE maps different virtual addresses to the same
+memory location; `mem_req` matching uses the Request VA. A later reader
+through a different VA alias would not be matched. This is not needed for
+R04/R05 (the matched sends are sufficient), but it is a real boundary.

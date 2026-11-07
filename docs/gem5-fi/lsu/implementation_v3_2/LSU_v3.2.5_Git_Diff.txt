@@ -202,7 +202,7 @@ index 523d0142..25396c52 100644
  
  } // namespace chaos_lp01
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
-index c1b535e9..7f74d963 100644
+index c1b535e9..20d72e36 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
 @@ -171,14 +171,17 @@ namespace gem5
@@ -255,7 +255,20 @@ index c1b535e9..7f74d963 100644
          rm.fragment_id = ++next_fragment_id;
          const uint64_t request_id = rm.request_id;
          const uint64_t fragment_id = rm.fragment_id;
-@@ -706,6 +725,41 @@ namespace gem5
+@@ -692,7 +711,11 @@ namespace gem5
+                       request_id, true, v, true, 0, false, 0, false, d.str());
+         }
+ 
+-        // cache faulted-byte registry: range overlap (SE vaddr==paddr).
++        // cache faulted-byte registry: range overlap in the architectural
++        // address space. SE note: Syscall Emulation has no MMU/page table, so
++        // the CPU presents the virtual address directly to memory; there is
++        // no separately translated physical address. The trace's `pa` field
++        // is the memory-side (cache block-aligned) address, not an FS PA.
+         for (const auto &kv : blk_registry) {
+             const BlkEntry &e = kv.second;
+             if (v >= e.byte_end || e.byte_begin >= v_end)
+@@ -706,6 +729,41 @@ namespace gem5
              writeNode(e.ptag, "mem_req", dyn_seq, true,
                        request_id, true, v, true, 0, false, 0, false, d.str());
          }
@@ -297,7 +310,7 @@ index c1b535e9..7f74d963 100644
      }
  
      void
-@@ -719,9 +773,17 @@ namespace gem5
+@@ -719,9 +777,17 @@ namespace gem5
          uint64_t hit_ptag = 0;
          const char *hit_family = nullptr;
  
@@ -316,7 +329,7 @@ index c1b535e9..7f74d963 100644
              const Addr v = pkt->req->getVaddr();
              const Addr v_end = v + (Addr)pkt->req->getSize();
              for (const auto &kv : addr_registry) {
-@@ -758,13 +820,16 @@ namespace gem5
+@@ -758,13 +824,16 @@ namespace gem5
                  pkt->req->hasVaddr()) {
              const Addr a = pkt->req->getVaddr();
              const Addr a_end = a + (Addr)pkt->req->getSize();
@@ -336,7 +349,7 @@ index c1b535e9..7f74d963 100644
                      continue;
                  if (a < e.byte_end && e.byte_begin < a_end) {
                      hit_ptag = e.ptag;
-@@ -791,15 +856,20 @@ namespace gem5
+@@ -791,15 +860,20 @@ namespace gem5
              (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].request_id : 0;
          const uint64_t fragment_id =
              (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].fragment_id : 0;
@@ -365,7 +378,7 @@ index c1b535e9..7f74d963 100644
          uint64_t resp_node = 0;
          {
              std::ostringstream d;
-@@ -816,8 +886,24 @@ namespace gem5
+@@ -816,8 +890,24 @@ namespace gem5
                << (inst->isLoad() ? inst->lqEntryGeneration
                                   : inst->sqEntryGeneration)
                << ";execution_attempt_id=" << inst->executionAttemptId
@@ -392,7 +405,7 @@ index c1b535e9..7f74d963 100644
              if (inst->getFault() != NoFault)
                  d << ";fault=" << inst->getFault()->name();
              resp_node = writeNode(hit_ptag, "resp", inst->seqNum, true,
-@@ -826,8 +912,16 @@ namespace gem5
+@@ -826,8 +916,16 @@ namespace gem5
                                    0, false, 0, false, d.str());
              resp_node_by_ptag[hit_ptag] = resp_node;
              resp_hash_by_ptag[hit_ptag] = data_hash_str;
@@ -409,7 +422,7 @@ index c1b535e9..7f74d963 100644
          // taint_reg: exactly the condition under which LSQUnit::writeback
          // performs completeAcc (needWBToRegister + NoFault) — the load's
          // dest phys regs receive the fault-delivered data. The writeback
-@@ -870,6 +964,142 @@ namespace gem5
+@@ -870,6 +968,142 @@ namespace gem5
          }
      }
  
@@ -552,7 +565,7 @@ index c1b535e9..7f74d963 100644
      void
      CHAOSPropagation::noteReplay(o3::DynInst *inst, const char *reason)
      {
-@@ -1022,19 +1252,41 @@ namespace gem5
+@@ -1022,19 +1256,41 @@ namespace gem5
              any_consumer = true;
              if (!first_consumed_ptag)
                  first_consumed_ptag = it->second.ptag;
@@ -601,7 +614,7 @@ index c1b535e9..7f74d963 100644
                << ";commit_seq=" << commit_seq
                << ";execution_attempt_id=" << head_inst->executionAttemptId
                << ";replay_generation=" << head_inst->replayGeneration;
-@@ -1043,10 +1295,10 @@ namespace gem5
+@@ -1043,10 +1299,10 @@ namespace gem5
                  0, false, 0, false, phys->index(), true,
                  head_inst->srcRegIdx(i).index(), true, d.str());
              last_consumer_node = consumer_node;
@@ -614,7 +627,7 @@ index c1b535e9..7f74d963 100644
          }
  
          // Dests: is this the faulting load itself committing its tainted
-@@ -1100,6 +1352,8 @@ namespace gem5
+@@ -1100,6 +1356,8 @@ namespace gem5
                  te.ptag = first_consumed_ptag;
                  te.taintor_seq = head_inst->seqNum;
                  te.node_id = last_consumer_node;
@@ -624,10 +637,20 @@ index c1b535e9..7f74d963 100644
                  taint_set[std::make_pair(phys->classValue(),
                                           phys->index())] = te;
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
-index 513d10ad..a9aa8bc9 100644
+index 513d10ad..4c6489c4 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
-@@ -272,12 +272,26 @@ class CHAOSPropagation : public SimObject
+@@ -49,7 +49,8 @@
+ //                  translation/memory (sendFragmentToTranslation); matched
+ //                  against the addr registry (addrpath: range overlap +
+ //                  dyn_inst_seq match) or the faulted-byte registry (cache:
+-//                  range overlap, SE vaddr==paddr assumption)
++//                  range overlap in the architectural address space; SE note
++//                  below — there is no separately translated physical address)
+ //   resp           the memory response delivering the fault returned to the
+ //                  CPU (completeDataAccess, pre-writeback); detail carries
+ //                  data_fnv (FNV-1a-64 of the response bytes) and fault=
+@@ -272,12 +273,26 @@ class CHAOSPropagation : public SimObject
                          const uint8_t *fwd_data, unsigned fwd_size,
                          bool suppressed, bool memory_path);
  
@@ -655,7 +678,7 @@ index 513d10ad..a9aa8bc9 100644
  
      void writeEdgeRow(uint64_t ptag, uint64_t source_node,
                        uint64_t destination_node, uint64_t producer_seq,
-@@ -291,6 +305,7 @@ class CHAOSPropagation : public SimObject
+@@ -291,6 +306,7 @@ class CHAOSPropagation : public SimObject
                               unsigned *bytes_out) const;
  
      uint64_t fnv1a64(const void *blob, size_t n) const;
@@ -663,7 +686,7 @@ index 513d10ad..a9aa8bc9 100644
      const char *regClassName(int class_value) const;
  
      // Lazy expiry sweep (called on insert/lookup; registries are tiny).
-@@ -315,8 +330,14 @@ class CHAOSPropagation : public SimObject
+@@ -315,8 +331,14 @@ class CHAOSPropagation : public SimObject
      bool errant_commit_seen = false;
  
      struct RequestMeta {
@@ -680,7 +703,7 @@ index 513d10ad..a9aa8bc9 100644
      };
      std::map<const Request *, RequestMeta> req_meta;
      std::set<uint64_t> fault_seqs;   // dynamic insts that received a fault
-@@ -372,6 +393,21 @@ class CHAOSPropagation : public SimObject
+@@ -372,6 +394,21 @@ class CHAOSPropagation : public SimObject
      };
      std::map<uint64_t, FaultStoreEntry> fault_store_registry;
  

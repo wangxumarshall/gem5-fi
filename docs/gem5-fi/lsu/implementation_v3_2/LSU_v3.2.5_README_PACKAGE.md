@@ -32,8 +32,8 @@ trace/document corrections. **No 60-sample formal run.**
 
 - LP01: DESIGNED / SOURCE_AUDITED / IMPLEMENTED / COMPILED / UNIT_TESTED /
   PILOT_RUN / PROPAGATION_VERIFIED (chain-level, all five MASKED).
-- DA04: model unchanged; **R04/R05 SDC retracted** under request-time
-  causality → UNRESOLVED; `PROPAGATION_VERIFIED` bit set to 0.
+- DA04: model unchanged; R04/R05 SDC **confirmed** by the last-send
+  request-time audit (1,009 / 7,714 consumers); `PROPAGATION_VERIFIED` = 1.
 - All other models unchanged from v3.2.4.
 
 ## Integrity

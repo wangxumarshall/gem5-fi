@@ -334,6 +334,7 @@ class CHAOSPropagation : public SimObject
         uint64_t request_id = 0;
         uint64_t fragment_id = 0;
         Tick request_tick = 0;   // first fragment's issue tick (v3.2.5)
+        Tick last_send_tick = 0; // most recent translation-send tick
         Addr vaddr = 0;
         unsigned size = 0;
         uint64_t dyn_seq = 0;

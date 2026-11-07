@@ -43,7 +43,7 @@
     "50"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 2.13,
+  "elapsed_seconds": 2.315,
   "oracle_expected": "checksum=0x3f89eab79392ce69",
   "oracle_source": "workload_golden",
   "oracle_pass": false,
@@ -73,7 +73,7 @@
     "all_addr_unchanged": true
   },
   "trace": {
-    "csv_rows": 21205,
+    "csv_rows": 23227,
     "truncated": false,
     "validator_errors": [],
     "completeness": {
@@ -84,27 +84,36 @@
       "propagation_stages": [
         "injection",
         "memory_request",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit",
+        "errant_commit",
         "store_writeback",
         "store_mem_write",
         "sq_lifecycle"
       ],
       "expected_stages": [
-        "injection"
+        "injection",
+        "store_writeback",
+        "store_mem_write",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit"
       ],
       "missing_stages": [],
       "chain_ptag": 1,
       "chain_scoped": true,
       "chain_source": "ptag",
-      "chain_events": 9,
+      "chain_events": 1022,
       "chain_integrity": "PASS",
       "chain_reasons": [],
-      "terminal_state": "UNRESOLVED",
+      "terminal_state": "SDC",
       "run_status": "COMPLETED",
       "fault_activation_status": "TRIGGERED",
-      "events": 21205,
-      "edges": 5,
+      "events": 22218,
+      "edges": 1018,
       "injections": 1,
-      "activations": 6,
+      "activations": 1019,
       "reasons": []
     }
   },
@@ -112,9 +121,9 @@
     "run_status": "COMPLETED",
     "fault_activation_status": "TRIGGERED",
     "observed_terminal": "SDC",
-    "terminal_state": "UNRESOLVED",
-    "terminal_state_reason": "ORACLE_FAIL_NO_CAUSAL_CONSUMER",
-    "fault_causality": "INDIRECT_EVIDENCE",
+    "terminal_state": "SDC",
+    "terminal_state_reason": "ORACLE_FAIL",
+    "fault_causality": "DIRECT_DATAFLOW_EVIDENCE",
     "terminal_evidence": {
       "page_table_fault_addr": null,
       "last_injection_dyn_seq": 13832,
@@ -127,7 +136,7 @@
     "propagation_coverage": "COMPLETE",
     "oracle_outcome": "FAIL"
   },
-  "accepted": false,
+  "accepted": true,
   "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
   "crash_evidence": null
 }

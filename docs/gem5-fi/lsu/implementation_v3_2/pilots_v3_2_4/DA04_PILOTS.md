@@ -1,9 +1,9 @@
 # DA04 — Five Pilot Results (LSU v3.2.4)
 
-> **v3.2.5 correction (2026-11-08):** request-time causality removes the
-> R04/R05 consumers; both pilots are now **UNRESOLVED**, not SDC. See
-> `../LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`. The R05 oracle value below is
-> corrected to the committed `oracle.log`.
+> **v3.2.5 correction (2026-11-08):** request-time causality (the last send,
+> after the store write) **confirms** R04/R05 as SDC. R04's consumer count is
+> corrected to 1,009 and R05's oracle value to the committed `oracle.log`.
+> See `../LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`.
 
 **Date:** 2026-11-07
 **Binary:** `build/ARM/gem5.opt` sha256 `3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297` (all five pilot manifests agree; v3.2.5 correction of the earlier inconsistent line).
@@ -55,7 +55,7 @@ All five: `OriginalByteEnable=0xF`, `InjectedByteEnable=0xE`, `ChangedBit=0`, `A
 ### R04 — SDC (fault reached a load and the application checksum changed)
 
 - Injection: seq 13832, `0x4919d5`, size 4, data hash `ef9edb828f3fc2c`, `0xF -> 0xE`.
-- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 19210) -> register_writeback -> errant_commit -> 1,009 register-dataflow edges / consumer commits` (counted from the committed `trace_v31.jsonl`; v3.2.5 correction of the earlier `9,064` figure). The v3.2.5 request-time audit removes these consumers: the seq-19210 load requested at tick 2,286,900, before the store write at 17,042,410 (see `../LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`).
+- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 19210) -> register_writeback -> errant_commit -> 1,009 register-dataflow edges / consumer commits` (counted from the committed `trace_v31.jsonl`; v3.2.5 correction of the earlier `9,064` figure). The v3.2.5 request-time audit uses the last send of the seq-19210 load (17,889,025), which is after the store write (17,042,410); the first send (2,286,900) is recorded but is not the fetching attempt (see `../LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`).
 - Memory write: PA `0x769c0` + 21, `lane0 packet/before/after = 0xC1/0xA5/0xA5`, `enabled_written=1`, `disabled_unchanged=1`.
 - Load response: 4 bytes at PA `0x769d5`, `data_hex=a514af81`; the affected byte is `0xA5` (old memory byte), not the intended store byte `0xC1`.
 - Oracle: **FAIL** (`checksum=0x3f89eab79392ce4d`, golden `0x3f89eab79392ce69`).

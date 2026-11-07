@@ -86,7 +86,7 @@ def test_da04_disabled_lane_must_be_unchanged(tmp_path):
 
 
 def _lp01_chain(tmp_path, *, wb_hash="bb", consumer_input="bb",
-                matches="1"):
+                matches="1", basis="payload_equals_regval"):
     path = tmp_path / "lp01.jsonl"
     w = TraceWriter(path, "LP01-R01", "LP01-F0-W5", "LP01-F0-W5-S01",
                     "LP01-CFG01", "LP01")
@@ -102,7 +102,7 @@ def _lp01_chain(tmp_path, *, wb_hash="bb", consumer_input="bb",
                    trace_completeness="COMPLETE", source_event_id=e_resp,
                    detail=("family=l1d_fwd;source_value_hash=bb;"
                            f"writeback_value_fnv={wb_hash};"
-                           "hash_basis=payload_equals_regval;"
+                           f"hash_basis={basis};"
                            f"value_matches_payload={matches}"))
     w.event("consumer_commit", ptag=1, dyn_inst_seq=51,
             trace_completeness="COMPLETE", source_event_id=e_wb,
@@ -130,3 +130,19 @@ def test_lp01_payload_writeback_mismatch_fails(tmp_path):
     report = check_completeness(_lp01_chain(tmp_path, matches="0"))
     assert report["chain_integrity"] == "FAIL"
     assert "hash_discontinuity_payload_wb" in report["chain_reasons"]
+
+
+def test_lp01_faulted_no_writeback_is_not_a_hash_failure(tmp_path):
+    """Review fix: writeback skipped by a pending fault is not a discontinuity."""
+    report = check_completeness(_lp01_chain(
+        tmp_path, wb_hash="", consumer_input="", matches="0",
+        basis="no_writeback_fault"))
+    assert report["chain_integrity"] == "PASS"
+
+
+def test_lp01_non_scalar_destination_is_not_a_hash_failure(tmp_path):
+    """Review fix: vector/matrix destinations have no scalar hash."""
+    report = check_completeness(_lp01_chain(
+        tmp_path, wb_hash="", consumer_input="", matches="0",
+        basis="no_scalar_regval"))
+    assert report["chain_integrity"] == "PASS"

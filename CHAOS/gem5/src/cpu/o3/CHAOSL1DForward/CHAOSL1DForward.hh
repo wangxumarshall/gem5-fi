@@ -55,6 +55,9 @@ class CHAOSL1DForward : public SimObject
     // 1-based eligible-event ordinal that was actually injected.
     uint64_t events_to_skip_initial = 0;
     uint64_t last_eligible_ordinal = 0;
+    // Eligible events seen after the skip whose Bernoulli draw declined; the
+    // reported ordinal must include them when probability < 1.
+    uint64_t post_skip_eligible = 0;
     // v1.1 Phase 8.2 uniform sampling (chaos_event_sample.hh): FIXED skip
     // from the driver overrides the legacy geometric(0.1) draw.
     bool count_only = false;         // consume + count, never corrupt

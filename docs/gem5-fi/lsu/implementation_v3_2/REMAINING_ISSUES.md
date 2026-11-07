@@ -1,9 +1,10 @@
 # LSU v3.2.5 — remaining issues
 
-1. **DA04 R04/R05 SDC retracted.** Request-time causality gives zero
-   attributable consumers; terminals are UNRESOLVED. Whether an SE VA alias
-   could make the byte visible to a later reader is unproven (the matcher is
-   VA-based). No claim is made either way.
+1. **DA04 causality uses the last send.** R04/R05 are SDC again under the
+   last-send anchor (1,009 / 7,714 consumers). The first-send-only interim
+   verdict was wrong. Remaining boundary: SE VA aliasing — a later reader
+   through a different VA mapping to the same memory location is not matched
+   (the matcher is VA-based). R04/R05 do not depend on an alias.
 2. **LP01 has no SDC pilot.** All five targets commit the wrong value but
    the W5 checksum is unchanged (MASKED).
 3. **Non-8-byte pilot coverage.** The size matrix (1/4/7/8/9/12/16) is
