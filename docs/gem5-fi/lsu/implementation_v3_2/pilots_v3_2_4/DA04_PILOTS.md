@@ -55,7 +55,7 @@ All five: `OriginalByteEnable=0xF`, `InjectedByteEnable=0xE`, `ChangedBit=0`, `A
 ### R04 — SDC (fault reached a load and the application checksum changed)
 
 - Injection: seq 13832, `0x4919d5`, size 4, data hash `ef9edb828f3fc2c`, `0xF -> 0xE`.
-- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 19210) -> register_writeback -> errant_commit -> 9,064 consumer commits`.
+- Chain: `injection -> commit -> store_writeback(be=0xe) -> store_mem_write -> memory_response(seq 19210) -> register_writeback -> errant_commit -> 1,009 register-dataflow edges / consumer commits` (counted from the committed `trace_v31.jsonl`; v3.2.5 correction of the earlier `9,064` figure). The v3.2.5 request-time audit removes these consumers: the seq-19210 load requested at tick 2,286,900, before the store write at 17,042,410 (see `../LSU_v3.2.5_DA04_Trace_Fix_Evidence.md`).
 - Memory write: PA `0x769c0` + 21, `lane0 packet/before/after = 0xC1/0xA5/0xA5`, `enabled_written=1`, `disabled_unchanged=1`.
 - Load response: 4 bytes at PA `0x769d5`, `data_hex=a514af81`; the affected byte is `0xA5` (old memory byte), not the intended store byte `0xC1`.
 - Oracle: **FAIL** (`checksum=0x3f89eab79392ce4d`, golden `0x3f89eab79392ce69`).
