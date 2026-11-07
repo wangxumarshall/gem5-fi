@@ -44,7 +44,9 @@ class CHAOSLSQFwd(SimObject):
         "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
         "entry — method1 wrong-source store->load forwarding) | "
         "f6_fw02 (LSU v3.2 F6: suppress one real full-coverage "
-        "store->load forwarding match and force the load to memory)")
+        "store->load forwarding match and force the load to memory) | "
+        "da04_be_bit0 (LSU v3.2.4: 4-byte store byte-enable bit0 clear, "
+        "0xF->0xE)")
     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
     l03Mode = Param.Bool(False,
         "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "

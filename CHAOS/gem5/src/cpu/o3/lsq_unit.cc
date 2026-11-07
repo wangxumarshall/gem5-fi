@@ -1848,8 +1848,8 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
         if (store_inst) {
             cpu->lsqFwd->maybeCorruptStoreData(
                 reinterpret_cast<uint8_t *>(storeQueue[store_idx].data()),
-                size, store_inst->seqNum, store_inst->sqIdx,
-                store_inst->sqEntryGeneration);
+                size, request->mainReq()->getVaddr(), store_inst->seqNum,
+                store_inst->sqIdx, store_inst->sqEntryGeneration);
         }
     }
 

@@ -8,6 +8,7 @@
 #include "base/output.hh"
 #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
+#include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "params/CHAOSLSQFwd.hh"
@@ -68,8 +69,17 @@ class CHAOSLSQFwd : public SimObject
     // SQ01 (LSU v3.2.3): after LSQUnit::write() has copied store data into the
     // SQ entry, flip byte0 bit3 once under the F0 trigger. Data-only: no SQ
     // state, no request, no pointer is changed.
-    bool maybeCorruptStoreData(uint8_t *data, unsigned size, uint64_t dyn_seq,
-                               uint64_t store_idx, uint64_t generation);
+    bool maybeCorruptStoreData(uint8_t *data, unsigned size, Addr vaddr,
+                               uint64_t dyn_seq, uint64_t store_idx,
+                               uint64_t generation);
+
+    // DA04 (LSU v3.2.4): clear bit0 of a 4-byte store's byte-enable after the
+    // mask has been built in LSQ::pushRequest. Store-only; address, size and
+    // store data are untouched. Returns true iff the mask changed.
+    bool maybeCorruptStoreByteEnable(std::vector<bool> &be, unsigned size,
+                                     Addr vaddr, uint64_t dyn_seq,
+                                     uint64_t sq_idx, uint64_t generation,
+                                     const uint8_t *store_data);
 
     // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
     // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
@@ -104,7 +114,7 @@ class CHAOSLSQFwd : public SimObject
     //     E3 boundary analysis showed captures scheduler phase, not
     //     forward-path phase).
     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
-                            PhaseOffset, F6Fw02, Sq01Bit3 };
+                            PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0 };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;

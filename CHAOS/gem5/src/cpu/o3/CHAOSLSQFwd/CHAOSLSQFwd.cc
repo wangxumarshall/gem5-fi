@@ -73,7 +73,8 @@ namespace gem5
                 "O3CPU (it hooks the O3 LSQ store->load forwarding path). "
                 "Cast failed.");
         }
-        if (probability > 0.0f || struct_mode == StructMode::F6Fw02) {
+        if (probability > 0.0f || struct_mode == StructMode::F6Fw02 ||
+                struct_mode == StructMode::Da04BeBit0) {
             log_stream = simout.create("lsq_fwd_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSLSQFwd: Could not open log file");
@@ -113,6 +114,12 @@ namespace gem5
             // (it was passed as a Param). Safe because lsq_unit only reads
             // lsqFwd during execute(), long after SimObject construction.
             cpu->lsqFwd = this;
+        }
+        if (struct_mode == StructMode::Da04BeBit0) {
+            // DA04: deterministic F0 one-shot; attach even when the caller
+            // leaves probability at 0 (the fault is an explicit mask change).
+            if (!cpu->lsqFwd) cpu->lsqFwd = this;
+            if (max_faults == 0) max_faults = 1;
         }
         if (struct_mode == StructMode::F6Fw02) {
             // FW02: attach even with probability==0 (this mode suppresses a
@@ -169,6 +176,7 @@ namespace gem5
         if (s == "phase_offset") return StructMode::PhaseOffset;
         if (s == "f6_fw02") return StructMode::F6Fw02;
         if (s == "sq01_bit3") return StructMode::Sq01Bit3;
+        if (s == "da04_be_bit0") return StructMode::Da04BeBit0;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -429,7 +437,7 @@ namespace gem5
     {}
 
     bool
-    CHAOSLSQFwd::maybeCorruptStoreData(uint8_t *data, unsigned size,
+    CHAOSLSQFwd::maybeCorruptStoreData(uint8_t *data, unsigned size, Addr vaddr,
                                        uint64_t dyn_seq, uint64_t store_idx,
                                        uint64_t generation)
     {
@@ -448,7 +456,8 @@ namespace gem5
         ++faults_injected_count;
         if (auto *prop = CHAOSPropagation::instance()) {
             prop->noteStoreDataInjection(dyn_seq, store_idx, generation,
-                                         old_byte, new_byte, "sq01_bit3");
+                                         vaddr, size, old_byte, new_byte,
+                                         "sq01_bit3");
         }
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream())
@@ -461,6 +470,53 @@ namespace gem5
                 << ", old_byte0: 0x" << std::hex << (unsigned)old_byte
                 << ", new_byte0: 0x" << (unsigned)new_byte << std::dec
                 << ", faults_injected: " << faults_injected_count << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::maybeCorruptStoreByteEnable(
+            std::vector<bool> &be, unsigned size, Addr vaddr,
+            uint64_t dyn_seq, uint64_t sq_idx, uint64_t generation,
+            const uint8_t *store_data)
+    {
+        if (struct_mode != StructMode::Da04BeBit0)
+            return false;
+        if (lsuTrigger)
+            lsuTrigger->onAttempt();
+        if (!chaos_da04::eligible(size, be))
+            return false;
+        if (lsuTrigger) {
+            if (!lsuTrigger->onEligible())
+                return false;
+        } else if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return false;
+        }
+        const uint64_t old_mask = chaos_da04::maskOf(be);
+        if (!chaos_da04::clearLane0(be))
+            return false;
+        const uint64_t new_mask = chaos_da04::maskOf(be);
+        ++faults_injected_count;
+        if (auto *prop = CHAOSPropagation::instance()) {
+            prop->noteStoreBEInjection(dyn_seq, sq_idx, generation, vaddr,
+                                       size, old_mask, new_mask, store_data);
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: lsq_pushRequest_byte_enable"
+                << ", FaultModel: DA04"
+                << ", seq: " << dyn_seq
+                << ", sq_idx: " << sq_idx
+                << ", entry_generation: " << generation
+                << ", old_addr: 0x" << std::hex << vaddr
+                << ", new_addr: 0x" << vaddr
+                << ", size: " << std::dec << size
+                << ", old_be: 0x" << std::hex << old_mask
+                << ", new_be: 0x" << new_mask
+                << ", changed_bit: 0" << std::dec
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
         }
         return true;
     }

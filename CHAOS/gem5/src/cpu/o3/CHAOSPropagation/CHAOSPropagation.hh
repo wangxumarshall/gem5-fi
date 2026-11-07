@@ -191,10 +191,39 @@ class CHAOSPropagation : public SimObject
 
     // SQ01: store data was corrupted after it entered the SQ entry. The node is
     // a real injection with the SQ index, generation and both bytes; the store
-    // is also registered for its real commit node.
+    // is also registered for its real commit node. v3.2.4 adds the store
+    // vaddr/size so the faulted byte can be matched by later loads.
     void noteStoreDataInjection(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
+                                Addr vaddr, unsigned size,
                                 uint8_t old_byte, uint8_t new_byte,
                                 const char *mode);
+
+    // DA04 (LSU v3.2.4): byte-enable lane-0 fault on a store. Allocates a
+    // ptag, writes the injection node with original/injected masks and the
+    // store data hash, and registers [vaddr, vaddr+1) for later loads.
+    uint64_t noteStoreBEInjection(uint64_t dyn_seq, uint64_t idx,
+                                  uint64_t gen, Addr vaddr, unsigned size,
+                                  uint64_t old_mask, uint64_t new_mask,
+                                  const uint8_t *store_data);
+
+    // SQ drain: the request (with its final byte-enable) leaves for the
+    // cache. Emits store_writeback for a registered faulted store.
+    void noteStoreWriteback(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
+                            Addr vaddr, unsigned size,
+                            const std::vector<bool> &be,
+                            const uint8_t *data);
+
+    // BaseCache::updateBlockData: the actual block-byte update for a faulted
+    // store. Records before/after bytes, enabled-written and
+    // disabled-unchanged (the DA04 proof the mask reached the memory write).
+    void noteStoreMemWrite(const PacketPtr &pkt, Addr blk_addr,
+                           const uint8_t *packet_data,
+                           const std::vector<uint8_t> &before,
+                           const std::vector<uint8_t> &after,
+                           unsigned offset);
+
+    bool isFaultStore(uint64_t dyn_seq) const;
+    uint64_t faultStorePtag(uint64_t dyn_seq) const;
 
     // Real LQ/SQ entry lifecycle (alloc/reuse/free), from the circular queue
     // insert/commit/squash sites.
@@ -313,6 +342,29 @@ class CHAOSPropagation : public SimObject
         std::string value_hash;    // stable hash of the writeback value
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
+
+    // v3.2.4 store-fault registry: DA04 byte-enable and SQ01 store-data
+    // faults share the same identity so SQ drain, the cache write and later
+    // loads can all attach to one ptag chain.
+    struct FaultStoreEntry {
+        uint64_t ptag = 0;
+        uint64_t dyn_seq = 0;
+        Addr base = 0;
+        unsigned size = 0;
+        uint64_t idx = 0;
+        uint64_t gen = 0;
+        Addr byte_begin = 0;      // affected byte range [begin, end)
+        Addr byte_end = 0;
+        const char *family = "store";   // "byte_enable" | "store_data"
+        std::string old_mask;
+        std::string new_mask;
+        std::string data_fnv;
+        std::string data_hex;
+        Tick registered = 0;
+    };
+    std::map<uint64_t, FaultStoreEntry> fault_store_registry;
+
+    static uint64_t chaosBeMask(const std::vector<bool> &be);
 };
 
 } // namespace gem5

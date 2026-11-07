@@ -398,22 +398,192 @@ namespace gem5
 
     void
     CHAOSPropagation::noteStoreDataInjection(uint64_t dyn_seq, uint64_t idx,
-                                             uint64_t gen, uint8_t old_byte,
+                                             uint64_t gen, Addr vaddr,
+                                             unsigned size, uint8_t old_byte,
                                              uint8_t new_byte,
                                              const char *mode)
     {
         if (!write_log)
             return;
+        const uint64_t ptag = ++next_ptag;
         fault_seqs.insert(dyn_seq);
         std::ostringstream d;
         d << "site=lsq_write_sq_entry;mode=" << mode
           << ";queue=SQ;index=" << idx
           << ";generation=" << gen
+          << ";size=" << size
+          << ";addr=0x" << std::hex << vaddr << std::dec
           << ";old_byte=0x" << std::hex << (unsigned)old_byte
           << ";new_byte=0x" << (unsigned)new_byte << std::dec
           << ";value_changed=1";
-        writeNode(0, "inj_store_data", dyn_seq, true, 0, false, 0, false,
-                  idx, true, 0, false, d.str());
+        writeNode(ptag, "inj_store_data", dyn_seq, true, 0, false,
+                  vaddr, true, 0, false, 0, false, d.str());
+
+        FaultStoreEntry e;
+        e.ptag = ptag;
+        e.dyn_seq = dyn_seq;
+        e.base = vaddr;
+        e.size = size;
+        e.idx = idx;
+        e.gen = gen;
+        e.byte_begin = vaddr;
+        e.byte_end = vaddr + 1;   // SQ01 corrupts data[0] (lowest byte)
+        e.family = "store_data";
+        e.registered = curTick();
+        fault_store_registry[dyn_seq] = e;
+    }
+
+    uint64_t
+    CHAOSPropagation::chaosBeMask(const std::vector<bool> &be)
+    {
+        uint64_t m = 0;
+        for (unsigned i = 0; i < be.size() && i < 64; ++i) {
+            if (be[i])
+                m |= (uint64_t)1 << i;
+        }
+        return m;
+    }
+
+    uint64_t
+    CHAOSPropagation::noteStoreBEInjection(uint64_t dyn_seq, uint64_t idx,
+                                           uint64_t gen, Addr vaddr,
+                                           unsigned size, uint64_t old_mask,
+                                           uint64_t new_mask,
+                                           const uint8_t *store_data)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        fault_seqs.insert(dyn_seq);
+        const uint64_t fnv = store_data ? fnv1a64(store_data, size) : 0;
+        std::ostringstream fnh;
+        if (store_data)
+            fnh << std::hex << fnv << std::dec;
+        std::ostringstream d;
+        d << "site=lsq_pushRequest;family=byte_enable;fault_model=DA04"
+          << ";size=" << size
+          << ";old_be=0x" << std::hex << old_mask
+          << ";new_be=0x" << new_mask << std::dec
+          << ";changed_bit=0"
+          << ";addr_before=0x" << std::hex << vaddr
+          << ";addr_after=0x" << vaddr << std::dec
+          << ";size_before=" << size << ";size_after=" << size
+          << ";store_data_fnv=" << (store_data ? fnh.str() : "null")
+          << ";store_data_hex="
+          << (store_data ? bytesToHex(store_data, size) : "null")
+          << ";sq_entry_id=" << idx
+          << ";entry_generation=" << gen;
+        writeNode(ptag, "inj_store_be", dyn_seq, true, 0, false,
+                  vaddr, true, 0, false, 0, false, d.str());
+
+        FaultStoreEntry e;
+        e.ptag = ptag;
+        e.dyn_seq = dyn_seq;
+        e.base = vaddr;
+        e.size = size;
+        e.idx = idx;
+        e.gen = gen;
+        e.byte_begin = vaddr;
+        e.byte_end = vaddr + 1;   // DA04 clears lane 0 (lowest byte) only
+        e.family = "byte_enable";
+        e.old_mask = "0x" + std::to_string(old_mask);
+        e.new_mask = "0x" + std::to_string(new_mask);
+        e.data_fnv = store_data ? fnh.str() : "";
+        e.data_hex = store_data ? bytesToHex(store_data, size) : "";
+        e.registered = curTick();
+        fault_store_registry[dyn_seq] = e;
+        return ptag;
+    }
+
+    void
+    CHAOSPropagation::noteStoreWriteback(uint64_t dyn_seq, uint64_t idx,
+                                         uint64_t gen, Addr vaddr,
+                                         unsigned size,
+                                         const std::vector<bool> &be,
+                                         const uint8_t *data)
+    {
+        if (!write_log)
+            return;
+        auto it = fault_store_registry.find(dyn_seq);
+        if (it == fault_store_registry.end())
+            return;
+        const FaultStoreEntry &e = it->second;
+        const uint64_t fnv = data ? fnv1a64(data, size) : 0;
+        std::ostringstream d;
+        d << "site=lsq_writebackStores;family=" << e.family
+          << ";size=" << size
+          << ";be_mask=";
+        if (be.empty())
+            d << "null";
+        else
+            d << "0x" << std::hex << chaosBeMask(be) << std::dec;
+        d << ";data_fnv=" << (data ? fnv : 0)
+          << ";data_hex=" << (data ? bytesToHex(data, size) : "null")
+          << ";sq_entry_id=" << idx
+          << ";entry_generation=" << gen
+          << ";addr=0x" << std::hex << vaddr << std::dec;
+        writeNode(e.ptag, "store_wb", dyn_seq, true, 0, false,
+                  vaddr, true, 0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::noteStoreMemWrite(const PacketPtr &pkt, Addr blk_addr,
+                                        const uint8_t *packet_data,
+                                        const std::vector<uint8_t> &before,
+                                        const std::vector<uint8_t> &after,
+                                        unsigned offset)
+    {
+        if (!write_log || !pkt || !pkt->req)
+            return;
+        if (!pkt->req->hasInstSeqNum())
+            return;
+        auto it = fault_store_registry.find(pkt->req->getReqInstSeqNum());
+        if (it == fault_store_registry.end())
+            return;
+        const FaultStoreEntry &e = it->second;
+        const unsigned n = after.size();
+        if (n == 0 || before.size() != n || !packet_data)
+            return;
+        const std::vector<bool> be = pkt->req->getByteEnable();
+        bool enabled_written = true;
+        bool disabled_unchanged = true;
+        for (unsigned i = 0; i < n; ++i) {
+            const bool en = i < be.size() ? be[i] : true;
+            if (en && after[i] != packet_data[i])
+                enabled_written = false;
+            if (!en && after[i] != before[i])
+                disabled_unchanged = false;
+        }
+        const uint64_t packet_fnv = fnv1a64(packet_data, n);
+        std::ostringstream d;
+        d << "site=BaseCache::updateBlockData;family=" << e.family
+          << ";blk_addr=0x" << std::hex << blk_addr << std::dec
+          << ";offset=" << offset << ";size=" << n
+          << ";be_mask=0x" << std::hex << chaosBeMask(be) << std::dec
+          << ";packet_data_fnv=" << packet_fnv
+          << ";packet_data_hex=" << bytesToHex(packet_data, n)
+          << ";before_hex=" << bytesToHex(before.data(), n)
+          << ";after_hex=" << bytesToHex(after.data(), n)
+          << ";enabled_written=" << (enabled_written ? 1 : 0)
+          << ";disabled_unchanged=" << (disabled_unchanged ? 1 : 0)
+          << ";lane0_packet=0x" << std::hex << (unsigned)packet_data[0]
+          << ";lane0_before=0x" << (unsigned)before[0]
+          << ";lane0_after=0x" << (unsigned)after[0] << std::dec;
+        writeNode(e.ptag, "store_mem", e.dyn_seq, true, 0, false,
+                  blk_addr, true, 0, false, 0, false, d.str());
+    }
+
+    bool
+    CHAOSPropagation::isFaultStore(uint64_t dyn_seq) const
+    {
+        return fault_store_registry.count(dyn_seq) != 0;
+    }
+
+    uint64_t
+    CHAOSPropagation::faultStorePtag(uint64_t dyn_seq) const
+    {
+        auto it = fault_store_registry.find(dyn_seq);
+        return it == fault_store_registry.end() ? 0 : it->second.ptag;
     }
 
     void
@@ -543,6 +713,21 @@ namespace gem5
                 if (a < e.byte_end && e.byte_begin < a_end) {
                     hit_ptag = e.ptag;
                     hit_family = "cache";
+                    break;
+                }
+            }
+        }
+        // store family (DA04 byte-enable / SQ01 store data): a LOAD whose
+        // range covers the faulted byte observes the store's architectural
+        // effect. Store responses are excluded (their dyn seq is the store's).
+        if (!hit_ptag && !pkt->isWrite() && inst->isLoad()) {
+            const Addr a = pkt->getAddr();
+            const Addr a_end = a + (Addr)pkt->getSize();
+            for (const auto &kv : fault_store_registry) {
+                const FaultStoreEntry &e = kv.second;
+                if (a < e.byte_end && e.byte_begin < a_end) {
+                    hit_ptag = e.ptag;
+                    hit_family = e.family;
                     break;
                 }
             }
@@ -701,6 +886,12 @@ namespace gem5
     {
         if (!write_log)
             return;
+        // v3.2.4: a load that forwards from a registered faulted store joins
+        // that store's chain. gem5's forwarding memcpy does not consult the
+        // byte-enable, so a DA04-forwarded load receives the intended store
+        // data; the detail records that boundary explicitly.
+        if (ptag == 0)
+            ptag = faultStorePtag(store_seq);
         const uint64_t store_hash = store_data
             ? fnv1a64(store_data, store_size) : 0;
         const uint64_t fwd_hash = fwd_data
