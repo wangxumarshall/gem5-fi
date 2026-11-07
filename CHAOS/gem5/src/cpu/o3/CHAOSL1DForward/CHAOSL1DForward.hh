@@ -3,6 +3,7 @@
 
 #include <random>
 #include <string>
+#include <vector>
 
 #include "params/CHAOSL1DForward.hh"
 #include "sim/sim_object.hh"
@@ -25,9 +26,15 @@ class CHAOSL1DForward : public SimObject
     void startup() override;  // self-attach to CPU.chaosL1DFwd
 
     // Called from LSQUnit::completeDataAccess BEFORE writeback(inst, pkt).
-    // XORs the response packet's data (post-L1D-read, post-ECC-check) —
-    // the post-check escape path. Returns true if an injection happened.
-    bool maybeCorrupt(PacketPtr pkt);
+    // Corrupts byte lane 0 of the response payload (post-L1D-read,
+    // post-ECC-check) — the post-check escape path. `is_load` is true only
+    // for a data load (SC/atomic/I-fetch are rejected). When `before_out`
+    // is non-null and a fault is injected, it receives a copy of the
+    // pre-fault payload taken BEFORE the XOR. Returns true iff injected.
+    bool maybeCorrupt(PacketPtr pkt, bool is_load,
+                      std::vector<uint8_t> *before_out = nullptr,
+                      uint64_t *mask_out = nullptr);
+    uint64_t lastEligibleOrdinal() const { return last_eligible_ordinal; }
 
   private:
     BaseCPU *cpu;
@@ -44,6 +51,10 @@ class CHAOSL1DForward : public SimObject
     // of always the first eligible one (which is the same squashed
     // wrong-path load every rep on a deterministic stream).
     uint64_t events_to_skip = 0;
+    // v3.2.5 LP01: the driver-supplied skip at startup, used to report the
+    // 1-based eligible-event ordinal that was actually injected.
+    uint64_t events_to_skip_initial = 0;
+    uint64_t last_eligible_ordinal = 0;
     // v1.1 Phase 8.2 uniform sampling (chaos_event_sample.hh): FIXED skip
     // from the driver overrides the legacy geometric(0.1) draw.
     bool count_only = false;         // consume + count, never corrupt

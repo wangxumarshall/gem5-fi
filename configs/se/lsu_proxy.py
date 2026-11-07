@@ -433,6 +433,12 @@ p.add_argument("--l1dfwd_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--l1dfwd_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1dfwd_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--l1dfwd_rng_seed", type=lambda x: int(x,0), default=20260825)
+p.add_argument("--l1dfwd_events_to_skip", type=lambda x: int(x, 0), default=-1,
+               help="fixed eligible-event skip (v1.1 uniform sampling)")
+p.add_argument("--l1dfwd_count_only", action="store_true",
+               help="count eligible load responses, never corrupt")
+p.add_argument("--l1dfwd_event_ordinal", type=lambda x: int(x, 0), default=0,
+               help="1-based eligible load-response ordinal (R01-R05 temporary selection)")
 # §2.13 CHAOSBPU (O3 branch-prediction injector). SELF-ATTACHES at startup()
 # to cpu.o3BAC().chaosBPU. Hooks BAC::predict post-bpu->predict; F5 flips
 # direction (dir_flip) or PC target bit (target_flip).
@@ -989,6 +995,10 @@ if args.chaos_fpu:
 if args.chaos_l1dfwd:
     # §2.7 CHAOSL1DForward: O3-only. SELF-ATTACHES at startup() to
     # cpu.chaosL1DFwd (completeDataAccess calls maybeCorrupt pre-writeback).
+    skip = (0xFFFFFFFFFFFFFFFF if args.l1dfwd_events_to_skip < 0
+            else args.l1dfwd_events_to_skip)
+    if args.l1dfwd_event_ordinal > 0:
+        skip = args.l1dfwd_event_ordinal - 1
     l1df = CHAOSL1DForward(
         cpu=cpu0,
         probability=args.probability,
@@ -996,6 +1006,8 @@ if args.chaos_l1dfwd:
         maxFaults=args.l1dfwd_max_faults,
         faultMask=args.l1dfwd_fault_mask,
         rngSeed=args.l1dfwd_rng_seed,
+        eventsToSkip=skip,
+        countOnly=args.l1dfwd_count_only,
         writeLog=True,
     )
     board.chaos_l1dfwd = l1df

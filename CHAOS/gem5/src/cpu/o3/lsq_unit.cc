@@ -197,7 +197,8 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
             // response data AFTER L1D read (model: ECC checked & passed)
             // and BEFORE writeback to the register. nullptr = no injection.
             if (cpu->chaosL1DFwd) {
-                cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket());
+                cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket(),
+                                                inst->isLoad());
             }
 
             writeback(inst, request->mainPacket());

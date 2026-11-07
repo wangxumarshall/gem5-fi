@@ -34,6 +34,7 @@ namespace gem5
                 std::geometric_distribution<uint64_t> skip_dist(0.1);
                 events_to_skip = skip_dist(rng);
             }
+            events_to_skip_initial = events_to_skip;
             count_only = p.countOnly;
         }
     }
@@ -65,46 +66,44 @@ namespace gem5
     }
 
     bool
-    CHAOSL1DForward::maybeCorrupt(PacketPtr pkt)
+    CHAOSL1DForward::maybeCorrupt(PacketPtr pkt, bool is_load,
+                                  std::vector<uint8_t> *before_out,
+                                  uint64_t *mask_out)
     {
         if (!cpu || probability <= 0.0f) return false;
-        // Sampling-bias fix (findings.md Phase 2.2): the OLD code corrupted
-        // the FIRST eligible load after the window opened. With a
-        // deterministic instruction stream, that is the SAME dynamic
-        // instruction every rep (observed: addr=0x769a0, tick=97358415
-        // across ALL seeds — a squashed wrong-path load whose corruption is
-        // discarded), so a 384-rep formal measured one squashed load, not
-        // the post-check-escape distribution. Skip a geometric(p=0.1)
-        // number of eligible events before injecting so the single fault
-        // lands on a seed-dependent random eligible load.
+        // Sampling-bias fix (findings.md Phase 2.2): a single fault must land
+        // on a seed/ordinal-selected eligible load, not always the first one.
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
-        if (pkt && pkt->hasData() && !pkt->isWrite()) {
-            // v1.1 Phase 8.2 countOnlyMode: count eligible loads, never
-            // corrupt.
-            if (count_only) { ++eligible_count; return false; }
-            if (events_to_skip > 0) {
-                --events_to_skip;
-                return false;
-            }
+
+        // LP01 eligibility (Excel: "Load（目标lqIdx）", "目标Load响应到达"):
+        // a data load response only. I-fetch, SC and atomic responses are not
+        // the modeled target and must not consume the ordinal/RNG stream.
+        const bool eligible = pkt && pkt->hasData() && !pkt->isWrite()
+            && is_load && !(pkt->req && pkt->req->isInstFetch());
+        if (!eligible) return false;
+        // v1.1 Phase 8.2 countOnlyMode: count eligible loads, never corrupt.
+        if (count_only) { ++eligible_count; return false; }
+        if (events_to_skip > 0) {
+            --events_to_skip;
+            return false;
         }
-        if (!pkt || !pkt->hasData()) return false;
 
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return false;
 
-        // §2.7 post-check escape: XOR a bit of the response packet data
-        // (post-L1D-read, post-ECC-check). The mask covers up to 8 bytes.
         uint64_t mask = fault_mask ? fault_mask : (1ULL << (rng() % 64));
         unsigned sz = pkt->getSize();
         if (sz == 0) return false;
         uint8_t *data = pkt->getPtr<uint8_t>();
-        // [LP01][LSU v3.2.4] byte-wise, bounds-safe corruption. The old
-        // uint64_t* cast always wrote 8 bytes even when the response was
-        // shorter (size<8): an OOB write. The mask repeats every 8 bytes, so
-        // size>=8 is unchanged.
-        chaos_lp01::corruptByte0(data, sz, mask);
+        // Pre-fault copy for the propagation trace (taken before the XOR).
+        if (before_out) before_out->assign(data, data + sz);
+        // LP01-CFG01: byte lane 0 only, bounded by size (see lp01_bytewise.hh).
+        if (!chaos_lp01::corruptByte0(data, sz, mask)) return false;
 
+        last_eligible_ordinal = chaos_lp01::eligibleOrdinal(
+            events_to_skip_initial, events_to_skip);
+        if (mask_out) *mask_out = mask;
         faults_injected_count++;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
@@ -112,6 +111,9 @@ namespace gem5
                 << pkt->getAddr() << std::dec
                 << ", size=" << sz
                 << ", mask=0x" << std::hex << mask << std::dec
+                << ", eligible_ordinal=" << last_eligible_ordinal
+                << ", byte0_changed=1"
+                << ", addr_unchanged=1, size_unchanged=1"
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
