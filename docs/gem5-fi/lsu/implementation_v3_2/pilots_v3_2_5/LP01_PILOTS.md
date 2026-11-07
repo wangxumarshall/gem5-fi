@@ -112,3 +112,50 @@ access size and request identity are unchanged. The five pilots use
 - Oracle: PASS (`checksum=0x99c106541150be0e`).
 - Terminal: **MASKED** / `TARGET_COMMITTED_DATA_VALUE_PRESENT`.
 - Trace: coverage COMPLETE, chain integrity PASS, validator VALID.
+
+### R05 — MASKED (target committed, value present, oracle PASS)
+
+- Excel identity: `LP01-F0-W5-S01-R05`, seed `1604604537`, Excel ordinal 5,
+  clinical ordinal **14** (Excel ordinal 5 landed on a load with no consumer).
+- Injection: seq 287, tick 625625, addr `0x80e40`, size 8, mask `0x8`,
+  request tick 574035, LQ entry 9 / generation 17, phys reg `int:46`.
+  - `orig_data_hex=1700000000000000` (`fnv=3b8413a7b640fd72`)
+  - `inj_data_hex=1f00000000000000` (`fnv=335a4bf00dbb4e7a`)
+  - only byte 0 changed: `0x17 -> 0x1f`; address/size unchanged.
+- Response: `data_hex=1f00000000000000`, `data_fnv=335a4bf00dbb4e7a`,
+  `response_id=1`, `request_tick=574035`, `response_tick=625625`.
+- Actual register writeback: `writeback_value=1f`,
+  `writeback_value_fnv=335a4bf00dbb4e7a`,
+  `hash_basis=payload_equals_regval`, `value_matches_payload=1`,
+  `phys_reg=46`, `arch_reg=1`.
+- First consumer: seq 289, pc `0x4113cc`, `consumer_input_value=1f`,
+  `consumer_input_fnv=335a4bf00dbb4e7a`,
+  `consumer_input_matches_source=1` (6 consumer commits).
+- Commit: seq 287, `commit_seq=154`, `is_load=1`.
+- Oracle: PASS (`checksum=0x99c106541150be0e`).
+- Terminal: **MASKED** / `TARGET_COMMITTED_DATA_VALUE_PRESENT`.
+- Trace: coverage COMPLETE, chain integrity PASS, validator VALID.
+
+## Propagation verdict (LP01)
+
+All five pilots show the full auditable chain on one ptag:
+
+`inj_l1dfwd (orig→inj hash) → memory_response (post-fault hash) →
+register_writeback (actual PRF value, value_matches_payload=1) →
+consumer_commit (input hash == writeback hash) → commit`
+
+with address, access size and request identity unchanged. No pilot reached
+SDC: the five targets' corrupted values were committed but the W5 application
+checksum is unaffected (MASKED). This satisfies PILOT_RUN and the trace-level
+PROPAGATION_VERIFIED bar (injection→response→writeback→consumer→commit with
+matching hashes); it is **not** an SDC claim.
+
+## Note on per-seed event identity
+
+The clinical ordinal is stable as a selection rule, but the dynamic
+instruction/tick of the same ordinal can differ with the Excel seed (the
+fault-free execution stream is not bit-identical across seeds in this O3
+configuration). The table above records the actual per-pilot values from
+`pilot_meta.json`; `LP01_EVENT_SELECTION.md` carries the same actuals plus
+the probe-time values.
+

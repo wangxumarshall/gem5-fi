@@ -23,23 +23,26 @@ node for the target dyn_inst_seq. Ordinals 1–60 were probed; the first five
 that pass are 1, 2, 3, 4, 14 (ordinals 5–13 inject into loads with no
 consumer, so they are not used).
 
-The eligible load-response stream is deterministic; with `probability=1.0`
-and a fixed mask the seed does not change which event ordinal N is. Each
-pilot below re-verifies its own dyn_inst_seq and tick in `pilot_meta.json`.
+The clinical ordinal is a stable selection RULE, but the dynamic
+instruction/tick at that ordinal is not bit-identical across Excel seeds in
+this O3 configuration. The table records the actual per-pilot values taken
+from each `pilot_meta.json`; the probe-time value is in parentheses.
 
-## Selection
+## Selection (actual per-pilot values)
 
 | Pilot | SampleRunID | Seed | Excel ordinal | Clinical ordinal used | dyn_inst_seq | trigger tick | target address | size |
 |---|---|---|---|---|---|---|---|---|
-| R01 | LP01-F0-W5-S01-R01 | 1349924126 | 1 | **1** | 5 | 172865 | 0x80e10 | 8 |
-| R02 | LP01-F0-W5-S01-R02 | 2648660520 | 2 | **2** | 48 | 271425 | 0x80e28 | 8 |
-| R03 | LP01-F0-W5-S01-R03 | 2021175746 | 3 | **3** | 225 | 606761 | 0x80e30 | 8 |
-| R04 | LP01-F0-W5-S01-R04 | 3894776903 | 4 | **4** | 233 | 607530 | 0x80e38 | 8 |
-| R05 | LP01-F0-W5-S01-R05 | 1604604537 | 5 | **14** | 235 | 661815 | 0x80e40 | 8 |
+| R01 | LP01-F0-W5-S01-R01 | 1349924126 | 1 | **1** | 5 (5) | 172865 (172865) | 0x80e10 | 8 |
+| R02 | LP01-F0-W5-S01-R02 | 2648660520 | 2 | **2** | 48 (48) | 226380 (271425) | 0x80e28 | 8 |
+| R03 | LP01-F0-W5-S01-R03 | 2021175746 | 3 | **3** | 239 (225) | 605221 (606761) | 0x80e30 | 8 |
+| R04 | LP01-F0-W5-S01-R04 | 3894776903 | 4 | **4** | 247 (233) | 605990 (607530) | 0x80e38 | 8 |
+| R05 | LP01-F0-W5-S01-R05 | 1604604537 | 5 | **14** | 287 (235) | 625625 (661815) | 0x80e40 | 8 |
 
 Consumer counts observed at probe time: 183, 1, 6, 1, 6 respectively. All
 targets are 8-byte loads, so the payload hash and the actual register value
-hash are directly comparable (`hash_basis=payload_equals_regval`).
+hash are directly comparable (`hash_basis=payload_equals_regval`). Each
+pilot re-verified commit + writeback + ≥1 consumer; all five are MASKED
+(the committed wrong value does not change the W5 checksum).
 
 ## Ruling
 
