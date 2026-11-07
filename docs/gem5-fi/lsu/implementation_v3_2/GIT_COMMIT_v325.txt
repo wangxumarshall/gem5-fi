@@ -1,5 +1,12 @@
 lsu-platform-v3.2.5
-8489641c76d74eb83034af3792d4934d71fb0c84
+856cb3f369a9a36b1faa82c05795ad744c989051
+856cb3f3 [LSU][MDSPEC][V3.2.5][REVIEW] last-send DA04 causality and false-failure guards
+d6d9e0c7 [LSU][MDSPEC][V3.2.5][MD04] source audit and next-plan handoff
+1015d875 [LSU][MDSPEC][V3.2.5][PACKAGE] LP01 implementation package checksum and contents
+ac7fb25f [LSU][MDSPEC][V3.2.5][LP01] correct pilot target addresses to actual logs
+ca16812c [LSU][MDSPEC][V3.2.5][DOCS] status report, 12-model matrix and remaining issues
+9f520976 [LSU][MDSPEC][V3.2.5][DOCS] correct SE address semantics (no physical translation)
+13dda94b [LSU][MDSPEC][V3.2.5][DOCS] branch, HEAD, commit list and diff provenance
 8489641c [LSU][MDSPEC][V3.2.5][DA04] unify binary SHA-256 with the five pilot manifests
 a85827ec [LSU][MDSPEC][V3.2.5][DA04] correct R04 consumer count to 1009 from JSONL
 b9b89305 [LSU][MDSPEC][V3.2.5][DA04] correct R05 oracle checksum to the committed log
