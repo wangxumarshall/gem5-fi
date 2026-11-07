@@ -49,7 +49,8 @@
 //                  translation/memory (sendFragmentToTranslation); matched
 //                  against the addr registry (addrpath: range overlap +
 //                  dyn_inst_seq match) or the faulted-byte registry (cache:
-//                  range overlap, SE vaddr==paddr assumption)
+//                  range overlap in the architectural address space; SE note
+//                  below — there is no separately translated physical address)
 //   resp           the memory response delivering the fault returned to the
 //                  CPU (completeDataAccess, pre-writeback); detail carries
 //                  data_fnv (FNV-1a-64 of the response bytes) and fault=

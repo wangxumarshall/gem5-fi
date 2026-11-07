@@ -711,7 +711,11 @@ namespace gem5
                       request_id, true, v, true, 0, false, 0, false, d.str());
         }
 
-        // cache faulted-byte registry: range overlap (SE vaddr==paddr).
+        // cache faulted-byte registry: range overlap in the architectural
+        // address space. SE note: Syscall Emulation has no MMU/page table, so
+        // the CPU presents the virtual address directly to memory; there is
+        // no separately translated physical address. The trace's `pa` field
+        // is the memory-side (cache block-aligned) address, not an FS PA.
         for (const auto &kv : blk_registry) {
             const BlkEntry &e = kv.second;
             if (v >= e.byte_end || e.byte_begin >= v_end)
