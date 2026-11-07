@@ -87,3 +87,28 @@ access size and request identity are unchanged. The five pilots use
 - Oracle: PASS (`checksum=0x99c106541150be0e`).
 - Terminal: **MASKED** / `TARGET_COMMITTED_DATA_VALUE_PRESENT`.
 - Trace: coverage COMPLETE, chain integrity PASS, validator VALID.
+
+### R04 — MASKED (target committed, value present, oracle PASS)
+
+- Excel identity: `LP01-F0-W5-S01-R04`, seed `3894776903`, Excel ordinal 4,
+  clinical ordinal **4**.
+- Injection: seq 247, tick 605990, addr `0x80e38`, size 8, mask `0x8`,
+  request tick 600600, LQ entry 4 / generation 5, phys reg `int:0`.
+  - `orig_data_hex=fbf7d0cc00000000` (`fnv=1505defdf2164c5b`)
+  - `inj_data_hex=f3f7d0cc00000000` (`fnv=e5704c2542d06b23`)
+  - only byte 0 changed: `0xfb -> 0xf3`; address/size unchanged.
+- Response: `data_hex=f3f7d0cc00000000`, `data_fnv=e5704c2542d06b23`,
+  `response_id=1`, `request_tick=600600`, `response_tick=605990`.
+- Actual register writeback: `writeback_value=ccd0f7f3`
+  (i.e. 0x00000000ccd0f7f3),
+  `writeback_value_fnv=e5704c2542d06b23`,
+  `hash_basis=payload_equals_regval`, `value_matches_payload=1`,
+  `phys_reg=0`, `arch_reg=0`.
+- First consumer: seq 248, pc `0x4113c4`, `src_idx=2`,
+  `consumer_input_value=ccd0f7f3`,
+  `consumer_input_fnv=e5704c2542d06b23`,
+  `consumer_input_matches_source=1` (1 consumer commit).
+- Commit: seq 247, `commit_seq=138`, `is_load=1`.
+- Oracle: PASS (`checksum=0x99c106541150be0e`).
+- Terminal: **MASKED** / `TARGET_COMMITTED_DATA_VALUE_PRESENT`.
+- Trace: coverage COMPLETE, chain integrity PASS, validator VALID.
