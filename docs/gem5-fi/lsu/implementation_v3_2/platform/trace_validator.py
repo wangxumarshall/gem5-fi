@@ -99,11 +99,10 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
                 errs.append(f"line {line}: bad edge trace_completeness")
             if not rec.get("edge_type"):
                 errs.append(f"line {line}: edge missing edge_type")
-            if (rec.get("edge_type") == "register_dataflow"
-                    and (not rec.get("source_value_hash")
-                         or not rec.get("destination_value_hash"))):
-                errs.append(
-                    f"line {line}: register_dataflow edge missing value hashes")
+            # Value hashes are required to be PRESENT-or-explicitly-null, not
+            # universally non-null: vector/matrix consumers legitimately have
+            # no scalar hash. Continuity is checked by trace_completeness only
+            # when both endpoints expose a hash (v3.2.5 Review Focus #4).
             if isinstance(rec.get("sample_run_id"), str):
                 sample_ids.add(rec["sample_run_id"])
         elif kind == "summary":
