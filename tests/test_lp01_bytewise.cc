@@ -1,39 +1,50 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <vector>
 
 #include "cpu/o3/CHAOSL1DForward/lp01_bytewise.hh"
 
 using namespace gem5::chaos_lp01;
 
+static void
+checkSize(unsigned n)
+{
+    std::vector<uint8_t> buf(n, 0xA5);
+    const std::vector<uint8_t> before = buf;
+    assert(corruptByte0(buf.data(), n, 0x8));
+    assert(buf[0] == (uint8_t)(before[0] ^ 0x08));
+    for (unsigned i = 1; i < n; ++i)
+        assert(buf[i] == before[i]);
+}
+
 int
 main()
 {
-    uint8_t buf[4] = {0, 0, 0, 0};
-    xorMask(buf, 4, 0x1122334455667788ULL);
-    assert(buf[0] == 0x88);
-    assert(buf[1] == 0x77);
-    assert(buf[2] == 0x66);
-    assert(buf[3] == 0x55);
+    // Model matrix: exactly byte 0 changes, for every size.
+    for (unsigned n : {1u, 4u, 7u, 8u, 9u, 12u, 16u})
+        checkSize(n);
 
-    uint8_t one[1] = {0xAA};
-    xorMask(one, 1, 0xFF);
-    assert(one[0] == 0x55);
+    // Size 0 is a no-op and must not touch memory.
+    uint8_t zero[1] = {0xAA};
+    assert(!corruptByte0(zero, 0, 0x08));
+    assert(zero[0] == 0xAA);
 
-    // 7-byte payload: only the first 7 bytes are touched (no 8-byte store).
-    uint8_t seven[7] = {0};
-    xorMask(seven, 7, 0x00000000000000FFULL);
-    assert(seven[0] == 0xFF);
-    for (int i = 1; i < 7; ++i)
-        assert(seven[i] == 0x00);
+    // mask 0 is a no-op.
+    uint8_t m0[8] = {0};
+    assert(!corruptByte0(m0, 8, 0));
+    for (uint8_t b : m0)
+        assert(b == 0);
 
-    // 16-byte payload: the mask repeats every 8 bytes, identical to the old
-    // two-uint64-word behaviour.
-    uint8_t sixteen[16] = {0};
-    xorMask(sixteen, 16, 0x0102030405060708ULL);
-    assert(sixteen[0] == 0x08 && sixteen[8] == 0x08);
-    assert(sixteen[7] == 0x01 && sixteen[15] == 0x01);
+    // Only the low byte of the mask is in the modeled lane.
+    uint8_t wide[4] = {0, 0, 0, 0};
+    assert(corruptByte0(wide, 4, 0x1122334455667708ULL));
+    assert(wide[0] == 0x08 && wide[1] == 0 && wide[2] == 0 && wide[3] == 0);
 
-    std::printf("LP01 byte-wise corruption unit test: PASS\n");
+    // Ordinal helper: skip 0 -> ordinal 1; skip 4 -> ordinal 5.
+    assert(eligibleOrdinal(0, 0) == 1);
+    assert(eligibleOrdinal(4, 0) == 5);
+
+    std::printf("LP01 byte-0 payload matrix (0/1/4/7/8/9/12/16): PASS\n");
     return 0;
 }

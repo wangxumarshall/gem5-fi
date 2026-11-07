@@ -103,7 +103,7 @@ namespace gem5
         // uint64_t* cast always wrote 8 bytes even when the response was
         // shorter (size<8): an OOB write. The mask repeats every 8 bytes, so
         // size>=8 is unchanged.
-        chaos_lp01::xorMask(data, sz, mask);
+        chaos_lp01::corruptByte0(data, sz, mask);
 
         faults_injected_count++;
         if (write_log) {

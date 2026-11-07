@@ -28,3 +28,15 @@ no-fault alignment baseline -> checksum=0x3f89eab79392ce69 (golden)
 
 - LP01 pilots on W5 `load_response`, target-event proof, and its own propagation chain.
 - The existing `CHAOSL1DForward` tracer link (the v3.2.3 audit noted it has no trace link); LP01 will need the same store-style chain work before any PROPAGATION_VERIFIED claim.
+
+## v3.2.5 semantic ruling (from Excel, not from the old implementation)
+
+Excel v3.2.1 Sheet 3 (`TargetField=Packet::data[0]`), Sheet 5
+(`BitEntryByteIndex=byte0 bit3`, `FaultValue=data[0] ^= 0x08（严格按size逐字节）`)
+and the recommended option A define a **single-bit fault in response byte 0**.
+For sizes 1/4/7/8/9/12/16 only `data[0]` changes; the old mask-repetition over
+byte 8 is not part of LP01-CFG01. The unit test pins all seven sizes plus 0.
+
+Status after the semantic fix: DESIGNED / SOURCE_AUDITED / IMPLEMENTED /
+COMPILED / UNIT_TESTED. Pilots and PROPAGATION_VERIFIED remain open until the
+W5 five-pilot round.
