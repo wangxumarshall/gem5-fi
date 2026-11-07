@@ -46,6 +46,7 @@
 #include "mem/cache/base.hh"
 #include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (CasSuccess)
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // LSU v3.2.4 store fault
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -848,9 +849,35 @@ BaseCache::updateBlockData(CacheBlk *blk, const PacketPtr cpkt,
         }
     }
 
+    // [DA04/SQ01][LSU v3.2.4] observation-only: capture the actual cache-line
+    // byte update for a registered faulted store. A DA04 masked write must
+    // leave every disabled lane byte-identical; that is the proof the fault
+    // reached the memory write. No CPU/cache state is mutated here.
+    std::vector<uint8_t> pre_bytes;
+    bool trace_store = false;
+    unsigned trace_off = 0;
+    if (cpkt && cpkt->isWrite() && cpkt->req &&
+            cpkt->req->hasInstSeqNum() && CHAOSPropagation::instance() &&
+            CHAOSPropagation::instance()->isFaultStore(
+                cpkt->req->getReqInstSeqNum())) {
+        trace_store = true;
+        trace_off = cpkt->getOffset(blkSize);
+        pre_bytes.assign(blk->data + trace_off,
+                         blk->data + trace_off + cpkt->getSize());
+    }
+
     // Actually perform the data update
     if (cpkt) {
         cpkt->writeDataToBlock(blk->data, blkSize);
+    }
+
+    if (trace_store) {
+        const std::vector<uint8_t> post_bytes(
+            blk->data + trace_off,
+            blk->data + trace_off + pre_bytes.size());
+        CHAOSPropagation::instance()->noteStoreMemWrite(
+            cpkt, regenerateBlkAddr(blk), cpkt->getConstPtr<uint8_t>(),
+            pre_bytes, post_bytes, trace_off);
     }
 
     if (ppDataUpdate->hasListeners()) {

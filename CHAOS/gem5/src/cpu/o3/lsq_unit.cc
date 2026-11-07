@@ -933,6 +933,20 @@ LSQUnit::writebackStores()
 
         request->buildPackets();
 
+        // [DA04/SQ01][LSU v3.2.4] real SQ drain: the request (with its final
+        // byte-enable) is about to leave for the cache. Record the store's
+        // writeback with the SQ entry identity and data hash.
+        if (cpu->chaosPropagation) {
+            const RequestPtr &mr = request->mainReq();
+            if (mr && mr->hasVaddr()) {
+                cpu->chaosPropagation->noteStoreWriteback(
+                    inst->seqNum, storeWBIt.idx(), inst->sqEntryGeneration,
+                    mr->getVaddr(), request->_size,
+                    mr->getByteEnable(),
+                    reinterpret_cast<const uint8_t *>(storeWBIt->data()));
+            }
+        }
+
         DPRINTF(LSQUnit, "D-Cache: Writing back store idx:%i PC:%s "
                 "to Addr:%#x, data:%#x [sn:%lli]\n",
                 storeWBIt.idx(), inst->pcState(),
