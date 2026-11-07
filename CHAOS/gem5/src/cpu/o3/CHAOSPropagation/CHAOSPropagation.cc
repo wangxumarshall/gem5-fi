@@ -1200,19 +1200,41 @@ namespace gem5
             any_consumer = true;
             if (!first_consumed_ptag)
                 first_consumed_ptag = it->second.ptag;
-            uint64_t cval = 0;
-            unsigned cbytes = 0;
-            const std::string chash = regValueHash(
-                head_inst, phys, tid, &cval, &cbytes);
+
+            uint64_t ival = 0, oval = 0;
+            unsigned ibytes = 0, obytes = 0;
+            const std::string ihash =
+                regValueHash(head_inst, phys, tid, &ival, &ibytes);
+            std::string ohash;
+            uint64_t out_phys = 0, out_arch = 0;
+            if (head_inst->numDestRegs() > 0) {
+                const PhysRegIdPtr dphys = head_inst->renamedDestIdx(0);
+                if (dphys) {
+                    ohash = regValueHash(head_inst, dphys, tid, &oval,
+                                         &obytes);
+                    out_phys = dphys->index();
+                    out_arch = head_inst->destRegIdx(0).index();
+                }
+            }
+            const bool input_matches =
+                !ihash.empty() && !it->second.value_hash.empty()
+                && ihash == it->second.value_hash;
+
             std::ostringstream d;
             d << "class=" << regClassName(phys->classValue())
               << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec
               << ";source_event_id=" << it->second.node_id
               << ";source_value_hash="
               << (it->second.value_hash.empty() ? "null" : it->second.value_hash)
-              << ";consumer_value_hash=" << (chash.empty() ? "null" : chash)
-              << ";consumer_value=" << std::hex << cval << std::dec
-              << ";consumer_value_bytes=" << cbytes
+              << ";consumer_input_value=" << std::hex << ival << std::dec
+              << ";consumer_input_fnv=" << (ihash.empty() ? "null" : ihash)
+              << ";consumer_input_bytes=" << ibytes
+              << ";consumer_output_value=" << std::hex << oval << std::dec
+              << ";consumer_output_fnv=" << (ohash.empty() ? "null" : ohash)
+              << ";consumer_output_bytes=" << obytes
+              << ";consumer_input_matches_source=" << (input_matches ? 1 : 0)
+              << ";dest_phys_reg=" << out_phys
+              << ";dest_arch_reg=" << out_arch
               << ";commit_seq=" << commit_seq
               << ";execution_attempt_id=" << head_inst->executionAttemptId
               << ";replay_generation=" << head_inst->replayGeneration;
@@ -1221,10 +1243,10 @@ namespace gem5
                 0, false, 0, false, phys->index(), true,
                 head_inst->srcRegIdx(i).index(), true, d.str());
             last_consumer_node = consumer_node;
-            last_consumer_hash = chash;
+            last_consumer_hash = ohash;
             writeEdgeRow(it->second.ptag, it->second.node_id, consumer_node,
                          it->second.taintor_seq, head_inst->seqNum,
-                         it->second.value_hash, chash, "register_dataflow");
+                         it->second.value_hash, ohash, "register_dataflow");
         }
 
         // Dests: is this the faulting load itself committing its tainted
@@ -1278,6 +1300,8 @@ namespace gem5
                 te.ptag = first_consumed_ptag;
                 te.taintor_seq = head_inst->seqNum;
                 te.node_id = last_consumer_node;
+                // The destination now holds the consumer's OUTPUT value; the
+                // next consumer's input hash must match THIS hash.
                 te.value_hash = last_consumer_hash;
                 taint_set[std::make_pair(phys->classValue(),
                                          phys->index())] = te;
