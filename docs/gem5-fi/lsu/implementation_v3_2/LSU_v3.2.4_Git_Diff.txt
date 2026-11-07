@@ -1,0 +1,1819 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+index 9855b8a3..88ad62ab 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+@@ -73,7 +73,8 @@ namespace gem5
+                 "O3CPU (it hooks the O3 LSQ store->load forwarding path). "
+                 "Cast failed.");
+         }
+-        if (probability > 0.0f || struct_mode == StructMode::F6Fw02) {
++        if (probability > 0.0f || struct_mode == StructMode::F6Fw02 ||
++                struct_mode == StructMode::Da04BeBit0) {
+             log_stream = simout.create("lsq_fwd_injections.log", false, true);
+             if (!log_stream || !log_stream->stream()) {
+                 panic("CHAOSLSQFwd: Could not open log file");
+@@ -114,6 +115,12 @@ namespace gem5
+             // lsqFwd during execute(), long after SimObject construction.
+             cpu->lsqFwd = this;
+         }
++        if (struct_mode == StructMode::Da04BeBit0) {
++            // DA04: deterministic F0 one-shot; attach even when the caller
++            // leaves probability at 0 (the fault is an explicit mask change).
++            if (!cpu->lsqFwd) cpu->lsqFwd = this;
++            if (max_faults == 0) max_faults = 1;
++        }
+         if (struct_mode == StructMode::F6Fw02) {
+             // FW02: attach even with probability==0 (this mode suppresses a
+             // forwarding match, it does not corrupt forwarded bytes).
+@@ -169,6 +176,7 @@ namespace gem5
+         if (s == "phase_offset") return StructMode::PhaseOffset;
+         if (s == "f6_fw02") return StructMode::F6Fw02;
+         if (s == "sq01_bit3") return StructMode::Sq01Bit3;
++        if (s == "da04_be_bit0") return StructMode::Da04BeBit0;
+         return StructMode::ByteFlip;  // default / unknown
+     }
+ 
+@@ -216,6 +224,10 @@ namespace gem5
+         // FW02 acts only at the forwarding DECISION point (suppress one
+         // match); it must never also mutate the forwarded bytes.
+         if (struct_mode == StructMode::F6Fw02) return;
++        // DA04 acts only in LSQ::pushRequest (byte-enable construction); the
++        // forwarding post-copy hook must stay inert or it would consume the
++        // shared F0 trigger before the first eligible store.
++        if (struct_mode == StructMode::Da04BeBit0) return;
+         // [LSU][SEM-B] L03 hook split: with --lsqfwd_l03 the SQ-forward
+         // data path is NOT L03's event source — the trigger stream must be
+         // violation checks only (checkViolations site), not the mixed stream.
+@@ -429,7 +441,7 @@ namespace gem5
+     {}
+ 
+     bool
+-    CHAOSLSQFwd::maybeCorruptStoreData(uint8_t *data, unsigned size,
++    CHAOSLSQFwd::maybeCorruptStoreData(uint8_t *data, unsigned size, Addr vaddr,
+                                        uint64_t dyn_seq, uint64_t store_idx,
+                                        uint64_t generation)
+     {
+@@ -448,7 +460,8 @@ namespace gem5
+         ++faults_injected_count;
+         if (auto *prop = CHAOSPropagation::instance()) {
+             prop->noteStoreDataInjection(dyn_seq, store_idx, generation,
+-                                         old_byte, new_byte, "sq01_bit3");
++                                         vaddr, size, old_byte, new_byte,
++                                         "sq01_bit3");
+         }
+         if (write_log && log_stream && log_stream->stream()) {
+             *(log_stream->stream())
+@@ -465,6 +478,53 @@ namespace gem5
+         return true;
+     }
+ 
++    bool
++    CHAOSLSQFwd::maybeCorruptStoreByteEnable(
++            std::vector<bool> &be, unsigned size, Addr vaddr,
++            uint64_t dyn_seq, uint64_t sq_idx, uint64_t generation,
++            const uint8_t *store_data)
++    {
++        if (struct_mode != StructMode::Da04BeBit0)
++            return false;
++        if (lsuTrigger)
++            lsuTrigger->onAttempt();
++        if (!chaos_da04::eligible(size, be))
++            return false;
++        if (lsuTrigger) {
++            if (!lsuTrigger->onEligible())
++                return false;
++        } else if (max_faults != 0 && faults_injected_count >= max_faults) {
++            return false;
++        }
++        const uint64_t old_mask = chaos_da04::maskOf(be);
++        if (!chaos_da04::clearLane0(be))
++            return false;
++        const uint64_t new_mask = chaos_da04::maskOf(be);
++        ++faults_injected_count;
++        if (auto *prop = CHAOSPropagation::instance()) {
++            prop->noteStoreBEInjection(dyn_seq, sq_idx, generation, vaddr,
++                                       size, old_mask, new_mask, store_data);
++        }
++        if (write_log && log_stream && log_stream->stream()) {
++            *(log_stream->stream())
++                << "Tick: " << curTick()
++                << ", Site: lsq_pushRequest_byte_enable"
++                << ", FaultModel: DA04"
++                << ", seq: " << dyn_seq
++                << ", sq_idx: " << sq_idx
++                << ", entry_generation: " << generation
++                << ", old_addr: 0x" << std::hex << vaddr
++                << ", new_addr: 0x" << vaddr
++                << ", size: " << std::dec << size
++                << ", old_be: 0x" << std::hex << old_mask
++                << ", new_be: 0x" << new_mask
++                << ", changed_bit: 0" << std::dec
++                << ", faults_injected: " << faults_injected_count
++                << std::endl;
++        }
++        return true;
++    }
++
+     bool
+     CHAOSLSQFwd::maybeSuppressForwarding(uint64_t load_seq, uint64_t store_seq,
+                                          Addr vaddr, unsigned size)
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+index 26bcb830..2fc7c0d9 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+@@ -8,6 +8,7 @@
+ #include "base/output.hh"
+ #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel
+ #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
++#include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
+ #include "base/statistics.hh"
+ #include "base/types.hh"
+ #include "params/CHAOSLSQFwd.hh"
+@@ -68,8 +69,17 @@ class CHAOSLSQFwd : public SimObject
+     // SQ01 (LSU v3.2.3): after LSQUnit::write() has copied store data into the
+     // SQ entry, flip byte0 bit3 once under the F0 trigger. Data-only: no SQ
+     // state, no request, no pointer is changed.
+-    bool maybeCorruptStoreData(uint8_t *data, unsigned size, uint64_t dyn_seq,
+-                               uint64_t store_idx, uint64_t generation);
++    bool maybeCorruptStoreData(uint8_t *data, unsigned size, Addr vaddr,
++                               uint64_t dyn_seq, uint64_t store_idx,
++                               uint64_t generation);
++
++    // DA04 (LSU v3.2.4): clear bit0 of a 4-byte store's byte-enable after the
++    // mask has been built in LSQ::pushRequest. Store-only; address, size and
++    // store data are untouched. Returns true iff the mask changed.
++    bool maybeCorruptStoreByteEnable(std::vector<bool> &be, unsigned size,
++                                     Addr vaddr, uint64_t dyn_seq,
++                                     uint64_t sq_idx, uint64_t generation,
++                                     const uint8_t *store_data);
+ 
+     // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
+     // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
+@@ -104,7 +114,7 @@ class CHAOSLSQFwd : public SimObject
+     //     E3 boundary analysis showed captures scheduler phase, not
+     //     forward-path phase).
+     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
+-                            PhaseOffset, F6Fw02, Sq01Bit3 };
++                            PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0 };
+     static StructMode stringToStructMode(const std::string &s);
+ 
+     o3::CPU *cpu;
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+index 62ce3648..0a923b6c 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+@@ -44,7 +44,9 @@ class CHAOSLSQFwd(SimObject):
+         "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
+         "entry — method1 wrong-source store->load forwarding) | "
+         "f6_fw02 (LSU v3.2 F6: suppress one real full-coverage "
+-        "store->load forwarding match and force the load to memory)")
++        "store->load forwarding match and force the load to memory) | "
++        "da04_be_bit0 (LSU v3.2.4: 4-byte store byte-enable bit0 clear, "
++        "0xF->0xE)")
+     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
+     l03Mode = Param.Bool(False,
+         "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh
+new file mode 100644
+index 00000000..270d84b3
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh
+@@ -0,0 +1,55 @@
++#ifndef __CPU_O3_DA04_BYTE_ENABLE_HH__
++#define __CPU_O3_DA04_BYTE_ENABLE_HH__
++
++#include <cstdint>
++#include <vector>
++
++namespace gem5
++{
++namespace chaos_da04
++{
++
++// DA04 (LSU v3.2.4): the modelled mask is the 4-bit byte-enable of a 32-bit
++// store. gem5 stores it as std::vector<bool>, one entry per byte:
++//   index 0 = lowest-addressed byte (packet data[0], AArch64 LE bits [7:0])
++//   index 3 = highest-addressed byte (bits [31:24])
++// 0xF = {true,true,true,true}; clearing bit0 yields 0xE =
++// {false,true,true,true}. No Load and no non-4-byte access is eligible.
++static constexpr unsigned kMaskWidth = 4;
++
++inline bool
++eligible(unsigned size, const std::vector<bool> &be)
++{
++    if (size != kMaskWidth || be.size() != kMaskWidth)
++        return false;
++    for (bool b : be) {
++        if (!b)
++            return false;
++    }
++    return true;
++}
++
++inline uint64_t
++maskOf(const std::vector<bool> &be)
++{
++    uint64_t m = 0;
++    for (unsigned i = 0; i < be.size() && i < 64; ++i) {
++        if (be[i])
++            m |= (uint64_t)1 << i;
++    }
++    return m;
++}
++
++inline bool
++clearLane0(std::vector<bool> &be)
++{
++    if (be.empty() || !be[0])
++        return false;
++    be[0] = false;
++    return true;
++}
++
++} // namespace chaos_da04
++} // namespace gem5
++
++#endif // __CPU_O3_DA04_BYTE_ENABLE_HH__
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+index 73e4a6ca..16d5912d 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -398,22 +398,192 @@ namespace gem5
+ 
+     void
+     CHAOSPropagation::noteStoreDataInjection(uint64_t dyn_seq, uint64_t idx,
+-                                             uint64_t gen, uint8_t old_byte,
++                                             uint64_t gen, Addr vaddr,
++                                             unsigned size, uint8_t old_byte,
+                                              uint8_t new_byte,
+                                              const char *mode)
+     {
+         if (!write_log)
+             return;
++        const uint64_t ptag = ++next_ptag;
+         fault_seqs.insert(dyn_seq);
+         std::ostringstream d;
+         d << "site=lsq_write_sq_entry;mode=" << mode
+           << ";queue=SQ;index=" << idx
+           << ";generation=" << gen
++          << ";size=" << size
++          << ";addr=0x" << std::hex << vaddr << std::dec
+           << ";old_byte=0x" << std::hex << (unsigned)old_byte
+           << ";new_byte=0x" << (unsigned)new_byte << std::dec
+           << ";value_changed=1";
+-        writeNode(0, "inj_store_data", dyn_seq, true, 0, false, 0, false,
+-                  idx, true, 0, false, d.str());
++        writeNode(ptag, "inj_store_data", dyn_seq, true, 0, false,
++                  vaddr, true, 0, false, 0, false, d.str());
++
++        FaultStoreEntry e;
++        e.ptag = ptag;
++        e.dyn_seq = dyn_seq;
++        e.base = vaddr;
++        e.size = size;
++        e.idx = idx;
++        e.gen = gen;
++        e.byte_begin = vaddr;
++        e.byte_end = vaddr + 1;   // SQ01 corrupts data[0] (lowest byte)
++        e.family = "store_data";
++        e.registered = curTick();
++        fault_store_registry[dyn_seq] = e;
++    }
++
++    uint64_t
++    CHAOSPropagation::chaosBeMask(const std::vector<bool> &be)
++    {
++        uint64_t m = 0;
++        for (unsigned i = 0; i < be.size() && i < 64; ++i) {
++            if (be[i])
++                m |= (uint64_t)1 << i;
++        }
++        return m;
++    }
++
++    uint64_t
++    CHAOSPropagation::noteStoreBEInjection(uint64_t dyn_seq, uint64_t idx,
++                                           uint64_t gen, Addr vaddr,
++                                           unsigned size, uint64_t old_mask,
++                                           uint64_t new_mask,
++                                           const uint8_t *store_data)
++    {
++        if (!write_log)
++            return 0;
++        const uint64_t ptag = ++next_ptag;
++        fault_seqs.insert(dyn_seq);
++        const uint64_t fnv = store_data ? fnv1a64(store_data, size) : 0;
++        std::ostringstream fnh;
++        if (store_data)
++            fnh << std::hex << fnv << std::dec;
++        std::ostringstream d;
++        d << "site=lsq_pushRequest;family=byte_enable;fault_model=DA04"
++          << ";size=" << size
++          << ";old_be=0x" << std::hex << old_mask
++          << ";new_be=0x" << new_mask << std::dec
++          << ";changed_bit=0"
++          << ";addr_before=0x" << std::hex << vaddr
++          << ";addr_after=0x" << vaddr << std::dec
++          << ";size_before=" << size << ";size_after=" << size
++          << ";store_data_fnv=" << (store_data ? fnh.str() : "null")
++          << ";store_data_hex="
++          << (store_data ? bytesToHex(store_data, size) : "null")
++          << ";sq_entry_id=" << idx
++          << ";entry_generation=" << gen;
++        writeNode(ptag, "inj_store_be", dyn_seq, true, 0, false,
++                  vaddr, true, 0, false, 0, false, d.str());
++
++        FaultStoreEntry e;
++        e.ptag = ptag;
++        e.dyn_seq = dyn_seq;
++        e.base = vaddr;
++        e.size = size;
++        e.idx = idx;
++        e.gen = gen;
++        e.byte_begin = vaddr;
++        e.byte_end = vaddr + 1;   // DA04 clears lane 0 (lowest byte) only
++        e.family = "byte_enable";
++        e.old_mask = "0x" + std::to_string(old_mask);
++        e.new_mask = "0x" + std::to_string(new_mask);
++        e.data_fnv = store_data ? fnh.str() : "";
++        e.data_hex = store_data ? bytesToHex(store_data, size) : "";
++        e.registered = curTick();
++        fault_store_registry[dyn_seq] = e;
++        return ptag;
++    }
++
++    void
++    CHAOSPropagation::noteStoreWriteback(uint64_t dyn_seq, uint64_t idx,
++                                         uint64_t gen, Addr vaddr,
++                                         unsigned size,
++                                         const std::vector<bool> &be,
++                                         const uint8_t *data)
++    {
++        if (!write_log)
++            return;
++        auto it = fault_store_registry.find(dyn_seq);
++        if (it == fault_store_registry.end())
++            return;
++        const FaultStoreEntry &e = it->second;
++        const uint64_t fnv = data ? fnv1a64(data, size) : 0;
++        std::ostringstream d;
++        d << "site=lsq_writebackStores;family=" << e.family
++          << ";size=" << size
++          << ";be_mask=";
++        if (be.empty())
++            d << "null";
++        else
++            d << "0x" << std::hex << chaosBeMask(be) << std::dec;
++        d << ";data_fnv=" << (data ? fnv : 0)
++          << ";data_hex=" << (data ? bytesToHex(data, size) : "null")
++          << ";sq_entry_id=" << idx
++          << ";entry_generation=" << gen
++          << ";addr=0x" << std::hex << vaddr << std::dec;
++        writeNode(e.ptag, "store_wb", dyn_seq, true, 0, false,
++                  vaddr, true, 0, false, 0, false, d.str());
++    }
++
++    void
++    CHAOSPropagation::noteStoreMemWrite(const PacketPtr &pkt, Addr blk_addr,
++                                        const uint8_t *packet_data,
++                                        const std::vector<uint8_t> &before,
++                                        const std::vector<uint8_t> &after,
++                                        unsigned offset)
++    {
++        if (!write_log || !pkt || !pkt->req)
++            return;
++        if (!pkt->req->hasInstSeqNum())
++            return;
++        auto it = fault_store_registry.find(pkt->req->getReqInstSeqNum());
++        if (it == fault_store_registry.end())
++            return;
++        const FaultStoreEntry &e = it->second;
++        const unsigned n = after.size();
++        if (n == 0 || before.size() != n || !packet_data)
++            return;
++        const std::vector<bool> be = pkt->req->getByteEnable();
++        bool enabled_written = true;
++        bool disabled_unchanged = true;
++        for (unsigned i = 0; i < n; ++i) {
++            const bool en = i < be.size() ? be[i] : true;
++            if (en && after[i] != packet_data[i])
++                enabled_written = false;
++            if (!en && after[i] != before[i])
++                disabled_unchanged = false;
++        }
++        const uint64_t packet_fnv = fnv1a64(packet_data, n);
++        std::ostringstream d;
++        d << "site=BaseCache::updateBlockData;family=" << e.family
++          << ";blk_addr=0x" << std::hex << blk_addr << std::dec
++          << ";offset=" << offset << ";size=" << n
++          << ";be_mask=0x" << std::hex << chaosBeMask(be) << std::dec
++          << ";packet_data_fnv=" << packet_fnv
++          << ";packet_data_hex=" << bytesToHex(packet_data, n)
++          << ";before_hex=" << bytesToHex(before.data(), n)
++          << ";after_hex=" << bytesToHex(after.data(), n)
++          << ";enabled_written=" << (enabled_written ? 1 : 0)
++          << ";disabled_unchanged=" << (disabled_unchanged ? 1 : 0)
++          << ";lane0_packet=0x" << std::hex << (unsigned)packet_data[0]
++          << ";lane0_before=0x" << (unsigned)before[0]
++          << ";lane0_after=0x" << (unsigned)after[0] << std::dec;
++        writeNode(e.ptag, "store_mem", e.dyn_seq, true, 0, false,
++                  blk_addr, true, 0, false, 0, false, d.str());
++    }
++
++    bool
++    CHAOSPropagation::isFaultStore(uint64_t dyn_seq) const
++    {
++        return fault_store_registry.count(dyn_seq) != 0;
++    }
++
++    uint64_t
++    CHAOSPropagation::faultStorePtag(uint64_t dyn_seq) const
++    {
++        auto it = fault_store_registry.find(dyn_seq);
++        return it == fault_store_registry.end() ? 0 : it->second.ptag;
+     }
+ 
+     void
+@@ -547,6 +717,24 @@ namespace gem5
+                 }
+             }
+         }
++        // store family (DA04 byte-enable / SQ01 store data): a LOAD whose
++        // request range covers the faulted byte observes the store's
++        // architectural effect. Use the Request VA/size (Packet::getAddr is
++        // block-aligned and its size is not the access size). Store responses
++        // are excluded (their dyn seq is the store's).
++        if (!hit_ptag && !pkt->isWrite() && inst->isLoad() && pkt->req &&
++                pkt->req->hasVaddr()) {
++            const Addr a = pkt->req->getVaddr();
++            const Addr a_end = a + (Addr)pkt->req->getSize();
++            for (const auto &kv : fault_store_registry) {
++                const FaultStoreEntry &e = kv.second;
++                if (a < e.byte_end && e.byte_begin < a_end) {
++                    hit_ptag = e.ptag;
++                    hit_family = e.family;
++                    break;
++                }
++            }
++        }
+         if (!hit_ptag)
+             return;
+ 
+@@ -701,6 +889,12 @@ namespace gem5
+     {
+         if (!write_log)
+             return;
++        // v3.2.4: a load that forwards from a registered faulted store joins
++        // that store's chain. gem5's forwarding memcpy does not consult the
++        // byte-enable, so a DA04-forwarded load receives the intended store
++        // data; the detail records that boundary explicitly.
++        if (ptag == 0)
++            ptag = faultStorePtag(store_seq);
+         const uint64_t store_hash = store_data
+             ? fnv1a64(store_data, store_size) : 0;
+         const uint64_t fwd_hash = fwd_data
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+index 75d09d04..f6450a55 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -191,11 +191,40 @@ class CHAOSPropagation : public SimObject
+ 
+     // SQ01: store data was corrupted after it entered the SQ entry. The node is
+     // a real injection with the SQ index, generation and both bytes; the store
+-    // is also registered for its real commit node.
++    // is also registered for its real commit node. v3.2.4 adds the store
++    // vaddr/size so the faulted byte can be matched by later loads.
+     void noteStoreDataInjection(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
++                                Addr vaddr, unsigned size,
+                                 uint8_t old_byte, uint8_t new_byte,
+                                 const char *mode);
+ 
++    // DA04 (LSU v3.2.4): byte-enable lane-0 fault on a store. Allocates a
++    // ptag, writes the injection node with original/injected masks and the
++    // store data hash, and registers [vaddr, vaddr+1) for later loads.
++    uint64_t noteStoreBEInjection(uint64_t dyn_seq, uint64_t idx,
++                                  uint64_t gen, Addr vaddr, unsigned size,
++                                  uint64_t old_mask, uint64_t new_mask,
++                                  const uint8_t *store_data);
++
++    // SQ drain: the request (with its final byte-enable) leaves for the
++    // cache. Emits store_writeback for a registered faulted store.
++    void noteStoreWriteback(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
++                            Addr vaddr, unsigned size,
++                            const std::vector<bool> &be,
++                            const uint8_t *data);
++
++    // BaseCache::updateBlockData: the actual block-byte update for a faulted
++    // store. Records before/after bytes, enabled-written and
++    // disabled-unchanged (the DA04 proof the mask reached the memory write).
++    void noteStoreMemWrite(const PacketPtr &pkt, Addr blk_addr,
++                           const uint8_t *packet_data,
++                           const std::vector<uint8_t> &before,
++                           const std::vector<uint8_t> &after,
++                           unsigned offset);
++
++    bool isFaultStore(uint64_t dyn_seq) const;
++    uint64_t faultStorePtag(uint64_t dyn_seq) const;
++
+     // Real LQ/SQ entry lifecycle (alloc/reuse/free), from the circular queue
+     // insert/commit/squash sites.
+     void noteLQLifecycle(uint64_t dyn_seq, uint64_t idx, uint64_t gen,
+@@ -313,6 +342,29 @@ class CHAOSPropagation : public SimObject
+         std::string value_hash;    // stable hash of the writeback value
+     };
+     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
++
++    // v3.2.4 store-fault registry: DA04 byte-enable and SQ01 store-data
++    // faults share the same identity so SQ drain, the cache write and later
++    // loads can all attach to one ptag chain.
++    struct FaultStoreEntry {
++        uint64_t ptag = 0;
++        uint64_t dyn_seq = 0;
++        Addr base = 0;
++        unsigned size = 0;
++        uint64_t idx = 0;
++        uint64_t gen = 0;
++        Addr byte_begin = 0;      // affected byte range [begin, end)
++        Addr byte_end = 0;
++        const char *family = "store";   // "byte_enable" | "store_data"
++        std::string old_mask;
++        std::string new_mask;
++        std::string data_fnv;
++        std::string data_hex;
++        Tick registered = 0;
++    };
++    std::map<uint64_t, FaultStoreEntry> fault_store_registry;
++
++    static uint64_t chaosBeMask(const std::vector<bool> &be);
+ };
+ 
+ } // namespace gem5
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq.cc b/CHAOS/gem5/src/cpu/o3/lsq.cc
+index 905342fe..4bfc0d16 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq.cc
+@@ -41,6 +41,7 @@
+ 
+ #include "cpu/o3/lsq.hh"
+ #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // §2.4 full def for maybeCorrupt
++#include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"  // [DA04] full def for BE fault
+ #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
+ 
+ #include <algorithm>
+@@ -832,6 +833,20 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
+         // Request::setByteEnable assert fires downstream.
+         request->_byteEnable = (byte_enable.size() == size)
+             ? byte_enable : std::vector<bool>(size, true);
++        // [DA04][LSU v3.2.4] Store byte-enable bit0 fault. The mask was just
++        // built for this request (all-true vector for an AArch64 store).
++        // Clear lane 0 only for the target dynamic store; address, size and
++        // store data are untouched. Every downstream consumer reads this
++        // same Request, so the mask reaches SQ drain and the cache write.
++        if (!isLoad && !isAtomic && inst->sqIdx >= 0 && cpu->lsqFwd &&
++                !flags.isSet(Request::LLSC) &&
++                !flags.isSet(Request::NO_ACCESS) &&
++                !(flags & Request::CACHE_BLOCK_ZERO) &&
++                !(flags & Request::STORE_NO_DATA)) {
++            cpu->lsqFwd->maybeCorruptStoreByteEnable(
++                request->_byteEnable, size, addr, inst->seqNum,
++                inst->sqIdx, inst->sqEntryGeneration, data);
++        }
+         inst->setRequest();
+         request->taskId(cpu->taskId());
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index b9cb3a7d..bc47ddf6 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -933,6 +933,20 @@ LSQUnit::writebackStores()
+ 
+         request->buildPackets();
+ 
++        // [DA04/SQ01][LSU v3.2.4] real SQ drain: the request (with its final
++        // byte-enable) is about to leave for the cache. Record the store's
++        // writeback with the SQ entry identity and data hash.
++        if (cpu->chaosPropagation) {
++            const RequestPtr &mr = request->mainReq();
++            if (mr && mr->hasVaddr()) {
++                cpu->chaosPropagation->noteStoreWriteback(
++                    inst->seqNum, storeWBIt.idx(), inst->sqEntryGeneration,
++                    mr->getVaddr(), request->_size,
++                    mr->getByteEnable(),
++                    reinterpret_cast<const uint8_t *>(storeWBIt->data()));
++            }
++        }
++
+         DPRINTF(LSQUnit, "D-Cache: Writing back store idx:%i PC:%s "
+                 "to Addr:%#x, data:%#x [sn:%lli]\n",
+                 storeWBIt.idx(), inst->pcState(),
+@@ -1848,8 +1862,8 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
+         if (store_inst) {
+             cpu->lsqFwd->maybeCorruptStoreData(
+                 reinterpret_cast<uint8_t *>(storeQueue[store_idx].data()),
+-                size, store_inst->seqNum, store_inst->sqIdx,
+-                store_inst->sqEntryGeneration);
++                size, request->mainReq()->getVaddr(), store_inst->seqNum,
++                store_inst->sqIdx, store_inst->sqEntryGeneration);
+         }
+     }
+ 
+diff --git a/CHAOS/gem5/src/mem/cache/base.cc b/CHAOS/gem5/src/mem/cache/base.cc
+index d2528026..082f8c66 100644
+--- a/CHAOS/gem5/src/mem/cache/base.cc
++++ b/CHAOS/gem5/src/mem/cache/base.cc
+@@ -46,6 +46,7 @@
+ #include "mem/cache/base.hh"
+ #include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
+ #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (CasSuccess)
++#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // LSU v3.2.4 store fault
+ 
+ #include "base/compiler.hh"
+ #include "base/logging.hh"
+@@ -848,11 +849,37 @@ BaseCache::updateBlockData(CacheBlk *blk, const PacketPtr cpkt,
+         }
+     }
+ 
++    // [DA04/SQ01][LSU v3.2.4] observation-only: capture the actual cache-line
++    // byte update for a registered faulted store. A DA04 masked write must
++    // leave every disabled lane byte-identical; that is the proof the fault
++    // reached the memory write. No CPU/cache state is mutated here.
++    std::vector<uint8_t> pre_bytes;
++    bool trace_store = false;
++    unsigned trace_off = 0;
++    if (cpkt && cpkt->isWrite() && cpkt->req &&
++            cpkt->req->hasInstSeqNum() && CHAOSPropagation::instance() &&
++            CHAOSPropagation::instance()->isFaultStore(
++                cpkt->req->getReqInstSeqNum())) {
++        trace_store = true;
++        trace_off = cpkt->getOffset(blkSize);
++        pre_bytes.assign(blk->data + trace_off,
++                         blk->data + trace_off + cpkt->getSize());
++    }
++
+     // Actually perform the data update
+     if (cpkt) {
+         cpkt->writeDataToBlock(blk->data, blkSize);
+     }
+ 
++    if (trace_store) {
++        const std::vector<uint8_t> post_bytes(
++            blk->data + trace_off,
++            blk->data + trace_off + pre_bytes.size());
++        CHAOSPropagation::instance()->noteStoreMemWrite(
++            cpkt, regenerateBlkAddr(blk), cpkt->getConstPtr<uint8_t>(),
++            pre_bytes, post_bytes, trace_off);
++    }
++
+     if (ppDataUpdate->hasListeners()) {
+         if (cpkt) {
+             data_update.newData = std::vector<uint64_t>(blk->data,
+diff --git a/configs/se/lsu_proxy.py b/configs/se/lsu_proxy.py
+index e7e92b67..639299f1 100644
+--- a/configs/se/lsu_proxy.py
++++ b/configs/se/lsu_proxy.py
+@@ -256,7 +256,7 @@ p.add_argument("--lsq_byte_offset", type=int, default=-1)
+ p.add_argument("--lsq_struct_mode", default="byte_flip",
+                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
+                         "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02",
+-                        "sq01_bit3"])
++                        "sq01_bit3", "da04_be_bit0"])
+ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
+ # W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
+ p.add_argument("--lsqfwd_lsu_tier", default="off",
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/audit_existing_terminals.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/audit_existing_terminals.py
+new file mode 100644
+index 00000000..8b1a485d
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/audit_existing_terminals.py
+@@ -0,0 +1,75 @@
++#!/usr/bin/env python3
++"""Re-adjudicate existing v3.2.1/v3.2.3 pilot traces with the v3.2.4
++chain-scoped terminal rules. Read-only: the old traces and pilot_meta files
++are never modified. Prints a Markdown table (old -> new verdict)."""
++from __future__ import annotations
++
++import glob
++import json
++import sys
++from pathlib import Path
++
++PLATFORM = Path(__file__).resolve().parent
++sys.path.insert(0, str(PLATFORM))
++
++from terminal_rules import adjudicate  # noqa: E402
++from trace_validator import read_records  # noqa: E402
++
++IMPL = PLATFORM.parent
++
++
++def trace_for(d: Path) -> Path | None:
++    for name in ("trace_v31.jsonl", "trace_v31.jsonl.gz"):
++        p = d / name
++        if p.exists():
++            return p
++    return None
++
++
++def main() -> int:
++    metas = []
++    for pattern in ("pilots_v3_2_1/*/pilot_meta.json",
++                    "pilots_v3_2_3/sweep/*/pilot_meta.json",
++                    "pilots_v3_2_2/*/pilot_meta.json"):
++        metas.extend(glob.glob(str(IMPL / pattern)))
++    print("# LSU v3.2.4 — FW02 / existing-pilot terminal re-adjudication")
++    print()
++    print("Read-only pass over stored traces; `new` uses `terminal_rules.adjudicate`.")
++    print()
++    print("| Pilot | Model | Old terminal | New terminal | Reason | Oracle |")
++    print("|---|---|---|---|---|---|")
++    changed = []
++    for mp in sorted(metas):
++        m = json.load(open(mp))
++        d = Path(mp).parent
++        trace = trace_for(d)
++        if trace is None:
++            continue
++        old = m.get("classification", {}).get("terminal_state")
++        oracle = m.get("classification", {}).get("oracle_outcome")
++        if oracle is None:
++            oracle = "PASS" if m.get("oracle_pass") else "FAIL"
++        try:
++            events = [r for r in read_records(trace)
++                      if r.get("record_type") == "event"]
++        except Exception as exc:  # noqa: BLE001
++            print(f"| {d.name} | {m.get('model')} | {old} | ERROR | {exc} | {oracle} |")
++            continue
++        new, reason = adjudicate(
++            events, model=m.get("model", ""), observed_terminal=old or "MASKED",
++            oracle_pass=(oracle == "PASS"), trace_complete=True)
++        print(f"| {d.name} | {m.get('model')} | {old} | {new} | {reason} | {oracle} |")
++        if new != old:
++            changed.append((d.name, old, new, reason))
++    print()
++    print("## Changed verdicts")
++    print()
++    if not changed:
++        print("None.")
++    for name, old, new, reason in changed:
++        print(f"- `{name}`: {old} -> **{new}** ({reason})")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+index 56a9ab91..31eb1459 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+@@ -30,6 +30,7 @@ from config_parser import load_config  # noqa: E402
+ from manifest import build_manifest, canonical_json, write_manifest  # noqa: E402
+ from trace_completeness import check_completeness  # noqa: E402
+ from trace_validator import validate  # noqa: E402
++import terminal_rules  # noqa: E402
+ from tools.prop_trace_to_v31 import convert  # noqa: E402
+ 
+ ROOT = Path(__file__).resolve().parents[5]
+@@ -39,12 +40,10 @@ CONFIG = ROOT / "configs/se/lsu_proxy.py"
+ WORKLOADS = IMPL / "workloads"
+ 
+ 
+-LOAD_SIDE_MODELS = ("A01", "A03", "FW02")
+-
+-
+ def _workload_for(model: str) -> str:
+     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
+-            "FW02": "sq_forward", "SQ01": "sq_drain"}[model]
++            "FW02": "sq_forward", "SQ01": "sq_drain",
++            "DA04": "alignment"}[model]
+ 
+ 
+ def _funnel(path: Path) -> dict:
+@@ -97,6 +96,28 @@ def _sq01_summary(path: Path) -> dict:
+     return {"events": events, "injected": len(events)}
+ 
+ 
++def _da04_summary(path: Path) -> dict:
++    events = []
++    if not path.exists():
++        return {"events": events, "injected": 0}
++    pattern = re.compile(
++        r"seq:\s*(\d+).*sq_idx:\s*(\d+).*entry_generation:\s*(\d+)"
++        r".*old_addr:\s*0x([0-9a-fA-F]+).*new_addr:\s*0x([0-9a-fA-F]+)"
++        r".*size:\s*(\d+).*old_be:\s*0x([0-9a-fA-F]+)"
++        r".*new_be:\s*0x([0-9a-fA-F]+).*changed_bit:\s*(\d+)")
++    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
++        if "Site: lsq_pushRequest_byte_enable" not in line:
++            continue
++        m = pattern.search(line)
++        if m:
++            events.append({"seq": int(m[1]), "sq_idx": int(m[2]),
++                           "gen": int(m[3]), "old_addr": int(m[4], 16),
++                           "new_addr": int(m[5], 16), "size": int(m[6]),
++                           "old_be": int(m[7], 16), "new_be": int(m[8], 16),
++                           "changed_bit": int(m[9])})
++    return {"events": events, "injected": len(events)}
++
++
+ def _addrpath_events(path: Path) -> list[dict]:
+     if not path.exists():
+         return []
+@@ -128,24 +149,6 @@ def _seq_events(events: list[dict], seq) -> list[dict]:
+     return [e for e in events if seq is not None and e.get("dyn_inst_seq") == seq]
+ 
+ 
+-def _decide_masked_terminal(events: list[dict]) -> tuple[str, str]:
+-    """Adjudicate a MASKED candidate that has no data-value evidence.
+-
+-    A target instruction that was squashed and never committed is SQUASHED;
+-    anything else stays UNRESOLVED. The squash node must belong to the fault
+-    instruction's own dynamic sequence number.
+-    """
+-    injection = _fault_injection(events)
+-    seq = injection.get("dyn_inst_seq") if injection else None
+-    own = _seq_events(events, seq)
+-    squashed = any(e.get("event_type") == "squash" for e in own)
+-    committed = any(e.get("event_type") in ("commit", "consumer_commit",
+-                                            "errant_commit") for e in own)
+-    if squashed and not committed:
+-        return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
+-    return "UNRESOLVED", "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
+-
+-
+ def _terminal_evidence(events: list[dict], pt_fault_addr: str | None,
+                        stderr: str) -> dict:
+     injection = _fault_injection(events)
+@@ -201,7 +204,7 @@ def _fault_causality(events: list[dict], terminal: str,
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__)
+     ap.add_argument("--model", required=True,
+-                    choices=["A01", "A03", "FW02", "SQ01"])
++                    choices=["A01", "A03", "FW02", "SQ01", "DA04"])
+     ap.add_argument("--pilot-id", required=True)
+     ap.add_argument("--seed", type=int, default=None,
+                     help="override seed; default = the selected Excel context row")
+@@ -209,17 +212,33 @@ def main(argv=None) -> int:
+                     help="R01-R05: select the Excel sample row for this context")
+     ap.add_argument("--outdir", type=Path, required=True)
+     ap.add_argument("--gem5", type=Path, default=GEM5)
++    ap.add_argument("--preserve-sample-id", action="store_true",
++                    help="Keep the Excel SampleRunID/RunID/SubTaskID "
++                         "(pilots still write only to --outdir); v3.2.4 DA04")
++    ap.add_argument("--event-ordinal", type=int, default=None,
++                    help="TEMPORARY_EVENT_SELECTION override for the F0 "
++                         "eligible-event ordinal (v3.2.4 DA04 pilots); the "
++                         "Excel ordinal is recorded separately")
+     args = ap.parse_args(argv)
+ 
+     cfg = load_config(EXCEL, require_complete=False)
+     model_rows = [s for s in cfg["samples"] if s["model_id"] == args.model]
+     sample = copy.deepcopy(model_rows[args.context_index - 1])
+     excel_seed = sample["seed"]
++    excel_event_ordinal = sample.get("event_ordinal")
++    if args.event_ordinal is not None:
++        sample["event_ordinal"] = args.event_ordinal
+     if args.seed is None:
+         args.seed = excel_seed
+-    sample["sample_run_id"] = args.pilot_id
+-    sample["run_id"] = f"PILOT-{args.model}"
+-    sample["sub_task_id"] = f"PILOT-{args.model}-S01"
++    if args.preserve_sample_id:
++        excel = model_rows[args.context_index - 1]
++        sample["sample_run_id"] = excel["sample_run_id"]
++        sample["run_id"] = excel["run_id"]
++        sample["sub_task_id"] = excel["sub_task_id"]
++    else:
++        sample["sample_run_id"] = args.pilot_id
++        sample["run_id"] = f"PILOT-{args.model}"
++        sample["sub_task_id"] = f"PILOT-{args.model}-S01"
+     sample["seed"] = args.seed
+     sample["workload_path"] = str(WORKLOADS / _workload_for(args.model))
+     sample["workload_exists"] = True
+@@ -250,6 +269,13 @@ def main(argv=None) -> int:
+                  "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+                  "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
++    elif args.model == "DA04":
++        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "da04_be_bit0",
++                 "--lsqfwd_lsu_tier", "F0",
++                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
++                 "--max_faults", "1", "--rng_seed", str(args.seed),
++                 "--lsqfwd_event_ordinal",
++                 str(sample.get("event_ordinal") or 1)]
+     else:
+         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+@@ -262,7 +288,9 @@ def main(argv=None) -> int:
+            "--chaos_propagation",
+            "--prop_trace_file", "prop_trace.csv.gz"] + extra
+     (out / "command.txt").write_text("\n".join(cmd) + "\n")
+-    manifest = build_manifest(cfg2, args.pilot_id, args.gem5, CONFIG,
++    # build_manifest looks the sample up by SampleRunID: with
++    # --preserve-sample-id that is the Excel id, not the pilot id.
++    manifest = build_manifest(cfg2, sample["sample_run_id"], args.gem5, CONFIG,
+                               output_dir=out, command=cmd)
+     if args.seed != excel_seed:
+         manifest["seed_source"] = "pilot_cli_override (not Excel)"
+@@ -311,6 +339,20 @@ def main(argv=None) -> int:
+                                   for e in events),
+         }
+         injected = len(events)
++    elif args.model == "DA04":
++        inj = _da04_summary(out / "lsq_fwd_injections.log")
++        events = inj.get("events", [])
++        target_proof = {
++            "site": "lsq_pushRequest_byte_enable",
++            "events": len(events),
++            "all_store_only": True,   # hook is inside the !isLoad branch
++            "all_mask_0xf_to_0xe": all(
++                e["old_be"] == 0xF and e["new_be"] == 0xE for e in events),
++            "all_size_4": all(e["size"] == 4 for e in events),
++            "all_addr_unchanged": all(
++                e["old_addr"] == e["new_addr"] for e in events),
++        }
++        injected = len(events)
+     else:
+         inj = _fw02_summary(out / "lsq_fwd_injections.log")
+         target_proof = {"site": "store->load_forward_decision", **inj}
+@@ -365,29 +407,17 @@ def main(argv=None) -> int:
+     trace_errors = validate(jsonl_path) if jsonl_path.exists() else ["trace missing"]
+     completeness_report = (check_completeness(jsonl_path)
+                            if jsonl_path.exists() else {"trace_completeness": "INCOMPLETE"})
+-    # A pilot proves the trigger and the target dynamic instruction, not a
+-    # particular software outcome: an injected fault whose error does not
+-    # propagate is recorded as MASKED, and one that changes the oracle is
+-    # recorded as SDC. Both are valid pilots; zero injections is not.
+-    final_terminal = terminal
+-    terminal_reason = None
+-    if (completeness_report.get("trace_completeness") != "COMPLETE"
+-            and final_terminal == "MASKED"):
+-        final_terminal = "UNRESOLVED"
+-        terminal_reason = "TRACE_INCOMPLETE"
+-    # MASKED requires actual data-value evidence, not only an equal checksum.
++    # v3.2.4: chain-scoped adjudication (FW02 defect fix). Only events on the
++    # fault's own chain can justify a verdict; a target Load that produced a
++    # response and a register writeback but was squashed before commit is
++    # SQUASHED, not MASKED. A different dynamic instruction's data cannot
++    # rescue the target chain.
+     trace_events = _read_events(jsonl_path)
+-    has_data_value = any(
+-        e.get("event_type") in ("memory_response", "register_writeback")
+-        and e.get("new_value") not in (None, "")
+-        for e in trace_events
+-    )
+-    if (final_terminal == "MASKED" and not has_data_value
+-            and args.model in LOAD_SIDE_MODELS):
+-        # A target instruction squashed before its response/writeback is a real
+-        # SQUASHED terminal, not an unresolved run. Store-side models have no
+-        # load response/writeback, so the rule is load-side only.
+-        final_terminal, terminal_reason = _decide_masked_terminal(trace_events)
++    final_terminal, terminal_reason = terminal_rules.adjudicate(
++        trace_events, model=args.model, observed_terminal=terminal,
++        oracle_pass=oracle_pass,
++        trace_complete=(completeness_report.get("trace_completeness")
++                        == "COMPLETE"))
+     if final_terminal == "UNRESOLVED" and crash_by_fault:
+         final_terminal = "CRASH"
+         terminal_reason = crash_evidence
+@@ -436,6 +466,16 @@ def main(argv=None) -> int:
+         "pilot_id": args.pilot_id,
+         "model": args.model,
+         "seed": args.seed,
++        "event_selection": ("TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; "
++                            "warm-up/ROI not frozen)"),
++        "excel_identity": {
++            "run_id": sample["run_id"],
++            "sub_task_id": sample["sub_task_id"],
++            "sample_run_id": sample["sample_run_id"],
++            "seed": sample["seed"],
++            "event_ordinal": excel_event_ordinal,
++            "event_ordinal_used": sample.get("event_ordinal"),
++        },
+         "workload": str(WORKLOADS / _workload_for(args.model)),
+         "command": cmd,
+         "exit_code": proc.returncode,
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+new file mode 100644
+index 00000000..62cd8643
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+@@ -0,0 +1,79 @@
++"""Chain-scoped terminal adjudication (LSU v3.2.4).
++
++Only events on the fault's own chain can justify a verdict. The chain is the
++injection's ptag (store/load/consumer nodes) plus the fault instruction's own
++dyn_inst_seq (commit/squash/lifecycle nodes are written with ptag=0).
++
++A load that produced a response and a register writeback but was squashed
++before commit is SQUASHED — the writeback never became architectural. This is
++the FW02-R01/R05 defect this module fixes.
++"""
++from __future__ import annotations
++
++LOAD_SIDE = ("A01", "A03", "FW02")
++HARD_TERMINALS = ("CRASH", "HANG", "ARCH_STATE_CORRUPTION",
++                  "DETECTED_CONTAINED")
++
++
++def chain_events(events: list[dict], injection: dict | None) -> list[dict]:
++    if injection is None:
++        return []
++    ptag = injection.get("ptag")
++    seq = injection.get("dyn_inst_seq")
++    out = []
++    for e in events:
++        if ptag and e.get("ptag") == ptag:
++            out.append(e)
++        elif seq is not None and e.get("dyn_inst_seq") == seq:
++            out.append(e)
++    return out
++
++
++def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
++               oracle_pass: bool | None, trace_complete: bool = True):
++    """Return (terminal_state, terminal_state_reason)."""
++    if observed_terminal in HARD_TERMINALS:
++        return observed_terminal, None
++    if not trace_complete:
++        return "UNRESOLVED", "TRACE_INCOMPLETE"
++
++    injection = None
++    for e in events:
++        if e.get("event_type") in ("injection", "injection_nochange"):
++            injection = e
++    if injection is None:
++        return "UNRESOLVED", "NO_INJECTION_EVENT"
++
++    seq = injection.get("dyn_inst_seq")
++    chain = chain_events(events, injection)
++    own = [e for e in chain if e.get("dyn_inst_seq") == seq]
++    committed = any(e.get("event_type") in ("commit", "errant_commit")
++                    for e in own)
++    squashed = any(e.get("event_type") == "squash" for e in own)
++    if squashed and not committed:
++        return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
++
++    if oracle_pass is False:
++        return "SDC", "ORACLE_FAIL"
++
++    if model in LOAD_SIDE:
++        data_value = any(
++            e.get("event_type") in ("memory_response", "register_writeback")
++            and e.get("new_value") not in (None, "")
++            for e in own)
++        if not committed:
++            return "UNRESOLVED", "TARGET_NOT_COMMITTED"
++        if not data_value:
++            return "UNRESOLVED", "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
++        return "MASKED", "TARGET_COMMITTED_DATA_VALUE_PRESENT"
++
++    # Store-side (SQ01 / DA04): the faulting store must commit; a later load
++    # consumer distinguishes "lane read" from "lane never read".
++    if not committed:
++        return "UNRESOLVED", "STORE_NOT_COMMITTED"
++    consumed = any(
++        e.get("event_type") in ("consumer_commit", "errant_commit")
++        and e.get("dyn_inst_seq") != seq
++        for e in chain)
++    return "MASKED", ("STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS"
++                      if consumed else "STORE_COMMITTED_LANE_NOT_READ")
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
+index dc5abb28..d7bccb10 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
+@@ -178,6 +178,61 @@ def test_sq01_store_data_injection_is_sq_unit(tmp_path):
+     assert event["dyn_inst_seq"] == 250
+ 
+ 
++def test_da04_byte_enable_chain_is_sq_unit_and_ordered(tmp_path):
++    """DA04: injection -> store writeback -> actual memory write, one chain."""
++    import gzip
++    csv = tmp_path / "prop.csv.gz"
++    with gzip.open(csv, "wt", encoding="utf-8") as fh:
++        fh.write(
++            "1,100,3,inj_store_be,250,0,0x2000,0,0,"
++            "site=lsq_pushRequest;family=byte_enable;fault_model=DA04;size=4;"
++            "old_be=0xf;new_be=0xe;changed_bit=0;addr_before=0x2000;"
++            "addr_after=0x2000;size_before=4;size_after=4;"
++            "store_data_fnv=abc;store_data_hex=01020304;"
++            "sq_entry_id=7;entry_generation=9\n")
++        fh.write(
++            "2,110,3,store_wb,250,0,0x2000,0,0,"
++            "site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;"
++            "data_fnv=abc;data_hex=01020304;sq_entry_id=7;"
++            "entry_generation=9;addr=0x2000\n")
++        fh.write(
++            "3,120,3,store_mem,250,0,0x2000,0,0,"
++            "site=BaseCache::updateBlockData;family=byte_enable;"
++            "blk_addr=0x2000;offset=0;size=4;be_mask=0xe;"
++            "packet_data_fnv=abc;packet_data_hex=01020304;"
++            "before_hex=aabbccdd;after_hex=aabbcc04;enabled_written=1;"
++            "disabled_unchanged=1;lane0_packet=0x04;lane0_before=0xdd;"
++            "lane0_after=0xdd\n")
++    out = tmp_path / "trace.jsonl"
++    convert(csv, out, sample_run_id="PILOT-DA04-TEST",
++            run_id="PILOT-DA04", sub_task_id="PILOT-DA04-S01",
++            fault_id="DA04-CFG01", fault_model_id="DA04",
++            run_status="COMPLETED", activation="TRIGGERED",
++            terminal="MASKED", completeness="COMPLETE")
++    rows = [json.loads(line) for line in out.read_text().splitlines()]
++    inj = next(r for r in rows if r.get("event_type") == "injection")
++    assert inj["unit"] == "SQ" and inj["sub_unit"] == "byte_enable"
++    assert inj["old_value"] == "0xf" and inj["new_value"] == "0xe"
++    assert inj["original_byte_enable"] == "0xf"
++    assert inj["injected_byte_enable"] == "0xe"
++    assert inj["changed_bit"] == 0
++    assert inj["address_before"] == "0x2000"
++    assert inj["address_after"] == "0x2000"
++    assert inj["access_size_before"] == 4
++    assert inj["access_size_after"] == 4
++    assert inj["store_data_before"] == inj["store_data_after"] == "abc"
++    assert inj["sq_entry_id"] == 7
++    wb = next(r for r in rows if r.get("event_type") == "store_writeback")
++    assert wb["unit"] == "SQ" and wb["sub_unit"] == "writeback"
++    assert wb["parent_event_id"] == inj["event_id"]
++    mem = next(r for r in rows if r.get("event_type") == "store_mem_write")
++    assert mem["unit"] == "L1D" and mem["sub_unit"] == "memory_write"
++    assert mem["pa"] == "0x2000"
++    assert mem["old_value"] == "aabbccdd"
++    assert mem["new_value"] == "aabbcc04"
++    assert mem["parent_event_id"] == wb["event_id"]
++
++
+ def test_truncated_complete_requires_crash(tmp_path):
+     import pytest
+     with pytest.raises(SystemExit):
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal_rules.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal_rules.py
+new file mode 100644
+index 00000000..446c9a2a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal_rules.py
+@@ -0,0 +1,90 @@
++import sys
++from pathlib import Path
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++from terminal_rules import adjudicate  # noqa: E402
++
++
++def ev(kind, seq, ptag=1, value=None, detail="", **kw):
++    row = {"event_type": kind, "dyn_inst_seq": seq, "ptag": ptag,
++           "new_value": value, "detail": detail}
++    row.update(kw)
++    return row
++
++
++def test_squashed_load_is_not_masked():
++    """FW02-R01 shape: response + writeback, then squash, no commit."""
++    events = [
++        ev("injection", 397),
++        ev("memory_response", 397, value="0000000000000000"),
++        ev("register_writeback", 397, value="0000000000000000"),
++        ev("squash", 397, ptag=0),
++    ]
++    terminal, reason = adjudicate(
++        events, model="FW02", observed_terminal="MASKED", oracle_pass=True,
++        trace_complete=True)
++    assert terminal == "SQUASHED"
++    assert reason == "TARGET_SQUASHED_NO_COMMIT"
++
++
++def test_committed_load_with_data_is_masked():
++    events = [
++        ev("injection", 50),
++        ev("memory_response", 50, value="0000000000000001"),
++        ev("register_writeback", 50, value="0000000000000001"),
++        ev("commit", 50, ptag=0),
++    ]
++    terminal, _ = adjudicate(
++        events, model="A01", observed_terminal="MASKED", oracle_pass=True,
++        trace_complete=True)
++    assert terminal == "MASKED"
++
++
++def test_data_on_another_ptag_does_not_rescue_the_target():
++    events = [
++        ev("injection", 50),
++        ev("memory_response", 99, ptag=2, value="deadbeef"),
++        ev("register_writeback", 99, ptag=2, value="deadbeef"),
++    ]
++    terminal, reason = adjudicate(
++        events, model="A01", observed_terminal="MASKED", oracle_pass=True,
++        trace_complete=True)
++    assert terminal == "UNRESOLVED"
++    assert reason == "TARGET_NOT_COMMITTED"
++
++
++def test_oracle_failure_is_sdc():
++    events = [ev("injection", 50), ev("commit", 50, ptag=0)]
++    terminal, reason = adjudicate(
++        events, model="DA04", observed_terminal="MASKED", oracle_pass=False,
++        trace_complete=True)
++    assert terminal == "SDC"
++    assert reason == "ORACLE_FAIL"
++
++
++def test_store_consumed_and_oracle_pass_is_masked_with_consumer():
++    events = [
++        ev("injection", 250),
++        ev("store_mem_write", 250),
++        ev("memory_response", 300, value="aabbccdd"),
++        ev("register_writeback", 300, value="aabbccdd"),
++        ev("consumer_commit", 301),
++        ev("commit", 250, ptag=0),
++    ]
++    terminal, reason = adjudicate(
++        events, model="DA04", observed_terminal="MASKED", oracle_pass=True,
++        trace_complete=True)
++    assert terminal == "MASKED"
++    assert reason == "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS"
++
++
++def test_store_committed_lane_not_read_is_masked():
++    events = [ev("injection", 250), ev("store_mem_write", 250),
++              ev("commit", 250, ptag=0)]
++    terminal, reason = adjudicate(
++        events, model="DA04", observed_terminal="MASKED", oracle_pass=True,
++        trace_complete=True)
++    assert terminal == "MASKED"
++    assert reason == "STORE_COMMITTED_LANE_NOT_READ"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
+new file mode 100644
+index 00000000..349f1649
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
+@@ -0,0 +1,84 @@
++import json
++import sys
++from pathlib import Path
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++from trace_completeness import check_completeness  # noqa: E402
++from trace_writer import TraceWriter  # noqa: E402
++
++
++def _da04_chain(tmp_path, *, store_ptag=1, resp_ptag=1, resp_seq=300,
++                resp_hash="abc", taint_hash="abc", consumer_src="taint",
++                disabled="1"):
++    path = tmp_path / "chain.jsonl"
++    w = TraceWriter(path, "S-R01", "R", "S", "F1", "DA04")
++    e_inj = w.event("injection", ptag=store_ptag, dyn_inst_seq=250,
++                    injection_status="INJECTED",
++                    activation_status="TRIGGERED",
++                    trace_completeness="COMPLETE",
++                    old_value="0xf", new_value="0xe",
++                    sq_entry_id=7, entry_generation=9)
++    w.event("store_writeback", ptag=store_ptag, dyn_inst_seq=250,
++            trace_completeness="COMPLETE", detail="be_mask=0xe")
++    w.event("store_mem_write", ptag=store_ptag, dyn_inst_seq=250,
++            trace_completeness="COMPLETE",
++            detail=f"family=byte_enable;disabled_unchanged={disabled}")
++    w.event("memory_response", ptag=resp_ptag, dyn_inst_seq=resp_seq,
++            trace_completeness="COMPLETE",
++            detail=f"data_fnv={resp_hash}")
++    e_taint = w.event("register_writeback", ptag=resp_ptag,
++                      dyn_inst_seq=resp_seq,
++                      trace_completeness="COMPLETE",
++                      detail=f"source_value_hash={taint_hash}")
++    src = e_taint if consumer_src == "taint" else None
++    w.event("consumer_commit", ptag=resp_ptag, dyn_inst_seq=301,
++            trace_completeness="COMPLETE", source_event_id=src)
++    w.close(run_status="COMPLETED", activation="TRIGGERED",
++            terminal="SDC", completeness="COMPLETE")
++    return path, e_inj
++
++
++def test_single_ptag_full_chain_is_complete(tmp_path):
++    path, _ = _da04_chain(tmp_path)
++    report = check_completeness(path)
++    assert report["propagation_coverage"] == "COMPLETE"
++    assert report["chain_integrity"] == "PASS"
++    assert report["chain_ptag"] == 1
++    assert report["chain_scoped"] is True
++
++
++def test_stages_from_a_different_ptag_do_not_complete_the_chain(tmp_path):
++    path, _ = _da04_chain(tmp_path, resp_ptag=2)
++    report = check_completeness(path)
++    assert report["propagation_coverage"] == "PARTIAL"
++    assert "memory_response" in report["missing_stages"]
++
++
++def test_response_on_the_store_seq_is_invalid(tmp_path):
++    path, _ = _da04_chain(tmp_path, resp_seq=250)
++    report = check_completeness(path)
++    assert report["chain_integrity"] == "FAIL"
++    assert "response_on_store_seq" in report["chain_reasons"]
++
++
++def test_hash_discontinuity_is_invalid(tmp_path):
++    path, _ = _da04_chain(tmp_path, resp_hash="abc", taint_hash="def")
++    report = check_completeness(path)
++    assert report["chain_integrity"] == "FAIL"
++    assert "hash_discontinuity_resp_taint" in report["chain_reasons"]
++
++
++def test_consumer_without_taint_edge_is_invalid(tmp_path):
++    path, _ = _da04_chain(tmp_path, consumer_src="none")
++    report = check_completeness(path)
++    assert report["chain_integrity"] == "FAIL"
++    assert "consumer_without_taint_edge" in report["chain_reasons"]
++
++
++def test_da04_disabled_lane_must_be_unchanged(tmp_path):
++    path, _ = _da04_chain(tmp_path, disabled="0")
++    report = check_completeness(path)
++    assert report["chain_integrity"] == "FAIL"
++    assert "byte_enable_not_applied" in report["chain_reasons"]
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_coverage.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_coverage.py
+index 63445839..7af18c00 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_coverage.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_coverage.py
+@@ -11,7 +11,7 @@ from trace_writer import TraceWriter  # noqa: E402
+ def _write_trace(path, model, terminal, event_types):
+     w = TraceWriter(path, "S-R01", "R", "S", "F1", model)
+     for i, kind in enumerate(event_types, start=1):
+-        w.event(kind, dyn_inst_seq=100 + i,
++        w.event(kind, dyn_inst_seq=100 + i, ptag=1,
+                 injection_status=("INJECTED" if kind == "injection"
+                                   else "NOT_APPLICABLE"),
+                 activation_status="TRIGGERED",
+@@ -47,7 +47,7 @@ def test_coverage_is_independent_of_summary_reasons(tmp_path):
+     w = TraceWriter(path, "S-R01", "R", "S", "F1", "FW02")
+     for kind in ("forwarding_decision", "memory_response",
+                  "register_writeback", "consumer_commit"):
+-        w.event(kind, dyn_inst_seq=1, trace_completeness="COMPLETE")
++        w.event(kind, dyn_inst_seq=1, ptag=1, trace_completeness="COMPLETE")
+     # Deliberately inconsistent: TRIGGERED without an injection event makes
+     # TraceCompleteness INCOMPLETE, but the stages are all present.
+     w.close(run_status="COMPLETED", activation="TRIGGERED",
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_v323_judgment.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_v323_judgment.py
+index 08f1e560..f75a0ce5 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_v323_judgment.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_v323_judgment.py
+@@ -4,8 +4,14 @@ from pathlib import Path
+ PLATFORM = Path(__file__).resolve().parents[1]
+ sys.path.insert(0, str(PLATFORM))
+ 
+-from run_pilot import (_decide_masked_terminal, _fault_causality,
+-                       _sq01_summary, _terminal_evidence)
++from run_pilot import (_fault_causality, _sq01_summary, _terminal_evidence)
++from terminal_rules import adjudicate
++
++
++def _judge(events):
++    """v3.2.4 chain-scoped adjudication (replaces _decide_masked_terminal)."""
++    return adjudicate(events, model="A01", observed_terminal="MASKED",
++                      oracle_pass=True, trace_complete=True)
+ 
+ 
+ def _events(*rows):
+@@ -18,8 +24,7 @@ def test_target_squash_without_commit_is_squashed():
+          "new_value": "0x7ffffefdc8"},
+         {"event_type": "squash", "dyn_inst_seq": 169},
+     )
+-    assert _decide_masked_terminal(events) == (
+-        "SQUASHED", "TARGET_SQUASHED_NO_COMMIT")
++    assert _judge(events) == ("SQUASHED", "TARGET_SQUASHED_NO_COMMIT")
+ 
+ 
+ def test_other_sequence_squash_does_not_count():
+@@ -28,7 +33,7 @@ def test_other_sequence_squash_does_not_count():
+          "new_value": "0x7ffffefdc8"},
+         {"event_type": "squash", "dyn_inst_seq": 170},
+     )
+-    assert _decide_masked_terminal(events)[0] == "UNRESOLVED"
++    assert _judge(events)[0] == "UNRESOLVED"
+ 
+ 
+ def test_committed_target_is_not_squashed():
+@@ -38,7 +43,7 @@ def test_committed_target_is_not_squashed():
+         {"event_type": "squash", "dyn_inst_seq": 169},
+         {"event_type": "commit", "dyn_inst_seq": 169},
+     )
+-    assert _decide_masked_terminal(events)[0] == "UNRESOLVED"
++    assert _judge(events)[0] == "UNRESOLVED"
+ 
+ 
+ def test_causality_address_match_and_temporal_only():
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+index d546d3d0..0c69625a 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+@@ -25,6 +25,9 @@ KIND_MAP = {
+     "inj": "injection",
+     "inj_nochange": "injection_nochange",
+     "inj_store_data": "injection",
++    "inj_store_be": "injection",
++    "store_wb": "store_writeback",
++    "store_mem": "store_mem_write",
+     "addr_form": "address_formed",
+     "mem_req": "memory_request",
+     "resp": "memory_response",
+@@ -44,6 +47,9 @@ UNIT_MAP = {
+     "inj": ("AGU", "injection"),
+     "inj_nochange": ("AGU", "injection_nochange"),
+     "inj_store_data": ("SQ", "store_data"),
++    "inj_store_be": ("SQ", "byte_enable"),
++    "store_wb": ("SQ", "writeback"),
++    "store_mem": ("L1D", "memory_write"),
+     "addr_form": ("AGU", "effective_address"),
+     "mem_req": ("LSQ", "request"),
+     "resp": ("L1D", "response"),
+@@ -149,7 +155,7 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+         old_addr = _hex(d.get("old_addr"))
+         new_addr = _hex(d.get("new_addr")) or _hex(addr)
+         injection_status = "NOT_APPLICABLE"
+-        if kind in ("inj", "inj_nochange", "inj_store_data"):
++        if kind in ("inj", "inj_nochange", "inj_store_data", "inj_store_be"):
+             injection_status = ("NO_CHANGE" if kind == "inj_nochange"
+                                 or d.get("value_changed") == "0"
+                                 else "INJECTED")
+@@ -180,9 +186,21 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+             old_value = None
+             new_value = d.get("writeback_value") or d.get("writeback_fnv")
+         elif kind == "inj_store_data":
+-            va, pa = None, None
++            va, pa = _hex(d.get("addr")), None
+             old_value = d.get("old_byte")
+             new_value = d.get("new_byte")
++        elif kind == "inj_store_be":
++            va, pa = _hex(d.get("addr_before")), None
++            old_value = d.get("old_be")
++            new_value = d.get("new_be")
++        elif kind == "store_wb":
++            va, pa = _hex(d.get("addr")), None
++            old_value = None
++            new_value = d.get("data_fnv")
++        elif kind == "store_mem":
++            va, pa = None, _hex(d.get("blk_addr"))
++            old_value = d.get("before_hex")
++            new_value = d.get("after_hex")
+         elif kind in ("lq_lifecycle", "sq_lifecycle"):
+             va, pa = None, None
+             old_value, new_value = None, None
+@@ -199,6 +217,18 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+         if kind == "consumer" and d.get("source_event_id") in node_to_event:
+             parent = node_to_event[int(d["source_event_id"])]
+         extra = {}
++        if kind == "inj_store_be":
++            extra = {
++                "original_byte_enable": d.get("old_be"),
++                "injected_byte_enable": d.get("new_be"),
++                "changed_bit": _int(d.get("changed_bit")),
++                "address_before": _hex(d.get("addr_before")),
++                "address_after": _hex(d.get("addr_after")),
++                "access_size_before": _int(d.get("size_before")),
++                "access_size_after": _int(d.get("size_after")),
++                "store_data_before": d.get("store_data_fnv"),
++                "store_data_after": d.get("store_data_fnv"),
++            }
+         if kind == "fwd":
+             extra = {
+                 "store_seq": _int(d.get("store_seq")),
+@@ -225,13 +255,21 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+             request_id=_int(d.get("request_id")) or _int(req_id),
+             response_id=_int(d.get("response_id")),
+             fragment_id=_int(d.get("fragment_id")),
+-            source_event_id=_int(d.get("source_event_id")),
+-            destination_event_id=_int(d.get("destination_event_id")),
++            # CSV node ids are not JSONL event ids (rows can be skipped);
++            # map through the converted node registry when possible.
++            source_event_id=node_to_event.get(
++                _int(d.get("source_event_id")),
++                _int(d.get("source_event_id"))),
++            destination_event_id=node_to_event.get(
++                _int(d.get("destination_event_id")),
++                _int(d.get("destination_event_id"))),
+             lq_entry_id=(_int(d.get("index")) if kind == "lq_lifecycle"
+                          else _int(d.get("lq_entry_id"))),
+             sq_entry_id=(_int(d.get("index"))
+                          if kind in ("sq_lifecycle", "inj_store_data")
+                          else _int(d.get("sq_entry_id"))),
++            # inj_store_be/store_wb carry sq_entry_id directly; the expression
++            # above already reads it for every non-lifecycle kind.
+             entry_generation=(_int(d.get("generation")) or
+                               _int(d.get("entry_generation"))),
+             va=va, pa=pa,
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+index 7254a940..c24c161a 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+@@ -13,43 +13,68 @@ from pathlib import Path
+ from trace_validator import read_records, validate
+ 
+ # Required propagation stages for a (fault model, observed terminal) pair.
+-# Coverage is judged against this profile; the presence of any single stage is
+-# not enough. A missing required stage downgrades COMPLETE to PARTIAL.
++# v3.2.4: each entry is a LIST of alternative profiles. Coverage is COMPLETE
++# when ANY alternative is satisfied by events on the fault's own chain.
+ PROFILES = {
+-    ("A01", "MASKED"): ("injection", "address_formed", "memory_request",
+-                        "memory_response", "register_writeback",
+-                        "consumer_commit"),
+-    ("A01", "SQUASHED"): ("injection", "address_formed", "memory_request",
+-                          "squash"),
+-    ("A01", "CRASH"): ("injection", "address_formed", "memory_request",
+-                       "simulator_abort"),
+-    ("A01", "SDC"): ("injection", "address_formed", "memory_request",
+-                     "memory_response", "register_writeback", "consumer_commit"),
+-    ("A03", "CRASH"): ("injection", "address_formed", "memory_request",
+-                       "simulator_abort"),
+-    ("A03", "SQUASHED"): ("injection", "address_formed", "memory_request",
+-                          "squash"),
+-    ("A03", "MASKED"): ("injection", "address_formed", "memory_request",
+-                        "memory_response", "register_writeback",
+-                        "consumer_commit"),
+-    ("FW02", "MASKED"): ("forwarding_decision", "memory_response",
+-                         "register_writeback", "consumer_commit"),
+-    ("FW02", "CRASH"): ("forwarding_decision", "memory_response",
+-                        "simulator_abort"),
+-    ("FW02", "SDC"): ("forwarding_decision", "memory_response",
+-                      "register_writeback", "consumer_commit"),
+-    ("SQ01", "MASKED"): ("injection", "sq_lifecycle"),
+-    ("SQ01", "SDC"): ("injection", "sq_lifecycle"),
+-    ("SQ01", "CRASH"): ("injection", "simulator_abort"),
++    ("A01", "MASKED"): [("injection", "address_formed", "memory_request",
++                         "memory_response", "register_writeback",
++                         "consumer_commit")],
++    ("A01", "SQUASHED"): [("injection", "address_formed", "memory_request",
++                           "squash")],
++    ("A01", "CRASH"): [("injection", "address_formed", "memory_request",
++                        "simulator_abort")],
++    ("A01", "SDC"): [("injection", "address_formed", "memory_request",
++                      "memory_response", "register_writeback",
++                      "consumer_commit")],
++    ("A03", "CRASH"): [("injection", "address_formed", "memory_request",
++                        "simulator_abort")],
++    ("A03", "SQUASHED"): [("injection", "address_formed", "memory_request",
++                           "squash")],
++    ("A03", "MASKED"): [("injection", "address_formed", "memory_request",
++                         "memory_response", "register_writeback",
++                         "consumer_commit")],
++    ("FW02", "MASKED"): [("forwarding_decision", "memory_response",
++                          "register_writeback", "consumer_commit")],
++    ("FW02", "CRASH"): [("forwarding_decision", "memory_response",
++                         "simulator_abort")],
++    ("FW02", "SDC"): [("forwarding_decision", "memory_response",
++                       "register_writeback", "consumer_commit")],
++    # v3.2.4: a store-side chain must reach the actual cache write; a MASKED
++    # store may instead be explained by forwarding (BE not applied) or by a
++    # drain whose lane is never read.
++    ("DA04", "SDC"): [("injection", "store_writeback", "store_mem_write",
++                       "memory_response", "register_writeback",
++                       "consumer_commit")],
++    ("DA04", "MASKED"): [
++        ("injection", "forwarding_decision"),
++        ("injection", "store_writeback", "store_mem_write"),
++        ("injection", "sq_lifecycle", "store_writeback"),
++    ],
++    ("DA04", "SQUASHED"): [("injection", "squash")],
++    ("DA04", "UNRESOLVED"): [("injection",)],
++    ("SQ01", "SDC"): [("injection", "store_writeback", "store_mem_write",
++                       "memory_response", "register_writeback",
++                       "consumer_commit")],
++    ("SQ01", "MASKED"): [
++        ("injection", "store_writeback", "store_mem_write"),
++        ("injection", "forwarding_decision"),
++        ("injection", "sq_lifecycle"),
++    ],
++    ("SQ01", "SQUASHED"): [("injection", "squash")],
++    ("SQ01", "CRASH"): [("injection", "simulator_abort")],
+ }
+ DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
+-                   "FW02": ("forwarding_decision",)}
++                   "FW02": ("forwarding_decision",),
++                   "DA04": ("injection",), "SQ01": ("injection",)}
+ 
+ 
+-def expected_stages(model_id: str | None, terminal: str | None) -> tuple[str, ...]:
+-    if (model_id, terminal) in PROFILES:
+-        return PROFILES[(model_id, terminal)]
+-    return DEFAULT_PROFILE.get(model_id or "", ("injection",))
++def expected_stages(model_id: str | None,
++                    terminal: str | None) -> list[tuple[str, ...]]:
++    """Return alternative stage profiles; COMPLETE if any one is satisfied."""
++    value = PROFILES.get((model_id, terminal))
++    if value is None:
++        return [DEFAULT_PROFILE.get(model_id or "", ("injection",))]
++    return value if isinstance(value, list) else [value]
+ 
+ 
+ def check_completeness(path: Path) -> dict:
+@@ -91,34 +116,129 @@ def check_completeness(path: Path) -> dict:
+     if trace_completeness == "INCOMPLETE" and terminal == "MASKED":
+         reasons.append("downgraded: MASKED requires a complete trace")
+         terminal = None
+-    kinds = {e.get("event_type") for e in events}
++    # v3.2.4: coverage and integrity are judged on the fault's OWN chain.
++    # chain = same ptag (store/load/consumer nodes) OR the fault instruction's
++    # own dyn_inst_seq (commit/squash/lifecycle nodes carry ptag=0).
++    injections_all = [e for e in events
++                      if e.get("event_type") in ("injection",
++                                                 "injection_nochange")
++                      or e.get("injection_status") in ("INJECTED", "NO_CHANGE")]
++    inj = injections_all[-1] if injections_all else None
++    chain_ptag = inj.get("ptag") if inj else None
++    inj_seq = inj.get("dyn_inst_seq") if inj else None
++    chain_scoped = False
++    if inj is None:
++        # Legacy trace without an injection event: no chain identity exists;
++        # stage presence is reported as a global observation, not a claim.
++        chain = events
++        chain_source = "none"
++    elif chain_ptag:
++        chain = [e for e in events
++                 if e.get("ptag") == chain_ptag
++                 or (inj_seq is not None
++                     and e.get("dyn_inst_seq") == inj_seq)]
++        chain_scoped = True
++        chain_source = "ptag"
++    else:
++        chain = [e for e in events
++                 if inj_seq is not None and e.get("dyn_inst_seq") == inj_seq]
++        chain_source = "dyn_seq"
++    kinds = {e.get("event_type") for e in chain}
+     stages = []
+     for stage in ("injection", "address_formed", "memory_request",
+                   "memory_response", "register_writeback",
+                   "consumer_commit", "errant_commit", "forwarding_decision",
+-                  "replay", "squash", "simulator_abort"):
++                  "replay", "squash", "simulator_abort",
++                  "store_writeback", "store_mem_write", "sq_lifecycle"):
+         if stage in kinds:
+             stages.append(stage)
+     record_integrity = "INVALID" if errs else "VALID"
+-    # Coverage is an independent dimension: it is judged only against the
+-    # expected profile for (model, terminal), not against validation reasons.
++    # Coverage is judged only against the expected profile for (model,
++    # terminal), using chain events only.
+     model_id = summary.get("fault_model_id")
+-    expected = expected_stages(model_id, terminal)
+-    missing = [s for s in expected if s not in kinds]
++    alternatives = expected_stages(model_id, terminal)
++
++    def _missing(alt):
++        return [s for s in alt if s not in kinds]
++
++    best_alt = min(alternatives, key=lambda alt: len(_missing(alt)))
++    missing = _missing(best_alt)
+     if not kinds:
+         coverage = "NONE"
+     elif missing:
+         coverage = "PARTIAL"
+     else:
+         coverage = "COMPLETE"
++
++    # Chain integrity: real correlation, not a same-trace concatenation.
++    def _d(detail):
++        return dict(item.split("=", 1) for item in (detail or "").split(";")
++                    if "=" in item)
++
++    chain_reasons: list[str] = []
++    if inj is None:
++        chain_reasons.append("no_injection_event")
++    elif not chain_scoped:
++        chain_reasons.append("no_chain_identity")
++    else:
++        by_type: dict[str, list[dict]] = {}
++        for e in chain:
++            by_type.setdefault(e.get("event_type"), []).append(e)
++        for t in ("store_writeback", "store_mem_write"):
++            for e in by_type.get(t, []):
++                if e.get("dyn_inst_seq") != inj_seq:
++                    chain_reasons.append(f"{t}_seq_mismatch")
++        # A load-side model's own response legitimately carries the faulting
++        # instruction's seq; only a STORE-side chain must never do so.
++        if model_id in ("DA04", "SQ01"):
++            for e in by_type.get("memory_response", []):
++                if e.get("dyn_inst_seq") == inj_seq:
++                    chain_reasons.append("response_on_store_seq")
++        resp = by_type.get("memory_response", [])
++        taints = by_type.get("register_writeback", [])
++        if resp and taints:
++            rh = _d(resp[-1].get("detail")).get("data_fnv")
++            th = _d(taints[-1].get("detail")).get("source_value_hash")
++            if rh and th and rh != th:
++                chain_reasons.append("hash_discontinuity_resp_taint")
++        # A consumer must be produced by an event on the same chain. The
++        # source can be a taint_reg node, or a previous consumer node when
++        # the destination register is re-tainted onward.
++        chain_ids = {e.get("event_id") for e in chain}
++        for c in by_type.get("consumer_commit", []):
++            if c.get("source_event_id") not in chain_ids:
++                chain_reasons.append("consumer_without_taint_edge")
++        sm = by_type.get("store_mem_write", [])
++        if sm:
++            dd = _d(sm[-1].get("detail"))
++            if dd.get("family") == "byte_enable" and \
++                    dd.get("disabled_unchanged") != "1":
++                chain_reasons.append("byte_enable_not_applied")
++
++    if inj is None or not chain_scoped:
++        # No chain identity (legacy trace): coverage is a global observation,
++        # never a claim that the fault's own chain is complete.
++        chain_integrity = "UNKNOWN"
++    else:
++        chain_integrity = "PASS" if not chain_reasons else "FAIL"
++    chain_reasons = sorted(set(chain_reasons))
++    if chain_integrity == "FAIL":
++        coverage = "PARTIAL" if coverage != "NONE" else "NONE"
++
+     return {
+         "trace": str(path),
+         "trace_completeness": trace_completeness,
+         "record_integrity": record_integrity,
+         "propagation_coverage": coverage,
+         "propagation_stages": stages,
+-        "expected_stages": list(expected),
++        "expected_stages": list(best_alt),
+         "missing_stages": missing,
++        "chain_ptag": chain_ptag,
++        "chain_scoped": chain_scoped,
++        "chain_source": chain_source,
++        "chain_events": len(chain),
++        "chain_integrity": chain_integrity,
++        "chain_reasons": chain_reasons,
+         "terminal_state": terminal,
+         "run_status": summary.get("run_status"),
+         "fault_activation_status": summary.get("fault_activation_status"),
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+index 89934675..998b48ed 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+@@ -137,6 +137,32 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
+             if target not in events:
+                 errs.append(
+                     f"edge {rec.get('propagation_edge_id')}: {key}={target} is not an event")
++    # v3.2.4: an injection_event_id must not mix different ptag chains.
++    # This is the record-level guard against stitching a "complete" chain out
++    # of events from different dynamic instructions.
++    id_ptag: dict[int, int] = {}
++    injection_ids: set[int] = set()
++    for rec in events.values():
++        ptag = rec.get("ptag") or 0
++        if ptag <= 0:
++            continue
++        iid = rec.get("injection_event_id")
++        if iid is None:
++            continue
++        if rec.get("event_type") in ("injection", "injection_nochange"):
++            injection_ids.add(iid)
++        prev = id_ptag.get(iid)
++        if prev is None:
++            id_ptag[iid] = ptag
++        elif prev != ptag:
++            errs.append(
++                f"event {rec.get('event_id')}: injection_event_id {iid} "
++                f"mixes ptag {prev} and {ptag}")
++    for iid in id_ptag:
++        if iid not in injection_ids:
++            errs.append(
++                f"injection_event_id {iid} has events but no injection event")
++
+     if len(summaries) != 1:
+         errs.append(f"expected exactly one summary record, got {len(summaries)}")
+     elif records and summaries[0].get("__line__") != records[-1].get("__line__"):
+diff --git a/tests/test_da04_byte_enable.cc b/tests/test_da04_byte_enable.cc
+new file mode 100644
+index 00000000..2dbb109e
+--- /dev/null
++++ b/tests/test_da04_byte_enable.cc
+@@ -0,0 +1,34 @@
++#include <cassert>
++#include <cstdio>
++#include <vector>
++
++#include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"
++
++using namespace gem5::chaos_da04;
++
++int
++main()
++{
++    std::vector<bool> all(4, true);
++    assert(eligible(4, all));
++    assert(maskOf(all) == 0xF);
++
++    assert(clearLane0(all));
++    assert(maskOf(all) == 0xE);
++    assert(!all[0] && all[1] && all[2] && all[3]);
++
++    // Idempotent: a second application changes nothing.
++    assert(!clearLane0(all));
++    assert(!eligible(4, all));   // already faulted is not eligible
++
++    // Only size==4, only all-ones.
++    std::vector<bool> two(2, true);
++    assert(!eligible(2, two));
++    std::vector<bool> partial{true, false, true, true};
++    assert(!eligible(4, partial));
++    std::vector<bool> eight(8, true);
++    assert(!eligible(8, eight));
++
++    std::printf("DA04 byte-enable unit test: PASS\n");
++    return 0;
++}
