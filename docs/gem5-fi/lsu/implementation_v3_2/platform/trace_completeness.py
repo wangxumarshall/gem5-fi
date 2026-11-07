@@ -62,10 +62,24 @@ PROFILES = {
     ],
     ("SQ01", "SQUASHED"): [("injection", "squash")],
     ("SQ01", "CRASH"): [("injection", "simulator_abort")],
+    # LP01 (v3.2.5): load-response data fault. SDC needs the delivered value
+    # to reach the register and a consumer; a committed load with no consumer
+    # is MASKED; a squashed response is SQUASHED.
+    ("LP01", "SDC"): [("injection", "memory_response", "register_writeback",
+                       "consumer_commit")],
+    ("LP01", "MASKED"): [
+        ("injection", "memory_response", "register_writeback"),
+        ("injection", "memory_response"),
+        ("injection", "squash"),
+    ],
+    ("LP01", "SQUASHED"): [("injection", "squash")],
+    ("LP01", "CRASH"): [("injection", "simulator_abort")],
+    ("LP01", "UNRESOLVED"): [("injection",)],
 }
 DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW02": ("forwarding_decision",),
-                   "DA04": ("injection",), "SQ01": ("injection",)}
+                   "DA04": ("injection",), "SQ01": ("injection",),
+                   "LP01": ("injection",)}
 
 
 def expected_stages(model_id: str | None,
@@ -216,6 +230,26 @@ def check_completeness(path: Path) -> dict:
         for c in by_type.get("consumer_commit", []):
             if c.get("source_event_id") not in chain_ids:
                 chain_reasons.append("consumer_without_taint_edge")
+        # v3.2.5 full continuity: writeback value hash → consumer input hash.
+        wb_by_id = {e.get("event_id"): e for e in taints}
+        for c in by_type.get("consumer_commit", []):
+            src = c.get("source_event_id")
+            w = wb_by_id.get(src)
+            if w is None:
+                continue
+            wh = _d(w.get("detail")).get("writeback_value_fnv")
+            ch = _d(c.get("detail")).get("consumer_input_fnv")
+            if wh and ch and wh != ch:
+                chain_reasons.append("hash_discontinuity_wb_consumer")
+        # Payload → writeback: comparable only when the payload is exactly
+        # the 8-byte register value. Other sizes are extended by completeAcc;
+        # the trace records hash_basis and this check is skipped.
+        for w in taints:
+            wd = _d(w.get("detail"))
+            if wd.get("family") == "l1d_fwd":
+                if wd.get("hash_basis") == "payload_equals_regval" and \
+                        wd.get("value_matches_payload") != "1":
+                    chain_reasons.append("hash_discontinuity_payload_wb")
         sm = by_type.get("store_mem_write", [])
         if sm:
             dd = _d(sm[-1].get("detail"))

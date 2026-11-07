@@ -83,3 +83,50 @@ def test_da04_disabled_lane_must_be_unchanged(tmp_path):
     report = check_completeness(path)
     assert report["chain_integrity"] == "FAIL"
     assert "byte_enable_not_applied" in report["chain_reasons"]
+
+
+def _lp01_chain(tmp_path, *, wb_hash="bb", consumer_input="bb",
+                matches="1"):
+    path = tmp_path / "lp01.jsonl"
+    w = TraceWriter(path, "LP01-R01", "LP01-F0-W5", "LP01-F0-W5-S01",
+                    "LP01-CFG01", "LP01")
+    w.event("injection", ptag=1, dyn_inst_seq=50,
+            injection_status="INJECTED", activation_status="TRIGGERED",
+            trace_completeness="COMPLETE", old_value="a514af81",
+            new_value="ad14af81",
+            detail="family=l1d_fwd;orig_data_fnv=aa;inj_data_fnv=bb")
+    e_resp = w.event("memory_response", ptag=1, dyn_inst_seq=50,
+                     trace_completeness="COMPLETE",
+                     detail="family=l1d_fwd;data_fnv=bb")
+    e_wb = w.event("register_writeback", ptag=1, dyn_inst_seq=50,
+                   trace_completeness="COMPLETE", source_event_id=e_resp,
+                   detail=("family=l1d_fwd;source_value_hash=bb;"
+                           f"writeback_value_fnv={wb_hash};"
+                           "hash_basis=payload_equals_regval;"
+                           f"value_matches_payload={matches}"))
+    w.event("consumer_commit", ptag=1, dyn_inst_seq=51,
+            trace_completeness="COMPLETE", source_event_id=e_wb,
+            detail=f"consumer_input_fnv={consumer_input}")
+    w.event("commit", ptag=0, dyn_inst_seq=50,
+            trace_completeness="COMPLETE")
+    w.close(run_status="COMPLETED", activation="TRIGGERED",
+            terminal="SDC", completeness="COMPLETE")
+    return path
+
+
+def test_lp01_full_chain_passes(tmp_path):
+    report = check_completeness(_lp01_chain(tmp_path))
+    assert report["propagation_coverage"] == "COMPLETE"
+    assert report["chain_integrity"] == "PASS"
+
+
+def test_lp01_wb_consumer_hash_discontinuity_fails(tmp_path):
+    report = check_completeness(_lp01_chain(tmp_path, consumer_input="cc"))
+    assert report["chain_integrity"] == "FAIL"
+    assert "hash_discontinuity_wb_consumer" in report["chain_reasons"]
+
+
+def test_lp01_payload_writeback_mismatch_fails(tmp_path):
+    report = check_completeness(_lp01_chain(tmp_path, matches="0"))
+    assert report["chain_integrity"] == "FAIL"
+    assert "hash_discontinuity_payload_wb" in report["chain_reasons"]

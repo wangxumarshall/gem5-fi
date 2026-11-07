@@ -45,7 +45,9 @@ def test_complete_trace_validates_and_summarizes(tmp_path):
     e2 = w.event("memory_response", parent_event_id=e1, unit="L1D",
                  dyn_inst_seq=10, request_id=7, va="0x1008", pa="0x1008",
                  activation_status="TRIGGERED", trace_completeness="COMPLETE")
-    w.edge(e1, e2, value_hash="deadbeef", trace_completeness="COMPLETE")
+    w.edge(e1, e2, value_hash="deadbeef", edge_type="data",
+           source_value_hash="deadbeef", destination_value_hash="deadbeef",
+           trace_completeness="COMPLETE")
     w.close(run_status="COMPLETED", activation="TRIGGERED",
             terminal="MASKED", completeness="COMPLETE")
     assert validate(tmp_path / "t.jsonl") == []

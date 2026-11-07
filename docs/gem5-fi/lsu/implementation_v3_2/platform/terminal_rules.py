@@ -10,7 +10,7 @@ the FW02-R01/R05 defect this module fixes.
 """
 from __future__ import annotations
 
-LOAD_SIDE = ("A01", "A03", "FW02")
+LOAD_SIDE = ("A01", "A03", "FW02", "LP01")
 HARD_TERMINALS = ("CRASH", "HANG", "ARCH_STATE_CORRUPTION",
                   "DETECTED_CONTAINED")
 
@@ -53,27 +53,35 @@ def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
     if squashed and not committed:
         return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
 
-    if oracle_pass is False:
-        return "SDC", "ORACLE_FAIL"
-
     if model in LOAD_SIDE:
+        # v3.2.5: oracle failure alone is not SDC. The fault must have
+        # reached the architectural register as a committed value.
         data_value = any(
-            e.get("event_type") in ("memory_response", "register_writeback")
+            e.get("event_type") == "register_writeback"
             and e.get("new_value") not in (None, "")
-            for e in own)
+            for e in chain)
         if not committed:
             return "UNRESOLVED", "TARGET_NOT_COMMITTED"
         if not data_value:
-            return "UNRESOLVED", "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
+            return "UNRESOLVED", "UNRESOLVED_NO_REGISTER_WRITEBACK_EVIDENCE"
+        if oracle_pass is False:
+            return "SDC", "ORACLE_FAIL"
         return "MASKED", "TARGET_COMMITTED_DATA_VALUE_PRESENT"
 
     # Store-side (SQ01 / DA04): the faulting store must commit; a later load
-    # consumer distinguishes "lane read" from "lane never read".
+    # consumer distinguishes "lane read" from "lane never read". v3.2.5:
+    # an oracle failure without a causally attributable consumer is not SDC —
+    # the checksum change has no supported path through the fault (the
+    # v3.2.4 response-time attribution was the false positive this fixes).
     if not committed:
         return "UNRESOLVED", "STORE_NOT_COMMITTED"
     consumed = any(
         e.get("event_type") in ("consumer_commit", "errant_commit")
         and e.get("dyn_inst_seq") != seq
         for e in chain)
+    if oracle_pass is False:
+        if not consumed:
+            return "UNRESOLVED", "ORACLE_FAIL_NO_CAUSAL_CONSUMER"
+        return "SDC", "ORACLE_FAIL"
     return "MASKED", ("STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS"
                       if consumed else "STORE_COMMITTED_LANE_NOT_READ")

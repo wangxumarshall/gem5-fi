@@ -55,13 +55,49 @@ def test_data_on_another_ptag_does_not_rescue_the_target():
     assert reason == "TARGET_NOT_COMMITTED"
 
 
-def test_oracle_failure_is_sdc():
+def test_oracle_failure_without_causal_consumer_is_unresolved():
+    """v3.2.5: an oracle FAIL alone is not SDC for a store-side fault."""
     events = [ev("injection", 50), ev("commit", 50, ptag=0)]
+    terminal, reason = adjudicate(
+        events, model="DA04", observed_terminal="MASKED", oracle_pass=False,
+        trace_complete=True)
+    assert terminal == "UNRESOLVED"
+    assert reason == "ORACLE_FAIL_NO_CAUSAL_CONSUMER"
+
+
+def test_oracle_failure_with_causal_consumer_is_sdc():
+    events = [ev("injection", 50), ev("commit", 50, ptag=0),
+              ev("consumer_commit", 51)]
     terminal, reason = adjudicate(
         events, model="DA04", observed_terminal="MASKED", oracle_pass=False,
         trace_complete=True)
     assert terminal == "SDC"
     assert reason == "ORACLE_FAIL"
+
+
+def test_lp01_committed_writeback_oracle_fail_is_sdc():
+    events = [
+        ev("injection", 50),
+        ev("memory_response", 50, value="ad14af81"),
+        ev("register_writeback", 50, value="ad14af81"),
+        ev("consumer_commit", 51),
+        ev("commit", 50, ptag=0),
+    ]
+    terminal, reason = adjudicate(
+        events, model="LP01", observed_terminal="MASKED", oracle_pass=False,
+        trace_complete=True)
+    assert terminal == "SDC"
+    assert reason == "ORACLE_FAIL"
+
+
+def test_lp01_no_register_writeback_is_unresolved():
+    events = [ev("injection", 50), ev("memory_response", 50, value="ad14af81"),
+              ev("commit", 50, ptag=0)]
+    terminal, reason = adjudicate(
+        events, model="LP01", observed_terminal="MASKED", oracle_pass=False,
+        trace_complete=True)
+    assert terminal == "UNRESOLVED"
+    assert reason == "UNRESOLVED_NO_REGISTER_WRITEBACK_EVIDENCE"
 
 
 def test_store_consumed_and_oracle_pass_is_masked_with_consumer():

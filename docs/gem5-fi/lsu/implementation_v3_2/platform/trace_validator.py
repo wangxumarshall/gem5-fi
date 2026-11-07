@@ -97,6 +97,13 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
                 errs.append(f"line {line}: edge event_type must be 'propagation_edge'")
             if rec.get("trace_completeness") not in COMPLETENESS:
                 errs.append(f"line {line}: bad edge trace_completeness")
+            if not rec.get("edge_type"):
+                errs.append(f"line {line}: edge missing edge_type")
+            if (rec.get("edge_type") == "register_dataflow"
+                    and (not rec.get("source_value_hash")
+                         or not rec.get("destination_value_hash"))):
+                errs.append(
+                    f"line {line}: register_dataflow edge missing value hashes")
             if isinstance(rec.get("sample_run_id"), str):
                 sample_ids.add(rec["sample_run_id"])
         elif kind == "summary":
