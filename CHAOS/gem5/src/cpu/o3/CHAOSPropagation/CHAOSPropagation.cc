@@ -171,14 +171,17 @@ namespace gem5
                                 Addr addr, bool has_addr,
                                 uint64_t phys_reg, bool has_phys,
                                 uint64_t arch_reg, bool has_arch,
-                                const std::string &detail)
+                                const std::string &detail, Tick tick)
     {
         if (!write_log || !gz_file)
             return 0;
         const uint64_t node_id = next_node_id;
+        // `tick` lets a request-time node carry the true request issue time;
+        // 0 means "now".
+        const Tick node_tick = tick ? tick : curTick();
         // Numeric fields without a value are EMPTY strings (pinned contract).
         std::ostringstream row;
-        row << node_id << ',' << curTick() << ',' << ptag << ','
+        row << node_id << ',' << node_tick << ',' << ptag << ','
             << kind << ',';
         if (has_seq) row << dyn_seq;
         row << ',';
@@ -668,8 +671,14 @@ namespace gem5
         if (rm.request_id == 0) {
             rm.request_id = ++next_request_id;
         }
-        if (rm.request_tick == 0)
-            rm.request_tick = curTick();
+        if (rm.request_tick == 0) {
+            rm.request_tick = curTick();      // true request-issue tick
+            rm.vaddr = req->getVaddr();
+            rm.size = req->getSize();
+            rm.dyn_seq = dyn_seq;
+            rm.lq_idx = lq_idx;
+            rm.sq_idx = sq_idx;
+        }
         rm.fragment_id = ++next_fragment_id;
         const uint64_t request_id = rm.request_id;
         const uint64_t fragment_id = rm.fragment_id;
@@ -715,6 +724,41 @@ namespace gem5
               << ";sq_entry_id=" << sq_idx;
             writeNode(e.ptag, "mem_req", dyn_seq, true,
                       request_id, true, v, true, 0, false, 0, false, d.str());
+        }
+
+        // DA04 (v3.2.5): a LOAD request whose range overlaps a registered
+        // faulted store byte is a candidate consumer. This node records the
+        // load's REAL request time; the final causal decision happens at the
+        // response (Task 7) using request_tick, never the response tick.
+        // lq_idx >= 0 identifies the load side at this hook (gem5 v25
+        // Request has no isWrite()); instruction fetches are not data loads.
+        if (lq_idx >= 0 && !req->isInstFetch()) {
+            for (const auto &kv : fault_store_registry) {
+                const FaultStoreEntry &e = kv.second;
+                if (e.written_tick == 0)
+                    continue;
+                if (v >= e.byte_end || e.byte_begin >= v_end)
+                    continue;
+                const bool candidate = chaos_store_chain::mayConsumeFaultByte(
+                    dyn_seq, e.dyn_seq, e.overwritten, e.written_tick,
+                    rm.request_tick);
+                std::ostringstream sd;
+                sd << "site=" << site << ";family=" << e.family
+                   << ";candidate=" << (candidate ? 1 : 0)
+                   << ";size=" << req->getSize()
+                   << ";request_id=" << request_id
+                   << ";fragment_id=" << fragment_id
+                   << ";request_tick=" << rm.request_tick
+                   << ";store_write_tick=" << e.written_tick
+                   << ";request_before_store_write="
+                   << (rm.request_tick < e.written_tick ? 1 : 0)
+                   << ";overwritten=" << (e.overwritten ? 1 : 0)
+                   << ";lq_entry_id=" << lq_idx
+                   << ";sq_entry_id=" << sq_idx;
+                writeNode(e.ptag, "mem_req", dyn_seq, true,
+                          request_id, true, v, true, 0, false, 0, false,
+                          sd.str(), rm.request_tick);
+            }
         }
     }
 

@@ -290,7 +290,8 @@ class CHAOSPropagation : public SimObject
     uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
                    bool has_seq, uint64_t request_id, bool has_req_id,
                    Addr addr, bool has_addr, uint64_t phys_reg, bool has_phys,
-                   uint64_t arch_reg, bool has_arch, const std::string &detail);
+                   uint64_t arch_reg, bool has_arch, const std::string &detail,
+                   Tick tick = 0);
 
     void writeEdgeRow(uint64_t ptag, uint64_t source_node,
                       uint64_t destination_node, uint64_t producer_seq,
@@ -332,6 +333,11 @@ class CHAOSPropagation : public SimObject
         uint64_t request_id = 0;
         uint64_t fragment_id = 0;
         Tick request_tick = 0;   // first fragment's issue tick (v3.2.5)
+        Addr vaddr = 0;
+        unsigned size = 0;
+        uint64_t dyn_seq = 0;
+        int64_t lq_idx = -1;
+        int64_t sq_idx = -1;
     };
     std::map<const Request *, RequestMeta> req_meta;
     std::set<uint64_t> fault_seqs;   // dynamic insts that received a fault
