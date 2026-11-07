@@ -186,7 +186,7 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             old_value = None
             new_value = d.get("writeback_value") or d.get("writeback_fnv")
         elif kind == "inj_store_data":
-            va, pa = None, None
+            va, pa = _hex(d.get("addr")), None
             old_value = d.get("old_byte")
             new_value = d.get("new_byte")
         elif kind == "inj_store_be":
