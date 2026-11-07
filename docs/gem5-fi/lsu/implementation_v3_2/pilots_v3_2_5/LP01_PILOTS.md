@@ -23,7 +23,7 @@ access size and request identity are unchanged. The five pilots use
 
 - Excel identity: `LP01-F0-W5-S01-R01`, seed `1349924126`, Excel ordinal 1,
   clinical ordinal **1**.
-- Injection: seq 5, tick 172865, addr `0x80e10`, size 8, mask `0x8`,
+- Injection: seq 5, tick 172865, addr `0x80da0`, size 8, mask `0x8`,
   request tick 80080, LQ entry 1 / generation 1, phys reg `int:45`.
   - `orig_data_hex=0100000000000000` (`fnv=89cd31291d2aefa4`)
   - `inj_data_hex=0900000000000000` (`fnv=81a3697174a540ac`)
@@ -46,7 +46,7 @@ access size and request identity are unchanged. The five pilots use
 
 - Excel identity: `LP01-F0-W5-S01-R02`, seed `2648660520`, Excel ordinal 2,
   clinical ordinal **2**.
-- Injection: seq 48, tick 226380, addr `0x80e28`, size 8, mask `0x8`,
+- Injection: seq 48, tick 226380, addr `0x80db8`, size 8, mask `0x8`,
   request tick 225610, LQ entry 2 / generation 2, phys reg `int:68`.
   - `orig_data_hex=0000000000000000` (`fnv=a8c7f832281a39c5`)
   - `inj_data_hex=0800000000000000` (`fnv=a09e307a7f948acd`)
@@ -69,7 +69,7 @@ access size and request identity are unchanged. The five pilots use
 
 - Excel identity: `LP01-F0-W5-S01-R03`, seed `2021175746`, Excel ordinal 3,
   clinical ordinal **3**.
-- Injection: seq 239, tick 605221, addr `0x80e30`, size 8, mask `0x8`,
+- Injection: seq 239, tick 605221, addr `0x80dc0`, size 8, mask `0x8`,
   request tick 573650, LQ entry 3 / generation 4, phys reg `int:1`.
   - `orig_data_hex=1000000000000000` (`fnv=987468c2d70edbd5`)
   - `inj_data_hex=1800000000000000` (`fnv=904aa10b2e892cdd`)
@@ -92,7 +92,7 @@ access size and request identity are unchanged. The five pilots use
 
 - Excel identity: `LP01-F0-W5-S01-R04`, seed `3894776903`, Excel ordinal 4,
   clinical ordinal **4**.
-- Injection: seq 247, tick 605990, addr `0x80e38`, size 8, mask `0x8`,
+- Injection: seq 247, tick 605990, addr `0x80dc8`, size 8, mask `0x8`,
   request tick 600600, LQ entry 4 / generation 5, phys reg `int:0`.
   - `orig_data_hex=fbf7d0cc00000000` (`fnv=1505defdf2164c5b`)
   - `inj_data_hex=f3f7d0cc00000000` (`fnv=e5704c2542d06b23`)
@@ -117,7 +117,7 @@ access size and request identity are unchanged. The five pilots use
 
 - Excel identity: `LP01-F0-W5-S01-R05`, seed `1604604537`, Excel ordinal 5,
   clinical ordinal **14** (Excel ordinal 5 landed on a load with no consumer).
-- Injection: seq 287, tick 625625, addr `0x80e40`, size 8, mask `0x8`,
+- Injection: seq 287, tick 625625, addr `0x80df0`, size 8, mask `0x8`,
   request tick 574035, LQ entry 9 / generation 17, phys reg `int:46`.
   - `orig_data_hex=1700000000000000` (`fnv=3b8413a7b640fd72`)
   - `inj_data_hex=1f00000000000000` (`fnv=335a4bf00dbb4e7a`)

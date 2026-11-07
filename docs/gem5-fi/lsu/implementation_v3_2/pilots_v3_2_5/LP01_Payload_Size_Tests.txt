@@ -1,0 +1,1 @@
+LP01 byte-0 payload matrix (0/1/4/7/8/9/12/16): PASS

@@ -1,0 +1,25 @@
+== LP01-R01 ==
+ inj seq 5 tick 172865 orig_data_hex=0100000000000000 inj_data_hex=0900000000000000 orig_data_fnv=89cd31291d2aefa4 inj_data_fnv=81a3697174a540ac addr=addr=0x80da0
+ resp data_hex=0900000000000000 data_fnv=81a3697174a540ac response_id=1 request_tick=80080 response_tick=172865
+ wb writeback_value=9 writeback_value_fnv=81a3697174a540ac value_matches_payload=1 phys_reg=45
+ consumer seq 25 consumer_input_fnv=81a3697174a540ac consumer_input_matches_source=1
+== LP01-R02 ==
+ inj seq 48 tick 226380 orig_data_hex=0000000000000000 inj_data_hex=0800000000000000 orig_data_fnv=a8c7f832281a39c5 inj_data_fnv=a09e307a7f948acd addr=addr=0x80db8
+ resp data_hex=0800000000000000 data_fnv=a09e307a7f948acd response_id=1 request_tick=225610 response_tick=226380
+ wb writeback_value=8 writeback_value_fnv=a09e307a7f948acd value_matches_payload=1 phys_reg=68
+ consumer seq 50 consumer_input_fnv=a09e307a7f948acd consumer_input_matches_source=1
+== LP01-R03 ==
+ inj seq 239 tick 605221 orig_data_hex=1000000000000000 inj_data_hex=1800000000000000 orig_data_fnv=987468c2d70edbd5 inj_data_fnv=904aa10b2e892cdd addr=addr=0x80dc0
+ resp data_hex=1800000000000000 data_fnv=904aa10b2e892cdd response_id=1 request_tick=573650 response_tick=605221
+ wb writeback_value=18 writeback_value_fnv=904aa10b2e892cdd value_matches_payload=1 phys_reg=1
+ consumer seq 244 consumer_input_fnv=904aa10b2e892cdd consumer_input_matches_source=1
+== LP01-R04 ==
+ inj seq 247 tick 605990 orig_data_hex=fbf7d0cc00000000 inj_data_hex=f3f7d0cc00000000 orig_data_fnv=1505defdf2164c5b inj_data_fnv=e5704c2542d06b23 addr=addr=0x80dc8
+ resp data_hex=f3f7d0cc00000000 data_fnv=e5704c2542d06b23 response_id=1 request_tick=600600 response_tick=605990
+ wb writeback_value=ccd0f7f3 writeback_value_fnv=e5704c2542d06b23 value_matches_payload=1 phys_reg=0
+ consumer seq 248 consumer_input_fnv=e5704c2542d06b23 consumer_input_matches_source=1
+== LP01-R05 ==
+ inj seq 287 tick 625625 orig_data_hex=1700000000000000 inj_data_hex=1f00000000000000 orig_data_fnv=3b8413a7b640fd72 inj_data_fnv=335a4bf00dbb4e7a addr=addr=0x80df0
+ resp data_hex=1f00000000000000 data_fnv=335a4bf00dbb4e7a response_id=1 request_tick=574035 response_tick=625625
+ wb writeback_value=1f writeback_value_fnv=335a4bf00dbb4e7a value_matches_payload=1 phys_reg=46
+ consumer seq 289 consumer_input_fnv=335a4bf00dbb4e7a consumer_input_matches_source=1

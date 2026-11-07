@@ -32,11 +32,11 @@ from each `pilot_meta.json`; the probe-time value is in parentheses.
 
 | Pilot | SampleRunID | Seed | Excel ordinal | Clinical ordinal used | dyn_inst_seq | trigger tick | target address | size |
 |---|---|---|---|---|---|---|---|---|
-| R01 | LP01-F0-W5-S01-R01 | 1349924126 | 1 | **1** | 5 (5) | 172865 (172865) | 0x80e10 | 8 |
-| R02 | LP01-F0-W5-S01-R02 | 2648660520 | 2 | **2** | 48 (48) | 226380 (271425) | 0x80e28 | 8 |
-| R03 | LP01-F0-W5-S01-R03 | 2021175746 | 3 | **3** | 239 (225) | 605221 (606761) | 0x80e30 | 8 |
-| R04 | LP01-F0-W5-S01-R04 | 3894776903 | 4 | **4** | 247 (233) | 605990 (607530) | 0x80e38 | 8 |
-| R05 | LP01-F0-W5-S01-R05 | 1604604537 | 5 | **14** | 287 (235) | 625625 (661815) | 0x80e40 | 8 |
+| R01 | LP01-F0-W5-S01-R01 | 1349924126 | 1 | **1** | 5 (5) | 172865 (172865) | 0x80da0 (0x80e10) | 8 |
+| R02 | LP01-F0-W5-S01-R02 | 2648660520 | 2 | **2** | 48 (48) | 226380 (271425) | 0x80db8 (0x80e28) | 8 |
+| R03 | LP01-F0-W5-S01-R03 | 2021175746 | 3 | **3** | 239 (225) | 605221 (606761) | 0x80dc0 (0x80e30) | 8 |
+| R04 | LP01-F0-W5-S01-R04 | 3894776903 | 4 | **4** | 247 (233) | 605990 (607530) | 0x80dc8 (0x80e38) | 8 |
+| R05 | LP01-F0-W5-S01-R05 | 1604604537 | 5 | **14** | 287 (235) | 625625 (661815) | 0x80df0 (0x80e40) | 8 |
 
 Consumer counts observed at probe time: 183, 1, 6, 1, 6 respectively. All
 targets are 8-byte loads, so the payload hash and the actual register value
