@@ -41,6 +41,7 @@
 
 #include "cpu/o3/lsq.hh"
 #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // §2.4 full def for maybeCorrupt
+#include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"  // [DA04] full def for BE fault
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
 
 #include <algorithm>
@@ -832,6 +833,20 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // Request::setByteEnable assert fires downstream.
         request->_byteEnable = (byte_enable.size() == size)
             ? byte_enable : std::vector<bool>(size, true);
+        // [DA04][LSU v3.2.4] Store byte-enable bit0 fault. The mask was just
+        // built for this request (all-true vector for an AArch64 store).
+        // Clear lane 0 only for the target dynamic store; address, size and
+        // store data are untouched. Every downstream consumer reads this
+        // same Request, so the mask reaches SQ drain and the cache write.
+        if (!isLoad && !isAtomic && inst->sqIdx >= 0 && cpu->lsqFwd &&
+                !flags.isSet(Request::LLSC) &&
+                !flags.isSet(Request::NO_ACCESS) &&
+                !(flags & Request::CACHE_BLOCK_ZERO) &&
+                !(flags & Request::STORE_NO_DATA)) {
+            cpu->lsqFwd->maybeCorruptStoreByteEnable(
+                request->_byteEnable, size, addr, inst->seqNum,
+                inst->sqIdx, inst->sqEntryGeneration, data);
+        }
         inst->setRequest();
         request->taskId(cpu->taskId());
 
