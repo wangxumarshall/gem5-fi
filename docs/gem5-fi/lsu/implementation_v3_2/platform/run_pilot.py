@@ -281,7 +281,9 @@ def main(argv=None) -> int:
            "--chaos_propagation",
            "--prop_trace_file", "prop_trace.csv.gz"] + extra
     (out / "command.txt").write_text("\n".join(cmd) + "\n")
-    manifest = build_manifest(cfg2, args.pilot_id, args.gem5, CONFIG,
+    # build_manifest looks the sample up by SampleRunID: with
+    # --preserve-sample-id that is the Excel id, not the pilot id.
+    manifest = build_manifest(cfg2, sample["sample_run_id"], args.gem5, CONFIG,
                               output_dir=out, command=cmd)
     if args.seed != excel_seed:
         manifest["seed_source"] = "pilot_cli_override (not Excel)"

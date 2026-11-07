@@ -224,6 +224,10 @@ namespace gem5
         // FW02 acts only at the forwarding DECISION point (suppress one
         // match); it must never also mutate the forwarded bytes.
         if (struct_mode == StructMode::F6Fw02) return;
+        // DA04 acts only in LSQ::pushRequest (byte-enable construction); the
+        // forwarding post-copy hook must stay inert or it would consume the
+        // shared F0 trigger before the first eligible store.
+        if (struct_mode == StructMode::Da04BeBit0) return;
         // [LSU][SEM-B] L03 hook split: with --lsqfwd_l03 the SQ-forward
         // data path is NOT L03's event source — the trigger stream must be
         // violation checks only (checkViolations site), not the mixed stream.
