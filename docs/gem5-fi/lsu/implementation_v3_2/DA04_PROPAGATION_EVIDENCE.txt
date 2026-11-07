@@ -1,0 +1,42 @@
+DA04 real propagation-chain evidence (from trace_v31.jsonl; full JSONL included separately)
+
+=== DA04-R01 ===
+terminal=SQUASHED reason=TARGET_SQUASHED_NO_COMMIT coverage=COMPLETE oracle=PASS accepted=True
+store_overwrite detail: fault_store_seq=320;overwrite_store_seq=718;addr=0x491010;size=4
+
+=== DA04-R02 ===
+terminal=MASKED reason=STORE_COMMITTED_LANE_NOT_READ coverage=COMPLETE oracle=PASS accepted=True
+store_writeback detail: site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;data_fnv=5558979605539197941;data_hex=00000000;sq_entry_id=70;entry_generation=129;addr=0x4976fc
+store_mem_write  detail: site=BaseCache::updateBlockData;family=byte_enable;blk_addr=0x7c6c0;offset=60;size=4;be_mask=0xe;packet_data_fnv=5558979605539197941;packet_data_hex=00000000;before_hex=00000000;after_hex=00000000;enabled_written=1;disabled_unchanged=1;lane0_packet=0x0;lane0_before=0x0;lane0_after=0x0
+
+=== DA04-R03 ===
+terminal=MASKED reason=STORE_COMMITTED_LANE_NOT_READ coverage=COMPLETE oracle=PASS accepted=True
+store_writeback detail: site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;data_fnv=12478008331234465636;data_hex=01000000;sq_entry_id=221;entry_generation=358;addr=0x7ffffefca0
+store_mem_write  detail: site=BaseCache::updateBlockData;family=byte_enable;blk_addr=0x7dc80;offset=32;size=4;be_mask=0xe;packet_data_fnv=12478008331234465636;packet_data_hex=01000000;before_hex=00008002;after_hex=00000000;enabled_written=1;disabled_unchanged=1;lane0_packet=0x1;lane0_before=0x0;lane0_after=0x0
+store_overwrite detail: fault_store_seq=3030;overwrite_store_seq=3110;addr=0x7ffffefca0;size=8
+
+=== DA04-R04 ===
+terminal=SDC reason=ORACLE_FAIL coverage=COMPLETE oracle=FAIL accepted=True
+store_writeback detail: site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;data_fnv=1079154960948788268;data_hex=c114af81;sq_entry_id=1478;entry_generation=1877;addr=0x4919d5
+store_mem_write  detail: site=BaseCache::updateBlockData;family=byte_enable;blk_addr=0x769c0;offset=21;size=4;be_mask=0xe;packet_data_fnv=1079154960948788268;packet_data_hex=c114af81;before_hex=a5a5a5a5;after_hex=a514af81;enabled_written=1;disabled_unchanged=1;lane0_packet=0xc1;lane0_before=0xa5;lane0_after=0xa5
+store_overwrite detail: fault_store_seq=13832;overwrite_store_seq=24465;addr=0x4919d5;size=1
+memory_response seq=19210 pa=0x769d5 detail=family=byte_enable;size=4;data_len=4;data_fnv=d9a56276a6025898;data_hex=a514af81;request_id=35;response_id=1;fragment_id=3665;lq_entry_id=758;sq_entry_id=-1;entry_generation=1243;execution_attempt_id=1;replay_generation=0;pa=769d5
+register_writeback seq=19210 detail=class=int;dest_idx=0;phys_reg=118;arch_reg=0;writeback_value=a514af81;writeback_fnv=d9a56276a6025898;source_event_id=8263;source_value_hash=d9a56276a6025898;request_id=35;response_id=1;execution_attempt_id=1;replay_generation=0
+consumer_commit count=1009 first3:
+  class=int;src_idx=0;pc=40055c;source_event_id=8264;source_value_hash=d9a56276a6025898;consumer_value_hash=a959f41d27dbce18;consumer_value=81af14a5;consumer_value_bytes=8;commit_seq=11804;execution_attempt_id=0;replay_generation=0
+  class=int;src_idx=1;pc=40055c;source_event_id=8270;source_value_hash=a959f41d27dbce18;consumer_value_hash=609fe2230916e71c;consumer_value=88f27baad;consumer_value_bytes=8;commit_seq=11809;execution_attempt_id=0;replay_generation=0
+  class=int;src_idx=1;pc=40055c;source_event_id=8274;source_value_hash=609fe2230916e71c;consumer_value_hash=e0984a61d68ce6f2;consumer_value=8af0e491f;consumer_value_bytes=8;commit_seq=11814;execution_attempt_id=0;replay_generation=0
+
+=== DA04-R05 ===
+terminal=SDC reason=ORACLE_FAIL coverage=COMPLETE oracle=FAIL accepted=True
+store_writeback detail: site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;data_fnv=5037817100498823030;data_hex=77623036;sq_entry_id=1628;entry_generation=2027;addr=0x491c2d
+store_mem_write  detail: site=BaseCache::updateBlockData;family=byte_enable;blk_addr=0x76c00;offset=45;size=4;be_mask=0xe;packet_data_fnv=5037817100498823030;packet_data_hex=77623036;before_hex=a5a5a5a5;after_hex=a5623036;enabled_written=1;disabled_unchanged=1;lane0_packet=0x77;lane0_before=0xa5;lane0_after=0xa5
+memory_response seq=19960 pa=0x76c2d detail=family=byte_enable;size=4;data_len=4;data_fnv=7cc505782442859c;data_hex=a5623036;request_id=91;response_id=1;fragment_id=3824;lq_entry_id=908;sq_entry_id=-1;entry_generation=1393;execution_attempt_id=1;replay_generation=0;pa=76c2d
+memory_response seq=29123 pa=0x76c2d detail=family=byte_enable;size=1;data_len=1;data_fnv=af64184c86025280;data_hex=a5;request_id=72;response_id=2;fragment_id=5532;lq_entry_id=2433;sq_entry_id=-1;entry_generation=2920;execution_attempt_id=1;replay_generation=0;pa=76c2d
+register_writeback seq=19960 detail=class=int;dest_idx=0;phys_reg=111;arch_reg=0;writeback_value=a5623036;writeback_fnv=7cc505782442859c;source_event_id=8563;source_value_hash=7cc505782442859c;request_id=91;response_id=1;execution_attempt_id=1;replay_generation=0
+register_writeback seq=29123 detail=class=int;dest_idx=0;phys_reg=93;arch_reg=2;writeback_value=a5;writeback_fnv=af64184c86025280;source_event_id=13589;source_value_hash=af64184c86025280;request_id=72;response_id=2;execution_attempt_id=1;replay_generation=0
+consumer_commit count=7714 first3:
+  class=int;src_idx=0;pc=40055c;source_event_id=8564;source_value_hash=7cc505782442859c;consumer_value_hash=bdb2b3575183d5c;consumer_value=363062a5;consumer_value_bytes=8;commit_seq=12554;execution_attempt_id=0;replay_generation=0
+  class=int;src_idx=1;pc=40055c;source_event_id=8570;source_value_hash=bdb2b3575183d5c;consumer_value_hash=8dda9652756ec2bc;consumer_value=53c7e04f3a;consumer_value_bytes=8;commit_seq=12559;execution_attempt_id=0;replay_generation=0
+  class=int;src_idx=1;pc=40055c;source_event_id=8574;source_value_hash=8dda9652756ec2bc;consumer_value_hash=d791828444d9943a;consumer_value=549c482b62;consumer_value_bytes=8;commit_seq=12564;execution_attempt_id=0;replay_generation=0
+

@@ -1,0 +1,13 @@
+model,unit,stage,DESIGNED,SOURCE_AUDITED,IMPLEMENTED,COMPILED,UNIT_TESTED,PILOT_RUN,PROPAGATION_VERIFIED,evidence
+A01,AGU,xv,1,1,1,1,1,1,0,"v3.2.1 pilots; v3.2.4 re-adjudicated (R03 SQUASHED)"
+A03,AGU,xv,1,1,1,1,1,1,0,"v3.2.1 pilots; CRASH x5"
+FW02,FWD,xv,1,1,1,1,1,1,0,"v3.2.4 R01/R05 SQUASHED; R03/R04 MASKED; R02 CRASH"
+SQ01,SQ,store_data,1,1,1,1,1,1,0,"v3.2.4 store_wb+store_mem; no consumer"
+DA04,SQ,byte_enable,1,1,1,1,1,1,1,"v3.2.4 R04/R05 complete chain, SDC, disabled lane unchanged"
+LP01,L1D,load_response,1,1,1,1,1,0,0,"source audit + size<8 OOB fix; pilots next round"
+MD04,LSU,LSQ,1,0,0,0,0,0,0,"v3.2.3 audit"
+FW05,FWD,forward,1,0,0,0,0,0,0,"v3.2.3 audit"
+SQ03,SQ,writeback,1,0,0,0,0,0,0,"v3.2.3 audit"
+SP05,SQ,completion,1,0,0,0,0,0,0,"v3.2.3 audit"
+LQ04,LQ,lifetime,1,0,0,0,0,0,0,"v3.2.3 audit; HIGH-RISK"
+RP01,RPL,replay,1,0,0,0,0,0,0,"v3.2.3 audit"

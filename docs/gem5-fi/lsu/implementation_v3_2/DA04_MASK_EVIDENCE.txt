@@ -1,0 +1,20 @@
+DA04 real mask records (raw lsq_fwd_injections.log lines)
+Each line is emitted by CHAOSLSQFwd::maybeCorruptStoreByteEnable at injection time.
+
+[DA04-R01] sample=DA04-F0-W8-S02-R01 seed=4185444934 ordinal_used=1
+  parse: dyn_seq=320 sq=52 gen=71 old_be=0xf new_be=0xe changed_bit=0 addr 0x491010->0x491010 size 4->4 data 4d25767f9dce13f5->4d25767f9dce13f5
+[DA04-R02] sample=DA04-F0-W8-S02-R02 seed=2627302015 ordinal_used=6
+  parse: dyn_seq=727 sq=70 gen=129 old_be=0xf new_be=0xe changed_bit=0 addr 0x4976fc->0x4976fc size 4->4 data 4d25767f9dce13f5->4d25767f9dce13f5
+[DA04-R03] sample=DA04-F0-W8-S02-R03 seed=3592849939 ordinal_used=16
+  parse: dyn_seq=3030 sq=221 gen=358 old_be=0xf new_be=0xe changed_bit=0 addr 0x7ffffefca0->0x7ffffefca0 size 4->4 data ad2aca7747985764->ad2aca7747985764
+[DA04-R04] sample=DA04-F0-W8-S02-R04 seed=3815557835 ordinal_used=50
+  parse: dyn_seq=13832 sq=1478 gen=1877 old_be=0xf new_be=0xe changed_bit=0 addr 0x4919d5->0x4919d5 size 4->4 data ef9edb828f3fc2c->ef9edb828f3fc2c
+[DA04-R05] sample=DA04-F0-W8-S02-R05 seed=2016743094 ordinal_used=200
+  parse: dyn_seq=14582 sq=1628 gen=2027 old_be=0xf new_be=0xe changed_bit=0 addr 0x491c2d->0x491c2d size 4->4 data 45e9ebf61e9ee776->45e9ebf61e9ee776
+
+Raw lines:
+[DA04-R01] Tick: 606760, Site: lsq_pushRequest_byte_enable, FaultModel: DA04, seq: 320, sq_idx: 52, entry_generation: 71, old_addr: 0x491010, new_addr: 0x491010, size: 4, old_be: 0xf, new_be: 0xe, changed_bit: 0, faults_injected: 1
+[DA04-R02] Tick: 877415, Site: lsq_pushRequest_byte_enable, FaultModel: DA04, seq: 727, sq_idx: 70, entry_generation: 129, old_addr: 0x4976fc, new_addr: 0x4976fc, size: 4, old_be: 0xf, new_be: 0xe, changed_bit: 0, faults_injected: 1
+[DA04-R03] Tick: 4957645, Site: lsq_pushRequest_byte_enable, FaultModel: DA04, seq: 3030, sq_idx: 221, entry_generation: 358, old_addr: 0x7ffffefca0, new_addr: 0x7ffffefca0, size: 4, old_be: 0xf, new_be: 0xe, changed_bit: 0, faults_injected: 1
+[DA04-R04] Tick: 17040870, Site: lsq_pushRequest_byte_enable, FaultModel: DA04, seq: 13832, sq_idx: 1478, entry_generation: 1877, old_addr: 0x4919d5, new_addr: 0x4919d5, size: 4, old_be: 0xf, new_be: 0xe, changed_bit: 0, faults_injected: 1
+[DA04-R05] Tick: 17156370, Site: lsq_pushRequest_byte_enable, FaultModel: DA04, seq: 14582, sq_idx: 1628, entry_generation: 2027, old_addr: 0x491c2d, new_addr: 0x491c2d, size: 4, old_be: 0xf, new_be: 0xe, changed_bit: 0, faults_injected: 1
