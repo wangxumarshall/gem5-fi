@@ -244,6 +244,14 @@ namespace gem5
         return out.str();
     }
 
+    std::string
+    CHAOSPropagation::fnvHex(const uint8_t *p, unsigned n) const
+    {
+        std::ostringstream s;
+        s << std::hex << fnv1a64(p, n) << std::dec;
+        return s.str();
+    }
+
     void
     CHAOSPropagation::writeEdgeRow(uint64_t ptag, uint64_t source_node,
                                    uint64_t destination_node,
@@ -660,6 +668,8 @@ namespace gem5
         if (rm.request_id == 0) {
             rm.request_id = ++next_request_id;
         }
+        if (rm.request_tick == 0)
+            rm.request_tick = curTick();
         rm.fragment_id = ++next_fragment_id;
         const uint64_t request_id = rm.request_id;
         const uint64_t fragment_id = rm.fragment_id;
@@ -719,9 +729,17 @@ namespace gem5
         uint64_t hit_ptag = 0;
         const char *hit_family = nullptr;
 
+        // LP01: the response is observed AFTER maybeCorrupt, so data_* is the
+        // delivered (injected) payload. Bind directly by instruction identity.
+        auto lf = l1dfwd_registry.find(inst->seqNum);
+        if (lf != l1dfwd_registry.end() && lf->second.resp_node == 0) {
+            hit_ptag = lf->second.ptag;
+            hit_family = "l1d_fwd";
+        }
+
         // addrpath: the response's own Request vaddr range vs the registry,
         // bound to this instruction (the faulting load itself).
-        if (pkt->req && pkt->req->hasVaddr()) {
+        if (!hit_ptag && pkt->req && pkt->req->hasVaddr()) {
             const Addr v = pkt->req->getVaddr();
             const Addr v_end = v + (Addr)pkt->req->getSize();
             for (const auto &kv : addr_registry) {
@@ -791,15 +809,20 @@ namespace gem5
             (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].request_id : 0;
         const uint64_t fragment_id =
             (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].fragment_id : 0;
-        const uint64_t response_id = ++next_response_id;
+        const bool l1d_fwd = hit_ptag
+            && std::string(hit_family) == "l1d_fwd";
+        // LP01: injection and response are the same delivery; reuse the id
+        // allocated at injection instead of inventing a second one.
+        const uint64_t response_id = l1d_fwd
+            ? lf->second.response_id : ++next_response_id;
         const unsigned data_len = pkt->hasData() ? pkt->getSize() : 0;
-        const uint64_t data_hash = data_len
-            ? fnv1a64(pkt->getPtr<uint8_t>(), data_len) : 0;
-        std::ostringstream data_hash_ss;
-        if (data_len) data_hash_ss << std::hex << data_hash << std::dec;
-        const std::string data_hash_str = data_hash_ss.str();
-        const std::string data_hex = data_len
-            ? bytesToHex(pkt->getPtr<uint8_t>(), data_len) : "";
+        // For LP01, use the bytes the injector actually wrote. This is the
+        // same buffer writeback consumes; using the registry avoids a stale
+        // packet view if gem5 delivered a different wrapper object.
+        const std::string data_hash_str = l1d_fwd ? lf->second.inj_fnv
+            : (data_len ? fnvHex(pkt->getPtr<uint8_t>(), data_len) : "");
+        const std::string data_hex = l1d_fwd ? lf->second.inj_hex
+            : (data_len ? bytesToHex(pkt->getPtr<uint8_t>(), data_len) : "");
         uint64_t resp_node = 0;
         {
             std::ostringstream d;
@@ -816,8 +839,19 @@ namespace gem5
               << (inst->isLoad() ? inst->lqEntryGeneration
                                  : inst->sqEntryGeneration)
               << ";execution_attempt_id=" << inst->executionAttemptId
-              << ";replay_generation=" << inst->replayGeneration
-              << ";pa=" << std::hex << pkt->getAddr() << std::dec;
+              << ";replay_generation=" << inst->replayGeneration;
+            if (l1d_fwd) {
+                d << ";orig_data_fnv=" << lf->second.orig_fnv
+                  << ";orig_data_hex=" << lf->second.orig_hex
+                  << ";inj_data_fnv=" << lf->second.inj_fnv
+                  << ";mask=0x" << std::hex << lf->second.mask << std::dec
+                  << ";eligible_ordinal=" << lf->second.eligible_ordinal
+                  << ";request_tick=" << lf->second.request_tick
+                  << ";response_tick=" << curTick()
+                  << ";payload_len=" << lf->second.size
+                  << ";writeback_value=null;BEFORE_WB=1";
+            }
+            d << ";pa=" << std::hex << pkt->getAddr() << std::dec;
             if (inst->getFault() != NoFault)
                 d << ";fault=" << inst->getFault()->name();
             resp_node = writeNode(hit_ptag, "resp", inst->seqNum, true,
@@ -826,7 +860,15 @@ namespace gem5
                                   0, false, 0, false, d.str());
             resp_node_by_ptag[hit_ptag] = resp_node;
             resp_hash_by_ptag[hit_ptag] = data_hash_str;
+            if (l1d_fwd)
+                lf->second.resp_node = resp_node;
         }
+
+        // LP01 writeback is emitted after LSQUnit::writeback reads the PRF
+        // (noteL1DForwardWriteback); the pre-writeback taint loop below would
+        // record the payload, not the actual register value.
+        if (l1d_fwd)
+            return;
 
         // taint_reg: exactly the condition under which LSQUnit::writeback
         // performs completeAcc (needWBToRegister + NoFault) — the load's
@@ -868,6 +910,142 @@ namespace gem5
             te.node_id = taint_node;
             taint_set[key] = te;
         }
+    }
+
+    uint64_t
+    CHAOSPropagation::noteL1DForwardInjection(o3::DynInst *inst, Packet *pkt,
+                                              bool wb_to_reg,
+                                              const uint8_t *before,
+                                              unsigned size, uint64_t mask,
+                                              uint64_t eligible_ordinal)
+    {
+        if (!write_log || !inst || !pkt || !before || size == 0)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        fault_seqs.insert(inst->seqNum);
+
+        L1DFwdEntry e;
+        e.ptag = ptag;
+        e.size = size;
+        e.mask = mask;
+        e.eligible_ordinal = eligible_ordinal;
+        if (pkt->req) {
+            auto &rm = req_meta[pkt->req.get()];
+            if (rm.request_id == 0)
+                rm.request_id = ++next_request_id;
+            e.request_id = rm.request_id;
+            e.request_tick = rm.request_tick;
+            e.fragment_id = rm.fragment_id;
+        }
+        e.response_id = ++next_response_id;
+        const uint8_t *after = pkt->getPtr<uint8_t>();
+        e.orig_fnv = fnvHex(before, size);
+        e.orig_hex = bytesToHex(before, size);
+        e.inj_fnv = fnvHex(after, size);
+        e.inj_hex = bytesToHex(after, size);
+
+        std::ostringstream d;
+        d << "site=LSQUnit::completeDataAccess;family=l1d_fwd;model=LP01"
+          << ";size=" << size
+          << ";orig_data_fnv=" << e.orig_fnv
+          << ";orig_data_hex=" << e.orig_hex
+          << ";inj_data_fnv=" << e.inj_fnv
+          << ";inj_data_hex=" << e.inj_hex
+          << ";byte0_before=0x" << std::hex << (unsigned)before[0]
+          << ";byte0_after=0x" << (unsigned)after[0] << std::dec
+          << ";mask=0x" << std::hex << mask << std::dec
+          << ";eligible_ordinal=" << eligible_ordinal
+          << ";request_id=" << e.request_id
+          << ";response_id=" << e.response_id
+          << ";fragment_id=" << e.fragment_id
+          << ";request_tick=" << e.request_tick
+          << ";injection_tick=" << curTick()
+          << ";lq_entry_id=" << inst->lqIdx
+          << ";entry_generation=" << inst->lqEntryGeneration
+          << ";execution_attempt_id=" << inst->executionAttemptId
+          << ";replay_generation=" << inst->replayGeneration
+          << ";wb_to_reg=" << (wb_to_reg ? 1 : 0)
+          << ";addr=0x" << std::hex << pkt->getAddr() << std::dec
+          << ";phys_regs=";
+        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+            const PhysRegIdPtr p = inst->renamedDestIdx(i);
+            if (p)
+                d << (i ? "," : "") << regClassName(p->classValue())
+                  << ":" << p->index();
+        }
+        writeNode(ptag, "inj_l1dfwd", inst->seqNum, true,
+                  e.request_id, e.request_id != 0, pkt->getAddr(), true,
+                  0, false, 0, false, d.str());
+        l1dfwd_registry[inst->seqNum] = e;
+        return ptag;
+    }
+
+    void
+    CHAOSPropagation::noteL1DForwardWriteback(o3::DynInst *inst)
+    {
+        if (!write_log || !inst || !o3cpu)
+            return;
+        auto it = l1dfwd_registry.find(inst->seqNum);
+        if (it == l1dfwd_registry.end())
+            return;
+        L1DFwdEntry &e = it->second;
+        if (e.resp_node == 0)
+            return;                 // response was squashed away: no WB claim
+
+        const int ndest = (int)inst->numDestRegs();
+        for (int i = 0; i < ndest; ++i) {
+            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
+            if (!phys)
+                continue;
+            uint64_t value = 0;
+            unsigned bytes = 0;
+            const std::string vhash = regValueHash(
+                inst, phys, inst->threadNumber, &value, &bytes);
+            std::ostringstream vb;
+            vb << std::hex << value << std::dec;
+            const bool basis_ok = (e.size == 8 && bytes == 8
+                                   && vhash == e.inj_fnv);
+            std::ostringstream d;
+            d << "family=l1d_fwd;class=" << regClassName(phys->classValue())
+              << ";dest_idx=" << i
+              << ";phys_reg=" << phys->index()
+              << ";arch_reg=" << inst->destRegIdx(i).index()
+              << ";writeback_value=" << vb.str()
+              << ";writeback_value_fnv=" << (vhash.empty() ? "null" : vhash)
+              << ";payload_fnv=" << e.inj_fnv
+              << ";payload_hex=" << e.inj_hex
+              << ";payload_len=" << e.size
+              << ";hash_basis="
+              << (e.size == 8 ? "payload_equals_regval" : "regval_extension")
+              << ";value_matches_payload=" << (basis_ok ? 1 : 0)
+              << ";source_value_hash=" << e.inj_fnv
+              << ";source_event_id=" << e.resp_node
+              << ";request_id=" << e.request_id
+              << ";response_id=" << e.response_id
+              << ";eligible_ordinal=" << e.eligible_ordinal
+              << ";lq_entry_id=" << inst->lqIdx
+              << ";entry_generation=" << inst->lqEntryGeneration
+              << ";execution_attempt_id=" << inst->executionAttemptId
+              << ";replay_generation=" << inst->replayGeneration
+              << ";writeback_tick=" << curTick();
+            const uint64_t wb_node = writeNode(
+                e.ptag, "taint_reg", inst->seqNum, true,
+                e.request_id, e.request_id != 0, 0, false,
+                phys->index(), true,
+                inst->destRegIdx(i).index(), true, d.str());
+            TaintEntry te;
+            te.ptag = e.ptag;
+            te.taintor_seq = inst->seqNum;
+            te.node_id = wb_node;
+            te.value_hash = vhash;   // actual PRF value, not the payload
+            taint_set[std::make_pair(phys->classValue(),
+                                     phys->index())] = te;
+            writeEdgeRow(e.ptag, e.resp_node, wb_node, inst->seqNum,
+                         inst->seqNum, e.inj_fnv, vhash,
+                         (basis_ok ? "payload_to_register"
+                                   : "payload_to_register_extended"));
+        }
+        l1dfwd_registry.erase(it);
     }
 
     void

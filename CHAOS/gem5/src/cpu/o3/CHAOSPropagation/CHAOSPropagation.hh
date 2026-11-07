@@ -272,6 +272,19 @@ class CHAOSPropagation : public SimObject
                         const uint8_t *fwd_data, unsigned fwd_size,
                         bool suppressed, bool memory_path);
 
+    // LP01 (LSU v3.2.5): a load-response data fault at completeDataAccess.
+    // `before` is the payload copied before the XOR; the packet already holds
+    // the injected bytes. Emits inj_l1dfwd with BOTH hashes and binds the
+    // chain to the instruction so noteMemResponse records delivered data.
+    uint64_t noteL1DForwardInjection(o3::DynInst *inst, Packet *pkt,
+                                     bool wb_to_reg, const uint8_t *before,
+                                     unsigned size, uint64_t mask,
+                                     uint64_t eligible_ordinal);
+
+    // After LSQUnit::writeback completed completeAcc: read the ACTUAL PRF
+    // value and emit the LP01 register_writeback node + taint entry.
+    void noteL1DForwardWriteback(o3::DynInst *inst);
+
   private:
     // One CSV row: numeric fields with has_x=false print as "".
     uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
@@ -291,6 +304,7 @@ class CHAOSPropagation : public SimObject
                              unsigned *bytes_out) const;
 
     uint64_t fnv1a64(const void *blob, size_t n) const;
+    std::string fnvHex(const uint8_t *p, unsigned n) const;
     const char *regClassName(int class_value) const;
 
     // Lazy expiry sweep (called on insert/lookup; registries are tiny).
@@ -315,8 +329,9 @@ class CHAOSPropagation : public SimObject
     bool errant_commit_seen = false;
 
     struct RequestMeta {
-        uint64_t request_id;
-        uint64_t fragment_id;
+        uint64_t request_id = 0;
+        uint64_t fragment_id = 0;
+        Tick request_tick = 0;   // first fragment's issue tick (v3.2.5)
     };
     std::map<const Request *, RequestMeta> req_meta;
     std::set<uint64_t> fault_seqs;   // dynamic insts that received a fault
@@ -371,6 +386,21 @@ class CHAOSPropagation : public SimObject
         bool overwritten = false;  // a different store rewrote the byte
     };
     std::map<uint64_t, FaultStoreEntry> fault_store_registry;
+
+    // LP01 chain, keyed by the faulting instruction's dyn_inst_seq.
+    struct L1DFwdEntry {
+        uint64_t ptag = 0;
+        uint64_t request_id = 0;
+        uint64_t response_id = 0;
+        uint64_t fragment_id = 0;
+        Tick request_tick = 0;
+        uint64_t eligible_ordinal = 0;
+        unsigned size = 0;
+        uint64_t mask = 0;
+        std::string orig_fnv, orig_hex, inj_fnv, inj_hex;
+        uint64_t resp_node = 0;
+    };
+    std::map<uint64_t, L1DFwdEntry> l1dfwd_registry;
 
     static uint64_t chaosBeMask(const std::vector<bool> &be);
 };

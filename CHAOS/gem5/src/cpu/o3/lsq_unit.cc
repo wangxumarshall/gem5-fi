@@ -39,6 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <vector>
+
 #include "cpu/o3/lsq_unit.hh"
 
 #include "arch/generic/debugfaults.hh"
@@ -165,20 +167,6 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
 
     cpu->ppDataAccessComplete->notify(std::make_pair(inst, pkt));
 
-    // [LSU][OBS-L3] response node (+ load taint): the packet just returned
-    // from the memory system — if it delivers a registered fault (addrpath
-    // addr registry / cache faulted-byte registry), record the resp node
-    // and, for register-writeback loads/SC/atomics with NoFault (exactly
-    // the completeAcc condition below), the taint_reg nodes. Placed before
-    // the needWB branch so STORE responses are covered too; squashed insts
-    // are guarded inside. NOTE (documented boundary): when CHAOSL1DForward
-    // is ALSO attached, its corruption inside the needWB branch happens
-    // AFTER this snapshot — the L3 chain is not combined-injector-aware in
-    // v1 (the campaign runs one injector per sample). nullptr = no tracer.
-    if (cpu->chaosPropagation)
-        cpu->chaosPropagation->noteMemResponse(inst.get(), pkt,
-                                               request->needWBToRegister());
-
     assert(!cpu->switchedOut());
     if (!inst->isSquashed()) {
         if (request->needWBToRegister()) {
@@ -196,12 +184,33 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
             // §2.7 CHAOSL1DForward: post-check escape — corrupt the load
             // response data AFTER L1D read (model: ECC checked & passed)
             // and BEFORE writeback to the register. nullptr = no injection.
+            std::vector<uint8_t> lp01_before;
+            uint64_t lp01_mask = 0;
+            bool lp01_injected = false;
             if (cpu->chaosL1DFwd) {
-                cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket(),
-                                                inst->isLoad());
+                lp01_injected = cpu->chaosL1DFwd->maybeCorrupt(
+                    request->mainPacket(), inst->isLoad(),
+                    cpu->chaosPropagation ? &lp01_before : nullptr,
+                    cpu->chaosPropagation ? &lp01_mask : nullptr);
+            }
+            if (lp01_injected && cpu->chaosPropagation) {
+                cpu->chaosPropagation->noteL1DForwardInjection(
+                    inst.get(), request->mainPacket(),
+                    request->needWBToRegister(), lp01_before.data(),
+                    (unsigned)lp01_before.size(), lp01_mask,
+                    cpu->chaosL1DFwd->lastEligibleOrdinal());
             }
 
+            // [LSU][OBS-L3] response node: AFTER the post-check injector, so
+            // resp/taint data is what writeback actually delivers. nullptr =
+            // no tracer.
+            if (cpu->chaosPropagation)
+                cpu->chaosPropagation->noteMemResponse(
+                    inst.get(), pkt, request->needWBToRegister());
+
             writeback(inst, request->mainPacket());
+            if (lp01_injected && cpu->chaosPropagation)
+                cpu->chaosPropagation->noteL1DForwardWriteback(inst.get());
             if (inst->isStore() || inst->isAtomic()) {
                 request->writebackDone();
                 completeStore(request->instruction()->sqIt);
@@ -209,6 +218,9 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
         } else if (inst->isStore()) {
             // This is a regular store (i.e., not store conditionals and
             // atomics), so it can complete without writing back
+            if (cpu->chaosPropagation)
+                cpu->chaosPropagation->noteMemResponse(
+                    inst.get(), pkt, request->needWBToRegister());
             completeStore(request->instruction()->sqIt);
         }
     }
