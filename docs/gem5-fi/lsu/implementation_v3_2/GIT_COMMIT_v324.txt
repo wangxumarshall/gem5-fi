@@ -1,6 +1,6 @@
 branch: lsu-platform-v3.2.4
 base: 7f54db8d
-head: 46315c85 (LP01 commit; see git log for the full series)
+head: f25ee05d (branch tip when the delivery package was assembled)
 generated_utc: 2026-11-07T14:55:00Z
 da04_pilot_binary_sha256: 3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297
   (binary that produced the post-review-fix DA04-R01..R05 traces)

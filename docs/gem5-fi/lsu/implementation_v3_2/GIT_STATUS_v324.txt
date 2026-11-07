@@ -1,6 +1,6 @@
 branch: lsu-platform-v3.2.4
 base: 7f54db8d
-head_at_evidence_snapshot: f2be15d2fc33c8d0e453f1bd97d9198e0c3de9cd
+head_at_evidence_snapshot: f25ee05d
 generated_utc: 2026-11-07T15:56:08Z
 
 ## Commits in this round
