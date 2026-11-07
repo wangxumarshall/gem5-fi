@@ -278,6 +278,7 @@ class CHAOSPropagation : public SimObject
     };
     std::map<const Request *, RequestMeta> req_meta;
     std::set<uint64_t> fault_seqs;   // dynamic insts that received a fault
+    std::set<uint64_t> replay_seqs;  // dynamic insts observed to replay
     std::map<uint64_t, uint64_t> resp_node_by_ptag;
     std::map<uint64_t, std::string> resp_hash_by_ptag;
 

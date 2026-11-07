@@ -631,6 +631,10 @@ namespace gem5
             return;
         if (!replay_all && !fault_seqs.count(inst->seqNum))
             return;
+        // A replayed instruction is trace-tracked from this point on, so its
+        // final commit/squash can be recorded even when it never received a
+        // fault (the replay mechanism pilot).
+        replay_seqs.insert(inst->seqNum);
         std::ostringstream d;
         d << "reason=" << reason
           << ";pc=" << std::hex << inst->pcState().instAddr() << std::dec
@@ -717,9 +721,12 @@ namespace gem5
         // For FW02 the suppressed load is registered in fault_seqs by
         // noteForwarding; A01/A03 faulting loads/stores are registered by
         // noteInjection.
-        if (fault_seqs.count(head_inst->seqNum)) {
+        const bool fault_tracked = fault_seqs.count(head_inst->seqNum) != 0;
+        const bool replay_tracked = replay_seqs.count(head_inst->seqNum) != 0;
+        if (fault_tracked || replay_tracked) {
             std::ostringstream cd;
             cd << "trigger=fault_instruction_commit"
+               << ";tracked=" << (fault_tracked ? "fault" : "replay")
                << ";pc=" << std::hex << pc << std::dec
                << ";commit_seq=" << commit_seq
                << ";execution_attempt_id=" << head_inst->executionAttemptId
