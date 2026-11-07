@@ -1,9 +1,10 @@
 branch: lsu-platform-v3.2.4
 base: 7f54db8d
-head: 81981fc387cb27f1a0d97c28ab8becb7f4d39457
-generated_utc: 2026-11-07T15:54:50Z
+head_at_evidence_snapshot: f2be15d2fc33c8d0e453f1bd97d9198e0c3de9cd
+generated_utc: 2026-11-07T15:56:08Z
 
 ## Commits in this round
+f2be15d2 [LSU][V3.2.4][PACKAGE] add evidence files, status matrix, git status and authoritative Excel
 81981fc3 [LSU][V3.2.4][DOCS] mark plan execution completed
 4344b20d [LSU][V3.2.4][PACKAGE] refresh package with post-review evidence
 1610d81b [LSU][V3.2.4][DA04] require causal load attribution and record byte overwrites
@@ -25,13 +26,10 @@ c3190f45 [LSU][V3.2.4][DA04] add byte-enable injector mode and store fault regis
 8a7f3887 [LSU][V3.2.4][DOCS] DA04 source audit and execution plan
 
 ## git status --short (untracked large artifacts are intentional)
+ M docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v324.txt
 ?? LSU_v3.2.3_Implementation_and_Model_Progress_Package.zip
 ?? LSU_v3.2.3_Propagation_Closure_Package.zip
 ?? LSU_v3.2.4_DA04_Implementation_Package.zip
-?? docs/gem5-fi/lsu/implementation_v3_2/DA04_MASK_EVIDENCE.txt
-?? docs/gem5-fi/lsu/implementation_v3_2/DA04_PILOT_SUMMARY.csv
-?? docs/gem5-fi/lsu/implementation_v3_2/DA04_PROPAGATION_EVIDENCE.txt
-?? docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v324.txt
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/citations.bib
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/config.ini
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/config.json
