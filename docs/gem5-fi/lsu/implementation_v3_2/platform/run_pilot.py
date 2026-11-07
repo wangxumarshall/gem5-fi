@@ -215,12 +215,19 @@ def main(argv=None) -> int:
     ap.add_argument("--preserve-sample-id", action="store_true",
                     help="Keep the Excel SampleRunID/RunID/SubTaskID "
                          "(pilots still write only to --outdir); v3.2.4 DA04")
+    ap.add_argument("--event-ordinal", type=int, default=None,
+                    help="TEMPORARY_EVENT_SELECTION override for the F0 "
+                         "eligible-event ordinal (v3.2.4 DA04 pilots); the "
+                         "Excel ordinal is recorded separately")
     args = ap.parse_args(argv)
 
     cfg = load_config(EXCEL, require_complete=False)
     model_rows = [s for s in cfg["samples"] if s["model_id"] == args.model]
     sample = copy.deepcopy(model_rows[args.context_index - 1])
     excel_seed = sample["seed"]
+    excel_event_ordinal = sample.get("event_ordinal")
+    if args.event_ordinal is not None:
+        sample["event_ordinal"] = args.event_ordinal
     if args.seed is None:
         args.seed = excel_seed
     if args.preserve_sample_id:
@@ -466,7 +473,8 @@ def main(argv=None) -> int:
             "sub_task_id": sample["sub_task_id"],
             "sample_run_id": sample["sample_run_id"],
             "seed": sample["seed"],
-            "event_ordinal": sample.get("event_ordinal"),
+            "event_ordinal": excel_event_ordinal,
+            "event_ordinal_used": sample.get("event_ordinal"),
         },
         "workload": str(WORKLOADS / _workload_for(args.model)),
         "command": cmd,

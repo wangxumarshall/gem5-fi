@@ -718,11 +718,14 @@ namespace gem5
             }
         }
         // store family (DA04 byte-enable / SQ01 store data): a LOAD whose
-        // range covers the faulted byte observes the store's architectural
-        // effect. Store responses are excluded (their dyn seq is the store's).
-        if (!hit_ptag && !pkt->isWrite() && inst->isLoad()) {
-            const Addr a = pkt->getAddr();
-            const Addr a_end = a + (Addr)pkt->getSize();
+        // request range covers the faulted byte observes the store's
+        // architectural effect. Use the Request VA/size (Packet::getAddr is
+        // block-aligned and its size is not the access size). Store responses
+        // are excluded (their dyn seq is the store's).
+        if (!hit_ptag && !pkt->isWrite() && inst->isLoad() && pkt->req &&
+                pkt->req->hasVaddr()) {
+            const Addr a = pkt->req->getVaddr();
+            const Addr a_end = a + (Addr)pkt->req->getSize();
             for (const auto &kv : fault_store_registry) {
                 const FaultStoreEntry &e = kv.second;
                 if (a < e.byte_end && e.byte_begin < a_end) {
