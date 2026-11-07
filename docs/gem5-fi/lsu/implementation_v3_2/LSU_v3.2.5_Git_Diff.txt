@@ -1,0 +1,1436 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc
+index e04ccc20..4a4591d8 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc
+@@ -34,6 +34,7 @@ namespace gem5
+                 std::geometric_distribution<uint64_t> skip_dist(0.1);
+                 events_to_skip = skip_dist(rng);
+             }
++            events_to_skip_initial = events_to_skip;
+             count_only = p.countOnly;
+         }
+     }
+@@ -65,46 +66,44 @@ namespace gem5
+     }
+ 
+     bool
+-    CHAOSL1DForward::maybeCorrupt(PacketPtr pkt)
++    CHAOSL1DForward::maybeCorrupt(PacketPtr pkt, bool is_load,
++                                  std::vector<uint8_t> *before_out,
++                                  uint64_t *mask_out)
+     {
+         if (!cpu || probability <= 0.0f) return false;
+-        // Sampling-bias fix (findings.md Phase 2.2): the OLD code corrupted
+-        // the FIRST eligible load after the window opened. With a
+-        // deterministic instruction stream, that is the SAME dynamic
+-        // instruction every rep (observed: addr=0x769a0, tick=97358415
+-        // across ALL seeds — a squashed wrong-path load whose corruption is
+-        // discarded), so a 384-rep formal measured one squashed load, not
+-        // the post-check-escape distribution. Skip a geometric(p=0.1)
+-        // number of eligible events before injecting so the single fault
+-        // lands on a seed-dependent random eligible load.
++        // Sampling-bias fix (findings.md Phase 2.2): a single fault must land
++        // on a seed/ordinal-selected eligible load, not always the first one.
+         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+         if (!inWindow()) return false;
+-        if (pkt && pkt->hasData() && !pkt->isWrite()) {
+-            // v1.1 Phase 8.2 countOnlyMode: count eligible loads, never
+-            // corrupt.
+-            if (count_only) { ++eligible_count; return false; }
+-            if (events_to_skip > 0) {
+-                --events_to_skip;
+-                return false;
+-            }
++
++        // LP01 eligibility (Excel: "Load（目标lqIdx）", "目标Load响应到达"):
++        // a data load response only. I-fetch, SC and atomic responses are not
++        // the modeled target and must not consume the ordinal/RNG stream.
++        const bool eligible = pkt && pkt->hasData() && !pkt->isWrite()
++            && is_load && !(pkt->req && pkt->req->isInstFetch());
++        if (!eligible) return false;
++        // v1.1 Phase 8.2 countOnlyMode: count eligible loads, never corrupt.
++        if (count_only) { ++eligible_count; return false; }
++        if (events_to_skip > 0) {
++            --events_to_skip;
++            return false;
+         }
+-        if (!pkt || !pkt->hasData()) return false;
+ 
+         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+         if (pd(rng) > probability) return false;
+ 
+-        // §2.7 post-check escape: XOR a bit of the response packet data
+-        // (post-L1D-read, post-ECC-check). The mask covers up to 8 bytes.
+         uint64_t mask = fault_mask ? fault_mask : (1ULL << (rng() % 64));
+         unsigned sz = pkt->getSize();
+         if (sz == 0) return false;
+         uint8_t *data = pkt->getPtr<uint8_t>();
+-        // [LP01][LSU v3.2.4] byte-wise, bounds-safe corruption. The old
+-        // uint64_t* cast always wrote 8 bytes even when the response was
+-        // shorter (size<8): an OOB write. The mask repeats every 8 bytes, so
+-        // size>=8 is unchanged.
+-        chaos_lp01::xorMask(data, sz, mask);
++        // Pre-fault copy for the propagation trace (taken before the XOR).
++        if (before_out) before_out->assign(data, data + sz);
++        // LP01-CFG01: byte lane 0 only, bounded by size (see lp01_bytewise.hh).
++        if (!chaos_lp01::corruptByte0(data, sz, mask)) return false;
+ 
++        last_eligible_ordinal = chaos_lp01::eligibleOrdinal(
++            events_to_skip_initial, events_to_skip);
++        if (mask_out) *mask_out = mask;
+         faults_injected_count++;
+         if (write_log) {
+             *(log_stream->stream()) << "Tick: " << curTick()
+@@ -112,6 +111,9 @@ namespace gem5
+                 << pkt->getAddr() << std::dec
+                 << ", size=" << sz
+                 << ", mask=0x" << std::hex << mask << std::dec
++                << ", eligible_ordinal=" << last_eligible_ordinal
++                << ", byte0_changed=1"
++                << ", addr_unchanged=1, size_unchanged=1"
+                 << ", faults_injected: " << faults_injected_count
+                 << std::endl;
+         }
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh
+index 88bb2d8a..7b729fad 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh
+@@ -3,6 +3,7 @@
+ 
+ #include <random>
+ #include <string>
++#include <vector>
+ 
+ #include "params/CHAOSL1DForward.hh"
+ #include "sim/sim_object.hh"
+@@ -25,9 +26,15 @@ class CHAOSL1DForward : public SimObject
+     void startup() override;  // self-attach to CPU.chaosL1DFwd
+ 
+     // Called from LSQUnit::completeDataAccess BEFORE writeback(inst, pkt).
+-    // XORs the response packet's data (post-L1D-read, post-ECC-check) —
+-    // the post-check escape path. Returns true if an injection happened.
+-    bool maybeCorrupt(PacketPtr pkt);
++    // Corrupts byte lane 0 of the response payload (post-L1D-read,
++    // post-ECC-check) — the post-check escape path. `is_load` is true only
++    // for a data load (SC/atomic/I-fetch are rejected). When `before_out`
++    // is non-null and a fault is injected, it receives a copy of the
++    // pre-fault payload taken BEFORE the XOR. Returns true iff injected.
++    bool maybeCorrupt(PacketPtr pkt, bool is_load,
++                      std::vector<uint8_t> *before_out = nullptr,
++                      uint64_t *mask_out = nullptr);
++    uint64_t lastEligibleOrdinal() const { return last_eligible_ordinal; }
+ 
+   private:
+     BaseCPU *cpu;
+@@ -44,6 +51,10 @@ class CHAOSL1DForward : public SimObject
+     // of always the first eligible one (which is the same squashed
+     // wrong-path load every rep on a deterministic stream).
+     uint64_t events_to_skip = 0;
++    // v3.2.5 LP01: the driver-supplied skip at startup, used to report the
++    // 1-based eligible-event ordinal that was actually injected.
++    uint64_t events_to_skip_initial = 0;
++    uint64_t last_eligible_ordinal = 0;
+     // v1.1 Phase 8.2 uniform sampling (chaos_event_sample.hh): FIXED skip
+     // from the driver overrides the legacy geometric(0.1) draw.
+     bool count_only = false;         // consume + count, never corrupt
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/README_LP01_AUDIT.md b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/README_LP01_AUDIT.md
+index 21424d02..5c2e1fd3 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/README_LP01_AUDIT.md
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/README_LP01_AUDIT.md
+@@ -28,3 +28,15 @@ no-fault alignment baseline -> checksum=0x3f89eab79392ce69 (golden)
+ 
+ - LP01 pilots on W5 `load_response`, target-event proof, and its own propagation chain.
+ - The existing `CHAOSL1DForward` tracer link (the v3.2.3 audit noted it has no trace link); LP01 will need the same store-style chain work before any PROPAGATION_VERIFIED claim.
++
++## v3.2.5 semantic ruling (from Excel, not from the old implementation)
++
++Excel v3.2.1 Sheet 3 (`TargetField=Packet::data[0]`), Sheet 5
++(`BitEntryByteIndex=byte0 bit3`, `FaultValue=data[0] ^= 0x08（严格按size逐字节）`)
++and the recommended option A define a **single-bit fault in response byte 0**.
++For sizes 1/4/7/8/9/12/16 only `data[0]` changes; the old mask-repetition over
++byte 8 is not part of LP01-CFG01. The unit test pins all seven sizes plus 0.
++
++Status after the semantic fix: DESIGNED / SOURCE_AUDITED / IMPLEMENTED /
++COMPILED / UNIT_TESTED. Pilots and PROPAGATION_VERIFIED remain open until the
++W5 five-pilot round.
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/lp01_bytewise.hh b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/lp01_bytewise.hh
+index 523d0142..25396c52 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/lp01_bytewise.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/lp01_bytewise.hh
+@@ -8,17 +8,33 @@ namespace gem5
+ namespace chaos_lp01
+ {
+ 
+-// LP01 (LSU v3.2.4): corrupt a load-response payload byte by byte. The old
+-// path cast the packet payload to uint64_t* and always XORed one 8-byte word,
+-// which wrote past the payload for size<8 (undefined behaviour / heap
+-// corruption). The mask bytes repeat every 8 bytes, so payloads >= 8 keep the
+-// previous two-word behaviour exactly and smaller payloads stay in bounds.
+-inline void
+-xorMask(uint8_t *data, unsigned size, uint64_t mask)
++// LP01-CFG01 (Excel v3.2.1 Sheet 3/4/5): the modeled fault is byte lane 0,
++// bit 3 of the load-response payload. The model is a single-bit data fault:
++// for a response of size N >= 1 exactly data[0] is XORed with the low byte
++// of `mask`; bytes 1..N-1 are untouched for every N, including 9/12/16.
++// Mask bits 8..63 are outside the modeled lane and ignored. size == 0 and
++// mask == 0 are no-ops. This is byte-wise and bounded: it never writes past
++// `size` (the v3.2.4 uint64_t* defect).
++inline bool
++corruptByte0(uint8_t *data, unsigned size, uint64_t mask)
+ {
+-    for (unsigned i = 0; i < size; ++i) {
+-        data[i] ^= (uint8_t)(mask >> (8 * (i % 8)));
+-    }
++    if (!data || size == 0)
++        return false;
++    const uint8_t m = (uint8_t)(mask & 0xffu);
++    if (m == 0)
++        return false;
++    data[0] ^= m;
++    return true;
++}
++
++// 1-based ordinal of the eligible event that is being injected. The injector
++// starts with `initial_skip` (ordinal - 1) and decrements `remaining_skip`
++// for every earlier eligible event; when it injects, the ordinal is
++// initial_skip - remaining_skip + 1.
++inline uint64_t
++eligibleOrdinal(uint64_t initial_skip, uint64_t remaining_skip)
++{
++    return initial_skip - remaining_skip + 1;
+ }
+ 
+ } // namespace chaos_lp01
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+index c1b535e9..7f74d963 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -171,14 +171,17 @@ namespace gem5
+                                 Addr addr, bool has_addr,
+                                 uint64_t phys_reg, bool has_phys,
+                                 uint64_t arch_reg, bool has_arch,
+-                                const std::string &detail)
++                                const std::string &detail, Tick tick)
+     {
+         if (!write_log || !gz_file)
+             return 0;
+         const uint64_t node_id = next_node_id;
++        // `tick` lets a request-time node carry the true request issue time;
++        // 0 means "now".
++        const Tick node_tick = tick ? tick : curTick();
+         // Numeric fields without a value are EMPTY strings (pinned contract).
+         std::ostringstream row;
+-        row << node_id << ',' << curTick() << ',' << ptag << ','
++        row << node_id << ',' << node_tick << ',' << ptag << ','
+             << kind << ',';
+         if (has_seq) row << dyn_seq;
+         row << ',';
+@@ -244,6 +247,14 @@ namespace gem5
+         return out.str();
+     }
+ 
++    std::string
++    CHAOSPropagation::fnvHex(const uint8_t *p, unsigned n) const
++    {
++        std::ostringstream s;
++        s << std::hex << fnv1a64(p, n) << std::dec;
++        return s.str();
++    }
++
+     void
+     CHAOSPropagation::writeEdgeRow(uint64_t ptag, uint64_t source_node,
+                                    uint64_t destination_node,
+@@ -660,6 +671,14 @@ namespace gem5
+         if (rm.request_id == 0) {
+             rm.request_id = ++next_request_id;
+         }
++        if (rm.request_tick == 0) {
++            rm.request_tick = curTick();      // true request-issue tick
++            rm.vaddr = req->getVaddr();
++            rm.size = req->getSize();
++            rm.dyn_seq = dyn_seq;
++            rm.lq_idx = lq_idx;
++            rm.sq_idx = sq_idx;
++        }
+         rm.fragment_id = ++next_fragment_id;
+         const uint64_t request_id = rm.request_id;
+         const uint64_t fragment_id = rm.fragment_id;
+@@ -706,6 +725,41 @@ namespace gem5
+             writeNode(e.ptag, "mem_req", dyn_seq, true,
+                       request_id, true, v, true, 0, false, 0, false, d.str());
+         }
++
++        // DA04 (v3.2.5): a LOAD request whose range overlaps a registered
++        // faulted store byte is a candidate consumer. This node records the
++        // load's REAL request time; the final causal decision happens at the
++        // response (Task 7) using request_tick, never the response tick.
++        // lq_idx >= 0 identifies the load side at this hook (gem5 v25
++        // Request has no isWrite()); instruction fetches are not data loads.
++        if (lq_idx >= 0 && !req->isInstFetch()) {
++            for (const auto &kv : fault_store_registry) {
++                const FaultStoreEntry &e = kv.second;
++                if (e.written_tick == 0)
++                    continue;
++                if (v >= e.byte_end || e.byte_begin >= v_end)
++                    continue;
++                const bool candidate = chaos_store_chain::mayConsumeFaultByte(
++                    dyn_seq, e.dyn_seq, e.overwritten, e.written_tick,
++                    rm.request_tick);
++                std::ostringstream sd;
++                sd << "site=" << site << ";family=" << e.family
++                   << ";candidate=" << (candidate ? 1 : 0)
++                   << ";size=" << req->getSize()
++                   << ";request_id=" << request_id
++                   << ";fragment_id=" << fragment_id
++                   << ";request_tick=" << rm.request_tick
++                   << ";store_write_tick=" << e.written_tick
++                   << ";request_before_store_write="
++                   << (rm.request_tick < e.written_tick ? 1 : 0)
++                   << ";overwritten=" << (e.overwritten ? 1 : 0)
++                   << ";lq_entry_id=" << lq_idx
++                   << ";sq_entry_id=" << sq_idx;
++                writeNode(e.ptag, "mem_req", dyn_seq, true,
++                          request_id, true, v, true, 0, false, 0, false,
++                          sd.str(), rm.request_tick);
++            }
++        }
+     }
+ 
+     void
+@@ -719,9 +773,17 @@ namespace gem5
+         uint64_t hit_ptag = 0;
+         const char *hit_family = nullptr;
+ 
++        // LP01: the response is observed AFTER maybeCorrupt, so data_* is the
++        // delivered (injected) payload. Bind directly by instruction identity.
++        auto lf = l1dfwd_registry.find(inst->seqNum);
++        if (lf != l1dfwd_registry.end() && lf->second.resp_node == 0) {
++            hit_ptag = lf->second.ptag;
++            hit_family = "l1d_fwd";
++        }
++
+         // addrpath: the response's own Request vaddr range vs the registry,
+         // bound to this instruction (the faulting load itself).
+-        if (pkt->req && pkt->req->hasVaddr()) {
++        if (!hit_ptag && pkt->req && pkt->req->hasVaddr()) {
+             const Addr v = pkt->req->getVaddr();
+             const Addr v_end = v + (Addr)pkt->req->getSize();
+             for (const auto &kv : addr_registry) {
+@@ -758,13 +820,16 @@ namespace gem5
+                 pkt->req->hasVaddr()) {
+             const Addr a = pkt->req->getVaddr();
+             const Addr a_end = a + (Addr)pkt->req->getSize();
++            // v3.2.5: causality is anchored at the load's REQUEST tick, not
++            // the response tick. See store_chain_rules.hh.
++            const Tick req_tick =
++                (pkt->req && req_meta.count(pkt->req.get()))
++                    ? req_meta[pkt->req.get()].request_tick : 0;
+             for (const auto &kv : fault_store_registry) {
+                 const FaultStoreEntry &e = kv.second;
+-                // v3.2.4 review fix: younger load + after the actual write
+-                // + not overwritten. See store_chain_rules.hh.
+                 if (!chaos_store_chain::mayConsumeFaultByte(
+                         inst->seqNum, e.dyn_seq, e.overwritten,
+-                        e.written_tick, curTick()))
++                        e.written_tick, req_tick))
+                     continue;
+                 if (a < e.byte_end && e.byte_begin < a_end) {
+                     hit_ptag = e.ptag;
+@@ -791,15 +856,20 @@ namespace gem5
+             (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].request_id : 0;
+         const uint64_t fragment_id =
+             (pkt->req && req_meta.count(pkt->req.get())) ? req_meta[pkt->req.get()].fragment_id : 0;
+-        const uint64_t response_id = ++next_response_id;
++        const bool l1d_fwd = hit_ptag
++            && std::string(hit_family) == "l1d_fwd";
++        // LP01: injection and response are the same delivery; reuse the id
++        // allocated at injection instead of inventing a second one.
++        const uint64_t response_id = l1d_fwd
++            ? lf->second.response_id : ++next_response_id;
+         const unsigned data_len = pkt->hasData() ? pkt->getSize() : 0;
+-        const uint64_t data_hash = data_len
+-            ? fnv1a64(pkt->getPtr<uint8_t>(), data_len) : 0;
+-        std::ostringstream data_hash_ss;
+-        if (data_len) data_hash_ss << std::hex << data_hash << std::dec;
+-        const std::string data_hash_str = data_hash_ss.str();
+-        const std::string data_hex = data_len
+-            ? bytesToHex(pkt->getPtr<uint8_t>(), data_len) : "";
++        // For LP01, use the bytes the injector actually wrote. This is the
++        // same buffer writeback consumes; using the registry avoids a stale
++        // packet view if gem5 delivered a different wrapper object.
++        const std::string data_hash_str = l1d_fwd ? lf->second.inj_fnv
++            : (data_len ? fnvHex(pkt->getPtr<uint8_t>(), data_len) : "");
++        const std::string data_hex = l1d_fwd ? lf->second.inj_hex
++            : (data_len ? bytesToHex(pkt->getPtr<uint8_t>(), data_len) : "");
+         uint64_t resp_node = 0;
+         {
+             std::ostringstream d;
+@@ -816,8 +886,24 @@ namespace gem5
+               << (inst->isLoad() ? inst->lqEntryGeneration
+                                  : inst->sqEntryGeneration)
+               << ";execution_attempt_id=" << inst->executionAttemptId
+-              << ";replay_generation=" << inst->replayGeneration
+-              << ";pa=" << std::hex << pkt->getAddr() << std::dec;
++              << ";replay_generation=" << inst->replayGeneration;
++            if (l1d_fwd) {
++                d << ";orig_data_fnv=" << lf->second.orig_fnv
++                  << ";orig_data_hex=" << lf->second.orig_hex
++                  << ";inj_data_fnv=" << lf->second.inj_fnv
++                  << ";mask=0x" << std::hex << lf->second.mask << std::dec
++                  << ";eligible_ordinal=" << lf->second.eligible_ordinal
++                  << ";request_tick=" << lf->second.request_tick
++                  << ";response_tick=" << curTick()
++                  << ";payload_len=" << lf->second.size
++                  << ";writeback_value=null;BEFORE_WB=1";
++            } else {
++                const Tick rt = (pkt->req && req_meta.count(pkt->req.get()))
++                    ? req_meta[pkt->req.get()].request_tick : 0;
++                d << ";request_tick=" << rt
++                  << ";response_tick=" << curTick();
++            }
++            d << ";pa=" << std::hex << pkt->getAddr() << std::dec;
+             if (inst->getFault() != NoFault)
+                 d << ";fault=" << inst->getFault()->name();
+             resp_node = writeNode(hit_ptag, "resp", inst->seqNum, true,
+@@ -826,8 +912,16 @@ namespace gem5
+                                   0, false, 0, false, d.str());
+             resp_node_by_ptag[hit_ptag] = resp_node;
+             resp_hash_by_ptag[hit_ptag] = data_hash_str;
++            if (l1d_fwd)
++                lf->second.resp_node = resp_node;
+         }
+ 
++        // LP01 writeback is emitted after LSQUnit::writeback reads the PRF
++        // (noteL1DForwardWriteback); the pre-writeback taint loop below would
++        // record the payload, not the actual register value.
++        if (l1d_fwd)
++            return;
++
+         // taint_reg: exactly the condition under which LSQUnit::writeback
+         // performs completeAcc (needWBToRegister + NoFault) — the load's
+         // dest phys regs receive the fault-delivered data. The writeback
+@@ -870,6 +964,142 @@ namespace gem5
+         }
+     }
+ 
++    uint64_t
++    CHAOSPropagation::noteL1DForwardInjection(o3::DynInst *inst, Packet *pkt,
++                                              bool wb_to_reg,
++                                              const uint8_t *before,
++                                              unsigned size, uint64_t mask,
++                                              uint64_t eligible_ordinal)
++    {
++        if (!write_log || !inst || !pkt || !before || size == 0)
++            return 0;
++        const uint64_t ptag = ++next_ptag;
++        fault_seqs.insert(inst->seqNum);
++
++        L1DFwdEntry e;
++        e.ptag = ptag;
++        e.size = size;
++        e.mask = mask;
++        e.eligible_ordinal = eligible_ordinal;
++        if (pkt->req) {
++            auto &rm = req_meta[pkt->req.get()];
++            if (rm.request_id == 0)
++                rm.request_id = ++next_request_id;
++            e.request_id = rm.request_id;
++            e.request_tick = rm.request_tick;
++            e.fragment_id = rm.fragment_id;
++        }
++        e.response_id = ++next_response_id;
++        const uint8_t *after = pkt->getPtr<uint8_t>();
++        e.orig_fnv = fnvHex(before, size);
++        e.orig_hex = bytesToHex(before, size);
++        e.inj_fnv = fnvHex(after, size);
++        e.inj_hex = bytesToHex(after, size);
++
++        std::ostringstream d;
++        d << "site=LSQUnit::completeDataAccess;family=l1d_fwd;model=LP01"
++          << ";size=" << size
++          << ";orig_data_fnv=" << e.orig_fnv
++          << ";orig_data_hex=" << e.orig_hex
++          << ";inj_data_fnv=" << e.inj_fnv
++          << ";inj_data_hex=" << e.inj_hex
++          << ";byte0_before=0x" << std::hex << (unsigned)before[0]
++          << ";byte0_after=0x" << (unsigned)after[0] << std::dec
++          << ";mask=0x" << std::hex << mask << std::dec
++          << ";eligible_ordinal=" << eligible_ordinal
++          << ";request_id=" << e.request_id
++          << ";response_id=" << e.response_id
++          << ";fragment_id=" << e.fragment_id
++          << ";request_tick=" << e.request_tick
++          << ";injection_tick=" << curTick()
++          << ";lq_entry_id=" << inst->lqIdx
++          << ";entry_generation=" << inst->lqEntryGeneration
++          << ";execution_attempt_id=" << inst->executionAttemptId
++          << ";replay_generation=" << inst->replayGeneration
++          << ";wb_to_reg=" << (wb_to_reg ? 1 : 0)
++          << ";addr=0x" << std::hex << pkt->getAddr() << std::dec
++          << ";phys_regs=";
++        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
++            const PhysRegIdPtr p = inst->renamedDestIdx(i);
++            if (p)
++                d << (i ? "," : "") << regClassName(p->classValue())
++                  << ":" << p->index();
++        }
++        writeNode(ptag, "inj_l1dfwd", inst->seqNum, true,
++                  e.request_id, e.request_id != 0, pkt->getAddr(), true,
++                  0, false, 0, false, d.str());
++        l1dfwd_registry[inst->seqNum] = e;
++        return ptag;
++    }
++
++    void
++    CHAOSPropagation::noteL1DForwardWriteback(o3::DynInst *inst)
++    {
++        if (!write_log || !inst || !o3cpu)
++            return;
++        auto it = l1dfwd_registry.find(inst->seqNum);
++        if (it == l1dfwd_registry.end())
++            return;
++        L1DFwdEntry &e = it->second;
++        if (e.resp_node == 0)
++            return;                 // response was squashed away: no WB claim
++
++        const int ndest = (int)inst->numDestRegs();
++        for (int i = 0; i < ndest; ++i) {
++            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
++            if (!phys)
++                continue;
++            uint64_t value = 0;
++            unsigned bytes = 0;
++            const std::string vhash = regValueHash(
++                inst, phys, inst->threadNumber, &value, &bytes);
++            std::ostringstream vb;
++            vb << std::hex << value << std::dec;
++            const bool basis_ok = (e.size == 8 && bytes == 8
++                                   && vhash == e.inj_fnv);
++            std::ostringstream d;
++            d << "family=l1d_fwd;class=" << regClassName(phys->classValue())
++              << ";dest_idx=" << i
++              << ";phys_reg=" << phys->index()
++              << ";arch_reg=" << inst->destRegIdx(i).index()
++              << ";writeback_value=" << vb.str()
++              << ";writeback_value_fnv=" << (vhash.empty() ? "null" : vhash)
++              << ";payload_fnv=" << e.inj_fnv
++              << ";payload_hex=" << e.inj_hex
++              << ";payload_len=" << e.size
++              << ";hash_basis="
++              << (e.size == 8 ? "payload_equals_regval" : "regval_extension")
++              << ";value_matches_payload=" << (basis_ok ? 1 : 0)
++              << ";source_value_hash=" << e.inj_fnv
++              << ";source_event_id=" << e.resp_node
++              << ";request_id=" << e.request_id
++              << ";response_id=" << e.response_id
++              << ";eligible_ordinal=" << e.eligible_ordinal
++              << ";lq_entry_id=" << inst->lqIdx
++              << ";entry_generation=" << inst->lqEntryGeneration
++              << ";execution_attempt_id=" << inst->executionAttemptId
++              << ";replay_generation=" << inst->replayGeneration
++              << ";writeback_tick=" << curTick();
++            const uint64_t wb_node = writeNode(
++                e.ptag, "taint_reg", inst->seqNum, true,
++                e.request_id, e.request_id != 0, 0, false,
++                phys->index(), true,
++                inst->destRegIdx(i).index(), true, d.str());
++            TaintEntry te;
++            te.ptag = e.ptag;
++            te.taintor_seq = inst->seqNum;
++            te.node_id = wb_node;
++            te.value_hash = vhash;   // actual PRF value, not the payload
++            taint_set[std::make_pair(phys->classValue(),
++                                     phys->index())] = te;
++            writeEdgeRow(e.ptag, e.resp_node, wb_node, inst->seqNum,
++                         inst->seqNum, e.inj_fnv, vhash,
++                         (basis_ok ? "payload_to_register"
++                                   : "payload_to_register_extended"));
++        }
++        l1dfwd_registry.erase(it);
++    }
++
+     void
+     CHAOSPropagation::noteReplay(o3::DynInst *inst, const char *reason)
+     {
+@@ -1022,19 +1252,41 @@ namespace gem5
+             any_consumer = true;
+             if (!first_consumed_ptag)
+                 first_consumed_ptag = it->second.ptag;
+-            uint64_t cval = 0;
+-            unsigned cbytes = 0;
+-            const std::string chash = regValueHash(
+-                head_inst, phys, tid, &cval, &cbytes);
++
++            uint64_t ival = 0, oval = 0;
++            unsigned ibytes = 0, obytes = 0;
++            const std::string ihash =
++                regValueHash(head_inst, phys, tid, &ival, &ibytes);
++            std::string ohash;
++            uint64_t out_phys = 0, out_arch = 0;
++            if (head_inst->numDestRegs() > 0) {
++                const PhysRegIdPtr dphys = head_inst->renamedDestIdx(0);
++                if (dphys) {
++                    ohash = regValueHash(head_inst, dphys, tid, &oval,
++                                         &obytes);
++                    out_phys = dphys->index();
++                    out_arch = head_inst->destRegIdx(0).index();
++                }
++            }
++            const bool input_matches =
++                !ihash.empty() && !it->second.value_hash.empty()
++                && ihash == it->second.value_hash;
++
+             std::ostringstream d;
+             d << "class=" << regClassName(phys->classValue())
+               << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec
+               << ";source_event_id=" << it->second.node_id
+               << ";source_value_hash="
+               << (it->second.value_hash.empty() ? "null" : it->second.value_hash)
+-              << ";consumer_value_hash=" << (chash.empty() ? "null" : chash)
+-              << ";consumer_value=" << std::hex << cval << std::dec
+-              << ";consumer_value_bytes=" << cbytes
++              << ";consumer_input_value=" << std::hex << ival << std::dec
++              << ";consumer_input_fnv=" << (ihash.empty() ? "null" : ihash)
++              << ";consumer_input_bytes=" << ibytes
++              << ";consumer_output_value=" << std::hex << oval << std::dec
++              << ";consumer_output_fnv=" << (ohash.empty() ? "null" : ohash)
++              << ";consumer_output_bytes=" << obytes
++              << ";consumer_input_matches_source=" << (input_matches ? 1 : 0)
++              << ";dest_phys_reg=" << out_phys
++              << ";dest_arch_reg=" << out_arch
+               << ";commit_seq=" << commit_seq
+               << ";execution_attempt_id=" << head_inst->executionAttemptId
+               << ";replay_generation=" << head_inst->replayGeneration;
+@@ -1043,10 +1295,10 @@ namespace gem5
+                 0, false, 0, false, phys->index(), true,
+                 head_inst->srcRegIdx(i).index(), true, d.str());
+             last_consumer_node = consumer_node;
+-            last_consumer_hash = chash;
++            last_consumer_hash = ohash;
+             writeEdgeRow(it->second.ptag, it->second.node_id, consumer_node,
+                          it->second.taintor_seq, head_inst->seqNum,
+-                         it->second.value_hash, chash, "register_dataflow");
++                         it->second.value_hash, ohash, "register_dataflow");
+         }
+ 
+         // Dests: is this the faulting load itself committing its tainted
+@@ -1100,6 +1352,8 @@ namespace gem5
+                 te.ptag = first_consumed_ptag;
+                 te.taintor_seq = head_inst->seqNum;
+                 te.node_id = last_consumer_node;
++                // The destination now holds the consumer's OUTPUT value; the
++                // next consumer's input hash must match THIS hash.
+                 te.value_hash = last_consumer_hash;
+                 taint_set[std::make_pair(phys->classValue(),
+                                          phys->index())] = te;
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+index 513d10ad..a9aa8bc9 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -272,12 +272,26 @@ class CHAOSPropagation : public SimObject
+                         const uint8_t *fwd_data, unsigned fwd_size,
+                         bool suppressed, bool memory_path);
+ 
++    // LP01 (LSU v3.2.5): a load-response data fault at completeDataAccess.
++    // `before` is the payload copied before the XOR; the packet already holds
++    // the injected bytes. Emits inj_l1dfwd with BOTH hashes and binds the
++    // chain to the instruction so noteMemResponse records delivered data.
++    uint64_t noteL1DForwardInjection(o3::DynInst *inst, Packet *pkt,
++                                     bool wb_to_reg, const uint8_t *before,
++                                     unsigned size, uint64_t mask,
++                                     uint64_t eligible_ordinal);
++
++    // After LSQUnit::writeback completed completeAcc: read the ACTUAL PRF
++    // value and emit the LP01 register_writeback node + taint entry.
++    void noteL1DForwardWriteback(o3::DynInst *inst);
++
+   private:
+     // One CSV row: numeric fields with has_x=false print as "".
+     uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
+                    bool has_seq, uint64_t request_id, bool has_req_id,
+                    Addr addr, bool has_addr, uint64_t phys_reg, bool has_phys,
+-                   uint64_t arch_reg, bool has_arch, const std::string &detail);
++                   uint64_t arch_reg, bool has_arch, const std::string &detail,
++                   Tick tick = 0);
+ 
+     void writeEdgeRow(uint64_t ptag, uint64_t source_node,
+                       uint64_t destination_node, uint64_t producer_seq,
+@@ -291,6 +305,7 @@ class CHAOSPropagation : public SimObject
+                              unsigned *bytes_out) const;
+ 
+     uint64_t fnv1a64(const void *blob, size_t n) const;
++    std::string fnvHex(const uint8_t *p, unsigned n) const;
+     const char *regClassName(int class_value) const;
+ 
+     // Lazy expiry sweep (called on insert/lookup; registries are tiny).
+@@ -315,8 +330,14 @@ class CHAOSPropagation : public SimObject
+     bool errant_commit_seen = false;
+ 
+     struct RequestMeta {
+-        uint64_t request_id;
+-        uint64_t fragment_id;
++        uint64_t request_id = 0;
++        uint64_t fragment_id = 0;
++        Tick request_tick = 0;   // first fragment's issue tick (v3.2.5)
++        Addr vaddr = 0;
++        unsigned size = 0;
++        uint64_t dyn_seq = 0;
++        int64_t lq_idx = -1;
++        int64_t sq_idx = -1;
+     };
+     std::map<const Request *, RequestMeta> req_meta;
+     std::set<uint64_t> fault_seqs;   // dynamic insts that received a fault
+@@ -372,6 +393,21 @@ class CHAOSPropagation : public SimObject
+     };
+     std::map<uint64_t, FaultStoreEntry> fault_store_registry;
+ 
++    // LP01 chain, keyed by the faulting instruction's dyn_inst_seq.
++    struct L1DFwdEntry {
++        uint64_t ptag = 0;
++        uint64_t request_id = 0;
++        uint64_t response_id = 0;
++        uint64_t fragment_id = 0;
++        Tick request_tick = 0;
++        uint64_t eligible_ordinal = 0;
++        unsigned size = 0;
++        uint64_t mask = 0;
++        std::string orig_fnv, orig_hex, inj_fnv, inj_hex;
++        uint64_t resp_node = 0;
++    };
++    std::map<uint64_t, L1DFwdEntry> l1dfwd_registry;
++
+     static uint64_t chaosBeMask(const std::vector<bool> &be);
+ };
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/store_chain_rules.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/store_chain_rules.hh
+index 966b0f17..021d6593 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/store_chain_rules.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/store_chain_rules.hh
+@@ -8,18 +8,20 @@ namespace gem5
+ namespace chaos_store_chain
+ {
+ 
+-// LSU v3.2.4 review fix. A load may join a faulted store's chain only when:
++// LSU v3.2.5. A load may join a faulted store's chain only when:
+ //   - it is younger than the store in program order (a pre-store load cannot
+ //     read the store's value),
+ //   - the store's actual cache write has already happened,
+-//   - the response is observed at/after that write tick, and
++//   - the load's own REQUEST was issued at/after that write (a request that
++//     left the LSQ before the write can only have observed the old byte —
++//     response time alone is not evidence of causality), and
+ //   - no different store has overwritten the byte.
+-// This prevents address-overlap-only attribution (a later load reading an
+-// overwriting store, or an in-flight older load) from being counted as a
+-// fault propagation.
++// The v3.2.4 rule compared the RESPONSE tick, which admitted loads already in
++// flight when the store wrote; the DA04 R04 chain is exactly that case
++// (R04: request 2286900 < store write 17042410 < response 17889795).
+ inline bool
+ mayConsumeFaultByte(uint64_t load_seq, uint64_t store_seq, bool overwritten,
+-                    uint64_t written_tick, uint64_t now)
++                    uint64_t written_tick, uint64_t load_request_tick)
+ {
+     if (overwritten)
+         return false;
+@@ -27,7 +29,7 @@ mayConsumeFaultByte(uint64_t load_seq, uint64_t store_seq, bool overwritten,
+         return false;
+     if (load_seq <= store_seq)
+         return false;
+-    if (now < written_tick)
++    if (load_request_tick < written_tick)
+         return false;
+     return true;
+ }
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index bc47ddf6..b7cde71f 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -39,6 +39,8 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#include <vector>
++
+ #include "cpu/o3/lsq_unit.hh"
+ 
+ #include "arch/generic/debugfaults.hh"
+@@ -165,20 +167,6 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
+ 
+     cpu->ppDataAccessComplete->notify(std::make_pair(inst, pkt));
+ 
+-    // [LSU][OBS-L3] response node (+ load taint): the packet just returned
+-    // from the memory system — if it delivers a registered fault (addrpath
+-    // addr registry / cache faulted-byte registry), record the resp node
+-    // and, for register-writeback loads/SC/atomics with NoFault (exactly
+-    // the completeAcc condition below), the taint_reg nodes. Placed before
+-    // the needWB branch so STORE responses are covered too; squashed insts
+-    // are guarded inside. NOTE (documented boundary): when CHAOSL1DForward
+-    // is ALSO attached, its corruption inside the needWB branch happens
+-    // AFTER this snapshot — the L3 chain is not combined-injector-aware in
+-    // v1 (the campaign runs one injector per sample). nullptr = no tracer.
+-    if (cpu->chaosPropagation)
+-        cpu->chaosPropagation->noteMemResponse(inst.get(), pkt,
+-                                               request->needWBToRegister());
+-
+     assert(!cpu->switchedOut());
+     if (!inst->isSquashed()) {
+         if (request->needWBToRegister()) {
+@@ -196,11 +184,33 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
+             // §2.7 CHAOSL1DForward: post-check escape — corrupt the load
+             // response data AFTER L1D read (model: ECC checked & passed)
+             // and BEFORE writeback to the register. nullptr = no injection.
++            std::vector<uint8_t> lp01_before;
++            uint64_t lp01_mask = 0;
++            bool lp01_injected = false;
+             if (cpu->chaosL1DFwd) {
+-                cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket());
++                lp01_injected = cpu->chaosL1DFwd->maybeCorrupt(
++                    request->mainPacket(), inst->isLoad(),
++                    cpu->chaosPropagation ? &lp01_before : nullptr,
++                    cpu->chaosPropagation ? &lp01_mask : nullptr);
+             }
++            if (lp01_injected && cpu->chaosPropagation) {
++                cpu->chaosPropagation->noteL1DForwardInjection(
++                    inst.get(), request->mainPacket(),
++                    request->needWBToRegister(), lp01_before.data(),
++                    (unsigned)lp01_before.size(), lp01_mask,
++                    cpu->chaosL1DFwd->lastEligibleOrdinal());
++            }
++
++            // [LSU][OBS-L3] response node: AFTER the post-check injector, so
++            // resp/taint data is what writeback actually delivers. nullptr =
++            // no tracer.
++            if (cpu->chaosPropagation)
++                cpu->chaosPropagation->noteMemResponse(
++                    inst.get(), pkt, request->needWBToRegister());
+ 
+             writeback(inst, request->mainPacket());
++            if (lp01_injected && cpu->chaosPropagation)
++                cpu->chaosPropagation->noteL1DForwardWriteback(inst.get());
+             if (inst->isStore() || inst->isAtomic()) {
+                 request->writebackDone();
+                 completeStore(request->instruction()->sqIt);
+@@ -208,6 +218,9 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
+         } else if (inst->isStore()) {
+             // This is a regular store (i.e., not store conditionals and
+             // atomics), so it can complete without writing back
++            if (cpu->chaosPropagation)
++                cpu->chaosPropagation->noteMemResponse(
++                    inst.get(), pkt, request->needWBToRegister());
+             completeStore(request->instruction()->sqIt);
+         }
+     }
+diff --git a/configs/se/lsu_proxy.py b/configs/se/lsu_proxy.py
+index 639299f1..27696e11 100644
+--- a/configs/se/lsu_proxy.py
++++ b/configs/se/lsu_proxy.py
+@@ -433,6 +433,12 @@ p.add_argument("--l1dfwd_first_clock", type=lambda x: int(x,0), default=1000)
+ p.add_argument("--l1dfwd_max_faults", type=lambda x: int(x,0), default=1)
+ p.add_argument("--l1dfwd_fault_mask", type=lambda x: int(x,0), default=0)
+ p.add_argument("--l1dfwd_rng_seed", type=lambda x: int(x,0), default=20260825)
++p.add_argument("--l1dfwd_events_to_skip", type=lambda x: int(x, 0), default=-1,
++               help="fixed eligible-event skip (v1.1 uniform sampling)")
++p.add_argument("--l1dfwd_count_only", action="store_true",
++               help="count eligible load responses, never corrupt")
++p.add_argument("--l1dfwd_event_ordinal", type=lambda x: int(x, 0), default=0,
++               help="1-based eligible load-response ordinal (R01-R05 temporary selection)")
+ # §2.13 CHAOSBPU (O3 branch-prediction injector). SELF-ATTACHES at startup()
+ # to cpu.o3BAC().chaosBPU. Hooks BAC::predict post-bpu->predict; F5 flips
+ # direction (dir_flip) or PC target bit (target_flip).
+@@ -989,6 +995,10 @@ if args.chaos_fpu:
+ if args.chaos_l1dfwd:
+     # §2.7 CHAOSL1DForward: O3-only. SELF-ATTACHES at startup() to
+     # cpu.chaosL1DFwd (completeDataAccess calls maybeCorrupt pre-writeback).
++    skip = (0xFFFFFFFFFFFFFFFF if args.l1dfwd_events_to_skip < 0
++            else args.l1dfwd_events_to_skip)
++    if args.l1dfwd_event_ordinal > 0:
++        skip = args.l1dfwd_event_ordinal - 1
+     l1df = CHAOSL1DForward(
+         cpu=cpu0,
+         probability=args.probability,
+@@ -996,6 +1006,8 @@ if args.chaos_l1dfwd:
+         maxFaults=args.l1dfwd_max_faults,
+         faultMask=args.l1dfwd_fault_mask,
+         rngSeed=args.l1dfwd_rng_seed,
++        eventsToSkip=skip,
++        countOnly=args.l1dfwd_count_only,
+         writeLog=True,
+     )
+     board.chaos_l1dfwd = l1df
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+index 31eb1459..ef295677 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+@@ -43,7 +43,7 @@ WORKLOADS = IMPL / "workloads"
+ def _workload_for(model: str) -> str:
+     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
+             "FW02": "sq_forward", "SQ01": "sq_drain",
+-            "DA04": "alignment"}[model]
++            "DA04": "alignment", "LP01": "load_response"}[model]
+ 
+ 
+ def _funnel(path: Path) -> dict:
+@@ -132,6 +132,24 @@ def _addrpath_events(path: Path) -> list[dict]:
+     return events
+ 
+ 
++def _l1dfwd_events(path: Path) -> list[dict]:
++    """Parse LP01 injection lines (one per injected load response)."""
++    out = []
++    if not path.exists():
++        return out
++    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
++        m = re.search(
++            r"Tick:\s*(\d+).*addr=0x([0-9a-fA-F]+), size=(\d+), "
++            r"mask=0x([0-9a-fA-F]+),\s*eligible_ordinal=(\d+).*"
++            r"faults_injected:\s*(\d+)", line)
++        if m:
++            out.append({"tick": int(m[1]), "addr": int(m[2], 16),
++                        "size": int(m[3]), "mask": int(m[4], 16),
++                        "eligible_ordinal": int(m[5]),
++                        "faults_injected": int(m[6])})
++    return out
++
++
+ def _read_events(path: Path) -> list[dict]:
+     if not path.exists():
+         return []
+@@ -204,7 +222,7 @@ def _fault_causality(events: list[dict], terminal: str,
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__)
+     ap.add_argument("--model", required=True,
+-                    choices=["A01", "A03", "FW02", "SQ01", "DA04"])
++                    choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01"])
+     ap.add_argument("--pilot-id", required=True)
+     ap.add_argument("--seed", type=int, default=None,
+                     help="override seed; default = the selected Excel context row")
+@@ -276,6 +294,13 @@ def main(argv=None) -> int:
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+                  "--lsqfwd_event_ordinal",
+                  str(sample.get("event_ordinal") or 1)]
++    elif args.model == "LP01":
++        extra = ["--chaos_l1dfwd", "--l1dfwd_first_clock", "0",
++                 "--l1dfwd_max_faults", "1",
++                 "--l1dfwd_fault_mask", "0x8",
++                 "--l1dfwd_rng_seed", str(args.seed),
++                 "--l1dfwd_event_ordinal",
++                 str(sample.get("event_ordinal") or 1)]
+     else:
+         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+@@ -353,6 +378,19 @@ def main(argv=None) -> int:
+                 e["old_addr"] == e["new_addr"] for e in events),
+         }
+         injected = len(events)
++    elif args.model == "LP01":
++        events = _l1dfwd_events(out / "l1d_fwd_injections.log")
++        inj = {"events": events, "injected": len(events)}
++        target_proof = {
++            "site": "LSQUnit::completeDataAccess",
++            "events": len(events),
++            "all_load_only": True,
++            "all_mask_0x8": all(e["mask"] == 0x8 for e in events),
++            "all_size_nonzero": all(e["size"] > 0 for e in events),
++            "all_ordinals_distinct": len({e["eligible_ordinal"]
++                                          for e in events}) == len(events),
++        }
++        injected = len(events)
+     else:
+         inj = _fw02_summary(out / "lsq_fwd_injections.log")
+         target_proof = {"site": "store->load_forward_decision", **inj}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+index 62cd8643..dcb2bdb1 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+@@ -10,7 +10,7 @@ the FW02-R01/R05 defect this module fixes.
+ """
+ from __future__ import annotations
+ 
+-LOAD_SIDE = ("A01", "A03", "FW02")
++LOAD_SIDE = ("A01", "A03", "FW02", "LP01")
+ HARD_TERMINALS = ("CRASH", "HANG", "ARCH_STATE_CORRUPTION",
+                   "DETECTED_CONTAINED")
+ 
+@@ -53,27 +53,35 @@ def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
+     if squashed and not committed:
+         return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
+ 
+-    if oracle_pass is False:
+-        return "SDC", "ORACLE_FAIL"
+-
+     if model in LOAD_SIDE:
++        # v3.2.5: oracle failure alone is not SDC. The fault must have
++        # reached the architectural register as a committed value.
+         data_value = any(
+-            e.get("event_type") in ("memory_response", "register_writeback")
++            e.get("event_type") == "register_writeback"
+             and e.get("new_value") not in (None, "")
+-            for e in own)
++            for e in chain)
+         if not committed:
+             return "UNRESOLVED", "TARGET_NOT_COMMITTED"
+         if not data_value:
+-            return "UNRESOLVED", "UNRESOLVED_NO_DATA_VALUE_EVIDENCE"
++            return "UNRESOLVED", "UNRESOLVED_NO_REGISTER_WRITEBACK_EVIDENCE"
++        if oracle_pass is False:
++            return "SDC", "ORACLE_FAIL"
+         return "MASKED", "TARGET_COMMITTED_DATA_VALUE_PRESENT"
+ 
+     # Store-side (SQ01 / DA04): the faulting store must commit; a later load
+-    # consumer distinguishes "lane read" from "lane never read".
++    # consumer distinguishes "lane read" from "lane never read". v3.2.5:
++    # an oracle failure without a causally attributable consumer is not SDC —
++    # the checksum change has no supported path through the fault (the
++    # v3.2.4 response-time attribution was the false positive this fixes).
+     if not committed:
+         return "UNRESOLVED", "STORE_NOT_COMMITTED"
+     consumed = any(
+         e.get("event_type") in ("consumer_commit", "errant_commit")
+         and e.get("dyn_inst_seq") != seq
+         for e in chain)
++    if oracle_pass is False:
++        if not consumed:
++            return "UNRESOLVED", "ORACLE_FAIL_NO_CAUSAL_CONSUMER"
++        return "SDC", "ORACLE_FAIL"
+     return "MASKED", ("STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS"
+                       if consumed else "STORE_COMMITTED_LANE_NOT_READ")
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
+index d7bccb10..7be086ca 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_prop_converter.py
+@@ -233,6 +233,41 @@ def test_da04_byte_enable_chain_is_sq_unit_and_ordered(tmp_path):
+     assert mem["parent_event_id"] == wb["event_id"]
+ 
+ 
++def test_lp01_injection_before_after_and_edge_type(tmp_path):
++    """LP01: both payload hashes survive; every edge carries type + hashes."""
++    import gzip
++    csv = tmp_path / "p.csv.gz"
++    rows = [
++        "0,100,1,inj_l1dfwd,7,,80e30,,,orig_data_fnv=aa;orig_data_hex=a514af81;"
++        "inj_data_fnv=bb;inj_data_hex=ad14af81;mask=0x8;eligible_ordinal=5;"
++        "request_tick=90;addr=0x80e30;entry_generation=3",
++        "1,101,1,resp,7,11,80e30,,,family=l1d_fwd;data_fnv=bb;data_hex=ad14af81;"
++        "orig_data_fnv=aa;request_tick=90;response_tick=101",
++        "2,102,1,taint_reg,7,11,80e30,4,0,family=l1d_fwd;writeback_value=0xad14af81;"
++        "writeback_value_fnv=bb;source_value_hash=bb;source_event_id=1",
++    ]
++    with gzip.open(csv, "wt") as fh:
++        fh.write("\n".join(rows) + "\n")
++    out = tmp_path / "t.jsonl"
++    convert(csv, out, sample_run_id="LP01-R01", run_id="LP01-F0-W5",
++            sub_task_id="LP01-F0-W5-S01", fault_id="LP01-CFG01",
++            fault_model_id="LP01", run_status="COMPLETED",
++            activation="TRIGGERED", terminal="SDC", completeness="COMPLETE")
++    recs = [json.loads(line) for line in out.read_text().splitlines()]
++    inj = next(r for r in recs if r.get("event_type") == "injection")
++    assert inj["unit"] == "L1D" and inj["sub_unit"] == "load_response_data"
++    assert inj["old_value"] == "a514af81"
++    assert inj["new_value"] == "ad14af81"
++    assert inj["original_data_fnv"] == "aa"
++    assert inj["injected_data_fnv"] == "bb"
++    assert inj["fault_mask"] == 8
++    assert inj["eligible_event_ordinal"] == 5
++    assert inj["request_timestamp"] == 90
++    edges = [r for r in recs if r.get("record_type") == "propagation_edge"]
++    assert edges and all(e.get("edge_type") for e in edges)
++    assert all(e.get("source_value_hash") for e in edges)
++
++
+ def test_truncated_complete_requires_crash(tmp_path):
+     import pytest
+     with pytest.raises(SystemExit):
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal_rules.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal_rules.py
+index 446c9a2a..004075f1 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal_rules.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_terminal_rules.py
+@@ -55,8 +55,19 @@ def test_data_on_another_ptag_does_not_rescue_the_target():
+     assert reason == "TARGET_NOT_COMMITTED"
+ 
+ 
+-def test_oracle_failure_is_sdc():
++def test_oracle_failure_without_causal_consumer_is_unresolved():
++    """v3.2.5: an oracle FAIL alone is not SDC for a store-side fault."""
+     events = [ev("injection", 50), ev("commit", 50, ptag=0)]
++    terminal, reason = adjudicate(
++        events, model="DA04", observed_terminal="MASKED", oracle_pass=False,
++        trace_complete=True)
++    assert terminal == "UNRESOLVED"
++    assert reason == "ORACLE_FAIL_NO_CAUSAL_CONSUMER"
++
++
++def test_oracle_failure_with_causal_consumer_is_sdc():
++    events = [ev("injection", 50), ev("commit", 50, ptag=0),
++              ev("consumer_commit", 51)]
+     terminal, reason = adjudicate(
+         events, model="DA04", observed_terminal="MASKED", oracle_pass=False,
+         trace_complete=True)
+@@ -64,6 +75,31 @@ def test_oracle_failure_is_sdc():
+     assert reason == "ORACLE_FAIL"
+ 
+ 
++def test_lp01_committed_writeback_oracle_fail_is_sdc():
++    events = [
++        ev("injection", 50),
++        ev("memory_response", 50, value="ad14af81"),
++        ev("register_writeback", 50, value="ad14af81"),
++        ev("consumer_commit", 51),
++        ev("commit", 50, ptag=0),
++    ]
++    terminal, reason = adjudicate(
++        events, model="LP01", observed_terminal="MASKED", oracle_pass=False,
++        trace_complete=True)
++    assert terminal == "SDC"
++    assert reason == "ORACLE_FAIL"
++
++
++def test_lp01_no_register_writeback_is_unresolved():
++    events = [ev("injection", 50), ev("memory_response", 50, value="ad14af81"),
++              ev("commit", 50, ptag=0)]
++    terminal, reason = adjudicate(
++        events, model="LP01", observed_terminal="MASKED", oracle_pass=False,
++        trace_complete=True)
++    assert terminal == "UNRESOLVED"
++    assert reason == "UNRESOLVED_NO_REGISTER_WRITEBACK_EVIDENCE"
++
++
+ def test_store_consumed_and_oracle_pass_is_masked_with_consumer():
+     events = [
+         ev("injection", 250),
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace.py
+index 8f447fd8..4e6cfb86 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace.py
+@@ -45,7 +45,9 @@ def test_complete_trace_validates_and_summarizes(tmp_path):
+     e2 = w.event("memory_response", parent_event_id=e1, unit="L1D",
+                  dyn_inst_seq=10, request_id=7, va="0x1008", pa="0x1008",
+                  activation_status="TRIGGERED", trace_completeness="COMPLETE")
+-    w.edge(e1, e2, value_hash="deadbeef", trace_completeness="COMPLETE")
++    w.edge(e1, e2, value_hash="deadbeef", edge_type="data",
++           source_value_hash="deadbeef", destination_value_hash="deadbeef",
++           trace_completeness="COMPLETE")
+     w.close(run_status="COMPLETED", activation="TRIGGERED",
+             terminal="MASKED", completeness="COMPLETE")
+     assert validate(tmp_path / "t.jsonl") == []
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
+index 641a219b..e28e68be 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
+@@ -83,3 +83,50 @@ def test_da04_disabled_lane_must_be_unchanged(tmp_path):
+     report = check_completeness(path)
+     assert report["chain_integrity"] == "FAIL"
+     assert "byte_enable_not_applied" in report["chain_reasons"]
++
++
++def _lp01_chain(tmp_path, *, wb_hash="bb", consumer_input="bb",
++                matches="1"):
++    path = tmp_path / "lp01.jsonl"
++    w = TraceWriter(path, "LP01-R01", "LP01-F0-W5", "LP01-F0-W5-S01",
++                    "LP01-CFG01", "LP01")
++    w.event("injection", ptag=1, dyn_inst_seq=50,
++            injection_status="INJECTED", activation_status="TRIGGERED",
++            trace_completeness="COMPLETE", old_value="a514af81",
++            new_value="ad14af81",
++            detail="family=l1d_fwd;orig_data_fnv=aa;inj_data_fnv=bb")
++    e_resp = w.event("memory_response", ptag=1, dyn_inst_seq=50,
++                     trace_completeness="COMPLETE",
++                     detail="family=l1d_fwd;data_fnv=bb")
++    e_wb = w.event("register_writeback", ptag=1, dyn_inst_seq=50,
++                   trace_completeness="COMPLETE", source_event_id=e_resp,
++                   detail=("family=l1d_fwd;source_value_hash=bb;"
++                           f"writeback_value_fnv={wb_hash};"
++                           "hash_basis=payload_equals_regval;"
++                           f"value_matches_payload={matches}"))
++    w.event("consumer_commit", ptag=1, dyn_inst_seq=51,
++            trace_completeness="COMPLETE", source_event_id=e_wb,
++            detail=f"consumer_input_fnv={consumer_input}")
++    w.event("commit", ptag=0, dyn_inst_seq=50,
++            trace_completeness="COMPLETE")
++    w.close(run_status="COMPLETED", activation="TRIGGERED",
++            terminal="SDC", completeness="COMPLETE")
++    return path
++
++
++def test_lp01_full_chain_passes(tmp_path):
++    report = check_completeness(_lp01_chain(tmp_path))
++    assert report["propagation_coverage"] == "COMPLETE"
++    assert report["chain_integrity"] == "PASS"
++
++
++def test_lp01_wb_consumer_hash_discontinuity_fails(tmp_path):
++    report = check_completeness(_lp01_chain(tmp_path, consumer_input="cc"))
++    assert report["chain_integrity"] == "FAIL"
++    assert "hash_discontinuity_wb_consumer" in report["chain_reasons"]
++
++
++def test_lp01_payload_writeback_mismatch_fails(tmp_path):
++    report = check_completeness(_lp01_chain(tmp_path, matches="0"))
++    assert report["chain_integrity"] == "FAIL"
++    assert "hash_discontinuity_payload_wb" in report["chain_reasons"]
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+index a5e420b6..cbb40fd5 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+@@ -26,6 +26,7 @@ KIND_MAP = {
+     "inj_nochange": "injection_nochange",
+     "inj_store_data": "injection",
+     "inj_store_be": "injection",
++    "inj_l1dfwd": "injection",
+     "store_wb": "store_writeback",
+     "store_mem": "store_mem_write",
+     "store_overwrite": "store_overwrite",
+@@ -49,6 +50,7 @@ UNIT_MAP = {
+     "inj_nochange": ("AGU", "injection_nochange"),
+     "inj_store_data": ("SQ", "store_data"),
+     "inj_store_be": ("SQ", "byte_enable"),
++    "inj_l1dfwd": ("L1D", "load_response_data"),
+     "store_wb": ("SQ", "writeback"),
+     "store_mem": ("L1D", "memory_write"),
+     "store_overwrite": ("SQ", "overwrite"),
+@@ -150,7 +152,7 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+                                       else d.get("source_value_hash")),
+                    destination_value_hash=(None if d.get("destination_value_hash") in (None, "null")
+                                            else d.get("destination_value_hash")),
+-                   edge_type=d.get("edge_type"),
++                   edge_type=d.get("edge_type") or "data",
+                    trace_completeness=("COMPLETE" if declared == "COMPLETE"
+                                        else "INCOMPLETE"))
+             continue
+@@ -203,6 +205,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+             va, pa = None, _hex(d.get("blk_addr"))
+             old_value = d.get("before_hex")
+             new_value = d.get("after_hex")
++        elif kind == "inj_l1dfwd":
++            va, pa = None, _hex(d.get("addr"))
++            old_value = d.get("orig_data_hex")
++            new_value = d.get("inj_data_hex")
+         elif kind in ("lq_lifecycle", "sq_lifecycle"):
+             va, pa = None, None
+             old_value, new_value = None, None
+@@ -231,6 +237,17 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+                 "store_data_before": d.get("store_data_fnv"),
+                 "store_data_after": d.get("store_data_fnv"),
+             }
++        if kind == "inj_l1dfwd":
++            extra = {
++                "original_data_hex": d.get("orig_data_hex"),
++                "original_data_fnv": d.get("orig_data_fnv"),
++                "injected_data_hex": d.get("inj_data_hex"),
++                "injected_data_fnv": d.get("inj_data_fnv"),
++                "fault_mask": _int(d.get("mask")),
++                "eligible_event_ordinal": _int(d.get("eligible_ordinal")),
++                "request_timestamp": _int(d.get("request_tick")),
++                "lq_entry_generation": _int(d.get("entry_generation")),
++            }
+         if kind == "fwd":
+             extra = {
+                 "store_seq": _int(d.get("store_seq")),
+@@ -291,8 +308,21 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+         prev = last_by_ptag.get(ptag_i)
+         # consumer edges are emitted explicitly from taint-set dependencies;
+         # do not manufacture a ptag-order edge for them.
+-        if prev is not None and ptag_i > 0 and kind not in ("consumer", "replay", "squash", "funnel"):
+-            w.edge(prev, eid, edge_kind=kind,
++        if prev is not None and ptag_i > 0 and kind not in (
++                "consumer", "replay", "squash", "funnel"):
++            # Preserve the data hashes on synthesized ptag-order edges instead
++            # of writing a null-hash edge (v3.2.5 edge-integrity fix).
++            def _node_hash(rec):
++                rd = _detail(rec.get("detail", ""))
++                return (rd.get("data_fnv") or rd.get("inj_data_fnv")
++                        or rd.get("writeback_value_fnv")
++                        or rd.get("packet_data_fnv"))
++            src_hash = _node_hash(w._nodes.get(prev, {}))
++            dst_hash = _node_hash(w._nodes.get(eid, {}))
++            w.edge(prev, eid, edge_kind=kind, edge_type="ptag_sequence",
++                   value_hash=src_hash,
++                   source_value_hash=src_hash,
++                   destination_value_hash=dst_hash,
+                    trace_completeness=("COMPLETE" if declared == "COMPLETE"
+                                        else "INCOMPLETE"))
+         last_by_ptag[ptag_i] = eid
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+index c56faf08..11514d8a 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+@@ -62,10 +62,24 @@ PROFILES = {
+     ],
+     ("SQ01", "SQUASHED"): [("injection", "squash")],
+     ("SQ01", "CRASH"): [("injection", "simulator_abort")],
++    # LP01 (v3.2.5): load-response data fault. SDC needs the delivered value
++    # to reach the register and a consumer; a committed load with no consumer
++    # is MASKED; a squashed response is SQUASHED.
++    ("LP01", "SDC"): [("injection", "memory_response", "register_writeback",
++                       "consumer_commit")],
++    ("LP01", "MASKED"): [
++        ("injection", "memory_response", "register_writeback"),
++        ("injection", "memory_response"),
++        ("injection", "squash"),
++    ],
++    ("LP01", "SQUASHED"): [("injection", "squash")],
++    ("LP01", "CRASH"): [("injection", "simulator_abort")],
++    ("LP01", "UNRESOLVED"): [("injection",)],
+ }
+ DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
+                    "FW02": ("forwarding_decision",),
+-                   "DA04": ("injection",), "SQ01": ("injection",)}
++                   "DA04": ("injection",), "SQ01": ("injection",),
++                   "LP01": ("injection",)}
+ 
+ 
+ def expected_stages(model_id: str | None,
+@@ -216,6 +230,26 @@ def check_completeness(path: Path) -> dict:
+         for c in by_type.get("consumer_commit", []):
+             if c.get("source_event_id") not in chain_ids:
+                 chain_reasons.append("consumer_without_taint_edge")
++        # v3.2.5 full continuity: writeback value hash → consumer input hash.
++        wb_by_id = {e.get("event_id"): e for e in taints}
++        for c in by_type.get("consumer_commit", []):
++            src = c.get("source_event_id")
++            w = wb_by_id.get(src)
++            if w is None:
++                continue
++            wh = _d(w.get("detail")).get("writeback_value_fnv")
++            ch = _d(c.get("detail")).get("consumer_input_fnv")
++            if wh and ch and wh != ch:
++                chain_reasons.append("hash_discontinuity_wb_consumer")
++        # Payload → writeback: comparable only when the payload is exactly
++        # the 8-byte register value. Other sizes are extended by completeAcc;
++        # the trace records hash_basis and this check is skipped.
++        for w in taints:
++            wd = _d(w.get("detail"))
++            if wd.get("family") == "l1d_fwd":
++                if wd.get("hash_basis") == "payload_equals_regval" and \
++                        wd.get("value_matches_payload") != "1":
++                    chain_reasons.append("hash_discontinuity_payload_wb")
+         sm = by_type.get("store_mem_write", [])
+         if sm:
+             dd = _d(sm[-1].get("detail"))
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+index 998b48ed..146dc340 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+@@ -97,6 +97,12 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
+                 errs.append(f"line {line}: edge event_type must be 'propagation_edge'")
+             if rec.get("trace_completeness") not in COMPLETENESS:
+                 errs.append(f"line {line}: bad edge trace_completeness")
++            if not rec.get("edge_type"):
++                errs.append(f"line {line}: edge missing edge_type")
++            # Value hashes are required to be PRESENT-or-explicitly-null, not
++            # universally non-null: vector/matrix consumers legitimately have
++            # no scalar hash. Continuity is checked by trace_completeness only
++            # when both endpoints expose a hash (v3.2.5 Review Focus #4).
+             if isinstance(rec.get("sample_run_id"), str):
+                 sample_ids.add(rec["sample_run_id"])
+         elif kind == "summary":
+diff --git a/tests/test_lp01_bytewise.cc b/tests/test_lp01_bytewise.cc
+index 4215026a..5d29ee67 100644
+--- a/tests/test_lp01_bytewise.cc
++++ b/tests/test_lp01_bytewise.cc
+@@ -1,39 +1,50 @@
+ #include <cassert>
+ #include <cstdint>
+ #include <cstdio>
++#include <vector>
+ 
+ #include "cpu/o3/CHAOSL1DForward/lp01_bytewise.hh"
+ 
+ using namespace gem5::chaos_lp01;
+ 
++static void
++checkSize(unsigned n)
++{
++    std::vector<uint8_t> buf(n, 0xA5);
++    const std::vector<uint8_t> before = buf;
++    assert(corruptByte0(buf.data(), n, 0x8));
++    assert(buf[0] == (uint8_t)(before[0] ^ 0x08));
++    for (unsigned i = 1; i < n; ++i)
++        assert(buf[i] == before[i]);
++}
++
+ int
+ main()
+ {
+-    uint8_t buf[4] = {0, 0, 0, 0};
+-    xorMask(buf, 4, 0x1122334455667788ULL);
+-    assert(buf[0] == 0x88);
+-    assert(buf[1] == 0x77);
+-    assert(buf[2] == 0x66);
+-    assert(buf[3] == 0x55);
+-
+-    uint8_t one[1] = {0xAA};
+-    xorMask(one, 1, 0xFF);
+-    assert(one[0] == 0x55);
+-
+-    // 7-byte payload: only the first 7 bytes are touched (no 8-byte store).
+-    uint8_t seven[7] = {0};
+-    xorMask(seven, 7, 0x00000000000000FFULL);
+-    assert(seven[0] == 0xFF);
+-    for (int i = 1; i < 7; ++i)
+-        assert(seven[i] == 0x00);
+-
+-    // 16-byte payload: the mask repeats every 8 bytes, identical to the old
+-    // two-uint64-word behaviour.
+-    uint8_t sixteen[16] = {0};
+-    xorMask(sixteen, 16, 0x0102030405060708ULL);
+-    assert(sixteen[0] == 0x08 && sixteen[8] == 0x08);
+-    assert(sixteen[7] == 0x01 && sixteen[15] == 0x01);
+-
+-    std::printf("LP01 byte-wise corruption unit test: PASS\n");
++    // Model matrix: exactly byte 0 changes, for every size.
++    for (unsigned n : {1u, 4u, 7u, 8u, 9u, 12u, 16u})
++        checkSize(n);
++
++    // Size 0 is a no-op and must not touch memory.
++    uint8_t zero[1] = {0xAA};
++    assert(!corruptByte0(zero, 0, 0x08));
++    assert(zero[0] == 0xAA);
++
++    // mask 0 is a no-op.
++    uint8_t m0[8] = {0};
++    assert(!corruptByte0(m0, 8, 0));
++    for (uint8_t b : m0)
++        assert(b == 0);
++
++    // Only the low byte of the mask is in the modeled lane.
++    uint8_t wide[4] = {0, 0, 0, 0};
++    assert(corruptByte0(wide, 4, 0x1122334455667708ULL));
++    assert(wide[0] == 0x08 && wide[1] == 0 && wide[2] == 0 && wide[3] == 0);
++
++    // Ordinal helper: skip 0 -> ordinal 1; skip 4 -> ordinal 5.
++    assert(eligibleOrdinal(0, 0) == 1);
++    assert(eligibleOrdinal(4, 0) == 5);
++
++    std::printf("LP01 byte-0 payload matrix (0/1/4/7/8/9/12/16): PASS\n");
+     return 0;
+ }
+diff --git a/tests/test_store_chain_rules.cc b/tests/test_store_chain_rules.cc
+index 74c7ffd0..90fbbf32 100644
+--- a/tests/test_store_chain_rules.cc
++++ b/tests/test_store_chain_rules.cc
+@@ -9,19 +9,20 @@ using namespace gem5::chaos_store_chain;
+ int
+ main()
+ {
+-    // A younger load after the actual write, not overwritten: consumes.
++    // Request issued after the actual write: consumes.
+     assert(mayConsumeFaultByte(300, 250, false, 1000, 1100));
++    // Request issued BEFORE the write, even if the response arrives after:
++    // NOT causal (the v3.2.4 response-time rule admitted this case).
++    assert(!mayConsumeFaultByte(300, 250, false, 1000, 900));
+     // Older load (pre-store program order): never consumes.
+     assert(!mayConsumeFaultByte(200, 250, false, 1000, 1100));
+     // Load equal to the store itself: not a consumer.
+     assert(!mayConsumeFaultByte(250, 250, false, 1000, 1100));
+     // The store has not reached the cache yet: the load cannot see it.
+     assert(!mayConsumeFaultByte(300, 250, false, 0, 1100));
+-    // Response before the write tick: cannot see it.
+-    assert(!mayConsumeFaultByte(300, 250, false, 1200, 1100));
+     // A later store overwrote the byte: attribution stops.
+     assert(!mayConsumeFaultByte(300, 250, true, 1000, 1100));
+ 
+-    std::printf("store-chain attribution unit test: PASS\n");
++    std::printf("store-chain attribution (request-time) unit test: PASS\n");
+     return 0;
+ }

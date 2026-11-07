@@ -1,0 +1,24 @@
+lsu-platform-v3.2.5
+8489641c76d74eb83034af3792d4934d71fb0c84
+8489641c [LSU][MDSPEC][V3.2.5][DA04] unify binary SHA-256 with the five pilot manifests
+a85827ec [LSU][MDSPEC][V3.2.5][DA04] correct R04 consumer count to 1009 from JSONL
+b9b89305 [LSU][MDSPEC][V3.2.5][DA04] correct R05 oracle checksum to the committed log
+35c8e735 [LSU][MDSPEC][V3.2.5][DA04] rerun R04/R05 with request-time causality and lossless edges
+91f47576 [LSU][MDSPEC][V3.2.5][LP01] pilot R05 terminal=MASKED
+c6af7763 [LSU][MDSPEC][V3.2.5][LP01] pilot R04 terminal=MASKED
+e8ee2ba2 [LSU][MDSPEC][V3.2.5][LP01] pilot R03 terminal=MASKED
+0e421022 [LSU][MDSPEC][V3.2.5][LP01] pilot R02 terminal=MASKED
+2c270b38 [LSU][MDSPEC][V3.2.5][LP01] pilot R01 terminal=MASKED
+04a4841b [LSU][MDSPEC][V3.2.5][PILOT] record temporary LP01 event selection
+6cf04659 [LSU][MDSPEC][V3.2.5][GATE] build, unit tests and unaffected-workload regression
+0afebac8 [LSU][MDSPEC][V3.2.5][PILOT] LP01 W5 runner, target proof and ordinal provenance
+1260b834 [LSU][MDSPEC][V3.2.5][TRACE] allow explicit-null hashes on non-scalar dataflow edges
+1ccb1dbe [LSU][MDSPEC][V3.2.5][TRACE] LP01 profiles and complete data-hash continuity validation
+141e91d2 [LSU][MDSPEC][V3.2.5][TRACE] LP01 JSONL mapping and lossless propagation edges
+f2a6c5a4 [LSU][MDSPEC][V3.2.5][DA04] causal attribution uses load request tick, not response tick
+685fc75f [LSU][MDSPEC][V3.2.5][DA04] load memory-request events with real request time
+6521a8e1 [LSU][MDSPEC][V3.2.5][TRACE] consumer input/output values and output-destination edge hashes
+fba73e9f [LSU][MDSPEC][V3.2.5][LP01] injection/response/writeback trace chain with before-after hashes
+d8f4f79d [LSU][MDSPEC][V3.2.5][LP01] load-only eligibility, EventOrdinal and pre-fault capture
+d239f0b3 [LSU][MDSPEC][V3.2.5][LP01] model-exact byte-0 payload semantics and size matrix
+6c8bf411 [LSU][V3.2.5][BASE] branch and frozen W5 baseline
