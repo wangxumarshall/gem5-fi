@@ -25,6 +25,9 @@ KIND_MAP = {
     "inj": "injection",
     "inj_nochange": "injection_nochange",
     "inj_store_data": "injection",
+    "inj_store_be": "injection",
+    "store_wb": "store_writeback",
+    "store_mem": "store_mem_write",
     "addr_form": "address_formed",
     "mem_req": "memory_request",
     "resp": "memory_response",
@@ -44,6 +47,9 @@ UNIT_MAP = {
     "inj": ("AGU", "injection"),
     "inj_nochange": ("AGU", "injection_nochange"),
     "inj_store_data": ("SQ", "store_data"),
+    "inj_store_be": ("SQ", "byte_enable"),
+    "store_wb": ("SQ", "writeback"),
+    "store_mem": ("L1D", "memory_write"),
     "addr_form": ("AGU", "effective_address"),
     "mem_req": ("LSQ", "request"),
     "resp": ("L1D", "response"),
@@ -149,7 +155,7 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         old_addr = _hex(d.get("old_addr"))
         new_addr = _hex(d.get("new_addr")) or _hex(addr)
         injection_status = "NOT_APPLICABLE"
-        if kind in ("inj", "inj_nochange", "inj_store_data"):
+        if kind in ("inj", "inj_nochange", "inj_store_data", "inj_store_be"):
             injection_status = ("NO_CHANGE" if kind == "inj_nochange"
                                 or d.get("value_changed") == "0"
                                 else "INJECTED")
@@ -183,6 +189,18 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             va, pa = None, None
             old_value = d.get("old_byte")
             new_value = d.get("new_byte")
+        elif kind == "inj_store_be":
+            va, pa = _hex(d.get("addr_before")), None
+            old_value = d.get("old_be")
+            new_value = d.get("new_be")
+        elif kind == "store_wb":
+            va, pa = _hex(d.get("addr")), None
+            old_value = None
+            new_value = d.get("data_fnv")
+        elif kind == "store_mem":
+            va, pa = None, _hex(d.get("blk_addr"))
+            old_value = d.get("before_hex")
+            new_value = d.get("after_hex")
         elif kind in ("lq_lifecycle", "sq_lifecycle"):
             va, pa = None, None
             old_value, new_value = None, None
@@ -199,6 +217,18 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         if kind == "consumer" and d.get("source_event_id") in node_to_event:
             parent = node_to_event[int(d["source_event_id"])]
         extra = {}
+        if kind == "inj_store_be":
+            extra = {
+                "original_byte_enable": d.get("old_be"),
+                "injected_byte_enable": d.get("new_be"),
+                "changed_bit": _int(d.get("changed_bit")),
+                "address_before": _hex(d.get("addr_before")),
+                "address_after": _hex(d.get("addr_after")),
+                "access_size_before": _int(d.get("size_before")),
+                "access_size_after": _int(d.get("size_after")),
+                "store_data_before": d.get("store_data_fnv"),
+                "store_data_after": d.get("store_data_fnv"),
+            }
         if kind == "fwd":
             extra = {
                 "store_seq": _int(d.get("store_seq")),
@@ -232,6 +262,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             sq_entry_id=(_int(d.get("index"))
                          if kind in ("sq_lifecycle", "inj_store_data")
                          else _int(d.get("sq_entry_id"))),
+            # inj_store_be/store_wb carry sq_entry_id directly; the expression
+            # above already reads it for every non-lifecycle kind.
             entry_generation=(_int(d.get("generation")) or
                               _int(d.get("entry_generation"))),
             va=va, pa=pa,

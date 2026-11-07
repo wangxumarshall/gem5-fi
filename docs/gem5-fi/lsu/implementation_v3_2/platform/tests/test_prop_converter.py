@@ -178,6 +178,61 @@ def test_sq01_store_data_injection_is_sq_unit(tmp_path):
     assert event["dyn_inst_seq"] == 250
 
 
+def test_da04_byte_enable_chain_is_sq_unit_and_ordered(tmp_path):
+    """DA04: injection -> store writeback -> actual memory write, one chain."""
+    import gzip
+    csv = tmp_path / "prop.csv.gz"
+    with gzip.open(csv, "wt", encoding="utf-8") as fh:
+        fh.write(
+            "1,100,3,inj_store_be,250,0,0x2000,0,0,"
+            "site=lsq_pushRequest;family=byte_enable;fault_model=DA04;size=4;"
+            "old_be=0xf;new_be=0xe;changed_bit=0;addr_before=0x2000;"
+            "addr_after=0x2000;size_before=4;size_after=4;"
+            "store_data_fnv=abc;store_data_hex=01020304;"
+            "sq_entry_id=7;entry_generation=9\n")
+        fh.write(
+            "2,110,3,store_wb,250,0,0x2000,0,0,"
+            "site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;"
+            "data_fnv=abc;data_hex=01020304;sq_entry_id=7;"
+            "entry_generation=9;addr=0x2000\n")
+        fh.write(
+            "3,120,3,store_mem,250,0,0x2000,0,0,"
+            "site=BaseCache::updateBlockData;family=byte_enable;"
+            "blk_addr=0x2000;offset=0;size=4;be_mask=0xe;"
+            "packet_data_fnv=abc;packet_data_hex=01020304;"
+            "before_hex=aabbccdd;after_hex=aabbcc04;enabled_written=1;"
+            "disabled_unchanged=1;lane0_packet=0x04;lane0_before=0xdd;"
+            "lane0_after=0xdd\n")
+    out = tmp_path / "trace.jsonl"
+    convert(csv, out, sample_run_id="PILOT-DA04-TEST",
+            run_id="PILOT-DA04", sub_task_id="PILOT-DA04-S01",
+            fault_id="DA04-CFG01", fault_model_id="DA04",
+            run_status="COMPLETED", activation="TRIGGERED",
+            terminal="MASKED", completeness="COMPLETE")
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    inj = next(r for r in rows if r.get("event_type") == "injection")
+    assert inj["unit"] == "SQ" and inj["sub_unit"] == "byte_enable"
+    assert inj["old_value"] == "0xf" and inj["new_value"] == "0xe"
+    assert inj["original_byte_enable"] == "0xf"
+    assert inj["injected_byte_enable"] == "0xe"
+    assert inj["changed_bit"] == 0
+    assert inj["address_before"] == "0x2000"
+    assert inj["address_after"] == "0x2000"
+    assert inj["access_size_before"] == 4
+    assert inj["access_size_after"] == 4
+    assert inj["store_data_before"] == inj["store_data_after"] == "abc"
+    assert inj["sq_entry_id"] == 7
+    wb = next(r for r in rows if r.get("event_type") == "store_writeback")
+    assert wb["unit"] == "SQ" and wb["sub_unit"] == "writeback"
+    assert wb["parent_event_id"] == inj["event_id"]
+    mem = next(r for r in rows if r.get("event_type") == "store_mem_write")
+    assert mem["unit"] == "L1D" and mem["sub_unit"] == "memory_write"
+    assert mem["pa"] == "0x2000"
+    assert mem["old_value"] == "aabbccdd"
+    assert mem["new_value"] == "aabbcc04"
+    assert mem["parent_event_id"] == wb["event_id"]
+
+
 def test_truncated_complete_requires_crash(tmp_path):
     import pytest
     with pytest.raises(SystemExit):
