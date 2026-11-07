@@ -1,0 +1,8 @@
+branch: lsu-platform-v3.2.3
+head: 5552a489befddc68299a544abfc740cdb7e6d2ad
+base: 97fb263f
+generated_utc: 2026-11-07T06:49:37Z
+gem5_binary_sha256: 8eb7ce8d76ab63d90dbd00694efb90c7c2545da47ad07ecf5325399274a3b682
+binary_path: build/ARM/gem5.opt (copied from CHAOS/gem5/build/ARM/gem5.opt)
+gcc: gcc (GCC) 12.3.1 (openEuler 12.3.1-111.oe2403sp3)
+python: Python 3.11.6
