@@ -1,0 +1,1200 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.cc b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.cc
+new file mode 100644
+index 00000000..bb2a286b
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.cc
+@@ -0,0 +1,123 @@
++#include "cpu/o3/CHAOSMD04/CHAOSMD04.hh"
++
++#include <algorithm>
++
++#include "cpu/o3/CHAOSMD04/md04_rules.hh"
++#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
++#include "cpu/o3/cpu.hh"
++#include "cpu/o3/dyn_inst.hh"
++#include "debug/CHAOSMD04.hh"
++#include "sim/sim_exit.hh"
++
++namespace gem5
++{
++
++CHAOSMD04::CHAOSMD04(const CHAOSMD04Params &p)
++    : SimObject(p), cpu(p.cpu), probability(p.probability),
++      first_clock(p.firstClock), last_clock(p.lastClock),
++      max_faults(p.maxFaults), rng_seed(p.rngSeed),
++      event_ordinal(p.eventOrdinal), count_only(p.countOnly),
++      write_log(p.writeLog)
++{
++    if (write_log) {
++        log_stream = simout.create("md04_injections.log", false, true);
++        if (!log_stream || !log_stream->stream())
++            panic("CHAOSMD04: cannot open md04_injections.log");
++    }
++    if (rng_seed)
++        rng.seed(rng_seed);
++    else
++        rng.seed(rd());
++}
++
++CHAOSMD04::~CHAOSMD04()
++{
++    if (count_only && log_stream && log_stream->stream())
++        *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT=" << eligible_count
++                                << std::endl;
++}
++
++void
++CHAOSMD04::startup()
++{
++    SimObject::startup();
++    auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
++    if (!o3cpu) {
++        warn("CHAOSMD04: cpu is not an O3CPU; injector disabled.\n");
++        return;
++    }
++    o3cpu->setChaosMD04(this);
++    if (count_only) {
++        registerExitCallback([this]() {
++            if (log_stream && log_stream->stream())
++                *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
++                                        << eligible_count << std::endl;
++        });
++    }
++}
++
++bool
++CHAOSMD04::maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
++                              bool load_complete)
++{
++    if (!cpu || probability <= 0.0f || !ld_inst || !store_inst)
++        return false;
++    if (ld_inst->effAddrValid() && store_inst->effAddrValid())
++        DPRINTF(CHAOSMD04, "pair load=%llu addr=%#x size=%u store=%llu "
++                "addr=%#x size=%u\n",
++                (unsigned long long)ld_inst->seqNum, ld_inst->effAddr,
++                ld_inst->effSize, (unsigned long long)store_inst->seqNum,
++                store_inst->effAddr, store_inst->effSize);
++    if (ld_inst->isSquashed() || !ld_inst->isLoad() || store_inst->isLoad())
++        return false;
++    if (!ld_inst->effAddrValid() || !store_inst->effAddrValid())
++        return false;
++    if (ld_inst->seqNum <= store_inst->seqNum)
++        return false;   // only a younger load can have passed the store
++    if (!chaos_md04::isSameAddress8B(ld_inst->effAddr, ld_inst->effSize,
++                                     store_inst->effAddr,
++                                     store_inst->effSize))
++        return false;
++
++    Cycles cur = cpu->curCycle();
++    if (cur < Cycles(first_clock))
++        return false;
++    if (last_clock != 0 && cur > Cycles(last_clock))
++        return false;
++
++    ++eligible_count;
++    last_eligible_ordinal = eligible_count;
++    if (count_only)
++        return false;
++    if (!chaos_md04::shouldInject(eligible_count, event_ordinal,
++                                  faults_injected_count, max_faults))
++        return false;
++
++    std::uniform_real_distribution<float> pd(0.0f, 1.0f);
++    if (pd(rng) > probability)
++        return false;
++
++    ++faults_injected_count;
++    if (log_stream && log_stream->stream()) {
++        *(log_stream->stream()) << "Tick: " << curTick()
++            << ", Site: checkViolations, load_seq=" << ld_inst->seqNum
++            << ", store_seq=" << store_inst->seqNum
++            << ", addr=0x" << std::hex << ld_inst->effAddr << std::dec
++            << ", size=" << ld_inst->effSize
++            << ", eligible_ordinal=" << eligible_count
++            << ", load_complete=" << (load_complete ? 1 : 0)
++            << ", faults_injected: " << faults_injected_count << std::endl;
++    }
++    auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
++    if (o3cpu && o3cpu->chaosPropagation) {
++        o3cpu->chaosPropagation->noteMD04Injection(
++            ld_inst, store_inst->seqNum, ld_inst->effAddr, ld_inst->effSize,
++            eligible_count, load_complete);
++    }
++    DPRINTF(CHAOSMD04, "suppressed store->load violation load=%llu store=%llu "
++            "addr=%#x\n", (unsigned long long)ld_inst->seqNum,
++            (unsigned long long)store_inst->seqNum, ld_inst->effAddr);
++    return true;
++}
++
++} // namespace gem5
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.hh b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.hh
+new file mode 100644
+index 00000000..e8b47f8d
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.hh
+@@ -0,0 +1,54 @@
++#ifndef __CPU_O3_CHAOS_MD04_HH__
++#define __CPU_O3_CHAOS_MD04_HH__
++
++#include <random>
++#include <string>
++
++#include "params/CHAOSMD04.hh"
++#include "sim/sim_object.hh"
++#include "base/output.hh"
++#include "base/types.hh"
++#include "cpu/base.hh"
++
++namespace gem5 { namespace o3 { class CPU; class DynInst; } }
++
++namespace gem5
++{
++
++// MD04 — memory-dependency violation miss (F6). Hooks
++// LSQUnit::checkViolations at the store->younger-load alias check: one real
++// same-address 8-byte alias is reported as no violation, so the younger load
++// keeps its stale data and may commit it.
++class CHAOSMD04 : public SimObject
++{
++  public:
++    CHAOSMD04(const CHAOSMD04Params &p);
++    ~CHAOSMD04();
++    void startup() override;  // self-attach to CPU.chaosMD04
++
++    // Returns true iff the caller must suppress the violation report for this
++    // store->load pair. `load_complete` is the response state at this point.
++    bool maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
++                            bool load_complete);
++    uint64_t lastEligibleOrdinal() const { return last_eligible_ordinal; }
++
++  private:
++    BaseCPU *cpu;
++    double probability;
++    uint64_t first_clock, last_clock;
++    uint64_t max_faults;
++    uint64_t rng_seed;
++    uint64_t event_ordinal;
++    bool count_only;
++    bool write_log;
++    uint64_t eligible_count = 0;
++    uint64_t last_eligible_ordinal = 0;
++    uint64_t faults_injected_count = 0;
++    std::mt19937 rng;
++    std::random_device rd;
++    OutputStream *log_stream = nullptr;
++};
++
++} // namespace gem5
++
++#endif
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.py b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.py
+new file mode 100644
+index 00000000..cc074561
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.py
+@@ -0,0 +1,18 @@
++from m5.params import *
++from m5.SimObject import SimObject
++
++class CHAOSMD04(SimObject):
++    type = 'CHAOSMD04'
++    cxx_class = 'gem5::CHAOSMD04'
++    cxx_header = "cpu/o3/CHAOSMD04/CHAOSMD04.hh"
++
++    cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
++    probability = Param.Float(1.0, "per-eligible-alias injection probability")
++    firstClock = Param.UInt64(0, "first cycle eligible")
++    lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")
++    maxFaults = Param.UInt64(1, "max faults; 0 = unlimited")
++    rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
++    eventOrdinal = Param.UInt64(0,
++        "1-based eligible alias ordinal to suppress (0 = first)")
++    countOnly = Param.Bool(False, "count eligible aliases, never inject")
++    writeLog = Param.Bool(True, "write md04_injections.log")
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSMD04/SConscript b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/SConscript
+new file mode 100644
+index 00000000..6fdc8a26
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/SConscript
+@@ -0,0 +1,5 @@
++# -*- mode:python -*-
++Import('*')
++SimObject('CHAOSMD04.py', sim_objects=['CHAOSMD04'], enums=[])
++Source('CHAOSMD04.cc')
++DebugFlag('CHAOSMD04')
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSMD04/md04_rules.hh b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/md04_rules.hh
+new file mode 100644
+index 00000000..1bb21f94
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSMD04/md04_rules.hh
+@@ -0,0 +1,39 @@
++#ifndef __CPU_O3_MD04_RULES_HH__
++#define __CPU_O3_MD04_RULES_HH__
++
++#include <cstdint>
++
++namespace gem5
++{
++namespace chaos_md04
++{
++
++// MD04-CFG01 (Excel option A): a real same-address 8-byte store alias whose
++// memory-dependency violation is reported exactly once. The store is 8 bytes
++// at the load's start address; a wider load (e.g. a 16-byte LDP) that covers
++// the store is a real same-address alias and is included. A 4-byte pair or a
++// different address is not. Only the violation report is suppressed.
++inline bool
++isSameAddress8B(uint64_t load_addr, unsigned load_size,
++                uint64_t store_addr, unsigned store_size)
++{
++    return store_size == 8 && load_size >= 8 && load_addr == store_addr;
++}
++
++// 1-based eligible-event selection. target_ordinal == 0 means "the first
++// eligible event"; max_faults == 0 means unlimited.
++inline bool
++shouldInject(uint64_t eligible_ordinal, uint64_t target_ordinal,
++             uint64_t injected, uint64_t max_faults)
++{
++    if (max_faults != 0 && injected >= max_faults)
++        return false;
++    if (target_ordinal != 0 && eligible_ordinal != target_ordinal)
++        return false;
++    return true;
++}
++
++} // namespace chaos_md04
++} // namespace gem5
++
++#endif // __CPU_O3_MD04_RULES_HH__
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+index ff6c8abc..cbbc6363 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -793,6 +793,16 @@ namespace gem5
+             hit_ptag = lf->second.ptag;
+             hit_family = "l1d_fwd";
+         }
++        // MD04: bind the load's response if it arrives after the suppressed
++        // violation report. A late-bound load (response already consumed) is
++        // handled at injection and never reaches here.
++        auto md = md04_registry.find(inst->seqNum);
++        if (!hit_ptag && md != md04_registry.end()
++                && !md->second.load_complete
++                && md->second.resp_node == 0) {
++            hit_ptag = md->second.ptag;
++            hit_family = "md04";
++        }
+ 
+         // addrpath: the response's own Request vaddr range vs the registry,
+         // bound to this instruction (the faulting load itself).
+@@ -904,6 +914,13 @@ namespace gem5
+                                  : inst->sqEntryGeneration)
+               << ";execution_attempt_id=" << inst->executionAttemptId
+               << ";replay_generation=" << inst->replayGeneration;
++            if (hit_family && std::string(hit_family) == "md04") {
++                d << ";family=md04;late_binding=0"
++                  << ";load_seq=" << inst->seqNum
++                  << ";store_seq=" << md->second.store_seq
++                  << ";eligible_ordinal=" << md->second.eligible_ordinal
++                  << ";violation_report_suppressed=1";
++            }
+             if (l1d_fwd) {
+                 d << ";orig_data_fnv=" << lf->second.orig_fnv
+                   << ";orig_data_hex=" << lf->second.orig_hex
+@@ -931,6 +948,8 @@ namespace gem5
+             resp_hash_by_ptag[hit_ptag] = data_hash_str;
+             if (l1d_fwd)
+                 lf->second.resp_node = resp_node;
++            if (hit_family && std::string(hit_family) == "md04")
++                md->second.resp_node = resp_node;
+         }
+ 
+         // LP01 writeback is emitted after LSQUnit::writeback reads the PRF
+@@ -939,46 +958,22 @@ namespace gem5
+         if (l1d_fwd)
+             return;
+ 
+-        // taint_reg: exactly the condition under which LSQUnit::writeback
+-        // performs completeAcc (needWBToRegister + NoFault) — the load's
+-        // dest phys regs receive the fault-delivered data. The writeback
+-        // value is the packet data captured at this pre-writeback point
+-        // (for the A01/A03 pilots no post-check injector mutates it later).
++        // v3.2.6: defer the register_writeback node until AFTER completeAcc.
++        // The packet bytes are not the register value for size < 8
++        // (endianness/extension), so hashing them here made the source hash
++        // discontinuous with the consumer input (DA04's 4-byte load).
+         if (!wb_to_reg || inst->getFault() != NoFault)
+             return;
+-        const int ndest = (int)inst->numDestRegs();
+-        for (int i = 0; i < ndest; ++i) {
+-            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
+-            if (!phys)
+-                continue;
+-            const std::pair<int, uint32_t> key(phys->classValue(),
+-                                               phys->index());
+-            TaintEntry te;
+-            te.ptag = hit_ptag;
+-            te.taintor_seq = inst->seqNum;
+-            te.node_id = 0;
+-            te.value_hash = data_hash_str;
+-            std::ostringstream d;
+-            d << "class=" << regClassName(phys->classValue())
+-              << ";dest_idx=" << i
+-              << ";phys_reg=" << phys->index()
+-              << ";arch_reg=" << inst->destRegIdx(i).index()
+-              << ";writeback_value=" << (data_hex.empty() ? "null" : data_hex)
+-              << ";writeback_fnv=" << (data_len ? data_hash_str : "null")
+-              << ";source_event_id=" << resp_node
+-              << ";source_value_hash=" << (data_len ? data_hash_str : "null")
+-              << ";request_id=" << request_id
+-              << ";response_id=" << response_id
+-              << ";execution_attempt_id=" << inst->executionAttemptId
+-              << ";replay_generation=" << inst->replayGeneration;
+-            const uint64_t taint_node = writeNode(
+-                hit_ptag, "taint_reg", inst->seqNum, true,
+-                request_id, request_id != 0, pkt->getAddr(), true,
+-                phys->index(), true,
+-                inst->destRegIdx(i).index(), true, d.str());
+-            te.node_id = taint_node;
+-            taint_set[key] = te;
+-        }
++        ChainWbEntry w;
++        w.ptag = hit_ptag;
++        w.resp_node = resp_node;
++        w.request_id = request_id;
++        w.response_id = response_id;
++        w.size = data_len;
++        w.family = hit_family ? hit_family : "unknown";
++        w.payload_fnv = data_hash_str;
++        w.payload_hex = data_hex;
++        pending_chain_wb[inst->seqNum] = w;
+     }
+ 
+     uint64_t
+@@ -1148,6 +1143,164 @@ namespace gem5
+         l1dfwd_registry.erase(it);
+     }
+ 
++    void
++    CHAOSPropagation::noteChainWriteback(o3::DynInst *inst)
++    {
++        if (!write_log || !inst || !o3cpu)
++            return;
++        auto it = pending_chain_wb.find(inst->seqNum);
++        if (it == pending_chain_wb.end())
++            return;
++        const ChainWbEntry w = it->second;
++        pending_chain_wb.erase(it);
++        if (inst->getFault() != NoFault)
++            return;   // completeAcc did not run; no register value to claim
++
++        const int ndest = (int)inst->numDestRegs();
++        for (int i = 0; i < ndest; ++i) {
++            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
++            if (!phys)
++                continue;
++            uint64_t value = 0;
++            unsigned bytes = 0;
++            const std::string vhash = regValueHash(
++                inst, phys, inst->threadNumber, &value, &bytes);
++            if (vhash.empty())
++                continue;
++            const bool scalar8 = (w.size == 8 && bytes == 8);
++            const bool basis_ok = scalar8 && vhash == w.payload_fnv;
++            const char *basis = scalar8 ? "payload_equals_regval"
++                : "regval_extension";
++            std::ostringstream vb;
++            vb << std::hex << value << std::dec;
++            std::ostringstream d;
++            d << "family=" << w.family
++              << ";class=" << regClassName(phys->classValue())
++              << ";dest_idx=" << i
++              << ";phys_reg=" << phys->index()
++              << ";arch_reg=" << inst->destRegIdx(i).index()
++              << ";writeback_value=" << vb.str()
++              << ";writeback_value_fnv=" << vhash
++              << ";payload_fnv=" << w.payload_fnv
++              << ";payload_hex=" << w.payload_hex
++              << ";payload_len=" << w.size
++              << ";hash_basis=" << basis
++              << ";value_matches_payload=" << (basis_ok ? 1 : 0)
++              << ";source_value_hash=" << w.payload_fnv
++              << ";source_event_id=" << w.resp_node
++              << ";request_id=" << w.request_id
++              << ";response_id=" << w.response_id
++              << ";execution_attempt_id=" << inst->executionAttemptId
++              << ";replay_generation=" << inst->replayGeneration
++              << ";writeback_tick=" << curTick();
++            const uint64_t wb_node = writeNode(
++                w.ptag, "taint_reg", inst->seqNum, true,
++                w.request_id, w.request_id != 0, 0, false,
++                phys->index(), true,
++                inst->destRegIdx(i).index(), true, d.str());
++            TaintEntry te;
++            te.ptag = w.ptag;
++            te.taintor_seq = inst->seqNum;
++            te.node_id = wb_node;
++            te.value_hash = vhash;   // actual PRF value
++            taint_set[std::make_pair(phys->classValue(),
++                                     phys->index())] = te;
++            if (w.resp_node)
++                writeEdgeRow(w.ptag, w.resp_node, wb_node, inst->seqNum,
++                             inst->seqNum, w.payload_fnv, vhash,
++                             (basis_ok ? "payload_to_register"
++                                       : "payload_to_register_extended"));
++        }
++    }
++
++    void
++    CHAOSPropagation::noteMD04Injection(o3::DynInst *inst, uint64_t store_seq,
++                                        Addr vaddr, unsigned size,
++                                        uint64_t eligible_ordinal,
++                                        bool load_complete)
++    {
++        if (!write_log || !inst)
++            return;
++        const uint64_t ptag = ++next_ptag;
++        fault_seqs.insert(inst->seqNum);
++        MD04Entry e;
++        e.ptag = ptag;
++        e.store_seq = store_seq;
++        e.vaddr = vaddr;
++        e.size = size;
++        e.eligible_ordinal = eligible_ordinal;
++        e.load_complete = load_complete;
++        md04_registry[inst->seqNum] = e;
++
++        std::ostringstream d;
++        d << "site=LSQUnit::checkViolations;family=md04;model=MD04"
++          << ";load_seq=" << inst->seqNum
++          << ";store_seq=" << store_seq
++          << ";addr=0x" << std::hex << vaddr << std::dec
++          << ";size=" << size
++          << ";eligible_ordinal=" << eligible_ordinal
++          << ";violation_report_suppressed=1"
++          << ";load_complete=" << (load_complete ? 1 : 0)
++          << ";load_lq_entry_id=" << inst->lqIdx
++          << ";load_entry_generation=" << inst->lqEntryGeneration
++          << ";execution_attempt_id=" << inst->executionAttemptId
++          << ";replay_generation=" << inst->replayGeneration
++          << ";phys_regs=";
++        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
++            const PhysRegIdPtr p = inst->renamedDestIdx(i);
++            if (p)
++                d << (i ? "," : "") << regClassName(p->classValue())
++                  << ":" << p->index();
++        }
++        writeNode(ptag, "inj_md04", inst->seqNum, true, 0, false, vaddr, true,
++                  0, false, 0, false, d.str());
++
++        // The violation check runs at store execution; the load may already
++        // have consumed its response. In that case the PRF already holds the
++        // stale value: bind it late, explicitly labelled.
++        if (!load_complete || !o3cpu || inst->getFault() != NoFault)
++            return;
++        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
++            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
++            if (!phys)
++                continue;
++            uint64_t value = 0;
++            unsigned bytes = 0;
++            const std::string vhash = regValueHash(
++                inst, phys, inst->threadNumber, &value, &bytes);
++            if (vhash.empty())
++                continue;
++            std::ostringstream vb;
++            vb << std::hex << value << std::dec;
++            std::ostringstream wd;
++            wd << "family=md04;late_binding=1;class="
++               << regClassName(phys->classValue())
++               << ";phys_reg=" << phys->index()
++               << ";arch_reg=" << inst->destRegIdx(i).index()
++               << ";writeback_value=" << vb.str()
++               << ";writeback_value_fnv=" << vhash
++               << ";source_value_hash=null;source_event_id=0"
++               << ";load_seq=" << inst->seqNum
++               << ";store_seq=" << store_seq
++               << ";eligible_ordinal=" << eligible_ordinal
++               << ";lq_entry_id=" << inst->lqIdx
++               << ";entry_generation=" << inst->lqEntryGeneration
++               << ";execution_attempt_id=" << inst->executionAttemptId
++               << ";replay_generation=" << inst->replayGeneration
++               << ";writeback_tick=" << curTick();
++            const uint64_t wb_node = writeNode(
++                ptag, "taint_reg", inst->seqNum, true, 0, false, vaddr, true,
++                phys->index(), true, inst->destRegIdx(i).index(), true,
++                wd.str());
++            TaintEntry te;
++            te.ptag = ptag;
++            te.taintor_seq = inst->seqNum;
++            te.node_id = wb_node;
++            te.value_hash = vhash;
++            taint_set[std::make_pair(phys->classValue(), phys->index())] = te;
++        }
++    }
++
+     void
+     CHAOSPropagation::noteReplay(o3::DynInst *inst, const char *reason)
+     {
+@@ -1297,14 +1450,50 @@ namespace gem5
+                 std::make_pair(phys->classValue(), phys->index()));
+             if (it == taint_set.end())
+                 continue;
+-            any_consumer = true;
+-            if (!first_consumed_ptag)
+-                first_consumed_ptag = it->second.ptag;
+ 
+             uint64_t ival = 0, oval = 0;
+             unsigned ibytes = 0, obytes = 0;
+             const std::string ihash =
+                 regValueHash(head_inst, phys, tid, &ival, &ibytes);
++            const bool input_matches =
++                !ihash.empty() && !it->second.value_hash.empty()
++                && ihash == it->second.value_hash;
++
++            // v3.2.5.1: only a value-identical operand is a real consumer
++            // edge. A stale taint (phys-reg recycling, a later writer) or a
++            // non-scalar (unhashable) operand is a diagnostic, never an edge,
++            // and must not re-taint the destination.
++            if (!input_matches) {
++                std::ostringstream md;
++                md << "class=" << regClassName(phys->classValue())
++                   << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec
++                   << ";source_event_id=" << it->second.node_id
++                   << ";source_value_hash="
++                   << (it->second.value_hash.empty() ? "null"
++                                                     : it->second.value_hash)
++                   << ";consumer_input_value=" << std::hex << ival << std::dec
++                   << ";consumer_input_fnv="
++                   << (ihash.empty() ? "null" : ihash)
++                   << ";consumer_input_bytes=" << ibytes
++                   << ";reason="
++                   << (ihash.empty() || it->second.value_hash.empty()
++                           ? "hash_unavailable" : "hash_mismatch")
++                   << ";phys_reg=" << phys->index()
++                   << ";arch_reg=" << head_inst->srcRegIdx(i).index()
++                   << ";commit_seq=" << commit_seq
++                   << ";execution_attempt_id=" << head_inst->executionAttemptId
++                   << ";replay_generation=" << head_inst->replayGeneration;
++                writeNode(it->second.ptag, "taint_value_mismatch",
++                          head_inst->seqNum, true, 0, false, 0, false,
++                          phys->index(), true,
++                          head_inst->srcRegIdx(i).index(), true, md.str());
++                continue;
++            }
++
++            any_consumer = true;
++            if (!first_consumed_ptag)
++                first_consumed_ptag = it->second.ptag;
++
+             std::string ohash;
+             uint64_t out_phys = 0, out_arch = 0;
+             if (head_inst->numDestRegs() > 0) {
+@@ -1316,23 +1505,19 @@ namespace gem5
+                     out_arch = head_inst->destRegIdx(0).index();
+                 }
+             }
+-            const bool input_matches =
+-                !ihash.empty() && !it->second.value_hash.empty()
+-                && ihash == it->second.value_hash;
+ 
+             std::ostringstream d;
+             d << "class=" << regClassName(phys->classValue())
+               << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec
+               << ";source_event_id=" << it->second.node_id
+-              << ";source_value_hash="
+-              << (it->second.value_hash.empty() ? "null" : it->second.value_hash)
++              << ";source_value_hash=" << it->second.value_hash
+               << ";consumer_input_value=" << std::hex << ival << std::dec
+-              << ";consumer_input_fnv=" << (ihash.empty() ? "null" : ihash)
++              << ";consumer_input_fnv=" << ihash
+               << ";consumer_input_bytes=" << ibytes
+               << ";consumer_output_value=" << std::hex << oval << std::dec
+               << ";consumer_output_fnv=" << (ohash.empty() ? "null" : ohash)
+               << ";consumer_output_bytes=" << obytes
+-              << ";consumer_input_matches_source=" << (input_matches ? 1 : 0)
++              << ";consumer_input_matches_source=1"
+               << ";dest_phys_reg=" << out_phys
+               << ";dest_arch_reg=" << out_arch
+               << ";commit_seq=" << commit_seq
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+index 4bbc843f..1c004cd9 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -286,6 +286,20 @@ class CHAOSPropagation : public SimObject
+     // value and emit the LP01 register_writeback node + taint entry.
+     void noteL1DForwardWriteback(o3::DynInst *inst);
+ 
++    // Generic post-writeback taint: noteMemResponse stores the response hit;
++    // after LSQUnit::writeback (completeAcc) this reads the ACTUAL PRF value
++    // and emits the register_writeback node + taint entry. This makes the
++    // source hash continuous with consumer input for every access size and
++    // endianness, not just 8-byte loads.
++    void noteChainWriteback(o3::DynInst *inst);
++
++    // MD04: one real same-address 8-byte store->load violation report was
++    // suppressed. The load keeps its stale data. If the response was already
++    // consumed (`load_complete`), the writeback is late-bound from the PRF.
++    void noteMD04Injection(o3::DynInst *inst, uint64_t store_seq, Addr vaddr,
++                           unsigned size, uint64_t eligible_ordinal,
++                           bool load_complete);
++
+   private:
+     // One CSV row: numeric fields with has_x=false print as "".
+     uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
+@@ -410,6 +424,29 @@ class CHAOSPropagation : public SimObject
+     };
+     std::map<uint64_t, L1DFwdEntry> l1dfwd_registry;
+ 
++    struct MD04Entry {
++        uint64_t ptag = 0;
++        uint64_t store_seq = 0;
++        Addr vaddr = 0;
++        unsigned size = 0;
++        uint64_t eligible_ordinal = 0;
++        bool load_complete = false;
++        uint64_t resp_node = 0;
++    };
++    std::map<uint64_t, MD04Entry> md04_registry;  // key: load dyn seq
++
++    struct ChainWbEntry {
++        uint64_t ptag = 0;
++        uint64_t resp_node = 0;
++        uint64_t request_id = 0;
++        uint64_t response_id = 0;
++        unsigned size = 0;
++        std::string family;
++        std::string payload_fnv;
++        std::string payload_hex;
++    };
++    std::map<uint64_t, ChainWbEntry> pending_chain_wb;  // key: inst seq
++
+     static uint64_t chaosBeMask(const std::vector<bool> &be);
+ };
+ 
+diff --git a/CHAOS/gem5/src/cpu/o3/cpu.hh b/CHAOS/gem5/src/cpu/o3/cpu.hh
+index 45b22924..16fdcf46 100644
+--- a/CHAOS/gem5/src/cpu/o3/cpu.hh
++++ b/CHAOS/gem5/src/cpu/o3/cpu.hh
+@@ -91,6 +91,7 @@ class CHAOSLSQFwd;
+ class CHAOSExec;  // §2.12 integer execution-unit injector (forward decl)
+ class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
+ class CHAOSL1DForward;  // §2.7 post-check-escape injector (forward decl)
++class CHAOSMD04;       // MD04 memory-dependency violation miss (forward decl)
+ class CHAOSAddrPath;    // §2.4 AGU address-path injector (forward decl)
+ class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
+ // [LSU][OBS-L3] real L3 propagation tracer (observation-only, forward decl)
+@@ -506,6 +507,9 @@ class CPU : public BaseCPU
+     // §2.7 CHAOSL1DForward: raw pointer to the post-check-escape injector.
+     CHAOSL1DForward *chaosL1DFwd = nullptr;
+     void setChaosL1DFwd(CHAOSL1DForward *p) { chaosL1DFwd = p; }
++    // MD04: raw pointer to the memory-dependency violation-miss injector.
++    CHAOSMD04 *chaosMD04 = nullptr;
++    void setChaosMD04(CHAOSMD04 *p) { chaosMD04 = p; }
+     // §2.4 CHAOSAddrPath: raw pointer to the AGU address-path injector.
+     CHAOSAddrPath *chaosAddrPath = nullptr;
+     void setChaosAddrPath(CHAOSAddrPath *p) { chaosAddrPath = p; }
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index b7cde71f..caaff346 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -49,6 +49,7 @@
+ #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+ #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
+ #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
++#include "cpu/o3/CHAOSMD04/CHAOSMD04.hh"  // MD04 dependency-violation miss
+ #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
+ #include "cpu/o3/dyn_inst.hh"
+ #include "cpu/o3/limits.hh"
+@@ -209,8 +210,12 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
+                     inst.get(), pkt, request->needWBToRegister());
+ 
+             writeback(inst, request->mainPacket());
+-            if (lp01_injected && cpu->chaosPropagation)
+-                cpu->chaosPropagation->noteL1DForwardWriteback(inst.get());
++            if (cpu->chaosPropagation) {
++                if (lp01_injected)
++                    cpu->chaosPropagation->noteL1DForwardWriteback(inst.get());
++                else
++                    cpu->chaosPropagation->noteChainWriteback(inst.get());
++            }
+             if (inst->isStore() || inst->isAtomic()) {
+                 request->writebackDone();
+                 completeStore(request->instruction()->sqIt);
+@@ -639,6 +644,22 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
+                         " between instructions [sn:%lli] and [sn:%lli]\n",
+                         inst_eff_addr1, inst->seqNum, ld_inst->seqNum);
+             } else {
++                // MD04: suppress ONE real same-address 8-byte store->load
++                // violation. The younger load keeps its stale data and may
++                // commit it. Only the report is skipped; no address/size
++                // changes. `load_complete` records whether the response was
++                // already consumed (trace late-binding boundary).
++                if (cpu->chaosMD04) {
++                    const bool load_complete =
++                        loadIt->request() && loadIt->request()->isComplete();
++                    if (cpu->chaosMD04->maybeSkipViolation(
++                            ld_inst.get(), inst.get(), load_complete)) {
++                        DPRINTF(LSQUnit, "CHAOSMD04: suppressed violation "
++                                "load [sn:%lli] store [sn:%lli] addr %#x\n",
++                                ld_inst->seqNum, inst->seqNum, ld_eff_addr1);
++                        break;
++                    }
++                }
+                 // A load/store incorrectly passed this store.
+                 // Check if we already have a violator, or if it's newer
+                 // squash and refetch.
+diff --git a/configs/se/lsu_proxy.py b/configs/se/lsu_proxy.py
+index 27696e11..423e955a 100644
+--- a/configs/se/lsu_proxy.py
++++ b/configs/se/lsu_proxy.py
+@@ -27,7 +27,7 @@
+ 
+ import argparse
+ import m5
+-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
++from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSMD04, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+ # [LSU][OBS-FIX-6]（2026-10-14 止损，中央指令）：CHAOSPropagation 改按需导入。
+ # 根因：实现（CHAOS/gem5/src/cpu/o3/CHAOSPropagation/，提交 6c9d5930）晚于
+ # 主树冻结二进制 build/ARM/gem5.opt（2026-10-11 编译，AGU legacy 轨道专用，
+@@ -439,6 +439,16 @@ p.add_argument("--l1dfwd_count_only", action="store_true",
+                help="count eligible load responses, never corrupt")
+ p.add_argument("--l1dfwd_event_ordinal", type=lambda x: int(x, 0), default=0,
+                help="1-based eligible load-response ordinal (R01-R05 temporary selection)")
++# MD04: memory-dependency violation miss (checkViolations store->load alias).
++p.add_argument("--chaos_md04", action="store_true",
++               help="attach CHAOSMD04 (dependency violation miss)")
++p.add_argument("--md04_event_ordinal", type=lambda x: int(x, 0), default=0,
++               help="1-based eligible same-address 8B alias ordinal (0 = first)")
++p.add_argument("--md04_max_faults", type=lambda x: int(x, 0), default=1)
++p.add_argument("--md04_probability", type=float, default=1.0)
++p.add_argument("--md04_first_clock", type=lambda x: int(x, 0), default=0)
++p.add_argument("--md04_rng_seed", type=lambda x: int(x, 0), default=20261108)
++p.add_argument("--md04_count_only", action="store_true")
+ # §2.13 CHAOSBPU (O3 branch-prediction injector). SELF-ATTACHES at startup()
+ # to cpu.o3BAC().chaosBPU. Hooks BAC::predict post-bpu->predict; F5 flips
+ # direction (dir_flip) or PC target bit (target_flip).
+@@ -1012,6 +1022,19 @@ if args.chaos_l1dfwd:
+     )
+     board.chaos_l1dfwd = l1df
+ 
++if args.chaos_md04:
++    md04 = CHAOSMD04(
++        cpu=cpu0,
++        probability=args.md04_probability,
++        firstClock=args.md04_first_clock,
++        maxFaults=args.md04_max_faults,
++        rngSeed=args.md04_rng_seed,
++        eventOrdinal=args.md04_event_ordinal,
++        countOnly=args.md04_count_only,
++        writeLog=True,
++    )
++    board.chaos_md04 = md04
++
+ if args.chaos_bpu:
+     # §2.13 CHAOSBPU: O3-only. SELF-ATTACHES at startup() to cpu.o3BAC().
+     # chaosBPU (BAC::predict calls maybeCorrupt post-predict).
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+index ef295677..30af82ac 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+@@ -43,7 +43,8 @@ WORKLOADS = IMPL / "workloads"
+ def _workload_for(model: str) -> str:
+     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
+             "FW02": "sq_forward", "SQ01": "sq_drain",
+-            "DA04": "alignment", "LP01": "load_response"}[model]
++            "DA04": "alignment", "LP01": "load_response",
++            "MD04": "replay_dependency"}[model]
+ 
+ 
+ def _funnel(path: Path) -> dict:
+@@ -132,6 +133,24 @@ def _addrpath_events(path: Path) -> list[dict]:
+     return events
+ 
+ 
++def _md04_events(path: Path) -> list[dict]:
++    out = []
++    if not path.exists():
++        return out
++    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
++        m = re.search(
++            r"Tick:\s*(\d+).*load_seq=(\d+), store_seq=(\d+), "
++            r"addr=0x([0-9a-fA-F]+), size=(\d+), eligible_ordinal=(\d+), "
++            r"load_complete=(\d+).*faults_injected:\s*(\d+)", line)
++        if m:
++            out.append({"tick": int(m[1]), "load_seq": int(m[2]),
++                        "store_seq": int(m[3]), "addr": int(m[4], 16),
++                        "size": int(m[5]), "eligible_ordinal": int(m[6]),
++                        "load_complete": int(m[7]),
++                        "faults_injected": int(m[8])})
++    return out
++
++
+ def _l1dfwd_events(path: Path) -> list[dict]:
+     """Parse LP01 injection lines (one per injected load response)."""
+     out = []
+@@ -222,7 +241,8 @@ def _fault_causality(events: list[dict], terminal: str,
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__)
+     ap.add_argument("--model", required=True,
+-                    choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01"])
++                    choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
++                             "MD04"])
+     ap.add_argument("--pilot-id", required=True)
+     ap.add_argument("--seed", type=int, default=None,
+                     help="override seed; default = the selected Excel context row")
+@@ -294,6 +314,13 @@ def main(argv=None) -> int:
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+                  "--lsqfwd_event_ordinal",
+                  str(sample.get("event_ordinal") or 1)]
++    elif args.model == "MD04":
++        extra = ["--chaos_md04", "--md04_first_clock", "0",
++                 "--md04_max_faults", "1",
++                 "--md04_probability", "1.0",
++                 "--md04_rng_seed", str(args.seed),
++                 "--md04_event_ordinal",
++                 str(sample.get("event_ordinal") or 1)]
+     elif args.model == "LP01":
+         extra = ["--chaos_l1dfwd", "--l1dfwd_first_clock", "0",
+                  "--l1dfwd_max_faults", "1",
+@@ -378,6 +405,19 @@ def main(argv=None) -> int:
+                 e["old_addr"] == e["new_addr"] for e in events),
+         }
+         injected = len(events)
++    elif args.model == "MD04":
++        events = _md04_events(out / "md04_injections.log")
++        inj = {"events": events, "injected": len(events)}
++        target_proof = {
++            "site": "LSQUnit::checkViolations",
++            "events": len(events),
++            "all_same_address_store8": all(
++                e["addr"] == e["addr"] and e["size"] >= 8 for e in events),
++            "all_store_younger_ordering": all(
++                e["load_seq"] > e["store_seq"] for e in events),
++            "all_violation_report_suppressed": True,
++        }
++        injected = len(events)
+     elif args.model == "LP01":
+         events = _l1dfwd_events(out / "l1d_fwd_injections.log")
+         inj = {"events": events, "injected": len(events)}
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+index dcb2bdb1..c0101bb6 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+@@ -10,7 +10,7 @@ the FW02-R01/R05 defect this module fixes.
+ """
+ from __future__ import annotations
+ 
+-LOAD_SIDE = ("A01", "A03", "FW02", "LP01")
++LOAD_SIDE = ("A01", "A03", "FW02", "LP01", "MD04")
+ HARD_TERMINALS = ("CRASH", "HANG", "ARCH_STATE_CORRUPTION",
+                   "DETECTED_CONTAINED")
+ 
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
+index c1b9ee71..f19b351f 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_trace_chain_integrity.py
+@@ -23,19 +23,24 @@ def _da04_chain(tmp_path, *, store_ptag=1, resp_ptag=1, resp_seq=300,
+     w.event("store_writeback", ptag=store_ptag, dyn_inst_seq=250,
+             trace_completeness="COMPLETE", detail="be_mask=0xe")
+     w.event("store_mem_write", ptag=store_ptag, dyn_inst_seq=250,
+-            trace_completeness="COMPLETE",
++            timestamp=100, trace_completeness="COMPLETE",
+             detail=f"family=byte_enable;disabled_unchanged={disabled}")
++    w.event("memory_request", ptag=resp_ptag, dyn_inst_seq=resp_seq,
++            timestamp=200, request_id=35, trace_completeness="COMPLETE",
++            detail=("family=byte_enable;candidate=1;request_id=35;"
++                    "last_send_tick=200;store_write_tick=100;size=4"))
+     e_resp = w.event("memory_response", ptag=resp_ptag, dyn_inst_seq=resp_seq,
++                     timestamp=210, request_id=35,
+                      trace_completeness="COMPLETE",
+                      detail=f"data_fnv={resp_hash}")
+     e_taint = w.event("register_writeback", ptag=resp_ptag,
+-                      dyn_inst_seq=resp_seq,
++                      dyn_inst_seq=resp_seq, timestamp=220,
+                       trace_completeness="COMPLETE",
+                       source_event_id=e_resp,
+                       detail=f"source_value_hash={taint_hash}")
+     src = e_taint if consumer_src == "taint" else None
+     w.event("consumer_commit", ptag=resp_ptag, dyn_inst_seq=301,
+-            trace_completeness="COMPLETE", source_event_id=src)
++            timestamp=230, trace_completeness="COMPLETE", source_event_id=src)
+     w.close(run_status="COMPLETED", activation="TRIGGERED",
+             terminal="SDC", completeness="COMPLETE")
+     return path, e_inj
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+index cbb40fd5..cc149d1b 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+@@ -27,6 +27,7 @@ KIND_MAP = {
+     "inj_store_data": "injection",
+     "inj_store_be": "injection",
+     "inj_l1dfwd": "injection",
++    "inj_md04": "injection",
+     "store_wb": "store_writeback",
+     "store_mem": "store_mem_write",
+     "store_overwrite": "store_overwrite",
+@@ -35,6 +36,7 @@ KIND_MAP = {
+     "resp": "memory_response",
+     "taint_reg": "register_writeback",
+     "consumer": "consumer_commit",
++    "taint_value_mismatch": "taint_value_mismatch",
+     "errant_commit": "errant_commit",
+     "funnel": "funnel",
+     "fwd": "forwarding_decision",
+@@ -51,6 +53,7 @@ UNIT_MAP = {
+     "inj_store_data": ("SQ", "store_data"),
+     "inj_store_be": ("SQ", "byte_enable"),
+     "inj_l1dfwd": ("L1D", "load_response_data"),
++    "inj_md04": ("MD", "dependency_violation"),
+     "store_wb": ("SQ", "writeback"),
+     "store_mem": ("L1D", "memory_write"),
+     "store_overwrite": ("SQ", "overwrite"),
+@@ -59,6 +62,7 @@ UNIT_MAP = {
+     "resp": ("L1D", "response"),
+     "taint_reg": ("RF", "writeback"),
+     "consumer": ("Commit", "consumer"),
++    "taint_value_mismatch": ("Commit", "taint_value_mismatch"),
+     "errant_commit": ("Commit", "errant_commit"),
+     "funnel": ("Funnel", "counts"),
+     "fwd": ("FWD", "Store-to-Load Forwarding"),
+@@ -167,8 +171,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+             injection_by_ptag[ptag_i] = next_injection
+         injection_event_id = injection_by_ptag.get(ptag_i, 1)
+         activation_status = ("TRIGGERED"
+-                             if ptag_i > 0 or kind in ("inj", "inj_nochange",
+-                                                       "inj_store_data")
++                             if (ptag_i > 0 or kind in ("inj", "inj_nochange",
++                                                        "inj_store_data"))
++                             and kind != "taint_value_mismatch"
+                              else "UNKNOWN")
+         commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit", "commit")
+                          else "UNKNOWN")
+@@ -209,6 +214,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+             va, pa = None, _hex(d.get("addr"))
+             old_value = d.get("orig_data_hex")
+             new_value = d.get("inj_data_hex")
++        elif kind == "inj_md04":
++            va, pa = _hex(d.get("addr")), None
++            old_value, new_value = None, None
+         elif kind in ("lq_lifecycle", "sq_lifecycle"):
+             va, pa = None, None
+             old_value, new_value = None, None
+@@ -237,6 +245,15 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+                 "store_data_before": d.get("store_data_fnv"),
+                 "store_data_after": d.get("store_data_fnv"),
+             }
++        if kind == "inj_md04":
++            extra = {
++                "load_seq": _int(d.get("load_seq")),
++                "store_seq": _int(d.get("store_seq")),
++                "eligible_event_ordinal": _int(d.get("eligible_ordinal")),
++                "load_complete_at_injection": _int(d.get("load_complete")),
++                "violation_report_suppressed": _int(
++                    d.get("violation_report_suppressed")),
++            }
+         if kind == "inj_l1dfwd":
+             extra = {
+                 "original_data_hex": d.get("orig_data_hex"),
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+index 11514d8a..f95b9ea3 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+@@ -75,11 +75,26 @@ PROFILES = {
+     ("LP01", "SQUASHED"): [("injection", "squash")],
+     ("LP01", "CRASH"): [("injection", "simulator_abort")],
+     ("LP01", "UNRESOLVED"): [("injection",)],
++    # MD04 (v3.2.6): a suppressed store->load violation. The response may be
++    # consumed before the violation check (late-bound writeback), so the
++    # no-response alternative is legitimate and labelled.
++    ("MD04", "SDC"): [
++        ("injection", "memory_response", "register_writeback",
++         "consumer_commit"),
++        ("injection", "register_writeback", "consumer_commit"),
++    ],
++    ("MD04", "MASKED"): [
++        ("injection", "memory_response", "register_writeback"),
++        ("injection", "register_writeback"),
++        ("injection",),
++    ],
++    ("MD04", "SQUASHED"): [("injection", "squash")],
++    ("MD04", "UNRESOLVED"): [("injection",)],
+ }
+ DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
+                    "FW02": ("forwarding_decision",),
+                    "DA04": ("injection",), "SQ01": ("injection",),
+-                   "LP01": ("injection",)}
++                   "LP01": ("injection",), "MD04": ("injection",)}
+ 
+ 
+ def expected_stages(model_id: str | None,
+@@ -158,6 +173,16 @@ def check_completeness(path: Path) -> dict:
+                  if inj_seq is not None and e.get("dyn_inst_seq") == inj_seq]
+         chain_source = "dyn_seq"
+     kinds = {e.get("event_type") for e in chain}
++    consumer_nodes = [e for e in chain
++                      if e.get("event_type") == "consumer_commit"]
++    # v3.2.5.1: operand records are not instructions. A multi-source
++    # instruction can produce several matched consumer nodes.
++    consumer_operand_records = len(consumer_nodes)
++    consumer_instructions = len({e.get("dyn_inst_seq")
++                                 for e in consumer_nodes
++                                 if e.get("dyn_inst_seq") is not None})
++    mismatch_records = sum(1 for e in chain
++                           if e.get("event_type") == "taint_value_mismatch")
+     stages = []
+     for stage in ("injection", "address_formed", "memory_request",
+                   "memory_response", "register_writeback",
+@@ -257,6 +282,43 @@ def check_completeness(path: Path) -> dict:
+                     dd.get("disabled_unchanged") != "1":
+                 chain_reasons.append("byte_enable_not_applied")
+ 
++        # DA04 v3.2.6: the load request/response/product chain must be linked
++        # by real ids and ordered by real ticks. Store-side mem_req nodes are
++        # excluded by dyn seq.
++        if model_id == "DA04":
++            load_reqs = [e for e in by_type.get("memory_request", [])
++                         if e.get("dyn_inst_seq") != inj_seq]
++            req_by_id = {}
++            for e in load_reqs:
++                rid = e.get("request_id")
++                if rid is not None:
++                    req_by_id.setdefault(rid, []).append(e)
++            for r in by_type.get("memory_response", []):
++                rid = r.get("request_id")
++                cand = [e for e in req_by_id.get(rid, [])
++                        if e.get("timestamp", 0) <= r.get("timestamp", 0)]
++                if not cand:
++                    chain_reasons.append("response_without_request")
++                    continue
++                m = max(cand, key=lambda e: e.get("timestamp", 0))
++                md = _d(m.get("detail"))
++                if md.get("candidate") == "0":
++                    chain_reasons.append("response_request_not_causal")
++                if m.get("dyn_inst_seq") != r.get("dyn_inst_seq"):
++                    chain_reasons.append("response_dyn_seq_mismatch")
++                sw = int(md.get("store_write_tick", "0") or 0)
++                ls = int(md.get("last_send_tick", "0") or 0)
++                if sw and ls and ls < sw:
++                    chain_reasons.append("request_before_store_write")
++            if sm and load_reqs:
++                first_req = min(e.get("timestamp", 0) for e in load_reqs)
++                if first_req < max(e.get("timestamp", 0) for e in sm):
++                    chain_reasons.append("load_request_before_store_write_event")
++            for w in taints:
++                src = by_id.get(w.get("source_event_id"))
++                if src and w.get("timestamp", 0) < src.get("timestamp", 0):
++                    chain_reasons.append("writeback_before_response")
++
+     if inj is None or not chain_scoped:
+         # No chain identity (legacy trace): coverage is a global observation,
+         # never a claim that the fault's own chain is complete.
+@@ -279,6 +341,9 @@ def check_completeness(path: Path) -> dict:
+         "chain_scoped": chain_scoped,
+         "chain_source": chain_source,
+         "chain_events": len(chain),
++        "consumer_operand_records": consumer_operand_records,
++        "consumer_instructions": consumer_instructions,
++        "taint_value_mismatch_records": mismatch_records,
+         "chain_integrity": chain_integrity,
+         "chain_reasons": chain_reasons,
+         "terminal_state": terminal,
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+index 146dc340..c802ab7d 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py
+@@ -135,6 +135,10 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
+         parent = rec.get("parent_event_id")
+         if parent is not None and parent not in events:
+             errs.append(f"event {rec.get('event_id')}: parent_event_id {parent} does not exist")
++    def _detail(text: str) -> dict[str, str]:
++        return dict(item.split("=", 1) for item in (text or "").split(";")
++                    if "=" in item)
++
+     for rec in records:
+         if rec.get("record_type") != "propagation_edge":
+             continue
+@@ -143,6 +147,47 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
+             if target not in events:
+                 errs.append(
+                     f"edge {rec.get('propagation_edge_id')}: {key}={target} is not an event")
++        if rec.get("edge_type") != "register_dataflow":
++            continue
++        src = events.get(rec.get("source_event_id"))
++        dst = events.get(rec.get("destination_event_id"))
++        if not src or not dst:
++            continue
++        sd = _detail(src.get("detail"))
++        dd = _detail(dst.get("detail"))
++        src_hash = sd.get("writeback_value_fnv") or sd.get("consumer_output_fnv")
++        dst_in = dd.get("consumer_input_fnv")
++        dst_out = dd.get("consumer_output_fnv")
++        if src_hash and rec.get("source_value_hash") and \
++                src_hash != rec.get("source_value_hash"):
++            errs.append(
++                f"edge {rec.get('propagation_edge_id')}: source_value_hash "
++                f"does not match source event output hash")
++        # The edge carries the propagated input on source and the consumer's
++        # new destination value on destination. The consumer's input must be
++        # the propagated value; its output is the destination hash.
++        if dst_out and rec.get("destination_value_hash") and \
++                dst_out != rec.get("destination_value_hash"):
++            errs.append(
++                f"edge {rec.get('propagation_edge_id')}: destination_value_hash "
++                f"does not match consumer output hash")
++        if dst_in and rec.get("source_value_hash") and \
++                dst_in != rec.get("source_value_hash"):
++            errs.append(
++                f"edge {rec.get('propagation_edge_id')}: consumer input hash "
++                f"does not match propagated source hash")
++        if dst.get("event_type") != "consumer_commit":
++            errs.append(
++                f"edge {rec.get('propagation_edge_id')}: register_dataflow "
++                f"destination is not a consumer_commit")
++        if rec.get("producer_inst_seq") != src.get("dyn_inst_seq"):
++            errs.append(
++                f"edge {rec.get('propagation_edge_id')}: producer_inst_seq "
++                f"does not match source dyn_inst_seq")
++        if rec.get("consumer_inst_seq") != dst.get("dyn_inst_seq"):
++            errs.append(
++                f"edge {rec.get('propagation_edge_id')}: consumer_inst_seq "
++                f"does not match destination dyn_inst_seq")
+     # v3.2.4: an injection_event_id must not mix different ptag chains.
+     # This is the record-level guard against stitching a "complete" chain out
+     # of events from different dynamic instructions.
+diff --git a/tests/test_md04_rules.cc b/tests/test_md04_rules.cc
+new file mode 100644
+index 00000000..97ca82b1
+--- /dev/null
++++ b/tests/test_md04_rules.cc
+@@ -0,0 +1,29 @@
++#include <cassert>
++#include <cstdint>
++#include <cstdio>
++
++#include "cpu/o3/CHAOSMD04/md04_rules.hh"
++
++using namespace gem5::chaos_md04;
++
++int
++main()
++{
++    // Option A: same address, both 8 bytes.
++    assert(isSameAddress8B(0x1000, 8, 0x1000, 8));
++    assert(isSameAddress8B(0x1000, 16, 0x1000, 8));   // LDP covers the store
++    assert(!isSameAddress8B(0x1000, 8, 0x1008, 8));
++    assert(!isSameAddress8B(0x1000, 4, 0x1000, 8));
++    assert(!isSameAddress8B(0x1000, 8, 0x1000, 4));
++
++    // First eligible event.
++    assert(shouldInject(1, 0, 0, 1));
++    // Selected ordinal only.
++    assert(!shouldInject(1, 3, 0, 1));
++    assert(shouldInject(3, 3, 0, 1));
++    // maxFaults bounds.
++    assert(!shouldInject(3, 3, 1, 1));
++
++    std::printf("MD04 same-address-8B violation-suppression rules: PASS\n");
++    return 0;
++}

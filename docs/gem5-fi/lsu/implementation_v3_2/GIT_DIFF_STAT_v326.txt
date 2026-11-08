@@ -1,0 +1,150 @@
+ CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.cc       |   123 +
+ CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.hh       |    54 +
+ CHAOS/gem5/src/cpu/o3/CHAOSMD04/CHAOSMD04.py       |    18 +
+ CHAOS/gem5/src/cpu/o3/CHAOSMD04/SConscript         |     5 +
+ CHAOS/gem5/src/cpu/o3/CHAOSMD04/md04_rules.hh      |    39 +
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.cc    |   281 +-
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.hh    |    37 +
+ CHAOS/gem5/src/cpu/o3/cpu.hh                       |     4 +
+ CHAOS/gem5/src/cpu/o3/lsq_unit.cc                  |    25 +-
+ configs/se/lsu_proxy.py                            |    25 +-
+ .../DA04_End_to_End_Chain_Audit_v3.2.6.md          |    64 +
+ .../FW05_Source_Audit_v3.2.6.md                    |    35 +
+ .../LP01_Consumer_Edge_Closure_v3.2.6.md           |    56 +
+ .../LP01_EVENT_SELECTION_v3.2.6.md                 |    18 +
+ .../LSU_v3.2.6_Status_Report.md                    |    90 +
+ .../MD04_Implementation_v3.2.6.md                  |    46 +
+ .../MD04_Source_Audit_v3.2.6.md                    |    45 +
+ .../implementation_v3_2/MODEL_STATUS_MATRIX.csv    |     6 +-
+ .../implementation_v3_2/REMAINING_ISSUES_v3.2.6.md |    25 +
+ .../evidence_v3_2_6/DA04_v326_E2E_EVIDENCE.txt     |    30 +
+ .../evidence_v3_2_6/LP01_v326_COMMIT_SQUASH.txt    |    10 +
+ .../evidence_v3_2_6/LP01_v326_EVIDENCE.csv         |     6 +
+ .../evidence_v3_2_6/MD04_v326_EVIDENCE.csv         |     6 +
+ .../evidence_v3_2_6/MD04_v326_PILOTS.txt           |     5 +
+ .../pilots_v3_2_6/DA04-R04/citations.bib           |   123 +
+ .../pilots_v3_2_6/DA04-R04/command.txt             |    28 +
+ .../pilots_v3_2_6/DA04-R04/config.ini              |  1734 +
+ .../pilots_v3_2_6/DA04-R04/config.json             |  2242 +
+ .../pilots_v3_2_6/DA04-R04/manifest.json           |    74 +
+ .../pilots_v3_2_6/DA04-R04/pilot_meta.json         |   145 +
+ .../pilots_v3_2_6/DA04-R04/prop_trace.csv.gz       |   Bin 0 -> 713007 bytes
+ .../pilots_v3_2_6/DA04-R04/stats.txt               |  1772 +
+ .../pilots_v3_2_6/DA04-R04/trace_v31.jsonl         | 23238 ++++++++++
+ .../pilots_v3_2_6/DA04-R05/citations.bib           |   123 +
+ .../pilots_v3_2_6/DA04-R05/command.txt             |    28 +
+ .../pilots_v3_2_6/DA04-R05/config.ini              |  1734 +
+ .../pilots_v3_2_6/DA04-R05/config.json             |  2242 +
+ .../pilots_v3_2_6/DA04-R05/manifest.json           |    74 +
+ .../pilots_v3_2_6/DA04-R05/pilot_meta.json         |   145 +
+ .../pilots_v3_2_6/DA04-R05/prop_trace.csv.gz       |   Bin 0 -> 1554997 bytes
+ .../pilots_v3_2_6/DA04-R05/stats.txt               |  1772 +
+ .../pilots_v3_2_6/DA04-R05/trace_v31.jsonl         | 36650 +++++++++++++++
+ .../pilots_v3_2_6/LP01-R01/citations.bib           |   123 +
+ .../pilots_v3_2_6/LP01-R01/command.txt             |    24 +
+ .../pilots_v3_2_6/LP01-R01/config.ini              |  1724 +
+ .../pilots_v3_2_6/LP01-R01/config.json             |  2232 +
+ .../pilots_v3_2_6/LP01-R01/manifest.json           |    70 +
+ .../pilots_v3_2_6/LP01-R01/pilot_meta.json         |   131 +
+ .../pilots_v3_2_6/LP01-R01/prop_trace.csv.gz       |   Bin 0 -> 1276148 bytes
+ .../pilots_v3_2_6/LP01-R01/stats.txt               |  1769 +
+ .../pilots_v3_2_6/LP01-R01/trace_v31.jsonl         | 45156 ++++++++++++++++++
+ .../pilots_v3_2_6/LP01-R02/citations.bib           |   123 +
+ .../pilots_v3_2_6/LP01-R02/command.txt             |    24 +
+ .../pilots_v3_2_6/LP01-R02/config.ini              |  1724 +
+ .../pilots_v3_2_6/LP01-R02/config.json             |  2232 +
+ .../pilots_v3_2_6/LP01-R02/manifest.json           |    70 +
+ .../pilots_v3_2_6/LP01-R02/pilot_meta.json         |   131 +
+ .../pilots_v3_2_6/LP01-R02/prop_trace.csv.gz       |   Bin 0 -> 1267242 bytes
+ .../pilots_v3_2_6/LP01-R02/stats.txt               |  1769 +
+ .../pilots_v3_2_6/LP01-R02/trace_v31.jsonl         | 44912 ++++++++++++++++++
+ .../pilots_v3_2_6/LP01-R03/citations.bib           |   123 +
+ .../pilots_v3_2_6/LP01-R03/command.txt             |    24 +
+ .../pilots_v3_2_6/LP01-R03/config.ini              |  1724 +
+ .../pilots_v3_2_6/LP01-R03/config.json             |  2232 +
+ .../pilots_v3_2_6/LP01-R03/manifest.json           |    70 +
+ .../pilots_v3_2_6/LP01-R03/pilot_meta.json         |   131 +
+ .../pilots_v3_2_6/LP01-R03/prop_trace.csv.gz       |   Bin 0 -> 1266767 bytes
+ .../pilots_v3_2_6/LP01-R03/stats.txt               |  1770 +
+ .../pilots_v3_2_6/LP01-R03/trace_v31.jsonl         | 44881 ++++++++++++++++++
+ .../pilots_v3_2_6/LP01-R04/citations.bib           |   123 +
+ .../pilots_v3_2_6/LP01-R04/command.txt             |    24 +
+ .../pilots_v3_2_6/LP01-R04/config.ini              |  1724 +
+ .../pilots_v3_2_6/LP01-R04/config.json             |  2232 +
+ .../pilots_v3_2_6/LP01-R04/manifest.json           |    70 +
+ .../pilots_v3_2_6/LP01-R04/pilot_meta.json         |   131 +
+ .../pilots_v3_2_6/LP01-R04/prop_trace.csv.gz       |   Bin 0 -> 1267422 bytes
+ .../pilots_v3_2_6/LP01-R04/stats.txt               |  1771 +
+ .../pilots_v3_2_6/LP01-R04/trace_v31.jsonl         | 44909 ++++++++++++++++++
+ .../pilots_v3_2_6/LP01-R05/citations.bib           |   123 +
+ .../pilots_v3_2_6/LP01-R05/command.txt             |    24 +
+ .../pilots_v3_2_6/LP01-R05/config.ini              |  1724 +
+ .../pilots_v3_2_6/LP01-R05/config.json             |  2232 +
+ .../pilots_v3_2_6/LP01-R05/manifest.json           |    70 +
+ .../pilots_v3_2_6/LP01-R05/pilot_meta.json         |   131 +
+ .../pilots_v3_2_6/LP01-R05/prop_trace.csv.gz       |   Bin 0 -> 1267474 bytes
+ .../pilots_v3_2_6/LP01-R05/stats.txt               |  1771 +
+ .../pilots_v3_2_6/LP01-R05/trace_v31.jsonl         | 44918 ++++++++++++++++++
+ .../pilots_v3_2_6/MD04-R01/citations.bib           |   123 +
+ .../pilots_v3_2_6/MD04-R01/command.txt             |    24 +
+ .../pilots_v3_2_6/MD04-R01/config.ini              |  1723 +
+ .../pilots_v3_2_6/MD04-R01/config.json             |  2231 +
+ .../pilots_v3_2_6/MD04-R01/manifest.json           |    70 +
+ .../pilots_v3_2_6/MD04-R01/pilot_meta.json         |   129 +
+ .../pilots_v3_2_6/MD04-R01/prop_trace.csv.gz       |   Bin 0 -> 776358 bytes
+ .../pilots_v3_2_6/MD04-R01/stats.txt               |  1766 +
+ .../pilots_v3_2_6/MD04-R01/trace_v31.jsonl         | 27280 +++++++++++
+ .../pilots_v3_2_6/MD04-R02/citations.bib           |   123 +
+ .../pilots_v3_2_6/MD04-R02/command.txt             |    24 +
+ .../pilots_v3_2_6/MD04-R02/config.ini              |  1723 +
+ .../pilots_v3_2_6/MD04-R02/config.json             |  2231 +
+ .../pilots_v3_2_6/MD04-R02/manifest.json           |    70 +
+ .../pilots_v3_2_6/MD04-R02/pilot_meta.json         |   132 +
+ .../pilots_v3_2_6/MD04-R02/prop_trace.csv.gz       |   Bin 0 -> 777883 bytes
+ .../pilots_v3_2_6/MD04-R02/stats.txt               |  1766 +
+ .../pilots_v3_2_6/MD04-R02/trace_v31.jsonl         | 27307 +++++++++++
+ .../pilots_v3_2_6/MD04-R03/citations.bib           |   123 +
+ .../pilots_v3_2_6/MD04-R03/command.txt             |    24 +
+ .../pilots_v3_2_6/MD04-R03/config.ini              |  1723 +
+ .../pilots_v3_2_6/MD04-R03/config.json             |  2231 +
+ .../pilots_v3_2_6/MD04-R03/manifest.json           |    70 +
+ .../pilots_v3_2_6/MD04-R03/pilot_meta.json         |   132 +
+ .../pilots_v3_2_6/MD04-R03/prop_trace.csv.gz       |   Bin 0 -> 809538 bytes
+ .../pilots_v3_2_6/MD04-R03/stats.txt               |  1766 +
+ .../pilots_v3_2_6/MD04-R03/trace_v31.jsonl         | 27801 ++++++++++++
+ .../pilots_v3_2_6/MD04-R04/citations.bib           |   123 +
+ .../pilots_v3_2_6/MD04-R04/command.txt             |    24 +
+ .../pilots_v3_2_6/MD04-R04/config.ini              |  1723 +
+ .../pilots_v3_2_6/MD04-R04/config.json             |  2231 +
+ .../pilots_v3_2_6/MD04-R04/manifest.json           |    70 +
+ .../pilots_v3_2_6/MD04-R04/pilot_meta.json         |   128 +
+ .../pilots_v3_2_6/MD04-R04/prop_trace.csv.gz       |   Bin 0 -> 776047 bytes
+ .../pilots_v3_2_6/MD04-R04/stats.txt               |  1766 +
+ .../pilots_v3_2_6/MD04-R04/trace_v31.jsonl         | 27278 +++++++++++
+ .../pilots_v3_2_6/MD04-R05/citations.bib           |   123 +
+ .../pilots_v3_2_6/MD04-R05/command.txt             |    24 +
+ .../pilots_v3_2_6/MD04-R05/config.ini              |  1723 +
+ .../pilots_v3_2_6/MD04-R05/config.json             |  2231 +
+ .../pilots_v3_2_6/MD04-R05/manifest.json           |    70 +
+ .../pilots_v3_2_6/MD04-R05/pilot_meta.json         |   130 +
+ .../pilots_v3_2_6/MD04-R05/prop_trace.csv.gz       |   Bin 0 -> 776204 bytes
+ .../pilots_v3_2_6/MD04-R05/stats.txt               |  1766 +
+ .../pilots_v3_2_6/MD04-R05/trace_v31.jsonl         | 27270 +++++++++++
+ .../SMOKE_LP01-R01_final_binary/citations.bib      |   123 +
+ .../SMOKE_LP01-R01_final_binary/command.txt        |    24 +
+ .../SMOKE_LP01-R01_final_binary/config.ini         |  1724 +
+ .../SMOKE_LP01-R01_final_binary/config.json        |  2232 +
+ .../SMOKE_LP01-R01_final_binary/manifest.json      |    70 +
+ .../SMOKE_LP01-R01_final_binary/pilot_meta.json    |   128 +
+ .../SMOKE_LP01-R01_final_binary/prop_trace.csv.gz  |   Bin 0 -> 1279765 bytes
+ .../SMOKE_LP01-R01_final_binary/stats.txt          |  1769 +
+ .../SMOKE_LP01-R01_final_binary/trace_v31.jsonl    | 45212 +++++++++++++++++++
+ .../lsu/implementation_v3_2/platform/run_pilot.py  |    44 +-
+ .../implementation_v3_2/platform/terminal_rules.py |     2 +-
+ .../platform/tests/test_trace_chain_integrity.py   |    11 +-
+ .../platform/tools/prop_trace_to_v31.py            |    21 +-
+ .../platform/trace_completeness.py                 |    67 +-
+ .../platform/trace_validator.py                    |    45 +
+ .../2026-11-08-lsu-v3251-lp01-closure-md04.md      |   105 +
+ tests/test_md04_rules.cc                           |    29 +
+ 149 files changed, 547138 insertions(+), 63 deletions(-)

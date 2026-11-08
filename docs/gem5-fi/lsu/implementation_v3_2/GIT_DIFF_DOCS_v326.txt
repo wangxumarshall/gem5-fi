@@ -1,0 +1,642 @@
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/DA04_End_to_End_Chain_Audit_v3.2.6.md b/docs/gem5-fi/lsu/implementation_v3_2/DA04_End_to_End_Chain_Audit_v3.2.6.md
+new file mode 100644
+index 00000000..382c78b5
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/DA04_End_to_End_Chain_Audit_v3.2.6.md
+@@ -0,0 +1,64 @@
++# DA04 end-to-end propagation audit (v3.2.6)
++
++**Binary:** `0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d`
++**Pilots:** `pilots_v3_2_6/DA04-R04`, `DA04-R05` (v3.2.4/v3.2.5 not overwritten)
++
++## Original-data check (requested)
++
++The v3.2.4 CSV contained no load-side `mem_req` events (the tracer had no
++such hook). The v3.2.5 hook was therefore necessary, not a converter-only
++fix. v3.2.6 reruns the two pilots with the final hook.
++
++## R04 chain (real values)
++
++| Stage | Evidence |
++|---|---|
++| Store byte-enable injection | seq 13832, addr `0x4919d5`, size 4, `0xF→0xE`, data `c114af81` (fnv `ef9edb828f3fc2c`), SQ 1478/gen 1877 |
++| SQ processing | `store_writeback` (be=0xE) then `store_mem_write` at tick 17,042,410; block `0x769c0`+21, `lane0 before/after = 0xA5/0xA5`, `enabled_written=1`, `disabled_unchanged=1` |
++| Load memory request | seq 19210, request_id 35, fragment 3665, LQ 758/gen 1243; first send 2,286,900; **last send 17,889,025**; `candidate=1` (last send > store write) |
++| Load response | tick 17,889,795, request_id 35, `data_hex=a514af81`, `data_fnv=d9a56276a6025898` |
++| Register writeback | actual PRF `writeback_value=81af14a5` (little-endian 4-byte), `writeback_value_fnv=a959f41d27dbce18`, `payload_fnv=d9a56276a6025898`, `hash_basis=regval_extension` |
++| Consumer | 1,009 matched operand records, 1,009 unique instructions; first consumer input hash `a959f41d27dbce18`; **0 hash mismatches** |
++| Commit | load seq 19210 commits; errant commit at 17,890,565 |
++| Oracle | FAIL `3f89eab79392ce4d` vs golden `3f89eab79392ce69` → SDC |
++| Trace | validator VALID, coverage COMPLETE, chain PASS |
++
++## R05 chain (real values)
++
++| Stage | Evidence |
++|---|---|
++| Injection | seq 14582, addr `0x491c2d`, size 4, `0xF→0xE`, data `77623036`, SQ 1628/gen 2027 |
++| Cache write | tick 17,157,910, block `0x76c00`+45, lane0 `0xA5→0xA5`, disabled lane unchanged |
++| Load request | seq 19960, request 91, fragment 3824, first send 13,118,105, **last send 18,004,525**, candidate=1 |
++| Response | tick 18,005,295, `data_hex=a5623036`, `data_fnv=7cc505782442859c` |
++| Writeback | actual PRF `363062a5`, hash `bdb2b3575183d5c`, payload hash `7cc505782442859c` |
++| Consumer | 7,714 matched operand records, 7,713 unique instructions; 0 mismatches |
++| Oracle | FAIL `b948f769e7d691f5` → SDC |
++| Trace | validator VALID, coverage COMPLETE, chain PASS |
++
++## Request/response association and ordering
++
++- `memory_response.request_id` equals the load `mem_req.request_id`
++  (35 / 91); dyn seq matches (19210 / 19960).
++- `mem_req.last_send_tick` is after `store_mem_write` tick; `candidate=1`.
++- Ordering: store_mem_write < load mem_req < response < writeback < consumer < commit.
++- The completeness checker enforces these (`response_without_request`,
++  `response_request_not_causal`, `response_dyn_seq_mismatch`,
++  `request_before_store_write`, `load_request_before_store_write_event`).
++
++## PropagationEdge hashes
++
++- R04: 1,018 edges (1,009 `register_dataflow`, 9 `ptag_sequence`); 0 missing
++  `edge_type`; all register edges have both hashes.
++- R05: 7,724 edges (7,714 register_dataflow); 0 missing `edge_type`.
++- Validator: source hash = source event output hash; destination hash =
++  consumer output hash; consumer input = propagated source. `VALID`.
++
++## Verdict
++
++The DA04 chain is machine-verifiable end-to-end for R04/R05:
++`byte-enable injection → SQ → cache block update → load memory request →
++response → actual PRF writeback → 1,009/7,714 consumers → commit → oracle`.
++The 4-byte payload/register hash mismatch that appeared in the intermediate
++v3.2.6 build was a trace bug (payload hashed as register value), not a
++propagation failure; it is fixed by the post-`completeAcc` writeback read.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/FW05_Source_Audit_v3.2.6.md b/docs/gem5-fi/lsu/implementation_v3_2/FW05_Source_Audit_v3.2.6.md
+new file mode 100644
+index 00000000..191997a5
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/FW05_Source_Audit_v3.2.6.md
+@@ -0,0 +1,35 @@
++# FW05 source audit (handoff)
++
++**State:** DESIGNED / SOURCE_AUDITED. No code or pilot in this round.
++
++## Frozen identity (Excel v3.2.1)
++
++| Field | Value |
++|---|---|
++| Model | FW05 (部分重叠数据拼接错误) |
++| Unit | FWD |
++| Mode | F6 |
++| SubTask / RunID | `FW05-F6-W8-S01` / `FW05-F6-W8` |
++| Workload | W8 `alignment` |
++| Location | `CHAOSLSQFwd::maybeSubstituteSource` |
++| Target | `store_it._idx` / `alt_src` |
++| Normal | `true_src` = youngest matching store |
++| Fault | copy `alt_src` = older store data |
++| Recommended | A: wrong-source forwarding (existing hook); B: true multi-store splice is NOT SUPPORTED; C: delete is forbidden |
++| Oracle | `3f89eab79392ce69` |
++| Seeds | R01 1025137124 (remaining seeds in Excel) |
++
++## Source mapping
++
++`CHAOSLSQFwd::maybeSubstituteSource(load_data, true_src, copy_size,
++alt_src, alt_size, vaddr)` already implements option A in
++`StructMode::FwdSourceSub`. The eligibility is an older SQ entry with data
++(a real multiple-candidate forwarding). FW05 needs a dedicated mode/ordinal,
++trace registration of the wrong-source copy, and the same consumer-hash
++discipline as v3.2.6.
++
++## Next step
++
++Write `docs/superpowers/plans/YYYY-MM-DD-lsu-v327-fw05.md` before code. The
++existing `maybeSubstituteSource` hook is the intended implementation point;
++do not start from `CHAOSL1DForward`.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LP01_Consumer_Edge_Closure_v3.2.6.md b/docs/gem5-fi/lsu/implementation_v3_2/LP01_Consumer_Edge_Closure_v3.2.6.md
+new file mode 100644
+index 00000000..13b96e54
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LP01_Consumer_Edge_Closure_v3.2.6.md
+@@ -0,0 +1,56 @@
++# LP01 consumer-edge closure (v3.2.6)
++
++## What changed
++
++`CHAOSPropagation::noteCommit` now:
++- emits `consumer` + `register_dataflow` **only when**
++  `consumer_input_fnv == taint.value_hash` (non-empty);
++- emits `taint_value_mismatch` for a stale/unhashable source and does **not**
++  re-taint its destination, does **not** write an edge, and does **not** set
++  `any_consumer`;
++- re-taints only from matched consumers, using the consumer's output hash.
++
++`noteMemResponse` no longer hashes the packet payload as the writeback value.
++It stores the response hit; `noteChainWriteback`, called after
++`LSQUnit::writeback` (i.e. after `completeAcc`), reads the **actual PRF
++value** and emits the `register_writeback` node. This fixes the 4-byte DA04
++false mismatch (payload `a514af81` vs register `0x81af14a5`) while preserving
++the payload→response hash in `source_value_hash`.
++
++## Before/after (five LP01 pilots, same identities/ordinals)
++
++| Pilot | old consumer records | old matches | old mismatches | new consumer records | new instructions | new mismatches |
++|---|---:|---:|---:|---:|---:|---:|
++| R01 | 183 | 129 | 54 | 110 | 96 | 45 |
++| R02 | 1 | 1 | 0 | 1 | 1 | 0 |
++| R03 | 6 | 3 | 3 | 3 | 3 | 3 |
++| R04 | 1 | 1 | 0 | 1 | 1 | 0 |
++| R05 | 6 | 3 | 3 | 3 | 3 | 3 |
++
++The new "consumer records" are matched operands; `consumer_instructions`
++is the unique dynamic-instruction count (a multi-source instruction can have
++several operand records). R01's 183 → 155 total operands is explained by the
++no-re-taint rule: a mismatched source no longer propagates the old taint to
++the destination, so downstream consumers of that stale line disappear. All
++five new traces are validator VALID, coverage COMPLETE, chain PASS.
++
++## Validator / completeness
++
++- `register_dataflow` edge: source hash = source event's
++  `writeback_value_fnv`/`consumer_output_fnv`; destination hash = consumer
++  output; consumer input must equal the propagated source hash.
++- `producer_inst_seq`/`consumer_inst_seq` must match the endpoint events'
++  dyn seq.
++- Mismatched operands never create edges, so they cannot enter
++  PropagationCoverage.
++- `consumer_operand_records`, `consumer_instructions` and
++  `taint_value_mismatch_records` are reported in the completeness report and
++  pilot_meta.
++
++## DA04 impact (why this round also fixed the public path)
++
++The generic post-writeback change is what makes DA04's 4-byte load hash
++continuous: the old source hash was the 4-byte payload; the consumer read
++the extended register value. After the fix, R04/R05 have 0 mismatches,
++1,009/7,714 matched consumer records, coverage COMPLETE and chain PASS.
++See `DA04_End_to_End_Chain_Audit_v3.2.6.md`.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LP01_EVENT_SELECTION_v3.2.6.md b/docs/gem5-fi/lsu/implementation_v3_2/LP01_EVENT_SELECTION_v3.2.6.md
+new file mode 100644
+index 00000000..bd1391f6
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LP01_EVENT_SELECTION_v3.2.6.md
+@@ -0,0 +1,18 @@
++# LP01 event selection — historical fact and freeze requirement
++
++- R01: Excel ordinal 1, clinical 1.
++- R02: Excel ordinal 2, clinical 2.
++- R03: Excel ordinal 3, clinical 3.
++- R04: Excel ordinal 4, clinical 4.
++- R05: Excel ordinal **5**, clinical **14**.
++
++The R05 substitution is retained as a historical fact: the Excel ordinal 5
++event in the W5 eligible stream had no consumer, so ordinal 14 was used. It
++is recorded as `excel_identity.event_ordinal=5` and
++`event_ordinal_used=14` in every v3.2.5/v3.2.6 manifest and pilot_meta. It
++is **not** relabelled as Excel ordinal 5 in the clinical field.
++
++Before the formal experiment, the ROI/warm-up window and the eligible-event
++selection rule must be frozen separately. The post-hoc rule "advance until a
++consumer exists" is a temporary pilot selection and must not be used for
++formal samples without the researcher's explicit approval.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.6_Status_Report.md b/docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.6_Status_Report.md
+new file mode 100644
+index 00000000..53be079a
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.6_Status_Report.md
+@@ -0,0 +1,90 @@
++# LSU v3.2.6 — LP01 trace closure + MD04 implementation
++
++**Branch:** `lsu-platform-v3.2.6` (from `bca94be7`, v3.2.5 tip)
++**Final binary:** `0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d`
++**Scope:** LP01 consumer-edge closure; generic PRF-value writeback hashes;
++DA04 end-to-end chain; MD04 implementation + five pilots. No 60-sample run.
++
++## 1. LP01 consumer-edge closure
++
++`noteCommit` now emits a real `register_dataflow` edge only when
++`consumer_input_fnv == source value hash`. Mismatches emit
++`taint_value_mismatch` (hash, phys/arch reg, reason) and never re-taint.
++Operand records and unique consumer instructions are reported separately.
++Coverage counts matched `consumer_commit` only.
++
++| Pilot | old records | old matches | old mismatch | new records | new instructions | new mismatch |
++|---|---:|---:|---:|---:|---:|---:|
++| R01 | 183 | 129 | 54 | 110 | 96 | 45 |
++| R02 | 1 | 1 | 0 | 1 | 1 | 0 |
++| R03 | 6 | 3 | 3 | 3 | 3 | 3 |
++| R04 | 1 | 1 | 0 | 1 | 1 | 0 |
++| R05 | 6 | 3 | 3 | 3 | 3 | 3 |
++
++All five v3.2.6 pilots: one injection, MASKED (oracle PASS), validator VALID,
++coverage COMPLETE, chain PASS. Old v3.2.5 traces untouched.
++
++**Hash-continuity root cause:** for size<8 the packet payload is not the
++register value (endianness/extension). The tracer now emits
++`register_writeback` after `completeAcc`, reading the actual PRF value. This
++removed DA04's 4-byte false mismatch (`payload a514af81` vs register
++`0x81af14a5`) and makes the consumer input match the source hash.
++
++## 2. DA04 end-to-end chain (R04/R05)
++
++R04: byte-enable `0xF→0xE` (seq 13832) → SQ writeback → cache block update
++(tick 17,042,410, lane0 `0xA5→0xA5`, disabled lane unchanged) → load
++`mem_req` (seq 19210, request 35, first send 2,286,900, **last send
++17,889,025**, candidate=1) → response (`a514af81`, tick 17,889,795) →
++actual PRF writeback (`0x81af14a5`, fnv `a959f41d27dbce18`, payload fnv
++`d9a56276a6025898`, `hash_basis=regval_extension`) → **1,009 matched
++consumers** → commit → oracle FAIL (`3f89eab79392ce4d`) → SDC.
++
++R05: analogous; last send 18,004,525 > store write 17,157,910; **7,714
++matched consumers**; oracle FAIL (`b948f769e7d691f5`) → SDC.
++
++Both: 0 hash mismatches, validator VALID, coverage COMPLETE, chain PASS.
++Edges: R04 1,018 (1,009 register + 9 ptag; 0 missing type); R05 7,724.
++
++## 3. MD04 implementation and pilots
++
++Definition (source-corrected): the W7 store→younger-load detection is the
++`M5PanicFault` return in `checkViolations` (`lsq_unit.cc:655`), not the
++load/load `possibleLoadViolation(true)` flag. MD04-CFG01 suppresses one real
++same-address 8-byte store alias report (16-byte LDP covering an 8-byte store
++included; 4-byte pairs excluded). New `CHAOSMD04`, hook, config, unit test,
++trace (`inj_md04`, late-bound writeback when the response was already
++consumed), converter/completeness/terminal/runner support.
++
++| Pilot | load seq | store seq | addr | size | ordinal | consumers | oracle | terminal |
++|---|---:|---:|---|---:|---:|---:|---|---|
++| R01 | 518 | 514 | 0x7ffffefc10 | 8 | 1 | 0 | PASS | SQUASHED |
++| R02 | 2251 | 2239 | 0x493990 | 8 | 2 | 6 | PASS | MASKED |
++| R03 | 17443 | 17442 | 0x491990 | 8 | 3 | 259 | PASS | MASKED |
++| R04 | 69297 | 69292 | 0x7ffffefb78 | 16 | 4 | 0 | PASS | SQUASHED |
++| R05 | 71660 | 71652 | 0x4915a0 | 8 | 5 | 2 | PASS | MASKED |
++
++MD04 is IMPLEMENTED / COMPILED / UNIT_TESTED / PILOT_RUN / chain-level
++PROPAGATION_VERIFIED. No MD04 SDC.
++
++## 4. Final-v3.2.5-binary smoke
++
++`pilots_v3_2_6/SMOKE_LP01-R01_final_binary` ran on the v3.2.5 final binary
++`6808c56e…`: one injection, MASKED, coverage COMPLETE, chain PASS, manifest
++binary SHA recorded.
++
++## 5. Verification
++
++- Build `scons -j16` exit 0.
++- `tests/test_md04_rules.cc` PASS; LP01 matrix PASS; store-chain PASS; DA04
++  byte-enable PASS.
++- `pytest platform/tests/ -q` → 74 passed.
++- All v3.2.6 traces: validator VALID.
++
++## 6. Explicit non-claims
++
++- LP01: five MASKED pilots, no SDC pilot.
++- DA04: R04/R05 SDC; R01–R03 not rerun (their generation is unchanged by
++  the load-side writeback hash; no claim is made about new traces).
++- MD04: no SDC pilot; 3 traced chains, 2 squashed.
++- Formal 60-sample experiment not run; warm-up/ROI not frozen.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/MD04_Implementation_v3.2.6.md b/docs/gem5-fi/lsu/implementation_v3_2/MD04_Implementation_v3.2.6.md
+new file mode 100644
+index 00000000..6100ee37
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/MD04_Implementation_v3.2.6.md
+@@ -0,0 +1,46 @@
++# MD04 implementation and pilots (v3.2.6)
++
++**Binary:** `0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d`
++
++## Implementation
++
++- New SimObject `CHAOSMD04` (`CHAOS/gem5/src/cpu/o3/CHAOSMD04/`), self-attaches
++  via `CPU.chaosMD04`.
++- Hook in `LSQUnit::checkViolations` store branch suppresses one eligible
++  same-address 8-byte store→load violation report.
++- Config: `--chaos_md04 --md04_event_ordinal N --md04_max_faults 1
++  --md04_probability 1.0 --md04_first_clock 0 --md04_rng_seed S`.
++- Trace: `inj_md04` (site, load/store seq, addr, size, ordinal,
++  `violation_report_suppressed=1`, `load_complete`), then either a normal
++  response/writeback chain or a **late-bound** `register_writeback`
++  (`late_binding=1`, PRF value read at injection because the response was
++  already consumed). Consumers/commit use the normal chain.
++- Unit test: `tests/test_md04_rules.cc` (same-address/8B, 16-byte load
++  covering an 8-byte store, 4-byte reject, ordinal/maxFaults) — PASS.
++
++## Five pilots (W7, Excel seeds; clinical ordinal = Excel ordinal)
++
++| Pilot | load seq | store seq | addr | size | eligible ordinal | load complete at injection | consumers | oracle | terminal |
++|---|---:|---:|---|---:|---:|---:|---:|---|---|
++| R01 | 518 | 514 | 0x7ffffefc10 | 8 | 1 | 1 | 0 | PASS | SQUASHED |
++| R02 | 2251 | 2239 | 0x493990 | 8 | 2 | 0 | 6 | PASS | MASKED |
++| R03 | 17443 | 17442 | 0x491990 | 8 | 3 | 0 | 259 | PASS | MASKED |
++| R04 | 69297 | 69292 | 0x7ffffefb78 | 16 | 4 | 0 | 0 | PASS | SQUASHED |
++| R05 | 71660 | 71652 | 0x4915a0 | 8 | 5 | 1 | 2 | PASS | MASKED |
++
++- In W7 the eligible stream depends on the store/load execution order; the
++  per-pilot dyn seq differs from the probe-time run because the seed changes
++  the schedule (recorded).
++- R02/R03/R05 have complete injection→response (or late-bound writeback)→
++  writeback→consumer→commit chains; R03 has 259 consumers.
++- R01/R04 are squashed before commit (valid SQUASHED outcomes).
++- No MD04 SDC: the stale data did not change the W7 checksum in these
++  events. The model is PILOT_RUN + chain-level PROPAGATION_VERIFIED, not an
++  SDC claim.
++
++## Unfinished
++
++- No SDC pilot; the five W7 events all pass the oracle.
++- `possibleLoadViolation` (load/load) remains a separate mechanism and is not
++  the MD04 target (documented correction).
++- Formal 60-sample grid not run.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/MD04_Source_Audit_v3.2.6.md b/docs/gem5-fi/lsu/implementation_v3_2/MD04_Source_Audit_v3.2.6.md
+new file mode 100644
+index 00000000..3400adfa
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/MD04_Source_Audit_v3.2.6.md
+@@ -0,0 +1,45 @@
++# MD04 source audit and definition (v3.2.6)
++
++**State:** SOURCE_AUDITED (unified with the existing audit commit; the matrix
++previously still said 0).
++
++## Source finding that corrects the earlier audit
++
++`DynInst::possibleLoadViolation(true)` at `lsq_unit.cc:637` is in the
++`inst->isLoad()` branch of `LSQUnit::checkViolations` — a load/load ordering
++flag that is consumed by the snoop path (`lsq_unit.cc:550`). It is **not**
++the store→younger-load dependency violation used by W7.
++
++W7 `replay_dependency` (a store `q[idx]=r` followed by `a[idx]` load through
++an alias) hits the store branch of `checkViolations`: the function detects a
++younger load that passed the store and returns `M5PanicFault` at
++`lsq_unit.cc:655` (7 such detections in a no-fault run; 0
++`possibleLoadViolation` lines). The unique MD04 fault is therefore defined
++at that store→load detection:
++
++> MD04-CFG01 (option A): suppress exactly one real same-address 8-byte store
++> alias violation report. The store is 8 bytes at the load's start address;
++> a wider load (16-byte LDP) that covers the store is a same-address alias
++> and is included. A 4-byte pair or a different address is excluded. The
++> younger load keeps its stale data and may commit it; addresses and sizes
++> are never modified.
++
++This is the single fault definition used by the implementation, unit test,
++config and pilots.
++
++## Frozen identity (Excel v3.2.1)
++
++`MD04-F6-W7-S01`, W7 `replay_dependency`, oracle `59fc61c040618747`,
++seeds 2595563470 / 811948497 / 2545691512 / 2149193331 / 1008734674,
++EventOrdinal 1..5, injection `checkViolations`, F6, recommended option A
++(`NEEDS_USER_DECISION` in the workbook; option A adopted and recorded).
++
++## Hook
++
++`LSQUnit::checkViolations`, store branch, before the `M5PanicFault` return:
++`if (cpu->chaosMD04 && cpu->chaosMD04->maybeSkipViolation(ld_inst, inst,
++load_complete)) break;`
++
++Eligibility counts only real same-address 8-byte store aliases; the selected
++1-based ordinal (`--md04_event_ordinal`) is suppressed once
++(`maxFaults=1`). No address/size change.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv b/docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv
+index 05eb41eb..9047190f 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv
++++ b/docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv
+@@ -3,9 +3,9 @@ A01,AGU,xv,1,1,1,1,1,1,0,"v3.2.1 pilots; v3.2.4 re-adjudicated (R03 SQUASHED)"
+ A03,AGU,xv,1,1,1,1,1,1,0,"v3.2.1 pilots; CRASH x5"
+ FW02,FWD,xv,1,1,1,1,1,1,0,"v3.2.4 R01/R05 SQUASHED; R03/R04 MASKED; R02 CRASH"
+ SQ01,SQ,store_data,1,1,1,1,1,1,0,"v3.2.4 store_wb+store_mem; no consumer"
+-DA04,SQ,byte_enable,1,1,1,1,1,1,1,"v3.2.5 last-send request-time audit confirms v3.2.4 SDC: R04 1,009 consumers, R05 7,714; disabled lane unchanged"
+-LP01,L1D,load_response,1,1,1,1,1,1,1,"v3.2.5 five W5 pilots: injection->response->writeback->consumer->commit with matching hashes; all MASKED (no SDC)"
+-MD04,LSU,LSQ,1,0,0,0,0,0,0,"v3.2.3 audit"
++DA04,SQ,byte_enable,1,1,1,1,1,1,1,"v3.2.6 R04/R05 end-to-end chain with actual PRF hashes: 1,009/7,714 matched consumers, 0 mismatches, SDC"
++LP01,L1D,load_response,1,1,1,1,1,1,1,"v3.2.6 five pilots: matched consumer edges only, mismatch diagnostics 45/0/3/0/3; all MASKED (no SDC)"
++MD04,LSU,LSQ,1,1,1,1,1,1,1,"v3.2.6 checkViolations store->load 8B suppression; 5 W7 pilots; 3 traced chains (6/259/2 consumers), 2 squashed; no SDC"
+ FW05,FWD,forward,1,0,0,0,0,0,0,"v3.2.3 audit"
+ SQ03,SQ,writeback,1,0,0,0,0,0,0,"v3.2.3 audit"
+ SP05,SQ,completion,1,0,0,0,0,0,0,"v3.2.3 audit"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/REMAINING_ISSUES_v3.2.6.md b/docs/gem5-fi/lsu/implementation_v3_2/REMAINING_ISSUES_v3.2.6.md
+new file mode 100644
+index 00000000..85657c73
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/REMAINING_ISSUES_v3.2.6.md
+@@ -0,0 +1,25 @@
++# LSU v3.2.6 — remaining issues
++
++1. **LP01 has no SDC pilot.** All five v3.2.6 pilots are MASKED; 45/0/3/0/3
++   stale-source operands are now diagnostics, not edges.
++2. **DA04 R01–R03 were not rerun.** The load-side writeback hash change does
++   not alter their injection path; no new traces are claimed for them.
++3. **MD04 has no SDC pilot.** Three pilots have traced chains (R02 6, R03
++   259, R05 2 consumers); R01/R04 are squashed.
++4. **MD04 definition correction.** The Excel target field
++   `possibleLoadViolation` is a load/load flag; W7’s store→load violation is
++   the `M5PanicFault` detection. The implementation and audit use the latter
++   and document the discrepancy.
++5. **W7 eligible count.** Only six same-address/8-byte-store alias events
++   exist; the five pilots use ordinals 1–5 (including two 16-byte LDP loads
++   that cover the 8-byte store). R05 is a late-bound writeback (response
++   consumed before the violation check).
++6. **Warm-up/ROI not frozen.** LP01 R05 clinical ordinal 14 is historical;
++   formal selection must be frozen separately and no post-hoc consumer
++   filtering is approved.
++7. **SE VA alias matching** remains VA-based; a different VA mapping to the
++   same memory location is not matched.
++8. **Vector consumers** have no scalar hash; they are explicit nulls, not
++   failures.
++9. **No formal 60-sample run; no multi-cell grid.**
++10. **FW05** is audit-only; no implementation/pilots.
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/DA04_v326_E2E_EVIDENCE.txt b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/DA04_v326_E2E_EVIDENCE.txt
+new file mode 100644
+index 00000000..c76001ee
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/DA04_v326_E2E_EVIDENCE.txt
+@@ -0,0 +1,30 @@
++== DA04-R04 ==
++terminal=SDC reason=ORACLE_FAIL oracle=FAIL consumers=1009 instructions=1009 mismatch=0 coverage=COMPLETE chain=PASS validator_errors=0
++injection: ts=17040870 seq=13832 ptag=1 detail=site=lsq_pushRequest;family=byte_enable;fault_model=DA04;size=4;old_be=0xf;new_be=0xe;changed_bit=0;addr_before=0x4919d5;addr_after=0x4919d5;size_before=4;size_after=4;store_data_fnv=ef9edb828f3fc2c;store_data_hex=c114af81;sq_entry_id=1478;entry_generation=1877
++memory_request: ts=17040870 seq=13832 ptag=1 detail=site=lsq_sendFragmentToTranslation;family=byte_enable;candidate=0;size=4;request_id=99;fragment_id=2577;request_tick=16929990;last_send_tick=17040870;store_write_tick=0;last_send_before_store_write=0;store_not_written_yet=1;overwritten=0;lq_entry_id=741;sq_entry_id=1478
++memory_request: ts=17889025 seq=19210 ptag=1 detail=site=lsq_sendFragmentToTranslation;family=byte_enable;candidate=1;size=4;request_id=35;fragment_id=3665;request_tick=2286900;last_send_tick=17889025;store_write_tick=17042410;last_send_before_store_write=0;store_not_written_yet=0;overwritten=0;lq_entry_id=758;sq_entry_id=-1
++memory_request: ts=18710230 seq=24465 ptag=1 detail=site=lsq_sendFragmentToTranslation;family=byte_enable;candidate=1;size=1;request_id=100;fragment_id=4752;request_tick=16934225;last_send_tick=18710230;store_write_tick=17042410;last_send_before_store_write=0;store_not_written_yet=0;overwritten=0;lq_entry_id=1764;sq_entry_id=2501
++memory_response: ts=17889795 seq=19210 ptag=1 detail=family=byte_enable;size=4;data_len=4;data_fnv=d9a56276a6025898;data_hex=a514af81;request_id=35;response_id=1;fragment_id=3665;lq_entry_id=758;sq_entry_id=-1;entry_generation=1243;execution_attempt_id=1;replay_generation=0;request_tick=2286900;response_tick=17889795;pa=769d5
++register_writeback: ts=17889795 seq=19210 ptag=1 detail=family=byte_enable;class=int;dest_idx=0;phys_reg=118;arch_reg=0;writeback_value=81af14a5;writeback_value_fnv=a959f41d27dbce18;payload_fnv=d9a56276a6025898;payload_hex=a514af81;payload_len=4;hash_basis=regval_extension;value_matches_payload=0;source_value_hash=d9a56276a6025898;source_event_id=8265;request_id=35;response_id=1;execution_attempt_id=1;replay_gene
++errant_commit: ts=17890565 seq=19210 ptag=1 detail=trigger=faulting_load_commit;pc=400558;commit_seq=11802
++commit: ts=17041640 seq=13832 ptag=0 detail=trigger=fault_instruction_commit;tracked=fault;pc=400538;commit_seq=6683;execution_attempt_id=1;replay_generation=0;is_load=0;is_store=1
++store_writeback: ts=17042410 seq=13832 ptag=1 detail=site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;data_fnv=1079154960948788268;data_hex=c114af81;sq_entry_id=1478;entry_generation=1877;addr=0x4919d5
++store_mem_write: ts=17042410 seq=13832 ptag=1 detail=site=BaseCache::updateBlockData;family=byte_enable;blk_addr=0x769c0;offset=21;size=4;be_mask=0xe;packet_data_fnv=1079154960948788268;packet_data_hex=c114af81;before_hex=a5a5a5a5;after_hex=a514af81;enabled_written=1;disabled_unchanged=1;lane0_packet=0xc1;lane0_before=0xa5;lane0_after=0xa5
++edges=1019 register_dataflow=1009 with_both_hashes=1007 missing_edge_type=0
++
++== DA04-R05 ==
++terminal=SDC reason=ORACLE_FAIL oracle=FAIL consumers=7714 instructions=7713 mismatch=0 coverage=COMPLETE chain=PASS validator_errors=0
++injection: ts=17156370 seq=14582 ptag=1 detail=site=lsq_pushRequest;family=byte_enable;fault_model=DA04;size=4;old_be=0xf;new_be=0xe;changed_bit=0;addr_before=0x491c2d;addr_after=0x491c2d;size_before=4;size_after=4;store_data_fnv=45e9ebf61e9ee776;store_data_hex=77623036;sq_entry_id=1628;entry_generation=2027
++memory_request: ts=17156370 seq=14582 ptag=1 detail=site=lsq_sendFragmentToTranslation;family=byte_enable;candidate=0;size=4;request_id=92;fragment_id=2736;request_tick=13124650;last_send_tick=17156370;store_write_tick=0;last_send_before_store_write=0;store_not_written_yet=1;overwritten=0;lq_entry_id=741;sq_entry_id=1628
++memory_request: ts=18004525 seq=19960 ptag=1 detail=site=lsq_sendFragmentToTranslation;family=byte_enable;candidate=1;size=4;request_id=91;fragment_id=3824;request_tick=13118105;last_send_tick=18004525;store_write_tick=17157910;last_send_before_store_write=0;store_not_written_yet=0;overwritten=0;lq_entry_id=908;sq_entry_id=-1
++memory_request: ts=19901420 seq=29123 ptag=1 detail=site=lsq_sendFragmentToTranslation;family=byte_enable;candidate=1;size=1;request_id=72;fragment_id=5532;request_tick=10235225;last_send_tick=19901420;store_write_tick=17157910;last_send_before_store_write=0;store_not_written_yet=0;overwritten=0;lq_entry_id=2433;sq_entry_id=-1
++memory_response: ts=18005295 seq=19960 ptag=1 detail=family=byte_enable;size=4;data_len=4;data_fnv=7cc505782442859c;data_hex=a5623036;request_id=91;response_id=1;fragment_id=3824;lq_entry_id=908;sq_entry_id=-1;entry_generation=1393;execution_attempt_id=1;replay_generation=0;request_tick=13118105;response_tick=18005295;pa=76c2d
++memory_response: ts=19902190 seq=29123 ptag=1 detail=family=byte_enable;size=1;data_len=1;data_fnv=af64184c86025280;data_hex=a5;request_id=72;response_id=2;fragment_id=5532;lq_entry_id=2433;sq_entry_id=-1;entry_generation=2920;execution_attempt_id=1;replay_generation=0;request_tick=10235225;response_tick=19902190;pa=76c2d
++register_writeback: ts=18005295 seq=19960 ptag=1 detail=family=byte_enable;class=int;dest_idx=0;phys_reg=111;arch_reg=0;writeback_value=363062a5;writeback_value_fnv=bdb2b3575183d5c;payload_fnv=7cc505782442859c;payload_hex=a5623036;payload_len=4;hash_basis=regval_extension;value_matches_payload=0;source_value_hash=7cc505782442859c;source_event_id=8565;request_id=91;response_id=1;execution_attempt_id=1;replay_gener
++register_writeback: ts=19902190 seq=29123 ptag=1 detail=family=byte_enable;class=int;dest_idx=0;phys_reg=93;arch_reg=2;writeback_value=a5;writeback_value_fnv=abecb8690b299380;payload_fnv=af64184c86025280;payload_hex=a5;payload_len=1;hash_basis=regval_extension;value_matches_payload=0;source_value_hash=af64184c86025280;source_event_id=13593;request_id=72;response_id=2;execution_attempt_id=1;replay_generation=0;wri
++errant_commit: ts=18006065 seq=19960 ptag=1 detail=trigger=faulting_load_commit;pc=400558;commit_seq=12552
++commit: ts=17157140 seq=14582 ptag=0 detail=trigger=fault_instruction_commit;tracked=fault;pc=400538;commit_seq=7433;execution_attempt_id=1;replay_generation=0;is_load=0;is_store=1
++store_writeback: ts=17157910 seq=14582 ptag=1 detail=site=lsq_writebackStores;family=byte_enable;size=4;be_mask=0xe;data_fnv=5037817100498823030;data_hex=77623036;sq_entry_id=1628;entry_generation=2027;addr=0x491c2d
++store_mem_write: ts=17157910 seq=14582 ptag=1 detail=site=BaseCache::updateBlockData;family=byte_enable;blk_addr=0x76c00;offset=45;size=4;be_mask=0xe;packet_data_fnv=5037817100498823030;packet_data_hex=77623036;before_hex=a5a5a5a5;after_hex=a5623036;enabled_written=1;disabled_unchanged=1;lane0_packet=0x77;lane0_before=0xa5;lane0_after=0xa5
++edges=7726 register_dataflow=7714 with_both_hashes=7712 missing_edge_type=0
++
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/LP01_v326_COMMIT_SQUASH.txt b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/LP01_v326_COMMIT_SQUASH.txt
+new file mode 100644
+index 00000000..1c3b64ff
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/LP01_v326_COMMIT_SQUASH.txt
+@@ -0,0 +1,10 @@
++== LP01-R01 == commit=1 squash=0 replay=0
++commit seq=5 commit_seq=5 pc=4005d0
++== LP01-R02 == commit=1 squash=0 replay=0
++commit seq=48 commit_seq=44 pc=400910
++== LP01-R03 == commit=1 squash=0 replay=0
++commit seq=239 commit_seq=130 pc=4113a0
++== LP01-R04 == commit=1 squash=0 replay=0
++commit seq=247 commit_seq=138 pc=4113c0
++== LP01-R05 == commit=1 squash=0 replay=0
++commit seq=287 commit_seq=154 pc=4113c8
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/LP01_v326_EVIDENCE.csv b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/LP01_v326_EVIDENCE.csv
+new file mode 100644
+index 00000000..aa637a36
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/LP01_v326_EVIDENCE.csv
+@@ -0,0 +1,6 @@
++pilot,sample_run_id,seed,excel_ordinal,clinical_ordinal,dyn_seq,tick,addr,size,orig_hex,orig_fnv,inj_hex,inj_fnv,resp_fnv,wb_value,wb_fnv,matches,basis,consumer_records,consumer_instructions,mismatch_records,commit_present,squash_present,replay_count,oracle,terminal,reason,coverage,chain,validator_errors
++LP01-R01,LP01-F0-W5-S01-R01,1349924126,1,1,5,172865,0x80da0,8,0100000000000000,89cd31291d2aefa4,0900000000000000,81a3697174a540ac,81a3697174a540ac,9,81a3697174a540ac,1,payload_equals_regval,110,96,45,1,0,0,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0
++LP01-R02,LP01-F0-W5-S01-R02,2648660520,2,2,48,226380,0x80db8,8,0000000000000000,a8c7f832281a39c5,0800000000000000,a09e307a7f948acd,a09e307a7f948acd,8,a09e307a7f948acd,1,payload_equals_regval,1,1,0,1,0,0,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0
++LP01-R03,LP01-F0-W5-S01-R03,2021175746,3,3,239,605221,0x80dc0,8,1000000000000000,987468c2d70edbd5,1800000000000000,904aa10b2e892cdd,904aa10b2e892cdd,18,904aa10b2e892cdd,1,payload_equals_regval,3,3,3,1,0,0,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0
++LP01-R04,LP01-F0-W5-S01-R04,3894776903,4,4,247,605990,0x80dc8,8,fbf7d0cc00000000,1505defdf2164c5b,f3f7d0cc00000000,e5704c2542d06b23,e5704c2542d06b23,ccd0f7f3,e5704c2542d06b23,1,payload_equals_regval,1,1,0,1,0,0,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0
++LP01-R05,LP01-F0-W5-S01-R05,1604604537,5,14,287,625625,0x80df0,8,1700000000000000,3b8413a7b640fd72,1f00000000000000,335a4bf00dbb4e7a,335a4bf00dbb4e7a,1f,335a4bf00dbb4e7a,1,payload_equals_regval,3,3,3,1,0,0,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/MD04_v326_EVIDENCE.csv b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/MD04_v326_EVIDENCE.csv
+new file mode 100644
+index 00000000..471c7bed
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/MD04_v326_EVIDENCE.csv
+@@ -0,0 +1,6 @@
++pilot,sample_run_id,seed,excel_ordinal,clinical_ordinal,load_seq,store_seq,addr,size,trigger_tick,eligible_ordinal,load_complete,consumer_records,consumer_instructions,mismatch_records,oracle,terminal,reason,coverage,chain,validator_errors,accepted
++MD04-R01,MD04-F6-W7-S01-R01,2595563470,1,1,518,514,549755747216,8,733425,1,1,0,0,0,PASS,SQUASHED,TARGET_SQUASHED_NO_COMMIT,COMPLETE,PASS,0,True
++MD04-R02,MD04-F6-W7-S01-R02,811948497,2,2,2251,2239,4798864,8,3391080,2,0,6,6,7,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0,True
++MD04-R03,MD04-F6-W7-S01-R03,2545691512,3,3,17443,17442,4790672,8,17816260,3,0,259,259,0,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0,True
++MD04-R04,MD04-F6-W7-S01-R04,2149193331,4,4,69297,69292,549755747064,16,31073735,4,0,0,0,0,PASS,SQUASHED,TARGET_SQUASHED_NO_COMMIT,COMPLETE,PASS,0,True
++MD04-R05,MD04-F6-W7-S01-R05,1008734674,5,5,71660,71652,4789664,8,36154580,5,1,2,2,0,PASS,MASKED,TARGET_COMMITTED_DATA_VALUE_PRESENT,COMPLETE,PASS,0,True
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/MD04_v326_PILOTS.txt b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/MD04_v326_PILOTS.txt
+new file mode 100644
+index 00000000..650afa49
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_6/MD04_v326_PILOTS.txt
+@@ -0,0 +1,5 @@
++== MD04-R01 == injection={"tick": 733425, "load_seq": 518, "store_seq": 514, "addr": 549755747216, "size": 8, "eligible_ordinal": 1, "load_complete": 1, "faults_injected": 1} terminal=SQUASHED oracle=PASS consumers=0 mismatch=0
++== MD04-R02 == injection={"tick": 3391080, "load_seq": 2251, "store_seq": 2239, "addr": 4798864, "size": 8, "eligible_ordinal": 2, "load_complete": 0, "faults_injected": 1} terminal=MASKED oracle=PASS consumers=6 mismatch=7
++== MD04-R03 == injection={"tick": 17816260, "load_seq": 17443, "store_seq": 17442, "addr": 4790672, "size": 8, "eligible_ordinal": 3, "load_complete": 0, "faults_injected": 1} terminal=MASKED oracle=PASS consumers=259 mismatch=0
++== MD04-R04 == injection={"tick": 31073735, "load_seq": 69297, "store_seq": 69292, "addr": 549755747064, "size": 16, "eligible_ordinal": 4, "load_complete": 0, "faults_injected": 1} terminal=SQUASHED oracle=PASS consumers=0 mismatch=0
++== MD04-R05 == injection={"tick": 36154580, "load_seq": 71660, "store_seq": 71652, "addr": 4789664, "size": 8, "eligible_ordinal": 5, "load_complete": 1, "faults_injected": 1} terminal=MASKED oracle=PASS consumers=2 mismatch=0
+diff --git a/docs/superpowers/plans/2026-11-08-lsu-v3251-lp01-closure-md04.md b/docs/superpowers/plans/2026-11-08-lsu-v3251-lp01-closure-md04.md
+new file mode 100644
+index 00000000..5bdd8185
+--- /dev/null
++++ b/docs/superpowers/plans/2026-11-08-lsu-v3251-lp01-closure-md04.md
+@@ -0,0 +1,105 @@
++# LSU v3.2.5.1 — LP01 Consumer-Edge Closure + MD04 Implementation Plan
++
++> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use `- [ ]`.
++
++**Goal:** Fix LP01's consumer edges so only hash-matching operands propagate, expose operand-vs-instruction counts and mismatch diagnostics, rerun the five LP01 pilots on the fixed binary without overwriting v3.2.5 traces, capture a final-v3.2.5-binary smoke, and implement/verify MD04 end-to-end.
++
++**Architecture:** LP01: `CHAOSPropagation::noteCommit` emits `consumer` + edge only when `consumer_input_fnv == taint.value_hash`; mismatches emit `taint_value_mismatch` and never re-taint. MD04: a new `CHAOSMD04` SimObject hooked at `LSQUnit::checkViolations` before `possibleLoadViolation(true)`, suppressing one real same-address 8-byte store→load alias setting for the selected eligible ordinal; the tracer binds the load's ptag and writes `inj_md04`, response/writeback (or a late-bound writeback if the response already completed), consumers and commit.
++
++**Tech Stack:** gem5 v25.1.0.1 C++17, SCons, Python trace tooling, pytest.
++
++**Spec:** user work order “LSU v3.2.5.1” (2026-11-08) + Excel v3.2.1 MD04 rows (`MD04-F6-W7-S01`, W7 `replay_dependency`, oracle `59fc61c040618747`, option A same-address 8B).
++
++## Global Constraints
++
++- Work in `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2`; branch `lsu-platform-v3.2.6` from `bca94be7`.
++- Do not overwrite `pilots_v3_2_5/` or any v3.2.3/v3.2.4 zip. New pilots go to `pilots_v3_2_6/`.
++- Keep 12 models, 60 SampleRunIDs, seeds, Excel identities unchanged.
++- R05 keeps Excel ordinal 5 and clinical ordinal 14 as a historical fact; never relabel.
++- No 60-sample formal run.
++- One commit per task; explicit `git add` paths; push after verification.
++
++---
++
++### Task 1: Branch + final-v3.2.5-binary smoke
++
++**Files:** Create `pilots_v3_2_6/SMOKE_LP01-R01_final_binary/`.
++
++- [ ] `git switch -c lsu-platform-v3.2.6 bca94be7`.
++- [ ] Confirm `build/ARM/gem5.opt` sha256 is `6808c56e…`; run:
++  `run_pilot.py --model LP01 --context-index 1 --preserve-sample-id --pilot-id SMOKE-LP01-R01 --event-ordinal 1 --outdir docs/.../pilots_v3_2_6/SMOKE_LP01-R01_final_binary`
++- [ ] Record `manifest.json` binary_sha256 = 6808…, one injection, terminal MASKED, trace COMPLETE.
++- [ ] Commit/push.
++
++### Task 2: LP01 consumer-edge fix
++
++**Files:** `CHAOSPropagation.{hh,cc}`, `tests/test_consumer_edges.cc` (new pure helper) or existing trace tests.
++
++- [ ] In `noteCommit`, compute `input_matches` (non-empty and equal). On mismatch emit `taint_value_mismatch` (new node kind) with both hashes, phys/arch, reason; do **not** write an edge, do **not** set `any_consumer`, do **not** re-taint.
++- [ ] On match write `consumer` + `register_dataflow` edge exactly as before.
++- [ ] `any_consumer` only for matches; re-taint uses the matched consumer output hash.
++- [ ] Unit test with synthetic traces: matched edge exists; mismatched emits diagnostic and no edge; no re-taint from mismatch.
++- [ ] Build + pytest; commit/push.
++
++### Task 3: LP01 counts + validator continuity
++
++**Files:** `prop_trace_to_v31.py`, `trace_completeness.py`, `trace_validator.py`, `run_pilot.py`, tests.
++
++- [ ] Map `taint_value_mismatch` → event_type `taint_value_mismatch`, unit `Commit`, sub_unit `diagnostic`; activation status UNKNOWN.
++- [ ] Completeness report adds `consumer_operand_records`, `consumer_instructions` (unique dyn seq), `taint_value_mismatch_records`; coverage counts only `consumer_commit`.
++- [ ] Validator two-pass: every `register_dataflow` edge's `source_value_hash` equals the source event's `writeback_value_fnv`/`consumer_output_fnv` when present, and the destination event's `consumer_input_fnv`; error otherwise.
++- [ ] `run_pilot` records the three counts in `pilot_meta`.
++- [ ] Tests; pytest; commit/push.
++
++### Task 4: Rebuild + five LP01 pilots (new directory)
++
++- [ ] Rebuild `scons -j16`; new binary sha.
++- [ ] Run R01..R05 (contexts 1..5, clinical ordinals 1,2,3,4,14) into `pilots_v3_2_6/LP01-R01..R05`; never touch v3_2_5.
++- [ ] Per pilot verify: one injection, input_matches edges only, diagnostic count equals old mismatch count, actual writeback, commit, oracle, terminal, COMPLETE/PASS.
++- [ ] Record consumer operand records vs instructions; commit one per pilot.
++
++### Task 5: MD04 audit + matrix unification
++
++- [ ] Re-read `lsq_unit.cc:580-640`, `dyn_inst.hh:434`, W7 workload and oracle.
++- [ ] `MD04_Source_Audit_v3.2.6.md`; set `MODEL_STATUS_MATRIX.csv` MD04 SOURCE_AUDITED=1 (unify with the existing commit) without claiming IMPLEMENTED.
++- [ ] Commit/push.
++
++### Task 6: MD04 fault definition + unit test
++
++**Files:** `CHAOS/gem5/src/cpu/o3/CHAOSMD04/md04_rules.hh`, `tests/test_md04_rules.cc`.
++
++- [ ] `isSameAddress8B(load_addr,load_size,store_addr,store_size)` and `shouldInject(eligible_ordinal,target_ordinal,injected,max_faults)`.
++- [ ] Test same-address 8B true; different address/size false; ordinal/maxFaults.
++- [ ] g++ test PASS; commit/push.
++
++### Task 7: CHAOSMD04 SimObject + hook + config + trace
++
++**Files:** `CHAOSMD04/{.hh,.cc,.py,SConscript}`, `lsq_unit.cc`, `CHAOSPropagation.{hh,cc}`, `lsu_proxy.py`.
++
++- [ ] Injector counts eligible aliases; at `eventOrdinal` and `maxFaults=1` returns true so the caller skips `possibleLoadViolation(true)`; logs `MD04_INJECTION`.
++- [ ] Hook: `if (!(cpu->chaosMD04 && cpu->chaosMD04->maybeSkipViolation(ld_inst, inst))) ld_inst->possibleLoadViolation(true);`
++- [ ] Tracer: `noteMD04Injection` (`inj_md04`, family=md04, load/store seq, addr/size, ordinal, request_complete), binds ptag; `noteMemResponse` md04 registry; late-bound `taint_reg` when the response already completed; commit via `fault_seqs`.
++- [ ] Config args `--chaos_md04 --md04_event_ordinal --md04_max_faults --md04_probability --md04_first_clock --md04_count_only`; mount.
++- [ ] Build; smoke run with one injection; commit/push.
++
++### Task 8: MD04 platform integration + five pilots
++
++- [ ] Converter/UNIT_MAP/COMPLETENESS/MD04 profiles/LOAD_SIDE/run_pilot workload + summary + proof.
++- [ ] Probe ordinals on W7; run R01..R05 into `pilots_v3_2_6/MD04-R01..R05`.
++- [ ] Verify injection→response→writeback→consumers→commit; oracle/terminal; no overwrite.
++- [ ] Commit/push (one per pilot or one evidence commit).
++
++### Task 9: Status matrix, FW05 handoff, package
++
++- [ ] Update matrix: MD04 states actually reached; LP01 v3.2.5.1 evidence.
++- [ ] `FW05_Source_Audit_v3.2.6.md` (audit only; next plan before code).
++- [ ] Build `LSU_v3.2.6_LP01_Trace_Closure_MD04_Package.zip` with source/diff/pilots/JSONL/logs/matrix/Excel/Git/status/issues/manifest.
++- [ ] Commit checksum; push.
++
++## Review Focus
++
++1. A tainted source whose value changed (recycled phys reg) must not create an edge or propagate.
++2. Multi-operand consumers: matched and mismatched operands in one instruction must be counted separately.
++3. MD04 must suppress exactly one real same-address 8B alias; no address/size change.
++4. MD04 trace must not claim a response/writeback that happened before injection without labeling late binding.
++5. Reruns must not overwrite the v3.2.5 traces.

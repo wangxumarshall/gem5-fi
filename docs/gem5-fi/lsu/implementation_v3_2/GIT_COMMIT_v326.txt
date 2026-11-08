@@ -1,0 +1,11 @@
+branch: lsu-platform-v3.2.6
+head: 705cc18712adb07de4426e88d8911dbbc304d068
+base_v325: bca94be74d57d82d21a06c894feba1b74df2a9f7
+commit_count: 6
+
+705cc18712adb07de4426e88d8911dbbc304d068 2026-11-08 10:07:43 +0800 wangxu [LSU][MDSPEC][V3.2.6][DOCS] status, LP01 closure, DA04 audit, MD04 and FW05 handoff
+8f26f3f233e798d7d26c0fa402fb3ec88bbd4f48 2026-11-08 10:05:35 +0800 wangxu [LSU][MDSPEC][V3.2.6][DA04] rerun R04/R05 with PRF-value hash continuity
+3076ae13708b293633519f6a945ec5b0a05607ce 2026-11-08 10:05:13 +0800 wangxu [LSU][MDSPEC][V3.2.6][MD04] five W7 pilots (3 traced chains, 2 squashed)
+e7e4929dc83c76d1ed0b9fe3bed437ef54665736 2026-11-08 10:04:36 +0800 wangxu [LSU][MDSPEC][V3.2.6][LP01] rerun five pilots with matched consumer edges
+f21003dacb1ec994fbbbee1ca6b71d64cfdb7b8a 2026-11-08 10:04:08 +0800 wangxu [LSU][MDSPEC][V3.2.6] LP01 consumer closure, PRF-value hashes and MD04 implementation
+e7ffd83a1c3078529f12c733d3dab31a8fca2e09 2026-11-08 09:23:13 +0800 wangxu [LSU][MDSPEC][V3.2.6][SMOKE] final v3.2.5 binary LP01-R01 smoke
