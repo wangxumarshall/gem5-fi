@@ -986,6 +986,13 @@ LSQUnit::writebackStores()
                                            inst->sqEntryGeneration, false)) {
             DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: completing [sn:%lli] before "
                     "writeback\n", inst->seqNum);
+            if (cpu->chaosPropagation)
+                cpu->chaosPropagation->noteSP05Injection(
+                    inst->seqNum, inst->pcState().instAddr(), inst->effAddr,
+                    request->mainReq()->getSize(), inst->sqIdx,
+                    inst->sqEntryGeneration, false, true, (uint64_t)storesToWB,
+                    (uint64_t)(storesToWB - 1), curTick(),
+                    cpu->lsqFwd->sp05Eligible());
             completeStore(storeWBIt);
             if (!storeQueue.empty())
                 storeWBIt++;

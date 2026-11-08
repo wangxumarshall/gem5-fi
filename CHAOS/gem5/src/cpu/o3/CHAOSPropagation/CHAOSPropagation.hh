@@ -321,6 +321,12 @@ class CHAOSPropagation : public SimObject
 
     // SP05 (v3.2.9): premature completion state change. canwb/completed are
     // the pre-call values; stores_to_wb is the post-call counter.
+    void noteSP05Injection(uint64_t dyn_seq, uint64_t pc, Addr addr,
+                           unsigned size, uint64_t sq_idx, uint64_t sq_gen,
+                           bool completed_before, bool completed_after,
+                           uint64_t stores_before, uint64_t stores_after,
+                           Tick inject_tick, uint64_t eligible_ordinal);
+
     void noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx, uint64_t sq_gen,
                           bool canwb, bool completed_before,
                           uint64_t stores_to_wb_before,
@@ -338,6 +344,9 @@ class CHAOSPropagation : public SimObject
                            uint64_t load_attempt,
                            uint64_t eligible_ordinal, uint64_t event_ordinal,
                            uint64_t seed);
+
+    // SP05 (v3.2.9): injection ptag per target store, reused by completion.
+    std::unordered_map<uint64_t, uint64_t> sp05_ptag;
 
   private:
     // One CSV row: numeric fields with has_x=false print as "".

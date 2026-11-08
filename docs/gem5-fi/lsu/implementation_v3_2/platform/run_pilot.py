@@ -48,7 +48,8 @@ def _workload_for(model: str) -> str:
             # FW05's Excel workload (alignment) has no two overlapping 8-byte
             # stores in flight; the pilot-only directed workload constructs
             # the real forwarding pair. Recorded in the manifest.
-            "FW05": "fw05_forward", "SQ03": "sq_drain"}[model]
+            "FW05": "fw05_forward", "SQ03": "sq_drain",
+            "SP05": "store_path"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -254,6 +255,35 @@ def _sq03_trace_events(path: Path) -> list[dict]:
     return out
 
 
+
+def _sp05_trace_events(path: Path) -> list[dict]:
+    """Parse sp05_complete rows from the propagation CSV (one per target)."""
+    out = []
+    if not path.exists():
+        return out
+    import gzip
+    with gzip.open(path, "rt") as f:
+        for line in f:
+            if line.startswith("#"):
+                continue
+            row = line.rstrip("\n").split(",")
+            if len(row) < 10 or row[3] != "sp05_complete":
+                continue
+            detail = dict(kv.split("=", 1) for kv in row[9].split(";")
+                          if "=" in kv)
+            out.append({
+                "store_seq": int(detail["store_seq"]),
+                "sq_idx": int(detail["sq_idx"]),
+                "sq_gen": int(detail["sq_gen"]),
+                "canwb_before": int(detail["canwb_before"]),
+                "completed_before": int(detail["completed_before"]),
+                "stores_to_wb_before": int(detail["stores_to_wb_before"]),
+                "stores_to_wb_after": int(detail["stores_to_wb_after"]),
+                "mem_sent": int(detail["mem_sent"]),
+                "complete_tick": int(detail["complete_tick"]),
+            })
+    return out
+
 def _md04_status(path: Path) -> str:
     if not path.exists():
         return "UNKNOWN"
@@ -365,7 +395,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True,
                     choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
-                             "MD04", "FW05", "SQ03"])
+                             "MD04", "FW05", "SQ03", "SP05"])
+    ap.add_argument("--probability", type=float, default=1.0,
+                    help="injection probability (0.0 = matched no-fault control)")
     ap.add_argument("--timeout", type=int, default=900,
                     help="external wall-clock timeout in seconds")
     ap.add_argument("--workload", default=None,
@@ -485,7 +517,7 @@ def main(argv=None) -> int:
     cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
            f"--cmd={workload_path}",
            "--cpu", "O3", "--variant", "B0",
-           "--probability", "1.0",
+           "--probability", str(args.probability),
            "--chaos_propagation",
            "--prop_trace_file", "prop_trace.csv.gz"] + extra
     (out / "command.txt").write_text("\n".join(cmd) + "\n")
@@ -612,12 +644,6 @@ def main(argv=None) -> int:
                                           for e in events}) == len(events),
         }
         injected = len(events)
-    elif args.model == "SP05":
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--sp05_event_ordinal",
-                 str(sample.get("event_ordinal") or 1),
-                 "--sp05_watchdog_cycles", "500000000"]
     elif args.model == "FW05":
         events = _fw05_events(out / "lsq_fwd_injections.log")
         inj = {"events": events, "injected": len(events)}
@@ -655,6 +681,21 @@ def main(argv=None) -> int:
             "all_address_size_unchanged": True,
         }
         injected = len(events)
+    elif args.model == "SP05":
+        events = _sp05_trace_events(out / "prop_trace.csv.gz")
+        inj = {"events": events, "injected": len(events)}
+        target_proof = {
+            "site": "writebackStores_prematureComplete",
+            "events": len(events),
+            "all_one_injection": len(events) == 1,
+            "all_completed_false_to_true": all(
+                e["completed_before"] == 0 for e in events),
+            "all_stores_wb_delta_1": all(
+                e["stores_to_wb_before"] - e["stores_to_wb_after"] == 1
+                for e in events),
+            "all_mem_sent_0": all(e["mem_sent"] == 0 for e in events),
+        }
+        injected = len(events)
     else:
         inj = _fw02_summary(out / "lsq_fwd_injections.log")
         target_proof = {"site": "store->load_forward_decision", **inj}
@@ -674,8 +715,10 @@ def main(argv=None) -> int:
             crash_by_fault = True
             pt_fault_addr = pt_match.group(1).lower()
             crash_evidence = "page_table_fault_after_injection"
-    watchdog_hit = "CHAOS_SQ03_WATCHDOG_EXPIRED" in (
+    watchdog_hit = ("CHAOS_SQ03_WATCHDOG_EXPIRED" in (
         (proc.stdout or "") + (proc.stderr or ""))
+        or "CHAOS_SP05_WATCHDOG_EXPIRED" in (
+        (proc.stdout or "") + (proc.stderr or "")))
     if timed_out:
         run_status, activation, terminal, completeness = (
             "TIMEOUT", "TRIGGERED" if injected else "NOT_TRIGGERED",

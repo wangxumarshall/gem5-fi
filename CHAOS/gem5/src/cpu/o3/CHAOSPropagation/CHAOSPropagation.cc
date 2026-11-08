@@ -1401,6 +1401,55 @@ namespace gem5
     }
 
     void
+    CHAOSPropagation::noteSP05Injection(uint64_t dyn_seq, uint64_t pc,
+                                        Addr addr, unsigned size,
+                                        uint64_t sq_idx, uint64_t sq_gen,
+                                        bool completed_before,
+                                        bool completed_after,
+                                        uint64_t stores_before,
+                                        uint64_t stores_after,
+                                        Tick inject_tick,
+                                        uint64_t eligible_ordinal)
+    {
+        if (!write_log)
+            return;
+        std::ostringstream d;
+        d << "site=writebackStores_prematureComplete;family=sp05;model=SP05"
+          << ";store_seq=" << dyn_seq
+          << ";store_pc=0x" << std::hex << pc
+          << ";store_addr=0x" << addr << std::dec
+          << ";store_size=" << size
+          << ";sq_entry_id=" << sq_idx
+          << ";sq_entry_generation=" << sq_gen
+          << ";completed_before=" << (completed_before ? 1 : 0)
+          << ";completed_after=" << (completed_after ? 1 : 0)
+          << ";stores_to_wb_before=" << stores_before
+          << ";stores_to_wb_after=" << stores_after
+          << ";mem_sent=0"
+          << ";inject_tick=" << inject_tick
+          << ";eligible_ordinal=" << eligible_ordinal
+          << ";event_ordinal=" << eligible_ordinal
+          << ";address_modified=0;size_modified=0;data_modified=0";
+        const uint64_t ptag = ++next_ptag;
+        sp05_ptag[dyn_seq] = ptag;
+        fault_seqs.insert(dyn_seq);
+        FaultStoreEntry fe;
+        fe.ptag = ptag;
+        fe.dyn_seq = dyn_seq;
+        fe.base = addr;
+        fe.size = size;
+        fe.idx = sq_idx;
+        fe.gen = sq_gen;
+        fe.byte_begin = addr;
+        fe.byte_end = addr + size;
+        fe.family = "sp05_complete";
+        fe.registered = inject_tick;
+        fault_store_registry[dyn_seq] = fe;
+        writeNode(ptag, "inj_sp05", dyn_seq, true, 0, false, addr, true,
+                  0, false, 0, false, d.str());
+    }
+
+    void
     CHAOSPropagation::noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx,
                                        uint64_t sq_gen, bool canwb,
                                        bool completed_before,
@@ -1421,7 +1470,9 @@ namespace gem5
           << ";stores_to_wb_after=" << stores_to_wb_after
           << ";mem_sent=" << (mem_sent ? 1 : 0)
           << ";complete_tick=" << tick;
-        writeNode(0, "sp05_complete", dyn_seq, true, 0, false,
+        auto pit = sp05_ptag.find(dyn_seq);
+        const uint64_t ptag = pit == sp05_ptag.end() ? 0 : pit->second;
+        writeNode(ptag, "sp05_complete", dyn_seq, true, 0, false,
                   0, false, 0, false, 0, false, d.str());
     }
 

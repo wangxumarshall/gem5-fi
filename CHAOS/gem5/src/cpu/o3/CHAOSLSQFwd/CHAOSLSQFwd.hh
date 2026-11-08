@@ -101,6 +101,7 @@ class CHAOSLSQFwd : public SimObject
     // Consume the pending SP05 trace flag: true exactly once, for the
     // premature-completion call itself (not for ordinary completions).
     bool consumeSP05Trace(uint64_t seq);
+    uint64_t sp05Eligible() const { return eligible_count; }
 
     // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
     // the simulation with a non-zero code. The event fires at

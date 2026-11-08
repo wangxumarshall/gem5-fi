@@ -49,6 +49,14 @@ def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
     own = [e for e in chain if e.get("dyn_inst_seq") == seq]
     committed = any(e.get("event_type") in ("commit", "errant_commit")
                     for e in own)
+    if model == "SP05":
+        # SP05's hook fires in writebackStores, i.e. after commitStores has
+        # already granted canWB. The store is therefore committed by
+        # construction; the commit trace node predates fault_seqs membership,
+        # so absence of a commit node is not evidence of no commit.
+        detail = injection.get("detail") or ""
+        if "writebackStores_prematureComplete" in detail:
+            committed = True
     squashed = any(e.get("event_type") == "squash" for e in own)
     if squashed and not committed:
         return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"

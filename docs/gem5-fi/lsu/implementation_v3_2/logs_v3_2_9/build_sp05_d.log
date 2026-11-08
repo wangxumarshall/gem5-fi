@@ -1,0 +1,92 @@
+scons: Reading SConscript files ...
+Mkdir("/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/CHAOS/gem5/build/ARM/gem5.build")
+Checking for linker -Wl,--as-needed support... (cached) yes
+Checking for compiler -gz support... (cached) yes
+Checking for linker -gz support... (cached) yes
+Info: Using Python config: python3-config
+Checking for C header file Python.h... (cached) yes
+Checking Python version... (cached) 3.11.6
+Checking for accept(0,0,0) in C++ library None... (cached) yes
+Checking for zlibVersion() in C++ library z... (cached) yes
+Checking for C library tcmalloc_minimal... (cached) yes
+Building in /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/CHAOS/gem5/build/ARM
+"build_tools/kconfig_base.py" "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/CHAOS/gem5/build/ARM/gem5.build/Kconfig" "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/CHAOS/gem5/src/Kconfig"
+Checking for C header file capstone/capstone.h... (cached) no
+Warning: Header file <capstone/capstone.h> not found.
+         This host has no capstone library installed.
+Checking for C header file linux/kvm.h... (cached) yes
+Checking for timer_create(CLOCK_MONOTONIC, NULL, NULL) in C library None... (cached) yes
+Checking for member exclude_host in struct perf_event_attr...(cached) yes
+Checking for shm_open("/test", 0, 0) in C library None... (cached) yes
+Checking for C header file fenv.h... (cached) yes
+Checking for C header file png.h... (cached) no
+Warning: Header file <png.h> not found.
+         This host has no libpng library.
+         Disabling support for PNG framebuffers.
+Checking for clock_nanosleep(0,0,NULL,NULL) in C library None... (cached) yes
+Checking for C header file valgrind/valgrind.h... (cached) yes
+Checking for pkg-config package hdf5-serial... (cached) no
+Checking for pkg-config package hdf5... (cached) no
+Checking for H5Fcreate("", 0, 0, 0) in C library hdf5... (cached) no
+Warning: Couldn't find HDF5 C++ libraries. Disabling HDF5 support.
+Checking for pkg-config package protobuf... (cached) yes
+Checking for C header file linux/if_tun.h... (cached) yes
+Checking for backtrace_symbols_fd((void *)1, 0, 0) in C library None... (cached) yes
+Checking whether __i386__ is declared... (cached) no
+Checking whether __x86_64__ is declared... (cached) no
+Warning: Unrecognized architecture for systemc.
+BUILD_TLM not set, not building CHI-TLM integration
+
+Checking for compiler -Wno-self-assign-overloaded support... (cached) yes
+Checking for linker -Wno-free-nonheap-object support... (cached) yes
+scons: done reading SConscript files.
+scons: Building targets ...
+ [     CXX] src/cpu/o3/commit.cc -> ARM/cpu/o3/commit.o
+ [     CXX] src/cpu/o3/lsq.cc -> ARM/cpu/o3/lsq.o
+ [     CXX] src/cpu/o3/lsq_unit.cc -> ARM/cpu/o3/lsq_unit.o
+ [     CXX] src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc -> ARM/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.o
+ [     CXX] src/cpu/o3/CHAOSMD04/CHAOSMD04.cc -> ARM/cpu/o3/CHAOSMD04/CHAOSMD04.o
+ [     CXX] src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc -> ARM/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.o
+ [     CXX] ARM/python/_m5/param_CHAOSPropagation.cc -> .o
+ [     CXX] src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc -> ARM/cpu/o3/CHAOSPropagation/CHAOSPropagation.o
+ [     CXX] src/mem/cache/base.cc -> ARM/mem/cache/base.o
+ [     CXX] src/mem/cache/CHAOSCache/CHAOSCache.cc -> ARM/mem/cache/CHAOSCache/CHAOSCache.o
+src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc: 在成员函数‘void gem5::CHAOSPropagation::noteMemResponse(gem5::o3::DynInst*, gem5::Packet*, bool)’中:
+src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc:855:24: 警告：unused variable ‘req_tick’ [-Wunused-variable]
+  855 |             const Tick req_tick =
+      |                        ^~~~~~~~
+src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc:881:24: 警告：unused variable ‘req_seq’ [-Wunused-variable]
+  881 |         const uint64_t req_seq =
+      |                        ^~~~~~~
+In file included from src/mem/cache/CHAOSCache/CHAOSCache.cc:1:
+src/mem/cache/CHAOSCache/CHAOSCache.hh: 在构造函数‘gem5::CHAOSCache::CHAOSCache(const gem5::CHAOSCacheParams&)’中:
+src/mem/cache/CHAOSCache/CHAOSCache.hh:110:10: 警告：‘gem5::CHAOSCache::victim_fault’ will be initialized after [-Wreorder]
+  110 |     bool victim_fault = false;
+      |          ^~~~~~~~~~~~
+src/mem/cache/CHAOSCache/CHAOSCache.hh:77:17: 警告：  ‘std::string gem5::CHAOSCache::l1i_semantic_field’ [-Wreorder]
+   77 |     std::string l1i_semantic_field;
+      |                 ^~~~~~~~~~~~~~~~~~
+src/mem/cache/CHAOSCache/CHAOSCache.cc:14:5: 警告：在此处初始化后被初始化 [-Wreorder]
+   14 |     CHAOSCache::CHAOSCache(const CHAOSCacheParams& p) :
+      |     ^~~~~~~~~~
+src/mem/cache/CHAOSCache/CHAOSCache.hh:99:14: 警告：‘gem5::CHAOSCache::faults_injected_count’ will be initialized after [-Wreorder]
+   99 |     uint64_t faults_injected_count; // G5: running count
+      |              ^~~~~~~~~~~~~~~~~~~~~
+src/mem/cache/CHAOSCache/CHAOSCache.hh:89:26: 警告：  ‘gem5::EventFunctionWrapper gem5::CHAOSCache::attackEvent’ [-Wreorder]
+   89 |     EventFunctionWrapper attackEvent, periodicCheck;
+      |                          ^~~~~~~~~~~
+src/mem/cache/CHAOSCache/CHAOSCache.cc:14:5: 警告：在此处初始化后被初始化 [-Wreorder]
+   14 |     CHAOSCache::CHAOSCache(const CHAOSCacheParams& p) :
+      |     ^~~~~~~~~~
+ [VER TAGS]  -> ARM/sim/tags.cc
+ [     CXX] src/base/date.cc -> ARM/base/date.o
+ [    LINK]  -> ARM/gem5.opt
+scons: done building targets.
+*** Summary of Warnings ***
+Warning: Header file <capstone/capstone.h> not found.
+         This host has no capstone library installed.
+Warning: Header file <png.h> not found.
+         This host has no libpng library.
+         Disabling support for PNG framebuffers.
+Warning: Couldn't find HDF5 C++ libraries. Disabling HDF5 support.
+SCONS_EXIT=0
