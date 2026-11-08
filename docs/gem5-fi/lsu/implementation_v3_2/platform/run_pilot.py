@@ -34,7 +34,7 @@ import terminal_rules  # noqa: E402
 from tools.prop_trace_to_v31 import convert  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[5]
-EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.2.xlsx"
+EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.3.xlsx"
 GEM5 = ROOT / "build/ARM/gem5.opt"
 CONFIG = ROOT / "configs/se/lsu_proxy.py"
 WORKLOADS = IMPL / "workloads"
