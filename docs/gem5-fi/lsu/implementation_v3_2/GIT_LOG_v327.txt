@@ -1,0 +1,14 @@
+26c86bfe [LSU][MDSPEC][V3.2.7][PILOTS] final-binary rerun of MD04 and FW05 five-pilot sets
+0461de20 [LSU][MDSPEC][V3.2.7][SQ03] freeze definition and implement one-shot canWB hook
+52ab29a4 [LSU][MDSPEC][V3.2.7][MD04] regression rerun five pilots on final binary
+4fd778f6 [LSU][MDSPEC][V3.2.7][FW05] run five pilots and adjudicate wrong-source dataflow
+d0d0440d [LSU][MDSPEC][V3.2.7][FW05] implement strict single wrong-source forwarding with trace
+16cd3557 [LSU][MDSPEC][V3.2.7][FW05] freeze wrong-source definition and eligibility rules
+0bfbe180 [LSU][MDSPEC][V3.2.7][DOCS] unify MD04 manifests, matrix and status
+988dd342 [LSU][MDSPEC][V3.2.7][MD04] audit historical pilots and rerun five under frozen definition
+202f72b1 [LSU][MDSPEC][V3.2.7][EXCEL] publish v3.2.2 with frozen MD04 configuration
+60f7118d [LSU][MDSPEC][V3.2.7][MD04] establish R03 attempt change as blocked-cache re-execution, not replay
+173f29b3 [LSU][MDSPEC][V3.2.7][TRACE] require identity evidence for cross-attempt chains
+87356b5a [LSU][MDSPEC][V3.2.7][MD04] record full target-pair identity and not-triggered status
+fdad9167 [LSU][MDSPEC][V3.2.7][MD04] align eligibility with checkViolations byte-range predicate
+01879556 [LSU][MDSPEC][V3.2.7][DOCS] freeze MD04 definition and record baseline

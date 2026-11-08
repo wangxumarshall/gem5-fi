@@ -68,10 +68,36 @@ FW05's `SOURCE_AUDITED` is corrected from 0 to 1 (the v3.2.6 audit report
 exists; the matrix was stale). It is **not** marked IMPLEMENTED until the
 code and pilots in this branch exist.
 
-## 7. FW05 / SQ03
+## 7. FW05 implementation and five pilots
 
-FW05 implementation and five pilots, and SQ03 start, are recorded in the
-same branch; this section is updated by the final report.
+`FW05_Definition_Freeze_v3.2.7.md` (`FW05-DEF-v1`, option A) and
+`FW05_Implementation_v3.2.7.md`. Hook: `CHAOSLSQFwd::maybeSubstituteFW05`
+at the full-coverage forwarding decision; strict eligibility (distinct,
+older alternative store; full coverage; different bytes; younger load).
+Trace: `inj_fw05` with TargetPairID and true/alt identity; the forwarded
+load's writeback is emitted from `LSQUnit::writeback()` and its PRF hash
+equals `alt_data_fnv`.
+
+Pilots: R01 SQUASHED, R02–R05 SDC with 2001/2000/1999/1998 matched
+consumer instructions; oracle FAIL is the SDC outcome, not a tool failure.
+All five: one injection, target proof true, validator VALID, trace
+COMPLETE, chain PASS, accepted.
+
+**Workload gap:** the frozen W8 `alignment` workload has no eligible
+alt-source event (`alt=no` probe). The pilots use a pilot-only directed
+workload `workloads/fw05_forward` (override recorded in each manifest);
+the Excel WorkloadPath/Oracle are unchanged. This must be resolved before
+the 60-sample formal run.
+
+## 8. SQ03 start
+
+`SQ03_Definition_Freeze_v3.2.7.md`. Implemented: `chaos_sq03` rules +
+unit test PASS; `sq03_canwb` mode; `executeStore` one-shot premature
+`_canWB` with paired `storesToWB` increment. Smoke: one injection at
+store seq 18 on `sq_drain`, exit 0, checksum equals the no-fault baseline
+(MASKED at this event). Not yet done: trace event/edges, runner wiring,
+watchdog, five pilots, terminal/oracle adjudication. `max_faults=0` is
+unsafe in this mode (hangs).
 
 ## 8. Explicit non-claims
 
