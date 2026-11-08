@@ -10,6 +10,7 @@
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
 #include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
 #include "cpu/o3/CHAOSLSQFwd/fw05_rules.hh"        // LSU v3.2.7 FW05
+#include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"        // LSU v3.2.7 SQ03
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "params/CHAOSLSQFwd.hh"
@@ -83,6 +84,10 @@ class CHAOSLSQFwd : public SimObject
     uint64_t lastFwdPtag() const { return last_fwd_ptag; }
     bool fw05Mode() const { return struct_mode == StructMode::Fw05OlderSrc; }
 
+    // SQ03: one-shot premature _canWB for the selected real store. The
+    // caller must also increment storesToWB.
+    bool maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
+
     // SQ01 (LSU v3.2.3): after LSQUnit::write() has copied store data into the
     // SQ entry, flip byte0 bit3 once under the F0 trigger. Data-only: no SQ
     // state, no request, no pointer is changed.
@@ -132,7 +137,7 @@ class CHAOSLSQFwd : public SimObject
     //     forward-path phase).
     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
                             PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0,
-                            Fw05OlderSrc };
+                            Fw05OlderSrc, Sq03CanWB };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;

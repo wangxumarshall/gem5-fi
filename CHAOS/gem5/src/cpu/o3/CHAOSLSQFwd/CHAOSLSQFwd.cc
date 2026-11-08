@@ -182,6 +182,7 @@ namespace gem5
         if (s == "sq01_bit3") return StructMode::Sq01Bit3;
         if (s == "da04_be_bit0") return StructMode::Da04BeBit0;
         if (s == "fw05_older_src") return StructMode::Fw05OlderSrc;
+        if (s == "sq03_canwb") return StructMode::Sq03CanWB;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -226,6 +227,7 @@ namespace gem5
         // (maybeDelayForward) — no data mutation there either.
         if (struct_mode == StructMode::FwdSourceSub) return;
         if (struct_mode == StructMode::Fw05OlderSrc) return;
+        if (struct_mode == StructMode::Sq03CanWB) return;
         if (struct_mode == StructMode::PhaseOffset) return;
         // FW02 acts only at the forwarding DECISION point (suppress one
         // match); it must never also mutate the forwarded bytes.
@@ -384,6 +386,39 @@ namespace gem5
         }
         DPRINTF(LSQUnit, "CHAOSLSQFwd: fwd_source_sub wrong-source forward "
                 "(vaddr=%#x true=%uB alt=%uB)\n", vaddr, copy_size, alt_size);
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx,
+                               uint64_t sq_gen)
+    {
+        if (struct_mode != StructMode::Sq03CanWB)
+            return false;
+        if (probability <= 0.0f)
+            return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        ++eligible_count;
+        if (count_only)
+            return false;
+        if (f6_event_ordinal != 0 && eligible_count != f6_event_ordinal)
+            return false;
+        if (!chaos_sq03::shouldSetCanWB(store_seq, store_seq,
+                                        faults_injected_count, max_faults))
+            return false;
+        ++faults_injected_count;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: executeStore_canWB, store_seq=" << store_seq
+                << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
+                << ", eligible_ordinal=" << eligible_count
+                << ", faults_injected: " << faults_injected_count << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd SQ03: premature _canWB for [sn:%llu] "
+                "idx %llu gen %llu\n", (unsigned long long)store_seq,
+                (unsigned long long)sq_idx, (unsigned long long)sq_gen);
         return true;
     }
 

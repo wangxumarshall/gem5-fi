@@ -7,7 +7,7 @@ DA04,SQ,byte_enable,1,1,1,1,1,1,1,"v3.2.6 R04/R05 end-to-end chain with actual P
 LP01,L1D,load_response,1,1,1,1,1,1,1,"v3.2.6 five pilots: matched consumer edges only, mismatch diagnostics 45/0/3/0/3; all MASKED (no SDC)"
 MD04,LSU,LSQ,1,1,1,1,1,1,1,"MD04-DEF-v2 frozen 2026-11-08; checkViolations store->younger-load M5PanicFault suppression; 5 frozen pilots (R01/R04/R05 SQUASHED, R02 6 consumers, R03 259 consumers CROSS_ATTEMPT_VERIFIED); R05 historical ordinal drift; no SDC"
 FW05,FWD,forward,1,1,1,1,1,1,1,"v3.2.7 FW05-DEF-v1 wrong-source forwarding; 5 pilots (R01 SQUASHED, R02-R05 SDC with 1998-2001 matched consumers); alt FNV equals PRF writeback hash; pilot-only fw05_forward workload because W8 alignment has no eligible pair"
-SQ03,SQ,writeback,1,0,0,0,0,0,0,"v3.2.3 audit"
+SQ03,SQ,writeback,1,1,1,1,1,0,0,"v3.2.7 definition frozen + option-A executeStore canWB hook; unit test PASS; sq_drain smoke 1 injection, checksum equals baseline (MASKED); trace/runner/pilots/watchdog pending"
 SP05,SQ,completion,1,0,0,0,0,0,0,"v3.2.3 audit"
 LQ04,LQ,lifetime,1,0,0,0,0,0,0,"v3.2.3 audit; HIGH-RISK"
 RP01,RPL,replay,1,0,0,0,0,0,0,"v3.2.3 audit"

@@ -817,6 +817,20 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
 
     assert(store_fault == NoFault);
 
+    // SQ03: one-shot premature _canWB for the selected real store. The
+    // paired storesToWB increment keeps writebackStores/completeStore
+    // balanced; address, size and data are untouched. SC/atomic stores have
+    // their own canWB path and are excluded.
+    if (cpu->lsqFwd && !storeQueue[store_idx].canWB() &&
+        !store_inst->isStoreConditional() && !store_inst->isAtomic() &&
+        cpu->lsqFwd->maybeSetCanWB(store_inst->seqNum, store_idx,
+                                   store_inst->sqEntryGeneration)) {
+        storeQueue[store_idx].canWB() = true;
+        ++storesToWB;
+        DPRINTF(LSQUnit, "CHAOS SQ03: set _canWB early for [sn:%lli] idx %d\n",
+                store_inst->seqNum, (int)store_idx);
+    }
+
     if (store_inst->isStoreConditional() || store_inst->isAtomic()) {
         // Store conditionals and Atomics need to set themselves as able to
         // writeback if we haven't had a fault by here.
