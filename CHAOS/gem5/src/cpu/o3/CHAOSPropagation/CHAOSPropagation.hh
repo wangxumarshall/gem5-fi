@@ -319,6 +319,14 @@ class CHAOSPropagation : public SimObject
     void noteSQ03Writeback(uint64_t dyn_seq, Tick tick);
     void noteSQ03Complete(uint64_t dyn_seq, Tick tick);
 
+    // SP05 (v3.2.9): premature completion state change. canwb/completed are
+    // the pre-call values; stores_to_wb is the post-call counter.
+    void noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx, uint64_t sq_gen,
+                          bool canwb, bool completed_before,
+                          uint64_t stores_to_wb_before,
+                          uint64_t stores_to_wb_after, bool mem_sent,
+                          Tick tick);
+
     void noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
                            uint64_t true_seq, Addr true_addr,
                            unsigned true_size, const std::string &true_fnv,

@@ -80,7 +80,9 @@ namespace gem5
         }
         if (probability > 0.0f || struct_mode == StructMode::F6Fw02 ||
                 struct_mode == StructMode::Da04BeBit0 ||
-                struct_mode == StructMode::Sq03CanWB) {
+                struct_mode == StructMode::Sq03CanWB ||
+                struct_mode == StructMode::Sp05Complete ||
+                struct_mode == StructMode::Fw05OlderSrc) {
             log_stream = simout.create("lsq_fwd_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSLSQFwd: Could not open log file");
@@ -164,6 +166,34 @@ namespace gem5
                 }
             });
         }
+        if (struct_mode == StructMode::Sp05Complete) {
+            // SP05 is one-shot; max_faults==0 must not mean unlimited.
+            if (!cpu->lsqFwd)
+                cpu->lsqFwd = this;
+            if (max_faults == 0)
+                max_faults = 1;
+            sp05_event_ordinal = p.sp05EventOrdinal;
+            if (p.sp05WatchdogCycles) {
+                sp05_watchdog_event = new EventFunctionWrapper(
+                    [this]() { this->sp05Watchdog(); }, "SP05 watchdog",
+                    true);
+                schedule(sp05_watchdog_event,
+                         cpu->clockEdge(Cycles(p.sp05WatchdogCycles)));
+            }
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_SP05_STATUS: selected="
+                        << (sp05_selected ? 1 : 0)
+                        << " fired=" << (sp05_fired ? 1 : 0)
+                        << " injected=" << faults_injected_count
+                        << " eligible=" << eligible_count
+                        << " target_seq=" << sp05_target_seq
+                        << " sq_idx=" << sp05_target_idx
+                        << " sq_gen=" << sp05_target_gen << std::endl;
+                }
+            });
+        }
     }
 
     CHAOSLSQFwd::~CHAOSLSQFwd()
@@ -207,6 +237,7 @@ namespace gem5
         if (s == "da04_be_bit0") return StructMode::Da04BeBit0;
         if (s == "fw05_older_src") return StructMode::Fw05OlderSrc;
         if (s == "sq03_canwb") return StructMode::Sq03CanWB;
+        if (s == "sp05_complete") return StructMode::Sp05Complete;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -430,6 +461,94 @@ namespace gem5
         fatal("CHAOS_SQ03_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
               (unsigned long long)curTick(), (int)faults_injected_count,
               (int)eligible_count);
+    }
+
+    void
+    CHAOSLSQFwd::sp05Watchdog()
+    {
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "CHAOS_SP05_WATCHDOG=EXPIRED selected="
+                << (sp05_selected ? 1 : 0)
+                << " fired=" << (sp05_fired ? 1 : 0)
+                << " injected=" << faults_injected_count
+                << " eligible=" << eligible_count
+                << " tick=" << curTick() << std::endl;
+        }
+        fatal("CHAOS_SP05_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
+              (unsigned long long)curTick(), (int)faults_injected_count,
+              (int)eligible_count);
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx,
+                                 uint64_t sq_gen)
+    {
+        if (struct_mode != StructMode::Sp05Complete)
+            return false;
+        if (probability <= 0.0f || sp05_fired || sp05_selected)
+            return false;
+        ++eligible_count;
+        if (count_only)
+            return false;
+        if (!chaos_sp05::shouldSelect(eligible_count, sp05_event_ordinal))
+            return false;
+        sp05_selected = true;
+        sp05_target_seq = store_seq;
+        sp05_target_idx = sq_idx;
+        sp05_target_gen = sq_gen;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: commitStores_select, store_seq=" << store_seq
+                << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
+                << ", eligible_ordinal=" << eligible_count << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::consumeSP05Trace(uint64_t seq)
+    {
+        if (!sp05_pending_trace || seq != sp05_target_seq)
+            return false;
+        sp05_pending_trace = false;
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
+                                   uint64_t sq_gen, bool request_sent)
+    {
+        if (struct_mode != StructMode::Sp05Complete)
+            return false;
+        if (probability <= 0.0f || sp05_fired || !sp05_selected)
+            return false;
+        if (request_sent)
+            return false;
+
+        if (sq_idx != sp05_target_idx || sq_gen != sp05_target_gen)
+            return false;
+        if (!chaos_sp05::shouldComplete(sq_idx, sq_gen, sp05_target_idx,
+                                        sp05_target_gen, faults_injected_count,
+                                        max_faults))
+            return false;
+        sp05_fired = true;
+        sp05_pending_trace = true;
+        ++faults_injected_count;
+        assert(faults_injected_count == 1 && "SP05 must inject exactly once");
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: writebackStores_prematureComplete, store_seq="
+                << store_seq << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
+                << ", mem_sent=0, eligible_ordinal=" << eligible_count
+                << ", faults_injected: " << faults_injected_count << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: premature completion for [sn:%llu] "
+                "idx %llu gen %llu\n", (unsigned long long)store_seq,
+                (unsigned long long)sq_idx, (unsigned long long)sq_gen);
+        return true;
     }
 
     bool

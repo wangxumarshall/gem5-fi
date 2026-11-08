@@ -257,7 +257,7 @@ p.add_argument("--lsq_struct_mode", default="byte_flip",
                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
                         "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02",
                         "sq01_bit3", "da04_be_bit0", "fw05_older_src",
-                        "sq03_canwb"])
+                        "sq03_canwb", "sp05_complete"])
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
 p.add_argument("--lsqfwd_lsu_tier", default="off",
@@ -269,6 +269,11 @@ p.add_argument("--lsqfwd_event_ordinal", type=lambda x: int(x,0), default=0,
 p.add_argument("--sq03_watchdog_cycles", type=lambda x: int(x,0),
                default=500000000,
                help="SQ03 in-simulator watchdog ticks (0 = disabled)")
+p.add_argument("--sp05_event_ordinal", type=lambda x: int(x,0), default=0,
+               help="SP05: 1-based eligible store ordinal (0 = none)")
+p.add_argument("--sp05_watchdog_cycles", type=lambda x: int(x,0),
+               default=500000000,
+               help="SP05 in-simulator watchdog ticks (0 = disabled)")
 # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
 p.add_argument("--lsqfwd_l03", action="store_true",
                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
@@ -857,6 +862,8 @@ if args.chaos_lsqfwd:
         f6EventOrdinal=args.lsqfwd_event_ordinal,
         fw05EventOrdinal=args.lsqfwd_event_ordinal,
         sq03WatchdogCycles=args.sq03_watchdog_cycles,
+        sp05EventOrdinal=args.sp05_event_ordinal,
+        sp05WatchdogCycles=args.sp05_watchdog_cycles,
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
         firstClock=args.first_clock,
         lastClock=args.last_clock,

@@ -1401,6 +1401,31 @@ namespace gem5
     }
 
     void
+    CHAOSPropagation::noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx,
+                                       uint64_t sq_gen, bool canwb,
+                                       bool completed_before,
+                                       uint64_t stores_to_wb_before,
+                                       uint64_t stores_to_wb_after,
+                                       bool mem_sent, Tick tick)
+    {
+        if (!write_log)
+            return;
+        std::ostringstream d;
+        d << "site=lsq_completeStore;family=sp05;model=SP05"
+          << ";store_seq=" << dyn_seq
+          << ";sq_idx=" << sq_idx
+          << ";sq_gen=" << sq_gen
+          << ";canwb_before=" << (canwb ? 1 : 0)
+          << ";completed_before=" << (completed_before ? 1 : 0)
+          << ";stores_to_wb_before=" << stores_to_wb_before
+          << ";stores_to_wb_after=" << stores_to_wb_after
+          << ";mem_sent=" << (mem_sent ? 1 : 0)
+          << ";complete_tick=" << tick;
+        writeNode(0, "sp05_complete", dyn_seq, true, 0, false,
+                  0, false, 0, false, 0, false, d.str());
+    }
+
+    void
     CHAOSPropagation::noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
                                         uint64_t true_seq, Addr true_addr,
                                         unsigned true_size,

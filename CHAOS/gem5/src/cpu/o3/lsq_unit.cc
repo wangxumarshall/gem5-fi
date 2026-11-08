@@ -917,6 +917,10 @@ LSQUnit::commitStores(InstSeqNum &youngest_inst)
             x.canWB() = true;
 
             ++storesToWB;
+            if (cpu->lsqFwd)
+                cpu->lsqFwd->maybeSelectSP05(x.instruction()->seqNum,
+                                             x.instruction()->sqIdx,
+                                             x.instruction()->sqEntryGeneration);
         }
     }
 }
@@ -972,6 +976,23 @@ LSQUnit::writebackStores()
 
         DynInstPtr inst = storeWBIt->instruction();
         LSQRequest* request = storeWBIt->request();
+
+        // SP05 (v3.2.9): complete the selected store before its cache write
+        // is sent. The real completeStore() keeps the storesToWB decrement
+        // paired; skipping the send prevents a later response from calling
+        // completeStore a second time.
+        if (cpu->lsqFwd && !request->isSent() &&
+            cpu->lsqFwd->maybeCompleteSP05(inst->seqNum, inst->sqIdx,
+                                           inst->sqEntryGeneration, false)) {
+            DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: completing [sn:%lli] before "
+                    "writeback\n", inst->seqNum);
+            completeStore(storeWBIt);
+            if (!storeQueue.empty())
+                storeWBIt++;
+            else
+                storeWBIt = storeQueue.end();
+            continue;
+        }
 
         // Process store conditionals or store release after all previous
         // stores are completed
@@ -1325,6 +1346,9 @@ void
 LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
 {
     assert(store_idx->valid());
+    const bool sp05_canwb_before = store_idx->canWB();
+    const bool sp05_completed_before = store_idx->completed();
+    const int sp05_stw_before = storesToWB;
     store_idx->completed() = true;
     --storesToWB;
     // A bit conservative because a store completion may not free up entries,
@@ -1372,6 +1396,13 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     }
 
     store_inst->setCompleted();
+
+    if (cpu->chaosPropagation && cpu->lsqFwd &&
+        cpu->lsqFwd->consumeSP05Trace(store_inst->seqNum))
+        cpu->chaosPropagation->noteSP05Complete(
+            store_inst->seqNum, store_inst->sqIdx, store_inst->sqEntryGeneration,
+            sp05_canwb_before, sp05_completed_before,
+            (uint64_t)sp05_stw_before, (uint64_t)storesToWB, false, curTick());
 
     if (needsTSO) {
         storeInFlight = false;

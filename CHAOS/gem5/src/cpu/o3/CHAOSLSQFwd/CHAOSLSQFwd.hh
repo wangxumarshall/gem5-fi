@@ -12,6 +12,7 @@
 #include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
 #include "cpu/o3/CHAOSLSQFwd/fw05_rules.hh"        // LSU v3.2.7 FW05
 #include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"        // LSU v3.2.7 SQ03
+#include "cpu/o3/CHAOSLSQFwd/sp05_rules.hh"        // LSU v3.2.9 SP05
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "params/CHAOSLSQFwd.hh"
@@ -89,6 +90,18 @@ class CHAOSLSQFwd : public SimObject
     // caller must also increment storesToWB.
     bool maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
 
+    // SP05 (v3.2.9): select the Nth committed store, then complete it before
+    // its cache write is sent. The caller must call the real completeStore()
+    // so the storesToWB decrement stays paired.
+    bool maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
+    bool maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
+                           uint64_t sq_gen, bool request_sent);
+    void sp05Watchdog();
+    bool sp05Mode() const { return struct_mode == StructMode::Sp05Complete; }
+    // Consume the pending SP05 trace flag: true exactly once, for the
+    // premature-completion call itself (not for ordinary completions).
+    bool consumeSP05Trace(uint64_t seq);
+
     // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
     // the simulation with a non-zero code. The event fires at
     // sq03WatchdogCycles after construction.
@@ -145,7 +158,7 @@ class CHAOSLSQFwd : public SimObject
     //     forward-path phase).
     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
                             PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0,
-                            Fw05OlderSrc, Sq03CanWB };
+                            Fw05OlderSrc, Sq03CanWB, Sp05Complete };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;
@@ -195,6 +208,16 @@ class CHAOSLSQFwd : public SimObject
     bool sq03_fired = false;
 
     EventFunctionWrapper *sq03_watchdog_event = nullptr;
+
+    // SP05 state (v3.2.9): entry-keyed target + independent one-shot.
+    bool sp05_selected = false;
+    bool sp05_fired = false;
+    uint64_t sp05_target_seq = 0;
+    uint64_t sp05_target_idx = 0;
+    uint64_t sp05_target_gen = 0;
+    uint64_t sp05_event_ordinal = 0;
+    bool sp05_pending_trace = false;
+    EventFunctionWrapper *sp05_watchdog_event = nullptr;
 
     std::mt19937 rng;
     std::random_device rd;

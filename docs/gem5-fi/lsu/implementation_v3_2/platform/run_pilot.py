@@ -466,6 +466,12 @@ def main(argv=None) -> int:
                  "--lsqfwd_event_ordinal",
                  str(sample.get("event_ordinal") or 1),
                  "--sq03_watchdog_cycles", "500000000"]
+    elif args.model == "SP05":
+        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--sp05_event_ordinal",
+                 str(sample.get("event_ordinal") or 1),
+                 "--sp05_watchdog_cycles", "500000000"]
     elif args.model == "FW05":
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
@@ -606,6 +612,12 @@ def main(argv=None) -> int:
                                           for e in events}) == len(events),
         }
         injected = len(events)
+    elif args.model == "SP05":
+        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--sp05_event_ordinal",
+                 str(sample.get("event_ordinal") or 1),
+                 "--sp05_watchdog_cycles", "500000000"]
     elif args.model == "FW05":
         events = _fw05_events(out / "lsq_fwd_injections.log")
         inj = {"events": events, "injected": len(events)}
