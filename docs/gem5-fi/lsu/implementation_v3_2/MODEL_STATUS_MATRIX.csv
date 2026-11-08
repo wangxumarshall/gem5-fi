@@ -8,6 +8,6 @@ LP01,L1D,load_response,1,1,1,1,1,1,1,"v3.2.6 five pilots: matched consumer edges
 MD04,LSU,LSQ,1,1,1,1,1,1,1,"MD04-DEF-v2 frozen 2026-11-08; checkViolations store->younger-load M5PanicFault suppression; 5 frozen pilots (R01/R04/R05 SQUASHED, R02 6 consumers, R03 259 consumers CROSS_ATTEMPT_VERIFIED); R05 historical ordinal drift; no SDC"
 FW05,FWD,forward,1,1,1,1,1,1,1,"v3.2.8 fw05_forward frozen/archived (SHA 0cf40509...); 5 no-fault baselines PASS; 5 pilots R01 SQUASHED/R02-R05 SDC (1998-2001 consumers); Excel v3.2.3/CSV/manifest/archive consistent"
 SQ03,SQ,writeback,1,1,1,1,1,1,0,"v3.2.8 option-A executeStore canWB one-shot + hard cap + watchdog + external timeout; 5 pilots MASKED (oracle PASS), canWB 0->1, storesToWB +1, trace/commit/store_mem complete; no consumer/SDC, so propagation not verified"
-SP05,SQ,completion,1,0,0,0,0,0,0,"v3.2.3 audit"
+SP05,SQ,completion,1,1,0,0,0,0,0,"v3.2.8 definition frozen + entry-keyed one-shot rules/unit test; live completeStore hook, trace, watchdog and pilots next round"
 LQ04,LQ,lifetime,1,0,0,0,0,0,0,"v3.2.3 audit; HIGH-RISK"
 RP01,RPL,replay,1,0,0,0,0,0,0,"v3.2.3 audit"
