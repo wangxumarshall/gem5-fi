@@ -1,0 +1,70 @@
+{
+  "schema_version": "lsu-run-manifest-v3.2",
+  "sample_run_id": "MD04-F6-W7-S01-R04",
+  "run_id": "MD04-F6-W7",
+  "sub_task_id": "MD04-F6-W7-S01",
+  "fault_id": "MD04-CFG01",
+  "model_id": "MD04",
+  "seed": 2149193331,
+  "seed_source": "excel:5.60个样本执行矩阵!Seed",
+  "fault": {
+    "location": "Violation检测：checkViolations",
+    "target_field": "possibleLoadViolation",
+    "target_bit": "目标Load/Store alias",
+    "normal_value": "检测到alias后possibleLoadViolation=true",
+    "fault_value": "跳过一次置位",
+    "injection_mode": "F6",
+    "injection_timing": "checkViolations地址范围匹配时",
+    "target_event": "真实同地址alias且正常应触发violation",
+    "event_ordinal": 4
+  },
+  "workload": {
+    "path": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency",
+    "path_source": "ABSENT",
+    "sha256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
+    "oracle_expected": "N/A"
+  },
+  "warmup": "NEEDS_CONFIG（工作负载专属warm-up）",
+  "roi": "NEEDS_CONFIG（工作负载专属ROI）",
+  "gem5": {
+    "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "binary_sha256": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+    "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "config_script_sha256": "eb40ea17bc3c78acd4c916a3a55844de3ac8360249a88fb5a78147379eba145a"
+  },
+  "output_dir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_md04",
+    "--md04_first_clock",
+    "0",
+    "--md04_max_faults",
+    "1",
+    "--md04_probability",
+    "1.0",
+    "--md04_rng_seed",
+    "2149193331",
+    "--md04_event_ordinal",
+    "4"
+  ],
+  "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_md04 --md04_first_clock 0 --md04_max_faults 1 --md04_probability 1.0 --md04_rng_seed 2149193331 --md04_event_ordinal 4",
+  "environment": {
+    "captured_at_utc": "2026-11-08T02:03:18Z",
+    "host": "localhost0101",
+    "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
+    "python": "3.11.6"
+  },
+  "manifest_sha256": "6cf02c0b804b53c996c3230d8a43e10e74c2823549fb493df837f118bb3aa4cd"
+}

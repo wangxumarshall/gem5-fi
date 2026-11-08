@@ -1,0 +1,128 @@
+{
+  "pilot_id": "MD04-R04",
+  "model": "MD04",
+  "seed": 2149193331,
+  "event_selection": "TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)",
+  "excel_identity": {
+    "run_id": "MD04-F6-W7",
+    "sub_task_id": "MD04-F6-W7-S01",
+    "sample_run_id": "MD04-F6-W7-S01-R04",
+    "seed": 2149193331,
+    "event_ordinal": 4,
+    "event_ordinal_used": 4
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_md04",
+    "--md04_first_clock",
+    "0",
+    "--md04_max_faults",
+    "1",
+    "--md04_probability",
+    "1.0",
+    "--md04_rng_seed",
+    "2149193331",
+    "--md04_event_ordinal",
+    "4"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 2.488,
+  "oracle_expected": "59fc61c040618747",
+  "oracle_source": "workload_golden",
+  "oracle_pass": true,
+  "injection": {
+    "events": [
+      {
+        "tick": 31073735,
+        "load_seq": 69297,
+        "store_seq": 69292,
+        "addr": 549755747064,
+        "size": 16,
+        "eligible_ordinal": 4,
+        "load_complete": 0,
+        "faults_injected": 1
+      }
+    ],
+    "injected": 1
+  },
+  "injection_count": 1,
+  "target_event_proof": {
+    "site": "LSQUnit::checkViolations",
+    "events": 1,
+    "all_same_address_store8": true,
+    "all_store_younger_ordering": true,
+    "all_violation_report_suppressed": true
+  },
+  "trace": {
+    "csv_rows": 27277,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "COMPLETE",
+      "propagation_stages": [
+        "injection",
+        "squash"
+      ],
+      "expected_stages": [
+        "injection",
+        "squash"
+      ],
+      "missing_stages": [],
+      "chain_ptag": 1,
+      "chain_scoped": true,
+      "chain_source": "ptag",
+      "chain_events": 4,
+      "consumer_operand_records": 0,
+      "consumer_instructions": 0,
+      "taint_value_mismatch_records": 0,
+      "chain_integrity": "PASS",
+      "chain_reasons": [],
+      "terminal_state": "SQUASHED",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "events": 27277,
+      "edges": 0,
+      "injections": 1,
+      "activations": 1,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "observed_terminal": "MASKED",
+    "terminal_state": "SQUASHED",
+    "terminal_state_reason": "TARGET_SQUASHED_NO_COMMIT",
+    "fault_causality": "INDIRECT_EVIDENCE",
+    "terminal_evidence": {
+      "page_table_fault_addr": null,
+      "last_injection_dyn_seq": 69297,
+      "last_injection_new_value": null,
+      "address_match": false,
+      "stderr_has_page_table_fault": false
+    },
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle_outcome": "PASS"
+  },
+  "accepted": true,
+  "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
+  "crash_evidence": null
+}
