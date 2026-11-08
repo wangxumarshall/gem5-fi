@@ -82,6 +82,6 @@ class CHAOSLSQFwd(SimObject):
     sp05EventOrdinal = Param.UInt64(0,
         "SP05: 1-based eligible (newly canWB) store ordinal (0 = none)")
     sp05WatchdogCycles = Param.UInt64(500000000,
-        "SP05: in-simulator watchdog in ticks (0 = disabled); on expiry the "
+        "SP05: in-simulator watchdog in clock cycles (0 = disabled); on expiry the "
         "simulation exits with code 1 and CHAOS_SP05_WATCHDOG_EXPIRED")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

@@ -918,9 +918,10 @@ LSQUnit::commitStores(InstSeqNum &youngest_inst)
 
             ++storesToWB;
             if (cpu->lsqFwd)
-                cpu->lsqFwd->maybeSelectSP05(x.instruction()->seqNum,
-                                             x.instruction()->sqIdx,
-                                             x.instruction()->sqEntryGeneration);
+                cpu->lsqFwd->maybeSelectSP05(
+                    x.instruction()->seqNum, x.instruction()->sqIdx,
+                    x.instruction()->sqEntryGeneration, x.size(),
+                    x.instruction()->isDataPrefetch());
         }
     }
 }

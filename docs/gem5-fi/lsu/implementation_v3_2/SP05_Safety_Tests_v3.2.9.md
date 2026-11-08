@@ -1,6 +1,6 @@
 # SP05 safety tests (v3.2.9)
 
-Binary `cdf8d5fdf603598b8852e0044fc3d6b867f4ce4e22a91e3447e331dbfc565ce9`.
+Binary `303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0`.
 Workload `store_path`; logs under `evidence_v3_2_9/SP05_safety/`.
 
 | Test | Command flags | Result |

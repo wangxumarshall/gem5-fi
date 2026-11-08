@@ -2,7 +2,7 @@
 
 **Branch:** `lsu-platform-v3.2.9` (base `d5c15309`). **Final HEAD:** see
 `GIT_COMMIT_v329.txt`. **Final binary:**
-`d6e60863bb63f85398b5aaa35539c0c6c3fdf582e3d969aace27611d5db97b90`.
+`303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0`.
 No 60-sample formal run; ConfigFrozen NO for all 60.
 
 ## SP05

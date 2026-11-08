@@ -283,6 +283,10 @@ namespace gem5
         if (struct_mode == StructMode::FwdSourceSub) return;
         if (struct_mode == StructMode::Fw05OlderSrc) return;
         if (struct_mode == StructMode::Sq03CanWB) return;
+        // SP05 (v3.2.9): the completion hook owns the shared one-shot budget;
+        // the legacy forwarding-corruption hook must stay inert or it would
+        // inject an untraced bit_flip and consume max_faults first.
+        if (struct_mode == StructMode::Sp05Complete) return;
         if (struct_mode == StructMode::PhaseOffset) return;
         // FW02 acts only at the forwarding DECISION point (suppress one
         // match); it must never also mutate the forwarded bytes.
@@ -482,11 +486,14 @@ namespace gem5
 
     bool
     CHAOSLSQFwd::maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx,
-                                 uint64_t sq_gen)
+                                 uint64_t sq_gen, uint32_t size,
+                                 bool is_prefetch)
     {
         if (struct_mode != StructMode::Sp05Complete)
             return false;
         if (probability <= 0.0f || sp05_fired || sp05_selected)
+            return false;
+        if (!chaos_sp05::isSelectable(size, is_prefetch))
             return false;
         ++eligible_count;
         if (count_only)

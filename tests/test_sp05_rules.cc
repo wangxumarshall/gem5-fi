@@ -14,6 +14,11 @@ int main() {
     assert(!shouldSelect(2, 0));       // ordinal 0 = not selected
     assert(!shouldSelect(1, 2));       // not yet
     assert(!shouldSelect(2, 1));       // wrong ordinal
+    // v3.2.9 review fix: selection counts only stores the completion hook
+    // can actually reach (non-zero size, not a prefetch).
+    assert(isSelectable(8, false));
+    assert(!isSelectable(0, false));
+    assert(!isSelectable(8, true));
     std::printf("SP05 completion rules: PASS\n");
     return 0;
 }

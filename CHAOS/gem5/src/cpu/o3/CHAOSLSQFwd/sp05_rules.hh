@@ -16,6 +16,15 @@ shouldSelect(uint64_t eligible_count, uint64_t ordinal)
     return ordinal != 0 && eligible_count == ordinal;
 }
 
+// The completion hook cannot reach size-0 instant completions or data
+// prefetches (writebackStores handles them before the SP05 check), so the
+// ordinal must count only reachable stores.
+inline bool
+isSelectable(uint32_t size, bool is_prefetch)
+{
+    return size > 0 && !is_prefetch;
+}
+
 // SP05-CFG01: one live store completion is premature. The target is
 // identified by its SQ entry identity (index + generation), not by "the next
 // completeStore call" (instant-complete paths defeat a next-call flag).

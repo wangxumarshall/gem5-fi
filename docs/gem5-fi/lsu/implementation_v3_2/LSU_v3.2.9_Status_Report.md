@@ -1,7 +1,7 @@
 # LSU v3.2.9 — SP05 implementation, SQ03 probe, FW05 closure
 
 **Branch:** `lsu-platform-v3.2.9` (from `d5c15309`, v3.2.8 tip)
-**Final binary:** `d6e60863bb63f85398b5aaa35539c0c6c3fdf582e3d969aace27611d5db97b90`
+**Final binary:** `303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0`
 No 60-sample formal run. `ConfigFrozen=NO` for all 60.
 
 ## A. SP05

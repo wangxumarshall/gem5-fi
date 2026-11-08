@@ -93,7 +93,8 @@ class CHAOSLSQFwd : public SimObject
     // SP05 (v3.2.9): select the Nth committed store, then complete it before
     // its cache write is sent. The caller must call the real completeStore()
     // so the storesToWB decrement stays paired.
-    bool maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
+    bool maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen,
+                         uint32_t size, bool is_prefetch);
     bool maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
                            uint64_t sq_gen, bool request_sent);
     void sp05Watchdog();

@@ -1,8 +1,8 @@
-...FF....................................                                [100%]
+...FF.....................................                               [100%]
 =================================== FAILURES ===================================
 __________________________ test_d_run_concurrency_cap __________________________
 
-check = <function check.<locals>._check at 0xffff02aadbc0>
+check = <function check.<locals>._check at 0xffff15d64c20>
 
     def test_d_run_concurrency_cap(check):
         gd = new_guard_dir()
@@ -99,17 +99,17 @@ tests/test_claim_concurrency.py:262:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 name = 'd_no_fatal', condition = False
-message = 'task2 异常退出 rc=1: \' "reasons": ["磁盘 free 22.9 GiB < 红线 70.6 GiB (=max(50, 20%×353))"], "snapshot": {"time": "2026-11-...[], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 3}\\n\''
+message = 'task5 异常退出 rc=1: \'"reasons": ["磁盘 free 22.9 GiB < 红线 70.6 GiB (=max(50, 20%×353))"], "snapshot": {"time": "2026-11-0...[], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 3}\\n\''
 
     def _check(name, condition, message=""):
 >       assert condition, f"{name}: {message}"
-E       AssertionError: d_no_fatal: task2 异常退出 rc=1: ' "reasons": ["磁盘 free 22.9 GiB < 红线 70.6 GiB (=max(50, 20%×353))"], "snapshot": {"time": "2026-11-08 21:43:17", "mem_available_gib": 25.57, "swap_free_gib": 11.64, "swap_total_gib": 15.59, "committed_as_gib": 9.84, "load_1_5_15": [1.17, 1.29, 1.34], "blocked": [], "compile_processes": [], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 3}\n'
+E       AssertionError: d_no_fatal: task5 异常退出 rc=1: '"reasons": ["磁盘 free 22.9 GiB < 红线 70.6 GiB (=max(50, 20%×353))"], "snapshot": {"time": "2026-11-08 22:31:18", "mem_available_gib": 25.01, "swap_free_gib": 11.65, "swap_total_gib": 15.59, "committed_as_gib": 10.39, "load_1_5_15": [0.93, 0.46, 0.75], "blocked": [], "compile_processes": [], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 3}\n'
 E       assert False
 
 tests/conftest.py:15: AssertionError
 _______________________________ test_e_heartbeat _______________________________
 
-check = <function check.<locals>._check at 0xffff02ad8b80>
+check = <function check.<locals>._check at 0xffff15d653a0>
 
     def test_e_heartbeat(check):
         gd = new_guard_dir()
@@ -145,15 +145,15 @@ tests/test_claim_concurrency.py:298:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 name = 'e_run_finish', condition = False
-message = 'rc=1 tail=\'8 21:43:17", "mem_available_gib": 25.59, "swap_free_gib": 11.64, "swap_total_gib": 15.59, "committed_as_g...[], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 4}\\n\''
+message = 'rc=1 tail=\'22:31:18", "mem_available_gib": 25.03, "swap_free_gib": 11.65, "swap_total_gib": 15.59, "committed_as_gib...[], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 4}\\n\''
 
     def _check(name, condition, message=""):
 >       assert condition, f"{name}: {message}"
-E       AssertionError: e_run_finish: rc=1 tail='8 21:43:17", "mem_available_gib": 25.59, "swap_free_gib": 11.64, "swap_total_gib": 15.59, "committed_as_gib": 9.8, "load_1_5_15": [1.17, 1.29, 1.34], "blocked": [], "compile_processes": [], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 4}\n'
+E       AssertionError: e_run_finish: rc=1 tail='22:31:18", "mem_available_gib": 25.03, "swap_free_gib": 11.65, "swap_total_gib": 15.59, "committed_as_gib": 10.34, "load_1_5_15": [0.93, 0.46, 0.75], "blocked": [], "compile_processes": [], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 4}\n'
 E       assert False
 
 tests/conftest.py:15: AssertionError
 =========================== short test summary info ============================
 FAILED tests/test_claim_concurrency.py::test_d_run_concurrency_cap - Assertio...
 FAILED tests/test_claim_concurrency.py::test_e_heartbeat - AssertionError: e_...
-2 failed, 39 passed in 10.40s
+2 failed, 40 passed in 10.73s

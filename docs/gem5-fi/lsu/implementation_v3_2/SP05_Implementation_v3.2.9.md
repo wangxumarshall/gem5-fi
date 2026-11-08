@@ -1,6 +1,6 @@
 # SP05 implementation and five pilots (v3.2.9)
 
-Binary `d6e60863bb63f85398b5aaa35539c0c6c3fdf582e3d969aace27611d5db97b90`.
+Binary `303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0`.
 Definition: **Premature Store Completion** (`SP05-CFG01`). Hook: target
 selection in `LSQUnit::commitStores` (Nth store earning `canWB`), fault action
 in `LSQUnit::writebackStores` calling the real `LSQUnit::completeStore`
