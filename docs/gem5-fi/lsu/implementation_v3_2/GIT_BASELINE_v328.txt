@@ -1,0 +1,4 @@
+branch: lsu-platform-v3.2.8
+base: f26218f8
+base_commit: f26218f82ee16a3fb3c0ea62609b2f59d07adc8d
+binary_sha256: 8377c011bb5916be67fa1132232440ae7f8be02351c3034624a339319a545bec
