@@ -1,0 +1,5 @@
+branch: lsu-platform-v3.2.7
+base_commit: 5d664473eece628cc2e5d0f10017cfb0b32c8ae4
+v326_tip: 5d664473
+binary_sha256: 0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d
+captured_at_utc: 2026-11-08T03:07:50Z
