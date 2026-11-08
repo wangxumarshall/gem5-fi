@@ -1,0 +1,13 @@
+f38ce587 (HEAD -> lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][DOCS] status report and cross-artifact consistency check
+b48ee443 [LSU][MDSPEC][V3.2.9][TESTS] install pytest-check, supply the expected check fixture, run full suite
+65c28b8c [LSU][MDSPEC][V3.2.9][EXCEL] publish v3.2.4 with archive path and SP05/SQ03 status
+34cefb51 [LSU][MDSPEC][V3.2.9][FW05] strict matched baselines on the final binary
+dea96038 [LSU][MDSPEC][V3.2.9][SQ03] propagation probe: early canWB does not change forwarded data
+6d4b478b [LSU][MDSPEC][V3.2.9][SQ03] separate writeback permission from cache visibility in the five original traces
+0ee8e5fd [LSU][MDSPEC][V3.2.9][SP05] injection trace chain, runner evidence and five pilots
+eb179276 [LSU][MDSPEC][V3.2.9][FW05] locate root via GEM5_ROOT/git and run the archived binary
+fd50fcb2 [LSU][MDSPEC][V3.2.9][SP05] safety tests: clamp, one-shot, non-target, watchdog
+a1df1b57 [LSU][MDSPEC][V3.2.9][SP05] implement premature store completion hook, trace and watchdog
+fceba259 [LSU][MDSPEC][V3.2.9][SP05] add ordinal target-selection rule and test
+035f2a6b [LSU][MDSPEC][V3.2.9][SP05] audit completeStore lifecycle and reconcile premature-vs-suppressed wording
+1775db15 (origin/lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][DOCS] start v3.2.9 from v3.2.8 and record work order

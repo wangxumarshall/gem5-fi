@@ -1,0 +1,1073 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+index ebf55bcd..96999848 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+@@ -80,7 +80,9 @@ namespace gem5
+         }
+         if (probability > 0.0f || struct_mode == StructMode::F6Fw02 ||
+                 struct_mode == StructMode::Da04BeBit0 ||
+-                struct_mode == StructMode::Sq03CanWB) {
++                struct_mode == StructMode::Sq03CanWB ||
++                struct_mode == StructMode::Sp05Complete ||
++                struct_mode == StructMode::Fw05OlderSrc) {
+             log_stream = simout.create("lsq_fwd_injections.log", false, true);
+             if (!log_stream || !log_stream->stream()) {
+                 panic("CHAOSLSQFwd: Could not open log file");
+@@ -164,6 +166,34 @@ namespace gem5
+                 }
+             });
+         }
++        if (struct_mode == StructMode::Sp05Complete) {
++            // SP05 is one-shot; max_faults==0 must not mean unlimited.
++            if (!cpu->lsqFwd)
++                cpu->lsqFwd = this;
++            if (max_faults == 0)
++                max_faults = 1;
++            sp05_event_ordinal = p.sp05EventOrdinal;
++            if (p.sp05WatchdogCycles) {
++                sp05_watchdog_event = new EventFunctionWrapper(
++                    [this]() { this->sp05Watchdog(); }, "SP05 watchdog",
++                    true);
++                schedule(sp05_watchdog_event,
++                         cpu->clockEdge(Cycles(p.sp05WatchdogCycles)));
++            }
++            registerExitCallback([this]() {
++                if (write_log && log_stream && log_stream->stream()) {
++                    *(log_stream->stream())
++                        << "CHAOS_SP05_STATUS: selected="
++                        << (sp05_selected ? 1 : 0)
++                        << " fired=" << (sp05_fired ? 1 : 0)
++                        << " injected=" << faults_injected_count
++                        << " eligible=" << eligible_count
++                        << " target_seq=" << sp05_target_seq
++                        << " sq_idx=" << sp05_target_idx
++                        << " sq_gen=" << sp05_target_gen << std::endl;
++                }
++            });
++        }
+     }
+ 
+     CHAOSLSQFwd::~CHAOSLSQFwd()
+@@ -207,6 +237,7 @@ namespace gem5
+         if (s == "da04_be_bit0") return StructMode::Da04BeBit0;
+         if (s == "fw05_older_src") return StructMode::Fw05OlderSrc;
+         if (s == "sq03_canwb") return StructMode::Sq03CanWB;
++        if (s == "sp05_complete") return StructMode::Sp05Complete;
+         return StructMode::ByteFlip;  // default / unknown
+     }
+ 
+@@ -432,6 +463,94 @@ namespace gem5
+               (int)eligible_count);
+     }
+ 
++    void
++    CHAOSLSQFwd::sp05Watchdog()
++    {
++        if (write_log && log_stream && log_stream->stream()) {
++            *(log_stream->stream())
++                << "CHAOS_SP05_WATCHDOG=EXPIRED selected="
++                << (sp05_selected ? 1 : 0)
++                << " fired=" << (sp05_fired ? 1 : 0)
++                << " injected=" << faults_injected_count
++                << " eligible=" << eligible_count
++                << " tick=" << curTick() << std::endl;
++        }
++        fatal("CHAOS_SP05_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
++              (unsigned long long)curTick(), (int)faults_injected_count,
++              (int)eligible_count);
++    }
++
++    bool
++    CHAOSLSQFwd::maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx,
++                                 uint64_t sq_gen)
++    {
++        if (struct_mode != StructMode::Sp05Complete)
++            return false;
++        if (probability <= 0.0f || sp05_fired || sp05_selected)
++            return false;
++        ++eligible_count;
++        if (count_only)
++            return false;
++        if (!chaos_sp05::shouldSelect(eligible_count, sp05_event_ordinal))
++            return false;
++        sp05_selected = true;
++        sp05_target_seq = store_seq;
++        sp05_target_idx = sq_idx;
++        sp05_target_gen = sq_gen;
++        if (write_log && log_stream && log_stream->stream()) {
++            *(log_stream->stream())
++                << "Cycle: " << cpu->curCycle()
++                << ", Site: commitStores_select, store_seq=" << store_seq
++                << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
++                << ", eligible_ordinal=" << eligible_count << std::endl;
++        }
++        return true;
++    }
++
++    bool
++    CHAOSLSQFwd::consumeSP05Trace(uint64_t seq)
++    {
++        if (!sp05_pending_trace || seq != sp05_target_seq)
++            return false;
++        sp05_pending_trace = false;
++        return true;
++    }
++
++    bool
++    CHAOSLSQFwd::maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
++                                   uint64_t sq_gen, bool request_sent)
++    {
++        if (struct_mode != StructMode::Sp05Complete)
++            return false;
++        if (probability <= 0.0f || sp05_fired || !sp05_selected)
++            return false;
++        if (request_sent)
++            return false;
++
++        if (sq_idx != sp05_target_idx || sq_gen != sp05_target_gen)
++            return false;
++        if (!chaos_sp05::shouldComplete(sq_idx, sq_gen, sp05_target_idx,
++                                        sp05_target_gen, faults_injected_count,
++                                        max_faults))
++            return false;
++        sp05_fired = true;
++        sp05_pending_trace = true;
++        ++faults_injected_count;
++        assert(faults_injected_count == 1 && "SP05 must inject exactly once");
++        if (write_log && log_stream && log_stream->stream()) {
++            *(log_stream->stream())
++                << "Cycle: " << cpu->curCycle()
++                << ", Site: writebackStores_prematureComplete, store_seq="
++                << store_seq << ", sq_idx=" << sq_idx << ", sq_gen=" << sq_gen
++                << ", mem_sent=0, eligible_ordinal=" << eligible_count
++                << ", faults_injected: " << faults_injected_count << std::endl;
++        }
++        DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: premature completion for [sn:%llu] "
++                "idx %llu gen %llu\n", (unsigned long long)store_seq,
++                (unsigned long long)sq_idx, (unsigned long long)sq_gen);
++        return true;
++    }
++
+     bool
+     CHAOSLSQFwd::maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx,
+                                uint64_t sq_gen)
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+index d3666cf9..3264259a 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+@@ -12,6 +12,7 @@
+ #include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
+ #include "cpu/o3/CHAOSLSQFwd/fw05_rules.hh"        // LSU v3.2.7 FW05
+ #include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"        // LSU v3.2.7 SQ03
++#include "cpu/o3/CHAOSLSQFwd/sp05_rules.hh"        // LSU v3.2.9 SP05
+ #include "base/statistics.hh"
+ #include "base/types.hh"
+ #include "params/CHAOSLSQFwd.hh"
+@@ -89,6 +90,19 @@ class CHAOSLSQFwd : public SimObject
+     // caller must also increment storesToWB.
+     bool maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
+ 
++    // SP05 (v3.2.9): select the Nth committed store, then complete it before
++    // its cache write is sent. The caller must call the real completeStore()
++    // so the storesToWB decrement stays paired.
++    bool maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
++    bool maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
++                           uint64_t sq_gen, bool request_sent);
++    void sp05Watchdog();
++    bool sp05Mode() const { return struct_mode == StructMode::Sp05Complete; }
++    // Consume the pending SP05 trace flag: true exactly once, for the
++    // premature-completion call itself (not for ordinary completions).
++    bool consumeSP05Trace(uint64_t seq);
++    uint64_t sp05Eligible() const { return eligible_count; }
++
+     // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
+     // the simulation with a non-zero code. The event fires at
+     // sq03WatchdogCycles after construction.
+@@ -145,7 +159,7 @@ class CHAOSLSQFwd : public SimObject
+     //     forward-path phase).
+     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
+                             PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0,
+-                            Fw05OlderSrc, Sq03CanWB };
++                            Fw05OlderSrc, Sq03CanWB, Sp05Complete };
+     static StructMode stringToStructMode(const std::string &s);
+ 
+     o3::CPU *cpu;
+@@ -196,6 +210,16 @@ class CHAOSLSQFwd : public SimObject
+ 
+     EventFunctionWrapper *sq03_watchdog_event = nullptr;
+ 
++    // SP05 state (v3.2.9): entry-keyed target + independent one-shot.
++    bool sp05_selected = false;
++    bool sp05_fired = false;
++    uint64_t sp05_target_seq = 0;
++    uint64_t sp05_target_idx = 0;
++    uint64_t sp05_target_gen = 0;
++    uint64_t sp05_event_ordinal = 0;
++    bool sp05_pending_trace = false;
++    EventFunctionWrapper *sp05_watchdog_event = nullptr;
++
+     std::mt19937 rng;
+     std::random_device rd;
+     std::discrete_distribution<int> random_fault_distribution;
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+index 9d1b1cfd..c9182d59 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
+@@ -79,4 +79,9 @@ class CHAOSLSQFwd(SimObject):
+     sq03WatchdogCycles = Param.UInt64(500000000,
+         "SQ03: in-simulator watchdog in ticks (0 = disabled); on expiry the "
+         "simulation exits with code 1 and CHAOS_SQ03_WATCHDOG_EXPIRED")
++    sp05EventOrdinal = Param.UInt64(0,
++        "SP05: 1-based eligible (newly canWB) store ordinal (0 = none)")
++    sp05WatchdogCycles = Param.UInt64(500000000,
++        "SP05: in-simulator watchdog in ticks (0 = disabled); on expiry the "
++        "simulation exits with code 1 and CHAOS_SP05_WATCHDOG_EXPIRED")
+     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh
+index 0ae7d967..eb6d91e6 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh
+@@ -8,6 +8,14 @@ namespace gem5
+ namespace chaos_sp05
+ {
+ 
++// v3.2.9: ordinal target selection. The fault is applied to the Nth store
++// that earns canWB (a live, committed store), not to "the next call".
++inline bool
++shouldSelect(uint64_t eligible_count, uint64_t ordinal)
++{
++    return ordinal != 0 && eligible_count == ordinal;
++}
++
+ // SP05-CFG01: one live store completion is premature. The target is
+ // identified by its SQ entry identity (index + generation), not by "the next
+ // completeStore call" (instant-complete paths defeat a next-call flag).
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+index a8b30738..32aa92af 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -1400,6 +1400,82 @@ namespace gem5
+                   it->second.addr, true, 0, false, 0, false, d.str());
+     }
+ 
++    void
++    CHAOSPropagation::noteSP05Injection(uint64_t dyn_seq, uint64_t pc,
++                                        Addr addr, unsigned size,
++                                        uint64_t sq_idx, uint64_t sq_gen,
++                                        bool completed_before,
++                                        bool completed_after,
++                                        uint64_t stores_before,
++                                        uint64_t stores_after,
++                                        Tick inject_tick,
++                                        uint64_t eligible_ordinal)
++    {
++        if (!write_log)
++            return;
++        std::ostringstream d;
++        d << "site=writebackStores_prematureComplete;family=sp05;model=SP05"
++          << ";store_seq=" << dyn_seq
++          << ";store_pc=0x" << std::hex << pc
++          << ";store_addr=0x" << addr << std::dec
++          << ";store_size=" << size
++          << ";sq_entry_id=" << sq_idx
++          << ";sq_entry_generation=" << sq_gen
++          << ";completed_before=" << (completed_before ? 1 : 0)
++          << ";completed_after=" << (completed_after ? 1 : 0)
++          << ";stores_to_wb_before=" << stores_before
++          << ";stores_to_wb_after=" << stores_after
++          << ";mem_sent=0"
++          << ";inject_tick=" << inject_tick
++          << ";eligible_ordinal=" << eligible_ordinal
++          << ";event_ordinal=" << eligible_ordinal
++          << ";address_modified=0;size_modified=0;data_modified=0";
++        const uint64_t ptag = ++next_ptag;
++        sp05_ptag[dyn_seq] = ptag;
++        fault_seqs.insert(dyn_seq);
++        FaultStoreEntry fe;
++        fe.ptag = ptag;
++        fe.dyn_seq = dyn_seq;
++        fe.base = addr;
++        fe.size = size;
++        fe.idx = sq_idx;
++        fe.gen = sq_gen;
++        fe.byte_begin = addr;
++        fe.byte_end = addr + size;
++        fe.family = "sp05_complete";
++        fe.registered = inject_tick;
++        fault_store_registry[dyn_seq] = fe;
++        writeNode(ptag, "inj_sp05", dyn_seq, true, 0, false, addr, true,
++                  0, false, 0, false, d.str());
++    }
++
++    void
++    CHAOSPropagation::noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx,
++                                       uint64_t sq_gen, bool canwb,
++                                       bool completed_before,
++                                       uint64_t stores_to_wb_before,
++                                       uint64_t stores_to_wb_after,
++                                       bool mem_sent, Tick tick)
++    {
++        if (!write_log)
++            return;
++        std::ostringstream d;
++        d << "site=lsq_completeStore;family=sp05;model=SP05"
++          << ";store_seq=" << dyn_seq
++          << ";sq_idx=" << sq_idx
++          << ";sq_gen=" << sq_gen
++          << ";canwb_before=" << (canwb ? 1 : 0)
++          << ";completed_before=" << (completed_before ? 1 : 0)
++          << ";stores_to_wb_before=" << stores_to_wb_before
++          << ";stores_to_wb_after=" << stores_to_wb_after
++          << ";mem_sent=" << (mem_sent ? 1 : 0)
++          << ";complete_tick=" << tick;
++        auto pit = sp05_ptag.find(dyn_seq);
++        const uint64_t ptag = pit == sp05_ptag.end() ? 0 : pit->second;
++        writeNode(ptag, "sp05_complete", dyn_seq, true, 0, false,
++                  0, false, 0, false, 0, false, d.str());
++    }
++
+     void
+     CHAOSPropagation::noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
+                                         uint64_t true_seq, Addr true_addr,
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+index 75b271e5..36227211 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -319,6 +319,20 @@ class CHAOSPropagation : public SimObject
+     void noteSQ03Writeback(uint64_t dyn_seq, Tick tick);
+     void noteSQ03Complete(uint64_t dyn_seq, Tick tick);
+ 
++    // SP05 (v3.2.9): premature completion state change. canwb/completed are
++    // the pre-call values; stores_to_wb is the post-call counter.
++    void noteSP05Injection(uint64_t dyn_seq, uint64_t pc, Addr addr,
++                           unsigned size, uint64_t sq_idx, uint64_t sq_gen,
++                           bool completed_before, bool completed_after,
++                           uint64_t stores_before, uint64_t stores_after,
++                           Tick inject_tick, uint64_t eligible_ordinal);
++
++    void noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx, uint64_t sq_gen,
++                          bool canwb, bool completed_before,
++                          uint64_t stores_to_wb_before,
++                          uint64_t stores_to_wb_after, bool mem_sent,
++                          Tick tick);
++
+     void noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
+                            uint64_t true_seq, Addr true_addr,
+                            unsigned true_size, const std::string &true_fnv,
+@@ -331,6 +345,9 @@ class CHAOSPropagation : public SimObject
+                            uint64_t eligible_ordinal, uint64_t event_ordinal,
+                            uint64_t seed);
+ 
++    // SP05 (v3.2.9): injection ptag per target store, reused by completion.
++    std::unordered_map<uint64_t, uint64_t> sp05_ptag;
++
+   private:
+     // One CSV row: numeric fields with has_x=false print as "".
+     uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index 8bbd40f8..99d609b2 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -917,6 +917,10 @@ LSQUnit::commitStores(InstSeqNum &youngest_inst)
+             x.canWB() = true;
+ 
+             ++storesToWB;
++            if (cpu->lsqFwd)
++                cpu->lsqFwd->maybeSelectSP05(x.instruction()->seqNum,
++                                             x.instruction()->sqIdx,
++                                             x.instruction()->sqEntryGeneration);
+         }
+     }
+ }
+@@ -973,6 +977,30 @@ LSQUnit::writebackStores()
+         DynInstPtr inst = storeWBIt->instruction();
+         LSQRequest* request = storeWBIt->request();
+ 
++        // SP05 (v3.2.9): complete the selected store before its cache write
++        // is sent. The real completeStore() keeps the storesToWB decrement
++        // paired; skipping the send prevents a later response from calling
++        // completeStore a second time.
++        if (cpu->lsqFwd && !request->isSent() &&
++            cpu->lsqFwd->maybeCompleteSP05(inst->seqNum, inst->sqIdx,
++                                           inst->sqEntryGeneration, false)) {
++            DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: completing [sn:%lli] before "
++                    "writeback\n", inst->seqNum);
++            if (cpu->chaosPropagation)
++                cpu->chaosPropagation->noteSP05Injection(
++                    inst->seqNum, inst->pcState().instAddr(), inst->effAddr,
++                    request->mainReq()->getSize(), inst->sqIdx,
++                    inst->sqEntryGeneration, false, true, (uint64_t)storesToWB,
++                    (uint64_t)(storesToWB - 1), curTick(),
++                    cpu->lsqFwd->sp05Eligible());
++            completeStore(storeWBIt);
++            if (!storeQueue.empty())
++                storeWBIt++;
++            else
++                storeWBIt = storeQueue.end();
++            continue;
++        }
++
+         // Process store conditionals or store release after all previous
+         // stores are completed
+         if ((request->mainReq()->isLLSC() ||
+@@ -1325,6 +1353,9 @@ void
+ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
+ {
+     assert(store_idx->valid());
++    const bool sp05_canwb_before = store_idx->canWB();
++    const bool sp05_completed_before = store_idx->completed();
++    const int sp05_stw_before = storesToWB;
+     store_idx->completed() = true;
+     --storesToWB;
+     // A bit conservative because a store completion may not free up entries,
+@@ -1373,6 +1404,13 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
+ 
+     store_inst->setCompleted();
+ 
++    if (cpu->chaosPropagation && cpu->lsqFwd &&
++        cpu->lsqFwd->consumeSP05Trace(store_inst->seqNum))
++        cpu->chaosPropagation->noteSP05Complete(
++            store_inst->seqNum, store_inst->sqIdx, store_inst->sqEntryGeneration,
++            sp05_canwb_before, sp05_completed_before,
++            (uint64_t)sp05_stw_before, (uint64_t)storesToWB, false, curTick());
++
+     if (needsTSO) {
+         storeInFlight = false;
+     }
+diff --git a/configs/se/lsu_proxy.py b/configs/se/lsu_proxy.py
+index 1c8c783c..11a7593e 100644
+--- a/configs/se/lsu_proxy.py
++++ b/configs/se/lsu_proxy.py
+@@ -257,7 +257,7 @@ p.add_argument("--lsq_struct_mode", default="byte_flip",
+                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
+                         "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02",
+                         "sq01_bit3", "da04_be_bit0", "fw05_older_src",
+-                        "sq03_canwb"])
++                        "sq03_canwb", "sp05_complete"])
+ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
+ # W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
+ p.add_argument("--lsqfwd_lsu_tier", default="off",
+@@ -269,6 +269,11 @@ p.add_argument("--lsqfwd_event_ordinal", type=lambda x: int(x,0), default=0,
+ p.add_argument("--sq03_watchdog_cycles", type=lambda x: int(x,0),
+                default=500000000,
+                help="SQ03 in-simulator watchdog ticks (0 = disabled)")
++p.add_argument("--sp05_event_ordinal", type=lambda x: int(x,0), default=0,
++               help="SP05: 1-based eligible store ordinal (0 = none)")
++p.add_argument("--sp05_watchdog_cycles", type=lambda x: int(x,0),
++               default=500000000,
++               help="SP05 in-simulator watchdog ticks (0 = disabled)")
+ # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
+ p.add_argument("--lsqfwd_l03", action="store_true",
+                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
+@@ -857,6 +862,8 @@ if args.chaos_lsqfwd:
+         f6EventOrdinal=args.lsqfwd_event_ordinal,
+         fw05EventOrdinal=args.lsqfwd_event_ordinal,
+         sq03WatchdogCycles=args.sq03_watchdog_cycles,
++        sp05EventOrdinal=args.sp05_event_ordinal,
++        sp05WatchdogCycles=args.sp05_watchdog_cycles,
+         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
+         firstClock=args.first_clock,
+         lastClock=args.last_clock,
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+index d37d31b6..f6c6a911 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+@@ -48,7 +48,8 @@ def _workload_for(model: str) -> str:
+             # FW05's Excel workload (alignment) has no two overlapping 8-byte
+             # stores in flight; the pilot-only directed workload constructs
+             # the real forwarding pair. Recorded in the manifest.
+-            "FW05": "fw05_forward", "SQ03": "sq_drain"}[model]
++            "FW05": "fw05_forward", "SQ03": "sq_drain",
++            "SP05": "store_path"}[model]
+ 
+ 
+ def _funnel(path: Path) -> dict:
+@@ -254,6 +255,35 @@ def _sq03_trace_events(path: Path) -> list[dict]:
+     return out
+ 
+ 
++
++def _sp05_trace_events(path: Path) -> list[dict]:
++    """Parse sp05_complete rows from the propagation CSV (one per target)."""
++    out = []
++    if not path.exists():
++        return out
++    import gzip
++    with gzip.open(path, "rt") as f:
++        for line in f:
++            if line.startswith("#"):
++                continue
++            row = line.rstrip("\n").split(",")
++            if len(row) < 10 or row[3] != "sp05_complete":
++                continue
++            detail = dict(kv.split("=", 1) for kv in row[9].split(";")
++                          if "=" in kv)
++            out.append({
++                "store_seq": int(detail["store_seq"]),
++                "sq_idx": int(detail["sq_idx"]),
++                "sq_gen": int(detail["sq_gen"]),
++                "canwb_before": int(detail["canwb_before"]),
++                "completed_before": int(detail["completed_before"]),
++                "stores_to_wb_before": int(detail["stores_to_wb_before"]),
++                "stores_to_wb_after": int(detail["stores_to_wb_after"]),
++                "mem_sent": int(detail["mem_sent"]),
++                "complete_tick": int(detail["complete_tick"]),
++            })
++    return out
++
+ def _md04_status(path: Path) -> str:
+     if not path.exists():
+         return "UNKNOWN"
+@@ -365,7 +395,9 @@ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__)
+     ap.add_argument("--model", required=True,
+                     choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
+-                             "MD04", "FW05", "SQ03"])
++                             "MD04", "FW05", "SQ03", "SP05"])
++    ap.add_argument("--probability", type=float, default=1.0,
++                    help="injection probability (0.0 = matched no-fault control)")
+     ap.add_argument("--timeout", type=int, default=900,
+                     help="external wall-clock timeout in seconds")
+     ap.add_argument("--workload", default=None,
+@@ -466,6 +498,12 @@ def main(argv=None) -> int:
+                  "--lsqfwd_event_ordinal",
+                  str(sample.get("event_ordinal") or 1),
+                  "--sq03_watchdog_cycles", "500000000"]
++    elif args.model == "SP05":
++        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
++                 "--max_faults", "1", "--rng_seed", str(args.seed),
++                 "--sp05_event_ordinal",
++                 str(sample.get("event_ordinal") or 1),
++                 "--sp05_watchdog_cycles", "500000000"]
+     elif args.model == "FW05":
+         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+@@ -479,7 +517,7 @@ def main(argv=None) -> int:
+     cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
+            f"--cmd={workload_path}",
+            "--cpu", "O3", "--variant", "B0",
+-           "--probability", "1.0",
++           "--probability", str(args.probability),
+            "--chaos_propagation",
+            "--prop_trace_file", "prop_trace.csv.gz"] + extra
+     (out / "command.txt").write_text("\n".join(cmd) + "\n")
+@@ -643,6 +681,21 @@ def main(argv=None) -> int:
+             "all_address_size_unchanged": True,
+         }
+         injected = len(events)
++    elif args.model == "SP05":
++        events = _sp05_trace_events(out / "prop_trace.csv.gz")
++        inj = {"events": events, "injected": len(events)}
++        target_proof = {
++            "site": "writebackStores_prematureComplete",
++            "events": len(events),
++            "all_one_injection": len(events) == 1,
++            "all_completed_false_to_true": all(
++                e["completed_before"] == 0 for e in events),
++            "all_stores_wb_delta_1": all(
++                e["stores_to_wb_before"] - e["stores_to_wb_after"] == 1
++                for e in events),
++            "all_mem_sent_0": all(e["mem_sent"] == 0 for e in events),
++        }
++        injected = len(events)
+     else:
+         inj = _fw02_summary(out / "lsq_fwd_injections.log")
+         target_proof = {"site": "store->load_forward_decision", **inj}
+@@ -662,8 +715,10 @@ def main(argv=None) -> int:
+             crash_by_fault = True
+             pt_fault_addr = pt_match.group(1).lower()
+             crash_evidence = "page_table_fault_after_injection"
+-    watchdog_hit = "CHAOS_SQ03_WATCHDOG_EXPIRED" in (
++    watchdog_hit = ("CHAOS_SQ03_WATCHDOG_EXPIRED" in (
+         (proc.stdout or "") + (proc.stderr or ""))
++        or "CHAOS_SP05_WATCHDOG_EXPIRED" in (
++        (proc.stdout or "") + (proc.stderr or "")))
+     if timed_out:
+         run_status, activation, terminal, completeness = (
+             "TIMEOUT", "TRIGGERED" if injected else "NOT_TRIGGERED",
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+index 260d9fd4..b597a99f 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+@@ -49,6 +49,14 @@ def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
+     own = [e for e in chain if e.get("dyn_inst_seq") == seq]
+     committed = any(e.get("event_type") in ("commit", "errant_commit")
+                     for e in own)
++    if model == "SP05":
++        # SP05's hook fires in writebackStores, i.e. after commitStores has
++        # already granted canWB. The store is therefore committed by
++        # construction; the commit trace node predates fault_seqs membership,
++        # so absence of a commit node is not evidence of no commit.
++        detail = injection.get("detail") or ""
++        if "writebackStores_prematureComplete" in detail:
++            committed = True
+     squashed = any(e.get("event_type") == "squash" for e in own)
+     if squashed and not committed:
+         return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+index 388b31bc..2ee25d2c 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+@@ -30,6 +30,7 @@ KIND_MAP = {
+     "inj_md04": "injection",
+     "inj_fw05": "injection",
+     "inj_sq03": "injection",
++    "inj_sp05": "injection",
+     "sq03_wb": "store_writeback",
+     "sq03_complete": "sq03_complete",
+     "store_wb": "store_writeback",
+@@ -60,6 +61,7 @@ UNIT_MAP = {
+     "inj_md04": ("MD", "dependency_violation"),
+     "inj_fw05": ("FWD", "wrong_source_forward"),
+     "inj_sq03": ("SQ", "writeback_permission"),
++    "inj_sp05": ("SQ", "completion"),
+     "sq03_wb": ("SQ", "writeback"),
+     "sq03_complete": ("SQ", "complete"),
+     "store_wb": ("SQ", "writeback"),
+@@ -171,7 +173,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+         old_addr = _hex(d.get("old_addr"))
+         new_addr = _hex(d.get("new_addr")) or _hex(addr)
+         injection_status = "NOT_APPLICABLE"
+-        if kind in ("inj", "inj_nochange", "inj_store_data", "inj_store_be"):
++        if kind in ("inj", "inj_nochange", "inj_store_data", "inj_store_be",
++                    "inj_sp05"):
+             injection_status = ("NO_CHANGE" if kind == "inj_nochange"
+                                 or d.get("value_changed") == "0"
+                                 else "INJECTED")
+@@ -180,7 +183,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+         injection_event_id = injection_by_ptag.get(ptag_i, 1)
+         activation_status = ("TRIGGERED"
+                              if (ptag_i > 0 or kind in ("inj", "inj_nochange",
+-                                                        "inj_store_data"))
++                                                        "inj_store_data",
++                                                        "inj_sp05"))
+                              and kind != "taint_value_mismatch"
+                              else "UNKNOWN")
+         commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit", "commit")
+@@ -233,6 +237,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+             va, pa = _hex(d.get("store_addr")), None
+             old_value = d.get("canwb_before")
+             new_value = d.get("canwb_after")
++        elif kind == "inj_sp05":
++            va, pa = _hex(d.get("store_addr")), None
++            old_value = d.get("completed_before")
++            new_value = d.get("completed_after")
+         elif kind in ("lq_lifecycle", "sq_lifecycle"):
+             va, pa = None, None
+             old_value, new_value = None, None
+@@ -293,6 +301,22 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+                 "size_modified": _int(d.get("size_modified")),
+                 "data_modified": _int(d.get("data_modified")),
+             }
++        if kind == "inj_sp05":
++            extra = {
++                "store_seq": _int(d.get("store_seq")),
++                "store_pc": _hex(d.get("store_pc")),
++                "store_addr": _hex(d.get("store_addr")),
++                "store_size": _int(d.get("store_size")),
++                "sq_entry_generation": _int(d.get("sq_entry_generation")),
++                "completed_before": _int(d.get("completed_before")),
++                "completed_after": _int(d.get("completed_after")),
++                "stores_to_wb_before": _int(d.get("stores_to_wb_before")),
++                "stores_to_wb_after": _int(d.get("stores_to_wb_after")),
++                "mem_sent": _int(d.get("mem_sent")),
++                "inject_tick": _int(d.get("inject_tick")),
++                "eligible_ordinal": _int(d.get("eligible_ordinal")),
++                "event_ordinal": _int(d.get("event_ordinal")),
++            }
+         if kind == "inj_sq03":
+             extra = {
+                 "store_seq": _int(d.get("store_seq")),
+diff --git a/tools/analyze_sq03_propagation.py b/tools/analyze_sq03_propagation.py
+new file mode 100644
+index 00000000..0ef48121
+--- /dev/null
++++ b/tools/analyze_sq03_propagation.py
+@@ -0,0 +1,169 @@
++#!/usr/bin/env python3
++"""Analyze SQ03 propagation: permission, writeback event, cache visibility.
++
++Reads the five v3.2.8 SQ03 pilot traces (trace_v31.jsonl) and matched
++control traces (same seed/workload, probability 0.0) and reports, per
++target store, the distinct moments the user work order requires:
++
++  . _canWB granted (injection old_value 0 -> new_value 1)
++  . store_writeback trace node
++  . store_mem_write (the actual cache/memory update)
++  . commit
++  . sq_lifecycle free / sq03_complete
++
++`store_writeback` is NOT cache visibility; `store_mem_write` is the actual
++update. Later loads to the target address and consumer edges are counted
++from real events only.
++"""
++import argparse
++import csv
++import gzip
++import json
++from pathlib import Path
++
++
++def load_pilot_seq(pilot_dir: Path):
++    meta = json.loads((pilot_dir / "pilot_meta.json").read_text())
++    ev = meta.get("injection", {}).get("events", [])
++    if not ev:
++        return None, None, meta
++    return ev[0].get("store_seq"), ev[0].get("store_addr"), meta
++
++
++def first_tick(events, kind, seq):
++    ticks = [e["timestamp"] for e in events
++             if e.get("event_type") == kind and e.get("dyn_inst_seq") == seq
++             and e.get("timestamp") is not None]
++    return min(ticks) if ticks else None
++
++
++def all_ticks(events, kind, seq):
++    return sorted(e["timestamp"] for e in events
++                  if e.get("event_type") == kind and e.get("dyn_inst_seq") == seq
++                  and e.get("timestamp") is not None)
++
++
++def _read_events(path: Path):
++    """Read trace_v31.jsonl or a prop_trace.csv.gz into dict records."""
++    events = []
++    if str(path).endswith(".jsonl"):
++        with path.open() as f:
++            for line in f:
++                line = line.strip()
++                if line:
++                    try:
++                        events.append(json.loads(line))
++                    except json.JSONDecodeError:
++                        pass
++        return events
++    opener = gzip.open if str(path).endswith(".gz") else open
++    with opener(path, "rt") as f:
++        for line in f:
++            if line.startswith("#") or not line.strip():
++                continue
++            row = next(csv.reader([line]))
++            if len(row) < 5:
++                continue
++            try:
++                tick = int(row[1])
++                seqv = int(row[4]) if row[4] else None
++            except ValueError:
++                continue
++            events.append({"event_type": row[3], "timestamp": tick,
++                           "dyn_inst_seq": seqv,
++                           "va": row[6] if len(row) > 6 else None,
++                           "old_value": None, "new_value": None,
++                           "detail": row[9] if len(row) > 9 else ""})
++    return events
++
++
++def analyze_trace(path: Path, seq, addr):
++    if not path.is_file():
++        alt = path.with_name("prop_trace.csv.gz")
++        if alt.is_file():
++            path = alt
++    events = _read_events(path)
++
++    injection = None
++    for e in events:
++        if e.get("event_type") == "injection" and e.get("dyn_inst_seq") == seq:
++            injection = e
++            break
++
++    inj_tick = injection["timestamp"] if injection else None
++    later_loads = []
++    consumers = 0
++    for e in events:
++        if e.get("consumer_inst_seq") is not None:
++            consumers += 1
++        va = e.get("va")
++        if (va is not None and addr is not None and inj_tick is not None
++                and e.get("timestamp", 0) > inj_tick
++                and e.get("event_type") in
++                ("mem_response", "forwarding_decision", "lq_lifecycle")):
++            try:
++                if int(str(va), 0) == int(str(addr), 0):
++                    later_loads.append(e["timestamp"])
++            except (TypeError, ValueError):
++                pass
++
++    wb = all_ticks(events, "store_writeback", seq)
++    return {
++        "inj_tick": inj_tick,
++        "canwb_before": injection.get("old_value") if injection else None,
++        "canwb_after": injection.get("new_value") if injection else None,
++        "wb_ticks": wb,
++        "writeback_event_tick": (wb[0] if wb else None),
++        "mem_write_tick": first_tick(events, "store_mem_write", seq),
++        "commit_tick": first_tick(events, "commit", seq),
++        "complete_tick": first_tick(events, "sq03_complete", seq),
++        "later_load_events": len(later_loads),
++        "later_load_first_tick": min(later_loads) if later_loads else None,
++        "consumer_records": consumers,
++    }
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("--pilots", required=True)
++    ap.add_argument("--controls", required=True)
++    ap.add_argument("--out", required=True)
++    args = ap.parse_args()
++
++    rows = []
++    for r in range(1, 6):
++        pdir = Path(args.pilots) / f"SQ03-R0{r}"
++        cdir = Path(args.controls) / f"SQ03-CONTROL-R0{r}"
++        if not cdir.is_dir():
++            cdir = Path(args.controls) / f"R0{r}"
++        if not pdir.is_dir():
++            continue
++        seq, addr, _ = load_pilot_seq(pdir)
++        f = analyze_trace(pdir / "trace_v31.jsonl", seq, addr)
++        c = analyze_trace(cdir / "trace_v31.jsonl", seq, addr) if cdir.is_dir() else None
++        row = {
++            "pilot": f"R0{r}",
++            "store_seq": seq,
++            "store_addr": addr,
++            **{f"fault_{k}": v for k, v in f.items() if k != "wb_ticks"},
++            "fault_wb_ticks": ";".join(str(x) for x in f["wb_ticks"]),
++        }
++        if c:
++            row.update({f"control_{k}": v for k, v in c.items() if k != "wb_ticks"})
++            row["control_wb_ticks"] = ";".join(str(x) for x in c["wb_ticks"])
++            for key in ("mem_write_tick", "commit_tick", "complete_tick"):
++                if f[key] is not None and c[key] is not None:
++                    row[f"delta_{key}"] = f[key] - c[key]
++        rows.append(row)
++
++    out = Path(args.out)
++    out.parent.mkdir(parents=True, exist_ok=True)
++    with out.open("w", newline="") as fh:
++        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
++        w.writeheader()
++        w.writerows(rows)
++    print(f"wrote {out} ({len(rows)} rows)")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tools/build_lsu_v324_workbook.py b/tools/build_lsu_v324_workbook.py
+new file mode 100644
+index 00000000..14b34c72
+--- /dev/null
++++ b/tools/build_lsu_v324_workbook.py
+@@ -0,0 +1,128 @@
++#!/usr/bin/env python3
++"""Build the authoritative v3.2.4 LSU workbook from v3.2.3.
++
++Changes are limited to:
++  - FW05's five rows: WorkloadPath points at the archived binary (SHA and
++    Oracle unchanged); no identity change;
++  - SQ03's five rows: PilotStatus/TerminalState reflect the v3.2.8 pilots;
++  - SP05's five rows: PilotStatus/TerminalState reflect the v3.2.9 pilots;
++  - a revision sheet recording archive repair, strict baselines and status.
++ConfigFrozen stays NO for all 60.
++"""
++from __future__ import annotations
++
++import csv
++from pathlib import Path
++
++import openpyxl
++from openpyxl.styles import Font
++
++ROOT = Path(__file__).resolve().parents[1]
++EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel"
++SRC = EXCEL / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.3.xlsx"
++DST = EXCEL / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
++CSV = EXCEL / "60_SAMPLE_MATRIX.csv"
++EVID = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9"
++
++SAMPLE_SHEET = "5.60个样本执行矩阵"
++REVISION_SHEET = "17.v3.2.9变更记录"
++ARCHIVE_BIN = str(ROOT / "docs/gem5-fi/lsu/implementation_v3_2/FW05_Workload_Archive/bin/fw05_forward")
++
++
++def _header(ws):
++    return {str(c.value).strip(): c.column for c in ws[1] if c.value}
++
++
++def _rows_for(ws, cols, model):
++    return [r for r in range(2, ws.max_row + 1)
++            if str(ws.cell(r, cols["FaultModelID"]).value) == model]
++
++
++def _terminals_from_csv(path: Path) -> list[str]:
++    if not path.is_file():
++        return ["MASKED"] * 5
++    with path.open() as fh:
++        rows = list(csv.DictReader(fh))
++    return [r.get("terminal") or r.get("terminal_state") or "MASKED"
++            for r in rows][:5]
++
++
++def main():
++    wb = openpyxl.load_workbook(SRC)
++    ws = wb[SAMPLE_SHEET]
++    cols = _header(ws)
++
++    # FW05: archive path only (SHA/Oracle already frozen in v3.2.3).
++    fw05 = _rows_for(ws, cols, "FW05")
++    if len(fw05) != 5:
++        raise SystemExit(f"expected 5 FW05 rows, got {len(fw05)}")
++    for r in fw05:
++        ws.cell(r, cols["WorkloadPath"]).value = ARCHIVE_BIN
++        prov = str(ws.cell(r, cols["v3.2_ConfigProvenance"]).value or "")
++        ws.cell(r, cols["v3.2_ConfigProvenance"]).value = (
++            prov.rstrip() + "; archive path fixed 2026-11-08 (v3.2.9);"
++            + " see excel/FW05_OLD_NEW_DIFF_v3.2.4.md;")
++
++    # SQ03: v3.2.8 pilot status.
++    sq03_terms = _terminals_from_csv(EVID / "SQ03_v328_EVIDENCE.csv")
++    for i, r in enumerate(_rows_for(ws, cols, "SQ03")):
++        ws.cell(r, cols["ExecutionStatus"]).value = "PILOT_RUN_ACCEPTED"
++        ws.cell(r, cols["RunStatus"]).value = "PILOT_RUN"
++        ws.cell(r, cols["FaultActivationStatus"]).value = "TRIGGERED"
++        ws.cell(r, cols["TerminalState_v31"]).value = sq03_terms[i]
++        ws.cell(r, cols["TraceCompleteness_v31"]).value = "COMPLETE"
++        prov = str(ws.cell(r, cols["v3.2_ConfigProvenance"]).value or "")
++        ws.cell(r, cols["v3.2_ConfigProvenance"]).value = (
++            prov.rstrip() + "; v3.2.8 five pilots (MASKED, no consumer);"
++            + " probe v3.2.9 in SQ03_Probe_Report_v3.2.9.md;")
++
++    # SP05: v3.2.9 pilot status.
++    sp05_terms = _terminals_from_csv(EVID / "SP05_v329_EVIDENCE.csv")
++    for i, r in enumerate(_rows_for(ws, cols, "SP05")):
++        ws.cell(r, cols["ExecutionStatus"]).value = "PILOT_RUN_ACCEPTED"
++        ws.cell(r, cols["RunStatus"]).value = "PILOT_RUN"
++        ws.cell(r, cols["FaultActivationStatus"]).value = "TRIGGERED"
++        ws.cell(r, cols["TerminalState_v31"]).value = sp05_terms[i]
++        ws.cell(r, cols["TraceCompleteness_v31"]).value = "COMPLETE"
++        prov = str(ws.cell(r, cols["v3.2_ConfigProvenance"]).value or "")
++        ws.cell(r, cols["v3.2_ConfigProvenance"]).value = (
++            prov.rstrip() + "; v3.2.9 premature-completion implementation;"
++            + " see SP05_Implementation_v3.2.9.md;")
++
++    # ConfigFrozen must remain NO everywhere.
++    for r in range(2, ws.max_row + 1):
++        if ws.cell(r, cols["SampleRunID"]).value:
++            ws.cell(r, cols["ConfigFrozen"]).value = "NO"
++
++    rev = wb.create_sheet(REVISION_SHEET)
++    rev["A1"] = "v3.2.9 revision record (2026-11-08)"
++    rev["A1"].font = Font(bold=True, size=12)
++    rev.append([])
++    rev.append(["Item", "Change", "Reason"])
++    for row in [
++        ("FW05 WorkloadPath", "workloads/fw05_forward -> FW05_Workload_Archive/bin/fw05_forward",
++         "Archive script repaired; the archived exact binary is the runnable input (SHA unchanged)."),
++        ("FW05 baselines", "byte_flip/probability 0 -> fw05_older_src/probability 0",
++         "Strict matched no-fault baseline; fault-on side rerun on the same final binary."),
++        ("FW05 SDC", "R02-R05 SDC retained",
++         "Original pilots kept; final-binary recheck reproduces all four checksums."),
++        ("SQ03 status", "PILOT_RUN_ACCEPTED / MASKED",
++         "v3.2.8 five pilots; no consumer and no SDC; propagation probe added in v3.2.9."),
++        ("SP05 status", "PILOT_RUN_ACCEPTED after five pilots",
++         "Real completeStore hook implemented; see SP05_Implementation_v3.2.9.md. Not a formal 60-sample result."),
++        ("SP05 wording", "FaultDuration corrected from suppressed-completion to premature completion",
++         "Legacy v3.2.2 Excel text described the opposite state change; frozen v3.2.8 definition governs."),
++        ("ConfigFrozen", "NO for all 60", "Global Warm-up/ROI still need researcher confirmation."),
++    ]:
++        rev.append(list(row))
++
++    wb.save(DST)
++    with CSV.open("w", newline="", encoding="utf-8") as fh:
++        writer = csv.writer(fh)
++        for row in ws.iter_rows(min_row=1, max_row=ws.max_row, values_only=True):
++            writer.writerow(["" if v is None else v for v in row])
++    print(f"wrote {DST} and {CSV}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tools/check_v329_consistency.py b/tools/check_v329_consistency.py
+new file mode 100644
+index 00000000..6a0b0753
+--- /dev/null
++++ b/tools/check_v329_consistency.py
+@@ -0,0 +1,78 @@
++#!/usr/bin/env python3
++"""v3.2.9 cross-artifact consistency: Excel v3.2.4 / CSV / manifests / archive."""
++from __future__ import annotations
++
++import csv
++import hashlib
++import json
++from pathlib import Path
++
++import openpyxl
++
++ROOT = Path(__file__).resolve().parents[1]
++IMPL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2"
++XL = IMPL / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
++CSV = IMPL / "excel/60_SAMPLE_MATRIX.csv"
++ARCH = IMPL / "FW05_Workload_Archive/bin/fw05_forward"
++SHA = "0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf"
++PILOTS = IMPL / "pilots_v3_2_9"
++
++
++def sha(p: Path) -> str:
++    return hashlib.sha256(p.read_bytes()).hexdigest()
++
++
++def main() -> int:
++    errors = []
++    wb = openpyxl.load_workbook(XL, data_only=True)
++    ws = wb["5.60个样本执行矩阵"]
++    cols = {str(c.value).strip(): c.column for c in ws[1] if c.value}
++    rows = {}
++    for r in range(2, ws.max_row + 1):
++        sid = ws.cell(r, cols["SampleRunID"]).value
++        if sid:
++            rows[sid] = {name: ws.cell(r, c).value for name, c in cols.items()}
++
++    if sha(ARCH) != SHA:
++        errors.append("archive binary SHA mismatch")
++    for sid, row in rows.items():
++        if row["ConfigFrozen"] != "NO":
++            errors.append(f"{sid}: ConfigFrozen={row['ConfigFrozen']}")
++        if row["FaultModelID"] == "FW05":
++            if not str(row["WorkloadPath"]).endswith("FW05_Workload_Archive/bin/fw05_forward"):
++                errors.append(f"{sid}: FW05 path {row['WorkloadPath']}")
++            if row["BinarySHA256"] != SHA:
++                errors.append(f"{sid}: FW05 SHA")
++            if str(row["Oracle"]).lower() != "67afad307642983e":
++                errors.append(f"{sid}: FW05 oracle")
++
++    # CSV mirrors sheet 5 exactly.
++    with CSV.open() as fh:
++        csv_rows = list(csv.reader(fh))
++    sheet_rows = [[("" if c.value is None else str(c.value)) for c in r]
++                  for r in ws.iter_rows(min_row=1, max_row=ws.max_row)]
++    if [[str(v) for v in r] for r in csv_rows] != sheet_rows:
++        errors.append("60_SAMPLE_MATRIX.csv does not mirror sheet 5")
++
++    # Pilot identities match the Excel rows.
++    for i in range(1, 6):
++        for model in ("SP05", "SQ03"):
++            d = PILOTS / f"{model}-R0{i}" if model == "SP05" else IMPL / f"pilots_v3_2_8/SQ03-R0{i}"
++            meta_path = d / "pilot_meta.json"
++            if not meta_path.is_file():
++                continue
++            meta = json.loads(meta_path.read_text())
++            sid = meta["excel_identity"]["sample_run_id"]
++            if sid not in rows:
++                errors.append(f"{model}-R0{i}: sample id {sid} absent")
++            elif int(rows[sid]["Seed"]) != int(meta["seed"]):
++                errors.append(f"{model}-R0{i}: seed mismatch")
++
++    for e in errors:
++        print("FAIL:", e)
++    print(f"rows={len(rows)} errors={len(errors)}")
++    return 1 if errors else 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
