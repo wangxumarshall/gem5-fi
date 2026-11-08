@@ -28,9 +28,9 @@
   "roi": "NEEDS_RESEARCHER_CONFIRMATION",
   "gem5": {
     "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
-    "binary_sha256": "6848ced7b508c5cb094dbde015c6a427a42230b8a5cebc7534f6a6d4149e2108",
+    "binary_sha256": "f62187978660e50bf0e0fce04045e40cbb2b5f55b3dedea997da19006d04d9fb",
     "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
-    "config_script_sha256": "eb40ea17bc3c78acd4c916a3a55844de3ac8360249a88fb5a78147379eba145a"
+    "config_script_sha256": "ee5e57df19e09fa23ef4d9d8ed18f696e514df0ea5c6cd59e79cf59479ad44ce"
   },
   "output_dir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_7/MD04-R05",
   "command": [
@@ -61,18 +61,10 @@
   ],
   "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_7/MD04-R05 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_md04 --md04_first_clock 0 --md04_max_faults 1 --md04_probability 1.0 --md04_rng_seed 1008734674 --md04_event_ordinal 5",
   "environment": {
-    "captured_at_utc": "2026-11-08T03:31:05Z",
+    "captured_at_utc": "2026-11-08T04:34:21Z",
     "host": "localhost0101",
     "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
     "python": "3.11.6"
   },
-  "manifest_sha256": "707bc4bc0ddedc814cfbf0d70bf3e1be7e23e08ff8d898974a5003a57058f698",
-  "frozen_definition": {
-    "definition": "MD04-DEF-v2",
-    "document": "docs/gem5-fi/lsu/implementation_v3_2/MD04_Definition_Freeze_v3.2.7.md",
-    "excel": "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.2.xlsx",
-    "target_pair_id": "MD04-L69297-S69294-T31074120",
-    "eligible_violation_pair_ordinal": 5,
-    "execution_attempt_link": "SAME_ATTEMPT"
-  }
+  "manifest_sha256": "7b7fa5c76807764e8e471df0898b62a41797331455a7a609571b76391c015c64"
 }

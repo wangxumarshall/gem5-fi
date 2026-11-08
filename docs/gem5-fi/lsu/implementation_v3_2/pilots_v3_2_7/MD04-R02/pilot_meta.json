@@ -39,7 +39,7 @@
     "2"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 2.546,
+  "elapsed_seconds": 2.572,
   "oracle_expected": "59fc61c040618747",
   "oracle_source": "excel",
   "oracle_pass": true,
