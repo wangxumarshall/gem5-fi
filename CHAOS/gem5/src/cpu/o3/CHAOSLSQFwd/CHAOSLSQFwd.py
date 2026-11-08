@@ -76,4 +76,7 @@ class CHAOSLSQFwd(SimObject):
         "R01-R05: 1-based F6 pair ordinal (0 = first pair)")
     fw05EventOrdinal = Param.UInt64(0,
         "FW05: 1-based eligible wrong-source ordinal (0 = first eligible)")
+    sq03WatchdogCycles = Param.UInt64(500000000,
+        "SQ03: in-simulator watchdog in ticks (0 = disabled); on expiry the "
+        "simulation exits with code 1 and CHAOS_SQ03_WATCHDOG_EXPIRED")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

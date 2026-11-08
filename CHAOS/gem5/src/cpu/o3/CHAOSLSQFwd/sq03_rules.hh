@@ -18,7 +18,10 @@ shouldSetCanWB(uint64_t store_seq, uint64_t target_seq,
 {
     if (target_seq == 0 || store_seq != target_seq)
         return false;
-    if (max_faults != 0 && injected >= max_faults)
+    // SQ03 is one-shot by construction; max_faults==0 must not mean
+    // "unlimited" here (that was the v3.2.7 HANG hazard).
+    const uint64_t cap = (max_faults == 0) ? 1 : max_faults;
+    if (injected >= cap)
         return false;
     return true;
 }

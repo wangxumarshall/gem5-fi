@@ -266,6 +266,9 @@ p.add_argument("--lsqfwd_warmup_events", type=lambda x: int(x,0), default=0)
 p.add_argument("--lsqfwd_span_events", type=lambda x: int(x,0), default=1000)
 p.add_argument("--lsqfwd_event_ordinal", type=lambda x: int(x,0), default=0,
                help="R01-R05: 1-based F6 pair ordinal")
+p.add_argument("--sq03_watchdog_cycles", type=lambda x: int(x,0),
+               default=500000000,
+               help="SQ03 in-simulator watchdog ticks (0 = disabled)")
 # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
 p.add_argument("--lsqfwd_l03", action="store_true",
                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
@@ -853,6 +856,7 @@ if args.chaos_lsqfwd:
         lsuSpanEvents=args.lsqfwd_span_events,
         f6EventOrdinal=args.lsqfwd_event_ordinal,
         fw05EventOrdinal=args.lsqfwd_event_ordinal,
+        sq03WatchdogCycles=args.sq03_watchdog_cycles,
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
         firstClock=args.first_clock,
         lastClock=args.last_clock,

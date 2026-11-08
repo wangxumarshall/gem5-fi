@@ -1,6 +1,7 @@
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // v3.2 FW02 trace
 #include "sim/sim_exit.hh"
+#include "sim/eventq.hh"
 #include "params/CHAOSLSQFwd.hh"
 
 #include <iostream>
@@ -78,7 +79,8 @@ namespace gem5
                 "Cast failed.");
         }
         if (probability > 0.0f || struct_mode == StructMode::F6Fw02 ||
-                struct_mode == StructMode::Da04BeBit0) {
+                struct_mode == StructMode::Da04BeBit0 ||
+                struct_mode == StructMode::Sq03CanWB) {
             log_stream = simout.create("lsq_fwd_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSLSQFwd: Could not open log file");
@@ -137,6 +139,28 @@ namespace gem5
                         << " suppressed=" << (f6_fired ? 1 : 0)
                         << " load_seq=" << f6_load_seq
                         << " store_seq=" << f6_store_seq << std::endl;
+                }
+            });
+        }
+        if (struct_mode == StructMode::Sq03CanWB) {
+            // SQ03 is one-shot; max_faults==0 must not mean unlimited.
+            if (!cpu->lsqFwd)
+                cpu->lsqFwd = this;
+            if (max_faults == 0)
+                max_faults = 1;
+            if (p.sq03WatchdogCycles) {
+                sq03_watchdog_event = new EventFunctionWrapper(
+                    [this]() { this->sq03Watchdog(); }, "SQ03 watchdog",
+                    true);
+                schedule(sq03_watchdog_event,
+                         cpu->clockEdge(Cycles(p.sq03WatchdogCycles)));
+            }
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_SQ03_STATUS: fired=" << (sq03_fired ? 1 : 0)
+                        << " injected=" << faults_injected_count
+                        << " eligible=" << eligible_count << std::endl;
                 }
             });
         }
@@ -389,6 +413,25 @@ namespace gem5
         return true;
     }
 
+    void
+    CHAOSLSQFwd::sq03Watchdog()
+    {
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "CHAOS_SQ03_WATCHDOG=EXPIRED fired="
+                << (sq03_fired ? 1 : 0)
+                << " injected=" << faults_injected_count
+                << " eligible=" << eligible_count
+                << " tick=" << curTick() << std::endl;
+        }
+        // A watchdog expiry is a failed simulation, not a normal MAX_TICK
+        // exit: abort loudly so the process exit status is non-zero and the
+        // runner cannot classify it as MASKED.
+        fatal("CHAOS_SQ03_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
+              (unsigned long long)curTick(), (int)faults_injected_count,
+              (int)eligible_count);
+    }
+
     bool
     CHAOSLSQFwd::maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx,
                                uint64_t sq_gen)
@@ -396,6 +439,8 @@ namespace gem5
         if (struct_mode != StructMode::Sq03CanWB)
             return false;
         if (probability <= 0.0f)
+            return false;
+        if (sq03_fired)
             return false;
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
@@ -407,7 +452,9 @@ namespace gem5
         if (!chaos_sq03::shouldSetCanWB(store_seq, store_seq,
                                         faults_injected_count, max_faults))
             return false;
+        sq03_fired = true;
         ++faults_injected_count;
+        assert(faults_injected_count == 1 && "SQ03 must inject exactly once");
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream())
                 << "Cycle: " << cpu->curCycle()

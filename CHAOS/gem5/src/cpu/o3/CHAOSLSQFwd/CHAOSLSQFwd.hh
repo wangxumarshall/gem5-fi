@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "base/output.hh"
+#include "sim/eventq.hh"
 #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
 #include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
@@ -87,6 +88,11 @@ class CHAOSLSQFwd : public SimObject
     // SQ03: one-shot premature _canWB for the selected real store. The
     // caller must also increment storesToWB.
     bool maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
+
+    // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
+    // the simulation with a non-zero code. The event fires at
+    // sq03WatchdogCycles after construction.
+    void sq03Watchdog();
 
     // SQ01 (LSU v3.2.3): after LSQUnit::write() has copied store data into the
     // SQ entry, flip byte0 bit3 once under the F0 trigger. Data-only: no SQ
@@ -182,6 +188,11 @@ class CHAOSLSQFwd : public SimObject
     uint64_t last_fwd_ptag = 0;
     uint64_t f6_event_ordinal = 0;
     uint64_t fw05_event_ordinal = 0;
+    // SQ03 one-shot: independent of max_faults, so a duplicate call can
+    // never apply a second premature canWB.
+    bool sq03_fired = false;
+
+    EventFunctionWrapper *sq03_watchdog_event = nullptr;
 
     std::mt19937 rng;
     std::random_device rd;
