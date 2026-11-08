@@ -9,6 +9,7 @@
 #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
 #include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
+#include "cpu/o3/CHAOSLSQFwd/fw05_rules.hh"        // LSU v3.2.7 FW05
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "params/CHAOSLSQFwd.hh"
@@ -55,6 +56,21 @@ class CHAOSLSQFwd : public SimObject
                                const uint8_t *alt_src, unsigned alt_size,
                                Addr vaddr);
 
+    // FW05 (LSU v3.2.7, option A): strict single wrong-source forwarding.
+    // The caller supplies the gem5-selected true source and one older SQ
+    // candidate, with real addresses/sizes/seqs so FW05-ELIG-v1 can reject
+    // partial coverage, data equality, non-older or same-instruction cases.
+    // Returns true iff the load buffer was filled from the alternative.
+    bool maybeSubstituteFW05(uint8_t *load_data, unsigned copy_size,
+                             Addr vaddr, uint64_t load_seq, uint64_t load_pc,
+                             uint64_t true_seq, Addr true_addr,
+                             unsigned true_size, const uint8_t *true_data,
+                             uint64_t alt_seq, Addr alt_addr,
+                             unsigned alt_size, const uint8_t *alt_data,
+                             uint64_t sq_idx, uint64_t sq_gen,
+                             uint64_t lq_idx, uint64_t lq_gen,
+                             uint64_t load_attempt);
+
     // FW02 (LSU v3.2 pilot, F6): at the full-coverage forwarding DECISION
     // point, return true exactly once for a real older-store/younger-load
     // pair. The caller skips the forwarding branch and falls through to the
@@ -65,6 +81,7 @@ class CHAOSLSQFwd : public SimObject
 
     // v3.2.1: ptag registered for the FW02 false-miss (0 = none).
     uint64_t lastFwdPtag() const { return last_fwd_ptag; }
+    bool fw05Mode() const { return struct_mode == StructMode::Fw05OlderSrc; }
 
     // SQ01 (LSU v3.2.3): after LSQUnit::write() has copied store data into the
     // SQ entry, flip byte0 bit3 once under the F0 trigger. Data-only: no SQ
@@ -114,7 +131,8 @@ class CHAOSLSQFwd : public SimObject
     //     E3 boundary analysis showed captures scheduler phase, not
     //     forward-path phase).
     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
-                            PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0 };
+                            PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0,
+                            Fw05OlderSrc };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;
@@ -158,6 +176,7 @@ class CHAOSLSQFwd : public SimObject
     uint64_t f6_store_seq = 0;
     uint64_t last_fwd_ptag = 0;
     uint64_t f6_event_ordinal = 0;
+    uint64_t fw05_event_ordinal = 0;
 
     std::mt19937 rng;
     std::random_device rd;

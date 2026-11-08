@@ -305,6 +305,21 @@ class CHAOSPropagation : public SimObject
                            uint64_t event_ordinal, uint64_t seed,
                            bool load_complete);
 
+    // FW05 (v3.2.7): one load was served from an older store instead of the
+    // gem5-selected true source. The response is bound by load seq so its
+    // delivered data hash can be checked against alt_fnv.
+    void noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
+                           uint64_t true_seq, Addr true_addr,
+                           unsigned true_size, const std::string &true_fnv,
+                           uint64_t alt_seq, Addr alt_addr,
+                           unsigned alt_size, const std::string &alt_fnv,
+                           Addr load_addr, unsigned load_size,
+                           uint64_t sq_idx, uint64_t sq_gen,
+                           uint64_t lq_idx, uint64_t lq_gen,
+                           uint64_t load_attempt,
+                           uint64_t eligible_ordinal, uint64_t event_ordinal,
+                           uint64_t seed);
+
   private:
     // One CSV row: numeric fields with has_x=false print as "".
     uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
@@ -440,6 +455,22 @@ class CHAOSPropagation : public SimObject
         uint64_t resp_node = 0;
     };
     std::map<uint64_t, MD04Entry> md04_registry;  // key: load dyn seq
+
+    struct FW05Entry {
+        uint64_t ptag = 0;
+        uint64_t true_seq = 0;
+        uint64_t alt_seq = 0;
+        Addr true_addr = 0;
+        Addr alt_addr = 0;
+        Addr load_addr = 0;
+        unsigned load_size = 0;
+        std::string true_fnv;
+        std::string alt_fnv;
+        uint64_t eligible_ordinal = 0;
+        uint64_t resp_node = 0;
+        bool wb_emitted = false;
+    };
+    std::map<uint64_t, FW05Entry> fw05_registry;  // key: load dyn seq
 
     struct ChainWbEntry {
         uint64_t ptag = 0;

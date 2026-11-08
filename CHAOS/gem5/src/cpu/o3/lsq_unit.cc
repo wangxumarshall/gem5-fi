@@ -1277,6 +1277,12 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         }
     }
 
+    // FW05: a forwarded load reaches writeback without a memory response,
+    // so completeDataAccess did not emit its register writeback. The tracer
+    // emits it here from the PRF (pending_chain_wb is empty for this path).
+    if (cpu->chaosPropagation && inst->isLoad())
+        cpu->chaosPropagation->noteChainWriteback(inst.get());
+
     // Need to insert instruction into queue to commit
     iewStage->instToCommit(inst);
 
@@ -1666,14 +1672,50 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                                 break;
                             }
                         }
+                        if (cpu->lsqFwd->fw05Mode()) {
+                            DPRINTF(LSQUnit, "CHAOSLSQFwd FW05 probe: load "
+                                    "[sn:%lli] true [sn:%lli] alt=%s\n",
+                                    load_inst->seqNum,
+                                    store_it->instruction()->seqNum,
+                                    alt ? "yes" : "no");
+                        }
                         if (alt) {
-                            substituted = cpu->lsqFwd->maybeSubstituteSource(
-                                load_inst->memData,
-                                (const uint8_t *)(store_it->data()) + shift_amt,
-                                request->mainReq()->getSize(),
-                                (const uint8_t *)(alt->data()),
-                                alt->size(),
-                                request->mainReq()->getVaddr());
+                            // FW05 (v3.2.7): strict single wrong-source
+                            // substitution. The nearest older store with
+                            // data is the candidate; the rule requires it
+                            // to cover the whole load and to hold different
+                            // bytes (no multi-store splice).
+                            substituted =
+                                cpu->lsqFwd->maybeSubstituteFW05(
+                                    load_inst->memData,
+                                    request->mainReq()->getSize(),
+                                    request->mainReq()->getVaddr(),
+                                    load_inst->seqNum,
+                                    load_inst->pcState().instAddr(),
+                                    store_it->instruction()->seqNum,
+                                    store_it->instruction()->effAddr,
+                                    store_it->size(),
+                                    (const uint8_t *)store_it->data(),
+                                    alt->instruction()->seqNum,
+                                    alt->instruction()->effAddr,
+                                    alt->size(),
+                                    (const uint8_t *)alt->data(),
+                                    store_it->instruction()->sqIdx,
+                                    store_it->instruction()->sqEntryGeneration,
+                                    load_inst->lqIdx,
+                                    load_inst->lqEntryGeneration,
+                                    load_inst->executionAttemptId);
+                            if (!substituted) {
+                                substituted =
+                                    cpu->lsqFwd->maybeSubstituteSource(
+                                        load_inst->memData,
+                                        (const uint8_t *)(store_it->data())
+                                            + shift_amt,
+                                        request->mainReq()->getSize(),
+                                        (const uint8_t *)(alt->data()),
+                                        alt->size(),
+                                        request->mainReq()->getVaddr());
+                            }
                         }
                     }
                     if (!substituted)

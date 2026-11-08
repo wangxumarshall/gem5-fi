@@ -803,6 +803,13 @@ namespace gem5
             hit_ptag = md->second.ptag;
             hit_family = "md04";
         }
+        // FW05: bind the load's delivered data to the wrong-source injection.
+        auto fw = fw05_registry.find(inst->seqNum);
+        if (!hit_ptag && fw != fw05_registry.end()
+                && fw->second.resp_node == 0) {
+            hit_ptag = fw->second.ptag;
+            hit_family = "fw05";
+        }
 
         // addrpath: the response's own Request vaddr range vs the registry,
         // bound to this instruction (the faulting load itself).
@@ -921,6 +928,20 @@ namespace gem5
                   << ";eligible_ordinal=" << md->second.eligible_ordinal
                   << ";violation_report_suppressed=1";
             }
+            if (hit_family && std::string(hit_family) == "fw05") {
+                d << ";family=fw05;selected_source=alt_store"
+                  << ";wrong_source_substitution=1"
+                  << ";load_seq=" << inst->seqNum
+                  << ";true_store_seq=" << fw->second.true_seq
+                  << ";alt_store_seq=" << fw->second.alt_seq
+                  << ";true_addr=0x" << std::hex << fw->second.true_addr
+                  << ";alt_addr=0x" << fw->second.alt_addr
+                  << ";load_addr=0x" << fw->second.load_addr << std::dec
+                  << ";load_size=" << fw->second.load_size
+                  << ";true_fnv=" << fw->second.true_fnv
+                  << ";alt_fnv=" << fw->second.alt_fnv
+                  << ";eligible_ordinal=" << fw->second.eligible_ordinal;
+            }
             if (l1d_fwd) {
                 d << ";orig_data_fnv=" << lf->second.orig_fnv
                   << ";orig_data_hex=" << lf->second.orig_hex
@@ -950,6 +971,8 @@ namespace gem5
                 lf->second.resp_node = resp_node;
             if (hit_family && std::string(hit_family) == "md04")
                 md->second.resp_node = resp_node;
+            if (hit_family && std::string(hit_family) == "fw05")
+                fw->second.resp_node = resp_node;
         }
 
         // LP01 writeback is emitted after LSQUnit::writeback reads the PRF
@@ -1148,6 +1171,64 @@ namespace gem5
     {
         if (!write_log || !inst || !o3cpu)
             return;
+        // FW05: a forwarded load has no memory response to bind. Emit the
+        // register writeback directly from the PRF and taint downstream.
+        auto fw = fw05_registry.find(inst->seqNum);
+        if (fw != fw05_registry.end() && !fw->second.wb_emitted) {
+            fw->second.wb_emitted = true;
+            if (inst->getFault() != NoFault)
+                return;
+            for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+                const PhysRegIdPtr phys = inst->renamedDestIdx(i);
+                if (!phys)
+                    continue;
+                uint64_t value = 0;
+                unsigned bytes = 0;
+                const std::string vhash = regValueHash(
+                    inst, phys, inst->threadNumber, &value, &bytes);
+                if (vhash.empty())
+                    continue;
+                std::ostringstream vb;
+                vb << std::hex << value << std::dec;
+                std::ostringstream d;
+                d << "family=fw05;class="
+                  << regClassName(phys->classValue())
+                  << ";dest_idx=" << i
+                  << ";phys_reg=" << phys->index()
+                  << ";arch_reg=" << inst->destRegIdx(i).index()
+                  << ";writeback_value=" << vb.str()
+                  << ";writeback_value_fnv=" << vhash
+                  << ";payload_fnv=" << fw->second.alt_fnv
+                  << ";payload_len=" << fw->second.load_size
+                  << ";hash_basis="
+                  << (vhash == fw->second.alt_fnv
+                      ? "payload_equals_regval" : "regval_extension")
+                  << ";value_matches_payload="
+                  << (vhash == fw->second.alt_fnv ? 1 : 0)
+                  << ";source_value_hash=" << fw->second.alt_fnv
+                  << ";source_event_id=0"
+                  << ";load_seq=" << inst->seqNum
+                  << ";true_store_seq=" << fw->second.true_seq
+                  << ";alt_store_seq=" << fw->second.alt_seq
+                  << ";eligible_ordinal=" << fw->second.eligible_ordinal
+                  << ";execution_attempt_id=" << inst->executionAttemptId
+                  << ";replay_generation=" << inst->replayGeneration
+                  << ";writeback_tick=" << curTick();
+                const uint64_t wb_node = writeNode(
+                    fw->second.ptag, "taint_reg", inst->seqNum, true, 0,
+                    false, 0, false, phys->index(), true,
+                    inst->destRegIdx(i).index(), true, d.str());
+                TaintEntry te;
+                te.ptag = fw->second.ptag;
+                te.taintor_seq = inst->seqNum;
+                te.node_id = wb_node;
+                te.value_hash = vhash;
+                taint_set[std::make_pair(phys->classValue(),
+                                          phys->index())] = te;
+            }
+            return;
+        }
+
         auto it = pending_chain_wb.find(inst->seqNum);
         if (it == pending_chain_wb.end())
             return;
@@ -1211,6 +1292,74 @@ namespace gem5
                              (basis_ok ? "payload_to_register"
                                        : "payload_to_register_extended"));
         }
+    }
+
+    void
+    CHAOSPropagation::noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
+                                        uint64_t true_seq, Addr true_addr,
+                                        unsigned true_size,
+                                        const std::string &true_fnv,
+                                        uint64_t alt_seq, Addr alt_addr,
+                                        unsigned alt_size,
+                                        const std::string &alt_fnv,
+                                        Addr load_addr, unsigned load_size,
+                                        uint64_t sq_idx, uint64_t sq_gen,
+                                        uint64_t lq_idx, uint64_t lq_gen,
+                                        uint64_t load_attempt,
+                                        uint64_t eligible_ordinal,
+                                        uint64_t event_ordinal, uint64_t seed)
+    {
+        if (!write_log)
+            return;
+        const uint64_t ptag = ++next_ptag;
+        fault_seqs.insert(load_seq);
+        FW05Entry e;
+        e.ptag = ptag;
+        e.true_seq = true_seq;
+        e.alt_seq = alt_seq;
+        e.true_addr = true_addr;
+        e.alt_addr = alt_addr;
+        e.load_addr = load_addr;
+        e.load_size = load_size;
+        e.true_fnv = true_fnv;
+        e.alt_fnv = alt_fnv;
+        e.eligible_ordinal = eligible_ordinal;
+        fw05_registry[load_seq] = e;
+
+        std::ostringstream tp;
+        tp << "FW05-L" << load_seq << "-T" << true_seq << "-A" << alt_seq
+           << "-K" << curTick();
+        std::ostringstream d;
+        d << "site=store->load_forward_decision;family=fw05;model=FW05"
+          << ";definition=FW05-DEF-v1"
+          << ";target_pair_id=" << tp.str()
+          << ";load_seq=" << load_seq
+          << ";load_pc=0x" << std::hex << load_pc
+          << ";true_store_seq=" << std::dec << true_seq
+          << ";alt_store_seq=" << alt_seq
+          << ";true_addr=0x" << std::hex << true_addr
+          << ";alt_addr=0x" << alt_addr
+          << ";load_addr=0x" << load_addr << std::dec
+          << ";load_size=" << load_size
+          << ";true_store_size=" << true_size
+          << ";alt_store_size=" << alt_size
+          << ";true_data_fnv=" << true_fnv
+          << ";alt_data_fnv=" << alt_fnv
+          << ";selected_source=alt_store;wrong_source_substitution=1"
+          << ";data_differs=1"
+          << ";sq_entry_id=" << sq_idx
+          << ";sq_entry_generation=" << sq_gen
+          << ";lq_entry_id=" << lq_idx
+          << ";lq_entry_generation=" << lq_gen
+          << ";eligible_ordinal=" << eligible_ordinal
+          << ";eligible_forwarding_pair_ordinal=" << eligible_ordinal
+          << ";event_ordinal=" << event_ordinal
+          << ";seed=" << seed
+          << ";address_modified=0;size_modified=0"
+          << ";execution_attempt_id=" << load_attempt
+          << ";replay_generation=0";
+        writeNode(ptag, "inj_fw05", load_seq, true, 0, false, load_addr, true,
+                  0, false, 0, false, d.str());
     }
 
     void

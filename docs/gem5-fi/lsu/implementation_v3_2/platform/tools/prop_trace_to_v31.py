@@ -28,6 +28,7 @@ KIND_MAP = {
     "inj_store_be": "injection",
     "inj_l1dfwd": "injection",
     "inj_md04": "injection",
+    "inj_fw05": "injection",
     "store_wb": "store_writeback",
     "store_mem": "store_mem_write",
     "store_overwrite": "store_overwrite",
@@ -54,6 +55,7 @@ UNIT_MAP = {
     "inj_store_be": ("SQ", "byte_enable"),
     "inj_l1dfwd": ("L1D", "load_response_data"),
     "inj_md04": ("MD", "dependency_violation"),
+    "inj_fw05": ("FWD", "wrong_source_forward"),
     "store_wb": ("SQ", "writeback"),
     "store_mem": ("L1D", "memory_write"),
     "store_overwrite": ("SQ", "overwrite"),
@@ -217,6 +219,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         elif kind == "inj_md04":
             va, pa = _hex(d.get("addr")), None
             old_value, new_value = None, None
+        elif kind == "inj_fw05":
+            va, pa = _hex(d.get("load_addr")), None
+            old_value = d.get("true_data_fnv")
+            new_value = d.get("alt_data_fnv")
         elif kind in ("lq_lifecycle", "sq_lifecycle"):
             va, pa = None, None
             old_value, new_value = None, None
@@ -276,6 +282,34 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                 "address_modified": _int(d.get("address_modified")),
                 "size_modified": _int(d.get("size_modified")),
                 "data_modified": _int(d.get("data_modified")),
+            }
+        if kind == "inj_fw05":
+            extra = {
+                "target_pair_id": d.get("target_pair_id"),
+                "load_seq": _int(d.get("load_seq")),
+                "load_pc": _hex(d.get("load_pc")),
+                "true_store_seq": _int(d.get("true_store_seq")),
+                "alt_store_seq": _int(d.get("alt_store_seq")),
+                "true_addr": _hex(d.get("true_addr")),
+                "alt_addr": _hex(d.get("alt_addr")),
+                "load_addr": _hex(d.get("load_addr")),
+                "load_size": _int(d.get("load_size")),
+                "true_store_size": _int(d.get("true_store_size")),
+                "alt_store_size": _int(d.get("alt_store_size")),
+                "true_data_fnv": d.get("true_data_fnv"),
+                "alt_data_fnv": d.get("alt_data_fnv"),
+                "selected_source": d.get("selected_source"),
+                "wrong_source_substitution": _int(
+                    d.get("wrong_source_substitution")),
+                "data_differs": _int(d.get("data_differs")),
+                "sq_entry_generation": _int(d.get("sq_entry_generation")),
+                "lq_entry_generation": _int(d.get("lq_entry_generation")),
+                "eligible_forwarding_pair_ordinal": _int(
+                    d.get("eligible_forwarding_pair_ordinal")),
+                "event_ordinal": _int(d.get("event_ordinal")),
+                "seed": _int(d.get("seed")),
+                "address_modified": _int(d.get("address_modified")),
+                "size_modified": _int(d.get("size_modified")),
             }
         if kind == "inj_l1dfwd":
             extra = {

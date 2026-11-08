@@ -10,7 +10,7 @@ the FW02-R01/R05 defect this module fixes.
 """
 from __future__ import annotations
 
-LOAD_SIDE = ("A01", "A03", "FW02", "LP01", "MD04")
+LOAD_SIDE = ("A01", "A03", "FW02", "LP01", "MD04", "FW05")
 HARD_TERMINALS = ("CRASH", "HANG", "ARCH_STATE_CORRUPTION",
                   "DETECTED_CONTAINED")
 

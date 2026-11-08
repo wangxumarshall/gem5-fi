@@ -44,7 +44,11 @@ def _workload_for(model: str) -> str:
     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
             "FW02": "sq_forward", "SQ01": "sq_drain",
             "DA04": "alignment", "LP01": "load_response",
-            "MD04": "replay_dependency"}[model]
+            "MD04": "replay_dependency",
+            # FW05's Excel workload (alignment) has no two overlapping 8-byte
+            # stores in flight; the pilot-only directed workload constructs
+            # the real forwarding pair. Recorded in the manifest.
+            "FW05": "fw05_forward"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -164,6 +168,40 @@ def _md04_events(path: Path) -> list[dict]:
     return out
 
 
+def _fw05_events(path: Path) -> list[dict]:
+    out = []
+    if not path.exists():
+        return out
+    pat = re.compile(
+        r"Cycle:\s*(\d+).*LoadSeq:\s*(\d+), TrueSeq:\s*(\d+), "
+        r"AltSeq:\s*(\d+), LoadAddr:\s*0x([0-9a-fA-F]+), "
+        r"TrueAddr:\s*0x([0-9a-fA-F]+), AltAddr:\s*0x([0-9a-fA-F]+), "
+        r"LoadSize:\s*(\d+), TrueSize:\s*(\d+), AltSize:\s*(\d+), "
+        r"AltOffset:\s*(\d+), TrueFnv:\s*([0-9a-fA-F]+), "
+        r"AltFnv:\s*([0-9a-fA-F]+), LqEntry:\s*(-?\d+), LqGen:\s*(\d+), "
+        r"SqEntry:\s*(-?\d+), SqGen:\s*(\d+), "
+        r"EligibleOrdinal:\s*(\d+), EventOrdinal:\s*(\d+)")
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "FaultType: fw05_older_src" not in line:
+            continue
+        m = pat.search(line)
+        if not m:
+            continue
+        out.append({
+            "cycle": int(m[1]), "load_seq": int(m[2]),
+            "true_seq": int(m[3]), "alt_seq": int(m[4]),
+            "load_addr": int(m[5], 16), "true_addr": int(m[6], 16),
+            "alt_addr": int(m[7], 16), "load_size": int(m[8]),
+            "true_size": int(m[9]), "alt_size": int(m[10]),
+            "alt_offset": int(m[11]), "true_fnv": m[12], "alt_fnv": m[13],
+            "lq_entry": int(m[14]), "lq_gen": int(m[15]),
+            "sq_entry": int(m[16]), "sq_gen": int(m[17]),
+            "eligible_ordinal": int(m[18]), "event_ordinal": int(m[19]),
+            "target_pair_id": (f"FW05-L{m[2]}-T{m[3]}-A{m[4]}-K{m[1]}"),
+        })
+    return out
+
+
 def _md04_status(path: Path) -> str:
     if not path.exists():
         return "UNKNOWN"
@@ -266,7 +304,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True,
                     choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
-                             "MD04"])
+                             "MD04", "FW05"])
+    ap.add_argument("--workload", default=None,
+                    help="pilot-only workload override (recorded in the "
+                         "manifest; the Excel path is retained)")
     ap.add_argument("--pilot-id", required=True)
     ap.add_argument("--seed", type=int, default=None,
                     help="override seed; default = the selected Excel context row")
@@ -302,8 +343,12 @@ def main(argv=None) -> int:
         sample["run_id"] = f"PILOT-{args.model}"
         sample["sub_task_id"] = f"PILOT-{args.model}-S01"
     sample["seed"] = args.seed
-    sample["workload_path"] = str(WORKLOADS / _workload_for(args.model))
-    sample["workload_exists"] = True
+    workload_name = args.workload or _workload_for(args.model)
+    workload_path = Path(workload_name)
+    if not workload_path.is_absolute():
+        workload_path = WORKLOADS / workload_name
+    sample["workload_path"] = str(workload_path)
+    sample["workload_exists"] = workload_path.exists()
     cfg2 = copy.deepcopy(cfg)
     cfg2["samples"] = [sample]
     # gem5 runs with cwd=ROOT, so a relative --outdir would land its
@@ -352,13 +397,18 @@ def main(argv=None) -> int:
                  "--l1dfwd_rng_seed", str(args.seed),
                  "--l1dfwd_event_ordinal",
                  str(sample.get("event_ordinal") or 1)]
+    elif args.model == "FW05":
+        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--lsqfwd_event_ordinal",
+                 str(sample.get("event_ordinal") or 1)]
     else:
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
                  "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
 
     cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
-           f"--cmd={WORKLOADS / _workload_for(args.model)}",
+           f"--cmd={workload_path}",
            "--cpu", "O3", "--variant", "B0",
            "--probability", "1.0",
            "--chaos_propagation",
@@ -367,7 +417,17 @@ def main(argv=None) -> int:
     # build_manifest looks the sample up by SampleRunID: with
     # --preserve-sample-id that is the Excel id, not the pilot id.
     manifest = build_manifest(cfg2, sample["sample_run_id"], args.gem5, CONFIG,
-                              output_dir=out, command=cmd)
+                              output_dir=out, command=cmd,
+                              allow_workload_override=bool(args.workload))
+    if args.workload:
+        manifest["workload"]["path"] = str(workload_path)
+        manifest["workload"]["path_source"] = (
+            "pilot_override (Excel path retained in sample)")
+        manifest["workload"]["sha256"] = hashlib.sha256(
+            workload_path.read_bytes()).hexdigest()
+        manifest["workload"]["oracle_expected"] = (
+            workload_path.with_suffix(".golden").read_text().strip()
+            if workload_path.with_suffix(".golden").exists() else None)
     if args.seed != excel_seed:
         manifest["seed_source"] = "pilot_cli_override (not Excel)"
         manifest["manifest_sha256"] = hashlib.sha256(
@@ -382,8 +442,8 @@ def main(argv=None) -> int:
 
     expected = str(sample.get("oracle"))
     oracle_source = "excel"
-    if expected.strip().upper() in ("N/A", "NONE", "", "NAN"):
-        golden = WORKLOADS / f"{_workload_for(args.model)}.golden"
+    if args.workload or expected.strip().upper() in ("N/A", "NONE", "", "NAN"):
+        golden = workload_path.with_suffix(".golden")
         if golden.exists():
             expected = golden.read_text().strip()
             oracle_source = "workload_golden"
@@ -462,6 +522,27 @@ def main(argv=None) -> int:
             "all_size_nonzero": all(e["size"] > 0 for e in events),
             "all_ordinals_distinct": len({e["eligible_ordinal"]
                                           for e in events}) == len(events),
+        }
+        injected = len(events)
+    elif args.model == "FW05":
+        events = _fw05_events(out / "lsq_fwd_injections.log")
+        inj = {"events": events, "injected": len(events)}
+        target_proof = {
+            "site": "store->load_forward_decision",
+            "events": len(events),
+            "all_distinct_stores": all(
+                e["true_seq"] != e["alt_seq"] and e["alt_seq"] < e["true_seq"]
+                for e in events),
+            "all_younger_load": all(
+                e["load_seq"] > e["true_seq"] for e in events),
+            "all_full_cover": all(
+                e["alt_addr"] <= e["load_addr"]
+                and e["alt_addr"] + e["alt_size"]
+                    >= e["load_addr"] + e["load_size"]
+                for e in events),
+            "all_data_differs": all(
+                e["true_fnv"] != e["alt_fnv"] for e in events),
+            "all_address_size_unchanged": True,
         }
         injected = len(events)
     else:

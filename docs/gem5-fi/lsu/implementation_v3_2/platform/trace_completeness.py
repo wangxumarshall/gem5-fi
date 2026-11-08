@@ -90,11 +90,23 @@ PROFILES = {
     ],
     ("MD04", "SQUASHED"): [("injection", "squash")],
     ("MD04", "UNRESOLVED"): [("injection",)],
+    # FW05 (v3.2.7): wrong-source forwarding. The response is the forwarded
+    # delivery; a committed load with no consumer is MASKED.
+    ("FW05", "SDC"): [("injection", "forwarding_decision",
+                       "register_writeback", "consumer_commit")],
+    ("FW05", "MASKED"): [
+        ("injection", "forwarding_decision", "register_writeback"),
+        ("injection", "register_writeback"),
+        ("injection", "squash"),
+    ],
+    ("FW05", "SQUASHED"): [("injection", "squash")],
+    ("FW05", "UNRESOLVED"): [("injection",)],
 }
 DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW02": ("forwarding_decision",),
                    "DA04": ("injection",), "SQ01": ("injection",),
-                   "LP01": ("injection",), "MD04": ("injection",)}
+                   "LP01": ("injection",), "MD04": ("injection",),
+                   "FW05": ("injection",)}
 
 
 def expected_stages(model_id: str | None,
@@ -236,8 +248,15 @@ def check_completeness(path: Path) -> dict:
             except (TypeError, ValueError):
                 return None
 
-        attempt_ids = sorted({e.get("execution_attempt_id") for e in chain
-                              if e.get("execution_attempt_id") is not None})
+        fault_inst_kinds = {"memory_response", "register_writeback",
+                            "commit", "errant_commit", "squash"}
+        attempt_ids = {
+            e.get("execution_attempt_id") for e in chain
+            if e.get("execution_attempt_id") is not None
+            and e.get("event_type") in fault_inst_kinds}
+        if inj.get("execution_attempt_id") is not None:
+            attempt_ids.add(inj.get("execution_attempt_id"))
+        attempt_ids = sorted(attempt_ids)
         execution_attempt_link = "SAME_ATTEMPT"
         if len(attempt_ids) > 1:
             execution_attempt_link = "CROSS_ATTEMPT_VERIFIED"
@@ -250,8 +269,6 @@ def check_completeness(path: Path) -> dict:
                            or inj_detail.get("load_entry_generation"))
             inj_req = _num(inj_detail.get("load_request_id")
                            or inj.get("request_id"))
-            fault_inst_kinds = {"memory_response", "register_writeback",
-                                "commit", "errant_commit", "squash"}
             for e in chain:
                 if e.get("execution_attempt_id") in (
                         None, inj.get("execution_attempt_id")):

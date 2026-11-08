@@ -74,4 +74,6 @@ class CHAOSLSQFwd(SimObject):
     lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
     f6EventOrdinal = Param.UInt64(0,
         "R01-R05: 1-based F6 pair ordinal (0 = first pair)")
+    fw05EventOrdinal = Param.UInt64(0,
+        "FW05: 1-based eligible wrong-source ordinal (0 = first eligible)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

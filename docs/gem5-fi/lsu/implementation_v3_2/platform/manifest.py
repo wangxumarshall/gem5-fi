@@ -67,9 +67,18 @@ def build_manifest(
     output_dir: Path | None = None,
     command: Sequence[str] | None = None,
     environment: dict[str, Any] | None = None,
+    allow_workload_override: bool = False,
 ) -> dict[str, Any]:
     sample = find_sample(cfg, sample_id)
-    workload = _check_workload(sample)
+    if allow_workload_override:
+        # Pilot-only directed workload: the Excel InputHash describes the
+        # frozen W8 workload, so it cannot match the override. The manifest
+        # records the override explicitly instead of pretending it matches.
+        workload = Path(sample["workload_path"])
+        if not workload.exists():
+            raise FileNotFoundError(f"workload override missing: {workload}")
+    else:
+        workload = _check_workload(sample)
     gem5_bin = Path(gem5_bin)
     config_script = Path(config_script)
     if not gem5_bin.is_file():

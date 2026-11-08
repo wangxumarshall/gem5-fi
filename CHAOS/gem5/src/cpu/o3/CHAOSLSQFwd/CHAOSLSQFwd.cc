@@ -5,6 +5,9 @@
 
 #include <iostream>
 #include <fstream>
+#include <cstring>
+#include <sstream>
+#include <iomanip>
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
@@ -31,6 +34,7 @@ namespace gem5
           write_log(p.writeLog),
           l03_mode(p.l03Mode),   // [LSU][SEM-B]
           f6_event_ordinal(p.f6EventOrdinal),
+          fw05_event_ordinal(p.fw05EventOrdinal),
           rng(rng_seed != 0 ? rng_seed : rd()),
           log_stream(nullptr),
           stats(nullptr)
@@ -177,6 +181,7 @@ namespace gem5
         if (s == "f6_fw02") return StructMode::F6Fw02;
         if (s == "sq01_bit3") return StructMode::Sq01Bit3;
         if (s == "da04_be_bit0") return StructMode::Da04BeBit0;
+        if (s == "fw05_older_src") return StructMode::Fw05OlderSrc;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -220,6 +225,7 @@ namespace gem5
         // phase_offset likewise acts at the WRITEBACK-SCHEDULE point
         // (maybeDelayForward) — no data mutation there either.
         if (struct_mode == StructMode::FwdSourceSub) return;
+        if (struct_mode == StructMode::Fw05OlderSrc) return;
         if (struct_mode == StructMode::PhaseOffset) return;
         // FW02 acts only at the forwarding DECISION point (suppress one
         // match); it must never also mutate the forwarded bytes.
@@ -378,6 +384,116 @@ namespace gem5
         }
         DPRINTF(LSQUnit, "CHAOSLSQFwd: fwd_source_sub wrong-source forward "
                 "(vaddr=%#x true=%uB alt=%uB)\n", vaddr, copy_size, alt_size);
+        return true;
+    }
+
+    namespace {
+        std::string
+        fw05Fnv(const uint8_t *p, unsigned n)
+        {
+            uint64_t h = 14695981039346656037ULL;  // FNV-1a 64 offset basis
+            for (unsigned i = 0; i < n; ++i) {
+                h ^= p[i];
+                h *= 1099511628211ULL;
+            }
+            std::ostringstream os;
+            os << std::hex << std::setw(16) << std::setfill('0') << h;
+            return os.str();
+        }
+    } // namespace
+
+    bool
+    CHAOSLSQFwd::maybeSubstituteFW05(uint8_t *load_data, unsigned copy_size,
+                                     Addr vaddr, uint64_t load_seq,
+                                     uint64_t load_pc, uint64_t true_seq,
+                                     Addr true_addr, unsigned true_size,
+                                     const uint8_t *true_data,
+                                     uint64_t alt_seq, Addr alt_addr,
+                                     unsigned alt_size, const uint8_t *alt_data,
+                                     uint64_t sq_idx, uint64_t sq_gen,
+                                     uint64_t lq_idx, uint64_t lq_gen,
+                                     uint64_t load_attempt)
+    {
+        if (struct_mode != StructMode::Fw05OlderSrc)
+            return false;
+        if (probability <= 0.0f || !load_data)
+            return false;
+        if (!true_data || !alt_data)
+            return false;
+
+        const chaos_fw05::Candidate tr{true_seq, true_addr, true_size,
+                                       true_data};
+        const chaos_fw05::Candidate al{alt_seq, alt_addr, alt_size, alt_data};
+        unsigned off = 0;
+        if (!chaos_fw05::isEligible(load_seq, vaddr, copy_size, tr, al, off))
+            return false;
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return false;
+        if (last_clock != Cycles(0) && cur > last_clock) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+
+        ++eligible_count;
+        if (count_only)
+            return false;
+        if (fw05_event_ordinal != 0 && eligible_count != fw05_event_ordinal)
+            return false;
+        // An explicit ordinal is the sampler; the legacy geometric skip is
+        // only for the un-ordinaled probability mode.
+        if (fw05_event_ordinal == 0 && events_to_skip > 0) {
+            --events_to_skip;
+            return false;
+        }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability)
+            return false;
+
+        const uint8_t *tbytes = true_data + (vaddr - true_addr);
+        const uint8_t *abytes = alt_data + off;
+        const std::string true_fnv = fw05Fnv(tbytes, copy_size);
+        const std::string alt_fnv = fw05Fnv(abytes, copy_size);
+
+        std::memcpy(load_data, abytes, copy_size);
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_decision"
+                << ", FaultType: fw05_older_src"
+                << ", LoadSeq: " << load_seq
+                << ", TrueSeq: " << true_seq
+                << ", AltSeq: " << alt_seq
+                << ", LoadAddr: 0x" << std::hex << vaddr
+                << ", TrueAddr: 0x" << true_addr
+                << ", AltAddr: 0x" << alt_addr << std::dec
+                << ", LoadSize: " << copy_size
+                << ", TrueSize: " << true_size
+                << ", AltSize: " << alt_size
+                << ", AltOffset: " << off
+                << ", TrueFnv: " << true_fnv
+                << ", AltFnv: " << alt_fnv
+                << ", LqEntry: " << lq_idx
+                << ", LqGen: " << lq_gen
+                << ", SqEntry: " << sq_idx
+                << ", SqGen: " << sq_gen
+                << ", EligibleOrdinal: " << eligible_count
+                << ", EventOrdinal: " << fw05_event_ordinal
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: fw05 wrong-source forward "
+                "(load=%llu true=%llu alt=%llu vaddr=%#x size=%u)\n",
+                (unsigned long long)load_seq, (unsigned long long)true_seq,
+                (unsigned long long)alt_seq, vaddr, copy_size);
+        if (cpu->chaosPropagation) {
+            cpu->chaosPropagation->noteFW05Injection(
+                load_seq, load_pc, true_seq, true_addr, true_size, true_fnv,
+                alt_seq, alt_addr, alt_size, alt_fnv, vaddr, copy_size,
+                sq_idx, sq_gen, lq_idx, lq_gen, load_attempt,
+                eligible_count, fw05_event_ordinal, rng_seed);
+        }
         return true;
     }
 
