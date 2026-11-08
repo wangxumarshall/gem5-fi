@@ -60,6 +60,7 @@
 #include "enums/Clusivity.hh"
 #include "mem/cache/cache_blk.hh"
 #include "mem/cache/cache_probe_arg.hh"
+#include "mem/cache/l1_ace.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/cache/tags/base.hh"
 #include "mem/cache/write_queue.hh"
@@ -639,7 +640,7 @@ class BaseCache : public ClockedObject
     /**
      * Handle doing the Compare and Swap function for SPARC.
      */
-    void cmpAndSwap(CacheBlk *blk, PacketPtr pkt);
+    bool cmpAndSwap(CacheBlk *blk, PacketPtr pkt);
 
     /**
      * Return the next queue entry to service, either a pending miss
@@ -997,6 +998,8 @@ class BaseCache : public ClockedObject
   public:
     /** System we are currently operating in. */
     System *system;
+
+    L1AceTracker l1AceTracker;
 
     struct CacheCmdStats : public statistics::Group
     {

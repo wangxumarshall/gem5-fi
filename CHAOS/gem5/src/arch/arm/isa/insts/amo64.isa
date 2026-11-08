@@ -210,6 +210,13 @@ let {{
                       " valRs, [](%(type)s* b, %(type)s a,"\
                       " %(type)s c){ %(op)s });\n"
 
+            if op == OP_DICT['CAS']:
+                opcode = "valRs = cSwap(%(dest)s, "\
+                         "isBigEndian64(xc->tcBase()));\n"\
+                         "TypedAtomicOpFunctor<%(type)s> *amo_op = "\
+                         "new AtomicCompareExchangeOp<%(type)s>("\
+                         "Mem%(suffix)s, valRs);\n"
+
             opcode = opcode % {"suffix": self.suffix,
                                "type": self.tp ,
                                "dest": self.des,
@@ -327,9 +334,8 @@ let {{
                      '''
 
                 opcode = "TypedAtomicOpFunctor<%(type)s> *amo_op = "\
-                      "new AtomicGeneric3Op<%(type)s>(Mem%(suffix)s,"\
-                      " valRs, [](%(type)s* b, %(type)s a,"\
-                      " %(type)s c){ %(op)s });\n"
+                      "new AtomicCompareExchangeOp<%(type)s>("\
+                      "Mem%(suffix)s, valRs);\n"
 
             elif self.size == 8:
                 accCode = '''
@@ -346,14 +352,8 @@ let {{
                      '''
 
                 opcode = "TypedAtomicOpFunctor<uint64_t> *amo_op = "\
-                          "new AtomicGenericPair3Op<uint64_t>(Mem_tud, "\
-                          "valRs, [](uint64_t* b, std::array<uint64_t,2> a,"\
-                          '''
-                          std::array<uint64_t,2> c){
-                             if(a[0]==b[0] && a[1]==b[1]){
-                                b[0] = c[0]; b[1] = c[1];
-                             }
-                          });'''
+                          "new AtomicCompareExchangePairOp<uint64_t>("\
+                          "Mem_tud, valRs);\n"
 
             opcode = opcode % { "suffix" : self.suffix,
                                 "type": self.tp,

@@ -48,6 +48,9 @@ struct AtomicOpFunctor
      */
     virtual void operator()(uint8_t *p) = 0;
     virtual AtomicOpFunctor* clone() = 0;
+    // Conditional operations can consume a value without replacing it.
+    // Queried after execution by cache lifetime instrumentation.
+    virtual bool didWrite() const { return true; }
     /** @} */ // end of api_atomic_op
     virtual ~AtomicOpFunctor() {}
 };
@@ -124,6 +127,55 @@ class AtomicGenericPair3Op : public TypedAtomicOpFunctor<T>
     std::array<T, 2> a;
     std::array<T, 2> c;
     std::function<void(T*, std::array<T, 2>&, std::array<T, 2>)> op;
+};
+
+template<typename T>
+class AtomicCompareExchangeOp : public TypedAtomicOpFunctor<T>
+{
+  public:
+    AtomicCompareExchangeOp(T expected, T desired)
+        : expected(expected), desired(desired)
+    {}
+    AtomicOpFunctor *clone() override
+    { return new AtomicCompareExchangeOp<T>(*this); }
+    void execute(T *value) override
+    {
+        wrote = *value == expected;
+        if (wrote)
+            *value = desired;
+    }
+    bool didWrite() const override { return wrote; }
+
+  private:
+    T expected;
+    T desired;
+    bool wrote = false;
+};
+
+template<typename T>
+class AtomicCompareExchangePairOp : public TypedAtomicOpFunctor<T>
+{
+  public:
+    AtomicCompareExchangePairOp(std::array<T, 2> expected,
+                               std::array<T, 2> desired)
+        : expected(expected), desired(desired)
+    {}
+    AtomicOpFunctor *clone() override
+    { return new AtomicCompareExchangePairOp<T>(*this); }
+    void execute(T *value) override
+    {
+        wrote = value[0] == expected[0] && value[1] == expected[1];
+        if (wrote) {
+            value[0] = desired[0];
+            value[1] = desired[1];
+        }
+    }
+    bool didWrite() const override { return wrote; }
+
+  private:
+    std::array<T, 2> expected;
+    std::array<T, 2> desired;
+    bool wrote = false;
 };
 
 template<typename T>

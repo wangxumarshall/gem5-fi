@@ -169,6 +169,20 @@ class BaseCache(ClockedObject):
     # data cache.
     write_allocator = Param.WriteAllocator(NULL, "Write allocator")
 
+    l1Ace = Param.Bool(False, "Enable cache-line-granularity L1 ACE metrics")
+    l1AceUseWorkItems = Param.Bool(
+        False, "Use the first matching m5 work item as the L1 ACE window"
+    )
+    l1AceWorkItemId = Param.Int(
+        -1, "Work item ID used by L1 ACE (-1 selects the first item)"
+    )
+    l1AceStartCycle = Param.UInt64(
+        0, "First cycle in the cycle-based L1 ACE window"
+    )
+    l1AceEndCycle = Param.UInt64(
+        0, "Exclusive last cycle in the L1 ACE window (0 means simulation end)"
+    )
+
 
 class Cache(BaseCache):
     type = "Cache"

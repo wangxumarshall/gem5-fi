@@ -99,6 +99,13 @@ CPU::CPU(const BaseO3CPUParams &params)
 
       scoreboard(name() + ".scoreboard", regFile.totalNumPhysRegs()),
 
+      rfAceTracker(this, params.rfAce, params.rfAceUseWorkItems,
+                   params.rfAceWorkItemId, params.rfAceStartCycle,
+                   params.rfAceEndCycle, params.rfAceBitGranularity,
+                   params.rfAceRegWidthBits,
+                   params.numPhysIntRegs),
+      fuIbrTracker(this, params),
+
       isa(numThreads, NULL),
 
       timeBuffer(params.backComSize, params.forwardComSize),
@@ -339,6 +346,20 @@ CPU::regProbePoints()
     rename.regProbePoints();
     iew.regProbePoints();
     commit.regProbePoints();
+}
+
+void
+CPU::workItemBeginMarker(uint64_t workid, uint64_t, ThreadID tid)
+{
+    rfAceTracker.workItemBegin(workid, tid, rob.readHeadInst(tid)->seqNum);
+    fuIbrTracker.workItemBegin(workid);
+}
+
+void
+CPU::workItemEndMarker(uint64_t workid, uint64_t, ThreadID tid)
+{
+    rfAceTracker.workItemEnd(workid, tid, rob.readHeadInst(tid)->seqNum);
+    fuIbrTracker.workItemEnd(workid);
 }
 
 CPU::CPUStats::CPUStats(CPU *cpu)

@@ -165,6 +165,8 @@ class FUPool : public SimObject
     /** Returns true if the FU has the required capability */
     bool isCapable(OpClass capability);
 
+    unsigned capableUnitCount(OpClass capability) const;
+
     /**
      * Gets a FU providing the requested capability. Will mark the
      * unit as busy, but leaves the freeing of the unit up to the IEW

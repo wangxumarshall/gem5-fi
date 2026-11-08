@@ -161,6 +161,15 @@ FUPool::isCapable(OpClass capability)
     return capabilityList[capability];
 }
 
+unsigned
+FUPool::capableUnitCount(OpClass capability) const
+{
+    unsigned count = 0;
+    for (auto *unit : funcUnits)
+        count += unit->provides(capability);
+    return count;
+}
+
 int
 FUPool::getUnit(OpClass capability)
 {

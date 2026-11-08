@@ -179,6 +179,20 @@ let {{
 
     class IntReg64(IntRegOp):
         @overrideInOperand
+        def aceReadWidth(self):
+            return 'intWidth'
+        @overrideInOperand
+        def makeConstructor(self):
+            code = ''
+            if self.is_src:
+                code += self.src_reg_constructor % self.srcRegId()
+                code += (f'\n\tsetIntSrcWidth({self.src_reg_idx}, '
+                         f'{self.aceReadWidth()});')
+            if self.is_dest:
+                code += self.dst_reg_constructor % self.destRegId()
+                code += f'\n\t_numTypedDestRegs[{self.reg_class}.type()]++;'
+            return code
+        @overrideInOperand
         def regId(self):
             return f'gem5::ArmISA::couldBeZero({self.reg_spec}) ? RegId() : ' \
                    f'{self.reg_class}[{self.reg_spec}]'
@@ -202,6 +216,9 @@ let {{
 
     class IntRegX64(IntReg64):
         @overrideInOperand
+        def aceReadWidth(self):
+            return 'aarch64 ? 64 : 32'
+        @overrideInOperand
         def makeRead(self):
             '''Maybe masked to 32 bit read'''
             return f'{self.base_name} = ' \
@@ -218,6 +235,9 @@ let {{
             '''
 
     class IntRegW64(IntReg64):
+        @overrideInOperand
+        def aceReadWidth(self):
+            return '32'
         @overrideInOperand
         def makeRead(self):
             '''Masked to 32 bit read'''

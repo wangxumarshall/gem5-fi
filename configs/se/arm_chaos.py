@@ -61,6 +61,36 @@ p.add_argument("--lq_entries", type=int, default=0,
 p.add_argument("--sq_entries", type=int, default=0,
                help="H2 window sweep: SQ entries (0 = leave gem5 default)")
 p.add_argument("--iq_entries", type=int, default=66)
+# Harpocrates-style integer physical-register ACE lifetime metric.
+p.add_argument("--fu_ibr", action="store_true",
+               help="enable O3 AArch64 integer FU input-bit ratios")
+p.add_argument("--fu_ibr_window", choices=["workitem", "cycle"], default="workitem")
+p.add_argument("--fu_ibr_work_id", type=int, default=-1)
+p.add_argument("--fu_ibr_start_cycle", type=lambda x: int(x, 0), default=0)
+p.add_argument("--fu_ibr_end_cycle", type=lambda x: int(x, 0), default=0)
+p.add_argument("--rf_ace", action="store_true",
+               help="enable O3 integer physical-register ACE metrics")
+p.add_argument("--rf_ace_window", choices=["workitem", "cycle"],
+               default="workitem",
+               help="measurement boundary source (default: m5 work item)")
+p.add_argument("--rf_ace_work_id", type=int, default=-1,
+               help="work-item ID to measure (-1 = first work item)")
+p.add_argument("--rf_ace_start_cycle", type=lambda x: int(x, 0), default=0)
+p.add_argument("--rf_ace_end_cycle", type=lambda x: int(x, 0), default=0)
+p.add_argument("--rf_ace_granularity", choices=["whole", "bit"],
+               default="whole",
+               help="RF ACE access granularity (default: whole register)")
+p.add_argument("--rf_ace_reg_width", type=int, default=64,
+               help="modeled integer physical-register width in bits")
+p.add_argument("--l1_ace", action="store_true",
+               help="enable L1 instruction/data cache ACE metrics")
+p.add_argument("--l1_ace_window", choices=["workitem", "cycle"],
+               default="workitem",
+               help="measurement boundary source (default: m5 work item)")
+p.add_argument("--l1_ace_work_id", type=int, default=-1,
+               help="work-item ID to measure (-1 = first work item)")
+p.add_argument("--l1_ace_start_cycle", type=lambda x: int(x, 0), default=0)
+p.add_argument("--l1_ace_end_cycle", type=lambda x: int(x, 0), default=0)
 # CHAOSReg params (architectural-state; honest about limits)
 p.add_argument("--chaos_reg", action="store_true")
 p.add_argument("--probability", type=float, default=1.0)
@@ -255,6 +285,8 @@ p.add_argument("--bpu_mode", default="target_sub",
                choices=["target_sub","direction_flip"])
 p.add_argument("--bpu_semantic_role", default="")
 args = p.parse_args()
+if args.fu_ibr and args.cpu != "O3":
+    p.error("--fu_ibr requires --cpu=O3")
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
     l1d_size="64KiB", l1i_size="64KiB", l2_size="512KiB",
@@ -291,6 +323,18 @@ if args.kp920_proxy and args.cpu == "O3":
 # window axis; kp920_proxy bundles all V110 params together). Applied after
 # (and independent of) the kp920 block above.
 if args.cpu == "O3":
+    cpu0.fuIbr = args.fu_ibr
+    cpu0.fuIbrUseWorkItems = args.fu_ibr_window == "workitem"
+    cpu0.fuIbrWorkItemId = args.fu_ibr_work_id
+    cpu0.fuIbrStartCycle = args.fu_ibr_start_cycle
+    cpu0.fuIbrEndCycle = args.fu_ibr_end_cycle
+    cpu0.rfAce = args.rf_ace
+    cpu0.rfAceUseWorkItems = args.rf_ace_window == "workitem"
+    cpu0.rfAceWorkItemId = args.rf_ace_work_id
+    cpu0.rfAceStartCycle = args.rf_ace_start_cycle
+    cpu0.rfAceEndCycle = args.rf_ace_end_cycle
+    cpu0.rfAceBitGranularity = args.rf_ace_granularity == "bit"
+    cpu0.rfAceRegWidthBits = args.rf_ace_reg_width
     if args.rob_entries:
         cpu0.numROBEntries = args.rob_entries
     if args.phys_int_regs:
@@ -313,6 +357,18 @@ board.set_se_binary_workload(
     binary=FileResource(args.cmd, override=True),
     arguments=shlex.split(args.workload_args) if args.workload_args else [],
 )
+
+_original_cache_pre_instantiate = cache_hierarchy._pre_instantiate
+def _configure_l1_ace(root):
+    _original_cache_pre_instantiate(root)
+    for cache_name in ("l1i-cache-0", "l1d-cache-0"):
+        cache = getattr(cache_hierarchy, cache_name)
+        cache.l1Ace = args.l1_ace
+        cache.l1AceUseWorkItems = args.l1_ace_window == "workitem"
+        cache.l1AceWorkItemId = args.l1_ace_work_id
+        cache.l1AceStartCycle = args.l1_ace_start_cycle
+        cache.l1AceEndCycle = args.l1_ace_end_cycle
+cache_hierarchy._pre_instantiate = _configure_l1_ace
 
 # CHAOSReg attachment (architectural-state; honest per plan §2.2 — NOT PRF).
 if args.chaos_reg:

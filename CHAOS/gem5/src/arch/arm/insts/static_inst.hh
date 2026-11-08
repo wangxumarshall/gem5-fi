@@ -42,6 +42,7 @@
 #define __ARCH_ARM_INSTS_STATICINST_HH__
 
 #include <memory>
+#include <vector>
 
 #include "arch/arm/faults.hh"
 #include "arch/arm/utility.hh"
@@ -67,6 +68,9 @@ class ArmStaticInst : public StaticInst
   protected:
     bool aarch64;
     uint8_t intWidth;
+    // Source widths come from the operand definitions, rather than the
+    // destination's sf bit (e.g., SMADDL has both W and X sources).
+    std::vector<uint8_t> intSrcWidths;
 
     int32_t shift_rm_imm(uint32_t base, uint32_t shamt,
                          uint32_t type, uint32_t cfval) const;
@@ -571,6 +575,21 @@ class ArmStaticInst : public StaticInst
     getIntWidth() const
     {
         return intWidth;
+    }
+
+    void
+    setIntSrcWidth(unsigned index, unsigned width)
+    {
+        if (intSrcWidths.size() <= index)
+            intSrcWidths.resize(index + 1, 0);
+        intSrcWidths[index] = width;
+    }
+
+    unsigned
+    getIntSrcWidth(unsigned index) const
+    {
+        return index < intSrcWidths.size() && intSrcWidths[index] ?
+            intSrcWidths[index] : intWidth;
     }
 
     /** Returns the byte size of current instruction */

@@ -59,6 +59,7 @@
 #include "debug/Quiesce.hh"
 #include "debug/WorkItems.hh"
 #include "dev/net/dist_iface.hh"
+#include "mem/cache/l1_ace.hh"
 #include "mem/se_translating_port_proxy.hh"
 #include "mem/translating_port_proxy.hh"
 #include "params/BaseCPU.hh"
@@ -500,6 +501,9 @@ workbegin(ThreadContext *tc, uint64_t workid, uint64_t threadid)
     System *sys = tc->getSystemPtr();
     const System::Params &params = sys->params();
 
+    L1AceTracker::notifyWorkItemBegin(sys, workid);
+    tc->getCpuPtr()->workItemBeginMarker(workid, threadid, tc->threadId());
+
     if (params.exit_on_work_items) {
         exitSimLoop("workbegin", static_cast<int>(workid));
         return;
@@ -562,6 +566,9 @@ workend(ThreadContext *tc, uint64_t workid, uint64_t threadid)
     DPRINTF(PseudoInst, "pseudo_inst::workend(%i, %i)\n", workid, threadid);
     System *sys = tc->getSystemPtr();
     const System::Params &params = sys->params();
+
+    L1AceTracker::notifyWorkItemEnd(sys, workid);
+    tc->getCpuPtr()->workItemEndMarker(workid, threadid, tc->threadId());
 
     if (params.exit_on_work_items) {
         exitSimLoop("workend", static_cast<int>(workid));

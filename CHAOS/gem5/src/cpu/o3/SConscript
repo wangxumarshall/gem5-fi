@@ -65,6 +65,8 @@ if env['CONF']['BUILD_ISA']:
     Source('lsq_unit.cc')
     Source('mem_dep_unit.cc')
     Source('regfile.cc')
+    Source('rf_ace.cc')
+    Source('fu_ibr.cc')
     Source('rename.cc')
     Source('rename_map.cc')
     Source('rob.cc')

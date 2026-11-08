@@ -1147,6 +1147,9 @@ class DynInst : public ExecContext, public RefCounted
             if (!original_dest_reg.isRenameable())
                 continue;
 
+            cpu->rfAceRecordRead(
+                prev_phys_reg, threadNumber, seqNum, staticInst.get());
+
             if (bytes == sizeof(RegVal)) {
                 setRegOperand(staticInst.get(), idx,
                         cpu->getReg(prev_phys_reg, threadNumber));
@@ -1181,6 +1184,7 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return 0;
         RegVal val = cpu->getReg(reg, threadNumber);
+        cpu->rfAceRecordRead(reg, threadNumber, seqNum, si, idx);
         // §5.6 CHAOSFPU source-read hook: an FP source read on the FSU
         // consumption path. The injector filters FP classes + gates; a hit
         // corrupts the value the inst actually consumes (this is the ONLY
@@ -1199,6 +1203,7 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return;
         cpu->getReg(reg, val, threadNumber);
+        cpu->rfAceRecordRead(reg, threadNumber, seqNum, si, idx);
         // §5.6 CHAOSFPU source-read hook (blob overload, vector FP).
         if (cpu->chaosFPUHook) {
             cpu->chaosFPUHook->maybeCorruptReadBlob(reg, val);
@@ -1228,6 +1233,7 @@ class DynInst : public ExecContext, public RefCounted
             cpu->chaosFPUHook->maybeCorruptWriteback(reg, val);
         }
         cpu->setReg(reg, val, threadNumber);
+        cpu->rfAceRecordWrite(reg, threadNumber, seqNum, si);
         setResult(reg->regClass(), val);
     }
 
@@ -1244,6 +1250,7 @@ class DynInst : public ExecContext, public RefCounted
             cpu->chaosFPUHook->maybeCorruptWritebackBlob(reg, val);
         }
         cpu->setReg(reg, val, threadNumber);
+        cpu->rfAceRecordWrite(reg, threadNumber, seqNum, si);
         setResult(reg->regClass(), val);
     }
 };

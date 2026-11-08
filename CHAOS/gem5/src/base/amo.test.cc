@@ -35,6 +35,47 @@
 
 using namespace gem5;
 
+TEST(AmoTest, CompareExchangeWriteOutcome)
+{
+    uint64_t value = 123;
+    AtomicCompareExchangeOp<uint64_t> failed(0, 7);
+    failed.execute(&value);
+    EXPECT_EQ(value, uint64_t(123));
+    EXPECT_FALSE(failed.didWrite());
+
+    // Writing the same bits still ends the previous value's lifetime.
+    AtomicCompareExchangeOp<uint64_t> same(123, 123);
+    std::unique_ptr<AtomicOpFunctor> copy(same.clone());
+    (*copy)(reinterpret_cast<uint8_t *>(&value));
+    EXPECT_EQ(value, uint64_t(123));
+    EXPECT_TRUE(copy->didWrite());
+
+    AtomicCompareExchangeOp<uint64_t> changed(123, 456);
+    changed.execute(&value);
+    EXPECT_EQ(value, uint64_t(456));
+    EXPECT_TRUE(changed.didWrite());
+}
+
+TEST(AmoTest, CompareExchangePairWriteOutcome)
+{
+    uint64_t pair[] = {1, 2};
+    AtomicCompareExchangePairOp<uint64_t> failed({1, 3}, {4, 5});
+    failed.execute(pair);
+    EXPECT_EQ(pair[0], uint64_t(1));
+    EXPECT_EQ(pair[1], uint64_t(2));
+    EXPECT_FALSE(failed.didWrite());
+
+    AtomicCompareExchangePairOp<uint64_t> same({1, 2}, {1, 2});
+    same.execute(pair);
+    EXPECT_TRUE(same.didWrite());
+
+    AtomicCompareExchangePairOp<uint64_t> changed({1, 2}, {4, 5});
+    changed.execute(pair);
+    EXPECT_EQ(pair[0], uint64_t(4));
+    EXPECT_EQ(pair[1], uint64_t(5));
+    EXPECT_TRUE(changed.didWrite());
+}
+
 void
 multiply2Op(int *b, int a)
 {

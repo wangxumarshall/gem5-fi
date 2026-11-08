@@ -958,6 +958,7 @@ Commit::commitInsts()
             DPRINTF(Commit, "Retiring squashed instruction from "
                     "ROB.\n");
 
+            cpu->rfAceSquashInstruction(tid, head_inst->seqNum);
             rob->retireHead(commit_thread);
 
             ++stats.commitSquashedInsts;
@@ -1247,6 +1248,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         return false;
     }
 
+    cpu->rfAceCommitInstruction(tid, head_inst->seqNum);
     updateComInstStats(head_inst);
 
     DPRINTF(Commit,

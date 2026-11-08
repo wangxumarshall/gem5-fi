@@ -4,7 +4,7 @@
 # HONEST: this is a MECHANISM check (x86 hello, stdout oracle), NOT a formal
 # §10.4 semantic-role pair (that needs an x86 checksum kernel, unavailable —
 # no x86 cross-compiler on this aarch64 host; only gem5's bundled x86 hello).
-import argparse, m5
+import argparse, shlex, m5
 from m5.objects import CHAOSReg
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import PrivateL1PrivateL2CacheHierarchy
@@ -17,6 +17,22 @@ from gem5.simulate.simulator import Simulator
 
 p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
+p.add_argument("--workload_args", default="")
+p.add_argument("--rf_ace", action="store_true",
+               help="enable O3 integer physical-register ACE metrics")
+p.add_argument("--rf_ace_window", choices=["workitem", "cycle"],
+               default="workitem")
+p.add_argument("--rf_ace_work_id", type=int, default=-1)
+p.add_argument("--rf_ace_start_cycle", type=lambda x:int(x,0), default=0)
+p.add_argument("--rf_ace_end_cycle", type=lambda x:int(x,0), default=0)
+p.add_argument("--rf_ace_reg_width", type=int, default=64)
+p.add_argument("--l1_ace", action="store_true",
+               help="enable L1 instruction/data cache ACE metrics")
+p.add_argument("--l1_ace_window", choices=["workitem", "cycle"],
+               default="workitem")
+p.add_argument("--l1_ace_work_id", type=int, default=-1)
+p.add_argument("--l1_ace_start_cycle", type=lambda x:int(x,0), default=0)
+p.add_argument("--l1_ace_end_cycle", type=lambda x:int(x,0), default=0)
 p.add_argument("--chaos_reg", action="store_true")
 p.add_argument("--probability", type=float, default=1.0)
 p.add_argument("--first_clock", type=lambda x:int(x,0), default=1000)
@@ -37,11 +53,32 @@ args = p.parse_args()
 ch = PrivateL1PrivateL2CacheHierarchy(l1d_size="64KiB", l1i_size="64KiB", l2_size="512KiB")
 mem = SingleChannelDDR3_1600("1GiB")
 proc = SimpleProcessor(cpu_type=CPUTypes.O3, num_cores=1, isa=ISA.X86)
+cpu0 = proc.get_cores()[0].core
+cpu0.rfAce = args.rf_ace
+cpu0.rfAceUseWorkItems = args.rf_ace_window == "workitem"
+cpu0.rfAceWorkItemId = args.rf_ace_work_id
+cpu0.rfAceStartCycle = args.rf_ace_start_cycle
+cpu0.rfAceEndCycle = args.rf_ace_end_cycle
+cpu0.rfAceRegWidthBits = args.rf_ace_reg_width
 board = SimpleBoard(clk_freq="2GHz", processor=proc, memory=mem, cache_hierarchy=ch)
-board.set_se_binary_workload(binary=FileResource(args.cmd, override=True))
+board.set_se_binary_workload(
+    binary=FileResource(args.cmd, override=True),
+    arguments=shlex.split(args.workload_args) if args.workload_args else [],
+)
+
+_original_cache_pre_instantiate = ch._pre_instantiate
+def _configure_l1_ace(root):
+    _original_cache_pre_instantiate(root)
+    for cache_name in ("l1i-cache-0", "l1d-cache-0"):
+        cache = getattr(ch, cache_name)
+        cache.l1Ace = args.l1_ace
+        cache.l1AceUseWorkItems = args.l1_ace_window == "workitem"
+        cache.l1AceWorkItemId = args.l1_ace_work_id
+        cache.l1AceStartCycle = args.l1_ace_start_cycle
+        cache.l1AceEndCycle = args.l1_ace_end_cycle
+ch._pre_instantiate = _configure_l1_ace
 
 if args.chaos_reg:
-    cpu0 = proc.get_cores()[0].core
     # x86 IntReg order: 0=RAX,1=RCX,2=RDX,3=RBX,4=RSP,5=RBP,6=RSI,7=RDI,8-15=R8-R15
     # maxRegIdx=4 restricts to RAX/RCX/RDX/RBX (data regs, avoids RSP[4]/RBP[5]
     # which crash gem5 on flip — x86 needs this reg-domain guard, mirroring ARM's

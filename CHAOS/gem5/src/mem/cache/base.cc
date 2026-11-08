@@ -117,6 +117,9 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       missCount(p.max_miss_count),
       addrRanges(p.addr_ranges.begin(), p.addr_ranges.end()),
       system(p.system),
+      l1AceTracker(this, p.system, p.l1Ace, p.l1AceUseWorkItems,
+                   p.l1AceWorkItemId, p.l1AceStartCycle, p.l1AceEndCycle,
+                   p.size, blk_size),
       stats(*this)
 {
     // the MSHR queue has no reserve entries as we check the MSHR
@@ -848,7 +851,7 @@ BaseCache::updateBlockData(CacheBlk *blk, const PacketPtr cpkt,
     }
 }
 
-void
+bool
 BaseCache::cmpAndSwap(CacheBlk *blk, PacketPtr pkt)
 {
     assert(pkt->isRequest());
@@ -901,6 +904,7 @@ BaseCache::cmpAndSwap(CacheBlk *blk, PacketPtr pkt)
             ppDataUpdate->notify(data_update);
         }
     }
+    return overwrite_mem;
 }
 
 QueueEntry*
@@ -1159,9 +1163,17 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
     // assert(!pkt->needsWritable() || blk->isSet(CacheBlk::WritableBit));
     assert(pkt->getOffset(blkSize) + pkt->getSize() <= blkSize);
 
+    // isDemand() excludes LL/SC and AMOs. They still consume or replace
+    // demand data; failed conditional writes must preserve its lifetime.
+    const bool ace_demand = pkt->isDemand() || pkt->isLLSC() ||
+                            pkt->cmd == MemCmd::SwapReq;
+
     // Check RMW operations first since both isRead() and
     // isWrite() will be true for them
     if (pkt->cmd == MemCmd::SwapReq) {
+        if (ace_demand)
+            l1AceTracker.recordRead(blk);
+        bool did_write = true;
         if (pkt->isAtomicOp()) {
             // Get a copy of the old block's contents for the probe before
             // the update
@@ -1181,6 +1193,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
 
             // execute AMO operation
             (*(pkt->getAtomicOp()))(blk_data);
+            did_write = pkt->getAtomicOp()->didWrite();
 
             // Inform of this block's data contents update
             if (ppDataUpdate->hasListeners()) {
@@ -1193,8 +1206,10 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
             // set block status to dirty
             blk->setCoherenceBits(CacheBlk::DirtyBit);
         } else {
-            cmpAndSwap(blk, pkt);
+            did_write = cmpAndSwap(blk, pkt);
         }
+        if (ace_demand && did_write)
+            l1AceTracker.recordWrite(blk);
     } else if (pkt->isWrite()) {
         // we have the block in a writable state and can go ahead,
         // note that the line may be also be considered writable in
@@ -1204,6 +1219,8 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         // Write or WriteLine at the first cache with block in writable state
         if (blk->checkWrite(pkt)) {
             updateBlockData(blk, pkt, true);
+            if (ace_demand)
+                l1AceTracker.recordWrite(blk);
         }
         // Always mark the line as dirty (and thus transition to the
         // Modified state) even if we are a failed StoreCond so we
@@ -1212,6 +1229,8 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         blk->setCoherenceBits(CacheBlk::DirtyBit);
         DPRINTF(CacheVerbose, "%s for %s (write)\n", __func__, pkt->print());
     } else if (pkt->isRead()) {
+        if (ace_demand)
+            l1AceTracker.recordRead(blk);
         if (pkt->isLLSC()) {
             blk->trackLoadLocked(pkt);
         }
@@ -1238,6 +1257,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         DPRINTF(CacheVerbose, "%s for %s (invalidation)\n", __func__,
                 pkt->print());
     }
+
 }
 
 /////////////////////////////////////////////////////
@@ -1657,6 +1677,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         assert(pkt->getSize() == blkSize);
 
         updateBlockData(blk, pkt, has_old_data);
+        l1AceTracker.recordFill(blk);
     }
     // The block will be ready when the payload arrives and the fill is done
     blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
@@ -1728,6 +1749,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 void
 BaseCache::invalidateBlock(CacheBlk *blk)
 {
+    l1AceTracker.recordInvalidation(blk);
+
     // If block is still marked as prefetched, then it hasn't been used
     if (blk->wasPrefetched()) {
         prefetcher->prefetchUnused();

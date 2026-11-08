@@ -243,6 +243,8 @@ class BaseCPU : public ClockedObject
 
     inline void workItemBegin() { baseStats.numWorkItemsStarted++; }
     inline void workItemEnd() { baseStats.numWorkItemsCompleted++; }
+    virtual void workItemBeginMarker(uint64_t, uint64_t, ThreadID) {}
+    virtual void workItemEndMarker(uint64_t, uint64_t, ThreadID) {}
     // @todo remove me after debugging with legion done
     Tick instCount() { return instCnt; }
 

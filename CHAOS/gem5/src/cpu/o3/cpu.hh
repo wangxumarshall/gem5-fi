@@ -65,6 +65,8 @@
 #include "cpu/o3/iew.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/rename.hh"
+#include "cpu/o3/rf_ace.hh"
+#include "cpu/o3/fu_ibr.hh"
 #include "cpu/o3/rob.hh"
 #include "cpu/o3/scoreboard.hh"
 #include "cpu/o3/thread_state.hh"
@@ -478,9 +480,35 @@ class CPU : public BaseCPU
     /** Integer Register Scoreboard */
     Scoreboard scoreboard;
 
+    /** Harpocrates-style integer physical-register ACE tracker. */
+    RFAceTracker rfAceTracker;
+    FUIbrTracker fuIbrTracker;
+
     std::vector<BaseISA *> isa;
 
   public:
+    void fuIbrRecordIssue(const StaticInstPtr &inst)
+    { fuIbrTracker.recordIssue(inst); }
+    void rfAceRecordRead(PhysRegIdPtr reg, ThreadID tid, InstSeqNum seq_num,
+                         const StaticInst *inst, int src_index = -1)
+    { rfAceTracker.recordRead(reg, tid, seq_num, inst, src_index); }
+    void rfAceRecordWrite(PhysRegIdPtr reg, ThreadID tid, InstSeqNum seq_num,
+                          const StaticInst *inst)
+    { rfAceTracker.recordWrite(reg, tid, seq_num, inst); }
+    void rfAceCommitInstruction(ThreadID tid, InstSeqNum seq_num)
+    { rfAceTracker.commitInstruction(tid, seq_num); }
+    void rfAceSquashInstruction(ThreadID tid, InstSeqNum seq_num)
+    { rfAceTracker.squashInstruction(tid, seq_num); }
+    void rfAceSquashYounger(ThreadID tid, InstSeqNum seq_num)
+    { rfAceTracker.squashYounger(tid, seq_num); }
+    void rfAceFreeRegister(PhysRegIdPtr reg)
+    { rfAceTracker.freeRegister(reg); }
+
+    void workItemBeginMarker(uint64_t workid, uint64_t threadid,
+                             ThreadID tid) override;
+    void workItemEndMarker(uint64_t workid, uint64_t threadid,
+                           ThreadID tid) override;
+
     /** Accessors used by CHAOSPhysReg to reach the physical register file
      * and the two rename maps (frontend renameMap = in-flight mapping;
      * commitRenameMap = committed mapping). These are otherwise protected;

@@ -184,6 +184,31 @@ class BaseO3CPU(BaseCPU):
     numPhysMatRegs = Param.Unsigned(2, "Number of physical matrix registers")
     # most ISAs don't use condition-code regs, so default is 0
     numPhysCCRegs = Param.Unsigned(0, "Number of physical cc registers")
+
+    rfAce = Param.Bool(False, "Enable integer physical-register RF ACE metrics")
+    fuIbr = Param.Bool(False, "Enable AArch64 integer FU input-bit ratios")
+    fuIbrUseWorkItems = Param.Bool(False, "Use first selected work-item ROI")
+    fuIbrWorkItemId = Param.Int(-1, "Work ID (-1 selects first work item)")
+    fuIbrStartCycle = Param.UInt64(0, "First measured CPU cycle")
+    fuIbrEndCycle = Param.UInt64(0, "Exclusive end cycle (0 = simulation end)")
+    rfAceUseWorkItems = Param.Bool(
+        False, "Measure only the first selected m5 work-item region"
+    )
+    rfAceWorkItemId = Param.Int(
+        -1, "m5 work-item ID to measure (-1 selects the first work item)"
+    )
+    rfAceStartCycle = Param.UInt64(
+        0, "First measured CPU cycle when work-item mode is disabled"
+    )
+    rfAceEndCycle = Param.UInt64(
+        0, "Exclusive last measured CPU cycle (0 means simulation end)"
+    )
+    rfAceBitGranularity = Param.Bool(
+        False, "Use AArch64 operand-width masks instead of whole-register ACE"
+    )
+    rfAceRegWidthBits = Param.Unsigned(
+        64, "Modeled width of each integer physical register in bits"
+    )
     instQueues = VectorParam.IQUnit(IQUnit(), "Vector of IQs")
     numROBEntries = Param.Unsigned(192, "Number of reorder buffer entries")
 

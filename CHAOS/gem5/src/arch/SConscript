@@ -201,6 +201,17 @@ def ISADesc(desc, decoder_splits=1, exec_splits=1, tags=None):
         append = {}
         if env['CLANG']:
             append['CCFLAGS'] = ['-Wno-self-assign']
+        # Large ARM constructor splits can exhaust memory while generating
+        # DWARF. Allow verification builds to omit debug info for these files
+        # without changing the optimization level or other simulator sources.
+        if name.startswith('inst-constrs'):
+            append.setdefault('CCFLAGS', []).extend(
+                ARGUMENTS.get('ISA_CONSTR_CCFLAGS',
+                              os.environ.get('ISA_CONSTR_CCFLAGS', '')).split())
+        if name.startswith('generic_cpu_exec'):
+            append.setdefault('CCFLAGS', []).extend(
+                ARGUMENTS.get('ISA_EXEC_CCFLAGS',
+                              os.environ.get('ISA_EXEC_CCFLAGS', '')).split())
         Source(gen_file(name), append=append, tags=tags)
 
     source_gen('decoder.cc')
