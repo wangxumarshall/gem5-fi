@@ -1,0 +1,131 @@
+{
+  "pilot_id": "LP01-R04",
+  "model": "LP01",
+  "seed": 3894776903,
+  "event_selection": "TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)",
+  "excel_identity": {
+    "run_id": "LP01-F0-W5",
+    "sub_task_id": "LP01-F0-W5-S01",
+    "sample_run_id": "LP01-F0-W5-S01-R04",
+    "seed": 3894776903,
+    "event_ordinal": 4,
+    "event_ordinal_used": 4
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R04",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/load_response",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_l1dfwd",
+    "--l1dfwd_first_clock",
+    "0",
+    "--l1dfwd_max_faults",
+    "1",
+    "--l1dfwd_fault_mask",
+    "0x8",
+    "--l1dfwd_rng_seed",
+    "3894776903",
+    "--l1dfwd_event_ordinal",
+    "4"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 3.176,
+  "oracle_expected": "99c106541150be0e",
+  "oracle_source": "workload_golden",
+  "oracle_pass": true,
+  "injection": {
+    "events": [
+      {
+        "tick": 605990,
+        "addr": 527816,
+        "size": 8,
+        "mask": 8,
+        "eligible_ordinal": 4,
+        "faults_injected": 1
+      }
+    ],
+    "injected": 1
+  },
+  "injection_count": 1,
+  "target_event_proof": {
+    "site": "LSQUnit::completeDataAccess",
+    "events": 1,
+    "all_load_only": true,
+    "all_mask_0x8": true,
+    "all_size_nonzero": true,
+    "all_ordinals_distinct": true
+  },
+  "trace": {
+    "csv_rows": 44905,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R04/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "COMPLETE",
+      "propagation_stages": [
+        "injection",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit",
+        "errant_commit"
+      ],
+      "expected_stages": [
+        "injection",
+        "memory_response",
+        "register_writeback"
+      ],
+      "missing_stages": [],
+      "chain_ptag": 1,
+      "chain_scoped": true,
+      "chain_source": "ptag",
+      "chain_events": 8,
+      "consumer_operand_records": 1,
+      "consumer_instructions": 1,
+      "taint_value_mismatch_records": 0,
+      "chain_integrity": "PASS",
+      "chain_reasons": [],
+      "terminal_state": "MASKED",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "events": 44903,
+      "edges": 5,
+      "injections": 1,
+      "activations": 5,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "observed_terminal": "MASKED",
+    "terminal_state": "MASKED",
+    "terminal_state_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+    "fault_causality": "DIRECT_DATAFLOW_EVIDENCE",
+    "terminal_evidence": {
+      "page_table_fault_addr": null,
+      "last_injection_dyn_seq": 247,
+      "last_injection_new_value": "f3f7d0cc00000000",
+      "address_match": false,
+      "stderr_has_page_table_fault": false
+    },
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "oracle_outcome": "PASS"
+  },
+  "accepted": true,
+  "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
+  "crash_evidence": null
+}
