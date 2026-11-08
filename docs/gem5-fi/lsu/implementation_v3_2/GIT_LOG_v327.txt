@@ -1,3 +1,4 @@
+dc210c5a [LSU][MDSPEC][V3.2.7][DOCS] final report, status and git provenance
 26c86bfe [LSU][MDSPEC][V3.2.7][PILOTS] final-binary rerun of MD04 and FW05 five-pilot sets
 0461de20 [LSU][MDSPEC][V3.2.7][SQ03] freeze definition and implement one-shot canWB hook
 52ab29a4 [LSU][MDSPEC][V3.2.7][MD04] regression rerun five pilots on final binary

@@ -13,7 +13,12 @@
  .../FW05_Definition_Freeze_v3.2.7.md               |   58 +
  .../FW05_Implementation_v3.2.7.md                  |   78 +
  .../lsu/implementation_v3_2/GIT_BASELINE_v327.txt  |    5 +
- .../LSU_v3.2.7_Status_Report.md                    |   82 +
+ .../lsu/implementation_v3_2/GIT_DIFF_CODE_v327.txt | 1025 +++++++++
+ .../lsu/implementation_v3_2/GIT_DIFF_STAT_v327.txt |  157 ++
+ .../lsu/implementation_v3_2/GIT_LOG_v327.txt       |   14 +
+ .../lsu/implementation_v3_2/GIT_STATUS_v327.txt    |   44 +
+ .../implementation_v3_2/LSU_v3.2.7_Final_Report.md |  121 ++
+ .../LSU_v3.2.7_Status_Report.md                    |  108 +
  .../MD04_Definition_Freeze_v3.2.7.md               |   90 +
  .../MD04_Pilot_Conformance_v3.2.7.md               |   80 +
  .../implementation_v3_2/MODEL_STATUS_MATRIX.csv    |    6 +-
@@ -36,9 +41,12 @@
  .../logs_v3_2_7/binary_after_task3.sha256          |    1 +
  .../logs_v3_2_7/binary_final.sha256                |    1 +
  .../implementation_v3_2/logs_v3_2_7/build_fw05.log |   55 +
+ .../logs_v3_2_7/pytest_platform.log                |    3 +
+ .../logs_v3_2_7/pytest_workbook.log                |    2 +
  .../logs_v3_2_7/r03_lsq_debug_window.txt           |  102 +
  .../implementation_v3_2/logs_v3_2_7/r03_rerun.log  |   29 +
  .../logs_v3_2_7/test_fw05_rules.log                |    1 +
+ .../logs_v3_2_7/test_md04_rules.log                |    1 +
  .../logs_v3_2_7/test_sq03_rules.log                |    1 +
  .../pilots_v3_2_7/FW05-R01/citations.bib           |  123 ++
  .../pilots_v3_2_7/FW05-R01/command.txt             |   22 +
@@ -154,4 +162,4 @@
  tests/test_md04_rules.cc                           |   19 +-
  tests/test_sq03_rules.cc                           |   18 +
  tools/build_lsu_v322_workbook.py                   |  169 ++
- 156 files changed, 65210 insertions(+), 74 deletions(-)
+ 164 files changed, 66603 insertions(+), 74 deletions(-)
