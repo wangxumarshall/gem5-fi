@@ -8,16 +8,35 @@ namespace gem5
 namespace chaos_md04
 {
 
-// MD04-CFG01 (Excel option A): a real same-address 8-byte store alias whose
-// memory-dependency violation is reported exactly once. The store is 8 bytes
-// at the load's start address; a wider load (e.g. a 16-byte LDP) that covers
-// the store is a real same-address alias and is included. A 4-byte pair or a
-// different address is not. Only the violation report is suppressed.
+// MD04-ELIG-v1 (frozen 2026-11-08): a real 8-byte store -> younger-load
+// violation whose report is suppressed exactly once. The pair must satisfy
+// the same shifted-range predicate as LSQUnit::checkViolations AND have a
+// real byte overlap (so "different address" pairs that happen to share an
+// 8-byte chunk are excluded). A 16-byte LDP covering the store is included;
+// a 4-byte access is not. Only the violation report is suppressed.
 inline bool
-isSameAddress8B(uint64_t load_addr, unsigned load_size,
-                uint64_t store_addr, unsigned store_size)
+isEligibleViolationPair(uint64_t load_addr, unsigned load_size,
+                        uint64_t store_addr, unsigned store_size,
+                        unsigned dep_check_shift)
 {
-    return store_size == 8 && load_size >= 8 && load_addr == store_addr;
+    if (store_size != 8 || load_size < 8)
+        return false;
+
+    const uint64_t s_lo = store_addr;
+    const uint64_t s_hi = store_addr + store_size - 1;
+    const uint64_t l_lo = load_addr;
+    const uint64_t l_hi = load_addr + load_size - 1;
+
+    // Require a real byte overlap.
+    if (s_hi < l_lo || l_hi < s_lo)
+        return false;
+
+    // Same shifted-range predicate as checkViolations.
+    const uint64_t ss_lo = store_addr >> dep_check_shift;
+    const uint64_t ss_hi = (store_addr + store_size - 1) >> dep_check_shift;
+    const uint64_t ls_lo = load_addr >> dep_check_shift;
+    const uint64_t ls_hi = (load_addr + load_size - 1) >> dep_check_shift;
+    return ss_hi >= ls_lo && ss_lo <= ls_hi;
 }
 
 // 1-based eligible-event selection. target_ordinal == 0 means "the first

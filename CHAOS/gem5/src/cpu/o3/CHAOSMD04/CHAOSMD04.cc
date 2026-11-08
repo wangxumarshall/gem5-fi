@@ -58,8 +58,10 @@ CHAOSMD04::startup()
 
 bool
 CHAOSMD04::maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
-                              bool load_complete)
+                              bool load_complete, unsigned dep_check_shift,
+                              const RequestPtr &load_req)
 {
+    (void)load_req;  // consumed by the v3.2.7 trace identity (Task 3)
     if (!cpu || probability <= 0.0f || !ld_inst || !store_inst)
         return false;
     if (ld_inst->effAddrValid() && store_inst->effAddrValid())
@@ -74,9 +76,9 @@ CHAOSMD04::maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
         return false;
     if (ld_inst->seqNum <= store_inst->seqNum)
         return false;   // only a younger load can have passed the store
-    if (!chaos_md04::isSameAddress8B(ld_inst->effAddr, ld_inst->effSize,
-                                     store_inst->effAddr,
-                                     store_inst->effSize))
+    if (!chaos_md04::isEligibleViolationPair(
+            ld_inst->effAddr, ld_inst->effSize,
+            store_inst->effAddr, store_inst->effSize, dep_check_shift))
         return false;
 
     Cycles cur = cpu->curCycle();

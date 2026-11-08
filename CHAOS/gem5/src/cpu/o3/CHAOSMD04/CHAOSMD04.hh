@@ -9,6 +9,7 @@
 #include "base/output.hh"
 #include "base/types.hh"
 #include "cpu/base.hh"
+#include "mem/request.hh"
 
 namespace gem5 { namespace o3 { class CPU; class DynInst; } }
 
@@ -29,7 +30,8 @@ class CHAOSMD04 : public SimObject
     // Returns true iff the caller must suppress the violation report for this
     // store->load pair. `load_complete` is the response state at this point.
     bool maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
-                            bool load_complete);
+                            bool load_complete, unsigned dep_check_shift,
+                            const RequestPtr &load_req);
     uint64_t lastEligibleOrdinal() const { return last_eligible_ordinal; }
 
   private:

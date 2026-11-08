@@ -644,16 +644,21 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                         " between instructions [sn:%lli] and [sn:%lli]\n",
                         inst_eff_addr1, inst->seqNum, ld_inst->seqNum);
             } else {
-                // MD04: suppress ONE real same-address 8-byte store->load
-                // violation. The younger load keeps its stale data and may
-                // commit it. Only the report is skipped; no address/size
-                // changes. `load_complete` records whether the response was
-                // already consumed (trace late-binding boundary).
+                // MD04: suppress ONE real 8-byte store->younger-load
+                // violation (MD04-ELIG-v1: real byte overlap AND the same
+                // shifted-range predicate used by this function). The
+                // younger load keeps its stale data and may commit it. Only
+                // the report is skipped; no address/size changes.
+                // `load_complete` records whether the response was already
+                // consumed (trace late-binding boundary).
                 if (cpu->chaosMD04) {
                     const bool load_complete =
                         loadIt->request() && loadIt->request()->isComplete();
                     if (cpu->chaosMD04->maybeSkipViolation(
-                            ld_inst.get(), inst.get(), load_complete)) {
+                            ld_inst.get(), inst.get(), load_complete,
+                            depCheckShift,
+                            loadIt->request() ? loadIt->request()->mainReq()
+                                              : RequestPtr())) {
                         DPRINTF(LSQUnit, "CHAOSMD04: suppressed violation "
                                 "load [sn:%lli] store [sn:%lli] addr %#x\n",
                                 ld_inst->seqNum, inst->seqNum, ld_eff_addr1);

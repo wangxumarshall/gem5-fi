@@ -9,12 +9,19 @@ using namespace gem5::chaos_md04;
 int
 main()
 {
-    // Option A: same address, both 8 bytes.
-    assert(isSameAddress8B(0x1000, 8, 0x1000, 8));
-    assert(isSameAddress8B(0x1000, 16, 0x1000, 8));   // LDP covers the store
-    assert(!isSameAddress8B(0x1000, 8, 0x1008, 8));
-    assert(!isSameAddress8B(0x1000, 4, 0x1000, 8));
-    assert(!isSameAddress8B(0x1000, 8, 0x1000, 4));
+    // MD04-ELIG-v1: 8-byte store + younger load with real byte overlap and
+    // the same shifted-range predicate used by checkViolations.
+    assert(isEligibleViolationPair(0x1000, 8, 0x1000, 8, 3));
+    assert(isEligibleViolationPair(0x1000, 16, 0x1000, 8, 3));  // LDP covers
+    assert(isEligibleViolationPair(0x1004, 16, 0x1000, 8, 3));  // LDP starts +4
+    assert(isEligibleViolationPair(0x0ffc, 16, 0x1000, 8, 3));  // LDP starts -4
+    assert(!isEligibleViolationPair(0x1008, 8, 0x1000, 8, 3));  // disjoint
+    assert(!isEligibleViolationPair(0x1000, 4, 0x1000, 8, 3));  // 4B load
+    assert(!isEligibleViolationPair(0x1000, 8, 0x1000, 4, 3));  // 4B store
+    assert(!isEligibleViolationPair(0x1000, 8, 0x1008, 8, 3));  // 4B offset
+    // Same shifted chunk but no real byte overlap: rejected as a different
+    // address.
+    assert(!isEligibleViolationPair(0x1009, 8, 0x1000, 8, 3));
 
     // First eligible event.
     assert(shouldInject(1, 0, 0, 1));
