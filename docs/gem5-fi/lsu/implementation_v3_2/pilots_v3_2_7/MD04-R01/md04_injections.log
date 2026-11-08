@@ -1,0 +1,2 @@
+Tick: 733425, Site: checkViolations, load_seq=518, store_seq=514, addr=0x7ffffefb90, size=8, store_addr=0x7ffffefb90, store_size=8, load_pc=0x4113d0, store_pc=0x4113c4, sq_entry_id=52, sq_entry_generation=101, lq_entry_id=20, lq_entry_generation=65, eligible_ordinal=1, event_ordinal=1, seed=2595563470, load_complete=1, address_modified=0, size_modified=0, data_modified=0, faults_injected: 1
+CHAOS_MD04_TARGET_STATUS=INJECTED count=1
