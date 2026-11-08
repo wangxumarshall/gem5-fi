@@ -55,3 +55,14 @@ printed by the host build and by gem5; the gem5 run must exit 0.
 The v3.2.2 Excel used W8 `alignment` for FW05. It cannot reliably produce an
 eligible wrong-source forwarding pair (probe `alt=no`), so it is retained only
 as historical configuration (see `../excel/FW05_OLD_NEW_DIFF_v3.2.3.md`).
+
+
+## v3.2.9 standalone usage
+
+`run_pilot.sh` locates the repository with `GEM5_ROOT` (recommended) or with
+`git -C <archive> rev-parse --show-toplevel`, and always runs the archived
+`bin/fw05_forward`, never the original development-workload path. Tested from
+a copy at `/tmp/fw05_archive_test` with `GEM5_ROOT=<worktree>`: exit 0,
+`checksum=0x67afad307642983e`. Copying the archive outside the repository
+without `GEM5_ROOT` fails loudly with `run_pilot.sh: cannot locate the
+repository; set GEM5_ROOT`.
