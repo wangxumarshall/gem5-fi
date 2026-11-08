@@ -28,9 +28,9 @@
   "roi": "NEEDS_RESEARCHER_CONFIRMATION",
   "gem5": {
     "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt",
-    "binary_sha256": "f62187978660e50bf0e0fce04045e40cbb2b5f55b3dedea997da19006d04d9fb",
+    "binary_sha256": "8377c011bb5916be67fa1132232440ae7f8be02351c3034624a339319a545bec",
     "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py",
-    "config_script_sha256": "ee5e57df19e09fa23ef4d9d8ed18f696e514df0ea5c6cd59e79cf59479ad44ce"
+    "config_script_sha256": "c5587c0c918750699ca0ff35feed1190c2029b96431a5ac4a6c0601c6b740af7"
   },
   "output_dir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_7/FW05-R03",
   "command": [
@@ -59,10 +59,10 @@
   ],
   "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_7/FW05-R03 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/fw05_forward --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_lsqfwd --lsq_struct_mode fw05_older_src --max_faults 1 --rng_seed 2442802213 --lsqfwd_event_ordinal 3",
   "environment": {
-    "captured_at_utc": "2026-11-08T04:30:56Z",
+    "captured_at_utc": "2026-11-08T04:44:56Z",
     "host": "localhost0101",
     "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
     "python": "3.11.6"
   },
-  "manifest_sha256": "2ab885b243521315f399a9be53d935ddf9af3421587aeca19fa4438d469fac56"
+  "manifest_sha256": "ef1d3a7d28944657498ac691ff70815d37df27a4ecc4bfd0908ff3e28aa80b97"
 }

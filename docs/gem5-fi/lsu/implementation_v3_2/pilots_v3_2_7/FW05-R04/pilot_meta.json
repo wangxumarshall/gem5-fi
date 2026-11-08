@@ -37,7 +37,7 @@
     "4"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 2.676,
+  "elapsed_seconds": 2.365,
   "oracle_expected": "0x67afad307642983e",
   "oracle_source": "workload_golden",
   "oracle_pass": false,

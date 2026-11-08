@@ -3,9 +3,9 @@ gem5 Simulator System.  https://www.gem5.org
 gem5 is copyrighted software; use the --copyright option for details.
 
 gem5 version 25.1.0.1
-gem5 compiled Nov  8 2026 12:26:18
-gem5 started Nov  8 2026 12:33:46
-gem5 executing on localhost0101, pid 3629576
+gem5 compiled Nov  8 2026 12:36:15
+gem5 started Nov  8 2026 12:44:46
+gem5 executing on localhost0101, pid 3665825
 command line: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_7/MD04-R02 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/docs/gem5-fi/lsu/implementation_v3_2/workloads/replay_dependency --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_md04 --md04_first_clock 0 --md04_max_faults 1 --md04_probability 1.0 --md04_rng_seed 811948497 --md04_event_ordinal 2
 
 info: Standard input is not a terminal, disabling listeners.
