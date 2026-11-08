@@ -1,0 +1,5 @@
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:1 PC:(0x4008d0=>0x4008d4).(1=>2) to Addr:0x8cd10, data:0 [sn:18]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:2 PC:(0x4008d0=>0x4008d4).(2=>3) to Addr:0x8cd18, data:0xf0 [sn:19]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:3 PC:(0x4008d8=>0x4008dc).(1=>2) to Addr:0x8cd20, data:0 [sn:23]
+ 150150: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:4 PC:(0x4008d8=>0x4008dc).(2=>3) to Addr:0x8cd28, data:0 [sn:24]
+ 150535: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:5 PC:(0x4008e4=>0x4008e8).(1=>2) to Addr:0x8cd30, data:0 [sn:28]

@@ -822,13 +822,26 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
     // balanced; address, size and data are untouched. SC/atomic stores have
     // their own canWB path and are excluded.
     if (cpu->lsqFwd && !storeQueue[store_idx].canWB() &&
-        !store_inst->isStoreConditional() && !store_inst->isAtomic() &&
-        cpu->lsqFwd->maybeSetCanWB(store_inst->seqNum, store_idx,
-                                   store_inst->sqEntryGeneration)) {
-        storeQueue[store_idx].canWB() = true;
-        ++storesToWB;
-        DPRINTF(LSQUnit, "CHAOS SQ03: set _canWB early for [sn:%lli] idx %d\n",
-                store_inst->seqNum, (int)store_idx);
+        !store_inst->isStoreConditional() && !store_inst->isAtomic()) {
+        const bool canwb_before = storeQueue[store_idx].canWB();
+        const uint64_t stores_before = storesToWB;
+        if (cpu->lsqFwd->maybeSetCanWB(store_inst->seqNum, store_idx,
+                                       store_inst->sqEntryGeneration)) {
+            storeQueue[store_idx].canWB() = true;
+            ++storesToWB;
+            if (cpu->chaosPropagation) {
+                cpu->chaosPropagation->noteSQ03Injection(
+                    store_inst->seqNum,
+                    store_inst->pcState().instAddr(),
+                    store_inst->effAddr, store_inst->effSize,
+                    store_idx, store_inst->sqEntryGeneration,
+                    canwb_before, true, stores_before, storesToWB,
+                    curTick(), cpu->lsqFwd->sq03LastEligible(),
+                    cpu->lsqFwd->injectorSeed());
+            }
+            DPRINTF(LSQUnit, "CHAOS SQ03: set _canWB early for [sn:%lli] idx %d\n",
+                    store_inst->seqNum, (int)store_idx);
+        }
     }
 
     if (store_inst->isStoreConditional() || store_inst->isAtomic()) {
@@ -997,6 +1010,8 @@ LSQUnit::writebackStores()
                     mr->getVaddr(), request->_size,
                     mr->getByteEnable(),
                     reinterpret_cast<const uint8_t *>(storeWBIt->data()));
+                cpu->chaosPropagation->noteSQ03Writeback(
+                    inst->seqNum, curTick());
             }
         }
 
@@ -1321,10 +1336,13 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     /* We 'need' a copy here because we may clear the entry from the
      * store queue. */
     DynInstPtr store_inst = store_idx->instruction();
-    if (cpu->chaosPropagation)
+    if (cpu->chaosPropagation) {
         cpu->chaosPropagation->noteSQLifecycle(
             store_inst->seqNum, store_inst->sqIdx,
             store_inst->sqEntryGeneration, "free", "complete");
+        cpu->chaosPropagation->noteSQ03Complete(
+            store_inst->seqNum, curTick());
+    }
     if (store_idx == storeQueue.begin()) {
         do {
             storeQueue.front().clear();

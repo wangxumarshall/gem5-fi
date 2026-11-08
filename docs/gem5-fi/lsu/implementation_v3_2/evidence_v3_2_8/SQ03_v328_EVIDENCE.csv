@@ -1,0 +1,6 @@
+pilot,sample_run_id,seed,event_ordinal,store_seq,store_pc,store_addr,store_size,sq_entry_id,sq_generation,canwb_before,canwb_after,stores_to_wb_before,stores_to_wb_after,inject_tick,fault_writeback_tick,baseline_writeback_tick,writeback_delta_ticks,oracle,terminal,coverage,chain,consumer_instructions,accepted,replay_generation,hang
+SQ03-R01,SQ03-F0-W3-S02-R01,2214819981,1,18,0x4008d0,0x7ffffefd10,8,1,1,0,1,0,1,140910,140910,150150,9240,PASS,MASKED,COMPLETE,PASS,0,True,0,0
+SQ03-R02,SQ03-F0-W3-S02-R02,1486471869,2,19,0x4008d0,0x7ffffefd18,8,2,2,0,1,0,1,141295,150150,150150,0,PASS,MASKED,COMPLETE,PASS,0,True,0,0
+SQ03-R03,SQ03-F0-W3-S02-R03,3102670938,3,23,0x4008d8,0x7ffffefd20,8,3,3,0,1,0,1,141680,150150,150150,0,PASS,MASKED,COMPLETE,PASS,0,True,0,0
+SQ03-R04,SQ03-F0-W3-S02-R04,3974203372,4,24,0x4008d8,0x7ffffefd28,8,4,4,0,1,0,1,142065,150150,150150,0,PASS,MASKED,COMPLETE,PASS,0,True,0,0
+SQ03-R05,SQ03-F0-W3-S02-R05,729970077,5,28,0x4008e4,0x7ffffefd30,8,5,5,0,1,0,1,142450,150150,150535,385,PASS,MASKED,COMPLETE,PASS,0,True,0,0

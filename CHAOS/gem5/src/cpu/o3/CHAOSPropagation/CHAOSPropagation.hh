@@ -308,6 +308,17 @@ class CHAOSPropagation : public SimObject
     // FW05 (v3.2.7): one load was served from an older store instead of the
     // gem5-selected true source. The response is bound by load seq so its
     // delivered data hash can be checked against alt_fnv.
+    // SQ03: one store got _canWB early. Registers the store so a later load
+    // that consumes its bytes is attributed to the same ptag.
+    void noteSQ03Injection(uint64_t dyn_seq, uint64_t pc, Addr addr,
+                           unsigned size, uint64_t sq_idx, uint64_t sq_gen,
+                           bool canwb_before, bool canwb_after,
+                           uint64_t stores_before, uint64_t stores_after,
+                           Tick inject_tick, uint64_t eligible_ordinal,
+                           uint64_t seed);
+    void noteSQ03Writeback(uint64_t dyn_seq, Tick tick);
+    void noteSQ03Complete(uint64_t dyn_seq, Tick tick);
+
     void noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
                            uint64_t true_seq, Addr true_addr,
                            unsigned true_size, const std::string &true_fnv,
@@ -471,6 +482,24 @@ class CHAOSPropagation : public SimObject
         bool wb_emitted = false;
     };
     std::map<uint64_t, FW05Entry> fw05_registry;  // key: load dyn seq
+
+    struct SQ03Entry {
+        uint64_t ptag = 0;
+        uint64_t dyn_seq = 0;
+        Addr addr = 0;
+        unsigned size = 0;
+        uint64_t sq_idx = 0;
+        uint64_t sq_gen = 0;
+        bool canwb_before = false;
+        bool canwb_after = false;
+        uint64_t stores_before = 0;
+        uint64_t stores_after = 0;
+        Tick inject_tick = 0;
+        Tick wb_tick = 0;
+        Tick complete_tick = 0;
+        uint64_t eligible_ordinal = 0;
+    };
+    std::map<uint64_t, SQ03Entry> sq03_registry;  // key: store dyn seq
 
     struct ChainWbEntry {
         uint64_t ptag = 0;

@@ -101,12 +101,28 @@ PROFILES = {
     ],
     ("FW05", "SQUASHED"): [("injection", "squash")],
     ("FW05", "UNRESOLVED"): [("injection",)],
+    # SQ03 (v3.2.8): premature store writeback permission. The store-side
+    # chain is injection -> writeback -> cache write -> completion; a later
+    # load/consumer is required only for the SDC claim.
+    ("SQ03", "SDC"): [("injection", "store_writeback", "store_mem_write",
+                       "memory_response", "register_writeback",
+                       "consumer_commit")],
+    ("SQ03", "MASKED"): [
+        ("injection", "store_writeback", "store_mem_write",
+         "sq03_complete"),
+        ("injection", "store_writeback", "store_mem_write"),
+        ("injection", "store_writeback"),
+        ("injection", "squash"),
+    ],
+    ("SQ03", "SQUASHED"): [("injection", "squash")],
+    ("SQ03", "CRASH"): [("injection", "simulator_abort")],
+    ("SQ03", "UNRESOLVED"): [("injection",)],
 }
 DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW02": ("forwarding_decision",),
                    "DA04": ("injection",), "SQ01": ("injection",),
                    "LP01": ("injection",), "MD04": ("injection",),
-                   "FW05": ("injection",)}
+                   "FW05": ("injection",), "SQ03": ("injection",)}
 
 
 def expected_stages(model_id: str | None,
@@ -200,7 +216,8 @@ def check_completeness(path: Path) -> dict:
                   "memory_response", "register_writeback",
                   "consumer_commit", "errant_commit", "forwarding_decision",
                   "replay", "squash", "simulator_abort",
-                  "store_writeback", "store_mem_write", "sq_lifecycle"):
+                  "store_writeback", "store_mem_write", "sq_lifecycle",
+                  "sq03_complete"):
         if stage in kinds:
             stages.append(stage)
     record_integrity = "INVALID" if errs else "VALID"

@@ -1,0 +1,2 @@
+Cycle: 367, Site: executeStore_canWB, store_seq=19, sq_idx=2, sq_gen=2, eligible_ordinal=2, faults_injected: 1
+CHAOS_SQ03_STATUS: fired=1 injected=1 eligible=2

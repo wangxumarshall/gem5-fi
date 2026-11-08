@@ -1,0 +1,12 @@
+SQ03-R01 trace_v31.jsonl 60d96fb27d03d50928b52f810dc5de07fbec45b9c6520f2f75f80cb944944c5b
+SQ03-R01 prop_trace.csv.gz baa7356141b9eaf8a7fce37fafbcce7eda016f25bbede9528dd4e420363218d0
+SQ03-R02 trace_v31.jsonl fa6a9056cf80026089c6c14b53485589f76c8a29ad1681bc5272033ec4b8aff7
+SQ03-R02 prop_trace.csv.gz 5fa61cb12e5641930ac6ba360137efda47e46945ac24cd2fe6c3ffa372401f96
+SQ03-R03 trace_v31.jsonl 8a983c81f2b0d1d240cc6c64245579a10ff3c1a7834a40e4fbfe067382aad908
+SQ03-R03 prop_trace.csv.gz a9e1aeee0d50db2c41e40be6dc02455ac0d75c27cdf3bd785f3fe82e1a145edd
+SQ03-R04 trace_v31.jsonl 476bc41aa8ae5f22113614a5cc06a0a1cc9500a843cc886f1efb95bcac3a26e1
+SQ03-R04 prop_trace.csv.gz 8f35213a2425f1b166718550de2daeaec6a1226b66bb59a8f84d4f4151da0172
+SQ03-R05 trace_v31.jsonl e91ef970cfc6298d0382f2ffd2bc7856a5c91da73b6c3a703306bea15ef0b8c2
+SQ03-R05 prop_trace.csv.gz b14cc091425e2d182d62e6c6f48e8f7ec9610fbe183f653b28c43002f4669bf1
+
+JSONL/gzip stay on disk and in the v3.2.8 zip; Git keeps metadata, manifests, logs and checksums. SQ03 traces are ~188 MB each; the trace is not rewritten.

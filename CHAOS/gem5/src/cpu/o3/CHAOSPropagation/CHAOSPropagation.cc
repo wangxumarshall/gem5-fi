@@ -1295,6 +1295,112 @@ namespace gem5
     }
 
     void
+    CHAOSPropagation::noteSQ03Injection(uint64_t dyn_seq, uint64_t pc,
+                                        Addr addr, unsigned size,
+                                        uint64_t sq_idx, uint64_t sq_gen,
+                                        bool canwb_before, bool canwb_after,
+                                        uint64_t stores_before,
+                                        uint64_t stores_after,
+                                        Tick inject_tick,
+                                        uint64_t eligible_ordinal,
+                                        uint64_t seed)
+    {
+        if (!write_log)
+            return;
+        const uint64_t ptag = ++next_ptag;
+        fault_seqs.insert(dyn_seq);
+        SQ03Entry e;
+        e.ptag = ptag;
+        e.dyn_seq = dyn_seq;
+        e.addr = addr;
+        e.size = size;
+        e.sq_idx = sq_idx;
+        e.sq_gen = sq_gen;
+        e.canwb_before = canwb_before;
+        e.canwb_after = canwb_after;
+        e.stores_before = stores_before;
+        e.stores_after = stores_after;
+        e.inject_tick = inject_tick;
+        e.eligible_ordinal = eligible_ordinal;
+        sq03_registry[dyn_seq] = e;
+
+        FaultStoreEntry fe;
+        fe.ptag = ptag;
+        fe.dyn_seq = dyn_seq;
+        fe.base = addr;
+        fe.size = size;
+        fe.idx = sq_idx;
+        fe.gen = sq_gen;
+        fe.byte_begin = addr;
+        fe.byte_end = addr + size;
+        fe.family = "sq03_canwb";
+        fe.registered = inject_tick;
+        fault_store_registry[dyn_seq] = fe;
+
+        std::ostringstream d;
+        d << "site=executeStore_canWB;family=sq03;model=SQ03"
+          << ";store_seq=" << dyn_seq
+          << ";store_pc=0x" << std::hex << pc
+          << ";store_addr=0x" << addr << std::dec
+          << ";store_size=" << size
+          << ";sq_entry_id=" << sq_idx
+          << ";sq_entry_generation=" << sq_gen
+          << ";canwb_before=" << (canwb_before ? 1 : 0)
+          << ";canwb_after=" << (canwb_after ? 1 : 0)
+          << ";stores_to_wb_before=" << stores_before
+          << ";stores_to_wb_after=" << stores_after
+          << ";inject_tick=" << inject_tick
+          << ";eligible_ordinal=" << eligible_ordinal
+          << ";event_ordinal=" << eligible_ordinal
+          << ";seed=" << seed
+          << ";address_modified=0;size_modified=0;data_modified=0";
+        writeNode(ptag, "inj_sq03", dyn_seq, true, 0, false, addr, true,
+                  0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::noteSQ03Writeback(uint64_t dyn_seq, Tick tick)
+    {
+        if (!write_log)
+            return;
+        auto it = sq03_registry.find(dyn_seq);
+        if (it == sq03_registry.end() || it->second.wb_tick != 0)
+            return;
+        it->second.wb_tick = tick;
+        auto fit = fault_store_registry.find(dyn_seq);
+        if (fit != fault_store_registry.end())
+            fit->second.written_tick = tick;
+        std::ostringstream d;
+        d << "site=lsq_writebackStores;family=sq03;model=SQ03"
+          << ";store_seq=" << dyn_seq
+          << ";writeback_tick=" << tick
+          << ";inject_tick=" << it->second.inject_tick
+          << ";canwb_after=" << (it->second.canwb_after ? 1 : 0)
+          << ";stores_to_wb_after=" << it->second.stores_after;
+        writeNode(it->second.ptag, "sq03_wb", dyn_seq, true, 0, false,
+                  it->second.addr, true, 0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::noteSQ03Complete(uint64_t dyn_seq, Tick tick)
+    {
+        if (!write_log)
+            return;
+        auto it = sq03_registry.find(dyn_seq);
+        if (it == sq03_registry.end() || it->second.complete_tick != 0)
+            return;
+        it->second.complete_tick = tick;
+        std::ostringstream d;
+        d << "site=lsq_completeStore;family=sq03;model=SQ03"
+          << ";store_seq=" << dyn_seq
+          << ";complete_tick=" << tick
+          << ";writeback_tick=" << it->second.wb_tick
+          << ";inject_tick=" << it->second.inject_tick;
+        writeNode(it->second.ptag, "sq03_complete", dyn_seq, true, 0, false,
+                  it->second.addr, true, 0, false, 0, false, d.str());
+    }
+
+    void
     CHAOSPropagation::noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
                                         uint64_t true_seq, Addr true_addr,
                                         unsigned true_size,

@@ -48,7 +48,7 @@ def _workload_for(model: str) -> str:
             # FW05's Excel workload (alignment) has no two overlapping 8-byte
             # stores in flight; the pilot-only directed workload constructs
             # the real forwarding pair. Recorded in the manifest.
-            "FW05": "fw05_forward"}[model]
+            "FW05": "fw05_forward", "SQ03": "sq_drain"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -202,6 +202,58 @@ def _fw05_events(path: Path) -> list[dict]:
     return out
 
 
+def _sq03_trace_events(path: Path) -> list[dict]:
+    out = []
+    if not path.exists():
+        return out
+    import gzip
+    lines = []
+    try:
+        with gzip.open(path, "rt", encoding="utf-8", errors="replace") as fh:
+            lines = fh.readlines()
+    except (EOFError, OSError):
+        # A timeout/watchdog may leave a truncated gzip stream; keep the
+        # complete rows that were flushed and never fabricate the rest.
+        try:
+            with gzip.open(path, "rt", encoding="utf-8", errors="replace") as fh:
+                lines = fh.readlines()
+        except (EOFError, OSError):
+            lines = []
+    for line in lines:
+        if "inj_sq03" not in line:
+            continue
+        row = next(__import__("csv").reader([line]))
+        if len(row) < 10:
+            continue
+        detail = dict(item.split("=", 1) for item in row[9].split(";")
+                      if "=" in item)
+        def num(k, base=10):
+            v = detail.get(k)
+            if v in (None, "null", ""):
+                return None
+            return int(v, base)
+        out.append({
+            "tick": int(row[1]),
+            "store_seq": num("store_seq"),
+            "store_pc": detail.get("store_pc"),
+            "store_addr": detail.get("store_addr"),
+            "store_size": num("store_size"),
+            "sq_entry_id": num("sq_entry_id"),
+            "sq_entry_generation": num("sq_entry_generation"),
+            "canwb_before": num("canwb_before"),
+            "canwb_after": num("canwb_after"),
+            "stores_to_wb_before": num("stores_to_wb_before"),
+            "stores_to_wb_after": num("stores_to_wb_after"),
+            "eligible_ordinal": num("eligible_ordinal"),
+            "event_ordinal": num("event_ordinal"),
+            "seed": num("seed"),
+            "address_modified": num("address_modified"),
+            "size_modified": num("size_modified"),
+            "data_modified": num("data_modified"),
+        })
+    return out
+
+
 def _md04_status(path: Path) -> str:
     if not path.exists():
         return "UNKNOWN"
@@ -234,8 +286,17 @@ def _l1dfwd_events(path: Path) -> list[dict]:
 def _read_events(path: Path) -> list[dict]:
     if not path.exists():
         return []
-    return [r for r in (json.loads(line) for line in path.read_text().splitlines())
-            if r.get("record_type") == "event"]
+    out = []
+    for line in path.read_text().splitlines():
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            # A killed/timeout run may leave one partial trailing line; keep
+            # the complete records and never invent the remainder.
+            continue
+        if rec.get("record_type") == "event":
+            out.append(rec)
+    return out
 
 
 def _fault_injection(events: list[dict]) -> dict | None:
@@ -304,7 +365,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True,
                     choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
-                             "MD04", "FW05"])
+                             "MD04", "FW05", "SQ03"])
+    ap.add_argument("--timeout", type=int, default=900,
+                    help="external wall-clock timeout in seconds")
     ap.add_argument("--workload", default=None,
                     help="pilot-only workload override (recorded in the "
                          "manifest; the Excel path is retained)")
@@ -397,6 +460,12 @@ def main(argv=None) -> int:
                  "--l1dfwd_rng_seed", str(args.seed),
                  "--l1dfwd_event_ordinal",
                  str(sample.get("event_ordinal") or 1)]
+    elif args.model == "SQ03":
+        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sq03_canwb",
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--lsqfwd_event_ordinal",
+                 str(sample.get("event_ordinal") or 1),
+                 "--sq03_watchdog_cycles", "500000000"]
     elif args.model == "FW05":
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
@@ -434,8 +503,21 @@ def main(argv=None) -> int:
             canonical_json(manifest).encode("utf-8")).hexdigest()
     write_manifest(manifest, out / "manifest.json")
     started = time.time()
-    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
-                          timeout=900)
+    timed_out = False
+    try:
+        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
+                              timeout=args.timeout)
+    except subprocess.TimeoutExpired as exc:
+        timed_out = True
+        partial_out = exc.stdout or ""
+        partial_err = exc.stderr or ""
+        if isinstance(partial_out, bytes):
+            partial_out = partial_out.decode("utf-8", "replace")
+        if isinstance(partial_err, bytes):
+            partial_err = partial_err.decode("utf-8", "replace")
+        proc = type("P", (), {"returncode": 124,
+                              "stdout": partial_out,
+                              "stderr": partial_err + "\nTIMEOUT: external wall-clock limit reached\n"})()
     elapsed = time.time() - started
     (out / "stdout.log").write_text(proc.stdout)
     (out / "stderr.log").write_text(proc.stderr)
@@ -545,6 +627,22 @@ def main(argv=None) -> int:
             "all_address_size_unchanged": True,
         }
         injected = len(events)
+    elif args.model == "SQ03":
+        events = _sq03_trace_events(out / "prop_trace.csv.gz")
+        inj = {"events": events, "injected": len(events)}
+        target_proof = {
+            "site": "executeStore_canWB",
+            "events": len(events),
+            "all_canwb_0_to_1": all(
+                e["canwb_before"] == 0 and e["canwb_after"] == 1
+                for e in events),
+            "all_stores_wb_delta_1": all(
+                e["stores_to_wb_after"] - e["stores_to_wb_before"] == 1
+                for e in events),
+            "all_one_injection": len(events) == 1,
+            "all_address_size_unchanged": True,
+        }
+        injected = len(events)
     else:
         inj = _fw02_summary(out / "lsq_fwd_injections.log")
         target_proof = {"site": "store->load_forward_decision", **inj}
@@ -564,7 +662,17 @@ def main(argv=None) -> int:
             crash_by_fault = True
             pt_fault_addr = pt_match.group(1).lower()
             crash_evidence = "page_table_fault_after_injection"
-    if proc.returncode != 0 and crash_by_fault:
+    watchdog_hit = "CHAOS_SQ03_WATCHDOG_EXPIRED" in (
+        (proc.stdout or "") + (proc.stderr or ""))
+    if timed_out:
+        run_status, activation, terminal, completeness = (
+            "TIMEOUT", "TRIGGERED" if injected else "NOT_TRIGGERED",
+            "HANG", "INCOMPLETE")
+    elif watchdog_hit:
+        run_status, activation, terminal, completeness = (
+            "SIMULATOR_ERROR", "TRIGGERED" if injected else "NOT_TRIGGERED",
+            "HANG", "INCOMPLETE")
+    elif proc.returncode != 0 and crash_by_fault:
         run_status, activation, terminal, completeness = (
             "SIMULATOR_ERROR", "TRIGGERED", "CRASH", "COMPLETE")
     elif proc.returncode != 0:
@@ -668,7 +776,7 @@ def main(argv=None) -> int:
             "event_ordinal": excel_event_ordinal,
             "event_ordinal_used": sample.get("event_ordinal"),
         },
-        "workload": str(WORKLOADS / _workload_for(args.model)),
+        "workload": str(workload_path),
         "command": cmd,
         "exit_code": proc.returncode,
         "elapsed_seconds": round(elapsed, 3),

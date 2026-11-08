@@ -29,6 +29,9 @@ KIND_MAP = {
     "inj_l1dfwd": "injection",
     "inj_md04": "injection",
     "inj_fw05": "injection",
+    "inj_sq03": "injection",
+    "sq03_wb": "store_writeback",
+    "sq03_complete": "sq03_complete",
     "store_wb": "store_writeback",
     "store_mem": "store_mem_write",
     "store_overwrite": "store_overwrite",
@@ -56,6 +59,9 @@ UNIT_MAP = {
     "inj_l1dfwd": ("L1D", "load_response_data"),
     "inj_md04": ("MD", "dependency_violation"),
     "inj_fw05": ("FWD", "wrong_source_forward"),
+    "inj_sq03": ("SQ", "writeback_permission"),
+    "sq03_wb": ("SQ", "writeback"),
+    "sq03_complete": ("SQ", "complete"),
     "store_wb": ("SQ", "writeback"),
     "store_mem": ("L1D", "memory_write"),
     "store_overwrite": ("SQ", "overwrite"),
@@ -223,6 +229,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             va, pa = _hex(d.get("load_addr")), None
             old_value = d.get("true_data_fnv")
             new_value = d.get("alt_data_fnv")
+        elif kind == "inj_sq03":
+            va, pa = _hex(d.get("store_addr")), None
+            old_value = d.get("canwb_before")
+            new_value = d.get("canwb_after")
         elif kind in ("lq_lifecycle", "sq_lifecycle"):
             va, pa = None, None
             old_value, new_value = None, None
@@ -282,6 +292,40 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                 "address_modified": _int(d.get("address_modified")),
                 "size_modified": _int(d.get("size_modified")),
                 "data_modified": _int(d.get("data_modified")),
+            }
+        if kind == "inj_sq03":
+            extra = {
+                "store_seq": _int(d.get("store_seq")),
+                "store_pc": _hex(d.get("store_pc")),
+                "store_addr": _hex(d.get("store_addr")),
+                "store_size": _int(d.get("store_size")),
+                "sq_entry_generation": _int(d.get("sq_entry_generation")),
+                "canwb_before": _int(d.get("canwb_before")),
+                "canwb_after": _int(d.get("canwb_after")),
+                "stores_to_wb_before": _int(d.get("stores_to_wb_before")),
+                "stores_to_wb_after": _int(d.get("stores_to_wb_after")),
+                "inject_tick": _int(d.get("inject_tick")),
+                "eligible_ordinal": _int(d.get("eligible_ordinal")),
+                "event_ordinal": _int(d.get("event_ordinal")),
+                "seed": _int(d.get("seed")),
+                "address_modified": _int(d.get("address_modified")),
+                "size_modified": _int(d.get("size_modified")),
+                "data_modified": _int(d.get("data_modified")),
+            }
+        if kind == "sq03_wb":
+            extra = {
+                "store_seq": _int(d.get("store_seq")),
+                "writeback_tick": _int(d.get("writeback_tick")),
+                "inject_tick": _int(d.get("inject_tick")),
+                "canwb_after": _int(d.get("canwb_after")),
+                "stores_to_wb_after": _int(d.get("stores_to_wb_after")),
+            }
+        if kind == "sq03_complete":
+            extra = {
+                "store_seq": _int(d.get("store_seq")),
+                "complete_tick": _int(d.get("complete_tick")),
+                "writeback_tick": _int(d.get("writeback_tick")),
+                "inject_tick": _int(d.get("inject_tick")),
             }
         if kind == "inj_fw05":
             extra = {

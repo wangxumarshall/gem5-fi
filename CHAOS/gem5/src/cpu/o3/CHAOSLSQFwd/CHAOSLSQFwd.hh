@@ -93,6 +93,8 @@ class CHAOSLSQFwd : public SimObject
     // the simulation with a non-zero code. The event fires at
     // sq03WatchdogCycles after construction.
     void sq03Watchdog();
+    uint64_t sq03LastEligible() const { return eligible_count; }
+    uint64_t injectorSeed() const { return rng_seed; }
 
     // SQ01 (LSU v3.2.3): after LSQUnit::write() has copied store data into the
     // SQ entry, flip byte0 bit3 once under the F0 trigger. Data-only: no SQ
