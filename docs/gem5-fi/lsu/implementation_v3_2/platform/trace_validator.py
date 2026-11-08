@@ -135,6 +135,23 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
         parent = rec.get("parent_event_id")
         if parent is not None and parent not in events:
             errs.append(f"event {rec.get('event_id')}: parent_event_id {parent} does not exist")
+        # v3.2.7: an event's detail may restate its execution attempt; the
+        # restated value must agree with the record field, otherwise a
+        # cross-attempt chain is built from contradictory identities.
+        if rec.get("event_type") == "memory_response":
+            embedded = None
+            for item in (rec.get("detail") or "").split(";"):
+                if item.startswith("execution_attempt_id="):
+                    embedded = item.split("=", 1)[1]
+            if embedded is not None and rec.get("execution_attempt_id") is not None:
+                try:
+                    if int(embedded, 0) != rec.get("execution_attempt_id"):
+                        errs.append(
+                            f"event {rec.get('event_id')}: detail "
+                            f"execution_attempt_id={embedded} disagrees with "
+                            f"record field")
+                except ValueError:
+                    pass
     def _detail(text: str) -> dict[str, str]:
         return dict(item.split("=", 1) for item in (text or "").split(";")
                     if "=" in item)

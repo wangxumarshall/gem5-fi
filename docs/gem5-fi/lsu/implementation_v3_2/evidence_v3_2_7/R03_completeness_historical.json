@@ -1,0 +1,39 @@
+{
+  "trace": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R03/trace_v31.jsonl",
+  "trace_completeness": "COMPLETE",
+  "record_integrity": "VALID",
+  "propagation_coverage": "PARTIAL",
+  "propagation_stages": [
+    "injection",
+    "memory_response",
+    "register_writeback",
+    "consumer_commit",
+    "errant_commit"
+  ],
+  "expected_stages": [
+    "injection",
+    "memory_response",
+    "register_writeback"
+  ],
+  "missing_stages": [],
+  "chain_ptag": 1,
+  "chain_scoped": true,
+  "chain_source": "ptag",
+  "chain_events": 266,
+  "consumer_operand_records": 259,
+  "consumer_instructions": 259,
+  "taint_value_mismatch_records": 0,
+  "chain_integrity": "FAIL",
+  "chain_reasons": [
+    "cross_attempt_without_identity"
+  ],
+  "execution_attempt_link": "CROSS_ATTEMPT_UNVERIFIED",
+  "terminal_state": "MASKED",
+  "run_status": "COMPLETED",
+  "fault_activation_status": "TRIGGERED",
+  "events": 27537,
+  "edges": 263,
+  "injections": 1,
+  "activations": 263,
+  "reasons": []
+}

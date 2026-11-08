@@ -215,6 +215,7 @@ def check_completeness(path: Path) -> dict:
                     if "=" in item)
 
     chain_reasons: list[str] = []
+    execution_attempt_link = "UNKNOWN"
     if inj is None:
         chain_reasons.append("no_injection_event")
     elif not chain_scoped:
@@ -223,6 +224,69 @@ def check_completeness(path: Path) -> dict:
         by_type: dict[str, list[dict]] = {}
         for e in chain:
             by_type.setdefault(e.get("event_type"), []).append(e)
+
+        # v3.2.7: an execution-attempt change is not by itself a broken chain
+        # (a D-cache-blocked load is re-executed in place), but it may only
+        # be stitched when the identity tuple agrees across attempts:
+        # (dyn seq, LQ entry, entry generation, request id). Without that
+        # evidence the chain is INCONCLUSIVE, never COMPLETE.
+        def _num(value):
+            try:
+                return int(str(value), 0)
+            except (TypeError, ValueError):
+                return None
+
+        attempt_ids = sorted({e.get("execution_attempt_id") for e in chain
+                              if e.get("execution_attempt_id") is not None})
+        execution_attempt_link = "SAME_ATTEMPT"
+        if len(attempt_ids) > 1:
+            execution_attempt_link = "CROSS_ATTEMPT_VERIFIED"
+            inj_detail = _d(inj.get("detail")) if inj else {}
+            inj_lq = _num(inj.get("lq_entry_id")
+                          or inj_detail.get("lq_entry_id")
+                          or inj_detail.get("load_lq_entry_id"))
+            inj_gen = _num(inj.get("entry_generation")
+                           or inj_detail.get("lq_entry_generation")
+                           or inj_detail.get("load_entry_generation"))
+            inj_req = _num(inj_detail.get("load_request_id")
+                           or inj.get("request_id"))
+            fault_inst_kinds = {"memory_response", "register_writeback",
+                                "commit", "errant_commit", "squash"}
+            for e in chain:
+                if e.get("execution_attempt_id") in (
+                        None, inj.get("execution_attempt_id")):
+                    continue
+                if e.get("event_type") not in fault_inst_kinds:
+                    # Consumers are different dynamic instructions; their
+                    # linkage is the propagation edge, not this identity.
+                    continue
+                ed = _d(e.get("detail"))
+                same_seq = e.get("dyn_inst_seq") == inj.get("dyn_inst_seq")
+                ev_lq = _num(e.get("lq_entry_id") or ed.get("lq_entry_id"))
+                ev_gen = _num(e.get("entry_generation")
+                              or ed.get("entry_generation")
+                              or ed.get("lq_entry_generation"))
+                ev_req = _num(e.get("request_id") or ed.get("request_id"))
+                same_lq = ev_lq is None or inj_lq is None or ev_lq == inj_lq
+                same_gen = (ev_gen is None or inj_gen is None
+                            or ev_gen == inj_gen)
+                # The response is the delivery event and must be tied by the
+                # real request id; other same-instruction events may omit it.
+                same_req = (ev_req is None
+                            or (inj_req is not None and ev_req == inj_req))
+                if e.get("event_type") == "memory_response":
+                    same_req = (ev_req is not None and inj_req is not None
+                                and ev_req == inj_req)
+                if not (same_seq and same_lq and same_gen and same_req):
+                    execution_attempt_link = "CROSS_ATTEMPT_UNVERIFIED"
+                    chain_reasons.append("cross_attempt_without_identity")
+                    break
+            if (execution_attempt_link == "CROSS_ATTEMPT_VERIFIED"
+                    and (inj_lq is None or inj_gen is None
+                         or inj_req is None)):
+                # The injection must expose the identity it is verified by.
+                execution_attempt_link = "CROSS_ATTEMPT_UNVERIFIED"
+                chain_reasons.append("cross_attempt_without_identity")
         for t in ("store_writeback", "store_mem_write"):
             for e in by_type.get(t, []):
                 if e.get("dyn_inst_seq") != inj_seq:
@@ -346,6 +410,7 @@ def check_completeness(path: Path) -> dict:
         "taint_value_mismatch_records": mismatch_records,
         "chain_integrity": chain_integrity,
         "chain_reasons": chain_reasons,
+        "execution_attempt_link": execution_attempt_link,
         "terminal_state": terminal,
         "run_status": summary.get("run_status"),
         "fault_activation_status": summary.get("fault_activation_status"),
