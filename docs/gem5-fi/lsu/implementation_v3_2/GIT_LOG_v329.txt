@@ -1,4 +1,6 @@
-f38ce587 (HEAD -> lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][DOCS] status report and cross-artifact consistency check
+316f690a (HEAD -> lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][DOCS] check off the plan and add the package README
+525be053 [LSU][MDSPEC][V3.2.9][PACKAGE] final report, open issues and git provenance
+f38ce587 [LSU][MDSPEC][V3.2.9][DOCS] status report and cross-artifact consistency check
 b48ee443 [LSU][MDSPEC][V3.2.9][TESTS] install pytest-check, supply the expected check fixture, run full suite
 65c28b8c [LSU][MDSPEC][V3.2.9][EXCEL] publish v3.2.4 with archive path and SP05/SQ03 status
 34cefb51 [LSU][MDSPEC][V3.2.9][FW05] strict matched baselines on the final binary

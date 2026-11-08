@@ -11,9 +11,17 @@
  .../FW05_Workload_Archive/SHA256SUMS               |   27 +-
  .../FW05_Workload_Archive/run_pilot.sh             |   23 +-
  .../lsu/implementation_v3_2/GIT_BASELINE_v329.txt  |    3 +
+ .../lsu/implementation_v3_2/GIT_COMMIT_v329.txt    |    5 +
+ .../lsu/implementation_v3_2/GIT_DIFF_CODE_v329.txt | 1073 ++++++++++++++++++
+ .../lsu/implementation_v3_2/GIT_DIFF_STAT_v329.txt |   82 ++
+ .../lsu/implementation_v3_2/GIT_LOG_v329.txt       |   13 +
+ .../lsu/implementation_v3_2/GIT_STATUS_v329.txt    |  156 +++
+ .../implementation_v3_2/LSU_v3.2.9_Final_Report.md |   50 +
  .../LSU_v3.2.9_Status_Report.md                    |   47 +
  .../implementation_v3_2/LSU_v3.2.9_Work_Order.md   |  483 ++++++++
  .../implementation_v3_2/MODEL_STATUS_MATRIX.csv    |   26 +-
+ .../lsu/implementation_v3_2/OPEN_ISSUES_v3.2.9.md  |   29 +
+ .../implementation_v3_2/PACKAGE_README_v3.2.9.md   |   34 +
  .../SP05_Implementation_v3.2.9.md                  |   45 +
  .../SP05_Safety_Tests_v3.2.9.md                    |   17 +
  .../SP05_Source_Audit_v3.2.9.md                    |   89 ++
@@ -79,4 +87,4 @@
  tools/analyze_sq03_propagation.py                  |  169 +++
  tools/build_lsu_v324_workbook.py                   |  128 +++
  tools/check_v329_consistency.py                    |   78 ++
- 81 files changed, 4360 insertions(+), 44 deletions(-)
+ 89 files changed, 5802 insertions(+), 44 deletions(-)

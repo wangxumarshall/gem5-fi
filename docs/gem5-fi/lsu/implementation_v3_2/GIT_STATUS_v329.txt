@@ -1,3 +1,6 @@
+ M docs/gem5-fi/lsu/implementation_v3_2/GIT_COMMIT_v329.txt
+ M docs/gem5-fi/lsu/implementation_v3_2/GIT_LOG_v329.txt
+ M docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v329.txt
 ?? .tmp_lsu_conc/
 ?? LSU_v3.2.3_Implementation_and_Model_Progress_Package.zip
 ?? LSU_v3.2.3_Propagation_Closure_Package.zip
@@ -8,11 +11,8 @@
 ?? LSU_v3.2.6_LP01_Trace_Closure_MD04_Package.zip
 ?? LSU_v3.2.8_FW05_ConfigFreeze_SQ03_Pilot_Package.zip
 ?? LSU_v3.2.8_FW05_ConfigFreeze_SQ03_Pilot_Package.zip.sha256
-?? docs/gem5-fi/lsu/implementation_v3_2/GIT_COMMIT_v329.txt
-?? docs/gem5-fi/lsu/implementation_v3_2/GIT_LOG_v329.txt
-?? docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v329.txt
-?? docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.9_Final_Report.md
-?? docs/gem5-fi/lsu/implementation_v3_2/OPEN_ISSUES_v3.2.9.md
+?? LSU_v3.2.9_SP05_Implementation_SQ03_Propagation_FW05_Closure_Package.zip
+?? LSU_v3.2.9_SP05_Implementation_SQ03_Propagation_FW05_Closure_Package.zip.sha256
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/citations.bib
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/config.ini
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/config.json
