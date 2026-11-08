@@ -31,3 +31,15 @@ by the injected wrong-source forwarding, not by a broken workload or oracle.
 
 Raw logs: `FW05_Workload_Archive/baselines/R01..R05/stdout.log`.
 Machine-readable: `evidence_v3_2_8/FW05_no_fault_baselines.csv`.
+
+## v3.2.9 strict matched baselines (same binary, only probability differs)
+
+The v3.2.8 baselines used `byte_flip`/`probability=0.0`. v3.2.9 adds the strict
+matched pair on the final v3.2.9 binary (`d6e60863…`):
+`--lsq_struct_mode fw05_older_src --max_faults 1 --rng_seed <seed>
+--lsqfwd_event_ordinal <ordinal>` with `--probability 0.0` (control) and
+`1.0` (fault). Same workload (`FW05_Workload_Archive/bin/fw05_forward`,
+SHA `0cf40509…`), same seed/ordinal, same binary. All five controls produce
+`0x67afad307642983e`; the fault side reproduces R02–R05 SDC
+(`549c9e0347adaf23/25/27/19`) and R01 golden. See
+`evidence_v3_2_9/FW05_strict_baselines.csv` and `.../R0{1..5}-{off,on}/`.
