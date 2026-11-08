@@ -91,6 +91,7 @@ class CHAOSLSQFwd;
 class CHAOSExec;  // §2.12 integer execution-unit injector (forward decl)
 class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
 class CHAOSL1DForward;  // §2.7 post-check-escape injector (forward decl)
+class CHAOSMD04;       // MD04 memory-dependency violation miss (forward decl)
 class CHAOSAddrPath;    // §2.4 AGU address-path injector (forward decl)
 class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
 // [LSU][OBS-L3] real L3 propagation tracer (observation-only, forward decl)
@@ -506,6 +507,9 @@ class CPU : public BaseCPU
     // §2.7 CHAOSL1DForward: raw pointer to the post-check-escape injector.
     CHAOSL1DForward *chaosL1DFwd = nullptr;
     void setChaosL1DFwd(CHAOSL1DForward *p) { chaosL1DFwd = p; }
+    // MD04: raw pointer to the memory-dependency violation-miss injector.
+    CHAOSMD04 *chaosMD04 = nullptr;
+    void setChaosMD04(CHAOSMD04 *p) { chaosMD04 = p; }
     // §2.4 CHAOSAddrPath: raw pointer to the AGU address-path injector.
     CHAOSAddrPath *chaosAddrPath = nullptr;
     void setChaosAddrPath(CHAOSAddrPath *p) { chaosAddrPath = p; }

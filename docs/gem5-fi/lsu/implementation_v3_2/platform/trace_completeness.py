@@ -75,11 +75,26 @@ PROFILES = {
     ("LP01", "SQUASHED"): [("injection", "squash")],
     ("LP01", "CRASH"): [("injection", "simulator_abort")],
     ("LP01", "UNRESOLVED"): [("injection",)],
+    # MD04 (v3.2.6): a suppressed store->load violation. The response may be
+    # consumed before the violation check (late-bound writeback), so the
+    # no-response alternative is legitimate and labelled.
+    ("MD04", "SDC"): [
+        ("injection", "memory_response", "register_writeback",
+         "consumer_commit"),
+        ("injection", "register_writeback", "consumer_commit"),
+    ],
+    ("MD04", "MASKED"): [
+        ("injection", "memory_response", "register_writeback"),
+        ("injection", "register_writeback"),
+        ("injection",),
+    ],
+    ("MD04", "SQUASHED"): [("injection", "squash")],
+    ("MD04", "UNRESOLVED"): [("injection",)],
 }
 DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW02": ("forwarding_decision",),
                    "DA04": ("injection",), "SQ01": ("injection",),
-                   "LP01": ("injection",)}
+                   "LP01": ("injection",), "MD04": ("injection",)}
 
 
 def expected_stages(model_id: str | None,
@@ -158,6 +173,16 @@ def check_completeness(path: Path) -> dict:
                  if inj_seq is not None and e.get("dyn_inst_seq") == inj_seq]
         chain_source = "dyn_seq"
     kinds = {e.get("event_type") for e in chain}
+    consumer_nodes = [e for e in chain
+                      if e.get("event_type") == "consumer_commit"]
+    # v3.2.5.1: operand records are not instructions. A multi-source
+    # instruction can produce several matched consumer nodes.
+    consumer_operand_records = len(consumer_nodes)
+    consumer_instructions = len({e.get("dyn_inst_seq")
+                                 for e in consumer_nodes
+                                 if e.get("dyn_inst_seq") is not None})
+    mismatch_records = sum(1 for e in chain
+                           if e.get("event_type") == "taint_value_mismatch")
     stages = []
     for stage in ("injection", "address_formed", "memory_request",
                   "memory_response", "register_writeback",
@@ -257,6 +282,43 @@ def check_completeness(path: Path) -> dict:
                     dd.get("disabled_unchanged") != "1":
                 chain_reasons.append("byte_enable_not_applied")
 
+        # DA04 v3.2.6: the load request/response/product chain must be linked
+        # by real ids and ordered by real ticks. Store-side mem_req nodes are
+        # excluded by dyn seq.
+        if model_id == "DA04":
+            load_reqs = [e for e in by_type.get("memory_request", [])
+                         if e.get("dyn_inst_seq") != inj_seq]
+            req_by_id = {}
+            for e in load_reqs:
+                rid = e.get("request_id")
+                if rid is not None:
+                    req_by_id.setdefault(rid, []).append(e)
+            for r in by_type.get("memory_response", []):
+                rid = r.get("request_id")
+                cand = [e for e in req_by_id.get(rid, [])
+                        if e.get("timestamp", 0) <= r.get("timestamp", 0)]
+                if not cand:
+                    chain_reasons.append("response_without_request")
+                    continue
+                m = max(cand, key=lambda e: e.get("timestamp", 0))
+                md = _d(m.get("detail"))
+                if md.get("candidate") == "0":
+                    chain_reasons.append("response_request_not_causal")
+                if m.get("dyn_inst_seq") != r.get("dyn_inst_seq"):
+                    chain_reasons.append("response_dyn_seq_mismatch")
+                sw = int(md.get("store_write_tick", "0") or 0)
+                ls = int(md.get("last_send_tick", "0") or 0)
+                if sw and ls and ls < sw:
+                    chain_reasons.append("request_before_store_write")
+            if sm and load_reqs:
+                first_req = min(e.get("timestamp", 0) for e in load_reqs)
+                if first_req < max(e.get("timestamp", 0) for e in sm):
+                    chain_reasons.append("load_request_before_store_write_event")
+            for w in taints:
+                src = by_id.get(w.get("source_event_id"))
+                if src and w.get("timestamp", 0) < src.get("timestamp", 0):
+                    chain_reasons.append("writeback_before_response")
+
     if inj is None or not chain_scoped:
         # No chain identity (legacy trace): coverage is a global observation,
         # never a claim that the fault's own chain is complete.
@@ -279,6 +341,9 @@ def check_completeness(path: Path) -> dict:
         "chain_scoped": chain_scoped,
         "chain_source": chain_source,
         "chain_events": len(chain),
+        "consumer_operand_records": consumer_operand_records,
+        "consumer_instructions": consumer_instructions,
+        "taint_value_mismatch_records": mismatch_records,
         "chain_integrity": chain_integrity,
         "chain_reasons": chain_reasons,
         "terminal_state": terminal,

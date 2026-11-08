@@ -135,6 +135,10 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
         parent = rec.get("parent_event_id")
         if parent is not None and parent not in events:
             errs.append(f"event {rec.get('event_id')}: parent_event_id {parent} does not exist")
+    def _detail(text: str) -> dict[str, str]:
+        return dict(item.split("=", 1) for item in (text or "").split(";")
+                    if "=" in item)
+
     for rec in records:
         if rec.get("record_type") != "propagation_edge":
             continue
@@ -143,6 +147,47 @@ def validate_records(records: list[dict[str, Any]]) -> list[str]:
             if target not in events:
                 errs.append(
                     f"edge {rec.get('propagation_edge_id')}: {key}={target} is not an event")
+        if rec.get("edge_type") != "register_dataflow":
+            continue
+        src = events.get(rec.get("source_event_id"))
+        dst = events.get(rec.get("destination_event_id"))
+        if not src or not dst:
+            continue
+        sd = _detail(src.get("detail"))
+        dd = _detail(dst.get("detail"))
+        src_hash = sd.get("writeback_value_fnv") or sd.get("consumer_output_fnv")
+        dst_in = dd.get("consumer_input_fnv")
+        dst_out = dd.get("consumer_output_fnv")
+        if src_hash and rec.get("source_value_hash") and \
+                src_hash != rec.get("source_value_hash"):
+            errs.append(
+                f"edge {rec.get('propagation_edge_id')}: source_value_hash "
+                f"does not match source event output hash")
+        # The edge carries the propagated input on source and the consumer's
+        # new destination value on destination. The consumer's input must be
+        # the propagated value; its output is the destination hash.
+        if dst_out and rec.get("destination_value_hash") and \
+                dst_out != rec.get("destination_value_hash"):
+            errs.append(
+                f"edge {rec.get('propagation_edge_id')}: destination_value_hash "
+                f"does not match consumer output hash")
+        if dst_in and rec.get("source_value_hash") and \
+                dst_in != rec.get("source_value_hash"):
+            errs.append(
+                f"edge {rec.get('propagation_edge_id')}: consumer input hash "
+                f"does not match propagated source hash")
+        if dst.get("event_type") != "consumer_commit":
+            errs.append(
+                f"edge {rec.get('propagation_edge_id')}: register_dataflow "
+                f"destination is not a consumer_commit")
+        if rec.get("producer_inst_seq") != src.get("dyn_inst_seq"):
+            errs.append(
+                f"edge {rec.get('propagation_edge_id')}: producer_inst_seq "
+                f"does not match source dyn_inst_seq")
+        if rec.get("consumer_inst_seq") != dst.get("dyn_inst_seq"):
+            errs.append(
+                f"edge {rec.get('propagation_edge_id')}: consumer_inst_seq "
+                f"does not match destination dyn_inst_seq")
     # v3.2.4: an injection_event_id must not mix different ptag chains.
     # This is the record-level guard against stitching a "complete" chain out
     # of events from different dynamic instructions.

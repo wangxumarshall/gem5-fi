@@ -23,19 +23,24 @@ def _da04_chain(tmp_path, *, store_ptag=1, resp_ptag=1, resp_seq=300,
     w.event("store_writeback", ptag=store_ptag, dyn_inst_seq=250,
             trace_completeness="COMPLETE", detail="be_mask=0xe")
     w.event("store_mem_write", ptag=store_ptag, dyn_inst_seq=250,
-            trace_completeness="COMPLETE",
+            timestamp=100, trace_completeness="COMPLETE",
             detail=f"family=byte_enable;disabled_unchanged={disabled}")
+    w.event("memory_request", ptag=resp_ptag, dyn_inst_seq=resp_seq,
+            timestamp=200, request_id=35, trace_completeness="COMPLETE",
+            detail=("family=byte_enable;candidate=1;request_id=35;"
+                    "last_send_tick=200;store_write_tick=100;size=4"))
     e_resp = w.event("memory_response", ptag=resp_ptag, dyn_inst_seq=resp_seq,
+                     timestamp=210, request_id=35,
                      trace_completeness="COMPLETE",
                      detail=f"data_fnv={resp_hash}")
     e_taint = w.event("register_writeback", ptag=resp_ptag,
-                      dyn_inst_seq=resp_seq,
+                      dyn_inst_seq=resp_seq, timestamp=220,
                       trace_completeness="COMPLETE",
                       source_event_id=e_resp,
                       detail=f"source_value_hash={taint_hash}")
     src = e_taint if consumer_src == "taint" else None
     w.event("consumer_commit", ptag=resp_ptag, dyn_inst_seq=301,
-            trace_completeness="COMPLETE", source_event_id=src)
+            timestamp=230, trace_completeness="COMPLETE", source_event_id=src)
     w.close(run_status="COMPLETED", activation="TRIGGERED",
             terminal="SDC", completeness="COMPLETE")
     return path, e_inj

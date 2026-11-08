@@ -27,7 +27,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSMD04, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
 # [LSU][OBS-FIX-6]（2026-10-14 止损，中央指令）：CHAOSPropagation 改按需导入。
 # 根因：实现（CHAOS/gem5/src/cpu/o3/CHAOSPropagation/，提交 6c9d5930）晚于
 # 主树冻结二进制 build/ARM/gem5.opt（2026-10-11 编译，AGU legacy 轨道专用，
@@ -439,6 +439,16 @@ p.add_argument("--l1dfwd_count_only", action="store_true",
                help="count eligible load responses, never corrupt")
 p.add_argument("--l1dfwd_event_ordinal", type=lambda x: int(x, 0), default=0,
                help="1-based eligible load-response ordinal (R01-R05 temporary selection)")
+# MD04: memory-dependency violation miss (checkViolations store->load alias).
+p.add_argument("--chaos_md04", action="store_true",
+               help="attach CHAOSMD04 (dependency violation miss)")
+p.add_argument("--md04_event_ordinal", type=lambda x: int(x, 0), default=0,
+               help="1-based eligible same-address 8B alias ordinal (0 = first)")
+p.add_argument("--md04_max_faults", type=lambda x: int(x, 0), default=1)
+p.add_argument("--md04_probability", type=float, default=1.0)
+p.add_argument("--md04_first_clock", type=lambda x: int(x, 0), default=0)
+p.add_argument("--md04_rng_seed", type=lambda x: int(x, 0), default=20261108)
+p.add_argument("--md04_count_only", action="store_true")
 # §2.13 CHAOSBPU (O3 branch-prediction injector). SELF-ATTACHES at startup()
 # to cpu.o3BAC().chaosBPU. Hooks BAC::predict post-bpu->predict; F5 flips
 # direction (dir_flip) or PC target bit (target_flip).
@@ -1011,6 +1021,19 @@ if args.chaos_l1dfwd:
         writeLog=True,
     )
     board.chaos_l1dfwd = l1df
+
+if args.chaos_md04:
+    md04 = CHAOSMD04(
+        cpu=cpu0,
+        probability=args.md04_probability,
+        firstClock=args.md04_first_clock,
+        maxFaults=args.md04_max_faults,
+        rngSeed=args.md04_rng_seed,
+        eventOrdinal=args.md04_event_ordinal,
+        countOnly=args.md04_count_only,
+        writeLog=True,
+    )
+    board.chaos_md04 = md04
 
 if args.chaos_bpu:
     # §2.13 CHAOSBPU: O3-only. SELF-ATTACHES at startup() to cpu.o3BAC().

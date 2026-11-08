@@ -793,6 +793,16 @@ namespace gem5
             hit_ptag = lf->second.ptag;
             hit_family = "l1d_fwd";
         }
+        // MD04: bind the load's response if it arrives after the suppressed
+        // violation report. A late-bound load (response already consumed) is
+        // handled at injection and never reaches here.
+        auto md = md04_registry.find(inst->seqNum);
+        if (!hit_ptag && md != md04_registry.end()
+                && !md->second.load_complete
+                && md->second.resp_node == 0) {
+            hit_ptag = md->second.ptag;
+            hit_family = "md04";
+        }
 
         // addrpath: the response's own Request vaddr range vs the registry,
         // bound to this instruction (the faulting load itself).
@@ -904,6 +914,13 @@ namespace gem5
                                  : inst->sqEntryGeneration)
               << ";execution_attempt_id=" << inst->executionAttemptId
               << ";replay_generation=" << inst->replayGeneration;
+            if (hit_family && std::string(hit_family) == "md04") {
+                d << ";family=md04;late_binding=0"
+                  << ";load_seq=" << inst->seqNum
+                  << ";store_seq=" << md->second.store_seq
+                  << ";eligible_ordinal=" << md->second.eligible_ordinal
+                  << ";violation_report_suppressed=1";
+            }
             if (l1d_fwd) {
                 d << ";orig_data_fnv=" << lf->second.orig_fnv
                   << ";orig_data_hex=" << lf->second.orig_hex
@@ -931,6 +948,8 @@ namespace gem5
             resp_hash_by_ptag[hit_ptag] = data_hash_str;
             if (l1d_fwd)
                 lf->second.resp_node = resp_node;
+            if (hit_family && std::string(hit_family) == "md04")
+                md->second.resp_node = resp_node;
         }
 
         // LP01 writeback is emitted after LSQUnit::writeback reads the PRF
@@ -939,46 +958,22 @@ namespace gem5
         if (l1d_fwd)
             return;
 
-        // taint_reg: exactly the condition under which LSQUnit::writeback
-        // performs completeAcc (needWBToRegister + NoFault) — the load's
-        // dest phys regs receive the fault-delivered data. The writeback
-        // value is the packet data captured at this pre-writeback point
-        // (for the A01/A03 pilots no post-check injector mutates it later).
+        // v3.2.6: defer the register_writeback node until AFTER completeAcc.
+        // The packet bytes are not the register value for size < 8
+        // (endianness/extension), so hashing them here made the source hash
+        // discontinuous with the consumer input (DA04's 4-byte load).
         if (!wb_to_reg || inst->getFault() != NoFault)
             return;
-        const int ndest = (int)inst->numDestRegs();
-        for (int i = 0; i < ndest; ++i) {
-            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
-            if (!phys)
-                continue;
-            const std::pair<int, uint32_t> key(phys->classValue(),
-                                               phys->index());
-            TaintEntry te;
-            te.ptag = hit_ptag;
-            te.taintor_seq = inst->seqNum;
-            te.node_id = 0;
-            te.value_hash = data_hash_str;
-            std::ostringstream d;
-            d << "class=" << regClassName(phys->classValue())
-              << ";dest_idx=" << i
-              << ";phys_reg=" << phys->index()
-              << ";arch_reg=" << inst->destRegIdx(i).index()
-              << ";writeback_value=" << (data_hex.empty() ? "null" : data_hex)
-              << ";writeback_fnv=" << (data_len ? data_hash_str : "null")
-              << ";source_event_id=" << resp_node
-              << ";source_value_hash=" << (data_len ? data_hash_str : "null")
-              << ";request_id=" << request_id
-              << ";response_id=" << response_id
-              << ";execution_attempt_id=" << inst->executionAttemptId
-              << ";replay_generation=" << inst->replayGeneration;
-            const uint64_t taint_node = writeNode(
-                hit_ptag, "taint_reg", inst->seqNum, true,
-                request_id, request_id != 0, pkt->getAddr(), true,
-                phys->index(), true,
-                inst->destRegIdx(i).index(), true, d.str());
-            te.node_id = taint_node;
-            taint_set[key] = te;
-        }
+        ChainWbEntry w;
+        w.ptag = hit_ptag;
+        w.resp_node = resp_node;
+        w.request_id = request_id;
+        w.response_id = response_id;
+        w.size = data_len;
+        w.family = hit_family ? hit_family : "unknown";
+        w.payload_fnv = data_hash_str;
+        w.payload_hex = data_hex;
+        pending_chain_wb[inst->seqNum] = w;
     }
 
     uint64_t
@@ -1149,6 +1144,164 @@ namespace gem5
     }
 
     void
+    CHAOSPropagation::noteChainWriteback(o3::DynInst *inst)
+    {
+        if (!write_log || !inst || !o3cpu)
+            return;
+        auto it = pending_chain_wb.find(inst->seqNum);
+        if (it == pending_chain_wb.end())
+            return;
+        const ChainWbEntry w = it->second;
+        pending_chain_wb.erase(it);
+        if (inst->getFault() != NoFault)
+            return;   // completeAcc did not run; no register value to claim
+
+        const int ndest = (int)inst->numDestRegs();
+        for (int i = 0; i < ndest; ++i) {
+            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
+            if (!phys)
+                continue;
+            uint64_t value = 0;
+            unsigned bytes = 0;
+            const std::string vhash = regValueHash(
+                inst, phys, inst->threadNumber, &value, &bytes);
+            if (vhash.empty())
+                continue;
+            const bool scalar8 = (w.size == 8 && bytes == 8);
+            const bool basis_ok = scalar8 && vhash == w.payload_fnv;
+            const char *basis = scalar8 ? "payload_equals_regval"
+                : "regval_extension";
+            std::ostringstream vb;
+            vb << std::hex << value << std::dec;
+            std::ostringstream d;
+            d << "family=" << w.family
+              << ";class=" << regClassName(phys->classValue())
+              << ";dest_idx=" << i
+              << ";phys_reg=" << phys->index()
+              << ";arch_reg=" << inst->destRegIdx(i).index()
+              << ";writeback_value=" << vb.str()
+              << ";writeback_value_fnv=" << vhash
+              << ";payload_fnv=" << w.payload_fnv
+              << ";payload_hex=" << w.payload_hex
+              << ";payload_len=" << w.size
+              << ";hash_basis=" << basis
+              << ";value_matches_payload=" << (basis_ok ? 1 : 0)
+              << ";source_value_hash=" << w.payload_fnv
+              << ";source_event_id=" << w.resp_node
+              << ";request_id=" << w.request_id
+              << ";response_id=" << w.response_id
+              << ";execution_attempt_id=" << inst->executionAttemptId
+              << ";replay_generation=" << inst->replayGeneration
+              << ";writeback_tick=" << curTick();
+            const uint64_t wb_node = writeNode(
+                w.ptag, "taint_reg", inst->seqNum, true,
+                w.request_id, w.request_id != 0, 0, false,
+                phys->index(), true,
+                inst->destRegIdx(i).index(), true, d.str());
+            TaintEntry te;
+            te.ptag = w.ptag;
+            te.taintor_seq = inst->seqNum;
+            te.node_id = wb_node;
+            te.value_hash = vhash;   // actual PRF value
+            taint_set[std::make_pair(phys->classValue(),
+                                     phys->index())] = te;
+            if (w.resp_node)
+                writeEdgeRow(w.ptag, w.resp_node, wb_node, inst->seqNum,
+                             inst->seqNum, w.payload_fnv, vhash,
+                             (basis_ok ? "payload_to_register"
+                                       : "payload_to_register_extended"));
+        }
+    }
+
+    void
+    CHAOSPropagation::noteMD04Injection(o3::DynInst *inst, uint64_t store_seq,
+                                        Addr vaddr, unsigned size,
+                                        uint64_t eligible_ordinal,
+                                        bool load_complete)
+    {
+        if (!write_log || !inst)
+            return;
+        const uint64_t ptag = ++next_ptag;
+        fault_seqs.insert(inst->seqNum);
+        MD04Entry e;
+        e.ptag = ptag;
+        e.store_seq = store_seq;
+        e.vaddr = vaddr;
+        e.size = size;
+        e.eligible_ordinal = eligible_ordinal;
+        e.load_complete = load_complete;
+        md04_registry[inst->seqNum] = e;
+
+        std::ostringstream d;
+        d << "site=LSQUnit::checkViolations;family=md04;model=MD04"
+          << ";load_seq=" << inst->seqNum
+          << ";store_seq=" << store_seq
+          << ";addr=0x" << std::hex << vaddr << std::dec
+          << ";size=" << size
+          << ";eligible_ordinal=" << eligible_ordinal
+          << ";violation_report_suppressed=1"
+          << ";load_complete=" << (load_complete ? 1 : 0)
+          << ";load_lq_entry_id=" << inst->lqIdx
+          << ";load_entry_generation=" << inst->lqEntryGeneration
+          << ";execution_attempt_id=" << inst->executionAttemptId
+          << ";replay_generation=" << inst->replayGeneration
+          << ";phys_regs=";
+        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+            const PhysRegIdPtr p = inst->renamedDestIdx(i);
+            if (p)
+                d << (i ? "," : "") << regClassName(p->classValue())
+                  << ":" << p->index();
+        }
+        writeNode(ptag, "inj_md04", inst->seqNum, true, 0, false, vaddr, true,
+                  0, false, 0, false, d.str());
+
+        // The violation check runs at store execution; the load may already
+        // have consumed its response. In that case the PRF already holds the
+        // stale value: bind it late, explicitly labelled.
+        if (!load_complete || !o3cpu || inst->getFault() != NoFault)
+            return;
+        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+            const PhysRegIdPtr phys = inst->renamedDestIdx(i);
+            if (!phys)
+                continue;
+            uint64_t value = 0;
+            unsigned bytes = 0;
+            const std::string vhash = regValueHash(
+                inst, phys, inst->threadNumber, &value, &bytes);
+            if (vhash.empty())
+                continue;
+            std::ostringstream vb;
+            vb << std::hex << value << std::dec;
+            std::ostringstream wd;
+            wd << "family=md04;late_binding=1;class="
+               << regClassName(phys->classValue())
+               << ";phys_reg=" << phys->index()
+               << ";arch_reg=" << inst->destRegIdx(i).index()
+               << ";writeback_value=" << vb.str()
+               << ";writeback_value_fnv=" << vhash
+               << ";source_value_hash=null;source_event_id=0"
+               << ";load_seq=" << inst->seqNum
+               << ";store_seq=" << store_seq
+               << ";eligible_ordinal=" << eligible_ordinal
+               << ";lq_entry_id=" << inst->lqIdx
+               << ";entry_generation=" << inst->lqEntryGeneration
+               << ";execution_attempt_id=" << inst->executionAttemptId
+               << ";replay_generation=" << inst->replayGeneration
+               << ";writeback_tick=" << curTick();
+            const uint64_t wb_node = writeNode(
+                ptag, "taint_reg", inst->seqNum, true, 0, false, vaddr, true,
+                phys->index(), true, inst->destRegIdx(i).index(), true,
+                wd.str());
+            TaintEntry te;
+            te.ptag = ptag;
+            te.taintor_seq = inst->seqNum;
+            te.node_id = wb_node;
+            te.value_hash = vhash;
+            taint_set[std::make_pair(phys->classValue(), phys->index())] = te;
+        }
+    }
+
+    void
     CHAOSPropagation::noteReplay(o3::DynInst *inst, const char *reason)
     {
         if (!write_log || !inst)
@@ -1297,14 +1450,50 @@ namespace gem5
                 std::make_pair(phys->classValue(), phys->index()));
             if (it == taint_set.end())
                 continue;
-            any_consumer = true;
-            if (!first_consumed_ptag)
-                first_consumed_ptag = it->second.ptag;
 
             uint64_t ival = 0, oval = 0;
             unsigned ibytes = 0, obytes = 0;
             const std::string ihash =
                 regValueHash(head_inst, phys, tid, &ival, &ibytes);
+            const bool input_matches =
+                !ihash.empty() && !it->second.value_hash.empty()
+                && ihash == it->second.value_hash;
+
+            // v3.2.5.1: only a value-identical operand is a real consumer
+            // edge. A stale taint (phys-reg recycling, a later writer) or a
+            // non-scalar (unhashable) operand is a diagnostic, never an edge,
+            // and must not re-taint the destination.
+            if (!input_matches) {
+                std::ostringstream md;
+                md << "class=" << regClassName(phys->classValue())
+                   << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec
+                   << ";source_event_id=" << it->second.node_id
+                   << ";source_value_hash="
+                   << (it->second.value_hash.empty() ? "null"
+                                                     : it->second.value_hash)
+                   << ";consumer_input_value=" << std::hex << ival << std::dec
+                   << ";consumer_input_fnv="
+                   << (ihash.empty() ? "null" : ihash)
+                   << ";consumer_input_bytes=" << ibytes
+                   << ";reason="
+                   << (ihash.empty() || it->second.value_hash.empty()
+                           ? "hash_unavailable" : "hash_mismatch")
+                   << ";phys_reg=" << phys->index()
+                   << ";arch_reg=" << head_inst->srcRegIdx(i).index()
+                   << ";commit_seq=" << commit_seq
+                   << ";execution_attempt_id=" << head_inst->executionAttemptId
+                   << ";replay_generation=" << head_inst->replayGeneration;
+                writeNode(it->second.ptag, "taint_value_mismatch",
+                          head_inst->seqNum, true, 0, false, 0, false,
+                          phys->index(), true,
+                          head_inst->srcRegIdx(i).index(), true, md.str());
+                continue;
+            }
+
+            any_consumer = true;
+            if (!first_consumed_ptag)
+                first_consumed_ptag = it->second.ptag;
+
             std::string ohash;
             uint64_t out_phys = 0, out_arch = 0;
             if (head_inst->numDestRegs() > 0) {
@@ -1316,23 +1505,19 @@ namespace gem5
                     out_arch = head_inst->destRegIdx(0).index();
                 }
             }
-            const bool input_matches =
-                !ihash.empty() && !it->second.value_hash.empty()
-                && ihash == it->second.value_hash;
 
             std::ostringstream d;
             d << "class=" << regClassName(phys->classValue())
               << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec
               << ";source_event_id=" << it->second.node_id
-              << ";source_value_hash="
-              << (it->second.value_hash.empty() ? "null" : it->second.value_hash)
+              << ";source_value_hash=" << it->second.value_hash
               << ";consumer_input_value=" << std::hex << ival << std::dec
-              << ";consumer_input_fnv=" << (ihash.empty() ? "null" : ihash)
+              << ";consumer_input_fnv=" << ihash
               << ";consumer_input_bytes=" << ibytes
               << ";consumer_output_value=" << std::hex << oval << std::dec
               << ";consumer_output_fnv=" << (ohash.empty() ? "null" : ohash)
               << ";consumer_output_bytes=" << obytes
-              << ";consumer_input_matches_source=" << (input_matches ? 1 : 0)
+              << ";consumer_input_matches_source=1"
               << ";dest_phys_reg=" << out_phys
               << ";dest_arch_reg=" << out_arch
               << ";commit_seq=" << commit_seq

@@ -27,6 +27,7 @@ KIND_MAP = {
     "inj_store_data": "injection",
     "inj_store_be": "injection",
     "inj_l1dfwd": "injection",
+    "inj_md04": "injection",
     "store_wb": "store_writeback",
     "store_mem": "store_mem_write",
     "store_overwrite": "store_overwrite",
@@ -35,6 +36,7 @@ KIND_MAP = {
     "resp": "memory_response",
     "taint_reg": "register_writeback",
     "consumer": "consumer_commit",
+    "taint_value_mismatch": "taint_value_mismatch",
     "errant_commit": "errant_commit",
     "funnel": "funnel",
     "fwd": "forwarding_decision",
@@ -51,6 +53,7 @@ UNIT_MAP = {
     "inj_store_data": ("SQ", "store_data"),
     "inj_store_be": ("SQ", "byte_enable"),
     "inj_l1dfwd": ("L1D", "load_response_data"),
+    "inj_md04": ("MD", "dependency_violation"),
     "store_wb": ("SQ", "writeback"),
     "store_mem": ("L1D", "memory_write"),
     "store_overwrite": ("SQ", "overwrite"),
@@ -59,6 +62,7 @@ UNIT_MAP = {
     "resp": ("L1D", "response"),
     "taint_reg": ("RF", "writeback"),
     "consumer": ("Commit", "consumer"),
+    "taint_value_mismatch": ("Commit", "taint_value_mismatch"),
     "errant_commit": ("Commit", "errant_commit"),
     "funnel": ("Funnel", "counts"),
     "fwd": ("FWD", "Store-to-Load Forwarding"),
@@ -167,8 +171,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             injection_by_ptag[ptag_i] = next_injection
         injection_event_id = injection_by_ptag.get(ptag_i, 1)
         activation_status = ("TRIGGERED"
-                             if ptag_i > 0 or kind in ("inj", "inj_nochange",
-                                                       "inj_store_data")
+                             if (ptag_i > 0 or kind in ("inj", "inj_nochange",
+                                                        "inj_store_data"))
+                             and kind != "taint_value_mismatch"
                              else "UNKNOWN")
         commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit", "commit")
                          else "UNKNOWN")
@@ -209,6 +214,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             va, pa = None, _hex(d.get("addr"))
             old_value = d.get("orig_data_hex")
             new_value = d.get("inj_data_hex")
+        elif kind == "inj_md04":
+            va, pa = _hex(d.get("addr")), None
+            old_value, new_value = None, None
         elif kind in ("lq_lifecycle", "sq_lifecycle"):
             va, pa = None, None
             old_value, new_value = None, None
@@ -236,6 +244,15 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                 "access_size_after": _int(d.get("size_after")),
                 "store_data_before": d.get("store_data_fnv"),
                 "store_data_after": d.get("store_data_fnv"),
+            }
+        if kind == "inj_md04":
+            extra = {
+                "load_seq": _int(d.get("load_seq")),
+                "store_seq": _int(d.get("store_seq")),
+                "eligible_event_ordinal": _int(d.get("eligible_ordinal")),
+                "load_complete_at_injection": _int(d.get("load_complete")),
+                "violation_report_suppressed": _int(
+                    d.get("violation_report_suppressed")),
             }
         if kind == "inj_l1dfwd":
             extra = {

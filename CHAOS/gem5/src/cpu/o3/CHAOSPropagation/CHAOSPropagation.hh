@@ -286,6 +286,20 @@ class CHAOSPropagation : public SimObject
     // value and emit the LP01 register_writeback node + taint entry.
     void noteL1DForwardWriteback(o3::DynInst *inst);
 
+    // Generic post-writeback taint: noteMemResponse stores the response hit;
+    // after LSQUnit::writeback (completeAcc) this reads the ACTUAL PRF value
+    // and emits the register_writeback node + taint entry. This makes the
+    // source hash continuous with consumer input for every access size and
+    // endianness, not just 8-byte loads.
+    void noteChainWriteback(o3::DynInst *inst);
+
+    // MD04: one real same-address 8-byte store->load violation report was
+    // suppressed. The load keeps its stale data. If the response was already
+    // consumed (`load_complete`), the writeback is late-bound from the PRF.
+    void noteMD04Injection(o3::DynInst *inst, uint64_t store_seq, Addr vaddr,
+                           unsigned size, uint64_t eligible_ordinal,
+                           bool load_complete);
+
   private:
     // One CSV row: numeric fields with has_x=false print as "".
     uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
@@ -409,6 +423,29 @@ class CHAOSPropagation : public SimObject
         uint64_t resp_node = 0;
     };
     std::map<uint64_t, L1DFwdEntry> l1dfwd_registry;
+
+    struct MD04Entry {
+        uint64_t ptag = 0;
+        uint64_t store_seq = 0;
+        Addr vaddr = 0;
+        unsigned size = 0;
+        uint64_t eligible_ordinal = 0;
+        bool load_complete = false;
+        uint64_t resp_node = 0;
+    };
+    std::map<uint64_t, MD04Entry> md04_registry;  // key: load dyn seq
+
+    struct ChainWbEntry {
+        uint64_t ptag = 0;
+        uint64_t resp_node = 0;
+        uint64_t request_id = 0;
+        uint64_t response_id = 0;
+        unsigned size = 0;
+        std::string family;
+        std::string payload_fnv;
+        std::string payload_hex;
+    };
+    std::map<uint64_t, ChainWbEntry> pending_chain_wb;  // key: inst seq
 
     static uint64_t chaosBeMask(const std::vector<bool> &be);
 };

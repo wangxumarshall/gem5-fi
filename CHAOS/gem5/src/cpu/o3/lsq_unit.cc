@@ -49,6 +49,7 @@
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
 #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
+#include "cpu/o3/CHAOSMD04/CHAOSMD04.hh"  // MD04 dependency-violation miss
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
@@ -209,8 +210,12 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
                     inst.get(), pkt, request->needWBToRegister());
 
             writeback(inst, request->mainPacket());
-            if (lp01_injected && cpu->chaosPropagation)
-                cpu->chaosPropagation->noteL1DForwardWriteback(inst.get());
+            if (cpu->chaosPropagation) {
+                if (lp01_injected)
+                    cpu->chaosPropagation->noteL1DForwardWriteback(inst.get());
+                else
+                    cpu->chaosPropagation->noteChainWriteback(inst.get());
+            }
             if (inst->isStore() || inst->isAtomic()) {
                 request->writebackDone();
                 completeStore(request->instruction()->sqIt);
@@ -639,6 +644,22 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                         " between instructions [sn:%lli] and [sn:%lli]\n",
                         inst_eff_addr1, inst->seqNum, ld_inst->seqNum);
             } else {
+                // MD04: suppress ONE real same-address 8-byte store->load
+                // violation. The younger load keeps its stale data and may
+                // commit it. Only the report is skipped; no address/size
+                // changes. `load_complete` records whether the response was
+                // already consumed (trace late-binding boundary).
+                if (cpu->chaosMD04) {
+                    const bool load_complete =
+                        loadIt->request() && loadIt->request()->isComplete();
+                    if (cpu->chaosMD04->maybeSkipViolation(
+                            ld_inst.get(), inst.get(), load_complete)) {
+                        DPRINTF(LSQUnit, "CHAOSMD04: suppressed violation "
+                                "load [sn:%lli] store [sn:%lli] addr %#x\n",
+                                ld_inst->seqNum, inst->seqNum, ld_eff_addr1);
+                        break;
+                    }
+                }
                 // A load/store incorrectly passed this store.
                 // Check if we already have a violator, or if it's newer
                 // squash and refetch.

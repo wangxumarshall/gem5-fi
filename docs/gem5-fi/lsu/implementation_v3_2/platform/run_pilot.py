@@ -43,7 +43,8 @@ WORKLOADS = IMPL / "workloads"
 def _workload_for(model: str) -> str:
     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
             "FW02": "sq_forward", "SQ01": "sq_drain",
-            "DA04": "alignment", "LP01": "load_response"}[model]
+            "DA04": "alignment", "LP01": "load_response",
+            "MD04": "replay_dependency"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -130,6 +131,24 @@ def _addrpath_events(path: Path) -> list[dict]:
             events.append({"mode": m[1], "old": int(m[2], 16),
                            "new": int(m[3], 16), "line": line})
     return events
+
+
+def _md04_events(path: Path) -> list[dict]:
+    out = []
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = re.search(
+            r"Tick:\s*(\d+).*load_seq=(\d+), store_seq=(\d+), "
+            r"addr=0x([0-9a-fA-F]+), size=(\d+), eligible_ordinal=(\d+), "
+            r"load_complete=(\d+).*faults_injected:\s*(\d+)", line)
+        if m:
+            out.append({"tick": int(m[1]), "load_seq": int(m[2]),
+                        "store_seq": int(m[3]), "addr": int(m[4], 16),
+                        "size": int(m[5]), "eligible_ordinal": int(m[6]),
+                        "load_complete": int(m[7]),
+                        "faults_injected": int(m[8])})
+    return out
 
 
 def _l1dfwd_events(path: Path) -> list[dict]:
@@ -222,7 +241,8 @@ def _fault_causality(events: list[dict], terminal: str,
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True,
-                    choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01"])
+                    choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
+                             "MD04"])
     ap.add_argument("--pilot-id", required=True)
     ap.add_argument("--seed", type=int, default=None,
                     help="override seed; default = the selected Excel context row")
@@ -293,6 +313,13 @@ def main(argv=None) -> int:
                  "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
                  "--lsqfwd_event_ordinal",
+                 str(sample.get("event_ordinal") or 1)]
+    elif args.model == "MD04":
+        extra = ["--chaos_md04", "--md04_first_clock", "0",
+                 "--md04_max_faults", "1",
+                 "--md04_probability", "1.0",
+                 "--md04_rng_seed", str(args.seed),
+                 "--md04_event_ordinal",
                  str(sample.get("event_ordinal") or 1)]
     elif args.model == "LP01":
         extra = ["--chaos_l1dfwd", "--l1dfwd_first_clock", "0",
@@ -376,6 +403,19 @@ def main(argv=None) -> int:
             "all_size_4": all(e["size"] == 4 for e in events),
             "all_addr_unchanged": all(
                 e["old_addr"] == e["new_addr"] for e in events),
+        }
+        injected = len(events)
+    elif args.model == "MD04":
+        events = _md04_events(out / "md04_injections.log")
+        inj = {"events": events, "injected": len(events)}
+        target_proof = {
+            "site": "LSQUnit::checkViolations",
+            "events": len(events),
+            "all_same_address_store8": all(
+                e["addr"] == e["addr"] and e["size"] >= 8 for e in events),
+            "all_store_younger_ordering": all(
+                e["load_seq"] > e["store_seq"] for e in events),
+            "all_violation_report_suppressed": True,
         }
         injected = len(events)
     elif args.model == "LP01":
