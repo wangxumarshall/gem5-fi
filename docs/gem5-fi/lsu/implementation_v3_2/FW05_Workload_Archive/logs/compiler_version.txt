@@ -1,0 +1,2 @@
+gcc (GCC) 12.3.1 (openEuler 12.3.1-111.oe2403sp3)
+aarch64
