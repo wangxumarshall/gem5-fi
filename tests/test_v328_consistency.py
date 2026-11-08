@@ -7,6 +7,10 @@ import openpyxl
 
 ROOT = Path("docs/gem5-fi/lsu/implementation_v3_2")
 XL = ROOT / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.3.xlsx"
+# v3.2.9 supersedes v3.2.4: the CSV must mirror the newest authoritative book.
+XL_LATEST = ROOT / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
+if XL_LATEST.is_file():
+    XL = XL_LATEST
 ARCH_BIN = ROOT / "FW05_Workload_Archive/bin/fw05_forward"
 FW05_SHA = "0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf"
 

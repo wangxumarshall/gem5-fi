@@ -1,0 +1,159 @@
+...FF....................................                                [100%]
+=================================== FAILURES ===================================
+__________________________ test_d_run_concurrency_cap __________________________
+
+check = <function check.<locals>._check at 0xffff02aadbc0>
+
+    def test_d_run_concurrency_cap(check):
+        gd = new_guard_dir()
+        env = env_for(gd, slots=3)
+        ntask = 6
+        deadline = time.time() + 240
+        pending = list(range(ntask))
+        retry_at = {}        # tid -> 重试最早时刻（退避，降低 hammer 强度）
+        active = {}          # tid -> (Popen, out_path, fileobj)
+        done, fatal = {}, None
+        refusals = transient_stale = transient_gate_stale = 0
+        peak = peak_locks = 0
+    
+        def launch(tid):
+            out = Path(gd) / f"task{tid}_guard.out"
+            f = open(out, "w")
+            p = subprocess.Popen(
+                [sys.executable, str(GUARD), "run", "--type", "experiment",
+                 "--desc", f"conc-d-{tid}",
+                 "--log", str(Path(gd) / f"task{tid}_rsrc.log"),
+                 "--interval", "1", "--", "sleep", "3"],
+                stdout=f, stderr=subprocess.STDOUT, env=env)
+            active[tid] = (p, out, f)
+    
+        def requeue(tid, delay=0.5):
+            retry_at[tid] = time.time() + delay
+            pending.append(tid)
+    
+        def stale_is_transient():
+            """1s 后复核：锁已消失=释放竞态瞬态（True）；死锁持续=真陈旧（False）。"""
+            time.sleep(1.0)
+            return not dead_locks(gd)
+    
+        try:
+            while (pending or active) and time.time() < deadline:
+                now = time.time()
+                for tid in list(pending):
+                    if retry_at.get(tid, 0) <= now:
+                        pending.remove(tid)
+                        launch(tid)
+                time.sleep(0.1)
+                locks = read_locks(gd)
+                peak_locks = max(peak_locks, len(locks))
+                peak = max(peak, live_sleeps(gd))
+                for tid in list(active):
+                    p, out, f = active[tid]
+                    rc = p.poll()
+                    if rc is None:
+                        continue
+                    f.close()
+                    active.pop(tid)
+                    txt = out.read_text(errors="replace")
+                    if (rc == 0 and '"action": "run-finish"' in txt
+                            and '"exit_code": 0' in txt
+                            and '"monitor_reason": "target-exited"' in txt):
+                        done[tid] = rc
+                    elif rc == 2 and "全部被占" in txt:
+                        refusals += 1
+                        requeue(tid)
+                    elif rc == 2 and "陈旧" in txt:
+                        # 释放竞态路径一（见模块 docstring）：acquire 判陈旧
+                        if stale_is_transient():
+                            transient_stale += 1
+                            requeue(tid)
+                        else:
+                            fatal = f"持续陈旧锁（非瞬态释放竞态）: {dead_locks(gd)}"
+                            break
+                    elif rc == 1 and "陈旧槽" in txt:
+                        # 释放竞态路径二：重试进程的 gate 撞上同一窗口
+                        # （目标 sleep 已退出、锁尚未 unlink 的 ~0.1-0.5s）
+                        if stale_is_transient():
+                            transient_gate_stale += 1
+                            requeue(tid)
+                        else:
+                            fatal = f"gate 持续报陈旧槽: {txt[-400:]!r}"
+                            break
+                    else:
+                        fatal = f"task{tid} 异常退出 rc={rc}: {txt[-400:]!r}"
+                        break
+                if fatal:
+                    break
+        finally:
+            for tid in list(active):
+                p, out, f = active.pop(tid)
+                try:
+                    p.wait(timeout=30)   # sleep 3 自终；只等不杀
+                except subprocess.TimeoutExpired:
+                    fatal = fatal or f"task{tid} 30s 未退出"
+                f.close()
+    
+>       check("d_no_fatal", fatal is None, str(fatal))
+
+tests/test_claim_concurrency.py:262: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'd_no_fatal', condition = False
+message = 'task2 异常退出 rc=1: \' "reasons": ["磁盘 free 22.9 GiB < 红线 70.6 GiB (=max(50, 20%×353))"], "snapshot": {"time": "2026-11-...[], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 3}\\n\''
+
+    def _check(name, condition, message=""):
+>       assert condition, f"{name}: {message}"
+E       AssertionError: d_no_fatal: task2 异常退出 rc=1: ' "reasons": ["磁盘 free 22.9 GiB < 红线 70.6 GiB (=max(50, 20%×353))"], "snapshot": {"time": "2026-11-08 21:43:17", "mem_available_gib": 25.57, "swap_free_gib": 11.64, "swap_total_gib": 15.59, "committed_as_gib": 9.84, "load_1_5_15": [1.17, 1.29, 1.34], "blocked": [], "compile_processes": [], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 3}\n'
+E       assert False
+
+tests/conftest.py:15: AssertionError
+_______________________________ test_e_heartbeat _______________________________
+
+check = <function check.<locals>._check at 0xffff02ad8b80>
+
+    def test_e_heartbeat(check):
+        gd = new_guard_dir()
+        env = env_for(gd, slots=4)
+        out = Path(gd) / "e_guard.out"
+        f = open(out, "w")
+        p = subprocess.Popen(
+            [sys.executable, str(GUARD), "run", "--type", "experiment",
+             "--desc", "conc-e-heartbeat", "--log", str(Path(gd) / "e_rsrc.log"),
+             "--interval", "5", "--", "sleep", "65"],
+            stdout=f, stderr=subprocess.STDOUT, env=env)
+        beats = []
+        t0 = time.time()
+        try:
+            while p.poll() is None and time.time() - t0 < 120:
+                for d in read_locks(gd):
+                    hb = d.get("heartbeat")
+                    if hb and (not beats or hb != beats[-1]):
+                        beats.append(hb)
+                if len(beats) >= 4:
+                    break
+                time.sleep(2)
+        finally:
+            rc = p.wait(timeout=150)
+            f.close()
+        txt = out.read_text(errors="replace")
+>       check("e_run_finish",
+              rc == 0 and '"action": "run-finish"' in txt
+              and '"exit_code": 0' in txt,
+              f"rc={rc} tail={txt[-300:]!r}")
+
+tests/test_claim_concurrency.py:298: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'e_run_finish', condition = False
+message = 'rc=1 tail=\'8 21:43:17", "mem_available_gib": 25.59, "swap_free_gib": 11.64, "swap_total_gib": 15.59, "committed_as_g...[], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 4}\\n\''
+
+    def _check(name, condition, message=""):
+>       assert condition, f"{name}: {message}"
+E       AssertionError: e_run_finish: rc=1 tail='8 21:43:17", "mem_available_gib": 25.59, "swap_free_gib": 11.64, "swap_total_gib": 15.59, "committed_as_gib": 9.8, "load_1_5_15": [1.17, 1.29, 1.34], "blocked": [], "compile_processes": [], "disk_free_gib": 22.9, "disk_total_gib": 353.2}, "experiment_slots_occupied": 0, "experiment_slots_total": 4}\n'
+E       assert False
+
+tests/conftest.py:15: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_claim_concurrency.py::test_d_run_concurrency_cap - Assertio...
+FAILED tests/test_claim_concurrency.py::test_e_heartbeat - AssertionError: e_...
+2 failed, 39 passed in 10.40s
