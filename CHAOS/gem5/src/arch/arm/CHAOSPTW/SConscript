@@ -1,4 +1,11 @@
+# -*- mode:python -*-
+# CHAOSPTW is ARM-only: it hooks the ARM MMU/table walker and depends on
+# ARM-generated enum headers such as enums/ArmLookupLevel.hh.
+
 Import('*')
+
+if not env["CONF"]["USE_ARM_ISA"]:
+    Return()
 
 SimObject('CHAOSPTW.py', sim_objects=['CHAOSPTW'], enums=[])
 Source('CHAOSPTW.cc')
