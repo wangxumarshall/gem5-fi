@@ -8,6 +8,14 @@ namespace gem5
 namespace chaos_sp05
 {
 
+// v3.2.9: ordinal target selection. The fault is applied to the Nth store
+// that earns canWB (a live, committed store), not to "the next call".
+inline bool
+shouldSelect(uint64_t eligible_count, uint64_t ordinal)
+{
+    return ordinal != 0 && eligible_count == ordinal;
+}
+
 // SP05-CFG01: one live store completion is premature. The target is
 // identified by its SQ entry identity (index + generation), not by "the next
 // completeStore call" (instant-complete paths defeat a next-call flag).
