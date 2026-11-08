@@ -1,0 +1,102 @@
+17816260: board.processor.cores.core.iew.lsq.thread0: Executing load PC (0x400530=>0x400534).(0=>1), [sn:17443]
+17816260: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 747, store idx: 1969, storeHead: 1957 addr: 0x76990
+17816260: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:17443] PC (0x400530=>0x400534).(0=>1)
+17816260: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: ReadReq [76990:76997]) from inst [sn:17443] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17816260: board.processor.cores.core.iew.lsq.thread0: Executing store PC (0x40052c=>0x400530).(0=>1) [sn:17442]
+17816260: board.processor.cores.core.iew.lsq.thread0: Doing write to store idx 1967, addr 0x76990 | storeHead:1957 [sn:17442]
+17816260: board.processor.cores.core.iew.lsq.thread0: CHAOSMD04: suppressed violation load [sn:17443] store [sn:17442] addr 0x491990
+17816260: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17816260: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17816260: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17816260: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 1
+17816260: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 11
+17816645: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17816645: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17816645: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17816645: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 1
+17816645: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 11
+17817030: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17817030: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17817030: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17817030: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 1
+17817030: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 11
+17817415: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17817415: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17817415: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17817415: board.processor.cores.core.iew.lsq.thread0: Marking store as able to write back, PC (0x40052c=>0x400530).(0=>1) [sn:17442]
+17817415: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 1
+17817415: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 11
+17817800: board.processor.cores.core.iew.lsq.thread0: Squashing until [sn:17448]!(Loads:1 Stores:11)
+17817800: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17817800: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17817800: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17817800: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 1
+17817800: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 11
+17818185: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17818185: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17818185: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17818570: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17818570: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17818570: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17818955: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17818955: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17818955: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17819340: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17819340: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17819340: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17819725: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17819725: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17819725: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17820110: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17820110: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17820110: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17820495: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17820495: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17820495: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17820880: board.processor.cores.core.iew.lsq.thread0: Inserting store PC (0x40052c=>0x400530).(0=>1), idx:1968 [sn:17465]
+17820880: board.processor.cores.core.iew.lsq.thread0: Writing back  blocked store
+17820880: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteReq [78980:78987]) from inst [sn:17384] was not sent (cache is blocked: 1, cache_got_blocked: 0)
+17820880: board.processor.cores.core.iew.lsq.thread0: Unable to write back any more stores, cache is blocked!
+17820881: board.processor.cores.core.iew.lsq.thread0: Receiving retry: blocked store
+17820881: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteResp [78980:78987]) from inst [sn:17384] was sent (cache is blocked: 0, cache_got_blocked: 0)
+17821265: board.processor.cores.core.iew.lsq.thread0: Inserting load PC (0x400530=>0x400534).(0=>1), idx:748 [sn:17466]
+17821265: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:1967 PC:(0x40050c=>0x400510).(0=>1) to Addr:0x78988, data:0xff [sn:17389]
+17821265: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteResp [78988:7898f]) from inst [sn:17389] was sent (cache is blocked: 0, cache_got_blocked: 0)
+17821265: board.processor.cores.core.iew.lsq.thread0: D-Cache: Writing back store idx:1968 PC:(0x40052c=>0x400530).(0=>1) to Addr:0x76990, data:0 [sn:17442]
+17821265: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: WriteResp [76990:76997]) from inst [sn:17442] was sent (cache is blocked: 0, cache_got_blocked: 0)
+17821265: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 2
+17821265: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 12
+17821650: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17344], idx:1957, store head idx:1958
+17821650: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 2
+17821650: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 11
+17821651: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17349], idx:1958, store head idx:1959
+17821652: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17354], idx:1959, store head idx:1960
+17821653: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17359], idx:1960, store head idx:1961
+17821654: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17364], idx:1961, store head idx:1962
+17821655: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17369], idx:1962, store head idx:1963
+17821656: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17374], idx:1963, store head idx:1964
+17821657: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17379], idx:1964, store head idx:1965
+17822035: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17384], idx:1965, store head idx:1966
+17822035: board.processor.cores.core.iew.lsq.thread0: Executing store PC (0x40052c=>0x400530).(0=>1) [sn:17465]
+17822035: board.processor.cores.core.iew.lsq.thread0: Doing write to store idx 1968, addr 0x76ab8 | storeHead:1966 [sn:17465]
+17822035: board.processor.cores.core.iew.lsq.thread0: Executing load PC (0x400530=>0x400534).(0=>1), [sn:17443]
+17822035: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 747, store idx: 1969, storeHead: 1966 addr: 0x76990
+17822035: board.processor.cores.core.iew.lsq.thread0: Doing memory access for inst [sn:17443] PC (0x400530=>0x400534).(0=>1)
+17822035: board.processor.cores.core.iew.lsq.thread0: Memory request (pkt: ReadResp [76990:76997]) from inst [sn:17443] was sent (cache is blocked: 0, cache_got_blocked: 0)
+17822035: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 2
+17822035: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 3
+17822036: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17389], idx:1966, store head idx:1967
+17822037: board.processor.cores.core.iew.lsq.thread0: Completing store [sn:17442], idx:1967, store head idx:1968
+17822420: board.processor.cores.core.iew.lsq.thread0: Executing load PC (0x400530=>0x400534).(0=>1), [sn:17466]
+17822420: board.processor.cores.core.iew.lsq.thread0: Read called, load idx: 748, store idx: 1970, storeHead: 1968 addr: 0x76ab8
+17822420: board.processor.cores.core.iew.lsq.thread0: Forwarding from store idx 1969 to load to addr 0x491ab8
+17822420: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 2
+17822420: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 1
+17822805: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 2
+17822805: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 1
+17823190: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 2
+17823190: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 1
+17823575: board.processor.cores.core.iew.lsq.thread0: Squashing until [sn:17471]!(Loads:2 Stores:1)
+17823575: board.processor.cores.core.iew.lsq.thread0: LQ size: 16, #loads occupied: 2
+17823575: board.processor.cores.core.iew.lsq.thread0: SQ size: 16, #stores occupied: 1
+17823960: board.processor.cores.core.iew.lsq.thread0: Committing head load instruction, PC (0x400530=>0x400534).(0=>1)
