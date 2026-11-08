@@ -293,11 +293,16 @@ class CHAOSPropagation : public SimObject
     // endianness, not just 8-byte loads.
     void noteChainWriteback(o3::DynInst *inst);
 
-    // MD04: one real same-address 8-byte store->load violation report was
+    // MD04: one real 8-byte store->younger-load violation report was
     // suppressed. The load keeps its stale data. If the response was already
     // consumed (`load_complete`), the writeback is late-bound from the PRF.
-    void noteMD04Injection(o3::DynInst *inst, uint64_t store_seq, Addr vaddr,
+    // v3.2.7: the complete target-pair identity is emitted (store seq/addr/
+    // size/PC, load addr/size/PC, SQ/LQ entry+generation, request id,
+    // violation tick, eligible ordinals, seed).
+    void noteMD04Injection(o3::DynInst *inst, o3::DynInst *store_inst,
+                           const RequestPtr &load_req, Addr vaddr,
                            unsigned size, uint64_t eligible_ordinal,
+                           uint64_t event_ordinal, uint64_t seed,
                            bool load_complete);
 
   private:
@@ -431,6 +436,7 @@ class CHAOSPropagation : public SimObject
         unsigned size = 0;
         uint64_t eligible_ordinal = 0;
         bool load_complete = false;
+        uint64_t request_id = 0;
         uint64_t resp_node = 0;
     };
     std::map<uint64_t, MD04Entry> md04_registry;  // key: load dyn seq

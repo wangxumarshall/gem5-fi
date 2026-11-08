@@ -1214,13 +1214,17 @@ namespace gem5
     }
 
     void
-    CHAOSPropagation::noteMD04Injection(o3::DynInst *inst, uint64_t store_seq,
+    CHAOSPropagation::noteMD04Injection(o3::DynInst *inst,
+                                        o3::DynInst *store_inst,
+                                        const RequestPtr &load_req,
                                         Addr vaddr, unsigned size,
                                         uint64_t eligible_ordinal,
+                                        uint64_t event_ordinal, uint64_t seed,
                                         bool load_complete)
     {
         if (!write_log || !inst)
             return;
+        const uint64_t store_seq = store_inst ? store_inst->seqNum : 0;
         const uint64_t ptag = ++next_ptag;
         fault_seqs.insert(inst->seqNum);
         MD04Entry e;
@@ -1232,17 +1236,66 @@ namespace gem5
         e.load_complete = load_complete;
         md04_registry[inst->seqNum] = e;
 
+        // v3.2.7: explicit load-request identity so a cross-attempt response
+        // can be linked to this injection by (seq, LQ entry, generation,
+        // request_id) instead of a bare same-trace assumption.
+        uint64_t load_request_id = 0;
+        Tick request_tick = 0;
+        if (load_req) {
+            auto &rm = req_meta[load_req.get()];
+            if (rm.request_id == 0)
+                rm.request_id = ++next_request_id;
+            if (rm.request_tick == 0)
+                rm.request_tick = curTick();
+            load_request_id = rm.request_id;
+            request_tick = rm.request_tick;
+        }
+        e.request_id = load_request_id;
+        md04_registry[inst->seqNum] = e;
+
+        const uint64_t store_addr = store_inst ? store_inst->effAddr : 0;
+        const unsigned store_size = store_inst ? store_inst->effSize : 0;
+        const Addr store_pc = store_inst
+            ? store_inst->pcState().instAddr() : 0;
+        const Addr load_pc = inst->pcState().instAddr();
+        const uint64_t sq_entry_id = store_inst ? (uint64_t)store_inst->sqIdx : 0;
+        const uint64_t sq_gen = store_inst ? store_inst->sqEntryGeneration : 0;
+        std::ostringstream tp;
+        tp << "MD04-L" << inst->seqNum << "-S" << store_seq
+           << "-T" << curTick();
+
         std::ostringstream d;
         d << "site=LSQUnit::checkViolations;family=md04;model=MD04"
+          << ";definition=MD04-DEF-v2"
+          << ";target_pair_id=" << tp.str()
           << ";load_seq=" << inst->seqNum
           << ";store_seq=" << store_seq
-          << ";addr=0x" << std::hex << vaddr << std::dec
+          << ";older_store_dyn_inst_seq=" << store_seq
+          << ";younger_load_dyn_inst_seq=" << inst->seqNum
+          << ";addr=0x" << std::hex << vaddr
+          << ";load_addr=0x" << vaddr
+          << ";store_addr=0x" << store_addr
+          << ";load_pc=0x" << load_pc
+          << ";store_pc=0x" << store_pc << std::dec
           << ";size=" << size
+          << ";load_size=" << size
+          << ";store_size=" << store_size
+          << ";sq_entry_id=" << sq_entry_id
+          << ";sq_entry_generation=" << sq_gen
+          << ";violation_tick=" << curTick()
           << ";eligible_ordinal=" << eligible_ordinal
+          << ";eligible_violation_pair_ordinal=" << eligible_ordinal
+          << ";event_ordinal=" << event_ordinal
+          << ";seed=" << seed
           << ";violation_report_suppressed=1"
+          << ";address_modified=0;size_modified=0;data_modified=0"
           << ";load_complete=" << (load_complete ? 1 : 0)
           << ";load_lq_entry_id=" << inst->lqIdx
+          << ";lq_entry_id=" << inst->lqIdx
           << ";load_entry_generation=" << inst->lqEntryGeneration
+          << ";lq_entry_generation=" << inst->lqEntryGeneration
+          << ";load_request_id=" << load_request_id
+          << ";request_tick=" << request_tick
           << ";execution_attempt_id=" << inst->executionAttemptId
           << ";replay_generation=" << inst->replayGeneration
           << ";phys_regs=";
@@ -1252,7 +1305,8 @@ namespace gem5
                 d << (i ? "," : "") << regClassName(p->classValue())
                   << ":" << p->index();
         }
-        writeNode(ptag, "inj_md04", inst->seqNum, true, 0, false, vaddr, true,
+        writeNode(ptag, "inj_md04", inst->seqNum, true, load_request_id,
+                  load_request_id != 0, vaddr, true,
                   0, false, 0, false, d.str());
 
         // The violation check runs at store execution; the load may already

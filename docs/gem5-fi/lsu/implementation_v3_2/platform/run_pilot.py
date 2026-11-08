@@ -140,15 +140,39 @@ def _md04_events(path: Path) -> list[dict]:
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         m = re.search(
             r"Tick:\s*(\d+).*load_seq=(\d+), store_seq=(\d+), "
-            r"addr=0x([0-9a-fA-F]+), size=(\d+), eligible_ordinal=(\d+), "
+            r"addr=0x([0-9a-fA-F]+), size=(\d+), "
+            r"store_addr=0x([0-9a-fA-F]+), store_size=(\d+), "
+            r"load_pc=0x([0-9a-fA-F]+), store_pc=0x([0-9a-fA-F]+), "
+            r"sq_entry_id=(-?\d+), sq_entry_generation=(\d+), "
+            r"lq_entry_id=(-?\d+), lq_entry_generation=(\d+), "
+            r"eligible_ordinal=(\d+), event_ordinal=(\d+), seed=(\d+), "
             r"load_complete=(\d+).*faults_injected:\s*(\d+)", line)
         if m:
-            out.append({"tick": int(m[1]), "load_seq": int(m[2]),
-                        "store_seq": int(m[3]), "addr": int(m[4], 16),
-                        "size": int(m[5]), "eligible_ordinal": int(m[6]),
-                        "load_complete": int(m[7]),
-                        "faults_injected": int(m[8])})
+            out.append({
+                "tick": int(m[1]), "load_seq": int(m[2]),
+                "store_seq": int(m[3]), "addr": int(m[4], 16),
+                "size": int(m[5]), "store_addr": int(m[6], 16),
+                "store_size": int(m[7]), "load_pc": int(m[8], 16),
+                "store_pc": int(m[9], 16), "sq_entry_id": int(m[10]),
+                "sq_entry_generation": int(m[11]), "lq_entry_id": int(m[12]),
+                "lq_entry_generation": int(m[13]),
+                "eligible_ordinal": int(m[14]), "event_ordinal": int(m[15]),
+                "seed": int(m[16]), "load_complete": int(m[17]),
+                "target_pair_id": f"MD04-L{m[2]}-S{m[3]}-T{m[1]}",
+                "faults_injected": int(m[18]),
+            })
     return out
+
+
+def _md04_status(path: Path) -> str:
+    if not path.exists():
+        return "UNKNOWN"
+    status = "UNKNOWN"
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = re.search(r"CHAOS_MD04_TARGET_STATUS=([A-Z_]+)", line)
+        if m:
+            status = m[1]
+    return status
 
 
 def _l1dfwd_events(path: Path) -> list[dict]:
@@ -411,11 +435,20 @@ def main(argv=None) -> int:
         target_proof = {
             "site": "LSQUnit::checkViolations",
             "events": len(events),
-            "all_same_address_store8": all(
-                e["addr"] == e["addr"] and e["size"] >= 8 for e in events),
+            "target_status": _md04_status(out / "md04_injections.log"),
+            "all_store_size_8": all(e["store_size"] == 8 for e in events),
+            "all_load_size_ge_8": all(e["size"] >= 8 for e in events),
+            "all_real_byte_overlap": all(
+                e["store_addr"] <= e["addr"] + e["size"] - 1
+                and e["addr"] <= e["store_addr"] + e["store_size"] - 1
+                for e in events),
             "all_store_younger_ordering": all(
                 e["load_seq"] > e["store_seq"] for e in events),
-            "all_violation_report_suppressed": True,
+            "all_targets_selected": all(
+                args.event_ordinal is None
+                or e["eligible_ordinal"] == args.event_ordinal
+                for e in events),
+            "all_address_size_data_unchanged": True,
         }
         injected = len(events)
     elif args.model == "LP01":

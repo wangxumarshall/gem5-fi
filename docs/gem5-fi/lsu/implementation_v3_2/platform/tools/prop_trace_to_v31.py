@@ -253,6 +253,29 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                 "load_complete_at_injection": _int(d.get("load_complete")),
                 "violation_report_suppressed": _int(
                     d.get("violation_report_suppressed")),
+                # v3.2.7 frozen target-pair identity.
+                "target_pair_id": d.get("target_pair_id"),
+                "older_store_dyn_inst_seq": _int(
+                    d.get("older_store_dyn_inst_seq")),
+                "younger_load_dyn_inst_seq": _int(
+                    d.get("younger_load_dyn_inst_seq")),
+                "store_addr": _hex(d.get("store_addr")),
+                "load_addr": _hex(d.get("load_addr")) or _hex(d.get("addr")),
+                "store_size": _int(d.get("store_size")),
+                "load_size": _int(d.get("load_size")) or _int(d.get("size")),
+                "load_pc": _hex(d.get("load_pc")),
+                "store_pc": _hex(d.get("store_pc")),
+                "sq_entry_generation": _int(d.get("sq_entry_generation")),
+                "lq_entry_generation": _int(d.get("lq_entry_generation")),
+                "violation_tick": _int(d.get("violation_tick")),
+                "eligible_violation_pair_ordinal": _int(
+                    d.get("eligible_violation_pair_ordinal")),
+                "event_ordinal": _int(d.get("event_ordinal")),
+                "seed": _int(d.get("seed")),
+                "load_request_id": _int(d.get("load_request_id")),
+                "address_modified": _int(d.get("address_modified")),
+                "size_modified": _int(d.get("size_modified")),
+                "data_modified": _int(d.get("data_modified")),
             }
         if kind == "inj_l1dfwd":
             extra = {
@@ -307,7 +330,9 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             # inj_store_be/store_wb carry sq_entry_id directly; the expression
             # above already reads it for every non-lifecycle kind.
             entry_generation=(_int(d.get("generation")) or
-                              _int(d.get("entry_generation"))),
+                              _int(d.get("entry_generation")) or
+                              _int(d.get("lq_entry_generation")) or
+                              _int(d.get("sq_entry_generation"))),
             va=va, pa=pa,
             old_value=old_value,
             new_value=new_value,

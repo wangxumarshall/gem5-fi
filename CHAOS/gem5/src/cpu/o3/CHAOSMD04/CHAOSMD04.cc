@@ -47,13 +47,25 @@ CHAOSMD04::startup()
         return;
     }
     o3cpu->setChaosMD04(this);
-    if (count_only) {
-        registerExitCallback([this]() {
-            if (log_stream && log_stream->stream())
-                *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
-                                        << eligible_count << std::endl;
-        });
-    }
+    registerExitCallback([this]() {
+        if (!log_stream || !log_stream->stream())
+            return;
+        if (count_only)
+            *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
+                                    << eligible_count << std::endl;
+        if (faults_injected_count == 0) {
+            *(log_stream->stream())
+                << "CHAOS_MD04_TARGET_STATUS="
+                << ((event_ordinal != 0 && eligible_count < event_ordinal)
+                    ? "ORDINAL_NOT_REACHED" : "NOT_TRIGGERED")
+                << " eligible_count=" << eligible_count
+                << " target_ordinal=" << event_ordinal << std::endl;
+        } else {
+            *(log_stream->stream())
+                << "CHAOS_MD04_TARGET_STATUS=INJECTED count="
+                << faults_injected_count << std::endl;
+        }
+    });
 }
 
 bool
@@ -102,19 +114,34 @@ CHAOSMD04::maybeSkipViolation(o3::DynInst *ld_inst, o3::DynInst *store_inst,
     ++faults_injected_count;
     if (log_stream && log_stream->stream()) {
         *(log_stream->stream()) << "Tick: " << curTick()
-            << ", Site: checkViolations, load_seq=" << ld_inst->seqNum
+            << ", Site: checkViolations"
+            << ", load_seq=" << ld_inst->seqNum
             << ", store_seq=" << store_inst->seqNum
             << ", addr=0x" << std::hex << ld_inst->effAddr << std::dec
             << ", size=" << ld_inst->effSize
+            << ", store_addr=0x" << std::hex << store_inst->effAddr
+            << ", store_size=" << std::dec << store_inst->effSize
+            << ", load_pc=0x" << std::hex
+            << ld_inst->pcState().instAddr()
+            << ", store_pc=0x" << store_inst->pcState().instAddr()
+            << std::dec
+            << ", sq_entry_id=" << (long long)store_inst->sqIdx
+            << ", sq_entry_generation=" << store_inst->sqEntryGeneration
+            << ", lq_entry_id=" << (long long)ld_inst->lqIdx
+            << ", lq_entry_generation=" << ld_inst->lqEntryGeneration
             << ", eligible_ordinal=" << eligible_count
+            << ", event_ordinal=" << event_ordinal
+            << ", seed=" << rng_seed
             << ", load_complete=" << (load_complete ? 1 : 0)
+            << ", address_modified=0, size_modified=0, data_modified=0"
             << ", faults_injected: " << faults_injected_count << std::endl;
     }
     auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
     if (o3cpu && o3cpu->chaosPropagation) {
         o3cpu->chaosPropagation->noteMD04Injection(
-            ld_inst, store_inst->seqNum, ld_inst->effAddr, ld_inst->effSize,
-            eligible_count, load_complete);
+            ld_inst, store_inst, load_req, ld_inst->effAddr,
+            ld_inst->effSize, eligible_count, event_ordinal, rng_seed,
+            load_complete);
     }
     DPRINTF(CHAOSMD04, "suppressed store->load violation load=%llu store=%llu "
             "addr=%#x\n", (unsigned long long)ld_inst->seqNum,
