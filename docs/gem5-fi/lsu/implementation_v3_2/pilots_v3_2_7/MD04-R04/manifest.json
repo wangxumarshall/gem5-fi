@@ -66,5 +66,13 @@
     "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
     "python": "3.11.6"
   },
-  "manifest_sha256": "e0ca1caf6c5ce2823932ed6404ea00dce0178789c8ea35d92ad082032a7082c4"
+  "manifest_sha256": "04a132721cb664d0b32241d34bb5b185fe137ccc1e91cecc1dc0decd0dac51a9",
+  "frozen_definition": {
+    "definition": "MD04-DEF-v2",
+    "document": "docs/gem5-fi/lsu/implementation_v3_2/MD04_Definition_Freeze_v3.2.7.md",
+    "excel": "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.2.xlsx",
+    "target_pair_id": "MD04-L69297-S69292-T31073735",
+    "eligible_violation_pair_ordinal": 4,
+    "execution_attempt_link": "SAME_ATTEMPT"
+  }
 }
