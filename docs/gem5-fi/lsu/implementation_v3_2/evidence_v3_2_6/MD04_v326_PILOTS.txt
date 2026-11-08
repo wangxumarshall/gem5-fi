@@ -1,0 +1,5 @@
+== MD04-R01 == injection={"tick": 733425, "load_seq": 518, "store_seq": 514, "addr": 549755747216, "size": 8, "eligible_ordinal": 1, "load_complete": 1, "faults_injected": 1} terminal=SQUASHED oracle=PASS consumers=0 mismatch=0
+== MD04-R02 == injection={"tick": 3391080, "load_seq": 2251, "store_seq": 2239, "addr": 4798864, "size": 8, "eligible_ordinal": 2, "load_complete": 0, "faults_injected": 1} terminal=MASKED oracle=PASS consumers=6 mismatch=7
+== MD04-R03 == injection={"tick": 17816260, "load_seq": 17443, "store_seq": 17442, "addr": 4790672, "size": 8, "eligible_ordinal": 3, "load_complete": 0, "faults_injected": 1} terminal=MASKED oracle=PASS consumers=259 mismatch=0
+== MD04-R04 == injection={"tick": 31073735, "load_seq": 69297, "store_seq": 69292, "addr": 549755747064, "size": 16, "eligible_ordinal": 4, "load_complete": 0, "faults_injected": 1} terminal=SQUASHED oracle=PASS consumers=0 mismatch=0
+== MD04-R05 == injection={"tick": 36154580, "load_seq": 71660, "store_seq": 71652, "addr": 4789664, "size": 8, "eligible_ordinal": 5, "load_complete": 1, "faults_injected": 1} terminal=MASKED oracle=PASS consumers=2 mismatch=0
