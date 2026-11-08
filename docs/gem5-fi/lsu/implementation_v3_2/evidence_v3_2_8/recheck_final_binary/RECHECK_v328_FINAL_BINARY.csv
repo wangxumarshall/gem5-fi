@@ -1,0 +1,7 @@
+pilot,model,sample_run_id,seed,event_ordinal,expected_checksum,recheck_checksum,oracle_exit_code,recheck_result,historical_result,log
+FW05-R01,FW05,FW05-F6-W8-S01-R01,1025137124,1,0x67afad307642983e,0x67afad307642983e,0,PASS,PASS (no-fault baseline also PASS),FW05-R01.stdout.log
+FW05-R02,FW05,FW05-F6-W8-S01-R02,1653118510,2,0x67afad307642983e,0x549c9e0347adaf23,0,SDC,SDC,evidence_v3_2_8/recheck_final_binary/FW05-R02.stdout.log
+FW05-R03,FW05,FW05-F6-W8-S01-R03,2442802213,3,0x67afad307642983e,0x549c9e0347adaf25,0,SDC,SDC,evidence_v3_2_8/recheck_final_binary/FW05-R03.stdout.log
+FW05-R04,FW05,FW05-F6-W8-S01-R04,899944922,4,0x67afad307642983e,0x549c9e0347adaf27,0,SDC,SDC,evidence_v3_2_8/recheck_final_binary/FW05-R04.stdout.log
+FW05-R05,FW05,FW05-F6-W8-S01-R05,2836530945,5,0x67afad307642983e,0x549c9e0347adaf19,0,SDC,SDC,evidence_v3_2_8/recheck_final_binary/FW05-R05.stdout.log
+SQ03-R01,SQ03,SQ03-F0-W3-S02-R01,2214819981,1,0xba3b3185e541ad03,0xba3b3185e541ad03,0,MASKED (PASS),MASKED (PASS),evidence_v3_2_8/recheck_final_binary/SQ03-R01.stdout.log

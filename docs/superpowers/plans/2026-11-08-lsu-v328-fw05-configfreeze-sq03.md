@@ -41,7 +41,7 @@
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Branch and baseline**
+- [x] **Step 1: Branch and baseline**
 
 ```bash
 git checkout -b lsu-platform-v3.2.8
@@ -49,9 +49,9 @@ git checkout -b lsu-platform-v3.2.8
   > docs/gem5-fi/lsu/implementation_v3_2/GIT_BASELINE_v328.txt
 ```
 
-- [ ] **Step 2: Copy the researcher work order verbatim** into `LSU_v3.2.8_Work_Order.md` and add a one-line provenance note.
+- [x] **Step 2: Copy the researcher work order verbatim** into `LSU_v3.2.8_Work_Order.md` and add a one-line provenance note.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.8_Work_Order.md \
@@ -79,7 +79,7 @@ git push -u origin lsu-platform-v3.2.8
 **Interfaces:**
 - Produces: archive root; exact binary SHA `0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf`.
 
-- [ ] **Step 1: Write the failing provenance test**
+- [x] **Step 1: Write the failing provenance test**
 
 ```python
 import hashlib, json
@@ -108,12 +108,12 @@ def test_archive_has_required_parts():
         assert (ARCH / rel).is_file(), rel
 ```
 
-- [ ] **Step 2: Run it to verify failure**
+- [x] **Step 2: Run it to verify failure**
 
 Run: `python3 -m pytest tests/test_fw05_archive.py -q`
 Expected: FAIL (archive missing).
 
-- [ ] **Step 3: Build the archive**
+- [x] **Step 3: Build the archive**
 
 Copy the exact v3.2.7 source/binary/golden. `PROVENANCE.md` must state:
 - all five v3.2.7 manifests record `0cf40509...` (full hash),
@@ -152,12 +152,12 @@ ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 
 `SHA256SUMS` is generated with `find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum`.
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `python3 -m pytest tests/test_fw05_archive.py -q`
 Expected: 3 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/FW05_Workload_Archive \
@@ -179,7 +179,7 @@ git push
 - Consumes: Task 2 archive.
 - Produces: one baseline row per FW05 R01–R05 seed.
 
-- [ ] **Step 1: Run five no-fault baselines** with the same workload, seed and injection disabled but the injector attached:
+- [x] **Step 1: Run five no-fault baselines** with the same workload, seed and injection disabled but the injector attached:
 
 ```bash
 for pair in "R01 1025137124" "R02 1653118510" "R03 2442802213" \
@@ -196,11 +196,11 @@ for pair in "R01 1025137124" "R02 1653118510" "R03 2442802213" \
 done
 ```
 
-- [ ] **Step 2: Build the CSV** with columns: pilot, sample_run_id, seed, workload_sha256, binary_sha256, exit_code, golden_checksum, actual_checksum, oracle_pass, stdout_path. Golden is `0x67afad307642983e`; all five must pass.
+- [x] **Step 2: Build the CSV** with columns: pilot, sample_run_id, seed, workload_sha256, binary_sha256, exit_code, golden_checksum, actual_checksum, oracle_pass, stdout_path. Golden is `0x67afad307642983e`; all five must pass.
 
-- [ ] **Step 3: Compare with the five pilots** and record in the doc: the pilot workload SHA equals the archive SHA, so the historical pilot runs are reused; no pilot rerun is needed for provenance, but R02–R05 remain SDC and R01 MASKED.
+- [x] **Step 3: Compare with the five pilots** and record in the doc: the pilot workload SHA equals the archive SHA, so the historical pilot runs are reused; no pilot rerun is needed for provenance, but R02–R05 remain SDC and R01 MASKED.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/FW05_Workload_Archive/baselines \
@@ -226,7 +226,7 @@ git push
 - Consumes: v3.2.2 workbook.
 - Produces: authoritative v3.2.3 workbook + CSV.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 import openpyxl
@@ -252,7 +252,7 @@ def test_only_fw05_rows_changed():
         assert b.cell(r,38).value=="NO"
 ```
 
-- [ ] **Step 2: Verify RED** (`FileNotFoundError`), then write `tools/build_lsu_v323_workbook.py` that:
+- [x] **Step 2: Verify RED** (`FileNotFoundError`), then write `tools/build_lsu_v323_workbook.py` that:
   - loads v3.2.2 preserving styles,
   - updates only FW05 rows: FaultLocation, TargetField, BitEntryByteIndex, NormalValue, FaultValue, InjectionTiming, FaultDuration, TargetInstruction, EligibleEventCondition, WorkloadPath, BinarySHA256, Oracle, ExecutionStatus (`PILOT_RUN_ACCEPTED`), RunStatus (`PILOT_RUN`), FaultActivationStatus (`TRIGGERED`), TerminalState_v31 per pilot, TraceCompleteness_v31 (`COMPLETE`), DecisionStatus (`FROZEN_FW05_WORKLOAD`), v3.2_ConfigProvenance (append revision text),
   - updates the FW05 row of sheets 3/4,
@@ -260,7 +260,7 @@ def test_only_fw05_rows_changed():
   - appends sheet 12 change log,
   - writes the 60×43 CSV.
 
-- [ ] **Step 3: Generate and verify**
+- [x] **Step 3: Generate and verify**
 
 ```bash
 python3 tools/build_lsu_v323_workbook.py
@@ -268,9 +268,9 @@ python3 -m pytest tests/test_lsu_v323_workbook.py -q
 ```
 Expected: pass.
 
-- [ ] **Step 4: Point the pilot runner at v3.2.3 (for future runs only; v3.2.7 results stay frozen)** in `run_pilot.py` `EXCEL`, and verify `config_parser` loads it.
+- [x] **Step 4: Point the pilot runner at v3.2.3 (for future runs only; v3.2.7 results stay frozen)** in `run_pilot.py` `EXCEL`, and verify `config_parser` loads it.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/build_lsu_v323_workbook.py tests/test_lsu_v323_workbook.py \
@@ -298,9 +298,9 @@ git push
 **Interfaces:**
 - Produces: `bool sq03Fired() const`; `uint64_t sq03_watchdog_cycles`; watchdog exit message `CHAOS_SQ03_WATCHDOG_EXPIRED`.
 
-- [ ] **Step 1: Audit `max_faults`** by `grep -n "max_faults" CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc`; document that `max_faults==0` means unlimited and is unsafe in SQ03.
+- [x] **Step 1: Audit `max_faults`** by `grep -n "max_faults" CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc`; document that `max_faults==0` means unlimited and is unsafe in SQ03.
 
-- [ ] **Step 2: Extend the unit test**
+- [x] **Step 2: Extend the unit test**
 
 ```cpp
 assert(!shouldSetCanWB(100, 100, 0, 1));
@@ -310,7 +310,7 @@ assert(!shouldSetCanWB(100, 100, 1, 0)); // hard cap clamps 0 to 1
 
 Update `shouldSetCanWB` to clamp `max_faults==0` to 1.
 
-- [ ] **Step 3: Implement one-shot and hard cap**
+- [x] **Step 3: Implement one-shot and hard cap**
 
 In `CHAOSLSQFwd`: add `bool sq03_fired=false;`. In `maybeSetCanWB`:
 
@@ -332,7 +332,7 @@ if (p.sq03WatchdogCycles)
 
 Add param `sq03WatchdogCycles` default `500000000` and `--sq03_watchdog_cycles`.
 
-- [ ] **Step 4: Build and unit test**
+- [x] **Step 4: Build and unit test**
 
 ```bash
 g++ -std=c++17 -I CHAOS/gem5/src tests/test_sq03_rules.cc -o /tmp/t && /tmp/t
@@ -340,7 +340,7 @@ cd CHAOS/gem5 && scons -j126 build/ARM/gem5.opt
 ```
 Expected: PASS / exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh \
@@ -368,21 +368,21 @@ git push
 **Interfaces:**
 - Produces: `noteSQ03Injection(...)`, `noteSQ03Writeback(...)`, `noteSQ03Complete(...)`; trace kinds `inj_sq03`, `sq03_wb`, `sq03_complete`.
 
-- [ ] **Step 1: Write the failing chain test** with a synthetic chain injection → sq03_wb → sq03_complete → memory_response → register_writeback → consumer_commit, asserting `trace_completeness=COMPLETE`, `chain=PASS`, `coverage=COMPLETE`.
+- [x] **Step 1: Write the failing chain test** with a synthetic chain injection → sq03_wb → sq03_complete → memory_response → register_writeback → consumer_commit, asserting `trace_completeness=COMPLETE`, `chain=PASS`, `coverage=COMPLETE`.
 
-- [ ] **Step 2: Implement trace**
+- [x] **Step 2: Implement trace**
 
 `inj_sq03` detail: store seq/PC/addr/size, sq idx/gen, canWB before/after, storesToWB before/after, tick, eligible ordinal, seed. Register the store in `fault_store_registry` with family `sq03_canwb`, byte range, and `written_tick` at writeback. `sq03_wb` at `writebackStores` for the target; `sq03_complete` at `completeStore`. Later loads covering the byte get the ptag via `noteMemResponse`, producing response/writeback/consumer edges.
 
-- [ ] **Step 3: Runner timeout handling**
+- [x] **Step 3: Runner timeout handling**
 
 Wrap `subprocess.run` in `try/except subprocess.TimeoutExpired`; write partial `stdout.log`/`stderr.log` from `exc.stdout`/`exc.stderr`; set `run_status=SIMULATOR_ERROR`, `terminal=TIMEOUT`, `completeness=INCOMPLETE`, `accepted=False`; never MASKED. If exit code 1 with `CHAOS_SQ03_WATCHDOG_EXPIRED`, terminal `HANG`.
 
-- [ ] **Step 4: Completeness/terminal profiles**
+- [x] **Step 4: Completeness/terminal profiles**
 
 Add SQ03 SDC/MASKED/SQUASHED/CRASH profiles mirroring DA04/SQ01 (store-side). Add `run_reason` to PILOT meta.
 
-- [ ] **Step 5: Run tests, build, one smoke** and commit.
+- [x] **Step 5: Run tests, build, one smoke** and commit.
 
 ---
 
@@ -396,11 +396,11 @@ Add SQ03 SDC/MASKED/SQUASHED/CRASH profiles mirroring DA04/SQ01 (store-side). Ad
 
 **Interfaces:** consumes Task 5/6.
 
-- [ ] **Step 1: Add SQ03 runner support.** Extra args: `--chaos_lsqfwd --lsq_struct_mode sq03_canwb --max_faults 1 --rng_seed <seed> --lsqfwd_event_ordinal <ordinal> --sq03_watchdog_cycles 500000000`. Oracle from Excel (`ba3b3185e541ad03`).
-- [ ] **Step 2: Run five pilots**, capture: SampleRunID, seed, ordinal, target store seq/PC/addr/size, SQ idx/gen, canWB before/after, storesToWB before/after, injection tick, writeback tick, commit result, consumer relations, terminal, oracle, watchdog status, trace validity/coverage.
-- [ ] **Step 3: Run five no-fault baselines** with the same seeds, probability 0, and record checksums/timing.
-- [ ] **Step 4: Build evidence CSV and implementation doc.** Do not claim SDC unless the oracle changed with a causally linked consumer.
-- [ ] **Step 5: Commit.**
+- [x] **Step 1: Add SQ03 runner support.** Extra args: `--chaos_lsqfwd --lsq_struct_mode sq03_canwb --max_faults 1 --rng_seed <seed> --lsqfwd_event_ordinal <ordinal> --sq03_watchdog_cycles 500000000`. Oracle from Excel (`ba3b3185e541ad03`).
+- [x] **Step 2: Run five pilots**, capture: SampleRunID, seed, ordinal, target store seq/PC/addr/size, SQ idx/gen, canWB before/after, storesToWB before/after, injection tick, writeback tick, commit result, consumer relations, terminal, oracle, watchdog status, trace validity/coverage.
+- [x] **Step 3: Run five no-fault baselines** with the same seeds, probability 0, and record checksums/timing.
+- [x] **Step 4: Build evidence CSV and implementation doc.** Do not claim SDC unless the oracle changed with a causally linked consumer.
+- [x] **Step 5: Commit.**
 
 ---
 
@@ -412,9 +412,9 @@ Add SQ03 SDC/MASKED/SQUASHED/CRASH profiles mirroring DA04/SQ01 (store-side). Ad
 - Create: `tools/check_v328_consistency.py`
 - Test: `tests/test_v328_consistency.py`
 
-- [ ] **Step 1: Update matrix from real evidence.** FW05: DESIGNED/SOURCE_AUDITED/IMPLEMENTED/COMPILED/UNIT_TESTED/PILOT_RUN=1, PROPAGATION_VERIFIED=1 (R02–R05 SDC chain), evidence cites workload freeze/archive/baselines/five pilots. SQ03 only after safety+five pilots+coverage; never from compile alone.
-- [ ] **Step 2: Consistency check** across Excel v3.2.3, CSV, manifests, archive SHA, traces: FW05 workload path/SHA/Oracle identical; SampleRunID/Seed unchanged; only FW05 rows differ; SQ03 IDs/seeds unchanged; ConfigFrozen all NO.
-- [ ] **Step 3: Run tests and commit.**
+- [x] **Step 1: Update matrix from real evidence.** FW05: DESIGNED/SOURCE_AUDITED/IMPLEMENTED/COMPILED/UNIT_TESTED/PILOT_RUN=1, PROPAGATION_VERIFIED=1 (R02–R05 SDC chain), evidence cites workload freeze/archive/baselines/five pilots. SQ03 only after safety+five pilots+coverage; never from compile alone.
+- [x] **Step 2: Consistency check** across Excel v3.2.3, CSV, manifests, archive SHA, traces: FW05 workload path/SHA/Oracle identical; SampleRunID/Seed unchanged; only FW05 rows differ; SQ03 IDs/seeds unchanged; ConfigFrozen all NO.
+- [x] **Step 3: Run tests and commit.**
 
 ---
 
@@ -424,11 +424,11 @@ Add SQ03 SDC/MASKED/SQUASHED/CRASH profiles mirroring DA04/SQ01 (store-side). Ad
 - Create: `LSU_v3.2.8_FW05_ConfigFreeze_SQ03_Pilot_Package.zip` + `.sha256`
 - Create: `DELIVERABLES_v3.2.8_SHA256.txt`, `GIT_STATUS/LOG/DIFF_v328.*`, `LSU_v3.2.8_Final_Report.md`
 
-- [ ] **Step 1: Provenance** (`git status/log/diff`, binary SHA).
-- [ ] **Step 2: Stage A/B/C contents** from the work order; include full SQ03/FW05 traces, archive, baselines, logs, HANG/TIMEOUT records.
-- [ ] **Step 3: SHA256 list and zip**; verify member count and hash.
-- [ ] **Step 4: Final report answers** the six FW05 and five SQ03 questions explicitly.
-- [ ] **Step 5: Commit and push.**
+- [x] **Step 1: Provenance** (`git status/log/diff`, binary SHA).
+- [x] **Step 2: Stage A/B/C contents** from the work order; include full SQ03/FW05 traces, archive, baselines, logs, HANG/TIMEOUT records.
+- [x] **Step 3: SHA256 list and zip**; verify member count and hash.
+- [x] **Step 4: Final report answers** the six FW05 and five SQ03 questions explicitly.
+- [x] **Step 5: Commit and push.**
 
 ---
 
@@ -440,10 +440,12 @@ Add SQ03 SDC/MASKED/SQUASHED/CRASH profiles mirroring DA04/SQ01 (store-side). Ad
 - Test: `tests/test_sp05_rules.cc`
 - Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.cc` (completeStore hook)
 
-- [ ] **Step 1: Freeze definition** from the v3.2.3 audit: one live store completion, entry-keyed one-shot, no `_completed`/`storesToWB` inconsistency, watchdog.
-- [ ] **Step 2: Rules + unit test** for one-shot/target selection.
+- [x] **Step 1: Freeze definition** from the v3.2.3 audit: one live store completion, entry-keyed one-shot, no `_completed`/`storesToWB` inconsistency, watchdog.
+- [x] **Step 2: Rules + unit test** for one-shot/target selection.
 - [ ] **Step 3: Hook + build + smoke.** If the hook creates an assert/underflow, stop and report the blocker; do not fabricate success.
-- [ ] **Step 4: Commit.**
+
+> **Deferred to the next round (per the v3.2.8 work order: "本轮完成后继续SP05").** Only the definition freeze, `sp05_rules.hh`, and its unit test are committed; the live `completeStore` hook, build/smoke, trace and pilots are not implemented. `MODEL_STATUS_MATRIX.csv` therefore keeps SP05 `IMPLEMENTED=0`.
+- [x] **Step 4: Commit.**
 
 ---
 

@@ -1,0 +1,10 @@
+branch: lsu-platform-v3.2.8
+code_head: feff2505b115d8325181a1ae55e538b2450e0136
+base_v327: f26218f8
+f26218f8 [LSU][MDSPEC][V3.2.7][PACKAGE] MD04 freeze, FW05 implementation and final provenance
+worktree: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2
+date: 2026-11-08T18:38:40+08:00
+binary_final_sha256: b988b7503cdf1feab10b99d09ec85df84b42eb385396142e0b7be6a197c63a45
+docs/package commit: this closeout commit (hash recorded in C_Global/POST_COMMIT_PROVENANCE.txt inside the package and in git log)
+package_zip: LSU_v3.2.8_FW05_ConfigFreeze_SQ03_Pilot_Package.zip (SHA256 in .sha256 sidecar)
+status_entries: 76

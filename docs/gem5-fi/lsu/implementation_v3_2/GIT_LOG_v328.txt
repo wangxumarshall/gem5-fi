@@ -1,0 +1,11 @@
+# feature commits (v3.2.7 -> code freeze)
+feff2505 (HEAD -> lsu-platform-v3.2.8, origin/lsu-platform-v3.2.8) [LSU][MDSPEC][V3.2.8][SP05] freeze definition and entry-keyed completion rules
+90303a70 [LSU][MDSPEC][V3.2.8][DOCS] update matrix, status and consistency checks
+2cfbb1f6 [LSU][MDSPEC][V3.2.8][SQ03] trace integration, timeout handling and five pilots
+7539c251 [LSU][MDSPEC][V3.2.8][SQ03] one-shot hard cap and in-simulator watchdog
+0ec78958 [LSU][MDSPEC][V3.2.8][EXCEL] publish v3.2.3 with fw05_forward frozen
+e1188bc6 [LSU][MDSPEC][V3.2.8][FW05] add per-seed no-fault baselines
+2d89f936 [LSU][MDSPEC][V3.2.8][FW05] archive exact fw05_forward workload with SHA provenance
+65e06c79 [LSU][MDSPEC][V3.2.8][DOCS] start v3.2.8 from v3.2.7 and record work order
+
+# closeout documentation/package commits follow feff2505; see git log for the exact hashes

@@ -46,8 +46,33 @@ pilots. No 60-sample formal run.
 
 ## C. Verification and open issues
 
-- Build exit 0; unit tests MD04/FW05/SQ03 PASS; platform 78 passed;
-  workbook 4 passed; v3.2.8 consistency 4 passed.
+- Build exit 0; unit tests MD04/FW05/SQ03/SP05 PASS; workbook 4 passed;
+  v3.2.8 consistency 4 passed; archive 3 passed.
+- Full `python3 -m pytest tests -q` on 2026-11-08: **31 passed, 5 errors**.
+  The five errors are all in the pre-existing `tests/test_claim_concurrency.py`
+  and are caused by the `pytest-check` plugin (`check` fixture) not being
+  installed in this environment — not by this round's changes (the file is
+  unchanged since `977d7ced`).
 - Open: no SQ03 consumer/SDC pilot; FW05 R02–R05 SDC is model-level, not
   a formal 60-sample result; global Warm-up/ROI still unresolved;
   60-sample formal run not started.
+
+## D. Final-binary recheck (2026-11-08)
+
+- All five FW05 pilots were re-run on the final binary
+  (`b988b750…c63a45`), same seeds/ordinals/workload, into scratch outdirs.
+  Checksums are bit-identical to the historical pilots: R01
+  `0x67afad307642983e` (PASS), R02 `0x549c9e0347adaf23`, R03
+  `0x549c9e0347adaf25`, R04 `0x549c9e0347adaf27`, R05 `0x549c9e0347adaf19`
+  (SDC). R02's injection identity (`LoadSeq 12156 / True 12155 /
+  Alt 12154`) also reproduces. Logs:
+  `evidence_v3_2_8/recheck_final_binary/`.
+- SQ03 R01 was re-run on the final binary: exactly one injection
+  (`fired=1 injected=1 eligible=1`), checksum `0xba3b3185e541ad03`, PASS.
+- Note: the host was heavily loaded (load average > 50) during part of this
+  recheck; batch shell timeouts fired although standalone re-runs completed
+  in ~3.3 s. This is a host-scheduling effect, recorded in
+  `OPEN_ISSUES_v3.2.8.md`.
+- Package: `LSU_v3.2.8_FW05_ConfigFreeze_SQ03_Pilot_Package.zip`; its SHA256
+  is recorded in the adjacent `.sha256` sidecar (a literal inside the zip
+  would be self-referential).
