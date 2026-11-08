@@ -1,6 +1,19 @@
  M docs/gem5-fi/lsu/implementation_v3_2/GIT_COMMIT_v329.txt
  M docs/gem5-fi/lsu/implementation_v3_2/GIT_LOG_v329.txt
  M docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v329.txt
+ M docs/gem5-fi/lsu/implementation_v3_2/PACKAGE_README_v3.2.9.md
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R01-off/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R01-on/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R02-off/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R02-on/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R03-off/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R03-on/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R04-off/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R04-on/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R05-off/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/evidence_v3_2_9/FW05_strict_baselines/R05-on/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_9/SQ03-PROBE-F0-P00/stdout.log
+ M docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_9/SQ03-PROBE-F0-P01/stdout.log
 ?? .tmp_lsu_conc/
 ?? LSU_v3.2.3_Implementation_and_Model_Progress_Package.zip
 ?? LSU_v3.2.3_Propagation_Closure_Package.zip
@@ -13,6 +26,7 @@
 ?? LSU_v3.2.8_FW05_ConfigFreeze_SQ03_Pilot_Package.zip.sha256
 ?? LSU_v3.2.9_SP05_Implementation_SQ03_Propagation_FW05_Closure_Package.zip
 ?? LSU_v3.2.9_SP05_Implementation_SQ03_Propagation_FW05_Closure_Package.zip.sha256
+?? docs/gem5-fi/lsu/implementation_v3_2/POST_COMMIT_PROVENANCE_v329.txt
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/citations.bib
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/config.ini
 ?? docs/gem5-fi/lsu/implementation_v3_2/baselines_v3_2_4/alignment_none/config.json

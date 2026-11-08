@@ -1,5 +1,5 @@
 branch: lsu-platform-v3.2.9
-head: 316f690a4336f399b259886c99a0f11efb27da2f
+head: ecf0fdf93f03e33490a409e7eb3345daffc4832e
 base: d5c15309
-binary: d6e60863bb63f85398b5aaa35539c0c6c3fdf582e3d969aace27611d5db97b90  /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt
-date: 2026-11-08T21:45:05+08:00
+binary: 303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0  /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2/build/ARM/gem5.opt
+date: 2026-11-08T22:31:49+08:00

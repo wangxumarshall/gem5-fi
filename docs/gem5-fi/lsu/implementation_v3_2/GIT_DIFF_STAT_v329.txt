@@ -1,10 +1,10 @@
- CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc   |  121 +-
- CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh   |   26 +-
+ CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc   |  128 ++-
+ CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh   |   27 +-
  CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py   |    5 +
- CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh    |    8 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh    |   17 +
  .../cpu/o3/CHAOSPropagation/CHAOSPropagation.cc    |   76 ++
  .../cpu/o3/CHAOSPropagation/CHAOSPropagation.hh    |   17 +
- CHAOS/gem5/src/cpu/o3/lsq_unit.cc                  |   38 +
+ CHAOS/gem5/src/cpu/o3/lsq_unit.cc                  |   39 +
  configs/se/lsu_proxy.py                            |    9 +-
  .../FW05_No_Fault_Baselines_v3.2.8.md              |   12 +
  .../FW05_Workload_Archive/README.md                |   11 +
@@ -13,8 +13,8 @@
  .../lsu/implementation_v3_2/GIT_BASELINE_v329.txt  |    3 +
  .../lsu/implementation_v3_2/GIT_COMMIT_v329.txt    |    5 +
  .../lsu/implementation_v3_2/GIT_DIFF_CODE_v329.txt | 1073 ++++++++++++++++++
- .../lsu/implementation_v3_2/GIT_DIFF_STAT_v329.txt |   82 ++
- .../lsu/implementation_v3_2/GIT_LOG_v329.txt       |   13 +
+ .../lsu/implementation_v3_2/GIT_DIFF_STAT_v329.txt |   90 ++
+ .../lsu/implementation_v3_2/GIT_LOG_v329.txt       |   15 +
  .../lsu/implementation_v3_2/GIT_STATUS_v329.txt    |  156 +++
  .../implementation_v3_2/LSU_v3.2.9_Final_Report.md |   50 +
  .../LSU_v3.2.9_Status_Report.md                    |   47 +
@@ -23,6 +23,7 @@
  .../lsu/implementation_v3_2/OPEN_ISSUES_v3.2.9.md  |   29 +
  .../implementation_v3_2/PACKAGE_README_v3.2.9.md   |   34 +
  .../SP05_Implementation_v3.2.9.md                  |   45 +
+ .../SP05_Review_Fixes_v3.2.9.md                    |   34 +
  .../SP05_Safety_Tests_v3.2.9.md                    |   17 +
  .../SP05_Source_Audit_v3.2.9.md                    |   89 ++
  .../SQ03_Probe_Report_v3.2.9.md                    |   35 +
@@ -65,6 +66,7 @@
  .../logs_v3_2_9/build_sp05_c.log                   |   93 ++
  .../logs_v3_2_9/build_sp05_d.log                   |   92 ++
  .../logs_v3_2_9/build_sp05_e.log                   |   63 ++
+ .../logs_v3_2_9/build_sp05_fix.log                 | 1131 +++++++++++++++++++
  .../logs_v3_2_9/pytest_full.log                    |  159 +++
  .../SQ03-PROBE-F0-P00/lsq_fwd_injections.log       |    1 +
  .../pilots_v3_2_9/SQ03-PROBE-F0-P00/stdout.log     |   29 +
@@ -72,7 +74,7 @@
  .../pilots_v3_2_9/SQ03-PROBE-F0-P01/stdout.log     |   29 +
  .../lsu/implementation_v3_2/platform/run_pilot.py  |   63 +-
  .../implementation_v3_2/platform/terminal_rules.py |    8 +
- .../platform/tools/prop_trace_to_v31.py            |   28 +-
+ .../platform/tools/prop_trace_to_v31.py            |   30 +-
  .../workloads/compile_sq03_probe.sh                |    6 +
  .../lsu/implementation_v3_2/workloads/sq03_probe   |  Bin 0 -> 636872 bytes
  .../lsu/implementation_v3_2/workloads/sq03_probe.c |   40 +
@@ -81,10 +83,10 @@
  requirements-test.txt                              |    3 +
  tests/conftest.py                                  |   16 +
  tests/test_lsu_v324_workbook.py                    |   77 ++
- tests/test_sp05_rules.cc                           |    5 +
+ tests/test_sp05_rules.cc                           |   10 +
  tests/test_v328_consistency.py                     |    4 +
  tests/test_v329_consistency.py                     |   11 +
  tools/analyze_sq03_propagation.py                  |  169 +++
  tools/build_lsu_v324_workbook.py                   |  128 +++
  tools/check_v329_consistency.py                    |   78 ++
- 89 files changed, 5802 insertions(+), 44 deletions(-)
+ 91 files changed, 7002 insertions(+), 44 deletions(-)

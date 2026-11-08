@@ -1,4 +1,6 @@
-316f690a (HEAD -> lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][DOCS] check off the plan and add the package README
+ecf0fdf9 (HEAD -> lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][SP05] fix cross-model corruption and unreachable-ordinal selection
+daf9a298 (origin/lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][DOCS] refresh git provenance to the closeout commit
+316f690a [LSU][MDSPEC][V3.2.9][DOCS] check off the plan and add the package README
 525be053 [LSU][MDSPEC][V3.2.9][PACKAGE] final report, open issues and git provenance
 f38ce587 [LSU][MDSPEC][V3.2.9][DOCS] status report and cross-artifact consistency check
 b48ee443 [LSU][MDSPEC][V3.2.9][TESTS] install pytest-check, supply the expected check fixture, run full suite
@@ -12,4 +14,4 @@ fd50fcb2 [LSU][MDSPEC][V3.2.9][SP05] safety tests: clamp, one-shot, non-target, 
 a1df1b57 [LSU][MDSPEC][V3.2.9][SP05] implement premature store completion hook, trace and watchdog
 fceba259 [LSU][MDSPEC][V3.2.9][SP05] add ordinal target-selection rule and test
 035f2a6b [LSU][MDSPEC][V3.2.9][SP05] audit completeStore lifecycle and reconcile premature-vs-suppressed wording
-1775db15 (origin/lsu-platform-v3.2.9) [LSU][MDSPEC][V3.2.9][DOCS] start v3.2.9 from v3.2.8 and record work order
+1775db15 [LSU][MDSPEC][V3.2.9][DOCS] start v3.2.9 from v3.2.8 and record work order

@@ -1,5 +1,5 @@
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
-index ebf55bcd..96999848 100644
+index ebf55bcd..beabccec 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
 @@ -80,7 +80,9 @@ namespace gem5
@@ -56,7 +56,18 @@ index ebf55bcd..96999848 100644
          return StructMode::ByteFlip;  // default / unknown
      }
  
-@@ -432,6 +463,94 @@ namespace gem5
+@@ -252,6 +283,10 @@ namespace gem5
+         if (struct_mode == StructMode::FwdSourceSub) return;
+         if (struct_mode == StructMode::Fw05OlderSrc) return;
+         if (struct_mode == StructMode::Sq03CanWB) return;
++        // SP05 (v3.2.9): the completion hook owns the shared one-shot budget;
++        // the legacy forwarding-corruption hook must stay inert or it would
++        // inject an untraced bit_flip and consume max_faults first.
++        if (struct_mode == StructMode::Sp05Complete) return;
+         if (struct_mode == StructMode::PhaseOffset) return;
+         // FW02 acts only at the forwarding DECISION point (suppress one
+         // match); it must never also mutate the forwarded bytes.
+@@ -432,6 +467,97 @@ namespace gem5
                (int)eligible_count);
      }
  
@@ -79,11 +90,14 @@ index ebf55bcd..96999848 100644
 +
 +    bool
 +    CHAOSLSQFwd::maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx,
-+                                 uint64_t sq_gen)
++                                 uint64_t sq_gen, uint32_t size,
++                                 bool is_prefetch)
 +    {
 +        if (struct_mode != StructMode::Sp05Complete)
 +            return false;
 +        if (probability <= 0.0f || sp05_fired || sp05_selected)
++            return false;
++        if (!chaos_sp05::isSelectable(size, is_prefetch))
 +            return false;
 +        ++eligible_count;
 +        if (count_only)
@@ -152,7 +166,7 @@ index ebf55bcd..96999848 100644
      CHAOSLSQFwd::maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx,
                                 uint64_t sq_gen)
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
-index d3666cf9..3264259a 100644
+index d3666cf9..3a59cbcb 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
 @@ -12,6 +12,7 @@
@@ -163,14 +177,15 @@ index d3666cf9..3264259a 100644
  #include "base/statistics.hh"
  #include "base/types.hh"
  #include "params/CHAOSLSQFwd.hh"
-@@ -89,6 +90,19 @@ class CHAOSLSQFwd : public SimObject
+@@ -89,6 +90,20 @@ class CHAOSLSQFwd : public SimObject
      // caller must also increment storesToWB.
      bool maybeSetCanWB(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
  
 +    // SP05 (v3.2.9): select the Nth committed store, then complete it before
 +    // its cache write is sent. The caller must call the real completeStore()
 +    // so the storesToWB decrement stays paired.
-+    bool maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen);
++    bool maybeSelectSP05(uint64_t store_seq, uint64_t sq_idx, uint64_t sq_gen,
++                         uint32_t size, bool is_prefetch);
 +    bool maybeCompleteSP05(uint64_t store_seq, uint64_t sq_idx,
 +                           uint64_t sq_gen, bool request_sent);
 +    void sp05Watchdog();
@@ -183,7 +198,7 @@ index d3666cf9..3264259a 100644
      // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
      // the simulation with a non-zero code. The event fires at
      // sq03WatchdogCycles after construction.
-@@ -145,7 +159,7 @@ class CHAOSLSQFwd : public SimObject
+@@ -145,7 +160,7 @@ class CHAOSLSQFwd : public SimObject
      //     forward-path phase).
      enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
                              PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0,
@@ -192,7 +207,7 @@ index d3666cf9..3264259a 100644
      static StructMode stringToStructMode(const std::string &s);
  
      o3::CPU *cpu;
-@@ -196,6 +210,16 @@ class CHAOSLSQFwd : public SimObject
+@@ -196,6 +211,16 @@ class CHAOSLSQFwd : public SimObject
  
      EventFunctionWrapper *sq03_watchdog_event = nullptr;
  
@@ -210,7 +225,7 @@ index d3666cf9..3264259a 100644
      std::random_device rd;
      std::discrete_distribution<int> random_fault_distribution;
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
-index 9d1b1cfd..c9182d59 100644
+index 9d1b1cfd..6e350404 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py
 @@ -79,4 +79,9 @@ class CHAOSLSQFwd(SimObject):
@@ -220,14 +235,14 @@ index 9d1b1cfd..c9182d59 100644
 +    sp05EventOrdinal = Param.UInt64(0,
 +        "SP05: 1-based eligible (newly canWB) store ordinal (0 = none)")
 +    sp05WatchdogCycles = Param.UInt64(500000000,
-+        "SP05: in-simulator watchdog in ticks (0 = disabled); on expiry the "
++        "SP05: in-simulator watchdog in clock cycles (0 = disabled); on expiry the "
 +        "simulation exits with code 1 and CHAOS_SP05_WATCHDOG_EXPIRED")
      writeLog = Param.Bool(True, "Write a fault_injections.log file")
 diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh
-index 0ae7d967..eb6d91e6 100644
+index 0ae7d967..f49cf050 100644
 --- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh
 +++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh
-@@ -8,6 +8,14 @@ namespace gem5
+@@ -8,6 +8,23 @@ namespace gem5
  namespace chaos_sp05
  {
  
@@ -237,6 +252,15 @@ index 0ae7d967..eb6d91e6 100644
 +shouldSelect(uint64_t eligible_count, uint64_t ordinal)
 +{
 +    return ordinal != 0 && eligible_count == ordinal;
++}
++
++// The completion hook cannot reach size-0 instant completions or data
++// prefetches (writebackStores handles them before the SP05 check), so the
++// ordinal must count only reachable stores.
++inline bool
++isSelectable(uint32_t size, bool is_prefetch)
++{
++    return size > 0 && !is_prefetch;
 +}
 +
  // SP05-CFG01: one live store completion is premature. The target is
@@ -365,21 +389,22 @@ index 75b271e5..36227211 100644
      // One CSV row: numeric fields with has_x=false print as "".
      uint64_t writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
 diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
-index 8bbd40f8..99d609b2 100644
+index 8bbd40f8..e187ba3c 100644
 --- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
 +++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
-@@ -917,6 +917,10 @@ LSQUnit::commitStores(InstSeqNum &youngest_inst)
+@@ -917,6 +917,11 @@ LSQUnit::commitStores(InstSeqNum &youngest_inst)
              x.canWB() = true;
  
              ++storesToWB;
 +            if (cpu->lsqFwd)
-+                cpu->lsqFwd->maybeSelectSP05(x.instruction()->seqNum,
-+                                             x.instruction()->sqIdx,
-+                                             x.instruction()->sqEntryGeneration);
++                cpu->lsqFwd->maybeSelectSP05(
++                    x.instruction()->seqNum, x.instruction()->sqIdx,
++                    x.instruction()->sqEntryGeneration, x.size(),
++                    x.instruction()->isDataPrefetch());
          }
      }
  }
-@@ -973,6 +977,30 @@ LSQUnit::writebackStores()
+@@ -973,6 +978,30 @@ LSQUnit::writebackStores()
          DynInstPtr inst = storeWBIt->instruction();
          LSQRequest* request = storeWBIt->request();
  
@@ -410,7 +435,7 @@ index 8bbd40f8..99d609b2 100644
          // Process store conditionals or store release after all previous
          // stores are completed
          if ((request->mainReq()->isLLSC() ||
-@@ -1325,6 +1353,9 @@ void
+@@ -1325,6 +1354,9 @@ void
  LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
  {
      assert(store_idx->valid());
@@ -420,7 +445,7 @@ index 8bbd40f8..99d609b2 100644
      store_idx->completed() = true;
      --storesToWB;
      // A bit conservative because a store completion may not free up entries,
-@@ -1373,6 +1404,13 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
+@@ -1373,6 +1405,13 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
  
      store_inst->setCompleted();
  
@@ -605,26 +630,32 @@ index 260d9fd4..b597a99f 100644
      if squashed and not committed:
          return "SQUASHED", "TARGET_SQUASHED_NO_COMMIT"
 diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
-index 388b31bc..2ee25d2c 100644
+index 388b31bc..f8705ac8 100644
 --- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
 +++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
-@@ -30,6 +30,7 @@ KIND_MAP = {
+@@ -30,8 +30,10 @@ KIND_MAP = {
      "inj_md04": "injection",
      "inj_fw05": "injection",
      "inj_sq03": "injection",
 +    "inj_sp05": "injection",
      "sq03_wb": "store_writeback",
      "sq03_complete": "sq03_complete",
++    "sp05_complete": "sp05_complete",
      "store_wb": "store_writeback",
-@@ -60,6 +61,7 @@ UNIT_MAP = {
+     "store_mem": "store_mem_write",
+     "store_overwrite": "store_overwrite",
+@@ -60,8 +62,10 @@ UNIT_MAP = {
      "inj_md04": ("MD", "dependency_violation"),
      "inj_fw05": ("FWD", "wrong_source_forward"),
      "inj_sq03": ("SQ", "writeback_permission"),
 +    "inj_sp05": ("SQ", "completion"),
      "sq03_wb": ("SQ", "writeback"),
      "sq03_complete": ("SQ", "complete"),
++    "sp05_complete": ("SQ", "complete"),
      "store_wb": ("SQ", "writeback"),
-@@ -171,7 +173,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+     "store_mem": ("L1D", "memory_write"),
+     "store_overwrite": ("SQ", "overwrite"),
+@@ -171,7 +175,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
          old_addr = _hex(d.get("old_addr"))
          new_addr = _hex(d.get("new_addr")) or _hex(addr)
          injection_status = "NOT_APPLICABLE"
@@ -634,7 +665,7 @@ index 388b31bc..2ee25d2c 100644
              injection_status = ("NO_CHANGE" if kind == "inj_nochange"
                                  or d.get("value_changed") == "0"
                                  else "INJECTED")
-@@ -180,7 +183,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+@@ -180,7 +185,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
          injection_event_id = injection_by_ptag.get(ptag_i, 1)
          activation_status = ("TRIGGERED"
                               if (ptag_i > 0 or kind in ("inj", "inj_nochange",
@@ -644,7 +675,7 @@ index 388b31bc..2ee25d2c 100644
                               and kind != "taint_value_mismatch"
                               else "UNKNOWN")
          commit_status = ("COMMITTED" if kind in ("consumer", "errant_commit", "commit")
-@@ -233,6 +237,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+@@ -233,6 +239,10 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
              va, pa = _hex(d.get("store_addr")), None
              old_value = d.get("canwb_before")
              new_value = d.get("canwb_after")
@@ -655,7 +686,7 @@ index 388b31bc..2ee25d2c 100644
          elif kind in ("lq_lifecycle", "sq_lifecycle"):
              va, pa = None, None
              old_value, new_value = None, None
-@@ -293,6 +301,22 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+@@ -293,6 +303,22 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                  "size_modified": _int(d.get("size_modified")),
                  "data_modified": _int(d.get("data_modified")),
              }
