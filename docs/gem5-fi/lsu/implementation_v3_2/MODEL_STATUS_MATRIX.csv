@@ -9,5 +9,5 @@ MD04,LSU,LSQ,1,1,1,1,1,1,1,"MD04-DEF-v2 frozen 2026-11-08; checkViolations store
 FW05,FWD,forward,1,1,1,1,1,1,1,"v3.2.8 fw05_forward frozen/archived; v3.2.9 run_pilot.sh fixed (GEM5_ROOT/archived bin, /tmp test); strict matched baselines fw05_older_src/prob0 all PASS; fault-on reproduces R02-R05 SDC 549c...; Excel v3.2.4 consistent"
 SQ03,SQ,writeback,1,1,1,1,1,1,0,v3.2.8 five pilots MASKED (no consumer); v3.2.9 trace analysis separates permission (140910) from cache update (198275); probe P00/P01 identical checksums and 136 identical forwards; PROPAGATION_VERIFIED=0
 SP05,SQ,completion,1,1,1,1,1,1,0,"v3.2.9 real completeStore hook (writebackStores premature completion); one-shot+watchdog; 5 pilots MASKED/PASS, seq 18/19/23/24/28, storesToWB -1, trace COMPLETE, consumer 0; no SDC"
-LQ04,LQ,lifetime,1,0,0,0,0,0,0,v3.2.3 audit; HIGH-RISK
+LQ04,LQ,lifetime,1,1,1,1,1,1,0,v3.2.10: literal fields cleared; boundary restore; 5/5 pilots MASKED; consumers correct data (no corrupting propagation); no SDC
 RP01,RPL,replay,1,0,0,0,0,0,0,v3.2.3 audit
