@@ -1,0 +1,24 @@
+LSU v3.2.10 (LQ04) — git status --short at packaging time (2026-11-09 ~20:35 CST)
+Branch: lsu-platform-v3.2.10  HEAD: a175559b57bfc8e4b37e1b1d1e880255114aa85e
+
+$ git status --short
+
+ M .superpowers/sdd/2026-11-08-lsu-v3.2.10-lq04/progress.md
+?? .tmp_lsu_conc/
+?? docs/gem5-fi/lsu/implementation_v3_2/GIT_COMMIT_v3210.txt
+?? docs/gem5-fi/lsu/implementation_v3_2/GIT_DIFF_CODE_v3210.txt
+?? docs/gem5-fi/lsu/implementation_v3_2/GIT_DIFF_STAT_v3210.txt
+?? docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v3210.txt
+
+Annotations (honest record):
+- .superpowers/sdd/2026-11-08-lsu-v3.2.10-lq04/progress.md — SDD task tracker,
+  modified by the Task 13 session while executing (checkbox updates); committed
+  separately by the docs step.
+- .tmp_lsu_conc/ — scratch directory of a concurrent session; untracked, not
+  part of the LQ04 deliverables, not staged.
+- docs/gem5-fi/lsu/implementation_v3_2/GIT_*_v3210.txt — the provenance files
+  created by this Task 13 (untracked at capture time, committed with the package).
+- docs/gem5-fi/lsu/implementation_v3_2/DELIVERABLES_SHA256_v3210.txt — created after
+  staging completes; expected to appear here once written.
+- LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip(.sha256) — created after the
+  staging tree is finalized; expected to appear here once written.

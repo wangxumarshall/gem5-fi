@@ -1,0 +1,175 @@
+LSU v3.2.10 (LQ04) — FULL diff stat (all files, 37692d2b..a175559b)
+Range: 37692d2beffcb73fc9303ad9de4c6bb341d5de71..a175559b57bfc8e4b37e1b1d1e880255114aa85e
+Note: binary files are listed with 'Bin' markers; pilots_v3_2_10/ artifact
+files and the workbook xlsx are included here (they are packaged in the zip).
+
+ .../sdd/2026-11-08-lsu-v3.2.10-lq04/progress.md    |    90 +
+ .../2026-11-08-lsu-v3.2.10-lq04/task-12-report.md  |   318 +
+ .../2026-11-08-lsu-v3.2.10-lq04/task-8-report.md   |   223 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc       |   224 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.hh       |   114 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.py       |    49 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/SConscript         |    10 +
+ CHAOS/gem5/src/cpu/o3/CHAOSLQ04/lq04_rules.hh      |    51 +
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.cc    |   171 +
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.hh    |    35 +
+ CHAOS/gem5/src/cpu/o3/cpu.hh                       |    13 +
+ CHAOS/gem5/src/cpu/o3/lsq_unit.cc                  |   101 +-
+ CHAOS/gem5/src/cpu/o3/lsq_unit.hh                  |    54 +
+ configs/se/lsu_proxy.py                            |    40 +-
+ .../LQ04_Definition_Freeze_v3.2.10.md              |   197 +
+ .../lsu/implementation_v3_2/LQ04_PILOT_SUMMARY.csv |    11 +
+ .../LQ04_Propagation_Audit_v3.2.10.md              |   441 +
+ .../LQ04_Source_Audit_v3.2.10.md                   |   247 +
+ .../LSU_v3.2.10_Baseline_Verification.md           |   242 +
+ .../LSU_v3.2.10_Final_Report.md                    |   293 +
+ .../implementation_v3_2/MODEL_STATUS_MATRIX.csv    |     2 +-
+ .../implementation_v3_2/excel/60_SAMPLE_MATRIX.csv |    10 +-
+ ...-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx |   Bin 0 -> 81581 bytes
+ .../logs_v3_2_10/binary_v3210.sha256               |     2 +
+ .../logs_v3_2_10/build_lq04.log                    |  1124 ++
+ .../logs_v3_2_10/regression_lq04.txt               |    51 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/citations.bib  |   123 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/command.txt    |    13 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/config.ini     |  1710 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/config.json    |  2215 +++
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/manifest.json  |    59 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/oracle.log     |     2 +
+ .../LQ04-CONTROL-R01/pilot_meta.json               |   112 +
+ .../LQ04-CONTROL-R01/prop_trace.csv.gz             |   Bin 0 -> 490860 bytes
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/stats.txt      |  1647 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/stderr.log     |     8 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R01/stdout.log     |    15 +
+ .../LQ04-CONTROL-R01/trace_v31.jsonl               | 17069 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/citations.bib  |   123 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/command.txt    |    13 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/config.ini     |  1710 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/config.json    |  2215 +++
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/manifest.json  |    59 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/oracle.log     |     2 +
+ .../LQ04-CONTROL-R02/pilot_meta.json               |   112 +
+ .../LQ04-CONTROL-R02/prop_trace.csv.gz             |   Bin 0 -> 490860 bytes
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/stats.txt      |  1647 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/stderr.log     |     8 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R02/stdout.log     |    15 +
+ .../LQ04-CONTROL-R02/trace_v31.jsonl               | 17069 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/citations.bib  |   123 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/command.txt    |    13 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/config.ini     |  1710 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/config.json    |  2215 +++
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/manifest.json  |    59 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/oracle.log     |     2 +
+ .../LQ04-CONTROL-R03/pilot_meta.json               |   112 +
+ .../LQ04-CONTROL-R03/prop_trace.csv.gz             |   Bin 0 -> 490860 bytes
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/stats.txt      |  1647 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/stderr.log     |     8 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R03/stdout.log     |    15 +
+ .../LQ04-CONTROL-R03/trace_v31.jsonl               | 17069 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/citations.bib  |   123 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/command.txt    |    13 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/config.ini     |  1710 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/config.json    |  2215 +++
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/manifest.json  |    59 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/oracle.log     |     2 +
+ .../LQ04-CONTROL-R04/pilot_meta.json               |   112 +
+ .../LQ04-CONTROL-R04/prop_trace.csv.gz             |   Bin 0 -> 490860 bytes
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/stats.txt      |  1647 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/stderr.log     |     8 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R04/stdout.log     |    15 +
+ .../LQ04-CONTROL-R04/trace_v31.jsonl               | 17069 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/citations.bib  |   123 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/command.txt    |    13 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/config.ini     |  1710 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/config.json    |  2215 +++
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/manifest.json  |    59 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/oracle.log     |     2 +
+ .../LQ04-CONTROL-R05/pilot_meta.json               |   112 +
+ .../LQ04-CONTROL-R05/prop_trace.csv.gz             |   Bin 0 -> 490860 bytes
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/stats.txt      |  1647 ++
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/stderr.log     |     8 +
+ .../pilots_v3_2_10/LQ04-CONTROL-R05/stdout.log     |    15 +
+ .../LQ04-CONTROL-R05/trace_v31.jsonl               | 17069 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-R01/citations.bib          |   123 +
+ .../pilots_v3_2_10/LQ04-R01/command.txt            |    20 +
+ .../pilots_v3_2_10/LQ04-R01/config.ini             |  1722 ++
+ .../pilots_v3_2_10/LQ04-R01/config.json            |  2230 +++
+ .../pilots_v3_2_10/LQ04-R01/lq04_injections.log    |     2 +
+ .../pilots_v3_2_10/LQ04-R01/manifest.json          |    66 +
+ .../pilots_v3_2_10/LQ04-R01/oracle.log             |     2 +
+ .../pilots_v3_2_10/LQ04-R01/pilot_meta.json        |   145 +
+ .../pilots_v3_2_10/LQ04-R01/prop_trace.csv.gz      |   Bin 0 -> 523676 bytes
+ .../pilots_v3_2_10/LQ04-R01/stats.txt              |  1647 ++
+ .../pilots_v3_2_10/LQ04-R01/stderr.log             |     8 +
+ .../pilots_v3_2_10/LQ04-R01/stdout.log             |    15 +
+ .../pilots_v3_2_10/LQ04-R01/trace_v31.jsonl        | 17732 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-R02/citations.bib          |   123 +
+ .../pilots_v3_2_10/LQ04-R02/command.txt            |    20 +
+ .../pilots_v3_2_10/LQ04-R02/config.ini             |  1722 ++
+ .../pilots_v3_2_10/LQ04-R02/config.json            |  2230 +++
+ .../pilots_v3_2_10/LQ04-R02/lq04_injections.log    |     2 +
+ .../pilots_v3_2_10/LQ04-R02/manifest.json          |    66 +
+ .../pilots_v3_2_10/LQ04-R02/oracle.log             |     2 +
+ .../pilots_v3_2_10/LQ04-R02/pilot_meta.json        |   145 +
+ .../pilots_v3_2_10/LQ04-R02/prop_trace.csv.gz      |   Bin 0 -> 523871 bytes
+ .../pilots_v3_2_10/LQ04-R02/stats.txt              |  1647 ++
+ .../pilots_v3_2_10/LQ04-R02/stderr.log             |     8 +
+ .../pilots_v3_2_10/LQ04-R02/stdout.log             |    15 +
+ .../pilots_v3_2_10/LQ04-R02/trace_v31.jsonl        | 17734 +++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-R03/citations.bib          |   123 +
+ .../pilots_v3_2_10/LQ04-R03/command.txt            |    20 +
+ .../pilots_v3_2_10/LQ04-R03/config.ini             |  1722 ++
+ .../pilots_v3_2_10/LQ04-R03/config.json            |  2230 +++
+ .../pilots_v3_2_10/LQ04-R03/lq04_injections.log    |     2 +
+ .../pilots_v3_2_10/LQ04-R03/manifest.json          |    66 +
+ .../pilots_v3_2_10/LQ04-R03/oracle.log             |     2 +
+ .../pilots_v3_2_10/LQ04-R03/pilot_meta.json        |   145 +
+ .../pilots_v3_2_10/LQ04-R03/prop_trace.csv.gz      |   Bin 0 -> 523794 bytes
+ .../pilots_v3_2_10/LQ04-R03/stats.txt              |  1647 ++
+ .../pilots_v3_2_10/LQ04-R03/stderr.log             |     8 +
+ .../pilots_v3_2_10/LQ04-R03/stdout.log             |    15 +
+ .../pilots_v3_2_10/LQ04-R03/trace_v31.jsonl        | 17732 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-R04/citations.bib          |   123 +
+ .../pilots_v3_2_10/LQ04-R04/command.txt            |    20 +
+ .../pilots_v3_2_10/LQ04-R04/config.ini             |  1722 ++
+ .../pilots_v3_2_10/LQ04-R04/config.json            |  2230 +++
+ .../pilots_v3_2_10/LQ04-R04/lq04_injections.log    |     2 +
+ .../pilots_v3_2_10/LQ04-R04/manifest.json          |    66 +
+ .../pilots_v3_2_10/LQ04-R04/oracle.log             |     2 +
+ .../pilots_v3_2_10/LQ04-R04/pilot_meta.json        |   145 +
+ .../pilots_v3_2_10/LQ04-R04/prop_trace.csv.gz      |   Bin 0 -> 523796 bytes
+ .../pilots_v3_2_10/LQ04-R04/stats.txt              |  1647 ++
+ .../pilots_v3_2_10/LQ04-R04/stderr.log             |     8 +
+ .../pilots_v3_2_10/LQ04-R04/stdout.log             |    15 +
+ .../pilots_v3_2_10/LQ04-R04/trace_v31.jsonl        | 17732 ++++++++++++++++++
+ .../pilots_v3_2_10/LQ04-R05/citations.bib          |   123 +
+ .../pilots_v3_2_10/LQ04-R05/command.txt            |    20 +
+ .../pilots_v3_2_10/LQ04-R05/config.ini             |  1722 ++
+ .../pilots_v3_2_10/LQ04-R05/config.json            |  2230 +++
+ .../pilots_v3_2_10/LQ04-R05/lq04_injections.log    |     2 +
+ .../pilots_v3_2_10/LQ04-R05/manifest.json          |    66 +
+ .../pilots_v3_2_10/LQ04-R05/oracle.log             |     2 +
+ .../pilots_v3_2_10/LQ04-R05/pilot_meta.json        |   145 +
+ .../pilots_v3_2_10/LQ04-R05/prop_trace.csv.gz      |   Bin 0 -> 523880 bytes
+ .../pilots_v3_2_10/LQ04-R05/stats.txt              |  1647 ++
+ .../pilots_v3_2_10/LQ04-R05/stderr.log             |     8 +
+ .../pilots_v3_2_10/LQ04-R05/stdout.log             |    15 +
+ .../pilots_v3_2_10/LQ04-R05/trace_v31.jsonl        | 17734 +++++++++++++++++++
+ .../lsu/implementation_v3_2/platform/run_pilot.py  |    84 +-
+ .../implementation_v3_2/platform/terminal_rules.py |     2 +-
+ .../platform/tools/prop_trace_to_v31.py            |     5 +
+ .../platform/trace_completeness.py                 |    16 +-
+ .../workloads/compile_lq_lifetime_ordinal.sh       |     9 +
+ .../workloads/lq_lifetime_ordinal                  |   Bin 0 -> 67304 bytes
+ .../workloads/lq_lifetime_ordinal.S                |    37 +
+ .../workloads/lq_lifetime_ordinal.c                |    97 +
+ .../workloads/lq_lifetime_ordinal.golden           |     1 +
+ .../workloads/lq_lifetime_ordinal.sha256           |     1 +
+ .../plans/2026-11-08-lsu-v3.2.10-lq04.md           |   760 +
+ .../specs/2026-11-08-lsu-v3.2.10-lq04-design.md    |   140 +
+ tests/data_lq04_platform/lq04_injections.log       |     1 +
+ tests/test_lq04_platform.py                        |   230 +
+ tests/test_lq04_rules.cc                           |    41 +
+ tests/test_lsu_v325_workbook.py                    |   308 +
+ tests/test_v328_consistency.py                     |     4 +-
+ tools/build_lsu_v325_workbook.py                   |   341 +
+ 169 files changed, 239599 insertions(+), 20 deletions(-)

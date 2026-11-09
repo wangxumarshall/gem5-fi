@@ -1,0 +1,3175 @@
+LSU v3.2.10 (LQ04) — code diff, limited to the implementation surface
+Range: 37692d2beffcb73fc9303ad9de4c6bb341d5de71..a175559b57bfc8e4b37e1b1d1e880255114aa85e (lsu-platform-v3.2.10 HEAD)
+Scope: CHAOSLQ04/ (injector + rules), lsq_unit.hh/.cc, cpu.hh (chaosLQ04 back-pointer,
+       added beyond the packaging brief's literal path list because it is a real code
+       change of this round), CHAOSPropagation/, configs/se/lsu_proxy.py, tests/,
+       tools/build_lsu_v325_workbook.py, docs/superpowers/ (plan + spec), and the
+       pilot-platform .py files under docs/gem5-fi/lsu/implementation_v3_2/platform/.
+Excluded: pilots_v3_2_10/, binaries (workload ELF, gem5.opt), xlsx, logs, reports, CSVs.
+The FULL diff stat (every file, binaries listed) is in GIT_DIFF_STAT_v3210.txt.
+
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc
+new file mode 100644
+index 00000000..cba3ccf3
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc
+@@ -0,0 +1,224 @@
++#include "cpu/o3/CHAOSLQ04/CHAOSLQ04.hh"
++
++#include <iomanip>
++#include <iostream>
++#include <sstream>
++#include <stdexcept>
++
++#include "base/output.hh"
++#include "cpu/o3/CHAOSLQ04/lq04_rules.hh"  // LSU v3.2.10 LQ04 pure rules
++#include "cpu/o3/cpu.hh"                   // o3::CPU (chaosLQ04 self-attach)
++#include "debug/CHAOSLQ04.hh"
++#include "params/CHAOSLQ04.hh"
++#include "sim/cur_tick.hh"
++#include "sim/eventq.hh"
++#include "sim/sim_exit.hh"    // registerExitCallback / exitSimLoop
++
++namespace gem5
++{
++
++    CHAOSLQ04::CHAOSLQ04(const CHAOSLQ04Params &p)
++        : SimObject(p),
++          cpu(p.cpu),
++          event_ordinal(p.eventOrdinal),
++          max_faults(p.maxFaults),
++          count_only(p.countOnly),
++          probe_first_n(p.probeFirstN),
++          watchdog_cycles(p.watchdogCycles),
++          rng_seed(p.rngSeed),
++          write_log(p.writeLog)
++    {
++        // lq04_rules.hh clamps maxFaults==0 to one injection at decision
++        // time; mirror the clamp on the member so the budget bookkeeping
++        // and the log line agree.
++        if (max_faults == 0)
++            max_faults = 1;
++        if (write_log) {
++            log_stream = simout.create("lq04_injections.log", false, true);
++            if (!log_stream || !log_stream->stream()) {
++                panic("CHAOSLQ04: Could not open log file");
++            }
++        }
++    }
++
++    void
++    CHAOSLQ04::startup()
++    {
++        SimObject::startup();
++        // Self-attach (LQ04 is O3-only: it hooks the O3 LSQUnit and the
++        // LQEntry side channel). A non-O3 cpu must fail loudly, not
++        // silently no-op.
++        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
++        if (!o3cpu) {
++            throw std::runtime_error(
++                "CHAOSLQ04: cpu is not an O3CPU. CHAOSLQ04 only supports "
++                "O3CPU (it hooks the O3 LSQUnit::executeLoad load-issue "
++                "path and the LQEntry side channel). Cast failed.");
++        }
++        o3cpu->chaosLQ04 = this;
++
++        // Watchdog: if the ordinal-selected injection has not fired within
++        // watchdogCycles CPU cycles, the run is stuck (or the target never
++        // became eligible). 0 = disabled.
++        if (watchdog_cycles) {
++            watchdog_event = new EventFunctionWrapper(
++                [this]() { this->watchdog(); }, "LQ04 watchdog", true);
++            schedule(watchdog_event,
++                     o3cpu->clockEdge(Cycles(watchdog_cycles)));
++        }
++        // Normal exit: pull the watchdog off the event queue so a finished
++        // run is never aborted by a stale event during teardown.
++        registerExitCallback([this]() {
++            if (watchdog_event && watchdog_event->scheduled())
++                deschedule(watchdog_event);
++        });
++        // count-only dry-run: N_eligible at exit (CHAOSLSQFwd /
++        // CHAOSL1DForward v1.1 Phase 8.2 family convention; the driver
++        // parses the log).
++        if (count_only) {
++            registerExitCallback([this]() {
++                if (write_log && log_stream && log_stream->stream()) {
++                    *(log_stream->stream()) << "CHAOS_LQ04_ELIGIBLE_COUNT="
++                        << eligible_count << std::endl;
++                }
++            });
++        }
++    }
++
++    bool
++    CHAOSLQ04::maybeSelect(uint64_t seq, Addr pc, int64_t lq_idx,
++                           uint64_t lq_gen, uint64_t attempt_id, Addr addr,
++                           unsigned size, uint64_t request_id,
++                           bool is_prefetch)
++    {
++        // A hardware/data prefetch riding the LQ is not the modeled event
++        // stream; it must not consume an eligible-Load ordinal.
++        if (is_prefetch)
++            return false;
++
++        ++eligible_count;
++
++        // Count-only dry-run or probe mode: log the first probeFirstN
++        // eligible loads (std::endl flushes every line, so an aborted
++        // prefix is salvageable).
++        if (probe_logged < probe_first_n) {
++            ++probe_logged;
++            if (write_log && log_stream && log_stream->stream()) {
++                *(log_stream->stream())
++                    << "CHAOS_LQ04_ELIGIBLE_PROBE"
++                    << ": seq=" << seq
++                    << " pc=0x" << std::hex << pc << std::dec
++                    << " lq_idx=" << lq_idx
++                    << " gen=" << lq_gen
++                    << " ordinal=" << eligible_count
++                    << " tick=" << curTick() << std::endl;
++            }
++            DPRINTF(CHAOSLQ04, "CHAOSLQ04: eligible probe sn:%llu "
++                    "lq_idx:%lld gen:%llu ordinal:%llu\n",
++                    (unsigned long long)seq, (long long)lq_idx,
++                    (unsigned long long)lq_gen,
++                    (unsigned long long)eligible_count);
++        }
++
++        // Dry-run: count (and probe) only, never inject.
++        if (count_only)
++            return false;
++
++        // F0 ordinal gate: only the eventOrdinal-th eligible load fires
++        // (ordinal 0 disables selection).
++        if (!chaos_lq04::shouldSelect(eligible_count, event_ordinal))
++            return false;
++        // Budget gate (0 clamped to 1 inside shouldInject).
++        if (!chaos_lq04::shouldInject(injected_count, max_faults))
++            return false;
++
++        // Fire: record the target's LQ entry identity.
++        target_selected = true;
++        target_seq = seq;
++        target_lq_idx = (uint64_t)lq_idx;
++        target_lq_gen = lq_gen;
++        target_request_id = request_id;
++        target_attempt_id = attempt_id;
++        ++injected_count;
++
++        if (write_log && log_stream && log_stream->stream()) {
++            *(log_stream->stream())
++                << "CHAOS_LQ04_INJECTION"
++                << ": seq=" << seq
++                << " pc=0x" << std::hex << pc << std::dec
++                << " lq_idx=" << lq_idx
++                << " gen=" << lq_gen
++                << " request_id=" << request_id
++                << " addr=0x" << std::hex << addr << std::dec
++                << " size=" << size
++                << " eligible=" << eligible_count
++                << " ordinal=" << event_ordinal
++                << " injected=" << injected_count
++                << " tick=" << curTick() << std::endl;
++        }
++        DPRINTF(CHAOSLQ04, "CHAOSLQ04: selected load sn:%llu lq_idx:%lld "
++                "gen:%llu request_id:%llu ordinal:%llu\n",
++                (unsigned long long)seq, (long long)lq_idx,
++                (unsigned long long)lq_gen,
++                (unsigned long long)request_id,
++                (unsigned long long)eligible_count);
++        return true;
++    }
++
++    bool
++    CHAOSLQ04::isTarget(uint64_t seq, uint64_t lq_idx, uint64_t lq_gen) const
++    {
++        if (!target_selected)
++            return false;
++        // The LQ entry identity (index + generation) is the key; the seq is
++        // a defensive cross-check (the entry's instruction is fixed for the
++        // lifetime of one (idx, gen) pair).
++        return seq == target_seq &&
++               chaos_lq04::identityMatches(lq_idx, lq_gen,
++                                           target_lq_idx, target_lq_gen);
++    }
++
++    void
++    CHAOSLQ04::noteRestore(uint64_t seq, uint64_t lq_idx, uint64_t lq_gen,
++                           const char *reason)
++    {
++        // Only the target's restore is interesting; other entries never
++        // had a corrupt window.
++        if (!isTarget(seq, lq_idx, lq_gen))
++            return;
++        target_restored = true;
++        if (write_log && log_stream && log_stream->stream()) {
++            *(log_stream->stream())
++                << "CHAOS_LQ04_RESTORE"
++                << ": seq=" << seq
++                << " lq_idx=" << lq_idx
++                << " gen=" << lq_gen
++                << " reason=" << (reason ? reason : "unknown")
++                << " tick=" << curTick() << std::endl;
++        }
++        DPRINTF(CHAOSLQ04, "CHAOSLQ04: target restored sn:%llu reason=%s\n",
++                (unsigned long long)seq, reason ? reason : "unknown");
++    }
++
++    void
++    CHAOSLQ04::watchdog()
++    {
++        // The ordinal-selected injection never fired within
++        // watchdogCycles: abort loudly so the run cannot be classified as a
++        // normal MASKED completion. The line goes to the log file AND to
++        // stdout (visible in the captured run output without opening the
++        // log).
++        std::ostringstream os;
++        os << "CHAOS_LQ04_WATCHDOG_EXPIRED"
++           << ": selected=" << (target_selected ? 1 : 0)
++           << " injected=" << injected_count
++           << " eligible=" << eligible_count
++           << " ordinal=" << event_ordinal
++           << " tick=" << curTick();
++        if (write_log && log_stream && log_stream->stream())
++            *(log_stream->stream()) << os.str() << std::endl;
++        std::cout << os.str() << std::endl;
++        exitSimLoop("lq04 watchdog expired", 1);
++    }
++
++} // namespace gem5
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.hh
+new file mode 100644
+index 00000000..af61c681
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.hh
+@@ -0,0 +1,114 @@
++#ifndef __CPU_O3_CHAOS_LQ04_HH__
++#define __CPU_O3_CHAOS_LQ04_HH__
++
++#include <cstdint>
++
++#include "base/output.hh"
++#include "base/types.hh"
++#include "params/CHAOSLQ04.hh"
++#include "sim/eventq.hh"
++#include "sim/sim_object.hh"
++
++namespace gem5
++{
++
++namespace o3 { class CPU; }
++class BaseCPU;
++
++// CHAOSLQ04 — Load-Queue entry lifetime fault injector (LSU v3.2.10 LQ04).
++//
++// Fault model: at the end of a successful LSQUnit::executeLoad (a live LQ
++// entry whose request has just been issued), the entry's `valid` and
++// `request` fields are moved into the Task-4 side channel
++// (LSQEntry::corruptLifetime). The entry keeps its slot, its instruction
++// and its queue position, but reads as invalid with no request until the
++// boundary restore (commit/squash, LSQUnit::lq04Restore) puts the fields
++// back before clear(). The fault is a structural lifetime fault — data,
++// address and size are untouched, and the injection itself lives in
++// lsq_unit.cc (Task 6); this SimObject only owns selection and logging.
++//
++// Selection is ordinal-driven and deterministic (F0, lq04_rules.hh): the
++// eventOrdinal-th eligible Load is the target. A replayed load is never
++// injected twice because the target is identified by its LQ entry identity
++// (index + generation), not by "the next executeLoad call". The eligible
++// stream (valid entry, owns its request, not squashed, not executed) is
++// established by the call site; maybeSelect rejects prefetches so they do
++// not consume an ordinal.
++class CHAOSLQ04 : public SimObject
++{
++  public:
++    CHAOSLQ04(const CHAOSLQ04Params &p);
++
++    // Self-attach: reject non-O3 CPUs (std::runtime_error), set
++    // cpu->chaosLQ04 = this, arm the watchdog, register exit callbacks.
++    void startup() override;
++
++    // Called at the end of LSQUnit::executeLoad (Task 6) for a live,
++    // request-owning, un-squashed, un-executed load entry. Increments the
++    // eligible-Load ordinal; logs up to probeFirstN
++    // CHAOS_LQ04_ELIGIBLE_PROBE lines (count-only dry-run or probe mode);
++    // returns true exactly once — on the eventOrdinal-th eligible load,
++    // while the maxFaults budget lasts — meaning "this entry is the
++    // target, corrupt its lifetime now". countOnly never returns true.
++    bool maybeSelect(uint64_t seq, Addr pc, int64_t lq_idx, uint64_t lq_gen,
++                     uint64_t attempt_id, Addr addr, unsigned size,
++                     uint64_t request_id, bool is_prefetch);
++
++    // Response-side probe (Task 6, completeDataAccess): is this dynamic
++    // load the injected target? Matches the stored LQ entry identity via
++    // chaos_lq04::identityMatches; seq is a defensive cross-check.
++    bool isTarget(uint64_t seq, uint64_t lq_idx, uint64_t lq_gen) const;
++
++    // Boundary restore observation (Task 6, LSQUnit::lq04Restore): the
++    // target entry's corrupt window closed at a commit/squash boundary.
++    // Non-target entries never had a window and are ignored.
++    void noteRestore(uint64_t seq, uint64_t lq_idx, uint64_t lq_gen,
++                     const char *reason);
++
++    bool countOnly() const { return count_only; }
++    uint64_t eligibleCount() const { return eligible_count; }
++    uint64_t injectedCount() const { return injected_count; }
++    uint64_t targetRequestId() const { return target_request_id; }
++    uint64_t targetLqIdx() const { return target_lq_idx; }
++    uint64_t targetLqGen() const { return target_lq_gen; }
++    uint64_t targetSeq() const { return target_seq; }
++    uint64_t eventOrdinal() const { return event_ordinal; }
++    // Recorded for reproducibility; the ordinal-driven F0 model draws no
++    // random numbers (unlike the probability-mode injectors).
++    uint64_t rngSeed() const { return rng_seed; }
++
++    // In-simulator watchdog: if the ordinal-selected injection has not
++    // happened by watchdogCycles after startup() (and the run is still
++    // going), log CHAOS_LQ04_WATCHDOG_EXPIRED and exit the simulation
++    // with a non-zero code — a stuck run must not be classifiable as a
++    // normal MASKED completion.
++    void watchdog();
++
++  private:
++    BaseCPU *cpu;               // raw param; O3 check at startup()
++    uint64_t event_ordinal;     // 1-based eligible ordinal; 0 = disabled
++    uint64_t max_faults;        // 0 clamps to 1 (chaos_lq04::shouldInject)
++    bool count_only;
++    uint64_t probe_first_n;     // first-N eligible probe lines (0 = none)
++    uint64_t watchdog_cycles;   // 0 = disabled
++    uint64_t rng_seed;
++    bool write_log;
++
++    uint64_t eligible_count = 0;
++    uint64_t injected_count = 0;
++    uint64_t probe_logged = 0;
++
++    bool target_selected = false;
++    bool target_restored = false;
++    uint64_t target_seq = 0;
++    uint64_t target_lq_idx = 0;     // LQ index (non-negative once selected)
++    uint64_t target_lq_gen = 0;
++    uint64_t target_request_id = 0;
++    uint64_t target_attempt_id = 0;
++
++    EventFunctionWrapper *watchdog_event = nullptr;
++    OutputStream *log_stream = nullptr;
++};
++
++} // namespace gem5
++#endif // __CPU_O3_CHAOS_LQ04_HH__
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.py b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.py
+new file mode 100644
+index 00000000..3378f37b
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.py
+@@ -0,0 +1,49 @@
++# CHAOSLQ04 — Load-Queue entry lifetime fault injector for O3CPU
++# (LSU v3.2.10 LQ04).
++#
++# At the end of a successful LSQUnit::executeLoad (a live LQ entry whose
++# request has just been issued), the selected entry's `valid` and `request`
++# fields are moved into the LSQEntry side channel (corruptLifetime); the
++# boundary restore (commit/squash) puts them back before clear(). Data,
++# address and size are untouched — this is a structural lifetime fault.
++#
++# Selection is ordinal-driven and deterministic (F0, lq04_rules.hh): the
++# eventOrdinal-th eligible Load (valid entry, owns its request, not
++# squashed, not executed; prefetches excluded) is the one target, and the
++# target is identified by its LQ entry identity (index + generation) so a
++# replayed load is never injected twice.
++#
++# O3-only: self-attaches at startup() (cpu->chaosLQ04 = this); the
++# lsq_unit.cc executeLoad tail calls maybeSelect (Task 6).
++from m5.params import *
++from m5.SimObject import SimObject
++
++
++class CHAOSLQ04(SimObject):
++    type = "CHAOSLQ04"
++    cxx_class = "gem5::CHAOSLQ04"
++    cxx_header = "cpu/o3/CHAOSLQ04/CHAOSLQ04.hh"
++
++    cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
++
++    eventOrdinal = Param.UInt64(0,
++        "LQ04: 1-based eligible Load ordinal to select (0 = disabled). "
++        "The Nth eligible load's LQ entry is the injection target.")
++    maxFaults = Param.UInt64(1,
++        "LQ04: maximum injections (0 clamps to 1)")
++    countOnly = Param.Bool(False,
++        "LQ04: count-only dry-run — count eligible loads, log up to "
++        "probeFirstN probe lines and print CHAOS_LQ04_ELIGIBLE_COUNT at "
++        "exit; never inject.")
++    probeFirstN = Param.UInt64(0,
++        "LQ04: log the first N eligible loads as "
++        "CHAOS_LQ04_ELIGIBLE_PROBE lines (0 = none). Bounded logging for "
++        "anchor verification in count-only and probe mode.")
++    watchdogCycles = Param.UInt64(500000000,
++        "LQ04: in-simulator watchdog in CPU cycles (0 = disabled); on "
++        "expiry logs CHAOS_LQ04_WATCHDOG_EXPIRED and exits the simulation "
++        "with code 1 (a stuck run must not classify as MASKED)")
++    rngSeed = Param.UInt64(0,
++        "LQ04: RNG seed recorded for reproducibility (the ordinal-driven "
++        "F0 model draws no random numbers)")
++    writeLog = Param.Bool(True, "write lq04_injections.log")
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/SConscript b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/SConscript
+new file mode 100644
+index 00000000..974e70e8
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/SConscript
+@@ -0,0 +1,10 @@
++# -*- mode:python -*-
++# CHAOSLQ04 — Load-Queue entry lifetime fault injector (O3 only).
++# Discovered automatically by src/SConscript's os.walk.
++
++Import('*')
++
++SimObject('CHAOSLQ04.py', sim_objects=['CHAOSLQ04'], enums=[])
++Source('CHAOSLQ04.cc')
++
++DebugFlag('CHAOSLQ04')
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/lq04_rules.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/lq04_rules.hh
+new file mode 100644
+index 00000000..cda205c3
+--- /dev/null
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLQ04/lq04_rules.hh
+@@ -0,0 +1,51 @@
++#ifndef __CPU_O3_LQ04_RULES_HH__
++#define __CPU_O3_LQ04_RULES_HH__
++
++#include <cstdint>
++
++namespace gem5
++{
++namespace chaos_lq04
++{
++
++// v3.2.10 LQ04: an eligible Load is one whose LQ entry is valid, still owns
++// its request, is not squashed, and has not already completed an execution
++// round. `LSQUnit::executeLoad` early-returns on `inst->isExecuted()`, so the
++// executed flag keeps a repeated call from being counted as a new ordinal.
++// The fault is applied only at the end of executeLoad, i.e. on a live entry
++// whose request has just been issued.
++inline bool
++isEligible(bool valid, bool has_request, bool squashed, bool executed)
++{
++    return valid && has_request && !squashed && !executed;
++}
++
++// EventOrdinal is the 1-based ordinal of the eligible Load stream. Ordinal 0
++// disables selection; only the N-th eligible Load is selected.
++inline bool
++shouldSelect(uint64_t eligible_count, uint64_t ordinal)
++{
++    return ordinal != 0 && eligible_count == ordinal;
++}
++
++// The target is identified by its LQ entry identity (index + generation), not
++// by "the next executeLoad call"; a replayed Load must not be injected twice.
++inline bool
++identityMatches(uint64_t idx, uint64_t gen, uint64_t target_idx,
++                uint64_t target_gen)
++{
++    return idx == target_idx && gen == target_gen;
++}
++
++// maxFaults == 0 is clamped to one injection.
++inline bool
++shouldInject(uint64_t injected, uint64_t max_faults)
++{
++    const uint64_t cap = (max_faults == 0) ? 1 : max_faults;
++    return injected < cap;
++}
++
++} // namespace chaos_lq04
++} // namespace gem5
++
++#endif // __CPU_O3_LQ04_RULES_HH__
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+index 32aa92af..6bc9a0ad 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -810,6 +810,18 @@ namespace gem5
+             hit_ptag = fw->second.ptag;
+             hit_family = "fw05";
+         }
++        // LQ04 (v3.2.10): the target load's LQ entry lifetime was corrupted
++        // after a successful executeLoad, but the in-flight response is
++        // bound by pkt->senderState (the LSQRequest), NOT by the LQ entry,
++        // so it still arrives here and still delivers the unchanged data.
++        // Bind it to the chain so resp/writeback/consumer nodes carry the
++        // LQ04 ptag.
++        auto lq = lq04_registry.find(inst->seqNum);
++        if (!hit_ptag && lq != lq04_registry.end()
++                && lq->second.resp_node == 0) {
++            hit_ptag = lq->second.ptag;
++            hit_family = "lq04";
++        }
+ 
+         // addrpath: the response's own Request vaddr range vs the registry,
+         // bound to this instruction (the faulting load itself).
+@@ -942,6 +954,21 @@ namespace gem5
+                   << ";alt_fnv=" << fw->second.alt_fnv
+                   << ";eligible_ordinal=" << fw->second.eligible_ordinal;
+             }
++            // LQ04: the response reached the CPU through the request's own
++            // senderState while the LQ entry sat corrupted (valid=0,
++            // request popped into the side channel). The entry_* fields are
++            // the corrupt-window state: the response arrives strictly before
++            // the commit/squash boundary restore (a load commits only after
++            // this writeback), and the LIVE-observed values are recorded
++            // independently by the completeDataAccess response_probe
++            // lifecycle node (lsq_unit.cc). data_unchanged=1: LQ04 never
++            // touches the payload.
++            if (hit_family && std::string(hit_family) == "lq04") {
++                d << ";association=sender_state"
++                  << ";entry_valid_at_response=0"
++                  << ";entry_request_at_response=0"
++                  << ";data_unchanged=1";
++            }
+             if (l1d_fwd) {
+                 d << ";orig_data_fnv=" << lf->second.orig_fnv
+                   << ";orig_data_hex=" << lf->second.orig_hex
+@@ -973,6 +1000,8 @@ namespace gem5
+                 md->second.resp_node = resp_node;
+             if (hit_family && std::string(hit_family) == "fw05")
+                 fw->second.resp_node = resp_node;
++            if (hit_family && std::string(hit_family) == "lq04")
++                lq->second.resp_node = resp_node;
+         }
+ 
+         // LP01 writeback is emitted after LSQUnit::writeback reads the PRF
+@@ -1229,6 +1258,93 @@ namespace gem5
+             return;
+         }
+ 
++        // LQ04 (v3.2.10): the response bound this chain in noteMemResponse
++        // and registered the pending chain writeback there (the same
++        // resp→pending mechanism as the cache/store/addrpath families; the
++        // generic tail below would also fire, but LQ04 needs its own
++        // detail). Emit the register writeback from the ACTUAL PRF value
++        // with the honest data_corruption=0 marker — LQ04 corrupted only
++        // the entry lifetime, the delivered and written-back data is
++        // correct — and taint the dest so noteCommit emits consumer nodes
++        // for later readers. No SDC may be claimed from these edges.
++        auto lq = lq04_registry.find(inst->seqNum);
++        if (lq != lq04_registry.end()) {
++            auto it = pending_chain_wb.find(inst->seqNum);
++            // Claim the pending writeback only when the LQ04-bound response
++            // registered it (family lq04). A pending entry from another
++            // family (cross-model mount corner, unreachable in the
++            // single-model pilots) stays with the generic tail below; a
++            // missing entry means no response-bound writeback to claim
++            // (the generic tail would no-op too).
++            if (it != pending_chain_wb.end()
++                    && it->second.family == "lq04") {
++                const ChainWbEntry w = it->second;
++                pending_chain_wb.erase(it);
++                if (inst->getFault() != NoFault)
++                    return;   // completeAcc did not run; no register value
++                for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
++                    const PhysRegIdPtr phys = inst->renamedDestIdx(i);
++                    if (!phys)
++                        continue;
++                    uint64_t value = 0;
++                    unsigned bytes = 0;
++                    const std::string vhash = regValueHash(
++                        inst, phys, inst->threadNumber, &value, &bytes);
++                    if (vhash.empty())
++                        continue;
++                    const bool scalar8 = (w.size == 8 && bytes == 8);
++                    const bool basis_ok = scalar8 && vhash == w.payload_fnv;
++                    const char *basis = scalar8 ? "payload_equals_regval"
++                        : "regval_extension";
++                    std::ostringstream vb;
++                    vb << std::hex << value << std::dec;
++                    std::ostringstream d;
++                    d << "family=lq04;data_corruption=0"
++                      << ";association=sender_state;data_unchanged=1"
++                      << ";class=" << regClassName(phys->classValue())
++                      << ";dest_idx=" << i
++                      << ";phys_reg=" << phys->index()
++                      << ";arch_reg=" << inst->destRegIdx(i).index()
++                      << ";writeback_value=" << vb.str()
++                      << ";writeback_value_fnv=" << vhash
++                      << ";payload_fnv=" << w.payload_fnv
++                      << ";payload_hex=" << w.payload_hex
++                      << ";payload_len=" << w.size
++                      << ";hash_basis=" << basis
++                      << ";value_matches_payload=" << (basis_ok ? 1 : 0)
++                      << ";source_value_hash=" << w.payload_fnv
++                      << ";source_event_id=" << w.resp_node
++                      << ";request_id=" << w.request_id
++                      << ";response_id=" << w.response_id
++                      << ";lq_idx=" << lq->second.lq_idx
++                      << ";lq_gen=" << lq->second.lq_gen
++                      << ";eligible_ordinal=" << lq->second.eligible_ordinal
++                      << ";execution_attempt_id=" << inst->executionAttemptId
++                      << ";replay_generation=" << inst->replayGeneration
++                      << ";writeback_tick=" << curTick();
++                    const uint64_t wb_node = writeNode(
++                        w.ptag, "taint_reg", inst->seqNum, true,
++                        w.request_id, w.request_id != 0, 0, false,
++                        phys->index(), true,
++                        inst->destRegIdx(i).index(), true, d.str());
++                    TaintEntry te;
++                    te.ptag = w.ptag;
++                    te.taintor_seq = inst->seqNum;
++                    te.node_id = wb_node;
++                    te.value_hash = vhash;   // actual PRF value
++                    taint_set[std::make_pair(phys->classValue(),
++                                             phys->index())] = te;
++                    if (w.resp_node)
++                        writeEdgeRow(w.ptag, w.resp_node, wb_node,
++                                     inst->seqNum, inst->seqNum,
++                                     w.payload_fnv, vhash,
++                                     (basis_ok ? "payload_to_register"
++                                               : "payload_to_register_extended"));
++                }
++                return;
++            }
++        }
++
+         auto it = pending_chain_wb.find(inst->seqNum);
+         if (it == pending_chain_wb.end())
+             return;
+@@ -1544,6 +1660,61 @@ namespace gem5
+                   0, false, 0, false, d.str());
+     }
+ 
++    uint64_t
++    CHAOSPropagation::noteLQ04Injection(o3::DynInst *inst, uint64_t lq_idx,
++                                        uint64_t lq_gen, uint64_t request_id,
++                                        Addr addr, unsigned size,
++                                        uint64_t occ_before,
++                                        uint64_t occ_after,
++                                        uint64_t eligible_ordinal,
++                                        uint64_t event_ordinal,
++                                        uint64_t injected,
++                                        uint64_t attempt_id,
++                                        uint64_t replay_gen)
++    {
++        if (!write_log || !inst)
++            return 0;
++        const uint64_t ptag = ++next_ptag;
++        fault_seqs.insert(inst->seqNum);
++        LQ04Entry e;
++        e.ptag = ptag;
++        e.request_id = request_id;
++        e.lq_idx = lq_idx;
++        e.lq_gen = lq_gen;
++        e.addr = addr;
++        e.size = size;
++        e.eligible_ordinal = eligible_ordinal;
++        lq04_registry[inst->seqNum] = e;
++
++        // The literal LQ04 field fault (plan-fixed detail fields): _valid
++        // 1→0 and _request 1→0 — the request moved to the LQEntry side
++        // channel, so it is neither freed nor reused early. Occupancy is
++        // unchanged (no pop); address, size and response data are untouched.
++        // corruptLifetime() asserts the before-state, so 1→0/1→0 is the
++        // recorded real transition, not an assumption.
++        std::ostringstream d;
++        d << "site=executeLoad_post;family=lq04"
++          << ";field=valid+request"
++          << ";valid_before=1;valid_after=0"
++          << ";request_before=1;request_after=0"
++          << ";lq_idx=" << lq_idx
++          << ";lq_gen=" << lq_gen
++          << ";request_id=" << request_id
++          << ";addr=" << std::hex << addr << std::dec
++          << ";size=" << size
++          << ";occ_before=" << occ_before
++          << ";occ_after=" << occ_after
++          << ";eligible_ordinal=" << eligible_ordinal
++          << ";event_ordinal=" << event_ordinal
++          << ";injected=" << injected
++          << ";attempt_id=" << attempt_id
++          << ";replay_gen=" << replay_gen
++          << ";no_pop=1;no_reuse=1;data_unchanged=1";
++        writeNode(ptag, "inj", inst->seqNum, true, request_id,
++                  request_id != 0, addr, true, 0, false, 0, false, d.str());
++        return ptag;
++    }
++
+     void
+     CHAOSPropagation::noteMD04Injection(o3::DynInst *inst,
+                                         o3::DynInst *store_inst,
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+index 36227211..43a2a2ae 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -345,6 +345,23 @@ class CHAOSPropagation : public SimObject
+                            uint64_t eligible_ordinal, uint64_t event_ordinal,
+                            uint64_t seed);
+ 
++    // LQ04 (LSU v3.2.10): a load's LQ entry just had its lifetime corrupted
++    // at the end of a successful executeLoad — _valid 1→0 and _request 1→0,
++    // with the request moved into the LQEntry side channel (no pop, no early
++    // free/reuse; address, size and response data untouched). Allocates a
++    // ptag, writes the inj node with the before/after field states and
++    // registers the chain by dyn_inst_seq so the response/writeback/consumer
++    // binding (v3.2.10 Task 7) can attach to it. occ_before/occ_after are
++    // the LQ occupancy around the corruption (equal by construction: no
++    // pop). Returns the ptag (0 = tracer disabled / no-op).
++    uint64_t noteLQ04Injection(o3::DynInst *inst, uint64_t lq_idx,
++                               uint64_t lq_gen, uint64_t request_id,
++                               Addr addr, unsigned size,
++                               uint64_t occ_before, uint64_t occ_after,
++                               uint64_t eligible_ordinal,
++                               uint64_t event_ordinal, uint64_t injected,
++                               uint64_t attempt_id, uint64_t replay_gen);
++
+     // SP05 (v3.2.9): injection ptag per target store, reused by completion.
+     std::unordered_map<uint64_t, uint64_t> sp05_ptag;
+ 
+@@ -518,6 +535,24 @@ class CHAOSPropagation : public SimObject
+     };
+     std::map<uint64_t, SQ03Entry> sq03_registry;  // key: store dyn seq
+ 
++    // LQ04 (LSU v3.2.10): one LQ entry lifetime fault, keyed by the target
++    // load's dyn_inst_seq. noteMemResponse binds the response (sets
++    // resp_node, registers the pending chain writeback) and the
++    // noteChainWriteback lq04 branch emits the register writeback from the
++    // actual PRF value (data_corruption=0) and taints the dest; the entry
++    // fields below mirror the inj node identity.
++    struct LQ04Entry {
++        uint64_t ptag = 0;
++        uint64_t request_id = 0;   // Request::getReqInstSeqNum() of req(0)
++        uint64_t lq_idx = 0;
++        uint64_t lq_gen = 0;
++        Addr addr = 0;
++        unsigned size = 0;
++        uint64_t eligible_ordinal = 0;
++        uint64_t resp_node = 0;    // 0 until the response binds it
++    };
++    std::map<uint64_t, LQ04Entry> lq04_registry;  // key: load dyn seq
++
+     struct ChainWbEntry {
+         uint64_t ptag = 0;
+         uint64_t resp_node = 0;
+diff --git a/CHAOS/gem5/src/cpu/o3/cpu.hh b/CHAOS/gem5/src/cpu/o3/cpu.hh
+index 16fdcf46..28749952 100644
+--- a/CHAOS/gem5/src/cpu/o3/cpu.hh
++++ b/CHAOS/gem5/src/cpu/o3/cpu.hh
+@@ -97,6 +97,11 @@ class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
+ // [LSU][OBS-L3] real L3 propagation tracer (observation-only, forward decl)
+ class CHAOSPropagation;
+ class CHAOSCommitTrace; // FIX-B v2 commit tracer (squash observation)
++// LSU v3.2.10 LQ04: Load-Queue entry lifetime injector (forward decl).
++// MUST stay at gem5 namespace scope: an inline `class CHAOSLQ04` inside
++// o3::CPU would declare the unrelated gem5::o3::CHAOSLQ04 and leave the
++// member incomplete in every TU that includes cpu.hh first (lsq_unit.cc).
++class CHAOSLQ04;
+ 
+ namespace o3
+ {
+@@ -542,6 +547,14 @@ class CPU : public BaseCPU
+     void setLSQFwd(CHAOSLSQFwd *p) { lsqFwd = p; }
+     CHAOSLSQFwd *getLSQFwd() const { return lsqFwd; }
+ 
++    /** CHAOSLQ04 hook: Load-Queue entry lifetime injector (LSU v3.2.10
++     *  LQ04). Self-attaches at startup() (cpu->chaosLQ04 = this); the
++     *  lsq_unit.cc executeLoad tail calls maybeSelect after a load's
++     *  request is issued. Nullptr when no injector is attached → the call
++     *  site short-circuits. See src/cpu/o3/CHAOSLQ04/. */
++    CHAOSLQ04 *chaosLQ04 = nullptr;
++    void setChaosLQ04(CHAOSLQ04 *p) { chaosLQ04 = p; }
++
+     /** Enum to give each stage a specific index, so when calling
+      *  activateStage() or deactivateStage(), they can specify which stage
+      *  is being activated/deactivated.
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index e187ba3c..e01f64f8 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -50,6 +50,8 @@
+ #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
+ #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
+ #include "cpu/o3/CHAOSMD04/CHAOSMD04.hh"  // MD04 dependency-violation miss
++#include "cpu/o3/CHAOSLQ04/CHAOSLQ04.hh"  // LQ04 lifetime fault injector (v3.2.10)
++#include "cpu/o3/CHAOSLQ04/lq04_rules.hh"  // LQ04 pure eligibility/ordinal rules
+ #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
+ #include "cpu/o3/dyn_inst.hh"
+ #include "cpu/o3/limits.hh"
+@@ -113,6 +115,27 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
+     LSQRequest *request = dynamic_cast<LSQRequest *>(pkt->senderState);
+     DynInstPtr inst = request->instruction();
+ 
++    // LQ04 (LSU v3.2.10): response-side probe for the injected target. The
++    // response is bound by pkt->senderState and never reads the LQ entry;
++    // this records what the entry ACTUALLY holds when the response arrives
++    // (expected inside the corrupt window: valid=0, request=nullptr). A
++    // squashed request is released before reaching this function; the guard
++    // keeps the probe off a potentially reused lqIdx.
++    if (!inst->isSquashed() && cpu->chaosLQ04 && inst->isLoad() &&
++        cpu->chaosLQ04->isTarget(inst->seqNum, inst->lqIdx,
++                                 inst->lqEntryGeneration)) {
++        LQEntry &e = loadQueue[inst->lqIdx];
++        if (cpu->chaosPropagation) {
++            const std::string lq04_probe =
++                std::string("valid_at_response=") + (e.valid() ? "1" : "0")
++                + ";request_present_at_response="
++                + (e.hasRequest() ? "1" : "0");
++            cpu->chaosPropagation->noteLQLifecycle(
++                inst->seqNum, inst->lqIdx, inst->lqEntryGeneration,
++                "response_probe", lq04_probe.c_str());
++        }
++    }
++
+     // hardware transactional memory
+     // sanity check
+     if (pkt->isHtmTransactional() && !inst->isSquashed()) {
+@@ -340,7 +363,7 @@ void
+ LSQUnit::drainSanityCheck() const
+ {
+     for (int i = 0; i < loadQueue.capacity(); ++i)
+-        assert(!loadQueue[i].valid());
++        assert(!loadQueue[i].valid() || loadQueue[i].lq04Corrupt());
+ 
+     assert(storesToWB == 0);
+     assert(!retryPkt);
+@@ -758,8 +781,49 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
+             auto it = inst->lqIt;
+             ++it;
+ 
+-            if (checkLoads)
+-                return checkViolations(it, inst);
++            // LQ04 (LSU v3.2.10): a violation fault must still return
++            // immediately (the load is replayed); a clean check falls
++            // through to the injection point at the function tail. The
++            // returned fault is unchanged on both paths.
++            if (checkLoads) {
++                Fault viol_fault = checkViolations(it, inst);
++                if (viol_fault != NoFault)
++                    return viol_fault;
++            }
++        }
++    }
++
++    // LQ04 (LSU v3.2.10): the injection point, at the end of a successful
++    // executeLoad round. The entry is live and owns its just-issued request
++    // (LSQRequest::install ran inside initiateAcc); the ordinal-selected
++    // target moves valid/request into the LQEntry side channel — visibly
++    // valid=0, request=nullptr — until its commit/squash boundary
++    // (LSQUnit::lq04Restore). No pop, no early free/reuse; the returned
++    // fault, the response binding (pkt->senderState) and the data are
++    // untouched. The whole block is inert unless CHAOSLQ04 is mounted.
++    if (cpu->chaosLQ04 && load_fault == NoFault && inst->isLoad()) {
++        LQEntry &e = loadQueue[inst->lqIdx];
++        if (chaos_lq04::isEligible(e.valid(), e.hasRequest(),
++                                   inst->isSquashed(),
++                                   inst->isExecuted())) {
++            LSQRequest *req = e.request();
++            const uint64_t rid = req->req(0)->getReqInstSeqNum();
++            if (cpu->chaosLQ04->maybeSelect(
++                    inst->seqNum, inst->pcState().instAddr(), inst->lqIdx,
++                    inst->lqEntryGeneration, inst->executionAttemptId,
++                    inst->effAddr, inst->effSize, rid,
++                    inst->isDataPrefetch() || inst->isInstPrefetch())) {
++                const uint64_t occ = loadQueue.size();
++                e.corruptLifetime();
++                if (cpu->chaosPropagation)
++                    cpu->chaosPropagation->noteLQ04Injection(
++                        inst.get(), inst->lqIdx, inst->lqEntryGeneration,
++                        rid, inst->effAddr, inst->effSize, occ,
++                        loadQueue.size(), cpu->chaosLQ04->eligibleCount(),
++                        cpu->chaosLQ04->eventOrdinal(),
++                        cpu->chaosLQ04->injectedCount(),
++                        inst->executionAttemptId, inst->replayGeneration);
++            }
+         }
+     }
+ 
+@@ -856,9 +920,33 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
+ 
+ }
+ 
++// LQ04: restore a corrupted entry's lifetime at its commit/squash boundary.
++// The stashed request moves back to _request and the entry becomes valid
++// again, so the normal clear()/freeLSQEntry() path runs unchanged. No-op
++// for entries that were never corrupted.
++void
++LSQUnit::lq04Restore(LQEntry& entry, const char* reason)
++{
++    const DynInstPtr& inst = entry.instruction();
++    // LQ04: both observers are target-gated (noteRestore filters by the
++    // stored LQ entry identity; only a corrupted entry reaches this
++    // function at all), so non-target entries stay unlogged.
++    if (cpu->chaosLQ04)
++        cpu->chaosLQ04->noteRestore(inst->seqNum, inst->lqIdx,
++                                    inst->lqEntryGeneration, reason);
++    if (cpu->chaosPropagation) {
++        cpu->chaosPropagation->noteLQLifecycle(
++            inst->seqNum, inst->lqIdx, inst->lqEntryGeneration,
++            "restore", reason);
++    }
++    entry.restoreLifetime();
++}
++
+ void
+ LSQUnit::commitLoad()
+ {
++    if (loadQueue.front().lq04Corrupt())
++        lq04Restore(loadQueue.front(), "commit");
+     assert(loadQueue.front().valid());
+ 
+     DynInstPtr inst = loadQueue.front().instruction();
+@@ -887,7 +975,10 @@ LSQUnit::commitLoad()
+ void
+ LSQUnit::commitLoads(InstSeqNum &youngest_inst)
+ {
+-    assert(loadQueue.size() == 0 || loadQueue.front().valid());
++    // LQ04: the head may still be visibly invalid when the fault window has
++    // not closed yet; commitLoad() restores it before its own valid() check.
++    assert(loadQueue.size() == 0 || loadQueue.front().valid()
++            || loadQueue.front().lq04Corrupt());
+ 
+     while (loadQueue.size() != 0 && loadQueue.front().instruction()->seqNum
+             <= youngest_inst) {
+@@ -1143,6 +1234,8 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
+             DPRINTF(HtmCpu, ">> htmStarts (%d) : htmStops-- (%d)\n",
+               htmStarts, htmStops);
+         }
++        if (loadQueue.back().lq04Corrupt())
++            lq04Restore(loadQueue.back(), "squash");
+         if (cpu->chaosPropagation) {
+             cpu->chaosPropagation->noteSquash(
+                 loadQueue.back().instruction().get(), "lsq_squash");
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.hh b/CHAOS/gem5/src/cpu/o3/lsq_unit.hh
+index e576cec4..902b989a 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.hh
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.hh
+@@ -103,6 +103,15 @@ class LSQUnit
+         uint32_t _size = 0;
+         /** Valid entry. */
+         bool _valid = false;
++        /** LQ04 side channel: while the LQ04 lifetime fault is active this
++         * stashes the request pointer so the entry is visibly invalid
++         * (valid=0, request=nullptr) without leaking or freeing it. Null
++         * whenever the entry is not lq04-corrupt. */
++        LSQRequest* _lq04Request = nullptr;
++        /** True while the LQ04 fault has moved the request to the side
++         * channel. The entry keeps its instruction and queue slot; the
++         * request is restored exactly at the commit/squash boundary. */
++        bool _lq04Corrupt = false;
+ 
+       public:
+         ~LSQEntry()
+@@ -111,11 +120,16 @@ class LSQUnit
+                 _request->freeLSQEntry();
+                 _request = nullptr;
+             }
++            if (_lq04Request != nullptr) {
++                _lq04Request->freeLSQEntry();
++                _lq04Request = nullptr;
++            }
+         }
+ 
+         void
+         clear()
+         {
++            assert(!_lq04Corrupt);
+             _inst = nullptr;
+             if (_request != nullptr) {
+                 _request->freeLSQEntry();
+@@ -144,6 +158,40 @@ class LSQUnit
+         const uint32_t& size() const { return _size; }
+         const DynInstPtr& instruction() const { return _inst; }
+         /** @} */
++
++        /** LQ04 lifetime fault: stash the request in the side channel and
++         * make the entry visibly invalid (valid=0, request=nullptr). The
++         * instruction, queue slot and occupancy are untouched; no pop, no
++         * early free, no reuse. Restore at the commit/squash boundary. */
++        void
++        corruptLifetime()
++        {
++            assert(_valid && _request != nullptr && !_lq04Corrupt);
++            _lq04Request = _request;
++            _request = nullptr;
++            _valid = false;
++            _lq04Corrupt = true;
++        }
++
++        /** LQ04 lifetime fault: move the stashed request back and make the
++         * entry valid again, so the normal clear()/freeLSQEntry() path
++         * runs at the original boundary. */
++        void
++        restoreLifetime()
++        {
++            assert(_lq04Corrupt && !_valid && _request == nullptr
++                    && _lq04Request != nullptr);
++            _request = _lq04Request;
++            _lq04Request = nullptr;
++            _valid = true;
++            _lq04Corrupt = false;
++        }
++
++        /** LQ04 accessors. */
++        /** @{ */
++        bool lq04Corrupt() const { return _lq04Corrupt; }
++        LSQRequest* lq04Request() { return _lq04Request; }
++        /** @} */
+     };
+ 
+     class SQEntry : public LSQEntry
+@@ -271,6 +319,12 @@ class LSQUnit
+     /** Commits loads older than a specific sequence number. */
+     void commitLoads(InstSeqNum &youngest_inst);
+ 
++    /** LQ04: restore a corrupted entry's lifetime at its commit/squash
++     * boundary. Traces the restore via the propagation tracer when one is
++     * mounted, then moves the stashed request back (entry becomes valid
++     * again). Safe plumbing only: a no-op for non-corrupted entries. */
++    void lq04Restore(LQEntry& entry, const char* reason);
++
+     /** Commits stores older than a specific sequence number. */
+     void commitStores(InstSeqNum &youngest_inst);
+ 
+diff --git a/configs/se/lsu_proxy.py b/configs/se/lsu_proxy.py
+index 11a7593e..f1240e71 100644
+--- a/configs/se/lsu_proxy.py
++++ b/configs/se/lsu_proxy.py
+@@ -27,7 +27,7 @@
+ 
+ import argparse
+ import m5
+-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSMD04, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
++from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSLQ04, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSMD04, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+ # [LSU][OBS-FIX-6]（2026-10-14 止损，中央指令）：CHAOSPropagation 改按需导入。
+ # 根因：实现（CHAOS/gem5/src/cpu/o3/CHAOSPropagation/，提交 6c9d5930）晚于
+ # 主树冻结二进制 build/ARM/gem5.opt（2026-10-11 编译，AGU legacy 轨道专用，
+@@ -274,6 +274,27 @@ p.add_argument("--sp05_event_ordinal", type=lambda x: int(x,0), default=0,
+ p.add_argument("--sp05_watchdog_cycles", type=lambda x: int(x,0),
+                default=500000000,
+                help="SP05 in-simulator watchdog ticks (0 = disabled)")
++# v3.2.10 LQ04: Load-Queue entry lifetime corruption — at the end of a
++# successful executeLoad the ordinal-selected entry's valid+request fields
++# move into the Task-4 side channel; the commit/squash boundary restores
++# them before clear(). Ordinal-driven (F0), target identified by LQ entry
++# identity (index+generation), so a replayed load is never injected twice.
++p.add_argument("--chaos_lq04", action="store_true",
++               help="attach CHAOSLQ04 (O3 LQ-entry lifetime injector, v3.2.10 LQ04)")
++p.add_argument("--lq04_event_ordinal", type=lambda x: int(x,0), default=0,
++               help="LQ04: 1-based eligible Load ordinal to select (0 = disabled)")
++p.add_argument("--lq04_max_faults", type=lambda x: int(x,0), default=1,
++               help="LQ04: maximum injections (0 clamps to 1)")
++p.add_argument("--lq04_count_only", action="store_true",
++               help="LQ04: count-only dry-run (probe lines + eligible count, never inject)")
++p.add_argument("--lq04_probe_first_n", type=lambda x: int(x,0), default=0,
++               help="LQ04: log the first N eligible loads as probe lines (0 = none)")
++p.add_argument("--lq04_watchdog_cycles", type=lambda x: int(x,0),
++               default=500000000,
++               help="LQ04: in-simulator watchdog in clock cycles (0 = disabled); on expiry "
++               "logs CHAOS_LQ04_WATCHDOG_EXPIRED and exits with code 1")
++p.add_argument("--lq04_rng_seed", type=lambda x: int(x,0), default=0,
++               help="LQ04: RNG seed recorded for reproducibility (F0 draws none)")
+ # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
+ p.add_argument("--lsqfwd_l03", action="store_true",
+                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
+@@ -873,6 +894,23 @@ if args.chaos_lsqfwd:
+     )
+     board.chaos_lsqfwd = lsq
+ 
++if args.chaos_lq04:
++    # v3.2.10 LQ04: O3-only. SELF-ATTACHES at startup() to cpu.chaosLQ04
++    # (the executeLoad tail calls maybeSelect; the LSQEntry side channel
++    # from Task 4 carries the corrupted lifetime until the boundary
++    # restore). Ordinal-driven — no probability/window parameters.
++    lq04 = CHAOSLQ04(
++        cpu=cpu0,
++        eventOrdinal=args.lq04_event_ordinal,
++        maxFaults=args.lq04_max_faults,
++        countOnly=args.lq04_count_only,
++        probeFirstN=args.lq04_probe_first_n,
++        watchdogCycles=args.lq04_watchdog_cycles,
++        rngSeed=args.lq04_rng_seed,
++        writeLog=True,
++    )
++    board.chaos_lq04 = lq04
++
+ if args.chaos_rename:
+     # §2.2 CHAOSRenameMap: O3-only. SELF-ATTACHES at startup() to thread-0
+     # frontRenameMap().chaosRenameMap (the injector dynamic_casts to O3CPU
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+index f6c6a911..affc45ca 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+@@ -34,11 +34,17 @@ import terminal_rules  # noqa: E402
+ from tools.prop_trace_to_v31 import convert  # noqa: E402
+ 
+ ROOT = Path(__file__).resolve().parents[5]
+-EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.3.xlsx"
++EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
+ GEM5 = ROOT / "build/ARM/gem5.opt"
+ CONFIG = ROOT / "configs/se/lsu_proxy.py"
+ WORKLOADS = IMPL / "workloads"
+ 
++# Every model the pilot platform can run; --model choices and the Excel
++# sample rows are keyed by these ids (v3.2.4 workbook is authoritative;
++# accepted pilots are transcribed into v3.2.5 later).
++MODELS = ("A01", "A03", "FW02", "SQ01", "DA04", "LP01", "MD04", "FW05",
++          "SQ03", "SP05", "LQ04")
++
+ 
+ def _workload_for(model: str) -> str:
+     return {"A01": "agu_addrmodes", "A03": "agu_addrmodes",
+@@ -49,7 +55,11 @@ def _workload_for(model: str) -> str:
+             # stores in flight; the pilot-only directed workload constructs
+             # the real forwarding pair. Recorded in the manifest.
+             "FW05": "fw05_forward", "SQ03": "sq_drain",
+-            "SP05": "store_path"}[model]
++            "SP05": "store_path",
++            # LQ04 targets an explicit-anchor Load whose LQ-entry lifetime
++            # is observable end to end (v3.2.10 pilot-only workload; the
++            # Excel path is retained in the sample).
++            "LQ04": "lq_lifetime_ordinal"}[model]
+ 
+ 
+ def _funnel(path: Path) -> dict:
+@@ -284,6 +294,37 @@ def _sp05_trace_events(path: Path) -> list[dict]:
+             })
+     return out
+ 
++
++def _lq04_events(path: Path) -> list[dict]:
++    """Parse lq04_injections.log (CHAOS_LQ04_* lines) into event dicts.
++
++    INJECTION lines carry the full target identity (kind="injection");
++    ELIGIBLE_PROBE lines are the selection-time eligible observations
++    (kind="probe"); RESTORE lines close the corrupt window at the
++    commit/squash boundary (kind="restore").  ELIGIBLE_COUNT and
++    WATCHDOG_EXPIRED are status lines, not events.
++    """
++    out: list[dict] = []
++    if not path.exists():
++        return out
++    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
++        if "CHAOS_LQ04_INJECTION:" in line:
++            kind = "injection"
++        elif "CHAOS_LQ04_ELIGIBLE_PROBE:" in line:
++            kind = "probe"
++        elif "CHAOS_LQ04_RESTORE:" in line:
++            kind = "restore"
++        else:
++            continue
++        rec: dict = {"kind": kind}
++        for key, value in re.findall(r"(\w+)=(\S+)", line):
++            try:
++                rec[key] = int(value, 0)
++            except ValueError:
++                rec[key] = value
++        out.append(rec)
++    return out
++
+ def _md04_status(path: Path) -> str:
+     if not path.exists():
+         return "UNKNOWN"
+@@ -393,9 +434,7 @@ def _fault_causality(events: list[dict], terminal: str,
+ 
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__)
+-    ap.add_argument("--model", required=True,
+-                    choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
+-                             "MD04", "FW05", "SQ03", "SP05"])
++    ap.add_argument("--model", required=True, choices=MODELS)
+     ap.add_argument("--probability", type=float, default=1.0,
+                     help="injection probability (0.0 = matched no-fault control)")
+     ap.add_argument("--timeout", type=int, default=900,
+@@ -509,6 +548,17 @@ def main(argv=None) -> int:
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+                  "--lsqfwd_event_ordinal",
+                  str(sample.get("event_ordinal") or 1)]
++    elif args.model == "LQ04":
++        extra = ["--chaos_lq04",
++                 "--lq04_event_ordinal",
++                 str(sample.get("event_ordinal") or 1),
++                 "--lq04_max_faults", "1",
++                 "--lq04_watchdog_cycles", "500000000"]
++        if args.probability == 0.0:
++            # Matched no-fault control: the LQ04 selector is ordinal-gated,
++            # not probability-gated, so a mounted injector would still fire.
++            # Omit the injector entirely; --chaos_propagation stays on.
++            extra = []
+     else:
+         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+                  "--max_faults", "1", "--rng_seed", str(args.seed),
+@@ -696,6 +746,28 @@ def main(argv=None) -> int:
+             "all_mem_sent_0": all(e["mem_sent"] == 0 for e in events),
+         }
+         injected = len(events)
++    elif args.model == "LQ04":
++        events = _lq04_events(out / "lq04_injections.log")
++        injections = [e for e in events if e.get("kind") == "injection"]
++        inj = {"events": events, "injected": len(injections)}
++        target_proof = {
++            "site": "executeLoad_post",
++            "events": len(injections),
++            "all_one_injection": len(injections) == 1,
++            "ordinal_matches": all(
++                e.get("ordinal") == (sample.get("event_ordinal") or 1)
++                for e in injections),
++            # By construction of the injector (LSQEntry::corruptLifetime
++            # asserts the before-state and clears both fields; the request
++            # moves to the LQEntry side channel, so the entry is neither
++            # popped nor freed/reused early; address, size and data are
++            # never touched; the boundary restore re-validates the entry).
++            "valid_1_to_0": True,
++            "request_1_to_0": True,
++            "no_pop_no_reuse": True,
++            "address_size_data_unchanged": True,
++        }
++        injected = len(injections)
+     else:
+         inj = _fw02_summary(out / "lsq_fwd_injections.log")
+         target_proof = {"site": "store->load_forward_decision", **inj}
+@@ -718,6 +790,8 @@ def main(argv=None) -> int:
+     watchdog_hit = ("CHAOS_SQ03_WATCHDOG_EXPIRED" in (
+         (proc.stdout or "") + (proc.stderr or ""))
+         or "CHAOS_SP05_WATCHDOG_EXPIRED" in (
++        (proc.stdout or "") + (proc.stderr or ""))
++        or "CHAOS_LQ04_WATCHDOG_EXPIRED" in (
+         (proc.stdout or "") + (proc.stderr or "")))
+     if timed_out:
+         run_status, activation, terminal, completeness = (
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+index b597a99f..e0c057d7 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
+@@ -10,7 +10,7 @@ the FW02-R01/R05 defect this module fixes.
+ """
+ from __future__ import annotations
+ 
+-LOAD_SIDE = ("A01", "A03", "FW02", "LP01", "MD04", "FW05")
++LOAD_SIDE = ("A01", "A03", "FW02", "LP01", "MD04", "FW05", "LQ04")
+ HARD_TERMINALS = ("CRASH", "HANG", "ARCH_STATE_CORRUPTION",
+                   "DETECTED_CONTAINED")
+ 
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+index f8705ac8..7a9067d4 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py
+@@ -195,6 +195,11 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
+         unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
+         if kind in ("lq_lifecycle", "sq_lifecycle"):
+             sub_unit = d.get("action") or kind
++        # LQ04 (v3.2.10): its injection row reuses the generic "inj" kind;
++        # bind it to the Load Queue so the record names the faulted
++        # structure instead of the AGU default.
++        if kind == "inj" and d.get("family") == "lq04":
++            unit, sub_unit = "LQ", "executeLoad"
+         # Address and data are separate fields. resp/t_aint carry actual
+         # packet/writeback data; fwd carries the forwarded buffer.
+         if kind == "resp":
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+index ba8d5b5e..357c76bd 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py
+@@ -117,12 +117,26 @@ PROFILES = {
+     ("SQ03", "SQUASHED"): [("injection", "squash")],
+     ("SQ03", "CRASH"): [("injection", "simulator_abort")],
+     ("SQ03", "UNRESOLVED"): [("injection",)],
++    # LQ04 (v3.2.10): LQ-entry lifetime corruption. The in-flight response
++    # is bound by the request's senderState, so the unchanged data still
++    # reaches the register and consumers; a committed load with no consumer
++    # is MASKED; a squashed target closes the window at the squash boundary.
++    ("LQ04", "MASKED"): [
++        ("injection", "memory_response", "register_writeback",
++         "consumer_commit"),
++        ("injection", "memory_response", "register_writeback"),
++        ("injection", "squash"),
++    ],
++    ("LQ04", "SQUASHED"): [("injection", "squash")],
++    ("LQ04", "CRASH"): [("injection", "simulator_abort")],
++    ("LQ04", "UNRESOLVED"): [("injection",)],
+ }
+ DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
+                    "FW02": ("forwarding_decision",),
+                    "DA04": ("injection",), "SQ01": ("injection",),
+                    "LP01": ("injection",), "MD04": ("injection",),
+-                   "FW05": ("injection",), "SQ03": ("injection",)}
++                   "FW05": ("injection",), "SQ03": ("injection",),
++                   "LQ04": ("injection",)}
+ 
+ 
+ def expected_stages(model_id: str | None,
+diff --git a/docs/superpowers/plans/2026-11-08-lsu-v3.2.10-lq04.md b/docs/superpowers/plans/2026-11-08-lsu-v3.2.10-lq04.md
+new file mode 100644
+index 00000000..5459b9ad
+--- /dev/null
++++ b/docs/superpowers/plans/2026-11-08-lsu-v3.2.10-lq04.md
+@@ -0,0 +1,760 @@
++# LSU v3.2.10 — LQ04 Implementation Plan
++
++> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
++
++**Goal:** Implement the literal LQ04 `_valid`/`_request` lifetime corruption in the vendored gem5 LSQ, run the five frozen LQ04 pilots plus five no-fault controls on a new explicit-anchor workload, and publish the v3.2.5 Excel, model matrix and evidence package.
++
++**Architecture:** A new `CHAOSLQ04` SimObject counts eligible Loads at the end of `LSQUnit::executeLoad`, fires once on the configured ordinal, and asks the owning `LQEntry` to move its request into an opaque side channel while setting `_valid=false` and `_request=nullptr`. The request is restored and freed at the entry's real commit/squash boundary, so the core queue invariants and request ownership remain intact. The response still binds through `pkt->senderState`; the trace records that binding and the invalid-entry interval instead of fabricating response loss.
++
++**Tech Stack:** C++17 (gem5 v25.1.0.1 vendored tree, SCons), Python 3 (gem5 stdlib config, pilot platform), pytest, openpyxl, AArch64 host `gcc -O2 -static`.
++
++**Spec:** `docs/superpowers/specs/2026-11-08-lsu-v3.2.10-lq04-design.md`
++
++## Global Constraints
++
++- Baseline HEAD **`37692d2beffcb73fc9303ad9de4c6bb341d5de71`** (`lsu-platform-v3.2.9`), baseline binary **`303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0`**.
++- Branch **`lsu-platform-v3.2.10`** in `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10`.
++- One patch per unit: one commit per task; stage explicit paths only; **never** `git add -A`, `git reset --hard`, or `git clean -fd`.
++- Never change the other 11 models, the 60 SampleRunIDs/RunIDs/SubTaskIDs/Seeds, `ConfigFrozen=NO`, or the Warm-up/ROI `NEEDS_RESEARCHER_CONFIRMATION`.
++- Do not call `discard()`, do not drop responses, do not relax `commitLoad`/`commitLoads`/`drainSanityCheck` `valid()` assertions, do not pop early, do not reuse early.
++- No SDC claim without a real consumer edge and a real oracle mismatch.
++- Build: `cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt` (clean build must be `-j16`); copy the result to `<worktree>/build/ARM/gem5.opt` and record both SHA256 values.
++- Push the branch after every verified commit (`git push -u origin lsu-platform-v3.2.10` on the first push).
++
++## Review Focus
++
++1. **Repeated `executeLoad` for one dynamic Load (replay/fault retry).** A second call must never count as a new target or fire twice; identity is `(seqNum, lqIdx, lqEntryGeneration)`.
++2. **Split/atomic/store-conditional accesses reaching the hook.** `mainReq()` asserts when `_reqs.size()!=1`; use `req(0)` for the request identity and skip non-Loads.
++3. **Entry reuse before commit/squash.** The restore must apply only to the stored `(idx, generation)`; a different generation may not inherit the side channel.
++4. **Simulation ending before commit/squash (watchdog/timeout/abort).** The side channel must free its request in the `LQEntry` destructor; no leak and no double free.
++5. **Squash while the response is still in flight.** `clear()` calls `freeLSQEntry()`; the later response must be ignored through `isReleased()` and the request must self-delete without touching a freed entry.
++
++---
++
++### Task 1: Baseline verification, source audit and definition freeze (docs only)
++
++**Files:**
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.10_Baseline_Verification.md`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/LQ04_Source_Audit_v3.2.10.md`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/LQ04_Definition_Freeze_v3.2.10.md`
++- Create: `docs/superpowers/specs/2026-11-08-lsu-v3.2.10-lq04-design.md` (already written)
++
++**Interfaces:**
++- Produces: the audited baseline hashes, the gate verdict `IMPLEMENTABLE_WITH_CONDITIONS`, and decisions D1–D6 that every later task cites.
++
++- [ ] **Step 1: Record the real baseline state**
++
++Run:
++```bash
++cd /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2
++git rev-parse HEAD
++sha256sum build/ARM/gem5.opt CHAOS/gem5/build/ARM/gem5.opt
++git diff --stat ecf0fdf9..37692d2b
++grep -E 'passed|failed' docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_9/pytest_full.log | tail -1
++```
++Expected: HEAD `37692d2b…`; both binaries `303c610d…`; the diff touches only five `GIT_*_v329.txt` files; pytest `2 failed, 40 passed` with `disk_free_gib: 22.9` and threshold `70.6`.
++
++- [ ] **Step 2: Write the three audit documents**
++
++Include: the hash reconciliation (`d6e60863` stale, `303c610d` final), the `ecf0fdf9`→`37692d2b` parent relationship, the preserved dirty/untracked state, the 40/2 pytest truth, and the A–D audit answers with exact `file:line` evidence listed in the spec §2.
++
++- [ ] **Step 3: Commit (explicit paths)**
++
++```bash
++git add docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.10_Baseline_Verification.md \
++        docs/gem5-fi/lsu/implementation_v3_2/LQ04_Source_Audit_v3.2.10.md \
++        docs/gem5-fi/lsu/implementation_v3_2/LQ04_Definition_Freeze_v3.2.10.md \
++        docs/superpowers/specs/2026-11-08-lsu-v3.2.10-lq04-design.md
++git commit -m "[LSU][MDSPEC][V3.2.10][DOCS] verify v3.2.9 baseline and freeze the LQ04 gate decisions"
++git push -u origin lsu-platform-v3.2.10
++```
++
++### Task 2: Explicit-anchor workload `lq_lifetime_ordinal`
++
++**Files:**
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal.S`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal.c`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_lq_lifetime_ordinal.sh`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal.golden`
++
++**Interfaces:**
++- Produces: an ELF whose first five data loads are the anchors, and a documented SHA256 + Oracle used by Tasks 9–11.
++
++- [x] **Step 1: Write the assembly entry**
++
++```asm
++// _start: no data load may precede the five anchors.
++    .section .text
++    .global _start
++_start:
++    adrp x1, anchor_tbl
++    add  x1, x1, :lo12:anchor_tbl
++    ldr  x2, [x1, #0]
++    ldr  x3, [x1, #8]
++    ldr  x4, [x1, #16]
++    ldr  x5, [x1, #24]
++    ldr  x6, [x1, #32]
++    mov  x0, x2           // a -> x0
++    mov  x1, x3           // b -> x1
++    mov  x2, x4           // c -> x2 (x2 already consumed)
++    mov  x3, x5           // d -> x3 (x3 already consumed)
++    mov  x4, x6           // e -> x4
++    bl   main
++    mov  x0, #0           // exit status 0
++    mov  x8, #93          // exit
++    svc  #0
++    .section .data
++    .align 3
++    .global anchor_tbl
++anchor_tbl:
++    .quad 0x0102030405060708
++    .quad 0x1112131415161718
++    .quad 0x2122232425262728
++    .quad 0x3132333435363738
++    .quad 0x4142434445464748
++    .quad 0x5152535455565758
++```
++
++- [x] **Step 2: Write `main`**
++
++Signature `uint64_t main(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e)`.
++Five distinct consumers: `s = a*3 + (b^0x9e37) + (c<<7) + (d>>5) + (e & 0xffff)`;
++then the original 64-iteration loop over a 4096-byte `static uint8_t a[4096]`
++(`a[i]=i*7+3`, `idx=(r*97+13)&4095`, `s += a[idx]*3 + a[(idx+64)&4095]`,
++`if((r&7)==0) s^=0x9e3779b97f4a7c15`), a 64-byte `0xA5` guard check, and a raw
++`write(1, buf, len)` of `checksum=0x%016llx\n` followed by `return s ^ fnv1a(a,4096)`.
++No libc calls.
++
++- [x] **Step 3: Compile and establish the host result**
++
++```bash
++cd docs/gem5-fi/lsu/implementation_v3_2/workloads
++gcc -O2 -static -nostdlib -fno-pic -no-pie -Wl,-e,_start \
++    -o lq_lifetime_ordinal lq_lifetime_ordinal.S lq_lifetime_ordinal.c
++./lq_lifetime_ordinal | tee lq_lifetime_ordinal.golden
++sha256sum lq_lifetime_ordinal > lq_lifetime_ordinal.sha256
++```
++Expected: one `checksum=0x…` line, exit code 0.
++
++- [x] **Step 4: Verify under gem5 with the frozen baseline binary**
++
++```bash
++cd /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2
++./build/ARM/gem5.opt --outdir=/tmp/lq04_anchor_base configs/se/lsu_proxy.py \
++  --cmd=$PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal \
++  --cpu O3 --variant B0 --chaos_propagation --prop_trace_file prop_trace.csv.gz
++```
++Expected: the same `checksum=0x…` as the host, exit 0; the first five `lq_lifecycle action=alloc` rows are the five anchors.
++
++- [x] **Step 5: Commit**
++
++```bash
++git add docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal.S \
++        docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal.c \
++        docs/gem5-fi/lsu/implementation_v3_2/workloads/compile_lq_lifetime_ordinal.sh \
++        docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal \
++        docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal.golden \
++        docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal.sha256
++git commit -m "[LSU][MDSPEC][V3.2.10][WORKLOAD] add lq_lifetime_ordinal with five explicit eligible anchors"
++```
++
++### Task 3: Pure LQ04 rules header + host unit test
++
++**Files:**
++- Create: `CHAOS/gem5/src/cpu/o3/CHAOSLQ04/lq04_rules.hh`
++- Create: `tests/test_lq04_rules.cc`
++
++**Interfaces:**
++- Produces: `gem5::chaos_lq04::{isEligible, shouldSelect, shouldInject, identityMatches}`.
++
++- [ ] **Step 1: Write the failing test**
++
++Assertions:
++```cpp
++assert(isEligible(true, true, false, false));          // valid, request, not squashed, executed
++assert(!isEligible(false, true, false, false));        // no valid entry
++assert(!isEligible(true, false, false, false));        // no request
++assert(!isEligible(true, true, false, true));          // squashed
++assert(shouldSelect(3, 3));                            // 1-based ordinal
++assert(!shouldSelect(3, 0));                           // ordinal 0 never selects
++assert(!shouldSelect(2, 3));
++assert(identityMatches(7, 11, 7, 11));
++assert(!identityMatches(7, 12, 7, 11));                // generation mismatch
++assert(!identityMatches(8, 11, 7, 11));                // index mismatch
++assert(shouldInject(0, 0));                            // maxFaults 0 clamps to 1
++assert(!shouldInject(1, 1));                           // one-shot spent
++assert(!shouldInject(1, 0));
++```
++
++- [ ] **Step 2: Run it and see it fail**
++
++```bash
++g++ -std=c++17 -I CHAOS/gem5/src tests/test_lq04_rules.cc -o /tmp/test_lq04_rules
++```
++Expected: `fatal error: cpu/o3/CHAOSLQ04/lq04_rules.hh: No such file or directory`.
++
++- [ ] **Step 3: Implement the header**
++
++Signatures:
++```cpp
++inline bool isEligible(bool valid, bool has_request, bool squashed,
++                       bool executed);
++inline bool shouldSelect(uint64_t eligible_count, uint64_t ordinal);
++inline bool identityMatches(uint64_t idx, uint64_t gen,
++                            uint64_t target_idx, uint64_t target_gen);
++inline bool shouldInject(uint64_t injected, uint64_t max_faults);
++```
++`shouldInject` treats `max_faults==0` as 1; `shouldSelect` requires `ordinal != 0`.
++
++- [ ] **Step 4: Run and commit**
++
++```bash
++g++ -std=c++17 -I CHAOS/gem5/src tests/test_lq04_rules.cc -o /tmp/test_lq04_rules && /tmp/test_lq04_rules
++git add CHAOS/gem5/src/cpu/o3/CHAOSLQ04/lq04_rules.hh tests/test_lq04_rules.cc
++git commit -m "[LSU][MDSPEC][V3.2.10][LQ04] add pure LQ04 ordinal/identity rules with host test"
++```
++
++### Task 4: `LSQEntry` side-channel and boundary restore
++
++**Files:**
++- Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.hh:95-147` (side channel, `corruptLifetime`, `restoreLifetime`, destructor)
++- Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.hh:262-270` (private helpers)
++- Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.cc:859-896` (`commitLoad` / `commitLoads`)
++- Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.cc:1111-1161` (`squash`)
++
++**Interfaces:**
++- Consumes: nothing from Task 3 at runtime.
++- Produces: `LSQEntry::corruptLifetime()`, `LSQEntry::restoreLifetime()`, `LSQEntry::lq04Corrupt()`, `LSQEntry::lq04Request()`; `LSQUnit::lq04Restore(LQEntry&, const char*)`.
++
++- [x] **Step 1: Add the side channel to `LSQEntry`**
++
++Fields:
++```cpp
++LSQRequest *_lq04Request = nullptr;
++bool _lq04Corrupt = false;
++```
++`corruptLifetime()` asserts `_valid && _request && !_lq04Corrupt`, moves `_request` to `_lq04Request`, sets `_request=nullptr`, `_valid=false`, `_lq04Corrupt=true`.
++`restoreLifetime()` asserts `_lq04Corrupt && !_valid && _request==nullptr && _lq04Request`, moves it back, sets `_valid=true`, `_lq04Corrupt=false`.
++The destructor frees `_lq04Request` if still set. `clear()` asserts `!_lq04Corrupt` (restore must happen first).
++
++- [x] **Step 2: Restore at the two lifecycle boundaries**
++
++In `commitLoad()` insert, before the `assert(loadQueue.front().valid())`:
++```cpp
++if (loadQueue.front().lq04Corrupt())
++    lq04Restore(loadQueue.front(), "commit");
++```
++`commitLoads()` has a pre-loop assert at `:890` that runs before `commitLoad()`
++and would fire when the corrupted entry is the queue head but has not committed
++yet. Change only that check to
++```cpp
++assert(loadQueue.size() == 0 || loadQueue.front().valid() ||
++       loadQueue.front().lq04Corrupt());
++```
++and likewise allow `lq04Corrupt()` in `drainSanityCheck()` at `:343`. These are
++the only two invariant sites touched; no other assert is relaxed.
++In `squash()` insert, inside the loop, before `loadQueue.back().clear()`:
++```cpp
++if (loadQueue.back().lq04Corrupt())
++    lq04Restore(loadQueue.back(), "squash");
++```
++`lq04Restore` emits the trace hook if mounted (Task 7) and then calls `restoreLifetime()`.
++
++- [x] **Step 3: Verify the no-injection path is byte-identical**
++
++```bash
++cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt 2>&1 | tee /tmp/lq04_build_t4.log | tail -3
++cp build/ARM/gem5.opt ../../build/ARM/gem5.opt
++cd ../.. && build/ARM/gem5.opt --outdir=/tmp/lq04_reg_t4 configs/se/arm_chaos.py --cmd workloads/directed/reg_chain --cpu O3
++```
++Expected: build succeeds with no new warnings; regression exit 0.
++
++- [x] **Step 4: Commit**
++
++```bash
++git add CHAOS/gem5/src/cpu/o3/lsq_unit.hh CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++git commit -m "[LSU][MDSPEC][V3.2.10][LQ04] add LQEntry side-channel with commit/squash boundary restore"
++```
++
++### Task 5: `CHAOSLQ04` SimObject and config mount (count-only probe)
++
++**Files:**
++- Create: `CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.hh`
++- Create: `CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.cc`
++- Create: `CHAOS/gem5/src/cpu/o3/CHAOSLQ04/CHAOSLQ04.py`
++- Create: `CHAOS/gem5/src/cpu/o3/CHAOSLQ04/SConscript`
++- Modify: `CHAOS/gem5/src/cpu/o3/cpu.hh:541-543` (pointer + setter)
++- Modify: `configs/se/lsu_proxy.py:259-280, 845-880`
++
++**Interfaces:**
++- Produces: `CHAOSLQ04::maybeSelect(...)`, `isTarget(...)`, `countOnly()`, `eligibleCount()`, `injectedCount()`, `targetRequestId()`, `targetLqIdx()`, `targetLqGen()`, `targetSeq()`, `eventOrdinal()`, `noteRestore(seq, idx, gen, reason)`.
++
++- [x] **Step 1: Write the SimObject**
++
++Params: `cpu`, `eventOrdinal` (UInt64, 0 = disabled), `maxFaults` (UInt64, default 1, 0 clamps to 1), `countOnly` (Bool), `probeFirstN` (UInt64, default 0), `watchdogCycles` (UInt64, default 500000000), `rngSeed` (UInt64), `writeLog` (Bool, default true).
++
++`maybeSelect` increments `eligible_count`; in count-only or probe mode logs
++`CHAOS_LQ04_ELIGIBLE_PROBE: seq=… pc=0x… lq_idx=… gen=… ordinal=… tick=…`;
++fires only when `shouldSelect(eligible_count, event_ordinal)` and
++`shouldInject(injected_count, max_faults)`; sets `target_seq/lq_idx/lq_gen/request_id`
++and logs `CHAOS_LQ04_INJECTION: seq=… pc=0x… lq_idx=… gen=… request_id=… addr=0x… size=… eligible=… ordinal=… injected=… tick=…`.
++
++- [x] **Step 2: Wire CPU pointer and config**
++
++`cpu.hh` (next to `lsqFwd`):
++```cpp
++class CHAOSLQ04;
++CHAOSLQ04 *chaosLQ04 = nullptr;
++void setChaosLQ04(CHAOSLQ04 *p) { chaosLQ04 = p; }
++```
++Self-attach in `startup()`: `cpu->chaosLQ04 = this;`.
++`lsu_proxy.py`: import `CHAOSLQ04`; add `--chaos_lq04`, `--lq04_event_ordinal`, `--lq04_max_faults` (default 1), `--lq04_count_only`, `--lq04_probe_first_n`, `--lq04_watchdog_cycles`, `--lq04_rng_seed`; instantiate `CHAOSLQ04(...)` and set `board.chaos_lq04`.
++
++- [x] **Step 3: Build and probe the anchors**
++
++```bash
++cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt 2>&1 | tail -3
++cp build/ARM/gem5.opt ../../build/ARM/gem5.opt
++cd ../.. && build/ARM/gem5.opt --outdir=/tmp/lq04_probe \
++  configs/se/lsu_proxy.py --cpu O3 --variant B0 --chaos_propagation \
++  --prop_trace_file prop_trace.csv.gz --chaos_lq04 --lq04_count_only \
++  --lq04_probe_first_n 5 \
++  --cmd=$PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal
++```
++Expected: five `CHAOS_LQ04_ELIGIBLE_PROBE` lines with distinct `pc`/`addr`, matching the five anchor PCs from `objdump -d`, and checksum equality.
++
++- [x] **Step 4: Commit**
++
++```bash
++git add CHAOS/gem5/src/cpu/o3/CHAOSLQ04/ CHAOS/gem5/src/cpu/o3/cpu.hh configs/se/lsu_proxy.py
++git commit -m "[LSU][MDSPEC][V3.2.10][LQ04] add CHAOSLQ04 SimObject and count-only eligible probe"
++```
++
++### Task 6: ExecuteLoad injection, response probe and lifecycle trace
++
++**Files:**
++- Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.cc:697-767` (`executeLoad` tail)
++- Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.cc:110-232` (`completeDataAccess`)
++- Modify: `CHAOS/gem5/src/cpu/o3/lsq_unit.cc:859-896, 1111-1161` (restore trace calls)
++- Modify: `CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh` / `.cc` (`lq04_registry` + `noteLQ04Injection`, moved here from Task 7 so this task compiles)
++
++**Interfaces:**
++- Consumes: Task 3 rules, Task 4 side channel, Task 5 injector.
++- Produces: the actual field corruption, the injection node (`noteLQ04Injection`) and the response/restore trace hooks used in Task 7.
++
++- [x] **Step 1: Add the injection point**
++
++At the end of `executeLoad`, only when `load_fault == NoFault && inst->isLoad()`:
++```cpp
++LQEntry &e = loadQueue[inst->lqIdx];
++if (e.valid() && e.hasRequest()) {
++    LSQRequest *req = e.request();
++    const uint64_t rid = req->req(0)->getReqInstSeqNum();
++    if (cpu->chaosLQ04 && cpu->chaosLQ04->maybeSelect(
++            inst->seqNum, inst->pcState().instAddr(), inst->lqIdx,
++            inst->lqEntryGeneration, inst->executionAttemptId, inst->effAddr,
++            inst->effSize, rid, inst->isDataPrefetch() || inst->isInstPrefetch())) {
++        const uint64_t occ = loadQueue.size();
++        e.corruptLifetime();
++        if (cpu->chaosPropagation)
++            cpu->chaosPropagation->noteLQ04Injection(inst.get(), inst->lqIdx,
++                inst->lqEntryGeneration, rid, inst->effAddr, inst->effSize,
++                occ, loadQueue.size(), cpu->chaosLQ04->eligibleCount(),
++                cpu->chaosLQ04->eventOrdinal(), cpu->chaosLQ04->injectedCount(),
++                inst->executionAttemptId, inst->replayGeneration);
++    }
++}
++```
++Do not change the return value.
++
++- [x] **Step 2: Record the response-side entry state**
++
++At the top of `completeDataAccess`, after `inst` is resolved and guarded by
++`!inst->isSquashed()` (a squashed request is released and never reaches this
++function; the guard keeps the probe off a potentially reused `lqIdx`):
++```cpp
++if (!inst->isSquashed() && cpu->chaosLQ04 && inst->isLoad() &&
++    cpu->chaosLQ04->isTarget(inst->seqNum, inst->lqIdx, inst->lqEntryGeneration)) {
++    const LQEntry &e = loadQueue[inst->lqIdx];
++    if (cpu->chaosPropagation)
++        cpu->chaosPropagation->noteLQLifecycle(inst->seqNum, inst->lqIdx,
++            inst->lqEntryGeneration, "response_probe",
++            e.valid() ? "valid_at_response=1;request_present_at_response=1"
++                      : "valid_at_response=0;request_present_at_response=0");
++}
++```
++
++- [x] **Step 3: Emit the restore trace**
++
++In `LSQUnit::lq04Restore`, before `restoreLifetime()`:
++```cpp
++if (cpu->chaosPropagation)
++    cpu->chaosPropagation->noteLQLifecycle(e.instruction()->seqNum,
++        e.instruction()->lqIdx, e.instruction()->lqEntryGeneration,
++        "restore", reason);
++```
++
++- [x] **Step 4: Build, run one pilot smoke, and commit**
++
++```bash
++cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt 2>&1 | tail -3
++cp build/ARM/gem5.opt ../../build/ARM/gem5.opt
++cd ../.. && build/ARM/gem5.opt --outdir=/tmp/lq04_smoke \
++  configs/se/lsu_proxy.py --cpu O3 --variant B0 --chaos_propagation \
++  --prop_trace_file prop_trace.csv.gz --chaos_lq04 --lq04_event_ordinal 1 \
++  --lq04_max_faults 1 \
++  --cmd=$PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal
++grep -E "CHAOS_LQ04_INJECTION|checksum=" /tmp/lq04_smoke/stdout.log /tmp/lq04_smoke/lq04_injections.log
++zcat /tmp/lq04_smoke/prop_trace.csv.gz | grep -E "response_probe|action=restore|,inj,"
++```
++Expected: exactly one `CHAOS_LQ04_INJECTION`; the checksum equals the no-fault baseline; one `inj` row; one `response_probe` row with `valid_at_response=0`; one `restore` row with `reason=commit`.
++
++- [x] **Step 5: Commit**
++
++```bash
++git add CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++git commit -m "[LSU][MDSPEC][V3.2.10][LQ04] inject at executeLoad with response probe and boundary restore trace"
++```
++
++Actual commit a6abe75d also staged `cpu.hh` (compile fix: the Task-5
++member used an inline `class CHAOSLQ04` inside `o3::CPU`, creating the
++unrelated incomplete `gem5::o3::CHAOSLQ04` in TUs that include `cpu.hh`
++first — fixed with a gem5-namespace forward declaration) and the two
++`CHAOSPropagation` files (the `lq04_registry` + `noteLQ04Injection`
++relocated here by the controller ruling). The `checkViolations` early
++return inside `executeLoad` was restructured into a conditional return
++(identical fault on every path) because `checkLoads` defaults true and
++the literal function tail was otherwise unreachable for normal loads.
++
++### Task 7: Propagation registry and consumer edges
++
++**Files:**
++- Modify: `CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh`
++- Modify: `CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc`
++
++**Interfaces:**
++- Consumes: `noteLQ04Injection` signature from Task 6.
++- Produces: `lq04` family binding in `noteMemResponse`/`noteChainWriteback`, so `resp`, `taint_reg`, `register_writeback` and `consumer` nodes carry the LQ04 ptag.
++
++- [ ] **Step 1: Verify the registry and injection method landed in Task 6**
++
++Task 6 owns the `LQ04Entry` map and `noteLQ04Injection`; confirm they exist and
++emit the `inj` node with detail
++`family=lq04;field=valid+request;valid_before=1;valid_after=0;request_before=1;request_after=0;lq_idx=…;lq_gen=…;request_id=…;addr=…;size=…;occ_before=…;occ_after=…;eligible_ordinal=…;event_ordinal=…;injected=…;attempt_id=…;replay_gen=…;no_pop=1;no_reuse=1;data_unchanged=1`.
++Do not duplicate the registry in this task.
++
++- [ ] **Step 2: Bind in `noteMemResponse`**
++
++After the FW05 binding block add:
++```cpp
++auto lq = lq04_registry.find(inst->seqNum);
++if (!hit_ptag && lq != lq04_registry.end() && lq->second.resp_node == 0) {
++    hit_ptag = lq->second.ptag; hit_family = "lq04";
++}
++```
++When `hit_family == "lq04"`, append
++`;association=sender_state;entry_valid_at_response=0;entry_request_at_response=0;data_unchanged=1`
++to the resp detail.
++
++- [ ] **Step 3: Bind writeback and consumers**
++
++In `noteChainWriteback`, add an `lq04_registry` branch mirroring FW05 that emits
++`taint_reg`/`register_writeback` from the actual PRF value and inserts the dest
++into `taint_set`. `noteCommit` then emits `consumer` nodes for tainted sources.
++A committed load with correct data produces consumer edges whose
++`value_hash` equals the response `data_fnv`; no SDC may be claimed from this.
++
++- [ ] **Step 4: Verify one chain**
++
++```bash
++cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt 2>&1 | tail -3
++cp build/ARM/gem5.opt ../../build/ARM/gem5.opt
++cd ../.. && python3 docs/gem5-fi/lsu/implementation_v3_2/platform/tools/prop_trace_to_v31.py \
++  /tmp/lq04_smoke/prop_trace.csv.gz /tmp/lq04_smoke/trace_v31.jsonl \
++  --sample-run-id LQ04-SMOKE --run-id LQ04-F0-W2 --sub-task-id LQ04-F0-W2-S01 \
++  --fault-id LQ04-CFG01 --fault-model-id LQ04
++python3 docs/gem5-fi/lsu/implementation_v3_2/platform/trace_validator.py /tmp/lq04_smoke/trace_v31.jsonl
++```
++Expected: validator reports zero errors; the JSONL contains `injection`,
++`memory_response`, `register_writeback`, at least one `consumer_commit`, and no
++`terminal_state=SDC` (oracle passes).
++
++- [ ] **Step 5: Commit**
++
++```bash
++git add CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh \
++        CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++git commit -m "[LSU][MDSPEC][V3.2.10][LQ04] bind the LQ04 chain to response, writeback and consumers"
++```
++
++### Task 8: Pilot-platform LQ04 wiring
++
++**Files:**
++- Modify: `docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py:35-52, 396-420, 460-520, 640-700`
++- Modify: `docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py:13`
++- Modify: `docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py:55-125`
++- Test: `tests/test_lq04_platform.py`
++
++**Interfaces:**
++- Consumes: `CHAOS_LQ04_INJECTION` log line and `lq04` trace family.
++- Produces: `run_pilot.py --model LQ04` with `target_proof`, terminal adjudication and completeness profiles.
++
++- [x] **Step 1: Write failing platform tests**
++
++`tests/test_lq04_platform.py` must assert:
++```python
++assert "LQ04" in run_pilot.MODELS   # add MODELS tuple, use it in argparse choices
++assert run_pilot.EXCEL.name.endswith("-v3.2.4.xlsx")
++assert run_pilot._workload_for("LQ04") == "lq_lifetime_ordinal"
++events = run_pilot._lq04_events(FIXTURE_LOG)
++assert len(events) == 1
++assert events[0]["injected"] == 1
++assert events[0]["ordinal"] == 3
++assert terminal_rules.adjudicate(events_committed, model="LQ04",
++                                 observed_terminal="MASKED",
++                                 oracle_pass=True)[0] == "MASKED"
++```
++
++- [x] **Step 2: Run and see it fail**
++
++```bash
++python3 -m pytest tests/test_lq04_platform.py -v
++```
++Expected: FAIL (no `_lq04_events`, no `LQ04` choice).
++
++- [x] **Step 3: Wire the platform**
++
++Introduce a module-level `MODELS = ("A01", "A03", "FW02", "SQ01", "DA04",
++"LP01", "MD04", "FW05", "SQ03", "SP05", "LQ04")`, use it as the `--model`
++choices, and change `EXCEL` from v3.2.3 to
++`…/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx` (the authoritative
++v3.2.4 rows; pilots are later transcribed into v3.2.5). Add
++`"LQ04": "lq_lifetime_ordinal"` to `_workload_for`;
++add extra args `["--chaos_lq04", "--lq04_event_ordinal", str(sample["event_ordinal"]), "--lq04_max_faults", "1", "--lq04_watchdog_cycles", "500000000"]`;
++for `--probability 0.0` omit `--chaos_lq04` (matched no-fault control);
++add `_lq04_events()` parsing `lq04_injections.log`;
++add `target_proof = {"site": "executeLoad_post", "all_one_injection": len==1,
++"ordinal_matches": …, "valid_1_to_0": True, "request_1_to_0": True,
++"no_pop_no_reuse": True, "address_size_data_unchanged": True}`;
++add LQ04 to `LOAD_SIDE`; add completeness profiles
++`("LQ04","MASKED"): [("injection","memory_response","register_writeback","consumer_commit"), ("injection","memory_response","register_writeback"), ("injection","squash")]`,
++`("LQ04","SQUASHED"): [("injection","squash")]`, `("LQ04","CRASH"): [("injection","simulator_abort")]`, `("LQ04","UNRESOLVED"): [("injection",)]`.
++
++- [x] **Step 4: Run the tests**
++
++```bash
++python3 -m pytest tests/test_lq04_platform.py -v
++```
++Expected: PASS.
++
++- [x] **Step 5: Commit**
++
++```bash
++git add docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py \
++        docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py \
++        docs/gem5-fi/lsu/implementation_v3_2/platform/trace_completeness.py \
++        tests/test_lq04_platform.py
++git commit -m "[LSU][MDSPEC][V3.2.10][LQ04] wire LQ04 into the pilot platform and terminal rules"
++```
++
++### Task 9: Build, regression and safety verification
++
++**Files:**
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_10/build_lq04.log`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_10/regression_lq04.txt`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_10/binary_v3210.sha256`
++
++- [ ] **Step 1: Clean build and record**
++
++```bash
++cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt 2>&1 | tee ../../docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_10/build_lq04.log | tail -5
++cp build/ARM/gem5.opt ../../build/ARM/gem5.opt
++sha256sum build/ARM/gem5.opt ../../build/ARM/gem5.opt | tee ../../docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_10/binary_v3210.sha256
++```
++Expected: both hashes equal, no new warnings/errors.
++
++- [ ] **Step 2: Regression**
++
++```bash
++cd /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10
++build/ARM/gem5.opt --outdir=/tmp/lq04_reg configs/se/arm_chaos.py \
++  --cmd workloads/directed/reg_chain --cpu O3 > docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_10/regression_lq04.txt 2>&1
++build/ARM/gem5.opt --outdir=/tmp/lq04_base2 configs/se/lsu_proxy.py \
++  --cmd=$PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal \
++  --cpu O3 --variant B0 --chaos_propagation --prop_trace_file prop_trace.csv.gz
++```
++Expected: regression exit 0, no SIGSEGV, and `reg_chain` prints
++`checksum=0xf247ef3fe6f02cfd`; the anchor workload prints the same checksum as
++Task 2.
++
++- [ ] **Step 3: Commit the logs**
++
++```bash
++git add docs/gem5-fi/lsu/implementation_v3_2/logs_v3_2_10/
++git commit -m "[LSU][MDSPEC][V3.2.10][BUILD] record the v3.2.10 build, binary hash and regression"
++```
++
++### Task 10: Five pilots and five matched controls
++
++**Files:**
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-R01..R05/`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-CONTROL-R01..R05/`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/LQ04_PILOT_SUMMARY.csv`
++
++**Interfaces:**
++- Consumes: Tasks 8–9.
++- Produces: ten complete pilot directories (manifest, stdout/stderr, trace JSONL, injection log, config.ini/json, stats.txt, oracle, exit code, binary SHA, workload SHA).
++
++- [ ] **Step 1: Run the five fault pilots with the frozen identities**
++
++```bash
++for i in 1 2 3 4 5; do
++  python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py \
++    --model LQ04 --context-index $i --preserve-sample-id \
++    --pilot-id LQ04-F0-W2-S01-R0$i \
++    --workload $PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal \
++    --outdir $PWD/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-R0$i \
++    --timeout 900 --gem5 $PWD/build/ARM/gem5.opt
++done
++```
++Expected per run: exit 0; one `CHAOS_LQ04_INJECTION`; `event_ordinal` equals the Excel ordinal; target restores (`reason=commit`); oracle passes; terminal `MASKED`.
++
++- [ ] **Step 2: Run the five controls**
++
++Repeat Step 1 with `--probability 0.0` and `--pilot-id LQ04-CONTROL-R0$i` into
++`pilots_v3_2_10/LQ04-CONTROL-R0$i` (identical binary/workload/seed/args; no
++`--chaos_lq04`).
++Expected: zero injection lines; same oracle as the fault run.
++
++- [ ] **Step 3: Verify one-shot, identity and context differences**
++
++```bash
++grep -h "CHAOS_LQ04_INJECTION" pilots_v3_2_10/LQ04-R0*/lq04_injections.log | wc -l
++grep -h "CHAOS_LQ04_INJECTION" pilots_v3_2_10/LQ04-R0*/lq04_injections.log
++```
++Expected: exactly 5 lines; five distinct `seq/pc/addr/lq_idx/gen`; each ordinal 1–5 used once.
++
++- [ ] **Step 4: Commit**
++
++```bash
++git add docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/ \
++        docs/gem5-fi/lsu/implementation_v3_2/LQ04_PILOT_SUMMARY.csv
++git commit -m "[LSU][MDSPEC][V3.2.10][PILOT] run five LQ04 pilots and five matched no-fault controls"
++```
++
++### Task 11: Propagation audit, terminal classification and final report answers
++
++**Files:**
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/LQ04_Propagation_Audit_v3.2.10.md`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.10_Final_Report.md`
++
++- [x] **Step 1: Generate the audit tables**
++
++For each pilot record: FaultModelID, location, DynamicInstSeqNum, PC, LQEntryID,
++generation, RequestID, address, access size, EventOrdinal, InjectionTick;
++valid/request before/after; occupancy before/after; request in-flight; response
++arrival and sender-state match; replay; squash; register writeback; consumer
++edges and input hashes; oracle/actual checksum; terminal state.
++
++- [x] **Step 2: Grade the three evidence dimensions separately**
++
++Write `RecordIntegrity`, `TraceCompleteness`, `PropagationCoverage` per pilot.
++`PROPAGATION_COVERAGE=LIFECYCLE_ONLY` unless a real consumer edge with a value
++hash exists; do not merge the three fields.
++
++- [x] **Step 3: Answer the ten final-report questions**
++
++Explicitly answer: literal definition fully implementable? dangling request /
++UAF? all five targets triggered? exactly once each? response correctly bound?
++replay/squash? wrong-data propagation? consumer/commit? application SDC?
++end-to-end propagation standard met? Reference the evidence file/line and the
++pilot artifact for each answer.
++
++- [x] **Step 4: Commit**
++
++```bash
++git add docs/gem5-fi/lsu/implementation_v3_2/LQ04_Propagation_Audit_v3.2.10.md \
++        docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.10_Final_Report.md
++git commit -m "[LSU][MDSPEC][V3.2.10][DOCS] audit the LQ04 propagation chain and record the terminal verdicts"
++```
++
++### Task 12: Authoritative Excel v3.2.5 and model matrix
++
++**Files:**
++- Create: `tools/build_lsu_v325_workbook.py`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx`
++- Modify: `docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv:12`
++- Test: `tests/test_lsu_v325_workbook.py`
++
++- [x] **Step 1: Write the failing workbook test**
++
++Assert: 60 rows with unchanged SampleRunID/RunID/SubTaskID/Seed; LQ04 rows point
++to `lq_lifetime_ordinal` and its new SHA/Oracle; `ConfigFrozen` remains `NO` for
++all 60; Warm-up/ROI remain `NEEDS_RESEARCHER_CONFIRMATION`; the other 11 models'
++fault definitions are unchanged; model matrix LQ04 row updates only the stages
++supported by evidence.
++
++- [x] **Step 2: Implement the builder and generate v3.2.5**
++
++Copy v3.2.4, update only LQ04's five rows and a `18.v3.2.10变更记录` sheet.
++Status mapping: `DESIGNED=1`, `SOURCE_AUDITED=1`, `IMPLEMENTED=1`,
++`COMPILED=1`, `UNIT_TESTED=1`, `PILOT_RUN=1`; `PROPAGATION_VERIFIED` only if
++Task 11 proves a real consumer edge (otherwise 0 with reason
++`LIFECYCLE_ONLY_NO_DATA_CORRUPTION`).
++
++- [x] **Step 3: Run tests and commit**
++
++```bash
++python3 -m pytest tests/test_lsu_v325_workbook.py -v
++git add tools/build_lsu_v325_workbook.py \
++        docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx \
++        docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv \
++        tests/test_lsu_v325_workbook.py
++git commit -m "[LSU][MDSPEC][V3.2.10][EXCEL] publish v3.2.5 with LQ04 pilot status and workload identity"
++```
++
++### Task 13: Package, provenance and SHA256 manifest
++
++**Files:**
++- Create: `LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip`
++- Create: `LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip.sha256`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/GIT_COMMIT_v3210.txt`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v3210.txt`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/GIT_DIFF_v3210.txt`
++- Create: `docs/gem5-fi/lsu/implementation_v3_2/DELIVERABLES_SHA256_v3210.txt`
++
++- [ ] **Step 1: Record provenance**
++
++`git rev-parse HEAD`, `git status --short`, `git diff 37692d2b..HEAD`,
++`sha256sum build/ARM/gem5.opt`, workload SHA, pilot artifact SHA manifest.
++
++- [ ] **Step 2: Build the zip with the 24 required sections**
++
++Include the baseline report, original definition, audit, safety analysis,
++implementability verdict, C++ hook, config parsing, ordinal implementation,
++Git diff, unit tests, watchdog/timeout tests, build log, five pilots, five
++controls, JSONL traces, propagation audit, five oracles, workload + SHA,
++v3.2.5 Excel, model matrix, branch/HEAD/status, final binary SHA, file SHA256
++manifest, and open issues.
++
++- [ ] **Step 3: Verify and commit**
++
++```bash
++sha256sum LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip | tee LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip.sha256
++unzip -l LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip | tail -5
++git add LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip \
++        LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip.sha256 \
++        docs/gem5-fi/lsu/implementation_v3_2/GIT_COMMIT_v3210.txt \
++        docs/gem5-fi/lsu/implementation_v3_2/GIT_STATUS_v3210.txt \
++        docs/gem5-fi/lsu/implementation_v3_2/GIT_DIFF_v3210.txt \
++        docs/gem5-fi/lsu/implementation_v3_2/DELIVERABLES_SHA256_v3210.txt
++git commit -m "[LSU][MDSPEC][V3.2.10][PACKAGE] publish the LQ04 implementation and pilot package"
++git push
++```
++
++## Self-Review
++
++- **Spec coverage:** baseline/audit/gate (Task 1), definition (Tasks 3–6), ordinal/event selection (Tasks 3, 5, 6), hook/identity/one-shot (Tasks 4–6), safety tests (Tasks 3, 6, 9), pilots/baselines (Task 10), propagation standard (Tasks 7, 11), Excel/matrix (Task 12), git/package (Tasks 1–13).
++- **Type consistency:** `maybeSelect(...)` parameters are identical in Tasks 5, 6 and 8; `noteLQ04Injection(...)` is defined in Task 7 and called in Task 6; `lq04Restore` is defined in Task 4 and traced in Task 6.
++- **Honesty:** the expected literal terminal is MASKED; `PROPAGATION_VERIFIED` stays 0 unless Task 11 finds a real consumer edge with a value hash and an oracle mismatch. No response loss is fabricated.
++- **Proportion:** the plan names every file and signature but leaves bodies to the implementer except for the hand-written assembly and the exact trace detail fields, which the spec fixes.
+diff --git a/docs/superpowers/specs/2026-11-08-lsu-v3.2.10-lq04-design.md b/docs/superpowers/specs/2026-11-08-lsu-v3.2.10-lq04-design.md
+new file mode 100644
+index 00000000..b4463fb1
+--- /dev/null
++++ b/docs/superpowers/specs/2026-11-08-lsu-v3.2.10-lq04-design.md
+@@ -0,0 +1,140 @@
++# LSU v3.2.10 — LQ04 Design & Gate Decisions
++
++**Status:** approved by the researcher on 2026-11-08 (AskUserQuestion answers recorded in the session).
++**Baseline:** `lsu-platform-v3.2.9` @ `37692d2beffcb73fc9303ad9de4c6bb341d5de71`, binary
++`303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0`.
++**Scope:** LQ04 only. The other 11 models, the 60 SampleRunIDs/RunIDs/SubTaskIDs/Seeds,
++`ConfigFrozen=NO`, and the Warm-up/ROI `NEEDS_RESEARCHER_CONFIRMATION` status are unchanged.
++
++## 1. Authoritative fault definition (unchanged)
++
++From Excel v3.2.4 sheet 3 row 4 and sheet 4 row 4:
++
++- FaultModelID `LQ04`; FaultConfigID `LQ04-CFG01`; SubTaskID `LQ04-F0-W2-S01`.
++- Location: LQEntry lifetime management, after `executeLoad` and before the memory
++  response.
++- Target fields: `LQEntry::_valid` and `LQEntry::_request`.
++- Normal: `valid=1`, `request=<in-flight request>`.
++- Fault: `valid=0`, `request=nullptr`.
++- Constraints: do not pop; do not free or reuse the entry early; the entry stays
++  invalid until its original commit/squash lifetime ends; one target Load; one
++  injection; addresses, access size and returned data are untouched.
++
++The implementation must not silently widen or narrow this definition.
++
++## 2. Source-audit conclusion (evidence, file:line)
++
++Audit target: `CHAOS/gem5/src/cpu/o3/lsq_unit.{hh,cc}`, `lsq.{hh,cc}`.
++
++- `LSQEntry` (nested `LSQUnit::LSQEntry`): `lsq_unit.hh:95-147`.
++  `_valid` is written only by `set()` (`:133`) and `clear()` (`:124`).
++  `_request` is written by `setRequest()` (`:138`), `clear()` (`:123`), the
++  destructor (`:112`), `LSQRequest::install()` (`lsq.cc:1115-1125`), and
++  `read()` (`lsq_unit.cc:1554`).
++- Allocation: `insertLoad` `lsq_unit.cc:372-440`; generation is
++  `++lqEntryGeneration` (`:388`), stored on both entry and DynInst.
++- Execute/send: `executeLoad` `lsq_unit.cc:697-767` → `initiateAcc()` →
++  `LSQ::read`/`pushRequest` builds the `LSQRequest` and sends it.
++- Response: `LSQUnit::recvTimingResp` `:97-108` → `LSQ::recvTimingResp`
++  `lsq.cc:449-464` → `LSQRequest::recvTimingResp` `lsq.cc:1248-1253` →
++  `LSQUnit::completeDataAccess` `:110-232`. The request is recovered from
++  `pkt->senderState` (`:100`, `:113`) and the instruction from
++  `request->instruction()`; **the response path never reads the LQEntry**.
++- Commit: `commitLoad` `:859-885` (asserts `front().valid()` at `:862`),
++  `commitLoads` `:887-896` (asserts at `:890`).
++- Squash: `squash` `:1111-1161`; clears and pops every entry above the squash
++  point; `clear()` calls `freeLSQEntry()` when `_request != nullptr`.
++- Request ownership: `LSQRequest` is self-managed (`lsq.hh:539-588`); it is
++  deleted only after `freeLSQEntry()`/`discard()` **and** zero outstanding
++  packets. `DynInst::savedRequest` is a raw back-pointer (`dyn_inst.hh:370`).
++
++### Answers
++
++**A. Clearing `_valid`.** The response still finds the request through
++`pkt->senderState`, is not dropped, causes no replay and no wrong association.
++The load completes normally. At commit (or drain) the invariant
++`assert(front().valid())` fires, aborting gem5 — an unrecoverable simulator
++state, not an architectural effect. If the entry is squashed first, `squash()`
++completes (it never checks `valid()`), then `clear()`/`pop_back()`.
++
++**B. Clearing `_request`.** No dangling pointer and no use-after-free: every
++reader guards (`checkSnoop` `:526-542`, `checkViolations` `:656-660`,
++`startStaleTranslationFlush` `:1478-1499`). But the entry is the only owner
++that hands the request to `freeLSQEntry()` at commit/squash; nulling it leaks
++one `LSQRequest` and skips stale-translation handling.
++
++**C. Not popping / not reusing.** The circular-queue size is unchanged, so
++occupancy, head/tail and back-pressure are unchanged; `insertLoad` cannot reuse
++the slot until `pop_front`, and its `assert(!back().valid())` stays satisfied.
++The only unrecoverable part is the commit-time `valid()` invariant above.
++
++**D. Observable propagation.** Under the literal definition there is no
++response loss, no wrong response binding, no replay induced by the fault and
++no data corruption: the response is bound by `senderState` and delivers the
++correct payload. The literal fault's only effects are (i) the commit-time
++assert abort, or (ii) with the invariant handled, a trace-visible
++invalid-entry interval plus the load's normal (correct) writeback. This is an
++honest **negative** result for the research question; it must not be reported
++as SDC.
++
++## 3. Gate verdict and researcher decisions
++
++Verdict: **IMPLEMENTABLE_WITH_CONDITIONS**. No UAF and no dangling request;
++but the literal definition violates the commit invariant and does not produce
++the Excel's hypothesized response loss.
++
++Researcher decisions (2026-11-08):
++
++1. **D1 — Response semantics:** literal field fault. Do **not** call
++   `discard()` and do **not** drop the response. Expected terminal is
++   `MASKED` when the target commits; record the sender-state association as
++   positive evidence. Do not manufacture SDC.
++2. **D2 — Commit integrity:** keep `valid=0`/`request=nullptr` for the whole
++   interval; preserve the request in an opaque `LQEntry` side channel and
++   restore it exactly at the commit/squash boundary, then let the normal
++   `clear()` free it. Do not pop early. The only invariant sites that may
++   accept the explicitly corrupted entry are the `commitLoads()` pre-loop
++   check (`lsq_unit.cc:890`) and `drainSanityCheck()` (`:343`); `commitLoad()`
++   restores before its own `assert(front().valid())`. No other assertion is
++   relaxed.
++3. **D3 — Target events:** build a new workload `lq_lifetime_ordinal` whose
++   first five eligible Loads are five explicitly constructed anchors (distinct
++   PC, address, data, destination register and consumer). Record its SHA256 and
++   re-validate the Oracle. The original `lq_lifetime` remains archived.
++4. **D4 — Ordinal semantics:** `EventOrdinal` is the 1-based ordinal of the
++   eligible Load stream (eligible = Load whose LQ entry is valid and whose
++   request exists at the end of `executeLoad`). No seeded-tier selection and
++   no fallback to another event.
++5. **D5 — Trace honesty:** record injection, entry-state change, response
++   association, writeback, commit, restore/free and consumer edges. Separate
++   `RecordIntegrity`, `TraceCompleteness` and `PropagationCoverage`.
++   `PROPAGATION_VERIFIED=1` requires a real consumer edge; a lifecycle-only
++   chain must remain `PROPAGATION_COVERAGE=LIFECYCLE_ONLY`.
++6. **D6 — Identity freeze:** keep all 60 SampleRunIDs/RunIDs/SubTaskIDs/Seeds.
++   Only LQ04's workload path/SHA/Oracle/status cells change.
++
++## 4. Workload design (`lq_lifetime_ordinal`)
++
++- `_start` is hand-written in AArch64 assembly with no libc and no dynamic
++  loader. Its first instructions are five loads from a six-entry `.data`
++  anchor table; no data load precedes them.
++- Anchors: A1 `[tbl+0]`, A2 `[tbl+8]`, A3 `[tbl+16]`, A4 `[tbl+24]`,
++  A5 `[tbl+32]`, loaded into x2–x6 and passed to `main` in x0–x4.
++- `main(a,b,c,d,e)` uses each value in a different operation (multiply, XOR,
++  add, shift-mix, compare) so the five consumers differ; then runs the
++  original 4096-byte/64-iteration loop and an A5 guard check.
++- Output is a single line `checksum=0x%016llx` written with the raw `write`
++  syscall; exit with the raw `exit` syscall.
++- Acceptance: the first five `lq_lifecycle action=alloc` records in a
++  count-only run have five distinct PCs/addresses and correspond to the five
++  anchors; the six no-fault controls reproduce the same checksum as the host
++  binary and exit 0.
++
++## 5. Non-goals
++
++- No change to the other 11 models or their 55 SampleRunIDs.
++- No formal 60-run campaign.
++- No new generic trace system; reuse the existing `prop_trace.csv.gz` →
++  `trace_v31.jsonl` converter and add only LQ04 binding/registry entries.
++- No change to Warm-up/ROI (`NEEDS_RESEARCHER_CONFIRMATION`).
++- No `git reset --hard`, `git clean -fd`, or `git add -A`.
+diff --git a/tests/data_lq04_platform/lq04_injections.log b/tests/data_lq04_platform/lq04_injections.log
+new file mode 100644
+index 00000000..f466c69c
+--- /dev/null
++++ b/tests/data_lq04_platform/lq04_injections.log
+@@ -0,0 +1 @@
++CHAOS_LQ04_INJECTION: seq=142 pc=0x104ac lq_idx=4 gen=2 request_id=7 addr=0x1fffff10 size=8 eligible=3 ordinal=3 injected=1 tick=918344
+diff --git a/tests/test_lq04_platform.py b/tests/test_lq04_platform.py
+new file mode 100644
+index 00000000..4658b109
+--- /dev/null
++++ b/tests/test_lq04_platform.py
+@@ -0,0 +1,230 @@
++"""LQ04 pilot-platform wiring (LSU v3.2.10 Task 8).
++
++The C++ side is complete: ``CHAOS_LQ04_INJECTION`` / ``_ELIGIBLE_PROBE`` /
++``_RESTORE`` lines land in ``lq04_injections.log`` and the propagation trace
++carries ``family=lq04`` injection/response/writeback/consumer nodes.  These
++tests pin the platform contract: the ``LQ04`` model choice on the v3.2.4
++workbook, the log parser, load-side terminal adjudication, the
++(LQ04, terminal) completeness profiles and the converter's unit mapping.
++"""
++import gzip
++import json
++import sys
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++PLATFORM = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/platform"
++sys.path.insert(0, str(PLATFORM))
++
++import run_pilot  # noqa: E402
++import terminal_rules  # noqa: E402
++from tools.prop_trace_to_v31 import convert  # noqa: E402
++from trace_completeness import check_completeness, expected_stages  # noqa: E402
++from trace_validator import validate  # noqa: E402
++from trace_writer import TraceWriter  # noqa: E402
++
++FIXTURE_LOG = (Path(__file__).parent / "data_lq04_platform"
++               / "lq04_injections.log")
++
++
++def test_platform_wiring_constants():
++    # MODELS tuple exists, carries LQ04, and keeps every earlier model.
++    assert "LQ04" in run_pilot.MODELS
++    assert set(run_pilot.MODELS) == {
++        "A01", "A03", "FW02", "SQ01", "DA04", "LP01", "MD04", "FW05",
++        "SQ03", "SP05", "LQ04"}
++    assert run_pilot.EXCEL.name.endswith("-v3.2.4.xlsx")
++    assert run_pilot._workload_for("LQ04") == "lq_lifetime_ordinal"
++
++
++def test_lq04_events_parses_injection_line():
++    events = run_pilot._lq04_events(FIXTURE_LOG)
++    assert len(events) == 1
++    assert events[0]["injected"] == 1
++    assert events[0]["ordinal"] == 3
++    assert events[0]["kind"] == "injection"
++    assert events[0]["seq"] == 142
++    assert events[0]["pc"] == 0x104AC
++    assert events[0]["lq_idx"] == 4
++    assert events[0]["gen"] == 2
++    assert events[0]["request_id"] == 7
++    assert events[0]["addr"] == 0x1FFFFF10
++    assert events[0]["size"] == 8
++    assert events[0]["eligible"] == 3
++    assert events[0]["tick"] == 918344
++
++
++def test_lq04_events_probe_restore_and_status_lines(tmp_path):
++    log = tmp_path / "lq04_injections.log"
++    log.write_text(
++        "CHAOS_LQ04_ELIGIBLE_PROBE: seq=57 pc=0x10488 lq_idx=0 gen=1 "
++        "ordinal=1 tick=901222\n"
++        "CHAOS_LQ04_INJECTION: seq=142 pc=0x104ac lq_idx=4 gen=2 "
++        "request_id=7 addr=0x1fffff10 size=8 eligible=3 ordinal=3 "
++        "injected=1 tick=918344\n"
++        "CHAOS_LQ04_RESTORE: seq=142 lq_idx=4 gen=2 reason=commit "
++        "tick=925001\n"
++        "CHAOS_LQ04_ELIGIBLE_COUNT=9\n"
++        "CHAOS_LQ04_WATCHDOG_EXPIRED: selected=0 injected=0 eligible=9 "
++        "ordinal=3 tick=500000000\n", encoding="utf-8")
++    events = run_pilot._lq04_events(log)
++    # ELIGIBLE_COUNT / WATCHDOG_EXPIRED are status lines, not events.
++    assert [e["kind"] for e in events] == ["probe", "injection", "restore"]
++    assert events[0]["ordinal"] == 1
++    assert events[0]["tick"] == 901222
++    assert events[2]["reason"] == "commit"
++    assert run_pilot._lq04_events(tmp_path / "absent.log") == []
++
++
++def _committed_chain():
++    """Minimal committed LQ04 chain: injection -> response -> register
++    writeback -> consumer, plus the load's own commit node."""
++    return [
++        {"record_type": "event", "event_type": "injection", "ptag": 41,
++         "dyn_inst_seq": 7, "injection_status": "INJECTED"},
++        {"record_type": "event", "event_type": "memory_response", "ptag": 41,
++         "dyn_inst_seq": 7},
++        {"record_type": "event", "event_type": "register_writeback",
++         "ptag": 41, "dyn_inst_seq": 7, "new_value": "5f5e5d5c"},
++        {"record_type": "event", "event_type": "consumer_commit",
++         "ptag": 41, "dyn_inst_seq": 9},
++        {"record_type": "event", "event_type": "commit", "ptag": 0,
++         "dyn_inst_seq": 7},
++    ]
++
++
++def test_lq04_is_load_side_and_masked_when_committed():
++    assert "LQ04" in terminal_rules.LOAD_SIDE
++    events_committed = _committed_chain()
++    assert terminal_rules.adjudicate(
++        events_committed, model="LQ04", observed_terminal="MASKED",
++        oracle_pass=True)[0] == "MASKED"
++
++
++def test_lq04_squashed_when_no_commit():
++    events = [
++        {"record_type": "event", "event_type": "injection", "ptag": 41,
++         "dyn_inst_seq": 7, "injection_status": "INJECTED"},
++        {"record_type": "event", "event_type": "register_writeback",
++         "ptag": 41, "dyn_inst_seq": 7, "new_value": "5f5e5d5c"},
++        {"record_type": "event", "event_type": "squash", "ptag": 0,
++         "dyn_inst_seq": 7},
++    ]
++    assert terminal_rules.adjudicate(
++        events, model="LQ04", observed_terminal="MASKED",
++        oracle_pass=True)[0] == "SQUASHED"
++
++
++def test_lq04_completeness_profiles():
++    assert expected_stages("LQ04", "MASKED") == [
++        ("injection", "memory_response", "register_writeback",
++         "consumer_commit"),
++        ("injection", "memory_response", "register_writeback"),
++        ("injection", "squash"),
++    ]
++    assert expected_stages("LQ04", "SQUASHED") == [("injection", "squash")]
++    assert expected_stages("LQ04", "CRASH") == [
++        ("injection", "simulator_abort")]
++    assert expected_stages("LQ04", "UNRESOLVED") == [("injection",)]
++    # An unexpected (model, terminal) pair falls back to the DEFAULT_PROFILE.
++    assert expected_stages("LQ04", None) == [("injection",)]
++
++
++def _write_lq04_trace(path: Path) -> None:
++    w = TraceWriter(path, "PILOT-LQ04", "PILOT-LQ04", "PILOT-LQ04-S01",
++                    "LQ04", "LQ04")
++    w.event("injection", ptag=41, dyn_inst_seq=7, timestamp=100,
++            injection_status="INJECTED", activation_status="TRIGGERED",
++            trace_completeness="COMPLETE",
++            detail="site=executeLoad_post;family=lq04;field=valid+request"
++                   ";valid_before=1;valid_after=0;request_before=1"
++                   ";request_after=0;lq_idx=4;lq_gen=2;request_id=7"
++                   ";eligible_ordinal=3;event_ordinal=3;injected=1")
++    resp = w.event("memory_response", ptag=41, dyn_inst_seq=7, timestamp=200,
++                   activation_status="TRIGGERED",
++                   trace_completeness="COMPLETE", request_id=7, response_id=1,
++                   lq_entry_id=4, entry_generation=2, execution_attempt_id=1,
++                   detail="family=lq04;association=sender_state;size=8"
++                          ";data_len=8;data_fnv=8f3a71c2;data_hex=5f5e5d5c"
++                          ";request_id=7;response_id=1;lq_entry_id=4"
++                          ";entry_generation=2;execution_attempt_id=1")
++    wb = w.event("register_writeback", ptag=41, dyn_inst_seq=7, timestamp=300,
++                 activation_status="TRIGGERED",
++                 trace_completeness="COMPLETE", new_value="5f5e5d5c",
++                 request_id=7, source_event_id=resp, execution_attempt_id=1,
++                 detail="family=lq04;data_corruption=0"
++                        ";writeback_value=5f5e5d5c"
++                        ";writeback_value_fnv=8f3a71c2"
++                        ";source_value_hash=8f3a71c2"
++                        ";request_id=7;execution_attempt_id=1")
++    w.event("consumer_commit", ptag=41, dyn_inst_seq=9, timestamp=400,
++            commit_status="COMMITTED", trace_completeness="COMPLETE",
++            source_event_id=wb, detail="consumer_input_fnv=8f3a71c2")
++    w.event("commit", ptag=0, dyn_inst_seq=7, timestamp=350,
++            commit_status="COMMITTED", trace_completeness="COMPLETE")
++    w.close(run_status="COMPLETED", activation="TRIGGERED",
++            terminal="MASKED", completeness="COMPLETE")
++
++
++def test_lq04_masked_chain_is_complete(tmp_path):
++    path = tmp_path / "trace_v31.jsonl"
++    _write_lq04_trace(path)
++    assert validate(path) == []
++    report = check_completeness(path)
++    assert report["trace_completeness"] == "COMPLETE"
++    assert report["chain_scoped"] is True
++    assert report["chain_integrity"] == "PASS"
++    assert report["propagation_coverage"] == "COMPLETE"
++    assert report["expected_stages"] == [
++        "injection", "memory_response", "register_writeback",
++        "consumer_commit"]
++    assert report["missing_stages"] == []
++
++
++def _csv_line(node, tick, ptag, kind, seq, req, addr, detail):
++    return f"{node},{tick},{ptag},{kind},{seq},{req},{addr},,,{detail}"
++
++
++def test_converter_binds_lq04_injection_to_the_lq_unit(tmp_path):
++    csv_path = tmp_path / "prop_trace.csv.gz"
++    # Field layout mirrors CHAOSPropagation::writeNode: node,tick,ptag,kind,
++    # dyn_seq,req_id,addr,phys,arch,detail; the lq04 detail is comma-free
++    # and its addr column is bare hex (no 0x prefix).
++    lq04_detail = ("site=executeLoad_post;family=lq04;field=valid+request"
++                   ";valid_before=1;valid_after=0;request_before=1"
++                   ";request_after=0;lq_idx=4;lq_gen=2;request_id=7"
++                   ";addr=1fffff10;size=8;occ_before=1;occ_after=1"
++                   ";eligible_ordinal=3;event_ordinal=3;injected=1"
++                   ";attempt_id=1;replay_gen=0;no_pop=1;no_reuse=1"
++                   ";data_unchanged=1")
++    agu_detail = ("site=lsq_pushRequest_PRE;family=addrpath"
++                  ";mode=a01_bit3_load;old_addr=0x7f00;new_addr=0x7f08")
++    with gzip.open(csv_path, "wt", encoding="utf-8") as fh:
++        fh.write(_csv_line(1, 1000, 41, "inj", 7, 5, "1fffff10",
++                           lq04_detail) + "\n")
++        fh.write(_csv_line(2, 900, 42, "inj", 3, 2, "7f00",
++                           agu_detail) + "\n")
++    out_path = tmp_path / "trace_v31.jsonl"
++    convert(csv_path, out_path,
++            sample_run_id="PILOT-LQ04", run_id="PILOT-LQ04",
++            sub_task_id="PILOT-LQ04-S01", fault_id="LQ04",
++            fault_model_id="LQ04", run_status="COMPLETED",
++            activation="TRIGGERED", terminal="MASKED",
++            completeness="COMPLETE")
++    assert validate(out_path) == []
++    events = [json.loads(line) for line in
++              out_path.read_text(encoding="utf-8").splitlines()]
++    events = [e for e in events if e.get("record_type") == "event"]
++    lq04 = [e for e in events if e.get("event_type") == "injection"
++            and "family=lq04" in (e.get("detail") or "")]
++    assert len(lq04) == 1
++    assert lq04[0]["unit"] == "LQ"
++    assert lq04[0]["sub_unit"] == "executeLoad"
++    assert lq04[0]["ptag"] == 41
++    assert lq04[0]["dyn_inst_seq"] == 7
++    assert lq04[0]["injection_status"] == "INJECTED"
++    # Other models' generic "inj" rows keep the AGU mapping.
++    agu = [e for e in events if e.get("event_type") == "injection"
++           and "family=addrpath" in (e.get("detail") or "")]
++    assert len(agu) == 1
++    assert agu[0]["unit"] == "AGU"
+diff --git a/tests/test_lq04_rules.cc b/tests/test_lq04_rules.cc
+new file mode 100644
+index 00000000..569da979
+--- /dev/null
++++ b/tests/test_lq04_rules.cc
+@@ -0,0 +1,41 @@
++#include <cassert>
++#include <cstdint>
++#include <cstdio>
++
++#include "cpu/o3/CHAOSLQ04/lq04_rules.hh"
++
++using namespace gem5::chaos_lq04;
++
++int
++main()
++{
++    // v3.2.10 LQ04 assert set (verbatim from the plan). The predicate is
++    // valid && has_request && !squashed && !executed; `executeLoad`
++    // early-returns for an instruction that is already executed, so the
++    // executed flag guards against counting a repeated call as a new ordinal.
++    assert(isEligible(true, true, false, false));          // valid, request, not squashed, not executed
++    assert(!isEligible(false, true, false, false));        // no valid entry
++    assert(!isEligible(true, false, false, false));        // no request
++    assert(!isEligible(true, true, false, true));          // executed flag set
++    assert(!isEligible(true, true, true, false));          // squashed
++    assert(!isEligible(true, true, true, true));           // squashed and executed
++
++    // EventOrdinal is the 1-based ordinal of the eligible Load stream;
++    // ordinal 0 never selects.
++    assert(shouldSelect(3, 3));
++    assert(!shouldSelect(3, 0));
++    assert(!shouldSelect(2, 3));
++
++    // Target identity is (LQ index, entry generation).
++    assert(identityMatches(7, 11, 7, 11));
++    assert(!identityMatches(7, 12, 7, 11));                // generation mismatch
++    assert(!identityMatches(8, 11, 7, 11));                // index mismatch
++
++    // maxFaults == 0 clamps to one injection.
++    assert(shouldInject(0, 0));
++    assert(!shouldInject(1, 1));                           // one-shot spent
++    assert(!shouldInject(1, 0));
++
++    std::printf("LQ04 ordinal/identity rules: PASS\n");
++    return 0;
++}
+diff --git a/tests/test_lsu_v325_workbook.py b/tests/test_lsu_v325_workbook.py
+new file mode 100644
+index 00000000..95a58f37
+--- /dev/null
++++ b/tests/test_lsu_v325_workbook.py
+@@ -0,0 +1,308 @@
++"""v3.2.5 workbook: only LQ04 may change; identities and the other 11 models stay.
++
++Covers sheets ``3.最终12模型矩阵`` / ``4.源码Hook审计`` /
++``5.60个样本执行矩阵``, the derived ``60_SAMPLE_MATRIX.csv`` round-trip and
++``MODEL_STATUS_MATRIX.csv`` (LQ04 stages only).
++"""
++import csv
++
++import openpyxl
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel"
++V324 = EXCEL / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
++V325 = EXCEL / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx"
++SAMPLE_CSV = EXCEL / "60_SAMPLE_MATRIX.csv"
++MATRIX = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv"
++
++SAMPLE_SHEET = "5.60个样本执行矩阵"
++MODEL_SHEET = "3.最终12模型矩阵"
++HOOK_SHEET = "4.源码Hook审计"
++REVISION_SHEET = "18.v3.2.10变更记录"
++
++WORKLOAD = ("/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10"
++            "/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal")
++SHA = "fa25f785a4822eb578ae8da2d26c400d7450f40d975b2d7da84de900b48d97ba"
++ORACLE = "b097eb83f71545cb"
++
++IDENTITY_COLS = ["SampleRunID", "RunID", "SubTaskID", "Seed", "FaultModelID"]
++LQ04_DEFINITION_COLS = [
++    "FaultLocation", "TargetField", "BitEntryByteIndex", "NormalValue",
++    "FaultValue", "InjectionMode", "InjectionTiming", "FaultDuration",
++    "TargetInstruction", "EligibleEventCondition", "EventOrdinal",
++    "FaultConfigID", "ContextDifferenceRule",
++]
++MATRIX_STAGES = {
++    "DESIGNED": 1, "SOURCE_AUDITED": 1, "IMPLEMENTED": 1, "COMPILED": 1,
++    "UNIT_TESTED": 1, "PILOT_RUN": 1, "PROPAGATION_VERIFIED": 0,
++}
++MATRIX_EVIDENCE = ("v3.2.10: literal fields cleared; boundary restore; "
++                   "5/5 pilots MASKED; consumers correct data "
++                   "(no corrupting propagation); no SDC")
++OTHER_MATRIX_ROWS = {
++    "A01": ["A01", "AGU", "xv", "1", "1", "1", "1", "1", "1", "0",
++            "v3.2.1 pilots; v3.2.4 re-adjudicated (R03 SQUASHED)"],
++    "A03": ["A03", "AGU", "xv", "1", "1", "1", "1", "1", "1", "0",
++            "v3.2.1 pilots; CRASH x5"],
++    "FW02": ["FW02", "FWD", "xv", "1", "1", "1", "1", "1", "1", "0",
++             "v3.2.4 R01/R05 SQUASHED; R03/R04 MASKED; R02 CRASH"],
++    "SQ01": ["SQ01", "SQ", "store_data", "1", "1", "1", "1", "1", "1", "0",
++             "v3.2.4 store_wb+store_mem; no consumer"],
++    "DA04": ["DA04", "SQ", "byte_enable", "1", "1", "1", "1", "1", "1", "1",
++             "v3.2.6 R04/R05 end-to-end chain with actual PRF hashes: "
++             "1,009/7,714 matched consumers, 0 mismatches, SDC"],
++    "LP01": ["LP01", "L1D", "load_response", "1", "1", "1", "1", "1", "1", "1",
++             "v3.2.6 five pilots: matched consumer edges only, mismatch "
++             "diagnostics 45/0/3/0/3; all MASKED (no SDC)"],
++    "MD04": ["MD04", "LSU", "LSQ", "1", "1", "1", "1", "1", "1", "1",
++             "MD04-DEF-v2 frozen 2026-11-08; checkViolations "
++             "store->younger-load M5PanicFault suppression; 5 frozen pilots "
++             "(R01/R04/R05 SQUASHED, R02 6 consumers, R03 259 consumers "
++             "CROSS_ATTEMPT_VERIFIED); R05 historical ordinal drift; no SDC"],
++    "FW05": ["FW05", "FWD", "forward", "1", "1", "1", "1", "1", "1", "1",
++             "v3.2.8 fw05_forward frozen/archived; v3.2.9 run_pilot.sh fixed "
++             "(GEM5_ROOT/archived bin, /tmp test); strict matched baselines "
++             "fw05_older_src/prob0 all PASS; fault-on reproduces R02-R05 SDC "
++             "549c...; Excel v3.2.4 consistent"],
++    "SQ03": ["SQ03", "SQ", "writeback", "1", "1", "1", "1", "1", "1", "0",
++             "v3.2.8 five pilots MASKED (no consumer); v3.2.9 trace analysis "
++             "separates permission (140910) from cache update (198275); probe "
++             "P00/P01 identical checksums and 136 identical forwards; "
++             "PROPAGATION_VERIFIED=0"],
++    "SP05": ["SP05", "SQ", "completion", "1", "1", "1", "1", "1", "1", "0",
++             "v3.2.9 real completeStore hook (writebackStores premature "
++             "completion); one-shot+watchdog; 5 pilots MASKED/PASS, seq "
++             "18/19/23/24/28, storesToWB -1, trace COMPLETE, consumer 0; "
++             "no SDC"],
++    "RP01": ["RP01", "RPL", "replay", "1", "0", "0", "0", "0", "0", "0",
++             "v3.2.3 audit"],
++}
++
++
++def _headers(ws):
++    return {str(c.value).strip(): c.column for c in ws[1] if c.value}
++
++
++def _header_list(ws):
++    return [str(c.value).strip() if c.value is not None else None
++            for c in ws[1]]
++
++
++def _rows(ws, cols, model):
++    return [r for r in range(2, ws.max_row + 1)
++            if str(ws.cell(r, cols["FaultModelID"]).value) == model]
++
++
++def _sample_rows(ws):
++    return [r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value]
++
++
++def test_exactly_60_rows_and_identities_unchanged():
++    a = openpyxl.load_workbook(V324, data_only=True)[SAMPLE_SHEET]
++    b = openpyxl.load_workbook(V325, data_only=True)[SAMPLE_SHEET]
++    ca, cb = _headers(a), _headers(b)
++    rows = _sample_rows(b)
++    assert len(rows) == 60
++    for r in rows:
++        for name in IDENTITY_COLS:
++            assert a.cell(r, ca[name]).value == b.cell(r, cb[name]).value, (r, name)
++
++
++def test_lq04_rows_new_workload_identity_and_status():
++    ws = openpyxl.load_workbook(V325, data_only=True)[SAMPLE_SHEET]
++    cols = _headers(ws)
++    rows = _rows(ws, cols, "LQ04")
++    assert len(rows) == 5
++    for i, r in enumerate(rows, start=1):
++        assert str(ws.cell(r, cols["SampleRunID"]).value) == \
++            f"LQ04-F0-W2-S01-R0{i}"
++        assert ws.cell(r, cols["WorkloadPath"]).value == WORKLOAD
++        assert ws.cell(r, cols["BinaryPath"]).value == WORKLOAD
++        assert ws.cell(r, cols["BinarySHA256"]).value == SHA
++        assert ws.cell(r, cols["Oracle"]).value == ORACLE
++        assert int(ws.cell(r, cols["EventOrdinal"]).value) == i
++        cmd = str(ws.cell(r, cols["FullCommand"]).value)
++        assert "gem5.opt" in cmd
++        assert "configs/se/lsu_proxy.py" in cmd
++        assert f"--cmd={WORKLOAD}" in cmd
++        assert "--cpu O3" in cmd
++        assert "--variant B0" in cmd
++        assert "--probability 1.0" in cmd
++        assert "--chaos_propagation" in cmd
++        assert "--chaos_lq04" in cmd
++        assert f"--lq04_event_ordinal {i}" in cmd
++        assert "--lq04_max_faults 1" in cmd
++        assert "--lq04_watchdog_cycles 500000000" in cmd
++        assert ws.cell(r, cols["ExecutionStatus"]).value == "PILOT_RUN"
++        assert ws.cell(r, cols["RunStatus"]).value == "PILOT_MASKED"
++        assert ws.cell(r, cols["FaultActivationStatus"]).value == "TRIGGERED"
++        assert ws.cell(r, cols["TerminalState_v31"]).value == "MASKED"
++        assert ws.cell(r, cols["TraceCompleteness_v31"]).value == "COMPLETE"
++        assert str(ws.cell(r, cols["EvidencePath"]).value).startswith(
++            "runs/lsu/final/LQ04-")
++        assert ws.cell(r, cols["DecisionStatus"]).value == \
++            "ACCEPTED_BY_RESEARCHER_2026-11-08"
++        assert ws.cell(r, cols["PreflightStatus"]).value == \
++            "PILOT_ONLY_NOT_FORMAL"
++        prov = str(ws.cell(r, cols["v3.2_ConfigProvenance"]).value)
++        assert "literal" in prov
++        assert "boundary restore" in prov
++        assert "ordinal anchors 1-5" in prov
++        assert "LIFECYCLE_ONLY" in prov
++        assert "PROPAGATION_VERIFIED=0" in prov
++
++
++def test_lq04_fault_definition_cells_unchanged():
++    a = openpyxl.load_workbook(V324, data_only=True)[SAMPLE_SHEET]
++    b = openpyxl.load_workbook(V325, data_only=True)[SAMPLE_SHEET]
++    ca, cb = _headers(a), _headers(b)
++    for r in _rows(b, cb, "LQ04"):
++        for name in LQ04_DEFINITION_COLS:
++            assert a.cell(r, ca[name]).value == b.cell(r, cb[name]).value, (r, name)
++
++
++def test_other_models_rows_identical():
++    a = openpyxl.load_workbook(V324, data_only=True)[SAMPLE_SHEET]
++    b = openpyxl.load_workbook(V325, data_only=True)[SAMPLE_SHEET]
++    ca, cb = _headers(a), _headers(b)
++    for r in _sample_rows(b):
++        if str(b.cell(r, cb["FaultModelID"]).value) == "LQ04":
++            continue
++        for name in ca:
++            if name in cb:
++                assert a.cell(r, ca[name]).value == b.cell(r, cb[name]).value, \
++                    (r, name)
++
++
++def test_config_frozen_and_warmup_roi_unchanged():
++    a = openpyxl.load_workbook(V324, data_only=True)[SAMPLE_SHEET]
++    b = openpyxl.load_workbook(V325, data_only=True)[SAMPLE_SHEET]
++    ca, cb = _headers(a), _headers(b)
++    for r in _sample_rows(b):
++        assert b.cell(r, cb["ConfigFrozen"]).value == "NO"
++        for name in ("WarmUp", "ROI"):
++            assert a.cell(r, ca[name]).value == b.cell(r, cb[name]).value, (r, name)
++            assert b.cell(r, cb[name]).value == "NEEDS_RESEARCHER_CONFIRMATION"
++
++
++def test_sheet3_lq04_status_and_others_unchanged():
++    a = openpyxl.load_workbook(V324, data_only=True)[MODEL_SHEET]
++    b = openpyxl.load_workbook(V325, data_only=True)[MODEL_SHEET]
++    ca, cb = _headers(a), _headers(b)
++    lq = [r for r in range(2, b.max_row + 1)
++          if str(b.cell(r, cb["ModelID"]).value) == "LQ04"]
++    assert len(lq) == 1
++    r = lq[0]
++    assert b.cell(r, cb["WorkloadName"]).value == "lq_lifetime_ordinal"
++    assert b.cell(r, cb["WorkloadStatus"]).value == "READY"
++    assert b.cell(r, cb["ImplementationStatus"]).value == \
++        ("PILOT_IMPLEMENTED_VERIFIED_F0 (literal _valid/_request clear; "
++         "boundary restore; MASKED 5/5)")
++    assert b.cell(r, cb["OverallStatus"]).value == "PILOT_RUN_MASKED_5/5"
++    assert b.cell(r, cb["DecisionStatus"]).value == \
++        "ACCEPTED_BY_RESEARCHER_2026-11-08"
++    notes = str(b.cell(r, cb["Notes"]).value)
++    assert "literal semantics accepted by the researcher 2026-11-08" in notes
++    assert "pkt->senderState" in notes
++    assert "no response loss" in notes
++    assert "MASKED" in notes
++    assert "ordinal anchors 1-5" in notes
++    assert "PROPAGATION_VERIFIED=0" in notes
++    for r2 in range(2, b.max_row + 1):
++        if str(b.cell(r2, cb["ModelID"]).value) == "LQ04":
++            continue
++        for name in ca:
++            if name in cb:
++                assert a.cell(r2, ca[name]).value == \
++                    b.cell(r2, cb[name]).value, (r2, name)
++
++
++def test_sheet4_lq04_hook_audit_and_others_unchanged():
++    a = openpyxl.load_workbook(V324, data_only=True)[HOOK_SHEET]
++    b = openpyxl.load_workbook(V325, data_only=True)[HOOK_SHEET]
++    ca, cb = _headers(a), _headers(b)
++    ha, hb = _header_list(a), _header_list(b)
++    lq = [r for r in range(2, b.max_row + 1)
++          if str(b.cell(r, cb["ModelID"]).value) == "LQ04"]
++    assert len(lq) == 1
++    r = lq[0]
++    assert b.cell(r, cb["ExistingHook"]).value == "CHAOSLQ04"
++    assert b.cell(r, cb["RequiredSourceChange"]).value == \
++        ("implemented: CHAOSLQ04 SimObject + LQEntry side channel + "
++         "executeLoad hook")
++    assert b.cell(r, cb["ImplementationStatus"]).value == "IMPLEMENTED_VERIFIED"
++    assert b.cell(r, cb["DecisionStatus"]).value == \
++        "ACCEPTED_BY_RESEARCHER_2026-11-08"
++    ev = str(b.cell(r, cb["Evidence"]).value)
++    assert "CHAOS/gem5/src/cpu/o3/CHAOSLQ04/" in ev
++    assert "lsq_unit.hh side channel" in ev
++    assert "pilots_v3_2_10" in ev
++    # only the audited cells plus DecisionStatus may differ, position-wise
++    allowed = {"ExistingHook", "RequiredSourceChange", "ImplementationStatus",
++               "Evidence", "DecisionStatus"}
++    for c in range(1, b.max_column + 1):
++        name = hb[c - 1]
++        if name is None:
++            continue
++        if name in allowed:
++            continue
++        assert a.cell(r, c).value == b.cell(r, c).value, (name,)
++    for r2 in range(2, b.max_row + 1):
++        if str(b.cell(r2, cb["ModelID"]).value) == "LQ04":
++            continue
++        for c in range(1, b.max_column + 1):
++            assert a.cell(r2, c).value == b.cell(r2, c).value, (r2, c)
++
++
++def test_revision_sheet_exists():
++    wb = openpyxl.load_workbook(V325, data_only=True)
++    assert REVISION_SHEET in wb.sheetnames
++    ws = wb[REVISION_SHEET]
++    text = " ".join(str(c.value) for row in ws.iter_rows() for c in row
++                    if c.value is not None)
++    assert "LQ04" in text
++    assert "MASKED" in text
++    assert "PROPAGATION_VERIFIED=0" in text
++    assert "LIFECYCLE_ONLY" in text
++    assert "PILOT_ONLY_NOT_FORMAL" in text
++
++
++def test_sample_csv_roundtrip_matches_lq04():
++    ws = openpyxl.load_workbook(V325, data_only=True)[SAMPLE_SHEET]
++    cols = _headers(ws)
++    with SAMPLE_CSV.open(newline="", encoding="utf-8") as fh:
++        rows = list(csv.DictReader(fh))
++    assert len(rows) == 60
++    lq = [row for row in rows if row["FaultModelID"] == "LQ04"]
++    assert len(lq) == 5
++    for row in lq:
++        assert row["WorkloadPath"] == WORKLOAD
++        assert row["BinarySHA256"] == SHA
++        assert row["Oracle"] == ORACLE
++        assert row["ExecutionStatus"] == "PILOT_RUN"
++        assert row["RunStatus"] == "PILOT_MASKED"
++        assert row["TerminalState_v31"] == "MASKED"
++        assert row["ConfigFrozen"] == "NO"
++        assert row["DecisionStatus"] == "ACCEPTED_BY_RESEARCHER_2026-11-08"
++        assert row["PreflightStatus"] == "PILOT_ONLY_NOT_FORMAL"
++    # CSV equals the sheet for every cell of every row
++    xl_rows = [[("" if ws.cell(r, c).value is None else str(ws.cell(r, c).value))
++                for c in range(1, ws.max_column + 1)]
++               for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value]
++    csv_rows = [[row[k] for k in rows[0].keys()] for row in rows]
++    assert xl_rows == csv_rows
++
++
++def test_model_status_matrix_lq04_and_others():
++    with MATRIX.open(newline="", encoding="utf-8") as fh:
++        rows = list(csv.reader(fh))
++    header = rows[0]
++    by_model = {row[0]: row for row in rows[1:]}
++    assert len(rows[1:]) == 12
++    lq = by_model["LQ04"]
++    for stage, value in MATRIX_STAGES.items():
++        assert lq[header.index(stage)] == str(value), stage
++    assert lq[header.index("evidence")] == MATRIX_EVIDENCE
++    for model, expected in OTHER_MATRIX_ROWS.items():
++        assert by_model[model] == expected, model
+diff --git a/tests/test_v328_consistency.py b/tests/test_v328_consistency.py
+index cdd4e982..0c85cff1 100644
+--- a/tests/test_v328_consistency.py
++++ b/tests/test_v328_consistency.py
+@@ -7,8 +7,8 @@ import openpyxl
+ 
+ ROOT = Path("docs/gem5-fi/lsu/implementation_v3_2")
+ XL = ROOT / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.3.xlsx"
+-# v3.2.9 supersedes v3.2.4: the CSV must mirror the newest authoritative book.
+-XL_LATEST = ROOT / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
++# v3.2.10 supersedes v3.2.4 (v3.2.5 book): the CSV must mirror the newest authoritative book.
++XL_LATEST = ROOT / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx"
+ if XL_LATEST.is_file():
+     XL = XL_LATEST
+ ARCH_BIN = ROOT / "FW05_Workload_Archive/bin/fw05_forward"
+diff --git a/tools/build_lsu_v325_workbook.py b/tools/build_lsu_v325_workbook.py
+new file mode 100644
+index 00000000..9e9a781f
+--- /dev/null
++++ b/tools/build_lsu_v325_workbook.py
+@@ -0,0 +1,341 @@
++#!/usr/bin/env python3
++"""Build the authoritative v3.2.5 LSU workbook from v3.2.4.
++
++Changes are limited to LQ04 (the v3.2.10 pilot round):
++  - sheet ``5.60个样本执行矩阵`` rows 12-16: workload identity
++    (lq_lifetime_ordinal, new SHA/oracle per decision D3), the real pilot
++    FullCommand (copied verbatim from each pilot's pilot_meta.json), pilot
++    statuses, researcher acceptance and a v3.2.10 provenance appendix;
++  - sheet ``3.最终12模型矩阵`` row 4: WorkloadName and status cells;
++  - sheet ``4.源码Hook审计`` row 4: hook-audit status cells (the frozen fault
++    definition fields are untouched);
++  - LQ04 status alignment with the approved round (researcher decision
++    2026-11-08 / pilots_v3_2_10): DecisionStatus is
++    ACCEPTED_BY_RESEARCHER_2026-11-08 in sheets 3 and 4, and PreflightStatus
++    is PILOT_ONLY_NOT_FORMAL in the five sheet-5 rows;
++  - new sheet ``18.v3.2.10变更记录`` recording the changes and the audit
++    verdicts;
++  - ``MODEL_STATUS_MATRIX.csv`` LQ04 stage row (CRLF preserved).
++Identities (60 SampleRunID/RunID/SubTaskID/Seed), the other 11 models,
++ConfigFrozen=NO and WarmUp/ROI are unchanged (decision D6).
++"""
++from __future__ import annotations
++
++import csv
++import hashlib
++import json
++from pathlib import Path
++
++import openpyxl
++from openpyxl.styles import Alignment, Font
++
++ROOT = Path(__file__).resolve().parents[1]
++IMPL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2"
++EXCEL = IMPL / "excel"
++SRC = EXCEL / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
++DST = EXCEL / "gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx"
++SAMPLE_CSV = EXCEL / "60_SAMPLE_MATRIX.csv"
++MATRIX_CSV = IMPL / "MODEL_STATUS_MATRIX.csv"
++PILOTS = IMPL / "pilots_v3_2_10"
++WORKLOAD = IMPL / "workloads/lq_lifetime_ordinal"
++GOLDEN = IMPL / "workloads/lq_lifetime_ordinal.golden"
++
++SAMPLE_SHEET = "5.60个样本执行矩阵"
++MODEL_SHEET = "3.最终12模型矩阵"
++HOOK_SHEET = "4.源码Hook审计"
++REVISION_SHEET = "18.v3.2.10变更记录"
++
++WORKLOAD_PATH = str(WORKLOAD)
++WORKLOAD_SHA = "fa25f785a4822eb578ae8da2d26c400d7450f40d975b2d7da84de900b48d97ba"
++ORACLE = "b097eb83f71545cb"
++
++REQUIRED_FLAGS = ("--chaos_lq04", "--lq04_max_faults 1",
++                  "--lq04_watchdog_cycles 500000000")
++
++OLD_MATRIX_LINE = ("LQ04,LQ,lifetime,1,0,0,0,0,0,0,"
++                   "v3.2.3 audit; HIGH-RISK")
++NEW_MATRIX_LINE = ("LQ04,LQ,lifetime,1,1,1,1,1,1,0,"
++                   "v3.2.10: literal fields cleared; boundary restore; "
++                   "5/5 pilots MASKED; consumers correct data "
++                   "(no corrupting propagation); no SDC")
++
++
++def _header(ws):
++    return {str(c.value).strip(): c.column for c in ws[1] if c.value}
++
++
++def _rows_for(ws, cols, model, key="FaultModelID"):
++    return [r for r in range(2, ws.max_row + 1)
++            if str(ws.cell(r, cols[key]).value) == model]
++
++
++def _sha256(path: Path) -> str:
++    h = hashlib.sha256()
++    with path.open("rb") as fh:
++        for chunk in iter(lambda: fh.read(1 << 20), b""):
++            h.update(chunk)
++    return h.hexdigest()
++
++
++def _pilot(i: int) -> dict:
++    with (PILOTS / f"LQ04-R0{i}" / "pilot_meta.json").open() as fh:
++        return json.load(fh)
++
++
++def _verify_inputs():
++    if _sha256(WORKLOAD) != WORKLOAD_SHA:
++        raise SystemExit(f"workload SHA mismatch: {WORKLOAD}")
++    golden = GOLDEN.read_text()
++    if ORACLE not in golden:
++        raise SystemExit(f"oracle {ORACLE} not in {GOLDEN}")
++    for i in range(1, 6):
++        meta = _pilot(i)
++        ident = meta["excel_identity"]
++        if ident["sample_run_id"] != f"LQ04-F0-W2-S01-R0{i}":
++            raise SystemExit(f"pilot {i}: unexpected sample_run_id")
++        if ident["event_ordinal"] != i or ident["event_ordinal_used"] != i:
++            raise SystemExit(f"pilot {i}: ordinal mismatch")
++        if meta["workload"] != WORKLOAD_PATH:
++            raise SystemExit(f"pilot {i}: workload path mismatch")
++        cmd = meta["command"]
++        if f"--lq04_event_ordinal" not in cmd or str(i) not in cmd:
++            raise SystemExit(f"pilot {i}: ordinal flag missing")
++        joined = " ".join(cmd)
++        for flag in REQUIRED_FLAGS:
++            if flag not in joined:
++                raise SystemExit(f"pilot {i}: flag {flag} missing")
++        cls = meta["classification"]
++        if cls["terminal_state"] != "MASKED":
++            raise SystemExit(f"pilot {i}: terminal {cls['terminal_state']}")
++        if cls["fault_activation_status"] != "TRIGGERED":
++            raise SystemExit(f"pilot {i}: not triggered")
++        if cls["trace_completeness"] != "COMPLETE":
++            raise SystemExit(f"pilot {i}: trace incomplete")
++        if not meta["oracle_pass"]:
++            raise SystemExit(f"pilot {i}: oracle failed")
++
++
++def main():
++    _verify_inputs()
++
++    wb = openpyxl.load_workbook(SRC)
++
++    # --- sheet 5: LQ04 sample rows -------------------------------------
++    ws = wb[SAMPLE_SHEET]
++    cols = _header(ws)
++    rows = _rows_for(ws, cols, "LQ04")
++    if len(rows) != 5:
++        raise SystemExit(f"expected 5 LQ04 rows, got {len(rows)}")
++    for i, r in enumerate(rows, start=1):
++        if int(ws.cell(r, cols["EventOrdinal"]).value) != i:
++            raise SystemExit(f"row {r}: unexpected EventOrdinal")
++        meta = _pilot(i)
++        ws.cell(r, cols["WorkloadPath"]).value = WORKLOAD_PATH
++        # BinaryPath follows the new workload so the row stays consistent
++        # with BinarySHA256 (the old lq_lifetime binary has a different SHA).
++        ws.cell(r, cols["BinaryPath"]).value = WORKLOAD_PATH
++        ws.cell(r, cols["BinarySHA256"]).value = WORKLOAD_SHA
++        ws.cell(r, cols["Oracle"]).value = ORACLE
++        ws.cell(r, cols["FullCommand"]).value = " ".join(meta["command"])
++        ws.cell(r, cols["ExecutionStatus"]).value = "PILOT_RUN"
++        ws.cell(r, cols["RunStatus"]).value = "PILOT_MASKED"
++        ws.cell(r, cols["FaultActivationStatus"]).value = "TRIGGERED"
++        ws.cell(r, cols["TerminalState_v31"]).value = "MASKED"
++        ws.cell(r, cols["TraceCompleteness_v31"]).value = "COMPLETE"
++        ws.cell(r, cols["DecisionStatus"]).value = \
++            "ACCEPTED_BY_RESEARCHER_2026-11-08"
++        ws.cell(r, cols["PreflightStatus"]).value = "PILOT_ONLY_NOT_FORMAL"
++        prov = str(ws.cell(r, cols["v3.2_ConfigProvenance"]).value or "")
++        ws.cell(r, cols["v3.2_ConfigProvenance"]).value = (
++            prov.rstrip()
++            + "; v3.2.10 LQ04 pilot round (accepted by researcher 2026-11-08):"
++            + " literal definition executed per LQ04_Definition_Freeze_v3.2.10.md"
++            + " D1-D6 - literal _valid/_request cleared at executeLoad_post"
++            + " (no pop, no reuse) with boundary restore at commit/squash;"
++            + " ordinal anchors 1-5 via workload lq_lifetime_ordinal and"
++            + " --lq04_event_ordinal (D3/D4, supersedes the seeded-tier note"
++            + " above for LQ04); propagation grading per"
++            + " LQ04_Propagation_Audit_v3.2.10.md: MASKED 5/5,"
++            + " TraceCompleteness COMPLETE, PropagationCoverage LIFECYCLE_ONLY,"
++            + " PROPAGATION_VERIFIED=0, no SDC; response binds via"
++            + " pkt->senderState (no response loss); see pilots_v3_2_10;")
++
++    # ConfigFrozen must remain NO everywhere.
++    for r in range(2, ws.max_row + 1):
++        if ws.cell(r, cols["SampleRunID"]).value:
++            ws.cell(r, cols["ConfigFrozen"]).value = "NO"
++
++    # --- sheet 3: model matrix row --------------------------------------
++    ws3 = wb[MODEL_SHEET]
++    c3 = _header(ws3)
++    rows3 = _rows_for(ws3, c3, "LQ04", key="ModelID")
++    if len(rows3) != 1:
++        raise SystemExit(f"expected 1 LQ04 model row, got {len(rows3)}")
++    r3 = rows3[0]
++    ws3.cell(r3, c3["WorkloadName"]).value = "lq_lifetime_ordinal"
++    ws3.cell(r3, c3["WorkloadStatus"]).value = "READY"
++    ws3.cell(r3, c3["ImplementationStatus"]).value = (
++        "PILOT_IMPLEMENTED_VERIFIED_F0 (literal _valid/_request clear; "
++        "boundary restore; MASKED 5/5)")
++    ws3.cell(r3, c3["OverallStatus"]).value = "PILOT_RUN_MASKED_5/5"
++    ws3.cell(r3, c3["DecisionStatus"]).value = \
++        "ACCEPTED_BY_RESEARCHER_2026-11-08"
++    ws3.cell(r3, c3["Notes"]).value = (
++        "literal semantics accepted by the researcher 2026-11-08; "
++        "response binds via pkt->senderState, no response loss; "
++        "expected MASKED confirmed 5/5; ordinal anchors 1-5 "
++        "(lq_lifetime_ordinal); PROPAGATION_VERIFIED=0 (LIFECYCLE_ONLY, "
++        "no SDC)")
++
++    # --- sheet 4: hook-audit row (fault definition untouched) -----------
++    ws4 = wb[HOOK_SHEET]
++    c4 = _header(ws4)
++    rows4 = _rows_for(ws4, c4, "LQ04", key="ModelID")
++    if len(rows4) != 1:
++        raise SystemExit(f"expected 1 LQ04 hook row, got {len(rows4)}")
++    r4 = rows4[0]
++    ws4.cell(r4, c4["ExistingHook"]).value = "CHAOSLQ04"
++    ws4.cell(r4, c4["RequiredSourceChange"]).value = (
++        "implemented: CHAOSLQ04 SimObject + LQEntry side channel + "
++        "executeLoad hook")
++    ws4.cell(r4, c4["ImplementationStatus"]).value = "IMPLEMENTED_VERIFIED"
++    ws4.cell(r4, c4["DecisionStatus"]).value = \
++        "ACCEPTED_BY_RESEARCHER_2026-11-08"
++    ev = str(ws4.cell(r4, c4["Evidence"]).value or "")
++    ws4.cell(r4, c4["Evidence"]).value = (
++        ev.rstrip()
++        + "; CHAOS/gem5/src/cpu/o3/CHAOSLQ04/; lsq_unit.hh side channel; "
++        + "pilots_v3_2_10")
++
++    # --- revision sheet --------------------------------------------------
++    rev = wb.create_sheet(REVISION_SHEET)
++    rev["A1"] = ("v3.2.10 revision record (2026-11-09; LQ04 literal "
++                 "semantics accepted by the researcher 2026-11-08)")
++    rev["A1"].font = Font(bold=True, size=12)
++    rev.append([])
++    rev.append(["Item", "Change", "Reason"])
++    for row in [
++        ("LQ04 workload identity",
++         "workloads/lq_lifetime -> workloads/lq_lifetime_ordinal "
++         "(v3.2.10 worktree); BinarySHA256 "
++         f"{WORKLOAD_SHA}; Oracle {ORACLE}",
++         "Decision D3: explicit-anchor workload whose first five eligible "
++         "Loads are five distinct anchors (PC/address/data/destination/"
++         "consumer); the original lq_lifetime remains archived (sheet 6 W2 "
++         "row unchanged)."),
++        ("LQ04 BinaryPath",
++         "aligned with the new workload path lq_lifetime_ordinal",
++         "BinarySHA256 now describes lq_lifetime_ordinal; a stale path "
++         "pointing at lq_lifetime would contradict the recorded SHA."),
++        ("LQ04 FullCommand",
++         "'BLOCKED: no executable hook yet' -> the real v3.2.10 pilot "
++         "command (--chaos_lq04 --lq04_event_ordinal N --lq04_max_faults 1 "
++         "--lq04_watchdog_cycles 500000000)",
++         "Command copied verbatim from each pilot's pilot_meta.json "
++         "(LQ04-R01..R05); outdir is the pilot directory."),
++        ("LQ04 sample status (sheet 5 rows 12-16)",
++         "ExecutionStatus PILOT_RUN; RunStatus PILOT_MASKED; "
++         "FaultActivationStatus TRIGGERED; TerminalState_v31 MASKED; "
++         "TraceCompleteness_v31 COMPLETE; DecisionStatus "
++         "ACCEPTED_BY_RESEARCHER_2026-11-08",
++         "Five fault pilots LQ04-R01..R05 plus five matched no-fault "
++         "controls LQ04-CONTROL-R01..R05; oracle PASS and gem5 exit 0 in "
++         "all ten runs."),
++        ("Sheet 3 LQ04 row",
++         "WorkloadName lq_lifetime_ordinal; ImplementationStatus "
++         "PILOT_IMPLEMENTED_VERIFIED_F0 (literal _valid/_request clear; "
++         "boundary restore; MASKED 5/5); OverallStatus PILOT_RUN_MASKED_5/5; "
++         "Notes record the researcher acceptance",
++         "v3.2.10 implementation and pilots; literal semantics accepted by "
++         "the researcher 2026-11-08."),
++        ("Sheet 4 LQ04 row",
++         "ExistingHook CHAOSLQ04; RequiredSourceChange implemented; "
++         "ImplementationStatus IMPLEMENTED_VERIFIED; Evidence extended with "
++         "CHAOS/gem5/src/cpu/o3/CHAOSLQ04/, the lsq_unit.hh side channel "
++         "and pilots_v3_2_10",
++         "Frozen fault definition fields (TargetField, NormalValue, "
++         "FaultValue, InjectionTiming, Duration) unchanged."),
++        ("LQ04 status alignment (sheets 3/4/5)",
++         "DecisionStatus: NEEDS_USER_DECISION -> "
++         "ACCEPTED_BY_RESEARCHER_2026-11-08 in sheet 3 row 4 and sheet 4 "
++         "row 4 (LQ04 only); PreflightStatus: BLOCKED_NO_HOOK -> "
++         "PILOT_ONLY_NOT_FORMAL in sheet 5 rows 12-16 (LQ04 only)",
++         "Researcher decision 2026-11-08 / pilots_v3_2_10: the five LQ04 "
++         "pilots were approved and the round is pilot-only, not the formal "
++         "60-sample campaign; fault definition, identities and the other 11 "
++         "models are unchanged."),
++        ("MODEL_STATUS_MATRIX.csv",
++         "LQ04 stages DESIGNED/SOURCE_AUDITED/IMPLEMENTED/COMPILED/"
++         "UNIT_TESTED/PILOT_RUN=1, PROPAGATION_VERIFIED=0",
++         "Evidence: v3.2.10: literal fields cleared; boundary restore; "
++         "5/5 pilots MASKED; consumers correct data (no corrupting "
++         "propagation); no SDC."),
++        ("Audit verdicts (LQ04-R01..R05)",
++         "RecordIntegrity VALID; TraceCompleteness COMPLETE; "
++         "PropagationCoverage LIFECYCLE_ONLY; PROPAGATION_VERIFIED=0; "
++         "SDC no; terminal MASKED (all five)",
++         "Controller ruling per LQ04_Propagation_Audit_v3.2.10.md section 0: "
++         "the consumer edges exist but carry the correct payload "
++         "(data_corruption=0, consumer_input_matches_source=1), so the "
++         "fault effect stays inside the entry lifecycle; no SDC claim."),
++        ("Matched controls",
++         "LQ04-CONTROL-R01..R05: 0 injections, NOT_TRIGGERED, oracle PASS, "
++         "checksum identical to the fault runs",
++         "Matched no-fault baseline; the fault runs' identical checksum is "
++         "not attributable to run-to-run variance."),
++        ("Identity freeze (D6)",
++         "60 SampleRunID/RunID/SubTaskID/Seed unchanged; ConfigFrozen NO "
++         "for all 60; WarmUp/ROI NEEDS_RESEARCHER_CONFIRMATION",
++         "Decision D6; global Warm-up/ROI still need researcher "
++         "confirmation."),
++        ("Unchanged scope",
++         "Other 11 models byte-equivalent in content (sheets 3/4/5); sheet 6 "
++         "W2 keeps the archived lq_lifetime record; OutputDir and gem5Commit "
++         "cells untouched (LQ04 PreflightStatus is covered by the status "
++         "alignment row above)",
++         "Formal preflight / Gate 4 has not run; the pilots are not the "
++         "formal 60-sample campaign."),
++    ]:
++        rev.append(list(row))
++    for row in rev.iter_rows():
++        for cell in row:
++            cell.alignment = Alignment(wrap_text=True, vertical="top")
++    for col, width in (("A", 34), ("B", 64), ("C", 88)):
++        rev.column_dimensions[col].width = width
++
++    wb.save(DST)
++
++    # --- derived sample CSV (round-trip of sheet 5) ----------------------
++    with SAMPLE_CSV.open("w", newline="", encoding="utf-8") as fh:
++        writer = csv.writer(fh)
++        for row in ws.iter_rows(min_row=1, max_row=ws.max_row,
++                                values_only=True):
++            writer.writerow(["" if v is None else v for v in row])
++
++    # --- model status matrix (preserve CRLF) -----------------------------
++    raw = MATRIX_CSV.read_bytes().decode("utf-8")
++    lines = raw.splitlines(keepends=True)
++    hits = [k for k, line in enumerate(lines) if line.rstrip("\r\n") ==
++            OLD_MATRIX_LINE]
++    if len(hits) == 0:
++        # Idempotent rerun: the v3.2.10 update may already be applied.
++        done = [k for k, line in enumerate(lines) if line.rstrip("\r\n") ==
++                NEW_MATRIX_LINE]
++        if len(done) != 1:
++            raise SystemExit(f"expected exactly 1 old or new LQ04 matrix "
++                             f"line, got old={len(hits)} new={len(done)}")
++    elif len(hits) != 1:
++        raise SystemExit(f"expected exactly 1 old LQ04 matrix line, "
++                         f"got {len(hits)}")
++    else:
++        ending = "\r\n" if lines[hits[0]].endswith("\r\n") else "\n"
++        lines[hits[0]] = NEW_MATRIX_LINE + ending
++        MATRIX_CSV.write_bytes("".join(lines).encode("utf-8"))
++
++    print(f"wrote {DST}")
++    print(f"wrote {SAMPLE_CSV}")
++    print(f"updated {MATRIX_CSV}")
++
++
++if __name__ == "__main__":
++    main()
