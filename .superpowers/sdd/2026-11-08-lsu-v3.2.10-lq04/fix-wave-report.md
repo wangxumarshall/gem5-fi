@@ -232,3 +232,33 @@ None. Every one of the 19 previously unchecked steps in Tasks 1/3/7/9/10 was
 performed and evidenced in the per-task reports; all were checked off. The
 single remaining `- [ ]` string in the plan file is the line-3 instruction
 text, not a step.
+
+## Late integration fix (2026-11-09): v3.2.9 consistency checker -> Excel v3.2.5
+
+`tools/check_v329_consistency.py` hard-coded the v3.2.4 workbook, so
+`tests/test_v329_consistency.py` failed with `60_SAMPLE_MATRIX.csv does not
+mirror sheet 5` once the CSV began mirroring the authoritative v3.2.5
+workbook. `XL` now points at `...-v3.2.5.xlsx` (module docstring reads
+v3.2.10 / Excel v3.2.5); the historical checks are otherwise unchanged.
+Commit `0b1cfc22` touched only `tools/check_v329_consistency.py`; the CSV and
+the workbook were not modified.
+
+```
+$ python3 tools/check_v329_consistency.py
+rows=60 errors=0
+EXIT=0
+
+$ python3 -m pytest tests/test_v329_consistency.py -q
+.                                                                        [100%]
+1 passed in 0.43s
+EXIT=0
+
+$ python3 -m pytest tests/ -q
+FAILED tests/test_claim_concurrency.py::test_d_run_concurrency_cap - Assertio...
+FAILED tests/test_claim_concurrency.py::test_e_heartbeat - AssertionError: e_...
+2 failed, 60 passed in 13.31s
+EXIT=1
+```
+
+The two failures are the known disk-guard precondition failures
+(`disk_free_gib: 13.0` < 70.6 GiB on the shared host); no other test failed.
