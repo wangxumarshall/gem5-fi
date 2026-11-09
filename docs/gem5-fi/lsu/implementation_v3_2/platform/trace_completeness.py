@@ -117,12 +117,26 @@ PROFILES = {
     ("SQ03", "SQUASHED"): [("injection", "squash")],
     ("SQ03", "CRASH"): [("injection", "simulator_abort")],
     ("SQ03", "UNRESOLVED"): [("injection",)],
+    # LQ04 (v3.2.10): LQ-entry lifetime corruption. The in-flight response
+    # is bound by the request's senderState, so the unchanged data still
+    # reaches the register and consumers; a committed load with no consumer
+    # is MASKED; a squashed target closes the window at the squash boundary.
+    ("LQ04", "MASKED"): [
+        ("injection", "memory_response", "register_writeback",
+         "consumer_commit"),
+        ("injection", "memory_response", "register_writeback"),
+        ("injection", "squash"),
+    ],
+    ("LQ04", "SQUASHED"): [("injection", "squash")],
+    ("LQ04", "CRASH"): [("injection", "simulator_abort")],
+    ("LQ04", "UNRESOLVED"): [("injection",)],
 }
 DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW02": ("forwarding_decision",),
                    "DA04": ("injection",), "SQ01": ("injection",),
                    "LP01": ("injection",), "MD04": ("injection",),
-                   "FW05": ("injection",), "SQ03": ("injection",)}
+                   "FW05": ("injection",), "SQ03": ("injection",),
+                   "LQ04": ("injection",)}
 
 
 def expected_stages(model_id: str | None,

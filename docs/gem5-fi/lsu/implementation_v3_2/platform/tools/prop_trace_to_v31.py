@@ -195,6 +195,11 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
         unit, sub_unit = UNIT_MAP.get(kind, ("Unknown", kind))
         if kind in ("lq_lifecycle", "sq_lifecycle"):
             sub_unit = d.get("action") or kind
+        # LQ04 (v3.2.10): its injection row reuses the generic "inj" kind;
+        # bind it to the Load Queue so the record names the faulted
+        # structure instead of the AGU default.
+        if kind == "inj" and d.get("family") == "lq04":
+            unit, sub_unit = "LQ", "executeLoad"
         # Address and data are separate fields. resp/t_aint carry actual
         # packet/writeback data; fwd carries the forwarded buffer.
         if kind == "resp":

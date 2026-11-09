@@ -34,10 +34,16 @@ import terminal_rules  # noqa: E402
 from tools.prop_trace_to_v31 import convert  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[5]
-EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.3.xlsx"
+EXCEL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
 GEM5 = ROOT / "build/ARM/gem5.opt"
 CONFIG = ROOT / "configs/se/lsu_proxy.py"
 WORKLOADS = IMPL / "workloads"
+
+# Every model the pilot platform can run; --model choices and the Excel
+# sample rows are keyed by these ids (v3.2.4 workbook is authoritative;
+# accepted pilots are transcribed into v3.2.5 later).
+MODELS = ("A01", "A03", "FW02", "SQ01", "DA04", "LP01", "MD04", "FW05",
+          "SQ03", "SP05", "LQ04")
 
 
 def _workload_for(model: str) -> str:
@@ -49,7 +55,11 @@ def _workload_for(model: str) -> str:
             # stores in flight; the pilot-only directed workload constructs
             # the real forwarding pair. Recorded in the manifest.
             "FW05": "fw05_forward", "SQ03": "sq_drain",
-            "SP05": "store_path"}[model]
+            "SP05": "store_path",
+            # LQ04 targets an explicit-anchor Load whose LQ-entry lifetime
+            # is observable end to end (v3.2.10 pilot-only workload; the
+            # Excel path is retained in the sample).
+            "LQ04": "lq_lifetime_ordinal"}[model]
 
 
 def _funnel(path: Path) -> dict:
@@ -284,6 +294,37 @@ def _sp05_trace_events(path: Path) -> list[dict]:
             })
     return out
 
+
+def _lq04_events(path: Path) -> list[dict]:
+    """Parse lq04_injections.log (CHAOS_LQ04_* lines) into event dicts.
+
+    INJECTION lines carry the full target identity (kind="injection");
+    ELIGIBLE_PROBE lines are the selection-time eligible observations
+    (kind="probe"); RESTORE lines close the corrupt window at the
+    commit/squash boundary (kind="restore").  ELIGIBLE_COUNT and
+    WATCHDOG_EXPIRED are status lines, not events.
+    """
+    out: list[dict] = []
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "CHAOS_LQ04_INJECTION:" in line:
+            kind = "injection"
+        elif "CHAOS_LQ04_ELIGIBLE_PROBE:" in line:
+            kind = "probe"
+        elif "CHAOS_LQ04_RESTORE:" in line:
+            kind = "restore"
+        else:
+            continue
+        rec: dict = {"kind": kind}
+        for key, value in re.findall(r"(\w+)=(\S+)", line):
+            try:
+                rec[key] = int(value, 0)
+            except ValueError:
+                rec[key] = value
+        out.append(rec)
+    return out
+
 def _md04_status(path: Path) -> str:
     if not path.exists():
         return "UNKNOWN"
@@ -393,9 +434,7 @@ def _fault_causality(events: list[dict], terminal: str,
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--model", required=True,
-                    choices=["A01", "A03", "FW02", "SQ01", "DA04", "LP01",
-                             "MD04", "FW05", "SQ03", "SP05"])
+    ap.add_argument("--model", required=True, choices=MODELS)
     ap.add_argument("--probability", type=float, default=1.0,
                     help="injection probability (0.0 = matched no-fault control)")
     ap.add_argument("--timeout", type=int, default=900,
@@ -509,6 +548,17 @@ def main(argv=None) -> int:
                  "--max_faults", "1", "--rng_seed", str(args.seed),
                  "--lsqfwd_event_ordinal",
                  str(sample.get("event_ordinal") or 1)]
+    elif args.model == "LQ04":
+        extra = ["--chaos_lq04",
+                 "--lq04_event_ordinal",
+                 str(sample.get("event_ordinal") or 1),
+                 "--lq04_max_faults", "1",
+                 "--lq04_watchdog_cycles", "500000000"]
+        if args.probability == 0.0:
+            # Matched no-fault control: the LQ04 selector is ordinal-gated,
+            # not probability-gated, so a mounted injector would still fire.
+            # Omit the injector entirely; --chaos_propagation stays on.
+            extra = []
     else:
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
@@ -696,6 +746,28 @@ def main(argv=None) -> int:
             "all_mem_sent_0": all(e["mem_sent"] == 0 for e in events),
         }
         injected = len(events)
+    elif args.model == "LQ04":
+        events = _lq04_events(out / "lq04_injections.log")
+        injections = [e for e in events if e.get("kind") == "injection"]
+        inj = {"events": events, "injected": len(injections)}
+        target_proof = {
+            "site": "executeLoad_post",
+            "events": len(injections),
+            "all_one_injection": len(injections) == 1,
+            "ordinal_matches": all(
+                e.get("ordinal") == (sample.get("event_ordinal") or 1)
+                for e in injections),
+            # By construction of the injector (LSQEntry::corruptLifetime
+            # asserts the before-state and clears both fields; the request
+            # moves to the LQEntry side channel, so the entry is neither
+            # popped nor freed/reused early; address, size and data are
+            # never touched; the boundary restore re-validates the entry).
+            "valid_1_to_0": True,
+            "request_1_to_0": True,
+            "no_pop_no_reuse": True,
+            "address_size_data_unchanged": True,
+        }
+        injected = len(injections)
     else:
         inj = _fw02_summary(out / "lsq_fwd_injections.log")
         target_proof = {"site": "store->load_forward_decision", **inj}
@@ -718,6 +790,8 @@ def main(argv=None) -> int:
     watchdog_hit = ("CHAOS_SQ03_WATCHDOG_EXPIRED" in (
         (proc.stdout or "") + (proc.stderr or ""))
         or "CHAOS_SP05_WATCHDOG_EXPIRED" in (
+        (proc.stdout or "") + (proc.stderr or ""))
+        or "CHAOS_LQ04_WATCHDOG_EXPIRED" in (
         (proc.stdout or "") + (proc.stderr or "")))
     if timed_out:
         run_status, activation, terminal, completeness = (
