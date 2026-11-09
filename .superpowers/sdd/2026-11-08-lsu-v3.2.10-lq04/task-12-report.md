@@ -252,3 +252,67 @@ controls, the D6 identity freeze, and the unchanged-scope statement.
   `run_pilot.EXCEL.name.endswith("-v3.2.4.xlsx")` — intentionally untouched:
   the pilots' frozen identity source is the v3.2.4 workbook (they were
   produced against it); v3.2.5 is the publication of those results.
+
+## 8. Follow-up fix report — LQ04 status alignment (2026-11-09)
+
+Resolves concerns C2 and C3 above. Evidence: researcher decision
+2026-11-08 / `pilots_v3_2_10`. Change is confined to the status cells; the
+frozen fault definition, all 60 identities, `ConfigFrozen`,
+`WarmUp`/`ROI` and the other 11 models are untouched.
+
+### Before -> after (read from the regenerated workbook with openpyxl)
+
+| Sheet | Row(s) | Field | Before | After |
+|---|---|---|---|---|
+| `3.最终12模型矩阵` | 4 (LQ04) | `DecisionStatus` | `NEEDS_USER_DECISION` | `ACCEPTED_BY_RESEARCHER_2026-11-08` |
+| `4.源码Hook审计` | 4 (LQ04) | `DecisionStatus` | `NEEDS_USER_DECISION` | `ACCEPTED_BY_RESEARCHER_2026-11-08` |
+| `5.60个样本执行矩阵` | 12-16 (LQ04) | `PreflightStatus` | `BLOCKED_NO_HOOK` | `PILOT_ONLY_NOT_FORMAL` |
+
+Sheet 5 `DecisionStatus` was already
+`ACCEPTED_BY_RESEARCHER_2026-11-08` and is unchanged.
+
+`18.v3.2.10变更记录` gained one row, "LQ04 status alignment (sheets 3/4/5)",
+recording field, before, after and the evidence (researcher decision
+2026-11-08 / pilots_v3_2_10). The pre-existing "Unchanged scope" row had
+claimed `PreflightStatus` was untouched; it now says OutputDir/gem5Commit
+are untouched and points at the alignment row, so the sheet stays factual.
+
+### Builder change
+
+`tools/build_lsu_v325_workbook.py` sets the three fields above. It also now
+tolerates a rerun when `MODEL_STATUS_MATRIX.csv` already carries the
+`NEW_MATRIX_LINE` (previously the final step raised `expected exactly 1 old
+LQ04 matrix line, got 0` after the workbook had already been saved, so a
+second regeneration could not complete). The workbook save itself was
+idempotent throughout.
+
+### Verification (real output)
+
+Field dump from
+`docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx`:
+
+```
+3.最终12模型矩阵 row 4: DecisionStatus='ACCEPTED_BY_RESEARCHER_2026-11-08'
+4.源码Hook审计 row 4: DecisionStatus='ACCEPTED_BY_RESEARCHER_2026-11-08'
+5.60个样本执行矩阵 row 12 LQ04-F0-W2-S01-R01: PreflightStatus='PILOT_ONLY_NOT_FORMAL'
+5.60个样本执行矩阵 row 13 LQ04-F0-W2-S01-R02: PreflightStatus='PILOT_ONLY_NOT_FORMAL'
+5.60个样本执行矩阵 row 14 LQ04-F0-W2-S01-R03: PreflightStatus='PILOT_ONLY_NOT_FORMAL'
+5.60个样本执行矩阵 row 15 LQ04-F0-W2-S01-R04: PreflightStatus='PILOT_ONLY_NOT_FORMAL'
+5.60个样本执行矩阵 row 16 LQ04-F0-W2-S01-R05: PreflightStatus='PILOT_ONLY_NOT_FORMAL'
+```
+
+Tests:
+
+```
+$ python3 -m pytest tests/test_lsu_v325_workbook.py -v
+10 passed in 3.01s
+
+$ python3 -m pytest tests/test_lsu_v324_workbook.py -q
+5 passed in 1.42s
+```
+
+Test change: `test_sheet4_lq04_hook_audit_and_others_unchanged` pinned the
+old sheet-4 `DecisionStatus` via its "only these cells may differ" allow
+list; `DecisionStatus` was added to that allow list. The LQ04 status tests
+now also assert the new `PreflightStatus`/sheet-3/4 `DecisionStatus` values,
+and the revision-sheet test asserts the new row text.

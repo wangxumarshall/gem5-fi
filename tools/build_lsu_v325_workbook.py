@@ -9,6 +9,10 @@ Changes are limited to LQ04 (the v3.2.10 pilot round):
   - sheet ``3.最终12模型矩阵`` row 4: WorkloadName and status cells;
   - sheet ``4.源码Hook审计`` row 4: hook-audit status cells (the frozen fault
     definition fields are untouched);
+  - LQ04 status alignment with the approved round (researcher decision
+    2026-11-08 / pilots_v3_2_10): DecisionStatus is
+    ACCEPTED_BY_RESEARCHER_2026-11-08 in sheets 3 and 4, and PreflightStatus
+    is PILOT_ONLY_NOT_FORMAL in the five sheet-5 rows;
   - new sheet ``18.v3.2.10变更记录`` recording the changes and the audit
     verdicts;
   - ``MODEL_STATUS_MATRIX.csv`` LQ04 stage row (CRLF preserved).
@@ -140,6 +144,7 @@ def main():
         ws.cell(r, cols["TraceCompleteness_v31"]).value = "COMPLETE"
         ws.cell(r, cols["DecisionStatus"]).value = \
             "ACCEPTED_BY_RESEARCHER_2026-11-08"
+        ws.cell(r, cols["PreflightStatus"]).value = "PILOT_ONLY_NOT_FORMAL"
         prov = str(ws.cell(r, cols["v3.2_ConfigProvenance"]).value or "")
         ws.cell(r, cols["v3.2_ConfigProvenance"]).value = (
             prov.rstrip()
@@ -173,6 +178,8 @@ def main():
         "PILOT_IMPLEMENTED_VERIFIED_F0 (literal _valid/_request clear; "
         "boundary restore; MASKED 5/5)")
     ws3.cell(r3, c3["OverallStatus"]).value = "PILOT_RUN_MASKED_5/5"
+    ws3.cell(r3, c3["DecisionStatus"]).value = \
+        "ACCEPTED_BY_RESEARCHER_2026-11-08"
     ws3.cell(r3, c3["Notes"]).value = (
         "literal semantics accepted by the researcher 2026-11-08; "
         "response binds via pkt->senderState, no response loss; "
@@ -192,6 +199,8 @@ def main():
         "implemented: CHAOSLQ04 SimObject + LQEntry side channel + "
         "executeLoad hook")
     ws4.cell(r4, c4["ImplementationStatus"]).value = "IMPLEMENTED_VERIFIED"
+    ws4.cell(r4, c4["DecisionStatus"]).value = \
+        "ACCEPTED_BY_RESEARCHER_2026-11-08"
     ev = str(ws4.cell(r4, c4["Evidence"]).value or "")
     ws4.cell(r4, c4["Evidence"]).value = (
         ev.rstrip()
@@ -246,6 +255,15 @@ def main():
          "and pilots_v3_2_10",
          "Frozen fault definition fields (TargetField, NormalValue, "
          "FaultValue, InjectionTiming, Duration) unchanged."),
+        ("LQ04 status alignment (sheets 3/4/5)",
+         "DecisionStatus: NEEDS_USER_DECISION -> "
+         "ACCEPTED_BY_RESEARCHER_2026-11-08 in sheet 3 row 4 and sheet 4 "
+         "row 4 (LQ04 only); PreflightStatus: BLOCKED_NO_HOOK -> "
+         "PILOT_ONLY_NOT_FORMAL in sheet 5 rows 12-16 (LQ04 only)",
+         "Researcher decision 2026-11-08 / pilots_v3_2_10: the five LQ04 "
+         "pilots were approved and the round is pilot-only, not the formal "
+         "60-sample campaign; fault definition, identities and the other 11 "
+         "models are unchanged."),
         ("MODEL_STATUS_MATRIX.csv",
          "LQ04 stages DESIGNED/SOURCE_AUDITED/IMPLEMENTED/COMPILED/"
          "UNIT_TESTED/PILOT_RUN=1, PROPAGATION_VERIFIED=0",
@@ -272,8 +290,9 @@ def main():
          "confirmation."),
         ("Unchanged scope",
          "Other 11 models byte-equivalent in content (sheets 3/4/5); sheet 6 "
-         "W2 keeps the archived lq_lifetime record; PreflightStatus, "
-         "OutputDir and gem5Commit cells untouched",
+         "W2 keeps the archived lq_lifetime record; OutputDir and gem5Commit "
+         "cells untouched (LQ04 PreflightStatus is covered by the status "
+         "alignment row above)",
          "Formal preflight / Gate 4 has not run; the pilots are not the "
          "formal 60-sample campaign."),
     ]:
@@ -298,12 +317,20 @@ def main():
     lines = raw.splitlines(keepends=True)
     hits = [k for k, line in enumerate(lines) if line.rstrip("\r\n") ==
             OLD_MATRIX_LINE]
-    if len(hits) != 1:
+    if len(hits) == 0:
+        # Idempotent rerun: the v3.2.10 update may already be applied.
+        done = [k for k, line in enumerate(lines) if line.rstrip("\r\n") ==
+                NEW_MATRIX_LINE]
+        if len(done) != 1:
+            raise SystemExit(f"expected exactly 1 old or new LQ04 matrix "
+                             f"line, got old={len(hits)} new={len(done)}")
+    elif len(hits) != 1:
         raise SystemExit(f"expected exactly 1 old LQ04 matrix line, "
                          f"got {len(hits)}")
-    ending = "\r\n" if lines[hits[0]].endswith("\r\n") else "\n"
-    lines[hits[0]] = NEW_MATRIX_LINE + ending
-    MATRIX_CSV.write_bytes("".join(lines).encode("utf-8"))
+    else:
+        ending = "\r\n" if lines[hits[0]].endswith("\r\n") else "\n"
+        lines[hits[0]] = NEW_MATRIX_LINE + ending
+        MATRIX_CSV.write_bytes("".join(lines).encode("utf-8"))
 
     print(f"wrote {DST}")
     print(f"wrote {SAMPLE_CSV}")

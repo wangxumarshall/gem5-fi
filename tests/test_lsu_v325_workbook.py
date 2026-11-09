@@ -143,6 +143,8 @@ def test_lq04_rows_new_workload_identity_and_status():
             "runs/lsu/final/LQ04-")
         assert ws.cell(r, cols["DecisionStatus"]).value == \
             "ACCEPTED_BY_RESEARCHER_2026-11-08"
+        assert ws.cell(r, cols["PreflightStatus"]).value == \
+            "PILOT_ONLY_NOT_FORMAL"
         prov = str(ws.cell(r, cols["v3.2_ConfigProvenance"]).value)
         assert "literal" in prov
         assert "boundary restore" in prov
@@ -198,6 +200,8 @@ def test_sheet3_lq04_status_and_others_unchanged():
         ("PILOT_IMPLEMENTED_VERIFIED_F0 (literal _valid/_request clear; "
          "boundary restore; MASKED 5/5)")
     assert b.cell(r, cb["OverallStatus"]).value == "PILOT_RUN_MASKED_5/5"
+    assert b.cell(r, cb["DecisionStatus"]).value == \
+        "ACCEPTED_BY_RESEARCHER_2026-11-08"
     notes = str(b.cell(r, cb["Notes"]).value)
     assert "literal semantics accepted by the researcher 2026-11-08" in notes
     assert "pkt->senderState" in notes
@@ -228,13 +232,15 @@ def test_sheet4_lq04_hook_audit_and_others_unchanged():
         ("implemented: CHAOSLQ04 SimObject + LQEntry side channel + "
          "executeLoad hook")
     assert b.cell(r, cb["ImplementationStatus"]).value == "IMPLEMENTED_VERIFIED"
+    assert b.cell(r, cb["DecisionStatus"]).value == \
+        "ACCEPTED_BY_RESEARCHER_2026-11-08"
     ev = str(b.cell(r, cb["Evidence"]).value)
     assert "CHAOS/gem5/src/cpu/o3/CHAOSLQ04/" in ev
     assert "lsq_unit.hh side channel" in ev
     assert "pilots_v3_2_10" in ev
-    # only the four audited cells may differ, position-wise
+    # only the audited cells plus DecisionStatus may differ, position-wise
     allowed = {"ExistingHook", "RequiredSourceChange", "ImplementationStatus",
-               "Evidence"}
+               "Evidence", "DecisionStatus"}
     for c in range(1, b.max_column + 1):
         name = hb[c - 1]
         if name is None:
@@ -259,6 +265,7 @@ def test_revision_sheet_exists():
     assert "MASKED" in text
     assert "PROPAGATION_VERIFIED=0" in text
     assert "LIFECYCLE_ONLY" in text
+    assert "PILOT_ONLY_NOT_FORMAL" in text
 
 
 def test_sample_csv_roundtrip_matches_lq04():
@@ -278,6 +285,7 @@ def test_sample_csv_roundtrip_matches_lq04():
         assert row["TerminalState_v31"] == "MASKED"
         assert row["ConfigFrozen"] == "NO"
         assert row["DecisionStatus"] == "ACCEPTED_BY_RESEARCHER_2026-11-08"
+        assert row["PreflightStatus"] == "PILOT_ONLY_NOT_FORMAL"
     # CSV equals the sheet for every cell of every row
     xl_rows = [[("" if ws.cell(r, c).value is None else str(ws.cell(r, c).value))
                 for c in range(1, ws.max_column + 1)]
