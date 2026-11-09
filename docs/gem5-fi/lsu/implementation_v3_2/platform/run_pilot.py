@@ -3,11 +3,16 @@
 
 The seed and fault configuration are copied from the frozen Excel sample; the
 SampleRunID is deliberately replaced with ``PILOT-...`` so no formal sample is
-overwritten. A pilot is accepted only when the process exits 0, the injector
-reports at least one injection, the target-event evidence is present, and the
-converted Trace v3.1 JSONL is valid and complete. The oracle result is
+overwritten. A FAULT pilot is accepted only when the process exits 0, the
+injector reports at least one injection, the target-event evidence is present,
+and the converted Trace v3.1 JSONL is valid and complete. The oracle result is
 recorded (MASKED vs SDC), not required to pass: a non-propagating fault is a
 valid pilot outcome.
+
+A matched no-fault control (``--probability 0.0``) is accepted through its own
+gate instead (``run_roles.control_valid``): clean exit, oracle PASS, zero
+injections and a COMPLETE, error-free trace. Accepting a control never
+relabels its honest ``UNRESOLVED``/``NO_INJECTION_EVENT`` terminal as MASKED.
 """
 from __future__ import annotations
 
@@ -31,6 +36,7 @@ from fault_effect_coverage import classify  # noqa: E402
 from manifest import build_manifest, canonical_json, write_manifest  # noqa: E402
 from trace_completeness import check_completeness  # noqa: E402
 from trace_validator import read_records, validate  # noqa: E402
+import run_roles  # noqa: E402
 import terminal_rules  # noqa: E402
 from tools.prop_trace_to_v31 import convert  # noqa: E402
 
@@ -924,16 +930,35 @@ def main(argv=None) -> int:
         _fault_injection([r for r in trace_records
                           if r.get("record_type") == "event"]),
         final_terminal)
-    accepted = (
+    # v3.2.11 (A4): a matched no-fault control is not a failed fault run.
+    # FAULT runs keep the gates below untouched; a CONTROL is judged by
+    # run_roles.control_valid instead (clean exit, oracle PASS, zero
+    # injections, COMPLETE trace, no validator errors). Because a valid
+    # control records zero injections, its fault_activation_status stays
+    # NOT_TRIGGERED and its terminal honestly stays
+    # UNRESOLVED/NO_INJECTION_EVENT -- acceptance never relabels it MASKED.
+    run_role = run_roles.classify_run_role(args.probability)
+    fault_valid = (
         (proc.returncode == 0 or crash_by_fault) and injected > 0
         and target_proof.get("events", 1) > 0
         and final_terminal not in (None, "UNRESOLVED")
         and not trace_errors
         and completeness_report.get("trace_completeness") == "COMPLETE"
     )
+    control_valid = (
+        run_roles.control_valid(
+            exit_code=proc.returncode,
+            oracle_pass=oracle_pass,
+            injection_count=injected,
+            trace_completeness=completeness_report.get("trace_completeness"),
+            validator_errors=trace_errors)
+        if run_role == "CONTROL" else False
+    )
+    accepted = fault_valid or control_valid
     meta = {
         "pilot_id": args.pilot_id,
         "model": args.model,
+        "run_role": run_role,
         "seed": args.seed,
         "event_selection": ("TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; "
                             "warm-up/ROI not frozen)"),
@@ -980,6 +1005,7 @@ def main(argv=None) -> int:
             "fault_effect_reason": fault_effect["fault_effect_reason"],
             "oracle_outcome": ("PASS" if oracle_pass else "FAIL"),
         },
+        "control_valid": (control_valid if run_role == "CONTROL" else "n/a"),
         "accepted": accepted,
         "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
         "crash_evidence": crash_evidence,
