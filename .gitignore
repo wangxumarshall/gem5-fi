@@ -24,3 +24,8 @@ m5out/
 # snapshots live in artifacts/). Keep artifacts/ tracked as verification evidence.
 runs/
 __pycache__/
+
+# v3.2.11 audit scratch: raw traces extracted from the archived package zips
+# (Task 9). Read-only evidence copies, ~2.6 GB; the hash-verified index lives
+# in audit_v3_2_11/EVIDENCE_EXTRACTION.md, never the extracted bytes themselves.
+docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/
