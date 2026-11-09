@@ -17,6 +17,8 @@ main()
     assert(!isEligible(false, true, false, false));        // no valid entry
     assert(!isEligible(true, false, false, false));        // no request
     assert(!isEligible(true, true, false, true));          // executed flag set
+    assert(!isEligible(true, true, true, false));          // squashed
+    assert(!isEligible(true, true, true, true));           // squashed and executed
 
     // EventOrdinal is the 1-based ordinal of the eligible Load stream;
     // ordinal 0 never selects.
