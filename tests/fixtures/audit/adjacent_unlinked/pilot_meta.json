@@ -1,0 +1,26 @@
+{
+  "pilot_id": "FW02-F0-W1-S01-R01",
+  "model": "FW02",
+  "seed": 1234567890,
+  "excel_identity": {
+    "run_id": "FW02-F0-W1",
+    "sub_task_id": "FW02-F0-W1-S01",
+    "sample_run_id": "FW02-F0-W1-S01-R01",
+    "seed": 1234567890,
+    "event_ordinal": 1
+  },
+  "exit_code": 0,
+  "oracle_expected": "checksum=0x12ab12ab12ab12ab",
+  "oracle_pass": true,
+  "injection_count": 1,
+  "trace": {
+    "validator_errors": [],
+    "truncated": false
+  },
+  "classification": {
+    "observed_terminal": "MASKED",
+    "terminal_state": "MASKED",
+    "trace_completeness": "COMPLETE",
+    "oracle_outcome": "PASS"
+  }
+}

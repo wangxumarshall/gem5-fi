@@ -1,0 +1,20 @@
+{
+  "schema_version": "lsu-run-manifest-v3.2",
+  "sample_run_id": "FW02-F0-W1-S01-R01",
+  "run_id": "FW02-F0-W1",
+  "sub_task_id": "FW02-F0-W1-S01",
+  "model_id": "FW02",
+  "seed": 1234567890,
+  "fault": {
+    "location": "Store\u2192Load\u8f6c\u53d1\u51b3\u7b56\u4f4d\u7ffb\u8f6c",
+    "target_field": "forwarding decision",
+    "event_ordinal": 1
+  },
+  "workload": {
+    "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "gem5": {
+    "binary": "/gem5.opt",
+    "binary_sha256": "bb22bb22bb22bb22bb22bb22bb22bb22bb22bb22bb22bb22bb22bb22bb22bb22"
+  }
+}

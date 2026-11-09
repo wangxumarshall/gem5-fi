@@ -1,0 +1,32 @@
+{
+  "pilot_id": "LQ04-F0-W2-S01-R01",
+  "model": "LQ04",
+  "seed": 1842987246,
+  "excel_identity": {
+    "run_id": "LQ04-F0-W2",
+    "sub_task_id": "LQ04-F0-W2-S01",
+    "sample_run_id": "LQ04-F0-W2-S01-R01",
+    "seed": 1842987246,
+    "event_ordinal": 1,
+    "event_ordinal_used": 1
+  },
+  "exit_code": 0,
+  "oracle_expected": "checksum=0xb097eb83f71545cb",
+  "oracle_pass": true,
+  "injection_count": 1,
+  "trace": {
+    "validator_errors": [],
+    "truncated": false
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "observed_terminal": "MASKED",
+    "terminal_state": "MASKED",
+    "terminal_state_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+    "fault_causality": "DIRECT_DATAFLOW_EVIDENCE",
+    "trace_completeness": "COMPLETE",
+    "oracle_outcome": "PASS"
+  },
+  "accepted": true
+}
