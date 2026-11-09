@@ -3,13 +3,13 @@ LSU v3.2.10 (LQ04) — git provenance: commit identity
 
 Package:   LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip
 Branch:    lsu-platform-v3.2.10
-HEAD:      7dc46b05257400b10e218832cfc352c6a675826c
-           (7dc46b05 [LSU][MDSPEC][V3.2.10][DOCS] fix the Final Report
-            eligibility typo: not executed)
+HEAD:      e11fbf82d072c63653a30b0dc5200c0b784b478b
+           (e11fbf82 [LSU][MDSPEC][V3.2.10][DOCS] record the v3.2.5 workbook
+            consistency fix in the fix-wave report)
 Base:      37692d2beffcb73fc9303ad9de4c6bb341d5de71
            (lsu-platform-v3.2.9 final closeout; the v3.2.10 round starts
             from this commit)
-Commits:   30 (git rev-list --count 37692d2b..HEAD)
+Commits:   35 (git rev-list --count 37692d2b..HEAD)
 
 Binary SHA256 (gem5 v25.1.0.1, built 2026-11-09 13:36:41):
   build/ARM/gem5.opt                    f3c2a4423aab81ca565c7adcfb840a7b8f9cdb9f2a6b6b5ecc3d0e148af20694
@@ -26,20 +26,22 @@ Excel workbook (v3.2.5, packaged copy):
                                          1acb482dc163a5804b6654e2f0ae9c1c902fa4ef82575b59c18de6e7cbeacd45
 
 Repackaging date: 2026-11-09 (CST)
-Repackaged by:    Final-review fix wave (LSU v3.2.10), on branch
+Repackaged by:    provenance-refresh wave (LSU v3.2.10), on branch
                   lsu-platform-v3.2.10 in worktree
                   .claude/worktrees/lsu-platform-v3.2.10
-Note:             corrected second build of the package. Changes vs the
-                  first build (7ce06f41): the five control dirs in
-                  14_five_controls were re-run with the corrected
-                  run_pilot.py so their pilot_meta target_event_proof no
-                  longer asserts a lifetime transition that did not happen
-                  (applicable=false, null proof fields); the Final Report
-                  eligibility sentence reads "not executed"; the plan
-                  checkboxes for Tasks 1/3/7/9/10 are checked;
-                  10_unit_tests carries the two new control-pinning tests
-                  (20 passed). The five fault pilots and all C++ sections
-                  are byte-identical to the first build.
+Note:             third build of the package — a provenance-only refresh
+                  after the late consistency fix. Since the second build
+                  (package commit d182b8f5, code-state HEAD 7dc46b05):
+                  0b1cfc22 points tools/check_v329_consistency.py at the
+                  v3.2.5 workbook, and e11fbf82 records that fix in the
+                  fix-wave report. The binary (f3c2a442…), the v3.2.5
+                  workbook (1acb482d…), the five fault pilots, the five
+                  corrected controls and all fault evidence are
+                  byte-identical to the second build; only the provenance
+                  sections (09 git diff, 21 git provenance, 23 file
+                  manifest) were regenerated at the new HEAD. The package
+                  commit that carries this zip follows this code-state HEAD
+                  on the same branch.
 
 Commit range (one patch per unit, oldest first):
   7f397e2f [DOCS] verify v3.2.9 baseline and freeze the LQ04 gate decisions
@@ -72,3 +74,8 @@ Commit range (one patch per unit, oldest first):
   e562d00c [LQ04] make control target_event_proof not-applicable on zero injections
   d72ffc2d [PILOT] re-run the five LQ04 controls with the corrected proof metadata
   7dc46b05 [DOCS] fix the Final Report eligibility typo: not executed
+  d182b8f5 [PACKAGE] rebuild the pilot package with the corrected control evidence
+  53129018 [DOCS] record the final-review fix wave in the SDD ledger
+  3fa9a1bc [DOCS] close the LQ04 round after the final review and fix wave
+  0b1cfc22 [DOCS] point the v3.2.9 consistency check at the v3.2.5 workbook
+  e11fbf82 [DOCS] record the v3.2.5 workbook consistency fix in the fix-wave report
