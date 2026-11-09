@@ -72,7 +72,7 @@ permits.
 
 **executeLoad injection + probes (Task 6, D1/D4/D5).**
 `lsq_unit.cc:801-827`: at the end of a successful `executeLoad`, an eligible
-load (entry valid, request present, not squashed, executed) is selected by
+load (entry valid, request present, not squashed, not executed) is selected by
 ordinal and `corruptLifetime()` fires; `noteLQ04Injection` records
 before/after valid/request, occupancy, no_pop/no_reuse, data_unchanged.
 `lsq_unit.cc:124-135`: response probe in the completion path records
