@@ -262,3 +262,88 @@ EXIT=1
 
 The two failures are the known disk-guard precondition failures
 (`disk_free_gib: 13.0` < 70.6 GiB on the shared host); no other test failed.
+
+## Provenance refresh (2026-11-09, after e11fbf82): third package build
+
+The second build's provenance still recorded code-state HEAD `7dc46b05`
+(package commit `d182b8f5`), while the branch had since gained `0b1cfc22`
+(checker retarget, previous section) and `e11fbf82` (that section itself).
+This wave refreshes only the provenance: `GIT_COMMIT_v3210.txt` (HEAD
+`e11fbf82d072c63653a30b0dc5200c0b784b478b`, 35 commits since `37692d2b`,
+plus an explicit note that the package commit follows this code-state HEAD),
+`GIT_STATUS_v3210.txt`, `GIT_DIFF_CODE_v3210.txt` (pathspec now also
+includes `tools/check_v329_consistency.py`; 24 files),
+`GIT_DIFF_STAT_v3210.txt` (`179 files changed, 243833 insertions(+), 22
+deletions(-)`) and `DELIVERABLES_SHA256_v3210.txt`. The binary
+(`f3c2a442…`, re-verified at both paths), the v3.2.5 workbook (`1acb482d…`,
+re-verified), the five fault pilots, the five corrected controls and all
+fault evidence are untouched: the manifest delta vs the second build is
+exactly the four regenerated 09/21 files, and the other 186 of 190 entries
+are byte-identical.
+
+Method verification before regenerating (all byte-exact, against the
+second build's committed artifacts):
+
+```
+$ git diff --name-only 37692d2b..7dc46b05 -- <pathspec>   # 23 files
+  RECONSTRUCTION EXACT MATCH vs the second build's GIT_DIFF_CODE file list
+$ git diff --stat 37692d2b..7dc46b05 | cmp - <old stat body>
+  STAT BODY BYTE-EXACT MATCH (178 lines)
+$ diff -r <unzip of 078c9fe0 zip> /tmp/lsu_v3210_pkg
+  STAGING TREE == CURRENT ZIP CONTENTS (byte-identical)
+$ find /tmp/lsu_v3210_pkg -type f | … | xargs sha256sum | cmp - <old manifest body>
+  MANIFEST METHOD VERIFIED against pristine zip (190 entries)
+```
+
+Rebuild (staging tree reused; only the two 09_git_diff files, the two
+21_git_provenance files and the 23 manifest replaced; zip entry order
+identical to the second build):
+
+```
+$ cd /tmp/lsu_v3210_pkg && zip -rq <worktree>/LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip */
+$ sha256sum LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip | tee …zip.sha256
+8c4028c95ac17fcaa8901068eb2952b0684be2a07a6cdacaec05eb7adca42560  LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip
+$ sha256sum -c LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip.sha256
+LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip: 成功
+```
+
+Verification of the rebuilt zip:
+
+```
+$ unzip -l LSU_v3.2.10_LQ04_Implementation_Pilot_Package.zip | tail -3
+    17806  11-09-2026 22:10   24_open_issues/FINAL_REPORT.md
+---------                     -------
+355683462                     225 files
+$ unzip -l … | <sections>              → 24 sections
+$ unzip -l … | grep -c pilot_meta.json → 10
+$ unzip -p … 21_git_provenance/GIT_COMMIT_v3210.txt | sed -n '6p'
+HEAD:      e11fbf82d072c63653a30b0dc5200c0b784b478b
+$ unzip -p … 14_five_controls/LQ04-CONTROL-R0{1..5}/pilot_meta.json | …
+CONTROL-R01: applicable=False valid_1_to_0=None events=0
+CONTROL-R02: applicable=False valid_1_to_0=None events=0
+CONTROL-R03: applicable=False valid_1_to_0=None events=0
+CONTROL-R04: applicable=False valid_1_to_0=None events=0
+CONTROL-R05: applicable=False valid_1_to_0=None events=0
+$ unzip -p … 09_git_diff/GIT_DIFF_CODE_v3210.txt | grep -c check_v329_consistency
+5
+$ diff -r <unzip of new zip> /tmp/lsu_v3210_pkg
+  REBUILT ZIP CONTENTS == STAGING TREE (byte-identical)
+```
+
+**New package SHA256:
+`8c4028c95ac17fcaa8901068eb2952b0684be2a07a6cdacaec05eb7adca42560`**
+(12,358,594 bytes; second build was `078c9fe0…`, 12,346,387 bytes; first
+build `a0b46928…`). Provenance now at HEAD `e11fbf82` (35 commits since
+`37692d2b`); binary and workbook SHAs re-verified unchanged. No code,
+pilot, workload, workbook or binary file was modified; the two known
+disk-guard test failures are untouched.
+
+Commit `b327c30c` — 7 files: the zip, its `.sha256` sidecar, the four
+`GIT_*_v3210.txt` provenance files and `DELIVERABLES_SHA256_v3210.txt`
+(explicit paths; `git add -f` for the zip suffixes). Pushed
+`e11fbf82..b327c30c` to `origin/lsu-platform-v3.2.10`:
+
+```
+$ git push origin lsu-platform-v3.2.10
+   e11fbf82..b327c30c  lsu-platform-v3.2.10 -> lsu-platform-v3.2.10
+```
