@@ -22,14 +22,22 @@ Classification rules (v3.2.11 A1 spec):
   vintages and JSON strings in others).  Time adjacency NEVER links events.
 - ``value_diverged``: a chained ``register_writeback`` with
   ``data_corruption=1`` or ``value_matches_payload=0``; a chained
-  ``consumer_commit`` with ``consumer_input_matches_source=0``; or a
-  chained ``consumer_commit`` whose ``consumer_input_fnv`` differs from its
-  source event's ``data_fnv``/``writeback_value_fnv`` when both exist.
+  ``consumer_commit`` with ``consumer_input_matches_source=0``; a chained
+  ``consumer_commit`` whose own ``source_value_hash`` differs from its
+  ``consumer_input_fnv`` when both exist; or a chained ``consumer_commit``
+  whose ``consumer_input_fnv`` differs from its source event's
+  ``writeback_value_fnv``/``data_fnv``/``consumer_output_fnv`` when both
+  exist (``consumer_output_fnv`` carries the source hash on
+  consumer->consumer re-taint edges, which dominate real traces).
 - ``control_diverged``: a chained event whose ``detail`` contains any
   marker key from ``EFFECT_MARKERS[model]``.  Marker scanning is
   presence-based per the A1 spec; the marker VALUE is recorded in the
-  evidence so the v3.2.11 audit round can refine it (e.g. compare
-  ``fault_decision`` against ``normal_decision`` for FW02).
+  evidence so the v3.2.11 audit round can refine it (for FW02 the
+  refinement is ``fault_decision != none`` -- equivalently
+  ``decision != normal_decision``: real traces record
+  ``fault_decision=none`` on unaffected forwarding nodes and
+  ``fault_decision=suppressed`` under the fault, whereas comparing
+  ``fault_decision`` against ``normal_decision`` would flag every node).
 - ``COMPLETE_CAUSAL_CHAIN`` only when a divergence exists AND a chained
   commit/errant_commit/consumer_commit or an oracle-failing terminal (SDC)
   explains it; ``PARTIAL`` when divergence/control evidence exists without
@@ -85,7 +93,12 @@ _VALUE_FLAGS = (
     ("consumer_commit", "consumer_input_matches_source", "0",
      "consumer_input_matches_source"),
 )
-_SOURCE_HASH_KEYS = ("writeback_value_fnv", "data_fnv")
+# Source-event detail keys that can carry the hash of the value a consumer
+# read.  Writeback-sourced edges carry it in writeback_value_fnv/data_fnv;
+# consumer->consumer re-taint edges (the vast majority on real traces, e.g.
+# 325 of the 326 consumer edges on pilots_v3_2_10/LQ04-R01) carry it in the
+# source consumer's consumer_output_fnv.
+_SOURCE_HASH_KEYS = ("writeback_value_fnv", "data_fnv", "consumer_output_fnv")
 
 
 def _detail(event: dict) -> dict:
@@ -139,7 +152,6 @@ def classify(model: str, events: list[dict], injection: dict | None,
                 "fault_effect_evidence": evidence,
                 "fault_effect_reason": reason}
 
-    # -- UNRESOLVED gates, in order ------------------------------------
     if injection is None:
         # Controls (no injection event) and injection-less traces.
         return _unresolved("NO_INJECTION_EVENT", {
@@ -174,6 +186,15 @@ def classify(model: str, events: list[dict], injection: dict | None,
                 _value(e, kind, **{key: d.get(key)})
         if et == "consumer_commit":
             consumer_fnv = d.get("consumer_input_fnv")
+            # Own-edge check: the re-taint bookkeeping hash of the source
+            # value vs. what this consumer actually read.  Independent of
+            # the source event's records, so it also fires on edges whose
+            # source event is missing or carries no source hash.
+            own_hash = d.get("source_value_hash")
+            if consumer_fnv and own_hash and own_hash != consumer_fnv:
+                _value(e, "source_value_hash_mismatch",
+                       consumer_input_fnv=consumer_fnv,
+                       source_value_hash=own_hash)
             src = by_id.get(str(e.get("source_event_id")))
             if consumer_fnv and src is not None:
                 sd = _detail(src)

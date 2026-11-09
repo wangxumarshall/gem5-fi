@@ -223,6 +223,106 @@ def test_mixed_types_never_fabricate_divergence():
 
 
 # --------------------------------------------------------------------------
+# Consumer->consumer re-taint edges (Task 2 review fix)
+# --------------------------------------------------------------------------
+
+# Real-trace shape (verified on pilots_v3_2_10/LQ04-R01): 325 of the 326
+# chained consumer edges are consumer->consumer re-taints (their source is
+# itself a consumer_commit whose source hash lives in consumer_output_fnv;
+# the remaining edge sources the register_writeback), and every
+# consumer_commit carries its own source_value_hash next to its
+# consumer_input_fnv.
+RETAINT_IN_HASH = "1a2b3c4d5e6f7a8b"   # value the first consumer read
+RETAINT_OUT_HASH = "9988776655443322"  # value the first consumer produced
+RETAINT_BAD_HASH = "deadbeefdeadbeef"  # corrupted value read downstream
+
+retaint_injection = _ev(
+    4, "injection", "1", "4",
+    detail="site=executeLoad_post;family=lq04;valid_before=1"
+           ";valid_after=0",
+    injection_status="INJECTED", activation_status="TRIGGERED")
+
+
+def _retaint_events(first_output_fnv, second_consumer_detail):
+    """Injection -> writeback -> consumer 40 -> consumer 41.
+
+    The edge into event 41 is a consumer->consumer re-taint edge;
+    ``first_output_fnv`` is the consumer_output_fnv recorded by the source
+    consumer (event 40).
+    """
+    return [
+        retaint_injection,
+        _ev(9, "register_writeback", "1", "4", source_event_id=8,
+            detail=f"family=lq04;data_corruption=0;value_matches_payload=1"
+                   f";writeback_value_fnv={RETAINT_IN_HASH}"),
+        _ev(40, "consumer_commit", "1", "9", source_event_id=9,
+            detail=f"source_value_hash={RETAINT_IN_HASH}"
+                   f";consumer_input_fnv={RETAINT_IN_HASH}"
+                   f";consumer_output_fnv={first_output_fnv}"
+                   f";consumer_input_matches_source=1"),
+        _ev(41, "consumer_commit", "1", "10", source_event_id=40,
+            detail=second_consumer_detail),
+        _summary("MASKED", model="LQ04"),
+    ]
+
+
+def test_retaint_edge_own_source_value_hash_mismatch_diverges():
+    # The second consumer's own re-taint bookkeeping (source_value_hash)
+    # disagrees with the value it actually read (consumer_input_fnv).  The
+    # source consumer's output hash agrees with the read and every
+    # consumer_input_matches_source flag is 1, so ONLY the own-hash signal
+    # fires -- before the review fix this divergence was invisible.
+    events = _retaint_events(
+        RETAINT_BAD_HASH,
+        f"source_value_hash={RETAINT_OUT_HASH}"
+        f";consumer_input_fnv={RETAINT_BAD_HASH}"
+        f";consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    diverged = result["fault_effect_evidence"]["value_divergence"]
+    assert diverged
+    assert {d["kind"] for d in diverged} == {"source_value_hash_mismatch"}
+    assert result["fault_effect_propagation_coverage"] == \
+        "COMPLETE_CAUSAL_CHAIN"
+
+
+def test_retaint_edge_source_consumer_output_fnv_mismatch_diverges():
+    # The value diverged between the source consumer's output and the
+    # downstream consumer's input, while the downstream bookkeeping
+    # (source_value_hash) followed the corrupted value: only the source's
+    # consumer_output_fnv exposes the divergence.  Before the review fix
+    # that key was missing from _SOURCE_HASH_KEYS, so the source-hash
+    # comparison was inert on consumer->consumer edges.
+    events = _retaint_events(
+        RETAINT_OUT_HASH,
+        f"source_value_hash={RETAINT_BAD_HASH}"
+        f";consumer_input_fnv={RETAINT_BAD_HASH}"
+        f";consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    diverged = result["fault_effect_evidence"]["value_divergence"]
+    assert diverged
+    assert {d["kind"] for d in diverged} == {"consumer_input_fnv_mismatch"}
+    assert all(d["source_hash_kind"] == "consumer_output_fnv"
+               for d in diverged)
+    assert result["fault_effect_propagation_coverage"] == \
+        "COMPLETE_CAUSAL_CHAIN"
+
+
+def test_retaint_edge_matching_hashes_do_not_diverge():
+    # The intact re-taint edge: the second consumer's own hashes agree and
+    # match the source consumer's output -- no divergence may be fabricated
+    # (the real LQ04-R01 trace is 325 such edges plus one writeback edge,
+    # and must grade LIFECYCLE_ONLY).
+    events = _retaint_events(
+        RETAINT_OUT_HASH,
+        f"source_value_hash={RETAINT_OUT_HASH}"
+        f";consumer_input_fnv={RETAINT_OUT_HASH}"
+        f";consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    assert result["fault_effect_evidence"]["value_divergence"] == []
+    assert result["fault_effect_propagation_coverage"] == "LIFECYCLE_ONLY"
+
+
+# --------------------------------------------------------------------------
 # Markers, platform fields and wiring
 # --------------------------------------------------------------------------
 
