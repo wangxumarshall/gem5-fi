@@ -10,16 +10,29 @@ executeLoad with response probe and boundary restore trace" (2026-11-09) —
 i.e. the file is exactly the v3.2.10 post-implementation state and has not
 changed since.
 
+**Revision (2026-11-10, review-fix round at HEAD `ee1f00dc`):** §2's
+"task-6 brief expressed" column was corrected — the brief's ranges are
+return-line based, and `commitLoad` 945-973 is an exact match, not a
+deviation; §3.7 gained a one-sentence reconciliation of the window/loop
+labels; §7 was added indexing every stale LQ04 line reference in sheets 7
+and 11; and the header's frozen-fields pointer was fixed to §4.
+`git log --oneline 8f32a897..ee1f00dc -- CHAOS/gem5/src/cpu/o3/lsq_unit.cc`
+is empty — the audited file is unchanged since `8f32a897`, so every span in
+§1.4 remains valid at the revision HEAD. The seven authoritative verified
+spans of §1.4 are untouched by this revision.
+
 **Purpose:** correct the stale source-line references and function-responsibility
-descriptions carried by Excel v3.2.5 sheet `4.源码Hook审计` row 4 (LQ04) against
-the real v3.2.10 source, and hand Task 7 the exact values to transcribe into the
+descriptions carried by Excel v3.2.5 sheet `4.源码Hook审计` row 4 (LQ04) — and,
+indexed in §7, the further stale LQ04 line references in sheet 7 `D20` and
+sheet 11 `F19`/`F33`/`F45` — against the real v3.2.10 source, and hand Task 7
+the exact values to transcribe into the
 v3.2.6 workbook. This is the second correction pass on the same row:
 `LQ04_Source_Audit_v3.2.10.md` §2 already flagged the Excel ranges as stale at
 the pre-implementation baseline (`37692d2b`), but the correction was never
 transcribed into the workbook, and the v3.2.10 implementation itself then shifted
 the lines again. Both gaps are closed here.
 
-**No fault-definition field is changed by this document** (see §5).
+**No fault-definition field is changed by this document** (see §4).
 
 ---
 
@@ -187,28 +200,34 @@ on the audited file):
 "Old Excel v3.2.5" quotes cell `G4` of sheet `4.源码Hook审计` verbatim (see §6).
 "Verified v3.2.10" is the span from the return-type line through the closing
 brace at HEAD `8f32a897` (§1.4). The "task-6 brief" column reconciles the ranges
-the v3.2.11 task-6 brief expressed (name-line based) against this evidence.
+the v3.2.11 task-6 brief expressed against this evidence. The brief's ranges are
+**return-line based** — each starts at the return-type line, exactly as the
+brief's own parentheticals state ("void at 394", "Fault at 719", "void 1202").
 
 | function | old Excel v3.2.5 (`G4`) | verified v3.2.10 (this HEAD) | task-6 brief expressed | evidence (command → line) | responsibility |
 |---|---|---|---|---|---|
-| `insertLoad` | `353-414` | **394-463** (name :395; body :397-462; `}` :463) | 395-464 — the end counts the blank separator :464; the closing brace is :463 | `grep -n` → `395:LSQUnit::insertLoad(...)`; `awk 'NR>=462&&NR<=465'` → `463 }`, `464` blank, `465 void` | Allocates the LQ entry: `advance_tail()` :405, `back().set(load_inst)` :410, assigns `lqEntryGeneration` :411 and `lqIdx` :412, emits the `alloc`/`reuse` lifecycle record :413-419. |
-| `executeLoad` | *(absent — no line range in `G4`)* | **719-831** (name :720; body :722-830; `}` :831) | 720-831 — exact match | `grep -n` → `720:LSQUnit::executeLoad(...)`; `sed -n '830,831p'` → `return load_fault;` / `}` | Issues the memory request (`initiateAcc` :736), handles predication (:738-745, :763-778) and partial-fault/split retry (:750-759), returns the memory-order-violation fault for replay (:789-791), and **hosts the LQ04 injection hook at the function tail** (:796-828). |
+| `insertLoad` | `353-414` | **394-463** (name :395; body :397-462; `}` :463) | 394-464 — start :394 (the return-type line) is exact; the end :464 over-counts the blank separator after the closing brace :463 | `grep -n` → `395:LSQUnit::insertLoad(...)`; `awk 'NR>=462&&NR<=465'` → `463 }`, `464` blank, `465 void` | Allocates the LQ entry: `advance_tail()` :405, `back().set(load_inst)` :410, assigns `lqEntryGeneration` :411 and `lqIdx` :412, emits the `alloc`/`reuse` lifecycle record :413-419. |
+| `executeLoad` | *(absent — no line range in `G4`)* | **719-831** (name :720; body :722-830; `}` :831) | 719-831 — exact match | `grep -n` → `720:LSQUnit::executeLoad(...)`; `sed -n '830,831p'` → `return load_fault;` / `}` | Issues the memory request (`initiateAcc` :736), handles predication (:738-745, :763-778) and partial-fault/split retry (:750-759), returns the memory-order-violation fault for replay (:789-791), and **hosts the LQ04 injection hook at the function tail** (:796-828). |
 | LQ04 injection hook | *(absent)* | **796-828** (comment :796-803; injected block :804-828), inside `executeLoad` | 796-828 — exact match | `sed -n '796,804p'`; `grep -n corruptLifetime` → `:817` | After a clean `executeLoad` round, the ordinal-selected target moves `valid`/`request` into the `LQEntry` side channel (`e.corruptLifetime()` :817); inert unless `CHAOSLQ04` is mounted. |
-| `lq04Restore` | *(absent — function did not exist pre-implementation)* | **927-943** (name :928; body :930-942; `}` :943) | 928-943 — exact match | `grep -n` → `928:LSQUnit::lq04Restore(...)`; `sed -n '942,943p'` → `entry.restoreLifetime();` / `}` | Restores the side-channel-stashed request and valid bit at the commit/squash boundary (`entry.restoreLifetime()` :942) and emits the `restore` record (:934-941); no-op for never-corrupted entries. |
-| `commitLoad` | `775-798` | **945-973** (name :946; body :948-972; `}` :973) | 946-974 — the end counts the blank separator :974; the closing brace is :973 | `grep -n` → `946:LSQUnit::commitLoad()`; `sed -n '948,950p'` → restore-before-assert | Restore-before-assert: `lq04Restore(front(), "commit")` :948-949 precedes `assert(front().valid())` :950; then frees/pops (`clear()` :969, `pop_front()` :970) after the `free`/`commit` lifecycle record :966-968. |
-| `commitLoads` | *(absent)* | **975-987** (name :976; body :978-986; `}` :987) | 976-987 — exact match | `grep -n` → `976:LSQUnit::commitLoads(...)`; `sed -n '980,981p'` | Accepts a corrupt head before the loop: `assert(size()==0 \|\| front().valid() \|\| front().lq04Corrupt())` :980-981; then the while loop :983-986 calls `commitLoad()` :985. |
-| `squash` | `986-1020` | **1202-1338** (name :1203; body :1205-1337; `}` :1338); LQ04 load-side window :1205-1254 | 1203-1253 — **truncated**: :1253 is `++stats.squashedLoads;`, the last statement of the load-side while loop (which closes at :1254); the function continues through the HTM-uid fixup (:1256-1294) and the store-side squash loop (:1296-1336), closing at :1338 | `grep -n` → `1203:LSQUnit::squash(...)`; `sed -n '1237,1238p'`; `awk 'NR>=1337&&NR<=1341'` → `1338 }`, `1340 uint64_t`, `1341 LSQUnit::getLatestHtmUid()` | Restores before clear/pop on the load side: `lq04Restore(back(), "squash")` :1237-1238 precedes `clear()` :1250 and `pop_back()` :1252; the loop never checks `valid()`. |
+| `lq04Restore` | *(absent — function did not exist pre-implementation)* | **927-943** (name :928; body :930-942; `}` :943) | 927-943 — exact match | `grep -n` → `928:LSQUnit::lq04Restore(...)`; `sed -n '942,943p'` → `entry.restoreLifetime();` / `}` | Restores the side-channel-stashed request and valid bit at the commit/squash boundary (`entry.restoreLifetime()` :942) and emits the `restore` record (:934-941); no-op for never-corrupted entries. |
+| `commitLoad` | `775-798` | **945-973** (name :946; body :948-972; `}` :973) | 945-973 — exact match | `grep -n` → `946:LSQUnit::commitLoad()`; `sed -n '948,950p'` → restore-before-assert | Restore-before-assert: `lq04Restore(front(), "commit")` :948-949 precedes `assert(front().valid())` :950; then frees/pops (`clear()` :969, `pop_front()` :970) after the `free`/`commit` lifecycle record :966-968. |
+| `commitLoads` | *(absent)* | **975-987** (name :976; body :978-986; `}` :987) | 975-987 — exact match | `grep -n` → `976:LSQUnit::commitLoads(...)`; `sed -n '980,981p'` | Accepts a corrupt head before the loop: `assert(size()==0 \|\| front().valid() \|\| front().lq04Corrupt())` :980-981; then the while loop :983-986 calls `commitLoad()` :985. |
+| `squash` | `986-1020` | **1202-1338** (name :1203; body :1205-1337; `}` :1338); LQ04 load-side window :1205-1254 | 1202-1253 — **truncated**: the start :1202 (the return-type line) is exact, but the end :1253 is `++stats.squashedLoads;`, the last statement of the load-side while loop (which closes at :1254); the function continues through the HTM-uid fixup (:1256-1294) and the store-side squash loop (:1296-1336), closing at :1338 | `grep -n` → `1203:LSQUnit::squash(...)`; `sed -n '1237,1238p'`; `awk 'NR>=1337&&NR<=1341'` → `1338 }`, `1340 uint64_t`, `1341 LSQUnit::getLatestHtmUid()` | Restores before clear/pop on the load side: `lq04Restore(back(), "squash")` :1237-1238 precedes `clear()` :1250 and `pop_back()` :1252; the loop never checks `valid()`. |
 
-**Reconciliation with the task-6 brief.** Four of the brief's expressed ranges
-match the verified evidence exactly (`executeLoad` 720-831, hook 796-828,
-`lq04Restore` 928-943, `commitLoads` 976-987). Two include the blank separator
-line after the closing brace instead of stopping at the brace (`insertLoad`
-395-464 vs `}` :463; `commitLoad` 946-974 vs `}` :973) — a one-line
-over-count. One is truncated (`squash` 1203-1253 vs `}` :1338). The
-authoritative values for Task 7 to transcribe are the grep-verified spans in the
-"verified v3.2.10" column; the brief's own parenthetical boundary data
-(void :394 / name :395 / body 397-463 for `insertLoad`, etc.) is confirmed by
-§1.3 except for the `squash` body end (:1253 is not the function end).
+**Reconciliation with the task-6 brief.** The brief expresses its ranges from
+the return-type line (e.g. `insertLoad` "394-464 (void at 394; name 395; body
+397-463)"). Five of the seven match the verified evidence exactly:
+`executeLoad` 719-831, hook 796-828, `lq04Restore` 927-943, `commitLoad`
+945-973, `commitLoads` 975-987. One includes the blank separator line after
+the closing brace instead of stopping at the brace (`insertLoad` 394-464 vs
+`}` :463 — the start :394 is exact), a one-line over-count at the end only.
+One is truncated (`squash` 1202-1253 vs `}` :1338 — the start :1202 is
+exact). The authoritative values for Task 7 to transcribe are the
+grep-verified spans in the "verified v3.2.10" column; the brief's own
+parenthetical boundary data (void :394 / name :395 / body 397-463 for
+`insertLoad`, etc.) is confirmed by §1.3 except for the `squash` body end
+(:1253 is not the function end — the load-side loop closes at :1254 and the
+function at :1338).
 
 ---
 
@@ -381,7 +400,11 @@ HTM in-flight-uid fixup **:1258-1294**, and the store-side squash while loop
 `++stats.squashedStores` :1335), closing with
 `stats.sqAvgOccupancy = queueOccupancy(storeQueue);` **:1337** and the function
 brace **:1338**. Any audit range that ends at :1253 or :1254 truncates the
-function; the LQ04-relevant window within it is :1205-1254.
+function; the LQ04-relevant window within it is :1205-1254. (The two labels
+used in this document are consistent: the **window** :1205-1254 starts at the
+function body's first statement — the squash `DPRINTF` of :1205-1207 — and
+runs through the load while loop's closing brace at :1254, while :1209-1254
+is the **while loop proper**; :1205-1208 is the loop's preamble.)
 
 ---
 
@@ -473,4 +496,100 @@ squash (1202-1338, load-side window 1205-1254)
 
 with the name lines :395/:720/:928/:946/:976/:1203 per §1.1, and the
 per-function responsibilities of §2/§3. All other columns of the row — including
-the frozen fields of §4 — are unchanged.
+the frozen fields of §4 — are unchanged. Sheet 7 `D20` and sheet 11
+`F19`/`F33`/`F45` carry further stale LQ04 line references outside sheet 4;
+their corrected values are in §7.
+
+---
+
+## 7. Stale LQ04 line references across sheets 4, 7 and 11 (consolidated index)
+
+Review of the first version of this document found its accompanying task-6
+report claiming that no sheets of the v3.2.5 workbook other than sheet 4
+carry LQ04 line ranges. That claim is **false** and is corrected here. A
+whole-workbook sweep (openpyxl, `data_only=True`, all 18 sheets: every cell
+whose text contains an `lsq*.cc`/`lsq*.hh` reference with line numbers, every
+cell of every row tagged `LQ04`, and the sheet 4 LQ04 row cell-by-cell)
+finds exactly **five** cells carrying LQ04 line references:
+
+| # | sheet | cell | row identity | value (verbatim, re-read with openpyxl) | verdict |
+|---|---|---|---|---|---|
+| 1 | `4.源码Hook审计` | `G4` | ModelID `LQ04`, SubTaskID `LQ04-F0-W2-S01` | `LSQUnit::insertLoad (353-414); commitLoad (775-798); squash (986-1020); clear/pop_front` | stale — §5/§6 |
+| 2 | `7.Trace Hook规范` | `D20` | Category `Node`, Item `LQ`, Description `entry分配/读/释放/replay`, Status `NEEDS_HOOK` | `lsq_unit.cc:353-414,775-798,986-1020,1376-1727` | stale — all four ranges (§7.1) |
+| 3 | `11.风险与待确认事项` | `F19` | RiskID `R18`, RelatedModel `LQ04` ("提前释放的具体操作/触发点未定") | `lsq_unit.cc:775-798,986-1020` | stale — both ranges (§7.2) |
+| 4 | `11.风险与待确认事项` | `F33` | RiskID `R32`, RelatedModel `LQ04` ("提前失效可行；提前pop+重用无安全接口") | `lsq_unit.cc:775-798` | stale (§7.2) |
+| 5 | `11.风险与待确认事项` | `F45` | RiskID `R44`, RelatedModel `LQ04` ("clear()会调用freeLSQEntry释放请求资源；提前clear可能破坏") | `lsq_unit.hh:107-125; lsq.hh:539` | `lsq.hh:539` exact at HEAD; `lsq_unit.hh:107-125` stale (§7.3) |
+
+All other line-range cells in sheets 7 and 11 belong to other models/nodes
+(AGU, SQ, LSQ, FWD, MD, Replay, Alignment, LoadPipeline, StorePipeline;
+SP05/FW02/FW05/MD04/RP01/SQ01/SQ03 risk rows) and are out of scope for LQ04;
+the remaining `LQ04`-tagged cells elsewhere in the workbook carry dates and
+prose, not source-line ranges.
+
+### 7.1 Sheet 7 `D20` (Node=LQ) — range-by-range correction
+
+`D20` is identical to the LQ line of `LSU_Trace_Hook_Design_v3.1.md` :23
+("LQ：`lsq_unit.cc:353-414,775-798,986-1020,1376-1727`"), whose referents are
+pinned by `LSU_12Model_Source_Audit_Report_v3.1.md` :65 ("insertLoad
+(353-414); commitLoad (775-798); squash (986-1020)") and :160
+("LSQUnit::read() (1376-1727)"):
+
+| old range (`D20`) | referent | verified span at HEAD | evidence |
+|---|---|---|---|
+| 353-414 | `LSQUnit::insertLoad` | **394-463** | §1.4 |
+| 775-798 | `LSQUnit::commitLoad` | **945-973** | §1.4 |
+| 986-1020 | `LSQUnit::squash` | **1202-1338** (load-side window 1205-1254) | §1.4, §3.7 |
+| 1376-1727 | `LSQUnit::read()` — the LQ node's store-to-load forward read | **1641-2074** | re-verified for this section: `grep -n` → `1642:LSQUnit::read(...)`; `awk 'NR>=1639&&NR<=1644'` → :1641 `Fault` / :1642 name / :1643 `{`; `awk 'NR>=2070&&NR<=2078'` → :2073 `return NoFault;` / :2074 `}` / :2076 `Fault` / :2077 `LSQUnit::write(...)` |
+
+`LSQUnit::read()` is not one of the seven LQ04 spans of §1.4 (LQ04 never
+touches it); it is re-verified here only because `D20` cites it. Since the
+v3.2.10 implementation, the LQ node's "entry分配/读/释放/replay" hook surface
+also runs through `executeLoad` (which hosts the LQ04 injection hook
+:796-828), `lq04Restore` (:927-943) and `commitLoads` (:975-987) — §3.2-§3.6.
+
+Corrected `D20` value Task 7 must use:
+
+```
+lsq_unit.cc:394-463,719-831,927-943,945-973,975-987,1202-1338,1641-2074
+```
+
+(like-for-like correction of the original four ranges in source order, plus
+the three functions that since v3.2.10 carry the LQ node's lifecycle trace;
+`719-831` contains the LQ04 hook `796-828`).
+
+### 7.2 Sheet 11 `F19` (R18) and `F33` (R32)
+
+Both rows cite `commitLoad` (775-798) and `squash` (986-1020) at the
+v3.1-era positions:
+
+| cell | old value | corrected value (like-for-like) |
+|---|---|---|
+| `F19` (R18) | `lsq_unit.cc:775-798,986-1020` | `lsq_unit.cc:945-973,1202-1338` |
+| `F33` (R32) | `lsq_unit.cc:775-798` | `lsq_unit.cc:945-973` |
+
+R18's open question ("提前释放的具体操作/触发点未定" — the concrete
+early-release operation and trigger point were undecided) is now settled by
+the v3.2.10 implementation audited in §3: the trigger point is the
+`executeLoad` tail hook **:796-828** (§3.3) and the boundary restore is
+`lq04Restore` **:927-943**, called from `commitLoad` :948-949 and `squash`
+:1237-1238 (§3.4, §3.5, §3.7). Task 7 transcribes the corrected ranges above
+and should reflect the now-decided trigger point when it updates R18's
+status.
+
+### 7.3 Sheet 11 `F45` (R44)
+
+`lsq.hh:539` is **exact at HEAD**: `awk 'NR>=535&&NR<=543'` on
+`CHAOS/gem5/src/cpu/o3/lsq.hh` gives :538 `void`, :539 `freeLSQEntry()`,
+:541 `release(Flag::LSQEntryFreed)` — the `LSQRequest::freeLSQEntry()` name
+line. `lsq_unit.hh:107-125` is stale: at the pre-implementation baseline
+(`git show 37692d2b:CHAOS/gem5/src/cpu/o3/lsq_unit.hh`) that span covered
+`public:` :107, `~LSQEntry()` :108-114 and `clear()` :116-126; the v3.2.10
+side-channel insertion shifted it, and at HEAD the same machinery sits at
+`~LSQEntry()` **:117-127** (which now also frees the stashed `_lq04Request`
+:123-125) and `clear()` **:129-140** (which now opens with
+`assert(!_lq04Corrupt)` :132 — the restore-before-clear guarantee that
+answers R44's concern). Corrected `F45` value Task 7 must use:
+
+```
+lsq_unit.hh:117-140; lsq.hh:539
+```
