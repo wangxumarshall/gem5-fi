@@ -218,7 +218,11 @@ namespace gem5
         if (write_log && log_stream && log_stream->stream())
             *(log_stream->stream()) << os.str() << std::endl;
         std::cout << os.str() << std::endl;
-        exitSimLoop("lq04 watchdog expired", 1);
+        // gem5's stdlib Simulator maps exit strings to ExitEvent values and
+        // raises NotImplementedError for unknown strings. Use the registered
+        // FAIL event; the experimental reason is the CHAOS_LQ04_WATCHDOG_EXPIRED
+        // log line above.
+        exitSimLoop("m5_fail instruction encountered", 1);
     }
 
 } // namespace gem5

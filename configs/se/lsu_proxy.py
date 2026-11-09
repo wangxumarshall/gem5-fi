@@ -27,6 +27,7 @@
 
 import argparse
 import m5
+import sys
 from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSLQ04, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSMD04, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
 # [LSU][OBS-FIX-6]（2026-10-14 止损，中央指令）：CHAOSPropagation 改按需导入。
 # 根因：实现（CHAOS/gem5/src/cpu/o3/CHAOSPropagation/，提交 6c9d5930）晚于
@@ -1247,3 +1248,13 @@ if args.maxinsts:
 
 simulator = Simulator(board=board, full_system=False)
 simulator.run()
+
+# [LSU][V3.2.11][A3] The stdlib Simulator returns normally from run() even
+# when the simulation exited through a failure exit event (e.g. the LQ04
+# watchdog exits via the registered ExitEvent.FAIL with code 1). Propagate
+# the exit event's code so the gem5 process itself fails with a clear
+# non-zero status; a normal workload completion carries code 0 and keeps
+# exiting 0.
+_exit_code = simulator.get_last_exit_event_code()
+if _exit_code:
+    sys.exit(_exit_code)

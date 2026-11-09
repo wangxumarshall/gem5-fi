@@ -1,0 +1,26 @@
+warn: Setting the full_system parameter via the Simulator constructor is deprecated and will be removed in future releases of gem5. The board determines if the simulation is full system or not via it's `is_fullsystem` method.
+Global frequency set at 1000000000000 ticks per second
+warn: No dot file generated. Please install pydot to generate the dot file and pdf.
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (8192 Mbytes) does not match the address range assigned (1024 Mbytes)
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:32] into equal-sized buckets. Rounding up.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:8] into equal-sized buckets. Rounding up.
+src/base/remote_gdb.cc:418: warn: Sockets disabled, not accepting gdb connections
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 25.1.0.1
+gem5 compiled Nov 10 2026 03:06:16
+gem5 started Nov 10 2026 03:20:57
+gem5 executing on localhost0101, pid 3939670
+command line: build/ARM/gem5.opt --outdir=/tmp/lq04_reg_v3211 configs/se/arm_chaos.py --cmd workloads/directed/reg_chain --cpu O3
+
+info: Standard input is not a terminal, disabling listeners.
+src/sim/syscall_emul.cc:86: warn: ignoring syscall set_robust_list(...)
+src/sim/syscall_emul.cc:97: warn: ignoring syscall rseq(...)
+      (further warnings will be suppressed)
+src/sim/mem_state.cc:443: info: Increasing stack size by one page.
+src/sim/syscall_emul.hh:1127: warn: readlink() called on '/proc/self/exe' may yield unexpected results in various settings.
+      Returning '/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.11/workloads/directed/reg_chain'
+src/sim/syscall_emul.cc:86: warn: ignoring syscall mprotect(...)
+f247ef3fe6f02cfd
