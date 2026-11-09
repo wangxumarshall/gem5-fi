@@ -1694,7 +1694,7 @@ namespace gem5
         // recorded real transition, not an assumption.
         std::ostringstream d;
         d << "site=executeLoad_post;family=lq04"
-          << ";field=valid,request"
+          << ";field=valid+request"
           << ";valid_before=1;valid_after=0"
           << ";request_before=1;request_after=0"
           << ";lq_idx=" << lq_idx
