@@ -28,7 +28,7 @@
     "prop_trace.csv.gz"
   ],
   "exit_code": 0,
-  "elapsed_seconds": 1.974,
+  "elapsed_seconds": 2.16,
   "oracle_expected": "checksum=0xb097eb83f71545cb",
   "oracle_source": "workload_golden",
   "oracle_pass": true,
@@ -41,11 +41,13 @@
     "site": "executeLoad_post",
     "events": 0,
     "all_one_injection": false,
-    "ordinal_matches": true,
-    "valid_1_to_0": true,
-    "request_1_to_0": true,
-    "no_pop_no_reuse": true,
-    "address_size_data_unchanged": true
+    "ordinal_matches": null,
+    "applicable": false,
+    "not_applicable_reason": "no injection event (matched no-fault control: injector not mounted); LQ04 lifetime proof fields are n/a",
+    "valid_1_to_0": null,
+    "request_1_to_0": null,
+    "no_pop_no_reuse": null,
+    "address_size_data_unchanged": null
   },
   "trace": {
     "csv_rows": 17068,
