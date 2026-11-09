@@ -27,7 +27,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSMD04, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSLQ04, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSMD04, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
 # [LSU][OBS-FIX-6]（2026-10-14 止损，中央指令）：CHAOSPropagation 改按需导入。
 # 根因：实现（CHAOS/gem5/src/cpu/o3/CHAOSPropagation/，提交 6c9d5930）晚于
 # 主树冻结二进制 build/ARM/gem5.opt（2026-10-11 编译，AGU legacy 轨道专用，
@@ -274,6 +274,27 @@ p.add_argument("--sp05_event_ordinal", type=lambda x: int(x,0), default=0,
 p.add_argument("--sp05_watchdog_cycles", type=lambda x: int(x,0),
                default=500000000,
                help="SP05 in-simulator watchdog ticks (0 = disabled)")
+# v3.2.10 LQ04: Load-Queue entry lifetime corruption — at the end of a
+# successful executeLoad the ordinal-selected entry's valid+request fields
+# move into the Task-4 side channel; the commit/squash boundary restores
+# them before clear(). Ordinal-driven (F0), target identified by LQ entry
+# identity (index+generation), so a replayed load is never injected twice.
+p.add_argument("--chaos_lq04", action="store_true",
+               help="attach CHAOSLQ04 (O3 LQ-entry lifetime injector, v3.2.10 LQ04)")
+p.add_argument("--lq04_event_ordinal", type=lambda x: int(x,0), default=0,
+               help="LQ04: 1-based eligible Load ordinal to select (0 = disabled)")
+p.add_argument("--lq04_max_faults", type=lambda x: int(x,0), default=1,
+               help="LQ04: maximum injections (0 clamps to 1)")
+p.add_argument("--lq04_count_only", action="store_true",
+               help="LQ04: count-only dry-run (probe lines + eligible count, never inject)")
+p.add_argument("--lq04_probe_first_n", type=lambda x: int(x,0), default=0,
+               help="LQ04: log the first N eligible loads as probe lines (0 = none)")
+p.add_argument("--lq04_watchdog_cycles", type=lambda x: int(x,0),
+               default=500000000,
+               help="LQ04: in-simulator watchdog in clock cycles (0 = disabled); on expiry "
+               "logs CHAOS_LQ04_WATCHDOG_EXPIRED and exits with code 1")
+p.add_argument("--lq04_rng_seed", type=lambda x: int(x,0), default=0,
+               help="LQ04: RNG seed recorded for reproducibility (F0 draws none)")
 # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
 p.add_argument("--lsqfwd_l03", action="store_true",
                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
@@ -872,6 +893,23 @@ if args.chaos_lsqfwd:
         writeLog=True,
     )
     board.chaos_lsqfwd = lsq
+
+if args.chaos_lq04:
+    # v3.2.10 LQ04: O3-only. SELF-ATTACHES at startup() to cpu.chaosLQ04
+    # (the executeLoad tail calls maybeSelect; the LSQEntry side channel
+    # from Task 4 carries the corrupted lifetime until the boundary
+    # restore). Ordinal-driven — no probability/window parameters.
+    lq04 = CHAOSLQ04(
+        cpu=cpu0,
+        eventOrdinal=args.lq04_event_ordinal,
+        maxFaults=args.lq04_max_faults,
+        countOnly=args.lq04_count_only,
+        probeFirstN=args.lq04_probe_first_n,
+        watchdogCycles=args.lq04_watchdog_cycles,
+        rngSeed=args.lq04_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_lq04 = lq04
 
 if args.chaos_rename:
     # §2.2 CHAOSRenameMap: O3-only. SELF-ATTACHES at startup() to thread-0

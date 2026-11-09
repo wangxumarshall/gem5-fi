@@ -542,6 +542,14 @@ class CPU : public BaseCPU
     void setLSQFwd(CHAOSLSQFwd *p) { lsqFwd = p; }
     CHAOSLSQFwd *getLSQFwd() const { return lsqFwd; }
 
+    /** CHAOSLQ04 hook: Load-Queue entry lifetime injector (LSU v3.2.10
+     *  LQ04). Self-attaches at startup() (cpu->chaosLQ04 = this); the
+     *  lsq_unit.cc executeLoad tail calls maybeSelect after a load's
+     *  request is issued. Nullptr when no injector is attached → the call
+     *  site short-circuits. See src/cpu/o3/CHAOSLQ04/. */
+    class CHAOSLQ04 *chaosLQ04 = nullptr;
+    void setChaosLQ04(CHAOSLQ04 *p) { chaosLQ04 = p; }
+
     /** Enum to give each stage a specific index, so when calling
      *  activateStage() or deactivateStage(), they can specify which stage
      *  is being activated/deactivated.

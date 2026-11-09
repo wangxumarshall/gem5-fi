@@ -1,0 +1,10 @@
+# -*- mode:python -*-
+# CHAOSLQ04 — Load-Queue entry lifetime fault injector (O3 only).
+# Discovered automatically by src/SConscript's os.walk.
+
+Import('*')
+
+SimObject('CHAOSLQ04.py', sim_objects=['CHAOSLQ04'], enums=[])
+Source('CHAOSLQ04.cc')
+
+DebugFlag('CHAOSLQ04')
