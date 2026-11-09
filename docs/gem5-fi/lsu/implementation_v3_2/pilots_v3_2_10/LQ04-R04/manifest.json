@@ -1,0 +1,66 @@
+{
+  "schema_version": "lsu-run-manifest-v3.2",
+  "sample_run_id": "LQ04-F0-W2-S01-R04",
+  "run_id": "LQ04-F0-W2",
+  "sub_task_id": "LQ04-F0-W2-S01",
+  "fault_id": "LQ04-CFG01",
+  "model_id": "LQ04",
+  "seed": 4153250964,
+  "seed_source": "excel:5.60个样本执行矩阵!Seed",
+  "fault": {
+    "location": "LQEntry生命周期：executeLoad后提前失效",
+    "target_field": "LQEntry::_valid / _request",
+    "target_bit": "目标lqIdx；entry_generation",
+    "normal_value": "valid=1，request在途",
+    "fault_value": "executeLoad后清valid/request；不pop、不复用",
+    "injection_mode": "F0",
+    "injection_timing": "executeLoad后、响应到达前",
+    "target_event": "目标Load已分配LQ entry并发出request",
+    "event_ordinal": 4
+  },
+  "workload": {
+    "path": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal",
+    "path_source": "pilot_override (Excel path retained in sample)",
+    "sha256": "fa25f785a4822eb578ae8da2d26c400d7450f40d975b2d7da84de900b48d97ba",
+    "oracle_expected": "checksum=0xb097eb83f71545cb"
+  },
+  "warmup": "NEEDS_RESEARCHER_CONFIRMATION",
+  "roi": "NEEDS_RESEARCHER_CONFIRMATION",
+  "gem5": {
+    "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/build/ARM/gem5.opt",
+    "binary_sha256": "f3c2a4423aab81ca565c7adcfb840a7b8f9cdb9f2a6b6b5ecc3d0e148af20694",
+    "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/configs/se/lsu_proxy.py",
+    "config_script_sha256": "9b270dbe18b317f1d44e9b4295d897519a94a517d3b2965e1809b38b098f0b55"
+  },
+  "output_dir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-R04",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-R04",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_lq04",
+    "--lq04_event_ordinal",
+    "4",
+    "--lq04_max_faults",
+    "1",
+    "--lq04_watchdog_cycles",
+    "500000000"
+  ],
+  "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-R04 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_lq04 --lq04_event_ordinal 4 --lq04_max_faults 1 --lq04_watchdog_cycles 500000000",
+  "environment": {
+    "captured_at_utc": "2026-11-09T06:23:57Z",
+    "host": "localhost0101",
+    "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
+    "python": "3.11.6"
+  },
+  "manifest_sha256": "69686ac646d0dc090d88cd62abe2c55865e4f1b750aa0b44ae04ca33c7bb27dd"
+}

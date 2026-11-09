@@ -1,0 +1,112 @@
+{
+  "pilot_id": "LQ04-CONTROL-R01",
+  "model": "LQ04",
+  "seed": 1842987246,
+  "event_selection": "TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)",
+  "excel_identity": {
+    "run_id": "LQ04-F0-W2",
+    "sub_task_id": "LQ04-F0-W2-S01",
+    "sample_run_id": "LQ04-F0-W2-S01-R01",
+    "seed": 1842987246,
+    "event_ordinal": 1,
+    "event_ordinal_used": 1
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-CONTROL-R01",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/workloads/lq_lifetime_ordinal",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "0.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.974,
+  "oracle_expected": "checksum=0xb097eb83f71545cb",
+  "oracle_source": "workload_golden",
+  "oracle_pass": true,
+  "injection": {
+    "events": [],
+    "injected": 0
+  },
+  "injection_count": 0,
+  "target_event_proof": {
+    "site": "executeLoad_post",
+    "events": 0,
+    "all_one_injection": false,
+    "ordinal_matches": true,
+    "valid_1_to_0": true,
+    "request_1_to_0": true,
+    "no_pop_no_reuse": true,
+    "address_size_data_unchanged": true
+  },
+  "trace": {
+    "csv_rows": 17068,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_10/LQ04-CONTROL-R01/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "PARTIAL",
+      "propagation_stages": [
+        "sq_lifecycle"
+      ],
+      "expected_stages": [
+        "injection"
+      ],
+      "missing_stages": [
+        "injection"
+      ],
+      "chain_ptag": null,
+      "chain_scoped": false,
+      "chain_source": "none",
+      "chain_events": 17068,
+      "consumer_operand_records": 0,
+      "consumer_instructions": 0,
+      "taint_value_mismatch_records": 0,
+      "chain_integrity": "UNKNOWN",
+      "chain_reasons": [
+        "no_injection_event"
+      ],
+      "execution_attempt_link": "UNKNOWN",
+      "terminal_state": "UNRESOLVED",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "NOT_TRIGGERED",
+      "events": 17068,
+      "edges": 0,
+      "injections": 0,
+      "activations": 0,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "NOT_TRIGGERED",
+    "observed_terminal": "MASKED",
+    "terminal_state": "UNRESOLVED",
+    "terminal_state_reason": "NO_INJECTION_EVENT",
+    "fault_causality": "UNKNOWN",
+    "terminal_evidence": {
+      "page_table_fault_addr": null,
+      "last_injection_dyn_seq": null,
+      "last_injection_new_value": null,
+      "address_match": false,
+      "stderr_has_page_table_fault": false
+    },
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "PARTIAL",
+    "oracle_outcome": "PASS"
+  },
+  "accepted": false,
+  "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
+  "crash_evidence": null
+}
