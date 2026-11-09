@@ -345,6 +345,23 @@ class CHAOSPropagation : public SimObject
                            uint64_t eligible_ordinal, uint64_t event_ordinal,
                            uint64_t seed);
 
+    // LQ04 (LSU v3.2.10): a load's LQ entry just had its lifetime corrupted
+    // at the end of a successful executeLoad — _valid 1→0 and _request 1→0,
+    // with the request moved into the LQEntry side channel (no pop, no early
+    // free/reuse; address, size and response data untouched). Allocates a
+    // ptag, writes the inj node with the before/after field states and
+    // registers the chain by dyn_inst_seq so the response/writeback/consumer
+    // binding (v3.2.10 Task 7) can attach to it. occ_before/occ_after are
+    // the LQ occupancy around the corruption (equal by construction: no
+    // pop). Returns the ptag (0 = tracer disabled / no-op).
+    uint64_t noteLQ04Injection(o3::DynInst *inst, uint64_t lq_idx,
+                               uint64_t lq_gen, uint64_t request_id,
+                               Addr addr, unsigned size,
+                               uint64_t occ_before, uint64_t occ_after,
+                               uint64_t eligible_ordinal,
+                               uint64_t event_ordinal, uint64_t injected,
+                               uint64_t attempt_id, uint64_t replay_gen);
+
     // SP05 (v3.2.9): injection ptag per target store, reused by completion.
     std::unordered_map<uint64_t, uint64_t> sp05_ptag;
 
@@ -517,6 +534,21 @@ class CHAOSPropagation : public SimObject
         uint64_t eligible_ordinal = 0;
     };
     std::map<uint64_t, SQ03Entry> sq03_registry;  // key: store dyn seq
+
+    // LQ04 (LSU v3.2.10): one LQ entry lifetime fault, keyed by the target
+    // load's dyn_inst_seq. resp_node is 0 until the Task-7 response hook
+    // binds the chain; the entry fields below mirror the inj node identity.
+    struct LQ04Entry {
+        uint64_t ptag = 0;
+        uint64_t request_id = 0;   // Request::getReqInstSeqNum() of req(0)
+        uint64_t lq_idx = 0;
+        uint64_t lq_gen = 0;
+        Addr addr = 0;
+        unsigned size = 0;
+        uint64_t eligible_ordinal = 0;
+        uint64_t resp_node = 0;    // 0 until the response binds (Task 7)
+    };
+    std::map<uint64_t, LQ04Entry> lq04_registry;  // key: load dyn seq
 
     struct ChainWbEntry {
         uint64_t ptag = 0;

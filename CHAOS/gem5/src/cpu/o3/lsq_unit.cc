@@ -50,6 +50,8 @@
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
 #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
 #include "cpu/o3/CHAOSMD04/CHAOSMD04.hh"  // MD04 dependency-violation miss
+#include "cpu/o3/CHAOSLQ04/CHAOSLQ04.hh"  // LQ04 lifetime fault injector (v3.2.10)
+#include "cpu/o3/CHAOSLQ04/lq04_rules.hh"  // LQ04 pure eligibility/ordinal rules
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
@@ -112,6 +114,27 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
 {
     LSQRequest *request = dynamic_cast<LSQRequest *>(pkt->senderState);
     DynInstPtr inst = request->instruction();
+
+    // LQ04 (LSU v3.2.10): response-side probe for the injected target. The
+    // response is bound by pkt->senderState and never reads the LQ entry;
+    // this records what the entry ACTUALLY holds when the response arrives
+    // (expected inside the corrupt window: valid=0, request=nullptr). A
+    // squashed request is released before reaching this function; the guard
+    // keeps the probe off a potentially reused lqIdx.
+    if (!inst->isSquashed() && cpu->chaosLQ04 && inst->isLoad() &&
+        cpu->chaosLQ04->isTarget(inst->seqNum, inst->lqIdx,
+                                 inst->lqEntryGeneration)) {
+        LQEntry &e = loadQueue[inst->lqIdx];
+        if (cpu->chaosPropagation) {
+            const std::string lq04_probe =
+                std::string("valid_at_response=") + (e.valid() ? "1" : "0")
+                + ";request_present_at_response="
+                + (e.hasRequest() ? "1" : "0");
+            cpu->chaosPropagation->noteLQLifecycle(
+                inst->seqNum, inst->lqIdx, inst->lqEntryGeneration,
+                "response_probe", lq04_probe.c_str());
+        }
+    }
 
     // hardware transactional memory
     // sanity check
@@ -758,8 +781,49 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
             auto it = inst->lqIt;
             ++it;
 
-            if (checkLoads)
-                return checkViolations(it, inst);
+            // LQ04 (LSU v3.2.10): a violation fault must still return
+            // immediately (the load is replayed); a clean check falls
+            // through to the injection point at the function tail. The
+            // returned fault is unchanged on both paths.
+            if (checkLoads) {
+                Fault viol_fault = checkViolations(it, inst);
+                if (viol_fault != NoFault)
+                    return viol_fault;
+            }
+        }
+    }
+
+    // LQ04 (LSU v3.2.10): the injection point, at the end of a successful
+    // executeLoad round. The entry is live and owns its just-issued request
+    // (LSQRequest::install ran inside initiateAcc); the ordinal-selected
+    // target moves valid/request into the LQEntry side channel — visibly
+    // valid=0, request=nullptr — until its commit/squash boundary
+    // (LSQUnit::lq04Restore). No pop, no early free/reuse; the returned
+    // fault, the response binding (pkt->senderState) and the data are
+    // untouched. The whole block is inert unless CHAOSLQ04 is mounted.
+    if (cpu->chaosLQ04 && load_fault == NoFault && inst->isLoad()) {
+        LQEntry &e = loadQueue[inst->lqIdx];
+        if (chaos_lq04::isEligible(e.valid(), e.hasRequest(),
+                                   inst->isSquashed(),
+                                   inst->isExecuted())) {
+            LSQRequest *req = e.request();
+            const uint64_t rid = req->req(0)->getReqInstSeqNum();
+            if (cpu->chaosLQ04->maybeSelect(
+                    inst->seqNum, inst->pcState().instAddr(), inst->lqIdx,
+                    inst->lqEntryGeneration, inst->executionAttemptId,
+                    inst->effAddr, inst->effSize, rid,
+                    inst->isDataPrefetch() || inst->isInstPrefetch())) {
+                const uint64_t occ = loadQueue.size();
+                e.corruptLifetime();
+                if (cpu->chaosPropagation)
+                    cpu->chaosPropagation->noteLQ04Injection(
+                        inst.get(), inst->lqIdx, inst->lqEntryGeneration,
+                        rid, inst->effAddr, inst->effSize, occ,
+                        loadQueue.size(), cpu->chaosLQ04->eligibleCount(),
+                        cpu->chaosLQ04->eventOrdinal(),
+                        cpu->chaosLQ04->injectedCount(),
+                        inst->executionAttemptId, inst->replayGeneration);
+            }
         }
     }
 
@@ -864,6 +928,12 @@ void
 LSQUnit::lq04Restore(LQEntry& entry, const char* reason)
 {
     const DynInstPtr& inst = entry.instruction();
+    // LQ04: both observers are target-gated (noteRestore filters by the
+    // stored LQ entry identity; only a corrupted entry reaches this
+    // function at all), so non-target entries stay unlogged.
+    if (cpu->chaosLQ04)
+        cpu->chaosLQ04->noteRestore(inst->seqNum, inst->lqIdx,
+                                    inst->lqEntryGeneration, reason);
     if (cpu->chaosPropagation) {
         cpu->chaosPropagation->noteLQLifecycle(
             inst->seqNum, inst->lqIdx, inst->lqEntryGeneration,

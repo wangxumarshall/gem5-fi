@@ -1544,6 +1544,61 @@ namespace gem5
                   0, false, 0, false, d.str());
     }
 
+    uint64_t
+    CHAOSPropagation::noteLQ04Injection(o3::DynInst *inst, uint64_t lq_idx,
+                                        uint64_t lq_gen, uint64_t request_id,
+                                        Addr addr, unsigned size,
+                                        uint64_t occ_before,
+                                        uint64_t occ_after,
+                                        uint64_t eligible_ordinal,
+                                        uint64_t event_ordinal,
+                                        uint64_t injected,
+                                        uint64_t attempt_id,
+                                        uint64_t replay_gen)
+    {
+        if (!write_log || !inst)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        fault_seqs.insert(inst->seqNum);
+        LQ04Entry e;
+        e.ptag = ptag;
+        e.request_id = request_id;
+        e.lq_idx = lq_idx;
+        e.lq_gen = lq_gen;
+        e.addr = addr;
+        e.size = size;
+        e.eligible_ordinal = eligible_ordinal;
+        lq04_registry[inst->seqNum] = e;
+
+        // The literal LQ04 field fault (plan-fixed detail fields): _valid
+        // 1→0 and _request 1→0 — the request moved to the LQEntry side
+        // channel, so it is neither freed nor reused early. Occupancy is
+        // unchanged (no pop); address, size and response data are untouched.
+        // corruptLifetime() asserts the before-state, so 1→0/1→0 is the
+        // recorded real transition, not an assumption.
+        std::ostringstream d;
+        d << "site=executeLoad_post;family=lq04"
+          << ";field=valid,request"
+          << ";valid_before=1;valid_after=0"
+          << ";request_before=1;request_after=0"
+          << ";lq_idx=" << lq_idx
+          << ";lq_gen=" << lq_gen
+          << ";request_id=" << request_id
+          << ";addr=" << std::hex << addr << std::dec
+          << ";size=" << size
+          << ";occ_before=" << occ_before
+          << ";occ_after=" << occ_after
+          << ";eligible_ordinal=" << eligible_ordinal
+          << ";event_ordinal=" << event_ordinal
+          << ";injected=" << injected
+          << ";attempt_id=" << attempt_id
+          << ";replay_gen=" << replay_gen
+          << ";no_pop=1;no_reuse=1;data_unchanged=1";
+        writeNode(ptag, "inj", inst->seqNum, true, request_id,
+                  request_id != 0, addr, true, 0, false, 0, false, d.str());
+        return ptag;
+    }
+
     void
     CHAOSPropagation::noteMD04Injection(o3::DynInst *inst,
                                         o3::DynInst *store_inst,

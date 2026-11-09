@@ -97,6 +97,11 @@ class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
 // [LSU][OBS-L3] real L3 propagation tracer (observation-only, forward decl)
 class CHAOSPropagation;
 class CHAOSCommitTrace; // FIX-B v2 commit tracer (squash observation)
+// LSU v3.2.10 LQ04: Load-Queue entry lifetime injector (forward decl).
+// MUST stay at gem5 namespace scope: an inline `class CHAOSLQ04` inside
+// o3::CPU would declare the unrelated gem5::o3::CHAOSLQ04 and leave the
+// member incomplete in every TU that includes cpu.hh first (lsq_unit.cc).
+class CHAOSLQ04;
 
 namespace o3
 {
@@ -547,7 +552,7 @@ class CPU : public BaseCPU
      *  lsq_unit.cc executeLoad tail calls maybeSelect after a load's
      *  request is issued. Nullptr when no injector is attached → the call
      *  site short-circuits. See src/cpu/o3/CHAOSLQ04/. */
-    class CHAOSLQ04 *chaosLQ04 = nullptr;
+    CHAOSLQ04 *chaosLQ04 = nullptr;
     void setChaosLQ04(CHAOSLQ04 *p) { chaosLQ04 = p; }
 
     /** Enum to give each stage a specific index, so when calling
