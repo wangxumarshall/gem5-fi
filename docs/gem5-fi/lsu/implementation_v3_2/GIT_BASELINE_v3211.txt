@@ -1,0 +1,13 @@
+base: 1394fb49
+1394fb499d95e604a5c686572943d6a9884393e1
+f3c2a4423aab81ca565c7adcfb840a7b8f9cdb9f2a6b6b5ecc3d0e148af20694  build/ARM/gem5.opt
+branch: lsu-platform-v3.2.10 (baseline tip) -> lsu-platform-v3.2.11 (round branch)
+binary note: build/ is absent in the fresh v3.2.11 worktree at Task 1.
+  The SHA above was verified at the v3.2.10 worktree
+  (/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.10) for both
+  build/ARM/gem5.opt and CHAOS/gem5/build/ARM/gem5.opt, and matches
+  GIT_COMMIT_v3210.txt (built 2026-11-09 13:36:41). Restore build/ from the
+  v3.2.10 worktree before the Task 5 watchdog build (SDD preflight ruling).
+delivery record: e11fbf82d072c63653a30b0dc5200c0b784b478b (ancestor of the
+  baseline tip; superseded by b327c30c [PACKAGE] and 1394fb49 [DOCS], both
+  provenance-only commits already on origin/lsu-platform-v3.2.10)
