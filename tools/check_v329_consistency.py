@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v3.2.9 cross-artifact consistency: Excel v3.2.4 / CSV / manifests / archive."""
+"""v3.2.10 cross-artifact consistency: Excel v3.2.5 / CSV / manifests / archive."""
 from __future__ import annotations
 
 import csv
@@ -11,7 +11,7 @@ import openpyxl
 
 ROOT = Path(__file__).resolve().parents[1]
 IMPL = ROOT / "docs/gem5-fi/lsu/implementation_v3_2"
-XL = IMPL / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.4.xlsx"
+XL = IMPL / "excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.5.xlsx"
 CSV = IMPL / "excel/60_SAMPLE_MATRIX.csv"
 ARCH = IMPL / "FW05_Workload_Archive/bin/fw05_forward"
 SHA = "0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf"
