@@ -340,7 +340,7 @@ void
 LSQUnit::drainSanityCheck() const
 {
     for (int i = 0; i < loadQueue.capacity(); ++i)
-        assert(!loadQueue[i].valid());
+        assert(!loadQueue[i].valid() || loadQueue[i].lq04Corrupt());
 
     assert(storesToWB == 0);
     assert(!retryPkt);
@@ -856,9 +856,27 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
 
 }
 
+// LQ04: restore a corrupted entry's lifetime at its commit/squash boundary.
+// The stashed request moves back to _request and the entry becomes valid
+// again, so the normal clear()/freeLSQEntry() path runs unchanged. No-op
+// for entries that were never corrupted.
+void
+LSQUnit::lq04Restore(LQEntry& entry, const char* reason)
+{
+    const DynInstPtr& inst = entry.instruction();
+    if (cpu->chaosPropagation) {
+        cpu->chaosPropagation->noteLQLifecycle(
+            inst->seqNum, inst->lqIdx, inst->lqEntryGeneration,
+            "restore", reason);
+    }
+    entry.restoreLifetime();
+}
+
 void
 LSQUnit::commitLoad()
 {
+    if (loadQueue.front().lq04Corrupt())
+        lq04Restore(loadQueue.front(), "commit");
     assert(loadQueue.front().valid());
 
     DynInstPtr inst = loadQueue.front().instruction();
@@ -887,7 +905,10 @@ LSQUnit::commitLoad()
 void
 LSQUnit::commitLoads(InstSeqNum &youngest_inst)
 {
-    assert(loadQueue.size() == 0 || loadQueue.front().valid());
+    // LQ04: the head may still be visibly invalid when the fault window has
+    // not closed yet; commitLoad() restores it before its own valid() check.
+    assert(loadQueue.size() == 0 || loadQueue.front().valid()
+            || loadQueue.front().lq04Corrupt());
 
     while (loadQueue.size() != 0 && loadQueue.front().instruction()->seqNum
             <= youngest_inst) {
@@ -1143,6 +1164,8 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             DPRINTF(HtmCpu, ">> htmStarts (%d) : htmStops-- (%d)\n",
               htmStarts, htmStops);
         }
+        if (loadQueue.back().lq04Corrupt())
+            lq04Restore(loadQueue.back(), "squash");
         if (cpu->chaosPropagation) {
             cpu->chaosPropagation->noteSquash(
                 loadQueue.back().instruction().get(), "lsq_squash");

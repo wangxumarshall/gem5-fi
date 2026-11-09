@@ -103,6 +103,15 @@ class LSQUnit
         uint32_t _size = 0;
         /** Valid entry. */
         bool _valid = false;
+        /** LQ04 side channel: while the LQ04 lifetime fault is active this
+         * stashes the request pointer so the entry is visibly invalid
+         * (valid=0, request=nullptr) without leaking or freeing it. Null
+         * whenever the entry is not lq04-corrupt. */
+        LSQRequest* _lq04Request = nullptr;
+        /** True while the LQ04 fault has moved the request to the side
+         * channel. The entry keeps its instruction and queue slot; the
+         * request is restored exactly at the commit/squash boundary. */
+        bool _lq04Corrupt = false;
 
       public:
         ~LSQEntry()
@@ -111,11 +120,16 @@ class LSQUnit
                 _request->freeLSQEntry();
                 _request = nullptr;
             }
+            if (_lq04Request != nullptr) {
+                _lq04Request->freeLSQEntry();
+                _lq04Request = nullptr;
+            }
         }
 
         void
         clear()
         {
+            assert(!_lq04Corrupt);
             _inst = nullptr;
             if (_request != nullptr) {
                 _request->freeLSQEntry();
@@ -143,6 +157,40 @@ class LSQUnit
         uint32_t& size() { return _size; }
         const uint32_t& size() const { return _size; }
         const DynInstPtr& instruction() const { return _inst; }
+        /** @} */
+
+        /** LQ04 lifetime fault: stash the request in the side channel and
+         * make the entry visibly invalid (valid=0, request=nullptr). The
+         * instruction, queue slot and occupancy are untouched; no pop, no
+         * early free, no reuse. Restore at the commit/squash boundary. */
+        void
+        corruptLifetime()
+        {
+            assert(_valid && _request != nullptr && !_lq04Corrupt);
+            _lq04Request = _request;
+            _request = nullptr;
+            _valid = false;
+            _lq04Corrupt = true;
+        }
+
+        /** LQ04 lifetime fault: move the stashed request back and make the
+         * entry valid again, so the normal clear()/freeLSQEntry() path
+         * runs at the original boundary. */
+        void
+        restoreLifetime()
+        {
+            assert(_lq04Corrupt && !_valid && _request == nullptr
+                    && _lq04Request != nullptr);
+            _request = _lq04Request;
+            _lq04Request = nullptr;
+            _valid = true;
+            _lq04Corrupt = false;
+        }
+
+        /** LQ04 accessors. */
+        /** @{ */
+        bool lq04Corrupt() const { return _lq04Corrupt; }
+        LSQRequest* lq04Request() { return _lq04Request; }
         /** @} */
     };
 
@@ -270,6 +318,12 @@ class LSQUnit
     void commitLoad();
     /** Commits loads older than a specific sequence number. */
     void commitLoads(InstSeqNum &youngest_inst);
+
+    /** LQ04: restore a corrupted entry's lifetime at its commit/squash
+     * boundary. Traces the restore via the propagation tracer when one is
+     * mounted, then moves the stashed request back (entry becomes valid
+     * again). Safe plumbing only: a no-op for non-corrupted entries. */
+    void lq04Restore(LQEntry& entry, const char* reason);
 
     /** Commits stores older than a specific sequence number. */
     void commitStores(InstSeqNum &youngest_inst);
