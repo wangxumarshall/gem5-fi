@@ -810,6 +810,18 @@ namespace gem5
             hit_ptag = fw->second.ptag;
             hit_family = "fw05";
         }
+        // LQ04 (v3.2.10): the target load's LQ entry lifetime was corrupted
+        // after a successful executeLoad, but the in-flight response is
+        // bound by pkt->senderState (the LSQRequest), NOT by the LQ entry,
+        // so it still arrives here and still delivers the unchanged data.
+        // Bind it to the chain so resp/writeback/consumer nodes carry the
+        // LQ04 ptag.
+        auto lq = lq04_registry.find(inst->seqNum);
+        if (!hit_ptag && lq != lq04_registry.end()
+                && lq->second.resp_node == 0) {
+            hit_ptag = lq->second.ptag;
+            hit_family = "lq04";
+        }
 
         // addrpath: the response's own Request vaddr range vs the registry,
         // bound to this instruction (the faulting load itself).
@@ -942,6 +954,21 @@ namespace gem5
                   << ";alt_fnv=" << fw->second.alt_fnv
                   << ";eligible_ordinal=" << fw->second.eligible_ordinal;
             }
+            // LQ04: the response reached the CPU through the request's own
+            // senderState while the LQ entry sat corrupted (valid=0,
+            // request popped into the side channel). The entry_* fields are
+            // the corrupt-window state: the response arrives strictly before
+            // the commit/squash boundary restore (a load commits only after
+            // this writeback), and the LIVE-observed values are recorded
+            // independently by the completeDataAccess response_probe
+            // lifecycle node (lsq_unit.cc). data_unchanged=1: LQ04 never
+            // touches the payload.
+            if (hit_family && std::string(hit_family) == "lq04") {
+                d << ";association=sender_state"
+                  << ";entry_valid_at_response=0"
+                  << ";entry_request_at_response=0"
+                  << ";data_unchanged=1";
+            }
             if (l1d_fwd) {
                 d << ";orig_data_fnv=" << lf->second.orig_fnv
                   << ";orig_data_hex=" << lf->second.orig_hex
@@ -973,6 +1000,8 @@ namespace gem5
                 md->second.resp_node = resp_node;
             if (hit_family && std::string(hit_family) == "fw05")
                 fw->second.resp_node = resp_node;
+            if (hit_family && std::string(hit_family) == "lq04")
+                lq->second.resp_node = resp_node;
         }
 
         // LP01 writeback is emitted after LSQUnit::writeback reads the PRF
@@ -1227,6 +1256,93 @@ namespace gem5
                                           phys->index())] = te;
             }
             return;
+        }
+
+        // LQ04 (v3.2.10): the response bound this chain in noteMemResponse
+        // and registered the pending chain writeback there (the same
+        // resp→pending mechanism as the cache/store/addrpath families; the
+        // generic tail below would also fire, but LQ04 needs its own
+        // detail). Emit the register writeback from the ACTUAL PRF value
+        // with the honest data_corruption=0 marker — LQ04 corrupted only
+        // the entry lifetime, the delivered and written-back data is
+        // correct — and taint the dest so noteCommit emits consumer nodes
+        // for later readers. No SDC may be claimed from these edges.
+        auto lq = lq04_registry.find(inst->seqNum);
+        if (lq != lq04_registry.end()) {
+            auto it = pending_chain_wb.find(inst->seqNum);
+            // Claim the pending writeback only when the LQ04-bound response
+            // registered it (family lq04). A pending entry from another
+            // family (cross-model mount corner, unreachable in the
+            // single-model pilots) stays with the generic tail below; a
+            // missing entry means no response-bound writeback to claim
+            // (the generic tail would no-op too).
+            if (it != pending_chain_wb.end()
+                    && it->second.family == "lq04") {
+                const ChainWbEntry w = it->second;
+                pending_chain_wb.erase(it);
+                if (inst->getFault() != NoFault)
+                    return;   // completeAcc did not run; no register value
+                for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
+                    const PhysRegIdPtr phys = inst->renamedDestIdx(i);
+                    if (!phys)
+                        continue;
+                    uint64_t value = 0;
+                    unsigned bytes = 0;
+                    const std::string vhash = regValueHash(
+                        inst, phys, inst->threadNumber, &value, &bytes);
+                    if (vhash.empty())
+                        continue;
+                    const bool scalar8 = (w.size == 8 && bytes == 8);
+                    const bool basis_ok = scalar8 && vhash == w.payload_fnv;
+                    const char *basis = scalar8 ? "payload_equals_regval"
+                        : "regval_extension";
+                    std::ostringstream vb;
+                    vb << std::hex << value << std::dec;
+                    std::ostringstream d;
+                    d << "family=lq04;data_corruption=0"
+                      << ";association=sender_state;data_unchanged=1"
+                      << ";class=" << regClassName(phys->classValue())
+                      << ";dest_idx=" << i
+                      << ";phys_reg=" << phys->index()
+                      << ";arch_reg=" << inst->destRegIdx(i).index()
+                      << ";writeback_value=" << vb.str()
+                      << ";writeback_value_fnv=" << vhash
+                      << ";payload_fnv=" << w.payload_fnv
+                      << ";payload_hex=" << w.payload_hex
+                      << ";payload_len=" << w.size
+                      << ";hash_basis=" << basis
+                      << ";value_matches_payload=" << (basis_ok ? 1 : 0)
+                      << ";source_value_hash=" << w.payload_fnv
+                      << ";source_event_id=" << w.resp_node
+                      << ";request_id=" << w.request_id
+                      << ";response_id=" << w.response_id
+                      << ";lq_idx=" << lq->second.lq_idx
+                      << ";lq_gen=" << lq->second.lq_gen
+                      << ";eligible_ordinal=" << lq->second.eligible_ordinal
+                      << ";execution_attempt_id=" << inst->executionAttemptId
+                      << ";replay_generation=" << inst->replayGeneration
+                      << ";writeback_tick=" << curTick();
+                    const uint64_t wb_node = writeNode(
+                        w.ptag, "taint_reg", inst->seqNum, true,
+                        w.request_id, w.request_id != 0, 0, false,
+                        phys->index(), true,
+                        inst->destRegIdx(i).index(), true, d.str());
+                    TaintEntry te;
+                    te.ptag = w.ptag;
+                    te.taintor_seq = inst->seqNum;
+                    te.node_id = wb_node;
+                    te.value_hash = vhash;   // actual PRF value
+                    taint_set[std::make_pair(phys->classValue(),
+                                             phys->index())] = te;
+                    if (w.resp_node)
+                        writeEdgeRow(w.ptag, w.resp_node, wb_node,
+                                     inst->seqNum, inst->seqNum,
+                                     w.payload_fnv, vhash,
+                                     (basis_ok ? "payload_to_register"
+                                               : "payload_to_register_extended"));
+                }
+                return;
+            }
         }
 
         auto it = pending_chain_wb.find(inst->seqNum);

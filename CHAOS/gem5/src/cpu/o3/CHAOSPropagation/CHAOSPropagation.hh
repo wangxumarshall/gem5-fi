@@ -536,8 +536,11 @@ class CHAOSPropagation : public SimObject
     std::map<uint64_t, SQ03Entry> sq03_registry;  // key: store dyn seq
 
     // LQ04 (LSU v3.2.10): one LQ entry lifetime fault, keyed by the target
-    // load's dyn_inst_seq. resp_node is 0 until the Task-7 response hook
-    // binds the chain; the entry fields below mirror the inj node identity.
+    // load's dyn_inst_seq. noteMemResponse binds the response (sets
+    // resp_node, registers the pending chain writeback) and the
+    // noteChainWriteback lq04 branch emits the register writeback from the
+    // actual PRF value (data_corruption=0) and taints the dest; the entry
+    // fields below mirror the inj node identity.
     struct LQ04Entry {
         uint64_t ptag = 0;
         uint64_t request_id = 0;   // Request::getReqInstSeqNum() of req(0)
@@ -546,7 +549,7 @@ class CHAOSPropagation : public SimObject
         Addr addr = 0;
         unsigned size = 0;
         uint64_t eligible_ordinal = 0;
-        uint64_t resp_node = 0;    // 0 until the response binds (Task 7)
+        uint64_t resp_node = 0;    // 0 until the response binds it
     };
     std::map<uint64_t, LQ04Entry> lq04_registry;  // key: load dyn seq
 
