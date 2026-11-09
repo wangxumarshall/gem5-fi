@@ -323,6 +323,118 @@ def test_retaint_edge_matching_hashes_do_not_diverge():
 
 
 # --------------------------------------------------------------------------
+# Converter null hash sentinels (Task 2 fix loop, second finding)
+# --------------------------------------------------------------------------
+
+# Real-trace shape (verified on pilots_v3_2_5/LP01-R01): the converter writes
+# the LITERAL STRING "null" into hash fields it has no value for, and older
+# vintages write "0" (e.g. forward_data_fnv=0).  LP01 class=cc consumer
+# nodes carry source_value_hash=null / consumer_output_fnv=null next to a
+# real consumer_input_fnv.  Truthiness-only guards read those sentinels as
+# real hashes and fabricated 204 null-artifact evidence items archive-wide
+# (LP01-R01: 96 items -- every single hash-based item on that trace), so
+# every hash comparison must first normalize the field to a real hash or
+# ABSENT; divergence must never be fabricated from an absent hash.
+SENTINEL_REAL_HASH = "0f1e2d3c4b5a6978"  # real hash for the sentinel tests
+
+
+def test_null_consumer_input_fnv_against_real_source_hash_does_not_diverge():
+    # (a) consumer_input_fnv="null" while the own-edge bookkeeping and the
+    # source event both carry real hashes: "null" is a sentinel, not a hash,
+    # so neither the own-edge check nor the source-hash lookup may compare
+    # it against anything.
+    events = _retaint_events(
+        RETAINT_OUT_HASH,
+        f"source_value_hash={SENTINEL_REAL_HASH}"
+        f";consumer_input_fnv=null"
+        f";consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    assert result["fault_effect_evidence"]["value_divergence"] == []
+    assert result["fault_effect_propagation_coverage"] == "LIFECYCLE_ONLY"
+
+
+def test_both_null_hashes_do_not_diverge():
+    # (b) the converter wrote "null" on both sides of the edge.  The
+    # own-edge check compares equal sentinels anyway; the source-hash
+    # lookup compared the sentinel consumer_input_fnv against the source's
+    # real consumer_output_fnv and fabricated a mismatch before the fix.
+    events = _retaint_events(
+        RETAINT_OUT_HASH,
+        "source_value_hash=null;consumer_input_fnv=null"
+        ";consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    assert result["fault_effect_evidence"]["value_divergence"] == []
+    assert result["fault_effect_propagation_coverage"] == "LIFECYCLE_ONLY"
+
+
+def test_zero_sentinel_hashes_do_not_diverge():
+    # (c) the "0" sentinel (seen in real traces as forward_data_fnv=0), on
+    # the consumer side (own-edge guard) and on the source side (source-hash
+    # lookup).
+    events = _retaint_events(
+        RETAINT_OUT_HASH,
+        f"source_value_hash={SENTINEL_REAL_HASH}"
+        f";consumer_input_fnv=0;consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    assert result["fault_effect_evidence"]["value_divergence"] == []
+    assert result["fault_effect_propagation_coverage"] == "LIFECYCLE_ONLY"
+
+    events = _retaint_events(
+        "0",
+        f"source_value_hash={RETAINT_OUT_HASH}"
+        f";consumer_input_fnv={RETAINT_OUT_HASH}"
+        f";consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    assert result["fault_effect_evidence"]["value_divergence"] == []
+    assert result["fault_effect_propagation_coverage"] == "LIFECYCLE_ONLY"
+
+
+def test_real_differing_hashes_still_diverge():
+    # (d) positive control for the sentinel normalization: two REAL
+    # differing hashes must keep diverging through both guards, and no
+    # sentinel value may leak into the recorded evidence.
+    events = _retaint_events(
+        "7777000044448888",
+        f"source_value_hash=aaaabbbbccccdddd"
+        f";consumer_input_fnv=1111222233334444"
+        f";consumer_input_matches_source=1")
+    result = classify("LQ04", events, retaint_injection, "MASKED")
+    diverged = result["fault_effect_evidence"]["value_divergence"]
+    assert {d["kind"] for d in diverged} == {"source_value_hash_mismatch",
+                                             "consumer_input_fnv_mismatch"}
+    for d in diverged:
+        for key in ("consumer_input_fnv", "source_value_hash", "source_hash"):
+            value = d.get(key)
+            if value is not None:
+                assert str(value).strip().lower() not in ("null", "none", "",
+                                                          "0")
+    assert result["fault_effect_propagation_coverage"] == \
+        "COMPLETE_CAUSAL_CHAIN"
+
+
+def test_none_and_empty_sentinel_hashes_do_not_diverge():
+    # Completes the sentinel family: the Python-style "None" string and the
+    # empty field are absent hashes on either side of both guards.
+    for sentinel in ("None", ""):
+        events = _retaint_events(
+            RETAINT_OUT_HASH,
+            f"source_value_hash={SENTINEL_REAL_HASH}"
+            f";consumer_input_fnv={sentinel}"
+            f";consumer_input_matches_source=1")
+        result = classify("LQ04", events, retaint_injection, "MASKED")
+        assert result["fault_effect_evidence"]["value_divergence"] == []
+
+        events = _retaint_events(
+            sentinel,
+            f"source_value_hash={RETAINT_OUT_HASH}"
+            f";consumer_input_fnv={RETAINT_OUT_HASH}"
+            f";consumer_input_matches_source=1")
+        result = classify("LQ04", events, retaint_injection, "MASKED")
+        assert result["fault_effect_evidence"]["value_divergence"] == []
+        assert result["fault_effect_propagation_coverage"] == "LIFECYCLE_ONLY"
+
+
+# --------------------------------------------------------------------------
 # Markers, platform fields and wiring
 # --------------------------------------------------------------------------
 

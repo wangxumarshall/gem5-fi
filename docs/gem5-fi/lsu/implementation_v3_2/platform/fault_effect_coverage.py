@@ -28,7 +28,12 @@ Classification rules (v3.2.11 A1 spec):
   whose ``consumer_input_fnv`` differs from its source event's
   ``writeback_value_fnv``/``data_fnv``/``consumer_output_fnv`` when both
   exist (``consumer_output_fnv`` carries the source hash on
-  consumer->consumer re-taint edges, which dominate real traces).
+  consumer->consumer re-taint edges, which dominate real traces).  "Both
+  exist" means both are REAL hashes: the converter writes the literal
+  string ``null`` into hash fields it has no value for (older vintages
+  wrote ``0``, e.g. ``forward_data_fnv=0``), so every hash field is first
+  normalized through ``_real_hash`` and a sentinel/empty/missing field is
+  ABSENT -- a divergence is never fabricated from an absent hash.
 - ``control_diverged``: a chained event whose ``detail`` contains any
   marker key from ``EFFECT_MARKERS[model]``.  Marker scanning is
   presence-based per the A1 spec; the marker VALUE is recorded in the
@@ -99,6 +104,36 @@ _VALUE_FLAGS = (
 # 325 of the 326 consumer edges on pilots_v3_2_10/LQ04-R01) carry it in the
 # source consumer's consumer_output_fnv.
 _SOURCE_HASH_KEYS = ("writeback_value_fnv", "data_fnv", "consumer_output_fnv")
+
+# Values the trace converter writes into a hash field when no hash exists
+# for that edge: the current converter writes the literal string "null"
+# (LP01 class=cc consumer nodes carry source_value_hash=null /
+# consumer_output_fnv=null next to a real consumer_input_fnv), older
+# vintages wrote "0" (seen as forward_data_fnv=0).  Truthiness-only guards
+# read these sentinels as real hashes and fabricated 204 null-artifact
+# evidence items archive-wide before _real_hash existed -- on
+# pilots_v3_2_5/LP01-R01 every one of the 96 hash-based items was a
+# "null"-vs-real comparison.  Comparison is case-insensitive so "None"
+# (Python-repr style) is covered too; "0" cannot collide with a real FNV
+# hash because these fields carry full fixed-width hex strings.
+_ABSENT_HASH_SENTINELS = frozenset(("null", "none", "0", ""))
+
+
+def _real_hash(value) -> str | None:
+    """Normalize a hash field to a real hash string, or None when absent.
+
+    Absent means: the key is missing (None), the field is empty or
+    whitespace-only, or it holds one of the converter's null sentinels
+    ("null"/"None", older "0").  Every hash comparison in this module goes
+    through this helper, so a sentinel is never read as a real hash and a
+    divergence is never fabricated from an absent hash.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if text.lower() in _ABSENT_HASH_SENTINELS:
+        return None
+    return text
 
 
 def _detail(event: dict) -> dict:
@@ -185,12 +220,15 @@ def classify(model: str, events: list[dict], injection: dict | None,
             if et == ev_type and str(d.get(key)) == divergent:
                 _value(e, kind, **{key: d.get(key)})
         if et == "consumer_commit":
-            consumer_fnv = d.get("consumer_input_fnv")
+            # Both hash guards normalize through _real_hash first: the
+            # converter's "null"/"None"/"0"/empty sentinels are ABSENT
+            # hashes, never hashes to compare against.
+            consumer_fnv = _real_hash(d.get("consumer_input_fnv"))
             # Own-edge check: the re-taint bookkeeping hash of the source
             # value vs. what this consumer actually read.  Independent of
             # the source event's records, so it also fires on edges whose
             # source event is missing or carries no source hash.
-            own_hash = d.get("source_value_hash")
+            own_hash = _real_hash(d.get("source_value_hash"))
             if consumer_fnv and own_hash and own_hash != consumer_fnv:
                 _value(e, "source_value_hash_mismatch",
                        consumer_input_fnv=consumer_fnv,
@@ -199,7 +237,7 @@ def classify(model: str, events: list[dict], injection: dict | None,
             if consumer_fnv and src is not None:
                 sd = _detail(src)
                 for hk in _SOURCE_HASH_KEYS:
-                    source_hash = sd.get(hk)
+                    source_hash = _real_hash(sd.get(hk))
                     if source_hash and source_hash != consumer_fnv:
                         _value(e, "consumer_input_fnv_mismatch",
                                consumer_input_fnv=consumer_fnv,
