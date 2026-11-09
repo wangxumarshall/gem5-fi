@@ -446,6 +446,11 @@ def check_completeness(path: Path) -> dict:
         "trace_completeness": trace_completeness,
         "record_integrity": record_integrity,
         "propagation_coverage": coverage,
+        # v3.2.11: structural alias of propagation_coverage. Stage presence
+        # is a STRUCTURAL claim only; whether the fault's EFFECT propagated
+        # is graded separately by fault_effect_coverage.classify.
+        # propagation_coverage is kept unchanged for backward compatibility.
+        "structural_chain_completeness": coverage,
         "propagation_stages": stages,
         "expected_stages": list(best_alt),
         "missing_stages": missing,

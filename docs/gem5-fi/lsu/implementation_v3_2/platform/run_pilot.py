@@ -27,9 +27,10 @@ IMPL = PLATFORM.parent
 sys.path.insert(0, str(PLATFORM))
 
 from config_parser import load_config  # noqa: E402
+from fault_effect_coverage import classify  # noqa: E402
 from manifest import build_manifest, canonical_json, write_manifest  # noqa: E402
 from trace_completeness import check_completeness  # noqa: E402
-from trace_validator import validate  # noqa: E402
+from trace_validator import read_records, validate  # noqa: E402
 import terminal_rules  # noqa: E402
 from tools.prop_trace_to_v31 import convert  # noqa: E402
 
@@ -913,6 +914,16 @@ def main(argv=None) -> int:
         completeness_report = (check_completeness(jsonl_path)
                                if jsonl_path.exists()
                                else {"trace_completeness": "INCOMPLETE"})
+    # v3.2.11: fault-effect propagation is graded separately from the
+    # structural stage coverage above. The classifier sees the closed trace
+    # (events plus the summary record); controls without an injection event
+    # grade UNRESOLVED / NO_INJECTION_EVENT by construction.
+    trace_records = read_records(jsonl_path) if jsonl_path.exists() else []
+    fault_effect = classify(
+        args.model, trace_records,
+        _fault_injection([r for r in trace_records
+                          if r.get("record_type") == "event"]),
+        final_terminal)
     accepted = (
         (proc.returncode == 0 or crash_by_fault) and injected > 0
         and target_proof.get("events", 1) > 0
@@ -961,6 +972,12 @@ def main(argv=None) -> int:
             "trace_completeness": completeness_report.get("trace_completeness"),
             "record_integrity": completeness_report.get("record_integrity"),
             "propagation_coverage": completeness_report.get("propagation_coverage"),
+            "structural_chain_completeness": completeness_report.get(
+                "structural_chain_completeness"),
+            "fault_effect_propagation_coverage": fault_effect[
+                "fault_effect_propagation_coverage"],
+            "fault_effect_evidence": fault_effect["fault_effect_evidence"],
+            "fault_effect_reason": fault_effect["fault_effect_reason"],
             "oracle_outcome": ("PASS" if oracle_pass else "FAIL"),
         },
         "accepted": accepted,
