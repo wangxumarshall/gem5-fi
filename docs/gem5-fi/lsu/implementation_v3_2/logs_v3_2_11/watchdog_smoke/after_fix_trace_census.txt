@@ -1,0 +1,12 @@
+== trace census: /tmp/lq04_watchdog_smoke_after_fix/prop_trace.csv.gz ==
+-rw-r--r--. 1 sdc sdc 284931 11月10日 03:45 /tmp/lq04_watchdog_smoke_after_fix/prop_trace.csv.gz
+gzip integrity: OK (stream closed cleanly by exit callbacks)
+total_lines=10012 (1 header + 10011 events)
+-- first event --
+0,78540,0,lq_lifecycle,3,,,1,,queue=LQ;action=alloc;index=1;generation=1;reason=insert
+-- last valid event (retained) --
+10010,7699615,0,lq_lifecycle,31674,,,816,,queue=LQ;action=free;index=816;generation=826;reason=commit
+-- watchdog stdout line --
+CHAOS_LQ04_WATCHDOG_EXPIRED: selected=0 injected=0 eligible=821 ordinal=999 tick=7700000
+-- lq04_injections.log tail --
+CHAOS_LQ04_WATCHDOG_EXPIRED: selected=0 injected=0 eligible=821 ordinal=999 tick=7700000

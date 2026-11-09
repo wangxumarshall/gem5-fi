@@ -1249,12 +1249,15 @@ if args.maxinsts:
 simulator = Simulator(board=board, full_system=False)
 simulator.run()
 
-# [LSU][V3.2.11][A3] The stdlib Simulator returns normally from run() even
-# when the simulation exited through a failure exit event (e.g. the LQ04
-# watchdog exits via the registered ExitEvent.FAIL with code 1). Propagate
-# the exit event's code so the gem5 process itself fails with a clear
-# non-zero status; a normal workload completion carries code 0 and keeps
-# exiting 0.
+# [LSU][V3.2.11][A3] Only the CHAOS watchdog's registered FAIL event
+# ("m5_fail instruction encountered" -> ExitEvent.FAIL, raised by the
+# LQ04/SQ03/SP05 watchdogs via exitSimLoop(..., 1)) is propagated to the
+# process exit status. The SE guest exit syscall also carries a status
+# (exitSimLoop("exiting with last active thread context", guest_status);
+# syscall_emul.cc:250) — that is the workload's own answer, not a simulator
+# failure — so it and every other non-zero cause stay un-propagated.
 _exit_code = simulator.get_last_exit_event_code()
-if _exit_code:
+if (_exit_code
+        and simulator.get_last_exit_event_cause()
+        == "m5_fail instruction encountered"):
     sys.exit(_exit_code)

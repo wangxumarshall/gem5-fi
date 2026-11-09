@@ -34,8 +34,16 @@ status.
    log/stdout line directly above, which is unchanged).
 2. `configs/se/lsu_proxy.py` — after `simulator.run()`, the exit event code
    is read via `simulator.get_last_exit_event_code()` and propagated with
-   `sys.exit(code)` when non-zero. Normal completions carry code 0 and keep
-   exiting 0 (behavior unchanged).
+   `sys.exit(code)` ONLY when the exit cause is the registered FAIL event
+   (`"m5_fail instruction encountered"`). Rationale (review-fix round,
+   2026-11-10): the SE guest exit syscall also carries a status through
+   `exitSimLoop("exiting with last active thread context", guest_status)`
+   (syscall_emul.cc:250 -> ExitEvent.EXIT) — that is the workload's own
+   answer, not a simulator failure, so a guest whose `main()` returns
+   non-zero must still leave gem5 exiting 0; propagating its status would
+   make run_pilot misclassify a normal completion as
+   SIMULATOR_ERROR/CRASH/INCOMPLETE. Code-0 behavior is identical for every
+   cause. See §5.1 for the empirical control.
 
 ## 3. Build
 
@@ -130,6 +138,46 @@ CHAOS_LQ04_WATCHDOG_EXPIRED: selected=0 injected=0 eligible=821 ordinal=999 tick
 ```
 10010,7699615,0,lq_lifecycle,31674,,,816,,queue=LQ;action=free;index=816;generation=826;reason=commit
 ```
+
+### 5.1 Review fix: scope the exit-code propagation to the watchdog FAIL event
+
+The first version of the `lsu_proxy.py` tail propagated ANY non-zero
+exit-event code. Review finding (2026-11-10): the SE guest exit syscall
+carries the guest's own status through
+`exitSimLoop("exiting with last active thread context", guest_status)`
+(syscall_emul.cc:250), so a future workload whose `main()` returns non-zero
+would have exited gem5 non-zero and run_pilot would have misclassified a
+normal completion as SIMULATOR_ERROR/CRASH/INCOMPLETE. The earlier
+"normal completions carry code 0" rationale was wrong in general — it only
+held because every current workload happens to return 0.
+
+Fix (config only, binary unchanged, sha
+`3dccaa10ec5073ca90f2622bd37d5adac1b705bd9faf2497c2d13e46beadd4ed`):
+propagate only when BOTH the code is non-zero AND the cause is
+`"m5_fail instruction encountered"` (the CHAOS watchdog's registered FAIL
+event). Code-0 behavior is identical for every cause.
+
+Re-verification (evidence under `watchdog_smoke/after_fix_*`, first smoke
+evidence kept untouched):
+
+- Watchdog smoke re-run (same command, outdir
+  `/tmp/lq04_watchdog_smoke_after_fix`): `exit=1`,
+  `CHAOS_LQ04_WATCHDOG_EXPIRED` present, no `NotImplementedError`
+  (0 occurrences in stdout+stderr, 8 standard warning lines), trace
+  byte-identical in size/content to the first smoke (284931 bytes, 1 header
+  + 10011 events, last valid event retained at tick 7699615;
+  `after_fix_trace_census.txt`), classification replay
+  `CLASSIFICATION_CHECK: PASS` — HANG/INCOMPLETE, never MASKED
+  (`after_fix_classify_check.txt`).
+- Normal completion (same command minus `--chaos_lq04`/watchdog flags, the
+  LQ04 workload running fault-free to its guest exit): `exit=0`, final
+  checksum `0xb097eb83f71545cb` printed (`after_fix_normal_*`).
+- Guest-status control (`after_fix_guest_status_control.txt`): a scratch
+  static AArch64 guest `int main(void){return 3;}` (host gcc -O2 -static,
+  built in /tmp only) exits gem5 with **0** under the fixed config but with
+  **3** under the pre-fix config (`git show HEAD:configs/se/lsu_proxy.py`,
+  sha256 `615ff1ff...`) — the trap the reviewer flagged is reproduced
+  pre-fix and closed post-fix, while the watchdog FAIL path still exits 1.
 
 ## 6. Classification check (`watchdog_smoke/classify_check.{py,txt}`)
 

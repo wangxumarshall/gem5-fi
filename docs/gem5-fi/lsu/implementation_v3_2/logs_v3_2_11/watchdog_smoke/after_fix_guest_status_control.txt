@@ -1,0 +1,53 @@
+== after_fix guest-status control: a non-zero-returning guest must NOT fail gem5 ==
+Date: 2026-11-10 (Task 5 review-fix round). Binary: build/ARM/gem5.opt
+sha256 3dccaa10ec5073ca90f2622bd37d5adac1b705bd9faf2497c2d13e46beadd4ed
+(unchanged from the Task-5 build; only configs/se/lsu_proxy.py changed, no rebuild).
+
+Reviewed finding under test: the pre-fix lsu_proxy.py propagated ANY non-zero
+exit-event code via sys.exit. But the SE guest exit syscall carries the guest's
+own status through exitSimLoop("exiting with last active thread context",
+status & 0xff) (CHAOS/gem5/src/sim/syscall_emul.cc:250, mapped to
+ExitEvent.EXIT at gem5/src/python/gem5/simulate/exit_event.py:83). A workload
+whose main() returns non-zero would therefore have exited gem5 non-zero, and
+run_pilot.py's generic non-zero-returncode branch would misclassify a normal
+completion as SIMULATOR_ERROR/CRASH/INCOMPLETE.
+
+Scratch guest workload (built in /tmp, host gcc -O2 -static per repo recipe;
+NOT added to the repo, no historical pilot touched):
+
+  $ printf 'int main(void) { return 3; }\n' > /tmp/guest_exit3.c
+  $ gcc -O2 -static -o /tmp/guest_exit3 /tmp/guest_exit3.c
+  $ /tmp/guest_exit3; echo "native_exit=$?"
+  native_exit=3
+
+1) PRE-FIX control (config = git HEAD c6e2c55c-era file, verified identical
+   to `git show HEAD:configs/se/lsu_proxy.py`, sha256
+   615ff1ff908f13898e817e2b38123be9f4d9b0db54c4382796675be5e39b2438):
+
+  $ build/ARM/gem5.opt --outdir=/tmp/lq04_guest_exit3_prefix \
+      /tmp/lsu_proxy_prefix.py --cpu O3 --variant B0 --cmd=/tmp/guest_exit3
+  prefix_gem5_exit=3        <-- the trap is REAL: guest status 3 leaked into
+                                the gem5 process exit status
+
+2) FIXED config (this round: propagation scoped to cause
+   "m5_fail instruction encountered" AND non-zero code):
+
+  $ build/ARM/gem5.opt --outdir=/tmp/lq04_guest_exit3_after_fix \
+      configs/se/lsu_proxy.py --cpu O3 --variant B0 --cmd=/tmp/guest_exit3
+  gem5_exit=0               <-- guest status no longer propagated; normal
+                                completion semantics restored
+
+3) Watchdog FAIL path still propagates (same binary, fixed config; full
+   evidence in after_fix_{stdout,stderr,exit_code,trace_census,
+   classify_check}.*):
+
+  $ build/ARM/gem5.opt --outdir=/tmp/lq04_watchdog_smoke_after_fix \
+      configs/se/lsu_proxy.py --cpu O3 --variant B0 --chaos_propagation \
+      --prop_trace_file prop_trace.csv.gz --chaos_lq04 \
+      --lq04_event_ordinal 999 --lq04_max_faults 1 \
+      --lq04_watchdog_cycles 20000 --cmd=<lq_lifetime_ordinal>
+  exit=1                    <-- ExitEvent.FAIL ("m5_fail instruction
+                                encountered") IS propagated
+
+GUEST_STATUS_CONTROL: PASS (pre-fix exit=3 reproduced the trap; fixed exit=0;
+watchdog FAIL exit=1 retained)

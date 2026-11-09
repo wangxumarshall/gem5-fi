@@ -1,0 +1,23 @@
+== run_pilot branch replay on the real smoke outputs ==
+gem5 exit code            : 1
+NotImplementedError seen  : False
+watchdog_hit              : True
+injected (lq04 log)       : 0
+run_status/activation     : SIMULATOR_ERROR/NOT_TRIGGERED
+terminal/completeness     : HANG/INCOMPLETE
+
+== trace conversion (real pipeline path) ==
+rows=10011 truncated=False
+
+== terminal_rules.adjudicate(observed_terminal=HANG) ==
+events read back          : 10011
+final_terminal            : HANG
+terminal_reason           : None
+MASKED in verdict         : False
+
+== adversarial probe (oracle_pass=True) ==
+final_terminal            : HANG
+terminal_reason           : None
+MASKED in verdict         : False
+
+CLASSIFICATION_CHECK: PASS
