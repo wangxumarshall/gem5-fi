@@ -10,6 +10,15 @@ corrected semantics: controls have their own validity gate
 / ``NO_INJECTION_EVENT`` (never ``MASKED``), their activation status is
 ``NOT_TRIGGERED``, and a valid control exits 0.
 
+Fix-loop ruling (reviewed finding, Important): acceptance is role-exclusive
+(``run_roles.compute_acceptance``) -- a CONTROL can never be accepted
+through the fault criteria, so a control whose injector misfired
+(``injection_count > 0``, reachable for ordinal-gated injectors run with
+``--probability 0.0``) is rejected and flagged ``control_misfire: true``
+even when the fault gates would have passed it.  This supersedes the
+brief's literal ``fault_valid or control_valid`` disjunction because a
+control is not a fault run.
+
 The synthetic records below are built through the same helpers ``run_pilot``
 calls (``run_roles``, ``terminal_rules.adjudicate``,
 ``run_pilot._lq04_target_proof``); gem5 is never invoked.
@@ -101,6 +110,24 @@ def test_control_valid_requires_no_validator_errors():
                                    validator_errors=["trace missing"]) is False
 
 
+def test_compute_acceptance_is_role_exclusive():
+    # Truth table of the role-exclusive acceptance ruling: a run is judged
+    # only by its own role's gate.
+    # A CONTROL can never be accepted through the fault criteria -- not
+    # even when fault_valid is true (the misfiring-control case).
+    assert run_roles.compute_acceptance("CONTROL", True, False) is False
+    # A valid control is accepted through its own gate.
+    assert run_roles.compute_acceptance("CONTROL", False, True) is True
+    assert run_roles.compute_acceptance("CONTROL", True, True) is True
+    assert run_roles.compute_acceptance("CONTROL", False, False) is False
+    # A FAULT run is accepted only through the fault criteria; the control
+    # gate is not applicable to it.
+    assert run_roles.compute_acceptance("FAULT", True, False) is True
+    assert run_roles.compute_acceptance("FAULT", False, True) is False
+    assert run_roles.compute_acceptance("FAULT", True, True) is True
+    assert run_roles.compute_acceptance("FAULT", False, False) is False
+
+
 def _build_meta(*, probability, exit_code, oracle_pass, injected,
                 trace_completeness, validator_errors,
                 adjudication_events=(), target_proof_injections=()):
@@ -137,6 +164,9 @@ def _build_meta(*, probability, exit_code, oracle_pass, injected,
             validator_errors=validator_errors)
         if run_role == "CONTROL" else False
     )
+    control_misfire = run_role == "CONTROL" and injected > 0
+    accepted = run_roles.compute_acceptance(run_role, fault_valid,
+                                            control_valid)
     return {
         "run_role": run_role,
         "exit_code": exit_code,
@@ -151,8 +181,9 @@ def _build_meta(*, probability, exit_code, oracle_pass, injected,
             "oracle_outcome": "PASS" if oracle_pass else "FAIL",
         },
         "control_valid": (control_valid if run_role == "CONTROL" else "n/a"),
-        "accepted": fault_valid or control_valid,
-        "process_exit_code": 0 if (fault_valid or control_valid) else 1,
+        "control_misfire": control_misfire,
+        "accepted": accepted,
+        "process_exit_code": 0 if accepted else 1,
     }
 
 
@@ -177,6 +208,8 @@ def test_synthetic_control_meta_is_accepted():
     assert cls["terminal_state"] == "UNRESOLVED"
     assert cls["terminal_state_reason"] == "NO_INJECTION_EVENT"
     assert cls["terminal_state"] != "MASKED"
+    # A healthy control did not misfire.
+    assert meta["control_misfire"] is False
 
 
 def test_synthetic_control_meta_with_oracle_failure_is_not_accepted():
@@ -194,6 +227,9 @@ def test_synthetic_control_meta_with_oracle_failure_is_not_accepted():
     assert cls["fault_activation_status"] == "NOT_TRIGGERED"
     assert cls["terminal_state"] == "UNRESOLVED"
     assert cls["terminal_state_reason"] == "NO_INJECTION_EVENT"
+    # Zero injections were recorded, so this is not a misfire -- the
+    # control is invalid because its un-faulted oracle failed.
+    assert meta["control_misfire"] is False
 
 
 def test_synthetic_fault_meta_keeps_fault_gates_and_na_control_field():
@@ -211,6 +247,33 @@ def test_synthetic_fault_meta_keeps_fault_gates_and_na_control_field():
     cls = meta["classification"]
     assert cls["fault_activation_status"] == "TRIGGERED"
     assert cls["terminal_state"] == "MASKED"
+    # A fault run firing its injector is not a control misfire.
+    assert meta["control_misfire"] is False
+
+
+def test_synthetic_misfiring_control_meta_is_rejected_and_flagged():
+    # The reviewed Important finding: a CONTROL that unexpectedly fired the
+    # injector (reachable for ordinal-gated injectors -- MD04/SQ03/SP05/
+    # FW05 -- run with --probability 0.0). Every ingredient of fault_valid
+    # is present (injection_count 1, adjudicated MASKED terminal on the
+    # fault chain, COMPLETE error-free trace, clean exit), so the brief's
+    # literal disjunction would have accepted it through fault_valid.
+    meta = _build_meta(probability=0.0, exit_code=0, oracle_pass=True,
+                       injected=1, trace_completeness="COMPLETE",
+                       validator_errors=[],
+                       adjudication_events=FAULT_CHAIN_EVENTS,
+                       target_proof_injections=[{"kind": "injection",
+                                                 "ordinal": 1}])
+    assert meta["run_role"] == "CONTROL"
+    cls = meta["classification"]
+    assert cls["fault_activation_status"] == "TRIGGERED"
+    assert cls["terminal_state"] == "MASKED"
+    assert meta["injection_count"] == 1
+    # Role-exclusive acceptance rejects the invalid control outright...
+    assert meta["control_misfire"] is True
+    assert meta["control_valid"] is False
+    assert meta["accepted"] is False
+    assert meta["process_exit_code"] == 1
 
 
 def test_run_pilot_wires_roles_into_acceptance():
@@ -219,8 +282,13 @@ def test_run_pilot_wires_roles_into_acceptance():
     assert "run_roles.classify_run_role(args.probability)" in src
     # Controls are gated by the shared control predicate.
     assert "run_roles.control_valid(" in src
-    # Acceptance is the disjunction of the two role gates.
-    assert "fault_valid or control_valid" in src
+    # Acceptance is role-exclusive: a CONTROL can only pass through the
+    # control gate, a FAULT run only through the fault gate.
+    assert "run_roles.compute_acceptance(" in src
+    # ...never the disjunction of the two gates (reviewed finding).
+    assert "fault_valid or control_valid" not in src
+    # A misfiring control is flagged explicitly in pilot_meta.json.
+    assert '"control_misfire": control_misfire' in src
     # Every run records its role in pilot_meta.json.
     assert '"run_role": run_role' in src
 

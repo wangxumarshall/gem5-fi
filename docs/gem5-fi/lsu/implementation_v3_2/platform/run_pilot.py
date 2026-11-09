@@ -11,8 +11,12 @@ valid pilot outcome.
 
 A matched no-fault control (``--probability 0.0``) is accepted through its own
 gate instead (``run_roles.control_valid``): clean exit, oracle PASS, zero
-injections and a COMPLETE, error-free trace. Accepting a control never
-relabels its honest ``UNRESOLVED``/``NO_INJECTION_EVENT`` terminal as MASKED.
+injections and a COMPLETE, error-free trace. Acceptance is role-exclusive
+(``run_roles.compute_acceptance``): a CONTROL can never be accepted through
+the fault criteria, so a control whose injector misfired is rejected and
+flagged ``control_misfire: true`` in pilot_meta.json. Accepting a control
+never relabels its honest ``UNRESOLVED``/``NO_INJECTION_EVENT`` terminal as
+MASKED.
 """
 from __future__ import annotations
 
@@ -937,6 +941,12 @@ def main(argv=None) -> int:
     # control records zero injections, its fault_activation_status stays
     # NOT_TRIGGERED and its terminal honestly stays
     # UNRESOLVED/NO_INJECTION_EVENT -- acceptance never relabels it MASKED.
+    # Fix-loop ruling (reviewed finding): acceptance is role-exclusive via
+    # run_roles.compute_acceptance -- a CONTROL can never be accepted
+    # through the fault criteria, so a control whose injector misfired
+    # (injection_count > 0; reachable for ordinal-gated injectors run with
+    # --probability 0.0) is rejected even when the fault gates would have
+    # passed it. The misfire is flagged explicitly in pilot_meta.json.
     run_role = run_roles.classify_run_role(args.probability)
     fault_valid = (
         (proc.returncode == 0 or crash_by_fault) and injected > 0
@@ -954,7 +964,9 @@ def main(argv=None) -> int:
             validator_errors=trace_errors)
         if run_role == "CONTROL" else False
     )
-    accepted = fault_valid or control_valid
+    control_misfire = run_role == "CONTROL" and injected > 0
+    accepted = run_roles.compute_acceptance(run_role, fault_valid,
+                                            control_valid)
     meta = {
         "pilot_id": args.pilot_id,
         "model": args.model,
@@ -1006,6 +1018,7 @@ def main(argv=None) -> int:
             "oracle_outcome": ("PASS" if oracle_pass else "FAIL"),
         },
         "control_valid": (control_valid if run_role == "CONTROL" else "n/a"),
+        "control_misfire": control_misfire,
         "accepted": accepted,
         "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
         "crash_evidence": crash_evidence,
