@@ -325,6 +325,50 @@ def _lq04_events(path: Path) -> list[dict]:
         out.append(rec)
     return out
 
+def _lq04_target_proof(injections: list[dict], event_ordinal) -> dict:
+    """Build the LQ04 ``target_event_proof`` dict.
+
+    Fault runs (>= 1 injection) carry the construction-time proof fields:
+    ``LSQEntry::corruptLifetime`` asserts the before-state and clears both
+    fields; the request moves to the LQEntry side channel, so the entry is
+    neither popped nor freed/reused early; address, size and data are never
+    touched; the boundary restore re-validates the entry.
+
+    Zero-injection runs (matched no-fault controls: the injector is not
+    mounted, so no lifetime transition happened) must not assert those
+    fields.  They are reported as JSON null with ``"applicable": False``
+    and an explicit reason; ``all_one_injection`` stays false, ``events``
+    stays 0, and the vacuously-true ``ordinal_matches`` is nulled too.
+    """
+    if not injections:
+        return {
+            "site": "executeLoad_post",
+            "events": 0,
+            "all_one_injection": False,
+            "ordinal_matches": None,
+            "applicable": False,
+            "not_applicable_reason": (
+                "no injection event (matched no-fault control: injector "
+                "not mounted); LQ04 lifetime proof fields are n/a"),
+            "valid_1_to_0": None,
+            "request_1_to_0": None,
+            "no_pop_no_reuse": None,
+            "address_size_data_unchanged": None,
+        }
+    return {
+        "site": "executeLoad_post",
+        "events": len(injections),
+        "all_one_injection": len(injections) == 1,
+        "ordinal_matches": all(
+            e.get("ordinal") == (event_ordinal or 1)
+            for e in injections),
+        "applicable": True,
+        "valid_1_to_0": True,
+        "request_1_to_0": True,
+        "no_pop_no_reuse": True,
+        "address_size_data_unchanged": True,
+    }
+
 def _md04_status(path: Path) -> str:
     if not path.exists():
         return "UNKNOWN"
@@ -750,23 +794,8 @@ def main(argv=None) -> int:
         events = _lq04_events(out / "lq04_injections.log")
         injections = [e for e in events if e.get("kind") == "injection"]
         inj = {"events": events, "injected": len(injections)}
-        target_proof = {
-            "site": "executeLoad_post",
-            "events": len(injections),
-            "all_one_injection": len(injections) == 1,
-            "ordinal_matches": all(
-                e.get("ordinal") == (sample.get("event_ordinal") or 1)
-                for e in injections),
-            # By construction of the injector (LSQEntry::corruptLifetime
-            # asserts the before-state and clears both fields; the request
-            # moves to the LQEntry side channel, so the entry is neither
-            # popped nor freed/reused early; address, size and data are
-            # never touched; the boundary restore re-validates the entry).
-            "valid_1_to_0": True,
-            "request_1_to_0": True,
-            "no_pop_no_reuse": True,
-            "address_size_data_unchanged": True,
-        }
+        target_proof = _lq04_target_proof(
+            injections, sample.get("event_ordinal"))
         injected = len(injections)
     else:
         inj = _fw02_summary(out / "lsq_fwd_injections.log")

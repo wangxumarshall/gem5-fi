@@ -76,6 +76,37 @@ def test_lq04_events_probe_restore_and_status_lines(tmp_path):
     assert run_pilot._lq04_events(tmp_path / "absent.log") == []
 
 
+def test_lq04_target_proof_control_is_not_applicable():
+    # Matched no-fault control (injector not mounted, zero injections):
+    # the proof must NOT claim a lifetime transition that did not happen.
+    proof = run_pilot._lq04_target_proof([], 3)
+    assert proof["applicable"] is False
+    assert proof["events"] == 0
+    assert proof["all_one_injection"] is False
+    assert proof["ordinal_matches"] is None  # vacuous True is not a claim
+    for key in ("valid_1_to_0", "request_1_to_0", "no_pop_no_reuse",
+                "address_size_data_unchanged"):
+        assert proof[key] is None
+    assert "n/a" in proof["not_applicable_reason"]
+    # JSON round-trip keeps the n/a fields as null.
+    import json as _json
+    assert _json.loads(_json.dumps(proof))["valid_1_to_0"] is None
+
+
+def test_lq04_target_proof_fault_run_claims_transitions():
+    events = run_pilot._lq04_events(FIXTURE_LOG)
+    injections = [e for e in events if e.get("kind") == "injection"]
+    proof = run_pilot._lq04_target_proof(injections, 3)
+    assert proof["applicable"] is True
+    assert proof["events"] == 1
+    assert proof["all_one_injection"] is True
+    assert proof["ordinal_matches"] is True
+    assert proof["valid_1_to_0"] is True
+    assert proof["request_1_to_0"] is True
+    assert proof["no_pop_no_reuse"] is True
+    assert proof["address_size_data_unchanged"] is True
+
+
 def _committed_chain():
     """Minimal committed LQ04 chain: injection -> response -> register
     writeback -> consumer, plus the load's own commit node."""
