@@ -121,6 +121,20 @@ def main():
           f"coverage={report['coverage']['l1d']:.6f} "
           f"baseline={report['baseline_coverage']['l1d']:.6f}")
 
+    bothdir = outdir / "target-l1d-alu"
+    call([sys.executable, str(TOOL), "target", "--gem5", str(gem5),
+          "--map", str(mapdir / "structure_map.json"),
+          "--structure", "l1d,alu", "--weights", "1,1", "--top", "1",
+          "--outdir", str(bothdir), "--iterations", str(args.iterations)])
+    both = json.loads((bothdir / "candidate_report.json").read_text())
+    assert "ldr" in both["chosen"] and "add" in both["chosen"], both["chosen"]
+    assert both["structures"] == ["l1d", "alu"], both["structures"]
+    for structure in ("l1d", "alu"):
+        assert (both["coverage"][structure]
+                > both["baseline_coverage"][structure]), (structure, both)
+    print(f"target l1d+alu: chosen={both['chosen']} "
+          f"l1d={both['coverage']['l1d']:.6f} alu={both['coverage']['alu']:.6f}")
+
     multdir = outdir / "target-mult"
     call([sys.executable, str(TOOL), "target", "--gem5", str(gem5),
           "--map", str(mapdir / "structure_map.json"),

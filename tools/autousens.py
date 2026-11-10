@@ -364,14 +364,45 @@ def target(args):
     if not map_path.is_file():
         die(f"structure map not found: {map_path}")
     document = json.loads(map_path.read_text())
-    ranked = rank_for_structure(document, args.structure)
+    structures = [name.strip() for name in args.structure.split(",")
+                  if name.strip()]
+    if not structures:
+        die("--structure must name at least one structure")
+    if args.weights:
+        weights = [float(part) for part in args.weights.split(",")]
+        if len(weights) != len(structures):
+            die("--weights must have one value per --structure")
+        if any(weight <= 0 for weight in weights):
+            die("--weights must be positive")
+    else:
+        weights = [1.0] * len(structures)
     if args.top <= 0:
         die("--top must be positive")
-    chosen = [mode for mode, _ in ranked[:args.top]]
+    # Greedy weighted aggregation: visit structures from highest weight to
+    # lowest and take their best unused instruction(s).  Activations are
+    # normalised per structure because the units differ between structures.
+    chosen = []
+    seen_weights = {}
+    for structure in structures:
+        seen_weights[structure] = seen_weights.get(structure, 0) + 1
+    order = sorted(range(len(structures)),
+                   key=lambda index: (-weights[index] / seen_weights[structures[index]],
+                                      index))
+    for index in order:
+        structure = structures[index]
+        ranked = rank_for_structure(document, structure)
+        normaliser = max((entry["activation"][structure]
+                          for entry in document["instructions"].values()),
+                         default=0.0)
+        if normaliser <= 0:
+            die(f"structure {structure!r} has no activation above baseline")
+        for mode, entry in ranked[:args.top]:
+            if mode not in chosen:
+                chosen.append(mode)
     outdir = args.outdir.resolve()
     outdir.mkdir(parents=True, exist_ok=True)
     source = outdir / "candidate.c"
-    source.write_text(candidate_source(args.structure, chosen,
+    source.write_text(candidate_source("+".join(structures), chosen,
                                        args.iterations))
     guest = compile_guest(source, outdir / "bin" / "candidate", args.cc)
     dumps = run_guest(args.gem5.resolve(), outdir / "run", guest,
@@ -388,7 +419,9 @@ def target(args):
     net, clamped = subtract_baseline(raw, baseline_raw)
     report = {
         "schema": "autousens.candidate_report.v1",
-        "structure": args.structure,
+        "structure": "+".join(structures),
+        "structures": structures,
+        "weights": weights,
         "chosen": chosen,
         "source": str(source),
         "candidate": str(guest),
@@ -403,10 +436,11 @@ def target(args):
     }
     path = outdir / "candidate_report.json"
     path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
-    print(f"target={args.structure} chosen={','.join(chosen)}")
-    print(f"coverage[{args.structure}]={report['coverage'][args.structure]:.6f} "
-          f"baseline={report['baseline_coverage'][args.structure]:.6f} "
-          f"net_activation={report['activation'][args.structure]:.0f}")
+    print(f"target={'+'.join(structures)} chosen={','.join(chosen)}")
+    for structure in structures:
+        print(f"coverage[{structure}]={report['coverage'][structure]:.6f} "
+              f"baseline={report['baseline_coverage'][structure]:.6f} "
+              f"net_activation={report['activation'][structure]:.0f}")
     print(f"candidate report: {path}")
     return report, path
 
@@ -443,7 +477,10 @@ def main():
     target_parser = sub.add_parser("target", help="reverse-target one structure")
     common(target_parser)
     target_parser.add_argument("--map", type=Path, required=True)
-    target_parser.add_argument("--structure", required=True, choices=STRUCTURES)
+    target_parser.add_argument("--structure", required=True,
+                               help="comma-separated structures, e.g. l1d,alu")
+    target_parser.add_argument("--weights", default="",
+                               help="comma-separated weights, one per structure")
     target_parser.add_argument("--top", type=int, default=1,
                                help="number of instructions to compose")
     target_parser.add_argument("--outdir", type=Path, required=True)
