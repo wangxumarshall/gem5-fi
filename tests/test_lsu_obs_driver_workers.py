@@ -57,7 +57,8 @@ INJLINE = ("Tick: 887040, Site: lsq_sendFragmentToTranslation, mode=low_bit_flip
            "old_vaddr=0x7ffffefd00, new_vaddr=0x87ffffefd00, faults_injected: 1")
 
 # 真 guard 集成（(d) 并发）的 GUARD_DIR 必须在 /home：/tmp 是 tmpfs（15G 总量
-# 12G 空闲），guard 磁盘红线 free < max(50GiB, 20%×total) 恒触发 → gate 恒
+# 12G 空闲），guard 磁盘红线 free < 20GiB（/home 最低保留，研究者指令
+# 2026-11-11；取代旧 max(50GiB, 20%×total)）恒触发 → gate 恒
 # BLOCKED。worktree 本身在 /home 分区，用后即删。
 REAL_TMP_DIRS = []
 

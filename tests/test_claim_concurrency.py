@@ -4,13 +4,19 @@
 全部子测试用真实进程 + 真实输出；LSU_GUARD_DIR 一律指向隔离临时目录，
 绝不指向主树 runs/lsu/guard（只读 status 不在此测试范围内）。
 
-**隔离目录为什么在 worktree 下而不在 /tmp**：guard v2 的 gate 磁盘红线
-free < max(50GiB, 20%×total)（冻结语义）在 /tmp（tmpfs 总 15GiB、余 ~12GiB）
-上恒阻断 `run` 子命令——不可绕过、也不应绕过；worktree 在 /home
-（354GiB 总量、余 ~153GiB > 红线 70.8GiB）可通过。目录在 .tmp_lsu_conc/
-下、测试结束即删、不入 git。
+**隔离目录为什么在 worktree 下而不在 /tmp**：guard 的 gate 磁盘红线
+free < 20GiB（/home 最低保留 20GiB，研究者指令 2026-11-11；取代旧
+max(50GiB, 20%×total)——旧规则在 353GiB 盘上=70.6GiB，free 66.7GiB 即误
+阻断）在 /tmp（tmpfs 总 15GiB、余 ~12GiB < 20GiB）上恒阻断 `run` 子命令
+——不可绕过、也不应绕过；worktree 在 /home（354GiB 总量、余 ~67GiB >
+红线 20GiB）可通过。目录在 .tmp_lsu_conc/ 下、测试结束即删、不入 git。
 
-子测试（用户指令 2026-10-12，OBS 计划验收 G）：
+子测试（用户指令 2026-10-12，OBS 计划验收 G；红线子测试 0 随 2026-11-11
+磁盘规则更新而设）：
+  (0) 磁盘红线规则：DISK_MIN_FREE_GIB == 20GiB（研究者指令 2026-11-11）、
+      旧百分比分量 DISK_MIN_FREE_PCT 已删除、19.9GiB 阻断 / 20GiB 放行、
+      60GiB@354GiB 盘放行（旧 70.6GiB 红线下的误阻断不再发生）、且本测试
+      隔离目录所在盘当前真实通过红线（否则 (c)(d)(e) 的 run 无法真实执行）。
   (a) claim 唯一性：8 进程同时 claim-acquire 同一 (campaign,runid,sample)
       → 恰好 1 个 rc=0，其余 7 个 REFUSED（rc 2"已被持有"或 3"陈旧"——
       短命 CLI 持有者退出后按 v2 语义判陈旧，两种都是合法 REFUSED）
@@ -106,6 +112,37 @@ def dead_locks(gd):
 
 
 # ---------------------------------------------------------------- 子测试
+
+def test_0_disk_redline_rule(check):
+    """(0) 磁盘红线：/home 最低保留 20GiB（研究者指令 2026-11-11）。
+
+    取代旧 max(50GiB, 20%×total) 规则——旧规则在 353GiB 盘上红线=70.6GiB，
+    free 66.7GiB 的真实 /home 被误阻断（本套件 (d)(e) 长期红的原因）。
+    本子测试直接钉住新语义，并核实隔离目录所在盘当前真实通过红线。
+    """
+    sys.path.insert(0, str(TOOLS))
+    import lsu_guard as G
+    check("redline_floor_is_20gib", G.DISK_MIN_FREE_GIB == 20.0,
+          f"DISK_MIN_FREE_GIB={G.DISK_MIN_FREE_GIB}")
+    check("redline_pct_component_abolished",
+          not hasattr(G, "DISK_MIN_FREE_PCT"),
+          "旧百分比分量 DISK_MIN_FREE_PCT 必须已删除")
+    check("redline_blocks_below_20",
+          G._disk_guard_reason(free_gib=19.9, total_gib=354.0) is not None)
+    check("redline_passes_at_20",
+          G._disk_guard_reason(free_gib=20.0, total_gib=354.0) is None)
+    check("redline_60gib_on_354gib_passes",
+          G._disk_guard_reason(free_gib=60.0, total_gib=354.0) is None,
+          "旧 70.6GiB 红线下的阻断必须不再发生")
+    # 隔离目录所在盘（/home）当前真实读数必须通过红线——否则 (c)(d)(e)
+    # 的真实 run 无法执行，须响亮失败而非静默跳过。
+    import shutil as _sh
+    total = _sh.disk_usage(str(TMP_ROOT)).total / G.GIB
+    free = _sh.disk_usage(str(TMP_ROOT)).free / G.GIB
+    check("redline_real_fs_currently_passes",
+          G._disk_guard_reason(free_gib=free, total_gib=total) is None,
+          f"free={free:.1f} GiB total={total:.1f} GiB vs 20GiB 下限")
+
 
 def test_a_claim_uniqueness(check):
     gd = new_guard_dir()
@@ -332,6 +369,7 @@ def main():
             fails.append(name)
 
     try:
+        test_0_disk_redline_rule(check)
         test_a_claim_uniqueness(check)
         test_b_different_samples(check)
         env_ok = env_precheck(check)

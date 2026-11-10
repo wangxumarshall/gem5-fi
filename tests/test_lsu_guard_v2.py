@@ -7,7 +7,7 @@
   3  clear-stale 可处置 pid_start 不符的"复用 PID"锁（--confirm-dead-pid 匹配）
   4  claim 锁 O_EXCL 唯一 + 拒绝他人释放 + status 可见
   5  STOP_DISPATCH 阈值（<10GiB 停止加任务）
-  6  磁盘红线 max(50GiB, 20%×total)
+  6  磁盘红线 20GiB 最低保留（研究者指令 2026-11-11，取代 max(50GiB, 20%×total)）
   7  心跳原子重写（tmp+replace，读者永见完整 JSON）
   8  向后兼容：v1 旧格式锁（无 pid_start）可解析、存活判定退化为纯 PID
 
@@ -127,11 +127,23 @@ def main():
     snap["mem_available_gib"] = 16.0
     check("stop_dispatch_ok_at_16", G._stop_dispatch(snap) is False)
 
-    # ---- 6) 磁盘红线 ----
-    check("disk_guard_20pct_dominates",
-          G._disk_guard_reason(free_gib=60.0, total_gib=354.0) is not None)
-    check("disk_guard_50gib_floor",
-          G._disk_guard_reason(free_gib=45.0, total_gib=100.0) is not None)
+    # ---- 6) 磁盘红线：/home 最低保留 20GiB（研究者指令 2026-11-11） ----
+    # 旧规则 max(50GiB, 20%×total) 已废止：353GiB 盘上旧红线=70.6GiB，
+    # free 66.7GiB 的真实磁盘被误阻断；新规则=flat 20GiB 下限。
+    check("disk_guard_floor_is_20gib", G.DISK_MIN_FREE_GIB == 20.0)
+    check("disk_guard_pct_component_abolished",
+          not hasattr(G, "DISK_MIN_FREE_PCT"),
+          "旧百分比分量 DISK_MIN_FREE_PCT 必须已删除")
+    check("disk_guard_below_20_blocks",
+          G._disk_guard_reason(free_gib=19.9, total_gib=354.0) is not None)
+    check("disk_guard_at_20_passes",
+          G._disk_guard_reason(free_gib=20.0, total_gib=354.0) is None)
+    # 取代检查（旧名 disk_guard_20pct_dominates 的反义）：60GiB free 在
+    # 354GiB 盘上旧规则阻断（60<70.6）、新规则放行（60>20）——百分比已不参与。
+    check("disk_guard_60gib_on_354gib_now_passes",
+          G._disk_guard_reason(free_gib=60.0, total_gib=354.0) is None)
+    check("disk_guard_small_fs_below_floor_blocks",
+          G._disk_guard_reason(free_gib=15.0, total_gib=100.0) is not None)
     check("disk_guard_pass", G._disk_guard_reason(free_gib=90.0, total_gib=354.0) is None)
 
     # ---- 7) 心跳原子重写 ----

@@ -8,7 +8,8 @@ v2（用户指令 2026-10-12，LSU OBS 计划 T1）：
   * 锁记录 pid_start（/proc/<pid>/stat 字段22）+ monitor 每 60s 心跳重写；
     陈旧判定 = PID 不存活 **或** pid_start 不符（PID 复用免疫）。
   * claim 锁：(campaign, RunID, sample) 三元组 O_EXCL 原子认领，防重调度。
-  * 磁盘红线：GUARD_DIR 所在盘 free < max(50GiB, 20%) → gate 阻断。
+  * 磁盘红线：GUARD_DIR 所在盘 free < 20GiB（/home 最低保留 20GiB，
+    研究者指令 2026-11-11，取代旧 max(50GiB, 20%) 规则）→ gate 阻断。
   * STOP_DISPATCH：MemAvailable < 10GiB → 拒绝新 experiment acquire。
 
 子命令：
@@ -38,7 +39,7 @@ v2（用户指令 2026-10-12，LSU OBS 计划 T1）：
 
 阈值（总方针 §8.3/§8.4 + 用户指令 2026-10-12 三.3，GiB=2^30）：
   GATE 阻断: MemAvailable < 12 或 SwapFree < 4 或存在编译进程或锁被占
-             或磁盘 free < max(50GiB, 20%×total)
+             或磁盘 free < 20GiB（/home 最低保留 20GiB）
   STOP_DISPATCH: MemAvailable < 10 → 拒绝新 experiment acquire（已持锁运行不受影响）
   WARNING  : MemAvailable < 10
   TRIP     : MemAvailable < 8 连续两次，或任一次 < 6，或 SwapFree < 2
@@ -73,8 +74,10 @@ GATE_MEM_MIN_GIB = 12.0
 GATE_SWAP_MIN_GIB = 4.0
 WARN_MEM_GIB = 10.0
 STOP_DISPATCH_MEM_GIB = 10.0   # 用户指令 2026-10-12 三.3：MemAvailable<10GiB 停止加任务
-DISK_MIN_FREE_GIB = 50.0       # 0101 保留红线：/home 至少 50GiB 且至少 20%（取大者）
-DISK_MIN_FREE_PCT = 0.20
+DISK_MIN_FREE_GIB = 20.0       # 磁盘红线（研究者指令 2026-11-11）：/home 最低保留
+                               # 20GiB（flat 下限；取代旧 max(50GiB, 20%×total)——
+                               # 在 353GiB 盘上旧规则=70.6GiB，早已阻断真实运行）。
+                               # 百分比分量（旧 DISK_MIN_FREE_PCT=0.20）随之废止删除。
 TRIP_MEM_GIB = 8.0
 TRIP_MEM_HARD_GIB = 6.0
 TRIP_SWAP_GIB = 2.0
@@ -290,13 +293,18 @@ def _stop_dispatch(snap):
 
 
 def _disk_guard_reason(free_gib, total_gib):
-    """0101 磁盘红线：free < max(50GiB, 20%×total) → 阻断理由（None=通过）。"""
-    floor = max(DISK_MIN_FREE_GIB, DISK_MIN_FREE_PCT * total_gib)
+    """磁盘红线（研究者指令 2026-11-11）：free < 20GiB → 阻断理由（None=通过）。
+
+    /home 最低保留 20GiB（flat 下限），取代旧 max(50GiB, 20%×total) 规则
+    （旧规则在 353GiB 盘上 = 70.6GiB 红线，free 66.7GiB 时即误阻断）。
+    total_gib 仅用于诊断信息；不再参与阈值计算。
+    """
+    floor = DISK_MIN_FREE_GIB
     if free_gib is None or total_gib is None:
         return "磁盘用量不可读（GUARD_DIR 所在盘）"
     if free_gib < floor:
         return (f"磁盘 free {free_gib:.1f} GiB < 红线 {floor:.1f} GiB "
-                f"(=max(50, 20%×{total_gib:.0f}))")
+                f"(/home 最低保留 20GiB；total {total_gib:.0f} GiB)")
     return None
 
 
