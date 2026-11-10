@@ -143,28 +143,28 @@ end_states: count u16; each { signal u32, sig_addr u64,
 
 ## 4. 任务分解（一任务一 commit）
 
-- [ ] **T1 规格、计划与脚手架**：本文件、`silifuzz/README.md`、`.gitignore`、
+- [x] **T1 规格、计划与脚手架**：本文件、`silifuzz/README.md`、`.gitignore`、
       `Makefile`、目录骨架。验证：`make -n`、`git diff --check`。
-- [ ] **T2 Snapshot 格式库**：C++ `snapshot.{hh,cc}` + Python `sfsnapshot.py`，
+- [x] **T2 Snapshot 格式库**：C++ `snapshot.{hh,cc}` + Python `sfsnapshot.py`，
       编解码/校验和/端态比较；单测覆盖往返、跨语言一致性、损坏检测。
       验证：`make test-snapshot`。
-- [ ] **T3 Player**：harness/driver/CLI；已知 ARM64 片段（ALU、FP、内存、
+- [x] **T3 Player**：harness/driver/CLI；已知 ARM64 片段（ALU、FP、内存、
       BRK、非法指令、缺页）端态测试；双进程隔离；3 s 超时。
       验证：`make test-player`（输出真实端态）。
-- [ ] **T4 生成代理**：依赖构建脚本 + 三个代理 + 语料导出；实际 fuzz 运行。
+- [x] **T4 生成代理**：依赖构建脚本 + 三个代理 + 语料导出；实际 fuzz 运行。
       验证：各代理覆盖增长、语料数量、`-runs` 冒烟。
-- [ ] **T5 修复流水线**：实现 §3.4；单测 + 小规模端到端（生成→修复→玩家）。
+- [x] **T5 修复流水线**：实现 §3.4；单测 + 小规模端到端（生成→修复→玩家）。
       验证：`make test-fix`，真实拒绝率与语料样本。
-- [ ] **T6 Checker**：§3.5；50/1000 批处理、多核、时间预算、JSONL、命中保存。
+- [x] **T6 Checker**：§3.5；50/1000 批处理、多核、时间预算、JSONL、命中保存。
       验证：`make test-checker`（多核真实执行 + 批处理统计）。
-- [ ] **T7 Fleet/隔离/合成缺陷**：§3.6；SQLite、窗口轮转、隔离复测；
+- [x] **T7 Fleet/隔离/合成缺陷**：§3.6；SQLite、窗口轮转、隔离复测；
       合成缺陷被检出并进入 found。
       验证：`make test-fleet`（真实 2 分钟窗口 + 合成故障检出）。
-- [ ] **T8 规模化实测**：生成尽可能大的语料（目标 ≥50,000，尽量逼近论文
+- [x] **T8 规模化实测**：生成尽可能大的语料（目标 ≥50,000，尽量逼近论文
       500,000 的量级）、跨核修复、128 核 sweep/sampled 实测；记录吞吐、
       拒绝率、IO 摊薄、缺陷检测延迟；产物在 `silifuzz/evidence/`。
       验证：真实运行日志与汇总 JSON。
-- [ ] **T9 文档与收尾**：README（使用/复现命令）、`docs/paper-mapping.md`、
+- [x] **T9 文档与收尾**：README（使用/复现命令）、`docs/paper-mapping.md`、
       `docs/measurements.md`、`docs/limitations.md`；与原文逐条对照；
       全量回归。验证：clean build + 全部测试 + 文档命令逐条执行。
 
@@ -186,3 +186,17 @@ end_states: count u16; each { signal u32, sig_addr u64,
 - 语料规模、生成时长与 500,000 条的目标可能有差距，以实测为准。
 - 真实硬件无已知缺陷；检测闭环只由合成注入验证。
 - 论文的 2 分钟/4 核是生产调度参数，单机复现只验证机制与吞吐。
+
+## 7. 执行结果（2026-11-10）
+
+- 语料：95,402 条（ifuzz 92,652 / Capstone 1,600 / Unicorn 1,150），212,647,273 B。
+- 修复：ifuzz 97,952 候选 → 92,652 收录（syscall 拒绝 3,928、timeout 1,372），
+  557,311 次执行、132.4 s；Capstone/Unicorn 合计 2,752 候选、2,750 收录。
+- 128 核全量 sweep：12,211,456 次执行（95,402 × 128），45.473 s，
+  268,540 次/秒，0 不匹配。
+- 4 核 / 2 分钟窗口 × 4：20,583,479 次执行，0 不匹配（42.0–43.3 千次/秒）。
+- 合成缺陷（`flip:0:0:1:0`）4 核窗口：124,047/124,047 次不匹配；
+  小语料 quarantine 580/580 组确认。
+- `make test`：55 项 PASS、0 FAIL；clean build 无新增告警。
+- 证据：`silifuzz/evidence/`、`silifuzz/docs/measurements.md`。
+- 未发现真实硬件缺陷；限制见 `silifuzz/docs/limitations.md`。
