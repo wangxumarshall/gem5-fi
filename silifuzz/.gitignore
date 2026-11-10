@@ -1,0 +1,7 @@
+third_party/
+work/
+corpus/
+bin/
+*.o
+*.d
+__pycache__/
