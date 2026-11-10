@@ -453,68 +453,59 @@
     },
     {
       "ModelID": "FW02",
-      "PilotID": "SUPP-FW02-C01",
-      "SampleRunID": "SUPP-FW02-C01",
+      "PilotID": "SUPP-FW02-C02",
+      "SampleRunID": "SUPP-FW02-C02",
       "Seed": "2941542370",
       "EventOrdinal": "1",
       "BinarySHA256": "720eb780bc87fe5e5ec045801d314e9c5edf54c6eca59032f1b8b7887ac74070",
       "WorkloadSHA256": "132a84f7f21be052bc1f2c9baf1c12d5bd3462aae03b1d42778c94e69b0af297",
-      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW02-C01",
-      "MissingEvidence": "NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW02-C02",
+      "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
       "TraceCompleteness": "COMPLETE",
-      "StructuralChainCompleteness": "COMPLETE",
-      "FaultEffectPropagationCoverage": "NONE",
-      "FaultCausality": "PARTIAL",
-      "ObservedTerminal": "SQUASHED",
+      "StructuralChainCompleteness": "NONE",
+      "FaultEffectPropagationCoverage": "NOT_APPLICABLE",
+      "FaultCausality": "UNPROVEN",
+      "ObservedTerminal": "NO_INJECTION",
       "ApplicationOracle": "PASS",
-      "InjectionVerified": "yes",
-      "ActivationVerified": "yes",
+      "InjectionVerified": "no",
+      "ActivationVerified": "no",
       "Stages": {
-        "injection_verified": "yes",
-        "activation_verified": "yes",
-        "early_anomaly_verified": "yes",
-        "intermediate_propagation_verified": "yes",
-        "register_writeback_verified": "yes",
+        "injection_verified": "missing",
+        "activation_verified": "n/a",
+        "early_anomaly_verified": "missing",
+        "intermediate_propagation_verified": "missing",
+        "register_writeback_verified": "missing",
         "consumer_verified": "missing",
         "commit_verified": "missing",
-        "terminal_verified": "yes",
+        "terminal_verified": "no",
         "oracle_verified": "yes"
       },
       "SubUnit": "FWD",
       "FaultDefinition": "Forwarding\u5339\u914d\u5224\u5b9a\uff1aread()\u8986\u76d6\u5224\u65ad / AddrRangeCoverage result",
-      "TerminalReason": "TARGET_SQUASHED_NO_COMMIT",
-      "AdjudicatedTerminal": "SQUASHED",
+      "TerminalReason": "NO_INJECTION_EVENT",
+      "AdjudicatedTerminal": "UNRESOLVED",
       "VerifiedChainCount": 0,
       "MissingCodes": [
-        "NO_CONSUMER_EDGE",
-        "NO_COMMIT_EVENT"
+        "NO_INJECTION_EVENT",
+        "TERMINAL_UNRESOLVED"
       ],
-      "ChainKinds": [
-        "address_formed",
-        "forwarding_decision",
-        "fw02_decision",
-        "injection",
-        "lq_lifecycle",
-        "memory_response",
-        "register_writeback",
-        "squash"
-      ],
-      "ChainEventCount": 9,
-      "ChainEdgeCount": 6,
-      "InjectionSeq": "397",
-      "InjectionPC": "40c0c8",
-      "InjectionTick": "556325",
-      "ActivationStatus": "TRIGGERED",
-      "InjectionCount": "1",
-      "EarliestAnomalyType": "forwarding_decision",
-      "EarliestAnomalyEventID": "190",
-      "WritebackValueFnv": "a8c7f832281a39c5",
+      "ChainKinds": [],
+      "ChainEventCount": 0,
+      "ChainEdgeCount": 0,
+      "InjectionSeq": null,
+      "InjectionPC": null,
+      "InjectionTick": null,
+      "ActivationStatus": null,
+      "InjectionCount": "0",
+      "EarliestAnomalyType": null,
+      "EarliestAnomalyEventID": null,
+      "WritebackValueFnv": "NOT_APPLICABLE",
       "ConsumerInputFnv": "NOT_APPLICABLE",
       "ConsumerSourceLinked": "NOT_APPLICABLE",
-      "MemoryResponseAssociation": null,
-      "WritebackAssociation": null,
+      "MemoryResponseAssociation": "NOT_APPLICABLE",
+      "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "OracleExpected": "1f4cbf14327717df",
       "OracleActual": "1f4cbf14327717df",
@@ -522,19 +513,11 @@
       "PathFragments": [
         {
           "stage": "injection",
-          "event_id": "seq=397"
-        },
-        {
-          "stage": "forwarding_decision",
-          "event_id": "190"
-        },
-        {
-          "stage": "register_writeback",
-          "event_id": "NULL"
+          "event_id": null
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "PARTIAL"
+      "FinalClassification": "UNRESOLVED"
     }
   ]
 }

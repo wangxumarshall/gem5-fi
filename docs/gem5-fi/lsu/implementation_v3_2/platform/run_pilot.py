@@ -614,6 +614,19 @@ def main(argv=None) -> int:
             # not probability-gated, so a mounted injector would still fire.
             # Omit the injector entirely; --chaos_propagation stays on.
             extra = []
+    elif args.model == "FW02":
+        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+                 "--max_faults", "1", "--rng_seed", str(args.seed),
+                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
+        if args.probability == 0.0:
+            # Matched no-fault control (v3.2.12 fix): the F6_fw02 selector is
+            # ordinal-gated, not probability-gated -- CHAOSLSQFwd attaches the
+            # F6Fw02 mode even with probability==0 and the suppression
+            # decision never consults probability, so a mounted injector
+            # would still fire (the SUPP-FW02-C01 misfire). Omit the injector
+            # entirely; --chaos_propagation stays on (same treatment as the
+            # LQ04 control branch above).
+            extra = []
     else:
         extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
                  "--max_faults", "1", "--rng_seed", str(args.seed),
