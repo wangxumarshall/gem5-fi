@@ -1,0 +1,36 @@
+{
+  "schema": "lsu-frozen-prior-propagation-verdicts-v3.2.12",
+  "frozen_date": "2026-11-10",
+  "purpose": "Frozen prior-audit verdicts (the v3.2.11 'frozen four') that tools/update_lsu_v327_audit.py may carry into PROPAGATION_VERIFIED=1 when the v3.2.12 closure matrix does not (yet) show a binary group with >=2 COMPLETE_CAUSAL_CHAIN records. The sidecar is cross-checked at load time against BOTH audit_v3_2_11/LSU_11Model_Propagation_Audit_Matrix.csv (the model must exist and have >=1 complete record there) and MODEL_STATUS_MATRIX_v3.2.11_frozen.csv (PROPAGATION_VERIFIED must be 1 there); any entry the frozen audit did not verify (e.g. FW02 1/5 control-path only, LQ04 LIFECYCLE_ONLY) is rejected loudly. The v3.2.12 closure matrix itself remains the primary derivation source; this sidecar only ever carries, never upgrades.",
+  "authority": "audit_v3_2_11/LSU_11Model_Propagation_Audit_Summary_v3.2.11.md §1: 'Four models have a verified fault-effect propagation chain: DA04, LP01, MD04, FW05.' and 'PROPAGATION_VERIFIED=1 only for DA04, LP01, MD04, FW05. LQ04 remains 0. A pilot run alone (IMPLEMENTED/COMPILED/UNIT_TESTED/PILOT_RUN) is never treated as propagation evidence.'",
+  "cross_check_sources": {
+    "frozen_audit_matrix": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/LSU_11Model_Propagation_Audit_Matrix.csv",
+    "frozen_status_matrix": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/MODEL_STATUS_MATRIX_v3.2.11_frozen.csv"
+  },
+  "models": {
+    "DA04": {
+      "propagation_verified": 1,
+      "class": "COMPLETE_CAUSAL_CHAIN 2/7 (unique-context verdict: COMPLETE 2/5, v3.2.6 R04/R05)",
+      "terminal": "SDC 2/2 (oracle FAIL recorded; raw oracle.log absent at v3.2.11, closed by SUPP-DA04-R04/R05 in v3.2.12)",
+      "authority": "audit_v3_2_11/LSU_11Model_Propagation_Audit_Summary_v3.2.11.md §1 + §3 'DA04 (byte-enable) — 2/5 complete, SDC'"
+    },
+    "LP01": {
+      "propagation_verified": 1,
+      "class": "COMPLETE_CAUSAL_CHAIN 5/5",
+      "terminal": "MASKED 5/5 (orig vs inj byte0 divergence; consumer received the injected value; oracle PASS)",
+      "authority": "audit_v3_2_11/LSU_11Model_Propagation_Audit_Summary_v3.2.11.md §1 + §3 'LP01 (load response byte0) — 5/5 complete, MASKED'"
+    },
+    "MD04": {
+      "propagation_verified": 1,
+      "class": "COMPLETE_CAUSAL_CHAIN 3/5; PARTIAL 2/5",
+      "terminal": "MASKED 3/3 complete (violation_report_suppressed -> load executes -> writeback -> consumer -> commit)",
+      "authority": "audit_v3_2_11/LSU_11Model_Propagation_Audit_Summary_v3.2.11.md §1 + §2 table row MD04"
+    },
+    "FW05": {
+      "propagation_verified": 1,
+      "class": "COMPLETE_CAUSAL_CHAIN 4/5; PARTIAL 1/5",
+      "terminal": "SDC 4/4 complete (true vs alt store source, alt data to consumer, oracle FAIL)",
+      "authority": "audit_v3_2_11/LSU_11Model_Propagation_Audit_Summary_v3.2.11.md §1 + §2 table row FW05"
+    }
+  }
+}
