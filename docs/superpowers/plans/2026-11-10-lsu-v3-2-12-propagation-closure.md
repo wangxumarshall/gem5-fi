@@ -30,7 +30,7 @@
 - Never modify a frozen SampleRunID or Seed. Supplementary runs use `SUPP-<MODEL>-<Rxx>` pilot IDs with a sidecar recording `supplementary_of` (original SampleRunID) and the original seed.
 - Never change an Oracle or a golden value to obtain PASS. A wrong application result is recorded as FAIL/SDC.
 - Every run records its own `BinarySHA256` and `WorkloadSHA256`. Traces from two binaries are never merged into one verdict.
-- Disk gate: **no Pilot may start while `/home` free space < 70.6 GiB**. Static analysis and document work may continue below the threshold.
+- Disk gate: **no Pilot may start while `/home` has less than 20 GiB free** (researcher update 2026-11-10, supersedes the earlier 70.6 GiB reserve). Before starting, estimate the build/trace/concurrent-pilot peak; re-check during runs; if the reserve approaches 20 GiB, stop dispatching disk-writing work and continue source review/evidence work. Static analysis and document work may continue below the gate.
 - Build: `cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt` for the first build in this worktree; `-j126` for incremental rebuilds. After a successful link, copy `CHAOS/gem5/build/ARM/gem5.opt` to the repo-root `build/ARM/gem5.opt` and record both SHAs.
 - Every commit message: `[LSU][MDSPEC][V3.2.12][<AREA>] <imperative sentence>`. No `Co-Authored-By` trailer. Stage explicit paths only; never `git add -A`.
 - Per-task verification is mandatory and quoted from real command output: build clean, functional smoke on the affected behavior, one unaffected regression, then commit and push to `lsu-platform-v3.2.12`.
