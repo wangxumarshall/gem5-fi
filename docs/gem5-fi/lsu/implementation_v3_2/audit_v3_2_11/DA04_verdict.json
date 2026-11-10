@@ -1,0 +1,238 @@
+{
+ "model": "DA04",
+ "sub_unit": "SQ",
+ "fault_definition": "Byte-enable\u6784\u9020\uff1aRequest::setByteEnable\u524d / Request::_byteEnable",
+ "pilot_count": 7,
+ "pilots": [
+  {
+   "pilot_id": "DA04-R04",
+   "sample_run_id": "DA04-F0-W8-S02-R04",
+   "seed": "3815557835",
+   "event_ordinal": "4",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SDC",
+   "terminal_reason": "ORACLE_FAIL",
+   "oracle": "FAIL",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "DISABLED_LANE_REACHED_CONSUMER_AND_ORACLE_FAILED",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/DA04-R04"
+  },
+  {
+   "pilot_id": "DA04-R05",
+   "sample_run_id": "DA04-F0-W8-S02-R05",
+   "seed": "2016743094",
+   "event_ordinal": "5",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SDC",
+   "terminal_reason": "ORACLE_FAIL",
+   "oracle": "FAIL",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "DISABLED_LANE_REACHED_CONSUMER_AND_ORACLE_FAILED",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/DA04-R05"
+  },
+  {
+   "pilot_id": "DA04-R01",
+   "sample_run_id": "DA04-F0-W8-S02-R01",
+   "seed": "4185444934",
+   "event_ordinal": "1",
+   "binary_sha": "3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "missing",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "SQUASHED_NO_CONSUMER",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_INTERMEDIATE_PROPAGATION_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R01"
+  },
+  {
+   "pilot_id": "DA04-R02",
+   "sample_run_id": "DA04-F0-W8-S02-R02",
+   "seed": "2627302015",
+   "event_ordinal": "2",
+   "binary_sha": "3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_LANE_NEVER_READ",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R02"
+  },
+  {
+   "pilot_id": "DA04-R03",
+   "sample_run_id": "DA04-F0-W8-S02-R03",
+   "seed": "3592849939",
+   "event_ordinal": "3",
+   "binary_sha": "3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_LANE_NEVER_READ",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R03"
+  },
+  {
+   "pilot_id": "DA04-R04",
+   "sample_run_id": "DA04-F0-W8-S02-R04",
+   "seed": "3815557835",
+   "event_ordinal": "4",
+   "binary_sha": "3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SDC",
+   "terminal_reason": "ORACLE_FAIL",
+   "oracle": "FAIL",
+   "classification": "PARTIAL",
+   "classification_rule": "SDC_TERMINAL_WITHOUT_CHAIN_IN_THIS_VINTAGE",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R04"
+  },
+  {
+   "pilot_id": "DA04-R05",
+   "sample_run_id": "DA04-F0-W8-S02-R05",
+   "seed": "2016743094",
+   "event_ordinal": "5",
+   "binary_sha": "3e9148fc380c84917ddad84603e540b2e40e217918f392eb5659d32a56668297",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SDC",
+   "terminal_reason": "ORACLE_FAIL",
+   "oracle": "FAIL",
+   "classification": "PARTIAL",
+   "classification_rule": "SDC_TERMINAL_WITHOUT_CHAIN_IN_THIS_VINTAGE",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R05"
+  }
+ ],
+ "model_row": {
+  "ModelID": "DA04",
+  "SubUnit": "SQ",
+  "FaultDefinition": "Byte-enable\u6784\u9020\uff1aRequest::setByteEnable\u524d / Request::_byteEnable",
+  "PilotCount": 7,
+  "InjectionVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 6/7; no 0; n/a 0; missing 1",
+  "IntermediatePropagationVerified": "yes 6/7; no 0; n/a 0; missing 1",
+  "RegisterWritebackVerified": "yes 4/7; no 0; n/a 0; missing 3",
+  "ConsumerVerified": "yes 4/7; no 0; n/a 0; missing 3",
+  "CommitVerified": "yes 6/7; no 0; n/a 0; missing 1",
+  "TerminalVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 0/7; no 0; n/a 0; missing 7",
+  "StructuralChainCompleteness": "COMPLETE",
+  "FaultEffectPropagationCoverage": "COMPLETE_CAUSAL_CHAIN 2/7; LIFECYCLE_ONLY 2/7; PARTIAL 3/7",
+  "FaultCausality": "DIRECT_DATAFLOW_EVIDENCE 2; NO_VERIFIED_FORWARD_PATH 5",
+  "FinalClassification": "COMPLETE_CAUSAL_CHAIN 2/7; LIFECYCLE_ONLY 2/7; PARTIAL 3/7",
+  "MissingEvidence": "ORACLE_RAW_FILE_MISSING for v3.2.6 R04/R05 (meta/E2E only); v3.2.4 R04/R05 chain absent (superseded by v3.2.6)",
+  "SupplementaryPilotRequired": "yes",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R01; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R02; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R03; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R04; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R05; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/DA04-R04; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/DA04-R05"
+ },
+ "supplementary_pilot_required": "Recover or regenerate the raw oracle.log/stdout for the two v3.2.6 runs (2 runs, preserved identities) if a raw application-layer checksum is required. The microarchitectural chain is already complete.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/DA04-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/DA04-R05",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R02",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R03",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/DA04-R05"
+ ]
+}

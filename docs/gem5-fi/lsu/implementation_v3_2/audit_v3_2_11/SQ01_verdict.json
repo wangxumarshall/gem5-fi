@@ -1,0 +1,188 @@
+{
+ "model": "SQ01",
+ "sub_unit": "SQ",
+ "fault_definition": "SQ entry\u6570\u636e\uff1awrite()\u5199\u5165\u540e / SQEntry::_data[0]",
+ "pilot_count": 5,
+ "pilots": [
+  {
+   "pilot_id": "SQ01-R01@evidence",
+   "sample_run_id": "PILOT-SQ01-R01",
+   "seed": "591611458",
+   "event_ordinal": "1",
+   "binary_sha": "8eb7ce8d76ab63d90dbd00694efb90c7c2545da47ad07ecf5325399274a3b682",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "missing",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_INTERMEDIATE_PROPAGATION_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R01"
+  },
+  {
+   "pilot_id": "SQ01-R02@evidence",
+   "sample_run_id": "PILOT-SQ01-R02",
+   "seed": "576447973",
+   "event_ordinal": "2",
+   "binary_sha": "8eb7ce8d76ab63d90dbd00694efb90c7c2545da47ad07ecf5325399274a3b682",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "missing",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_INTERMEDIATE_PROPAGATION_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R02"
+  },
+  {
+   "pilot_id": "SQ01-R03@evidence",
+   "sample_run_id": "PILOT-SQ01-R03",
+   "seed": "1257175390",
+   "event_ordinal": "3",
+   "binary_sha": "8eb7ce8d76ab63d90dbd00694efb90c7c2545da47ad07ecf5325399274a3b682",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "missing",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_INTERMEDIATE_PROPAGATION_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R03"
+  },
+  {
+   "pilot_id": "SQ01-R04@evidence",
+   "sample_run_id": "PILOT-SQ01-R04",
+   "seed": "3116972755",
+   "event_ordinal": "4",
+   "binary_sha": "8eb7ce8d76ab63d90dbd00694efb90c7c2545da47ad07ecf5325399274a3b682",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "missing",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_INTERMEDIATE_PROPAGATION_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R04"
+  },
+  {
+   "pilot_id": "SQ01-R05@evidence",
+   "sample_run_id": "PILOT-SQ01-R05",
+   "seed": "172636228",
+   "event_ordinal": "5",
+   "binary_sha": "8eb7ce8d76ab63d90dbd00694efb90c7c2545da47ad07ecf5325399274a3b682",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "missing",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_INTERMEDIATE_PROPAGATION_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R05"
+  }
+ ],
+ "model_row": {
+  "ModelID": "SQ01",
+  "SubUnit": "SQ",
+  "FaultDefinition": "SQ entry\u6570\u636e\uff1awrite()\u5199\u5165\u540e / SQEntry::_data[0]",
+  "PilotCount": 5,
+  "InjectionVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "IntermediatePropagationVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "RegisterWritebackVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "ConsumerVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "CommitVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "TerminalVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "StructuralChainCompleteness": "COMPLETE",
+  "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY 5/5",
+  "FaultCausality": "NO_VERIFIED_FORWARD_PATH 5",
+  "FinalClassification": "LIFECYCLE_ONLY 5/5",
+  "MissingEvidence": "NO_CONSUMER_EDGE (no later load of the lane) in 5/5; NO_EARLY_ANOMALY_EVENT (the trace has no explicit byte0 old/new anomaly node)",
+  "SupplementaryPilotRequired": "yes",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R01; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R02; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R03; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R04; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R05"
+ },
+ "supplementary_pilot_required": "A workload with a same-address reload after the store is required to test propagation: 5 pilots with preserved identities. Not executed this round.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R02",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R03",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ01_v3_2_3/SQ01-R05"
+ ]
+}

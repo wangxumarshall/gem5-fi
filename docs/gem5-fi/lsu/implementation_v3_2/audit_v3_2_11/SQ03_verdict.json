@@ -1,0 +1,178 @@
+{
+ "model": "SQ03",
+ "sub_unit": "SQ",
+ "fault_definition": "SQ\u72b6\u6001\uff1a_canWB\u63d0\u524d\u7f6e\u4f4d / SQEntry::_canWB",
+ "pilot_count": 5,
+ "pilots": [
+  {
+   "pilot_id": "SQ03-R01@evidence",
+   "sample_run_id": "SQ03-F0-W3-S02-R01",
+   "seed": "2214819981",
+   "event_ordinal": "1",
+   "binary_sha": "b988b7503cdf1feab10b99d09ec85df84b42eb385396142e0b7be6a197c63a45",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R01"
+  },
+  {
+   "pilot_id": "SQ03-R02@evidence",
+   "sample_run_id": "SQ03-F0-W3-S02-R02",
+   "seed": "1486471869",
+   "event_ordinal": "2",
+   "binary_sha": "b988b7503cdf1feab10b99d09ec85df84b42eb385396142e0b7be6a197c63a45",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R02"
+  },
+  {
+   "pilot_id": "SQ03-R03@evidence",
+   "sample_run_id": "SQ03-F0-W3-S02-R03",
+   "seed": "3102670938",
+   "event_ordinal": "3",
+   "binary_sha": "b988b7503cdf1feab10b99d09ec85df84b42eb385396142e0b7be6a197c63a45",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R03"
+  },
+  {
+   "pilot_id": "SQ03-R04@evidence",
+   "sample_run_id": "SQ03-F0-W3-S02-R04",
+   "seed": "3974203372",
+   "event_ordinal": "4",
+   "binary_sha": "b988b7503cdf1feab10b99d09ec85df84b42eb385396142e0b7be6a197c63a45",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R04"
+  },
+  {
+   "pilot_id": "SQ03-R05@evidence",
+   "sample_run_id": "SQ03-F0-W3-S02-R05",
+   "seed": "729970077",
+   "event_ordinal": "5",
+   "binary_sha": "b988b7503cdf1feab10b99d09ec85df84b42eb385396142e0b7be6a197c63a45",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R05"
+  }
+ ],
+ "model_row": {
+  "ModelID": "SQ03",
+  "SubUnit": "SQ",
+  "FaultDefinition": "SQ\u72b6\u6001\uff1a_canWB\u63d0\u524d\u7f6e\u4f4d / SQEntry::_canWB",
+  "PilotCount": 5,
+  "InjectionVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "IntermediatePropagationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "RegisterWritebackVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "ConsumerVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "CommitVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "TerminalVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "StructuralChainCompleteness": "COMPLETE",
+  "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY 5/5",
+  "FaultCausality": "NO_VERIFIED_FORWARD_PATH 5",
+  "FinalClassification": "LIFECYCLE_ONLY 5/5",
+  "MissingEvidence": "NO_REGISTER_WRITEBACK_EVENT/NO_CONSUMER_EDGE (no load of the lane) in 5/5",
+  "SupplementaryPilotRequired": "yes",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R01; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R02; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R03; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R04; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R05"
+ },
+ "supplementary_pilot_required": "A same-address reload workload would be required to test propagation: 5 pilots, preserved identities. Not executed.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R02",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R03",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SQ03_v3_2_8/SQ03-R05"
+ ]
+}

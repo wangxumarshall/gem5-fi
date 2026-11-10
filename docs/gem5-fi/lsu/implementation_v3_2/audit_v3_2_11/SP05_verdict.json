@@ -1,0 +1,188 @@
+{
+ "model": "SP05",
+ "sub_unit": "SQ",
+ "fault_definition": "Store\u5b8c\u6210\u8bb0\u8d26\uff1acompleteStore / SQEntry::_completed / storesToWB",
+ "pilot_count": 5,
+ "pilots": [
+  {
+   "pilot_id": "SP05-R01@evidence",
+   "sample_run_id": "SP05-F6-W6-S01-R01",
+   "seed": "1489155957",
+   "event_ordinal": "1",
+   "binary_sha": "303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R01"
+  },
+  {
+   "pilot_id": "SP05-R02@evidence",
+   "sample_run_id": "SP05-F6-W6-S01-R02",
+   "seed": "1290498198",
+   "event_ordinal": "2",
+   "binary_sha": "303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R02"
+  },
+  {
+   "pilot_id": "SP05-R03@evidence",
+   "sample_run_id": "SP05-F6-W6-S01-R03",
+   "seed": "2768710389",
+   "event_ordinal": "3",
+   "binary_sha": "303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R03"
+  },
+  {
+   "pilot_id": "SP05-R04@evidence",
+   "sample_run_id": "SP05-F6-W6-S01-R04",
+   "seed": "2741073922",
+   "event_ordinal": "4",
+   "binary_sha": "303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R04"
+  },
+  {
+   "pilot_id": "SP05-R05@evidence",
+   "sample_run_id": "SP05-F6-W6-S01-R05",
+   "seed": "4098160626",
+   "event_ordinal": "5",
+   "binary_sha": "303c610d2dcca81340f0feae58fc449c8550d1daac6ff965a3387efd2189a0c0",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "STORE_COMMITTED_LANE_NOT_READ",
+   "oracle": "PASS",
+   "classification": "LIFECYCLE_ONLY",
+   "classification_rule": "STORE_OR_ENTRY_LIFECYCLE_ONLY",
+   "missing": [
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R05"
+  }
+ ],
+ "model_row": {
+  "ModelID": "SP05",
+  "SubUnit": "SQ",
+  "FaultDefinition": "Store\u5b8c\u6210\u8bb0\u8d26\uff1acompleteStore / SQEntry::_completed / storesToWB",
+  "PilotCount": 5,
+  "InjectionVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "IntermediatePropagationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "RegisterWritebackVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "ConsumerVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "CommitVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "TerminalVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "StructuralChainCompleteness": "COMPLETE",
+  "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY 5/5",
+  "FaultCausality": "NO_VERIFIED_FORWARD_PATH 5",
+  "FinalClassification": "LIFECYCLE_ONLY 5/5",
+  "MissingEvidence": "NO_REGISTER_WRITEBACK_EVENT/NO_CONSUMER_EDGE/NO_COMMIT_EVENT; entry-free/drain event absent",
+  "SupplementaryPilotRequired": "yes",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R01; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R02; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R03; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R04; docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R05"
+ },
+ "supplementary_pilot_required": "Instrument the entry-free/drain path in the SP05 trace (C++ hook change) and run 1-2 pilots if a lifecycle-complete chain is required. Approval required.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R02",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R03",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_11/extracted_evidence/SP05_v3_2_9/SP05-R05"
+ ]
+}

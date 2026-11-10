@@ -1,0 +1,181 @@
+{
+ "model": "FW02",
+ "sub_unit": "FWD",
+ "fault_definition": "Forwarding\u5339\u914d\u5224\u5b9a\uff1aread()\u8986\u76d6\u5224\u65ad / AddrRangeCoverage result",
+ "pilot_count": 5,
+ "pilots": [
+  {
+   "pilot_id": "FW02-R01",
+   "sample_run_id": "PILOT-FW02-R01",
+   "seed": "2941542370",
+   "event_ordinal": "1",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "NO_CONSUMER_OR_UNPROVEN_SQUASH",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R01"
+  },
+  {
+   "pilot_id": "FW02-R04",
+   "sample_run_id": "PILOT-FW02-R04",
+   "seed": "527667424",
+   "event_ordinal": "4",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "FORWARD_SUPPRESSED_MEMORY_PATH_CONSUMED_MASKED",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R04"
+  },
+  {
+   "pilot_id": "FW02-R05",
+   "sample_run_id": "PILOT-FW02-R05",
+   "seed": "3622278636",
+   "event_ordinal": "5",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "NO_CONSUMER_OR_UNPROVEN_SQUASH",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R05"
+  },
+  {
+   "pilot_id": "FW02-R01",
+   "sample_run_id": "FW02-R01-v324",
+   "seed": "2941542370",
+   "event_ordinal": "1",
+   "binary_sha": "b1f7cf189d2be1e90b8f682d2be97c057c78cfb8b58290c3631bb04f99578bea",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "NO_CONSUMER_OR_UNPROVEN_SQUASH",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/FW02-R01"
+  },
+  {
+   "pilot_id": "FW02-R05",
+   "sample_run_id": "FW02-R05-v324",
+   "seed": "3622278636",
+   "event_ordinal": "5",
+   "binary_sha": "b1f7cf189d2be1e90b8f682d2be97c057c78cfb8b58290c3631bb04f99578bea",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "NO_CONSUMER_OR_UNPROVEN_SQUASH",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/FW02-R05"
+  }
+ ],
+ "model_row": {
+  "ModelID": "FW02",
+  "SubUnit": "FWD",
+  "FaultDefinition": "Forwarding\u5339\u914d\u5224\u5b9a\uff1aread()\u8986\u76d6\u5224\u65ad / AddrRangeCoverage result",
+  "PilotCount": 5,
+  "InjectionVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "IntermediatePropagationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "RegisterWritebackVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ConsumerVerified": "yes 1/5; no 0; n/a 0; missing 4",
+  "CommitVerified": "yes 1/5; no 0; n/a 0; missing 4",
+  "TerminalVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "StructuralChainCompleteness": "COMPLETE",
+  "FaultEffectPropagationCoverage": "COMPLETE_CAUSAL_CHAIN 1/5; PARTIAL 4/5",
+  "FaultCausality": "CONTROL_EFFECT_WITH_DOWNSTREAM_COMMIT 1; NO_VERIFIED_FORWARD_PATH 4",
+  "FinalClassification": "COMPLETE_CAUSAL_CHAIN 1/5; PARTIAL 4/5",
+  "MissingEvidence": "NO_CONSUMER_EDGE/NO_COMMIT_EVENT in 4/5; squash causality unproven in R01/R05; the v3.2.4 traces lack the consumer record",
+  "SupplementaryPilotRequired": "yes",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R01; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R04; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R05; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/FW02-R01; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/FW02-R05"
+ },
+ "supplementary_pilot_required": "Re-run the v3.2.4 R01/R05 pair with the consumer/commit trace hook to complete the 5-pilot set; 2 runs, preserved identities. Approval required.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/FW02-R05",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/FW02-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_4/FW02-R05"
+ ]
+}

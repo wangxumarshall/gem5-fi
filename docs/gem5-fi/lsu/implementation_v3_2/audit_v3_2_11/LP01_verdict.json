@@ -1,0 +1,173 @@
+{
+ "model": "LP01",
+ "sub_unit": "L1D",
+ "fault_definition": "Load\u54cd\u5e94\u6570\u636e\uff1acompleteDataAccess\u524d / Packet::data[0]",
+ "pilot_count": 5,
+ "pilots": [
+  {
+   "pilot_id": "LP01-R01",
+   "sample_run_id": "LP01-F0-W5-S01-R01",
+   "seed": "1349924126",
+   "event_ordinal": "1",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "MODEL_SPECIFIC_ORIG_VS_INJ_DIVERGENCE_WITH_CONSUMER",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R01"
+  },
+  {
+   "pilot_id": "LP01-R02",
+   "sample_run_id": "LP01-F0-W5-S01-R02",
+   "seed": "2648660520",
+   "event_ordinal": "2",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "MODEL_SPECIFIC_ORIG_VS_INJ_DIVERGENCE_WITH_CONSUMER",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R02"
+  },
+  {
+   "pilot_id": "LP01-R03",
+   "sample_run_id": "LP01-F0-W5-S01-R03",
+   "seed": "2021175746",
+   "event_ordinal": "3",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "MODEL_SPECIFIC_ORIG_VS_INJ_DIVERGENCE_WITH_CONSUMER",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R03"
+  },
+  {
+   "pilot_id": "LP01-R04",
+   "sample_run_id": "LP01-F0-W5-S01-R04",
+   "seed": "3894776903",
+   "event_ordinal": "4",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "MODEL_SPECIFIC_ORIG_VS_INJ_DIVERGENCE_WITH_CONSUMER",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R04"
+  },
+  {
+   "pilot_id": "LP01-R05",
+   "sample_run_id": "LP01-F0-W5-S01-R05",
+   "seed": "1604604537",
+   "event_ordinal": "5",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "MODEL_SPECIFIC_ORIG_VS_INJ_DIVERGENCE_WITH_CONSUMER",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R05"
+  }
+ ],
+ "model_row": {
+  "ModelID": "LP01",
+  "SubUnit": "L1D",
+  "FaultDefinition": "Load\u54cd\u5e94\u6570\u636e\uff1acompleteDataAccess\u524d / Packet::data[0]",
+  "PilotCount": 5,
+  "InjectionVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "IntermediatePropagationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "RegisterWritebackVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ConsumerVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "CommitVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "TerminalVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "StructuralChainCompleteness": "COMPLETE",
+  "FaultEffectPropagationCoverage": "COMPLETE_CAUSAL_CHAIN 5/5",
+  "FaultCausality": "DIRECT_DATAFLOW_EVIDENCE 5",
+  "FinalClassification": "COMPLETE_CAUSAL_CHAIN 5/5",
+  "MissingEvidence": "ORACLE_FILE_MISSING in the v3.2.6 directories (oracle PASS is meta-recorded)",
+  "SupplementaryPilotRequired": "no",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R01; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R02; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R03; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R04; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R05"
+ },
+ "supplementary_pilot_required": "None for the propagation verdict. Optional: persist raw oracle.log in future vintages.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R02",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R03",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/LP01-R05"
+ ]
+}

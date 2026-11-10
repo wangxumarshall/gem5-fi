@@ -1,0 +1,234 @@
+{
+ "model": "A01",
+ "sub_unit": "AGU",
+ "fault_definition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08\u552f\u4e00\u6b63\u5f0fHook\uff09 / pushRequest addr (Addr 64)",
+ "pilot_count": 7,
+ "pilots": [
+  {
+   "pilot_id": "A01-R01",
+   "sample_run_id": "PILOT-A01-R01",
+   "seed": "2108120075",
+   "event_ordinal": "1",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "CRASH",
+   "terminal_reason": null,
+   "oracle": "FAIL",
+   "classification": "PARTIAL",
+   "classification_rule": "WRONG_EA_PROPAGATED_NO_REFERENCE_VALUE_OR_CRASH_MISMATCH",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R01"
+  },
+  {
+   "pilot_id": "A01-R02",
+   "sample_run_id": "PILOT-A01-R02",
+   "seed": "1113826800",
+   "event_ordinal": "2",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "WRONG_EA_PROPAGATED_NO_REFERENCE_VALUE_OR_CRASH_MISMATCH",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R02"
+  },
+  {
+   "pilot_id": "A01-R03",
+   "sample_run_id": "PILOT-A01-R03",
+   "seed": "1302709433",
+   "event_ordinal": "3",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "WRONG_EA_AND_RESPONSE_NO_WRITEBACK",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R03"
+  },
+  {
+   "pilot_id": "A01-R04",
+   "sample_run_id": "PILOT-A01-R04",
+   "seed": "2194451614",
+   "event_ordinal": "4",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "WRONG_EA_PROPAGATED_NO_REFERENCE_VALUE_OR_CRASH_MISMATCH",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R04"
+  },
+  {
+   "pilot_id": "A01-R05",
+   "sample_run_id": "PILOT-A01-R05",
+   "seed": "3228552887",
+   "event_ordinal": "5",
+   "binary_sha": "275111d805a71bc3defa5a44758810e4753d99ea55e46a423cdd741002f06bb4",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "WRONG_EA_PROPAGATED_NO_REFERENCE_VALUE_OR_CRASH_MISMATCH",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R05"
+  },
+  {
+   "pilot_id": "A01-R01",
+   "sample_run_id": "PILOT-A01-R01",
+   "seed": "2108120075",
+   "event_ordinal": "1",
+   "binary_sha": "0fa610c21b6a3c40e2e67dd5588956e06746b6d85ce6782a8ffce3429f232bab",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "CRASH",
+   "terminal_reason": null,
+   "oracle": "FAIL",
+   "classification": "PARTIAL",
+   "classification_rule": "WRONG_EA_PROPAGATED_NO_REFERENCE_VALUE_OR_CRASH_MISMATCH",
+   "missing": [
+    "ORACLE_MALFORMED"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R01"
+  },
+  {
+   "pilot_id": "A01-R03",
+   "sample_run_id": "PILOT-A01-R03",
+   "seed": "1302709433",
+   "event_ordinal": "3",
+   "binary_sha": "0fa610c21b6a3c40e2e67dd5588956e06746b6d85ce6782a8ffce3429f232bab",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "yes"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "WRONG_EA_AND_RESPONSE_NO_WRITEBACK",
+   "missing": [
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R03"
+  }
+ ],
+ "model_row": {
+  "ModelID": "A01",
+  "SubUnit": "AGU",
+  "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08\u552f\u4e00\u6b63\u5f0fHook\uff09 / pushRequest addr (Addr 64)",
+  "PilotCount": 7,
+  "InjectionVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "IntermediatePropagationVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "RegisterWritebackVerified": "yes 5/7; no 0; n/a 0; missing 2",
+  "ConsumerVerified": "yes 5/7; no 0; n/a 0; missing 2",
+  "CommitVerified": "yes 5/7; no 0; n/a 0; missing 2",
+  "TerminalVerified": "yes 7/7; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 1/7; no 0; n/a 0; missing 6",
+  "StructuralChainCompleteness": "COMPLETE; INCOMPLETE",
+  "FaultEffectPropagationCoverage": "PARTIAL 7/7",
+  "FaultCausality": "NO_VERIFIED_FORWARD_PATH 7",
+  "FinalClassification": "PARTIAL 7/7",
+  "MissingEvidence": "NO_REFERENCE_VALUE_AT_CORRECT_EA; CRASH_ADDRESS_MISMATCH; ORACLE_FILE_MISSING (v3.2.1); truncated v3.2.1 traces lack commit/consumer in R03",
+  "SupplementaryPilotRequired": "yes",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R01; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R02; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R03; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R04; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R05; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R01; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R03"
+ },
+ "supplementary_pilot_required": "Optional: add the correct-EA reference data hash and the page-table-fault address to the A01 trace, then 1-2 supplementary pilots. Not needed for the current verdict; awaiting approval.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R02",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R03",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_1/A01-R05",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R03"
+ ]
+}

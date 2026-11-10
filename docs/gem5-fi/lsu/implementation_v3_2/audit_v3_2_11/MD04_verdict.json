@@ -1,0 +1,182 @@
+{
+ "model": "MD04",
+ "sub_unit": "LSU",
+ "fault_definition": "Violation\u68c0\u6d4b\uff1acheckViolations / possibleLoadViolation",
+ "pilot_count": 5,
+ "pilots": [
+  {
+   "pilot_id": "MD04-R01",
+   "sample_run_id": "MD04-F6-W7-S01-R01",
+   "seed": "2595563470",
+   "event_ordinal": "1",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "SQUASHED_NO_COMMIT",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R01"
+  },
+  {
+   "pilot_id": "MD04-R02",
+   "sample_run_id": "MD04-F6-W7-S01-R02",
+   "seed": "811948497",
+   "event_ordinal": "2",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "VIOLATION_SUPPRESSED_LOAD_COMMITTED_MASKED",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R02"
+  },
+  {
+   "pilot_id": "MD04-R03",
+   "sample_run_id": "MD04-F6-W7-S01-R03",
+   "seed": "2545691512",
+   "event_ordinal": "3",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "yes",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "VIOLATION_SUPPRESSED_LOAD_COMMITTED_MASKED",
+   "missing": [
+    "ORACLE_FILE_MISSING"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R03"
+  },
+  {
+   "pilot_id": "MD04-R04",
+   "sample_run_id": "MD04-F6-W7-S01-R04",
+   "seed": "2149193331",
+   "event_ordinal": "4",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "missing",
+    "register_writeback_verified": "missing",
+    "consumer_verified": "missing",
+    "commit_verified": "missing",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "SQUASHED",
+   "terminal_reason": "TARGET_SQUASHED_NO_COMMIT",
+   "oracle": "PASS",
+   "classification": "PARTIAL",
+   "classification_rule": "SQUASHED_NO_COMMIT",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_EARLY_ANOMALY_EVENT",
+    "NO_INTERMEDIATE_PROPAGATION_EVENT",
+    "NO_REGISTER_WRITEBACK_EVENT",
+    "NO_CONSUMER_EDGE",
+    "NO_COMMIT_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04"
+  },
+  {
+   "pilot_id": "MD04-R05",
+   "sample_run_id": "MD04-F6-W7-S01-R05",
+   "seed": "1008734674",
+   "event_ordinal": "5",
+   "binary_sha": "0de2564468fd710bf1df22d2336acac0ea92f7bc1ef5780178f18f497a302d7d",
+   "stages": {
+    "injection_verified": "yes",
+    "activation_verified": "yes",
+    "early_anomaly_verified": "missing",
+    "intermediate_propagation_verified": "yes",
+    "register_writeback_verified": "yes",
+    "consumer_verified": "yes",
+    "commit_verified": "yes",
+    "terminal_verified": "yes",
+    "oracle_verified": "missing"
+   },
+   "terminal": "MASKED",
+   "terminal_reason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
+   "oracle": "PASS",
+   "classification": "COMPLETE_CAUSAL_CHAIN",
+   "classification_rule": "VIOLATION_SUPPRESSED_LOAD_COMMITTED_MASKED",
+   "missing": [
+    "ORACLE_FILE_MISSING",
+    "NO_EARLY_ANOMALY_EVENT"
+   ],
+   "evidence_path": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R05"
+  }
+ ],
+ "model_row": {
+  "ModelID": "MD04",
+  "SubUnit": "LSU",
+  "FaultDefinition": "Violation\u68c0\u6d4b\uff1acheckViolations / possibleLoadViolation",
+  "PilotCount": 5,
+  "InjectionVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "ActivationVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "EarlyAnomalyVerified": "yes 2/5; no 0; n/a 0; missing 3",
+  "IntermediatePropagationVerified": "yes 4/5; no 0; n/a 0; missing 1",
+  "RegisterWritebackVerified": "yes 4/5; no 0; n/a 0; missing 1",
+  "ConsumerVerified": "yes 3/5; no 0; n/a 0; missing 2",
+  "CommitVerified": "yes 3/5; no 0; n/a 0; missing 2",
+  "TerminalVerified": "yes 5/5; no 0; n/a 0; missing 0",
+  "OracleVerified": "yes 0/5; no 0; n/a 0; missing 5",
+  "StructuralChainCompleteness": "COMPLETE",
+  "FaultEffectPropagationCoverage": "COMPLETE_CAUSAL_CHAIN 3/5; PARTIAL 2/5",
+  "FaultCausality": "CONTROL_EFFECT_WITH_DOWNSTREAM_COMMIT 3; NO_VERIFIED_FORWARD_PATH 2",
+  "FinalClassification": "COMPLETE_CAUSAL_CHAIN 3/5; PARTIAL 2/5",
+  "MissingEvidence": "ORACLE_FILE_MISSING in v3.2.6 (meta-sourced PASS); squash causality unproven in R01/R04",
+  "SupplementaryPilotRequired": "yes",
+  "EvidencePaths": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R01; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R02; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R03; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04; docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R05"
+ },
+ "supplementary_pilot_required": "Optional: trace the squash reason for R01/R04 to decide whether the squash is fault-caused; 2 runs after approval.",
+ "evidence_paths": [
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R01",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R02",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R03",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R04",
+  "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6/MD04-R05"
+ ]
+}
