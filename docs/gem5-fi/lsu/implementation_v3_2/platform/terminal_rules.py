@@ -34,6 +34,15 @@ def adjudicate(events: list[dict], *, model: str, observed_terminal: str,
     """Return (terminal_state, terminal_state_reason)."""
     if observed_terminal in HARD_TERMINALS:
         return observed_terminal, None
+    if model == "RP01" and observed_terminal == "TIMEOUT":
+        # RP01 (v3.2.12): the run was cut by the external timeout around the
+        # in-simulator watchdog window (design gate condition 4: the expected
+        # terminal is HANG/TIMEOUT and the retained partial trace is
+        # evidence). The observation is terminal for this model — no
+        # downstream chain state (commit + consumer + a passing oracle) may
+        # relabel it MASKED. Model-scoped: no other model's adjudication
+        # changes.
+        return "TIMEOUT", "RP01_EXTERNAL_TIMEOUT"
     if not trace_complete:
         return "UNRESOLVED", "TRACE_INCOMPLETE"
 

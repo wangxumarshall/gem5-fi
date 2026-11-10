@@ -130,13 +130,29 @@ PROFILES = {
     ("LQ04", "SQUASHED"): [("injection", "squash")],
     ("LQ04", "CRASH"): [("injection", "simulator_abort")],
     ("LQ04", "UNRESOLVED"): [("injection",)],
+    # RP01 (v3.2.12): the ordinal-selected skip of the partial-coverage
+    # rescheduleMemInst call (lsq_unit.cc:2016). The skip leaves the load
+    # outside MemDepUnit::instsToReplay while the stall record stays
+    # preserved (task-14 wake-up audit P1-P6: no other path re-issues the
+    # skipped load), so the fault's own chain carries the skip marker and
+    # nothing downstream of it. The marker is either the call-site replay
+    # record the branch still emits (noteReplay fires before the guarded
+    # call, so it is on the chain even when the call is skipped) or a
+    # dedicated rp01_skip record. HANG/TIMEOUT is the designed terminal
+    # (design gate section 6/condition 4); SQUASHED closes the entry at an
+    # older squash boundary (audit P5). Additive: no other model reads
+    # these entries.
+    ("RP01", "HANG"): [("injection", "replay"), ("injection", "rp01_skip")],
+    ("RP01", "TIMEOUT"): [("injection", "replay"), ("injection", "rp01_skip")],
+    ("RP01", "SQUASHED"): [("injection", "squash")],
+    ("RP01", "UNRESOLVED"): [("injection",)],
 }
 DEFAULT_PROFILE = {"A01": ("injection",), "A03": ("injection",),
                    "FW02": ("forwarding_decision",),
                    "DA04": ("injection",), "SQ01": ("injection",),
                    "LP01": ("injection",), "MD04": ("injection",),
                    "FW05": ("injection",), "SQ03": ("injection",),
-                   "LQ04": ("injection",)}
+                   "LQ04": ("injection",), "RP01": ("injection",)}
 
 
 def expected_stages(model_id: str | None,
@@ -229,7 +245,7 @@ def check_completeness(path: Path) -> dict:
     for stage in ("injection", "address_formed", "memory_request",
                   "memory_response", "register_writeback",
                   "consumer_commit", "errant_commit", "forwarding_decision",
-                  "replay", "squash", "simulator_abort",
+                  "replay", "rp01_skip", "squash", "simulator_abort",
                   "store_writeback", "store_mem_write", "sq_lifecycle",
                   "sq03_complete"):
         if stage in kinds:
