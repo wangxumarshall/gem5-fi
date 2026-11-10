@@ -55,7 +55,11 @@ shouldComplete(uint64_t sq_idx, uint64_t sq_gen, uint64_t target_idx,
 //   data visible        drain_tick      (the cache write; for SP05 the
 //                       observable visibility event is instead a RELOAD
 //                       reading what the skipped write left behind)
-// Commit != visibility; both ticks are recorded.
+// Commit != visibility; both ticks are recorded. The record's data_correct
+// field is the pure tri-state mapping dataCorrect() below (the exact
+// semantics the emitChainRecord sp05_stage node prints): "1" the reload
+// read exactly the store's intended bytes, "0" it read something else,
+// "null" unknown (no reload observed, or a hash absent — §3).
 
 // Absent-sentinel rule shared with chaos_fw02 / chaos_sq01 / chaos_sq03
 // (standard v3.2.12 §3): empty / "null" / "None" / "0" are ABSENT hashes.
@@ -122,6 +126,28 @@ stageOutcomeName(StageOutcome o)
           return "RELOAD_UNVERIFIABLE";
     }
     return "NO_RELOAD_OBSERVED";
+}
+
+// data_correct (task-13 brief interface): tri-state, honestly unknown when
+// the verdict cannot see the bytes. Identical to the mapping the
+// emitChainRecord sp05_stage node prints, so the record can never drift
+// from the host-tested rule:
+//   "1"    the reload read exactly the store's intended bytes
+//          (MASKED_DATA_WRITTEN_CORRECTLY)
+//   "0"    the reload read different bytes (CHAIN_VISIBILITY_LOST)
+//   "null" no reload observed, or a bound hop's hash is absent (§3) —
+//          unknown is reported as unknown, never as correct
+inline const char *
+dataCorrect(const Sp05Stage &s)
+{
+    switch (stageVerdict(s)) {
+      case StageOutcome::MASKED_DATA_WRITTEN_CORRECTLY:
+          return "1";
+      case StageOutcome::CHAIN_VISIBILITY_LOST:
+          return "0";
+      default:
+          return "null";
+    }
 }
 
 // The definitive SP05 fact: completed without a drain — the write is lost.

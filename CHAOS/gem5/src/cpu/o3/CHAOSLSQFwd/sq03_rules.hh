@@ -41,7 +41,14 @@ shouldSetCanWB(uint64_t store_seq, uint64_t target_seq,
 //     lsq_unit.cc squash(): "Instructions marked as can WB are already
 //     committed", so the premature canWB defeats the squash guard).
 // Anything else (correct data, drain after commit, no reload consumer) is
-// LIFECYCLE_ONLY with reason NO_DOWNSTREAM_EFFECT.
+// LIFECYCLE_ONLY. Its reason is refined by lifecycleReason(): a record with
+// literally no downstream observation is NO_DOWNSTREAM_EFFECT; a record
+// whose only downstream observation is the SQ slot recycling
+// (resource_reuse_tick != 0, the resource-release path responding) is
+// RESOURCE_REUSE_ONLY — a resource-lifecycle effect that never grades as
+// a chain (the slot is reused in the fault-free run too, so reuse alone
+// proves no difference; only the golden-vs-fault tick comparison in the
+// regrade tool can score its timing shift).
 
 // Absent-sentinel rule shared with chaos_fw02 / chaos_sq01 / chaos_sp05
 // (standard v3.2.12 §3): empty / "null" / "None" / "0" are ABSENT hashes.
@@ -69,6 +76,10 @@ struct Sq03Effect
     uint64_t commit_tick = 0;     // 0 = store never committed
     uint64_t reload_seq = 0;      // 0 = no reload bound to the chain
     std::string reload_data_hash; // reload response data hash
+    uint64_t resource_reuse_tick = 0; // SQ slot recycled (0 = not observed);
+                                      // resource-release path observable —
+                                      // recorded for the timing-shift audit,
+                                      // never a chain by itself
 };
 
 inline bool
@@ -131,6 +142,36 @@ effectOutcomeName(EffectOutcome o)
           return "CHAIN_PHANTOM_STORE";
     }
     return "LIFECYCLE_ONLY";
+}
+
+// Resource-release path (task-12 brief step 1, the second quoted path):
+// resource_reuse_tick records the completed store's SQ slot being
+// reallocated to a later store (noteSQLifecycle's "reuse" action in
+// CHAOSPropagation.cc). It is the only resource-side observable the
+// sq03_effect record carries.
+inline bool
+resourceReused(const Sq03Effect &e)
+{
+    return e.resource_reuse_tick != 0;
+}
+
+// Reason refinement for a LIFECYCLE_ONLY verdict (the record-side
+// effectReason(EffectOutcome) stays the outcome-only mapping; this adds the
+// source-proved granularity task-12 brief step 4 asks for):
+//   NO_DOWNSTREAM_EFFECT — nothing downstream of the premature _canWB was
+//                          observed at all (no drain, no reload, no reuse);
+//   RESOURCE_REUSE_ONLY   — the observable effect stopped at the
+//                          resource-release path: the slot was recycled,
+//                          but no visibility moved and no reload consumed
+//                          the chain. Still LIFECYCLE_ONLY — a slot is
+//                          reused in the fault-free run as well, so reuse
+//                          alone can never be recorded as propagation.
+inline const char *
+lifecycleReason(const Sq03Effect &e)
+{
+    if (stateChanged(e) && resourceReused(e))
+        return "RESOURCE_REUSE_ONLY";
+    return "NO_DOWNSTREAM_EFFECT";
 }
 
 } // namespace chaos_sq03
