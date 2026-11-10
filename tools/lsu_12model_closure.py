@@ -30,6 +30,11 @@ Field mapping (standard §7, frozen):
 1. missing injection / absent or unusable evidence -> ``UNRESOLVED``;
 2. HANG/TIMEOUT/SQUASHED with a proven trigger -> complete verdict;
 3. complete effect with consumer -> complete verdict;
+3b. exception E1 (standard §6/§10, model-scoped to LQ04): the runtime-proven
+   senderState masking chain -> ``COMPLETE_CAUSAL_CHAIN`` with
+   ``ObservedTerminal=MASKED`` and
+   ``MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE``, even
+   though ``FaultEffectPropagationCoverage`` stays ``LIFECYCLE_ONLY``;
 4. internal-only change -> ``LIFECYCLE_ONLY``;
 5. otherwise -> ``PARTIAL`` (with the missing link named).
 
@@ -77,6 +82,19 @@ TERMINAL_VALUES = ("SDC", "MASKED", "SQUASHED", "CRASH", "HANG", "TIMEOUT",
 ORACLE_VALUES = ("PASS", "FAIL", "MISSING", "NOT_APPLICABLE")
 FINAL_VALUES = ("COMPLETE_CAUSAL_CHAIN", "VERIFIED_SINGLE_CONTEXT",
                 "LIFECYCLE_ONLY", "PARTIAL", "UNRESOLVED")
+
+# Standard §6 exception E1 (§10, frozen amendment 2026-11-10): the LQ04
+# senderState masking rule.  The researcher brief §八 ruling (binding per the
+# v3.2.12 SDD ledger) grades the runtime-proven senderState masking chain
+# COMPLETE_CAUSAL_CHAIN with ObservedTerminal=MASKED and the named masking
+# mechanism, even though FaultEffectPropagationCoverage stays LIFECYCLE_ONLY
+# (the effect itself stayed inside the LQ-entry lifecycle).  The rule is
+# model-scoped: it upgrades no other model.
+MASKING_MECHANISM_SENDERSTATE = "RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE"
+_LQ04_SENDER_STATE = "sender_state"
+# hash sentinels that can neither establish continuity nor verify the
+# consumer edge (platform _real_hash semantics + this tool's stage literal)
+_ABSENT_HASH_SENTINELS = frozenset(("null", "none", "0", "", "not_applicable"))
 
 # terminal_rules reasons whose outcome is derived from the fault's own
 # committed node (identity-verified by construction of the adjudication)
@@ -660,6 +678,20 @@ def build_pilot_record(pilot_dir, model: str,
             (evidence.get("consumer") or {}).get("source_linked")
             if stages["consumer_verified"] == "yes"
             else "NOT_APPLICABLE"),
+        # exception-E1 evidence (standard §10): how the in-flight response and
+        # the writeback were associated to the original request while the LQ
+        # entry was visibly invalid.  For LQ04 the early-anomaly stage IS the
+        # memory_response (platform EARLY_ANOMALY_KINDS), so the first field
+        # below is exactly the association recorded on the chain's
+        # memory_response; both come from audit_pilot's evidence export (no
+        # independent trace re-parse, no forked classifier).
+        "MemoryResponseAssociation": (
+            (evidence.get("earliest_anomaly") or {}).get("association")
+            if stages["early_anomaly_verified"] == "yes" else "NOT_APPLICABLE"),
+        "WritebackAssociation": (
+            (evidence.get("writeback") or {}).get("association")
+            if stages["register_writeback_verified"] == "yes"
+            else "NOT_APPLICABLE"),
         "CommitSeq": (
             (evidence.get("commit") or {}).get("commit_seq")
             if stages["commit_verified"] == "yes"
@@ -669,6 +701,11 @@ def build_pilot_record(pilot_dir, model: str,
         "OracleStatus": audit["oracle"].get("status"),
     }
     record["PathFragments"] = _path_fragments(record)
+    # standard §10: the exception-E1 record field, computed from the same
+    # conjunction that final_classification applies (never hand-set)
+    record["MaskingMechanism"] = (
+        MASKING_MECHANISM_SENDERSTATE
+        if _lq04_sender_state_masking(record) else "NOT_APPLICABLE")
     record["FinalClassification"] = final_classification(record)
     return record
 
@@ -698,8 +735,62 @@ def _path_fragments(record: dict) -> list[dict]:
 # FinalClassification — the fixed order (standard §6)
 # ---------------------------------------------------------------------------
 
+def _lq04_sender_state_masking(record: dict) -> bool:
+    """Standard §6 exception E1 (§10): the LQ04 senderState masking rule.
+
+    Fires only when ALL conditions hold (the researcher brief §八 binding
+    ruling, frozen as standard §10): the record is LQ04 with terminal MASKED;
+    causality is PROVEN over a VALID/COMPLETE record with a structurally
+    COMPLETE chain and a verified injection/activation (the §6 invariants
+    every complete verdict obeys); the chain evidence carries the senderState
+    association on BOTH the memory_response and the register_writeback; and
+    the consumer input hash equals the writeback value hash (both real
+    hashes).  Model-scoped: no other model is ever upgraded by it, and an
+    LQ04 record missing any condition follows the generic §6 rules exactly
+    as before (LIFECYCLE_ONLY/PARTIAL) — no upgrade on inference alone.
+    """
+    def field(name: str) -> str:
+        value = record.get(name)
+        return str(value).strip().upper() if value is not None else ""
+
+    def detail(name: str) -> str:
+        value = record.get(name)
+        return str(value).strip().lower() if value is not None else ""
+
+    if field("ModelID") != "LQ04":
+        return False  # model-scoped: the exception upgrades no other model
+    if field("ObservedTerminal") != "MASKED":
+        # E1 names a masking mechanism; it never relabels another terminal
+        return False
+    if field("FaultCausality") != "PROVEN":
+        return False
+    if (field("RecordIntegrity") != "VALID"
+            or field("TraceCompleteness") != "COMPLETE"
+            or field("StructuralChainCompleteness") != "COMPLETE"):
+        return False
+    if (record.get("InjectionVerified") != "yes"
+            or record.get("ActivationVerified") != "yes"):
+        # §6 invariant: no complete verdict over unverified/dormant stages
+        return False
+    if detail("MemoryResponseAssociation") != _LQ04_SENDER_STATE:
+        return False  # the response binding is not runtime-proven
+    if detail("WritebackAssociation") != _LQ04_SENDER_STATE:
+        return False  # the writeback binding is not runtime-proven
+    writeback_fnv = detail("WritebackValueFnv")
+    if writeback_fnv in _ABSENT_HASH_SENTINELS:
+        # an absent hash can neither verify nor fabricate the consumer edge
+        return False
+    return writeback_fnv == detail("ConsumerInputFnv")
+
+
 def final_classification(record: dict) -> str:
-    """Apply the frozen five-rule order; the first rule that fires decides."""
+    """Apply the frozen five-rule order; the first rule that fires decides.
+
+    Exception E1 (standard §6 clause 3b / §10, frozen amendment 2026-11-10)
+    sits between rules 3 and 4 and is model-scoped to the runtime-proven
+    LQ04 senderState masking chain (``_lq04_sender_state_masking``); every
+    other record, and every LQ04 record missing any of E1's conditions,
+    follows the generic rules unchanged."""
     def field(name: str) -> str:
         value = record.get(name)
         return str(value).upper() if value is not None else ""
@@ -734,6 +825,17 @@ def final_classification(record: dict) -> str:
         if injection_ok and activation_ok and struct_complete and integrity_ok:
             return complete
         return "PARTIAL"
+    if _lq04_sender_state_masking(record):
+        # exception E1 (standard §6 clause 3b / §10, frozen amendment
+        # 2026-11-10): the runtime-proven LQ04 senderState masking chain.
+        # FaultEffectPropagationCoverage stays LIFECYCLE_ONLY — the effect
+        # stayed inside the LQ-entry lifecycle — but per the researcher §八
+        # binding ruling it no longer forces the classification down: the
+        # chain that delivered the intact payload and produced the MASKED
+        # terminal is complete, identity- and hash-verified, so the record
+        # grades COMPLETE_CAUSAL_CHAIN and carries
+        # MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE.
+        return "COMPLETE_CAUSAL_CHAIN"
     if (field("FaultEffectPropagationCoverage") == "LIFECYCLE_ONLY"
             and activation_ok and struct_complete
             and terminal not in ("HANG", "TIMEOUT", "SQUASHED", "CRASH")):
@@ -1111,6 +1213,7 @@ def main(argv: list | None = None) -> int:
             print(f"  {record['PilotID']}: "
                   f"FinalClassification={record['FinalClassification']} "
                   f"ObservedTerminal={record['ObservedTerminal']} "
+                  f"MaskingMechanism={record['MaskingMechanism']} "
                   f"missing=[{record['MissingEvidence']}]")
         return 0
 

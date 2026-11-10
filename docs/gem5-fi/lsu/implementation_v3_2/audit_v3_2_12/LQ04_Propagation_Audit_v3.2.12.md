@@ -7,24 +7,27 @@ visibly invalid (`valid=0`, `_request=nullptr`) after `executeLoad`, and the sti
 response resolved to the original request through the packet's `senderState` — **provable from
 the runtime traces**, rather than inferred from source reading alone?
 
-**Re-adjudicated verdict (frozen standard `LSU_Propagation_Acceptance_Standard_v3.2.12.md` §6,
-computed by the closure tool, never hand-set):**
+**Re-adjudicated verdict (frozen standard `LSU_Propagation_Acceptance_Standard_v3.2.12.md` §6
+clause 3b / §10, as amended 2026-11-10; computed by the closure tool, never hand-set):**
 
 | Field | Value (5/5 pilots) |
 |---|---|
-| `FinalClassification` | **`LIFECYCLE_ONLY`** (rule 4: internal-only change) |
+| `FinalClassification` | **`COMPLETE_CAUSAL_CHAIN`** (§6 exception E1 / §10: the runtime-proven senderState masking chain; model-scoped, upgrades no other model) |
 | `ObservedTerminal` | **`MASKED`** (`TARGET_COMMITTED_DATA_VALUE_PRESENT`) |
-| `MaskingMechanism` (adjudicated in this report) | **`RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE`** — **proven at runtime**, recorded in every trace |
-| `FaultEffectPropagationCoverage` | `LIFECYCLE_ONLY` (platform rule `STORE_OR_ENTRY_LIFECYCLE_ONLY`) |
+| `MaskingMechanism` | **`RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE`** — **proven at runtime**, now a tool-emitted record field (exception E1), no longer report-adjudicated |
+| `FaultEffectPropagationCoverage` | `LIFECYCLE_ONLY` (platform `fault_effect_coverage.classify`, reason `TRIGGERED_NO_DIVERGENCE`; unchanged — the effect stayed inside the LQ-entry lifecycle, but under E1 it no longer forces the classification down) |
 | `FaultCausality` | `PROVEN` (v3.2.12 T2 upgrade from v3.2.11's `NO_VERIFIED_FORWARD_PATH`) |
 | `ApplicationOracle` | `PASS` (raw `oracle.log` = frozen golden, all five) |
 | `SupplementaryPilotRequired` | **no** — both runtime records (LQ-invalid event, senderState association) are present in all five traces |
 
-The chain is proven end-to-end at runtime — and because it is proven, the classification is
-`LIFECYCLE_ONLY`: the senderState association is exactly the mechanism that keeps the delivered
-payload intact by construction, so no divergent hop exists to grade `COMPLETE` (§5 below).
-This is not an upgrade-in-limbo: v3.2.11's `LIFECYCLE_ONLY` verdict is **confirmed**, now with
-mechanism-level runtime proof instead of source-code inference.
+The chain is proven end-to-end at runtime, and per the researcher §八 binding ruling — frozen
+into the standard through its revise-never-silently-fold path (§6 clause 3b + §10, amendment
+2026-11-10) — the proven senderState masking chain grades `COMPLETE_CAUSAL_CHAIN`: the response
+is bound to the original request through the packet's `senderState` across the invalid window,
+the intact payload is hash-verified end to end, and the MASKED terminal sits on the fault's own
+chain. The closure tool computes the verdict from the record (exception E1's full conjunction
+holds 5/5, §4 below); it is not a hand-set verdict. `FaultEffectPropagationCoverage` honestly
+stays `LIFECYCLE_ONLY`, because the fault's effect never left the LQ-entry lifecycle.
 
 ---
 
@@ -44,18 +47,20 @@ workload `fa25f785a4822eb578ae8da2d26c400d7450f40d975b2d7da84de900b48d97ba`
 per-model verdict is computed within a single `BinarySHA256` key — no cross-binary merge
 (standard §6 invariant).
 
-**Binary purity check (loud, as instructed).** The record run passed
+**Binary purity check (loud).** The record run passed
 `--binary-sha 3dccaa10ec5073ca90f2622bd37d5adac1b705bd9faf2497c2d13e46beadd4ed`
-(the v3.2.11-round binary, `GIT_COMMIT_v3211.txt`). Every pilot flagged
-`BINARY_SHA_MISMATCH`, because the raw manifests record the **v3.2.10-round** binary
-`f3c2a442…` that actually produced them (`GIT_COMMIT_v3210.txt`: "LSU v3.2.10 (LQ04) …
-Binary SHA256 … f3c2a4423aab81ca…", and the v3.2.11 audit `LQ04_verdict.json` recorded the
-same). Adjudication: the raw artifact wins — the pilots are v3.2.10-round runs; the
-"produced with the v3.2.11 binary" premise is off by one round. The mismatch is a provenance
-labeling fact (missing-matrix `RequiredRunCount=0` per the tool's spec table: "the pilot
-re-run under the expected binary, or an explicit per-binary split"), **not** a stage gap and
-**not** evidence contamination: it changes no verdict field (all five share one recorded
-binary) and no historical artifact was overwritten.
+(the v3.2.11-round binary, `GIT_COMMIT_v3211.txt`). That argument comes from the
+**orchestrator dispatch** of this task, not from the plan: the plan's Task 4 Step 3 command
+carries no `--binary-sha` at all. Every pilot flags `BINARY_SHA_MISMATCH`, because the raw
+manifests record the **v3.2.10-round** binary `f3c2a442…` that actually produced them
+(`GIT_COMMIT_v3210.txt`: "LSU v3.2.10 (LQ04) … Binary SHA256 … f3c2a4423aab81ca…", and the
+v3.2.11 audit `LQ04_verdict.json` recorded the same) — the raw manifests are the truth: these
+are v3.2.10-round runs. The mismatch flag is kept (it fires on all five records): it is a
+provenance labeling fact (missing-matrix `RequiredRunCount=0` per the tool's spec table: "the
+pilot re-run under the expected binary, or an explicit per-binary split"), **not** a stage
+gap and **not** evidence contamination — it changes no verdict field (all five share one
+recorded binary, so the verdict is computed within a single `BinarySHA256` key) and no
+historical artifact was overwritten.
 
 **Determinism controls (read-only inputs).** `LQ04-CONTROL-R01..R05`: 5/5 with
 `injection_count=0`, `fault_activation_status=NOT_TRIGGERED`, and raw
@@ -193,7 +198,8 @@ LQ-invalid event (injection detail + `response_probe`) and the senderState assoc
 ### 3.2 Chain-wide integrity (all five pilots)
 
 `chain_integrity=PASS`, `chain_reasons=[]`, `execution_attempt_link=SAME_ATTEMPT`,
-`missing_stages=[]`, `taint_value_mismatch_records=0`, chain events 335/335/336/335/336,
+`missing_stages=[]`, `taint_value_mismatch_records=0`, chain events 335/336/335/335/336
+(R01..R05; as also recorded per record in `ChainEventCount`),
 consumer operand records 326/327/326/326/327 (R01: 325 of 326 consumer edges are
 consumer→consumer re-taint edges, per `fault_effect_coverage._SOURCE_HASH_KEYS`), zero
 validation errors, one summary record each. No taint value mismatch exists in any pilot —
@@ -205,7 +211,9 @@ the intact payload is proven, not assumed.
 
 Command run from the repo root of worktree
 `.claude/worktrees/lsu-platform-v3.2.12` (branch `lsu-platform-v3.2.12`), with the
-instructed v3.2.11 binary SHA armed as the purity check:
+v3.2.11-round binary SHA from the orchestrator dispatch armed as the purity check (the
+plan's Task 4 Step 3 command itself carries no `--binary-sha`; the raw manifests record the
+v3.2.10 binary that produced the pilots — §1 — and the `BINARY_SHA_MISMATCH` flag is kept):
 
 ```bash
 python3 tools/lsu_12model_closure.py record --model LQ04 \
@@ -222,29 +230,45 @@ Observed output:
 
 ```
 model=LQ04 pilots=5
-  LQ04-R01: FinalClassification=LIFECYCLE_ONLY ObservedTerminal=MASKED missing=[BINARY_SHA_MISMATCH]
-  LQ04-R02: FinalClassification=LIFECYCLE_ONLY ObservedTerminal=MASKED missing=[BINARY_SHA_MISMATCH]
-  LQ04-R03: FinalClassification=LIFECYCLE_ONLY ObservedTerminal=MASKED missing=[BINARY_SHA_MISMATCH]
-  LQ04-R04: FinalClassification=LIFECYCLE_ONLY ObservedTerminal=MASKED missing=[BINARY_SHA_MISMATCH]
-  LQ04-R05: FinalClassification=LIFECYCLE_ONLY ObservedTerminal=MASKED missing=[BINARY_SHA_MISMATCH]
+  LQ04-R01: FinalClassification=COMPLETE_CAUSAL_CHAIN ObservedTerminal=MASKED MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE missing=[BINARY_SHA_MISMATCH]
+  LQ04-R02: FinalClassification=COMPLETE_CAUSAL_CHAIN ObservedTerminal=MASKED MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE missing=[BINARY_SHA_MISMATCH]
+  LQ04-R03: FinalClassification=COMPLETE_CAUSAL_CHAIN ObservedTerminal=MASKED MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE missing=[BINARY_SHA_MISMATCH]
+  LQ04-R04: FinalClassification=COMPLETE_CAUSAL_CHAIN ObservedTerminal=MASKED MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE missing=[BINARY_SHA_MISMATCH]
+  LQ04-R05: FinalClassification=COMPLETE_CAUSAL_CHAIN ObservedTerminal=MASKED MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE missing=[BINARY_SHA_MISMATCH]
 ```
 
 The five per-pilot records (`LQ04_verdict_v3.2.12.json`, emitted by the tool, never
 hand-edited) are uniform:
 
-| Pilot | RecordIntegrity | TraceCompleteness | StructuralChainCompleteness | FaultEffectPropagationCoverage | FaultCausality | ObservedTerminal | ApplicationOracle | FinalClassification | MissingEvidence |
-|---|---|---|---|---|---|---|---|---|---|
-| R01 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | LIFECYCLE_ONLY | BINARY_SHA_MISMATCH |
-| R02 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | LIFECYCLE_ONLY | BINARY_SHA_MISMATCH |
-| R03 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | LIFECYCLE_ONLY | BINARY_SHA_MISMATCH |
-| R04 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | LIFECYCLE_ONLY | BINARY_SHA_MISMATCH |
-| R05 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | LIFECYCLE_ONLY | BINARY_SHA_MISMATCH |
+| Pilot | RecordIntegrity | TraceCompleteness | StructuralChainCompleteness | FaultEffectPropagationCoverage | FaultCausality | ObservedTerminal | ApplicationOracle | FinalClassification | MaskingMechanism | MissingEvidence |
+|---|---|---|---|---|---|---|---|---|---|---|
+| R01 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | **COMPLETE_CAUSAL_CHAIN** | RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE | BINARY_SHA_MISMATCH |
+| R02 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | **COMPLETE_CAUSAL_CHAIN** | RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE | BINARY_SHA_MISMATCH |
+| R03 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | **COMPLETE_CAUSAL_CHAIN** | RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE | BINARY_SHA_MISMATCH |
+| R04 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | **COMPLETE_CAUSAL_CHAIN** | RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE | BINARY_SHA_MISMATCH |
+| R05 | VALID | COMPLETE | COMPLETE | LIFECYCLE_ONLY | PROVEN | MASKED | PASS | **COMPLETE_CAUSAL_CHAIN** | RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE | BINARY_SHA_MISMATCH |
 
 Per-pilot feature facts carried by the records: `InjectionVerified=yes`,
 `ActivationVerified=yes`, `VerifiedChainCount=0`, `WritebackValueFnv == ConsumerInputFnv`
 (`c6d4496e17859d5` / `46f9187bab44bc35` / `14fe41788a431ad5` / `4f8a555d540fe9f5` /
 `f9468ffeedcb9ad5`), `ConsumerSourceLinked=True`, `CommitSeq == InjectionSeq` (3..7),
-`OracleExpected == OracleActual == b097eb83f71545cb`.
+`OracleExpected == OracleActual == b097eb83f71545cb`, and the exception-E1 evidence fields:
+`MemoryResponseAssociation=sender_state`, `WritebackAssociation=sender_state` (the runtime
+`association=sender_state` on the chain's `memory_response` and `register_writeback`, §3.1),
+with `MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE` computed from them.
+`FaultEffectPropagationCoverage` stays `LIFECYCLE_ONLY` on every record (the platform grade is
+unchanged); under standard §6 clause 3b / §10 it no longer forces `FinalClassification` down.
+
+The classification is the closure tool's exception-E1 rule
+(`_lq04_sender_state_masking` in `tools/lsu_12model_closure.py`, standard §10.3) computing the
+full conjunction per record — `ModelID=LQ04`, `ObservedTerminal=MASKED`,
+`FaultCausality=PROVEN`, `RecordIntegrity=VALID`, `TraceCompleteness=COMPLETE`,
+`StructuralChainCompleteness=COMPLETE`, `InjectionVerified/ActivationVerified=yes`, the
+senderState association on BOTH the `memory_response` and the `register_writeback`, and
+`WritebackValueFnv == ConsumerInputFnv` (both real hashes). All five records satisfy every
+condition; a record missing any one of them stays `LIFECYCLE_ONLY`/`PARTIAL` as before, and no
+other model is upgraded by the rule (pinned by the three exception-E1 tests in
+`tests/test_lsu_12model_closure.py`).
 
 **`SUPPLEMENTARY_PILOT_REQUIRED` is NOT the outcome:** the LQ-invalid event
 (`valid_after=0;request_after=0` + `response_probe` `valid_at_response=0;request_present_at_response=0`)
@@ -278,59 +302,67 @@ replay_generation)` — standard §2) and hash-verified (data rule §3: `data_fn
 `taint_value_mismatch_records=0`), and the terminal sits on the fault's own chain
 (`TARGET_COMMITTED_DATA_VALUE_PRESENT`, `FaultCausality=PROVEN` — the v3.2.12 T2 field
 that v3.2.11 expressed ad hoc as "direct dataflow evidence"). The masking mechanism is
-therefore stated explicitly, as the plan requires when the chain is proven:
+therefore recorded explicitly, as the plan requires when the chain is proven — and since the
+standard amendment (exception E1, §6 clause 3b / §10) it is a tool-emitted record field, no
+longer a report adjudication:
 
 > **MaskingMechanism = `RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE`.**
 
-### 5.2 Why the proven chain grades `LIFECYCLE_ONLY`, not `COMPLETE_CAUSAL_CHAIN`
+### 5.2 Why the proven chain grades `COMPLETE_CAUSAL_CHAIN` (standard §6 exception E1 / §10)
 
-The plan's Interfaces line offered two outcomes; the frozen standard decides which one
-applies, through the closure tool's fixed order (§6) — never a hand pick:
+The plan's Interfaces line offered two outcomes, and the runtime evidence decides which one
+applies — through the closure tool, never a hand pick. Under the generic rules alone, rule 3
+requires `FaultEffectPropagationCoverage=COMPLETE`: "a **verified divergence** reached
+committed architectural state" (standard §1.4). No such divergence exists in any pilot:
+`data_unchanged=1`, `data_corruption=0`, `value_matches_payload=1`,
+`consumer_input_matches_source=1` on every hop, `taint_value_mismatch_records=0`
+chain-wide, `VerifiedChainCount=0`, oracle `got==expected`. The platform module (unchanged
+this round, per standard §7) says why:
+`docs/gem5-fi/lsu/implementation_v3_2/platform/fault_effect_coverage.py:10-14`
+("A structurally complete chain can carry an intact payload end to end (LQ04 is the
+canonical case: the fault corrupts LQ-entry lifetime metadata, **the response is bound by
+senderState**, and the delivered data is unchanged by construction), so the honest effect
+grade for such a run is LIFECYCLE_ONLY, not COMPLETE.").
 
-- Rule 3 (`COMPLETE_CAUSAL_CHAIN`) requires `FaultEffectPropagationCoverage=COMPLETE`: "a
-  **verified divergence** reached committed architectural state" (standard §1.4). No such
-  divergence exists in any pilot: `data_unchanged=1`, `data_corruption=0`,
-  `value_matches_payload=1`, `consumer_input_matches_source=1` on every hop,
-  `taint_value_mismatch_records=0` chain-wide, `VerifiedChainCount=0`, oracle
-  `got==expected`. The platform rule that fires is `STORE_OR_ENTRY_LIFECYCLE_ONLY`, and
-  the platform module itself — unchanged this round, per standard §7 — says why:
-  `docs/gem5-fi/lsu/implementation_v3_2/platform/fault_effect_coverage.py:10-14`
-  ("A structurally complete chain can carry an intact payload end to end (LQ04 is the
-  canonical case: the fault corrupts LQ-entry lifetime metadata, **the response is bound by
-  senderState**, and the delivered data is unchanged by construction), so the honest effect
-  grade for such a run is LIFECYCLE_ONLY, not COMPLETE.") and its `EFFECT_MARKERS["LQ04"]=()`
-  (lines 61-65: "no control marker exists and intact LQ04 chains grade LIFECYCLE_ONLY").
-- Rule 4 then fires: `FaultEffectPropagationCoverage=LIFECYCLE_ONLY`, injection TRIGGERED,
-  `StructuralChainCompleteness=COMPLETE`, terminal `MASKED` (not a hard terminal) →
-  `LIFECYCLE_ONLY`. This is the standard's own canonical case (§1.4: "Canonical: LQ04
-  'structural chain complete, correct payload, no corruption propagation' — v3.2.11 audit
-  §4").
+That is exactly the case the researcher §八 ruling addresses (standard §10.1, quoted
+verbatim there): a complete, identity- and hash-verified causal chain that delivers the
+intact payload across the invalid window and produces the MASKED terminal **is** LQ04's
+complete causal chain — the senderState binding is the masking mechanism, not the absence
+of a chain. The standard was therefore amended through its own revise-never-silently-fold
+path (§6 clause 3b + §10, amendment 2026-11-10): between rules 3 and 4, exception E1 grades
+the LQ04 record `COMPLETE_CAUSAL_CHAIN` with `ObservedTerminal=MASKED` and
+`MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE` when — and only when — the
+full §10.3 conjunction holds. The closure tool computes it per record; every condition
+holds 5/5 (§4), so the verdict is tool-computed from the record, not hand-set. The rule is
+model-scoped (no other model is upgraded), and an LQ04 record missing any condition stays
+`LIFECYCLE_ONLY`/`PARTIAL` exactly as before — no upgrade on inference alone.
 
-**The missing link, named honestly:** there is **no missing runtime link** — both runtime
-records the plan demanded are present in all five traces. What is absent — by construction,
-not by missing evidence — is a **divergent value/control hop** (`FaultEffectPropagationCoverage`
-is `LIFECYCLE_ONLY`, never `COMPLETE`) : the senderState association delivers the intact
-payload across the invalid window, so the fault's effect never leaves the LQ entry
-lifecycle. Writing `COMPLETE_CAUSAL_CHAIN` over the tool's deterministic `LIFECYCLE_ONLY`
-would be a hand-set verdict (forbidden by the standard's "only path to a verdict") and
-exactly the "upgrade on inference alone" the plan forbids. Conversely the verdict is also
-**not** `PARTIAL` and **not** `UNRESOLVED`: nothing is missing, the chain is fully verified
-— it simply proves an intact payload. v3.2.11's frozen line holds symmetrically: the
-definition "must not be changed to obtain SDC" — nor to obtain COMPLETE.
+`FaultEffectPropagationCoverage` is unchanged by E1 and stays `LIFECYCLE_ONLY` on all five
+records: the effect itself never left the LQ-entry lifecycle — the senderState association
+delivers the intact payload across the invalid window. E1 changes only that this coverage
+value no longer forces the classification down: the *effect* is lifecycle-only; the
+*chain* is complete and runtime-proven. The honesty boundary is unchanged: the fault
+definition was not changed to obtain SDC, and nothing was re-labelled to obtain COMPLETE —
+the same raw records that proved the mechanism under v3.2.11's `LIFECYCLE_ONLY` verdict now
+compute `COMPLETE_CAUSAL_CHAIN` under the researcher's frozen exception, with the terminal
+(MASKED 5/5) and the oracle (PASS 5/5) unchanged.
 
 ### 5.3 What changed vs v3.2.11 (the substance of the re-adjudication)
 
 | Field | v3.2.11 | v3.2.12 | Why |
 |---|---|---|---|
 | Structural completeness | COMPLETE | COMPLETE | unchanged |
-| Effect coverage | LIFECYCLE_ONLY | LIFECYCLE_ONLY | confirmed by rule 4; the mechanism explains it |
+| Effect coverage | LIFECYCLE_ONLY | LIFECYCLE_ONLY | unchanged — the effect stayed inside the LQ-entry lifecycle; under E1 it no longer forces the classification down |
 | Terminal / oracle | MASKED / PASS | MASKED / PASS | unchanged (5/5, raw artifacts) |
 | Causality | `NO_VERIFIED_FORWARD_PATH` (ad hoc) | **`PROVEN`** (frozen T2 field) | every hop identity+hash verified; terminal on the fault's own chain |
 | Response→request association | inferred from source reading | **proven at runtime** (`association=sender_state`, `response_probe`) | this re-adjudication's finding |
-| FinalClassification | LIFECYCLE_ONLY | **LIFECYCLE_ONLY** | confirmed; now mechanism-proven, not source-inferred |
+| MaskingMechanism | not a record field (report-adjudicated) | **`RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE`** (tool-emitted record field) | exception E1 (standard §6 clause 3b / §10) |
+| FinalClassification | LIFECYCLE_ONLY | **`COMPLETE_CAUSAL_CHAIN`** (exception E1) | the researcher §八 binding ruling; tool-computed; coverage stays LIFECYCLE_ONLY |
 
-**Model verdict: `LIFECYCLE_ONLY` (5/5), `ObservedTerminal=MASKED` (5/5),
-`MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE` (proven in all five).**
+**Model verdict: `COMPLETE_CAUSAL_CHAIN` (5/5, exception E1), `ObservedTerminal=MASKED` (5/5),
+`MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE` (tool-computed on all five
+records), `FaultEffectPropagationCoverage=LIFECYCLE_ONLY` (5/5, unchanged), oracle PASS
+(5/5).**
 
 ---
 
@@ -349,8 +381,22 @@ consumer, commit, terminal and raw oracle are `yes` 5/5. **SupplementaryPilotReq
 1. The brief's `CHAOS/gem5/src/cpu/lsq.cc` does not exist in this gem5 vintage; the LSQ
    implementation lives at `CHAOS/gem5/src/cpu/o3/lsq.cc` (+ `lsq_unit.cc/.hh` in the same
    directory). Quoted accordingly.
-2. The instructed expected binary SHA (`3dccaa10…`, v3.2.11 round) does not match the
-   pilots' recorded binary (`f3c2a442…`, v3.2.10 round that produced them); the mismatch
-   was passed, fired loudly on all five records, and adjudicated in §1 rather than silenced.
+2. The expected binary SHA passed to the tool (`3dccaa10…`, v3.2.11 round) came from the
+   **orchestrator dispatch** of this task, not from the plan — the plan's Task 4 Step 3
+   command carries no `--binary-sha`. It does not match the pilots' recorded binary
+   (`f3c2a442…`, the v3.2.10 round that produced them, which is the truth); the mismatch was
+   passed, fired loudly on all five records, and is kept — adjudicated in §1 rather than
+   silenced.
 3. The verdict JSON was emitted solely by the closure tool (`--json`); no field was
-   hand-written or hand-edited.
+   hand-written or hand-edited. The `COMPLETE_CAUSAL_CHAIN` classification and the
+   `MaskingMechanism` field are computed by the tool's exception-E1 rule (standard §10.3)
+   from the record's evidence fields — this is not a hand-set verdict.
+4. The frozen standard was amended for this ruling through its own revise-never-silently-fold
+   path: §6 gained clause 3b and §10 the LQ04 senderState masking exception (researcher §八
+   binding authority, §10.1); the normative companion `pilot_record.schema.md` §2 gained the
+   matching pointer and the `MaskingMechanism` record field. `tools/lsu_propagation_audit.py`
+   gained an additive evidence export only (`association` on the early-anomaly and writeback
+   evidence nodes) so the closure tool grades from the shared audit without re-parsing traces
+   or forking the classifier; no platform module was touched —
+   `FaultEffectPropagationCoverage` still comes unchanged from
+   `platform/fault_effect_coverage.classify`.

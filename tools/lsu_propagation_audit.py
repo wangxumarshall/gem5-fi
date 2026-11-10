@@ -695,7 +695,13 @@ def audit_pilot(pilot_dir: Path, model: str,
         "event_ordinal": str(ordinal) if ordinal is not None else None,
         "earliest_anomaly": (
             {"event_id": str(early_event["event_id"]),
-             "event_type": str(early_event["event_type"])}
+             "event_type": str(early_event["event_type"]),
+             # how the in-flight response was bound to the original request
+             # (LQ04 records association=sender_state at runtime); exported so
+             # the closure tool grades the masking chain without re-parsing
+             # the trace or forking the classifier
+             "association": _detail_kv(early_event.get("detail")).get(
+                 "association")}
             if early_event is not None else None),
         "writeback": (
             {"event_id": str(writeback["event_id"]),
@@ -703,7 +709,10 @@ def audit_pilot(pilot_dir: Path, model: str,
              "arch_reg": wb_detail.get("arch_reg"),
              "writeback_value_fnv": wb_detail.get("writeback_value_fnv"),
              "payload_fnv": wb_detail.get("payload_fnv"),
-             "value_matches_payload": wb_detail.get("value_matches_payload")}
+             "value_matches_payload": wb_detail.get("value_matches_payload"),
+             # same runtime binding record as on the response (LQ04:
+             # association=sender_state); exported for the closure tool
+             "association": wb_detail.get("association")}
             if writeback is not None else None),
         "consumer": (
             {"event_id": str(consumer["event_id"]),

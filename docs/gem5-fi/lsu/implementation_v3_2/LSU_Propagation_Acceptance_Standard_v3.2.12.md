@@ -1,6 +1,10 @@
 # LSU 12-Model Propagation Acceptance Standard (v3.2.12)
 
-**Status:** FROZEN (2026-11-10). This document is the single authority for every
+**Status:** FROZEN (2026-11-10); **amended 2026-11-10** (plan Task 4 review
+round 1) with §6 clause 3b and §10 — exception E1, the LQ04 senderState
+masking exception — recorded through this standard's own revise,
+never-silently-fold path; no other section changed. This document is the
+single authority for every
 propagation verdict in the v3.2.12 closure round. Later tasks cite it instead of
 redefining verdicts. No status matrix or Excel cell may ever be hand-set to a
 verdict: `tools/lsu_12model_closure.py` computes every field deterministically
@@ -166,7 +170,8 @@ outcome terminals (§5).
 See §6 for the fixed determination order. The five values:
 
 - `COMPLETE_CAUSAL_CHAIN` — a verified complete causal chain, corroborated in
-  more than one context (§4).
+  more than one context (§4); or, per exception E1 (§6 clause 3b, §10), the
+  runtime-proven LQ04 senderState masking chain (model-scoped, §10).
 - `VERIFIED_SINGLE_CONTEXT` — a verified complete causal chain in exactly one
   context (§4); never upgraded without a second verified context.
 - `LIFECYCLE_ONLY` — the injection triggered and its lifecycle/structural path
@@ -323,6 +328,16 @@ the only path to a verdict — a matrix or Excel cell may never override it.
    (or `VERIFIED_SINGLE_CONTEXT` per §4). Requires
    `FaultEffectPropagationCoverage=COMPLETE` with hash-verified consumer edges
    (§3).
+3b. **Exception E1 — the LQ04 senderState masking chain →
+   `COMPLETE_CAUSAL_CHAIN`** (model-scoped, frozen amendment 2026-11-10,
+   §10). Between rules 3 and 4: an LQ04 record whose senderState masking
+   chain is runtime-proven (the full §10 conjunction) grades
+   `COMPLETE_CAUSAL_CHAIN` with `ObservedTerminal=MASKED` and
+   `MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE`, even
+   though `FaultEffectPropagationCoverage=LIFECYCLE_ONLY` — the coverage
+   value stays what the platform graded, but no longer forces the
+   classification down. The exception upgrades no other model, and an LQ04
+   record missing any §10 condition follows rules 4/5 exactly as before.
 4. **Internal-only change → `LIFECYCLE_ONLY`.**
    `FaultEffectPropagationCoverage=LIFECYCLE_ONLY` with a structurally complete
    lifecycle observation: the injection triggered, the chain executed, nothing
@@ -431,6 +446,107 @@ input to the mapping, not the final verdict.
   `record_integrity` (`VALID`/`INVALID`) and `trace_completeness`
   (`COMPLETE`/`INCOMPLETE`), adding the run-level states `TRUNCATED` and
   `MISSING`.
+
+---
+
+## 10. Exception E1 — the LQ04 senderState masking chain (frozen amendment, 2026-11-10)
+
+This section is the standard's own "revise, never silently fold" path: the
+amendment is recorded explicitly, with its authority and its exact
+conditions, and `tools/lsu_12model_closure.py` computes it from the record —
+no matrix, Excel cell, or report may apply it by hand.
+
+### 10.1 The researcher authority (binding)
+
+The researcher brief §八 (v3.2.12, 2026-11-10) is the binding authority for
+LQ04's verdict; its ruling, recorded in the v3.2.12 SDD ledger
+(`.superpowers/sdd/2026-11-10-lsu-v3-2-12-propagation-closure/progress.md`),
+is quoted verbatim:
+
+> "Ruling: LQ04 FinalClassification = COMPLETE_CAUSAL_CHAIN with
+> ObservedTerminal=MASKED and
+> MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE when the
+> senderState path is runtime-proven (it is, 5/5), even though
+> FaultEffectPropagationCoverage stays LIFECYCLE_ONLY. The researcher brief
+> §八 is the binding authority; the Task-2 generic rule must yield via the
+> standard's own revise-don't-silently-fold path."
+
+The plan's Task 4 interface line records the same outcome pair
+(`docs/superpowers/plans/2026-11-10-lsu-v3-2-12-propagation-closure.md`):
+"Produces: `FinalClassification` for LQ04, either `COMPLETE_CAUSAL_CHAIN`
+with `TerminalState=MASKED` and
+`MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE`, or
+`LIFECYCLE_ONLY` with the missing link named."
+
+### 10.2 Why an exception is needed
+
+Rule 3 requires `FaultEffectPropagationCoverage=COMPLETE` — a verified
+**divergence** (§1.4). The LQ04 masking chain is the exact opposite: the
+response is resolved to the original request through the packet's
+`senderState` while the LQ entry is visibly invalid (`valid=0`,
+`_request=nullptr`, the `corruptLifetime` window), so the delivered payload
+is intact by construction and the honest effect grade stays `LIFECYCLE_ONLY`
+(`platform/fault_effect_coverage.py`, unchanged this round). Under rule 4
+alone that coverage value forces the classification down even when the
+chain that delivered the intact payload — injection → `memory_response` →
+`register_writeback` → consumer → commit — is complete, identity-linked
+(§2) and hash-verified (§3) on the fault's own chain, with the MASKED
+terminal sitting on that chain. The ruling separates the two questions: the
+*effect* stayed inside the LQ-entry lifecycle, but the *causal chain* that
+delivered the intact payload and produced the MASKED terminal is complete
+and runtime-proven, and grades `COMPLETE_CAUSAL_CHAIN` with the masking
+mechanism named.
+
+### 10.3 The rule (deterministic, model-scoped)
+
+Between rules 3 and 4 of §6, the closure tool upgrades a record to
+`COMPLETE_CAUSAL_CHAIN` — and emits
+`MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE` — only when
+ALL of the following hold:
+
+1. `ModelID = LQ04`. The exception upgrades no other model; every other
+   model follows §6 unchanged.
+2. `ObservedTerminal = MASKED` — the ruling's outcome terminal; E1 names a
+   *masking* mechanism and never relabels SDC/CRASH/HANG/SQUASHED records.
+3. `FaultCausality = PROVEN`.
+4. `RecordIntegrity = VALID`, `TraceCompleteness = COMPLETE`,
+   `StructuralChainCompleteness = COMPLETE`, and
+   `InjectionVerified`/`ActivationVerified` = yes — the §6 invariant set for
+   every complete verdict, which E1 also enforces.
+5. The chain evidence carries the senderState association on BOTH the
+   `memory_response` and the `register_writeback` (the record's
+   `MemoryResponseAssociation` = `WritebackAssociation` = `sender_state`):
+   the runtime records `association=sender_state;
+   entry_valid_at_response=0; entry_request_at_response=0; data_unchanged=1`
+   quoted per pilot in
+   `audit_v3_2_12/LQ04_Propagation_Audit_v3.2.12.md` (§§3.1, 5.1).
+6. The consumer input hash equals the writeback value hash, both real
+   hashes (§3): `WritebackValueFnv == ConsumerInputFnv`.
+
+When any condition fails, the LQ04 record follows §6 exactly as before
+(`LIFECYCLE_ONLY` under rule 4, `PARTIAL` under rule 5) — no upgrade on
+inference alone. E1 does **not** change `FaultEffectPropagationCoverage`:
+the field keeps whatever the platform graded (`LIFECYCLE_ONLY` for the
+intact chain); E1 only stops that value from forcing the classification
+down.
+
+### 10.4 Relation to §4 (single-context corroboration) and the record field
+
+Within E1 the per-pilot record grades `COMPLETE_CAUSAL_CHAIN` directly, on
+the researcher's binding authority (§10.1): the masking chain's completeness
+is runtime-proven per record (conditions 3–6 are per-record facts — a
+stronger evidence bar than §4's context count), and the model-level verdict
+still carries the five distinct frozen contexts (ordinals 1–5, one pilot
+identity each). §4 continues to govern every generic rule-2/rule-3 complete
+verdict, unchanged.
+
+E1 adds one record field: `MaskingMechanism ∈
+{RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE, NOT_APPLICABLE}` — the former
+exactly when E1 fires, the latter otherwise (including every non-LQ04
+record). It is emitted by the tool from the same §10.3 conjunction; a
+matrix or report may quote it but never set it.
+
+---
 
 Per-pilot record layout, sources, evidence requirements, and the per-field
 mapping rules are specified in

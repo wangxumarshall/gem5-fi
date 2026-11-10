@@ -61,6 +61,8 @@
       "WritebackValueFnv": "c6d4496e17859d5",
       "ConsumerInputFnv": "c6d4496e17859d5",
       "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": "sender_state",
+      "WritebackAssociation": "sender_state",
       "CommitSeq": "3",
       "OracleExpected": "b097eb83f71545cb",
       "OracleActual": "b097eb83f71545cb",
@@ -87,7 +89,8 @@
           "event_id": "NULL"
         }
       ],
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "MaskingMechanism": "RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE",
+      "FinalClassification": "COMPLETE_CAUSAL_CHAIN"
     },
     {
       "ModelID": "LQ04",
@@ -149,6 +152,8 @@
       "WritebackValueFnv": "46f9187bab44bc35",
       "ConsumerInputFnv": "46f9187bab44bc35",
       "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": "sender_state",
+      "WritebackAssociation": "sender_state",
       "CommitSeq": "4",
       "OracleExpected": "b097eb83f71545cb",
       "OracleActual": "b097eb83f71545cb",
@@ -175,7 +180,8 @@
           "event_id": "NULL"
         }
       ],
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "MaskingMechanism": "RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE",
+      "FinalClassification": "COMPLETE_CAUSAL_CHAIN"
     },
     {
       "ModelID": "LQ04",
@@ -237,6 +243,8 @@
       "WritebackValueFnv": "14fe41788a431ad5",
       "ConsumerInputFnv": "14fe41788a431ad5",
       "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": "sender_state",
+      "WritebackAssociation": "sender_state",
       "CommitSeq": "5",
       "OracleExpected": "b097eb83f71545cb",
       "OracleActual": "b097eb83f71545cb",
@@ -263,7 +271,8 @@
           "event_id": "NULL"
         }
       ],
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "MaskingMechanism": "RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE",
+      "FinalClassification": "COMPLETE_CAUSAL_CHAIN"
     },
     {
       "ModelID": "LQ04",
@@ -325,6 +334,8 @@
       "WritebackValueFnv": "4f8a555d540fe9f5",
       "ConsumerInputFnv": "4f8a555d540fe9f5",
       "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": "sender_state",
+      "WritebackAssociation": "sender_state",
       "CommitSeq": "6",
       "OracleExpected": "b097eb83f71545cb",
       "OracleActual": "b097eb83f71545cb",
@@ -351,7 +362,8 @@
           "event_id": "NULL"
         }
       ],
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "MaskingMechanism": "RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE",
+      "FinalClassification": "COMPLETE_CAUSAL_CHAIN"
     },
     {
       "ModelID": "LQ04",
@@ -413,6 +425,8 @@
       "WritebackValueFnv": "f9468ffeedcb9ad5",
       "ConsumerInputFnv": "f9468ffeedcb9ad5",
       "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": "sender_state",
+      "WritebackAssociation": "sender_state",
       "CommitSeq": "7",
       "OracleExpected": "b097eb83f71545cb",
       "OracleActual": "b097eb83f71545cb",
@@ -439,7 +453,8 @@
           "event_id": "NULL"
         }
       ],
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "MaskingMechanism": "RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE",
+      "FinalClassification": "COMPLETE_CAUSAL_CHAIN"
     }
   ]
 }

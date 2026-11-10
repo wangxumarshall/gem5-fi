@@ -44,6 +44,19 @@ independently and never hand-sets a verdict.
    TRIGGERED, structurally complete lifecycle observation) → `LIFECYCLE_ONLY`.
 5. Otherwise → `PARTIAL`, with the missing link named in `MissingEvidence`.
 
+Exception E1 (LQ04, standard §6 clause 3b / §10, frozen amendment
+2026-11-10): between rules 3 and 4, a runtime-proven LQ04 senderState masking
+chain grades `COMPLETE_CAUSAL_CHAIN` with
+`MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE` and
+`ObservedTerminal=MASKED`, even though
+`FaultEffectPropagationCoverage=LIFECYCLE_ONLY` (which stays what the
+platform graded). Model-scoped — it upgrades no other model — and computed
+by the tool from the record's association and hash fields; standard §10 lists
+the full conjunction. The record carries the exception's evidence fields
+(`MemoryResponseAssociation`, `WritebackAssociation`) and its outcome field
+`MaskingMechanism ∈ {RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE,
+NOT_APPLICABLE}` (`NOT_APPLICABLE` everywhere E1 does not fire).
+
 Single-context rule: one complete chain → `VERIFIED_SINGLE_CONTEXT`, not
 `COMPLETE_CAUSAL_CHAIN` (per-pilot: distinct verified complete chains in the
 trace; per-model: distinct frozen contexts with at least one complete chain;

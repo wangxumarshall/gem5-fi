@@ -16,6 +16,11 @@ The six mandatory tests pin the plan's Review Focus items:
 - the missing-evidence matrix has no blank cell and every missing stage has a
   root cause and an integer run count;
 - the feature dataset keeps event_ordinal monotonic per pilot.
+
+The three exception-E1 tests pin standard §6 clause 3b / §10 (frozen
+amendment 2026-11-10): the runtime-proven LQ04 senderState masking chain
+grades COMPLETE_CAUSAL_CHAIN/MASKED with the mechanism recorded; without the
+runtime association it stays LIFECYCLE_ONLY; and the rule is model-scoped.
 """
 import csv
 import json
@@ -95,12 +100,15 @@ def write_pilot(directory, *, model="LQ04", ordinal=1, binary_sha=SHA_A,
                 response=True, writeback=True, consumer=True, commit=True,
                 replay=False, decoy_consumer=False, declared="COMPLETE",
                 divergent=False, truncated=False, seed=1842987246,
-                run_status="COMPLETED"):
+                run_status="COMPLETED", sender_state=False):
     """Write one synthetic pilot dir; returns its Path.
 
     ``decoy_consumer`` adds a LATER consumer_commit with a different ptag and
     dyn_inst_seq (the time-adjacency bait). ``divergent`` flips the writeback
     and consumer into a verified corrupted delivery with an oracle FAIL.
+    ``sender_state`` records the LQ04 runtime senderState binding evidence
+    (``association=sender_state`` on the memory_response and the
+    register_writeback, exactly as the real pilots_v3_2_10 traces record it).
     """
     directory = Path(directory)
     directory.mkdir(parents=True)
@@ -118,13 +126,19 @@ def write_pilot(directory, *, model="LQ04", ordinal=1, binary_sha=SHA_A,
                             "pc=400338", inj="INJECTED", act=activation,
                             new_value="0x41ffe8"))
     if response:
+        binding = ("association=sender_state;entry_valid_at_response=0;"
+                   "entry_request_at_response=0;data_unchanged=1;"
+                   if sender_state else "")
         lines.append(_event(8, "memory_response", 135520, 3, 1,
-                            "family=lq04;size=8;"
+                            f"family=lq04;size=8;{binding}"
                             f"data_fnv={HASH};request_id=1;pa=1fe8"))
     if writeback:
         corrupt = "1" if divergent else "0"
+        binding = ("association=sender_state;data_unchanged=1;"
+                   if sender_state else "")
         lines.append(_event(9, "register_writeback", 135520, 3, 1,
-                            f"family=lq04;data_corruption={corrupt};"
+                            f"family=lq04;{binding}"
+                            f"data_corruption={corrupt};"
                             f"phys_reg=44;arch_reg=2;"
                             f"writeback_value_fnv={HASH};payload_fnv={HASH};"
                             f"value_matches_payload={'0' if divergent else '1'};"
@@ -538,3 +552,70 @@ def test_feature_dataset_rejects_poisoned_complete_verdict(tmp_path):
     # the unpolluted record still writes cleanly through the feature writer
     # (the validation rejects the defect, not the honest PARTIAL verdict)
     write_feature_dataset([record], tmp_path / "clean_features.csv")
+
+
+# ---------------------------------------------------------------------------
+# standard §6 exception E1 (§10): the LQ04 senderState masking rule
+# ---------------------------------------------------------------------------
+
+def test_lq04_sender_state_chain_upgrades_to_complete_and_masked(tmp_path):
+    """Standard §6 exception E1: an LQ04 record whose chain carries the
+    runtime senderState association on the memory_response AND the
+    register_writeback, with causality proven over a valid, complete,
+    structurally complete record and a hash-equal consumer edge, grades
+    COMPLETE_CAUSAL_CHAIN with ObservedTerminal=MASKED and carries the
+    mechanism — even though FaultEffectPropagationCoverage stays
+    LIFECYCLE_ONLY (the effect itself stayed inside the LQ lifecycle)."""
+    pilot = write_pilot(tmp_path / "LQ04-R01", sender_state=True)
+    record = build_pilot_record(pilot, "LQ04")
+    # the runtime senderState binding evidence is exported on the record
+    assert record["MemoryResponseAssociation"] == "sender_state"
+    assert record["WritebackAssociation"] == "sender_state"
+    assert record["ObservedTerminal"] == "MASKED"
+    assert record["FaultCausality"] == "PROVEN"
+    # coverage is NOT changed by the exception; it no longer forces the
+    # classification down
+    assert record["FaultEffectPropagationCoverage"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] == "COMPLETE_CAUSAL_CHAIN"
+    assert record["MaskingMechanism"] == (
+        "RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE")
+    # the writeback-vs-consumer hash equality is load-bearing: flipping the
+    # consumer hash alone drops the record back to the generic rule 4
+    mismatch = dict(record, ConsumerInputFnv="0bad0bad0bad0bad")
+    assert final_classification(mismatch) == "LIFECYCLE_ONLY"
+
+
+def test_lq04_without_sender_state_association_stays_lifecycle(tmp_path):
+    """Without the runtime senderState association on the memory_response
+    and the register_writeback, exception E1 does not fire (no upgrade on
+    inference alone): the record stays LIFECYCLE_ONLY exactly as before and
+    honestly carries no masking mechanism."""
+    pilot = write_pilot(tmp_path / "LQ04-R01")  # no association details
+    record = build_pilot_record(pilot, "LQ04")
+    assert record["MemoryResponseAssociation"] is None
+    assert record["WritebackAssociation"] is None
+    assert record["ObservedTerminal"] == "MASKED"
+    assert record["FaultEffectPropagationCoverage"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] not in (
+        "COMPLETE_CAUSAL_CHAIN", "VERIFIED_SINGLE_CONTEXT")
+    assert record["MaskingMechanism"] == "NOT_APPLICABLE"
+
+
+def test_sender_state_exception_is_model_scoped(tmp_path):
+    """Exception E1 upgrades no other model: an identical evidence
+    signature (senderState association on both hops, hash-equal consumer)
+    under a non-LQ04 model id keeps the generic rules — the record stays
+    LIFECYCLE_ONLY and carries no mechanism."""
+    pilot = write_pilot(tmp_path / "LP01-R01", model="LP01",
+                        sender_state=True)
+    record = build_pilot_record(pilot, "LP01")
+    assert record["ModelID"] == "LP01"
+    assert record["MemoryResponseAssociation"] == "sender_state"
+    assert record["WritebackAssociation"] == "sender_state"
+    assert record["ObservedTerminal"] == "MASKED"
+    assert record["FaultEffectPropagationCoverage"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] not in (
+        "COMPLETE_CAUSAL_CHAIN", "VERIFIED_SINGLE_CONTEXT")
+    assert record["MaskingMechanism"] == "NOT_APPLICABLE"
