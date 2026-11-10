@@ -458,3 +458,83 @@ def test_feature_dataset_keeps_event_order(tmp_path):
     assert first_pos < second_pos
     assert data[first_pos]["EventOrdinal"] == "1"
     assert data[second_pos]["EventOrdinal"] == "2"
+
+
+# ---------------------------------------------------------------------------
+# per-model corroboration counts distinct frozen contexts, never records
+# ---------------------------------------------------------------------------
+
+def test_corroboration_counts_distinct_contexts_not_records(tmp_path):
+    """Standard §4 per-model rule: two or more DISTINCT frozen contexts with
+    a verified complete chain are required for COMPLETE_CAUSAL_CHAIN.  The
+    same pilot supplied twice, and an original plus its SUPP re-run of the
+    same frozen context, are ONE context — a SUPP run corroborates the
+    oracle, never a second context."""
+    # a genuinely complete single-context pilot (divergent delivery with a
+    # failing oracle) grades VERIFIED_SINGLE_CONTEXT per pilot
+    pilot = write_pilot(tmp_path / "LQ04-R01", divergent=True,
+                        oracle=("b097eb83f71545cb", "deadbeefdeadbeef"))
+    record = build_pilot_record(pilot, "LQ04")
+    assert record["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+
+    def matrix_final(records):
+        out = tmp_path / "closure.csv"
+        write_closure_matrix(records, out)
+        with open(out, newline="", encoding="utf-8") as fh:
+            rows = list(csv.reader(fh))
+        data = [dict(zip(CLOSURE_MATRIX_COLUMNS, r)) for r in rows[1:]]
+        assert len(data) == 1  # same model, same binary: exactly one row
+        return data[0]["FinalClassification"]
+
+    # (a) the same pilot supplied twice is still one context: no upgrade
+    twin = build_pilot_record(pilot, "LQ04")
+    assert twin["SampleRunID"] == record["SampleRunID"]
+    assert matrix_final([record, twin]) == "VERIFIED_SINGLE_CONTEXT"
+
+    # (b) the original plus its SUPP re-run of the same frozen context: the
+    # sidecar maps the SUPP back to the original SampleRunID, and the SUPP
+    # record is excluded from the corroboration count outright
+    supp_dir = write_pilot(tmp_path / "SUPP-LQ04-S01", divergent=True,
+                           oracle=("b097eb83f71545cb", "deadbeefdeadbeef"))
+    (supp_dir / "supplementary.json").write_text(
+        json.dumps({"supplementary_of": record["SampleRunID"]}),
+        encoding="utf-8")
+    supp = build_pilot_record(supp_dir, "LQ04")
+    assert supp["SupplementaryOf"] == record["SampleRunID"]
+    # the SUPP is a different run identity mapped back only by the sidecar
+    assert supp["SampleRunID"] != record["SampleRunID"]
+    assert supp["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+    assert matrix_final([record, supp]) == "VERIFIED_SINGLE_CONTEXT"
+
+    # (c) two genuinely distinct frozen contexts still upgrade the model
+    other = write_pilot(tmp_path / "LQ04-R02", divergent=True,
+                        oracle=("b097eb83f71545cb", "deadbeefdeadbeef"))
+    other_record = build_pilot_record(other, "LQ04")
+    assert other_record["SampleRunID"] != record["SampleRunID"]
+    assert matrix_final([record, other_record]) == "COMPLETE_CAUSAL_CHAIN"
+
+
+# ---------------------------------------------------------------------------
+# the feature writer applies the same hard-invariant rejection as the matrix
+# ---------------------------------------------------------------------------
+
+def test_feature_dataset_rejects_poisoned_complete_verdict(tmp_path):
+    """Schema §2 hard invariant: FinalClassification complete while
+    ActivationVerified=no is a defect.  The feature dataset must reject the
+    poisoned row as loudly as the closure matrix does — never emit it
+    silently."""
+    dormant = write_pilot(tmp_path / "LQ04-R01", activation="DORMANT")
+    record = build_pilot_record(dormant, "LQ04")
+    assert record["ActivationVerified"] == "no"
+    assert record["FinalClassification"] == "PARTIAL"
+
+    poison = dict(record)
+    poison["FinalClassification"] = "COMPLETE_CAUSAL_CHAIN"
+    with pytest.raises(ValueError):
+        write_feature_dataset([poison], tmp_path / "poison_features.csv")
+    with pytest.raises(ValueError):
+        write_closure_matrix([poison], tmp_path / "poison_matrix.csv")
+
+    # the unpolluted record still writes cleanly through the feature writer
+    # (the validation rejects the defect, not the honest PARTIAL verdict)
+    write_feature_dataset([record], tmp_path / "clean_features.csv")

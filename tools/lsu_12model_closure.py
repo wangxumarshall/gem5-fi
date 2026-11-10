@@ -804,10 +804,11 @@ def write_missing_matrix(records: list, out) -> None:
 # the closure matrix
 # ---------------------------------------------------------------------------
 
-def _validate_record_for_matrix(record: dict) -> None:
-    """Hard invariants (schema §2): a complete verdict over an unverified
-    injection or a dormant activation is a defect and must be rejected
-    loudly."""
+def _validate_record(record: dict) -> None:
+    """Hard invariants (schema §2), shared by every verdict-bearing writer
+    (the closure matrix and the feature dataset): a complete verdict over an
+    unverified injection or a dormant activation is a defect and must be
+    rejected loudly."""
     final = record.get("FinalClassification")
     if final in ("COMPLETE_CAUSAL_CHAIN", "VERIFIED_SINGLE_CONTEXT"):
         for column in ("InjectionVerified", "ActivationVerified"):
@@ -820,7 +821,7 @@ def _validate_record_for_matrix(record: dict) -> None:
 
 def _closure_rows(records: list) -> list:
     for record in records:
-        _validate_record_for_matrix(record)
+        _validate_record(record)
     models = []
     for record in records:
         if record.get("ModelID") not in models:
@@ -851,8 +852,21 @@ def _closure_row(model: str, records: list) -> dict:
     complete_records = [r for r in records if r.get("FinalClassification") in
                         ("COMPLETE_CAUSAL_CHAIN", "VERIFIED_SINGLE_CONTEXT")]
     # single-context corroboration (standard §4): per model, two or more
-    # frozen contexts with a verified complete chain -> COMPLETE_CAUSAL_CHAIN
-    upgrade = len(complete_records) >= 2
+    # DISTINCT frozen contexts with a verified complete chain ->
+    # COMPLETE_CAUSAL_CHAIN.  The context key is the original SampleRunID
+    # (SupplementaryOf or SampleRunID), so the same pilot supplied twice and
+    # an original plus its SUPP re-run of the same frozen context are ONE
+    # context; SUPP records (SupplementaryOf present) are excluded from the
+    # corroboration count altogether — a SUPP run corroborates the oracle,
+    # never a second context.  One context never grades
+    # COMPLETE_CAUSAL_CHAIN.
+    complete_contexts = set()
+    for complete in complete_records:
+        if complete.get("SupplementaryOf"):
+            continue
+        complete_contexts.add(complete.get("SupplementaryOf")
+                              or complete.get("SampleRunID"))
+    upgrade = len(complete_contexts) >= 2
     finals = []
     for record in records:
         final = record.get("FinalClassification")
@@ -993,6 +1007,10 @@ def write_feature_dataset(records: list, out) -> None:
     fragment (RowKind=PATH_FRAGMENT) in canonical chain order; the frozen
     per-pilot EventOrdinal is constant — hence monotonic — on every row of
     the pilot's block, and absent stages are explicit NOT_APPLICABLE."""
+    for record in records:
+        # the same schema §2 hard-invariant rejection the closure matrix
+        # applies: a poisoned record is never emitted silently
+        _validate_record(record)
     rows = []
     for record in records:
         rows.append(_feature_row(record, "PILOT", 0, None))
