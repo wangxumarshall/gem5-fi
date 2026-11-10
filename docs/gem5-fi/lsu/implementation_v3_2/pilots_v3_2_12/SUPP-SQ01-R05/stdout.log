@@ -1,0 +1,17 @@
+Global frequency set at 1000000000000 ticks per second
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 25.1.0.1
+gem5 compiled Nov 10 2026 20:25:20
+gem5 started Nov 10 2026 21:05:13
+gem5 executing on localhost0101, pid 2361744
+command line: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-SQ01-R05 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212 --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_lsqfwd --lsq_struct_mode sq01_bit3 --lsqfwd_lsu_tier F0 --lsqfwd_warmup_events 0 --lsqfwd_span_events 10 --max_faults 1 --rng_seed 172636228 --lsqfwd_event_ordinal 5
+
+info: Standard input is not a terminal, disabling listeners.
+[lsu_proxy] B0 params applied (variant=B0): LQ/SQ=16, DepShift=0, DTLB=32, L2TLB=1280/5, ROB=40, PRF 128/192/48, IQ=32(1L+1S FU opLat=2), width 3/6/8
+[lsu_proxy] CHAOSPropagation attached (trace=prop_trace.csv.gz)
+[lsu_proxy] B0 caches applied (variant=B0): L1D 32KiB/2-way lat222 MSHR6/t8/wb16 + L1I 32KiB/2 lat111 MSHR2 + L2 1MiB/16 lat12 MSHR16 + StridePrefetcher(8,1,on)@L2
+checksum=0x7df5034c23f3e703
+CHAOS_LSU_TRIGGER: injector=CHAOSLSQFwd tier=F0 attempted=1604 eligible=1604 injected=1 first_eligible_tick=140910 last_eligible_tick=28238595 (activated=W3-L0-layer)
+CHAOS_LSU_F6_EVENTS: TlbHit=0 SqForward=1459 DirtyEviction=2114 CasSuccess=3250

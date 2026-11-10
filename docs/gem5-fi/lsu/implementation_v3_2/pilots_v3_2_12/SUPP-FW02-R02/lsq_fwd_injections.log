@@ -1,0 +1,1 @@
+Tick: 8639015, Site: store->load_forward_decision, FaultType: f6_fw02_suppress, load_seq: 6048, store_seq: 6042, Vaddr: 0x496798, FwdSize: 8, faults_injected: 1
