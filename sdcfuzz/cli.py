@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import d13
+from . import operand_heuristic as heuristic
 from .evaluate import DEFAULT_GEM5, build_index, summarize
 from .generator import DEFAULT_ITERATIONS, render_guest
 from .templates import TEMPLATES, TEMPLATE_BY_ID
@@ -26,12 +26,12 @@ def cmd_generate(args):
         print(f"unknown template: {args.id}", file=sys.stderr)
         return 2
     operand = None
-    if args.d13:
+    if args.operand_heuristic:
         reference = 0
         for op in template.setup:
             if op.kind == "mov" and op.dst == "x12":
                 reference = op.imm
-        operand = d13.choose_operand(reference, count=args.d13_pool,
+        operand = heuristic.choose_operand(reference, count=args.pool,
                                      seed=args.seed)
     source, expected = render_guest(template, args.iterations, operand=operand)
     outdir = Path(args.outdir).resolve()
@@ -39,15 +39,15 @@ def cmd_generate(args):
     path = outdir / f"{template.id}.c"
     path.write_text(source)
     print(f"{path} expected_checksum={expected:016x}"
-          + (f" d13_operand=0x{operand:016x}" if operand is not None else ""))
+          + (f" heuristic_operand=0x{operand:016x}" if operand is not None else ""))
     return 0
 
 
-def cmd_d13(args):
-    value = d13.choose_operand(args.reference, count=args.count, seed=args.seed)
+def cmd_heuristic(args):
+    value = heuristic.choose_operand(args.reference, count=args.count, seed=args.seed)
     print(f"selected=0x{value:016x}")
-    print(f"carry_chain={d13.carry_chain(value, args.reference)} "
-          f"toggle_bits={d13.toggle_bits(value, args.reference)}")
+    print(f"carry_chain={heuristic.carry_chain(value, args.reference)} "
+          f"toggle_bits={heuristic.toggle_bits(value, args.reference)}")
     return 0
 
 
@@ -73,17 +73,20 @@ def main(argv=None):
     generate.add_argument("--iterations", type=int,
                           default=DEFAULT_ITERATIONS)
     generate.add_argument("--outdir", default="m5out/sdcfuzz-generated")
-    generate.add_argument("--d13", action="store_true",
-                          help="pick the x12 operand with the D13 heuristic")
-    generate.add_argument("--d13-pool", type=int, default=64)
+    generate.add_argument("--operand-heuristic", action="store_true",
+                          help="pick the x12 operand with the LOCAL heuristic"
+                               " (not upstream D13)")
+    generate.add_argument("--pool", type=int, default=64)
     generate.add_argument("--seed", type=lambda x: int(x, 0), default=0x5DC)
     generate.set_defaults(func=cmd_generate)
 
-    selection = sub.add_parser("d13", help="show one D13 operand choice")
+    selection = sub.add_parser("heuristic",
+                               help="show one LOCAL heuristic operand choice"
+                                    " (not upstream D13)")
     selection.add_argument("--reference", type=lambda x: int(x, 0), default=0)
     selection.add_argument("--count", type=int, default=64)
     selection.add_argument("--seed", type=lambda x: int(x, 0), default=0x5DC)
-    selection.set_defaults(func=cmd_d13)
+    selection.set_defaults(func=cmd_heuristic)
 
     evaluate = sub.add_parser("evaluate",
                               help="compile and measure all templates")

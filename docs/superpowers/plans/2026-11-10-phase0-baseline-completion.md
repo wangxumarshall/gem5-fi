@@ -2,6 +2,13 @@
 
 日期：2026-11-10
 状态：全部完成（提交见 git history）
+
+> **更正（2026-11-10 晚）。** 本计划把本地启发式命名为“D13”是错误的：
+> 上游 sdcfuzz 已有真 D13（`gem5_config/workloads/sdc_probe_workload_d13.c`），
+> 本仓库实现的是另一个主机侧启发式。`sdcfuzz/d13.py` 已重命名为
+> `sdcfuzz/operand_heuristic.py` 并标注“非上游 D13”；Phase 0 的 D13 与
+> 19 模板按 `done-external` 记账，本地实现仅作支撑件。真基线复现见
+> `docs/sdcfuzz/d13-baseline-reproduction.md`。下文的“D13”均指该本地实现。
 依据：`sdcfuzz/sdcfuzz-v1.2.md` §7 Phase 0（交付物：D13 启发式 + 19 模板 +
 gem5-CHAOS + 4 板部署 + p2 草稿）与 §5.2（D13 反逻辑屏蔽变异）。
 
@@ -22,9 +29,9 @@ gem5-CHAOS + 4 板部署 + p2 草稿）与 §5.2（D13 反逻辑屏蔽变异）�
 ## 单元与提交
 
 ### 单元 1：D13 启发式
-- [x] 新增 `sdcfuzz/d13.py`：64 位加法进位链长度、翻转密度、固定值惩罚，
+- [x] 新增 `sdcfuzz/operand_heuristic.py`：64 位加法进位链长度、翻转密度、固定值惩罚，
   `select()` 从候选集中确定性选出操作数。
-- [x] 新增 `tests/test_sdcfuzz_d13.py`：进位链手工样例、固定值被拒、
+- [x] 新增 `tests/test_sdcfuzz_operand_heuristic.py`：进位链手工样例、固定值被拒、
   选中得分高于随机基线的下界、确定性/种子。
 - 提交：`feat(sdcfuzz-baseline): D13 反逻辑屏蔽操作数启发式`
 
@@ -65,7 +72,7 @@ gem5-CHAOS + 4 板部署 + p2 草稿）与 §5.2（D13 反逻辑屏蔽变异）�
 ## 验证记录（真实输出，2026-11-10）
 
 ```bash
-$ python3 -m pytest tests/test_sdcfuzz_d13.py tests/test_sdcfuzz_generator.py -q
+$ python3 -m pytest tests/test_sdcfuzz_operand_heuristic.py tests/test_sdcfuzz_generator.py -q
 15 passed
 
 $ python3 scripts/test-sdcfuzz-baseline.py

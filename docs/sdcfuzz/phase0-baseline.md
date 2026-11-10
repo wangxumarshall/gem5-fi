@@ -1,31 +1,47 @@
-# Phase 0 基线：D13 启发式、19 模板语料与结构评估
+# Phase 0 基线与真基线复现：本地支撑件 + 上游 D13
 
 本文记录本仓库落地的 sdcfuzz Phase 0 基线。它对应技术路线文档
 `sdcfuzz/sdcfuzz-v1.2.md` §7 的 Phase 0（“sdcfuzz 基线完善：D13 启发式 +
 19 模板 + gem5-CHAOS + 4 板部署 + p2 草稿”）中**能在本仓库实现并验证**的
 部分。
 
-必须先说清楚边界：本语料是**本仓库的本地实现**，按本仓库能观测的结构与
-CHAOS 注入器重新设计，不是外部 sdcfuzz 仓库那 19 个模板的复制品；4 板真机
-部署和 p2 论文草稿属于外部证据，本机无法复验（见第 6 节与进度图）。
+**重要更正（2026-11-10）。** 技术路线文档里的 D13 和 19 模板是上游
+sdcfuzz 仓库已有的资产，不是本仓库需要重新实现的东西：
+
+- 真 D13 在 `sdcfuzz/gem5_config/workloads/sdc_probe_workload_d13.c`，
+  是运行时随机候选 + 定向变异 + `popcount(x^(x+1))` 选择的 workload；
+- 19 个微架构模板在 `sdcfuzz/seeds/*.S`（覆盖 MMU/L2C/LSU/OoO/IEX/FSU/IFU）。
+
+本仓库里的 `sdcfuzz/operand_heuristic.py` 和 19 条本地语料是**支撑件**
+（可选对照与结构评估语料），不是上述两者的复刻：前者与 D13 的算法、作用
+位置、随机源都不同，后者与上游 19 模板没有逐条对应关系。上游 D13 的真基线
+已在 sdc-0103 上复现，记录见
+`docs/sdcfuzz/d13-baseline-reproduction.md`。4 板真机部署和 p2 论文草稿属于
+外部证据，本机无法复验（见第 6 节与进度图）。
 
 ## 1. 代码结构
 
 | 文件 | 作用 |
 |---|---|
-| `sdcfuzz/d13.py` | D13 操作数启发式：进位链长度、翻转密度、逻辑屏蔽判定与确定性选择 |
+| `sdcfuzz/operand_heuristic.py` | 本地操作数启发式（非上游 D13）：进位链、翻转密度、屏蔽判定与确定性选择 |
 | `sdcfuzz/isa.py` | AArch64 子集：指令描述、汇编渲染、Python 参考解释器、校验和契约 |
 | `sdcfuzz/templates.py` | 19 条模板（目标结构、CHAOS 注入器、指令体） |
 | `sdcfuzz/generator.py` | 生成自校验 AArch64 guest（m5 work-item 窗口 + 16-hex 校验和） |
 | `sdcfuzz/evaluate.py` | 编译/运行全部模板，采集 RF/L1/FU 指标，写 `corpus_index.json` |
-| `sdcfuzz/cli.py` | `list` / `generate` / `d13` / `evaluate` 入口 |
-| `tests/test_sdcfuzz_{d13,generator}.py` | 15 项主机侧单元测试（不需要 gem5） |
+| `sdcfuzz/cli.py` | `list` / `generate` / `heuristic` / `evaluate` 入口 |
+| `tests/test_sdcfuzz_{operand_heuristic,generator}.py` | 15 项主机侧单元测试（不需要 gem5） |
 | `scripts/test-sdcfuzz-baseline.py` | 19/19 真实 gem5 回归 + D13 变体 + FI 闭环冒烟 |
 
-## 2. D13 启发式
+## 2. 本地操作数启发式（不是上游 D13）
 
-D13 在路线文档里的两个要素是“用进位链近似 ACE”和“避免固定值导致的逻辑
-屏蔽”。本实现把两者写成可检验的规则：
+上游 D13 的做法（`sdc_probe_workload_d13.c`）：每次用固定种子 RNG 生成两个
+随机 64 位候选 A、B，对 A 施加定向变异（异或随机 mask、+1、循环左移、再与
+`~A` 异或），再用 `popcount(x ^ (x+1))`（尾部连续 1 的长度，进位链代理）
+比较变异值与原随机值，保留较大者；同时保留若干纯随机操作数以维持覆盖广度。
+它运行在 guest 内部、每次迭代都重新选择。
+
+本节描述的是**另一个**主机侧启发式，仅作为本仓库的可选对照；它把路线文档
+描述的两个要素（进位链近似 ACE、避免固定值逻辑屏蔽）写成可检验规则：
 
 ```text
 carry_chain(a, b) = a + b 过程中进位连续保持为 1 的最长位数
@@ -40,8 +56,8 @@ select(pool, ref)  = argmax(score) over pool \ {masking_risk == True}
 候选项由结构化位模式（1–8 位周期的重复块及其取反）加 SplitMix64 确定性
 随机扩展组成，因此同一 `seed` 永远得到同一选择。
 
-`python3 -m sdcfuzz.cli d13 --reference 0x00ff00ff00ff00ff` 会打印选中的操作数
-及其进位链、翻转位数；`generate --d13` 用该值替换模板里 x12 的常量。
+`python3 -m sdcfuzz.cli heuristic --reference 0x00ff00ff00ff00ff` 会打印选中的操作数
+及其进位链、翻转位数；`generate --operand-heuristic` 用该值替换模板里 x12 的常量。
 
 ## 3. 19 条模板
 
@@ -105,7 +121,7 @@ python3 -m sdcfuzz.cli evaluate --outdir m5out/sdcfuzz-baseline/corpus \
   --iterations 40
 
 # 单模板 + D13 操作数
-python3 -m sdcfuzz.cli generate --id alu-add-carry --d13 \
+python3 -m sdcfuzz.cli generate --id alu-add-carry --operand-heuristic \
   --outdir m5out/sdcfuzz-generated
 ```
 
@@ -123,14 +139,15 @@ CHAOSReg 在 cycle 1000 注入 1 个 bit flip（`--target_reg_idx=12`），按
 
 ## 6. 与外部证据的边界
 
-| Phase 0 交付物 | 本仓库状态 | 说明 |
+| Phase 0 交付物 | 状态 | 说明 |
 |---|---|---|
-| D13 启发式 | 完成（本仓库实测） | 15 项单测 + 生成器变体真实运行 |
-| 19 模板 | 完成（本仓库实测） | 19/19 PASS，结构激活实测 |
-| gem5-CHAOS | 完成（本仓库实测） | 19 注入器 + 一次分类闭环 |
-| 4 板真机部署 | 完成（外部证据） | sdcfuzz-v1.2.md §4.2 历史记录；本机无该硬件 |
-| p2 草稿 | 完成（外部证据） | 外部仓库；本仓库无副本 |
+| D13 启发式 | 上游已完成（外部证据） | `gem5_config/workloads/sdc_probe_workload_d13.c`；原 exp02 bit 3.143× / struct 7.79×；sdc-0103 复现见 `d13-baseline-reproduction.md` |
+| 19 模板 | 上游已完成（外部证据） | `seeds/*.S`，本仓库无副本 |
+| gem5-CHAOS | 本仓库实测 | 19 注入器 + 一次 CHAOSReg 分类闭环 |
+| 4 板真机部署 | 上游已完成（外部证据） | sdcfuzz 论文/文档记录；本机无该硬件 |
+| p2 草稿 | 上游已完成（外部证据） | 外部仓库；本仓库无副本 |
+| 本地操作数启发式 | 支撑件（非交付） | 与 D13 不同物，仅作可选对照，15 项单测 |
+| 本地 19 条结构语料 | 支撑件（非交付） | 19/19 PASS，与上游 19 模板无逐条对应 |
 
-外部证据项在进度图中用独立颜色标出，不计入“本仓库实测完成”。模板语料与
-外部 19 模板不是逐条对应关系；如果后续拿到外部语料，应按同一评估接口
-接入而不是覆盖本实现。
+进度图对“本仓库实测”和“外部证据”用不同颜色，并在每个阶段显示
+“完成 x/y · 实测 a/y”，避免把外部已有资产读成本仓库完成。

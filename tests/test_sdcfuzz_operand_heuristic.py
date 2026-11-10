@@ -1,8 +1,8 @@
-"""Unit tests for the D13 operand heuristic (no gem5 required)."""
+"""Unit tests for the local operand heuristic (not upstream D13)."""
 
 import pytest
 
-from sdcfuzz import d13
+from sdcfuzz import operand_heuristic as d13
 
 
 def test_carry_chain_hand_examples():

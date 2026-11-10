@@ -1,22 +1,18 @@
-"""D13 operand-directed heuristic (route document sdcfuzz-v1.2.md §5.2).
+"""Local operand heuristic (NOT the upstream sdcfuzz D13).
 
-The route document describes D13 as a runtime heuristic that picks operands
-which maximise carry-chain activity and avoids values that are easily
-logically masked ("固定值易逻辑屏蔽会导致检测率下降").  This module implements
-that idea on 64-bit AArch64 GPR operands:
+The real D13 baseline is NOT this file.  It lives in the upstream sdcfuzz
+repository (``gem5_config/workloads/sdc_probe_workload_d13.c``): it generates
+random candidates at runtime, applies targeted mutations (XOR mask, +1,
+rotate, XOR with the complement), and selects with
+``popcount(x ^ (x + 1))`` as the carry-chain proxy, keeping several pure
+random operands for coverage breadth.
 
-* ``carry_chain`` — the longest run of bits where an active carry propagates
-  through the adder for ``a + b``.  A long chain means a single input bit
-  difference can ripple through many result bits, which is the property D13
-  used as a cheap stand-in for ACE.
-* ``toggle_bits`` — ``popcount(a ^ b)``.  Operand pairs with very few
-  differing bits are the ones a downstream AND/OR is most likely to mask.
-* ``masking_risk`` — the explicit anti-masking guard: identical operands,
-  the fixed values ``0``/``1``/all-ones, and pairs whose difference has fewer
-  than ``MIN_TOGGLE_BITS`` set bits are rejected.
+This module is a *different*, host-side heuristic inspired by the route
+document's description (carry chain as a cheap ACE proxy, reject fixed values
+that mask faults).  It is kept only as an optional secondary control for
+experiments in this repository.  It must not be used as the "D13 arm" of a
+comparison, and it has no measured SDC/ACE effect yet.
 
-Everything here is pure integer arithmetic on the host; it does not depend on
-gem5 and is unit-tested against hand-computed carry chains.
 """
 
 MASK64 = (1 << 64) - 1
@@ -91,7 +87,7 @@ def select(candidates, reference=0):
     ``reference`` is the operand the candidate is paired with at runtime
     (for example the accumulator or multiplier input).  Raises ValueError
     when every candidate is masked: silently returning a fixed value would
-    hide the very condition D13 exists to avoid.
+    hide the masking condition this heuristic exists to avoid.
     """
     ranked = []
     for value in candidates:

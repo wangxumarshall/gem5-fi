@@ -46,7 +46,7 @@ TEMPLATES = (
         "alu-add-carry", "整数加法进位链", "alu", "CHAOSExec",
         setup=(_mov("x8", 0x0123456789ABCDEF), _mov("x12", 0x00FF00FF00FF00FF)),
         body=(_alu("add", "x8", "x8", "x12"),),
-        note="连续加法，进位在 8 位块间传播；D13 可用 x12 变体替换操作数",
+        note="连续加法，进位在 8 位块间传播；本地启发式可用 x12 变体替换操作数",
     ),
     Template(
         "alu-sub-borrow", "整数减法借位链", "alu", "CHAOSExec",

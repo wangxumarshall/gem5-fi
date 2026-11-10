@@ -1,1 +1,1 @@
-"""Local sdcfuzz Phase-0 baseline (templates, D13, generation, evaluation)."""
+"""Local sdcfuzz Phase-0 baseline (templates, local heuristic, generation, evaluation)."""

@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
 from classify import classify_run, extract_checksum  # noqa: E402
-from sdcfuzz import d13  # noqa: E402
+from sdcfuzz import operand_heuristic as heuristic  # noqa: E402
 from sdcfuzz.evaluate import (  # noqa: E402
     CONFIG, COUNTERS, DEFAULT_GEM5, build_guest, evaluate_template,
     gem5_environment, metric, run_guest)
@@ -85,24 +85,26 @@ def main():
     print(f"reproducibility: mul64 activation stable at "
           f"{again['target_activation']:.0f}")
 
-    # D13 changes the operand and the change must reach the hardware: the
-    # checksum differs from the default template while the guest still passes.
+    # The LOCAL heuristic changes the operand and the change must reach the
+    # hardware: the checksum differs from the default template while the guest
+    # still passes.  This is not the upstream D13 baseline (see
+    # sdcfuzz/operand_heuristic.py); the real D13 is reproduced separately.
     template = TEMPLATE_BY_ID["alu-add-carry"]
-    operand = d13.choose_operand(0x00FF00FF00FF00FF, count=64)
+    operand = heuristic.choose_operand(0x00FF00FF00FF00FF, count=64)
     variant_source, variant_expected = render_guest(template,
                                                     args.iterations,
                                                     operand=operand)
-    variant = outdir / "d13" / f"{template.id}-d13.c"
+    variant = outdir / "heuristic" / f"{template.id}-heuristic.c"
     variant.parent.mkdir(parents=True, exist_ok=True)
     variant.write_text(variant_source)
-    guest = build_guest(args.cc, variant, outdir / "bin" / "alu-d13")
-    stats = run_guest(gem5, outdir / "runs" / "alu-d13", guest)
+    guest = build_guest(args.cc, variant, outdir / "bin" / "alu-heuristic")
+    stats = run_guest(gem5, outdir / "runs" / "alu-heuristic", guest)
     variant_alu = metric(stats, COUNTERS["alu_bits"])
     default_alu = entries[template.id]["counters"]["alu_bits"]
     assert variant_expected != int(entries[template.id]["expected_checksum"], 16)
     assert variant_alu > 0
-    print(f"d13: operand=0x{operand:016x} "
-          f"carry_chain={d13.carry_chain(operand, 0x00FF00FF00FF00FF)} "
+    print(f"local heuristic: operand=0x{operand:016x} "
+          f"carry_chain={heuristic.carry_chain(operand, 0x00FF00FF00FF00FF)} "
           f"alu_bits={variant_alu:.0f} (default {default_alu:.0f})")
 
     # Fault-injection smoke: one CHAOSReg fault must land and be classified.
@@ -131,7 +133,7 @@ def main():
         "gem5": str(gem5),
         "iterations": args.iterations,
         "templates": len(entries),
-        "d13_operand": f"0x{operand:016x}",
+        "local_heuristic_operand": f"0x{operand:016x}",
         "fi_category": category,
         "fi_faults": faults,
         "entries": entries,
