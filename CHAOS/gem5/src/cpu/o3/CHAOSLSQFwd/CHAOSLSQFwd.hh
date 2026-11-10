@@ -15,6 +15,7 @@
 #include "cpu/o3/CHAOSLSQFwd/sq01_rules.hh"        // LSU v3.2.12 SQ01
 #include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"        // LSU v3.2.7 SQ03
 #include "cpu/o3/CHAOSLSQFwd/sp05_rules.hh"        // LSU v3.2.9 SP05
+#include "cpu/o3/CHAOSLSQFwd/rp01_rules.hh"        // LSU v3.2.12 RP01
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "params/CHAOSLSQFwd.hh"
@@ -106,6 +107,32 @@ class CHAOSLSQFwd : public SimObject
     bool consumeSP05Trace(uint64_t seq);
     uint64_t sp05Eligible() const { return eligible_count; }
 
+    // RP01 (LSU v3.2.12): consulted immediately before the
+    // iewStage->rescheduleMemInst(load_inst) call at lsq_unit.cc:2016
+    // (PartialAddrRangeCoverage branch of LSQUnit::read()). replay_gen is
+    // the POST-increment replayGeneration the caller observes there (line
+    // 2012 runs first; the hook records pre = replay_gen - 1). load_pc is
+    // the load's pcState().instAddr() (default 0 = unknown), recorded so the
+    // count-only preflight CSV can check (seq, pc, lq_gen, store_seq)
+    // context distinctness per seed. Returns true ONLY in rp01_skip_replay
+    // mode for the ordinal-selected eligible event, exactly once per run;
+    // rp01_count_only mode records every eligible event and returns false.
+    bool maybeSkipPartialReplay(uint64_t load_seq, uint64_t lq_idx,
+                                uint64_t lq_gen, uint64_t store_seq,
+                                uint64_t replay_gen, uint64_t load_pc=0);
+
+    // RP01 in-simulator watchdog: logs CHAOS_RP01_WATCHDOG=EXPIRED and
+    // aborts the simulation non-zero (same contract as sq03Watchdog/
+    // sp05Watchdog — a skip-replay run that stalls the ROB must be
+    // classified TIMEOUT/HANG, never MASKED; design gate condition 4).
+    void rp01Watchdog();
+    bool rp01CountOnlyMode() const {
+        return struct_mode == StructMode::Rp01CountOnly;
+    }
+    bool rp01SkipMode() const {
+        return struct_mode == StructMode::Rp01SkipReplay;
+    }
+
     // SQ03 in-simulator watchdog: logs CHAOS_SQ03_WATCHDOG=EXPIRED and exits
     // the simulation with a non-zero code. The event fires at
     // sq03WatchdogCycles after construction.
@@ -162,7 +189,8 @@ class CHAOSLSQFwd : public SimObject
     //     forward-path phase).
     enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
                             PhaseOffset, F6Fw02, Sq01Bit3, Da04BeBit0,
-                            Fw05OlderSrc, Sq03CanWB, Sp05Complete };
+                            Fw05OlderSrc, Sq03CanWB, Sp05Complete,
+                            Rp01CountOnly, Rp01SkipReplay };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;
@@ -222,6 +250,16 @@ class CHAOSLSQFwd : public SimObject
     uint64_t sp05_event_ordinal = 0;
     bool sp05_pending_trace = false;
     EventFunctionWrapper *sp05_watchdog_event = nullptr;
+
+    // RP01 state (v3.2.12): ordinal-selected one-shot skip of the partial
+    // replay reschedule. The skipped event's identity is recorded per the
+    // design gate (condition 6: seq, PC, lq entry, generation, pre/post
+    // replay state, and the skipped-call marker).
+    bool rp01_fired = false;
+    uint64_t rp01_event_ordinal = 0;
+    chaos_rp01::EventIdentity rp01_fired_id{};
+    uint64_t rp01_fired_pc = 0;
+    EventFunctionWrapper *rp01_watchdog_event = nullptr;
 
     std::mt19937 rng;
     std::random_device rd;

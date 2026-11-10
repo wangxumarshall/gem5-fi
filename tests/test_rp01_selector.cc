@@ -13,7 +13,11 @@
 //   5. one-shot: an already-fired selector never skips again;
 //   6. squashed loads do not consume the ordinal space;
 //   7. the identity tuple (dyn_inst_seq, lq_idx, lq_gen, store_seq,
-//      replay_gen) is recorded for the selected event.
+//      replay_gen) is recorded for the selected event;
+//   8. the load PC travels with the recorded context (the preflight CSV's
+//      (seq, pc, lq_gen, store_seq) distinctness check) and the pre/post
+//      replay generation convention holds (pre = post - 1; the caller
+//      passes the POST-increment value).
 #include <cassert>
 #include <cstdio>
 #include <vector>
@@ -24,18 +28,22 @@ using namespace gem5::chaos_rp01;
 
 // One visit of the lsq_unit.cc:2016 call site (PartialAddrRangeCoverage
 // branch of LSQUnit::read()). replay_gen is the POST-increment value the
-// caller observes (line 2012 runs before the call).
+// caller observes (line 2012 runs before the call). pc is the load's
+// pcState().instAddr() passed through the hook's trailing load_pc arg.
 struct SiteEvent {
     uint64_t seq;
     uint64_t lq_idx;
     uint64_t lq_gen;
     uint64_t store_seq;
     uint64_t replay_gen;
+    uint64_t pc;
     bool squashed;
 };
 
-// Mirror of the planned CHAOSLSQFwd::maybeSkipPartialReplay core: judge one
-// site visit, maintain the eligible counter and the recorded identity.
+// Mirror of the implemented CHAOSLSQFwd::maybeSkipPartialReplay core: judge
+// one site visit, maintain the eligible counter and the recorded identity
+// (EventIdentity 5-tuple) plus the load PC of the last judged / skipped
+// event, exactly like the injector's rp01_fired_id / rp01_fired_pc state.
 struct Selector {
     uint64_t ordinal = 0;
     bool count_only = false;
@@ -43,6 +51,8 @@ struct Selector {
     uint64_t eligible = 0;
     EventIdentity last{};     // identity of the most recent judged event
     EventIdentity fired_id{}; // identity of the skipped (selected) event
+    uint64_t last_pc = 0;     // pc of the most recent judged event
+    uint64_t fired_pc = 0;    // pc of the skipped (selected) event
 
     bool consult(const SiteEvent &e) {
         if (!isEligible(e.squashed))
@@ -50,9 +60,11 @@ struct Selector {
         ++eligible;
         last = EventIdentity{e.seq, e.lq_idx, e.lq_gen, e.store_seq,
                              e.replay_gen};
+        last_pc = e.pc;
         if (shouldSkip(eligible, ordinal, count_only, fired)) {
             fired = true;
             fired_id = last;
+            fired_pc = e.pc;
             return true;
         }
         return false;
@@ -69,6 +81,7 @@ make_stream(size_t n)
                               9500 + 10 * i,     // lq_gen
                               500 + i,           // stalling store_seq
                               1,                 // post-increment replay_gen
+                              0x400000 + 4 * i,  // load pcState().instAddr()
                               false});
     return v;
 }
@@ -102,8 +115,10 @@ main()
         assert(skips == 0);
         assert(s.eligible == 10);
         assert(!s.fired);
-        // identity of the LAST judged event is still recorded (observation):
+        // identity of the LAST judged event is still recorded (observation),
+        // including its PC:
         assert(s.last == (EventIdentity{1009, 9090, 9590, 509, 1}));
+        assert(s.last_pc == (uint64_t)0x400000 + 4 * 9);
     }
 
     // --- 2. ordinal N selects exactly the Nth eligible event --------------
@@ -124,6 +139,15 @@ main()
         // and it differs from the neighbors':
         assert(!(s.fired_id == (EventIdentity{1001, 9010, 9510, 501, 1})));
         assert(!(s.fired_id == (EventIdentity{1003, 9030, 9530, 503, 1})));
+        // the PC travels with the recorded context (CSV distinctness uses
+        // (seq, pc, lq_gen, store_seq)) and matches the 3rd event only:
+        assert(s.fired_pc == (uint64_t)0x400000 + 4 * 2);
+        assert(s.fired_pc != (uint64_t)0x400000 + 4 * 1);
+        assert(s.fired_pc != (uint64_t)0x400000 + 4 * 3);
+        // pre/post replay-generation convention: the caller passes the
+        // POST-increment value; pre = post - 1 (replay_gen 1 -> pre 0).
+        assert(s.fired_id.replay_gen == 1);
+        assert(s.fired_id.replay_gen - 1 == 0);
     }
 
     // --- 3. ordinal 999 selects none in a bounded stream ------------------
@@ -180,6 +204,9 @@ main()
         assert(skips == 1);
         assert(skip_seq == 1003);
         assert(s.fired_id == (EventIdentity{1003, 9030, 9530, 503, 1}));
+        // and the recorded PC is that visit's, not the squashed one's:
+        assert(s.fired_pc == (uint64_t)0x400000 + 4 * 3);
+        assert(s.fired_pc != stream[1].pc);
     }
 
     std::printf("RP01_SELECTOR_OK\n");

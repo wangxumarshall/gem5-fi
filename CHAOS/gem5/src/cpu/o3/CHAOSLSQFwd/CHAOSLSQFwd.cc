@@ -82,7 +82,9 @@ namespace gem5
                 struct_mode == StructMode::Da04BeBit0 ||
                 struct_mode == StructMode::Sq03CanWB ||
                 struct_mode == StructMode::Sp05Complete ||
-                struct_mode == StructMode::Fw05OlderSrc) {
+                struct_mode == StructMode::Fw05OlderSrc ||
+                struct_mode == StructMode::Rp01CountOnly ||
+                struct_mode == StructMode::Rp01SkipReplay) {
             log_stream = simout.create("lsq_fwd_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSLSQFwd: Could not open log file");
@@ -194,6 +196,40 @@ namespace gem5
                 }
             });
         }
+        if (struct_mode == StructMode::Rp01CountOnly ||
+            struct_mode == StructMode::Rp01SkipReplay) {
+            // RP01 (LSU v3.2.12): attach even with probability==0; the fault
+            // is a skipped rescheduleMemInst call, not a byte corruption
+            // (same rationale as F6Fw02/Da04BeBit0). One-shot by rule; the
+            // ordinal alone selects the event.
+            if (!cpu->lsqFwd)
+                cpu->lsqFwd = this;
+            if (max_faults == 0)
+                max_faults = 1;
+            rp01_event_ordinal = p.rp01EventOrdinal;
+            if (p.rp01WatchdogCycles) {
+                rp01_watchdog_event = new EventFunctionWrapper(
+                    [this]() { this->rp01Watchdog(); }, "RP01 watchdog",
+                    true);
+                schedule(rp01_watchdog_event,
+                         cpu->clockEdge(Cycles(p.rp01WatchdogCycles)));
+            }
+            registerExitCallback([this]() {
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream())
+                        << "CHAOS_RP01_STATUS: fired=" << (rp01_fired ? 1 : 0)
+                        << " injected=" << faults_injected_count
+                        << " eligible=" << eligible_count
+                        << " load_seq=" << rp01_fired_id.dyn_inst_seq
+                        << " load_pc=" << rp01_fired_pc
+                        << " lq_idx=" << rp01_fired_id.lq_idx
+                        << " lq_gen=" << rp01_fired_id.lq_gen
+                        << " store_seq=" << rp01_fired_id.store_seq
+                        << " replay_gen=" << rp01_fired_id.replay_gen
+                        << std::endl;
+                }
+            });
+        }
     }
 
     CHAOSLSQFwd::~CHAOSLSQFwd()
@@ -238,6 +274,8 @@ namespace gem5
         if (s == "fw05_older_src") return StructMode::Fw05OlderSrc;
         if (s == "sq03_canwb") return StructMode::Sq03CanWB;
         if (s == "sp05_complete") return StructMode::Sp05Complete;
+        if (s == "rp01_count_only") return StructMode::Rp01CountOnly;
+        if (s == "rp01_skip_replay") return StructMode::Rp01SkipReplay;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -287,6 +325,12 @@ namespace gem5
         // the legacy forwarding-corruption hook must stay inert or it would
         // inject an untraced bit_flip and consume max_faults first.
         if (struct_mode == StructMode::Sp05Complete) return;
+        // RP01 (v3.2.12): the partial-replay-reschedule hook owns the
+        // one-shot budget; the legacy forwarding-corruption hook must stay
+        // inert in both RP01 modes or it would inject an untraced bit_flip
+        // and consume max_faults first (same rationale as SP05 above).
+        if (struct_mode == StructMode::Rp01CountOnly) return;
+        if (struct_mode == StructMode::Rp01SkipReplay) return;
         if (struct_mode == StructMode::PhaseOffset) return;
         // FW02 acts only at the forwarding DECISION point (suppress one
         // match); it must never also mutate the forwarded bytes.
@@ -555,6 +599,129 @@ namespace gem5
         DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: premature completion for [sn:%llu] "
                 "idx %llu gen %llu\n", (unsigned long long)store_seq,
                 (unsigned long long)sq_idx, (unsigned long long)sq_gen);
+        return true;
+    }
+
+    void
+    CHAOSLSQFwd::rp01Watchdog()
+    {
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "CHAOS_RP01_WATCHDOG=EXPIRED fired=" << (rp01_fired ? 1 : 0)
+                << " injected=" << faults_injected_count
+                << " eligible=" << eligible_count
+                << " tick=" << curTick() << std::endl;
+        }
+        // A watchdog expiry is a failed simulation, not a normal MAX_TICK
+        // exit: abort loudly so the process exit status is non-zero and the
+        // runner cannot classify the stalled run as MASKED (design gate
+        // condition 4 — a skipped replay reschedule that hangs the ROB is
+        // the RP01 expected terminal, never a normal completion).
+        fatal("CHAOS_RP01_WATCHDOG_EXPIRED tick=%llu injected=%d eligible=%d",
+              (unsigned long long)curTick(), (int)faults_injected_count,
+              (int)eligible_count);
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSkipPartialReplay(uint64_t load_seq, uint64_t lq_idx,
+                                        uint64_t lq_gen, uint64_t store_seq,
+                                        uint64_t replay_gen, uint64_t load_pc)
+    {
+        // RP01 (LSU v3.2.12): consulted immediately before the
+        // iewStage->rescheduleMemInst(load_inst) call at lsq_unit.cc:2016
+        // (PartialAddrRangeCoverage branch of LSQUnit::read()). Inert in
+        // every other mode/config (one null check on a path that already
+        // calls cpu->chaosPropagation there).
+        if (!rp01CountOnlyMode() && !rp01SkipMode())
+            return false;
+        // A squashed load never consumes an ordinal (its replay would be
+        // discarded anyway and would shift the ordinal space). The call
+        // site guarantees the remaining eligibility: coverage is partial,
+        // the store is not completed (the branch panics otherwise) and the
+        // store is older than the load.
+        if (!chaos_rp01::isEligible(false /* load_squashed: site-guaranteed */))
+            return false;
+        ++eligible_count;
+        const chaos_rp01::EventIdentity id{load_seq, lq_idx, lq_gen, store_seq,
+                                           replay_gen};
+        // instsToReplay membership, pre/post the call this hook guards
+        // (design gate §11 / condition 6). The suppressed call is this
+        // attempt's ONLY entry route into MemDepUnit::instsToReplay
+        // (IEW::rescheduleMemInst -> InstructionQueue::rescheduleMemInst ->
+        // MemDepUnit::reschedule, the sole push at mem_dep_unit.cc:383;
+        // task-14 wake-up audit P1 proved no stale membership exists), so
+        // pre=0 always holds at this point; post is 1 iff the call
+        // executes and inserts (0 when this hook skips it).
+        const unsigned in_list_pre = 0;
+        // One line per eligible event, stdout + log (the count-only
+        // preflight parses stdout: `... | grep -c RP01_ELIGIBLE`).
+        const bool count_path = rp01CountOnlyMode() || count_only;
+        const bool skip = !count_path &&
+            chaos_rp01::shouldSkip(eligible_count, rp01_event_ordinal,
+                                   false, rp01_fired);
+        const unsigned in_list_post = skip ? 0 : 1;
+        std::cout << "RP01_ELIGIBLE ordinal=" << eligible_count
+                  << " load_seq=" << load_seq
+                  << " load_pc=" << load_pc
+                  << " lq_idx=" << lq_idx
+                  << " lq_gen=" << lq_gen
+                  << " store_seq=" << store_seq
+                  << " replay_gen_pre=" << (replay_gen - 1)
+                  << " replay_gen_post=" << replay_gen
+                  << " in_instsToReplay_pre=" << in_list_pre
+                  << " in_instsToReplay_post=" << in_list_post
+                  << " tick=" << curTick() << std::endl;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: read_partial_reschedule, load_seq=" << load_seq
+                << ", load_pc=" << load_pc
+                << ", lq_idx=" << lq_idx << ", lq_gen=" << lq_gen
+                << ", store_seq=" << store_seq
+                << ", replay_gen_pre=" << (replay_gen - 1)
+                << ", replay_gen_post=" << replay_gen
+                << ", in_instsToReplay_pre=" << in_list_pre
+                << ", in_instsToReplay_post=" << in_list_post
+                << ", eligible_ordinal=" << eligible_count << std::endl;
+        }
+        // Count-only (and the generic countOnly param) observe, never act.
+        if (!skip)
+            return false;
+        rp01_fired = true;
+        rp01_fired_id = id;
+        rp01_fired_pc = load_pc;
+        ++faults_injected_count;
+        assert(faults_injected_count == 1 && "RP01 must fire exactly once");
+        std::cout << "RP01_SKIP_REPLAY ordinal=" << eligible_count
+                  << " load_seq=" << load_seq
+                  << " load_pc=" << load_pc
+                  << " lq_idx=" << lq_idx
+                  << " lq_gen=" << lq_gen
+                  << " store_seq=" << store_seq
+                  << " replay_gen_pre=" << (replay_gen - 1)
+                  << " replay_gen_post=" << replay_gen
+                  << " in_instsToReplay_pre=0"
+                  << " in_instsToReplay_post=0"
+                  << " tick=" << curTick() << std::endl;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: read_partial_reschedule, skipped_call=1"
+                << ", load_seq=" << load_seq
+                << ", load_pc=" << load_pc
+                << ", lq_idx=" << lq_idx << ", lq_gen=" << lq_gen
+                << ", store_seq=" << store_seq
+                << ", replay_gen_pre=" << (replay_gen - 1)
+                << ", replay_gen_post=" << replay_gen
+                << ", in_instsToReplay_pre=0"
+                << ", in_instsToReplay_post=0"
+                << ", eligible_ordinal=" << eligible_count
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd RP01: skipped partial-replay "
+                "reschedule for load [sn:%llu] stalling store [sn:%llu]\n",
+                (unsigned long long)load_seq, (unsigned long long)store_seq);
         return true;
     }
 

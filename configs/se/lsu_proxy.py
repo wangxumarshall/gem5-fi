@@ -258,7 +258,8 @@ p.add_argument("--lsq_struct_mode", default="byte_flip",
                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
                         "all_zero", "fwd_source_sub", "phase_offset", "f6_fw02",
                         "sq01_bit3", "da04_be_bit0", "fw05_older_src",
-                        "sq03_canwb", "sp05_complete"])
+                        "sq03_canwb", "sp05_complete",
+                        "rp01_count_only", "rp01_skip_replay"])
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
 p.add_argument("--lsqfwd_lsu_tier", default="off",
@@ -275,6 +276,17 @@ p.add_argument("--sp05_event_ordinal", type=lambda x: int(x,0), default=0,
 p.add_argument("--sp05_watchdog_cycles", type=lambda x: int(x,0),
                default=500000000,
                help="SP05 in-simulator watchdog ticks (0 = disabled)")
+# RP01 (LSU v3.2.12): partial-replay reschedule skip. Count-only mode
+# records every eligible event (RP01_ELIGIBLE lines, never skips — the
+# clean preflight baseline); skip-replay mode skips the ordinal-selected
+# event's rescheduleMemInst call exactly once (expected terminal
+# HANG/TIMEOUT or SQUASHED, never MASKED — design gate condition 4).
+p.add_argument("--rp01_event_ordinal", type=lambda x: int(x,0), default=0,
+               help="RP01: 1-based eligible partial-replay ordinal "
+                    "(0 = none; 999 = select-none control)")
+p.add_argument("--rp01_watchdog_cycles", type=lambda x: int(x,0),
+               default=500000000,
+               help="RP01 in-simulator watchdog cycles (0 = disabled)")
 # v3.2.10 LQ04: Load-Queue entry lifetime corruption — at the end of a
 # successful executeLoad the ordinal-selected entry's valid+request fields
 # move into the Task-4 side channel; the commit/squash boundary restores
@@ -886,6 +898,8 @@ if args.chaos_lsqfwd:
         sq03WatchdogCycles=args.sq03_watchdog_cycles,
         sp05EventOrdinal=args.sp05_event_ordinal,
         sp05WatchdogCycles=args.sp05_watchdog_cycles,
+        rp01EventOrdinal=args.rp01_event_ordinal,
+        rp01WatchdogCycles=args.rp01_watchdog_cycles,
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
         firstClock=args.first_clock,
         lastClock=args.last_clock,

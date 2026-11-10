@@ -2013,7 +2013,24 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 if (cpu->chaosPropagation)
                     cpu->chaosPropagation->noteReplay(
                         load_inst.get(), "partial_forward_mismatch");
-                iewStage->rescheduleMemInst(load_inst);
+                // RP01 (LSU v3.2.12): the ordinal-selected eligible event
+                // skips exactly this reschedule call. Everything else in
+                // the branch is untouched: the stall record above, the
+                // ++replayGeneration, clearIssued(), effAddrValid(false),
+                // request->discard(), load_entry.setRequest(nullptr) and
+                // the NoFault return below. Wake-up audit (task-14): no
+                // other path re-issues the skipped load — the store-
+                // completion replayMemInst only drains instsToReplay,
+                // which this call alone feeds.
+                if (!(cpu->lsqFwd &&
+                      cpu->lsqFwd->maybeSkipPartialReplay(
+                          load_inst->seqNum, load_inst->lqIdx,
+                          load_inst->lqEntryGeneration,
+                          store_it->instruction()->seqNum,
+                          load_inst->replayGeneration,
+                          load_inst->pcState().instAddr()))) {
+                    iewStage->rescheduleMemInst(load_inst);
+                }
                 load_inst->clearIssued();
                 load_inst->effAddrValid(false);
                 ++stats.rescheduledLoads;

@@ -46,7 +46,11 @@ class CHAOSLSQFwd(SimObject):
         "f6_fw02 (LSU v3.2 F6: suppress one real full-coverage "
         "store->load forwarding match and force the load to memory) | "
         "da04_be_bit0 (LSU v3.2.4: 4-byte store byte-enable bit0 clear, "
-        "0xF->0xE)")
+        "0xF->0xE) | "
+        "rp01_count_only (LSU v3.2.12: count/record eligible partial-replay "
+        "events, never skip) | "
+        "rp01_skip_replay (LSU v3.2.12: the ordinal-selected event skips "
+        "the rescheduleMemInst call once)")
     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
     l03Mode = Param.Bool(False,
         "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
@@ -84,4 +88,10 @@ class CHAOSLSQFwd(SimObject):
     sp05WatchdogCycles = Param.UInt64(500000000,
         "SP05: in-simulator watchdog in clock cycles (0 = disabled); on expiry the "
         "simulation exits with code 1 and CHAOS_SP05_WATCHDOG_EXPIRED")
+    rp01EventOrdinal = Param.UInt64(0,
+        "RP01: 1-based eligible partial-replay ordinal (0 = none; 999 = none "
+        "in any bounded stream — the select-none control inside fault mode)")
+    rp01WatchdogCycles = Param.UInt64(500000000,
+        "RP01: in-simulator watchdog in clock cycles (0 = disabled); on expiry "
+        "the simulation exits with code 1 and CHAOS_RP01_WATCHDOG_EXPIRED")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
