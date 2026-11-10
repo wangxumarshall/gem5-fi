@@ -10,13 +10,17 @@ sdcfuzz 仓库已有的资产，不是本仓库需要重新实现的东西：
 
 - 真 D13 在 `sdcfuzz/gem5_config/workloads/sdc_probe_workload_d13.c`，
   是运行时随机候选 + 定向变异 + `popcount(x^(x+1))` 选择的 workload；
-- 19 个微架构模板在 `sdcfuzz/seeds/*.S`（覆盖 MMU/L2C/LSU/OoO/IEX/FSU/IFU）。
+- 微架构模板在上游 `sdcfuzz/seeds/*.S`（覆盖 MMU/L2C/LSU/OoO/IEX/FSU/IFU）。
+  2026-11-10 核查发现：上游实际是 **20 个** `.S`、**8 个**弱点模块，
+  方案/论文写的“19 个/7 个”已过时（上游
+  `docs/experiments/2026-09-03-scheme-compliance-assessment.md` 有明确记录）。
 
 本仓库里的 `sdcfuzz/operand_heuristic.py` 和 19 条本地语料是**支撑件**
 （可选对照与结构评估语料），不是上述两者的复刻：前者与 D13 的算法、作用
-位置、随机源都不同，后者与上游 19 模板没有逐条对应关系。上游 D13 的真基线
+位置、随机源都不同，后者与上游模板没有逐条对应关系。上游 D13 的真基线
 已在 sdc-0103 上复现，记录见
-`docs/sdcfuzz/d13-baseline-reproduction.md`。4 板真机部署和 p2 论文草稿属于
+`docs/sdcfuzz/d13-baseline-reproduction.md`；本次 Phase 0 核查见
+`docs/sdcfuzz/phase0-verification.md`。4 板真机部署和 p2 论文草稿属于
 外部证据，本机无法复验（见第 6 节与进度图）。
 
 ## 1. 代码结构
@@ -62,35 +66,36 @@ select(pool, ref)  = argmax(score) over pool \ {masking_risk == True}
 ## 3. 19 条模板
 
 每条模板 = 一组初始化 + 一个在 m5 ROI 内重复 16 次的指令组。目标结构是
-gem5 能真实测量的六类之一；FP 模板目前没有结构指标，明确标为 `none`，
-不伪造激活值。下表是 `iterations=40`（每条模板 40×16 个指令组）时的实测
-目标结构激活：
+gem5 能真实测量的八类之一（alu/mult/div/fpadd/fpmul/l1d/l1i 等），
+FP 模板由 `fpAdd`/`fpMult` IBR 与向量/FP 寄存器低 64 位 ACE 共同测量。
+下表是 `iterations=40`（每条模板 40×16 个指令组）时的实测目标结构激活：
 
 | 模板 | 说明 | 目标 | 注入器 | 目标激活 |
 |---|---|---|---|---|
-| `alu-add-carry` | 整数加法进位链 | alu | CHAOSExec | 91904 |
-| `alu-sub-borrow` | 整数减法借位链 | alu | CHAOSExec | 91904 |
-| `alu-eor-toggle` | 逻辑异或翻转 | alu | CHAOSExec | 91904 |
-| `alu-and-mask` | 逻辑与掩码 | alu | CHAOSExec | 91904 |
-| `alu-add-shifted` | 移位加法 | alu | CHAOSExec | 91776 |
+| `alu-add-carry` | 整数加法进位链 | alu | CHAOSExec | 89728 |
+| `alu-sub-borrow` | 整数减法借位链 | alu | CHAOSExec | 89984 |
+| `alu-eor-toggle` | 逻辑异或翻转 | alu | CHAOSExec | 89728 |
+| `alu-and-mask` | 逻辑与掩码 | alu | CHAOSExec | 89728 |
+| `alu-add-shifted` | 移位加法 | alu | CHAOSExec | 90112 |
 | `mul64` | 64 位乘法 | mult | CHAOSExec | 123264 |
 | `mul32` | 32 位乘法 | mult | CHAOSExec | 61824 |
 | `madd64` | 乘法累加 | mult | CHAOSExec | 123264 |
 | `div64` | 64 位无符号除法 | div | CHAOSExec | 81920 |
 | `div32` | 32 位无符号除法 | div | CHAOSExec | 40960 |
-| `l1d-load-hot` | L1D 热行重复读 | l1d | CHAOSCache | 647 |
-| `l1d-load-stream` | L1D 多行顺序读 | l1d | CHAOSCache | 3852 |
+| `l1d-load-hot` | L1D 热行重复读 | l1d | CHAOSCache | 648 |
+| `l1d-load-stream` | L1D 多行顺序读 | l1d | CHAOSCache | 3848 |
 | `l1d-store-hot` | L1D 热行重复写 | l1d | CHAOSCache | 643 |
-| `l1d-load-store` | L1D 同址写后读 | l1d | CHAOSCache | 650 |
-| `l1i-big-body` | L1I 大指令足迹 | l1i | CHAOSCache | 1333 |
-| `dep-chain` | 长依赖链 | alu | CHAOSPhysReg | 174208 |
-| `branch-busy` | 分支密集小循环 | alu | CHAOSBPU | 1463424 |
-| `fp-add` | 双精度浮点加法 | none | CHAOSFPU | — |
-| `fp-mul` | 双精度浮点乘法 | none | CHAOSFPU | — |
+| `l1d-load-store` | L1D 同址写后读 | l1d | CHAOSCache | 648 |
+| `l1i-big-body` | L1I 大指令足迹 | l1i | CHAOSCache | 1329 |
+| `dep-chain` | 长依赖链 | alu | CHAOSPhysReg | 172032 |
+| `branch-busy` | 分支密集小循环 | alu | CHAOSBPU | 1444352 |
+| `fp-add` | 双精度浮点加法 | fpadd | CHAOSFPU | 81920 |
+| `fp-mul` | 双精度浮点乘法 | fpmul | CHAOSFPU | 81920 |
 
-激活值的口径与 Phase 1 的结构指标一致：alu/mult/div 是 FU 输入位数，
-l1d/l1i 是需求访问次数。不同模板的指令组大小不同，因此跨结构不可比；
-同一结构内可直接比较（例如 `l1d-load-stream` 的 3852 远高于热行读的 647）。
+激活值的口径与 Phase 1 的结构指标一致：alu/mult/div/fpadd/fpmul 是 FU 输入
+位数，l1d/l1i 是需求访问次数。FP 模板另有向量/FP 物理寄存器低 64 位 ACE
+（`vec_reads`/`vec_writes`）作为寄存器覆盖证据。不同模板的指令组大小不同，
+因此跨结构不可比；同一结构内可直接比较。
 
 ## 4. 生成与自校验
 
@@ -142,7 +147,7 @@ CHAOSReg 在 cycle 1000 注入 1 个 bit flip（`--target_reg_idx=12`），按
 | Phase 0 交付物 | 状态 | 说明 |
 |---|---|---|
 | D13 启发式 | 上游已完成（外部证据） | `gem5_config/workloads/sdc_probe_workload_d13.c`；原 exp02 bit 3.143× / struct 12.8×；sdc-0103 复现 bit 2.833× / struct 12.8×（均 BEAT），详见 `d13-baseline-reproduction.md` |
-| 19 模板 | 上游已完成（外部证据） | `seeds/*.S`，本仓库无副本 |
+| 19 模板 | 上游已完成（外部证据） | `seeds/*.S` 实际 20 个模板/8 模块；方案写 19/7，属文档口径滞后；本仓库无副本 |
 | gem5-CHAOS | 本仓库实测 | 19 注入器 + 一次 CHAOSReg 分类闭环 |
 | 4 板真机部署 | 上游已完成（外部证据） | sdcfuzz 论文/文档记录；本机无该硬件 |
 | p2 草稿 | 上游已完成（外部证据） | 外部仓库；本仓库无副本 |

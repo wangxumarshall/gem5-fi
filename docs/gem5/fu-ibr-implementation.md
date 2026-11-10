@@ -15,22 +15,25 @@ NoNeedFU、NoCapableFU、NoFreeFU 和已 squash 未发射的指令均不计入�
 已经发射、之后被 squash 的指令确实使用了硬件，计入 IBR；不等到 commit。
 多周期运算仅在接收输入时采样一次，不按执行延迟重复累加输入位。
 
-当前监测 AArch64 整数算术输入端，按功能类别分别输出：
+当前监测 AArch64 整数与标量 FP 算术输入端，按功能类别分别输出：
 
 | 统计类别 | 支持的指令 | 输入端数量 | 每端最大位宽 |
 |---|---|---:|---:|
-| `intAlu` | add/sub、逻辑操作的立即数和寄存器编码，包括其别名 | 2 | 64 |
+| `intAlu` | add/sub、逻辑操作的立即数和寄存器编码，包括 MOVZ/MOVK/MOVN、移位/扩展形式及其别名 | 2 | 64 |
 | `intMult` | 同宽 MADD/MSUB，包括 MUL/MNEG 别名 | 3 | 64 |
 | `intDiv` | UDIV/SDIV | 2 | 64 |
+| `fpAdd` | 标量 FADD/FSUB（S/D/H） | 2 | 64 |
+| `fpMult` | 标量 FMUL/FNMUL（S/D/H） | 2 | 64 |
+| `fpDiv` | 标量 FDIV（S/D/H） | 2 | 64 |
 
-有效输入宽度使用 ARM decoder 的 `getIntWidth()`：W 运算为 32，X 运算为 64。
-这里建模的是完整数据输入端：立即数扩展后的操作数、零寄存器、MUL 中的
-零加数也送入输入端，不按立即数字段长度或输入数值大小缩减宽度。
-移位/扩展运算的端口按主运算宽度建模，不进一步分析较窄来源和逻辑屏蔽。
-不统计指令编码、移位量、条件码等控制输入。其他 ALU 编码、长乘法、FP、
-SIMD/SVE、访存、分支和 AArch32 不在本阶段范围；成功 FU issue 中这些
-未建模指令增加 `excludedOps`，不伪造为满宽输入。因此这是一项明确范围的
-数据端活动近似，不声称全 ISA 或门级精确覆盖。
+有效输入宽度：整数使用 ARM decoder 的 `getIntWidth()`（W 为 32、X 为 64）；
+标量 FP 从编码的 type 位（23:22）取 S=32、D=64、H=16。这里建模的是完整
+数据输入端：立即数扩展后的操作数、零寄存器、MUL 中的零加数也送入输入端，
+不按立即数字段长度或输入数值大小缩减宽度。移位/扩展运算的端口按主运算
+宽度建模，不进一步分析较窄来源和逻辑屏蔽。不统计指令编码、移位量、条件码
+等控制输入。SIMD/SVE、FP fused-multiply-add、访存、分支和 AArch32 不在
+本阶段范围；成功 FU issue 中这些未建模指令增加 `excludedOps`，不伪造为满宽
+输入。因此这是一项明确范围的数据端活动近似，不声称全 ISA 或门级精确覆盖。
 
 每类分母从配置中的实际 FUPool 计算支持该类的物理单元数量；共享的 pool
 只计算一次，多个 IQ 的不同 pool 则合计。支持多种类别的同一物理 FU 会
@@ -76,11 +79,11 @@ work-item 结束周期同样是排他边界。跟踪器保留当前周期的输�
 标准 gem5 `stats.txt` 输出以下名称，CPU 路径由配置决定：
 
 ```text
-*.fuIbr.inputBits::intAlu/intMult/intDiv
-*.fuIbr.issuedOps::intAlu/intMult/intDiv
-*.fuIbr.unitCount::intAlu/intMult/intDiv
-*.fuIbr.maxInputBits::intAlu/intMult/intDiv
-*.fuIbr.ibrRatio::intAlu/intMult/intDiv
+*.fuIbr.inputBits::intAlu/intMult/intDiv/fpAdd/fpMult/fpDiv
+*.fuIbr.issuedOps::intAlu/intMult/intDiv/fpAdd/fpMult/fpDiv
+*.fuIbr.unitCount::intAlu/intMult/intDiv/fpAdd/fpMult/fpDiv
+*.fuIbr.maxInputBits::intAlu/intMult/intDiv/fpAdd/fpMult/fpDiv
+*.fuIbr.ibrRatio::intAlu/intMult/intDiv/fpAdd/fpMult/fpDiv
 *.fuIbr.excludedOps
 *.fuIbr.measuredCycles
 *.fuIbr.windowBegins
@@ -139,3 +142,35 @@ chain、dead、pressure、squash 四个场景，guest 均为 PASS，无段错误
 对应 ACE ratio 为 0.02734596、0.01569511、0.01575109，squash discards
 为 121。ARM target 构建成功，IBR 改动未引入编译告警；环境仍有原有的
 tcmalloc、protobuf、capstone、libpng、HDF5 可选依赖提示。
+
+### 原生 aarch64 复测（2026-11-10）
+
+在 `sdc-0103`（aarch64）上用当前源码重建 `build/ARM/gem5.opt` 后，
+`GEM5_BUILD_NAME=ARM GEM5_OPT=... bash scripts/test-fu-ibr.sh` 真实通过：
+
+```text
+alu64: intAlu IBR=0.65390920, bits=8322496, cycles=16572
+alu32: intAlu IBR=0.33250262, bits=4226752, cycles=16552
+mul64: intMult IBR=0.66111605, bits=12288000, cycles=48403
+mul32: intMult IBR=0.32963886, bits=6144384, cycles=48541
+div64: intDiv IBR=0.04996947, bits=8192000, cycles=640391
+sparse: intAlu IBR=0.40674209, bits=8325184, cycles=26651
+IBR width, utilization, formula, disabled, work-ID, cycle-window and
+ROI-pairing checks passed
+```
+
+FP 类别由 19 模板回归验证：`fp-add` 的 `inputBits::fpAdd = 81920`，
+`fp-mul` 的 `inputBits::fpMult = 81920`（iterations=40，64 条目标 FP 运算
+×2 端口×64 位，另含少量 ROI 内推测发射），见
+`m5out/coverage-matrix/coverage_matrix.json` 与
+`scripts/test-template-coverage.py`。
+
+## 边界
+
+- 只覆盖 O3 CPU 的标量整数与标量 FP 功能单元输入；SIMD/SVE、
+  FP fused-multiply-add 与向量运算仍由 `excludedOps` 记录。
+- 标量 FP 的 S/D/H 宽度由编码 type 位推导；`maxInputBits` 的分母仍按
+  每端口 64 位计算，因此 S/H 的 `ibrRatio` 是保守下界，不会虚高。
+- 访存与分支不进入 FU IBR：它们分别由 L1 ACE / RF ACE 与分支预测器覆盖；
+  `excludedOps` 保留计数，不会被伪装成“已覆盖”。
+- IBR 是硬件活动代理；故障是否传播到程序输出仍需 SFI 单独验证。

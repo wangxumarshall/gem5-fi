@@ -1,4 +1,4 @@
-# gem5 O3 整数物理寄存器 RF ACE 实现说明
+# gem5 O3 整数与向量/FP 物理寄存器 RF ACE 实现说明
 
 ## 1. 目标与论文语义
 
@@ -23,6 +23,18 @@ intAceRatio = intAceBitCycles
             / (numPhysIntRegs * rfAceRegWidthBits * measuredCycles)
 ```
 
+同一 tracker 还跟踪 ARM 的向量/FP 物理寄存器（`VecRegClass`），用于
+`fp-add`/`fp-mul` 等模板的寄存器覆盖证据。向量寄存器按 **低 64 位 lane**
+建模：标量 D 运算、`FMOV D`、`LDR/STR D` 是精确的；128 位 SIMD 只覆盖
+低 64 位，不虚报高 64 位。FP 标量读宽度按编码 type 位（23:22）取
+S=32 / D=64 / H=16。向量值不从“ROI 前已存在”的 live-in 推断生命周期：
+只有 ROI 内发生写之后，读才进入 ACE；这避免释放后重读造成的重复计数。
+
+```text
+vecAceRatio = vecAceBitCycles
+            / (numPhysVecRegs * 64 * measuredCycles)
+```
+
 ## 2. 实现位置
 
 核心跟踪器位于：
@@ -33,6 +45,8 @@ intAceRatio = intAceBitCycles
 事件接入点：
 
 1. `dyn_inst.hh`：记录整数物理源寄存器真实读取周期和目的寄存器真实写回周期。
+   FP/向量指令通过 `getWritableRegOperand` 原地写入，该路径也登记
+   `VecRegClass` 目的写，因此向量 ACE 同时看到读和写。
 2. `commit.cc`：只有指令成功提交后，才确认此前记录的读写事件。
 3. `rename.cc`：分支恢复时丢弃年轻指令的候选事件；物理寄存器归还 free
    list 时结束当前值的生命周期。
@@ -111,6 +125,13 @@ ACE 分子、读写次数和 ratio 完全相同；SMT 的其他线程仍按周�
 *.rfAce.intTrackedReads
 *.rfAce.intSquashDiscards
 *.rfAce.intOverwriteDrops
+*.rfAce.vecAceRegCycles
+*.rfAce.vecAceBitCycles
+*.rfAce.vecAceRatio
+*.rfAce.vecTrackedWrites
+*.rfAce.vecTrackedReads
+*.rfAce.vecSquashDiscards
+*.rfAce.vecOverwriteDrops
 *.rfAce.measuredCycles
 *.rfAce.windowBegins
 *.rfAce.windowEnds
@@ -180,13 +201,29 @@ python3 scripts/test-ace-ibr-correctness.py \
 该回归比较 SMADDL/MADD 的高 32 位生命周期，并检查同一 ROI 在 work-end
 与程序结束时的多次导出，避免只读取 `stats.txt` 最后一个同名值而掩盖污染。
 
-- 只覆盖 O3 CPU 的 `IntRegClass` 物理寄存器文件。
+- 整数覆盖 O3 CPU 的 `IntRegClass` 物理寄存器文件；向量/FP 覆盖
+  `VecRegClass` 的**低 64 位 lane**。
 - `whole` 模式会把被消费条目的全部配置位宽视为 ACE，仅用于兼容和对照。
 - 当前 `bit` 模式区分 AArch64 整数 W/X 的读取宽度；整数写按 AArch64
   零扩展语义定义完整 GPR。内存指令暂按完整 GPR 保守建模，尚未区分地址源和
   store-data 源。
-- 不覆盖 FP、SIMD/SVE、谓词和条件码寄存器或向量 lane/predicate mask。
+- 128 位 SIMD 高 lane、谓词和条件码寄存器不在当前向量 ACE 范围；标量
+  S/H/D FP 与 D 寄存器访存已覆盖。
 - ACE 是硬件覆盖/适应度代理；故障是否传播到程序输出仍需 SFI 单独验证。
 
 论文依据：Harpocrates, ISCA 2024，第 II-D 节和图 3（ACE lifetime），以及
 第 VI-B/VI-C 节（IRF 以 ACE 为优化反馈，ACE 是检测能力上界）。
+
+## 7. 向量/FP ACE 实测（2026-11-10，原生 aarch64）
+
+在 `sdc-0103` 的原生 `build/ARM/gem5.opt` 上运行 19 模板覆盖回归，
+`fp-add`/`fp-mul` 的向量 RF ACE 真实输出（iterations=40）：
+
+```text
+fp-add: vec_reads=1284 vec_writes=646 vecAceRatio=0.01328022
+fp-mul: vec_reads=1284 vec_writes=646 vecAceRatio=0.01400148
+```
+
+写计数来自 `getWritableRegOperand` 钩子；`vecAceRatio` 均在 `[0,1]` 内且
+由 `vecAceBitCycles / (numPhysVecRegs * 64 * measuredCycles)` 逐项复核。
+完整矩阵见 `m5out/coverage-matrix/coverage_matrix.json`。

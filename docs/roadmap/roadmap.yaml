@@ -23,10 +23,10 @@ tracks:
             status: done-external
             evidence: sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 12.8×；sdc-0103 复现：bit 2.833× (p=0.025) / struct 12.8× (p=5.6e-20)，均 BEAT；docs/sdcfuzz/d13-baseline-reproduction.md
           - id: p0-templates
-            short: 19 模板（上游）
-            title: 19 个微架构模板（上游 seeds/*.S）
+            short: 微架构模板（上游）
+            title: 上游 seeds/*.S 微架构模板（方案写 19，实测 20）
             status: done-external
-            evidence: sdcfuzz seeds/*.S（覆盖 MMU/L2C/LSU/OoO/IEX/FSU/IFU）；本仓库无副本，未复验
+            evidence: 上游 seeds/*.S 实际 20 个、覆盖 8 个模块（E/V/M/C/O/I/L/F）；上游 2026-09-03 合规评估已指出 scheme 的 19/7 口径过时；本仓库无副本，未逐条复验
           - id: p0-gem5-chaos
             short: gem5-CHAOS 底座
             title: gem5-CHAOS 注入底座 + 生成→注入闭环
@@ -50,12 +50,12 @@ tracks:
             short: RF/L1 ACE
             title: RF ACE 与 L1 cache ACE 量化
             status: done-local
-            evidence: CHAOS/gem5/src/cpu/o3/rf_ace.*、mem/cache/l1_ace.*；test-rf/l1-ace.sh
+            evidence: CHAOS/gem5/src/cpu/o3/rf_ace.*（整数 + 向量/FP 低 64 位）、mem/cache/l1_ace.*；test-rf/l1-ace.sh；19 模板覆盖矩阵
           - id: p1-ibr
             short: FU IBR
             title: FU IBR 输入位覆盖率
             status: done-local
-            evidence: CHAOS/gem5/src/cpu/o3/fu_ibr.*；test-fu-ibr.sh
+            evidence: CHAOS/gem5/src/cpu/o3/fu_ibr.*（intAlu/intMult/intDiv + fpAdd/fpMult/fpDiv）；test-fu-ibr.sh；19 模板覆盖矩阵
           - id: p1-autousens
             short: 结构映射原型
             title: AutoµSens 指令→结构映射与逆向靶向原型
@@ -65,12 +65,12 @@ tracks:
             short: 覆盖度评估
             title: 结构覆盖度评估工具
             status: done-local
-            evidence: tools/autousens.py evaluate；corpus_index.json
+            evidence: tools/autousens.py evaluate + sdcfuzz/coverage.py；scripts/test-template-coverage.py；coverage_matrix.json
           - id: p1-local-corpus
             short: 本地语料(支撑)
             title: 本地 19 条结构语料（支撑件，非上游 19 模板）
             status: done-local
-            evidence: sdcfuzz/templates.py；19/19 PASS；docs/sdcfuzz/phase0-baseline.md 明示非对等复刻
+            evidence: sdcfuzz/templates.py；19/19 PASS；fp-add/fp-mul 已由 fpadd/fpmul IBR + 向量 ACE 测量；docs/sdcfuzz/phase0-baseline.md 明示非对等复刻
           - id: p1-local-heuristic
             short: 本地启发式(支撑)
             title: 本地操作数启发式（非上游 D13，仅作可选对照）
@@ -84,13 +84,13 @@ tracks:
           - id: p1-nsga
             short: NSGA-II 多目标
             title: NSGA-II 多目标序列集生成
-            status: todo
-            evidence: 当前只有加权聚合，无 Pareto 序列集
+            status: done-local
+            evidence: tools/nsga2.py（确定性 NSGA-II）+ tools/autousens.py pareto；scripts/test-autousens.py 真实 gem5 knee 验证
           - id: p1-sad
             short: SAD 指标
             title: SAD 结构激活深度指标
-            status: todo
-            evidence: 仅有定义，无 gem5 实现
+            status: done-local
+            evidence: CHAOS/gem5/src/cpu/o3/sad.*（ROB/IQ/LQ/SQ/intPrf/vecPrf/FU/issue）；scripts/test-sad.sh
       - id: phase2
         title: Phase 2 · RL Mutator + 功耗应力
         window: M4–M6
