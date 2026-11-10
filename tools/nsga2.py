@@ -115,14 +115,20 @@ def crowding_distance(objectives: Sequence[Sequence[float]],
 
 
 def _tournament(rng: random.Random, population: Sequence[Individual],
-                rank: dict[int, int], crowding: dict[int, float]) -> int:
-    a, b = rng.sample(range(len(population)), 2)
-    if rank[a] != rank[b]:
-        return a if rank[a] < rank[b] else b
-    if crowding[a] != crowding[b]:
-        return a if crowding[a] > crowding[b] else b
-    # Same rank and crowding: keep the tie deterministic.
-    return a if population[a].genes <= population[b].genes else b
+                rank: dict[int, int], crowding: dict[int, float],
+                size: int) -> int:
+    contenders = rng.sample(range(len(population)), size)
+    best = contenders[0]
+    for index in contenders[1:]:
+        if rank[index] < rank[best]:
+            best = index
+        elif rank[index] == rank[best]:
+            if crowding[index] > crowding[best]:
+                best = index
+            elif crowding[index] == crowding[best] and \
+                    population[index].genes < population[best].genes:
+                best = index
+    return best
 
 
 def _uniform_crossover(rng: random.Random, left: tuple[int, ...],
@@ -218,8 +224,10 @@ def run_nsga2(objective_fn: Callable[[tuple[int, ...]], Sequence[float]],
         rank, crowding, _ = assign(population)
         offspring: list[Individual] = []
         while len(offspring) < population_size:
-            left_index = _tournament(rng, population, rank, crowding)
-            right_index = _tournament(rng, population, rank, crowding)
+            left_index = _tournament(
+                rng, population, rank, crowding, tournament_size)
+            right_index = _tournament(
+                rng, population, rank, crowding, tournament_size)
             left = population[left_index].genes
             right = population[right_index].genes
             if rng.random() < crossover_rate:
