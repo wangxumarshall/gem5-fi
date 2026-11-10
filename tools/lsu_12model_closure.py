@@ -43,6 +43,20 @@ complete chain in the pilot's own trace -> ``VERIFIED_SINGLE_CONTEXT``; two
 or more -> ``COMPLETE_CAUSAL_CHAIN``.  A verdict is never computed across
 binaries: the closure matrix splits per ``BinarySHA256`` and never merges.
 
+The missing-evidence matrix closes every ``ORACLE_FILE_MISSING`` row against
+the frozen context's real raw-oracle availability, in a fixed standard-derived
+precedence (never per-model hand-routing): (1) a Task 5 ``SUPP-<MODEL>-<Rxx>``
+raw-oracle run of the same (ModelID, Seed) context remediates the row
+(``RequiredRunCount=0``, the SUPP ``oracle.log`` named — it corroborates and
+never replaces the original verdict, and the two binaries' verdicts are never
+merged); (2) another original vintage of the same context whose raw
+``oracle.log`` parsed supplies it in-repo; (3) the pilot's own ``stdout.log``
+raw checksum line supplies it in-repo; (4) with no causally attributable
+consumer no oracle outcome can adjudicate the verdict (standard sections
+1.5/1.7) and the row is decision-moot with ``RequiredRunCount=0``; (5) only
+otherwise does the frozen open row stand (``RequiredRunCount=1``).  A 12-model
+model with no pilot at all carries its missing pilot set as an explicit row.
+
 Honesty invariants enforced loudly (a violating row is never written):
 
 - every CSV cell is a value or the literal ``NULL``/``NOT_APPLICABLE``;
@@ -57,6 +71,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -849,14 +864,215 @@ def final_classification(record: dict) -> str:
 # the missing-evidence matrix
 # ---------------------------------------------------------------------------
 
+# a pilot's own stdout.log is a raw application-oracle artifact when it carries
+# the workload's checksum line (the raw source the v3.2.11 audit read for
+# FW05/SQ01/SQ03; the schema names "raw oracle.log/stdout.log" as the
+# ApplicationOracle artifact -- the audit tool itself parses only oracle.log)
+_STDOUT_CHECKSUM_RE = re.compile(
+    r"checksum\s*=\s*0x[0-9a-fA-F]+|expected\s*=\s*\S+\s+got\s*=\s*\S+")
+
+
+def _supp_index(records: list) -> dict:
+    """(ModelID, Seed) -> the SUPP record that re-ran that frozen context.
+
+    The v3.2.12 Task 5 raw-oracle runs are named ``SUPP-<MODEL>-<Rxx>``
+    (schema section 3) and reuse the original Excel seed, so the
+    (ModelID, Seed) pair is the frozen-context join the SUPPLEMENTARY_ORACLE
+    manifest records.  A SUPP run corroborates the raw oracle and never
+    replaces the original verdict, and it never merges binaries.  Only a SUPP
+    record whose own raw artifact parsed (ApplicationOracle PASS/FAIL)
+    supplies anything."""
+    index: dict = {}
+    for record in records:
+        if not str(record.get("PilotID") or "").startswith("SUPP-"):
+            continue
+        if record.get("ApplicationOracle") not in ("PASS", "FAIL"):
+            continue
+        key = (str(record.get("ModelID")), str(record.get("Seed")))
+        index.setdefault(key, record)
+    return index
+
+
+def _raw_oracle_index(records: list) -> dict:
+    """(ModelID, Seed) -> a non-SUPP, non-control record whose own raw
+    ``oracle.log`` parsed (ApplicationOracle PASS/FAIL): the raw artifact for
+    that frozen context exists in-repo at that vintage's dir (e.g. the v3.2.7
+    MD04 fault-run vintage supplies the v3.2.6 contexts' raw oracle; seeds
+    verified equal).  A determinism control is a zero-injection replication:
+    its golden-checksum artifact is never the fault run's raw oracle."""
+    index: dict = {}
+    for record in records:
+        pilot_id = str(record.get("PilotID") or "")
+        if pilot_id.startswith("SUPP-") or "CONTROL" in pilot_id.upper():
+            continue
+        if record.get("ApplicationOracle") not in ("PASS", "FAIL"):
+            continue
+        key = (str(record.get("ModelID")), str(record.get("Seed")))
+        index.setdefault(key, record)
+    return index
+
+
+def _stdout_oracle_path(record: dict) -> str | None:
+    """The pilot's own stdout.log carrying the raw application checksum, or
+    ``None``.  Read as a record artifact (the same class as
+    pilot_meta.json), never as an independent trace re-parse."""
+    evidence = str(record.get("EvidencePath") or "")
+    if not evidence:
+        return None
+    path = Path(evidence) / "stdout.log"
+    if not path.is_file():
+        return None
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    return str(path) if _STDOUT_CHECKSUM_RE.search(text) else None
+
+
+def _oracle_missing_row(record: dict, spec: dict, supp: dict,
+                        raws: dict) -> dict:
+    """The ORACLE_FILE_MISSING row, closed against the frozen context's real
+    raw-oracle availability (standard section 1.7: ApplicationOracle
+    ``MISSING`` is a raw-artifact-level state, closed by SUPP raw-oracle runs
+    which corroborate and never replace the original verdict).
+
+    Fixed precedence, all standard-derived (never per-model hand-routing):
+
+    1. a Task 5 SUPP raw-oracle run of the same (ModelID, Seed) context ->
+       remediated, RequiredRunCount=0, the SUPP oracle.log named;
+    2. another original vintage of the same context whose raw oracle.log
+       parsed (PASS/FAIL) -> supplied in-repo, RequiredRunCount=0;
+    3. the pilot's own stdout.log raw checksum line -> supplied in-repo,
+       RequiredRunCount=0;
+    4. no causally attributable consumer exists (a passing oracle never
+       relabels a terminal, a failing oracle is not SDC without a consumer --
+       standard sections 1.5/1.7) -> decision-moot: no oracle outcome can
+       adjudicate this pilot's verdict, RequiredRunCount=0;
+    5. otherwise the frozen open row: RequiredRunCount=1, a SUPP run under
+       the original seed and context is what closes it.
+    """
+    base = {
+        "ModelID": record.get("ModelID"),
+        "PilotID": record.get("PilotID"),
+        "MissingStage": spec["stage"],
+        "MissingEvent": spec["event"],
+        "MissingCausalEdge": spec["edge"],
+        "RequiredHook": spec["hook"],
+        "RequiredWorkloadChange": spec["workload"],
+    }
+    key = (str(record.get("ModelID")), str(record.get("Seed")))
+
+    supplier = supp.get(key)
+    if supplier is not None:
+        return {**base,
+                "RootCause": "the raw oracle artifact is absent from the "
+                             "original pilot dir; remediated by the v3.2.12 "
+                             f"SUPP raw-oracle run {supplier.get('PilotID')} "
+                             "under the original seed and frozen context "
+                             "(corroborates, never replaces the original "
+                             "verdict; a different binary, the two binaries' "
+                             "verdicts are never merged)",
+                "RequiredRunCount": "0",
+                "ExpectedEvidence": "supplied: "
+                                    f"{supplier.get('EvidencePath')}"
+                                    "/oracle.log"}
+
+    supplier = raws.get(key)
+    if supplier is not None:
+        # the supplier is never the record itself: a record carrying
+        # ORACLE_FILE_MISSING never has a parsed raw artifact (ApplicationOracle
+        # PASS/FAIL requires a parseable oracle.log), so this is always
+        # another vintage of the same frozen context
+        return {**base,
+                "RootCause": "the raw oracle artifact is absent from this "
+                             "vintage's dir; supplied in-repo by the "
+                             "same-context original vintage "
+                             f"{supplier.get('PilotID')} (same model, seed "
+                             "and frozen context) whose raw oracle.log "
+                             "parsed",
+                "RequiredRunCount": "0",
+                "ExpectedEvidence": "supplied: "
+                                    f"{supplier.get('EvidencePath')}"
+                                    "/oracle.log"}
+
+    stdout_path = _stdout_oracle_path(record)
+    if stdout_path is not None:
+        return {**base,
+                "RootCause": "the raw oracle artifact is absent as "
+                             "oracle.log, but the pilot's own stdout.log "
+                             "records the raw application checksum (the raw "
+                             "artifact the v3.2.11 audit read; the audit "
+                             "tool parses only oracle.log)",
+                "RequiredRunCount": "0",
+                "ExpectedEvidence": f"supplied: {stdout_path}"}
+
+    stages = record.get("Stages") or {}
+    if stages.get("consumer_verified") != "yes":
+        others = ";".join(code for code in record.get("MissingCodes") or []
+                         if code != "ORACLE_FILE_MISSING") or "none"
+        return {**base,
+                "RootCause": "decision-moot: the raw artifact is absent and "
+                             "no same-context supply exists, but no oracle "
+                             "outcome can adjudicate this pilot's verdict "
+                             "(no causally attributable consumer: a passing "
+                             "oracle never relabels a terminal and a failing "
+                             "oracle is not SDC without a consumer, standard "
+                             "sections 1.5/1.7); the decision-relevant gaps "
+                             f"are this pilot's other rows: {others}",
+                "RequiredRunCount": "0",
+                "ExpectedEvidence": "NOT_APPLICABLE (no run is required for "
+                                    "the oracle item; close the named stage "
+                                    "gaps instead)"}
+
+    return {**base,
+            "RootCause": spec["cause"],
+            "RequiredRunCount": str(int(spec["runs"])),
+            "ExpectedEvidence": spec["expected"]}
+
+
+def _model_pilot_set_row(model: str) -> dict:
+    """The missing pilot-set row for a 12-model closure model that has no
+    pilot at all under the supplied roots: the absence of the model's whole
+    pilot set is itself a missing-evidence item (never a silent zero)."""
+    return {
+        "ModelID": model,
+        "PilotID": "NONE",
+        "MissingStage": "PILOT",
+        "MissingEvent": "the model's pilot directory set",
+        "MissingCausalEdge": "NOT_APPLICABLE",
+        "RootCause": "no pilot directory for this model exists under the "
+                     "supplied roots; the model's pilots have not been "
+                     "produced (or their run artifacts were archived only "
+                     "as extracted evidence rows and never committed as "
+                     "pilot directories)",
+        "RequiredHook": "the model's injector and trace stage (the missing "
+                        "stage rows of the produced pilots will name the "
+                        "exact hooks)",
+        "RequiredWorkloadChange": "the model's consumer workload where its "
+                                   "fault definition requires one (the "
+                                   "same-address reload for store-side "
+                                   "models)",
+        "RequiredRunCount": "5",
+        "ExpectedEvidence": "five pilot dirs (R01-R05) under the model's "
+                            "frozen seeds, each with trace_v31.jsonl and a "
+                            "raw oracle artifact (oracle.log or the "
+                            "stdout.log checksum line)",
+    }
+
+
 def write_missing_matrix(records: list, out) -> None:
     """One row per missing item: every missing stage carries a root cause and
     an integer run count; no cell is ever blank."""
     rows = []
+    supp = _supp_index(records)
+    raws = _raw_oracle_index(records)
     for record in records:
         for code in record.get("MissingCodes") or []:
             spec = _MISSING_ROW_SPEC.get(code, _GENERIC_ROW_SPEC)
             runs = spec["runs"]
+            if code == "ORACLE_FILE_MISSING":
+                rows.append(_oracle_missing_row(record, spec, supp, raws))
+                continue
             if code == "NO_INJECTION_EVENT" \
                     and "CONTROL" in str(record.get("PilotID", "")).upper():
                 # a determinism control is zero-injection by design: not a
@@ -888,6 +1104,12 @@ def write_missing_matrix(records: list, out) -> None:
                 "RequiredRunCount": str(int(runs)),
                 "ExpectedEvidence": spec["expected"],
             })
+    # a 12-model closure model with no pilot at all carries its missing pilot
+    # set as an explicit row (never a silent "nothing to report" zero)
+    present = {str(record.get("ModelID")) for record in records}
+    for model in MODELS:
+        if model not in present:
+            rows.append(_model_pilot_set_row(model))
     if not rows:
         # an explicit empty matrix would silently read as "nothing missing";
         # the literal keeps the artifact honest
@@ -1154,6 +1376,12 @@ def _pilot_model(pilot_dir: Path) -> str | None:
     meta = _read_json(pilot_dir / META_NAME)
     if isinstance(meta, dict) and meta.get("model") in MODELS:
         return meta["model"]
+    # the v3.2.12 supplementary naming (schema section 3: PilotID
+    # ``SUPP-<MODEL>-<Rxx>``): a SUPP dir whose manifest/meta carry no
+    # 12-model id is recognized from its frozen name, never silently skipped
+    parts = pilot_dir.name.split("-")
+    if parts[0] == "SUPP" and len(parts) >= 3 and parts[1] in MODELS:
+        return parts[1]
     return None
 
 

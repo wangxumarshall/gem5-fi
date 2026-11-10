@@ -21,9 +21,20 @@ The three exception-E1 tests pin standard §6 clause 3b / §10 (frozen
 amendment 2026-11-10): the runtime-proven LQ04 senderState masking chain
 grades COMPLETE_CAUSAL_CHAIN/MASKED with the mechanism recorded; without the
 runtime association it stays LIFECYCLE_ONLY; and the rule is model-scoped.
+
+The four missing-matrix closure tests pin the v3.2.12 Task 6 semantics: every
+``ORACLE_FILE_MISSING`` row closes against the frozen context's real
+raw-oracle supply — a same-seed ``SUPP-<MODEL>-<Rxx>`` run remediates it
+(``RequiredRunCount=0`` with the SUPP ``oracle.log`` named), a same-context
+vintage or the pilot's own ``stdout.log`` checksum supplies it in-repo, and
+with no causally attributable consumer it is decision-moot (no oracle outcome
+can adjudicate the verdict); a ``SUPP-`` dir without any recorded model id is
+inferred from its frozen name; and a model with no pilots carries its
+missing pilot set as an explicit row.
 """
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -413,6 +424,156 @@ def test_missing_matrix_has_no_blank_cell(tmp_path):
     bad_pass["ChainEventCount"] = "PASS"
     with pytest.raises(ValueError):
         write_feature_dataset([bad_pass], tmp_path / "bad2.csv")
+
+
+def _missing_rows(out):
+    with open(out, newline="", encoding="utf-8") as fh:
+        rows = list(csv.reader(fh))
+    assert rows[0] == MISSING_MATRIX_COLUMNS
+    return [dict(zip(MISSING_MATRIX_COLUMNS, row)) for row in rows[1:]]
+
+
+# ---------------------------------------------------------------------------
+# ORACLE_FILE_MISSING rows close against the context's real raw-oracle supply
+# (v3.2.12 Task 5: SUPP-<MODEL>-<Rxx> raw-oracle runs under the original seed)
+# ---------------------------------------------------------------------------
+
+def test_oracle_row_remediated_by_same_seed_supp_run(tmp_path):
+    root = tmp_path / "pilots_root"
+    # the original pilot keeps only a meta-recorded oracle (no oracle.log)
+    write_pilot(root / "LQ04-R04", oracle=None, seed=4711)
+    # the Task 5 SUPP re-run of the SAME frozen context carries the raw
+    # oracle.log and remediates the original's ORACLE_FILE_MISSING row
+    write_pilot(root / "SUPP-LQ04-R04", oracle=(HASH, HASH), seed=4711)
+    # a different-seed context gets no supply from that SUPP run: its row
+    # stays open with RequiredRunCount=1
+    write_pilot(root / "LQ04-R05", oracle=None, seed=9999)
+    out = tmp_path / "missing.csv"
+    assert main(["missing", "--pilots-root", str(root),
+                 "--out", str(out)]) == 0
+    oracle_rows = [r for r in _missing_rows(out)
+                   if r["MissingStage"] == "ORACLE"]
+    by_pilot: dict = {}
+    for row in oracle_rows:
+        by_pilot.setdefault(row["PilotID"], []).append(row)
+    assert set(by_pilot) == {"LQ04-R04", "LQ04-R05"}
+    remediated = by_pilot["LQ04-R04"]
+    assert len(remediated) == 1
+    assert remediated[0]["RequiredRunCount"] == "0"
+    assert "SUPP-LQ04-R04/oracle.log" in remediated[0]["ExpectedEvidence"]
+    assert "remediated by the v3.2.12 SUPP raw-oracle run" \
+        in remediated[0]["RootCause"]
+    # the SUPP run itself supplies nothing else and adds no open row
+    assert not any(r["PilotID"] == "SUPP-LQ04-R04" for r in oracle_rows)
+    open_row = by_pilot["LQ04-R05"]
+    assert len(open_row) == 1
+    assert open_row[0]["RequiredRunCount"] == "1"
+    assert open_row[0]["RootCause"].startswith(
+        "the raw oracle artifact is absent")
+
+
+def test_oracle_row_supplied_by_vintage_stdout_or_moot(tmp_path):
+    first_root = tmp_path / "pilots_v3_2_6"
+    second_root = tmp_path / "pilots_v3_2_7"
+    # (2) another original vintage of the same (model, seed) context whose
+    # raw oracle.log parsed supplies the row in-repo
+    write_pilot(first_root / "MD04-R01", model="MD04", oracle=None,
+                seed=777)
+    write_pilot(second_root / "MD04-R01", model="MD04",
+                oracle=(HASH, HASH), seed=777)
+    # (3) the pilot's own stdout.log raw checksum line supplies its row
+    stdout_pilot = write_pilot(first_root / "SQ01-R02", model="SQ01",
+                               oracle=None, consumer=False, seed=888)
+    (stdout_pilot / "stdout.log").write_text(
+        "info: workload done\nchecksum=0x99c106541150be0e\n",
+        encoding="utf-8")
+    # (4) no supply anywhere + no causally attributable consumer -> the
+    # oracle outcome cannot adjudicate the verdict: decision-moot, runs=0
+    write_pilot(first_root / "DA04-R01", model="DA04", oracle=None,
+                consumer=False, seed=1234)
+    out = tmp_path / "missing.csv"
+    assert main(["missing", "--pilots-root", str(first_root),
+                 "--pilots-root", str(second_root),
+                 "--out", str(out)]) == 0
+    oracle_rows = [r for r in _missing_rows(out)
+                   if r["MissingStage"] == "ORACLE"]
+    by_pilot = {r["PilotID"]: r for r in oracle_rows}
+    assert set(by_pilot) == {"MD04-R01", "SQ01-R02", "DA04-R01"}
+    vintage = by_pilot["MD04-R01"]
+    assert vintage["RequiredRunCount"] == "0"
+    assert "supplied in-repo by the same-context original vintage" \
+        in vintage["RootCause"]
+    # the supplier row names the OTHER vintage's dir, never its own
+    assert f"pilots_v3_2_7{os.sep}MD04-R01" in vintage["ExpectedEvidence"]
+    stdout_row = by_pilot["SQ01-R02"]
+    assert stdout_row["RequiredRunCount"] == "0"
+    assert "SQ01-R02/stdout.log" in stdout_row["ExpectedEvidence"]
+    moot = by_pilot["DA04-R01"]
+    assert moot["RequiredRunCount"] == "0"
+    assert moot["RootCause"].startswith("decision-moot")
+    assert "NO_CONSUMER_EDGE" in moot["RootCause"]
+    # a determinism control never supplies another pilot's raw oracle
+    # (its golden-checksum artifact is not the fault run's)
+    control_root = tmp_path / "pilots_controls"
+    write_pilot(control_root / "LQ04-CONTROL-R01", injection=False,
+                terminal=None, seed=4711)
+    gap = write_pilot(control_root / "LQ04-R04", oracle=None, seed=4711)
+    assert main(["missing", "--pilots-root", str(control_root),
+                 "--out", str(out)]) == 0
+    oracle_rows = [r for r in _missing_rows(out)
+                   if r["MissingStage"] == "ORACLE"]
+    gap_row = [r for r in oracle_rows if r["PilotID"] == "LQ04-R04"]
+    assert len(gap_row) == 1
+    # the consumer-verified gap pilot has no supply: its row stays open
+    assert gap_row[0]["RequiredRunCount"] == "1"
+    assert not any("CONTROL" in r["ExpectedEvidence"] for r in oracle_rows)
+
+
+def test_supp_dir_without_recorded_model_is_inferred_from_its_name(tmp_path):
+    root = tmp_path / "pilots_root"
+    supp = write_pilot(root / "SUPP-SP05-R01", model="SP05", consumer=False,
+                       oracle=None)
+    # strip every recorded model id: the frozen SUPP-<MODEL>-<Rxx> naming
+    # (schema section 3) is the only remaining inference source
+    manifest = json.loads((supp / "manifest.json").read_text())
+    manifest.pop("model_id", None)
+    (supp / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    meta = json.loads((supp / "pilot_meta.json").read_text())
+    meta.pop("model", None)
+    (supp / "pilot_meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    out = tmp_path / "missing.csv"
+    assert main(["missing", "--pilots-root", str(root),
+                 "--out", str(out)]) == 0
+    rows = _missing_rows(out)
+    supp_rows = [r for r in rows if r["PilotID"] == "SUPP-SP05-R01"]
+    # recognized from the name, audited, and contributing its own missing
+    # items -- never silently skipped as "no 12-model id"
+    assert supp_rows
+    assert all(r["ModelID"] == "SP05" for r in supp_rows)
+    # and SP05 is no longer a model without pilots: no PILOT-set row for it
+    assert not any(r["ModelID"] == "SP05" and r["PilotID"] == "NONE"
+                   for r in rows)
+
+
+def test_missing_matrix_names_models_without_pilots(tmp_path):
+    root = tmp_path / "pilots_root"
+    write_pilot(root / "LQ04-R01", oracle=None)
+    out = tmp_path / "missing.csv"
+    assert main(["missing", "--pilots-root", str(root),
+                 "--out", str(out)]) == 0
+    rows = _missing_rows(out)
+    for model in ("SP05", "RP01"):
+        absent = [r for r in rows if r["ModelID"] == model]
+        assert len(absent) == 1, model
+        assert absent[0]["PilotID"] == "NONE"
+        assert absent[0]["MissingStage"] == "PILOT"
+        assert absent[0]["RequiredRunCount"].isdigit()
+        assert int(absent[0]["RequiredRunCount"]) >= 1
+        assert "no pilot directory for this model exists" \
+            in absent[0]["RootCause"]
+    # a model whose pilots exist never gets the PILOT-set row
+    assert not any(r["ModelID"] == "LQ04" and r["PilotID"] == "NONE"
+                   for r in rows)
 
 
 # ---------------------------------------------------------------------------
