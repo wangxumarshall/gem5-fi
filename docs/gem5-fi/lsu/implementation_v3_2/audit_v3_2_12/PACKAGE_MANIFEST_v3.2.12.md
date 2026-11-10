@@ -4,11 +4,17 @@ Target artifact: `LSU_v3.2.12_12Model_Propagation_Closure_Package.zip`
 (+ `LSU_v3.2.12_12Model_Propagation_Closure_Package.zip.sha256` and
 `DELIVERABLES_SHA256_v3212.txt`), per plan Task 20.
 
-**Status: PRE-ASSEMBLY.** The ZIP is NOT built yet. Per the dispatch, the Excel
-v3.2.7 workbook is NOT published and the v3.2.6 workbook and all historical
-files are untouched; assembly happens only after the final closure matrix lands
-(terminal-grading rules E5/E6/E7 + frozen-four import + the RP01 / A01 / A03
-`68c6ce73` record groups).
+**Status: ASSEMBLED (final rebuild, 2026-11-11).** The ZIP
+`LSU_v3.2.12_12Model_Propagation_Closure_Package.zip` is built with the FINAL
+committed files. The final closure matrix landed (32 rows / 173 records,
+sha256 `064e28b4…`, E5/E6/E7 + §12.5 frozen-four import + the RP01 / A01 / A03
+`68c6ce73` record groups, commit `36614647`), the Excel v3.2.7 workbook and the
+derived `MODEL_STATUS_MATRIX.csv` were published (commit `b5e87eba`), the final
+acceptance report + blockers were published (commit `278913ba`), and the
+closure status MD was regenerated from the FINAL matrix. The first assembly
+(2026-11-11 ~01:30, HEAD `87287cbd`) shipped the intermediate 149-record status
+MD; this rebuild replaces it with the FINAL 32-row/173-record version. All 20
+items below are READY.
 
 ## Provenance of this 20-item list (state explicitly, do not delete)
 
@@ -43,9 +49,9 @@ the final closure matrix / workbook finalization.
 |---|------|----------------|--------|
 | 1 | Acceptance standard (frozen, amended E1–E4) | `docs/gem5-fi/lsu/implementation_v3_2/LSU_Propagation_Acceptance_Standard_v3.2.12.md` | READY |
 | 2 | Pilot-record schema (normative with the standard) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/pilot_record.schema.md` | READY |
-| 3 | 12-model propagation closure matrix (FINAL regeneration) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/LSU_12Model_Propagation_Closure_Matrix_v3.2.12.csv` | PENDING — current file is the intermediate regeneration (sha256 `27f48841…`, 29 rows / 149 records; no RP01, A01/A03 `68c6ce73` rows; pre-E5/E6/E7). Regenerate after SDD task #50 lands; run runbook §5 checks 1–8 + closure pytest suite |
-| 4 | Closure summary / matrix-status report (FINAL) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/Closure_Matrix_Status_v3.2.12.md` (plan also names `LSU_12Model_Propagation_Closure_Summary_v3.2.12.md` — naming decision for the main agent) | PENDING — regenerate with the final matrix; the current MD documents the intermediate state |
-| 5 | Diagnostic feature dataset (FINAL regeneration) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/LSU_12Model_Diagnostic_Feature_Dataset_v3.2.12.csv` | PENDING — same regeneration gate as item 3 (currently 610 rows = 149 PILOT + 461 PATH_FRAGMENT at the intermediate sha) |
+| 3 | 12-model propagation closure matrix (FINAL regeneration) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/LSU_12Model_Propagation_Closure_Matrix_v3.2.12.csv` | READY — FINAL, sha256 `064e28b456b9498e1c26d9ded203d8dd0127f09027113104c3879ac43d88474d`, **32 rows / 173 records** (E5/E6/E7 + §12.5 frozen-four import + RP01 / A01 / A03 `68c6ce73` groups; commit `36614647`); runbook §5 checks re-verified |
+| 4 | Closure summary / matrix-status report (FINAL) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/Closure_Matrix_Status_v3.2.12.md` (plan also names `LSU_12Model_Propagation_Closure_Summary_v3.2.12.md` — naming decision for the main agent) | READY — regenerated 2026-11-11 from the FINAL matrix (32 rows / 173 records, 12/12 COMPLETE_CAUSAL_CHAIN, E1–E7 + frozen-import caveats); supersedes the intermediate 149-record version |
+| 5 | Diagnostic feature dataset (FINAL regeneration) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/LSU_12Model_Diagnostic_Feature_Dataset_v3.2.12.csv` | READY — FINAL, sha256 `0bcda53aef4bc5358a1c4580f1fdb98c7431a7b9dfabba735acbdd539eed1786`, **607 rows = 173 PILOT + 434 PATH_FRAGMENT**, 0 blank cells |
 | 6 | Missing-evidence matrix CSV | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/MissingEvidenceMatrix.csv` | READY |
 | 7 | Missing-evidence narrative report | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/MissingEvidenceMatrix_v3.2.12.md` | READY |
 | 8 | Per-model audit report: LQ04 (senderState masking chain, E1) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/LQ04_Propagation_Audit_v3.2.12.md` + `LQ04_verdict_v3.2.12.json` | READY |
@@ -58,21 +64,25 @@ the final closure matrix / workbook finalization.
 | 15 | Per-model re-adjudication evidence: DA04 / LP01 / MD04 / FW05 (the frozen four) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/SUPPLEMENTARY_ORACLE_MANIFEST_v3.2.12.csv` + `pilots_v3_2_12/SUPP-DA04-R04,R05`, `SUPP-LP01-R01..R05`, `SUPP-MD04-R02,R03,R05`, `SUPP-FW05-R02..R05` + `FROZEN_PRIOR_PROPAGATION_VERDICTS_v3.2.12.json` + `MODEL_STATUS_MATRIX_v3.2.11_frozen.csv` | READY (evidence); the four models' standalone v3.2.12 re-adjudication narrative lives in items 3/4 rows + Q8 of the final report — write standalone MDs only if the verbatim §15 requires one file per model |
 | 16 | RP01 package (preflight + implementation evidence + verdict) | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/RP01_CountOnly_Preflight_v3.2.12.csv` + `.md` + `rp01_preflight_raw/` + `RP01_Task15_Runbook_v3.2.12.md` + `RP01_Task15_Evidence_v3.2.12.md` + `RP01_verdict_v3.2.12.json` + `RP01_records_v3.2.12.binary-68c6ce73.json` + `pilots_v3_2_12/RP01-R01..R05` + `RP01-CONTROL-R01..R05` | READY (records archived at `86813b91`; the RP01 rows in items 3/5 must be regenerated) |
 | 17 | W1–W8 baseline map + FINAL baselines on the final binary | `docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/W1_W8_Baseline_Map_v3.2.12.csv` + `logs_v3_2_12/baselines_w1_w8/FINAL_BASELINE_SUMMARY.csv` + `FINAL_BASELINE_REPORT.md` (9/9 PASS on `68c6ce73…`) | READY (the superseded `BASELINE_SUMMARY.csv`/`BASELINE_REPORT.md` on `720eb780…` stay on disk but out of the ZIP) |
-| 18 | Excel workbook v3.2.7 (published) | `docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.7.xlsx` | PENDING — builder + 10 tests ready (`tools/build_lsu_v327_workbook.py`, `tests/test_lsu_v327_workbook.py`); publish only against the FINAL matrix per `EXCEL_V327_BUILDER_PREP.md` §2/§3 |
-| 19 | MODEL_STATUS_MATRIX.csv (derived rewrite) + derivation tooling | `docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv` ← derived by `tools/update_lsu_v327_audit.py` (test: `tests/test_lsu_v327_audit.py`) | PENDING — tool READY and dry-run-verified on the intermediate matrix (9 verified; A01/A03/RP01 = 0); the published rewrite runs against the FINAL matrix, same commit sequence as item 18 |
-| 20 | Final acceptance report (published) + ZIP + SHA records | `docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.12_Final_Acceptance_Report.md` + `LSU_v3.2.12_12Model_Propagation_Closure_Package.zip` + `.zip.sha256` + `docs/gem5-fi/lsu/implementation_v3_2/DELIVERABLES_SHA256_v3212.txt` | PENDING — report DRAFT with `[FROM FINAL MATRIX]` placeholders (13-question structure, provenance stated); fill from the final matrix, then build/verify the ZIP (`unzip -t`, file count, `sha256sum`, no historical file overwritten, no `build/`, no `.git/`, no superseded packages) |
+| 18 | Excel workbook v3.2.7 (published) | `docs/gem5-fi/lsu/implementation_v3_2/excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.7.xlsx` | READY — published (commit `b5e87eba`), sha256 `3b219ee060b51cb9f07567e7c60e57b431b366cd432aaf4c1e0ec8f35d03db1c`, 21 sheets; builder + 10 tests green; carries the final matrix sha `064e28b4…` in its change record |
+| 19 | MODEL_STATUS_MATRIX.csv (derived rewrite) + derivation tooling | `docs/gem5-fi/lsu/implementation_v3_2/MODEL_STATUS_MATRIX.csv` ← derived by `tools/update_lsu_v327_audit.py` (test: `tests/test_lsu_v327_audit.py`) | READY — committed rewrite (commit `b5e87eba`), derived only from the FINAL matrix: 12 rows, `PROPAGATION_VERIFIED=1` for 12 model(s), no cell hand-set; frozen v3.2.11 copy archived as item 15 |
+| 20 | Final acceptance report (published) + ZIP + SHA records | `docs/gem5-fi/lsu/implementation_v3_2/LSU_v3.2.12_Final_Acceptance_Report.md` + `LSU_v3.2.12_12Model_Propagation_Closure_Package.zip` + `.zip.sha256` + `docs/gem5-fi/lsu/implementation_v3_2/DELIVERABLES_SHA256_v3212.txt` | READY — report + blockers published (commit `278913ba`), 13 questions answered from the final matrix; ZIP rebuilt 2026-11-11 with the FINAL status MD/manifest/git-state/validation captures (`unzip -t` clean, file count and SHA recorded in `.zip.sha256` + `DELIVERABLES_SHA256_v3212.txt`; no historical file overwritten, no `build/`, no `.git/`, no superseded packages) |
 
 ## Ready vs pending summary
 
-- **READY (evidence layer complete):** items 1, 2, 6, 7, 8, 9, 10, 11, 12, 13,
-  14, 15, 16, 17 — 14 of 20.
-- **PENDING (gated on the final closure matrix / finalization):** items 3, 4,
-  5 (final regeneration), 18 (workbook publish), 19 (derived status-matrix
-  rewrite), 20 (report fill + ZIP assembly + SHA records) — 6 of 20.
-- Single blocking dependency for items 3–5, 18–20: **the final closure matrix
-  regeneration** (E5/E6/E7 terminal-grading rules + frozen-four import +
-  RP01 / A01 / A03 `68c6ce73` record groups), then `EXCEL_V327_BUILDER_PREP.md`
-  §3 preconditions 1–5, then assembly.
+- **READY: all 20 of 20.** Items 3/4/5 landed with the final closure matrix
+  (commit `36614647`); items 18/19 landed with commit `b5e87eba`; item 20's
+  report/blockers landed with commit `278913ba`; the ZIP was rebuilt on
+  2026-11-11 to carry the FINAL status MD, manifest, git-state and validation
+  captures (the first assembly at HEAD `87287cbd` had shipped the intermediate
+  149-record status MD).
+- **Still pending (outside this manifest's 20 items, recorded so no reader
+  mistakes them for package gaps):** (a) the verbatim researcher-brief §15/§16
+  reconciliation (see Provenance above); (b) the record-level residuals named in
+  `Closure_Matrix_Status_v3.2.12.md` §3 and `LSU_v3.2.12_BLOCKERS.md`
+  (FW05 native consumer edge, A01 crash attribution/reference leg, A03
+  crash-cut policy, RP01 watchdog contract) — none blocks package completeness;
+  (c) the 60-sample formal experiment (ConfigFrozen=NO, NOT_STARTED).
 
 ## Assembly rules (carry into the ZIP build)
 

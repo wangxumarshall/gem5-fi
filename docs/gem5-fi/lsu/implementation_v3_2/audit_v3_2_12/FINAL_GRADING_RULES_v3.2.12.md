@@ -174,7 +174,7 @@ companion's §1.8 grade).
 
 ```bash
 # one record group (repeat per CLOSURE_RUNBOOK_v3.2.12.md sections 2.1/2.2;
-# the regeneration of 2026-11-11 rebuilt all 33 groups into
+# the regeneration of 2026-11-11 rebuilt all 32 groups into
 # audit_v3_2_12/*_records_v3.2.12.binary-*.json)
 python3 tools/lsu_12model_closure.py record --model RP01 \
   --pilot-dir pilots_v3_2_12/RP01-R01 ... --binary-sha 68c6ce73... \

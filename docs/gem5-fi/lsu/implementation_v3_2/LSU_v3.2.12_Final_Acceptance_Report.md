@@ -192,8 +192,8 @@ evidence, never silently dropped.
 
 **Verified (E7).** The v3.2.12 rerun (5 fault + 2 matched controls on the final
 binary `68c6ce73…`, `pilots_v3_2_12/SUPP-A01-R01C..R05C`, `C01C/C02C`)
-reproduced the frozen terminal profile exactly (CRASH, MASKED, MASKED,
-MASKED, MASKED across R01C–R05C) and added the trace evidence the standard's
+reproduced the frozen terminal profile (CRASH, MASKED, UNRESOLVED, MASKED,
+MASKED across R01C–R05C; R03C is the replay-discard context) and added the trace evidence the standard's
 E7 requires: on-chain `a01_ea` with `golden_ea != actual_ea` (xor_delta=8,
 bit=3) and `request_va==actual_ea` on the fault's own chain; verified
 register writeback + consumer edges with `WritebackValueFnv ==
@@ -360,7 +360,7 @@ binary is ever rebuilt again, all baselines must be re-run under the new SHA.
 - **Excel v3.2.7**: the workbook
   `excel/gem5-fi-LSU-Final-Paper-Experiment-Plan-v3.2.7.xlsx` is published in
   the working tree (2026-11-11 01:19, same uncommitted finalization
-  sequence; 21 sheets including `21.v3.2.12变更记录` and
+  sequence; 22 sheets including `21.v3.2.12变更记录` and
   `22.v3.2.12传播链闭包矩阵`). Builder (`tools/build_lsu_v327_workbook.py`)
   and its 10 tests are green; the workbook carries the final matrix's
   sha256 `064e28b4…` in its change record per `EXCEL_V327_BUILDER_PREP.md`
