@@ -216,15 +216,15 @@ git push origin lsu-platform-v3.2.12
 **Interfaces:**
 - Produces: `FinalClassification` for LQ04, either `COMPLETE_CAUSAL_CHAIN` with `TerminalState=MASKED` and `MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE`, or `LIFECYCLE_ONLY` with the missing link named.
 
-- [ ] **Step 1: Prove the source mechanism**
+- [x] **Step 1: Prove the source mechanism**
 
 Quote with `file:line` from `CHAOS/gem5/src/cpu/lsq.cc`, `CHAOS/gem5/src/cpu/o3/lsq_unit.cc`, and the response path that the packet's `senderState` (not `LQEntry::_request`) resolves the response to the original request after `_request=nullptr`. Record the exact functions.
 
-- [ ] **Step 2: Prove the runtime facts from the existing traces**
+- [x] **Step 2: Prove the runtime facts from the existing traces**
 
 From each LQ04 pilot, extract: LQ entry invalid after `executeLoad`; the response's request identity; the writeback data; the first consumer input hash; the entry free tick/generation; the final checksum. Cite event ids and ticks.
 
-- [ ] **Step 3: Adjudicate**
+- [x] **Step 3: Adjudicate**
 
 Run:
 ```bash
@@ -238,11 +238,11 @@ python3 tools/lsu_12model_closure.py record --model LQ04 \
 ```
 Expected: five records. If the LQ-invalid event or the senderState association is absent from the trace, write `SUPPLEMENTARY_PILOT_REQUIRED` in the verdict and add exactly one supplementary run in Task 6 with a new pilot ID; do not upgrade on inference alone.
 
-- [ ] **Step 4: Write the audit report**
+- [x] **Step 4: Write the audit report**
 
 Report the five per-pilot records, the source quotes, and the verdict. If the chain is proven, state the masking mechanism explicitly; otherwise state `LIFECYCLE_ONLY` and the missing runtime link.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/LQ04_Propagation_Audit_v3.2.12.md docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/LQ04_verdict_v3.2.12.json
