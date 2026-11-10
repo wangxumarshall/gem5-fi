@@ -169,7 +169,7 @@ git push origin lsu-platform-v3.2.12
   - `write_closure_matrix(records: list[dict], out: Path) -> None` — all 24 brief-mandated columns.
   - `write_feature_dataset(records: list[dict], out: Path) -> None` — the five feature groups, one row per pilot or path fragment.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Tests must use synthetic pilot directories under `tmp_path`:
 ```python
@@ -182,23 +182,23 @@ def test_feature_dataset_keeps_event_order(tmp_path): ...         # event_ordina
 ```
 Run `pytest tests/test_lsu_12model_closure.py -v`; expected FAIL (module absent).
 
-- [ ] **Step 2: Implement the record builder**
+- [x] **Step 2: Implement the record builder**
 
 Reuse `audit_pilot`; do not re-parse traces independently. Map `stages` to the three completeness fields and `classification` to `FaultEffectPropagationCoverage`, then apply `final_classification` in this fixed order: missing injection → `UNRESOLVED`; `HANG/TIMEOUT/SQUASHED` with a proven trigger → `COMPLETE_CAUSAL_CHAIN` (or `VERIFIED_SINGLE_CONTEXT` if only one context in the model); complete effect with consumer → `COMPLETE_CAUSAL_CHAIN`; internal-only change → `LIFECYCLE_ONLY`; otherwise `PARTIAL`.
 
-- [ ] **Step 3: Implement the three writers**
+- [x] **Step 3: Implement the three writers**
 
 Every CSV cell is a value or the literal `NULL`/`NOT_APPLICABLE`; the writer raises on an empty string, a bare `PASS`, or a row whose `FinalClassification` is `COMPLETE_CAUSAL_CHAIN` while `InjectionVerified` is `no`.
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 `pytest tests/test_lsu_12model_closure.py -v` → all PASS.
 
-- [ ] **Step 5: Regression**
+- [x] **Step 5: Regression**
 
 `pytest tests/test_lsu_propagation_audit.py -v` → all PASS (the shared extractor is unchanged).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/lsu_12model_closure.py tests/test_lsu_12model_closure.py
