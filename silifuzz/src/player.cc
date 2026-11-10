@@ -6,6 +6,7 @@
 #include <sched.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/personality.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -13,6 +14,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <vector>
 #include <string>
 
 #include "silifuzz/protocol.hh"
@@ -93,10 +95,20 @@ bool Player::Start(const PlayerOptions& options, std::string* err) {
   Stop();
   options_ = options;
   int sv[2];
-  if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sv) != 0) {
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) {
     if (err) *err = std::string("socketpair: ") + strerror(errno);
     return false;
   }
+  fcntl(sv[0], F_SETFD, FD_CLOEXEC);
+  // Build argv before fork: the child must only call async-signal-safe
+  // functions between fork and exec.
+  std::string self = "/proc/self/exe";
+  std::vector<std::string> args = {
+      self, "--harness", std::to_string(sv[1]), std::to_string(options_.core),
+      std::to_string(options_.timeout_ms), options_.inject_fault};
+  std::vector<char*> argv;
+  for (auto& a : args) argv.push_back(const_cast<char*>(a.c_str()));
+  argv.push_back(nullptr);
   pid_t pid = fork();
   if (pid < 0) {
     close(sv[0]);
@@ -107,14 +119,9 @@ bool Player::Start(const PlayerOptions& options, std::string* err) {
   if (pid == 0) {
     close(sv[0]);
     prctl(PR_SET_PDEATHSIG, SIGKILL);
-    if (options_.core >= 0) {
-      cpu_set_t set;
-      CPU_ZERO(&set);
-      CPU_SET(options_.core, &set);
-      sched_setaffinity(0, sizeof(set), &set);
-    }
-    HarnessMain(sv[1], options_);
-    _exit(0);
+    personality(ADDR_NO_RANDOMIZE);
+    execv(self.c_str(), argv.data());
+    _exit(127);
   }
   close(sv[1]);
   pid_ = pid;
@@ -162,43 +169,43 @@ bool Player::Request(const std::string& request, std::string* payload,
   return true;
 }
 
+int HarnessModeMain(int argc, char** argv) {
+  if (argc < 6 || std::string(argv[1]) != "--harness") return -1;
+  PlayerOptions options;
+  int fd = atoi(argv[2]);
+  options.core = atoi(argv[3]);
+  options.timeout_ms = atoi(argv[4]);
+  options.inject_fault = argv[5];
+  if (options.core >= 0) {
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    CPU_SET(options.core, &set);
+    sched_setaffinity(0, sizeof(set), &set);
+  }
+  HarnessMain(fd, options);
+  return 0;
+}
+
 bool Player::Run(const std::vector<MemoryMapping>& mappings,
                  const RegState& regs, Outcome* out, std::string* err) {
   out->timeout = false;
   if (!EnsureStarted(err)) return false;
-
-  std::string payload;
-  {
-    std::string req;
-    req.push_back((char)kOpReset);
-    if (!Request(req, &payload, err)) {
-      Kill();
-      return false;
-    }
-  }
+  std::string req;
+  req.push_back((char)kOpRunAll);
+  AppendU32(&req, (uint32_t)mappings.size());
   for (const auto& m : mappings) {
-    std::string req;
-    req.push_back((char)kOpMap);
     AppendU64(&req, m.start);
     AppendU64(&req, m.size);
     AppendU32(&req, m.perms);
     AppendU32(&req, (uint32_t)m.data.size());
     AppendBytes(&req, m.data.data(), m.data.size());
-    if (!Request(req, &payload, err)) {
-      *err = "map " + Hex64(m.start) + ": " + *err;
-      Kill();
-      return false;
-    }
   }
-  {
-    std::string req;
-    req.push_back((char)kOpExec);
-    AppendRegs(&req, regs);
-    if (!Request(req, &payload, err)) {
-      Kill();
-      out->timeout = true;  // the only expected slow path is a looping snapshot
-      return false;
-    }
+  AppendRegs(&req, regs);
+  std::string payload;
+  if (!Request(req, &payload, err)) {
+    if (err->find("timeout") != std::string::npos) out->timeout = true;
+    Kill();
+    return false;
   }
   BufReader rd{reinterpret_cast<const uint8_t*>(payload.data()),
                reinterpret_cast<const uint8_t*>(payload.data()) + payload.size()};
@@ -209,29 +216,24 @@ bool Player::Run(const std::vector<MemoryMapping>& mappings,
     Kill();
     return false;
   }
+  uint32_t n = rd.U32();
+  if (!rd.ok || n != mappings.size()) {
+    if (err) *err = "bad checksum count";
+    Kill();
+    return false;
+  }
   out->checksums.clear();
-  for (const auto& m : mappings) {
-    std::string req;
-    req.push_back((char)kOpChecksum);
-    AppendU64(&req, m.start);
-    AppendU64(&req, m.size);
-    if (!Request(req, &payload, err)) {
-      Kill();
-      return false;
-    }
-    BufReader cr{reinterpret_cast<const uint8_t*>(payload.data()),
-                 reinterpret_cast<const uint8_t*>(payload.data()) +
-                     payload.size()};
+  for (uint32_t i = 0; i < n; ++i) {
     MemChecksum c;
-    c.start = m.start;
-    c.size = m.size;
-    c.hash = cr.U64();
-    if (!cr.ok) {
-      if (err) *err = "bad checksum response";
-      Kill();
-      return false;
-    }
+    c.start = mappings[i].start;
+    c.size = mappings[i].size;
+    c.hash = rd.U64();
     out->checksums.push_back(c);
+  }
+  if (!rd.ok) {
+    if (err) *err = "bad checksum response";
+    Kill();
+    return false;
   }
   return true;
 }

@@ -58,6 +58,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "invalid instruction count range")
 		os.Exit(2)
 	}
+	if err := os.MkdirAll(*out, 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	cfg := &iset.Config{Arch: iset.ArchArm64, Mode: iset.ModeLong64, Exec: true}
 
 	var manifest *os.File

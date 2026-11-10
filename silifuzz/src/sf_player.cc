@@ -99,6 +99,10 @@ bool ParseArgs(int argc, char** argv, Args* a) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  {
+    int harness = HarnessModeMain(argc, argv);
+    if (harness >= 0) return harness;
+  }
   Args args;
   if (!ParseArgs(argc, argv, &args)) return Usage();
   PlayerOptions options;

@@ -27,11 +27,26 @@
 #include "silifuzz/player.hh"
 #include "silifuzz/protocol.hh"
 
+
 namespace silifuzz {
 namespace {
 
 constexpr int kMaxRegions = 64;
 constexpr size_t kAltStackSize = 1 << 16;
+constexpr uint64_t kTrampolineBase = 0x10001000;
+constexpr uint64_t kAliasBase = 0x100000000000ULL;
+constexpr int kArenaDataPages = 4;
+
+// Long-lived arena for the common snapshot layout.  Reusing these mappings
+// avoids mmap/munmap/mprotect on every execution, which otherwise dominates
+// the kernel time at fleet scale.  The code page is mapped twice (RX at the
+// snapshot address, RW at a far alias) so new code can be written without W+X.
+struct Arena {
+  bool ready = false;
+  int fd = -1;
+  uint8_t* code_rw = nullptr;
+};
+Arena g_arena;
 
 struct Region {
   uint64_t start = 0;
@@ -164,6 +179,95 @@ void ParseInject(const std::string& spec) {
   }
 }
 
+bool ArenaMatches(const uint64_t* starts, const uint64_t* sizes,
+                  const uint32_t* perms, uint32_t n) {
+  if (!g_arena.ready || n != (uint32_t)(3 + kArenaDataPages)) return false;
+  bool seen[3 + kArenaDataPages] = {};
+  for (uint32_t i = 0; i < n; ++i) {
+    bool found = false;
+    if (starts[i] == kCodeBase && sizes[i] == 4096 &&
+        perms[i] == (kPermRead | kPermExec)) {
+      seen[0] = true;
+      found = true;
+    } else if (starts[i] == kTrampolineBase && sizes[i] == 4096 &&
+               perms[i] == (kPermRead | kPermExec)) {
+      seen[1] = true;
+      found = true;
+    } else if (starts[i] == kStackBase && sizes[i] == 4096 &&
+               perms[i] == (kPermRead | kPermWrite)) {
+      seen[2] = true;
+      found = true;
+    } else {
+      for (int p = 0; p < kArenaDataPages; ++p) {
+        if (starts[i] == kDataBase + p * 4096 && sizes[i] == 4096 &&
+            perms[i] == (kPermRead | kPermWrite)) {
+          seen[3 + p] = true;
+          found = true;
+        }
+      }
+    }
+    if (!found) return false;
+  }
+  for (bool v : seen) {
+    if (!v) return false;
+  }
+  return true;
+}
+
+bool SetupArena() {
+  if (g_arena.ready) return true;
+  int fd = (int)syscall(SYS_memfd_create, "sf-code", 1 /*MFD_CLOEXEC*/);
+  if (fd < 0) return false;
+  if (ftruncate(fd, 4096) != 0) {
+    close(fd);
+    return false;
+  }
+  void* rw = mmap((void*)kAliasBase, 4096, PROT_READ | PROT_WRITE,
+                  MAP_SHARED | MAP_FIXED_NOREPLACE, fd, 0);
+  if (rw == MAP_FAILED) {
+    close(fd);
+    return false;
+  }
+  void* rx = mmap((void*)kCodeBase, 4096, PROT_READ | PROT_EXEC,
+                  MAP_SHARED | MAP_FIXED_NOREPLACE, fd, 0);
+  if (rx == MAP_FAILED) {
+    munmap(rw, 4096);
+    close(fd);
+    return false;
+  }
+  void* tr = mmap((void*)kTrampolineBase, 4096, PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+  if (tr == MAP_FAILED) return false;
+  *(uint32_t*)tr = 0xD4200000u;  // brk #0 (RET landing pad)
+  mprotect(tr, 4096, PROT_READ | PROT_EXEC);
+  for (int i = 0; i < kArenaDataPages; ++i) {
+    void* d = mmap((void*)(kDataBase + i * 4096), 4096,
+                   PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    if (d == MAP_FAILED) return false;
+  }
+  void* st = mmap((void*)kStackBase, 4096, PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+  if (st == MAP_FAILED) return false;
+  g_arena.ready = true;
+  g_arena.fd = fd;
+  g_arena.code_rw = (uint8_t*)rw;
+  return true;
+}
+
+void UnmapArena() {
+  if (!g_arena.ready) return;
+  munmap((void*)kCodeBase, 4096);
+  munmap(g_arena.code_rw, 4096);
+  munmap((void*)kTrampolineBase, 4096);
+  for (int i = 0; i < kArenaDataPages; ++i) {
+    munmap((void*)(kDataBase + i * 4096), 4096);
+  }
+  munmap((void*)kStackBase, 4096);
+  close(g_arena.fd);
+  g_arena = Arena{};
+}
+
 bool ResetMappings() {
   for (auto& r : g_regions) {
     if (r.used) {
@@ -196,6 +300,12 @@ bool MapRegion(uint64_t start, uint64_t size, uint32_t perms,
   if (perms & kPermExec) prot |= PROT_EXEC;
   if (prot == 0) prot = PROT_NONE;
   if (mprotect(p, (size_t)size, prot) != 0) return false;
+  if ((perms & kPermExec) != 0) {
+    // ARM64 requires instruction cache maintenance after writing code to a
+    // page that may have been executed before (snapshots reuse fixed
+    // addresses inside one long-lived harness).
+    __builtin___clear_cache((char*)start, (char*)(start + size));
+  }
   for (auto& r : g_regions) {
     if (!r.used) {
       r.start = start;
@@ -344,6 +454,83 @@ void HarnessMain(int fd, const PlayerOptions& options) {
       case kOpExec:
         ok = ExecCommand(&rd, &payload, &error);
         break;
+      case kOpRunAll: {
+        uint32_t n = rd.U32();
+        if (!rd.ok || n == 0 || n > (uint32_t)kMaxRegions) {
+          ok = false;
+          error = "bad runall mapping count";
+          break;
+        }
+        uint64_t starts[kMaxRegions];
+        uint64_t sizes[kMaxRegions];
+        uint32_t perms_arr[kMaxRegions];
+        const uint8_t* datas[kMaxRegions];
+        uint32_t lens[kMaxRegions];
+        for (uint32_t i = 0; i < n; ++i) {
+          starts[i] = rd.U64();
+          sizes[i] = rd.U64();
+          perms_arr[i] = rd.U32();
+          lens[i] = rd.U32();
+          if (!rd.ok || lens[i] > rd.remaining() || lens[i] > sizes[i]) {
+            ok = false;
+            break;
+          }
+          datas[i] = rd.p;
+          rd.p += lens[i];
+        }
+        if (!ok) {
+          error = "bad runall payload";
+          break;
+        }
+        // Drop mappings left by a previous slow-path snapshot before reusing
+        // the fixed arena addresses.
+        if (!ResetMappings()) {
+          ok = false;
+          error = "reset failed";
+          break;
+        }
+        if (!g_arena.ready && !SetupArena()) {
+          ok = false;
+          error = "arena setup failed";
+          break;
+        }
+        if (ArenaMatches(starts, sizes, perms_arr, n)) {
+          // Fast path: rewrite the arena in place.
+          for (uint32_t i = 0; i < n; ++i) {
+            if (starts[i] == kCodeBase) continue;  // handled below
+            if (starts[i] == kTrampolineBase) continue;
+            memset((void*)starts[i], 0, (size_t)sizes[i]);
+            if (lens[i] > 0) memcpy((void*)starts[i], datas[i], lens[i]);
+          }
+          memset(g_arena.code_rw, 0, 4096);
+          for (uint32_t i = 0; i < n; ++i) {
+            if (starts[i] == kCodeBase && lens[i] > 0) {
+              memcpy(g_arena.code_rw, datas[i], lens[i]);
+            }
+          }
+          __builtin___clear_cache((char*)kCodeBase, (char*)(kCodeBase + 4096));
+        } else {
+          UnmapArena();
+          for (uint32_t i = 0; i < n; ++i) {
+            if (!MapRegion(starts[i], sizes[i], perms_arr[i], lens[i],
+                           datas[i])) {
+              ok = false;
+              error = "mmap failed in runall";
+              break;
+            }
+          }
+          if (!ok) break;
+        }
+        if (!ExecCommand(&rd, &payload, &error)) {
+          ok = false;
+          break;
+        }
+        AppendU32(&payload, n);
+        for (uint32_t i = 0; i < n; ++i) {
+          AppendU64(&payload, Fnv1a64((const void*)starts[i], (size_t)sizes[i]));
+        }
+        break;
+      }
       case kOpQuit:
         _exit(0);
       default:

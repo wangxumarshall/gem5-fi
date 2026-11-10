@@ -60,7 +60,11 @@ EndState Capture(const Outcome& o) {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+  {
+    int harness = HarnessModeMain(argc, argv);
+    if (harness >= 0) return harness;
+  }
   PlayerOptions options;
   options.core = 0;
   options.timeout_ms = 3000;

@@ -55,8 +55,12 @@ class Player {
   bool started_ = false;
 };
 
-// Harness main loop. Runs in the child process (same executable, no exec).
+// Harness main loop. Runs in the child process after fork+exec.
 [[noreturn]] void HarnessMain(int fd, const PlayerOptions& options);
+
+// If the process was started as "--harness FD CORE TIMEOUT_MS INJECT", runs the
+// harness loop and never returns a negative value; otherwise returns -1.
+int HarnessModeMain(int argc, char** argv);
 
 }  // namespace silifuzz
 

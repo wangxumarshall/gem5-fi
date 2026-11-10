@@ -465,7 +465,7 @@ bool Snapshot::Save(const std::string& path, std::string* err) const {
     if (n <= 0) break;
     off += (size_t)n;
   }
-  if (::fsync(fd) != 0 || ::close(fd) != 0 || off != body.size()) {
+  if (::close(fd) != 0 || off != body.size()) {
     ::unlink(tmp.c_str());
     if (err) *err = "write failed " + tmp;
     return false;

@@ -19,6 +19,7 @@ enum Op : uint8_t {
   kOpChecksum = 4,  // u64 start, u64 size -> u64 hash
   kOpExec = 5,      // RegState -> u32 signal, u64 addr, RegState
   kOpQuit = 6,
+  kOpRunAll = 7,  // maps + exec + checksums + reset in one round trip
 };
 
 inline void AppendU32(std::string* b, uint32_t v) {
