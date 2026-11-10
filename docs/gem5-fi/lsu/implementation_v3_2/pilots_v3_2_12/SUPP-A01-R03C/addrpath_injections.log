@@ -1,0 +1,6 @@
+A01_EA: fault_id=1;dyn_inst_seq=48;pc=400ad0;golden_ea=7ffffefda8;actual_ea=7ffffefda0;xor_delta=8;bit=3;access_size=8;affected=1;request_va=7ffffefda0;fault_va=NOT_APPLICABLE
+FUNNEL: attempted=19 eligible=3 injected=1
+Tick: 204820, Site: lsq_pushRequest_PRE, mode=a01_bit3_load, old_addr=0x7ffffefda8, new_addr=0x7ffffefda0, old_size=8, new_size=8, faults_injected: 1
+CHAOS_L0: CHAOSAddrPath: target=549755747744 reads=0 overwritten=0 at=0 hit=0
+CHAOS_L0_FUNNEL: CHAOSAddrPath attempted=2799 eligible=1473 injected=1 activated=1
+FUNNEL: attempted=2799 eligible=1473 injected=1
