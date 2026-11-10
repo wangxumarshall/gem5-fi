@@ -53,6 +53,23 @@ namespace gem5
         return Mode::Byte7Zero;  // default / unknown
     }
 
+    const char *
+    CHAOSAddrPath::modeName(Mode m)
+    {
+        // [LSU][V3.2.12][A01] the true config name per mode (the exact
+        // stringToMode spellings) for the post-hook injection-log line; the
+        // legacy ternary printed "low_bit_flip" for every non-byte7 mode.
+        switch (m) {
+          case Mode::Byte7Zero:   return "byte7_zero";
+          case Mode::LowBitFlip:  return "low_bit_flip";
+          case Mode::A01Bit:      return "a01_bit";
+          case Mode::A02DoubleBit: return "a02_2bit";
+          case Mode::A03Stuck0:   return "a03_stuck0";
+          case Mode::A03Stuck1:   return "a03_stuck1";
+        }
+        return "unknown";
+    }
+
     ChaOSLsuTier
     CHAOSAddrPath::tierFromString(const std::string &s) {
         if (s == "F0") return ChaOSLsuTier::F0;
@@ -212,7 +229,7 @@ namespace gem5
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: lsq_sendFragmentToTranslation"
-                << ", mode=" << (fi_mode == Mode::Byte7Zero ? "byte7_zero" : "low_bit_flip")
+                << ", mode=" << modeName(fi_mode)
                 << ", old_vaddr=0x" << std::hex << vaddr
                 << ", new_vaddr=0x" << new_vaddr << std::dec
                 << ", faults_injected: " << faults_injected_count
@@ -224,7 +241,8 @@ namespace gem5
 
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags, uint64_t dyn_seq)
+                               Request::Flags& flags, uint64_t dyn_seq,
+                               uint64_t pc)
     {
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
@@ -406,13 +424,14 @@ namespace gem5
         // [LSU][V3.2.12][A01] a01_bit3_load (the v3.2 pilot path): stage
         // the golden/actual EA record at EA formation — golden = the AGU
         // EA at hook entry (old_addr), actual = the post-XOR addr, bit 3,
-        // access size as pushed. The PC is NOT observable at this hook
-        // (the lsq.cc call site passes dyn_seq only; task-7-report.md
-        // records the proposed pass-through — never fabricated here).
+        // access size as pushed. The PC flows through the new defaulted
+        // hook param (0 until the lsq.cc call site passes
+        // inst->pcState().instAddr(); 0 = kPcUnknown — never fabricated).
         // Read-only: no data-path change beyond the XOR above.
         if (pre_mode == "a01_bit3_load") {
             stageA01EA(chaos_a01::eaCoordsForFlip(
-                faults_injected_count, dyn_seq, chaos_a01::kPcUnknown,
+                faults_injected_count, dyn_seq,
+                pc ? pc : chaos_a01::kPcUnknown,
                 old_addr, 3, size));
         }
         // [LSU][OBS-L3] the PRE hook DID inject: the lsq.cc pushRequest call

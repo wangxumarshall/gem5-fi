@@ -43,13 +43,19 @@ main()
 {
     // ---- bit-3 flip (the a01_bit3_load pilot math) -----------------------
     {
-        const uint64_t golden = 0x7ffffefda8ULL;   // v3.2.2 R01 injected EA
+        // The REAL v3.2.2 A01-R01 direction, per the on-disk
+        // pilots_v3_2_2/A01-R01/addrpath_injections.log: "old_addr=0x7ffffefda0,
+        // new_addr=0x7ffffefda8" — golden (old) has bit 3 clear, the corrupted
+        // actual (new) has bit 3 set. (The continuation audit caught the earlier
+        // test labeling the inverted pair as this run; both directions are
+        // valid bit-3 flips, but the provenance values must match the run.)
+        const uint64_t golden = 0x7ffffefda0ULL;   // v3.2.2 R01 golden EA
         const EACoords c = eaCoordsForFlip(1, 4242, kPcUnknown, golden, 3, 8);
 
         check(c.actual_ea == (golden ^ (1ULL << 3)),
               "bit-3 flip: actual == golden ^ (1<<3)");
-        check(c.actual_ea == 0x7ffffefda0ULL,
-              "bit-3 flip: 0x...da8 ^ 0x8 == 0x...da0");
+        check(c.actual_ea == 0x7ffffefda8ULL,
+              "bit-3 flip: 0x...da0 ^ 0x8 == 0x...da8");
         check(c.bit == 3, "bit-3 flip: bit == 3");
         check(c.xor_delta != 0, "bit-3 flip: xor_delta != 0");
         check(c.xor_delta == 0x8ULL, "bit-3 flip: xor_delta == 1<<3");
@@ -68,9 +74,9 @@ main()
         check(contains(d, ";fault_va=NOT_APPLICABLE"),
               "detail: fault_va=NOT_APPLICABLE when none raised");
         check(contains(d, ";bit=3;"), "detail: bit=3");
-        check(contains(d, ";golden_ea=7ffffefda8;"),
+        check(contains(d, ";golden_ea=7ffffefda0;"),
               "detail: golden_ea bare hex");
-        check(contains(d, ";actual_ea=7ffffefda0;"),
+        check(contains(d, ";actual_ea=7ffffefda8;"),
               "detail: actual_ea bare hex");
         check(contains(d, ";xor_delta=8;"), "detail: xor_delta bare hex");
         check(d.find(',') == std::string::npos,

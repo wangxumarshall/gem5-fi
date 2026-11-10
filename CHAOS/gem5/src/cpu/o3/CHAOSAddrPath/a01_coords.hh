@@ -49,8 +49,9 @@ namespace chaos_a01
 // bit index sentinel: no single-bit identity (masked / no-op application).
 constexpr int kNoBit = -1;
 // pc sentinel: the observing hook cannot see the faulting PC (the PRE
-// hook receives dyn_inst_seq only; see task-7-report.md for the proposed
-// call-site pass-through). Never fabricated.
+// hook's pc param defaults to 0 until the lsq.cc call site passes
+// inst->pcState().instAddr() — task-7-report.md records the handoff).
+// Never fabricated.
 constexpr uint64_t kPcUnknown = 0;
 
 // a01_ea record: the golden/actual EA coordinates of one A01 fault,

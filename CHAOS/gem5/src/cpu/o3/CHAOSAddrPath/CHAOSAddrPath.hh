@@ -44,8 +44,13 @@ class CHAOSAddrPath : public SimObject
     // submodels are NOT expressible from the final addr — deferred, R5),
     // a06_size (access-size substitution; byte_enable is const at this
     // hook — size only), a08_subst (same-page, no object constraint).
+    // [LSU][V3.2.12][A01] pc (defaulted, 0 = not observable at the call
+    // site yet): the faulting PC for the staged a01_ea record; the lsq.cc
+    // call site passes inst->pcState().instAddr() (one-line shared-side
+    // patch, task-7-report.md §4B) — until then it stays kPcUnknown.
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags, uint64_t dyn_seq = 0);
+                               Request::Flags& flags, uint64_t dyn_seq = 0,
+                               uint64_t pc = 0);
 
     // [LSU][OBS-L3] true iff the PREVIOUS maybeCorruptPre call on this
     // injector performed an injection. The lsq.cc pushRequest call site
@@ -78,6 +83,11 @@ class CHAOSAddrPath : public SimObject
     enum class Mode { Byte7Zero, LowBitFlip, A01Bit, A02DoubleBit,
                       A03Stuck0, A03Stuck1 };
     static Mode stringToMode(const std::string &s);
+    // [LSU][V3.2.12][A01] the mode's true config name for the injection-log
+    // line — the legacy ternary printed "low_bit_flip" for every non-byte7
+    // mode, mislabeling the A-series post-hook injections in the very log the
+    // A01/A03 evidence reads (byte7_zero/low_bit_flip stay byte-identical).
+    static const char *modeName(Mode m);
     static ChaOSLsuTier tierFromString(const std::string &s);
     static ChaOSLsuEvent eventFromString(const std::string &s);
 
