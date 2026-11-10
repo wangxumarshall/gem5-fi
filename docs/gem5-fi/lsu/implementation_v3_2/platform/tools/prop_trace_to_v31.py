@@ -6,12 +6,25 @@ adapter preserves its node identity, dyn_inst_seq, request id, address and
 detail fields, and emits the full v3.1 field set plus separate
 ``propagation_edge`` records. Fields gem5 does not expose (replay generation,
 LQ/SQ entry generation, response id) are written as null, never guessed.
+
+RP01 log bridge (LSU v3.2.12 Task 15): the committed RP01 hook in binary
+SHA 68c6ce73... prints ``RP01_SKIP_REPLAY`` to the run log only — the prop
+trace carries the skipped load's ``replay`` marker (``noteReplay`` fires
+before the guarded call) but no injection record, so the audit pipeline
+would grade ``NO_INJECTION_EVENT``. ``--rp01-skip-log`` parses the single
+real skip line and emits it as the trace injection record. Every field is
+taken verbatim from the log line; the record carries the raw line, the log
+path and the log SHA256 as provenance. The bridge refuses zero/multiple
+skip lines, a line missing required fields, and a CSV trace that already
+has an injection record — a bridged record is never fabricated and never
+duplicated.
 """
 from __future__ import annotations
 
 import argparse
 import csv
 import gzip
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -111,6 +124,120 @@ def _int(value: str | None) -> int | None:
         return None
 
 
+# RP01 log bridge (LSU v3.2.12): the exact stdout line
+# CHAOSLSQFwd::maybeSkipPartialReplay prints when it skips the
+# rescheduleMemInst call (CHAOSLSQFwd.cc, `RP01_SKIP_REPLAY ordinal=...`).
+# Every field below is printed by that one line; the bridge never derives
+# or guesses a value that is not on it.
+RP01_SKIP_PREFIX = "RP01_SKIP_REPLAY"
+RP01_SKIP_INT_FIELDS = (
+    "ordinal", "load_seq", "load_pc", "lq_idx", "lq_gen", "store_seq",
+    "replay_gen_pre", "replay_gen_post", "in_instsToReplay_pre",
+    "in_instsToReplay_post", "tick")
+
+
+def parse_rp01_skip_line(log_path: Path) -> dict:
+    """Parse the single real ``RP01_SKIP_REPLAY`` line from a gem5 run log.
+
+    Returns a dict with every integer field of the line plus ``raw_line``.
+    Refuses (SystemExit) when the log carries zero or multiple skip lines,
+    or when the line is missing a required field or carries a non-integer
+    value — a bridged injection record must come from the real line, never
+    be completed by hand.
+    """
+    log_path = Path(log_path)
+    text = log_path.read_text(encoding="utf-8", errors="replace")
+    lines = [ln.strip() for ln in text.splitlines()
+             if ln.strip().startswith(RP01_SKIP_PREFIX)]
+    if not lines:
+        raise SystemExit(
+            f"REFUSE: no {RP01_SKIP_PREFIX} line in {log_path} — nothing to "
+            f"bridge (a control log has no skip and must not be bridged)")
+    if len(lines) > 1:
+        raise SystemExit(
+            f"REFUSE: {len(lines)} {RP01_SKIP_PREFIX} lines in {log_path} "
+            f"(expected exactly 1; RP01 is one-shot)")
+    raw = lines[0]
+    fields: dict[str, str] = {}
+    for token in raw.split():
+        if "=" in token:
+            key, _, value = token.partition("=")
+            fields[key.strip()] = value.strip()
+    absent = [name for name in RP01_SKIP_INT_FIELDS if name not in fields]
+    if absent:
+        raise SystemExit(
+            f"REFUSE: {RP01_SKIP_PREFIX} line in {log_path} is missing "
+            f"fields {absent} — refusing to bridge an incomplete line")
+    out: dict = {"raw_line": raw}
+    for name in RP01_SKIP_INT_FIELDS:
+        try:
+            out[name] = int(fields[name], 0)
+        except ValueError:
+            raise SystemExit(
+                f"REFUSE: {RP01_SKIP_PREFIX} field {name}={fields[name]!r} "
+                f"in {log_path} is not an integer")
+    return out
+
+
+def _bridge_rp01_injection(w, log_path: Path, declared: str) -> int:
+    """Emit the log-bridged RP01 injection record (see module docstring).
+
+    The record carries every field of the real skip line, the raw line
+    itself, and the log path + SHA256 as provenance. It has no CSV node
+    (``source_node_id=None``, ``ptag=0``): the chain identity is the
+    skipped load's ``dyn_inst_seq``, which the call-site ``replay`` marker
+    (emitted by ``noteReplay`` before the guarded call) shares.
+    """
+    skip = parse_rp01_skip_line(log_path)
+    log_sha = hashlib.sha256(
+        Path(log_path).read_bytes()).hexdigest()
+    detail = (
+        "site=read_partial_reschedule;skipped_call=1"
+        f";ordinal={skip['ordinal']}"
+        f";load_seq={skip['load_seq']}"
+        f";load_pc={skip['load_pc']}"
+        f";pc={hex(skip['load_pc'])}"
+        f";lq_idx={skip['lq_idx']}"
+        f";lq_gen={skip['lq_gen']}"
+        f";store_seq={skip['store_seq']}"
+        f";replay_gen_pre={skip['replay_gen_pre']}"
+        f";replay_gen_post={skip['replay_gen_post']}"
+        f";in_instsToReplay_pre={skip['in_instsToReplay_pre']}"
+        f";in_instsToReplay_post={skip['in_instsToReplay_post']}"
+        f";tick={skip['tick']}"
+        f";source_log={log_path}"
+        f";source_log_sha256={log_sha}"
+        ";bridge=rp01_skip_replay_log")
+    return w.event(
+        "injection",
+        parent_event_id=None,
+        injection_event_id=1,
+        dyn_inst_seq=skip["load_seq"],
+        timestamp=skip["tick"],
+        unit="LSQ", sub_unit="partial_replay_reschedule",
+        lq_entry_id=skip["lq_idx"],
+        entry_generation=skip["lq_gen"],
+        replay_generation=skip["replay_gen_post"],
+        injection_status="INJECTED",
+        activation_status="TRIGGERED",
+        commit_status="UNKNOWN",
+        squash_status="UNKNOWN",
+        trace_completeness=("COMPLETE" if declared == "COMPLETE"
+                            else "INCOMPLETE"),
+        detail=detail,
+        source_node_id=None,
+        ptag=0,
+        event_ordinal=skip["ordinal"],
+        store_seq=skip["store_seq"],
+        rp01_replay_gen_pre=skip["replay_gen_pre"],
+        rp01_in_instsToReplay_pre=skip["in_instsToReplay_pre"],
+        rp01_in_instsToReplay_post=skip["in_instsToReplay_post"],
+        rp01_load_pc=skip["load_pc"],
+        source_log=str(log_path),
+        source_log_sha256=log_sha,
+        rp01_skip_replay_line=skip["raw_line"])
+
+
 def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             sub_task_id: str, fault_id: str, fault_model_id: str,
             run_status: str, activation: str, terminal: str,
@@ -119,7 +246,8 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
             fault_causality: str | None = None,
             terminal_evidence: dict | None = None,
             no_summary: bool = False,
-            allow_truncated_complete: bool = False) -> dict:
+            allow_truncated_complete: bool = False,
+            rp01_skip_log: Path | None = None) -> dict:
     rows = []
     truncated = False
     try:
@@ -145,13 +273,17 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
     injection_by_ptag: dict[int, int] = {}
     node_to_event: dict[int, int] = {}
     next_injection = 0
-    counts = {"events": 0, "edges": 0, "injections": 0, "activations": 0}
+    csv_injection_seen = False
     for row in rows:
         if len(row) < 10:
             continue
         node_id, tick, ptag, kind, dyn_seq, req_id, addr, phys, arch, detail = row[:10]
         ptag_i = int(ptag or 0)
         kind = kind.strip()
+        if (rp01_skip_log is not None
+                and KIND_MAP.get(kind, kind) in ("injection",
+                                                 "injection_nochange")):
+            csv_injection_seen = True
         d = _detail(detail)
         if kind == "prop_edge":
             src = _int(d.get("source_event_id"))
@@ -478,6 +610,21 @@ def convert(csv_path: Path, out_path: Path, *, sample_run_id: str, run_id: str,
                                        else "INCOMPLETE"))
         last_by_ptag[ptag_i] = eid
 
+    # RP01 log bridge: emit the injection record from the real skip line.
+    # Placed after the CSV loop so the record lands on the fault's chain by
+    # dyn_inst_seq identity (the call-site replay marker shares it); the
+    # record is never fabricated and never duplicated (a trace that already
+    # carries an injection — e.g. a future binary emitting inj_rp01 nodes —
+    # refuses the bridge).
+    if rp01_skip_log is not None:
+        if csv_injection_seen:
+            raise SystemExit(
+                "REFUSE: --rp01-skip-log given but the CSV trace already "
+                "carries an injection record; the bridge is only for the "
+                "RP01 binary whose hook prints the skip to the log without "
+                "a trace record")
+        _bridge_rp01_injection(w, rp01_skip_log, declared)
+
     if not no_summary and terminal == "CRASH":
         # The simulator aborted before its normal trailer. Record the abort
         # itself as the terminal event, with the structured fault evidence,
@@ -522,11 +669,26 @@ def main(argv=None) -> int:
     ap.add_argument("--terminal", required=True)
     ap.add_argument("--completeness", required=True)
     ap.add_argument("--terminal-reason", default=None)
+    ap.add_argument("--observed-terminal", default=None,
+                    help="the raw observed terminal when it differs from the "
+                         "trace terminal state (an externally cut run is "
+                         "written terminal HANG + observed TIMEOUT + reason "
+                         "RP01_EXTERNAL_TIMEOUT; TIMEOUT is a run_status, "
+                         "not a TERMINAL enum value)")
     ap.add_argument("--no-summary", action="store_true",
                     help="write events/edges only when the trace is incomplete")
     ap.add_argument("--allow-truncated-complete", action="store_true",
                     help="accept a gzip-truncated stream when a terminal CRASH "
                          "event is appended (abort is the terminal state)")
+    ap.add_argument("--rp01-skip-log", default=None, type=Path,
+                    help="RP01 bridge: parse the single real "
+                         "RP01_SKIP_REPLAY line from this gem5 run log "
+                         "(stdout.log / lsq_fwd_injections.log) and emit it "
+                         "as the trace injection record — binary SHA "
+                         "68c6ce73... prints the skip to the log only. "
+                         "Every record field comes from the line; refuses "
+                         "zero/multiple lines, an incomplete line, or a "
+                         "trace that already has an injection record")
     args = ap.parse_args(argv)
     result = convert(
         Path(args.csv), Path(args.out),
@@ -535,8 +697,11 @@ def main(argv=None) -> int:
         fault_model_id=args.fault_model_id, run_status=args.run_status,
         activation=args.activation, terminal=args.terminal,
         completeness=args.completeness, terminal_reason=args.terminal_reason,
+        observed_terminal=args.observed_terminal,
         no_summary=args.no_summary,
-        allow_truncated_complete=args.allow_truncated_complete)
+        allow_truncated_complete=args.allow_truncated_complete,
+        rp01_skip_log=(Path(args.rp01_skip_log)
+                       if args.rp01_skip_log else None))
     print(json.dumps(result, ensure_ascii=False))
     return 0
 

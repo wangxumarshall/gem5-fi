@@ -1,0 +1,29 @@
+{
+  "pilot_id": "RP01-F6-W7-S01-R04",
+  "model": "RP01",
+  "run_type": "pilot",
+  "seed": 2455796178,
+  "excel_identity": {
+    "run_id": "RP01-F6-W7",
+    "sub_task_id": "RP01-F6-W7-S01",
+    "sample_run_id": "RP01-F6-W7-S01-R04",
+    "seed": 2455796178,
+    "event_ordinal": 4,
+    "event_ordinal_used": 4
+  },
+  "exit_code": 1,
+  "injection_count": 1,
+  "oracle_pass": null,
+  "trace": {
+    "validator_errors": [],
+    "truncated": true
+  },
+  "classification": {
+    "run_status": "TIMEOUT",
+    "fault_activation_status": "TRIGGERED",
+    "observed_terminal": "HANG",
+    "terminal_state": "HANG",
+    "trace_completeness": "INCOMPLETE",
+    "oracle_outcome": "NOT_APPLICABLE"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": "lsu-run-manifest-v3.2",
+  "sample_run_id": "RP01-F6-W7-S01-C01",
+  "run_id": "RP01-F6-W7",
+  "sub_task_id": "RP01-F6-W7-S01",
+  "model_id": "RP01",
+  "seed": 3135797961,
+  "fault": {
+    "location": "n/a (control: no injector attached)",
+    "target_field": "n/a",
+    "event_ordinal": null
+  },
+  "workload": {
+    "sha256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4"
+  },
+  "gem5": {
+    "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+    "binary_sha256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8"
+  }
+}

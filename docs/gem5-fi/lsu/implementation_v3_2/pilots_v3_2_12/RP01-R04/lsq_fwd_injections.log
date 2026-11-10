@@ -1,0 +1,6 @@
+Cycle: 80709, Site: read_partial_reschedule, load_seq=69341, load_pc=4199932, lq_idx=9201, lq_gen=9693, store_seq=69334, replay_gen_pre=0, replay_gen_post=1, in_instsToReplay_pre=0, in_instsToReplay_post=1, eligible_ordinal=1
+Cycle: 92020, Site: read_partial_reschedule, load_seq=71013, load_pc=4368088, lq_idx=9349, lq_gen=9915, store_seq=71007, replay_gen_pre=0, replay_gen_post=1, in_instsToReplay_pre=0, in_instsToReplay_post=1, eligible_ordinal=2
+Cycle: 92021, Site: read_partial_reschedule, load_seq=71014, load_pc=4368092, lq_idx=9350, lq_gen=9916, store_seq=71003, replay_gen_pre=0, replay_gen_post=1, in_instsToReplay_pre=0, in_instsToReplay_post=1, eligible_ordinal=3
+Cycle: 94974, Site: read_partial_reschedule, load_seq=72018, load_pc=4336216, lq_idx=9427, lq_gen=10049, store_seq=72000, replay_gen_pre=0, replay_gen_post=1, in_instsToReplay_pre=0, in_instsToReplay_post=0, eligible_ordinal=4
+Tick: 36564990, Site: read_partial_reschedule, skipped_call=1, load_seq=72018, load_pc=4336216, lq_idx=9427, lq_gen=10049, store_seq=72000, replay_gen_pre=0, replay_gen_post=1, in_instsToReplay_pre=0, in_instsToReplay_post=0, eligible_ordinal=4, faults_injected: 1
+CHAOS_RP01_WATCHDOG=EXPIRED fired=1 injected=1 eligible=4 tick=7700000000
