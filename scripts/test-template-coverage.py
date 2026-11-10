@@ -28,9 +28,8 @@ from sdcfuzz.evaluate import (  # noqa: E402
     COUNTERS,
     DEFAULT_GEM5,
     build_index,
-    metric,
 )
-from sdcfuzz.templates import TEMPLATES, TEMPLATE_BY_ID  # noqa: E402
+from sdcfuzz.templates import TEMPLATES  # noqa: E402
 
 
 def main():
