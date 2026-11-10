@@ -1,0 +1,7 @@
+branch: lsu-platform-v3.2.12
+HEAD (baseline freeze): c02976b27696edd83ff2719b6abf1937714ddbdb
+baseline: c02976b2 (lsu-platform-v3.2.11 tip)
+date: 2026-11-10T09:49:49+08:00
+binary_sha256 (CHAOS/gem5/build/ARM/gem5.opt): e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed
+binary_sha256 (build/ARM/gem5.opt): e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed
+regression reg_chain O3 (2026-11-10): checksum f247ef3fe6f02cfd, exit 0, no SIGSEGV (unaffected canonical workload, golden match)

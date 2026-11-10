@@ -1,0 +1,6 @@
+branch: lsu-platform-v3.2.12
+HEAD: c02976b27696edd83ff2719b6abf1937714ddbdb
+parent baseline: c02976b2 (lsu-platform-v3.2.11 tip; same tree, new round branch)
+date: 2026-11-10T09:49:49+08:00
+host: localhost0101
+worktree: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12  c02976b2 [lsu-platform-v3.2.12]
