@@ -312,7 +312,7 @@ git push origin lsu-platform-v3.2.12
 - Consumes: `build_pilot_record` over all 55 historical pilots, the 14 SUPP pilots, and the LQ04 verdict.
 - Produces: one row per missing item with the ten brief-mandated columns.
 
-- [ ] **Step 1: Generate**
+- [x] **Step 1: Generate**
 
 ```bash
 python3 tools/lsu_12model_closure.py missing \
@@ -330,11 +330,11 @@ python3 tools/lsu_12model_closure.py missing \
   --out docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/MissingEvidenceMatrix.csv
 ```
 
-- [ ] **Step 2: Audit the output**
+- [x] **Step 2: Audit the output**
 
-Check: every row has a `RootCause`; every `RequiredRunCount` is an integer ≥0; no `MissingStage` is blank; A01/A03/FW02/SQ01/SQ03/SP05 have at least one row; DA04/LP01/MD04/FW05 have zero `ORACLE_FILE_MISSING` rows after Task 5.
+Check: every row has a `RootCause`; every `RequiredRunCount` is an integer ≥0; no `MissingStage` is blank; A01/A03/FW02/SQ01/SQ03/SP05 have at least one row; DA04/LP01/MD04/FW05 have zero *unresolved* `ORACLE_FILE_MISSING` rows after Task 5 (remediated/supplied/decision-moot rows stay in the matrix at `RequiredRunCount=0` with the supplying evidence path named).
 
-- [ ] **Step 3: Write the narrative report and commit**
+- [x] **Step 3: Write the narrative report and commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/MissingEvidenceMatrix.csv docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/MissingEvidenceMatrix_v3.2.12.md

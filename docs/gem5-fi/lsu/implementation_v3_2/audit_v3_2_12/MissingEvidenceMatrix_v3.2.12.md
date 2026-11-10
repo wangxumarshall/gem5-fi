@@ -8,9 +8,12 @@ from the raw per-pilot artifacts, reusing `tools.lsu_propagation_audit.audit_pil
 status matrix or Excel cell overrides it).
 **Population:** 92 pilot records — 78 historical pilot directories under
 `pilots_v3_2_1`–`pilots_v3_2_10` plus the 14 v3.2.12 Task 5 SUPP raw-oracle pilots under
-`pilots_v3_2_12/SUPP-*`. Pilot dirs without a 12-model id (three `REPLAY-*`) are skipped
-loudly. Every pilot dir of a 12-model closure model contributes one row per missing item;
-a model with no pilot at all contributes one missing-pilot-set row.
+`pilots_v3_2_12/SUPP-*`. The scan population is the top-level pilot directories of each
+root that carry pilot meta/trace files (`pilot_meta.json`, `manifest.json` or
+`trace_v31.jsonl`) only; nested sweep/`failed_contexts` directories and meta-less probe
+directories are out of scope. Pilot dirs without a 12-model id (three `REPLAY-*`) are
+skipped loudly. Every pilot dir of a 12-model closure model contributes one row per
+missing item; a model with no pilot at all contributes one missing-pilot-set row.
 
 ## 1. How a row is produced
 
@@ -68,9 +71,20 @@ per-model row counts: {'A01': 12, 'A03': 24, 'FW02': 13, 'SQ01': 35, 'DA04': 18,
 | LQ04 | 10 | 5 | 5 | 5 |
 | RP01 | 1 | 1 | 0 | 5 |
 
-Row categories across the matrix: 117 open-gap rows (a supplementary/extended run each),
-24 SUPP-remediated, 8 same-context-vintage-supplied, 1 stdout-supplied, 12 decision-moot,
-30 determinism-control zero-injection rows, 2 missing-pilot-set rows.
+The same frozen context can appear once per vintage (DA04-R04/R05 in three vintages,
+LP01-R01..R05 in two plus the smoke run), so each per-model "Required runs (sum)" above is
+a conservative row-sum over same-context rows, not a distinct-context count — one run
+under the original seed and context can close several rows at once.
+
+Row categories across the matrix, recomputed from the CSV: **144 open rows** — 142 rows
+at `RequiredRunCount=1` (these include the 25 INJECTION rows of SQ01 ×10 across two
+vintages, MD04 ×5, FW05 ×5 and SQ03 ×5, whose `RootCause` template reads "trigger never
+fired, or a determinism control by design" but which are open missing-injection gaps, and
+the five unresolvable-TERMINAL rows of the LQ04 controls) plus the 2 missing-pilot-set
+`PILOT` rows at `RequiredRunCount=5` — and **50 closed/remediated rows at
+`RequiredRunCount=0`**: 24 SUPP-remediated, 8 same-context-vintage-supplied,
+1 stdout-supplied, 12 decision-moot, and 5 true determinism-control zero-injection rows
+(`LQ04-CONTROL-R01..R05` only — no other row in the matrix is a control row).
 
 - **LP01 is the first fully closed model**: all 11 of its rows are SUPP-remediated
   raw-oracle rows with `RequiredRunCount=0` — the v3.2.11 raw-oracle gap over
