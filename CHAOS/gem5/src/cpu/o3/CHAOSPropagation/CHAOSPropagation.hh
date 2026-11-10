@@ -135,6 +135,7 @@
 #include "base/output.hh"
 #include "cpu/base.hh"
 #include "cpu/reg_class.hh"
+#include "cpu/o3/CHAOSAddrPath/a01_coords.hh"  // [LSU][V3.2.12][A01]
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class DynInst; } }
@@ -384,6 +385,20 @@ class CHAOSPropagation : public SimObject
                                uint64_t event_ordinal, uint64_t injected,
                                uint64_t attempt_id, uint64_t replay_gen);
 
+    // [LSU][V3.2.12][A01] golden/actual EA coordinate record (a01_ea) and the
+    // first-consumer record (a01_consumed), staged by CHAOSAddrPath at EA
+    // formation. ptag = the injection's chain ptag (registerInjection's return
+    // at the call site; 0 = tracer disabled / no chain). Return: the ptag used.
+    uint64_t noteA01EA(uint64_t ptag, const chaos_a01::EACoords &c);
+    // A fault was raised while the corrupted request was in flight: complete
+    // the registered record with the fault VA (registry lookup by dyn_inst_seq;
+    // no-op when the seq is not a registered A01 chain).
+    void noteA01FaultVA(uint64_t dyn_inst_seq, uint64_t fault_va);
+    // Emit-once first-consumer record, called from noteCommit's first verified
+    // consumer edge (the emit-once guard, consumed_emitted, lives at the
+    // noteCommit anchor).
+    void noteA01Consumed(uint64_t ptag, const chaos_a01::Consumed &c);
+
     // SP05 (v3.2.9): injection ptag per target store, reused by completion.
     std::unordered_map<uint64_t, uint64_t> sp05_ptag;
 
@@ -602,6 +617,17 @@ class CHAOSPropagation : public SimObject
         uint64_t resp_node = 0;    // 0 until the response binds it
     };
     std::map<uint64_t, LQ04Entry> lq04_registry;  // key: load dyn seq
+
+    // [LSU][V3.2.12][A01] key: the faulting load's dyn_inst_seq (lq04_registry
+    // precedent). Holds the joined ptag, the staged record (completed with
+    // the fault VA by noteA01FaultVA) and the emit-once flag for the
+    // first-consumer (a01_consumed) node.
+    struct A01Chain {
+        uint64_t ptag = 0;
+        chaos_a01::EACoords coords;
+        bool consumed_emitted = false;
+    };
+    std::map<uint64_t, A01Chain> a01_registry;
 
     struct ChainWbEntry {
         uint64_t ptag = 0;

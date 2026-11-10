@@ -1819,6 +1819,57 @@ namespace gem5
         return ptag;
     }
 
+    uint64_t
+    CHAOSPropagation::noteA01EA(uint64_t ptag, const chaos_a01::EACoords &c)
+    {
+        // [LSU][V3.2.12][A01] the abort-survivable copy of the golden/actual EA
+        // record. addr column = actual_ea so the existing mem_req/resp
+        // range-match against the addr registry applies unchanged; golden_ea,
+        // xor_delta, bit, access_size, request_va and fault_va ride in the
+        // frozen detail (k=v;k=v, no commas — CSV last column).
+        if (!write_log)
+            return 0;
+        writeNode(ptag, "a01_ea", c.dyn_inst_seq, true, 0, false,
+                  c.actual_ea, true, 0, false, 0, false,
+                  chaos_a01::eaDetail(c));
+        auto &chain = a01_registry[c.dyn_inst_seq];
+        chain.ptag = ptag;
+        chain.coords = c;
+        return ptag;
+    }
+
+    void
+    CHAOSPropagation::noteA01FaultVA(uint64_t dyn_inst_seq, uint64_t fault_va)
+    {
+        // [LSU][V3.2.12][A01] complete the staged record with the raised fault
+        // VA and re-emit as a01_fault (the formation-time a01_ea node stays in
+        // the trace even when the run aborts before any exit callback; both
+        // nodes carry the same frozen field set via recordFaultVA+eaDetail).
+        auto it = a01_registry.find(dyn_inst_seq);
+        if (it == a01_registry.end())
+            return;
+        chaos_a01::recordFaultVA(it->second.coords, fault_va);
+        writeNode(it->second.ptag, "a01_fault", dyn_inst_seq, true, 0, false,
+                  fault_va, true, 0, false, 0, false,
+                  chaos_a01::eaDetail(it->second.coords));
+    }
+
+    void
+    CHAOSPropagation::noteA01Consumed(uint64_t ptag,
+                                      const chaos_a01::Consumed &c)
+    {
+        // [LSU][V3.2.12][A01] thin writer for the emit-once first-consumer
+        // record; the emit-once guard (consumed_emitted) lives at the
+        // noteCommit first-verified-consumer anchor. The emitted node is
+        // identical to the plan's in-place writeNode call (same ptag, same
+        // frozen consumedDetail — one formatter, no drift).
+        if (!write_log)
+            return;
+        writeNode(ptag, "a01_consumed", c.dyn_inst_seq, true, 0, false,
+                  0, false, 0, false, 0, false,
+                  chaos_a01::consumedDetail(c));
+    }
+
     void
     CHAOSPropagation::noteMD04Injection(o3::DynInst *inst,
                                         o3::DynInst *store_inst,
@@ -2225,6 +2276,27 @@ namespace gem5
             // verified edge's input hash equals the producer's writeback).
             if (first_consumer_input_hash.empty())
                 first_consumer_input_hash = ihash;
+
+            // [LSU][V3.2.12][A01] a01_consumed: emit once per A01 chain at
+            // the FIRST verified consumer. dyn_inst_seq = the taintor (the
+            // faulted load), consumer_seq = this committing instruction;
+            // input_hash = the verified edge's ihash (the same platform
+            // FNV the taint entry carries — no second hash).
+            {
+                auto a01 = a01_registry.find(it->second.taintor_seq);
+                if (a01 != a01_registry.end()
+                        && !a01->second.consumed_emitted) {
+                    chaos_a01::Consumed k;
+                    k.dyn_inst_seq = it->second.taintor_seq;
+                    k.consumer_seq = head_inst->seqNum;
+                    k.consumer_kind = chaos_a01::ConsumerKind::RegisterSource;
+                    // regValueHash returns lowercase bare hex (fnvHex);
+                    // a verified edge guarantees it is non-empty.
+                    k.input_hash = std::stoull(ihash, nullptr, 16);
+                    noteA01Consumed(a01->second.ptag, k);
+                    a01->second.consumed_emitted = true;
+                }
+            }
 
             std::string ohash;
             uint64_t out_phys = 0, out_arch = 0;

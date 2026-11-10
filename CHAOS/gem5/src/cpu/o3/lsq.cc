@@ -48,6 +48,7 @@
 #include <list>
 #include <string>
 
+#include "arch/arm/faults.hh"  // [LSU][V3.2.12][A01] ArmISA::getFaultVAddr
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "cpu/o3/cpu.hh"
@@ -781,7 +782,9 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         const Addr pre_old_addr = addr;
         const unsigned int pre_old_size = size;
         size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
-                                                      flags, inst->seqNum);
+                                                      flags, inst->seqNum,
+                                                      inst->pcState().instAddr());
+        uint64_t a01_ptag = 0;   // [LSU][V3.2.12][A01]
         // [LSU][OBS-L3] register the PRE-family injection with the L3
         // propagation tracer (inj + addr_form nodes + addr registry).
         // lastPreHookInjected() also covers the flag-only modes (S06/L02
@@ -790,9 +793,18 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // address to track). nullptr tracer / no injection = no-op.
         if (cpu->chaosPropagation &&
             cpu->chaosAddrPathPre->lastPreHookInjected()) {
-            cpu->chaosPropagation->registerInjection(
+            a01_ptag = cpu->chaosPropagation->registerInjection(
                 "lsq_pushRequest_PRE", inst->seqNum, pre_old_addr, addr,
                 isLoad, pre_old_size, size);
+        }
+        // [LSU][V3.2.12][A01] the staged golden/actual EA record → the
+        // abort-survivable a01_ea chain node (single-writer discipline:
+        // CHAOSPropagation is the only prop-trace writer).
+        if (cpu->chaosPropagation &&
+            cpu->chaosAddrPathPre->a01EAStaged()) {
+            cpu->chaosPropagation->noteA01EA(
+                a01_ptag, cpu->chaosAddrPathPre->stagedA01EA());
+            cpu->chaosAddrPathPre->clearStagedA01EA();
         }
     }
 
@@ -878,6 +890,17 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
             // (e.g. re-exec).
             if (fault != NoFault)
                 inst->getFault() = fault;
+            // [LSU][V3.2.12][A01] the raised fault VA while the corrupted
+            // request is in flight (ArmISA::getFaultVAddr, declared at
+            // src/arch/arm/faults.hh:784; AbortFault stores faultAddr).
+            // noteA01FaultVA no-ops unless this seq is a registered A01
+            // chain, so non-A01 faults are untouched.
+            if (cpu->chaosPropagation && fault != NoFault) {
+                Addr a01_fva = 0;
+                if (ArmISA::getFaultVAddr(fault, a01_fva))
+                    cpu->chaosPropagation->noteA01FaultVA(
+                        inst->seqNum, a01_fva);
+            }
         } else if (isLoad) {
             inst->setMemAccPredicate(false);
             // Commit will have to clean up whatever happened.  Set this
@@ -1188,16 +1211,26 @@ LSQ::LSQRequest::sendFragmentToTranslation(int i)
     if (_inst && _inst->cpu && _inst->cpu->chaosAddrPath) {
         RequestPtr r = req(i);
         const Addr post_old_vaddr = r->getVaddr();
+        uint64_t post_ptag = 0;   // [LSU][V3.2.12][A01]
         if (_inst->cpu->chaosAddrPath->maybeCorrupt(r)) {
             // [LSU][OBS-L3] post-hook family: register the injection (inj +
             // addr_form nodes + addr registry; the request size is known
             // here, so both sizes carry it — the corruption is address-only
             // on this hook).
             if (_inst->cpu->chaosPropagation)
-                _inst->cpu->chaosPropagation->registerInjection(
+                post_ptag = _inst->cpu->chaosPropagation->registerInjection(
                     "lsq_sendFragmentToTranslation", _inst->seqNum,
                     post_old_vaddr, r->getVaddr(), isLoad(),
                     r->getSize(), r->getSize());
+        }
+        // [LSU][V3.2.12][A01] the staged golden/actual EA record → the
+        // abort-survivable a01_ea chain node (single-writer discipline:
+        // CHAOSPropagation is the only prop-trace writer).
+        if (_inst->cpu->chaosPropagation &&
+            _inst->cpu->chaosAddrPath->a01EAStaged()) {
+            _inst->cpu->chaosPropagation->noteA01EA(
+                post_ptag, _inst->cpu->chaosAddrPath->stagedA01EA());
+            _inst->cpu->chaosAddrPath->clearStagedA01EA();
         }
     }
     // [LSU][OBS-L3] mem_req node: this fragment's Request is about to leave
