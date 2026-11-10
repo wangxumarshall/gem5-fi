@@ -66,11 +66,16 @@ tracks:
             title: 结构覆盖度评估工具
             status: done-local
             evidence: tools/autousens.py evaluate；corpus_index.json
-          - id: p1-joint
-            short: 跨结构联合优化
-            title: 跨结构联合优化（NSGA-II / 加权聚合）
+          - id: p1-joint-agg
+            short: 跨结构加权聚合
+            title: 跨结构加权聚合靶向（归一化 + 贪心组合）
+            status: done-local
+            evidence: tools/autousens.py target --structure l1d,alu；scripts/test-autousens.py
+          - id: p1-nsga
+            short: NSGA-II 多目标
+            title: NSGA-II 多目标序列集生成
             status: todo
-            evidence: 尚未实现多目标生成器
+            evidence: 当前只有加权聚合，无 Pareto 序列集
           - id: p1-sad
             short: SAD 指标
             title: SAD 结构激活深度指标

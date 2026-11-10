@@ -99,7 +99,22 @@ python3 tools/autousens.py target \
 合法性搜索，也不评估数据值语义；每条指令流的执行正确性由探测负载的 `PASS`
 自检保证，候选本身只打印 `status=DONE`，其质量由指标断言。
 
-### 3.3 对已有结果重算覆盖向量
+### 3.3 跨结构加权聚合
+
+```bash
+python3 tools/autousens.py target \
+  --map m5out/autousens-map/structure_map.json \
+  --structure l1d,alu --weights 1,1 --top 1 \
+  --outdir m5out/autousens-l1d-alu --iterations 60
+```
+
+先按结构归一化激活（不同结构量纲不同，不能直接相加），再按权重从高到低
+贪心选择互不重复的指令，合成一个候选并在 gem5 中评估。实测选中 `ldr,add`：
+`l1d` 覆盖 0.001876（基线 0.000974），`alu` 覆盖 0.300633（基线 0.014472）。
+这是跨结构的加权聚合，不是 NSGA-II 多目标序列集；后者仍是路线图 Phase 1
+的未完成项，进度图里单独标注。
+
+### 3.4 对已有结果重算覆盖向量
 
 ```bash
 python3 tools/autousens.py evaluate \

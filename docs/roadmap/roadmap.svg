@@ -10,13 +10,13 @@
   <text x="1560" y="62" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
         fill="#64748B" text-anchor="end">更新日期 2026-11-10</text>
   <text x="1560" y="84" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
-        fill="#64748B" text-anchor="end">总里程碑 35</text>
+        fill="#64748B" text-anchor="end">总里程碑 36</text>
   <g>
     <rect x="40.0" y="150" width="179.5" height="26" rx="13"
           fill="#E7F4EC" stroke="#1D7A46" stroke-width="1"/>
     <circle cx="54.0" cy="163" r="4.5" fill="#1D7A46"/>
     <text x="66.0" y="167.5" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
-          fill="#14532D">完成（本仓库实测）  15</text>
+          fill="#14532D">完成（本仓库实测）  16</text>
   </g>
   <g>
     <rect x="231.5" y="150" width="235.2" height="26" rx="13"
@@ -49,21 +49,21 @@
   <text x="40" y="200" font-size="14" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
         fill="#334155" font-weight="bold">总体进度</text>
   <text x="1560" y="200" font-size="14" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
-        fill="#64748B" text-anchor="end">完成度 52.9%
-        （17
-        / 35 完成，3 部分，
+        fill="#64748B" text-anchor="end">完成度 54.2%
+        （18
+        / 36 完成，3 部分，
         13 未开始，2 门控）</text>
   <rect x="40" y="210" width="1520" height="18"
         rx="8" fill="#E2E8F0"/>
-  <rect x="40.0" y="210" width="651.43"
+  <rect x="40.0" y="210" width="675.56"
         height="18" fill="#1D7A46" opacity="0.9"/>
-  <rect x="691.4" y="210" width="86.86"
+  <rect x="715.6" y="210" width="84.44"
         height="18" fill="#2F7EA8" opacity="0.9"/>
-  <rect x="778.3" y="210" width="130.29"
+  <rect x="800.0" y="210" width="126.67"
         height="18" fill="#C77C02" opacity="0.9"/>
-  <rect x="908.6" y="210" width="564.57"
+  <rect x="926.7" y="210" width="548.89"
         height="18" fill="#94A3B8" opacity="0.9"/>
-  <rect x="1473.1" y="210" width="86.86"
+  <rect x="1475.6" y="210" width="84.44"
         height="18" fill="#7C3AED" opacity="0.9"/>
   <text x="40" y="256" font-size="17" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
         fill="#0F172A" font-weight="bold">技术路线（sdcfuzz-v1.2.md §7）</text>
@@ -132,7 +132,7 @@
   <text x="40" y="346" font-size="14"
         font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">Phase 1 · AutoµSens + ACE/IBR</text>
   <text x="40" y="364" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
-        fill="#64748B">窗口 M1–M3 · 6 项</text>
+        fill="#64748B">窗口 M1–M3 · 7 项</text>
   <g>
     <title>RF ACE 与 L1 cache ACE 量化｜完成（本仓库实测）｜CHAOS/gem5/src/cpu/o3/rf_ace.*、mem/cache/l1_ace.*；test-rf/l1-ace.sh</title>
     <rect x="370.0" y="336.0" width="94.8" height="28"
@@ -174,29 +174,39 @@
           font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">覆盖度评估</text>
   </g>
   <g>
-    <title>跨结构联合优化（NSGA-II / 加权聚合）｜未开始｜尚未实现多目标生成器</title>
+    <title>跨结构加权聚合靶向（归一化 + 贪心组合）｜完成（本仓库实测）｜tools/autousens.py target --structure l1d,alu；scripts/test-autousens.py</title>
     <rect x="776.8" y="336.0" width="121.5" height="28"
-          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
           stroke-width="1"/>
     <circle cx="789.8" cy="350.0" r="4"
-            fill="#94A3B8"/>
+            fill="#1D7A46"/>
     <text x="800.8" y="354.0" font-size="12.5"
-          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">跨结构联合优化</text>
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">跨结构加权聚合</text>
   </g>
   <g>
-    <title>SAD 结构激活深度指标｜未开始｜仅有定义，无 gem5 实现</title>
-    <rect x="906.2" y="336.0" width="86.0" height="28"
+    <title>NSGA-II 多目标序列集生成｜未开始｜当前只有加权聚合，无 Pareto 序列集</title>
+    <rect x="906.2" y="336.0" width="125.5" height="28"
           rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
           stroke-width="1"/>
     <circle cx="919.2" cy="350.0" r="4"
             fill="#94A3B8"/>
     <text x="930.2" y="354.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">NSGA-II 多目标</text>
+  </g>
+  <g>
+    <title>SAD 结构激活深度指标｜未开始｜仅有定义，无 gem5 实现</title>
+    <rect x="1039.8" y="336.0" width="86.0" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="1052.8" cy="350.0" r="4"
+            fill="#94A3B8"/>
+    <text x="1063.8" y="354.0" font-size="12.5"
           font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">SAD 指标</text>
   </g>
   <text x="1560" y="346" font-size="13"
-        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">4/6</text>
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">5/7</text>
   <text x="1560" y="364" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
-        fill="#64748B" text-anchor="end">67%</text>
+        fill="#64748B" text-anchor="end">71%</text>
   <line x1="40" y1="386" x2="1560"
         y2="386" stroke="#E2E8F0" stroke-width="1"/>
   <text x="40" y="398" font-size="14"
@@ -510,5 +520,5 @@
         python3 tools/render_roadmap.py</text>
   <text x="1560" y="814" font-size="11.5"
         font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#64748B" text-anchor="end">生成于
-        2026-11-10 13:20</text>
+        2026-11-10 13:23</text>
 </svg>

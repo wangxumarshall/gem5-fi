@@ -3,7 +3,7 @@
 > 依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”
 
 - 更新日期：2026-11-10
-- 总进度：**52.9%**（完成 17/35，部分 3，未开始 13，门控 2）
+- 总进度：**54.2%**（完成 18/36，部分 3，未开始 13，门控 2）
 
 ![路线进度图](roadmap.svg)
 
@@ -29,7 +29,7 @@
 | 4 板 446 核 Kunpeng 920 真机部署 | `done-external` | sdcfuzz-v1.2.md §4.2 历史证据；本机无该硬件，未复验 |
 | sdcfuzz 论文 p2 草稿 | `done-external` | 外部 sdcfuzz 仓库；本仓库无副本，未复验 |
 
-#### Phase 1 · AutoµSens + ACE/IBR（M1–M3，67%）
+#### Phase 1 · AutoµSens + ACE/IBR（M1–M3，71%）
 
 | 里程碑 | 状态 | 证据 / 缺口 |
 |---|---|---|
@@ -37,7 +37,8 @@
 | FU IBR 输入位覆盖率 | `done-local` | CHAOS/gem5/src/cpu/o3/fu_ibr.*；test-fu-ibr.sh |
 | AutoµSens 指令→结构映射与逆向靶向原型 | `done-local` | tools/autousens.py；scripts/test-autousens.py |
 | 结构覆盖度评估工具 | `done-local` | tools/autousens.py evaluate；corpus_index.json |
-| 跨结构联合优化（NSGA-II / 加权聚合） | `todo` | 尚未实现多目标生成器 |
+| 跨结构加权聚合靶向（归一化 + 贪心组合） | `done-local` | tools/autousens.py target --structure l1d,alu；scripts/test-autousens.py |
+| NSGA-II 多目标序列集生成 | `todo` | 当前只有加权聚合，无 Pareto 序列集 |
 | SAD 结构激活深度指标 | `todo` | 仅有定义，无 gem5 实现 |
 
 #### Phase 2 · RL Mutator + 功耗应力（M4–M6，10%）
