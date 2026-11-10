@@ -43,3 +43,34 @@ additionally caught by ASan.
 ./run_<name>.sh              # host run + oracle_check.py
 ../baselines/run_baselines.sh  # eight gem5 no-fault baselines
 ```
+
+## v3.2.12 supplement: `sq_reload_v3212`
+
+Added by the propagation-closure round (Task 10, shared by the SQ01/SQ03/SP05
+store-side models). Not part of the W1–W8 suite; `compile_sq_reload_v3212.sh`
+builds it the same way (`gcc -O2 -static`).
+
+- **Purpose.** 128 iterations of `store -> dmb ish -> same-address load` on a
+  `volatile uint64_t buf[256]`. On gem5 v25 O3 the aarch64 `dmb ish` decodes
+  with `IsReadBarrier|IsWriteBarrier`: commit holds the barrier at the ROB
+  head until `hasStoresToWB` clears (commit.cc `commitHead`), so the store has
+  left the SQ and reached memory before the dependent younger load issues —
+  the reload load is a real memory-visibility consumer, never a same-cycle SQ
+  forward.
+- **Detection surface.** SQ01 store-data (the drained write is the only source
+  of the reloaded value), SQ03 SQ-state (drain/visibility timing), SP05 drain
+  staging. The reloaded value feeds a byte-wise FNV-1a checksum and an
+  equality-dependent branch (`cmp`+`b.ne`, verified in the disassembly, not a
+  `csel`), so corruption lands in the checksum (SDC) or flips the control path.
+- **Golden / SHA256 (frozen by host double-run, both identical).**
+  - checksum: `checksum=0x7df5034c23f3e703` (`sq_reload_v3212.golden`)
+  - ELF SHA256: `bcab9cc5e1e4ed3854c3677bda0265d7aaefdedc0e7d69beecd6a2567d178de6`
+- **gem5 no-fault baseline** (branch-root `build/ARM/gem5.opt`, O3, exit 0):
+  same `checksum=0x7df5034c23f3e703`, `simTicks 28387975`.
+- **Drain→reload proof** (no-fault `--chaos_propagation`
+  `--prop_trace_file /tmp/sq_reload_trace.csv.gz`): all 128 store→reload pairs
+  show `sq_lifecycle free/complete` (drain) strictly before the paired load's
+  `lq_lifecycle free/commit` (128/128; steady-state gap exactly 3850 ticks),
+  and 0 of the 128 reload loads appear in any `fwd` row (0 `fwd` rows with a
+  `buf` address, `buf` at `0x491990`). Full evidence in the round's
+  task-10 report.
