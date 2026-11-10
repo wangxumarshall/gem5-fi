@@ -12,6 +12,7 @@
 #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel + item lifecycle
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
 #include "cpu/o3/CHAOSAddrPath/a01_coords.hh"  // [LSU][V3.2.12][A01] golden/actual EA records
+#include "cpu/o3/CHAOSAddrPath/a03_stream.hh"  // [LSU][V3.2.12][A03] F5 eligibility stream
 #include "mem/request.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
@@ -73,6 +74,24 @@ class CHAOSAddrPath : public SimObject
     bool a01EAStaged() const { return a01_ea_staged; }
     const chaos_a01::EACoords &stagedA01EA() const { return staged_a01_ea; }
     void clearStagedA01EA() { a01_ea_staged = false; }
+
+    // [LSU][V3.2.12][A03] staged F5 eligibility-stream record (a03_stream,
+    // plan Task 8): one record per trigger-fired eligible load after
+    // activation, staged at the a03 application branch for the sink side.
+    // READ-ONLY trace evidence — no data-path change, no fault-semantics
+    // change; CHAOSPropagation stays the SINGLE prop-trace writer (the
+    // a01_ea contract, task-7-report.md). The sink-side emitter reads the
+    // latest record through these accessors at the lsq.cc call sites and
+    // may clear the flag after emitting. Durable in-process copies: the
+    // A03_ACTIVATION / A03_STREAM lines in the existing
+    // addrpath_injections.log (same stream, same writer).
+    bool a03StreamStaged() const { return a03_stream_staged; }
+    const chaos_a03::StreamEvent &stagedA03Stream() const
+        { return staged_a03_stream; }
+    void clearStagedA03Stream() { a03_stream_staged = false; }
+    bool a03Activated() const { return a03_stream_rec.activated(); }
+    const chaos_a03::Activation &a03ActivationRecord() const
+        { return a03_stream_rec.activation(); }
 
   private:
     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
@@ -143,6 +162,19 @@ class CHAOSAddrPath : public SimObject
     chaos_a01::EACoords staged_a01_ea;
     bool a01_ea_staged = false;
     void stageA01EA(const chaos_a01::EACoords &c);
+
+    // [LSU][V3.2.12][A03] F5 eligibility-stream state (plan Task 8): the
+    // recorder owns the exactly-once discipline (one activation per run,
+    // one record per fired eligible load, strictly advancing ordinals —
+    // rejections counted, never silent); the staged record + flag feed the
+    // sink-side emitter (the a01_ea pattern). Observation only — no
+    // fault-semantics change, no data-path change.
+    chaos_a03::StreamRecorder a03_stream_rec;
+    chaos_a03::StreamEvent staged_a03_stream;
+    bool a03_stream_staged = false;
+    void a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
+                             Addr actual_ea, int bit);
+    void writeA03LogLine(const char *tag, const std::string &detail);
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr

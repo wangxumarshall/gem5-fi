@@ -390,6 +390,17 @@ namespace gem5
             // there is no corrupted address to propagate.
             if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][V3.2]
             addr = addr & ~(Addr)0x8;
+            // [LSU][V3.2.12][A03] read-only eligibility stream (plan Task
+            // 8): one a03_stream record per trigger-fired eligible load —
+            // and the fired stream IS the post-activation stream, because
+            // the F5 trigger returns false for every pre-activation
+            // eligible event (chaos_lsu_trigger.hh F5 case arms at
+            // warmup_events + event_ordinal), so this branch only runs at
+            // and after the activation start position. The first fired
+            // event also records a03_activation {tick, bit, mode}.
+            // Observes the same old_addr/addr pair the branch already
+            // computed — no fault-semantics change, no data-path change.
+            a03NoteEligibleLoad(dyn_seq, old_addr, addr, 3);
             if (addr == old_addr) {
                 ++obs_pre_nochange;
                 ++l0_funnel.injected;
@@ -503,6 +514,75 @@ namespace gem5
             *(log_stream->stream()) << "A01_EA: "
                 << chaos_a01::eaDetail(staged_a01_ea) << std::endl;
         }
+    }
+
+    void
+    CHAOSAddrPath::a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
+                                       Addr actual_ea, int bit)
+    {
+        // [LSU][V3.2.12][A03] read-only F5 eligibility stream (plan Task 8).
+        // Called ONCE per trigger-fired eligible load from the
+        // a03_bit3_stuck0_load application branch, with the (golden,
+        // actual) pair the branch already computed. Observation only — no
+        // fault-semantics change, no data-path change:
+        //  - the first fired event stages a03_activation {tick, bit,
+        //    mode} (the recorder makes a second activation structurally
+        //    impossible — rejected, counted);
+        //  - every fired event stages one a03_stream record (the
+        //    recorder rejects double-records / ordinal regressions,
+        //    counted, never silent) whose affected/reason fields are
+        //    DERIVED from the observed pair (a03_stream.hh: affected=1
+        //    iff the EA changed; golden==actual is the ALREADY_STUCK
+        //    masking path — recorded, not dropped);
+        //  - the durable in-process copy is the A03_ACTIVATION /
+        //    A03_STREAM lines in addrpath_injections.log (the A01_EA
+        //    precedent: same log stream, same writer, frozen detail
+        //    format). CHAOSPropagation stays the SINGLE prop-trace
+        //    writer; the sink side reads the staged record through
+        //    a03StreamStaged()/stagedA03Stream() (the a01_ea contract).
+        if (!lsuTrigger)
+            return;  // no eligible-event ordinal space: the A03 pilot
+                     // family is trigger-mounted (F5) by construction
+                     // (manifests: --addrpath_lsu_tier F5); the legacy
+                     // cycle-window path has no activation concept, so
+                     // the stream is honestly absent there.
+        if (!a03_stream_rec.activated()) {
+            chaos_a03::Activation act;
+            act.tick = curTick();
+            act.bit = bit;
+            act.mode = pre_mode;
+            if (a03_stream_rec.activate(act)) {
+                writeA03LogLine("A03_ACTIVATION", chaos_a03::activationDetail(
+                    a03_stream_rec.activation()));
+            }
+        }
+        // event_ordinal: the trigger's eligible count AFTER onEligible()
+        // returned true for this load — this load's 1-based ordinal in the
+        // same eligible-event space the R01-R05 activation positions index
+        // (warmup_events + event_ordinal), so R05's first stream row is
+        // ordinal 5. The PC is not observable at this hook (dyn_seq only;
+        // the a01 kPcUnknown precedent) — never fabricated.
+        const chaos_a03::StreamEvent ev = chaos_a03::streamEvent(
+            lsuTrigger->eligible, dyn_seq, chaos_a01::kPcUnknown,
+            golden_ea, actual_ea, bit);
+        if (a03_stream_rec.record(ev)) {
+            staged_a03_stream = ev;
+            a03_stream_staged = true;
+            writeA03LogLine("A03_STREAM", chaos_a03::streamDetail(ev));
+        }
+    }
+
+    void
+    CHAOSAddrPath::writeA03LogLine(const char *tag, const std::string &detail)
+    {
+        // [LSU][V3.2.12][A03] durable in-process copy of one a03 record:
+        // the same addrpath_injections.log stream every injection line
+        // already uses, in the frozen detail format from a03_stream.hh so
+        // the log line and the future prop-trace node can never drift.
+        // The log is a simout stream (lost on abort); the abort-survivable
+        // copy is the sink-side prop-trace node, not this line.
+        if (write_log && log_stream && log_stream->stream())
+            *(log_stream->stream()) << tag << ": " << detail << std::endl;
     }
 
     void
