@@ -263,7 +263,7 @@ git push origin lsu-platform-v3.2.12
 - Consumes: `docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py` (`--model`, `--context-index`, `--pilot-id`, `--outdir`, `--gem5`).
 - Produces: per-pilot `oracle.log` + `stdout.log` + `pilot_meta.json` under new SUPP directories, and a manifest mapping `SUPP-*` → original `SampleRunID`/`Seed`.
 
-- [ ] **Step 1: Run the 14 pilots with preserved context seeds**
+- [x] **Step 1: Run the 14 pilots with preserved context seeds**
 
 For each `(model, context, original_pilot)` run:
 ```bash
@@ -274,11 +274,11 @@ python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py \
 ```
 Same pattern for DA04 contexts 4,5; LP01 1–5; MD04 2,3,5; FW05 2–5. Expected each: exit 0, injection ≥1, `oracle.log` present, checksum equals the golden value recorded in the original pilot's meta.
 
-- [ ] **Step 2: Write the supplementary manifest**
+- [x] **Step 2: Write the supplementary manifest**
 
 Columns: `SuppPilotID, ModelID, OriginalPilot, OriginalSampleRunID, Seed, EventOrdinal, BinarySHA256, WorkloadSHA256, OraclePath, GoldenChecksum, ActualChecksum, OracleResult`.
 
-- [ ] **Step 3: Verify raw oracle presence and values**
+- [x] **Step 3: Verify raw oracle presence and values**
 
 ```bash
 for d in docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-*; do
@@ -287,14 +287,14 @@ grep -h "checksum" docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-LP01
 ```
 Expected: no `MISSING`; DA04/FW05 show FAIL checksums, LP01/MD04 show PASS, matching the frozen terminals.
 
-- [ ] **Step 4: Confirm no historical directory was touched**
+- [x] **Step 4: Confirm no historical directory was touched**
 
 ```bash
 git status --porcelain docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_6
 ```
 Expected: empty.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-DA04-R04 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-DA04-R05 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-LP01-R01 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-LP01-R02 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-LP01-R03 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-LP01-R04 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-LP01-R05 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-MD04-R02 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-MD04-R03 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-MD04-R05 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R02 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R03 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R04 docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R05 docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/SUPPLEMENTARY_ORACLE_MANIFEST_v3.2.12.csv
