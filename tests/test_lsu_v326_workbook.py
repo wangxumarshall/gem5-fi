@@ -24,6 +24,7 @@ HOOK_SHEET = "4.源码Hook审计"
 TRACE_SHEET = "7.Trace Hook规范"
 RISK_SHEET = "11.风险与待确认事项"
 REVISION_SHEET = "19.v3.2.11变更记录"
+AUDIT_SHEET = "20.v3.2.11传播链审计"
 
 OLD_G4 = ("LSQUnit::insertLoad (353-414); commitLoad (775-798); "
           "squash (986-1020); clear/pop_front")
@@ -76,8 +77,8 @@ def _sample_rows(ws):
 def test_v326_is_v325_sheets_plus_revision_sheet():
     old = _load(V325)
     new = _load(V326)
-    assert new.sheetnames == old.sheetnames + [REVISION_SHEET]
-    assert len(new.sheetnames) == 19
+    assert new.sheetnames == old.sheetnames + [REVISION_SHEET, AUDIT_SHEET]
+    assert len(new.sheetnames) == 20
 
 
 def test_60_identity_rows_unchanged():
@@ -184,11 +185,15 @@ def test_only_the_five_lq04_cells_differ():
     old = _load(V325)
     new = _load(V326)
     for name in old.sheetnames:
+        if name == REVISION_SHEET:
+            continue  # v3.2.11 appends audit/RP01 rows
         wa, wb = old[name], new[name]
         assert (wa.max_row, wa.max_column) == (wb.max_row, wb.max_column), \
             name
         for row in range(1, wa.max_row + 1):
             for col in range(1, wa.max_column + 1):
+                if name == "3.最终12模型矩阵" and col == 18:
+                    continue  # v3.2.11 appends the audit verdict to Notes
                 coord = wa.cell(row, col).coordinate
                 va = wa.cell(row, col).value
                 vb = wb.cell(row, col).value
