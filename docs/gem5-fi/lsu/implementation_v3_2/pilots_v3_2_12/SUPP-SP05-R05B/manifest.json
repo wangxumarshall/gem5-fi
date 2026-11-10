@@ -1,0 +1,70 @@
+{
+  "schema_version": "lsu-run-manifest-v3.2",
+  "sample_run_id": "SUPP-SP05-R05B",
+  "run_id": "PILOT-SP05",
+  "sub_task_id": "PILOT-SP05-S01",
+  "fault_id": "SP05-CFG01",
+  "model_id": "SP05",
+  "seed": 4098160626,
+  "seed_source": "excel:5.60个样本执行矩阵!Seed",
+  "fault": {
+    "location": "Store完成记账：completeStore",
+    "target_field": "SQEntry::_completed / storesToWB",
+    "target_bit": "目标sqIdx",
+    "normal_value": "响应后completeStore置_completed=1、--storesToWB、可pop",
+    "fault_value": "抑制一次completeStore/_completed更新",
+    "injection_mode": "F6",
+    "injection_timing": "响应到达后completeStore调用点",
+    "target_event": "目标Store响应到达/完成事件",
+    "event_ordinal": 944
+  },
+  "workload": {
+    "path": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212",
+    "path_source": "pilot_override (Excel path retained in sample)",
+    "sha256": "bcab9cc5e1e4ed3854c3677bda0265d7aaefdedc0e7d69beecd6a2567d178de6",
+    "oracle_expected": "7df5034c23f3e703"
+  },
+  "warmup": "NEEDS_RESEARCHER_CONFIRMATION",
+  "roi": "NEEDS_RESEARCHER_CONFIRMATION",
+  "gem5": {
+    "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+    "binary_sha256": "720eb780bc87fe5e5ec045801d314e9c5edf54c6eca59032f1b8b7887ac74070",
+    "config_script": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py",
+    "config_script_sha256": "01f912de3388aaf420aa69d5dd55098ddfb97851faf0269a6b009fcc389bf6e5"
+  },
+  "output_dir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-SP05-R05B",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-SP05-R05B",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_lsqfwd",
+    "--lsq_struct_mode",
+    "sp05_complete",
+    "--max_faults",
+    "1",
+    "--rng_seed",
+    "4098160626",
+    "--sp05_event_ordinal",
+    "944",
+    "--sp05_watchdog_cycles",
+    "500000000"
+  ],
+  "command_shell": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt --outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-SP05-R05B /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py --cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212 --cpu O3 --variant B0 --probability 1.0 --chaos_propagation --prop_trace_file prop_trace.csv.gz --chaos_lsqfwd --lsq_struct_mode sp05_complete --max_faults 1 --rng_seed 4098160626 --sp05_event_ordinal 944 --sp05_watchdog_cycles 500000000",
+  "environment": {
+    "captured_at_utc": "2026-11-10T14:33:29Z",
+    "host": "localhost0101",
+    "kernel": "6.6.0-145.3.16.148.oe2403sp3.aarch64",
+    "python": "3.11.6"
+  },
+  "manifest_sha256": "5860b539bf650ea834045c0184d85274ec180cf84262130d37fbc4619582e96f"
+}
