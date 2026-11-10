@@ -135,6 +135,10 @@ namespace gem5
         // lands in the mapped physical range (no fault). FS-only effective.
         Addr vaddr = req->getVaddr();
         Addr new_vaddr = vaddr;
+        // [LSU][V3.2.12][A01] applied single-bit index of an A01Bit
+        // corruption (kNoBit for every other mode) — the coordinate the
+        // staged a01_ea record below needs.
+        int a01_applied_bit = chaos_a01::kNoBit;
         if (fi_mode == Mode::Byte7Zero) {
             new_vaddr = vaddr & ~((Addr)0xff << 56);  // clear byte 7
         } else if (fi_mode == Mode::A01Bit) {
@@ -144,6 +148,7 @@ namespace gem5
             const uint64_t bit = (band == 0) ? rng() % 16
                                : (band == 1) ? 16 + rng() % 24
                                : 40 + rng() % 8;
+            a01_applied_bit = (int)bit;
             new_vaddr = vaddr ^ (1ULL << bit);
         } else if (fi_mode == Mode::A02DoubleBit) {
             // A02 (03): two bits in the SAME event, 50% adjacent / 50%
@@ -186,6 +191,19 @@ namespace gem5
         ++l0_funnel.injected;
         ++l0_funnel.activated;
         faults_injected_count++;
+        // [LSU][V3.2.12][A01] Mode::A01Bit: stage the golden/actual EA
+        // record at EA formation (read-only trace evidence, plan Task 7).
+        // The Request is in hand at this hook: dyn seq via
+        // getReqInstSeqNum (the binding gem5 v25 maintains), size via
+        // getSize, PC via getPC when the request carries one (_pc
+        // defaults to MaxAddr when unstamped — never fabricated).
+        if (fi_mode == Mode::A01Bit) {
+            stageA01EA(chaos_a01::eaCoordsForFlip(
+                faults_injected_count, req->getReqInstSeqNum(),
+                (req->getPC() != MaxAddr) ? req->getPC()
+                                          : chaos_a01::kPcUnknown,
+                vaddr, a01_applied_bit, req->getSize()));
+        }
         // [LSU][OBS-L3] abort-survivable funnel row (attempted/eligible/
         // injected as of NOW; the inj/addr_form nodes are registered by the
         // lsq.cc sendFragmentToTranslation call site, which sees the return
@@ -385,6 +403,18 @@ namespace gem5
         ++l0_funnel.injected;
         ++l0_funnel.activated;
         ++faults_injected_count;
+        // [LSU][V3.2.12][A01] a01_bit3_load (the v3.2 pilot path): stage
+        // the golden/actual EA record at EA formation — golden = the AGU
+        // EA at hook entry (old_addr), actual = the post-XOR addr, bit 3,
+        // access size as pushed. The PC is NOT observable at this hook
+        // (the lsq.cc call site passes dyn_seq only; task-7-report.md
+        // records the proposed pass-through — never fabricated here).
+        // Read-only: no data-path change beyond the XOR above.
+        if (pre_mode == "a01_bit3_load") {
+            stageA01EA(chaos_a01::eaCoordsForFlip(
+                faults_injected_count, dyn_seq, chaos_a01::kPcUnknown,
+                old_addr, 3, size));
+        }
         // [LSU][OBS-L3] the PRE hook DID inject: the lsq.cc pushRequest call
         // site registers inj/addr_form with CHAOSPropagation through
         // lastPreHookInjected() (it sees the before/after addr/size for the
@@ -428,6 +458,31 @@ namespace gem5
             *(log_stream->stream()) << "FUNNEL: attempted=" << attempted
                 << " eligible=" << eligible
                 << " injected=" << injected << std::endl;
+        }
+    }
+
+    void
+    CHAOSAddrPath::stageA01EA(const chaos_a01::EACoords &c)
+    {
+        // [LSU][V3.2.12][A01] Read-only trace staging at EA formation (plan
+        // Task 7). The injector computes the golden/actual coordinates with
+        // the pure math in a01_coords.hh; CHAOSPropagation stays the SINGLE
+        // prop-trace writer — the sink-side emitter reads the staged record
+        // (stagedA01EA) at the lsq.cc call sites and writes the a01_ea node;
+        // this method never touches CPU state, the request, or the trace
+        // file. Durable copies today: (1) the A01_EA line below, written to
+        // the SAME addrpath_injections.log stream every injection already
+        // uses, in the frozen detail format from a01_coords.hh so the log
+        // line and the future prop-trace node can never drift; (2) the
+        // staged record itself for the sink side. fault_va is NOT_APPLICABLE
+        // at formation (no fault is raised yet); the sink side completes it
+        // with chaos_a01::recordFaultVA when the corrupted request's fault
+        // lands (task-7-report.md names the observation point).
+        staged_a01_ea = c;
+        a01_ea_staged = true;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "A01_EA: "
+                << chaos_a01::eaDetail(staged_a01_ea) << std::endl;
         }
     }
 

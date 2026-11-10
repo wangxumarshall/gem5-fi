@@ -11,6 +11,7 @@
 #include "cpu/base.hh"
 #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel + item lifecycle
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
+#include "cpu/o3/CHAOSAddrPath/a01_coords.hh"  // [LSU][V3.2.12][A01] golden/actual EA records
 #include "mem/request.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
@@ -53,6 +54,20 @@ class CHAOSAddrPath : public SimObject
     // addr/size untouched, so a before/after compare at the call site
     // cannot see them.
     bool lastPreHookInjected() const { return obs_pre_hook_injected; }
+
+    // [LSU][V3.2.12][A01] staged golden/actual EA record (a01_ea, plan
+    // Task 7): computed at EA formation by the A01 injection branches
+    // (pre_mode a01_bit3_load at the pushRequest PRE hook; Mode::A01Bit at
+    // the sendFragmentToTranslation post hook). READ-ONLY trace evidence —
+    // no data-path change, no fault-semantics change. CHAOSPropagation
+    // stays the SINGLE prop-trace writer: the sink-side emitter reads the
+    // staged record through these accessors at the lsq.cc call sites and
+    // writes the trace node (see task-7-report.md for the contract). The
+    // durable in-process copy at formation time is the A01_EA line in the
+    // existing addrpath_injections.log (same stream, same writer).
+    bool a01EAStaged() const { return a01_ea_staged; }
+    const chaos_a01::EACoords &stagedA01EA() const { return staged_a01_ea; }
+    void clearStagedA01EA() { a01_ea_staged = false; }
 
   private:
     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
@@ -110,6 +125,14 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_pre_nochange = 0;   // PRE: condition applied, value already stuck (A03)
     uint64_t obs_post_fired = 0;     // POST hook: trigger said "inject now"
     uint64_t obs_post_nochange = 0;  // POST: corruption produced identical vaddr
+
+    // [LSU][V3.2.12][A01] staged a01_ea record (see the public accessor
+    // block above). Overwritten per A01 injection; the sink-side emitter
+    // (CHAOSPropagation — the single prop-trace writer) reads it at the
+    // lsq.cc call sites and may clear the flag after emitting.
+    chaos_a01::EACoords staged_a01_ea;
+    bool a01_ea_staged = false;
+    void stageA01EA(const chaos_a01::EACoords &c);
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr
