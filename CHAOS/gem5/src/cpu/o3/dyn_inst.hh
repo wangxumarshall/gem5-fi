@@ -1213,7 +1213,13 @@ class DynInst : public ExecContext, public RefCounted
     void *
     getWritableRegOperand(const StaticInst *si, int idx) override
     {
-        return cpu->getWritableReg(renamedDestIdx(idx), threadNumber);
+        const PhysRegIdPtr reg = renamedDestIdx(idx);
+        // Vector/FP instructions obtain a writable pointer and write in place
+        // instead of calling setRegOperand(); record the destination access
+        // here so vector RF ACE sees both reads and writes.
+        if (reg->is(VecRegClass))
+            cpu->rfAceRecordWrite(reg, threadNumber, seqNum, si);
+        return cpu->getWritableReg(reg, threadNumber);
     }
 
     /** @todo: Make results into arrays so they can handle multiple dest

@@ -170,6 +170,15 @@ FUPool::capableUnitCount(OpClass capability) const
     return count;
 }
 
+unsigned
+FUPool::numBusyUnits() const
+{
+    unsigned count = 0;
+    for (bool busy : unitBusy)
+        count += busy ? 1 : 0;
+    return count;
+}
+
 int
 FUPool::getUnit(OpClass capability)
 {

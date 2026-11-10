@@ -67,6 +67,7 @@
 #include "cpu/o3/rename.hh"
 #include "cpu/o3/rf_ace.hh"
 #include "cpu/o3/fu_ibr.hh"
+#include "cpu/o3/sad.hh"
 #include "cpu/o3/rob.hh"
 #include "cpu/o3/scoreboard.hh"
 #include "cpu/o3/thread_state.hh"
@@ -483,6 +484,7 @@ class CPU : public BaseCPU
     /** Harpocrates-style integer physical-register ACE tracker. */
     RFAceTracker rfAceTracker;
     FUIbrTracker fuIbrTracker;
+    SADTracker sadTracker;
 
     std::vector<BaseISA *> isa;
 
@@ -503,6 +505,15 @@ class CPU : public BaseCPU
     { rfAceTracker.squashYounger(tid, seq_num); }
     void rfAceFreeRegister(PhysRegIdPtr reg)
     { rfAceTracker.freeRegister(reg); }
+
+    void sadRecordIssue() { sadTracker.recordIssue(); }
+    unsigned sadRobUsed();
+    unsigned sadIqFreeEntries();
+    unsigned sadLoadQueueFreeEntries();
+    unsigned sadStoreQueueFreeEntries();
+    unsigned sadIntPrfFreeEntries() const;
+    unsigned sadVecPrfFreeEntries() const;
+    unsigned sadFuBusy() const;
 
     void workItemBeginMarker(uint64_t workid, uint64_t threadid,
                              ThreadID tid) override;

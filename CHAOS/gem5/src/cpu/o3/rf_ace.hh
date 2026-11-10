@@ -23,11 +23,17 @@ namespace o3
 class CPU;
 
 /**
- * ACE lifetime tracker for the O3 integer physical register file.
+ * ACE lifetime tracker for the O3 integer and vector/FP physical register
+ * files.
  *
  * Reads and writes are captured when they occur, but are applied only when
  * their instruction commits. This preserves the physical access time while
  * preventing wrong-path producers and consumers from contributing to ACE.
+ *
+ * The vector/FP file is tracked at 64-bit lane granularity: scalar D-register
+ * arithmetic (FADD/FMUL/FDIV, FMOV, LDR/STR D) is exact, while a 128-bit SIMD
+ * operation only covers its low 64-bit lane. That boundary is explicit rather
+ * than silently overstating SIMD coverage.
  */
 class RFAceTracker
 {
@@ -36,7 +42,8 @@ class RFAceTracker
                  int64_t work_item_id, uint64_t start_cycle,
                  uint64_t end_cycle, bool bit_granularity,
                  unsigned reg_width_bits,
-                 unsigned num_int_phys_regs);
+                 unsigned num_int_phys_regs,
+                 unsigned num_vec_phys_regs);
 
     bool enabled() const { return trackingEnabled; }
 
@@ -67,6 +74,7 @@ class RFAceTracker
         uint64_t cycle;
         uint64_t windowStart;
         uint64_t mask;
+        bool vector;
     };
 
     struct PendingInstruction
@@ -88,22 +96,28 @@ class RFAceTracker
     bool windowActive(uint64_t cycle) const;
     uint64_t currentWindowStart() const;
     uint64_t currentCycle() const;
+    bool trackedRegister(PhysRegIdPtr reg, bool &vector,
+                         unsigned &slot_index) const;
+    unsigned widthFor(bool vector) const;
+    uint64_t fullMaskFor(bool vector) const;
     void recordEvent(EventType type, PhysRegIdPtr reg, ThreadID tid,
                      InstSeqNum seq_num, const StaticInst *inst,
                      int src_index = -1);
-    uint64_t fullMask() const;
     uint64_t accessMask(EventType type, const StaticInst *inst,
-                        int src_index) const;
+                        int src_index, bool vector) const;
     void applyEvent(const Event &event);
-    void endLifetime(RegState &state, uint64_t mask);
-    uint64_t liveBitCycles(uint64_t mask) const;
+    void endLifetime(RegState &state, uint64_t mask, bool vector);
+    uint64_t liveBitCycles(uint64_t mask, bool vector) const;
 
     uint64_t aceRegCycles() const;
     uint64_t aceBitCycles() const;
     uint64_t aceBitCyclesLow32() const;
     uint64_t aceBitCyclesHigh32() const;
+    uint64_t vecAceRegCycles() const;
+    uint64_t vecAceBitCycles() const;
     uint64_t measuredCycles() const;
     double aceRatio() const;
+    double vecAceRatio() const;
 
     CPU *cpu;
     const bool trackingEnabled;
@@ -114,6 +128,9 @@ class RFAceTracker
     const bool bitGranularity;
     const unsigned registerWidthBits;
     const unsigned numIntPhysRegs;
+    const unsigned numVecPhysRegs;
+
+    static constexpr unsigned vecWidthBits = 64;
 
     uint64_t resetCycle = 0;
     bool workWindowStarted = false;
@@ -131,10 +148,15 @@ class RFAceTracker
     uint64_t finalizedAceBitCycles = 0;
     uint64_t finalizedAceBitCyclesLow32 = 0;
     uint64_t finalizedAceBitCyclesHigh32 = 0;
+    uint64_t finalizedVecAceBitCycles = 0;
     uint64_t trackedReads = 0;
     uint64_t trackedWrites = 0;
+    uint64_t vecTrackedReads = 0;
+    uint64_t vecTrackedWrites = 0;
     uint64_t overwriteDrops = 0;
+    uint64_t vecOverwriteDrops = 0;
     uint64_t squashDiscards = 0;
+    uint64_t vecSquashDiscards = 0;
     uint64_t windowBegins = 0;
     uint64_t windowEnds = 0;
 
@@ -154,6 +176,13 @@ class RFAceTracker
         statistics::Value intTrackedReads;
         statistics::Value intSquashDiscards;
         statistics::Value intOverwriteDrops;
+        statistics::Value vecAceRegCycles;
+        statistics::Value vecAceBitCycles;
+        statistics::Value vecAceRatio;
+        statistics::Value vecTrackedWrites;
+        statistics::Value vecTrackedReads;
+        statistics::Value vecSquashDiscards;
+        statistics::Value vecOverwriteDrops;
         statistics::Value measuredCycles;
         statistics::Value windowBegins;
         statistics::Value windowEnds;

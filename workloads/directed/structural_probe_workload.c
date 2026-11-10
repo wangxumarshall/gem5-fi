@@ -50,6 +50,22 @@ static volatile uint64_t *const hot = data;
         : [buf] "r"(buffer)                                                  \
         : "x8", "x10", "x12", "cc", "memory")
 
+/* FP streams return the raw bits of d0, which is the value the template
+ * instruction chain actually produces. */
+#define RUN_FP_STREAM(INSTR, SETUP)                                          \
+    __asm__ volatile(                                                        \
+        SETUP                                                               \
+        "1:\n\t"                                                            \
+        ".rept " STR(GROUPS_PER_ITER) "\n\t"                                \
+        INSTR "\n\t" INSTR "\n\t" INSTR "\n\t" INSTR "\n\t"                 \
+        ".endr\n\t"                                                         \
+        "subs %[n], %[n], #1\n\t"                                           \
+        "b.ne 1b\n\t"                                                       \
+        "fmov %[v], d0\n\t"                                                 \
+        : [n] "+r"(count), [v] "=r"(value)                                   \
+        :                                                                   \
+        : "d0", "d1", "cc", "memory")
+
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
@@ -66,6 +82,11 @@ enum probe_mode {
     PROBE_LDR,
     PROBE_STR,
     PROBE_LDXR,
+    PROBE_MOVZ,
+    PROBE_ADD_IMM,
+    PROBE_ADD_LSL,
+    PROBE_FADD,
+    PROBE_FMUL,
     PROBE_COUNT,
 };
 
@@ -75,6 +96,7 @@ mode_name(enum probe_mode mode)
     static const char *const names[PROBE_COUNT] = {
         "baseline", "add", "sub", "and", "orr", "eor",
         "mul", "madd", "udiv", "ldr", "str", "ldxr",
+        "movz", "add_imm", "add_lsl", "fadd", "fmul",
     };
     return names[mode];
 }
@@ -115,6 +137,23 @@ ref_alu(enum probe_mode mode, uint64_t groups, uint64_t x8, uint64_t x12,
     return x8;
 }
 
+/* Reference for the FP streams used by fp-add/fp-mul templates. */
+static uint64_t
+ref_fp(enum probe_mode mode, uint64_t groups)
+{
+    double d0 = 1.0, d1 = mode == PROBE_FADD ? 2.0 : 1.0;
+    const uint64_t ops = groups * OPS_PER_GROUP;
+    for (uint64_t i = 0; i < ops; ++i) {
+        if (mode == PROBE_FADD)
+            d0 += d1;
+        else
+            d0 *= d1;
+    }
+    uint64_t bits = 0;
+    memcpy(&bits, &d0, sizeof(bits));
+    return bits;
+}
+
 /* Per-mode operand setup. The value kept in x8 is the reference input.
  * Setup strings must be literals: the asm volatile body is string-encoded at
  * compile time. */
@@ -127,6 +166,10 @@ ref_alu(enum probe_mode mode, uint64_t groups, uint64_t x8, uint64_t x12,
 #define ASM_SETUP_MUL      "mov x8, #3\n\tmov x12, #3\n\t"
 #define ASM_SETUP_MADD     "mov x8, #3\n\tmov x12, #3\n\tmov x10, #5\n\t"
 #define ASM_SETUP_UDIV     "mov x8, #0x100\n\tmov x12, #2\n\t"
+#define ASM_SETUP_ADD_IMM  "mov x8, #1\n\t"
+#define ASM_SETUP_ADD_LSL  "mov x8, #1\n\tmov x12, #1\n\t"
+#define ASM_FP_SETUP_ADD   "fmov d0, #1.0\n\tfmov d1, #2.0\n\t"
+#define ASM_FP_SETUP_MUL   "fmov d0, #1.0\n\tfmov d1, #1.0\n\t"
 
 struct operand_setup
 {
@@ -148,6 +191,11 @@ static const struct operand_setup setups[PROBE_COUNT] = {
     [PROBE_LDR] = {1, 1, 1},
     [PROBE_STR] = {1, 1, 1},
     [PROBE_LDXR] = {1, 1, 1},
+    [PROBE_MOVZ] = {1, 1, 1},
+    [PROBE_ADD_IMM] = {1, 1, 1},
+    [PROBE_ADD_LSL] = {1, 1, 1},
+    [PROBE_FADD] = {1, 1, 1},
+    [PROBE_FMUL] = {1, 1, 1},
 };
 
 int
@@ -204,6 +252,21 @@ main(int argc, char **argv)
       case PROBE_LDXR:
         RUN_STREAM("ldxr x8, [%[buf]]", ASM_SETUP_1);
         break;
+      case PROBE_MOVZ:
+        RUN_STREAM("movz x8, #0x1234", ASM_SETUP_1);
+        break;
+      case PROBE_ADD_IMM:
+        RUN_STREAM("add x8, x8, #1", ASM_SETUP_ADD_IMM);
+        break;
+      case PROBE_ADD_LSL:
+        RUN_STREAM("add x8, x8, x12, lsl #3", ASM_SETUP_ADD_LSL);
+        break;
+      case PROBE_FADD:
+        RUN_FP_STREAM("fadd d0, d0, d1", ASM_FP_SETUP_ADD);
+        break;
+      case PROBE_FMUL:
+        RUN_FP_STREAM("fmul d0, d0, d1", ASM_FP_SETUP_MUL);
+        break;
       default:
         return 2;
     }
@@ -224,6 +287,19 @@ main(int argc, char **argv)
       case PROBE_STR:
         /* Every store wrote the setup value of x8 to data[0]. */
         pass = *hot == setup->x8;
+        break;
+      case PROBE_MOVZ:
+        pass = value == 0x1234;
+        break;
+      case PROBE_ADD_IMM:
+        pass = value == setup->x8 + groups * OPS_PER_GROUP;
+        break;
+      case PROBE_ADD_LSL:
+        pass = value == setup->x8 + groups * OPS_PER_GROUP * 8;
+        break;
+      case PROBE_FADD:
+      case PROBE_FMUL:
+        pass = value == ref_fp(mode, groups);
         break;
       default:
         pass = value == ref_alu(mode, groups, setup->x8, setup->x12,

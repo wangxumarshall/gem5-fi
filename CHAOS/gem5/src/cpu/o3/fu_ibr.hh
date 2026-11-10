@@ -14,7 +14,12 @@ class CPU;
 class FUPool;
 
 /** Input-port activity at FU allocation, including speculative activity.
- * Two integer input ports for ALU/divide; three for multiply-add.
+ * Two integer input ports for ALU/divide; three for multiply-add; two for each
+ * scalar FP add/multiply/divide class.
+ *
+ * The six classes are: intAlu, intMult, intDiv, fpAdd, fpMult, fpDiv. FP
+ * covers AArch64 scalar S/D/H encodings; SIMD/SVE and FP fused-multiply-add
+ * remain outside this phase and increase excludedOps.
  */
 class FUIbrTracker
 {
@@ -26,6 +31,7 @@ class FUIbrTracker
     void resetTracking();
 
   private:
+    static constexpr unsigned numClasses = 6;
     uint64_t currentCycle() const;
     uint64_t measuredCycles() const;
     bool selected(uint64_t id) const;
@@ -37,13 +43,14 @@ class FUIbrTracker
     uint64_t activeWorkId = 0;
     bool started = false, active = false, complete = false;
     uint64_t begins = 0, ends = 0, excluded = 0;
-    std::array<uint64_t, 3> inputBits{}, issuedOps{}, unitCounts{};
+    std::array<uint64_t, numClasses> inputBits{}, issuedOps{}, unitCounts{};
     // Retain the current cycle so an end marker later in that cycle can
     // enforce the exclusive upper boundary, independent of stage ordering.
     uint64_t sampleCycle = 0;
-    std::array<uint64_t, 3> cycleInputBits{}, cycleIssuedOps{};
+    std::array<uint64_t, numClasses> cycleInputBits{}, cycleIssuedOps{};
     uint64_t cycleExcluded = 0;
-    static constexpr std::array<unsigned, 3> ports = {2, 3, 2};
+    static constexpr std::array<unsigned, numClasses> ports =
+        {2, 3, 2, 2, 2, 2};
     struct Stats : statistics::Group
     {
         Stats(FUIbrTracker &tracker, CPU *cpu);

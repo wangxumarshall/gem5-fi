@@ -167,6 +167,12 @@ class FUPool : public SimObject
 
     unsigned capableUnitCount(OpClass capability) const;
 
+    /** Number of physical execution units in this pool. */
+    unsigned numUnits() const { return funcUnits.size(); }
+
+    /** Number of execution units currently marked busy (SAD sampling). */
+    unsigned numBusyUnits() const;
+
     /**
      * Gets a FU providing the requested capability. Will mark the
      * unit as busy, but leaves the freeing of the unit up to the IEW

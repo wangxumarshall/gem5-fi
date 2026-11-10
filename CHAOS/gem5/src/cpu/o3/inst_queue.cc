@@ -938,6 +938,7 @@ InstructionQueue::scheduleReadyInsts()
         // valid FU, then schedule for execution.
         if (idx > FUPool::NoFreeFU || idx == FUPool::NoNeedFU ||
             idx == FUPool::NoCapableFU) {
+            cpu->sadRecordIssue();
             if (idx >= 0)
                 cpu->fuIbrRecordIssue(issuing_inst->staticInst);
             if (op_latency == Cycles(1)) {

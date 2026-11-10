@@ -209,6 +209,19 @@ class BaseO3CPU(BaseCPU):
     rfAceRegWidthBits = Param.Unsigned(
         64, "Modeled width of each integer physical register in bits"
     )
+    sad = Param.Bool(
+        False, "Enable O3 Structure Activation Depth (SAD) metrics"
+    )
+    sadUseWorkItems = Param.Bool(False, "Use first selected work-item ROI")
+    sadWorkItemId = Param.Int(
+        -1, "m5 work-item ID to measure (-1 selects the first work item)"
+    )
+    sadStartCycle = Param.UInt64(
+        0, "First measured CPU cycle when work-item mode is disabled"
+    )
+    sadEndCycle = Param.UInt64(
+        0, "Exclusive last measured CPU cycle (0 means simulation end)"
+    )
     instQueues = VectorParam.IQUnit(IQUnit(), "Vector of IQs")
     numROBEntries = Param.Unsigned(192, "Number of reorder buffer entries")
 

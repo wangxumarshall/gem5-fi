@@ -47,6 +47,7 @@
 #include "cpu/checker/cpu.hh"
 #include "cpu/checker/thread_context.hh"
 #include "cpu/o3/dyn_inst.hh"
+#include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/thread_context.hh"
 #include "cpu/simple_thread.hh"
@@ -103,8 +104,9 @@ CPU::CPU(const BaseO3CPUParams &params)
                    params.rfAceWorkItemId, params.rfAceStartCycle,
                    params.rfAceEndCycle, params.rfAceBitGranularity,
                    params.rfAceRegWidthBits,
-                   params.numPhysIntRegs),
+                   params.numPhysIntRegs, params.numPhysVecRegs),
       fuIbrTracker(this, params),
+      sadTracker(this, params),
 
       isa(numThreads, NULL),
 
@@ -353,6 +355,7 @@ CPU::workItemBeginMarker(uint64_t workid, uint64_t, ThreadID tid)
 {
     rfAceTracker.workItemBegin(workid, tid, rob.readHeadInst(tid)->seqNum);
     fuIbrTracker.workItemBegin(workid);
+    sadTracker.workItemBegin(workid);
 }
 
 void
@@ -360,6 +363,52 @@ CPU::workItemEndMarker(uint64_t workid, uint64_t, ThreadID tid)
 {
     rfAceTracker.workItemEnd(workid, tid, rob.readHeadInst(tid)->seqNum);
     fuIbrTracker.workItemEnd(workid);
+    sadTracker.workItemEnd(workid);
+}
+
+unsigned
+CPU::sadRobUsed()
+{
+    return rob.numEntriesTotal() - rob.numFreeEntries();
+}
+
+unsigned
+CPU::sadIqFreeEntries()
+{
+    return iew.instQueue.numFreeEntries();
+}
+
+unsigned
+CPU::sadLoadQueueFreeEntries()
+{
+    return iew.ldstQueue.numFreeLoadEntries();
+}
+
+unsigned
+CPU::sadStoreQueueFreeEntries()
+{
+    return iew.ldstQueue.numFreeStoreEntries();
+}
+
+unsigned
+CPU::sadIntPrfFreeEntries() const
+{
+    return freeList.numFreeRegs(IntRegClass);
+}
+
+unsigned
+CPU::sadVecPrfFreeEntries() const
+{
+    return freeList.numFreeRegs(VecRegClass);
+}
+
+unsigned
+CPU::sadFuBusy() const
+{
+    unsigned busy = 0;
+    for (auto *pool : iew.fuPools)
+        busy += pool->numBusyUnits();
+    return busy;
 }
 
 CPU::CPUStats::CPUStats(CPU *cpu)
@@ -409,6 +458,8 @@ CPU::tick()
     iew.tick();
 
     commit.tick();
+
+    sadTracker.tick();
 
     // Now advance the time buffers
     timeBuffer.advance();

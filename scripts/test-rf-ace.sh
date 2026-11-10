@@ -58,8 +58,8 @@ echo "[build] directed AArch64 RF ACE workload"
     "$workload_src" "$gem5_src/util/m5/src/abi/arm64/m5op.S" \
     -o "$out_root/bin/rf_ace_workload"
 
-if ! file "$gem5_bin" | grep -q 'x86-64'; then
-    echo "FAIL: gem5 host executable is not x86-64: $gem5_bin" > /dev/stderr
+if ! file "$gem5_bin" | grep -Eq 'x86-64|ARM aarch64'; then
+    echo "FAIL: gem5 executable is neither x86-64 nor ARM aarch64: $gem5_bin" > /dev/stderr
     file "$gem5_bin" > /dev/stderr
     exit 1
 fi

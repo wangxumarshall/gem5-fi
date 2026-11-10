@@ -171,6 +171,9 @@ class ROB
     /** Returns the number of total free entries in the ROB. */
     unsigned numFreeEntries();
 
+    /** Returns the total ROB capacity in entries. */
+    unsigned numEntriesTotal() const { return numEntries; }
+
     /** Returns the number of free entries in a specific ROB paritition. */
     unsigned numFreeEntries(ThreadID tid);
 

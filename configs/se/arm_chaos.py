@@ -91,6 +91,16 @@ p.add_argument("--l1_ace_work_id", type=int, default=-1,
                help="work-item ID to measure (-1 = first work item)")
 p.add_argument("--l1_ace_start_cycle", type=lambda x: int(x, 0), default=0)
 p.add_argument("--l1_ace_end_cycle", type=lambda x: int(x, 0), default=0)
+# Harpocrates++-style SAD (Structure Activation Depth) for O3 resources.
+p.add_argument("--sad", action="store_true",
+               help="enable O3 Structure Activation Depth (SAD) metrics")
+p.add_argument("--sad_window", choices=["workitem", "cycle"],
+               default="workitem",
+               help="SAD measurement boundary source (default: m5 work item)")
+p.add_argument("--sad_work_id", type=int, default=-1,
+               help="SAD work-item ID to measure (-1 = first work item)")
+p.add_argument("--sad_start_cycle", type=lambda x: int(x, 0), default=0)
+p.add_argument("--sad_end_cycle", type=lambda x: int(x, 0), default=0)
 # CHAOSReg params (architectural-state; honest about limits)
 p.add_argument("--chaos_reg", action="store_true")
 p.add_argument("--probability", type=float, default=1.0)
@@ -287,6 +297,8 @@ p.add_argument("--bpu_semantic_role", default="")
 args = p.parse_args()
 if args.fu_ibr and args.cpu != "O3":
     p.error("--fu_ibr requires --cpu=O3")
+if args.sad and args.cpu != "O3":
+    p.error("--sad requires --cpu=O3")
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
     l1d_size="64KiB", l1i_size="64KiB", l2_size="512KiB",
@@ -335,6 +347,11 @@ if args.cpu == "O3":
     cpu0.rfAceEndCycle = args.rf_ace_end_cycle
     cpu0.rfAceBitGranularity = args.rf_ace_granularity == "bit"
     cpu0.rfAceRegWidthBits = args.rf_ace_reg_width
+    cpu0.sad = args.sad
+    cpu0.sadUseWorkItems = args.sad_window == "workitem"
+    cpu0.sadWorkItemId = args.sad_work_id
+    cpu0.sadStartCycle = args.sad_start_cycle
+    cpu0.sadEndCycle = args.sad_end_cycle
     if args.rob_entries:
         cpu0.numROBEntries = args.rob_entries
     if args.phys_int_regs:

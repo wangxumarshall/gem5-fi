@@ -15,6 +15,22 @@
 
 namespace gem5 { namespace o3 {
 
+namespace {
+#if USE_ARM_ISA
+/** Scalar FP width from the AArch64 type field (bits 23:22). */
+unsigned
+scalarFpWidth(uint32_t word)
+{
+    const uint32_t type_bits = (word >> 22) & 0x3;
+    if (type_bits == 0)
+        return 32; // S
+    if (type_bits == 3)
+        return 16; // H
+    return 64;     // D (and the default for unrecognised scalar forms)
+}
+#endif
+} // anonymous namespace
+
 FUIbrTracker::FUIbrTracker(CPU *_cpu, const BaseO3CPUParams &params)
     : cpu(_cpu), enabled(params.fuIbr), useWorkItems(params.fuIbrUseWorkItems),
       workId(params.fuIbrWorkItemId), startCycle(params.fuIbrStartCycle),
@@ -27,8 +43,9 @@ FUIbrTracker::FUIbrTracker(CPU *_cpu, const BaseO3CPUParams &params)
              "fuIbrEndCycle must be greater than fuIbrStartCycle");
     // Shared pools must contribute their physical units only once.
     std::set<FUPool *> seen;
-    const std::array<OpClass, 3> classes = {
-        enums::IntAlu, enums::IntMult, enums::IntDiv};
+    const std::array<OpClass, numClasses> classes = {
+        enums::IntAlu, enums::IntMult, enums::IntDiv,
+        enums::FloatAdd, enums::FloatMult, enums::FloatDiv};
     for (auto *iq : params.instQueues) {
         auto *pool = iq->fuPool();
         if (!seen.insert(pool).second)
@@ -78,19 +95,37 @@ void FUIbrTracker::recordIssue(const StaticInstPtr &inst)
     const ArmISA::ExtMachInst encoding(emi);
     const uint32_t word = static_cast<uint32_t>(emi);
     int index = -1;
+    unsigned width = 64;
     if (arm && encoding.aarch64 && !inst->isControl()) {
         if (inst->opClass() == enums::IntAlu) {
-            // Binary add/sub and logical operations, register or immediate.
+            // Binary add/sub and logical operations, register or immediate,
+            // including MOVZ/MOVK/MOVN aliases and shifted/extended forms.
             const uint32_t kind = word & 0x1f000000;
             if (kind == 0x11000000 || kind == 0x12000000 ||
-                kind == 0x0b000000 || kind == 0x0a000000)
+                kind == 0x0b000000 || kind == 0x0a000000) {
                 index = 0;
+                width = arm->getIntWidth();
+            }
         } else if (inst->opClass() == enums::IntMult &&
                    (word & 0x1fe00000) == 0x1b000000) {
             // Same-width MADD/MSUB, including MUL/MNEG aliases with Ra=ZR.
             index = 1;
+            width = arm->getIntWidth();
         } else if (inst->opClass() == enums::IntDiv) {
             index = 2;
+            width = arm->getIntWidth();
+        } else if (inst->opClass() == enums::FloatAdd) {
+            // Scalar FADD/FSUB; SIMD uses SimdFloatAdd and stays excluded.
+            index = 3;
+            width = scalarFpWidth(word);
+        } else if (inst->opClass() == enums::FloatMult) {
+            // Scalar FMUL/FNMUL; SIMD uses SimdFloatMult.
+            index = 4;
+            width = scalarFpWidth(word);
+        } else if (inst->opClass() == enums::FloatDiv) {
+            // Scalar FDIV; SIMD uses SimdFloatDiv.
+            index = 5;
+            width = scalarFpWidth(word);
         }
     }
     if (index < 0) {
@@ -98,9 +133,9 @@ void FUIbrTracker::recordIssue(const StaticInstPtr &inst)
         ++cycleExcluded;
         return;
     }
-    inputBits[index] += ports[index] * arm->getIntWidth();
+    inputBits[index] += ports[index] * width;
     ++issuedOps[index];
-    cycleInputBits[index] += ports[index] * arm->getIntWidth();
+    cycleInputBits[index] += ports[index] * width;
     ++cycleIssuedOps[index];
 #endif
 }
@@ -174,8 +209,9 @@ FUIbrTracker::Stats::Stats(FUIbrTracker &t, CPU *cpu)
 {
     for (auto *v : {&inputBits, &issuedOps, &unitCount, &maxInputBits,
                     &ibrRatio}) {
-        v->init(3);
-        v->subname(0, "intAlu").subname(1, "intMult").subname(2, "intDiv");
+        v->init(numClasses);
+        v->subname(0, "intAlu").subname(1, "intMult").subname(2, "intDiv")
+            .subname(3, "fpAdd").subname(4, "fpMult").subname(5, "fpDiv");
     }
     ibrRatio.precision(8);
     measuredCycles.functor([this]() { return tracker.measuredCycles(); });
@@ -187,7 +223,7 @@ FUIbrTracker::Stats::Stats(FUIbrTracker &t, CPU *cpu)
 void FUIbrTracker::Stats::preDumpStats()
 {
     statistics::Group::preDumpStats();
-    for (unsigned i = 0; i < 3; ++i) {
+    for (unsigned i = 0; i < numClasses; ++i) {
         const double maximum = static_cast<double>(tracker.unitCounts[i]) *
             ports[i] * 64 * tracker.measuredCycles();
         inputBits[i] = tracker.inputBits[i];
