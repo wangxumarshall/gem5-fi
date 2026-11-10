@@ -119,7 +119,7 @@ git push origin lsu-platform-v3.2.12
 **Interfaces:**
 - Produces: the eight per-pilot fields and five final classifications that Task 3's tool must emit; later tasks cite this document instead of redefining verdicts.
 
-- [ ] **Step 1: Write the standard**
+- [x] **Step 1: Write the standard**
 
 The document must state, verbatim as enumerations:
 - `RecordIntegrity ∈ {VALID, INVALID, TRUNCATED}`
@@ -133,11 +133,11 @@ The document must state, verbatim as enumerations:
 
 State the five identity rules for a causal edge: `ptag`; `dyn_inst_seq`; `(lq_entry_id, generation)`; `(sq_entry_id, generation)`; `(execution_attempt_id, replay_generation)`. State the data rule: a consumer edge requires the consumer's input hash to equal the producer's writeback hash. State the single-context rule: one complete chain → `VERIFIED_SINGLE_CONTEXT`, not `COMPLETE_CAUSAL_CHAIN`. State the terminal rule: `HANG`/`TIMEOUT`/`SQUASHED` are valid terminals; a missing injection is never a terminal.
 
-- [ ] **Step 2: Write the schema table**
+- [x] **Step 2: Write the schema table**
 
 One row per field: name, allowed values, source artifact, required evidence, and the rule that maps it to the final classification.
 
-- [ ] **Step 3: Verify the document's enums against the existing platform**
+- [x] **Step 3: Verify the document's enums against the existing platform**
 
 ```bash
 grep -n "HARD_TERMINALS" docs/gem5-fi/lsu/implementation_v3_2/platform/terminal_rules.py
@@ -145,7 +145,7 @@ grep -n "LIFECYCLE_ONLY\|PARTIAL\|COMPLETE" docs/gem5-fi/lsu/implementation_v3_2
 ```
 Expected: the enums in the new document are a superset that does not contradict either module.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/gem5-fi/lsu/implementation_v3_2/LSU_Propagation_Acceptance_Standard_v3.2.12.md docs/gem5-fi/lsu/implementation_v3_2/audit_v3_2_12/pilot_record.schema.md
