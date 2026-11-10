@@ -34,7 +34,7 @@ $(BIN)/sf_fix: src/sf_fix.cc $(CORE_OBJS) $(HARNESS_OBJ) | $(BIN)
 $(BIN)/sf_checker: src/sf_checker.cc $(CORE_OBJS) $(HARNESS_OBJ) | $(BIN)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ -pie
 
-test: test-snapshot test-player test-crosslang test-e2e
+test: test-snapshot test-player test-crosslang test-e2e test-fleet
 
 $(BIN)/test_player: tests/test_player.cc $(CORE_OBJS) $(HARNESS_OBJ) | $(BIN)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ -pie
@@ -51,6 +51,9 @@ test-crosslang: $(BIN)/sf_player $(BIN)/test_snapshot
 
 test-e2e: $(BIN)/ifuzzgen $(BIN)/sf_fix $(BIN)/sf_player $(BIN)/sf_checker
 	./tests/test_e2e.sh
+
+test-fleet: test-e2e
+	./tests/test_fleet.sh
 
 # ---- fuzzing proxies (paper section 2.4) ---------------------------------
 FUZZ_CXX ?= clang++
