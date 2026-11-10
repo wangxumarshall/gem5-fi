@@ -141,7 +141,7 @@ CHAOSReg 在 cycle 1000 注入 1 个 bit flip（`--target_reg_idx=12`），按
 
 | Phase 0 交付物 | 状态 | 说明 |
 |---|---|---|
-| D13 启发式 | 上游已完成（外部证据） | `gem5_config/workloads/sdc_probe_workload_d13.c`；原 exp02 bit 3.143× / struct 7.79×；sdc-0103 复现见 `d13-baseline-reproduction.md` |
+| D13 启发式 | 上游已完成（外部证据） | `gem5_config/workloads/sdc_probe_workload_d13.c`；原 exp02 bit 3.143× / struct 12.8×；sdc-0103 复现 bit 2.833× / struct 12.8×（均 BEAT），详见 `d13-baseline-reproduction.md` |
 | 19 模板 | 上游已完成（外部证据） | `seeds/*.S`，本仓库无副本 |
 | gem5-CHAOS | 本仓库实测 | 19 注入器 + 一次 CHAOSReg 分类闭环 |
 | 4 板真机部署 | 上游已完成（外部证据） | sdcfuzz 论文/文档记录；本机无该硬件 |

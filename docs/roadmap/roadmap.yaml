@@ -21,7 +21,7 @@ tracks:
             short: D13（上游）
             title: D13 操作数启发式（上游 sdcfuzz 实现）
             status: done-external
-            evidence: sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 7.79×；sdc-0103 复现见 docs/sdcfuzz/d13-baseline-reproduction.md
+            evidence: sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 12.8×；sdc-0103 复现：bit 2.833× (p=0.025) / struct 12.8× (p=5.6e-20)，均 BEAT；docs/sdcfuzz/d13-baseline-reproduction.md
           - id: p0-templates
             short: 19 模板（上游）
             title: 19 个微架构模板（上游 seeds/*.S）

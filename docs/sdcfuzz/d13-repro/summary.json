@@ -1,0 +1,101 @@
+{
+  "bit": {
+    "B": {
+      "group": "B",
+      "mode": "bit",
+      "n": 100,
+      "clean_diverge": 6,
+      "masked": 90,
+      "exit_diverge": 0,
+      "no_output": 4,
+      "diverge_rate": 0.06,
+      "wilson_low": 0.0278,
+      "wilson_high": 0.1248,
+      "seed": 42,
+      "jobs": 3,
+      "host": "local-0103-gem5",
+      "gem5_note": "gem5 O3 model, not TSV110 RTL"
+    },
+    "D13": {
+      "group": "D13",
+      "mode": "bit",
+      "n": 100,
+      "clean_diverge": 17,
+      "masked": 76,
+      "exit_diverge": 0,
+      "no_output": 7,
+      "diverge_rate": 0.17,
+      "wilson_low": 0.1089,
+      "wilson_high": 0.2555,
+      "seed": 42,
+      "jobs": 3,
+      "host": "local-0103-gem5",
+      "gem5_note": "gem5 O3 model, not TSV110 RTL"
+    },
+    "D_over_B": 2.833,
+    "fisher_p": 0.024922351872231262,
+    "verdict": "BEAT"
+  },
+  "struct": {
+    "B": {
+      "group": "B",
+      "mode": "struct",
+      "n": 100,
+      "clean_diverge": 5,
+      "masked": 79,
+      "exit_diverge": 0,
+      "no_output": 16,
+      "diverge_rate": 0.05,
+      "wilson_low": 0.0215,
+      "wilson_high": 0.1118,
+      "seed": 42,
+      "jobs": 3,
+      "host": "local-0103-gem5",
+      "gem5_note": "gem5 O3 model, not TSV110 RTL"
+    },
+    "D13": {
+      "group": "D13",
+      "mode": "struct",
+      "n": 100,
+      "clean_diverge": 64,
+      "masked": 32,
+      "exit_diverge": 0,
+      "no_output": 4,
+      "diverge_rate": 0.64,
+      "wilson_low": 0.5424,
+      "wilson_high": 0.7273,
+      "seed": 42,
+      "jobs": 3,
+      "host": "local-0103-gem5",
+      "gem5_note": "gem5 O3 model, not TSV110 RTL"
+    },
+    "D_over_B": 12.8,
+    "fisher_p": 5.633888033371357e-20,
+    "verdict": "BEAT"
+  },
+  "_reproduction": {
+    "host": "sdc-0103 (aarch64, 128 cores, openEuler 24.03, gcc 12.3.1)",
+    "date": "2026-11-10",
+    "upstream_checkout": "/home/sdc/wangxu/silifuzz @ 707db35d (origin git@github.com:wangxumarshall/sdcfuzz.git)",
+    "gem5": "~/wangxu/gem5-fi-fuzz/build/ARM/gem5.opt (2026-09-08), symlinked to ~/wangxu/gem5-fi/CHAOS/gem5/build/ARM/gem5.opt",
+    "command": "tools/sdc_experiment/sim_sweep.py --group {B,D13} --mode {bit,struct} --runs 100 --seed 42 --jobs 3",
+    "workload_sha256": {
+      "sdc_probe_workload_d13.c": "4143a4bdee3244452ce2747e590d6cbfbbb45117b23a3027d04a0eacc0067263",
+      "sdc_probe_workload_random.c": "fb461f72675c194b5a93aeeeab55f73f6fba5ad6cf4830146bc935d1c169c1be"
+    },
+    "original_summary": {
+      "bit": {
+        "B": "7/100",
+        "D13": "22/100",
+        "D_over_B": 3.143,
+        "fisher_p": 0.004287767127721262
+      },
+      "struct": {
+        "B": "5/100",
+        "D13": "64/100",
+        "D_over_B": 12.8,
+        "fisher_p": 5.63e-20
+      }
+    }
+  }
+}

@@ -76,7 +76,7 @@
   <text x="40" y="312" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
         fill="#64748B">窗口 M0 · 5 项</text>
   <g>
-    <title>D13 操作数启发式（上游 sdcfuzz 实现）｜完成（外部证据，未本机复验）｜sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 7.79×；sdc-0103 复现见 docs/sdcfuzz/d13-baseline-reproduction.md</title>
+    <title>D13 操作数启发式（上游 sdcfuzz 实现）｜完成（外部证据，未本机复验）｜sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 12.8×；sdc-0103 复现：bit 2.833× (p=0.025) / struct 12.8× (p=5.6e-20)，均 BEAT；docs/sdcfuzz/d13-baseline-reproduction.md</title>
     <rect x="370.0" y="284.0" width="104.2" height="28"
           rx="14.0" fill="#E8F1F8" stroke="#2F7EA8"
           stroke-width="1"/>
@@ -542,5 +542,5 @@
         python3 tools/render_roadmap.py</text>
   <text x="1560" y="814" font-size="11.5"
         font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#64748B" text-anchor="end">生成于
-        2026-11-10 13:41</text>
+        2026-11-10 13:55</text>
 </svg>
