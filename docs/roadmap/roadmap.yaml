@@ -18,15 +18,15 @@ tracks:
         window: M0
         milestones:
           - id: p0-d13
-            short: D13 启发式
-            title: D13 反逻辑屏蔽操作数启发式
-            status: done-local
-            evidence: sdcfuzz/d13.py；tests/test_sdcfuzz_d13.py（15 项单测）
+            short: D13（上游）
+            title: D13 操作数启发式（上游 sdcfuzz 实现）
+            status: done-external
+            evidence: sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 7.79×；sdc-0103 复现见 docs/sdcfuzz/d13-baseline-reproduction.md
           - id: p0-templates
-            short: 19 模板语料
-            title: 19 条微架构靶向模板语料
-            status: done-local
-            evidence: sdcfuzz/templates.py；19/19 PASS（scripts/test-sdcfuzz-baseline.py）
+            short: 19 模板（上游）
+            title: 19 个微架构模板（上游 seeds/*.S）
+            status: done-external
+            evidence: sdcfuzz seeds/*.S（覆盖 MMU/L2C/LSU/OoO/IEX/FSU/IFU）；本仓库无副本，未复验
           - id: p0-gem5-chaos
             short: gem5-CHAOS 底座
             title: gem5-CHAOS 注入底座 + 生成→注入闭环
@@ -66,6 +66,16 @@ tracks:
             title: 结构覆盖度评估工具
             status: done-local
             evidence: tools/autousens.py evaluate；corpus_index.json
+          - id: p1-local-corpus
+            short: 本地语料(支撑)
+            title: 本地 19 条结构语料（支撑件，非上游 19 模板）
+            status: done-local
+            evidence: sdcfuzz/templates.py；19/19 PASS；docs/sdcfuzz/phase0-baseline.md 明示非对等复刻
+          - id: p1-local-heuristic
+            short: 本地启发式(支撑)
+            title: 本地操作数启发式（非上游 D13，仅作可选对照）
+            status: done-local
+            evidence: sdcfuzz/operand_heuristic.py；tests/test_sdcfuzz_operand_heuristic.py（15 项单测）
           - id: p1-joint-agg
             short: 跨结构加权聚合
             title: 跨结构加权聚合靶向（归一化 + 贪心组合）

@@ -174,8 +174,10 @@ def render():
   <text x="{WIDTH - MARGIN}" y="{y}" font-size="14" font-family="{FONT}"
         fill="{MUTED}" text-anchor="end">完成度 {overall_progress * 100:.1f}%
         （{sum(1 for m in all_milestones if m['status'] in ('done-local', 'done-external'))}
-        / {len(all_milestones)} 完成，{overall_counts['partial']} 部分，
-        {overall_counts['todo']} 未开始，{overall_counts['gated']} 门控）</text>""")
+        / {len(all_milestones)} 完成，其中本仓库实测
+        {sum(1 for m in all_milestones if m['status'] == 'done-local')}；
+        {overall_counts['partial']} 部分，{overall_counts['todo']} 未开始，
+        {overall_counts['gated']} 门控）</text>""")
     y += 10
     body.append(bar_svg(MARGIN, y, WIDTH - MARGIN * 2, 18, all_milestones))
     y += 46
@@ -205,11 +207,14 @@ def render():
                     cursor += width + 8
                 chip_y += 36
             row_height = max(len(lines) * 36 + 10, 52)
-            label = f"{sum(1 for m in milestones if m['status'] in ('done-local', 'done-external'))}/{len(milestones)}"
+            done_count = sum(1 for m in milestones
+                             if m['status'] in ('done-local', 'done-external'))
+            local_done = sum(1 for m in milestones
+                             if m['status'] == 'done-local')
             body.append(f"""  <text x="{WIDTH - MARGIN}" y="{y + 6}" font-size="13"
-        font-family="{FONT}" fill="{INK}" font-weight="bold" text-anchor="end">{label}</text>
+        font-family="{FONT}" fill="{INK}" font-weight="bold" text-anchor="end">完成 {done_count}/{len(milestones)}</text>
   <text x="{WIDTH - MARGIN}" y="{y + 24}" font-size="11.5" font-family="{FONT}"
-        fill="{MUTED}" text-anchor="end">{phase_progress * 100:.0f}%</text>
+        fill="{MUTED}" text-anchor="end">实测 {local_done}/{len(milestones)} · {phase_progress * 100:.0f}%</text>
   <line x1="{MARGIN}" y1="{y + row_height - 6}" x2="{WIDTH - MARGIN}"
         y2="{y + row_height - 6}" stroke="#E2E8F0" stroke-width="1"/>""")
             y += row_height
@@ -261,7 +266,8 @@ def write_markdown(ledger, tracks, all_milestones, overall_counts,
              f"- 更新日期：{ledger['updated']}",
              f"- 总进度：**{overall_progress * 100:.1f}%**"
              f"（完成 {overall_counts['done-local'] + overall_counts['done-external']}"
-             f"/{len(all_milestones)}，部分 {overall_counts['partial']}，"
+             f"/{len(all_milestones)}，其中本仓库实测 {overall_counts['done-local']}；"
+             f"部分 {overall_counts['partial']}，"
              f"未开始 {overall_counts['todo']}，门控 {overall_counts['gated']}）",
              "",
              "![路线进度图](roadmap.svg)", "",

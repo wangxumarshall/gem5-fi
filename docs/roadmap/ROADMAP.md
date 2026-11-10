@@ -3,7 +3,7 @@
 > 依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”
 
 - 更新日期：2026-11-10
-- 总进度：**54.2%**（完成 18/36，部分 3，未开始 13，门控 2）
+- 总进度：**56.6%**（完成 20/38，其中本仓库实测 16；部分 3，未开始 13，门控 2）
 
 ![路线进度图](roadmap.svg)
 
@@ -23,13 +23,13 @@
 
 | 里程碑 | 状态 | 证据 / 缺口 |
 |---|---|---|
-| D13 反逻辑屏蔽操作数启发式 | `done-local` | sdcfuzz/d13.py；tests/test_sdcfuzz_d13.py（15 项单测） |
-| 19 条微架构靶向模板语料 | `done-local` | sdcfuzz/templates.py；19/19 PASS（scripts/test-sdcfuzz-baseline.py） |
+| D13 操作数启发式（上游 sdcfuzz 实现） | `done-external` | sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 7.79×；sdc-0103 复现见 docs/sdcfuzz/d13-baseline-reproduction.md |
+| 19 个微架构模板（上游 seeds/*.S） | `done-external` | sdcfuzz seeds/*.S（覆盖 MMU/L2C/LSU/OoO/IEX/FSU/IFU）；本仓库无副本，未复验 |
 | gem5-CHAOS 注入底座 + 生成→注入闭环 | `done-local` | 19 注入器；CHAOSReg 注入 1 次并分类 Masked（m5out/sdcfuzz-baseline） |
 | 4 板 446 核 Kunpeng 920 真机部署 | `done-external` | sdcfuzz-v1.2.md §4.2 历史证据；本机无该硬件，未复验 |
 | sdcfuzz 论文 p2 草稿 | `done-external` | 外部 sdcfuzz 仓库；本仓库无副本，未复验 |
 
-#### Phase 1 · AutoµSens + ACE/IBR（M1–M3，71%）
+#### Phase 1 · AutoµSens + ACE/IBR（M1–M3，78%）
 
 | 里程碑 | 状态 | 证据 / 缺口 |
 |---|---|---|
@@ -37,6 +37,8 @@
 | FU IBR 输入位覆盖率 | `done-local` | CHAOS/gem5/src/cpu/o3/fu_ibr.*；test-fu-ibr.sh |
 | AutoµSens 指令→结构映射与逆向靶向原型 | `done-local` | tools/autousens.py；scripts/test-autousens.py |
 | 结构覆盖度评估工具 | `done-local` | tools/autousens.py evaluate；corpus_index.json |
+| 本地 19 条结构语料（支撑件，非上游 19 模板） | `done-local` | sdcfuzz/templates.py；19/19 PASS；docs/sdcfuzz/phase0-baseline.md 明示非对等复刻 |
+| 本地操作数启发式（非上游 D13，仅作可选对照） | `done-local` | sdcfuzz/operand_heuristic.py；tests/test_sdcfuzz_operand_heuristic.py（15 项单测） |
 | 跨结构加权聚合靶向（归一化 + 贪心组合） | `done-local` | tools/autousens.py target --structure l1d,alu；scripts/test-autousens.py |
 | NSGA-II 多目标序列集生成 | `todo` | 当前只有加权聚合，无 Pareto 序列集 |
 | SAD 结构激活深度指标 | `todo` | 仅有定义，无 gem5 实现 |
