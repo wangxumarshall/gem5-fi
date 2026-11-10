@@ -28,10 +28,13 @@
 | driver + harness 双进程隔离 | `Player`（driver）fork+exec `/proc/self/exe --harness`；harness 在独立地址空间执行 |
 | MapMemory / WriteMemory / ProtectMemory / ExecuteSnapshot / ChecksumMemory | 协议命令 `kOpMap/kOpProtect/kOpChecksum/kOpExec`；另加 `kOpRunAll` 把一次执行的映射、执行、校验和合并成一个往返（语义相同，性能优化） |
 | 绑定核心 | `sched_setaffinity` 在 harness 中设置 |
-| 不匹配 = 潜在缺陷 | 逐项比较 signal、sig_addr、全部寄存器、每页 FNV-1a 校验和；不匹配写 `mismatches.jsonl` |
+| 不匹配 = 潜在缺陷 | 逐项比较 signal、sig_addr、x0–x30/sp/pc/fpcr/fpsr/v0–v31、PSTATE.NZCV、每页 FNV-1a 校验和；不匹配写 `mismatches.jsonl` |
 | x86 `0xCC` 结束陷阱 | ARM64 `BRK #0`（0xD4200000）；快照末尾与 RET 跳板各一个 |
 | 执行可能崩溃的代码 | harness 捕获 SIGTRAP/SIGSEGV/SIGILL/SIGFPE/SIGBUS；信号帧入口恢复全部状态，`siglongjmp` 返回 |
 | 3 秒 CPU 限制 | driver 每次执行 3 秒墙钟上限，超时杀 harness 并重启 |
+
+PSTATE 只比较 NZCV：EL0 快照代码不能写 SSBS/PAN/SS 等位（见
+`docs/limitations.md` 第 6 节）。
 
 **实现要点**：glibc 的 `getcontext/setcontext` 只恢复调用者保存的寄存器子集
 （反汇编确认），不能用于快照入口。harness 在 SIGTRAP handler 中改写内核信号帧

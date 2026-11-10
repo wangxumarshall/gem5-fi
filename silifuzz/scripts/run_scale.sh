@@ -16,7 +16,7 @@ WINDOWS=${WINDOWS:-4}
 WINDOW_SECONDS=${WINDOW_SECONDS:-120}
 SWEEP_SECONDS=${SWEEP_SECONDS:-300}
 
-mkdir -p work/corpus work/corpus-proxy evidence
+mkdir -p work/corpus work/corpus-proxy/capstone work/corpus-proxy/unicorn evidence
 
 echo "== 1. libFuzzer proxies (${FUZZ_SECONDS}s each)"
 ./bin/capstone_fuzz -max_total_time="$FUZZ_SECONDS" -max_len=64 \
