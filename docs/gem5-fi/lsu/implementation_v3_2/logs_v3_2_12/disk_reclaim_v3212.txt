@@ -1,0 +1,17 @@
+Disk reclaim record — LSU v3.2.12, 2026-11-10
+
+Reason: after the build bootstrap the worktree held 66 GiB free, below the
+70.6 GiB pilot gate (researcher brief Task 0).
+
+Researcher decision: delete the v3.2.11 worktree's scons OBJECT TREE only,
+after recording the binary SHAs. No trace, pilot, report, source, or binary
+was deleted.
+
+Pre-deletion binary SHAs (both paths, identical):
+3dccaa10ec5073ca90f2622bd37d5adac1b705bd9faf2497c2d13e46beadd4ed  lsu-platform-v3.2.11/build/ARM/gem5.opt
+3dccaa10ec5073ca90f2622bd37d5adac1b705bd9faf2497c2d13e46beadd4ed  lsu-platform-v3.2.11/CHAOS/gem5/build/ARM/gem5.opt
+
+Deleted: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.11/CHAOS/gem5/build (6.9 GB)
+Kept:    lsu-platform-v3.2.11/build/ARM/gem5.opt (frozen baseline binary, SHA above)
+
+Post-reclaim: /dev/mapper/openeuler-home  354G  264G   73G   79% /home (73 GiB free)
