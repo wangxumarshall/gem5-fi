@@ -76,6 +76,43 @@ SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT,
 STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED, NOT_APPLICABLE}`
 (`NOT_APPLICABLE` everywhere the model's conjunction does not fire).
 
+Exceptions E5/E6/E7 (RP01/A03/A01, standard §6 clause 3d / §12, frozen
+amendment 2026-11-11): BEFORE rule 1's integrity gates (each names the
+integrity state it relaxes — E5 the TRUNCATED/INCOMPLETE watchdog-fatal
+record, E6 the TRUNCATED crash-cut record, E7's discard companion the
+honestly-UNRESOLVED terminal), a runtime-proven terminal exception chain
+grades a complete verdict exactly as E2/E3/E4 do (`VERIFIED_SINGLE_CONTEXT`
+per pilot, model-level `COMPLETE_CAUSAL_CHAIN` with two or more distinct
+frozen contexts), with the `TerminalMechanism` of standard §12 named; the
+E7 discard companion (`a01_ea_discarded` with `applied_to_request=0`) grades
+`PARTIAL`, never `UNRESOLVED` and never a complete verdict. Model-scoped and
+computed from proven runtime records only (no upgrade on inference); standard
+§12.3 lists each conjunction in full. The record carries the exceptions'
+evidence fields `ModelStreamRecords` (the a01_ea / a01_ea_discarded /
+a01_consumed / a03_stream records on the fault's own chain, exported
+verbatim), `ModelRunRecords` (the run-level `a03_activation` and
+`simulator_abort` records that carry no chain identity) and `RP01Watchdog`
+(the parsed `CHAOS_RP01_WATCHDOG=EXPIRED ... injected=1` sidecar record, or
+`null`), and its outcome field `TerminalMechanism ∈
+{REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT,
+STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH,
+WRONG_EA_LOAD_DELIVERED_AND_CONSUMED, NOT_APPLICABLE}`
+(`NOT_APPLICABLE` everywhere the model's conjunction does not fire,
+including the E7 discard companion).
+
+Frozen prior-audit records (standard §12.5): a record imported from the
+frozen v3.2.11 prior audit by the `frozen` subcommand — keyed by (model,
+binary SHA, evidence path) — carries the prior per-pilot verdict verbatim
+(`FinalClassification` = the prior classification, `ObservedTerminal` /
+`ApplicationOracle` = the prior terminal/oracle) plus the provenance
+markers `PriorAudit` (= `v3.2.11`), `PriorAuditRule` and `PriorAuditPath`;
+the four §1 fields the prior audit did not record per pilot
+(`RecordIntegrity`, `TraceCompleteness`, `StructuralChainCompleteness`,
+`FaultEffectPropagationCoverage`, `FaultCausality`) are the literal `NULL`,
+never fabricated, never re-derived. In the matrix a frozen group supersedes
+the generic records of the same (model, binary) key only; every other
+binary's records are untouched.
+
 Single-context rule: one complete chain → `VERIFIED_SINGLE_CONTEXT`, not
 `COMPLETE_CAUSAL_CHAIN` (per-pilot: distinct verified complete chains in the
 trace; per-model: distinct frozen contexts with at least one complete chain;

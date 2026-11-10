@@ -99,6 +99,32 @@ MODEL_RULE_KINDS: dict[str, str] = {
     "SP05": "sp05_stage",
 }
 
+# Model-specific stream records ON the fault's own chain (standard §12,
+# exceptions E6/E7): the a01_* / a03_stream nodes the v3.2.12 rerun binary
+# emits carry the runtime address evidence -- the wrong-EA pair
+# (golden_ea/actual_ea, affected flag), the replay-discard record, the
+# consumed-consumer hash, and the F5 stuck-bit stream rows.  Exported
+# verbatim (event_type + dyn_inst_seq + detail fields) so the closure tool
+# grades the E6/E7 terminal exceptions from proven runtime fields, never
+# from a trace re-parse or a forked classifier.
+MODEL_STREAM_KINDS: dict[str, tuple[str, ...]] = {
+    "A01": ("a01_ea", "a01_ea_discarded", "a01_golden_resp", "a01_golden_req",
+            "a01_consumed", "a01_fault"),
+    "A03": ("a03_stream",),
+}
+
+# Model-specific RUN-LEVEL records (standard §12, exceptions E6/E7): records
+# that exist in the trace but carry no chain identity (the converter emits
+# them with dyn_inst_seq=None), so the identity-scoped chain collection can
+# never see them.  a03_activation is the F5 activation record; the
+# simulator_abort node carries the panic page-table fault VA and the crash-
+# linked last injection dyn seq.  Collected in one bounded streaming pass
+# per model (the last record of each kind), exported verbatim.
+MODEL_RUN_RECORD_KINDS: dict[str, tuple[str, ...]] = {
+    "A01": ("simulator_abort",),
+    "A03": ("simulator_abort", "a03_activation"),
+}
+
 # SubUnit labels mirror MODEL_STATUS_MATRIX.csv; the fault definition falls
 # back to these short labels when the pilot manifest carries no frozen
 # fault.location.
@@ -254,6 +280,22 @@ def _collect_chain_edges(path: Path, chain_ids: set[str]) -> list[dict]:
                 or str(rec.get("destination_event_id")) in chain_ids):
             edges.append(_slim(rec, _EDGE_KEYS))
     return edges
+
+
+def _find_run_records(path: Path, kinds: tuple[str, ...]) -> dict[str, dict]:
+    """One bounded streaming pass for the model's run-level records
+    (standard §12 / MODEL_RUN_RECORD_KINDS): records that exist in the trace
+    but carry no chain identity, so the identity-scoped chain collection can
+    never see them.  The LAST record of each kind wins (a run has one
+    simulator_abort / one a03_activation by construction)."""
+    found: dict[str, dict] = {}
+    for rec in _lines(path):
+        if rec is None or rec.get("record_type") != "event":
+            continue
+        kind = rec.get("event_type")
+        if kind in kinds:
+            found[str(kind)] = _slim(rec, _EVENT_KEYS)
+    return found
 
 
 # ---------------------------------------------------------------------------
@@ -592,6 +634,22 @@ def audit_pilot(pilot_dir: Path, model: str,
         rule_event = next(
             (e for e in chain if e.get("event_type") == rule_kind), None)
 
+    # the model's own stream records on the fault's own chain (standard §12,
+    # exceptions E6/E7): a01_ea / a01_ea_discarded / a01_consumed and
+    # a03_stream carry the runtime address evidence the generic analysis
+    # does not bind.  Exported verbatim, never graded here.
+    stream_kinds = MODEL_STREAM_KINDS.get(model, ())
+    stream_events = ([e for e in chain if e.get("event_type") in stream_kinds]
+                     if stream_kinds and injection is not None else [])
+
+    # the model's run-level records (standard §12): a03_activation (the F5
+    # activation) and simulator_abort (the panic page-table fault VA) exist
+    # in the trace but carry no chain identity, so they are collected in
+    # their own bounded pass.  Exported verbatim, never graded here.
+    run_kinds = MODEL_RUN_RECORD_KINDS.get(model, ())
+    run_records = (_find_run_records(trace_path, run_kinds)
+                   if run_kinds and trace_path.is_file() else {})
+
     writeback = next(
         (e for e in chain if e.get("event_type") == "register_writeback"),
         None)
@@ -766,6 +824,26 @@ def audit_pilot(pilot_dir: Path, model: str,
              "event_type": str(rule_event["event_type"]),
              "fields": _detail_kv(rule_event.get("detail"))}
             if rule_event is not None else None),
+        # the model's own stream records on the fault's own chain, verbatim
+        # (standard §12, exceptions E6/E7): the wrong-EA pair / discard /
+        # consumed-consumer / F5 stream runtime evidence.  Exported so the
+        # closure tool grades the A01/A03 terminal exceptions from proven
+        # runtime fields — no trace re-parse, no forked classifier.
+        "model_records": [
+            {"event_id": str(e["event_id"]),
+             "event_type": str(e["event_type"]),
+             "dyn_inst_seq": (str(e["dyn_inst_seq"])
+                              if e.get("dyn_inst_seq") is not None else None),
+             "fields": _detail_kv(e.get("detail"))}
+            for e in stream_events],
+        # the model's run-level records (standard §12): the F5 activation
+        # record and the simulator_abort panic-VA node, which carry no chain
+        # identity and are therefore collected in their own bounded pass
+        "model_run_records": {
+            kind: {"event_id": str(rec["event_id"]),
+                   "event_type": str(rec["event_type"]),
+                   "fields": _detail_kv(rec.get("detail"))}
+            for kind, rec in run_records.items()},
         "oracle": {"expected": oracle["expected"],
                    "actual": oracle["actual"], "pass": oracle["pass"]},
         "binary_sha": recorded_binary,

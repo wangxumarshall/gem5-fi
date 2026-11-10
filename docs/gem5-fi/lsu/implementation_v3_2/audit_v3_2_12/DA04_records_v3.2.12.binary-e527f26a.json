@@ -1,0 +1,201 @@
+{
+  "model": "DA04",
+  "records": [
+    {
+      "ModelID": "DA04",
+      "PilotID": "SUPP-DA04-R04",
+      "SampleRunID": "SUPP-DA04-R04",
+      "Seed": "3815557835",
+      "EventOrdinal": "4",
+      "BinarySHA256": "e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed",
+      "WorkloadSHA256": "89ff937a73a01708c5781385e9a9f9740254a456d4f07042b2b480c4677918c0",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-DA04-R04",
+      "MissingEvidence": "none",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "VALID",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "COMPLETE",
+      "FaultEffectPropagationCoverage": "COMPLETE",
+      "FaultCausality": "PROVEN",
+      "ObservedTerminal": "SDC",
+      "ApplicationOracle": "FAIL",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "yes",
+        "consumer_verified": "yes",
+        "commit_verified": "yes",
+        "terminal_verified": "yes",
+        "oracle_verified": "yes"
+      },
+      "SubUnit": "SQ",
+      "FaultDefinition": "Byte-enable\u6784\u9020\uff1aRequest::setByteEnable\u524d / Request::_byteEnable",
+      "TerminalReason": "ORACLE_FAIL",
+      "AdjudicatedTerminal": "SDC",
+      "VerifiedChainCount": 1,
+      "MissingCodes": [],
+      "ChainKinds": [
+        "commit",
+        "consumer_commit",
+        "errant_commit",
+        "injection",
+        "memory_request",
+        "memory_response",
+        "register_writeback",
+        "sq_lifecycle",
+        "store_mem_write",
+        "store_writeback"
+      ],
+      "ChainEventCount": 1022,
+      "ChainEdgeCount": 1019,
+      "InjectionSeq": "13895",
+      "InjectionPC": "400538",
+      "InjectionTick": "17040870",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "store_writeback",
+      "EarliestAnomalyEventID": "6218",
+      "WritebackValueFnv": "a959f41d27dbce18",
+      "ConsumerInputFnv": "a959f41d27dbce18",
+      "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": null,
+      "CommitSeq": "6696",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
+      "OracleExpected": "3f89eab79392ce69",
+      "OracleActual": "3f89eab79392ce4d",
+      "OracleStatus": "ok",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=13895"
+        },
+        {
+          "stage": "store_writeback",
+          "event_id": "6218"
+        },
+        {
+          "stage": "register_writeback",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "consumer_commit",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "commit",
+          "event_id": "NULL"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
+    },
+    {
+      "ModelID": "DA04",
+      "PilotID": "SUPP-DA04-R05",
+      "SampleRunID": "SUPP-DA04-R05",
+      "Seed": "2016743094",
+      "EventOrdinal": "5",
+      "BinarySHA256": "e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed",
+      "WorkloadSHA256": "89ff937a73a01708c5781385e9a9f9740254a456d4f07042b2b480c4677918c0",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-DA04-R05",
+      "MissingEvidence": "none",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "VALID",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "COMPLETE",
+      "FaultEffectPropagationCoverage": "COMPLETE",
+      "FaultCausality": "PROVEN",
+      "ObservedTerminal": "SDC",
+      "ApplicationOracle": "FAIL",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "yes",
+        "consumer_verified": "yes",
+        "commit_verified": "yes",
+        "terminal_verified": "yes",
+        "oracle_verified": "yes"
+      },
+      "SubUnit": "SQ",
+      "FaultDefinition": "Byte-enable\u6784\u9020\uff1aRequest::setByteEnable\u524d / Request::_byteEnable",
+      "TerminalReason": "ORACLE_FAIL",
+      "AdjudicatedTerminal": "SDC",
+      "VerifiedChainCount": 1,
+      "MissingCodes": [],
+      "ChainKinds": [
+        "commit",
+        "consumer_commit",
+        "errant_commit",
+        "injection",
+        "memory_request",
+        "memory_response",
+        "register_writeback",
+        "sq_lifecycle",
+        "store_mem_write",
+        "store_writeback"
+      ],
+      "ChainEventCount": 7728,
+      "ChainEdgeCount": 7726,
+      "InjectionSeq": "14645",
+      "InjectionPC": "400538",
+      "InjectionTick": "17156370",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "store_writeback",
+      "EarliestAnomalyEventID": "6518",
+      "WritebackValueFnv": "bdb2b3575183d5c",
+      "ConsumerInputFnv": "bdb2b3575183d5c",
+      "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": null,
+      "CommitSeq": "7446",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
+      "OracleExpected": "3f89eab79392ce69",
+      "OracleActual": "b948f769e7d691f5",
+      "OracleStatus": "ok",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=14645"
+        },
+        {
+          "stage": "store_writeback",
+          "event_id": "6518"
+        },
+        {
+          "stage": "register_writeback",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "consumer_commit",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "commit",
+          "event_id": "NULL"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
+    }
+  ]
+}

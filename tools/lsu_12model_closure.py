@@ -11,9 +11,12 @@ The tool reuses ``tools.lsu_propagation_audit.audit_pilot`` (keys
 ``identity, stages, evidence, terminal, oracle, missing, classification``)
 for every trace-derived fact; it never re-parses a trace independently and
 never forks the classifier.  The only files it reads directly, besides what
-``audit_pilot`` already exports, are pilot sidecars (``pilot_meta.json`` for
-the run-harness truncation flag / oracle-by-design markers and the
-``supplementary.json`` SUPP sidecar), which are records, not traces.
+``audit_pilot`` already exports, are pilot sidecars — ``pilot_meta.json``
+(run-harness truncation flag / oracle-by-design markers), the
+``supplementary.json`` SUPP sidecar, the raw ``stdout.log`` checksum line,
+and the RP01 injector sidecar ``lsq_fwd_injections.log`` (the
+``CHAOS_RP01_WATCHDOG=EXPIRED`` watchdog record, with the ``stdout.log``
+fatal line as its fallback source) — which are records, not traces.
 
 Field mapping (standard §7, frozen):
 
@@ -44,6 +47,41 @@ Field mapping (standard §7, frozen):
    contexts, with ``ObservedTerminal=SDC`` (E2 SQ01, E4 SP05) or ``MASKED``
    (E3 SQ03) and the ``ChainMechanism`` of §11 named, even though
    ``FaultEffectPropagationCoverage`` stays ``LIFECYCLE_ONLY``;
+3d. exceptions E5/E6/E7 (standard §6 clause 3d / §12, model-scoped terminal
+   exceptions, frozen amendment 2026-11-11), evaluated before the rule-1
+   integrity gates because each names the integrity state it relaxes:
+   E5 RP01 — the watchdog-timed-out skipped-replay load: when the
+   ``CHAOS_RP01_WATCHDOG=EXPIRED ... injected=1`` record exists, the
+   injection is identity-linked to the skipped load (the replay/skip record
+   on the fault's own chain) with ``FaultCausality=PROVEN``, and the partial
+   trace is retained, the record grades a complete verdict with
+   ``ObservedTerminal=HANG/TIMEOUT`` and
+   ``TerminalMechanism=REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT`` even
+   though ``RecordIntegrity=TRUNCATED`` and ``TraceCompleteness=INCOMPLETE``
+   (both stay what the platform graded); a SQUASHED RP01 run never fires E5
+   and stays below a complete verdict unless the squash trigger is
+   identity-linked.  E6 A03 — the panic direct address match: when the panic
+   page-table fault VA equals the ``actual_ea`` of the on-chain ``a03_stream``
+   record of the crash-linked load (``affected=1``, the abort's
+   ``last_injection_dyn_seq`` tying the pair) and the F5 activation/stream
+   records are present, the record grades a complete verdict with
+   ``ObservedTerminal=CRASH`` and
+   ``TerminalMechanism=STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH`` even though
+   the crash cut the record (``RecordIntegrity=TRUNCATED``).  E7 A01 — the
+   wrong-EA delivery chain: when the on-chain ``a01_ea`` record proves a
+   wrong EA (``golden_ea != actual_ea``, ``affected=1``) that was delivered
+   (an on-chain ``memory_response`` and ``register_writeback``) and consumed
+   (the consumer hash equals the writeback hash, and the ``a01_consumed``
+   record's input hash matches both) with terminal ``MASKED`` — or the
+   terminal is ``CRASH`` with the panic VA equal to the on-chain
+   ``a01_ea`` ``actual_ea`` (the direct match) — the record grades a
+   complete verdict with
+   ``TerminalMechanism=WRONG_EA_LOAD_DELIVERED_AND_CONSUMED``; an A01 record
+   whose corrupted EA was discarded before any request (the on-chain
+   ``a01_ea_discarded`` record with ``applied_to_request=0``, terminal
+   honestly ``UNRESOLVED`` for a missing writeback) grades ``PARTIAL`` —
+   real on-chain evidence, the discard naming the missing link — never
+   ``UNRESOLVED``;
 4. internal-only change -> ``LIFECYCLE_ONLY``;
 5. otherwise -> ``PARTIAL`` (with the missing link named).
 
@@ -51,6 +89,23 @@ Complete verdicts obey the single-context rule (standard §4): one verified
 complete chain in the pilot's own trace -> ``VERIFIED_SINGLE_CONTEXT``; two
 or more -> ``COMPLETE_CAUSAL_CHAIN``.  A verdict is never computed across
 binaries: the closure matrix splits per ``BinarySHA256`` and never merges.
+
+Frozen prior-audit import (standard §12.5): the four models the frozen
+v3.2.11 audit already verified (DA04/LP01/MD04/FW05) are NOT re-graded by
+the generic classifier.  The ``frozen`` subcommand reads a v3.2.11 verdict
+JSON, keyed by (model, binary SHA, evidence path) — each pilot record must
+carry a 64-hex ``binary_sha`` and a non-empty ``evidence_path``, and the
+import refuses a keyed binary the file carries no pilot under — and emits
+closure-schema records that carry the prior per-pilot verdicts verbatim
+(``FinalClassification`` = the prior classification, ``PriorAudit`` = the
+prior-audit tag).  The four v3.2.12 standard fields the prior audit did
+not record per pilot (``RecordIntegrity``, ``TraceCompleteness``,
+``StructuralChainCompleteness``, ``FaultEffectPropagationCoverage``,
+``FaultCausality``) are carried as the literal ``NULL`` — never fabricated,
+never re-derived.  ``matrix``/``features`` accept the frozen JSONs via
+``--frozen-prior``; a frozen group supersedes the generic records of the
+SAME (model, binary) key only (with a loud note) and never touches any other
+binary's records.
 
 The missing-evidence matrix closes every ``ORACLE_FILE_MISSING`` row against
 the frozen context's real raw-oracle availability, in a fixed standard-derived
@@ -138,6 +193,36 @@ _SQ_MODEL_RULE_MECHANISMS = {
     "SQ03": "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
     "SP05": "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
 }
+
+# Standard §6 clause 3d / §12 (frozen amendment 2026-11-11): exceptions
+# E5/E6/E7 — the model-scoped terminal exceptions.  Each fires on a
+# conjunction of proven runtime records only (no upgrade on inference) and
+# names the integrity state it relaxes: E5 the TRUNCATED watchdog-fatal
+# record with its retained partial trace (TraceCompleteness stays
+# INCOMPLETE), E6 the TRUNCATED crash-cut record whose panic VA is
+# identity-linked to the on-chain a03_stream actual EA, E7 the wrong-EA
+# A01 delivery whose corrupted address reached a delivered, consumed load
+# (with the discard context graded PARTIAL, never UNRESOLVED).  The
+# TerminalMechanism record field is emitted exactly when the model's
+# conjunction holds, NOT_APPLICABLE otherwise (including every other
+# model) — computed from the same conjunction final_classification applies.
+_TERMINAL_MECHANISMS = {
+    "RP01": "REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT",
+    "A03": "STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH",
+    "A01": "WRONG_EA_LOAD_DELIVERED_AND_CONSUMED",
+}
+
+# the frozen prior-audit tag carried by imported records (standard §12.5):
+# the four models the frozen v3.2.11 audit verified are not re-graded by
+# the generic classifier; their per-pilot verdicts are imported verbatim,
+# keyed by (model, binary SHA, evidence path).
+FROZEN_PRIOR_AUDIT = "v3.2.11"
+
+# the RP01 injector sidecar carrying the watchdog record (a run-harness
+# record, not a trace): the CHAOS_RP01_WATCHDOG=EXPIRED line with its kv
+# fields; the stdout.log fatal line is the fallback source.
+_RP01_WATCHDOG_LOG = "lsq_fwd_injections.log"
+_RP01_WATCHDOG_LINE = "CHAOS_RP01_WATCHDOG"
 
 # terminal_rules reasons whose outcome is derived from the fault's own
 # committed node (identity-verified by construction of the adjudication)
@@ -745,6 +830,18 @@ def build_pilot_record(pilot_dir, model: str,
         # (hop hashes, visibility ticks, skip flags) — no independent trace
         # re-parse, no forked classifier
         "ModelRuleRecord": evidence.get("model_rule"),
+        # exception-E5/E6/E7 evidence (standard §12): the model's own
+        # stream records on the fault's own chain (a01_ea / a01_ea_discarded
+        # / a01_consumed / a03_stream, with their detail fields) and the
+        # run-level records that carry no chain identity (a03_activation,
+        # simulator_abort) — exported verbatim by audit_pilot's evidence
+        # bundle, plus the RP01 watchdog record read from the pilot's
+        # run-harness sidecars (lsq_fwd_injections.log / stdout.log, which
+        # are records, not traces)
+        "ModelStreamRecords": evidence.get("model_records") or [],
+        "ModelRunRecords": evidence.get("model_run_records") or {},
+        "RP01Watchdog": (_rp01_watchdog_record(pilot_dir)
+                         if model == "RP01" else None),
         "OracleExpected": audit["oracle"].get("expected"),
         "OracleActual": audit["oracle"].get("actual"),
         "OracleStatus": audit["oracle"].get("status"),
@@ -763,6 +860,16 @@ def build_pilot_record(pilot_dir, model: str,
     # exactly as for every generic complete verdict.
     record["ChainMechanism"] = _sq_model_record_mechanism(record)
     if record["ChainMechanism"] != "NOT_APPLICABLE":
+        record["VerifiedChainCount"] = max(int(chains), 1)
+    # standard §12: the exception-E5/E6/E7 record field, computed from the
+    # same conjunction that final_classification applies (never hand-set).
+    # As with E2/E3/E4, a proven terminal exception chain is one verified
+    # complete chain, so VerifiedChainCount is at least 1 when it fires and
+    # §4 decides the value exactly as for every generic complete verdict;
+    # the E7 discard companion carries its PARTIAL grade through the record
+    # fields themselves (no mechanism, no complete verdict).
+    record["TerminalMechanism"] = _terminal_mechanism(record)
+    if record["TerminalMechanism"] != "NOT_APPLICABLE":
         record["VerifiedChainCount"] = max(int(chains), 1)
     record["FinalClassification"] = final_classification(record)
     return record
@@ -1037,6 +1144,288 @@ def _sq_model_record_mechanism(record: dict) -> str:
     return "NOT_APPLICABLE"
 
 
+# ---------------------------------------------------------------------------
+# standard §6 clause 3d / §12 — exceptions E5/E6/E7, the model-scoped
+# terminal exceptions (frozen amendment 2026-11-11)
+# ---------------------------------------------------------------------------
+
+def _norm_addr(value) -> str:
+    """An address as bare lowercase hex (``0xFFFF...`` -> ``ffff...``);
+    never zero-stripped, so a panic VA of 0 never equals a real EA."""
+    text = "" if value is None else str(value).strip().lower()
+    if text.startswith("0x"):
+        text = text[2:]
+    return text
+
+
+def _stream_records(record: dict, kind: str) -> list[dict]:
+    """The model's own on-chain stream records of the given kind (standard
+    §12), exported verbatim by ``audit_pilot`` (``ModelStreamRecords``):
+    a01_ea / a01_ea_discarded / a01_consumed / a03_stream with their detail
+    fields — the runtime address evidence."""
+    out = []
+    for item in record.get("ModelStreamRecords") or []:
+        if (isinstance(item, dict) and item.get("event_type") == kind
+                and isinstance(item.get("fields"), dict)):
+            out.append(item)
+    return out
+
+
+def _run_record_fields(record: dict, kind: str) -> dict:
+    """The model's run-level record of the given kind (standard §12),
+    exported verbatim by ``audit_pilot`` (``ModelRunRecords``): the
+    a03_activation F5 record and the simulator_abort panic-VA node, which
+    carry no chain identity.  Empty when the record is absent."""
+    item = (record.get("ModelRunRecords") or {}).get(kind)
+    if (isinstance(item, dict) and isinstance(item.get("fields"), dict)):
+        return item["fields"]
+    return {}
+
+
+def _rp01_watchdog_record(pilot_dir: Path) -> dict | None:
+    """The RP01 watchdog record from the pilot's run-harness sidecars
+    (standard §12, exception E5): the ``CHAOS_RP01_WATCHDOG=EXPIRED`` line
+    of the injector sidecar ``lsq_fwd_injections.log`` — the ``stdout.log``
+    ``fatal: CHAOS_RP01_WATCHDOG_EXPIRED`` line is the fallback source.
+    Both are run records, not traces; every field is taken from the line and
+    the raw line itself is carried as provenance.  ``None`` when no expired
+    line exists (a completed/SQUASHED run, or a control with no injector)."""
+    pilot_dir = Path(pilot_dir)
+    for name in (_RP01_WATCHDOG_LOG, "stdout.log"):
+        path = pilot_dir / name
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            if _RP01_WATCHDOG_LINE not in line or "EXPIRED" not in line:
+                continue
+            kv = dict(token.split("=", 1) for token in line.split()
+                      if "=" in token)
+            return {"source": name,
+                    "line": line.strip(),
+                    "expired": True,
+                    "fired": kv.get("fired"),
+                    "injected": kv.get("injected"),
+                    "eligible": kv.get("eligible"),
+                    "tick": kv.get("tick")}
+    return None
+
+
+def _rp01_watchdog_timeout(record: dict) -> bool:
+    """Standard §6 exception E5 (§12) — RP01, mechanism
+    REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT.
+
+    Fires only when ALL conditions hold (a conjunction of proven runtime
+    records; no upgrade on inference): an RP01 record whose observed
+    terminal is HANG or TIMEOUT, over a verified/activated injection whose
+    causality is PROVEN through the identity-linked replay/skip record on
+    the fault's own chain (the skipped load the trigger suppression left
+    un-replayed), with the run-harness ``CHAOS_RP01_WATCHDOG=EXPIRED
+    injected=1`` record present and the partial trace retained (real chain
+    events survived the fatal cut).  The exception relaxes exactly the
+    integrity states it names: the record grades a complete verdict even
+    though ``RecordIntegrity=TRUNCATED`` and ``TraceCompleteness=INCOMPLETE``
+    — both fields keep their honest platform values.  A SQUASHED RP01 run
+    never fires E5 (an unproven squash stays below a complete verdict unless
+    its trigger is identity-linked, the frozen v3.2.11 line)."""
+    if _sq_field(record, "ModelID") != "rp01":
+        return False  # model-scoped: the exception upgrades no other model
+    if _sq_field(record, "ObservedTerminal") not in ("hang", "timeout"):
+        return False  # E5 names the watchdog-timeout terminals only
+    if (record.get("InjectionVerified") != "yes"
+            or record.get("ActivationVerified") != "yes"):
+        return False  # the skipped-replay injection must be the record's own
+    if _sq_field(record, "FaultCausality") != "proven":
+        # the hang must be proven fault-caused: the identity-linked replay
+        # marker on the fault's own chain (the §2 identity rules) is what
+        # proves the trigger; without it rule 5 caps the record at PARTIAL
+        return False
+    kinds = {str(kind).strip().lower()
+             for kind in (record.get("ChainKinds") or [])}
+    if not kinds & {"replay", "rp01_skip"}:
+        return False  # no skip/replay record identity-links the hang
+    watchdog = record.get("RP01Watchdog")
+    if not isinstance(watchdog, dict) or not watchdog.get("expired"):
+        return False  # the watchdog EXPIRED line is absent
+    if str(watchdog.get("injected") or "") != "1":
+        return False  # the timeout did not fire on the injected run
+    if _sq_field(record, "RecordIntegrity") == "invalid":
+        # only the TRUNCATED shape is excepted: a malformed stream is
+        # unusable as evidence, and a cleanly closed trace needs no
+        # exception (generic rule 2 already grades it)
+        return False
+    # the partial trace is retained: chain events survived the fatal cut
+    return int(record.get("ChainEventCount") or 0) >= 1
+
+
+def _a03_panic_direct_match(record: dict) -> bool:
+    """Standard §6 exception E6 (§12) — A03, mechanism
+    STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH.
+
+    Fires only when ALL conditions hold: an A03 record whose observed
+    terminal is CRASH, over a verified/activated injection, whose run
+    carries the F5 activation record (a03_activation) and whose fault's own
+    chain carries at least one a03_stream record, and whose simulator_abort
+    node records a panic page-table fault VA that equals the ``actual_ea``
+    of an on-chain a03_stream record of the crash-linked load (``affected=1``,
+    and the abort's ``last_injection_dyn_seq`` equals that record's
+    ``dyn_inst_seq`` — the DIRECT_ADDRESS_MATCH, identity-linked through the
+    §2 rules because the stream record sits on the fault's own chain).  The
+    exception relaxes exactly the integrity state it names: the crash-cut
+    record (``RecordIntegrity=TRUNCATED``, structural chain PARTIAL because
+    the panic terminated the run) no longer forces UNRESOLVED when the
+    address match is identity-linked; an INVALID stream is still refused."""
+    if _sq_field(record, "ModelID") != "a03":
+        return False  # model-scoped: the exception upgrades no other model
+    if _sq_field(record, "ObservedTerminal") != "crash":
+        return False  # E6 names the crash terminal only
+    if (record.get("InjectionVerified") != "yes"
+            or record.get("ActivationVerified") != "yes"):
+        return False
+    if not _run_record_fields(record, "a03_activation"):
+        return False  # the F5 activation record is absent
+    streams = _stream_records(record, "a03_stream")
+    if not streams:
+        return False  # the F5 stream is absent from the fault's own chain
+    abort = _run_record_fields(record, "simulator_abort")
+    panic = _norm_addr(abort.get("page_table_fault_addr"))
+    if not panic or panic in _ABSENT_HASH_SENTINELS:
+        return False  # no panic VA is recorded
+    if _sq_field(record, "RecordIntegrity") == "invalid":
+        return False  # only the TRUNCATED crash cut is excepted
+    crash_seq = _rule_value(abort, "last_injection_dyn_seq")
+    for stream in streams:
+        fields = stream["fields"]
+        if _rule_value(fields, "affected") != "1":
+            continue  # the F5 fault was not applied on this load
+        if _norm_addr(fields.get("actual_ea")) != panic:
+            continue  # not a direct address match
+        if crash_seq and str(stream.get("dyn_inst_seq") or "") != crash_seq:
+            continue  # the abort does not name this load: not identity-linked
+        return True
+    return False
+
+
+def _a01_wrong_ea_chain(record: dict) -> bool:
+    """Standard §6 exception E7 (§12) — A01, mechanism
+    WRONG_EA_LOAD_DELIVERED_AND_CONSUMED.
+
+    Fires only when ALL conditions hold (the wrong-EA chain): an A01 record
+    over a verified/activated injection whose fault's own chain carries the
+    a01_ea record proving a wrong EA (``golden_ea != actual_ea``,
+    ``affected=1``), and either
+
+    - the terminal is MASKED and the wrong EA was delivered and consumed: an
+      on-chain memory_response, a verified register_writeback, the consumer
+      input hash equal to the writeback value hash (the §3 platform data
+      rule, both real hashes), and the a01_consumed model record whose
+      input_hash equals that same writeback hash (the runtime record of the
+      consumed wrong-EA value); or
+    - the terminal is CRASH with a direct match: the panic page-table fault
+      VA equals the on-chain a01_ea ``actual_ea`` (the crash-cut shape,
+      ``RecordIntegrity=TRUNCATED`` accepted, INVALID refused).
+
+    The MASKED branch additionally enforces the §6 invariant set (VALID,
+    COMPLETE, structurally COMPLETE, causality PROVEN) exactly like E1/E2;
+    a temporal-association-only crash (panic VA 0 / off the fault's EA)
+    never fires E7 and stays UNRESOLVED under the generic rules."""
+    if _sq_field(record, "ModelID") != "a01":
+        return False  # model-scoped: the exception upgrades no other model
+    terminal = _sq_field(record, "ObservedTerminal")
+    if terminal not in ("masked", "crash"):
+        return False  # E7 names the masked wrong-EA chain or the direct crash
+    if (record.get("InjectionVerified") != "yes"
+            or record.get("ActivationVerified") != "yes"):
+        return False
+    ea_records = _stream_records(record, "a01_ea")
+    if not ea_records:
+        return False  # no a01_ea record on the fault's own chain
+    fields = ea_records[0]["fields"]
+    golden = _norm_addr(fields.get("golden_ea"))
+    actual = _norm_addr(fields.get("actual_ea"))
+    if (not golden or not actual or golden == actual
+            or golden in _ABSENT_HASH_SENTINELS
+            or actual in _ABSENT_HASH_SENTINELS):
+        return False  # the EA pair does not prove a wrong EA
+    if _rule_value(fields, "affected") != "1":
+        return False  # the fault was not applied on this load
+    if terminal == "crash":
+        if _sq_field(record, "RecordIntegrity") == "invalid":
+            return False  # only the TRUNCATED crash cut is excepted
+        abort = _run_record_fields(record, "simulator_abort")
+        panic = _norm_addr(abort.get("page_table_fault_addr"))
+        if not panic or panic in _ABSENT_HASH_SENTINELS:
+            return False
+        return panic == actual  # the direct match; TEMPORAL_ASSOCIATION_ONLY
+    # the MASKED branch: the wrong EA was delivered, written back, consumed
+    # and committed while the application oracle passed
+    if not _complete_invariants(record):
+        return False  # the §6 invariant set every complete verdict enforces
+    if "memory_response" not in {str(kind).strip().lower() for kind in
+                                 (record.get("ChainKinds") or [])}:
+        return False  # no delivered response on the fault's own chain
+    if record.get("Stages", {}).get("register_writeback_verified") != "yes":
+        return False  # no register writeback on the fault's own chain
+    if not _writeback_consumer_edge_verified(record):
+        return False  # the §3 data rule failed on the consumer edge
+    consumed = _stream_records(record, "a01_consumed")
+    if not consumed:
+        return False  # no runtime record of the consumed wrong-EA value
+    writeback_fnv = _sq_field(record, "WritebackValueFnv")
+    for item in consumed:
+        input_hash = _rule_value(item["fields"], "input_hash")
+        if input_hash and input_hash not in _ABSENT_HASH_SENTINELS \
+                and input_hash == writeback_fnv:
+            return True
+    return False
+
+
+def _a01_discarded_partial(record: dict) -> bool:
+    """Standard §6 exception E7's discard companion (§12): an A01 record
+    whose fault's own chain carries the ``a01_ea_discarded`` record with
+    ``applied_to_request=0`` — the runtime proof that the corrupted EA never
+    reached a Request (the saved request was reused, so the load executed
+    on the golden EA) — while the terminal is honestly UNRESOLVED (no
+    register-writeback evidence exists for a value that was never
+    delivered).  Real on-chain evidence exists but no complete chain can be
+    verified and the discard record names exactly the missing link, so the
+    record grades PARTIAL (§1.8), never UNRESOLVED.  Model-scoped and gated
+    on a verified, activated injection; a discard record on a non-A01
+    chain never fires it."""
+    if _sq_field(record, "ModelID") != "a01":
+        return False
+    if _sq_field(record, "ObservedTerminal") != "unresolved":
+        # only the rule-1 UNRESOLVED cap is relaxed; every other terminal
+        # keeps the generic rules
+        return False
+    if (record.get("InjectionVerified") != "yes"
+            or record.get("ActivationVerified") != "yes"):
+        return False  # a zero-injection record is never upgraded
+    for item in _stream_records(record, "a01_ea_discarded"):
+        if _rule_value(item["fields"], "applied_to_request") == "0":
+            return True
+    return False
+
+
+def _terminal_mechanism(record: dict) -> str:
+    """The §12 TerminalMechanism value for the record: the model's mechanism
+    name exactly when its E5/E6/E7 conjunction holds, NOT_APPLICABLE
+    otherwise (including every other model and the E7 discard companion,
+    whose PARTIAL grade is carried by the record fields themselves).
+    Computed from the same conjunction ``final_classification`` applies —
+    never hand-set."""
+    if _rp01_watchdog_timeout(record):
+        return _TERMINAL_MECHANISMS["RP01"]
+    if _a03_panic_direct_match(record):
+        return _TERMINAL_MECHANISMS["A03"]
+    if _a01_wrong_ea_chain(record):
+        return _TERMINAL_MECHANISMS["A01"]
+    return "NOT_APPLICABLE"
+
+
 def final_classification(record: dict) -> str:
     """Apply the frozen five-rule order; the first rule that fires decides.
 
@@ -1046,22 +1435,24 @@ def final_classification(record: dict) -> str:
     Exceptions E2/E3/E4 (standard §6 clause 3c / §11, frozen amendment
     2026-11-10) sit at the same layer, immediately after E1, and are
     model-scoped to the runtime-proven SQ-family model-record chains
-    (``_sq_model_record_mechanism``).  Every other record — and every
-    SQ01/SQ03/SP05 record missing any of its §11 conditions — follows the
-    generic rules unchanged."""
+    (``_sq_model_record_mechanism``).  Exceptions E5/E6/E7 (standard §6
+    clause 3d / §12, frozen amendment 2026-11-11) are the model-scoped
+    terminal exceptions; they are evaluated BEFORE the rule-1 integrity
+    gates because each names the integrity state it relaxes (E5 the
+    TRUNCATED watchdog-fatal record with its retained partial trace; E6
+    the TRUNCATED crash-cut record with the identity-linked panic-VA
+    direct match; E7's discard companion the on-chain a01_ea_discarded
+    record that names the missing link of an honestly-UNRESOLVED
+    terminal).  Each exception's conjunction is self-gating on a verified,
+    activated injection with real on-chain records, so none can fire on a
+    NO_INJECTION record.  Every other record — and every RP01/A03/A01
+    record missing any of its §12 conditions — follows the generic rules
+    unchanged."""
     def field(name: str) -> str:
         value = record.get(name)
         return str(value).upper() if value is not None else ""
 
     terminal = field("ObservedTerminal")
-    if terminal in ("NO_INJECTION", "INCOMPLETE", "UNRESOLVED"):
-        return "UNRESOLVED"  # rule 1: a missing injection is never a terminal
-    if field("RecordIntegrity") in ("INVALID", "TRUNCATED"):
-        return "UNRESOLVED"
-    if field("TraceCompleteness") in ("MISSING", "INCOMPLETE"):
-        return "UNRESOLVED"
-    if field("StructuralChainCompleteness") == "NONE":
-        return "UNRESOLVED"
 
     injection_ok = record.get("InjectionVerified") == "yes"
     activation_ok = record.get("ActivationVerified") == "yes"
@@ -1072,6 +1463,54 @@ def final_classification(record: dict) -> str:
     chains = int(record.get("VerifiedChainCount") or 0)
     complete = ("COMPLETE_CAUSAL_CHAIN" if chains >= 2
                else "VERIFIED_SINGLE_CONTEXT")
+
+    # exceptions E5/E6/E7 (standard §6 clause 3d / §12, frozen amendment
+    # 2026-11-11), ahead of the rule-1 gates: each conjunction is a set of
+    # proven runtime records over a verified, activated injection, and each
+    # names the integrity state it relaxes — no upgrade on inference alone
+    if _rp01_watchdog_timeout(record):
+        # E5 RP01: the watchdog-timed-out skipped-replay load.  The record
+        # grades a complete verdict (§4 decides the value: one verified
+        # chain -> VERIFIED_SINGLE_CONTEXT; the model-level row upgrades
+        # with two or more distinct frozen contexts) with
+        # ObservedTerminal=HANG/TIMEOUT and
+        # TerminalMechanism=REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT,
+        # even though RecordIntegrity=TRUNCATED and TraceCompleteness stays
+        # INCOMPLETE (both fields keep their honest platform values).
+        return complete
+    if _a03_panic_direct_match(record):
+        # E6 A03: the panic VA equals the on-chain a03_stream actual_ea of
+        # the crash-linked, F5-affected load — the identity-linked
+        # DIRECT_ADDRESS_MATCH.  The TRUNCATED crash-cut record no longer
+        # forces UNRESOLVED; §4 decides the value as for every complete
+        # verdict, with ObservedTerminal=CRASH and
+        # TerminalMechanism=STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH.
+        return complete
+    if _a01_wrong_ea_chain(record):
+        # E7 A01: the wrong-EA delivery chain (a01_ea golden != actual,
+        # affected=1, delivered through an on-chain response and
+        # register_writeback, consumed with the hash-equal a01_consumed
+        # record, terminal MASKED; or a CRASH with the panic VA equal to
+        # the on-chain actual_ea).  §4 decides the value as for every
+        # complete verdict, with
+        # TerminalMechanism=WRONG_EA_LOAD_DELIVERED_AND_CONSUMED.
+        return complete
+    if _a01_discarded_partial(record):
+        # E7's discard companion: the on-chain a01_ea_discarded record
+        # (applied_to_request=0) proves the corrupted EA never reached a
+        # Request — real on-chain evidence, the discard naming the missing
+        # link — so the honestly-UNRESOLVED terminal grades PARTIAL, never
+        # UNRESOLVED and never a complete verdict.
+        return "PARTIAL"
+
+    if terminal in ("NO_INJECTION", "INCOMPLETE", "UNRESOLVED"):
+        return "UNRESOLVED"  # rule 1: a missing injection is never a terminal
+    if field("RecordIntegrity") in ("INVALID", "TRUNCATED"):
+        return "UNRESOLVED"
+    if field("TraceCompleteness") in ("MISSING", "INCOMPLETE"):
+        return "UNRESOLVED"
+    if field("StructuralChainCompleteness") == "NONE":
+        return "UNRESOLVED"
 
     if terminal in ("HANG", "TIMEOUT", "SQUASHED") and proven:
         # rule 2: proven-trigger hard terminals
@@ -1512,6 +1951,187 @@ def write_closure_matrix(records: list, out) -> None:
 
 
 # ---------------------------------------------------------------------------
+# the frozen prior-audit import (standard §12.5)
+# ---------------------------------------------------------------------------
+
+# the four v3.2.12 standard fields the v3.2.11 per-pilot verdicts did not
+# record (the prior audit predates the eight-field schema §1).  Carried as
+# the literal NULL — never fabricated, never re-derived: re-grading them
+# with the generic classifier is exactly what the import exists to avoid.
+_PRIOR_AUDIT_UNRECORDED_FIELDS = ("RecordIntegrity", "TraceCompleteness",
+                                  "StructuralChainCompleteness",
+                                  "FaultEffectPropagationCoverage",
+                                  "FaultCausality")
+
+
+def build_frozen_records(prior_path, model: str | None = None,
+                         binary_sha: str | None = None) -> list:
+    """Import the frozen v3.2.11 prior audit's per-pilot verdicts as closure
+    records (standard §12.5), keyed by (model, binary SHA, evidence path).
+
+    The four models the prior audit already verified (DA04/LP01/MD04/FW05)
+    are not re-graded by the generic classifier: every imported record
+    carries the prior verdict verbatim — ``FinalClassification`` IS the
+    prior ``classification``, ``ObservedTerminal`` the prior ``terminal``,
+    ``ApplicationOracle`` the prior ``oracle`` — plus the ``PriorAudit``
+    provenance tag.  Keying (loudly enforced, never silently bent):
+
+    - ``--model`` must equal the verdict file's own model (a mismatched key
+      is refused);
+    - every imported pilot must carry a 64-hex ``binary_sha`` and a
+      non-empty ``evidence_path`` (the key's second and third components);
+    - ``--binary-sha``, when given, imports ONLY the pilots recorded under
+      that binary — a key the file carries no pilot under is refused (the
+      import can never bend the key to reach another binary's verdicts);
+      without it every pilot imports under its own recorded binary;
+    - the fields the prior audit did not record per pilot are the literal
+      ``NULL``, never re-derived.
+    """
+    prior_path = Path(prior_path)
+    payload = _read_json(prior_path)
+    if not isinstance(payload, dict) \
+            or not isinstance(payload.get("pilots"), list):
+        raise ValueError(
+            f"frozen prior audit {str(prior_path)!r} carries no pilot list; "
+            f"expected the v3.2.11 verdict shape (model/pilots/model_row)")
+    prior_model = payload.get("model")
+    if prior_model not in MODELS:
+        raise ValueError(
+            f"frozen prior audit {str(prior_path)!r} names model "
+            f"{prior_model!r}, which is not one of the twelve closure models")
+    if model is not None and model != prior_model:
+        # keyed by model: the import never bends the key to another model
+        raise ValueError(
+            f"frozen prior audit {str(prior_path)!r} is keyed to model "
+            f"{prior_model!r}; the requested key {model!r} does not match "
+            f"(the import is keyed by model + binary SHA + evidence path)")
+    model_row = payload.get("model_row") or {}
+    if not isinstance(model_row, dict):
+        model_row = {}
+
+    records: list = []
+    for pilot in payload["pilots"]:
+        if not isinstance(pilot, dict):
+            raise ValueError(f"frozen prior audit {str(prior_path)!r} has a "
+                             f"malformed pilot entry")
+        sha = pilot.get("binary_sha")
+        if not isinstance(sha, str) or not re.fullmatch(
+                r"[0-9a-fA-F]{64}", sha):
+            raise ValueError(
+                f"frozen prior audit {str(prior_path)!r} pilot "
+                f"{pilot.get('pilot_id')!r} carries no valid binary SHA256 "
+                f"— the (model, binary SHA, evidence path) key is incomplete")
+        if binary_sha is not None \
+                and sha.lower() != str(binary_sha).lower():
+            continue  # keyed by binary: another binary's pilots never import
+        evidence_path = pilot.get("evidence_path")
+        if not isinstance(evidence_path, str) or not evidence_path.strip():
+            raise ValueError(
+                f"frozen prior audit {str(prior_path)!r} pilot "
+                f"{pilot.get('pilot_id')!r} carries no evidence path "
+                f"— the (model, binary SHA, evidence path) key is incomplete")
+        stages = pilot.get("stages") or {}
+        if not isinstance(stages, dict):
+            stages = {}
+        missing = [str(code) for code in pilot.get("missing") or []]
+        record = {
+            # the frozen key (model + binary SHA + evidence path), verbatim
+            "ModelID": prior_model,
+            "PilotID": pilot.get("pilot_id"),
+            "SampleRunID": pilot.get("sample_run_id"),
+            "Seed": pilot.get("seed"),
+            "EventOrdinal": pilot.get("event_ordinal"),
+            "BinarySHA256": sha,
+            "EvidencePath": evidence_path,
+            # the prior verdict, carried verbatim (never re-graded)
+            "FinalClassification": pilot.get("classification"),
+            "ObservedTerminal": pilot.get("terminal"),
+            "ApplicationOracle": pilot.get("oracle"),
+            "TerminalReason": pilot.get("terminal_reason"),
+            "PriorAuditRule": pilot.get("classification_rule"),
+            "MissingEvidence": (";".join(missing) if missing else "none"),
+            "MissingCodes": missing,
+            # the prior audit's own stage flags, verbatim
+            "InjectionVerified": stages.get("injection_verified", "n/a"),
+            "ActivationVerified": stages.get("activation_verified", "n/a"),
+            "Stages": stages,
+            "SubUnit": model_row.get("SubUnit") or "n/a",
+            "FaultDefinition": model_row.get("FaultDefinition") or "n/a",
+            "SupplementaryOf": None,
+            # the four §1 fields the prior audit did not record per pilot:
+            # the literal NULL, never fabricated, never re-derived
+            **{name: "NULL" for name in _PRIOR_AUDIT_UNRECORDED_FIELDS},
+            # writer internals the aggregation reads; absences are explicit
+            "AdjudicatedTerminal": pilot.get("terminal"),
+            "VerifiedChainCount": None,
+            "ChainKinds": [],
+            "ChainEventCount": None,
+            "ChainEdgeCount": None,
+            "PathFragments": [],
+            "MaskingMechanism": "NOT_APPLICABLE",
+            "ChainMechanism": "NOT_APPLICABLE",
+            "TerminalMechanism": "NOT_APPLICABLE",
+            "ModelRuleRecord": None,
+            "ModelStreamRecords": [],
+            "ModelRunRecords": {},
+            "RP01Watchdog": None,
+            # the provenance marker distinguishing a frozen record from a
+            # generically graded one in every downstream artifact
+            "PriorAudit": FROZEN_PRIOR_AUDIT,
+            "PriorAuditPath": str(prior_path),
+        }
+        records.append(record)
+    if binary_sha is not None and not records:
+        raise ValueError(
+            f"frozen prior audit {str(prior_path)!r} (model {prior_model!r}) "
+            f"carries no pilot under binary SHA {binary_sha!r}; the import "
+            f"is keyed by binary and refuses to import a different "
+            f"binary's verdicts")
+    if not records:
+        raise ValueError(
+            f"frozen prior audit {str(prior_path)!r} carries no importable "
+            f"pilot record")
+    return records
+
+
+def _merge_frozen(generic: list, frozen: list) -> tuple[list, list]:
+    """Merge the frozen prior-audit records with the generically graded
+    ones, keyed by (ModelID, BinarySHA256): a frozen group supersedes the
+    generic records of the SAME key only (the prior audit already verified
+    that (model, binary) group — re-grading it with the generic classifier
+    is exactly what the import exists to avoid), and every other binary's
+    records are untouched (a verdict is never computed across binaries, and
+    a frozen import never overrides a different binary).  Returns the
+    merged record list plus one loud note per supersession."""
+    for record in frozen:
+        if not record.get("PriorAudit"):
+            raise ValueError(
+                "a --frozen-prior records file carries a record without "
+                f"the PriorAudit marker ({record.get('PilotID')!r}); only "
+                "frozen imports built by the `frozen` subcommand are "
+                "accepted there")
+    frozen_keys = {(str(r.get("ModelID")), str(r.get("BinarySHA256")))
+                   for r in frozen}
+    kept = []
+    dropped: dict[tuple, int] = {}
+    for record in generic:
+        key = (str(record.get("ModelID")),
+               str(record.get("BinarySHA256") or "unknown"))
+        if key in frozen_keys:
+            dropped[key] = dropped.get(key, 0) + 1
+            continue
+        kept.append(record)
+    notes = []
+    for (model, sha), count in sorted(dropped.items()):
+        notes.append(
+            f"frozen prior audit {FROZEN_PRIOR_AUDIT} supersedes {count} "
+            f"generic record(s) for {model}@{sha[:8]} (the prior audit "
+            f"already verified that (model, binary) group; the generic "
+            f"records are excluded, never merged)")
+    return kept + frozen, notes
+
+
+# ---------------------------------------------------------------------------
 # the diagnostic feature dataset
 # ---------------------------------------------------------------------------
 
@@ -1661,6 +2281,22 @@ def main(argv: list | None = None) -> int:
     p_record.add_argument("--binary-sha", default=None,
                           help="expected gem5 binary SHA256 (purity check)")
 
+    p_frozen = sub.add_parser(
+        "frozen", help="import a frozen prior audit's per-pilot verdicts "
+                       "(keyed by model + binary SHA + evidence path)")
+    p_frozen.add_argument("--prior", required=True, type=Path,
+                          help="v3.2.11 verdict JSON "
+                               "(audit_v3_2_11/<MODEL>_verdict.json)")
+    p_frozen.add_argument("--model", default=None,
+                          help="the key's model id; must match the verdict "
+                               "file's own model (refused otherwise)")
+    p_frozen.add_argument("--binary-sha", default=None,
+                          help="the key's binary SHA256; imports only the "
+                               "pilots recorded under it (refused when the "
+                               "file carries none)")
+    p_frozen.add_argument("--json", required=True, type=Path,
+                          help="write the imported records as JSON")
+
     p_missing = sub.add_parser(
         "missing", help="write the missing-evidence matrix for pilot roots")
     p_missing.add_argument("--pilots-root", action="append", type=Path,
@@ -1674,6 +2310,12 @@ def main(argv: list | None = None) -> int:
         "matrix", help="write the per-model closure matrix from record JSON")
     p_matrix.add_argument("--records", action="append", type=Path,
                           required=True, help="records JSON (repeatable)")
+    p_matrix.add_argument("--frozen-prior", action="append", type=Path,
+                          default=[],
+                          help="frozen prior-audit records JSON built by "
+                               "the `frozen` subcommand (repeatable); a "
+                               "frozen group supersedes the generic records "
+                               "of the same (model, binary) key only")
     p_matrix.add_argument("--out", type=Path, required=True,
                           help="output CSV path")
 
@@ -1681,6 +2323,13 @@ def main(argv: list | None = None) -> int:
         "features", help="write the diagnostic feature dataset from records")
     p_features.add_argument("--records", action="append", type=Path,
                             required=True, help="records JSON (repeatable)")
+    p_features.add_argument("--frozen-prior", action="append", type=Path,
+                            default=[],
+                            help="frozen prior-audit records JSON built by "
+                                 "the `frozen` subcommand (repeatable); a "
+                                 "frozen group supersedes the generic "
+                                 "records of the same (model, binary) key "
+                                 "only")
     p_features.add_argument("--out", type=Path, required=True,
                             help="output CSV path")
 
@@ -1701,7 +2350,28 @@ def main(argv: list | None = None) -> int:
                   f"ObservedTerminal={record['ObservedTerminal']} "
                   f"MaskingMechanism={record['MaskingMechanism']} "
                   f"ChainMechanism={record['ChainMechanism']} "
+                  f"TerminalMechanism={record['TerminalMechanism']} "
                   f"missing=[{record['MissingEvidence']}]")
+        return 0
+
+    if args.command == "frozen":
+        records = build_frozen_records(args.prior, model=args.model,
+                                       binary_sha=args.binary_sha)
+        args.json.write_text(
+            json.dumps({"model": records[0]["ModelID"],
+                        "prior_audit": FROZEN_PRIOR_AUDIT,
+                        "prior_path": str(args.prior),
+                        "records": records}, indent=2) + "\n",
+            encoding="utf-8")
+        print(f"frozen prior audit {args.prior} imported: "
+              f"model={records[0]['ModelID']} pilots={len(records)} "
+              f"(verdicts carried verbatim, never re-graded)")
+        for record in records:
+            print(f"  {record['PilotID']}: "
+                  f"FinalClassification={record['FinalClassification']} "
+                  f"ObservedTerminal={record['ObservedTerminal']} "
+                  f"binary={str(record['BinarySHA256'])[:8]} "
+                  f"prior_rule={record['PriorAuditRule']}")
         return 0
 
     if args.command == "missing":
@@ -1726,6 +2396,11 @@ def main(argv: list | None = None) -> int:
 
     if args.command == "matrix":
         records = _load_records(args.records)
+        if args.frozen_prior:
+            frozen = _load_records(args.frozen_prior)
+            records, notes = _merge_frozen(records, frozen)
+            for note in notes:
+                print(note)
         write_closure_matrix(records, args.out)
         print(f"closure matrix written to {args.out} "
               f"(records={len(records)})")
@@ -1733,6 +2408,11 @@ def main(argv: list | None = None) -> int:
 
     if args.command == "features":
         records = _load_records(args.records)
+        if args.frozen_prior:
+            frozen = _load_records(args.frozen_prior)
+            records, notes = _merge_frozen(records, frozen)
+            for note in notes:
+                print(note)
         write_feature_dataset(records, args.out)
         print(f"feature dataset written to {args.out} "
               f"(records={len(records)})")

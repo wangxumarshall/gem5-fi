@@ -1,0 +1,194 @@
+{
+  "model": "A01",
+  "records": [
+    {
+      "ModelID": "A01",
+      "PilotID": "A01-R01",
+      "SampleRunID": "PILOT-A01-R01",
+      "Seed": "2108120075",
+      "EventOrdinal": "1",
+      "BinarySHA256": "0fa610c21b6a3c40e2e67dd5588956e06746b6d85ce6782a8ffce3429f232bab",
+      "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R01",
+      "MissingEvidence": "ORACLE_MALFORMED",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "TRUNCATED",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "PARTIAL",
+      "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY",
+      "FaultCausality": "UNPROVEN",
+      "ObservedTerminal": "CRASH",
+      "ApplicationOracle": "MISSING",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "yes",
+        "consumer_verified": "yes",
+        "commit_verified": "yes",
+        "terminal_verified": "yes",
+        "oracle_verified": "missing"
+      },
+      "SubUnit": "AGU",
+      "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08\u552f\u4e00\u6b63\u5f0fHook\uff09 / pushRequest addr (Addr 64)",
+      "TerminalReason": null,
+      "AdjudicatedTerminal": "CRASH",
+      "VerifiedChainCount": 0,
+      "MissingCodes": [
+        "ORACLE_MALFORMED"
+      ],
+      "ChainKinds": [
+        "address_formed",
+        "consumer_commit",
+        "errant_commit",
+        "injection",
+        "lq_lifecycle",
+        "memory_request",
+        "memory_response",
+        "register_writeback"
+      ],
+      "ChainEventCount": 20,
+      "ChainEdgeCount": 17,
+      "InjectionSeq": "5",
+      "InjectionPC": "400790",
+      "InjectionTick": "80080",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "address_formed",
+      "EarliestAnomalyEventID": "4",
+      "WritebackValueFnv": null,
+      "ConsumerInputFnv": null,
+      "ConsumerSourceLinked": false,
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": null,
+      "CommitSeq": "5",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {
+        "simulator_abort": {
+          "event_id": "1004",
+          "event_type": "simulator_abort",
+          "fields": {}
+        }
+      },
+      "RP01Watchdog": null,
+      "OracleExpected": "728e604ffcec539d",
+      "OracleActual": null,
+      "OracleStatus": "malformed",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=5"
+        },
+        {
+          "stage": "address_formed",
+          "event_id": "4"
+        },
+        {
+          "stage": "register_writeback",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "consumer_commit",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "commit",
+          "event_id": "NULL"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "UNRESOLVED"
+    },
+    {
+      "ModelID": "A01",
+      "PilotID": "A01-R03",
+      "SampleRunID": "PILOT-A01-R03",
+      "Seed": "1302709433",
+      "EventOrdinal": "3",
+      "BinarySHA256": "0fa610c21b6a3c40e2e67dd5588956e06746b6d85ce6782a8ffce3429f232bab",
+      "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_2/A01-R03",
+      "MissingEvidence": "NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "VALID",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "COMPLETE",
+      "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY",
+      "FaultCausality": "PARTIAL",
+      "ObservedTerminal": "SQUASHED",
+      "ApplicationOracle": "PASS",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "missing",
+        "consumer_verified": "missing",
+        "commit_verified": "missing",
+        "terminal_verified": "yes",
+        "oracle_verified": "yes"
+      },
+      "SubUnit": "AGU",
+      "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08\u552f\u4e00\u6b63\u5f0fHook\uff09 / pushRequest addr (Addr 64)",
+      "TerminalReason": "TARGET_SQUASHED_NO_COMMIT",
+      "AdjudicatedTerminal": "SQUASHED",
+      "VerifiedChainCount": 0,
+      "MissingCodes": [
+        "NO_REGISTER_WRITEBACK_EVENT",
+        "NO_CONSUMER_EDGE",
+        "NO_COMMIT_EVENT"
+      ],
+      "ChainKinds": [
+        "address_formed",
+        "injection",
+        "lq_lifecycle",
+        "memory_request",
+        "squash"
+      ],
+      "ChainEventCount": 6,
+      "ChainEdgeCount": 2,
+      "InjectionSeq": "169",
+      "InjectionPC": "40c0f0",
+      "InjectionTick": "470085",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "address_formed",
+      "EarliestAnomalyEventID": "95",
+      "WritebackValueFnv": "NOT_APPLICABLE",
+      "ConsumerInputFnv": "NOT_APPLICABLE",
+      "ConsumerSourceLinked": "NOT_APPLICABLE",
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": "NOT_APPLICABLE",
+      "CommitSeq": "NOT_APPLICABLE",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
+      "OracleExpected": "728e604ffcec539d",
+      "OracleActual": "728e604ffcec539d",
+      "OracleStatus": "ok",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=169"
+        },
+        {
+          "stage": "address_formed",
+          "event_id": "95"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "PARTIAL"
+    }
+  ]
+}

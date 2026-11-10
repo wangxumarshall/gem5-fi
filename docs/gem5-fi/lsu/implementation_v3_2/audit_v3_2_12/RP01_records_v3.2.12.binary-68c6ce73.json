@@ -9,7 +9,7 @@
       "EventOrdinal": "1",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R01",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R01",
       "MissingEvidence": "ORACLE_FILE_MISSING;TRACE_INCOMPLETE;NO_INTERMEDIATE_PROPAGATION_EVENT;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -66,6 +66,17 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": {
+        "source": "lsq_fwd_injections.log",
+        "line": "CHAOS_RP01_WATCHDOG=EXPIRED fired=1 injected=1 eligible=1 tick=7700000000",
+        "expired": true,
+        "fired": "1",
+        "injected": "1",
+        "eligible": "1",
+        "tick": "7700000000"
+      },
       "OracleExpected": null,
       "OracleActual": null,
       "OracleStatus": "absent",
@@ -77,7 +88,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "RP01",
@@ -87,7 +99,7 @@
       "EventOrdinal": "2",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R02",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R02",
       "MissingEvidence": "NO_INTERMEDIATE_PROPAGATION_EVENT;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -143,6 +155,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "59fc61c040618747",
       "OracleActual": "59fc61c040618747",
       "OracleStatus": "ok",
@@ -154,6 +169,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "PARTIAL"
     },
     {
@@ -164,7 +180,7 @@
       "EventOrdinal": "3",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R03",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R03",
       "MissingEvidence": "NO_INTERMEDIATE_PROPAGATION_EVENT;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -220,6 +236,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "59fc61c040618747",
       "OracleActual": "59fc61c040618747",
       "OracleStatus": "ok",
@@ -231,6 +250,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "PARTIAL"
     },
     {
@@ -241,7 +261,7 @@
       "EventOrdinal": "4",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R04",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R04",
       "MissingEvidence": "ORACLE_FILE_MISSING;TRACE_INCOMPLETE;NO_INTERMEDIATE_PROPAGATION_EVENT;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -298,6 +318,17 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": {
+        "source": "lsq_fwd_injections.log",
+        "line": "CHAOS_RP01_WATCHDOG=EXPIRED fired=1 injected=1 eligible=4 tick=7700000000",
+        "expired": true,
+        "fired": "1",
+        "injected": "1",
+        "eligible": "4",
+        "tick": "7700000000"
+      },
       "OracleExpected": null,
       "OracleActual": null,
       "OracleStatus": "absent",
@@ -309,7 +340,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "RP01",
@@ -319,7 +351,7 @@
       "EventOrdinal": "5",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R05",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-R05",
       "MissingEvidence": "ORACLE_FILE_MISSING;TRACE_INCOMPLETE;NO_INTERMEDIATE_PROPAGATION_EVENT;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -376,6 +408,17 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": {
+        "source": "lsq_fwd_injections.log",
+        "line": "CHAOS_RP01_WATCHDOG=EXPIRED fired=1 injected=1 eligible=5 tick=7700000000",
+        "expired": true,
+        "fired": "1",
+        "injected": "1",
+        "eligible": "5",
+        "tick": "7700000000"
+      },
       "OracleExpected": null,
       "OracleActual": null,
       "OracleStatus": "absent",
@@ -387,7 +430,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "RP01",
@@ -397,7 +441,7 @@
       "EventOrdinal": "1",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R01",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R01",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -446,6 +490,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "59fc61c040618747",
       "OracleActual": "59fc61c040618747",
       "OracleStatus": "ok",
@@ -457,6 +504,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     },
     {
@@ -467,7 +515,7 @@
       "EventOrdinal": "2",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R02",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R02",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -516,6 +564,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "59fc61c040618747",
       "OracleActual": "59fc61c040618747",
       "OracleStatus": "ok",
@@ -527,6 +578,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     },
     {
@@ -537,7 +589,7 @@
       "EventOrdinal": "3",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R03",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R03",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -586,6 +638,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "59fc61c040618747",
       "OracleActual": "59fc61c040618747",
       "OracleStatus": "ok",
@@ -597,6 +652,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     },
     {
@@ -607,7 +663,7 @@
       "EventOrdinal": "4",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R04",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R04",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -656,6 +712,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "59fc61c040618747",
       "OracleActual": "59fc61c040618747",
       "OracleStatus": "ok",
@@ -667,6 +726,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     },
     {
@@ -677,7 +737,7 @@
       "EventOrdinal": "5",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "ca15390f1a797c55074703dc3fe10d1e07f7704794a9abca96b2761c41d838f4",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R05",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/RP01-CONTROL-R05",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -726,6 +786,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "59fc61c040618747",
       "OracleActual": "59fc61c040618747",
       "OracleStatus": "ok",
@@ -737,6 +800,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     }
   ]

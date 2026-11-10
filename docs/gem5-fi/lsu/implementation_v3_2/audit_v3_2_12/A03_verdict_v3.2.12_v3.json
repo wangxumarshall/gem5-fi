@@ -9,7 +9,7 @@
       "EventOrdinal": "1",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R01C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R01C",
       "MissingEvidence": "ORACLE_MALFORMED;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -36,7 +36,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08F5\u6301\u7eed\u6761\u4ef6\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": null,
       "AdjudicatedTerminal": "CRASH",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "ORACLE_MALFORMED",
         "NO_REGISTER_WRITEBACK_EVENT",
@@ -66,6 +66,45 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "1456",
+          "event_type": "a03_stream",
+          "dyn_inst_seq": "1014",
+          "fields": {
+            "event_ordinal": "141",
+            "dyn_inst_seq": "1014",
+            "pc": "0",
+            "eligible": "1",
+            "affected": "1",
+            "golden_ea": "ffffffffffb73c58",
+            "actual_ea": "ffffffffffb73c50",
+            "bit": "3",
+            "reason": "STUCK_APPLIED"
+          }
+        }
+      ],
+      "ModelRunRecords": {
+        "a03_activation": {
+          "event_id": "4",
+          "event_type": "a03_activation",
+          "fields": {
+            "tick": "80080",
+            "bit": "3",
+            "mode": "a03_bit3_stuck0_load"
+          }
+        },
+        "simulator_abort": {
+          "event_id": "1471",
+          "event_type": "simulator_abort",
+          "fields": {
+            "page_table_fault_addr": "0xffffffffffb73c50",
+            "last_injection_dyn_seq": "1014",
+            "address_match": "True"
+          }
+        }
+      },
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": null,
       "OracleStatus": "malformed",
@@ -81,7 +120,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A03",
@@ -91,7 +131,7 @@
       "EventOrdinal": "2",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R02C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R02C",
       "MissingEvidence": "ORACLE_MALFORMED;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -118,7 +158,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08F5\u6301\u7eed\u6761\u4ef6\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": null,
       "AdjudicatedTerminal": "CRASH",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "ORACLE_MALFORMED",
         "NO_REGISTER_WRITEBACK_EVENT",
@@ -148,6 +188,45 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "1453",
+          "event_type": "a03_stream",
+          "dyn_inst_seq": "1014",
+          "fields": {
+            "event_ordinal": "141",
+            "dyn_inst_seq": "1014",
+            "pc": "0",
+            "eligible": "1",
+            "affected": "1",
+            "golden_ea": "ffffffffffb73c58",
+            "actual_ea": "ffffffffffb73c50",
+            "bit": "3",
+            "reason": "STUCK_APPLIED"
+          }
+        }
+      ],
+      "ModelRunRecords": {
+        "a03_activation": {
+          "event_id": "23",
+          "event_type": "a03_activation",
+          "fields": {
+            "tick": "197890",
+            "bit": "3",
+            "mode": "a03_bit3_stuck0_load"
+          }
+        },
+        "simulator_abort": {
+          "event_id": "1468",
+          "event_type": "simulator_abort",
+          "fields": {
+            "page_table_fault_addr": "0xffffffffffb73c50",
+            "last_injection_dyn_seq": "1014",
+            "address_match": "True"
+          }
+        }
+      },
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": null,
       "OracleStatus": "malformed",
@@ -163,7 +242,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A03",
@@ -173,7 +253,7 @@
       "EventOrdinal": "3",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R03C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R03C",
       "MissingEvidence": "ORACLE_MALFORMED;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -200,7 +280,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08F5\u6301\u7eed\u6761\u4ef6\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": null,
       "AdjudicatedTerminal": "CRASH",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "ORACLE_MALFORMED",
         "NO_REGISTER_WRITEBACK_EVENT",
@@ -230,6 +310,45 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "1445",
+          "event_type": "a03_stream",
+          "dyn_inst_seq": "1014",
+          "fields": {
+            "event_ordinal": "141",
+            "dyn_inst_seq": "1014",
+            "pc": "0",
+            "eligible": "1",
+            "affected": "1",
+            "golden_ea": "ffffffffffb73c58",
+            "actual_ea": "ffffffffffb73c50",
+            "bit": "3",
+            "reason": "STUCK_APPLIED"
+          }
+        }
+      ],
+      "ModelRunRecords": {
+        "a03_activation": {
+          "event_id": "24",
+          "event_type": "a03_activation",
+          "fields": {
+            "tick": "204820",
+            "bit": "3",
+            "mode": "a03_bit3_stuck0_load"
+          }
+        },
+        "simulator_abort": {
+          "event_id": "1460",
+          "event_type": "simulator_abort",
+          "fields": {
+            "page_table_fault_addr": "0xffffffffffb73c50",
+            "last_injection_dyn_seq": "1014",
+            "address_match": "True"
+          }
+        }
+      },
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": null,
       "OracleStatus": "malformed",
@@ -245,7 +364,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A03",
@@ -255,7 +375,7 @@
       "EventOrdinal": "4",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R04C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R04C",
       "MissingEvidence": "ORACLE_MALFORMED;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -282,7 +402,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08F5\u6301\u7eed\u6761\u4ef6\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": null,
       "AdjudicatedTerminal": "CRASH",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "ORACLE_MALFORMED",
         "NO_REGISTER_WRITEBACK_EVENT",
@@ -312,6 +432,45 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "1440",
+          "event_type": "a03_stream",
+          "dyn_inst_seq": "1014",
+          "fields": {
+            "event_ordinal": "141",
+            "dyn_inst_seq": "1014",
+            "pc": "0",
+            "eligible": "1",
+            "affected": "1",
+            "golden_ea": "ffffffffffb73c58",
+            "actual_ea": "ffffffffffb73c50",
+            "bit": "3",
+            "reason": "STUCK_APPLIED"
+          }
+        }
+      ],
+      "ModelRunRecords": {
+        "a03_activation": {
+          "event_id": "102",
+          "event_type": "a03_activation",
+          "fields": {
+            "tick": "517440",
+            "bit": "3",
+            "mode": "a03_bit3_stuck0_load"
+          }
+        },
+        "simulator_abort": {
+          "event_id": "1455",
+          "event_type": "simulator_abort",
+          "fields": {
+            "page_table_fault_addr": "0xffffffffffb73c50",
+            "last_injection_dyn_seq": "1014",
+            "address_match": "True"
+          }
+        }
+      },
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": null,
       "OracleStatus": "malformed",
@@ -327,7 +486,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A03",
@@ -337,7 +497,7 @@
       "EventOrdinal": "5",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R05C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-R05C",
       "MissingEvidence": "ORACLE_MALFORMED;NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;NO_COMMIT_EVENT",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -364,7 +524,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08F5\u6301\u7eed\u6761\u4ef6\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": null,
       "AdjudicatedTerminal": "CRASH",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "ORACLE_MALFORMED",
         "NO_REGISTER_WRITEBACK_EVENT",
@@ -394,6 +554,45 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "1437",
+          "event_type": "a03_stream",
+          "dyn_inst_seq": "1014",
+          "fields": {
+            "event_ordinal": "141",
+            "dyn_inst_seq": "1014",
+            "pc": "0",
+            "eligible": "1",
+            "affected": "1",
+            "golden_ea": "ffffffffffb73c58",
+            "actual_ea": "ffffffffffb73c50",
+            "bit": "3",
+            "reason": "STUCK_APPLIED"
+          }
+        }
+      ],
+      "ModelRunRecords": {
+        "a03_activation": {
+          "event_id": "109",
+          "event_type": "a03_activation",
+          "fields": {
+            "tick": "518210",
+            "bit": "3",
+            "mode": "a03_bit3_stuck0_load"
+          }
+        },
+        "simulator_abort": {
+          "event_id": "1452",
+          "event_type": "simulator_abort",
+          "fields": {
+            "page_table_fault_addr": "0xffffffffffb73c50",
+            "last_injection_dyn_seq": "1014",
+            "address_match": "True"
+          }
+        }
+      },
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": null,
       "OracleStatus": "malformed",
@@ -409,7 +608,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A03",
@@ -419,7 +619,7 @@
       "EventOrdinal": "1",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-C01C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-C01C",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -468,6 +668,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -479,6 +682,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     },
     {
@@ -489,7 +693,7 @@
       "EventOrdinal": "5",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-C05C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A03-C05C",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -538,6 +742,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -549,6 +756,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     }
   ]

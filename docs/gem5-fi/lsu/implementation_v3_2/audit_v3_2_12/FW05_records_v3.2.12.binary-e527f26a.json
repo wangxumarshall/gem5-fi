@@ -1,0 +1,385 @@
+{
+  "model": "FW05",
+  "records": [
+    {
+      "ModelID": "FW05",
+      "PilotID": "SUPP-FW05-R02",
+      "SampleRunID": "SUPP-FW05-R02",
+      "Seed": "1653118510",
+      "EventOrdinal": "2",
+      "BinarySHA256": "e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed",
+      "WorkloadSHA256": "0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R02",
+      "MissingEvidence": "none",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "VALID",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "COMPLETE",
+      "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY",
+      "FaultCausality": "PROVEN",
+      "ObservedTerminal": "SDC",
+      "ApplicationOracle": "FAIL",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "yes",
+        "consumer_verified": "yes",
+        "commit_verified": "yes",
+        "terminal_verified": "yes",
+        "oracle_verified": "yes"
+      },
+      "SubUnit": "FWD",
+      "FaultDefinition": "Forwarding\u6e90\u9009\u62e9\uff1aLSQUnit::read / CHAOSLSQFwd::maybeSubstituteFW05 / true_src vs alt_src store data",
+      "TerminalReason": "ORACLE_FAIL",
+      "AdjudicatedTerminal": "SDC",
+      "VerifiedChainCount": 0,
+      "MissingCodes": [],
+      "ChainKinds": [
+        "commit",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision",
+        "injection",
+        "lq_lifecycle",
+        "register_writeback"
+      ],
+      "ChainEventCount": 2008,
+      "ChainEdgeCount": 2003,
+      "InjectionSeq": "12093",
+      "InjectionPC": "400564",
+      "InjectionTick": "15975575",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "forwarding_decision",
+      "EarliestAnomalyEventID": "5045",
+      "WritebackValueFnv": "a06ea71be9c5aa88",
+      "ConsumerInputFnv": "a06ea71be9c5aa88",
+      "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": null,
+      "CommitSeq": "5797",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
+      "OracleExpected": "67afad307642983e",
+      "OracleActual": "549c9e0347adaf23",
+      "OracleStatus": "ok",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=12093"
+        },
+        {
+          "stage": "forwarding_decision",
+          "event_id": "5045"
+        },
+        {
+          "stage": "register_writeback",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "consumer_commit",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "commit",
+          "event_id": "NULL"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "LIFECYCLE_ONLY"
+    },
+    {
+      "ModelID": "FW05",
+      "PilotID": "SUPP-FW05-R03",
+      "SampleRunID": "SUPP-FW05-R03",
+      "Seed": "2442802213",
+      "EventOrdinal": "3",
+      "BinarySHA256": "e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed",
+      "WorkloadSHA256": "0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R03",
+      "MissingEvidence": "none",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "VALID",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "COMPLETE",
+      "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY",
+      "FaultCausality": "PROVEN",
+      "ObservedTerminal": "SDC",
+      "ApplicationOracle": "FAIL",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "yes",
+        "consumer_verified": "yes",
+        "commit_verified": "yes",
+        "terminal_verified": "yes",
+        "oracle_verified": "yes"
+      },
+      "SubUnit": "FWD",
+      "FaultDefinition": "Forwarding\u6e90\u9009\u62e9\uff1aLSQUnit::read / CHAOSLSQFwd::maybeSubstituteFW05 / true_src vs alt_src store data",
+      "TerminalReason": "ORACLE_FAIL",
+      "AdjudicatedTerminal": "SDC",
+      "VerifiedChainCount": 0,
+      "MissingCodes": [],
+      "ChainKinds": [
+        "commit",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision",
+        "injection",
+        "lq_lifecycle",
+        "register_writeback"
+      ],
+      "ChainEventCount": 2007,
+      "ChainEdgeCount": 2002,
+      "InjectionSeq": "12128",
+      "InjectionPC": "400564",
+      "InjectionTick": "15983275",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "forwarding_decision",
+      "EarliestAnomalyEventID": "5060",
+      "WritebackValueFnv": "141ad82d6cd5f32f",
+      "ConsumerInputFnv": "141ad82d6cd5f32f",
+      "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": null,
+      "CommitSeq": "5816",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
+      "OracleExpected": "67afad307642983e",
+      "OracleActual": "549c9e0347adaf25",
+      "OracleStatus": "ok",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=12128"
+        },
+        {
+          "stage": "forwarding_decision",
+          "event_id": "5060"
+        },
+        {
+          "stage": "register_writeback",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "consumer_commit",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "commit",
+          "event_id": "NULL"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "LIFECYCLE_ONLY"
+    },
+    {
+      "ModelID": "FW05",
+      "PilotID": "SUPP-FW05-R04",
+      "SampleRunID": "SUPP-FW05-R04",
+      "Seed": "899944922",
+      "EventOrdinal": "4",
+      "BinarySHA256": "e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed",
+      "WorkloadSHA256": "0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R04",
+      "MissingEvidence": "none",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "VALID",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "COMPLETE",
+      "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY",
+      "FaultCausality": "PROVEN",
+      "ObservedTerminal": "SDC",
+      "ApplicationOracle": "FAIL",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "yes",
+        "consumer_verified": "yes",
+        "commit_verified": "yes",
+        "terminal_verified": "yes",
+        "oracle_verified": "yes"
+      },
+      "SubUnit": "FWD",
+      "FaultDefinition": "Forwarding\u6e90\u9009\u62e9\uff1aLSQUnit::read / CHAOSLSQFwd::maybeSubstituteFW05 / true_src vs alt_src store data",
+      "TerminalReason": "ORACLE_FAIL",
+      "AdjudicatedTerminal": "SDC",
+      "VerifiedChainCount": 0,
+      "MissingCodes": [],
+      "ChainKinds": [
+        "commit",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision",
+        "injection",
+        "lq_lifecycle",
+        "register_writeback"
+      ],
+      "ChainEventCount": 2006,
+      "ChainEdgeCount": 2001,
+      "InjectionSeq": "12163",
+      "InjectionPC": "400564",
+      "InjectionTick": "15990975",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "forwarding_decision",
+      "EarliestAnomalyEventID": "5073",
+      "WritebackValueFnv": "fe9b431f6a056432",
+      "ConsumerInputFnv": "fe9b431f6a056432",
+      "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": null,
+      "CommitSeq": "5835",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
+      "OracleExpected": "67afad307642983e",
+      "OracleActual": "549c9e0347adaf27",
+      "OracleStatus": "ok",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=12163"
+        },
+        {
+          "stage": "forwarding_decision",
+          "event_id": "5073"
+        },
+        {
+          "stage": "register_writeback",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "consumer_commit",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "commit",
+          "event_id": "NULL"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "LIFECYCLE_ONLY"
+    },
+    {
+      "ModelID": "FW05",
+      "PilotID": "SUPP-FW05-R05",
+      "SampleRunID": "SUPP-FW05-R05",
+      "Seed": "2836530945",
+      "EventOrdinal": "5",
+      "BinarySHA256": "e527f26af7c2661995f456a2c96695ff6b366d5d787351172947ed259fad04ed",
+      "WorkloadSHA256": "0cf405092e33882750aee31fc43e96752a311ec25c4bd6762b09faff39f5b1cf",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-FW05-R05",
+      "MissingEvidence": "none",
+      "SupplementaryOf": null,
+      "RecordIntegrity": "VALID",
+      "TraceCompleteness": "COMPLETE",
+      "StructuralChainCompleteness": "COMPLETE",
+      "FaultEffectPropagationCoverage": "LIFECYCLE_ONLY",
+      "FaultCausality": "PROVEN",
+      "ObservedTerminal": "SDC",
+      "ApplicationOracle": "FAIL",
+      "InjectionVerified": "yes",
+      "ActivationVerified": "yes",
+      "Stages": {
+        "injection_verified": "yes",
+        "activation_verified": "yes",
+        "early_anomaly_verified": "yes",
+        "intermediate_propagation_verified": "yes",
+        "register_writeback_verified": "yes",
+        "consumer_verified": "yes",
+        "commit_verified": "yes",
+        "terminal_verified": "yes",
+        "oracle_verified": "yes"
+      },
+      "SubUnit": "FWD",
+      "FaultDefinition": "Forwarding\u6e90\u9009\u62e9\uff1aLSQUnit::read / CHAOSLSQFwd::maybeSubstituteFW05 / true_src vs alt_src store data",
+      "TerminalReason": "ORACLE_FAIL",
+      "AdjudicatedTerminal": "SDC",
+      "VerifiedChainCount": 0,
+      "MissingCodes": [],
+      "ChainKinds": [
+        "commit",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision",
+        "injection",
+        "lq_lifecycle",
+        "register_writeback"
+      ],
+      "ChainEventCount": 2005,
+      "ChainEdgeCount": 2000,
+      "InjectionSeq": "12198",
+      "InjectionPC": "400564",
+      "InjectionTick": "15998675",
+      "ActivationStatus": "TRIGGERED",
+      "InjectionCount": "1",
+      "EarliestAnomalyType": "forwarding_decision",
+      "EarliestAnomalyEventID": "5086",
+      "WritebackValueFnv": "5b96aecb6003c639",
+      "ConsumerInputFnv": "5b96aecb6003c639",
+      "ConsumerSourceLinked": true,
+      "MemoryResponseAssociation": null,
+      "WritebackAssociation": null,
+      "CommitSeq": "5854",
+      "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
+      "OracleExpected": "67afad307642983e",
+      "OracleActual": "549c9e0347adaf19",
+      "OracleStatus": "ok",
+      "PathFragments": [
+        {
+          "stage": "injection",
+          "event_id": "seq=12198"
+        },
+        {
+          "stage": "forwarding_decision",
+          "event_id": "5086"
+        },
+        {
+          "stage": "register_writeback",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "consumer_commit",
+          "event_id": "NULL"
+        },
+        {
+          "stage": "commit",
+          "event_id": "NULL"
+        }
+      ],
+      "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "LIFECYCLE_ONLY"
+    }
+  ]
+}

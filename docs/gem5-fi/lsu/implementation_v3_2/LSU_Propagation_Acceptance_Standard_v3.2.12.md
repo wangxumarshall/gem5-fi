@@ -6,7 +6,11 @@ masking exception — recorded through this standard's own revise,
 never-silently-fold path; no other section changed. **Amended again
 2026-11-10** (SQ grading closure) with §6 clause 3c and §11 — exceptions E2
 (SQ01), E3 (SQ03) and E4 (SP05), the SQ-family model-record chain exceptions
-— through the same revise path; no other section changed. This document is
+— through the same revise path; no other section changed. **Amended a third
+time 2026-11-11** (final terminal-grading closure) with §6 clause 3d and
+§12 — exceptions E5 (RP01), E6 (A03) and E7 (A01), the model-scoped terminal
+exceptions, plus §12.5 the keyed frozen prior-audit import — through the
+same revise path; no other section changed. This document is
 the single authority for every
 propagation verdict in the v3.2.12 closure round. Later tasks cite it instead of
 redefining verdicts. No status matrix or Excel cell may ever be hand-set to a
@@ -177,7 +181,10 @@ See §6 for the fixed determination order. The five values:
   runtime-proven LQ04 senderState masking chain (model-scoped, §10); or, per
   exceptions E2/E3/E4 (§6 clause 3c, §11), a runtime-proven SQ-family
   model-record chain (model-scoped to SQ01/SQ03/SP05, §11) corroborated in
-  two or more distinct contexts under §4.
+  two or more distinct contexts under §4; or, per exceptions E5/E6/E7
+  (§6 clause 3d, §12), a runtime-proven terminal exception chain
+  (model-scoped to RP01/A03/A01, §12) corroborated in two or more distinct
+  contexts under §4.
 - `VERIFIED_SINGLE_CONTEXT` — a verified complete causal chain in exactly one
   context (§4); never upgraded without a second verified context.
 - `LIFECYCLE_ONLY` — the injection triggered and its lifecycle/structural path
@@ -358,6 +365,21 @@ the only path to a verdict — a matrix or Excel cell may never override it.
    down. The exceptions upgrade no other model, and a record missing any
    §11 condition follows rules 4/5 exactly as before — no upgrade on
    inference alone.
+3d. **Exceptions E5/E6/E7 — the model-scoped terminal exceptions →
+   complete verdict / `PARTIAL`** (model-scoped to RP01/A03/A01, frozen
+   amendment 2026-11-11, §12). Unlike 3b/3c these sit BEFORE rule 1's
+   integrity gates, because each names the integrity state it relaxes
+   (E5: `RecordIntegrity=TRUNCATED` with `TraceCompleteness=INCOMPLETE`;
+   E6: the TRUNCATED crash-cut record; E7's discard companion: the
+   honestly-UNRESOLVED terminal). An RP01, A03 or A01 record whose §12
+   conjunction of proven runtime records holds grades a complete verdict —
+   §4 applies unchanged, exactly as for E2/E3/E4 — with the
+   `TerminalMechanism` of §12 named; an A01 discard-context record grades
+   `PARTIAL` (§1.8: real on-chain evidence, the discard naming the missing
+   link), never `UNRESOLVED` and never a complete verdict. The exceptions
+   upgrade no other model, change no field's honest value, and a record
+   missing any §12 condition follows rules 1–5 exactly as before — no
+   upgrade on inference alone.
 4. **Internal-only change → `LIFECYCLE_ONLY`.**
    `FaultEffectPropagationCoverage=LIFECYCLE_ONLY` with a structurally complete
    lifecycle observation: the injection triggered, the chain executed, nothing
@@ -378,7 +400,12 @@ Invariants (violations are defects; the writer must reject them loudly):
   `PARTIAL` or `UNRESOLVED`.
 - `COMPLETE_CAUSAL_CHAIN` and `VERIFIED_SINGLE_CONTEXT` require
   `RecordIntegrity=VALID`, `TraceCompleteness=COMPLETE`,
-  `StructuralChainCompleteness=COMPLETE` and `FaultCausality=PROVEN`.
+  `StructuralChainCompleteness=COMPLETE` and `FaultCausality=PROVEN` —
+  except where a frozen amendment names the exact integrity state its
+  model-scoped exception relaxes (§12: E5's TRUNCATED/INCOMPLETE watchdog
+  record, E6's TRUNCATED crash-cut record, E6/E7's structural PARTIAL crash
+  chain and E7's unproven-by-assertion causality on the direct-match
+  branches); every other complete verdict obeys this invariant unchanged.
 - `LIFECYCLE_ONLY` requires a TRIGGERED injection and
   `StructuralChainCompleteness=COMPLETE` — a partially observed chain cannot
   prove that nothing diverged.
@@ -746,6 +773,221 @@ conjunction (a matrix or report may quote them but never set them):
 `MaskingMechanism` (§10.4) is unchanged and stays `NOT_APPLICABLE` for
 E2/E3/E4 records: E3's visibility mechanism is named by `ChainMechanism`,
 and E1 remains the only source of a masking mechanism.
+
+---
+
+## 12. Exceptions E5/E6/E7 — the model-scoped terminal exceptions, and §12.5 the frozen prior-audit import (frozen amendment, 2026-11-11)
+
+This section uses the standard's own "revise, never silently fold" path
+(the same path §10 and §11 used): the amendment is recorded explicitly,
+with its authority and its exact conditions, and
+`tools/lsu_12model_closure.py` computes it from proven runtime records —
+no matrix, Excel cell, or report may apply it by hand.
+
+### 12.1 The authority (binding)
+
+The binding evidence is the v3.2.12 final-binary rerun round and the RP01
+Task 15 execution, frozen in this repo:
+
+- `audit_v3_2_12/A01_A03_Rerun_NodePresence_DataDelta_v3.2.12.md` — the
+  first vintage carrying the `a01_ea` / `a01_ea_discarded` /
+  `a01_golden_resp` / `a01_consumed` / `a03_activation` / `a03_stream`
+  records and the crash-attribution table (panic fault VA vs on-chain
+  actual EA: A03 **DIRECT_ADDRESS_MATCH 5/5**; A01 R01
+  TEMPORAL_ASSOCIATION_ONLY);
+- `audit_v3_2_12/RP01_Task15_Evidence_v3.2.12.md` and
+  `audit_v3_2_12/RP01_verdict_v3.2.12.json` — the three watchdog-fatal HANG
+  pilots (R01/R04/R05: `CHAOS_RP01_WATCHDOG=EXPIRED fired=1 injected=1`,
+  `FaultCausality=PROVEN` through the identity-linked `replay` marker,
+  retained partial traces of 25779/27213/27385 readable rows) and the two
+  P5-discard SQUASHED pilots (R02/R03, `fault_caused=0`);
+- the v3.2.12 closure round's own verdict-class findings: the RP01 HANG
+  pilots capped at `UNRESOLVED` **only** because `RecordIntegrity=TRUNCATED`
+  (prep concern C2, recorded not papered over), the A03 crashes capped at
+  `UNRESOLVED` by the same truncation plus the off-chain abort node, and
+  the A01 wrong-EA MASKED contexts capped at `LIFECYCLE_ONLY` because the
+  generic `value_divergence` analysis has no reference value for the
+  correct address (§8 A01/A03 note) — the exact under-reporting §3/T4 and
+  §11.2 already identified for model-specific evidence.
+
+### 12.2 Why exceptions are needed
+
+Rule 1 forces `UNRESOLVED` for `RecordIntegrity=TRUNCATED` and
+`TraceCompleteness ∈ {MISSING, INCOMPLETE}` before any chain question is
+asked. Three proven-mechanism terminal shapes of the v3.2.12 round are
+truncated **by their own mechanism**: the RP01 watchdog `fatal` cuts the gz
+stream after the hang it proves; the A03 page-table panic cuts the trace at
+the faulting load whose on-chain `a03_stream` record carries the
+panic-matching actual EA; the A01 discard context ends with no writeback
+because the corrupted EA never reached a request — an honestly-UNRESOLVED
+terminal whose missing link the on-chain `a01_ea_discarded` record names.
+And the A01 wrong-EA MASKED contexts (R02C/R04C/R05C) carry complete,
+identity-linked, hash-verified chains (response → writeback → consumer →
+commit, `a01_consumed.input_hash == writeback_value_fnv ==
+consumer_input_fnv`) that the generic effect analysis cannot credit because
+it has no golden-EA reference in-band. In all four shapes the causal
+attribution rests on runtime records the standard already recognizes
+(§2/§3); the exceptions stop the integrity gate — or, for E7's MASKED
+branch, the generic coverage value — from forcing the classification down
+over evidence the chain itself carries.
+
+### 12.3 The rules (deterministic, model-scoped)
+
+The tool fires an exception only when ALL conditions of its conjunction
+hold; every condition is a proven runtime record (trace node detail,
+run-harness sidecar line or platform-graded field) — **no upgrade on
+inference**. Shared shape: the record's `ModelID` is the rule's own model
+(each exception upgrades no other model); the injection is verified and
+activated; and an INVALID record stream is never excepted (only the TRUNCATED
+shape §12.2 names is relaxed).
+
+**E5 — RP01, mechanism `REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT:**
+all of
+
+1. `ModelID = RP01`; `ObservedTerminal ∈ {HANG, TIMEOUT}`;
+2. `InjectionVerified`/`ActivationVerified` = yes and
+   `FaultCausality = PROVEN` — proven through the identity-linked
+   replay/skip record on the fault's own chain (`replay` or `rp01_skip`
+   among the chain kinds; §2 identity, the `_HANG_EVIDENCE_KINDS` line);
+3. the run-harness watchdog record exists: the pilot sidecar
+   `lsq_fwd_injections.log` (fallback `stdout.log`) carries the
+   `CHAOS_RP01_WATCHDOG=EXPIRED` line with `injected=1`, parsed verbatim
+   into the record's `RP01Watchdog` field;
+4. the partial trace is retained (at least one chain event survived the
+   fatal cut);
+5. `RecordIntegrity ≠ INVALID`.
+
+Then the record grades a complete verdict (§4 applies unchanged) with
+`ObservedTerminal=HANG/TIMEOUT` and the mechanism named, **even though
+`RecordIntegrity=TRUNCATED` and `TraceCompleteness=INCOMPLETE`** — both
+fields keep their honest platform values. A SQUASHED RP01 run never fires
+E5: the unproven squash stays below a complete verdict (§5, the frozen
+v3.2.11 line) unless the squash trigger is identity-linked.
+
+**E6 — A03, mechanism `STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH`:** all of
+
+1. `ModelID = A03`; `ObservedTerminal = CRASH`;
+   `InjectionVerified`/`ActivationVerified` = yes; `RecordIntegrity ≠
+   INVALID`;
+2. the F5 activation record is present (run-level `a03_activation`) and at
+   least one `a03_stream` record sits on the fault's own chain;
+3. the `simulator_abort` node records a real panic page-table fault VA;
+4. **the identity-linked DIRECT_ADDRESS_MATCH**: the panic VA equals the
+   `actual_ea` of an on-chain `a03_stream` record with `affected=1`, and
+   the abort's `last_injection_dyn_seq` equals that record's
+   `dyn_inst_seq` (when the abort records it) — the crashing load is the
+   F5-affected load of the fault's own chain.
+
+Then the record grades a complete verdict with `ObservedTerminal=CRASH`
+and the mechanism named, even though the crash cut the record
+(`RecordIntegrity=TRUNCATED`; the structural chain stays PARTIAL because
+the panic is the terminal). A crash whose panic VA matches nothing on the
+chain stays UNRESOLVED under rule 1.
+
+**E7 — A01, mechanism `WRONG_EA_LOAD_DELIVERED_AND_CONSUMED`, and its
+discard companion:** the wrong-EA chain fires when all of
+
+1. `ModelID = A01`; `InjectionVerified`/`ActivationVerified` = yes;
+2. the on-chain `a01_ea` record proves a wrong EA: `golden_ea != actual_ea`
+   (both real) and `affected=1`;
+3. either (MASKED branch) `ObservedTerminal = MASKED` with the §6 invariant
+   set (VALID/COMPLETE/structurally COMPLETE/`FaultCausality=PROVEN`), an
+   on-chain `memory_response`, a verified `register_writeback`, the §3
+   platform data rule on the consumer edge
+   (`WritebackValueFnv == ConsumerInputFnv`, both real), and the on-chain
+   `a01_consumed` record whose `input_hash` equals that same writeback
+   hash; or (CRASH branch) `ObservedTerminal = CRASH` with the panic VA
+   equal to the on-chain `a01_ea` `actual_ea` (the direct match;
+   `RecordIntegrity ≠ INVALID`).
+
+The discard companion fires when `ModelID = A01`,
+`ObservedTerminal = UNRESOLVED`, the injection is verified/activated, and
+the on-chain `a01_ea_discarded` record carries `applied_to_request=0` (the
+runtime proof the corrupted EA never reached a Request): the record grades
+`PARTIAL` (§1.8 — real on-chain evidence, the discard naming the missing
+link), never `UNRESOLVED` and never a complete verdict. A
+temporal-association-only A01 crash (panic VA not equal to the on-chain
+actual EA, e.g. the R01C panic VA 0) fires nothing and stays UNRESOLVED.
+
+When any condition of a §12.3 conjunction fails, the record follows rules
+1–5 exactly as before. E5/E6/E7 change no field's honest value: coverage,
+integrity and completeness keep what the platform graded; the exceptions
+only stop those values from forcing the classification down.
+
+### 12.4 Relation to §4 and the record fields
+
+E5/E6/E7 sit at the rule-2 terminal layer and do **not** bypass §4: the
+conjunction establishes the complete-chain predicate and the context count
+decides the value exactly as for every generic complete verdict (the §11.4
+mechanism). Each proven terminal exception is one verified complete chain
+(`VerifiedChainCount ≥ 1` when it fires). For the v3.2.12 final-binary
+evidence this yields: RP01 — three distinct frozen HANG contexts (ordinals
+1/4/5); A03 — five distinct frozen CRASH contexts (ordinals 1–5); A01 —
+three distinct frozen wrong-EA MASKED contexts (R02C/R04C/R05C); so each
+model row upgrades to `COMPLETE_CAUSAL_CHAIN` under the ≥2-context rule,
+while the R02/R03 squashes stay `PARTIAL`, the R03C discard context stays
+`PARTIAL` and the R01C temporal-only crash stays `UNRESOLVED`.
+
+§12 adds three record fields, emitted by the tool from the same §12.3
+conjunction (a matrix or report may quote them but never set them):
+
+- `TerminalMechanism ∈ {REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT,
+  STUCK_EA_PANIC_VA_DIRECT_ADDRESS_MATCH,
+  WRONG_EA_LOAD_DELIVERED_AND_CONSUMED, NOT_APPLICABLE}` — the former
+  exactly when the model's E5/E6/E7 complete conjunction fires, the latter
+  otherwise (including every other model and the E7 discard companion);
+- `ModelStreamRecords` / `ModelRunRecords` — the model's own stream records
+  on the fault's own chain (a01_ea / a01_ea_discarded / a01_consumed /
+  a03_stream, with their detail fields) and the run-level records that
+  carry no chain identity (a03_activation, simulator_abort), exported
+  verbatim by the audit tool's evidence bundle;
+- `RP01Watchdog` — the parsed `CHAOS_RP01_WATCHDOG=EXPIRED` sidecar record
+  (source, raw line, fired/injected/tick) or `null` when no expired line
+  exists.
+
+### 12.5 The keyed frozen prior-audit import (DA04/LP01/MD04/FW05)
+
+The frozen v3.2.11 eleven-model audit already verified the four models
+DA04, LP01, MD04 and FW05 per pilot
+(`audit_v3_2_11/<MODEL>_verdict.json`; `LSU_11Model_Propagation_Audit_
+Summary_v3.2.11.md`: "Four models have a verified fault-effect propagation
+chain: DA04, LP01, MD04, FW05"). Those pilots are **not re-graded by the
+generic classifier**: the v3.2.12 generic rules would only under-report
+them (§3/T4 — the model-specific divergence records the generic
+`value_divergence` analysis does not bind; the raw-oracle gap §8/T3).
+
+The closure tool's `frozen` subcommand imports a prior audit's per-pilot
+verdicts as closure records, **keyed by (model, binary SHA, evidence
+path)**, and the key is enforced loudly:
+
+- the supplied `--model` key must equal the verdict file's own model;
+- every imported pilot must carry a 64-hex `binary_sha` and a non-empty
+  `evidence_path` — an incomplete key is refused;
+- `--binary-sha`, when given, imports only the pilots recorded under that
+  binary, and a key the file carries no pilot under is refused — the import
+  can never bend the key to reach another binary's verdicts;
+- the imported record carries the prior verdict **verbatim**
+  (`FinalClassification` = the prior classification; `ObservedTerminal` /
+  `ApplicationOracle` = the prior terminal/oracle; the prior stages and
+  rule name) plus the `PriorAudit` provenance tag; the four §1 fields the
+  prior audit did not record per pilot (`RecordIntegrity`,
+  `TraceCompleteness`, `StructuralChainCompleteness`,
+  `FaultEffectPropagationCoverage`, `FaultCausality`) are the literal
+  `NULL` — never fabricated, never re-derived.
+
+`matrix`/`features` accept the frozen JSONs via `--frozen-prior`; a frozen
+group supersedes the generic records of the **same** (model, binary) key
+only — the prior audit already verified that group, so the generic records
+are excluded with a loud note, never merged — and every other binary's
+records are untouched: a frozen import can never silently override a
+different binary (the §6 invariant that verdicts are never computed across
+binaries). For the v3.2.12 closure this carries: LP01 5/5 COMPLETE
+(`0de25644…`), MD04 3/5 COMPLETE (R02/R03/R05; R01/R04 squash-causality
+unproven), FW05 4/5 COMPLETE (R02–R05; R01 squash-causality unproven,
+`8377c011…`), DA04 2/5 COMPLETE — the two complete contexts R04/R05 under
+the verified `0de25644…` binary; the five frozen contexts of the older
+`3e9148fc…` vintage carry their prior PARTIAL/LIFECYCLE_ONLY verdicts under
+their own key.
 
 ---
 

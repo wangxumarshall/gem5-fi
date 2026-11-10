@@ -256,10 +256,20 @@ def test_control_trace_without_bridge_has_no_injection(tmp_path):
 # ---------------------------------------------------------------------------
 
 def _write_pilot(tmp_path, *, observed="HANG", truncated=False,
-                  oracle_outcome="NOT_APPLICABLE", run_status="TIMEOUT"):
+                  oracle_outcome="NOT_APPLICABLE", run_status="TIMEOUT",
+                  watchdog=True):
     pilot = tmp_path / "RP01-R01"
     pilot.mkdir(parents=True)
-    log = _write_log(pilot / "stdout.log", SYNTHETIC_LOG)
+    if watchdog:
+        log_text = SYNTHETIC_LOG
+    else:
+        # the same run without the watchdog records: the RP01_SKIP_REPLAY
+        # line (the bridge's only requirement) stays, the two
+        # CHAOS_RP01_WATCHDOG lines are dropped
+        log_text = "\n".join(
+            line for line in SYNTHETIC_LOG.splitlines()
+            if "CHAOS_RP01_WATCHDOG" not in line) + "\n"
+    log = _write_log(pilot / "stdout.log", log_text)
     out = pilot / "trace_v31.jsonl"
     csv = _write_csv(pilot / "prop_trace.csv.gz", _replay_rows())
     if truncated:
@@ -335,10 +345,19 @@ def test_bridged_hang_pilot_record_is_proven(tmp_path):
 
 def test_bridged_truncated_hang_stays_hang_with_proven_chain(tmp_path):
     """The watchdog-fatal shape (prep concern C2): the retained partial
-    trace is truncated, so RecordIntegrity=TRUNCATED and the
-    FinalClassification honestly caps at UNRESOLVED — but the ObservedTerminal
-    stays HANG, the bridged chain stays PROVEN and the record is never
-    MASKED."""
+    trace is truncated, so RecordIntegrity=TRUNCATED and
+    TraceCompleteness=INCOMPLETE — but the ObservedTerminal stays HANG,
+    the bridged chain stays PROVEN and the record is never MASKED.
+
+    Amended with standard §12 exception E5 (frozen amendment 2026-11-11):
+    when the run-harness watchdog record is present (the
+    CHAOS_RP01_WATCHDOG=EXPIRED injected=1 line of the same stdout.log),
+    this exact shape — proven identity-linked replay, retained partial
+    trace, watchdog EXPIRED — grades VERIFIED_SINGLE_CONTEXT with
+    TerminalMechanism=REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT even
+    though the integrity fields stay TRUNCATED/INCOMPLETE.  Without the
+    watchdog record the honest pre-E5 cap still binds: the identical
+    truncated record grades UNRESOLVED."""
     pilot = _write_pilot(tmp_path, truncated=True)
     record = build_pilot_record(pilot, "RP01", binary_sha=SHA)
     assert record["ObservedTerminal"] == "HANG"
@@ -347,8 +366,27 @@ def test_bridged_truncated_hang_stays_hang_with_proven_chain(tmp_path):
     assert record["RecordIntegrity"] == "TRUNCATED"
     assert record["TraceCompleteness"] == "INCOMPLETE"
     assert "TRACE_INCOMPLETE" in record["MissingCodes"]
-    assert record["FinalClassification"] == "UNRESOLVED"
+    # exception E5 fires on the full conjunction; the integrity fields keep
+    # their honest values and the terminal is never relabelled
+    assert record["RP01Watchdog"]["expired"] is True
+    assert record["RP01Watchdog"]["injected"] == "1"
+    assert record["TerminalMechanism"] == (
+        "REPLAY_TRIGGER_SUPPRESSED_WATCHDOG_TIMEOUT")
+    assert record["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
     assert record["ObservedTerminal"] != "MASKED"
+
+    # the same truncated shape WITHOUT the watchdog record: no E5 evidence,
+    # the honest rule-1 cap still binds
+    no_watchdog = _write_pilot(tmp_path / "no_watchdog", truncated=True,
+                               watchdog=False)
+    capped = build_pilot_record(no_watchdog, "RP01", binary_sha=SHA)
+    assert capped["ObservedTerminal"] == "HANG"
+    assert capped["FaultCausality"] == "PROVEN"
+    assert capped["RecordIntegrity"] == "TRUNCATED"
+    assert capped["RP01Watchdog"] is None
+    assert capped["TerminalMechanism"] == "NOT_APPLICABLE"
+    assert capped["FinalClassification"] == "UNRESOLVED"
+    assert capped["ObservedTerminal"] != "MASKED"
 
 
 def test_bridged_external_timeout_records_timeout_never_masked(tmp_path):

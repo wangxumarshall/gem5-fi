@@ -9,7 +9,7 @@
       "EventOrdinal": "1",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R01C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R01C",
       "MissingEvidence": "ORACLE_MALFORMED",
       "SupplementaryOf": null,
       "RecordIntegrity": "TRUNCATED",
@@ -69,6 +69,49 @@
       "WritebackAssociation": null,
       "CommitSeq": "5",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "5",
+          "event_type": "a01_ea",
+          "dyn_inst_seq": "5",
+          "fields": {
+            "fault_id": "1",
+            "dyn_inst_seq": "5",
+            "pc": "400790",
+            "golden_ea": "7ffffefd90",
+            "actual_ea": "7ffffefd98",
+            "xor_delta": "8",
+            "bit": "3",
+            "access_size": "8",
+            "affected": "1",
+            "request_va": "7ffffefd98",
+            "fault_va": "NOT_APPLICABLE"
+          }
+        },
+        {
+          "event_id": "23",
+          "event_type": "a01_consumed",
+          "dyn_inst_seq": "5",
+          "fields": {
+            "dyn_inst_seq": "5",
+            "consumer_seq": "25",
+            "consumer_kind": "register_source",
+            "input_hash": "f971edcd05e4ccc2"
+          }
+        }
+      ],
+      "ModelRunRecords": {
+        "simulator_abort": {
+          "event_id": "1011",
+          "event_type": "simulator_abort",
+          "fields": {
+            "page_table_fault_addr": "0",
+            "last_injection_dyn_seq": "5",
+            "address_match": "False"
+          }
+        }
+      },
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": null,
       "OracleStatus": "malformed",
@@ -96,6 +139,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     },
     {
@@ -106,7 +150,7 @@
       "EventOrdinal": "2",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R02C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R02C",
       "MissingEvidence": "none",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -133,7 +177,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08\u552f\u4e00\u6b63\u5f0fHook\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "a01_consumed",
@@ -164,6 +208,39 @@
       "WritebackAssociation": null,
       "CommitSeq": "44",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "23",
+          "event_type": "a01_ea",
+          "dyn_inst_seq": "48",
+          "fields": {
+            "fault_id": "1",
+            "dyn_inst_seq": "48",
+            "pc": "400ad0",
+            "golden_ea": "7ffffefda8",
+            "actual_ea": "7ffffefda0",
+            "xor_delta": "8",
+            "bit": "3",
+            "access_size": "8",
+            "affected": "1",
+            "request_va": "7ffffefda0",
+            "fault_va": "NOT_APPLICABLE"
+          }
+        },
+        {
+          "event_id": "38",
+          "event_type": "a01_consumed",
+          "dyn_inst_seq": "48",
+          "fields": {
+            "dyn_inst_seq": "48",
+            "consumer_seq": "50",
+            "consumer_kind": "register_source",
+            "input_hash": "a8c7f832281a39c5"
+          }
+        }
+      ],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -191,7 +268,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "TerminalMechanism": "WRONG_EA_LOAD_DELIVERED_AND_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A01",
@@ -201,7 +279,7 @@
       "EventOrdinal": "3",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R03C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R03C",
       "MissingEvidence": "NO_REGISTER_WRITEBACK_EVENT;NO_CONSUMER_EDGE;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -259,6 +337,70 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "44",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "24",
+          "event_type": "a01_ea",
+          "dyn_inst_seq": "48",
+          "fields": {
+            "fault_id": "1",
+            "dyn_inst_seq": "48",
+            "pc": "400ad0",
+            "golden_ea": "7ffffefda8",
+            "actual_ea": "7ffffefda0",
+            "xor_delta": "8",
+            "bit": "3",
+            "access_size": "8",
+            "affected": "1",
+            "request_va": "7ffffefda0",
+            "fault_va": "NOT_APPLICABLE"
+          }
+        },
+        {
+          "event_id": "25",
+          "event_type": "a01_ea_discarded",
+          "dyn_inst_seq": "48",
+          "fields": {
+            "fault_id": "1",
+            "dyn_inst_seq": "48",
+            "pc": "400ad0",
+            "golden_ea": "7ffffefda8",
+            "actual_ea": "7ffffefda0",
+            "xor_delta": "8",
+            "bit": "3",
+            "access_size": "8",
+            "affected": "1",
+            "request_va": "7ffffefda0",
+            "fault_va": "NOT_APPLICABLE",
+            "applied_to_request": "0",
+            "discard_reason": "saved_request_reuse"
+          }
+        },
+        {
+          "event_id": "33",
+          "event_type": "a01_golden_resp",
+          "dyn_inst_seq": "48",
+          "fields": {
+            "family": "a01_golden",
+            "golden_ea": "7ffffefda8",
+            "size": "8",
+            "data_len": "8",
+            "data_fnv": "a8c7f832281a39c5",
+            "data_hex": "0000000000000000",
+            "request_id": "14",
+            "request_tick": "197890",
+            "response_tick": "205590",
+            "lq_entry_id": "2",
+            "entry_generation": "2",
+            "execution_attempt_id": "2",
+            "replay_generation": "0",
+            "pa": "7eda8",
+            "reference_only": "1"
+          }
+        }
+      ],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -278,7 +420,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "UNRESOLVED"
+      "TerminalMechanism": "NOT_APPLICABLE",
+      "FinalClassification": "PARTIAL"
     },
     {
       "ModelID": "A01",
@@ -288,7 +431,7 @@
       "EventOrdinal": "4",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R04C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R04C",
       "MissingEvidence": "none",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -315,7 +458,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08\u552f\u4e00\u6b63\u5f0fHook\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "a01_consumed",
@@ -347,6 +490,39 @@
       "WritebackAssociation": null,
       "CommitSeq": "126",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "103",
+          "event_type": "a01_ea",
+          "dyn_inst_seq": "245",
+          "fields": {
+            "fault_id": "1",
+            "dyn_inst_seq": "245",
+            "pc": "40c0f0",
+            "golden_ea": "7ffffefdb0",
+            "actual_ea": "7ffffefdb8",
+            "xor_delta": "8",
+            "bit": "3",
+            "access_size": "8",
+            "affected": "1",
+            "request_va": "7ffffefdb8",
+            "fault_va": "NOT_APPLICABLE"
+          }
+        },
+        {
+          "event_id": "132",
+          "event_type": "a01_consumed",
+          "dyn_inst_seq": "245",
+          "fields": {
+            "dyn_inst_seq": "245",
+            "consumer_seq": "250",
+            "consumer_kind": "register_source",
+            "input_hash": "1505defdf2164c5b"
+          }
+        }
+      ],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -374,7 +550,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "TerminalMechanism": "WRONG_EA_LOAD_DELIVERED_AND_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A01",
@@ -384,7 +561,7 @@
       "EventOrdinal": "5",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R05C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-R05C",
       "MissingEvidence": "none",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -411,7 +588,7 @@
       "FaultDefinition": "AGU EA\u8f93\u51fa\u2192LSQ pushRequest\u5165\u53e3\uff08\u552f\u4e00\u6b63\u5f0fHook\uff09 / pushRequest addr (Addr 64)",
       "TerminalReason": "TARGET_COMMITTED_DATA_VALUE_PRESENT",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "a01_consumed",
@@ -442,6 +619,39 @@
       "WritebackAssociation": null,
       "CommitSeq": "134",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [
+        {
+          "event_id": "109",
+          "event_type": "a01_ea",
+          "dyn_inst_seq": "253",
+          "fields": {
+            "fault_id": "1",
+            "dyn_inst_seq": "253",
+            "pc": "40c110",
+            "golden_ea": "7ffffefdb8",
+            "actual_ea": "7ffffefdb0",
+            "xor_delta": "8",
+            "bit": "3",
+            "access_size": "8",
+            "affected": "1",
+            "request_va": "7ffffefdb0",
+            "fault_va": "NOT_APPLICABLE"
+          }
+        },
+        {
+          "event_id": "127",
+          "event_type": "a01_consumed",
+          "dyn_inst_seq": "253",
+          "fields": {
+            "dyn_inst_seq": "253",
+            "consumer_seq": "254",
+            "consumer_kind": "register_source",
+            "input_hash": "987468c2d70edbd5"
+          }
+        }
+      ],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -469,7 +679,8 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "TerminalMechanism": "WRONG_EA_LOAD_DELIVERED_AND_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "A01",
@@ -479,7 +690,7 @@
       "EventOrdinal": "1",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-C01C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-C01C",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -528,6 +739,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -539,6 +753,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     },
     {
@@ -549,7 +764,7 @@
       "EventOrdinal": "2",
       "BinarySHA256": "68c6ce737a95747e5f35be06fea160b4f461baead2c0b4d85cf900c4d047e4e8",
       "WorkloadSHA256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b",
-      "EvidencePath": "docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-C02C",
+      "EvidencePath": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/pilots_v3_2_12/SUPP-A01-C02C",
       "MissingEvidence": "NO_INJECTION_EVENT;TERMINAL_UNRESOLVED",
       "SupplementaryOf": null,
       "RecordIntegrity": "VALID",
@@ -598,6 +813,9 @@
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
       "ModelRuleRecord": null,
+      "ModelStreamRecords": [],
+      "ModelRunRecords": {},
+      "RP01Watchdog": null,
       "OracleExpected": "728e604ffcec539d",
       "OracleActual": "728e604ffcec539d",
       "OracleStatus": "ok",
@@ -609,6 +827,7 @@
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
       "ChainMechanism": "NOT_APPLICABLE",
+      "TerminalMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     }
   ]
