@@ -754,6 +754,41 @@ namespace gem5
                       request_id, true, v, true, 0, false, 0, false, d.str());
         }
 
+        // [LSU][V3.2.12][A01] golden-EA reference interval (A01 audit §4
+        // remedy (a), read-only): the SAME dynamic load's Request covering
+        // the golden EA [golden_ea, golden_ea+access_size) — the reference
+        // request of the DataDelta leg. Observed live in the replay-discard
+        // shape (the reused savedRequest carries the golden vaddr); in the
+        // normal first-attempt shape no golden-EA request exists after the
+        // injection, so nothing is emitted (emit-if-observed, never
+        // fabricated). Reference-only: emitted on the chain's ptag but
+        // never registered in addr_registry, never tainting — a golden hit
+        // must not bind a fault chain or change any verdict.
+        for (auto &kv : a01_registry) {
+            A01Chain &a01ch = kv.second;
+            const chaos_a01::EACoords &gc = a01ch.coords;
+            if (a01ch.golden_req_emitted || gc.xor_delta == 0
+                    || gc.access_size == 0)
+                continue;   // no address divergence to reference
+            if (kv.first != dyn_seq)
+                continue;   // the reference belongs to the faulting load
+            const Addr g_end = gc.golden_ea + gc.access_size;
+            if (v >= g_end || gc.golden_ea >= v_end)
+                continue;   // no overlap with the golden interval
+            std::ostringstream gd;
+            gd << "family=a01_golden;golden_ea=" << std::hex << gc.golden_ea
+               << std::dec
+               << ";size=" << gc.access_size
+               << ";request_id=" << request_id
+               << ";fragment_id=" << fragment_id
+               << ";lq_entry_id=" << lq_idx
+               << ";sq_entry_id=" << sq_idx
+               << ";reference_only=1";
+            writeNode(a01ch.ptag, "a01_golden_req", dyn_seq, true,
+                      request_id, true, v, true, 0, false, 0, false, gd.str());
+            a01ch.golden_req_emitted = true;
+        }
+
         // cache faulted-byte registry: range overlap in the architectural
         // address space. SE note: Syscall Emulation has no MMU/page table, so
         // the CPU presents the virtual address directly to memory; there is
@@ -962,6 +997,80 @@ namespace gem5
                         hit_store_entry = &e;
                         break;
                     }
+                }
+            }
+        }
+        // [LSU][V3.2.12][A01] golden-EA reference response (A01 audit §4
+        // remedy (a), read-only): the SAME dynamic load's response
+        // delivering the GOLDEN EA's data — the reference value R for
+        // the DataDelta leg (fault run's actual-EA response vs. this).
+        // Checked BEFORE the no-hit return on purpose: in the
+        // replay-discard shape (the SUPP-A01-R03 root cause) the reused
+        // savedRequest carries the golden vaddr, no addr_registry hit
+        // exists, and this is the only on-chain copy of what the correct
+        // address delivered. Reference-only: no taint, no pending
+        // writeback, no response_id allocation, no verdict change — the
+        // node merely records the observed golden-EA payload for this
+        // dyn seq (emit once per registered interval).
+        if (pkt->req && pkt->req->hasVaddr()) {
+            const Addr gv = pkt->req->getVaddr();
+            const Addr gv_end = gv + (Addr)pkt->req->getSize();
+            auto a01g = a01_registry.find(inst->seqNum);
+            if (a01g != a01_registry.end()) {
+                A01Chain &a01ch = a01g->second;
+                const chaos_a01::EACoords &gc = a01ch.coords;
+                const Addr g_end = gc.golden_ea + gc.access_size;
+                if (!a01ch.golden_resp_emitted && gc.xor_delta != 0
+                        && gc.access_size != 0
+                        && gv < g_end && gc.golden_ea < gv_end) {
+                    // request identity: same req_meta population the resp
+                    // path below performs (the golden request was seen at
+                    // its own send; a response without any send is not
+                    // possible).
+                    if (pkt->req) {
+                        auto &grm = req_meta[pkt->req.get()];
+                        if (grm.request_id == 0)
+                            grm.request_id = ++next_request_id;
+                        if (grm.fragment_id == 0)
+                            grm.fragment_id = ++next_fragment_id;
+                    }
+                    const uint64_t g_request_id =
+                        req_meta.count(pkt->req.get())
+                            ? req_meta[pkt->req.get()].request_id : 0;
+                    const Tick g_req_tick =
+                        req_meta.count(pkt->req.get())
+                            ? req_meta[pkt->req.get()].request_tick : 0;
+                    const unsigned g_data_len =
+                        pkt->hasData() ? pkt->getSize() : 0;
+                    const std::string g_data_fnv = g_data_len
+                        ? fnvHex(pkt->getPtr<uint8_t>(), g_data_len) : "";
+                    const std::string g_data_hex = g_data_len
+                        ? bytesToHex(pkt->getPtr<uint8_t>(), g_data_len) : "";
+                    std::ostringstream gd;
+                    gd << "family=a01_golden"
+                       << ";golden_ea=" << std::hex << gc.golden_ea
+                       << std::dec
+                       << ";size=" << pkt->req->getSize()
+                       << ";data_len=" << g_data_len
+                       << ";data_fnv="
+                       << (g_data_len ? g_data_fnv : "null")
+                       << ";data_hex="
+                       << (g_data_hex.empty() ? "null" : g_data_hex)
+                       << ";request_id=" << g_request_id
+                       << ";request_tick=" << g_req_tick
+                       << ";response_tick=" << curTick()
+                       << ";lq_entry_id=" << inst->lqIdx
+                       << ";entry_generation="
+                       << (inst->isLoad() ? inst->lqEntryGeneration
+                                          : inst->sqEntryGeneration)
+                       << ";execution_attempt_id=" << inst->executionAttemptId
+                       << ";replay_generation=" << inst->replayGeneration
+                       << ";pa=" << std::hex << pkt->getAddr() << std::dec
+                       << ";reference_only=1";
+                    writeNode(a01ch.ptag, "a01_golden_resp", inst->seqNum,
+                              true, g_request_id, g_request_id != 0, gv, true,
+                              0, false, 0, false, gd.str());
+                    a01ch.golden_resp_emitted = true;
                 }
             }
         }
@@ -1868,6 +1977,67 @@ namespace gem5
         writeNode(ptag, "a01_consumed", c.dyn_inst_seq, true, 0, false,
                   0, false, 0, false, 0, false,
                   chaos_a01::consumedDetail(c));
+    }
+
+    void
+    CHAOSPropagation::noteA01EADiscarded(uint64_t ptag,
+                                         const chaos_a01::EACoords &c)
+    {
+        // [LSU][V3.2.12][A01] replay-discard coverage node (A01 audit §3
+        // remedy, read-only): the PRE hook injected, but this pushRequest
+        // took the savedRequest reuse branch (inst->translationStarted()),
+        // so the corrupted by-value EA never reached a Request — no
+        // memory chain at the actual EA can exist and the load served the
+        // golden EA (the SUPP-A01-R03 silent-absence root cause). The node
+        // converts that structural absence into an honest on-chain fact;
+        // the formation-time a01_ea node and the frozen eaDetail format
+        // stay byte-identical (the discard fields are appended here only).
+        if (!write_log)
+            return;
+        writeNode(ptag, "a01_ea_discarded", c.dyn_inst_seq, true, 0, false,
+                  c.actual_ea, true, 0, false, 0, false,
+                  chaos_a01::eaDetail(c)
+                      + ";applied_to_request=0"
+                      + ";discard_reason=saved_request_reuse");
+    }
+
+    uint64_t
+    CHAOSPropagation::noteA03Activation(uint64_t ptag,
+                                        const chaos_a03::Activation &a)
+    {
+        // [LSU][V3.2.12][A03] the F5 activation record (A03 audit §1
+        // remedy): {tick, bit, mode} via the frozen activationDetail —
+        // one node per run. The recorder already rejects a second
+        // activation (counted, never silent); this sink-side emit-once
+        // guard covers the call site, which sees a03Activated() true on
+        // every later staged stream row too. ptag = the activation load's
+        // chain ptag (0 when that application was ALREADY_STUCK — no
+        // injection; the ptag=0 "not bound to one chain" convention).
+        if (!write_log || a03_activation_emitted)
+            return 0;
+        a03_activation_emitted = true;
+        writeNode(ptag, "a03_activation", 0, false, 0, false, 0, false,
+                  0, false, 0, false, chaos_a03::activationDetail(a));
+        return ptag;
+    }
+
+    void
+    CHAOSPropagation::noteA03Stream(uint64_t ptag,
+                                     const chaos_a03::StreamEvent &e)
+    {
+        // [LSU][V3.2.12][A03] one a03_stream node per fired eligible load
+        // (the sink of the staged record). detail = exactly the nine
+        // contracted fields via the frozen streamDetail (one formatter,
+        // no drift vs. the A03_STREAM log line); addr column = actual_ea
+        // and dyn_inst_seq column = e.dyn_inst_seq (the a01_ea
+        // convention). ptag = this load's chain ptag when the application
+        // changed the EA (STUCK_APPLIED — registered by the lsq.cc call
+        // site), 0 for the ALREADY_STUCK no-change path.
+        if (!write_log)
+            return;
+        writeNode(ptag, "a03_stream", e.dyn_inst_seq, true, 0, false,
+                  e.actual_ea, true, 0, false, 0, false,
+                  chaos_a03::streamDetail(e));
     }
 
     void

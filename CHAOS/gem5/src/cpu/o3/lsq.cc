@@ -802,9 +802,39 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // CHAOSPropagation is the only prop-trace writer).
         if (cpu->chaosPropagation &&
             cpu->chaosAddrPathPre->a01EAStaged()) {
-            cpu->chaosPropagation->noteA01EA(
-                a01_ptag, cpu->chaosAddrPathPre->stagedA01EA());
+            const chaos_a01::EACoords &a01_staged_ea =
+                cpu->chaosAddrPathPre->stagedA01EA();
+            cpu->chaosPropagation->noteA01EA(a01_ptag, a01_staged_ea);
+            // [LSU][V3.2.12][A01] replay-discard coverage node: the hook
+            // injected, but this pushRequest will take the savedRequest
+            // reuse branch below (translationStarted() already true), so
+            // the corrupted by-value addr is discarded before any Request
+            // is built and the load serves the saved (golden) EA — no
+            // memory chain at the actual EA can exist. Emit the honest
+            // on-chain fact instead of leaving the absence silent
+            // (read-only; the a01_ea node above is unchanged).
+            if (inst->translationStarted())
+                cpu->chaosPropagation->noteA01EADiscarded(a01_ptag,
+                                                          a01_staged_ea);
             cpu->chaosAddrPathPre->clearStagedA01EA();
+        }
+        // [LSU][V3.2.12][A03] the staged F5 eligibility-stream records →
+        // the sink (single-writer discipline; the a01_ea contract): one
+        // a03_activation node per run (the emit-once guard is sink-side)
+        // and one a03_stream node per fired eligible load, then clear the
+        // staged flag. ptag = this load's chain ptag when its application
+        // changed the EA (STUCK_APPLIED → registered above); 0 for the
+        // ALREADY_STUCK no-change path (ptag=0 = not bound to one chain).
+        // Read-only observation only — A03's F5 fault semantics are
+        // unchanged.
+        if (cpu->chaosPropagation &&
+            cpu->chaosAddrPathPre->a03StreamStaged()) {
+            if (cpu->chaosAddrPathPre->a03Activated())
+                cpu->chaosPropagation->noteA03Activation(
+                    a01_ptag, cpu->chaosAddrPathPre->a03ActivationRecord());
+            cpu->chaosPropagation->noteA03Stream(
+                a01_ptag, cpu->chaosAddrPathPre->stagedA03Stream());
+            cpu->chaosAddrPathPre->clearStagedA03Stream();
         }
     }
 

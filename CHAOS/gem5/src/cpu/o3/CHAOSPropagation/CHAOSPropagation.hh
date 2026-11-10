@@ -136,6 +136,7 @@
 #include "cpu/base.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/o3/CHAOSAddrPath/a01_coords.hh"  // [LSU][V3.2.12][A01]
+#include "cpu/o3/CHAOSAddrPath/a03_stream.hh"  // [LSU][V3.2.12][A03]
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class DynInst; } }
@@ -398,6 +399,25 @@ class CHAOSPropagation : public SimObject
     // consumer edge (the emit-once guard, consumed_emitted, lives at the
     // noteCommit anchor).
     void noteA01Consumed(uint64_t ptag, const chaos_a01::Consumed &c);
+    // [LSU][V3.2.12][A01] replay-discard coverage node (A01 audit §3 remedy):
+    // the hook injected, but the pushRequest took the savedRequest reuse
+    // branch (inst->translationStarted()), so the corrupted by-value EA never
+    // reached a Request and no memory chain at the actual EA can exist —
+    // the a01_ea_discarded node (detail: the frozen eaDetail + applied_to_
+    // request=0 + discard_reason) converts that silent structural absence
+    // into an on-chain fact. Read-only; the a01_ea node stays unchanged.
+    void noteA01EADiscarded(uint64_t ptag, const chaos_a01::EACoords &c);
+    // [LSU][V3.2.12][A03] the F5 stream sink (A03 audit §1 remedy): the
+    // activation record (a03_activation, {tick,bit,mode} via the frozen
+    // activationDetail — one per run; the recorder already rejects a
+    // second activation, and the sink-side emit-once guard below covers
+    // the call site, which sees a03Activated() on every later staged row)
+    // and one a03_stream node per fired eligible load (the frozen nine
+    // contracted fields via streamDetail). ptag = that load's chain ptag
+    // (0 = the ALREADY_STUCK no-change path / tracer disabled — the
+    // ptag=0 "not bound to one chain" convention). Return: the ptag used.
+    uint64_t noteA03Activation(uint64_t ptag, const chaos_a03::Activation &a);
+    void noteA03Stream(uint64_t ptag, const chaos_a03::StreamEvent &e);
 
     // SP05 (v3.2.9): injection ptag per target store, reused by completion.
     std::unordered_map<uint64_t, uint64_t> sp05_ptag;
@@ -620,14 +640,31 @@ class CHAOSPropagation : public SimObject
 
     // [LSU][V3.2.12][A01] key: the faulting load's dyn_inst_seq (lq04_registry
     // precedent). Holds the joined ptag, the staged record (completed with
-    // the fault VA by noteA01FaultVA) and the emit-once flag for the
-    // first-consumer (a01_consumed) node.
+    // the fault VA by noteA01FaultVA) and the emit-once flags for the
+    // first-consumer (a01_consumed) node and the golden-EA reference
+    // observation nodes (a01_golden_req / a01_golden_resp below).
     struct A01Chain {
         uint64_t ptag = 0;
         chaos_a01::EACoords coords;
         bool consumed_emitted = false;
+        // [LSU][V3.2.12][A01] golden-EA reference observation (A01 audit §4
+        // remedy (a), read-only): coords already carries the golden interval
+        // [golden_ea, golden_ea+access_size) — registered at injection time
+        // with the record itself. noteMemRequest/noteMemResponse emit the
+        // reference nodes when the SAME dyn seq's Request/response covers
+        // the golden EA (the replay-discard path: the reused savedRequest
+        // still carries the golden vaddr) — the reference value R for the
+        // DataDelta leg, recorded in the fault run. Reference-only: no
+        // addr_registry entry, no taint, no pending writeback, no verdict
+        // change — a golden hit never binds a fault chain.
+        bool golden_req_emitted = false;
+        bool golden_resp_emitted = false;
     };
     std::map<uint64_t, A01Chain> a01_registry;
+
+    // [LSU][V3.2.12][A03] sink-side emit-once guard for the a03_activation
+    // node (the recorder-side guard lives in chaos_a03::StreamRecorder).
+    bool a03_activation_emitted = false;
 
     struct ChainWbEntry {
         uint64_t ptag = 0;
