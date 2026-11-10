@@ -874,6 +874,14 @@ namespace gem5
             last_fwd_ptag = prop->registerInjection(
                 "lsq_fwd_decision", load_seq, vaddr, vaddr,
                 true, size, size);
+            // v3.2.12 (task 9): the dedicated fw02_decision record
+            // {load_seq, store_seq, normal_decision, fault_decision,
+            // memory_path, replay_count}. Read-only: reports the decision
+            // that was just made (suppressed -> the load takes the memory
+            // path); changes no state.
+            if (last_fwd_ptag)
+                prop->noteFW02Decision(last_fwd_ptag, load_seq, store_seq,
+                                       vaddr, size);
         }
         DPRINTF(LSQUnit,
                 "CHAOSFW02: suppress forwarding load_sn:%llu store_sn:%llu "

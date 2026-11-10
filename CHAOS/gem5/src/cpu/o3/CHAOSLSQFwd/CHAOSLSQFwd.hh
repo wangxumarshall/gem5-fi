@@ -11,6 +11,8 @@
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
 #include "cpu/o3/CHAOSLSQFwd/da04_byte_enable.hh"  // LSU v3.2.4 DA04
 #include "cpu/o3/CHAOSLSQFwd/fw05_rules.hh"        // LSU v3.2.7 FW05
+#include "cpu/o3/CHAOSLSQFwd/fw02_rules.hh"        // LSU v3.2.12 FW02
+#include "cpu/o3/CHAOSLSQFwd/sq01_rules.hh"        // LSU v3.2.12 SQ01
 #include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"        // LSU v3.2.7 SQ03
 #include "cpu/o3/CHAOSLSQFwd/sp05_rules.hh"        // LSU v3.2.9 SP05
 #include "base/statistics.hh"

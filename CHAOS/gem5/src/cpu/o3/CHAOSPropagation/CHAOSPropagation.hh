@@ -262,7 +262,15 @@ class CHAOSPropagation : public SimObject
     // Real LSQ lifecycle events. These are called only from actual
     // reschedule/squash sites, never inferred from ptag order.
     void noteReplay(o3::DynInst *inst, const char *reason);
-    void noteSquash(o3::DynInst *inst, const char *reason);
+    // v3.2.12 (task 9): triggering_seq is the squash boundary — the
+    // squashed_num argument of LSQUnit::squash(), i.e. the youngest
+    // surviving instruction; everything younger is squashed. 0 (the default
+    // the pre-wiring call sites fall back to) means "not recorded". The
+    // squash_reason record carries it and the causality verdict comes from
+    // chaos_fw02::classifySquash (standard §5: a proven fault-caused squash
+    // needs the boundary to BE the faulting instruction).
+    void noteSquash(o3::DynInst *inst, const char *reason,
+                    uint64_t triggering_seq = 0);
 
     // Store-to-load forwarding decision. ptag=0 for an unfaulted normal
     // forward; the FW02 injection passes its registered ptag so the
@@ -272,6 +280,20 @@ class CHAOSPropagation : public SimObject
                         const uint8_t *store_data, unsigned store_size,
                         const uint8_t *fwd_data, unsigned fwd_size,
                         bool suppressed, bool memory_path);
+
+    // FW02 (v3.2.12 task 9): the dedicated fw02_decision record
+    // {load_seq, store_seq, normal_decision, fault_decision, memory_path,
+    // replay_count} written at the suppression point (read-only; the
+    // decision itself was already made by CHAOSLSQFwd). replay_count is the
+    // number of trace-recorded replays of load_seq so far (noteReplay
+    // counting; a replay before the load became fault-tracked is not on the
+    // chain and is not counted).
+    void noteFW02Decision(uint64_t ptag, uint64_t load_seq,
+                          uint64_t store_seq, Addr vaddr, unsigned size);
+
+    // v3.2.12: replay count observed (and recorded) for a dynamic
+    // instruction's seq — 0 when none.
+    uint64_t replayCount(uint64_t dyn_seq) const;
 
     // LP01 (LSU v3.2.5): a load-response data fault at completeDataAccess.
     // `before` is the payload copied before the XOR; the packet already holds
@@ -391,6 +413,17 @@ class CHAOSPropagation : public SimObject
     // Lazy expiry sweep (called on insert/lookup; registries are tiny).
     void sweepExpired();
 
+    // v3.2.12 (tasks 11/12/13): consolidated read-only chain records.
+    // emitChainRecord writes the sq01_chain / sq03_effect / sp05_stage node
+    // for one registered fault store (family dispatch inside);
+    // writeDeferredChainRecords is called from the exit callback BEFORE
+    // gzclose so stores whose chain never closed (no reload / no consumer)
+    // still get their honest record with the absent fields null.
+    struct FaultStoreEntry;            // defined below
+    void emitChainRecord(uint64_t dyn_seq);
+    void writeDeferredChainRecords();
+    FaultStoreEntry *faultStoreByPtag(uint64_t ptag);
+
     BaseCPU *cpu;
     o3::CPU *o3cpu = nullptr;      // resolved at startup(); nullptr = disabled
     std::string trace_file;        // simout.resolve target (.gz, self-managed)
@@ -423,6 +456,8 @@ class CHAOSPropagation : public SimObject
     std::map<const Request *, RequestMeta> req_meta;
     std::set<uint64_t> fault_seqs;   // dynamic insts that received a fault
     std::set<uint64_t> replay_seqs;  // dynamic insts observed to replay
+    // v3.2.12: per-seq replay counter feeding fw02_decision.replay_count.
+    std::map<uint64_t, uint64_t> replay_count_by_seq;
     std::map<uint64_t, uint64_t> resp_node_by_ptag;
     std::map<uint64_t, std::string> resp_hash_by_ptag;
 
@@ -463,7 +498,8 @@ class CHAOSPropagation : public SimObject
         uint64_t gen = 0;
         Addr byte_begin = 0;      // affected byte range [begin, end)
         Addr byte_end = 0;
-        const char *family = "store";   // "byte_enable" | "store_data"
+        const char *family = "store";   // "byte_enable" | "store_data" |
+                                        // "sq03_canwb" | "sp05_complete"
         std::string old_mask;
         std::string new_mask;
         std::string data_fnv;
@@ -471,6 +507,20 @@ class CHAOSPropagation : public SimObject
         Tick registered = 0;
         Tick written_tick = 0;     // actual cache write applied
         bool overwritten = false;  // a different store rewrote the byte
+
+        // v3.2.12 read-only chain-record assembly (tasks 11/12/13). These
+        // fields only feed the consolidated sq01_chain / sq03_effect /
+        // sp05_stage trace nodes; they never gate an injection.
+        uint8_t data_byte_before = 0;  // SQ01: entry byte0 at injection
+        uint8_t data_byte_after = 0;   // SQ01: after the bit3 flip
+        Tick store_commit_tick = 0;    // the store's own architectural commit
+        Tick complete_tick = 0;        // SQ entry completed (completeStore)
+        Tick resource_reuse_tick = 0;  // SQ slot idx reallocated (reuse)
+        uint64_t reload_seq = 0;       // first reload bound to this chain
+        std::string reload_hash;      // that reload's response data hash
+        uint64_t consumer_seq = 0;     // first verified consumer edge
+        std::string consumer_hash;    // its verified input hash
+        bool chain_record_emitted = false;
     };
     std::map<uint64_t, FaultStoreEntry> fault_store_registry;
 

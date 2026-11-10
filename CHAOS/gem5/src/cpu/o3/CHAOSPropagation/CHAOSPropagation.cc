@@ -15,6 +15,14 @@
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
 #include "cpu/o3/CHAOSPropagation/store_chain_rules.hh"
 
+// v3.2.12 propagation-closure round: pure, host-testable per-model rules
+// (tests/test_fw02_decision.cc, test_sq01_chain.cc, test_sq03_effect.cc,
+// test_sp05_stage.cc compile these same headers with plain g++).
+#include "cpu/o3/CHAOSLSQFwd/fw02_rules.hh"   // FW02 decision/squash rules
+#include "cpu/o3/CHAOSLSQFwd/sq01_rules.hh"    // SQ01 chain grading
+#include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"    // SQ03 effect grading
+#include "cpu/o3/CHAOSLSQFwd/sp05_rules.hh"    // SP05 stage grading
+
 #include <cstring>
 #include <sstream>
 #include <string>
@@ -74,8 +82,16 @@ namespace gem5
             // measurement; CHAOSProbe exit-callback precedent). Aborted runs
             // never get here: they keep the Z_SYNC_FLUSH-ed truncated
             // stream, which tools/lsu_l3_propagation.py salvages.
+            // v3.2.12: BEFORE closing, emit the deferred consolidated chain
+            // records (sq01_chain / sq03_effect / sp05_stage) for fault
+            // stores whose chain never closed — no reload, no consumer — so
+            // the honest no-downstream-effect terminal exists on the trace.
+            // This callback is registered FIRST, so anything registered
+            // later still runs after the close; all deferred records must
+            // be written here, inside this callback, before gzclose.
             registerExitCallback([this]() {
                 if (gz_file) {
+                    writeDeferredChainRecords();
                     gzclose(gz_file);
                     gz_file = nullptr;
                 }
@@ -442,6 +458,10 @@ namespace gem5
         e.byte_end = vaddr + 1;   // SQ01 corrupts data[0] (lowest byte)
         e.family = "store_data";
         e.registered = curTick();
+        // v3.2.12: byte0 before/after feed the sq01_chain record's
+        // data_before/data_after (the divergence evidence, brief task 11).
+        e.data_byte_before = old_byte;
+        e.data_byte_after = new_byte;
         fault_store_registry[dyn_seq] = e;
     }
 
@@ -519,7 +539,7 @@ namespace gem5
         auto it = fault_store_registry.find(dyn_seq);
         if (it == fault_store_registry.end())
             return;
-        const FaultStoreEntry &e = it->second;
+        FaultStoreEntry &e = it->second;
         const uint64_t fnv = data ? fnv1a64(data, size) : 0;
         std::ostringstream d;
         d << "site=lsq_writebackStores;family=" << e.family
@@ -536,6 +556,14 @@ namespace gem5
           << ";addr=0x" << std::hex << vaddr << std::dec;
         writeNode(e.ptag, "store_wb", dyn_seq, true, 0, false,
                   vaddr, true, 0, false, 0, false, d.str());
+        // v3.2.12 (task 11): the drained bytes ARE the corrupted bytes —
+        // this hash is the sq01_chain record's mem_write_hash (the hash of
+        // the store data as it left the SQ, i.e. hash(data_after)).
+        if (data && std::string(e.family) == "store_data") {
+            std::ostringstream fh;
+            fh << std::hex << fnv << std::dec;
+            e.data_fnv = fh.str();
+        }
     }
 
     void
@@ -653,6 +681,18 @@ namespace gem5
           << ";generation=" << gen << ";reason=" << reason;
         writeNode(0, "sq_lifecycle", dyn_seq, true, 0, false, 0, false,
                   idx, true, 0, false, d.str());
+        // v3.2.12 (task 12): a completed fault store's SQ slot reallocated
+        // to a later store — sq03_effect.resource_reuse_tick (the
+        // resource-release observable; the "reuse" action is emitted by
+        // LSQUnit::insertStore when the idx was allocated before).
+        if (std::string(action) == "reuse") {
+            for (auto &kv : fault_store_registry) {
+                FaultStoreEntry &e = kv.second;
+                if (e.idx == idx && e.complete_tick != 0
+                        && e.resource_reuse_tick == 0)
+                    e.resource_reuse_tick = curTick();
+            }
+        }
     }
 
     // ------------------------------------------------------------ pipeline
@@ -748,10 +788,19 @@ namespace gem5
                 // store write (written_tick == 0 or later tick): otherwise a
                 // load whose only recorded sends precede the write leaves no
                 // request-time evidence at all.
-                const bool candidate = e.written_tick != 0
+                // v3.2.12 (task 13): for an SP05 lost write there IS no
+                // written_tick (the send was skipped); the candidate rule is
+                // then "completed-without-send, not overwritten, younger" —
+                // the same rule noteMemResponse binds the reload with.
+                bool candidate = e.written_tick != 0
                     && chaos_store_chain::mayConsumeFaultByte(
                         dyn_seq, e.dyn_seq, e.overwritten, e.written_tick,
                         rm.last_send_tick);
+                if (!candidate && std::string(e.family) == "sp05_complete"
+                        && e.complete_tick != 0 && e.written_tick == 0
+                        && !e.overwritten && dyn_seq > e.dyn_seq) {
+                    candidate = true;
+                }
                 std::ostringstream sd;
                 sd << "site=" << site << ";family=" << e.family
                    << ";candidate=" << (candidate ? 1 : 0)
@@ -853,11 +902,12 @@ namespace gem5
                 }
             }
         }
-        // store family (DA04 byte-enable / SQ01 store data): a LOAD whose
-        // request range covers the faulted byte observes the store's
-        // architectural effect. Use the Request VA/size (Packet::getAddr is
-        // block-aligned and its size is not the access size). Store responses
-        // are excluded (their dyn seq is the store's).
+        // store family (DA04 byte-enable / SQ01 store data / SQ03 canWB): a
+        // LOAD whose request range covers the faulted byte observes the
+        // store's architectural effect. Use the Request VA/size
+        // (Packet::getAddr is block-aligned and its size is not the access
+        // size). Store responses are excluded (their dyn seq is the store's).
+        FaultStoreEntry *hit_store_entry = nullptr;
         if (!hit_ptag && !pkt->isWrite() && inst->isLoad() && pkt->req &&
                 pkt->req->hasVaddr()) {
             const Addr a = pkt->req->getVaddr();
@@ -870,8 +920,8 @@ namespace gem5
             const Tick send_tick =
                 (pkt->req && req_meta.count(pkt->req.get()))
                     ? req_meta[pkt->req.get()].last_send_tick : 0;
-            for (const auto &kv : fault_store_registry) {
-                const FaultStoreEntry &e = kv.second;
+            for (auto &kv : fault_store_registry) {
+                FaultStoreEntry &e = kv.second;
                 // The last send is the attempt whose response we are seeing.
                 if (!chaos_store_chain::mayConsumeFaultByte(
                         inst->seqNum, e.dyn_seq, e.overwritten,
@@ -880,12 +930,55 @@ namespace gem5
                 if (a < e.byte_end && e.byte_begin < a_end) {
                     hit_ptag = e.ptag;
                     hit_family = e.family;
+                    hit_store_entry = &e;
                     break;
+                }
+            }
+            // SP05 (v3.2.12 task 13): the fault store's cache write was
+            // SKIPPED (completed without being sent), so written_tick stays
+            // 0 and mayConsumeFaultByte can never match — by design, there
+            // is no write to order against. A younger load whose range covers
+            // the store's address reads whatever memory holds instead of the
+            // store's bytes: bind it to the chain as the observer of the lost
+            // write (the request-time candidate flag in noteMemRequest uses
+            // the same rule). The would-be write tick is unknowable on this
+            // run; the record states the request/response ticks and both
+            // hashes, and the audit compares reload vs. store data.
+            if (!hit_ptag) {
+                for (auto &kv : fault_store_registry) {
+                    FaultStoreEntry &e = kv.second;
+                    if (std::string(e.family) != "sp05_complete")
+                        continue;
+                    if (e.complete_tick == 0 || e.written_tick != 0)
+                        continue;   // not completed-skipped (or a later
+                                    // response wrote it — not this fault)
+                    if (e.overwritten)
+                        continue;   // another store replaced the bytes
+                    if (inst->seqNum <= e.dyn_seq)
+                        continue;   // program order: the load is younger
+                    if (a < e.byte_end && e.byte_begin < a_end) {
+                        hit_ptag = e.ptag;
+                        hit_family = e.family;
+                        hit_store_entry = &e;
+                        break;
+                    }
                 }
             }
         }
         if (!hit_ptag)
             return;
+
+        // v3.2.12 (tasks 11/12/13): remember the first reload bound to a
+        // store-family chain — it feeds the consolidated sq01_chain /
+        // sq03_effect / sp05_stage record (reload_seq + reload_data_hash).
+        // The hash is the same packet bytes the resp node below hashes.
+        if (hit_store_entry && hit_store_entry->reload_seq == 0
+                && std::string(hit_family) != "byte_enable") {
+            const unsigned reload_len = pkt->hasData() ? pkt->getSize() : 0;
+            hit_store_entry->reload_seq = inst->seqNum;
+            hit_store_entry->reload_hash = reload_len
+                ? fnvHex(pkt->getPtr<uint8_t>(), reload_len) : "";
+        }
 
         // resp node: the memory response delivering the fault. Address and
         // data are separate: `addr` is the packet address (PA in this
@@ -1506,6 +1599,11 @@ namespace gem5
         if (it == sq03_registry.end() || it->second.complete_tick != 0)
             return;
         it->second.complete_tick = tick;
+        // v3.2.12: mirror on the shared fault-store entry so the
+        // sq03_effect record carries the completion stage tick.
+        auto fit = fault_store_registry.find(dyn_seq);
+        if (fit != fault_store_registry.end())
+            fit->second.complete_tick = tick;
         std::ostringstream d;
         d << "site=lsq_completeStore;family=sq03;model=SQ03"
           << ";store_seq=" << dyn_seq
@@ -1590,6 +1688,12 @@ namespace gem5
         const uint64_t ptag = pit == sp05_ptag.end() ? 0 : pit->second;
         writeNode(ptag, "sp05_complete", dyn_seq, true, 0, false,
                   0, false, 0, false, 0, false, d.str());
+        // v3.2.12 (task 13): record the completion stage tick on the fault
+        // store entry — sp05_stage.completion_tick. drain_tick stays 0 (the
+        // send was skipped): the honest record of a lost write.
+        auto fit = fault_store_registry.find(dyn_seq);
+        if (fit != fault_store_registry.end())
+            fit->second.complete_tick = tick;
     }
 
     void
@@ -1868,6 +1972,8 @@ namespace gem5
         // final commit/squash can be recorded even when it never received a
         // fault (the replay mechanism pilot).
         replay_seqs.insert(inst->seqNum);
+        // v3.2.12: per-seq replay counter feeding fw02_decision.replay_count.
+        ++replay_count_by_seq[inst->seqNum];
         std::ostringstream d;
         d << "reason=" << reason
           << ";pc=" << std::hex << inst->pcState().instAddr() << std::dec
@@ -1883,14 +1989,34 @@ namespace gem5
     }
 
     void
-    CHAOSPropagation::noteSquash(o3::DynInst *inst, const char *reason)
+    CHAOSPropagation::noteSquash(o3::DynInst *inst, const char *reason,
+                                uint64_t triggering_seq)
     {
         if (!write_log || !inst)
             return;
         if (!replay_all && !fault_seqs.count(inst->seqNum))
             return;
+        // v3.2.12 (task 9): the squash_reason record
+        // {dyn_inst_seq, reason, triggering_seq}. triggering_seq is the
+        // squash boundary (LSQUnit::squash(squashed_num)); 0 = the call
+        // site did not record it (pre-wiring default) and the causality
+        // verdict degrades to fault_victim_unproven per chaos_fw02 rules —
+        // the squash is still recorded, never silently dropped.
+        const bool fault_tracked = fault_seqs.count(inst->seqNum) != 0;
+        const uint64_t fault_seq = fault_tracked ? inst->seqNum : 0;
+        const chaos_fw02::SquashCause cause =
+            chaos_fw02::classifySquash(inst->seqNum, triggering_seq,
+                                       fault_seq);
         std::ostringstream d;
-        d << "reason=" << reason
+        d << "record=squash_reason"
+          << ";dyn_inst_seq=" << inst->seqNum
+          << ";reason=" << reason
+          << ";triggering_seq=" << triggering_seq
+          << ";triggering_seq_recorded=" << (triggering_seq != 0 ? 1 : 0)
+          << ";fault_tracked=" << (fault_tracked ? 1 : 0)
+          << ";squash_cause=" << chaos_fw02::squashCauseName(cause)
+          << ";fault_caused="
+          << (cause == chaos_fw02::SquashCause::FaultCaused ? 1 : 0)
           << ";pc=" << std::hex << inst->pcState().instAddr() << std::dec
           << ";execution_attempt_id=" << inst->executionAttemptId
           << ";replay_generation=" << inst->replayGeneration
@@ -1960,6 +2086,39 @@ namespace gem5
     }
 
     void
+    CHAOSPropagation::noteFW02Decision(uint64_t ptag, uint64_t load_seq,
+                                      uint64_t store_seq, Addr vaddr,
+                                      unsigned size)
+    {
+        // v3.2.12 (task 9): the dedicated fw02_decision record. Read-only:
+        // the decision was made by CHAOSLSQFwd; this node reports it with
+        // the replay count of the suppressed load. memory_path=1 is a
+        // property of the fault definition (a suppressed forward falls
+        // through to the normal memory access, lsq_unit.cc read()).
+        if (!write_log)
+            return;
+        std::ostringstream d;
+        d << "record=fw02_decision;family=fw02;model=FW02"
+          << ";load_seq=" << load_seq
+          << ";store_seq=" << store_seq
+          << ";normal_decision=" << chaos_fw02::normalDecision()
+          << ";fault_decision=" << chaos_fw02::faultDecision(true)
+          << ";memory_path=1"
+          << ";replay_count=" << replayCount(load_seq)
+          << ";vaddr=0x" << std::hex << vaddr << std::dec
+          << ";size=" << size;
+        writeNode(ptag, "fw02_decision", load_seq, true, 0, false,
+                  vaddr, true, 0, false, 0, false, d.str());
+    }
+
+    uint64_t
+    CHAOSPropagation::replayCount(uint64_t dyn_seq) const
+    {
+        auto it = replay_count_by_seq.find(dyn_seq);
+        return it == replay_count_by_seq.end() ? 0 : it->second;
+    }
+
+    void
     CHAOSPropagation::noteCommit(ThreadID tid, o3::DynInst *head_inst)
     {
         if (!write_log || !head_inst)
@@ -1967,6 +2126,17 @@ namespace gem5
 
         ++commit_seq;
         const uint64_t pc = head_inst->pcState().instAddr();
+
+        // v3.2.12 (tasks 11/12/13): a registered fault store's own
+        // architectural commit tick (sq03_effect.commit_tick /
+        // sp05_stage.commit_tick; the sq01_chain store side has no tick
+        // field but the same lookup keeps one code path).
+        {
+            auto fsi = fault_store_registry.find(head_inst->seqNum);
+            if (fsi != fault_store_registry.end()
+                    && fsi->second.store_commit_tick == 0)
+                fsi->second.store_commit_tick = curTick();
+        }
 
         // The fault instruction's own architectural commit is a real node.
         // For FW02 the suppressed load is registered in fault_seqs by
@@ -1991,6 +2161,7 @@ namespace gem5
         uint64_t first_consumed_ptag = 0;
         uint64_t last_consumer_node = 0;
         std::string last_consumer_hash;
+        std::string first_consumer_input_hash;
         bool any_consumer = false;
         bool self_taint = false;
         uint64_t self_taint_ptag = 0;
@@ -2049,6 +2220,11 @@ namespace gem5
             any_consumer = true;
             if (!first_consumed_ptag)
                 first_consumed_ptag = it->second.ptag;
+            // v3.2.12: the FIRST verified consumer edge's input hash — the
+            // consumer_hash of the consolidated chain record (§3: the
+            // verified edge's input hash equals the producer's writeback).
+            if (first_consumer_input_hash.empty())
+                first_consumer_input_hash = ihash;
 
             std::string ohash;
             uint64_t out_phys = 0, out_arch = 0;
@@ -2088,6 +2264,20 @@ namespace gem5
             writeEdgeRow(it->second.ptag, it->second.node_id, consumer_node,
                          it->second.taintor_seq, head_inst->seqNum,
                          it->second.value_hash, ohash, "register_dataflow");
+        }
+
+        // v3.2.12 (tasks 11/12/13): the FIRST verified consumer edge on a
+        // registered fault store's chain closes the consolidated record
+        // (sq01_chain / sq03_effect / sp05_stage) with the consumer hash
+        // filled. A chain that never closes is emitted by the exit callback
+        // with the honest absent fields.
+        if (any_consumer) {
+            FaultStoreEntry *fe = faultStoreByPtag(first_consumed_ptag);
+            if (fe && !fe->chain_record_emitted) {
+                fe->consumer_seq = head_inst->seqNum;
+                fe->consumer_hash = first_consumer_input_hash;
+                emitChainRecord(fe->dyn_seq);
+            }
         }
 
         // Dests: is this the faulting load itself committing its tainted
@@ -2155,6 +2345,171 @@ namespace gem5
                 taint_set.erase(std::make_pair(phys->classValue(),
                                                phys->index()));
             }
+        }
+    }
+
+    // ---------------------------------------------- v3.2.12 chain records
+    // Consolidated read-only records for the SQ01/SQ03/SP05 closure round
+    // (tasks 11/12/13). Each record assembles, from the registries the
+    // tracer itself observed, the brief-defined field set:
+    //   sq01_chain  {store_seq, sq_idx, gen, data_before, data_after,
+    //                mem_write_hash, reload_seq, reload_data_hash,
+    //                consumer_hash}
+    //   sq03_effect {sq_idx, gen, canwb_before, canwb_after, writeback_tick,
+    //                drain_tick, reload_seq, reload_data_hash,
+    //                resource_reuse_tick}
+    //   sp05_stage  {store_seq, completion_tick, commit_tick, writeback_tick,
+    //                drain_tick, reload_seq, reload_data_hash, data_correct}
+    // The verdict mapping is the pure host-tested rule (sq01_rules.hh /
+    // sq03_rules.hh / sp05_rules.hh) — never ad hoc string assembly.
+
+    auto
+    CHAOSPropagation::faultStoreByPtag(uint64_t ptag) -> FaultStoreEntry *
+    {
+        for (auto &kv : fault_store_registry)
+            if (kv.second.ptag == ptag)
+                return &kv.second;
+        return nullptr;
+    }
+
+    void
+    CHAOSPropagation::emitChainRecord(uint64_t dyn_seq)
+    {
+        auto it = fault_store_registry.find(dyn_seq);
+        if (it == fault_store_registry.end())
+            return;
+        FaultStoreEntry &e = it->second;
+        const std::string family(e.family);
+        if (family != "store_data" && family != "sq03_canwb"
+                && family != "sp05_complete")
+            return;   // DA04 keeps its own audit records; nothing else here
+        if (e.chain_record_emitted)
+            return;
+        e.chain_record_emitted = true;
+
+        const std::string mem_hash = e.data_fnv.empty() ? "null" : e.data_fnv;
+        const std::string reload_hash = e.reload_seq != 0
+            ? (e.reload_hash.empty() ? "null" : e.reload_hash) : "null";
+        const std::string consumer_hash = e.consumer_seq != 0
+            ? (e.consumer_hash.empty() ? "null" : e.consumer_hash) : "null";
+
+        if (family == "store_data") {
+            chaos_sq01::Sq01Chain c;
+            c.data_before = e.data_byte_before;
+            c.data_after = e.data_byte_after;
+            c.mem_write_hash = e.data_fnv;
+            c.reload_seq = e.reload_seq;
+            c.reload_data_hash = e.reload_seq ? e.reload_hash : "";
+            c.consumer_hash = e.consumer_seq ? e.consumer_hash : "";
+            const chaos_sq01::ChainVerdict v = chaos_sq01::grade(c);
+            std::ostringstream d;
+            d << "record=sq01_chain;family=store_data;model=SQ01"
+              << ";store_seq=" << e.dyn_seq
+              << ";sq_idx=" << e.idx
+              << ";gen=" << e.gen
+              << ";data_before=0x" << std::hex << (unsigned)c.data_before
+              << ";data_after=0x" << (unsigned)c.data_after << std::dec
+              << ";data_diverged=" << (c.data_after != c.data_before ? 1 : 0)
+              << ";mem_write_hash=" << mem_hash
+              << ";reload_seq=" << e.reload_seq
+              << ";reload_data_hash=" << reload_hash
+              << ";consumer_seq=" << e.consumer_seq
+              << ";consumer_hash=" << consumer_hash
+              << ";chain_verdict=" << chaos_sq01::verdictName(v);
+            writeNode(e.ptag, "sq01_chain", e.dyn_seq, true, 0, false,
+                      e.base, true, 0, false, 0, false, d.str());
+            return;
+        }
+
+        if (family == "sq03_canwb") {
+            auto sit = sq03_registry.find(dyn_seq);
+            const bool have_sq03 = sit != sq03_registry.end();
+            chaos_sq03::Sq03Effect eff;
+            eff.canwb_before = have_sq03 && sit->second.canwb_before;
+            eff.canwb_after = have_sq03 && sit->second.canwb_after;
+            eff.writeback_tick = have_sq03 ? (uint64_t)sit->second.wb_tick : 0;
+            eff.drain_tick = (uint64_t)e.written_tick;
+            eff.commit_tick = (uint64_t)e.store_commit_tick;
+            eff.reload_seq = e.reload_seq;
+            eff.reload_data_hash = e.reload_seq ? e.reload_hash : "";
+            const chaos_sq03::EffectOutcome o = chaos_sq03::effectVerdict(eff);
+            std::ostringstream d;
+            d << "record=sq03_effect;family=sq03_canwb;model=SQ03"
+              << ";store_seq=" << e.dyn_seq
+              << ";sq_idx=" << e.idx
+              << ";gen=" << e.gen
+              << ";canwb_before=" << (eff.canwb_before ? 1 : 0)
+              << ";canwb_after=" << (eff.canwb_after ? 1 : 0)
+              << ";canwb_state_changed="
+              << (chaos_sq03::stateChanged(eff) ? 1 : 0)
+              << ";writeback_tick=" << eff.writeback_tick
+              << ";drain_tick=" << eff.drain_tick
+              << ";commit_tick=" << eff.commit_tick
+              << ";resource_reuse_tick=" << (uint64_t)e.resource_reuse_tick
+              << ";reload_seq=" << e.reload_seq
+              << ";reload_data_hash=" << reload_hash
+              << ";visible_before_commit="
+              << (chaos_sq03::visibleBeforeCommit(eff) ? 1 : 0)
+              << ";phantom_drain="
+              << (chaos_sq03::phantomDrain(eff) ? 1 : 0)
+              << ";effect_outcome=" << chaos_sq03::effectOutcomeName(o)
+              << ";effect_reason=" << chaos_sq03::effectReason(o);
+            writeNode(e.ptag, "sq03_effect", e.dyn_seq, true, 0, false,
+                      e.base, true, 0, false, 0, false, d.str());
+            return;
+        }
+
+        // family == "sp05_complete"
+        chaos_sp05::Sp05Stage st;
+        st.completion_tick = (uint64_t)e.complete_tick;
+        st.commit_tick = (uint64_t)e.store_commit_tick;
+        st.writeback_tick = (uint64_t)e.registered;
+        st.drain_tick = (uint64_t)e.written_tick;
+        st.reload_seq = e.reload_seq;
+        st.store_data_hash = e.data_fnv;
+        st.reload_data_hash = e.reload_seq ? e.reload_hash : "";
+        const chaos_sp05::StageOutcome o = chaos_sp05::stageVerdict(st);
+        const char *data_correct = "null";
+        if (o == chaos_sp05::StageOutcome::MASKED_DATA_WRITTEN_CORRECTLY)
+            data_correct = "1";
+        else if (o == chaos_sp05::StageOutcome::CHAIN_VISIBILITY_LOST)
+            data_correct = "0";
+        std::ostringstream d;
+        d << "record=sp05_stage;family=sp05_complete;model=SP05"
+          << ";store_seq=" << e.dyn_seq
+          << ";sq_idx=" << e.idx
+          << ";gen=" << e.gen
+          << ";completion_tick=" << st.completion_tick
+          << ";commit_tick=" << st.commit_tick
+          << ";writeback_tick=" << st.writeback_tick
+          << ";drain_tick=" << st.drain_tick
+          << ";write_skipped=" << (chaos_sp05::writeSkipped(st) ? 1 : 0)
+          << ";reload_seq=" << e.reload_seq
+          << ";reload_data_hash=" << reload_hash
+          // store_data_fnv stays null until the shared-file request
+          // (noteSP05Injection needs the SQ entry's bytes) is wired;
+          // data_correct honestly follows (null = unknown).
+          << ";store_data_fnv="
+          << (e.data_fnv.empty() ? "null" : e.data_fnv)
+          << ";data_correct=" << data_correct
+          << ";stage_outcome=" << chaos_sp05::stageOutcomeName(o)
+          << ";masking_mechanism=" << chaos_sp05::maskingMechanism(o);
+        writeNode(e.ptag, "sp05_stage", e.dyn_seq, true, 0, false,
+                  e.base, true, 0, false, 0, false, d.str());
+    }
+
+    void
+    CHAOSPropagation::writeDeferredChainRecords()
+    {
+        if (!write_log || !gz_file)
+            return;
+        for (auto &kv : fault_store_registry) {
+            const std::string family(kv.second.family);
+            if (family != "store_data" && family != "sq03_canwb"
+                    && family != "sp05_complete")
+                continue;
+            if (!kv.second.chain_record_emitted)
+                emitChainRecord(kv.first);
         }
     }
 
