@@ -37,13 +37,13 @@ scons build/ARM/gem5.opt -j48 \
 
 | # | 里程碑 | 台账状态 | 本次核查 | 判定 |
 |---|---|---|---|---|
-| 1 | D13 操作数启发式（上游） | `done-external` | 核验上游文件 sha256 与复现 summary | 交付物存在；复现结果与文档一致 |
+| 1 | D13 操作数启发式（上游） | `done-external` | 核验上游文件 sha256；**原样同步到 `sdcfuzz/upstream/d13/`**；本地 golden、确定性、gem5 与 FI 冒烟实测 | 代码/算法完整；完整 4×100 实验仍为外部记录 |
 | 2 | 19 个微架构模板（上游） | `done-external` | 上游 `seeds/*.S` 实际 **20** 个、**8** 个模块；上游合规评估已指出“19/7”过时 | 交付物存在，方案数字需更正 |
 | 3 | gem5-CHAOS 底座 + 生成→注入闭环 | `done-local` | 重建原生 gem5；19/19 模板 PASS；CHAOSReg 注入 1 次并分类 | **本机实测通过** |
 | 4 | 4 板 446 核 Kunpeng 920 部署 | `done-external` | 核验上游论文 §6.4 表格（4 板 446 核） | 外部证据；本机不重跑 |
 | 5 | sdcfuzz 论文 p2 草稿 | `done-external` | 核验上游 `docs/paper/paper2_{en,zh}.md`（57 KB / 50 KB） | 外部证据；存在 |
 
-### 2.1 D13（外部证据）
+### 2.1 D13（上游实现已同步并本地实测）
 
 在 `sdc-0103` 的 `/home/sdc/wangxu/silifuzz`（HEAD `707db35d`）：
 
@@ -52,16 +52,31 @@ sha256 4143a4bdee3244452ce2747e590d6cbfbbb45117b23a3027d04a0eacc0067263
        gem5_config/workloads/sdc_probe_workload_d13.c
 ```
 
-与 `docs/sdcfuzz/d13-baseline-reproduction.md` 记录的哈希一致。复现产物
-`docs/sdcfuzz/d13-repro/summary.json` 的真实数值：
+与 `docs/sdcfuzz/d13-baseline-reproduction.md` 记录的哈希一致。上游源码已
+**原样同步**到本仓库 `sdcfuzz/upstream/d13/`（D13 + 随机基线 B + Apache-2.0
+LICENSE，逐字节副本）。完整性核查见
+`docs/sdcfuzz/d13-upstream-verification.md`；本地实测：
+
+```text
+$ bash scripts/test-d13-upstream.sh
+sha256 ok: sdc_probe_workload_d13.c / sdc_probe_workload_random.c / LICENSE
+D13 native: SUM=118831515424667458 CRC=dbc8bf2a
+D13 native 第二次: 相同（确定性）
+B native:   SUM=10721424292087689827 CRC=6728fc4a
+gem5 O3:    SUM=118831515424667458 CRC=dbc8bf2a
+FI smoke:   integer[29] bit_flip Mask=0x800, numFaultsInjected=1
+```
+
+复现产物 `docs/sdcfuzz/d13-repro/summary.json` 的真实数值：
 
 | 模式 | B（随机） | D13 | D13/B | Fisher p | 判定 |
 |---|---|---|---:|---:|---|
 | bit-flip | 6/100 | 17/100 | 2.833× | 0.0249 | BEAT |
 | structural | 5/100 | 64/100 | 12.800× | 5.63e-20 | BEAT |
 
-这与文档一致。**未在本轮重跑** 4×100 次上游 `sim_sweep.py`；本轮核验的是
-文件哈希与既有复现产物，不把“读过文件”说成“重新跑过实验”。
+**未在本轮重跑** 4×100 次上游 `sim_sweep.py`；本轮完成的是源码完整性核查、
+原样同步、golden 复现、gem5 运行和单次 FI 冒烟。不把“读过文件”或“单次
+FI 冒烟”说成“重新跑过 400 次实验”。
 
 ### 2.2 模板数量（发现的文档偏差）
 
@@ -228,9 +243,11 @@ SAD window, formula, direction, disabled and cycle-mode checks passed
 1. **Phase 0 的 5 项交付物均存在**：D13、上游模板、gem5-CHAOS、四板部署、
    p2 草稿。本仓库能执行的部分（gem5-CHAOS + 19 模板 + 生成→注入闭环）
    在原生 aarch64 构建上真实通过。
-2. **外部证据项没有在本轮重跑**：D13 的 4×100 次实验只核验了哈希与既有
-   `summary.json`；四板 446 核扫描与 p2 草稿只核验了上游文件/论文表格。
-   这不是“本机复验”，台账继续用 `done-external`。
+2. **D13 已原样同步并做本地实测，但完整 4×100 实验没有重跑**：上游
+   `sdcfuzz/upstream/d13/` 源码 sha256 与 `707db35d` 一致；本地完成 golden、
+   确定性、gem5 基线与单次 FI 冒烟。四板 446 核扫描与 p2 草稿只核验了
+   上游文件/论文表格。台账对完整实验继续用 `done-external`，不把单次冒烟
+   冒充 400 次实验。
 3. **发现并更正一处文档偏差**：上游实际 20 个模板 / 8 个模块，方案与论文
    仍写 19/7。已更新 `roadmap.yaml` 的 `p0-templates` 证据；本仓库的 19 条
    本地语料是支撑件，不是上游模板的逐条复刻，两者不能混为一谈。

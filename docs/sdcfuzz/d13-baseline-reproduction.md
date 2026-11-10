@@ -1,8 +1,22 @@
 # 上游 D13 真基线在 sdc-0103 的复现
 
 本文记录**上游 sdcfuzz 的真 D13**（不是本仓库的本地启发式）在真实 ARM
-服务器 `sdc-0103` 上的复现结果。目的有两个：把上一轮“本地重建冒充 D13”
-的口径纠正为可核验的外部基线，并为后续 RL/变异研究提供一个真实的对照臂。
+服务器 `sdc-0103` 上的复现结果。目的有两个：把上一轮“本地重建冒充 D13”的
+口径纠正为可核验的外部基线，并为后续 RL/变异研究提供一个真实的对照臂。
+
+**本地同步（2026-11-10 追加）。** 上游 D13 源码已**原样同步**到
+`sdcfuzz/upstream/d13/`（`sdc_probe_workload_d13.c`、随机基线
+`sdc_probe_workload_random.c`、Apache-2.0 `LICENSE`），sha256 与上游
+`707db35d` 一致。完整性核查、golden 复现、gem5 运行与单次 FI 冒烟见
+`docs/sdcfuzz/d13-upstream-verification.md`；一键验证：
+
+```bash
+source ~/gem5-deps/env.sh
+ARM_CC=aarch64-openEuler-linux-gcc bash scripts/test-d13-upstream.sh
+```
+
+本仓库的 `sdcfuzz/operand_heuristic.py` **仍然不是 D13**；下文所有“D13”
+均指上游 workload，本地启发式只作可选对照。
 
 ## 1. 结论
 
@@ -81,7 +95,7 @@ seed + i`，因此并行度不改变单次 run 参数（上游注释与实现一
 原始 JSON 与汇总在：
 
 - 本仓库：`docs/sdcfuzz/d13-repro/sim_{B,D13}_{bit,struct}.json`、
-  `summary.json`
+  `summary.json`；上游 D13 源码副本在 `sdcfuzz/upstream/d13/`
 - 板卡：`~/wangxu/silifuzz/output/experiments/exp02-d13-repro-20261110/`
 
 ## 5. 与原始实验的差异（诚实记录）

@@ -23,7 +23,7 @@
 
 | 里程碑 | 状态 | 证据 / 缺口 |
 |---|---|---|
-| D13 操作数启发式（上游 sdcfuzz 实现） | `done-external` | sdcfuzz gem5_config/workloads/sdc_probe_workload_d13.c；原 exp02：bit 3.143× / struct 12.8×；sdc-0103 复现：bit 2.833× (p=0.025) / struct 12.8× (p=5.6e-20)，均 BEAT；docs/sdcfuzz/d13-baseline-reproduction.md |
+| D13 操作数启发式（上游 sdcfuzz 实现） | `done-external` | 上游 707db35d 原样同步到 sdcfuzz/upstream/d13/（sha256 4143a4…/fb461f…）；本地 golden、确定性、gem5 基线与单次 FI 冒烟通过；完整 4×100 复现见 docs/sdcfuzz/d13-baseline-reproduction.md |
 | 上游 seeds/*.S 微架构模板（方案写 19，实测 20） | `done-external` | 上游 seeds/*.S 实际 20 个、覆盖 8 个模块（E/V/M/C/O/I/L/F）；上游 2026-09-03 合规评估已指出 scheme 的 19/7 口径过时；本仓库无副本，未逐条复验 |
 | gem5-CHAOS 注入底座 + 生成→注入闭环 | `done-local` | 19 注入器；CHAOSReg 注入 1 次并分类 Masked（m5out/sdcfuzz-baseline） |
 | 4 板 446 核 Kunpeng 920 真机部署 | `done-external` | sdcfuzz-v1.2.md §4.2 历史证据；本机无该硬件，未复验 |
