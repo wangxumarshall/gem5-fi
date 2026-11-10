@@ -69,7 +69,7 @@ python3 tools/corpus_stats.py work/corpus evidence/corpus-stats.json
 
 ```bash
 time ./bin/sf_player --corpus work/corpus/ifuzz --core 0 --limit 2000
-# real 0m0.390s -> 5,128 snapshots/s（完整 92,652 条 ifuzz 语料）
+# real 0m0.390s -> 5,128 snapshots/s（在 92,652 条的 ifuzz 语料中取 2,000 条）
 ```
 
 128 核全量 sweep（每条语料在每个核执行一次）：
@@ -145,9 +145,10 @@ quarantine，只在小语料上验证了闭环。
 
 ## 6. 一次 `pstate` 噪声观察与处理
 
-第一次全量 sweep 报告 4 次 `pstate` 差异（12,211,456 次中 4 次），第二次
-12,211,456 次中 2 次，`actual_pstate=0x1000`（bit 12，SSBS，内核管理的
-推测执行缓解位），全部无法在单核 20 次复测中复现。快照代码在 EL0 只能写
+第一次全量 sweep 报告 4 次 `pstate` 差异（12,211,456 次中 4 次，统计见
+`evidence/sweep-first-pstate.log`），另一次 12,211,456 次中 2 次
+（`actual_pstate=0x1000`，bit 12，SSBS，内核管理的推测执行缓解位；该次输出
+未单独保存）。这些差异全部无法在单核 20 次复测中复现。快照代码在 EL0 只能写
 NZCV，SSBS/PAN/SS 等位属于内核状态，因此比较改为只比较 NZCV（bits 28-31）；
 修改后第三次全量 sweep 为 0 不匹配。该处理已写入
 `docs/paper-mapping.md` 与 `docs/limitations.md`，不是“消除失败”。
@@ -182,8 +183,9 @@ evidence/unicorn-fix.json         Unicorn 语料修复统计
 evidence/corpus-stats.json        语料统计
 evidence/capstone-fuzz.log        解码器代理 libFuzzer 日志
 evidence/unicorn-fuzz.log         模拟器代理 libFuzzer 日志
-evidence/sweep/summary.json       128 核全量 sweep
+evidence/sweep/summary.json       128 核全量 sweep（最终，0 不匹配）
 evidence/sweep/mismatches.jsonl   空文件（0 不匹配）
+evidence/sweep-first-pstate.log   屏蔽 PSTATE 高位前的一次 sweep（4 次 pstate 差异）
 evidence/fleet.log                4 核窗口日志
 work/fleet/results.db             结果库（SQLite）
 ```
