@@ -7,7 +7,8 @@ SiliFuzz 的完整流水线。目标架构为 ARM64（仓库 `AGENTS.md` 约束�
 
 论文条款到代码的逐条映射见 [`docs/paper-mapping.md`](docs/paper-mapping.md)，
 真实测量见 [`docs/measurements.md`](docs/measurements.md)，与原文的差距见
-[`docs/limitations.md`](docs/limitations.md)。
+[`docs/limitations.md`](docs/limitations.md)，与当前 sdcfuzz 项目的核心差异见
+[`docs/vs-sdcfuzz.md`](docs/vs-sdcfuzz.md)。
 
 ## 组件
 
@@ -98,7 +99,7 @@ proxies/             Capstone/Unicorn libFuzzer 目标
 tools/               ifuzzgen、Python 快照库、fleet、quarantine、统计
 tests/               单元、跨语言、player、端到端、fleet 测试
 scripts/             build_deps.sh、run_scale.sh
-docs/                paper-mapping / measurements / limitations
+docs/                paper-mapping / measurements / limitations / vs-sdcfuzz
 evidence/            真实运行日志与汇总 JSON（数字来源）
 third_party/         构建产物（gitignore，脚本可重建）
 work/                corpus / 中间语料（gitignore）
