@@ -1,9 +1,10 @@
 // sf_checker: run a corpus across many cores (paper section 2.5).
 //
-// The checker groups snapshots in batches, expands each batch into a random
-// list of executions (50/1000 by default, as in the paper), distributes the
-// list across one player per core, and reports end-state mismatches.  A
-// "sweep" mode runs every snapshot on every core once, for validation runs.
+// sampled (default): group snapshots in batches, expand each batch into a
+// random list of executions (50/1000 by default), distribute the list across
+// one player per core.
+// sweep: load a chunk of snapshots once, then every core executes every
+// snapshot in the chunk (I/O amortized across cores).
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -56,12 +57,12 @@ struct Stats {
   std::atomic<uint64_t> mismatches{0};
   std::atomic<uint64_t> timeouts{0};
   std::atomic<uint64_t> errors{0};
-  std::map<std::string, uint64_t> error_kinds;
   std::atomic<uint64_t> batches{0};
   std::atomic<uint64_t> bytes_read{0};
   std::atomic<uint64_t> snapshot_loads{0};
   std::mutex mu;
   std::map<int, uint64_t> per_core;
+  std::map<std::string, uint64_t> error_kinds;
 };
 
 std::vector<int> ParseCores(const std::string& spec) {
@@ -115,6 +116,23 @@ struct Item {
   std::string path;
 };
 
+bool MatchesAny(const Snapshot& s, const Outcome& o) {
+  for (const auto& e : s.end_states) {
+    if (e.signal != o.signal || e.sig_addr != o.sig_addr) continue;
+    if (!SameRegState(e.regs, o.regs)) continue;
+    if (e.checksums.size() != o.checksums.size()) continue;
+    bool ok = true;
+    for (size_t i = 0; i < e.checksums.size(); ++i) {
+      if (e.checksums[i].hash != o.checksums[i].hash) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
 class Queue {
  public:
   explicit Queue(size_t capacity) : capacity_(capacity) {}
@@ -124,7 +142,7 @@ class Queue {
       if (cv_not_full_.wait_for(lock, std::chrono::milliseconds(50)) ==
               std::cv_status::timeout &&
           q_.size() >= capacity_) {
-        return false;  // consumer stopped (deadline); let the producer finish
+        return false;
       }
     }
     if (closed_) return false;
@@ -136,7 +154,7 @@ class Queue {
     std::unique_lock<std::mutex> lock(mu_);
     while (q_.empty() && !closed_) {
       if (Clock::now() >= deadline) return false;
-      cv_not_empty_.wait_for(lock, std::chrono::milliseconds(100));
+      cv_not_empty_.wait_for(lock, std::chrono::milliseconds(50));
     }
     if (q_.empty()) return false;
     *item = std::move(q_.front());
@@ -150,17 +168,59 @@ class Queue {
     cv_not_empty_.notify_all();
     cv_not_full_.notify_all();
   }
-  size_t size() const {
-    std::lock_guard<std::mutex> lock(mu_);
-    return q_.size();
-  }
 
  private:
   size_t capacity_;
   std::deque<Item> q_;
-  mutable std::mutex mu_;
+  std::mutex mu_;
   std::condition_variable cv_not_empty_;
   std::condition_variable cv_not_full_;
+  bool closed_ = false;
+};
+
+// Sweep: each worker executes every snapshot of the current chunk exactly once.
+class SweepQueue {
+ public:
+  SweepQueue(int workers, size_t capacity) : workers_(workers), capacity_(capacity) {}
+  bool Publish(std::vector<Item> items, Clock::time_point deadline) {
+    std::unique_lock<std::mutex> lock(mu_);
+    while (pending_ != 0) {
+      if (Clock::now() >= deadline) return false;
+      cv_.wait_for(lock, std::chrono::milliseconds(50));
+    }
+    if (closed_) return false;
+    chunk_ = std::make_shared<const std::vector<Item>>(std::move(items));
+    ++generation_;
+    pending_ = workers_;
+    cv_.notify_all();
+    return true;
+  }
+  void Close() {
+    std::lock_guard<std::mutex> lock(mu_);
+    closed_ = true;
+    cv_.notify_all();
+  }
+  std::shared_ptr<const std::vector<Item>> WaitChunk(uint64_t* seen) {
+    std::unique_lock<std::mutex> lock(mu_);
+    cv_.wait(lock, [&] { return generation_ != *seen || closed_; });
+    if (generation_ == *seen) return nullptr;
+    *seen = generation_;
+    return chunk_;
+  }
+  void Done() {
+    std::lock_guard<std::mutex> lock(mu_);
+    if (pending_ > 0) --pending_;
+    cv_.notify_all();
+  }
+
+ private:
+  int workers_;
+  size_t capacity_;
+  std::mutex mu_;
+  std::condition_variable cv_;
+  std::shared_ptr<const std::vector<Item>> chunk_;
+  uint64_t generation_ = 0;
+  int pending_ = 0;
   bool closed_ = false;
 };
 
@@ -234,7 +294,8 @@ int main(int argc, char** argv) {
       return 2;
     }
   }
-  if (args.corpus.empty() || args.cores.empty()) {
+  if (args.corpus.empty() || args.cores.empty() ||
+      (args.mode != "sampled" && args.mode != "sweep")) {
     fprintf(stderr,
             "usage: sf_checker --corpus DIR --cores 0-127 [--seconds 120]\n"
             "  --mode sampled|sweep --batch-size 50 --execs-per-batch 1000\n"
@@ -260,16 +321,16 @@ int main(int argc, char** argv) {
   }
   std::mt19937_64 rng(args.seed);
 
-  const auto deadline = Clock::now() + std::chrono::seconds(args.seconds);
-  Queue queue(std::max<size_t>(1024, (size_t)args.batch_size * 2 *
-                                          (size_t)args.execs_per_batch));
+  const auto start_time = Clock::now();
+  const auto deadline = start_time + std::chrono::seconds(args.seconds);
+  Queue queue(std::max<size_t>(
+      1024, (size_t)args.batch_size * 2 * (size_t)args.execs_per_batch));
+  SweepQueue sweep((int)args.cores.size(), 4);
   Stats stats;
 
-  // Producer.
   std::thread producer([&]() {
     std::vector<std::string> shuffled = files;
     std::shuffle(shuffled.begin(), shuffled.end(), rng);
-    size_t cursor = 0;
     if (args.mode == "sampled") {
       std::uniform_int_distribution<size_t> pick(0, files.size() - 1);
       while (Clock::now() < deadline) {
@@ -291,13 +352,13 @@ int main(int argc, char** argv) {
           if (!queue.Push(batch[idx(rng)])) break;
         }
         stats.batches++;
-        if (Clock::now() >= deadline) break;
       }
+      queue.Close();
     } else {
-      // Sweep: read chunks once and let every core execute each snapshot.
-      const size_t chunk = 50;
+      uint64_t cursor = 0;
       while (cursor < shuffled.size() && Clock::now() < deadline) {
-        size_t end = std::min(shuffled.size(), cursor + chunk);
+        size_t end = std::min(shuffled.size(), (size_t)cursor + 50);
+        std::vector<Item> items;
         for (size_t i = cursor; i < end; ++i) {
           std::shared_ptr<Snapshot> s;
           uint64_t bytes = 0;
@@ -305,21 +366,21 @@ int main(int argc, char** argv) {
           if (!LoadSnapshot(shuffled[i], &s, &bytes, &err)) continue;
           stats.bytes_read += bytes;
           stats.snapshot_loads++;
-          if (!queue.Push(Item{s, shuffled[i]})) break;
+          items.push_back(Item{std::move(s), shuffled[i]});
         }
         stats.batches++;
         cursor = end;
+        if (items.empty()) continue;
+        if (!sweep.Publish(std::move(items), deadline)) break;
       }
+      sweep.Close();
     }
-    queue.Close();
   });
 
-  // Workers: one player per core.
-  std::vector<std::thread> workers;
   std::mutex mismatch_mu;
   std::ofstream mismatches;
-  std::string mismatch_path = args.out + "/mismatches.jsonl";
-  mismatches.open(mismatch_path, std::ios::app);
+  mismatches.open(args.out + "/mismatches.jsonl", std::ios::app);
+  std::vector<std::thread> workers;
   for (int core : args.cores) {
     workers.emplace_back([&, core]() {
       PlayerOptions po;
@@ -333,10 +394,7 @@ int main(int argc, char** argv) {
         return;
       }
       uint64_t local = 0;
-      while (Clock::now() < deadline) {
-        if (args.limit_per_core >= 0 && (int)local >= args.limit_per_core) break;
-        Item item;
-        if (!queue.Pop(&item, deadline)) break;
+      auto execute = [&](const Item& item) {
         Outcome out;
         if (!player.Run(item.snap->mappings, item.snap->regs, &out, &err)) {
           if (out.timeout) {
@@ -346,50 +404,65 @@ int main(int argc, char** argv) {
             std::lock_guard<std::mutex> lock(stats.mu);
             stats.error_kinds[err.substr(0, 80)]++;
           }
-          continue;
+          return;
         }
         ++local;
         stats.executions++;
-        bool match = false;
-        for (const auto& e : item.snap->end_states) {
-          if (e.signal == out.signal && e.sig_addr == out.sig_addr &&
-              SameRegState(e.regs, out.regs) &&
-              e.checksums.size() == out.checksums.size()) {
-            match = true;
-            for (size_t i = 0; i < e.checksums.size(); ++i) {
-              if (e.checksums[i].hash != out.checksums[i].hash) {
-                match = false;
-                break;
-              }
-            }
-            if (match) break;
-          }
+        if (MatchesAny(*item.snap, out)) return;
+        stats.mismatches++;
+        std::lock_guard<std::mutex> lock(mismatch_mu);
+        std::string diff = item.snap->end_states.empty()
+                               ? "no_expected"
+                               : FirstDiff(item.snap->end_states[0], out);
+        mismatches << "{\"snapshot\":\"" << JsonEscape(item.path)
+                   << "\",\"core\":" << core << ",\"diff\":\""
+                   << JsonEscape(diff) << "\",\"expected_signal\":"
+                   << (item.snap->end_states.empty()
+                           ? 0
+                           : item.snap->end_states[0].signal)
+                   << ",\"actual_signal\":" << out.signal << ",\"actual_pc\":\""
+                   << Hex64(out.regs.pc) << "\",\"expected_pstate\":\""
+                   << Hex64(item.snap->end_states.empty() ? 0
+                              : item.snap->end_states[0].regs.pstate)
+                   << "\",\"actual_pstate\":\"" << Hex64(out.regs.pstate)
+                   << "\"}\n";
+        mismatches.flush();
+        if (!args.found.empty()) {
+          std::error_code fec;
+          fs::copy_file(item.path,
+                        fs::path(args.found) / fs::path(item.path).filename(),
+                        fs::copy_options::overwrite_existing, fec);
         }
-        if (!match) {
-          stats.mismatches++;
-          std::lock_guard<std::mutex> lock(mismatch_mu);
-          std::string diff = item.snap->end_states.empty()
-                                 ? "no_expected"
-                                 : FirstDiff(item.snap->end_states[0], out);
-          mismatches << "{\"snapshot\":\"" << JsonEscape(item.path)
-                     << "\",\"core\":" << core << ",\"diff\":\""
-                     << JsonEscape(diff) << "\",\"expected_signal\":"
-                     << (item.snap->end_states.empty()
-                             ? 0
-                             : item.snap->end_states[0].signal)
-                     << ",\"actual_signal\":" << out.signal << ",\"actual_pc\":\""
-                     << Hex64(out.regs.pc) << "\"}\n";
-          mismatches.flush();
-          if (!args.found.empty()) {
-            std::error_code fec;
-            fs::copy_file(item.path,
-                          fs::path(args.found) / fs::path(item.path).filename(),
-                          fs::copy_options::overwrite_existing, fec);
+      };
+
+      if (args.mode == "sweep") {
+        uint64_t seen = 0;
+        while (Clock::now() < deadline &&
+               (args.limit_per_core < 0 || (int)local < args.limit_per_core)) {
+          auto chunk = sweep.WaitChunk(&seen);
+          if (!chunk) break;
+          for (const auto& item : *chunk) {
+            if (Clock::now() >= deadline) break;
+            if (args.limit_per_core >= 0 &&
+                (int)local >= args.limit_per_core)
+              break;
+            execute(item);
           }
+          sweep.Done();
+        }
+      } else {
+        while (Clock::now() < deadline) {
+          if (args.limit_per_core >= 0 && (int)local >= args.limit_per_core)
+            break;
+          Item item;
+          if (!queue.Pop(&item, deadline)) break;
+          execute(item);
         }
       }
-      std::lock_guard<std::mutex> lock(stats.mu);
-      stats.per_core[core] = local;
+      {
+        std::lock_guard<std::mutex> lock(stats.mu);
+        stats.per_core[core] = local;
+      }
       player.Stop();
     });
   }
@@ -397,8 +470,8 @@ int main(int argc, char** argv) {
   for (auto& t : workers) t.join();
   mismatches.close();
 
-  double elapsed = std::chrono::duration<double>(Clock::now() - deadline).count();
-  elapsed = args.seconds - elapsed;
+  double elapsed =
+      std::chrono::duration<double>(Clock::now() - start_time).count();
   std::string summary = SummaryJson(args, stats, elapsed, files.size());
   printf("%s\n", summary.c_str());
   {

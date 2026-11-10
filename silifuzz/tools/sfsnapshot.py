@@ -220,9 +220,11 @@ def save(path: str, s: Snapshot) -> None:
 
 
 def same_regs(a: RegState, b: RegState) -> bool:
+    # Only NZCV is controlled by snapshot code; other PSTATE bits are
+    # kernel-managed (see src/snapshot.cc).
     return (a.x == b.x and a.sp == b.sp and a.pc == b.pc
-            and a.pstate == b.pstate and a.fpcr == b.fpcr
-            and a.fpsr == b.fpsr and a.v == b.v)
+            and ((a.pstate ^ b.pstate) & 0xF0000000) == 0
+            and a.fpcr == b.fpcr and a.fpsr == b.fpsr and a.v == b.v)
 
 
 def same_end_state(a: EndState, b: EndState) -> bool:

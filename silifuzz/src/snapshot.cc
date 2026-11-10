@@ -268,9 +268,14 @@ uint64_t ChecksumRegion(const uint8_t* data, size_t size) {
 
 bool SameRegState(const RegState& a, const RegState& b) {
   if (std::memcmp(a.x, b.x, sizeof(a.x)) != 0) return false;
-  if (a.sp != b.sp || a.pc != b.pc || a.pstate != b.pstate ||
-      a.fpcr != b.fpcr || a.fpsr != b.fpsr)
+  if (a.sp != b.sp || a.pc != b.pc || a.fpcr != b.fpcr ||
+      a.fpsr != b.fpsr)
     return false;
+  // Only NZCV is writable by EL0 snapshot code.  Other PSTATE bits (SSBS,
+  // PAN, SS, ...) are managed by the kernel and were observed to flip
+  // non-reproducibly under full-machine load; they are not part of the
+  // snapshot's architectural state.
+  if (((a.pstate ^ b.pstate) & 0xF0000000ULL) != 0) return false;
   return std::memcmp(a.v, b.v, sizeof(a.v)) == 0;
 }
 
