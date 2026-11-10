@@ -36,7 +36,7 @@
       "FaultDefinition": "SQ\u72b6\u6001\uff1a_canWB\u63d0\u524d\u7f6e\u4f4d / SQEntry::_canWB",
       "TerminalReason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -68,6 +68,31 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "5798",
+      "ModelRuleRecord": {
+        "event_id": "5040",
+        "event_type": "sq03_effect",
+        "fields": {
+          "record": "sq03_effect",
+          "family": "sq03_canwb",
+          "model": "SQ03",
+          "store_seq": "12108",
+          "sq_idx": "944",
+          "gen": "1294",
+          "canwb_before": "0",
+          "canwb_after": "1",
+          "canwb_state_changed": "1",
+          "writeback_tick": "15914360",
+          "drain_tick": "15914360",
+          "commit_tick": "15915130",
+          "resource_reuse_tick": "0",
+          "reload_seq": "12110",
+          "reload_data_hash": "f6a2a263b2e746b9",
+          "visible_before_commit": "1",
+          "phantom_drain": "0",
+          "effect_outcome": "CHAIN_VISIBILITY_MOVED",
+          "effect_reason": "DRAIN_BEFORE_COMMIT_WITH_RELOAD_CONSUMER"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -94,7 +119,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ03",
@@ -131,7 +157,7 @@
       "FaultDefinition": "SQ\u72b6\u6001\uff1a_canWB\u63d0\u524d\u7f6e\u4f4d / SQEntry::_canWB",
       "TerminalReason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -163,6 +189,31 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "5867",
+      "ModelRuleRecord": {
+        "event_id": "5044",
+        "event_type": "sq03_effect",
+        "fields": {
+          "record": "sq03_effect",
+          "family": "sq03_canwb",
+          "model": "SQ03",
+          "store_seq": "12227",
+          "sq_idx": "945",
+          "gen": "1295",
+          "canwb_before": "0",
+          "canwb_after": "1",
+          "canwb_state_changed": "1",
+          "writeback_tick": "16029475",
+          "drain_tick": "16029475",
+          "commit_tick": "16030245",
+          "resource_reuse_tick": "0",
+          "reload_seq": "12229",
+          "reload_data_hash": "69a6347498f3c2dd",
+          "visible_before_commit": "1",
+          "phantom_drain": "0",
+          "effect_outcome": "CHAIN_VISIBILITY_MOVED",
+          "effect_reason": "DRAIN_BEFORE_COMMIT_WITH_RELOAD_CONSUMER"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -189,7 +240,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ03",
@@ -226,7 +278,7 @@
       "FaultDefinition": "SQ\u72b6\u6001\uff1a_canWB\u63d0\u524d\u7f6e\u4f4d / SQEntry::_canWB",
       "TerminalReason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -258,6 +310,31 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "5936",
+      "ModelRuleRecord": {
+        "event_id": "5048",
+        "event_type": "sq03_effect",
+        "fields": {
+          "record": "sq03_effect",
+          "family": "sq03_canwb",
+          "model": "SQ03",
+          "store_seq": "12423",
+          "sq_idx": "946",
+          "gen": "1296",
+          "canwb_before": "0",
+          "canwb_after": "1",
+          "canwb_state_changed": "1",
+          "writeback_tick": "16089150",
+          "drain_tick": "16089150",
+          "commit_tick": "16089920",
+          "resource_reuse_tick": "0",
+          "reload_seq": "12425",
+          "reload_data_hash": "fbbcba348bb2aaf5",
+          "visible_before_commit": "1",
+          "phantom_drain": "0",
+          "effect_outcome": "CHAIN_VISIBILITY_MOVED",
+          "effect_reason": "DRAIN_BEFORE_COMMIT_WITH_RELOAD_CONSUMER"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -284,7 +361,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ03",
@@ -321,7 +399,7 @@
       "FaultDefinition": "SQ\u72b6\u6001\uff1a_canWB\u63d0\u524d\u7f6e\u4f4d / SQEntry::_canWB",
       "TerminalReason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -353,6 +431,31 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "6005",
+      "ModelRuleRecord": {
+        "event_id": "5052",
+        "event_type": "sq03_effect",
+        "fields": {
+          "record": "sq03_effect",
+          "family": "sq03_canwb",
+          "model": "SQ03",
+          "store_seq": "12643",
+          "sq_idx": "947",
+          "gen": "1297",
+          "canwb_before": "0",
+          "canwb_after": "1",
+          "canwb_state_changed": "1",
+          "writeback_tick": "16135350",
+          "drain_tick": "16135350",
+          "commit_tick": "16136120",
+          "resource_reuse_tick": "0",
+          "reload_seq": "12645",
+          "reload_data_hash": "781d22051fdb27f9",
+          "visible_before_commit": "1",
+          "phantom_drain": "0",
+          "effect_outcome": "CHAIN_VISIBILITY_MOVED",
+          "effect_reason": "DRAIN_BEFORE_COMMIT_WITH_RELOAD_CONSUMER"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -379,7 +482,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ03",
@@ -416,7 +520,7 @@
       "FaultDefinition": "SQ\u72b6\u6001\uff1a_canWB\u63d0\u524d\u7f6e\u4f4d / SQEntry::_canWB",
       "TerminalReason": "STORE_COMMITTED_LANE_CONSUMED_ORACLE_PASS",
       "AdjudicatedTerminal": "MASKED",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -448,6 +552,31 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "6074",
+      "ModelRuleRecord": {
+        "event_id": "5058",
+        "event_type": "sq03_effect",
+        "fields": {
+          "record": "sq03_effect",
+          "family": "sq03_canwb",
+          "model": "SQ03",
+          "store_seq": "12776",
+          "sq_idx": "948",
+          "gen": "1298",
+          "canwb_before": "0",
+          "canwb_after": "1",
+          "canwb_state_changed": "1",
+          "writeback_tick": "16160760",
+          "drain_tick": "16160760",
+          "commit_tick": "16161530",
+          "resource_reuse_tick": "0",
+          "reload_seq": "12778",
+          "reload_data_hash": "849c6aba106027e9",
+          "visible_before_commit": "1",
+          "phantom_drain": "0",
+          "effect_outcome": "CHAIN_VISIBILITY_MOVED",
+          "effect_reason": "DRAIN_BEFORE_COMMIT_WITH_RELOAD_CONSUMER"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -474,7 +603,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ03",
@@ -532,6 +662,7 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
+      "ModelRuleRecord": null,
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -542,6 +673,7 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     }
   ]

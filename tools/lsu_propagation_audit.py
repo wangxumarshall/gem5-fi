@@ -86,6 +86,19 @@ EARLY_ANOMALY_KINDS: dict[str, tuple[str, ...]] = {
     "MD04": ("memory_response",),
 }
 
+# The model-specific rule record the three SQ-family models emit on the
+# fault's own chain (v3.2.12 eligible-ordinal runs): sq01_chain / sq03_effect
+# / sp05_stage carry the runtime hop evidence (hop hashes, visibility ticks,
+# skip flags) that the generic converter value_divergence analysis does not
+# bind.  Exported verbatim (standard §11) so the closure tool can grade the
+# model-record chains without re-parsing the trace or forking the classifier
+# -- the same export pattern exception E1 used for the LQ04 association.
+MODEL_RULE_KINDS: dict[str, str] = {
+    "SQ01": "sq01_chain",
+    "SQ03": "sq03_effect",
+    "SP05": "sp05_stage",
+}
+
 # SubUnit labels mirror MODEL_STATUS_MATRIX.csv; the fault definition falls
 # back to these short labels when the pilot manifest carries no frozen
 # fault.location.
@@ -571,6 +584,14 @@ def audit_pilot(pilot_dir: Path, model: str,
         stages["intermediate_propagation_verified"] = "missing"
         add("NO_INTERMEDIATE_PROPAGATION_EVENT")
 
+    # the SQ-family model rule record on the fault's own chain (standard
+    # §11): exported verbatim for the closure tool, never graded here
+    rule_kind = MODEL_RULE_KINDS.get(model)
+    rule_event = None
+    if rule_kind is not None and injection is not None:
+        rule_event = next(
+            (e for e in chain if e.get("event_type") == rule_kind), None)
+
     writeback = next(
         (e for e in chain if e.get("event_type") == "register_writeback"),
         None)
@@ -735,6 +756,16 @@ def audit_pilot(pilot_dir: Path, model: str,
             if commit is not None else None),
         "terminal": {"state": terminal_state, "reason": terminal_reason,
                      "observed": observed},
+        # the SQ-family model rule record on the fault's own chain, verbatim
+        # (standard §11): hop hashes, visibility ticks and skip flags the
+        # generic value_divergence analysis does not bind; exported so the
+        # closure tool grades the model-record chains without re-parsing the
+        # trace or forking the classifier
+        "model_rule": (
+            {"event_id": str(rule_event["event_id"]),
+             "event_type": str(rule_event["event_type"]),
+             "fields": _detail_kv(rule_event.get("detail"))}
+            if rule_event is not None else None),
         "oracle": {"expected": oracle["expected"],
                    "actual": oracle["actual"], "pass": oracle["pass"]},
         "binary_sha": recorded_binary,

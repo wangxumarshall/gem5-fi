@@ -57,6 +57,25 @@ the full conjunction. The record carries the exception's evidence fields
 `MaskingMechanism ∈ {RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE,
 NOT_APPLICABLE}` (`NOT_APPLICABLE` everywhere E1 does not fire).
 
+Exceptions E2/E3/E4 (SQ01/SQ03/SP05, standard §6 clause 3c / §11, frozen
+amendment 2026-11-10): at the same layer (immediately after E1, before rule
+4), a runtime-proven SQ-family model-record chain grades a complete verdict
+— `VERIFIED_SINGLE_CONTEXT` per the single-context rule, model-level
+`COMPLETE_CAUSAL_CHAIN` with two or more distinct frozen contexts — with
+`ObservedTerminal=SDC` (E2 SQ01, E4 SP05) or `ObservedTerminal=MASKED`
+(E3 SQ03) and the `ChainMechanism` of standard §11 named, even though
+`FaultEffectPropagationCoverage=LIFECYCLE_ONLY` (which stays what the
+platform graded). Model-scoped — each exception upgrades no other model —
+and computed by the tool from the record's model-rule fields; standard §11.3
+lists each conjunction in full (a conjunction of proven runtime fields; no
+upgrade on inference). The record carries the exception's evidence field
+`ModelRuleRecord` (the `sq01_chain`/`sq03_effect`/`sp05_stage` record
+exported verbatim from the fault's own chain, `null` when absent) and its
+outcome field `ChainMechanism ∈ {SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER,
+SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT,
+STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED, NOT_APPLICABLE}`
+(`NOT_APPLICABLE` everywhere the model's conjunction does not fire).
+
 Single-context rule: one complete chain → `VERIFIED_SINGLE_CONTEXT`, not
 `COMPLETE_CAUSAL_CHAIN` (per-pilot: distinct verified complete chains in the
 trace; per-model: distinct frozen contexts with at least one complete chain;

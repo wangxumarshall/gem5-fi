@@ -3,8 +3,11 @@
 **Status:** FROZEN (2026-11-10); **amended 2026-11-10** (plan Task 4 review
 round 1) with §6 clause 3b and §10 — exception E1, the LQ04 senderState
 masking exception — recorded through this standard's own revise,
-never-silently-fold path; no other section changed. This document is the
-single authority for every
+never-silently-fold path; no other section changed. **Amended again
+2026-11-10** (SQ grading closure) with §6 clause 3c and §11 — exceptions E2
+(SQ01), E3 (SQ03) and E4 (SP05), the SQ-family model-record chain exceptions
+— through the same revise path; no other section changed. This document is
+the single authority for every
 propagation verdict in the v3.2.12 closure round. Later tasks cite it instead of
 redefining verdicts. No status matrix or Excel cell may ever be hand-set to a
 verdict: `tools/lsu_12model_closure.py` computes every field deterministically
@@ -171,7 +174,10 @@ See §6 for the fixed determination order. The five values:
 
 - `COMPLETE_CAUSAL_CHAIN` — a verified complete causal chain, corroborated in
   more than one context (§4); or, per exception E1 (§6 clause 3b, §10), the
-  runtime-proven LQ04 senderState masking chain (model-scoped, §10).
+  runtime-proven LQ04 senderState masking chain (model-scoped, §10); or, per
+  exceptions E2/E3/E4 (§6 clause 3c, §11), a runtime-proven SQ-family
+  model-record chain (model-scoped to SQ01/SQ03/SP05, §11) corroborated in
+  two or more distinct contexts under §4.
 - `VERIFIED_SINGLE_CONTEXT` — a verified complete causal chain in exactly one
   context (§4); never upgraded without a second verified context.
 - `LIFECYCLE_ONLY` — the injection triggered and its lifecycle/structural path
@@ -338,6 +344,20 @@ the only path to a verdict — a matrix or Excel cell may never override it.
    value stays what the platform graded, but no longer forces the
    classification down. The exception upgrades no other model, and an LQ04
    record missing any §10 condition follows rules 4/5 exactly as before.
+3c. **Exceptions E2/E3/E4 — the SQ-family model-record chains → complete
+   verdict** (model-scoped to SQ01/SQ03/SP05, frozen amendment 2026-11-10,
+   §11). At the same layer, immediately after E1: an SQ01, SQ03 or SP05
+   record whose model-record chain is runtime-proven (the full §11
+   conjunction of proven fields) grades a complete verdict —
+   `VERIFIED_SINGLE_CONTEXT` per §4, `COMPLETE_CAUSAL_CHAIN` at model level
+   with two or more distinct frozen contexts — with `ObservedTerminal=SDC`
+   (E2 SQ01, E4 SP05) or `ObservedTerminal=MASKED` (E3 SQ03) and the
+   `ChainMechanism` of §11 named, even though
+   `FaultEffectPropagationCoverage=LIFECYCLE_ONLY` — the coverage value
+   stays what the platform graded, but no longer forces the classification
+   down. The exceptions upgrade no other model, and a record missing any
+   §11 condition follows rules 4/5 exactly as before — no upgrade on
+   inference alone.
 4. **Internal-only change → `LIFECYCLE_ONLY`.**
    `FaultEffectPropagationCoverage=LIFECYCLE_ONLY` with a structurally complete
    lifecycle observation: the injection triggered, the chain executed, nothing
@@ -545,6 +565,187 @@ E1 adds one record field: `MaskingMechanism ∈
 exactly when E1 fires, the latter otherwise (including every non-LQ04
 record). It is emitted by the tool from the same §10.3 conjunction; a
 matrix or report may quote it but never set it.
+
+---
+
+## 11. Exceptions E2/E3/E4 — the SQ-family model-record chains (frozen amendment, 2026-11-10)
+
+This section uses the standard's own "revise, never silently fold" path
+(the same path §10 used for E1): the amendment is recorded explicitly, with
+its authority and its exact conditions, and `tools/lsu_12model_closure.py`
+computes it from the record — no matrix, Excel cell, or report may apply it
+by hand.
+
+### 11.1 The authority (binding)
+
+The binding evidence is the v3.2.12 SQ ordinal re-selection round
+(2026-11-10), whose artifacts are frozen in this repo:
+
+- `audit_v3_2_12/SQ_Ordinal_Eligibility_Preflight_v3.2.12.md` — the
+  predetermined address-eligibility selection rule (frozen before any fault
+  run: the first ordinal whose selected store lies inside the workload's
+  reload-consumed buffer `[0x491990, 0x492190)`; address eligibility only,
+  never an outcome criterion), the 99-probe census, and the per-model
+  K\* (SQ01 1006, SQ03 1009, SP05 940);
+- `audit_v3_2_12/SQ01_SQ03_SP05_Eligible_Run_Records_v3.2.12.csv` — the 18
+  per-run records (15 fault runs R01B..R05B, 3 controls C01B) with the
+  model-record hop fields quoted per run;
+- `audit_v3_2_12/{SQ01,SQ03,SP05}_verdict_elig_v3.2.12.json` — the closure
+  tool's own per-pilot records for those runs;
+- `audit_v3_2_12/FW02_SQ01_SQ03_SP05_Evidence_Audit_v3.2.12.md` §2.2 — the
+  audit that found the original ordinals 1–5 select C-runtime startup
+  stores and prescribed the re-selection method.
+
+That round's finding, quoted from the preflight §5: the fault runs carry
+"**complete per-hop runtime evidence** — SQ01 `mem_write_hash ==
+reload_data_hash == consumer_hash` (all three hops hash-equal per context);
+SQ03 drain_tick < commit_tick with `visible_before_commit=1` and a valid
+`reload_data_hash`; SP05 `write_skipped=1` with the reload reading the
+stale zero word (`reload_data_hash` present, `store_data_fnv=null` — the
+honest unwired field)" — 5/5 contexts per model, with `FaultCausality=PROVEN`
+and (SQ01/SQ03) all nine stage flags yes. The verdict recorded there as
+concern #1 — that the frozen tool still grades these runs `LIFECYCLE_ONLY`
+because the trace converter's generic `value_divergence` analysis reports
+`TRIGGERED_NO_DIVERGENCE` — is the gap this amendment closes.
+
+### 11.2 Why an exception is needed
+
+Rule 3 requires `FaultEffectPropagationCoverage=COMPLETE` — a divergence
+recognized by the platform's **generic** `value_divergence` analysis
+(`platform/fault_effect_coverage.py`, unchanged this round). That analysis
+compares the delivered payload's hashes on the generic
+response→writeback→consumer hops; it does not bind the three SQ-family
+models' own rule records (`sq01_chain`, `sq03_effect`, `sp05_stage`) into
+its divergence list. For SQ01 the corrupted byte IS the delivered payload
+(all hops hash-equal — divergence from the *golden*, not from the *payload*),
+for SQ03 the fault effect is a visibility/ordering move (correct payload,
+wrong visibility time), and for SP05 the store-side hash is honestly null
+(the `store_data_fnv` wiring is unimplemented in this binary). In all three
+cases the generic analysis correctly reports `TRIGGERED_NO_DIVERGENCE` and
+the honest coverage grade stays `LIFECYCLE_ONLY` — exactly the
+under-reporting the v3.2.11 audit already identified for LP01/FW05 (§3,
+T4): "the generic structural/effect classifier is deliberately conservative
+and uses the delivered payload as its reference… **under-reports** LP01 and
+FW05, whose fault effect is encoded in model-specific injection fields."
+This amendment extends that same principle to the three SQ-family models'
+rule records: the model-specific record is mandatory divergence/chain
+evidence (§3), and the acceptance verdict must consult it. As with E1, the
+ruling separates the two questions: the generic *coverage* field keeps its
+honest platform value (`LIFECYCLE_ONLY`), but the *model-record chain* —
+recorded at runtime by the injector's own rule, identity-linked to the
+fault's chain (§2), hash-verified on every data hop (§3) — is complete and
+runtime-proven, and no longer forces the classification down.
+
+### 11.3 The rules (deterministic, model-scoped)
+
+`tools/lsu_12model_closure.py` exports each model's rule record from
+`audit_pilot`'s evidence bundle (the `sq01_chain` / `sq03_effect` /
+`sp05_stage` record on the fault's own chain, with its detail fields
+verbatim — the same export pattern E1 used for the LQ04 `association`
+fields; no independent trace re-parse, no forked classifier). The tool
+upgrades a record to a complete verdict — and emits the matching
+`ChainMechanism` — only when ALL conditions of the model's conjunction
+hold. Every condition is a proven runtime field; **no upgrade on
+inference**. Shared prefix (all three rules):
+
+1. `ModelID` is the rule's own model (SQ01 / SQ03 / SP05). Each exception
+   upgrades no other model; every other model follows §6 unchanged.
+2. `ObservedTerminal` is the rule's outcome terminal: `SDC` for E2/E4
+   (the corrupted or stale delivery failed the application oracle),
+   `MASKED` for E3 (correct payload, oracle PASS — the effect is the
+   visibility violation, not a data corruption).
+3. `FaultCausality = PROVEN`.
+4. `RecordIntegrity = VALID`, `TraceCompleteness = COMPLETE`,
+   `StructuralChainCompleteness = COMPLETE`, and
+   `InjectionVerified`/`ActivationVerified` = yes — the §6 invariant set
+   every complete verdict enforces (identical to E1 §10.3 condition 4).
+5. The model's rule record exists on the fault's own chain (exported as
+   the record's `ModelRuleRecord`).
+
+**E2 — SQ01 (`sq01_chain`), mechanism
+`SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER`:**
+
+6. `data_diverged = 1` — the injected bit flip actually changed the SQ
+   entry's data byte (`data_before != data_after` at runtime).
+7. A bound reload and consumer exist on the model record:
+   `reload_seq` and `consumer_seq` present (non-empty, non-sentinel).
+8. The three-hop hash triple is pairwise equal over real hashes:
+   `mem_write_hash == reload_data_hash == consumer_hash`, each a real hash
+   (§3 absent-hash sentinels `null`/`none`/`0`/empty can neither establish
+   the equality nor verify a hop) — the corrupted SQ-entry data reached
+   the memory write, was read back by the reload, and was consumed.
+9. The platform data rule on the reload's delivery edge holds:
+   `WritebackValueFnv == ConsumerInputFnv`, both real hashes.
+
+**E3 — SQ03 (`sq03_effect`), mechanism
+`SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT`:**
+
+6. `canwb_state_changed = 1` — the fault actually moved the canWB bit
+   (`canwb_before != canwb_after` at runtime).
+7. The visibility violation is time-proven: `drain_tick` and `commit_tick`
+   both present and numeric, both > 0, and `drain_tick < commit_tick` (the
+   store drained to memory strictly before architectural commit; a zero
+   `drain_tick` records "no drain" and never satisfies the inequality).
+8. `visible_before_commit = 1`.
+9. A bound reload exists with a real data hash: `reload_seq` present
+   (non-empty, non-sentinel) and `reload_data_hash` a real hash — the
+   pre-commit drain was actually read by the reload.
+10. The platform data rule on the reload's delivery edge holds:
+    `WritebackValueFnv == ConsumerInputFnv`, both real hashes.
+
+**E4 — SP05 (`sp05_stage`), mechanism
+`STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED`:**
+
+6. `write_skipped = 1` — the premature completion actually skipped the
+   store's write to memory.
+7. A bound reload exists with a real data hash: `reload_seq` present
+   (non-empty, non-sentinel) and `reload_data_hash` a real hash — the
+   reload read the word memory still held after the skipped write (the
+   stale word). `store_data_fnv` is honestly `null` in this binary (the
+   field's wiring is unimplemented) and is deliberately NOT a condition:
+   E4 never claims the store-side data question was answered, only that
+   the write was skipped and the reload read something that failed the
+   oracle.
+8. The platform data rule on the reload's delivery edge holds:
+   `WritebackValueFnv == ConsumerInputFnv`, both real hashes.
+
+When any condition fails, the record follows §6 exactly as before
+(`LIFECYCLE_ONLY` under rule 4, `PARTIAL` under rule 5). E2/E3/E4 do
+**not** change `FaultEffectPropagationCoverage`: the field keeps whatever
+the platform graded (`LIFECYCLE_ONLY` for these chains); the exceptions
+only stop that value from forcing the classification down.
+
+### 11.4 Relation to §4 (single-context corroboration) and the record fields
+
+Unlike E1 (§10.4, where the researcher's binding ruling grades the LQ04
+record `COMPLETE_CAUSAL_CHAIN` directly per record), E2/E3/E4 sit at the
+rule-3 layer and **do not bypass §4**: the conjunction establishes the
+complete-chain predicate, and the context count decides the value exactly
+as for every generic complete verdict — one verified model-record chain in
+the pilot's own trace → `VERIFIED_SINGLE_CONTEXT`; two or more distinct
+frozen contexts with a verified complete chain → `COMPLETE_CAUSAL_CHAIN`
+at model level (closure matrix). Each proven model-record chain counts as
+one verified chain (`VerifiedChainCount` is at least 1 when the exception
+fires). For the v3.2.12 eligible runs this yields five distinct frozen
+contexts per model (R01B..R05B, one pilot identity each), so the
+model-level verdict is `COMPLETE_CAUSAL_CHAIN`; the C01B controls remain
+`UNRESOLVED` (`NO_INJECTION`) and never contribute a context.
+
+E2/E3/E4 add two record fields, emitted by the tool from the same §11.3
+conjunction (a matrix or report may quote them but never set them):
+
+- `ModelRuleRecord` — the exported model rule record (`event_type` plus
+  its detail `fields`, verbatim), `null` when the model emits no rule
+  record on the chain;
+- `ChainMechanism ∈ {SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER,
+  SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT,
+  STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED, NOT_APPLICABLE}` — the
+  former exactly when the model's E2/E3/E4 conjunction fires, the latter
+  otherwise (including every non-SQ-family record).
+
+`MaskingMechanism` (§10.4) is unchanged and stays `NOT_APPLICABLE` for
+E2/E3/E4 records: E3's visibility mechanism is named by `ChainMechanism`,
+and E1 remains the only source of a masking mechanism.
 
 ---
 

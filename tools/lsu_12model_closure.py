@@ -35,6 +35,15 @@ Field mapping (standard §7, frozen):
    ``ObservedTerminal=MASKED`` and
    ``MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE``, even
    though ``FaultEffectPropagationCoverage`` stays ``LIFECYCLE_ONLY``;
+3c. exceptions E2/E3/E4 (standard §6 clause 3c / §11, model-scoped to
+   SQ01/SQ03/SP05): a runtime-proven model-record chain (the sq01_chain /
+   sq03_effect / sp05_stage record on the fault's own chain, with its hop
+   hashes / visibility ticks / skip flags) -> a complete verdict following
+   the single-context rule (§4): ``VERIFIED_SINGLE_CONTEXT`` per pilot,
+   model-level ``COMPLETE_CAUSAL_CHAIN`` with two or more distinct frozen
+   contexts, with ``ObservedTerminal=SDC`` (E2 SQ01, E4 SP05) or ``MASKED``
+   (E3 SQ03) and the ``ChainMechanism`` of §11 named, even though
+   ``FaultEffectPropagationCoverage`` stays ``LIFECYCLE_ONLY``;
 4. internal-only change -> ``LIFECYCLE_ONLY``;
 5. otherwise -> ``PARTIAL`` (with the missing link named).
 
@@ -110,6 +119,25 @@ _LQ04_SENDER_STATE = "sender_state"
 # hash sentinels that can neither establish continuity nor verify the
 # consumer edge (platform _real_hash semantics + this tool's stage literal)
 _ABSENT_HASH_SENTINELS = frozenset(("null", "none", "0", "", "not_applicable"))
+
+# Standard §6 clause 3c / §11 (frozen amendment 2026-11-10): exceptions
+# E2/E3/E4 — the SQ-family model-record chains.  The v3.2.12 SQ ordinal
+# re-selection round proved, 5/5 contexts per model, chains whose every hop
+# is a runtime-recorded field of the model's own rule record (sq01_chain /
+# sq03_effect / sp05_stage): SQ01's corrupted SQ-entry byte reached memory,
+# was reloaded and was consumed (the three-hop hash triple equal); SQ03's
+# canWB move drained the store to memory strictly before architectural
+# commit with a reload consumer reading it; SP05's skipped store completion
+# left the stale word in memory for the reload to read.  The generic
+# value_divergence analysis does not bind these model-record hops, so
+# coverage honestly stays LIFECYCLE_ONLY — the exceptions stop that value
+# from forcing the classification down.  Each rule is a conjunction of
+# proven fields only (no upgrade on inference) and is model-scoped.
+_SQ_MODEL_RULE_MECHANISMS = {
+    "SQ01": "SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER",
+    "SQ03": "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
+    "SP05": "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
+}
 
 # terminal_rules reasons whose outcome is derived from the fault's own
 # committed node (identity-verified by construction of the adjudication)
@@ -711,6 +739,12 @@ def build_pilot_record(pilot_dir, model: str,
             (evidence.get("commit") or {}).get("commit_seq")
             if stages["commit_verified"] == "yes"
             else "NOT_APPLICABLE"),
+        # exception-E2/E3/E4 evidence (standard §11): the SQ-family model
+        # rule record on the fault's own chain (sq01_chain / sq03_effect /
+        # sp05_stage), exported verbatim by audit_pilot's evidence bundle
+        # (hop hashes, visibility ticks, skip flags) — no independent trace
+        # re-parse, no forked classifier
+        "ModelRuleRecord": evidence.get("model_rule"),
         "OracleExpected": audit["oracle"].get("expected"),
         "OracleActual": audit["oracle"].get("actual"),
         "OracleStatus": audit["oracle"].get("status"),
@@ -721,6 +755,15 @@ def build_pilot_record(pilot_dir, model: str,
     record["MaskingMechanism"] = (
         MASKING_MECHANISM_SENDERSTATE
         if _lq04_sender_state_masking(record) else "NOT_APPLICABLE")
+    # standard §11: the exception-E2/E3/E4 record fields, computed from the
+    # same conjunction that final_classification applies (never hand-set).
+    # A proven model-record chain is one verified complete chain, so the
+    # pilot's VerifiedChainCount is at least 1 when the exception fires —
+    # §4 then decides VERIFIED_SINGLE_CONTEXT vs COMPLETE_CAUSAL_CHAIN
+    # exactly as for every generic complete verdict.
+    record["ChainMechanism"] = _sq_model_record_mechanism(record)
+    if record["ChainMechanism"] != "NOT_APPLICABLE":
+        record["VerifiedChainCount"] = max(int(chains), 1)
     record["FinalClassification"] = final_classification(record)
     return record
 
@@ -798,14 +841,214 @@ def _lq04_sender_state_masking(record: dict) -> bool:
     return writeback_fnv == detail("ConsumerInputFnv")
 
 
+# ---------------------------------------------------------------------------
+# standard §6 clause 3c / §11 — exceptions E2/E3/E4, the SQ-family
+# model-record chains (frozen amendment 2026-11-10)
+# ---------------------------------------------------------------------------
+
+def _sq_field(record: dict, name: str) -> str:
+    """A record field as stripped, lower-cased text (the identity-field
+    comparison convention of standard §2: trace vintages carry ints or JSON
+    strings; hash/flag comparison is str-normalized)."""
+    value = record.get(name)
+    return "" if value is None else str(value).strip().lower()
+
+
+def _model_rule_fields(record: dict, kind: str) -> dict:
+    """The model rule record of the given kind (standard §11): the
+    sq01_chain / sq03_effect / sp05_stage record the injector's rule emitted
+    on the fault's own chain, exported verbatim by ``audit_pilot``'s evidence
+    bundle (``ModelRuleRecord``).  Empty when the record is absent or of a
+    different kind."""
+    rule = record.get("ModelRuleRecord")
+    if not isinstance(rule, dict) or rule.get("event_type") != kind:
+        return {}
+    fields = rule.get("fields")
+    return fields if isinstance(fields, dict) else {}
+
+
+def _rule_value(fields: dict, name: str) -> str:
+    value = fields.get(name)
+    return "" if value is None else str(value).strip().lower()
+
+
+def _real_rule_hash(fields: dict, name: str) -> str | None:
+    """A model-record hash field as a real hash, or None when absent (the
+    §3 absent-hash sentinels can neither establish continuity nor verify a
+    hop — a sentinel never satisfies an E2/E3/E4 equality)."""
+    value = _rule_value(fields, name)
+    return None if value in _ABSENT_HASH_SENTINELS else value
+
+
+def _bound_seq(fields: dict, name: str) -> bool:
+    """A model-record sequence binding (reload_seq / consumer_seq) is
+    present only as a non-empty, non-sentinel value."""
+    return _rule_value(fields, name) not in _ABSENT_HASH_SENTINELS
+
+
+def _complete_invariants(record: dict) -> bool:
+    """The §6 invariant set every complete verdict enforces (identical to
+    E1's §10.3 condition 4): a valid, complete record over a structurally
+    complete chain with a verified, activated injection and proven
+    causality."""
+    return (_sq_field(record, "RecordIntegrity") == "valid"
+            and _sq_field(record, "TraceCompleteness") == "complete"
+            and _sq_field(record, "StructuralChainCompleteness") == "complete"
+            and record.get("InjectionVerified") == "yes"
+            and record.get("ActivationVerified") == "yes"
+            and _sq_field(record, "FaultCausality") == "proven")
+
+
+def _writeback_consumer_edge_verified(record: dict) -> bool:
+    """The platform data rule (§3) on the reload's delivery edge: the
+    consumer's input hash equals the writeback's value hash, both real
+    hashes.  Shared by E2/E3/E4 as the last conjunct."""
+    writeback_fnv = _sq_field(record, "WritebackValueFnv")
+    if writeback_fnv in _ABSENT_HASH_SENTINELS:
+        return False
+    return writeback_fnv == _sq_field(record, "ConsumerInputFnv")
+
+
+def _sq01_data_corruption_chain(record: dict) -> bool:
+    """Standard §11.3 exception E2 — SQ01, mechanism
+    SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER.
+
+    Fires only when ALL conditions hold (a conjunction of proven runtime
+    fields; no upgrade on inference): an SQ01 record with terminal SDC and
+    proven causality over the §6 invariant set, whose sq01_chain rule record
+    sits on the fault's own chain and proves the corrupted SQ-entry byte
+    reached memory, was reloaded and was consumed — data_diverged=1, a bound
+    reload_seq and consumer_seq, the three-hop hash triple
+    mem_write_hash == reload_data_hash == consumer_hash over real hashes —
+    with the platform data rule verifying the reload's delivery edge."""
+    if _sq_field(record, "ModelID") != "sq01":
+        return False  # model-scoped: the exception upgrades no other model
+    if _sq_field(record, "ObservedTerminal") != "sdc":
+        # E2's outcome terminal is the oracle-failing corrupted delivery
+        return False
+    if not _complete_invariants(record):
+        return False
+    fields = _model_rule_fields(record, "sq01_chain")
+    if not fields:
+        return False  # no model rule record on the fault's own chain
+    if _rule_value(fields, "data_diverged") != "1":
+        return False  # the injected flip never changed the SQ entry byte
+    if not (_bound_seq(fields, "reload_seq")
+            and _bound_seq(fields, "consumer_seq")):
+        return False  # no bound reload / consumer on the model record
+    mem_write = _real_rule_hash(fields, "mem_write_hash")
+    reload_data = _real_rule_hash(fields, "reload_data_hash")
+    consumer = _real_rule_hash(fields, "consumer_hash")
+    if not (mem_write and reload_data and consumer):
+        return False  # an absent hash can never verify a hop
+    if not (mem_write == reload_data == consumer):
+        return False  # the three hops are not hash-equal
+    return _writeback_consumer_edge_verified(record)
+
+
+def _sq03_visibility_moved_chain(record: dict) -> bool:
+    """Standard §11.3 exception E3 — SQ03, mechanism
+    SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT.
+
+    Fires only when ALL conditions hold: an SQ03 record with terminal MASKED
+    (correct payload, oracle PASS — the effect is the visibility violation)
+    and proven causality over the §6 invariant set, whose sq03_effect rule
+    record sits on the fault's own chain and proves the canWB move made the
+    store visible before architectural commit — canwb_state_changed=1,
+    drain_tick and commit_tick both > 0 with drain_tick < commit_tick,
+    visible_before_commit=1 — with a bound reload (reload_seq present,
+    reload_data_hash real) and the platform data rule verifying the reload's
+    delivery edge."""
+    if _sq_field(record, "ModelID") != "sq03":
+        return False  # model-scoped: the exception upgrades no other model
+    if _sq_field(record, "ObservedTerminal") != "masked":
+        # E3 never relabels an SDC/CRASH/HANG/SQUASHED record; the effect
+        # it names is a visibility move of a correct payload
+        return False
+    if not _complete_invariants(record):
+        return False
+    fields = _model_rule_fields(record, "sq03_effect")
+    if not fields:
+        return False  # no model rule record on the fault's own chain
+    if _rule_value(fields, "canwb_state_changed") != "1":
+        return False  # the fault never moved the canWB bit
+    try:
+        drain_tick = int(_rule_value(fields, "drain_tick"))
+        commit_tick = int(_rule_value(fields, "commit_tick"))
+    except ValueError:
+        return False  # the visibility ticks are not both numeric
+    if drain_tick <= 0 or commit_tick <= 0:
+        return False  # a zero tick records "not observed", never a proof
+    if not drain_tick < commit_tick:
+        return False  # the drain did not precede architectural commit
+    if _rule_value(fields, "visible_before_commit") != "1":
+        return False
+    if not _bound_seq(fields, "reload_seq"):
+        return False  # no bound reload on the model record
+    if _real_rule_hash(fields, "reload_data_hash") is None:
+        return False  # the reload's data hash is absent
+    return _writeback_consumer_edge_verified(record)
+
+
+def _sp05_store_skipped_chain(record: dict) -> bool:
+    """Standard §11.3 exception E4 — SP05, mechanism
+    STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED.
+
+    Fires only when ALL conditions hold: an SP05 record with terminal SDC
+    and proven causality over the §6 invariant set, whose sp05_stage rule
+    record sits on the fault's own chain and proves the premature completion
+    skipped the store write (write_skipped=1) and a reload then read the
+    word memory still held (reload_seq present, reload_data_hash a real
+    hash) — with the platform data rule verifying the reload's delivery
+    edge.  store_data_fnv is honestly null in this binary (the field's
+    wiring is unimplemented) and is deliberately NOT a condition: E4 never
+    claims the store-side data question was answered, only that the write
+    was skipped and the reload read something that failed the oracle."""
+    if _sq_field(record, "ModelID") != "sp05":
+        return False  # model-scoped: the exception upgrades no other model
+    if _sq_field(record, "ObservedTerminal") != "sdc":
+        # E4's outcome terminal is the oracle-failing stale delivery
+        return False
+    if not _complete_invariants(record):
+        return False
+    fields = _model_rule_fields(record, "sp05_stage")
+    if not fields:
+        return False  # no model rule record on the fault's own chain
+    if _rule_value(fields, "write_skipped") != "1":
+        return False  # the store write was not skipped
+    if not _bound_seq(fields, "reload_seq"):
+        return False  # no bound reload on the model record
+    if _real_rule_hash(fields, "reload_data_hash") is None:
+        return False  # the reload read nothing the rule could hash
+    return _writeback_consumer_edge_verified(record)
+
+
+def _sq_model_record_mechanism(record: dict) -> str:
+    """The §11 ChainMechanism value for the record: the model's mechanism
+    name exactly when its E2/E3/E4 conjunction holds, NOT_APPLICABLE
+    otherwise (including every non-SQ-family record).  Computed from the
+    same conjunction ``final_classification`` applies — never hand-set."""
+    if _sq01_data_corruption_chain(record):
+        return _SQ_MODEL_RULE_MECHANISMS["SQ01"]
+    if _sq03_visibility_moved_chain(record):
+        return _SQ_MODEL_RULE_MECHANISMS["SQ03"]
+    if _sp05_store_skipped_chain(record):
+        return _SQ_MODEL_RULE_MECHANISMS["SP05"]
+    return "NOT_APPLICABLE"
+
+
 def final_classification(record: dict) -> str:
     """Apply the frozen five-rule order; the first rule that fires decides.
 
     Exception E1 (standard §6 clause 3b / §10, frozen amendment 2026-11-10)
     sits between rules 3 and 4 and is model-scoped to the runtime-proven
-    LQ04 senderState masking chain (``_lq04_sender_state_masking``); every
-    other record, and every LQ04 record missing any of E1's conditions,
-    follows the generic rules unchanged."""
+    LQ04 senderState masking chain (``_lq04_sender_state_masking``).
+    Exceptions E2/E3/E4 (standard §6 clause 3c / §11, frozen amendment
+    2026-11-10) sit at the same layer, immediately after E1, and are
+    model-scoped to the runtime-proven SQ-family model-record chains
+    (``_sq_model_record_mechanism``).  Every other record — and every
+    SQ01/SQ03/SP05 record missing any of its §11 conditions — follows the
+    generic rules unchanged."""
     def field(name: str) -> str:
         value = record.get(name)
         return str(value).upper() if value is not None else ""
@@ -851,6 +1094,21 @@ def final_classification(record: dict) -> str:
         # grades COMPLETE_CAUSAL_CHAIN and carries
         # MaskingMechanism=RESPONSE_ASSOCIATED_VIA_PACKET_SENDERSTATE.
         return "COMPLETE_CAUSAL_CHAIN"
+    if _sq_model_record_mechanism(record) != "NOT_APPLICABLE":
+        # exceptions E2/E3/E4 (standard §6 clause 3c / §11, frozen
+        # amendment 2026-11-10): the runtime-proven SQ-family model-record
+        # chain (SQ01 data corruption reaching a reload consumer; SQ03
+        # canWB visibility moved before commit with a reload consumer;
+        # SP05 skipped store completion with a stale reload consumed).
+        # FaultEffectPropagationCoverage stays LIFECYCLE_ONLY — the generic
+        # value_divergence analysis does not bind the model-record hops —
+        # but per the §11 conjunction it no longer forces the
+        # classification down.  Unlike E1 there is no per-record authority
+        # bypassing the context count: §4 applies unchanged, so the verdict
+        # is `complete` (one verified model-record chain per pilot ->
+        # VERIFIED_SINGLE_CONTEXT; two or more distinct frozen contexts ->
+        # COMPLETE_CAUSAL_CHAIN at model level).
+        return complete
     if (field("FaultEffectPropagationCoverage") == "LIFECYCLE_ONLY"
             and activation_ok and struct_complete
             and terminal not in ("HANG", "TIMEOUT", "SQUASHED", "CRASH")):
@@ -1442,6 +1700,7 @@ def main(argv: list | None = None) -> int:
                   f"FinalClassification={record['FinalClassification']} "
                   f"ObservedTerminal={record['ObservedTerminal']} "
                   f"MaskingMechanism={record['MaskingMechanism']} "
+                  f"ChainMechanism={record['ChainMechanism']} "
                   f"missing=[{record['MissingEvidence']}]")
         return 0
 

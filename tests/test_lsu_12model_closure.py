@@ -22,6 +22,21 @@ amendment 2026-11-10): the runtime-proven LQ04 senderState masking chain
 grades COMPLETE_CAUSAL_CHAIN/MASKED with the mechanism recorded; without the
 runtime association it stays LIFECYCLE_ONLY; and the rule is model-scoped.
 
+The exception-E2/E3/E4 tests pin standard §6 clause 3c / §11 (frozen
+amendment 2026-11-10): the runtime-proven SQ-family model-record chains
+(SQ01 sq01_chain / SQ03 sq03_effect / SP05 sp05_stage on the fault's own
+chain) grade a complete verdict through the single-context rule —
+VERIFIED_SINGLE_CONTEXT per pilot, model-level COMPLETE_CAUSAL_CHAIN with
+two or more distinct frozen contexts — with the terminal and ChainMechanism
+named, even though FaultEffectPropagationCoverage stays LIFECYCLE_ONLY.
+Every guard of each §11.3 conjunction is pinned: removing any single
+condition (a diverged flag, a hop hash, a visibility tick ordering, a skip
+flag, a reload binding, the platform writeback-consumer edge, the §6
+invariant set, the model-rule record itself) must drop the record back to
+the generic rules; a non-SQ model carrying identical evidence never
+upgrades; and SP05's honestly-null store_data_fnv never blocks the upgrade
+that rests on write_skipped + the bound stale reload.
+
 The four missing-matrix closure tests pin the v3.2.12 Task 6 semantics: every
 ``ORACLE_FILE_MISSING`` row closes against the frozen context's real
 raw-oracle supply — a same-seed ``SUPP-<MODEL>-<Rxx>`` run remediates it
@@ -111,7 +126,8 @@ def write_pilot(directory, *, model="LQ04", ordinal=1, binary_sha=SHA_A,
                 response=True, writeback=True, consumer=True, commit=True,
                 replay=False, decoy_consumer=False, declared="COMPLETE",
                 divergent=False, truncated=False, seed=1842987246,
-                run_status="COMPLETED", sender_state=False):
+                run_status="COMPLETED", sender_state=False, family=None,
+                store_side=False, sq_rule=None):
     """Write one synthetic pilot dir; returns its Path.
 
     ``decoy_consumer`` adds a LATER consumer_commit with a different ptag and
@@ -120,35 +136,49 @@ def write_pilot(directory, *, model="LQ04", ordinal=1, binary_sha=SHA_A,
     ``sender_state`` records the LQ04 runtime senderState binding evidence
     (``association=sender_state`` on the memory_response and the
     register_writeback, exactly as the real pilots_v3_2_10 traces record it).
+    ``store_side`` adds the store's own writeback/cache-write events (the
+    SQ01/SQ03 structural stages). ``sq_rule`` emits the model's rule record
+    on the fault's own chain (sq01_chain / sq03_effect / sp05_stage, exactly
+    as the real pilots_v3_2_12 eligible-ordinal traces record it) with the
+    given detail fields — the standard §11 model-record chain evidence.
     """
     directory = Path(directory)
     directory.mkdir(parents=True)
     suffix = directory.name.split("-")[-1]
     run_id = f"{model}-F0-W2"
     sample = f"{model}-F0-W2-S01-{suffix}"
+    family = family or model.lower()
 
     lines = []
     lines.append(_event(1, "lq_lifecycle", 78540, 2, 0,
                         "queue=LQ;action=alloc;index=9;generation=9"))
     if injection:
         lines.append(_event(3, "injection", 80080, 3, 1,
-                            "site=executeLoad_post;family=lq04;"
+                            f"site=executeLoad_post;family={family};"
                             "valid_before=1;valid_after=0;lq_idx=1;lq_gen=1;"
                             "pc=400338", inj="INJECTED", act=activation,
                             new_value="0x41ffe8"))
+    if store_side:
+        lines.append(_event(5, "store_writeback", 90000, 3, 1,
+                            f"family={family};sq_idx=7;gen=1;"
+                            f"data_fnv={HASH}"))
+        lines.append(_event(6, "store_mem_write", 91000, 3, 1,
+                            f"site=BaseCache::updateBlockData;"
+                            f"family={family};blk_addr=0x1fe0;"
+                            f"packet_data_fnv={HASH}"))
     if response:
         binding = ("association=sender_state;entry_valid_at_response=0;"
                    "entry_request_at_response=0;data_unchanged=1;"
                    if sender_state else "")
         lines.append(_event(8, "memory_response", 135520, 3, 1,
-                            f"family=lq04;size=8;{binding}"
+                            f"family={family};size=8;{binding}"
                             f"data_fnv={HASH};request_id=1;pa=1fe8"))
     if writeback:
         corrupt = "1" if divergent else "0"
         binding = ("association=sender_state;data_unchanged=1;"
                    if sender_state else "")
         lines.append(_event(9, "register_writeback", 135520, 3, 1,
-                            f"family=lq04;{binding}"
+                            f"family={family};{binding}"
                             f"data_corruption={corrupt};"
                             f"phys_reg=44;arch_reg=2;"
                             f"writeback_value_fnv={HASH};payload_fnv={HASH};"
@@ -178,6 +208,14 @@ def write_pilot(directory, *, model="LQ04", ordinal=1, binary_sha=SHA_A,
                             f"consumer_input_fnv={HASH};"
                             "consumer_input_matches_source=1",
                             source=9, commit_status="COMMITTED", cseq="99"))
+    if sq_rule is not None:
+        # the model's rule record on the fault's own chain (ptag=1, the
+        # faulting store's own dyn_inst_seq), exactly as the real
+        # pilots_v3_2_12 eligible-ordinal traces emit it
+        kind = {"SQ01": "sq01_chain", "SQ03": "sq03_effect",
+                "SP05": "sp05_stage"}.get(model, "sq01_chain")
+        detail = ";".join(f"{key}={value}" for key, value in sq_rule.items())
+        lines.append(_event(30, kind, 210000, 3, 1, detail))
 
     if injection:
         lines.append(_edge(1, 3, 8, "resp"))
@@ -780,3 +818,331 @@ def test_sender_state_exception_is_model_scoped(tmp_path):
     assert record["FinalClassification"] not in (
         "COMPLETE_CAUSAL_CHAIN", "VERIFIED_SINGLE_CONTEXT")
     assert record["MaskingMechanism"] == "NOT_APPLICABLE"
+
+
+# ---------------------------------------------------------------------------
+# standard §6 clause 3c / §11 — exceptions E2/E3/E4, the SQ-family
+# model-record chains (frozen amendment 2026-11-10)
+# ---------------------------------------------------------------------------
+
+# the sq01_chain / sq03_effect / sp05_stage rule-record detail fields,
+# mirroring the real pilots_v3_2_12/SUPP-{SQ01,SQ03,SP05}-R0xB traces
+SQ01_RULE = {
+    "record": "sq01_chain", "family": "store_data", "model": "SQ01",
+    "store_seq": "3", "sq_idx": "7", "gen": "1",
+    "data_before": "0x61", "data_after": "0x69", "data_diverged": "1",
+    "mem_write_hash": HASH, "reload_seq": "5",
+    "reload_data_hash": HASH, "consumer_seq": "8",
+    "consumer_hash": HASH, "chain_verdict": "COMPLETE_CHAIN",
+}
+SQ03_RULE = {
+    "record": "sq03_effect", "family": "sq03_canwb", "model": "SQ03",
+    "store_seq": "3", "sq_idx": "7", "gen": "1",
+    "canwb_before": "0", "canwb_after": "1", "canwb_state_changed": "1",
+    "writeback_tick": "90000", "drain_tick": "95000",
+    "commit_tick": "100000", "resource_reuse_tick": "0",
+    "reload_seq": "5", "reload_data_hash": HASH,
+    "visible_before_commit": "1", "phantom_drain": "0",
+    "effect_outcome": "CHAIN_VISIBILITY_MOVED",
+    "effect_reason": "DRAIN_BEFORE_COMMIT_WITH_RELOAD_CONSUMER",
+}
+SP05_RULE = {
+    "record": "sp05_stage", "family": "sp05_complete", "model": "SP05",
+    "store_seq": "3", "sq_idx": "7", "gen": "1",
+    "completion_tick": "91000", "commit_tick": "0",
+    "writeback_tick": "91000", "drain_tick": "0", "write_skipped": "1",
+    "reload_seq": "5", "reload_data_hash": HASH,
+    "store_data_fnv": "null", "data_correct": "null",
+    "stage_outcome": "RELOAD_UNVERIFIABLE",
+    "masking_mechanism": "NOT_APPLICABLE",
+}
+
+_SQ_RULE_KINDS = {"SQ01": "sq01_chain", "SQ03": "sq03_effect",
+                  "SP05": "sp05_stage"}
+
+
+def _write_sq_pilot(tmp_path, model, rule, name="R01", **kwargs):
+    """One synthetic SQ-family fault pilot: the store's own structural
+    stages (omitted for SP05, whose write was skipped — the honest
+    NO_EARLY_ANOMALY_EVENT of the real runs), the reload's delivery edge,
+    and the model's rule record on the fault's own chain."""
+    defaults = dict(
+        store_side=model != "SP05", sq_rule=rule,
+        terminal="MASKED" if model == "SQ03" else "SDC",
+        oracle=(("b097eb83f71545cb", "b097eb83f71545cb")
+                if model == "SQ03"
+                else ("b097eb83f71545cb", "deadbeefdeadbeef")),
+    )
+    defaults.update(kwargs)
+    return write_pilot(Path(tmp_path) / f"{model}-{name}", model=model,
+                       **defaults)
+
+
+def _mutated(record, **fields):
+    """A deep copy of the record with top-level fields replaced (one guard
+    removed at a time; never the tool's own output)."""
+    copy = json.loads(json.dumps(record))
+    copy.update(fields)
+    return copy
+
+
+def _mutated_rule(record, **fields):
+    """A deep copy of the record with model-rule-record fields replaced."""
+    copy = json.loads(json.dumps(record))
+    copy["ModelRuleRecord"]["fields"].update(fields)
+    return copy
+
+
+_NOT_COMPLETE = ("COMPLETE_CAUSAL_CHAIN", "VERIFIED_SINGLE_CONTEXT")
+
+
+@pytest.mark.parametrize("model,rule,mechanism,terminal", [
+    ("SQ01", SQ01_RULE, "SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER",
+     "SDC"),
+    ("SQ03", SQ03_RULE, "SQ_CANWB_VISIBILITY_MOVED_DRAIN_BEFORE_COMMIT",
+     "MASKED"),
+    ("SP05", SP05_RULE, "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
+     "SDC"),
+])
+def test_sq_model_record_chain_upgrades(tmp_path, model, rule, mechanism,
+                                        terminal):
+    """Standard §6 clause 3c / §11: a record whose model rule record on the
+    fault's own chain proves every hop of the §11 conjunction grades a
+    complete verdict through the single-context rule — VERIFIED_SINGLE_
+    CONTEXT for the pilot's one verified chain — with the terminal and
+    ChainMechanism named, while FaultEffectPropagationCoverage honestly
+    stays LIFECYCLE_ONLY (the generic value_divergence analysis does not
+    bind the model-record hops) and E1's MaskingMechanism stays
+    NOT_APPLICABLE."""
+    pilot = _write_sq_pilot(tmp_path, model, rule)
+    record = build_pilot_record(pilot, model)
+    # the model rule record is exported from the fault's own chain
+    assert record["ModelRuleRecord"]["event_type"] == _SQ_RULE_KINDS[model]
+    assert record["ObservedTerminal"] == terminal
+    assert record["FaultCausality"] == "PROVEN"
+    assert record["InjectionVerified"] == "yes"
+    assert record["ActivationVerified"] == "yes"
+    # coverage is NOT changed by the exception; it no longer forces the
+    # classification down
+    assert record["FaultEffectPropagationCoverage"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+    assert record["ChainMechanism"] == mechanism
+    assert record["MaskingMechanism"] == "NOT_APPLICABLE"
+    # the proven model-record chain is one verified complete chain
+    assert record["VerifiedChainCount"] == 1
+
+
+def test_sq01_every_guard_removed_means_no_upgrade(tmp_path):
+    """Exception E2 is a conjunction of proven fields: removing any single
+    condition — the divergence flag, any hop of the hash triple, the reload
+    or consumer binding, the writeback-consumer data edge, the terminal, the
+    causality, the §6 invariant set, or the model rule record itself — must
+    drop the record back to the generic rules (never a complete verdict)."""
+    pilot = _write_sq_pilot(tmp_path, "SQ01", SQ01_RULE)
+    record = build_pilot_record(pilot, "SQ01")
+    assert record["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+    guards = [
+        _mutated_rule(record, data_diverged="0"),
+        _mutated_rule(record, mem_write_hash=BAD_HASH),
+        _mutated_rule(record, reload_data_hash=BAD_HASH),
+        _mutated_rule(record, consumer_hash=BAD_HASH),
+        _mutated_rule(record, mem_write_hash="null"),
+        _mutated_rule(record, reload_data_hash="null"),
+        _mutated_rule(record, consumer_hash="0"),
+        _mutated_rule(record, reload_seq="null"),
+        _mutated_rule(record, consumer_seq="null"),
+        _mutated(record, ModelRuleRecord=None),
+        _mutated(record, ObservedTerminal="MASKED"),
+        _mutated(record, FaultCausality="PARTIAL"),
+        _mutated(record, RecordIntegrity="INVALID"),
+        _mutated(record, TraceCompleteness="INCOMPLETE"),
+        _mutated(record, StructuralChainCompleteness="PARTIAL"),
+        _mutated(record, InjectionVerified="no"),
+        _mutated(record, ActivationVerified="no"),
+        _mutated(record, WritebackValueFnv=BAD_HASH),
+        _mutated(record, ConsumerInputFnv="null"),
+    ]
+    for guard in guards:
+        final = final_classification(guard)
+        assert final not in _NOT_COMPLETE, guard.get("ModelRuleRecord")
+    # the honest fallback is rule 4 (LIFECYCLE_ONLY) for the coverage-shaped
+    # guards, never a silent complete verdict
+    assert final_classification(guards[0]) == "LIFECYCLE_ONLY"
+    assert final_classification(guards[1]) == "LIFECYCLE_ONLY"
+
+
+def test_sq03_every_guard_removed_means_no_upgrade(tmp_path):
+    """Exception E3 is a conjunction of proven fields: removing any single
+    condition — the canWB state change, the drain-before-commit ordering
+    (including the zero-tick "not observed" and the non-numeric cases), the
+    visibility flag, the bound reload with its real hash, the terminal, the
+    causality, the §6 invariant set, or the model rule record itself — must
+    drop the record back to the generic rules."""
+    pilot = _write_sq_pilot(tmp_path, "SQ03", SQ03_RULE)
+    record = build_pilot_record(pilot, "SQ03")
+    assert record["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+    guards = [
+        _mutated_rule(record, canwb_state_changed="0"),
+        _mutated_rule(record, drain_tick="0"),
+        _mutated_rule(record, commit_tick="0"),
+        _mutated_rule(record, drain_tick="150000"),  # drain >= commit
+        _mutated_rule(record, drain_tick="null"),  # non-numeric tick
+        _mutated_rule(record, visible_before_commit="0"),
+        _mutated_rule(record, reload_seq="null"),
+        _mutated_rule(record, reload_data_hash="null"),
+        _mutated_rule(record, reload_data_hash="0"),
+        _mutated(record, ModelRuleRecord=None),
+        _mutated(record, ObservedTerminal="SDC"),  # E3 never relabels SDC
+        _mutated(record, FaultCausality="PARTIAL"),
+        _mutated(record, RecordIntegrity="TRUNCATED"),
+        _mutated(record, TraceCompleteness="MISSING"),
+        _mutated(record, StructuralChainCompleteness="NONE"),
+        _mutated(record, InjectionVerified="no"),
+        _mutated(record, ActivationVerified="no"),
+        _mutated(record, WritebackValueFnv=BAD_HASH),
+    ]
+    for guard in guards:
+        final = final_classification(guard)
+        assert final not in _NOT_COMPLETE, guard.get("ModelRuleRecord")
+    assert final_classification(guards[0]) == "LIFECYCLE_ONLY"
+    assert final_classification(guards[10]) == "LIFECYCLE_ONLY"
+
+
+def test_sp05_every_guard_removed_means_no_upgrade(tmp_path):
+    """Exception E4 is a conjunction of proven fields: removing any single
+    condition — the skipped write, the bound reload with its real (stale)
+    hash, the terminal, the causality, the §6 invariant set, or the model
+    rule record itself — must drop the record back to the generic rules."""
+    pilot = _write_sq_pilot(tmp_path, "SP05", SP05_RULE)
+    record = build_pilot_record(pilot, "SP05")
+    assert record["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+    guards = [
+        _mutated_rule(record, write_skipped="0"),
+        _mutated_rule(record, reload_seq="null"),
+        _mutated_rule(record, reload_data_hash="null"),
+        _mutated_rule(record, reload_data_hash="0"),
+        _mutated(record, ModelRuleRecord=None),
+        _mutated(record, ObservedTerminal="MASKED"),
+        _mutated(record, FaultCausality="UNPROVEN"),
+        _mutated(record, RecordIntegrity="INVALID"),
+        _mutated(record, TraceCompleteness="INCOMPLETE"),
+        _mutated(record, StructuralChainCompleteness="PARTIAL"),
+        _mutated(record, InjectionVerified="no"),
+        _mutated(record, ActivationVerified="no"),
+        _mutated(record, WritebackValueFnv=BAD_HASH),
+        _mutated(record, ConsumerInputFnv="null"),
+    ]
+    for guard in guards:
+        final = final_classification(guard)
+        assert final not in _NOT_COMPLETE, guard.get("ModelRuleRecord")
+    assert final_classification(guards[0]) == "LIFECYCLE_ONLY"
+
+
+def test_sp05_null_store_data_still_upgrades_on_skip_and_stale_reload(
+        tmp_path):
+    """SP05's store-side hash is honestly null in this binary (the
+    store_data_fnv wiring is unimplemented, so data_correct stays null and
+    the rule's own stage_outcome is RELOAD_UNVERIFIABLE): the upgrade rests
+    only on write_skipped + the bound stale reload + the platform
+    writeback-consumer edge, and the honest missing early anomaly stays
+    recorded — never silently dropped, never a blocker."""
+    pilot = _write_sq_pilot(tmp_path, "SP05", SP05_RULE)
+    record = build_pilot_record(pilot, "SP05")
+    fields = record["ModelRuleRecord"]["fields"]
+    assert fields["store_data_fnv"] == "null"
+    assert fields["data_correct"] == "null"
+    assert fields["stage_outcome"] == "RELOAD_UNVERIFIABLE"
+    assert "NO_EARLY_ANOMALY_EVENT" in record["MissingCodes"]
+    assert record["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+    assert record["ChainMechanism"] == (
+        "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED")
+    # remove either leg of the skip+stale-reload evidence and no upgrade
+    for guard in (_mutated_rule(record, write_skipped="0"),
+                  _mutated_rule(record, reload_data_hash="null"),
+                  _mutated_rule(record, reload_seq="null")):
+        assert final_classification(guard) not in _NOT_COMPLETE
+        assert final_classification(guard) == "LIFECYCLE_ONLY"
+
+
+def test_sq_exceptions_are_model_scoped(tmp_path):
+    """Exceptions E2/E3/E4 upgrade no other model.  A non-SQ model audited
+    over the identical evidence shape never even reads the sq01_chain
+    record (the model-rule export is model-keyed), and a completed SQ01
+    record whose ModelID is flipped keeps the generic rules: the
+    classification gate is the model id, never the evidence shape alone."""
+    pilot = _write_sq_pilot(tmp_path, "SQ01", SQ01_RULE)
+    da04 = build_pilot_record(pilot, "DA04")
+    assert da04["ModelID"] == "DA04"
+    assert da04["ModelRuleRecord"] is None  # the export is model-keyed
+    assert da04["ObservedTerminal"] == "SDC"
+    assert da04["FaultEffectPropagationCoverage"] == "LIFECYCLE_ONLY"
+    assert da04["FinalClassification"] == "LIFECYCLE_ONLY"
+    assert da04["FinalClassification"] not in _NOT_COMPLETE
+    assert da04["ChainMechanism"] == "NOT_APPLICABLE"
+
+    # the record carries the verbatim sq01_chain evidence, but the model id
+    # is the gate: an impostor model never upgrades
+    sq01 = build_pilot_record(pilot, "SQ01")
+    assert sq01["FinalClassification"] == "VERIFIED_SINGLE_CONTEXT"
+    impostor = _mutated(sq01, ModelID="DA04")
+    assert impostor["ModelRuleRecord"] == sq01["ModelRuleRecord"]
+    assert final_classification(impostor) == "LIFECYCLE_ONLY"
+
+
+def test_sq_pilot_without_model_rule_record_stays_lifecycle(tmp_path):
+    """Without the model rule record on the fault's own chain there is no
+    §11 evidence at all: the record follows the generic rules exactly as
+    before (rule 4 LIFECYCLE_ONLY) and carries no mechanism — no upgrade on
+    inference alone."""
+    pilot = _write_sq_pilot(tmp_path, "SQ01", None)
+    record = build_pilot_record(pilot, "SQ01")
+    assert record["ModelRuleRecord"] is None
+    assert record["ObservedTerminal"] == "SDC"
+    assert record["FaultEffectPropagationCoverage"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] == "LIFECYCLE_ONLY"
+    assert record["FinalClassification"] not in _NOT_COMPLETE
+    assert record["ChainMechanism"] == "NOT_APPLICABLE"
+
+
+def test_sq_model_level_complete_needs_two_distinct_contexts(tmp_path):
+    """Standard §11.4: E2/E3/E4 do not bypass §4.  Per pilot the verdict is
+    VERIFIED_SINGLE_CONTEXT; the model-level closure row upgrades the fault
+    runs to COMPLETE_CAUSAL_CHAIN only with two or more distinct frozen
+    contexts, and the zero-injection control stays UNRESOLVED, never
+    contributing a context."""
+    records = []
+    for ordinal, (name, seed) in enumerate((("R01", 111), ("R02", 222)),
+                                           start=1):
+        pilot = _write_sq_pilot(tmp_path, "SQ01", SQ01_RULE, name=name,
+                                ordinal=ordinal, seed=seed)
+        records.append(build_pilot_record(pilot, "SQ01"))
+    control = write_pilot(Path(tmp_path) / "SQ01-C01", model="SQ01",
+                          injection=False, terminal=None, seed=111)
+    control_record = build_pilot_record(control, "SQ01")
+    assert control_record["FinalClassification"] == "UNRESOLVED"
+    records.append(control_record)
+    assert {r["SampleRunID"] for r in records} == {
+        "SQ01-F0-W2-S01-R01", "SQ01-F0-W2-S01-R02", "SQ01-F0-W2-S01-C01"}
+
+    def matrix_final(records, out):
+        write_closure_matrix(records, out)
+        with open(out, newline="", encoding="utf-8") as fh:
+            rows = list(csv.reader(fh))
+        data = [dict(zip(CLOSURE_MATRIX_COLUMNS, r)) for r in rows[1:]]
+        assert len(data) == 1  # same model, same binary: exactly one row
+        return data[0]["FinalClassification"]
+
+    # two distinct frozen contexts with a proven model-record chain: the
+    # fault runs read COMPLETE_CAUSAL_CHAIN at model level, the control
+    # stays UNRESOLVED in the honest mixed aggregate
+    two = matrix_final(records, Path(tmp_path) / "closure_two.csv")
+    assert "COMPLETE_CAUSAL_CHAIN=2" in two
+    assert "UNRESOLVED=1" in two
+
+    # one context never upgrades the model (§4, unchanged)
+    single = matrix_final(
+        [r for r in records if r["PilotID"] != "SQ01-R02"],
+        Path(tmp_path) / "closure_one.csv")
+    assert "COMPLETE_CAUSAL_CHAIN" not in single
+    assert "VERIFIED_SINGLE_CONTEXT=1" in single
+    assert "UNRESOLVED=1" in single

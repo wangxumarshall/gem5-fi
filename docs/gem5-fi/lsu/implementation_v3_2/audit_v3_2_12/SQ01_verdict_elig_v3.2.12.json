@@ -36,7 +36,7 @@
       "FaultDefinition": "SQ entry\u6570\u636e\uff1awrite()\u5199\u5165\u540e / SQEntry::_data[0]",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -67,6 +67,27 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "5798",
+      "ModelRuleRecord": {
+        "event_id": "5038",
+        "event_type": "sq01_chain",
+        "fields": {
+          "record": "sq01_chain",
+          "family": "store_data",
+          "model": "SQ01",
+          "store_seq": "12108",
+          "sq_idx": "944",
+          "gen": "1294",
+          "data_before": "0x61",
+          "data_after": "0x69",
+          "data_diverged": "1",
+          "mem_write_hash": "f86e18335679a771",
+          "reload_seq": "12110",
+          "reload_data_hash": "f86e18335679a771",
+          "consumer_seq": "12113",
+          "consumer_hash": "f86e18335679a771",
+          "chain_verdict": "COMPLETE_CHAIN"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "139d0907c41e080c",
       "OracleStatus": "ok",
@@ -93,7 +114,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ01",
@@ -130,7 +152,7 @@
       "FaultDefinition": "SQ entry\u6570\u636e\uff1awrite()\u5199\u5165\u540e / SQEntry::_data[0]",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -161,6 +183,27 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "5867",
+      "ModelRuleRecord": {
+        "event_id": "5042",
+        "event_type": "sq01_chain",
+        "fields": {
+          "record": "sq01_chain",
+          "family": "store_data",
+          "model": "SQ01",
+          "store_seq": "12227",
+          "sq_idx": "945",
+          "gen": "1295",
+          "data_before": "0x62",
+          "data_after": "0x6a",
+          "data_diverged": "1",
+          "mem_write_hash": "2a7c881ab831bd95",
+          "reload_seq": "12229",
+          "reload_data_hash": "2a7c881ab831bd95",
+          "consumer_seq": "12232",
+          "consumer_hash": "2a7c881ab831bd95",
+          "chain_verdict": "COMPLETE_CHAIN"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "956273849853ddfc",
       "OracleStatus": "ok",
@@ -187,7 +230,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ01",
@@ -224,7 +268,7 @@
       "FaultDefinition": "SQ entry\u6570\u636e\uff1awrite()\u5199\u5165\u540e / SQEntry::_data[0]",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -255,6 +299,27 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "5936",
+      "ModelRuleRecord": {
+        "event_id": "5046",
+        "event_type": "sq01_chain",
+        "fields": {
+          "record": "sq01_chain",
+          "family": "store_data",
+          "model": "SQ01",
+          "store_seq": "12423",
+          "sq_idx": "946",
+          "gen": "1296",
+          "data_before": "0x63",
+          "data_after": "0x6b",
+          "data_diverged": "1",
+          "mem_write_hash": "e6371a5feb48222d",
+          "reload_seq": "12425",
+          "reload_data_hash": "e6371a5feb48222d",
+          "consumer_seq": "12428",
+          "consumer_hash": "e6371a5feb48222d",
+          "chain_verdict": "COMPLETE_CHAIN"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "5f8387b1640e749c",
       "OracleStatus": "ok",
@@ -281,7 +346,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ01",
@@ -318,7 +384,7 @@
       "FaultDefinition": "SQ entry\u6570\u636e\uff1awrite()\u5199\u5165\u540e / SQEntry::_data[0]",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -349,6 +415,27 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "6005",
+      "ModelRuleRecord": {
+        "event_id": "5050",
+        "event_type": "sq01_chain",
+        "fields": {
+          "record": "sq01_chain",
+          "family": "store_data",
+          "model": "SQ01",
+          "store_seq": "12643",
+          "sq_idx": "947",
+          "gen": "1297",
+          "data_before": "0x64",
+          "data_after": "0x6c",
+          "data_diverged": "1",
+          "mem_write_hash": "a74045b6b4580b81",
+          "reload_seq": "12645",
+          "reload_data_hash": "a74045b6b4580b81",
+          "consumer_seq": "12648",
+          "consumer_hash": "a74045b6b4580b81",
+          "chain_verdict": "COMPLETE_CHAIN"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "9d8e97d3604265bc",
       "OracleStatus": "ok",
@@ -375,7 +462,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ01",
@@ -412,7 +500,7 @@
       "FaultDefinition": "SQ entry\u6570\u636e\uff1awrite()\u5199\u5165\u540e / SQEntry::_data[0]",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [],
       "ChainKinds": [
         "commit",
@@ -443,6 +531,27 @@
       "MemoryResponseAssociation": null,
       "WritebackAssociation": null,
       "CommitSeq": "6074",
+      "ModelRuleRecord": {
+        "event_id": "5056",
+        "event_type": "sq01_chain",
+        "fields": {
+          "record": "sq01_chain",
+          "family": "store_data",
+          "model": "SQ01",
+          "store_seq": "12776",
+          "sq_idx": "948",
+          "gen": "1298",
+          "data_before": "0x65",
+          "data_after": "0x6d",
+          "data_diverged": "1",
+          "mem_write_hash": "fff725544d920281",
+          "reload_seq": "12778",
+          "reload_data_hash": "fff725544d920281",
+          "consumer_seq": "12781",
+          "consumer_hash": "fff725544d920281",
+          "chain_verdict": "COMPLETE_CHAIN"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "dfa8dcedb04048ac",
       "OracleStatus": "ok",
@@ -469,7 +578,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "SQ_ENTRY_DATA_CORRUPTION_MEM_RELOAD_CONSUMER",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SQ01",
@@ -527,6 +637,7 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
+      "ModelRuleRecord": null,
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -537,6 +648,7 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     }
   ]

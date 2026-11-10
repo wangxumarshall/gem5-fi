@@ -36,7 +36,7 @@
       "FaultDefinition": "Store\u5b8c\u6210\u8bb0\u8d26\uff1acompleteStore / SQEntry::_completed / storesToWB",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "NO_EARLY_ANOMALY_EVENT"
       ],
@@ -67,6 +67,29 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": null,
       "CommitSeq": "5800",
+      "ModelRuleRecord": {
+        "event_id": "5036",
+        "event_type": "sp05_stage",
+        "fields": {
+          "record": "sp05_stage",
+          "family": "sp05_complete",
+          "model": "SP05",
+          "store_seq": "12108",
+          "sq_idx": "944",
+          "gen": "1294",
+          "completion_tick": "15915900",
+          "commit_tick": "0",
+          "writeback_tick": "15915900",
+          "drain_tick": "0",
+          "write_skipped": "1",
+          "reload_seq": "12110",
+          "reload_data_hash": "a8c7f832281a39c5",
+          "store_data_fnv": "null",
+          "data_correct": "null",
+          "stage_outcome": "RELOAD_UNVERIFIABLE",
+          "masking_mechanism": "NOT_APPLICABLE"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "c684efc7a0466440",
       "OracleStatus": "ok",
@@ -89,7 +112,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SP05",
@@ -126,7 +150,7 @@
       "FaultDefinition": "Store\u5b8c\u6210\u8bb0\u8d26\uff1acompleteStore / SQEntry::_completed / storesToWB",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "NO_EARLY_ANOMALY_EVENT"
       ],
@@ -157,6 +181,29 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": null,
       "CommitSeq": "5869",
+      "ModelRuleRecord": {
+        "event_id": "5040",
+        "event_type": "sp05_stage",
+        "fields": {
+          "record": "sp05_stage",
+          "family": "sp05_complete",
+          "model": "SP05",
+          "store_seq": "12227",
+          "sq_idx": "945",
+          "gen": "1295",
+          "completion_tick": "16031015",
+          "commit_tick": "0",
+          "writeback_tick": "16031015",
+          "drain_tick": "0",
+          "write_skipped": "1",
+          "reload_seq": "12229",
+          "reload_data_hash": "a8c7f832281a39c5",
+          "store_data_fnv": "null",
+          "data_correct": "null",
+          "stage_outcome": "RELOAD_UNVERIFIABLE",
+          "masking_mechanism": "NOT_APPLICABLE"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "b1ea484c4a63e014",
       "OracleStatus": "ok",
@@ -179,7 +226,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SP05",
@@ -216,7 +264,7 @@
       "FaultDefinition": "Store\u5b8c\u6210\u8bb0\u8d26\uff1acompleteStore / SQEntry::_completed / storesToWB",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "NO_EARLY_ANOMALY_EVENT"
       ],
@@ -247,6 +295,29 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": null,
       "CommitSeq": "5938",
+      "ModelRuleRecord": {
+        "event_id": "5044",
+        "event_type": "sp05_stage",
+        "fields": {
+          "record": "sp05_stage",
+          "family": "sp05_complete",
+          "model": "SP05",
+          "store_seq": "12423",
+          "sq_idx": "946",
+          "gen": "1296",
+          "completion_tick": "16090690",
+          "commit_tick": "0",
+          "writeback_tick": "16090690",
+          "drain_tick": "0",
+          "write_skipped": "1",
+          "reload_seq": "12425",
+          "reload_data_hash": "a8c7f832281a39c5",
+          "store_data_fnv": "null",
+          "data_correct": "null",
+          "stage_outcome": "RELOAD_UNVERIFIABLE",
+          "masking_mechanism": "NOT_APPLICABLE"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "470fc0e79c112fb8",
       "OracleStatus": "ok",
@@ -269,7 +340,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SP05",
@@ -306,7 +378,7 @@
       "FaultDefinition": "Store\u5b8c\u6210\u8bb0\u8d26\uff1acompleteStore / SQEntry::_completed / storesToWB",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "NO_EARLY_ANOMALY_EVENT"
       ],
@@ -337,6 +409,29 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": null,
       "CommitSeq": "6007",
+      "ModelRuleRecord": {
+        "event_id": "5048",
+        "event_type": "sp05_stage",
+        "fields": {
+          "record": "sp05_stage",
+          "family": "sp05_complete",
+          "model": "SP05",
+          "store_seq": "12643",
+          "sq_idx": "947",
+          "gen": "1297",
+          "completion_tick": "16136890",
+          "commit_tick": "0",
+          "writeback_tick": "16136890",
+          "drain_tick": "0",
+          "write_skipped": "1",
+          "reload_seq": "12645",
+          "reload_data_hash": "a8c7f832281a39c5",
+          "store_data_fnv": "null",
+          "data_correct": "null",
+          "stage_outcome": "RELOAD_UNVERIFIABLE",
+          "masking_mechanism": "NOT_APPLICABLE"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "0a629904ecbc70b4",
       "OracleStatus": "ok",
@@ -359,7 +454,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SP05",
@@ -396,7 +492,7 @@
       "FaultDefinition": "Store\u5b8c\u6210\u8bb0\u8d26\uff1acompleteStore / SQEntry::_completed / storesToWB",
       "TerminalReason": "ORACLE_FAIL",
       "AdjudicatedTerminal": "SDC",
-      "VerifiedChainCount": 0,
+      "VerifiedChainCount": 1,
       "MissingCodes": [
         "NO_EARLY_ANOMALY_EVENT"
       ],
@@ -427,6 +523,29 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": null,
       "CommitSeq": "6076",
+      "ModelRuleRecord": {
+        "event_id": "5054",
+        "event_type": "sp05_stage",
+        "fields": {
+          "record": "sp05_stage",
+          "family": "sp05_complete",
+          "model": "SP05",
+          "store_seq": "12776",
+          "sq_idx": "948",
+          "gen": "1298",
+          "completion_tick": "16162300",
+          "commit_tick": "0",
+          "writeback_tick": "16162300",
+          "drain_tick": "0",
+          "write_skipped": "1",
+          "reload_seq": "12778",
+          "reload_data_hash": "a8c7f832281a39c5",
+          "store_data_fnv": "null",
+          "data_correct": "null",
+          "stage_outcome": "RELOAD_UNVERIFIABLE",
+          "masking_mechanism": "NOT_APPLICABLE"
+        }
+      },
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "e995cef628c22758",
       "OracleStatus": "ok",
@@ -449,7 +568,8 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
-      "FinalClassification": "LIFECYCLE_ONLY"
+      "ChainMechanism": "STORE_COMPLETION_SKIPPED_STALE_RELOAD_CONSUMED",
+      "FinalClassification": "VERIFIED_SINGLE_CONTEXT"
     },
     {
       "ModelID": "SP05",
@@ -507,6 +627,7 @@
       "MemoryResponseAssociation": "NOT_APPLICABLE",
       "WritebackAssociation": "NOT_APPLICABLE",
       "CommitSeq": "NOT_APPLICABLE",
+      "ModelRuleRecord": null,
       "OracleExpected": "7df5034c23f3e703",
       "OracleActual": "7df5034c23f3e703",
       "OracleStatus": "ok",
@@ -517,6 +638,7 @@
         }
       ],
       "MaskingMechanism": "NOT_APPLICABLE",
+      "ChainMechanism": "NOT_APPLICABLE",
       "FinalClassification": "UNRESOLVED"
     }
   ]
