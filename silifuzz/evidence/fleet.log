@@ -1,0 +1,9 @@
+window 1/4 cores=[0, 1, 2, 3] seconds=120
+  executions=5191935 rate=43243.4/s mismatches=0
+window 2/4 cores=[4, 5, 6, 7] seconds=120
+  executions=5143335 rate=42838.5/s mismatches=0
+window 3/4 cores=[8, 9, 10, 11] seconds=120
+  executions=5199733 rate=43308.3/s mismatches=0
+window 4/4 cores=[12, 13, 14, 15] seconds=120
+  executions=5048476 rate=42044.0/s mismatches=0
+{"windows": 4, "executions": 20583479, "mismatches": 0, "db": "work/fleet/results.db"}
