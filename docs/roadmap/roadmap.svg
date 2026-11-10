@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="838"
+     viewBox="0 0 1600 838" role="img"
+     aria-label="sdcfuzz 长期任务进度图">
+  <rect x="0" y="0" width="1600" height="838" fill="#FFFFFF"/>
+  <text x="40" y="62" font-size="27" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A"
+        font-weight="bold">sdcfuzz / gem5-CHAOS 长期任务路线与进度</text>
+  <text x="40" y="92" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#64748B">
+        依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”</text>
+  <text x="1560" y="62" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">更新日期 2026-11-10</text>
+  <text x="1560" y="84" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">总里程碑 35</text>
+  <g>
+    <rect x="40.0" y="150" width="179.5" height="26" rx="13"
+          fill="#E7F4EC" stroke="#1D7A46" stroke-width="1"/>
+    <circle cx="54.0" cy="163" r="4.5" fill="#1D7A46"/>
+    <text x="66.0" y="167.5" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+          fill="#14532D">完成（本仓库实测）  15</text>
+  </g>
+  <g>
+    <rect x="231.5" y="150" width="235.2" height="26" rx="13"
+          fill="#E8F1F8" stroke="#2F7EA8" stroke-width="1"/>
+    <circle cx="245.5" cy="163" r="4.5" fill="#2F7EA8"/>
+    <text x="257.5" y="167.5" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+          fill="#0F3F57">完成（外部证据，未本机复验）  2</text>
+  </g>
+  <g>
+    <rect x="478.7" y="150" width="110.2" height="26" rx="13"
+          fill="#FDF3E3" stroke="#C77C02" stroke-width="1"/>
+    <circle cx="492.7" cy="163" r="4.5" fill="#C77C02"/>
+    <text x="504.7" y="167.5" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+          fill="#6B4300">部分完成  3</text>
+  </g>
+  <g>
+    <rect x="601.0" y="150" width="104.5" height="26" rx="13"
+          fill="#F1F5F9" stroke="#94A3B8" stroke-width="1"/>
+    <circle cx="615.0" cy="163" r="4.5" fill="#94A3B8"/>
+    <text x="627.0" y="167.5" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+          fill="#334155">未开始  13</text>
+  </g>
+  <g>
+    <rect x="717.5" y="150" width="217.0" height="26" rx="13"
+          fill="#F3EDFB" stroke="#7C3AED" stroke-width="1"/>
+    <circle cx="731.5" cy="163" r="4.5" fill="#7C3AED"/>
+    <text x="743.5" y="167.5" font-size="12.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+          fill="#4C1D95">环境门控（缺硬件/工具链）  2</text>
+  </g>
+  <text x="40" y="200" font-size="14" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#334155" font-weight="bold">总体进度</text>
+  <text x="1560" y="200" font-size="14" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">完成度 52.9%
+        （17
+        / 35 完成，3 部分，
+        13 未开始，2 门控）</text>
+  <rect x="40" y="210" width="1520" height="18"
+        rx="8" fill="#E2E8F0"/>
+  <rect x="40.0" y="210" width="651.43"
+        height="18" fill="#1D7A46" opacity="0.9"/>
+  <rect x="691.4" y="210" width="86.86"
+        height="18" fill="#2F7EA8" opacity="0.9"/>
+  <rect x="778.3" y="210" width="130.29"
+        height="18" fill="#C77C02" opacity="0.9"/>
+  <rect x="908.6" y="210" width="564.57"
+        height="18" fill="#94A3B8" opacity="0.9"/>
+  <rect x="1473.1" y="210" width="86.86"
+        height="18" fill="#7C3AED" opacity="0.9"/>
+  <text x="40" y="256" font-size="17" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#0F172A" font-weight="bold">技术路线（sdcfuzz-v1.2.md §7）</text>
+  <line x1="40" y1="270" x2="1560" y2="270"
+        stroke="#CBD5E1" stroke-width="1.2"/>
+  <text x="40" y="294" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">Phase 0 · 基线完善</text>
+  <text x="40" y="312" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 M0 · 5 项</text>
+  <g>
+    <title>D13 反逻辑屏蔽操作数启发式｜完成（本仓库实测）｜sdcfuzz/d13.py；tests/test_sdcfuzz_d13.py（15 项单测）</title>
+    <rect x="370.0" y="284.0" width="98.5" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="298.0" r="4"
+            fill="#1D7A46"/>
+    <text x="394.0" y="302.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">D13 启发式</text>
+  </g>
+  <g>
+    <title>19 条微架构靶向模板语料｜完成（本仓库实测）｜sdcfuzz/templates.py；19/19 PASS（scripts/test-sdcfuzz-baseline.py）</title>
+    <rect x="476.5" y="284.0" width="104.2" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="489.5" cy="298.0" r="4"
+            fill="#1D7A46"/>
+    <text x="500.5" y="302.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">19 模板语料</text>
+  </g>
+  <g>
+    <title>gem5-CHAOS 注入底座 + 生成→注入闭环｜完成（本仓库实测）｜19 注入器；CHAOSReg 注入 1 次并分类 Masked（m5out/sdcfuzz-baseline）</title>
+    <rect x="588.8" y="284.0" width="133.2" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="601.8" cy="298.0" r="4"
+            fill="#1D7A46"/>
+    <text x="612.8" y="302.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">gem5-CHAOS 底座</text>
+  </g>
+  <g>
+    <title>4 板 446 核 Kunpeng 920 真机部署｜完成（外部证据，未本机复验）｜sdcfuzz-v1.2.md §4.2 历史证据；本机无该硬件，未复验</title>
+    <rect x="730.0" y="284.0" width="110.0" height="28"
+          rx="14.0" fill="#E8F1F8" stroke="#2F7EA8"
+          stroke-width="1"/>
+    <circle cx="743.0" cy="298.0" r="4"
+            fill="#2F7EA8"/>
+    <text x="754.0" y="302.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F3F57">4 板真机部署</text>
+  </g>
+  <g>
+    <title>sdcfuzz 论文 p2 草稿｜完成（外部证据，未本机复验）｜外部 sdcfuzz 仓库；本仓库无副本，未复验</title>
+    <rect x="848.0" y="284.0" width="79.2" height="28"
+          rx="14.0" fill="#E8F1F8" stroke="#2F7EA8"
+          stroke-width="1"/>
+    <circle cx="861.0" cy="298.0" r="4"
+            fill="#2F7EA8"/>
+    <text x="872.0" y="302.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F3F57">p2 草稿</text>
+  </g>
+  <text x="1560" y="294" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">5/5</text>
+  <text x="1560" y="312" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">100%</text>
+  <line x1="40" y1="334" x2="1560"
+        y2="334" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="40" y="346" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">Phase 1 · AutoµSens + ACE/IBR</text>
+  <text x="40" y="364" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 M1–M3 · 6 项</text>
+  <g>
+    <title>RF ACE 与 L1 cache ACE 量化｜完成（本仓库实测）｜CHAOS/gem5/src/cpu/o3/rf_ace.*、mem/cache/l1_ace.*；test-rf/l1-ace.sh</title>
+    <rect x="370.0" y="336.0" width="94.8" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="350.0" r="4"
+            fill="#1D7A46"/>
+    <text x="394.0" y="354.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">RF/L1 ACE</text>
+  </g>
+  <g>
+    <title>FU IBR 输入位覆盖率｜完成（本仓库实测）｜CHAOS/gem5/src/cpu/o3/fu_ibr.*；test-fu-ibr.sh</title>
+    <rect x="472.8" y="336.0" width="74.5" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="485.8" cy="350.0" r="4"
+            fill="#1D7A46"/>
+    <text x="496.8" y="354.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">FU IBR</text>
+  </g>
+  <g>
+    <title>AutoµSens 指令→结构映射与逆向靶向原型｜完成（本仓库实测）｜tools/autousens.py；scripts/test-autousens.py</title>
+    <rect x="555.2" y="336.0" width="109.0" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="568.2" cy="350.0" r="4"
+            fill="#1D7A46"/>
+    <text x="579.2" y="354.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">结构映射原型</text>
+  </g>
+  <g>
+    <title>结构覆盖度评估工具｜完成（本仓库实测）｜tools/autousens.py evaluate；corpus_index.json</title>
+    <rect x="672.2" y="336.0" width="96.5" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="685.2" cy="350.0" r="4"
+            fill="#1D7A46"/>
+    <text x="696.2" y="354.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">覆盖度评估</text>
+  </g>
+  <g>
+    <title>跨结构联合优化（NSGA-II / 加权聚合）｜未开始｜尚未实现多目标生成器</title>
+    <rect x="776.8" y="336.0" width="121.5" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="789.8" cy="350.0" r="4"
+            fill="#94A3B8"/>
+    <text x="800.8" y="354.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">跨结构联合优化</text>
+  </g>
+  <g>
+    <title>SAD 结构激活深度指标｜未开始｜仅有定义，无 gem5 实现</title>
+    <rect x="906.2" y="336.0" width="86.0" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="919.2" cy="350.0" r="4"
+            fill="#94A3B8"/>
+    <text x="930.2" y="354.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">SAD 指标</text>
+  </g>
+  <text x="1560" y="346" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">4/6</text>
+  <text x="1560" y="364" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">67%</text>
+  <line x1="40" y1="386" x2="1560"
+        y2="386" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="40" y="398" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">Phase 2 · RL Mutator + 功耗应力</text>
+  <text x="40" y="416" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 M4–M6 · 5 项</text>
+  <g>
+    <title>逻辑屏蔽惩罚（雪崩测试）｜部分完成｜D13 已用翻转密度/进位链近似屏蔽风险；雪崩测试未实现</title>
+    <rect x="370.0" y="388.0" width="109.0" height="28"
+          rx="14.0" fill="#FDF3E3" stroke="#C77C02"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="402.0" r="4"
+            fill="#C77C02"/>
+    <text x="394.0" y="406.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#6B4300">逻辑屏蔽惩罚</text>
+  </g>
+  <g>
+    <title>RL 训练管道｜未开始｜</title>
+    <rect x="487.0" y="388.0" width="104.2" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="500.0" cy="402.0" r="4"
+            fill="#94A3B8"/>
+    <text x="511.0" y="406.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">RL 训练管道</text>
+  </g>
+  <g>
+    <title>RL 引导的指令/操作数/序列变异｜未开始｜</title>
+    <rect x="599.2" y="388.0" width="91.8" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="612.2" cy="402.0" r="4"
+            fill="#94A3B8"/>
+    <text x="623.2" y="406.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">RL 变异器</text>
+  </g>
+  <g>
+    <title>Type-I/II/III 功耗应力模式生成｜未开始｜</title>
+    <rect x="699.0" y="388.0" width="109.0" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="712.0" cy="402.0" r="4"
+            fill="#94A3B8"/>
+    <text x="723.0" y="406.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">三类功耗模式</text>
+  </g>
+  <g>
+    <title>功耗-SDC 相关性（Pearson/Spearman）｜未开始｜</title>
+    <rect x="816.0" y="388.0" width="130.2" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="829.0" cy="402.0" r="4"
+            fill="#94A3B8"/>
+    <text x="840.0" y="406.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">功耗-SDC 相关性</text>
+  </g>
+  <text x="1560" y="398" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">0/5</text>
+  <text x="1560" y="416" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">10%</text>
+  <line x1="40" y1="438" x2="1560"
+        y2="438" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="40" y="450" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">Phase 3 · 仿真→硬件闭环</text>
+  <text x="40" y="468" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 M7–M9 · 3 项</text>
+  <g>
+    <title>gem5 故障注入验证闭环（多注入器 × 语料）｜部分完成｜19 注入器 + classify.py + 1 次闭环冒烟；语料级批量 campaign 未做</title>
+    <rect x="370.0" y="440.0" width="109.0" height="28"
+          rx="14.0" fill="#FDF3E3" stroke="#C77C02"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="454.0" r="4"
+            fill="#C77C02"/>
+    <text x="394.0" y="458.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#6B4300">注入验证闭环</text>
+  </g>
+  <g>
+    <title>Vault 持久库 + 血缘｜未开始｜</title>
+    <rect x="487.0" y="440.0" width="99.5" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="500.0" cy="454.0" r="4"
+            fill="#94A3B8"/>
+    <text x="511.0" y="458.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">Vault 多表</text>
+  </g>
+  <g>
+    <title>仿真预测与实机 SDC 的统计关联｜未开始｜需实机数据；本机不可得（见 gated 项）</title>
+    <rect x="594.5" y="440.0" width="106.2" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="607.5" cy="454.0" r="4"
+            fill="#94A3B8"/>
+    <text x="618.5" y="458.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">Sim→HW 关联</text>
+  </g>
+  <text x="1560" y="450" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">0/3</text>
+  <text x="1560" y="468" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">17%</text>
+  <line x1="40" y1="490" x2="1560"
+        y2="490" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="40" y="502" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">Phase 4 · 自适应调度与集成</text>
+  <text x="40" y="520" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 M10–M12 · 3 项</text>
+  <g>
+    <title>PMU 采集 + SDC 风险评分｜未开始｜</title>
+    <rect x="370.0" y="492.0" width="111.0" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="506.0" r="4"
+            fill="#94A3B8"/>
+    <text x="394.0" y="510.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">PMU 风险评分</text>
+  </g>
+  <g>
+    <title>负载感知的自适应调度｜未开始｜</title>
+    <rect x="489.0" y="492.0" width="96.5" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="502.0" cy="506.0" r="4"
+            fill="#94A3B8"/>
+    <text x="513.0" y="510.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">自适应调度</text>
+  </g>
+  <g>
+    <title>四层系统集成｜未开始｜</title>
+    <rect x="593.5" y="492.0" width="109.0" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="606.5" cy="506.0" r="4"
+            fill="#94A3B8"/>
+    <text x="617.5" y="510.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">四层系统集成</text>
+  </g>
+  <text x="1560" y="502" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">0/3</text>
+  <text x="1560" y="520" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">0%</text>
+  <line x1="40" y1="542" x2="1560"
+        y2="542" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="40" y="554" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">Phase 5 · 论文与投稿</text>
+  <text x="40" y="572" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 M13–M15 · 2 项</text>
+  <g>
+    <title>论文撰写（三项创新点）｜未开始｜</title>
+    <rect x="370.0" y="544.0" width="84.0" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="558.0" r="4"
+            fill="#94A3B8"/>
+    <text x="394.0" y="562.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">论文撰写</text>
+  </g>
+  <g>
+    <title>投稿准备与提交｜未开始｜</title>
+    <rect x="462.0" y="544.0" width="59.0" height="28"
+          rx="14.0" fill="#F1F5F9" stroke="#94A3B8"
+          stroke-width="1"/>
+    <circle cx="475.0" cy="558.0" r="4"
+            fill="#94A3B8"/>
+    <text x="486.0" y="562.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#334155">投稿</text>
+  </g>
+  <text x="1560" y="554" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">0/2</text>
+  <text x="1560" y="572" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">0%</text>
+  <line x1="40" y1="594" x2="1560"
+        y2="594" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="40" y="616" font-size="17" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#0F172A" font-weight="bold">仓库基线闸门（task_plan.md / AGENT_TASKS.md）</text>
+  <line x1="40" y1="630" x2="1560" y2="630"
+        stroke="#CBD5E1" stroke-width="1.2"/>
+  <text x="40" y="654" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">G0–G7 正确性闸门</text>
+  <text x="40" y="672" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 2026-08 · 8 项</text>
+  <g>
+    <title>可复现 RNG（20/20 重放一致）｜完成（本仓库实测）｜commit 3b8c33c</title>
+    <rect x="370.0" y="644.0" width="74.5" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="658.0" r="4"
+            fill="#1D7A46"/>
+    <text x="394.0" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">G0 RNG</text>
+  </g>
+  <g>
+    <title>64 位掩码 / 合法域｜完成（本仓库实测）｜commit 54f31cd</title>
+    <rect x="452.5" y="644.0" width="79.2" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="465.5" cy="658.0" r="4"
+            fill="#1D7A46"/>
+    <text x="476.5" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">G1 位宽</text>
+  </g>
+  <g>
+    <title>永久/间歇语义（stuck 掩码）｜完成（本仓库实测）｜commit e5eecbb</title>
+    <rect x="539.8" y="644.0" width="104.2" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="552.8" cy="658.0" r="4"
+            fill="#1D7A46"/>
+    <text x="563.8" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">G2 永久故障</text>
+  </g>
+  <g>
+    <title>cache 安全访问接口｜完成（本仓库实测）｜commit ea6b192</title>
+    <rect x="652.0" y="644.0" width="119.8" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="665.0" cy="658.0" r="4"
+            fill="#1D7A46"/>
+    <text x="676.0" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">G3 cache 接口</text>
+  </g>
+  <g>
+    <title>CHAOSMem 权重与边界正确性｜完成（本仓库实测）｜commit 9870e9f</title>
+    <rect x="779.8" y="644.0" width="79.2" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="792.8" cy="658.0" r="4"
+            fill="#1D7A46"/>
+    <text x="803.8" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">G4 内存</text>
+  </g>
+  <g>
+    <title>单故障 + 证据日志（maxFaults）｜完成（本仓库实测）｜commit d44982f</title>
+    <rect x="867.0" y="644.0" width="91.8" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="880.0" cy="658.0" r="4"
+            fill="#1D7A46"/>
+    <text x="891.0" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">G5 单故障</text>
+  </g>
+  <g>
+    <title>触发间隔与多触发模式｜部分完成｜≥1 cycle 间隔已做；pc/committedInst/event 多触发未做（D9）</title>
+    <rect x="966.8" y="644.0" width="79.2" height="28"
+          rx="14.0" fill="#FDF3E3" stroke="#C77C02"
+          stroke-width="1"/>
+    <circle cx="979.8" cy="658.0" r="4"
+            fill="#C77C02"/>
+    <text x="990.8" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#6B4300">G6 触发</text>
+  </g>
+  <g>
+    <title>ASan/UBSan 工具构建｜环境门控（缺硬件/工具链）｜scons socket configure 受阻（D10）；解锁：CI 层修复</title>
+    <rect x="1054.0" y="644.0" width="115.0" height="28"
+          rx="14.0" fill="#F3EDFB" stroke="#7C3AED"
+          stroke-width="1"/>
+    <circle cx="1067.0" cy="658.0" r="4"
+            fill="#7C3AED"/>
+    <text x="1078.0" y="662.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#4C1D95">G7 sanitizer</text>
+  </g>
+  <text x="1560" y="654" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">6/8</text>
+  <text x="1560" y="672" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">81%</text>
+  <line x1="40" y1="694" x2="1560"
+        y2="694" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="40" y="706" font-size="14"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold">注入器与 formal 实验</text>
+  <text x="40" y="724" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">窗口 2026-09 · 3 项</text>
+  <g>
+    <title>19 个 CHAOS 注入器｜完成（本仓库实测）｜AGENT_TASKS.md S1-* 全 done</title>
+    <rect x="370.0" y="696.0" width="91.8" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="383.0" cy="710.0" r="4"
+            fill="#1D7A46"/>
+    <text x="394.0" y="714.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">19 注入器</text>
+  </g>
+  <g>
+    <title>n=384 批量 formal 实验（10 任务）｜完成（本仓库实测）｜task_plan.md Phase 3（853133cb…）</title>
+    <rect x="469.8" y="696.0" width="114.0" height="28"
+          rx="14.0" fill="#E7F4EC" stroke="#1D7A46"
+          stroke-width="1"/>
+    <circle cx="482.8" cy="710.0" r="4"
+            fill="#1D7A46"/>
+    <text x="493.8" y="714.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#14532D">formal 10 项</text>
+  </g>
+  <g>
+    <title>S4/S6/S7/ExMon/Decode/O3-switch 登记｜环境门控（缺硬件/工具链）｜task_plan.md Phase 7（deferred，含解锁条件）</title>
+    <rect x="591.8" y="696.0" width="96.5" height="28"
+          rx="14.0" fill="#F3EDFB" stroke="#7C3AED"
+          stroke-width="1"/>
+    <circle cx="604.8" cy="710.0" r="4"
+            fill="#7C3AED"/>
+    <text x="615.8" y="714.0" font-size="12.5"
+          font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#4C1D95">环境门控项</text>
+  </g>
+  <text x="1560" y="706" font-size="13"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#0F172A" font-weight="bold" text-anchor="end">2/3</text>
+  <text x="1560" y="724" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B" text-anchor="end">67%</text>
+  <line x1="40" y1="746" x2="1560"
+        y2="746" stroke="#E2E8F0" stroke-width="1"/>
+  <line x1="40" y1="792" x2="1560"
+        y2="792" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="40" y="814" font-size="11.5" font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif"
+        fill="#64748B">台账：docs/roadmap/roadmap.yaml · 更新 2026-11-10 · 重生成：
+        python3 tools/render_roadmap.py</text>
+  <text x="1560" y="814" font-size="11.5"
+        font-family="Microsoft YaHei, Noto Sans CJK SC, Droid Sans Fallback, sans-serif" fill="#64748B" text-anchor="end">生成于
+        2026-11-10 13:20</text>
+</svg>

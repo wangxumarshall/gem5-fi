@@ -1,0 +1,216 @@
+schema: sdcfuzz.roadmap.v1
+updated: 2026-11-10
+title: sdcfuzz / gem5-CHAOS 长期任务路线与进度
+subtitle: 依据 sdcfuzz-v1.2.md 实施路线图；状态区分“本仓库实测”“外部证据”“部分完成”“未开始”“环境门控”
+
+# 状态取值：
+#   done-local    本仓库实现并真实运行验证
+#   done-external 完成，但证据在外部仓库/硬件，本机不可复现
+#   partial       部分完成（有实现，但缺口明确）
+#   todo          未开始
+#   gated         环境门控（缺硬件/授权/工具链），有解锁条件
+tracks:
+  - id: sdcfuzz
+    title: 技术路线（sdcfuzz-v1.2.md §7）
+    phases:
+      - id: phase0
+        title: Phase 0 · 基线完善
+        window: M0
+        milestones:
+          - id: p0-d13
+            short: D13 启发式
+            title: D13 反逻辑屏蔽操作数启发式
+            status: done-local
+            evidence: sdcfuzz/d13.py；tests/test_sdcfuzz_d13.py（15 项单测）
+          - id: p0-templates
+            short: 19 模板语料
+            title: 19 条微架构靶向模板语料
+            status: done-local
+            evidence: sdcfuzz/templates.py；19/19 PASS（scripts/test-sdcfuzz-baseline.py）
+          - id: p0-gem5-chaos
+            short: gem5-CHAOS 底座
+            title: gem5-CHAOS 注入底座 + 生成→注入闭环
+            status: done-local
+            evidence: 19 注入器；CHAOSReg 注入 1 次并分类 Masked（m5out/sdcfuzz-baseline）
+          - id: p0-deploy
+            short: 4 板真机部署
+            title: 4 板 446 核 Kunpeng 920 真机部署
+            status: done-external
+            evidence: sdcfuzz-v1.2.md §4.2 历史证据；本机无该硬件，未复验
+          - id: p0-paper
+            short: p2 草稿
+            title: sdcfuzz 论文 p2 草稿
+            status: done-external
+            evidence: 外部 sdcfuzz 仓库；本仓库无副本，未复验
+      - id: phase1
+        title: Phase 1 · AutoµSens + ACE/IBR
+        window: M1–M3
+        milestones:
+          - id: p1-ace
+            short: RF/L1 ACE
+            title: RF ACE 与 L1 cache ACE 量化
+            status: done-local
+            evidence: CHAOS/gem5/src/cpu/o3/rf_ace.*、mem/cache/l1_ace.*；test-rf/l1-ace.sh
+          - id: p1-ibr
+            short: FU IBR
+            title: FU IBR 输入位覆盖率
+            status: done-local
+            evidence: CHAOS/gem5/src/cpu/o3/fu_ibr.*；test-fu-ibr.sh
+          - id: p1-autousens
+            short: 结构映射原型
+            title: AutoµSens 指令→结构映射与逆向靶向原型
+            status: done-local
+            evidence: tools/autousens.py；scripts/test-autousens.py
+          - id: p1-coverage
+            short: 覆盖度评估
+            title: 结构覆盖度评估工具
+            status: done-local
+            evidence: tools/autousens.py evaluate；corpus_index.json
+          - id: p1-joint
+            short: 跨结构联合优化
+            title: 跨结构联合优化（NSGA-II / 加权聚合）
+            status: todo
+            evidence: 尚未实现多目标生成器
+          - id: p1-sad
+            short: SAD 指标
+            title: SAD 结构激活深度指标
+            status: todo
+            evidence: 仅有定义，无 gem5 实现
+      - id: phase2
+        title: Phase 2 · RL Mutator + 功耗应力
+        window: M4–M6
+        milestones:
+          - id: p2-mask
+            short: 逻辑屏蔽惩罚
+            title: 逻辑屏蔽惩罚（雪崩测试）
+            status: partial
+            evidence: D13 已用翻转密度/进位链近似屏蔽风险；雪崩测试未实现
+          - id: p2-rl-pipeline
+            short: RL 训练管道
+            title: RL 训练管道
+            status: todo
+          - id: p2-rl-mutator
+            short: RL 变异器
+            title: RL 引导的指令/操作数/序列变异
+            status: todo
+          - id: p2-power3
+            short: 三类功耗模式
+            title: Type-I/II/III 功耗应力模式生成
+            status: todo
+          - id: p2-power-corr
+            short: 功耗-SDC 相关性
+            title: 功耗-SDC 相关性（Pearson/Spearman）
+            status: todo
+      - id: phase3
+        title: Phase 3 · 仿真→硬件闭环
+        window: M7–M9
+        milestones:
+          - id: p3-fi-loop
+            short: 注入验证闭环
+            title: gem5 故障注入验证闭环（多注入器 × 语料）
+            status: partial
+            evidence: 19 注入器 + classify.py + 1 次闭环冒烟；语料级批量 campaign 未做
+          - id: p3-vault
+            short: Vault 多表
+            title: Vault 持久库 + 血缘
+            status: todo
+          - id: p3-sim2hw
+            short: Sim→HW 关联
+            title: 仿真预测与实机 SDC 的统计关联
+            status: todo
+            evidence: 需实机数据；本机不可得（见 gated 项）
+      - id: phase4
+        title: Phase 4 · 自适应调度与集成
+        window: M10–M12
+        milestones:
+          - id: p4-pmu
+            short: PMU 风险评分
+            title: PMU 采集 + SDC 风险评分
+            status: todo
+          - id: p4-sched
+            short: 自适应调度
+            title: 负载感知的自适应调度
+            status: todo
+          - id: p4-system
+            short: 四层系统集成
+            title: 四层系统集成
+            status: todo
+      - id: phase5
+        title: Phase 5 · 论文与投稿
+        window: M13–M15
+        milestones:
+          - id: p5-paper
+            short: 论文撰写
+            title: 论文撰写（三项创新点）
+            status: todo
+          - id: p5-submit
+            short: 投稿
+            title: 投稿准备与提交
+            status: todo
+
+  - id: repo-baseline
+    title: 仓库基线闸门（task_plan.md / AGENT_TASKS.md）
+    phases:
+      - id: gates
+        title: G0–G7 正确性闸门
+        window: 2026-08
+        milestones:
+          - id: g0
+            short: G0 RNG
+            title: 可复现 RNG（20/20 重放一致）
+            status: done-local
+            evidence: commit 3b8c33c
+          - id: g1
+            short: G1 位宽
+            title: 64 位掩码 / 合法域
+            status: done-local
+            evidence: commit 54f31cd
+          - id: g2
+            short: G2 永久故障
+            title: 永久/间歇语义（stuck 掩码）
+            status: done-local
+            evidence: commit e5eecbb
+          - id: g3
+            short: G3 cache 接口
+            title: cache 安全访问接口
+            status: done-local
+            evidence: commit ea6b192
+          - id: g4
+            short: G4 内存
+            title: CHAOSMem 权重与边界正确性
+            status: done-local
+            evidence: commit 9870e9f
+          - id: g5
+            short: G5 单故障
+            title: 单故障 + 证据日志（maxFaults）
+            status: done-local
+            evidence: commit d44982f
+          - id: g6
+            short: G6 触发
+            title: 触发间隔与多触发模式
+            status: partial
+            evidence: ≥1 cycle 间隔已做；pc/committedInst/event 多触发未做（D9）
+          - id: g7
+            short: G7 sanitizer
+            title: ASan/UBSan 工具构建
+            status: gated
+            evidence: scons socket configure 受阻（D10）；解锁：CI 层修复
+      - id: injectors
+        title: 注入器与 formal 实验
+        window: 2026-09
+        milestones:
+          - id: i19
+            short: 19 注入器
+            title: 19 个 CHAOS 注入器
+            status: done-local
+            evidence: AGENT_TASKS.md S1-* 全 done
+          - id: formal
+            short: formal 10 项
+            title: n=384 批量 formal 实验（10 任务）
+            status: done-local
+            evidence: task_plan.md Phase 3（853133cb…）
+          - id: envgate
+            short: 环境门控项
+            title: S4/S6/S7/ExMon/Decode/O3-switch 登记
+            status: gated
+            evidence: task_plan.md Phase 7（deferred，含解锁条件）
