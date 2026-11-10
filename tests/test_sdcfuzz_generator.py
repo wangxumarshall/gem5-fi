@@ -12,7 +12,8 @@ def test_corpus_has_19_unique_templates():
     ids = [template.id for template in TEMPLATES]
     assert len(set(ids)) == 19
     for template in TEMPLATES:
-        assert template.target in ("alu", "mult", "div", "l1d", "l1i", "none")
+        assert template.target in ("alu", "mult", "div", "l1d", "l1i",
+                                   "fpadd", "fpmul", "none")
         assert template.injector.startswith("CHAOS")
         assert template.body
 

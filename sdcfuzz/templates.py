@@ -9,7 +9,8 @@ the previous milestone.
 
 Each template names:
 * ``target`` — the gem5-observable structure it is meant to activate
-  (``alu``/``mult``/``div``/``l1d``/``l1i`` or ``none`` when no metric exists);
+  (``alu``/``mult``/``div``/``l1d``/``l1i``/``fpadd``/``fpmul`` or ``none``
+  when no metric exists);
 * ``injector`` — the CHAOS injector class a fault-injection campaign would use;
 * ``body`` — the instruction group repeated 16 times inside the m5 ROI.
 """
@@ -133,15 +134,16 @@ TEMPLATES = (
         body=(Op("busy_loop", dst="x8", a="x11", imm=8),),
     ),
     Template(
-        "fp-add", "双精度浮点加法", "none", "CHAOSFPU",
+        "fp-add", "双精度浮点加法", "fpadd", "CHAOSFPU",
         setup=(Op("ldrf", dst="d0", off=0), Op("ldrf", dst="d1", off=8)),
         body=(Op("fadd", dst="d0", a="d0", b="d1"),),
-        note="当前没有 FP 结构指标，仅验证注入闭环与正确性",
+        note="FP add 由 fpAdd IBR 与向量寄存器低 64 位 ACE 测量",
     ),
     Template(
-        "fp-mul", "双精度浮点乘法", "none", "CHAOSFPU",
+        "fp-mul", "双精度浮点乘法", "fpmul", "CHAOSFPU",
         setup=(Op("ldrf", dst="d0", off=0), Op("ldrf", dst="d1", off=8)),
         body=(Op("fmul", dst="d0", a="d0", b="d1"),),
+        note="FP multiply 由 fpMult IBR 与向量寄存器低 64 位 ACE 测量",
     ),
 )
 

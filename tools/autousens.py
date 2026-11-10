@@ -11,6 +11,9 @@ the part that the current gem5 model can actually observe:
   * ``target``   rank instructions by activation of one target structure,
                  compose the top-k into a candidate AArch64 program, run it in
                  gem5 and report its coverage vector.
+  * ``pareto``   run NSGA-II over instruction sequences with one objective per
+                 target structure and emit a Pareto set plus optional gem5
+                 validation of the knee point.
   * ``evaluate`` recompute a coverage vector for any gem5 result directory.
 
 Observable structures are limited to the implemented metrics: integer physical
@@ -32,6 +35,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from nsga2 import knee_point, run_nsga2  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 GEM5_SRC = ROOT / "CHAOS/gem5"
 PROBE_SOURCE = ROOT / "workloads/directed/structural_probe_workload.c"
@@ -41,7 +47,8 @@ DEFAULT_ITERATIONS = 100
 OPS_PER_GROUP = 4
 GROUPS_PER_ITER = 16
 
-STRUCTURES = ("rf", "l1i", "l1d", "alu", "mult", "div")
+STRUCTURES = ("rf", "vec", "l1i", "l1d", "alu", "mult", "div",
+              "fpadd", "fpmul")
 
 # Instruction snippets used by the probe streams and by generated candidates.
 MODE_ASM = {
@@ -57,6 +64,11 @@ MODE_ASM = {
     "ldr": "ldr x8, [%[buf]]",
     "str": "str x8, [%[buf]]",
     "ldxr": "ldxr x8, [%[buf]]",
+    "movz": "movz x8, #0x1234",
+    "add_imm": "add x8, x8, #1",
+    "add_lsl": "add x8, x8, x12, lsl #3",
+    "fadd": "fadd d0, d0, d1",
+    "fmul": "fmul d0, d0, d1",
 }
 
 PROBE_MODES = tuple(MODE_ASM)
@@ -66,9 +78,13 @@ PROBE_MODES = tuple(MODE_ASM)
 COUNTERS = {
     "rf_reads": ".rfAce.intTrackedReads",
     "rf_writes": ".rfAce.intTrackedWrites",
+    "vec_reads": ".rfAce.vecTrackedReads",
+    "vec_writes": ".rfAce.vecTrackedWrites",
     "alu_bits": ".fuIbr.inputBits::intAlu",
     "mult_bits": ".fuIbr.inputBits::intMult",
     "div_bits": ".fuIbr.inputBits::intDiv",
+    "fpadd_bits": ".fuIbr.inputBits::fpAdd",
+    "fpmul_bits": ".fuIbr.inputBits::fpMult",
     "l1d_reads": "l1d-cache-0.l1Ace.trackedDemandReads",
     "l1d_writes": "l1d-cache-0.l1Ace.trackedDemandWrites",
     "l1i_reads": "l1i-cache-0.l1Ace.trackedDemandReads",
@@ -77,11 +93,14 @@ COUNTERS = {
 
 RATIO_COUNTERS = {
     "rf": ".rfAce.intAceRatio",
+    "vec": ".rfAce.vecAceRatio",
     "l1i": "l1i-cache-0.l1Ace.aceRatio",
     "l1d": "l1d-cache-0.l1Ace.aceRatio",
     "alu": ".fuIbr.ibrRatio::intAlu",
     "mult": ".fuIbr.ibrRatio::intMult",
     "div": ".fuIbr.ibrRatio::intDiv",
+    "fpadd": ".fuIbr.ibrRatio::fpAdd",
+    "fpmul": ".fuIbr.ibrRatio::fpMult",
 }
 
 
@@ -134,14 +153,17 @@ def coverage_from_dump(stats):
 
 
 def activation_from_net(net):
-    """Map raw net counters onto the six observable structures."""
+    """Map raw net counters onto the observable structures."""
     return {
         "rf": net["rf_reads"] + net["rf_writes"],
+        "vec": net["vec_reads"] + net["vec_writes"],
         "l1i": net["l1i_reads"],
         "l1d": net["l1d_reads"] + net["l1d_writes"],
         "alu": net["alu_bits"],
         "mult": net["mult_bits"],
         "div": net["div_bits"],
+        "fpadd": net["fpadd_bits"],
+        "fpmul": net["fpmul_bits"],
     }
 
 
@@ -242,18 +264,22 @@ def build_map(args):
         "observable_structures": list(STRUCTURES),
         "units": {
             "rf": "integer physical-register accesses (reads + writes)",
+            "vec": "vector/FP physical-register low-64-bit lane accesses",
             "l1i": "L1I demand reads (cache-line events)",
             "l1d": "L1D demand reads + demand writes (cache-line events)",
             "alu": "intAlu input bits (ports * width per issued op)",
             "mult": "intMult input bits (ports * width per issued op)",
             "div": "intDiv input bits (ports * width per issued op)",
+            "fpadd": "fpAdd input bits (ports * width per issued op)",
+            "fpmul": "fpMult input bits (ports * width per issued op)",
         },
         "notes": [
             "activation is net of an empty-loop baseline; negative noise is"
             " clamped to zero and listed per instruction in 'clamped'",
             "cross-structure activation values are not commensurate"
             " (events vs input bits); compare one structure across instructions",
-            "FP/SIMD/SVE, TLB, ROB and LSQ have no metric and are not mapped",
+            "vector ACE tracks the low 64-bit lane used by scalar D-register"
+            " arithmetic; 128-bit SIMD high lanes are outside this metric",
             "2-source shift instructions (e.g. LSLV) are outside the FU IBR"
             " arithmetic subset and therefore not probed",
         ],
@@ -322,6 +348,8 @@ main(int argc, char **argv)
         "mov x8, #3\\n\\t"
         "mov x10, #5\\n\\t"
         "mov x12, #3\\n\\t"
+        "fmov d0, xzr\\n\\t"
+        "fmov d1, xzr\\n\\t"
         "1:\\n\\t"
         ".rept {GROUPS_PER_ITER}\\n\\t"
 {body}        ".endr\\n\\t"
@@ -330,13 +358,217 @@ main(int argc, char **argv)
         "mov %[v], x8\\n\\t"
         : [n] "+r"(count), [v] "=r"(value)
         : [buf] "r"(buffer)
-        : "x8", "x10", "x12", "cc", "memory");
+        : "x8", "x10", "x12", "d0", "d1", "cc", "memory");
     m5_work_end(7, 0);
     printf("candidate={target} iterations=%llu result=%llu status=DONE\\n",
            (unsigned long long)iterations, (unsigned long long)value);
     return 0;
 }}
 """
+
+
+def sequence_candidate_source(target, sequence, iterations):
+    """Compose one instruction sequence per group into a runnable guest."""
+    snippet_block = "".join(
+        f'        "{MODE_ASM[mode]}\\n\\t"\n' for mode in sequence)
+    return f"""/* Generated by tools/autousens.py pareto; do not edit. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <gem5/m5ops.h>
+
+#if !defined(__aarch64__)
+#error "generated candidate requires AArch64"
+#endif
+
+static uint64_t data[64] __attribute__((aligned(64))) = {{
+    [0] = 0x0123456789abcdefULL,
+}};
+
+int
+main(int argc, char **argv)
+{{
+    if (argc != 2)
+        return 2;
+    const uint64_t iterations = strtoull(argv[1], NULL, 0);
+    if (!iterations || iterations > 1000000)
+        return 2;
+    uint64_t *buffer = data;
+    uint64_t count = iterations, value = 0;
+    m5_work_begin(7, 0);
+    __asm__ volatile(
+        "mov x8, #3\\n\\t"
+        "mov x10, #5\\n\\t"
+        "mov x12, #3\\n\\t"
+        "fmov d0, xzr\\n\\t"
+        "fmov d1, xzr\\n\\t"
+        "1:\\n\\t"
+        ".rept {GROUPS_PER_ITER}\\n\\t"
+{snippet_block}        ".endr\\n\\t"
+        "subs %[n], %[n], #1\\n\\t"
+        "b.ne 1b\\n\\t"
+        "mov %[v], x8\\n\\t"
+        : [n] "+r"(count), [v] "=r"(value)
+        : [buf] "r"(buffer)
+        : "x8", "x10", "x12", "d0", "d1", "cc", "memory");
+    m5_work_end(7, 0);
+    printf("candidate={target} iterations=%llu result=%llu status=DONE\\n",
+           (unsigned long long)iterations, (unsigned long long)value);
+    return 0;
+}}
+"""
+
+
+def pareto(args):
+    """Generate a Pareto set of instruction sequences with NSGA-II."""
+    map_path = args.map.resolve()
+    if not map_path.is_file():
+        die(f"structure map not found: {map_path}")
+    document = json.loads(map_path.read_text())
+    structures = [name.strip() for name in args.structure.split(",")
+                  if name.strip()]
+    if not structures:
+        die("--structure must name at least one structure")
+    unknown = [name for name in structures if name not in STRUCTURES]
+    if unknown:
+        die("unsupported structures: " + ", ".join(unknown)
+            + "; choose from " + ", ".join(STRUCTURES))
+    if len(set(structures)) != len(structures):
+        die("--structure must not repeat a structure")
+    if args.length <= 0:
+        die("--length must be positive")
+    if args.population < 2:
+        die("--population must be at least 2")
+    if args.generations < 0:
+        die("--generations must not be negative")
+
+    instructions = document.get("instructions") or {}
+    if not instructions:
+        die("structure map has no instructions")
+    modes = sorted(instructions)
+    maxima = {}
+    for structure in structures:
+        maxima[structure] = max(
+            entry["activation"][structure]
+            for entry in instructions.values())
+        if maxima[structure] <= 0:
+            die(f"structure {structure!r} has no activation above baseline")
+    normalised = {
+        mode: {structure: instructions[mode]["activation"][structure]
+               / maxima[structure] for structure in structures}
+        for mode in modes
+    }
+
+    def objective(genes):
+        # Each gene is an index into ``modes`` and contributes one instruction
+        # to the repeated sequence. The mean of per-structure normalised
+        # activations keeps every objective in [0, 1] and avoids comparing raw
+        # units (events vs input bits).
+        chosen_modes = [modes[gene] for gene in genes]
+        return tuple(
+            sum(normalised[mode][structure] for mode in chosen_modes)
+            / len(chosen_modes)
+            for structure in structures)
+
+    result = run_nsga2(
+        objective, genome_length=args.length, gene_space=len(modes),
+        population_size=args.population, generations=args.generations,
+        seed=args.seed, crossover_rate=args.crossover,
+        mutation_rate=args.mutation)
+    if not result.pareto:
+        die("NSGA-II produced an empty Pareto front")
+
+    outdir = args.outdir.resolve()
+    outdir.mkdir(parents=True, exist_ok=True)
+    target_name = "+".join(structures)
+    candidates = []
+    for index, individual in enumerate(result.pareto[:args.max_candidates]):
+        source = outdir / f"candidate-{index:03d}.c"
+        sequence = [modes[gene] for gene in individual.genes]
+        source.write_text(sequence_candidate_source(
+            target_name, sequence, args.iterations))
+        candidates.append({
+            "genes": list(individual.genes),
+            "sequence": sequence,
+            "objectives": {structure: value for structure, value
+                           in zip(structures, individual.objectives)},
+            "objectives_vector": list(individual.objectives),
+            "source": str(source),
+        })
+
+    knee = knee_point(result.pareto)
+    knee_entry = next(entry for entry in candidates
+                      if tuple(entry["genes"]) == knee.genes) \
+        if knee is not None else candidates[0]
+
+    validation = None
+    if args.validate:
+        knee_source = Path(knee_entry["source"])
+        guest = compile_guest(knee_source, outdir / "bin" / "knee", args.cc)
+        dumps = run_guest(args.gem5.resolve(), outdir / "run", guest,
+                          str(args.iterations), "DONE")
+        baseline_guest = compile_guest(
+            PROBE_SOURCE, outdir / "bin" / "structural_probe", args.cc)
+        baseline_dumps = run_guest(args.gem5.resolve(), outdir / "baseline",
+                                   baseline_guest,
+                                   f"baseline {args.iterations}", "PASS")
+        stats = dumps[-1]
+        raw = counters_from_dump(stats)
+        baseline_raw = counters_from_dump(baseline_dumps[-1])
+        net, clamped = subtract_baseline(raw, baseline_raw)
+        baseline_coverage = coverage_from_dump(baseline_dumps[-1])
+        coverage = coverage_from_dump(stats)
+        activation = activation_from_net(net)
+        for structure in structures:
+            if activation[structure] <= 0:
+                die(f"knee point has no net activation for {structure}: "
+                    f"{activation[structure]}")
+        validation = {
+            "candidate": knee_entry,
+            "candidate_binary": str(guest),
+            "raw": raw,
+            "net": net,
+            "activation": activation,
+            "clamped": clamped,
+            "coverage": coverage,
+            "baseline_coverage": baseline_coverage,
+        }
+
+    report = {
+        "schema": "autousens.pareto_set.v1",
+        "map": str(map_path),
+        "structures": structures,
+        "gene_space": modes,
+        "length": args.length,
+        "population": args.population,
+        "generations": args.generations,
+        "seed": args.seed,
+        "crossover_rate": args.crossover,
+        "mutation_rate": (args.mutation if args.mutation is not None
+                          else 1.0 / args.length),
+        "evaluations": result.evaluations,
+        "pareto_size": len(result.pareto),
+        "pareto": candidates,
+        "knee": knee_entry,
+        "validation": validation,
+    }
+    path = outdir / "pareto_set.json"
+    path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    print(f"pareto structures={'+'.join(structures)} "
+          f"size={len(result.pareto)} evaluations={result.evaluations}")
+    for entry in candidates[:min(len(candidates), 8)]:
+        objectives = " ".join(
+            f"{structure}={entry['objectives'][structure]:.4f}"
+            for structure in structures)
+        print(f"  {','.join(entry['sequence']):40s} {objectives}")
+    print(f"knee: {','.join(knee_entry['sequence'])}")
+    if validation is not None:
+        for structure in structures:
+            print(f"validated {structure}={validation['coverage'][structure]:.6f} "
+                  f"baseline={validation['baseline_coverage'][structure]:.6f}")
+    print(f"pareto set: {path}")
+    return report, path
 
 
 def evaluate_directory(outdir, baseline_dir=None):
@@ -485,6 +717,26 @@ def main():
                                help="number of instructions to compose")
     target_parser.add_argument("--outdir", type=Path, required=True)
 
+    pareto_parser = sub.add_parser(
+        "pareto", help="generate an NSGA-II Pareto set of sequences")
+    common(pareto_parser)
+    pareto_parser.add_argument("--map", type=Path, required=True)
+    pareto_parser.add_argument("--structure", required=True,
+                               help="comma-separated structures, e.g. l1d,alu")
+    pareto_parser.add_argument("--length", type=int, default=4,
+                               help="instructions per repeated sequence")
+    pareto_parser.add_argument("--population", type=int, default=32)
+    pareto_parser.add_argument("--generations", type=int, default=20)
+    pareto_parser.add_argument("--seed", type=int, default=42)
+    pareto_parser.add_argument("--crossover", type=float, default=0.9)
+    pareto_parser.add_argument("--mutation", type=float, default=None)
+    pareto_parser.add_argument("--max-candidates", type=int, default=32,
+                               help="maximum Pareto members written as C")
+    pareto_parser.add_argument("--validate", action="store_true",
+                               help="run the knee point in gem5 and require it"
+                                    " to beat the baseline for every structure")
+    pareto_parser.add_argument("--outdir", type=Path, required=True)
+
     evaluate_parser = sub.add_parser("evaluate",
                                      help="recompute a coverage vector")
     evaluate_parser.add_argument("--dir", type=Path, required=True)
@@ -502,6 +754,8 @@ def main():
         build_map(args)
     elif args.command == "target":
         target(args)
+    elif args.command == "pareto":
+        pareto(args)
     else:
         evaluate(args)
 

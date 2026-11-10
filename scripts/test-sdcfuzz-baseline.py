@@ -63,7 +63,8 @@ def main():
         entry = evaluate_template(template, gem5, outdir, args.cc,
                                   args.iterations)
         entries[template.id] = entry
-        if template.target in ("alu", "mult", "div", "l1d", "l1i"):
+        if template.target in ("alu", "mult", "div", "l1d", "l1i",
+                               "fpadd", "fpmul"):
             activation = entry["target_activation"]
             assert activation > 0, (template.id, template.target, activation)
         else:
@@ -71,7 +72,8 @@ def main():
         assert entry["counters"]["rf_reads"] > 0, template.id
         profile = " ".join(
             f"{structure}={entry['coverage'][structure]:.4f}"
-            for structure in ("rf", "l1i", "l1d", "alu", "mult", "div")
+            for structure in ("rf", "vec", "l1i", "l1d", "alu", "mult",
+                              "div", "fpadd", "fpmul")
             if entry["coverage"][structure] > 0)
         print(f"{template.id:16s} target={template.target:5s} "
               f"activation={entry['target_activation']} {profile}")

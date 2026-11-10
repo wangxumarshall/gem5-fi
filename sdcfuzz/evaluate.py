@@ -1,10 +1,10 @@
 """Compile and measure the Phase-0 template corpus under gem5.
 
-The evaluator reuses the RF ACE / L1 ACE / FU IBR metrics added in the
-previous milestone: every template is run inside an m5 work-item window and
-its activation is attributed to the structure the template targets.  FP
-templates have no structure metric yet and are reported as ``target=none``
-instead of being given a made-up number.
+The evaluator reuses the RF ACE / L1 ACE / FU IBR metrics added earlier: every
+template is run inside an m5 work-item window and its activation is attributed
+to the structure the template targets.  Phase 1 now also covers the vector/FP
+register lane and the FP add/multiply FU classes, so ``fp-add``/``fp-mul`` are
+measured instead of being reported as ``none``.
 """
 
 import json
@@ -22,14 +22,18 @@ M5OP = GEM5_SRC / "util/m5/src/abi/arm64/m5op.S"
 CONFIG = ROOT / "configs/se/arm_chaos.py"
 DEFAULT_GEM5 = GEM5_SRC / "build/ARM_ACE_IBR_AUDIT/gem5.opt"
 
-MEASURABLE_TARGETS = ("alu", "mult", "div", "l1d", "l1i")
+MEASURABLE_TARGETS = ("alu", "mult", "div", "l1d", "l1i", "fpadd", "fpmul")
 
 COUNTERS = {
     "rf_reads": ".rfAce.intTrackedReads",
     "rf_writes": ".rfAce.intTrackedWrites",
+    "vec_reads": ".rfAce.vecTrackedReads",
+    "vec_writes": ".rfAce.vecTrackedWrites",
     "alu_bits": ".fuIbr.inputBits::intAlu",
     "mult_bits": ".fuIbr.inputBits::intMult",
     "div_bits": ".fuIbr.inputBits::intDiv",
+    "fpadd_bits": ".fuIbr.inputBits::fpAdd",
+    "fpmul_bits": ".fuIbr.inputBits::fpMult",
     "l1d_reads": "l1d-cache-0.l1Ace.trackedDemandReads",
     "l1d_writes": "l1d-cache-0.l1Ace.trackedDemandWrites",
     "l1i_reads": "l1i-cache-0.l1Ace.trackedDemandReads",
@@ -38,11 +42,14 @@ COUNTERS = {
 
 RATIO_COUNTERS = {
     "rf": ".rfAce.intAceRatio",
+    "vec": ".rfAce.vecAceRatio",
     "l1i": "l1i-cache-0.l1Ace.aceRatio",
     "l1d": "l1d-cache-0.l1Ace.aceRatio",
     "alu": ".fuIbr.ibrRatio::intAlu",
     "mult": ".fuIbr.ibrRatio::intMult",
     "div": ".fuIbr.ibrRatio::intDiv",
+    "fpadd": ".fuIbr.ibrRatio::fpAdd",
+    "fpmul": ".fuIbr.ibrRatio::fpMult",
 }
 
 
@@ -95,6 +102,10 @@ def target_activation(target, counters):
         return counters["mult_bits"]
     if target == "div":
         return counters["div_bits"]
+    if target == "fpadd":
+        return counters["fpadd_bits"]
+    if target == "fpmul":
+        return counters["fpmul_bits"]
     return None
 
 
