@@ -1,0 +1,46 @@
+warn: Setting the full_system parameter via the Simulator constructor is deprecated and will be removed in future releases of gem5. The board determines if the simulation is full system or not via it's `is_fullsystem` method.
+warn: No dot file generated. Please install pydot to generate the dot file and pdf.
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (8192 Mbytes) does not match the address range assigned (1024 Mbytes)
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:32] into equal-sized buckets. Rounding up.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:8] into equal-sized buckets. Rounding up.
+src/base/remote_gdb.cc:418: warn: Sockets disabled, not accepting gdb connections
+src/sim/faults.cc:103: panic: panic condition !handled && !tc->getSystemPtr()->trapToGdb(GDBSignal::SEGV, tc->contextId()) occurred: Page table fault when accessing virtual address 0xffffffffffb73c50
+Memory Usage: 1247492 KBytes
+Program aborted at tick 1672440
+--- BEGIN LIBC BACKTRACE ---
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem515print_backtraceEv+0x18)[0x33a75b8]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem512abortHandlerEi+0x48)[0x33c96bc]
+linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffffbe52f7e0]
+/usr/lib64/libc.so.6(+0x812c0)[0xffffbd3e12c0]
+/usr/lib64/libc.so.6(raise+0x1c)[0xffffbd399f2c]
+/usr/lib64/libc.so.6(abort+0xf0)[0xffffbd38703c]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt[0xf4a368]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem521GenericPageTableFault6invokeEPNS_13ThreadContextERKNS_14RefCountingPtrINS_10StaticInstEEE+0xdc)[0x342ba0c]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem52o36Commit10commitHeadERKNS_14RefCountingPtrINS0_7DynInstEEEj+0x518)[0x109d30c]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem52o36Commit11commitInstsEv+0x250)[0x109def0]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem52o36Commit6commitEv+0x6b8)[0x109f1b8]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem52o36Commit4tickEv+0xa4)[0x109f5a8]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem52o33CPU4tickEv+0x13c)[0x10a838c]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem510EventQueue10serviceOneEv+0xbc)[0x33ba0a0]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem59doSimLoopEPNS_10EventQueueE+0x78)[0x33e27c8]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(_ZN4gem58simulateEm+0x220)[0x33e2ed0]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt[0x32f8124]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt[0xf30904]
+/usr/lib64/libpython3.11.so.1.0(+0x17c500)[0xffffbe12c500]
+/usr/lib64/libpython3.11.so.1.0(_PyObject_Call+0x7c)[0xffffbe143000]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x4974)[0xffffbe117ca4]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffbe10e114]
+/usr/lib64/libpython3.11.so.1.0(PyEval_EvalCode+0x9c)[0xffffbe1b09dc]
+/usr/lib64/libpython3.11.so.1.0(+0x220a1c)[0xffffbe1d0a1c]
+/usr/lib64/libpython3.11.so.1.0(+0x173880)[0xffffbe123880]
+/usr/lib64/libpython3.11.so.1.0(PyObject_Vectorcall+0x48)[0xffffbe1237e8]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x754)[0xffffbe113a84]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffffbe10e114]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt[0x32dfc34]
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt(main+0x16c)[0xf1c43c]
+/usr/lib64/libc.so.6(+0x276c4)[0xffffbd3876c4]
+/usr/lib64/libc.so.6(__libc_start_main+0x98)[0xffffbd3877a8]
+--- END LIBC BACKTRACE ---
+For more info on how to address this issue, please visit https://www.gem5.org/documentation/general_docs/common-errors/ 
+
