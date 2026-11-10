@@ -16,10 +16,11 @@ the part that the current gem5 model can actually observe:
                  validation of the knee point.
   * ``evaluate`` recompute a coverage vector for any gem5 result directory.
 
-Observable structures are limited to the implemented metrics: integer physical
-register file (rf), L1I ACE, L1D ACE, and the intAlu/intMult/intDiv FU classes.
-FP/SIMD/SVE, TLB, ROB and LSQ have no metric yet and are reported as
-unsupported instead of being silently invented.
+Observable structures are limited to the implemented metrics: integer and
+vector/FP low-lane physical register files (rf/vec), L1I/L1D ACE, and the
+intAlu/intMult/intDiv/fpAdd/fpMult FU classes. SIMD/SVE and TLB have no
+per-instruction metric and are reported as unsupported instead of being
+silently invented; ROB/IQ/LSQ/PRF/FU occupancy is measured separately by SAD.
 
 Activation is measured as probe counters minus the baseline counters of an
 empty loop with the same shape (16 groups of 4 instructions per iteration).
