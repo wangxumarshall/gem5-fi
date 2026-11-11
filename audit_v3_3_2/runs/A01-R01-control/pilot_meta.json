@@ -1,0 +1,133 @@
+{
+  "pilot_id": "A01-R01-control",
+  "model": "A01",
+  "run_role": "CONTROL",
+  "seed": 2108120075,
+  "event_selection": "TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)",
+  "excel_identity": {
+    "run_id": "PILOT-A01",
+    "sub_task_id": "PILOT-A01-S01",
+    "sample_run_id": "A01-R01-control",
+    "seed": 2108120075,
+    "event_ordinal": 1,
+    "event_ordinal_used": 1059
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/A01-R01-control",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/agu_addrmodes",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "0.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_addrpath",
+    "--agu_pre_mode",
+    "a01_bit3_load",
+    "--addrpath_lsu_tier",
+    "F0",
+    "--addrpath_max_faults",
+    "1",
+    "--addrpath_warmup_events",
+    "0",
+    "--addrpath_span_events",
+    "10",
+    "--addrpath_rng_seed",
+    "2108120075",
+    "--addrpath_event_ordinal",
+    "1059"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.686,
+  "oracle_expected": "728e604ffcec539d",
+  "oracle_source": "excel",
+  "oracle_pass": true,
+  "injection": {},
+  "injection_count": 0,
+  "target_event_proof": {
+    "site": "lsq_pushRequest_PRE",
+    "events": 0,
+    "all_load_bit3": true
+  },
+  "trace": {
+    "csv_rows": 6696,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/A01-R01-control/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "PARTIAL",
+      "structural_chain_completeness": "PARTIAL",
+      "propagation_stages": [
+        "memory_request",
+        "forwarding_decision",
+        "sq_lifecycle"
+      ],
+      "expected_stages": [
+        "injection"
+      ],
+      "missing_stages": [
+        "injection"
+      ],
+      "chain_ptag": null,
+      "chain_scoped": false,
+      "chain_source": "none",
+      "chain_events": 6696,
+      "consumer_operand_records": 0,
+      "consumer_instructions": 0,
+      "taint_value_mismatch_records": 0,
+      "chain_integrity": "UNKNOWN",
+      "chain_reasons": [
+        "no_injection_event"
+      ],
+      "execution_attempt_link": "UNKNOWN",
+      "terminal_state": "UNRESOLVED",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "NOT_TRIGGERED",
+      "events": 6696,
+      "edges": 0,
+      "injections": 0,
+      "activations": 0,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "NOT_TRIGGERED",
+    "observed_terminal": "MASKED",
+    "terminal_state": "UNRESOLVED",
+    "terminal_state_reason": "NO_INJECTION_EVENT",
+    "fault_causality": "UNKNOWN",
+    "terminal_evidence": {
+      "page_table_fault_addr": null,
+      "last_injection_dyn_seq": null,
+      "last_injection_new_value": null,
+      "address_match": false,
+      "stderr_has_page_table_fault": false
+    },
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "PARTIAL",
+    "structural_chain_completeness": "PARTIAL",
+    "fault_effect_propagation_coverage": "UNRESOLVED",
+    "fault_effect_evidence": {
+      "model": "A01",
+      "chain_identity": "ptag+dyn_inst_seq (str-normalized)",
+      "chain_events": 0
+    },
+    "fault_effect_reason": "NO_INJECTION_EVENT",
+    "oracle_outcome": "PASS"
+  },
+  "control_valid": true,
+  "control_misfire": false,
+  "accepted": true,
+  "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
+  "crash_evidence": null
+}

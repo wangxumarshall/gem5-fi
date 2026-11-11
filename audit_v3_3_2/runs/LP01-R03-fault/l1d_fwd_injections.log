@@ -1,0 +1,1 @@
+Tick: 32722690, Site: l1d_load_complete, addr=0x7890f, pa=0x7890f, va=0x49390f, pc=0x400588, size=1, mask=0x8, dyn_inst_seq=74677, lq_entry_id=9063, entry_generation=9541, request_id=0, eligible_ordinal=9205, byte0_changed=1, addr_unchanged=1, size_unchanged=1, faults_injected: 1

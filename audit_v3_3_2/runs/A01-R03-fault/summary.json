@@ -1,0 +1,72 @@
+{
+  "model": "A01",
+  "context": "R03",
+  "ctx_index": 3,
+  "role": "fault",
+  "ordinal": 1137,
+  "seed": null,
+  "workload": null,
+  "outdir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/A01-R03-fault",
+  "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+  "binary_sha": "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca",
+  "cmd": [
+    "/usr/bin/python3",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py",
+    "--model",
+    "A01",
+    "--context-index",
+    "3",
+    "--event-ordinal",
+    "1137",
+    "--pilot-id",
+    "A01-R03-fault",
+    "--outdir",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/A01-R03-fault",
+    "--timeout",
+    "180"
+  ],
+  "exit_code": 1,
+  "injection_count": 1,
+  "oracle": true,
+  "terminal": null,
+  "elapsed": 1.698,
+  "injection_events": null,
+  "trace_completeness": {
+    "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/A01-R03-fault/trace_v31.jsonl",
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "structural_chain_completeness": "COMPLETE",
+    "propagation_stages": [
+      "injection",
+      "address_formed",
+      "memory_response"
+    ],
+    "expected_stages": [
+      "injection"
+    ],
+    "missing_stages": [],
+    "chain_ptag": 1,
+    "chain_scoped": true,
+    "chain_source": "ptag",
+    "chain_events": 9,
+    "consumer_operand_records": 0,
+    "consumer_instructions": 0,
+    "taint_value_mismatch_records": 0,
+    "chain_integrity": "PASS",
+    "chain_reasons": [],
+    "execution_attempt_link": "SAME_ATTEMPT",
+    "terminal_state": "UNRESOLVED",
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "events": 6701,
+    "edges": 5,
+    "injections": 1,
+    "activations": 6,
+    "reasons": []
+  },
+  "first_injection": {
+    "seq": 14049,
+    "detail": "site=lsq_pushRequest_PRE;family=addrpath;is_load=1;old_size=16;new_size=16;old_addr=493040;new_addr=493048"
+  }
+}

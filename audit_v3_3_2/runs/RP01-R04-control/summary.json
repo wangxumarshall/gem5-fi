@@ -1,0 +1,41 @@
+{
+  "model": "RP01",
+  "context": "R04",
+  "ctx_index": 4,
+  "role": "control",
+  "ordinal": 179,
+  "seed": 2455796178,
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/replay_partial_v332",
+  "outdir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/RP01-R04-control",
+  "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+  "binary_sha": "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca",
+  "cmd": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/RP01-R04-control",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/replay_partial_v332",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "0.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed": 1.956,
+  "rp01": {
+    "eligible": 0,
+    "skips": 0,
+    "watchdog": false,
+    "first_eligible": null,
+    "first_skip": null,
+    "checksum": "f3b1c554273d23f7"
+  },
+  "injection_count": 0,
+  "terminal": "COMPLETED",
+  "oracle": true
+}

@@ -1,0 +1,13 @@
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt
+--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/MD04-R01-control
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py
+--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/md04_violations_v332
+--cpu
+O3
+--variant
+B0
+--probability
+0.0
+--chaos_propagation
+--prop_trace_file
+prop_trace.csv.gz

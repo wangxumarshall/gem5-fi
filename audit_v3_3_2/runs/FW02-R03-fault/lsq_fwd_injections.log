@@ -1,0 +1,2 @@
+Tick: 15492785, Site: store->load_forward_decision, FaultType: f6_fw02_suppress, load_seq: 12587, store_seq: 12585, Vaddr: 0x491a90, FwdSize: 8, faults_injected: 1
+CHAOS_FW02_SUMMARY: observed=68 suppressed=1 load_seq=12587 store_seq=12585

@@ -1,0 +1,73 @@
+{
+  "model": "FW05",
+  "context": "R05",
+  "ctx_index": 5,
+  "role": "control",
+  "ordinal": 1800,
+  "seed": null,
+  "workload": null,
+  "outdir": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/FW05-R05-control",
+  "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+  "binary_sha": "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca",
+  "cmd": [
+    "/usr/bin/python3",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py",
+    "--model",
+    "FW05",
+    "--context-index",
+    "5",
+    "--event-ordinal",
+    "1800",
+    "--pilot-id",
+    "FW05-R05-control",
+    "--outdir",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/FW05-R05-control",
+    "--timeout",
+    "180",
+    "--probability",
+    "0.0"
+  ],
+  "exit_code": 0,
+  "injection_count": 0,
+  "oracle": true,
+  "terminal": null,
+  "elapsed": 2.317,
+  "injection_events": [],
+  "trace_completeness": {
+    "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/FW05-R05-control/trace_v31.jsonl",
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "PARTIAL",
+    "structural_chain_completeness": "PARTIAL",
+    "propagation_stages": [
+      "forwarding_decision",
+      "sq_lifecycle"
+    ],
+    "expected_stages": [
+      "injection"
+    ],
+    "missing_stages": [
+      "injection"
+    ],
+    "chain_ptag": null,
+    "chain_scoped": false,
+    "chain_source": "none",
+    "chain_events": 34522,
+    "consumer_operand_records": 0,
+    "consumer_instructions": 0,
+    "taint_value_mismatch_records": 0,
+    "chain_integrity": "UNKNOWN",
+    "chain_reasons": [
+      "no_injection_event"
+    ],
+    "execution_attempt_link": "UNKNOWN",
+    "terminal_state": "UNRESOLVED",
+    "run_status": "COMPLETED",
+    "fault_activation_status": "NOT_TRIGGERED",
+    "events": 34522,
+    "edges": 0,
+    "injections": 0,
+    "activations": 0,
+    "reasons": []
+  }
+}

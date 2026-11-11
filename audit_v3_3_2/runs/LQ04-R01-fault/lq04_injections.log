@@ -1,0 +1,2 @@
+CHAOS_LQ04_INJECTION: seq=3 pc=0x400338 lq_idx=1 gen=1 request_id=3 addr=0x41ffe8 size=8 eligible=1 ordinal=1 injected=1 tick=80080
+CHAOS_LQ04_RESTORE: seq=3 lq_idx=1 gen=1 reason=commit tick=136675

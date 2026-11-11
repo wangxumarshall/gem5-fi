@@ -1,0 +1,2 @@
+Tick: 17264170, Site: lsq_pushRequest_byte_enable, FaultModel: DA04, seq: 15345, sq_idx: 1768, entry_generation: 2167, old_addr: 0x491e5d, new_addr: 0x491e5d, size: 4, old_be: 0xf, new_be: 0xe, changed_bit: 0, faults_injected: 1
+CHAOS_L0_FUNNEL: CHAOSLSQFwd attempted=3137 eligible=1115 injected=1 activated=1

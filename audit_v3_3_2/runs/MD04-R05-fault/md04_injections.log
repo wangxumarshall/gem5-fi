@@ -1,0 +1,2 @@
+Tick: 72618315, Site: checkViolations, load_seq=188215, store_seq=188213, addr=0x491990, size=16, store_addr=0x491998, store_size=8, load_pc=0x400854, store_pc=0x400850, sq_entry_id=26528, sq_entry_generation=26933, lq_entry_id=14038, lq_entry_generation=14601, eligible_ordinal=10, event_ordinal=10, seed=1008734674, load_complete=0, address_modified=0, size_modified=0, data_modified=0, faults_injected: 1
+CHAOS_MD04_TARGET_STATUS=INJECTED count=1

@@ -1,0 +1,3 @@
+Cycle: 48397, Site: commitStores_select, store_seq=20435, sq_idx=1059, sq_gen=1409, eligible_ordinal=1055
+Cycle: 48398, Site: writebackStores_prematureComplete, store_seq=20435, sq_idx=1059, sq_gen=1409, mem_sent=0, eligible_ordinal=1055, faults_injected: 1
+CHAOS_SP05_STATUS: selected=1 fired=1 injected=1 eligible=1055 target_seq=20435 sq_idx=1059 sq_gen=1409

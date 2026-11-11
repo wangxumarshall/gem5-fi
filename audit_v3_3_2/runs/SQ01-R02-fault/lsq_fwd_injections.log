@@ -1,0 +1,2 @@
+Tick: 17001600, Site: lsq_write_sq_entry, FaultType: sq01_bit3_flip, seq: 15122, sq_idx: 982, entry_generation: 1332, old_byte0: 0x87, new_byte0: 0x8f, faults_injected: 1
+CHAOS_L0_FUNNEL: CHAOSLSQFwd attempted=1604 eligible=1604 injected=1 activated=1

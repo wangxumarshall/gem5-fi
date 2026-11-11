@@ -1,0 +1,180 @@
+{
+  "pilot_id": "FW02-R05-fault",
+  "model": "FW02",
+  "run_role": "FAULT",
+  "seed": 3622278636,
+  "event_selection": "TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)",
+  "excel_identity": {
+    "run_id": "PILOT-FW02",
+    "sub_task_id": "PILOT-FW02-S01",
+    "sample_run_id": "FW02-R05-fault",
+    "seed": 3622278636,
+    "event_ordinal": 5,
+    "event_ordinal_used": 61
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/sq_forward_w4v2",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+    "--outdir=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/FW02-R05-fault",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/workloads/directed/sq_forward_w4v2",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_lsqfwd",
+    "--lsq_struct_mode",
+    "f6_fw02",
+    "--max_faults",
+    "1",
+    "--rng_seed",
+    "3622278636",
+    "--lsqfwd_event_ordinal",
+    "61"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.669,
+  "oracle_expected": "1f4cbf14327717df",
+  "oracle_source": "workload_golden",
+  "oracle_pass": false,
+  "injection": {
+    "observed": 67,
+    "suppressed": 1,
+    "load_seq": 13572,
+    "store_seq": 13571
+  },
+  "injection_count": 1,
+  "target_event_proof": {
+    "site": "store->load_forward_decision",
+    "observed": 67,
+    "suppressed": 1,
+    "load_seq": 13572,
+    "store_seq": 13571
+  },
+  "trace": {
+    "csv_rows": 7081,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/audit_v3_3_2/runs/FW02-R05-fault/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "COMPLETE",
+      "structural_chain_completeness": "COMPLETE",
+      "propagation_stages": [
+        "injection",
+        "address_formed",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision"
+      ],
+      "expected_stages": [
+        "forwarding_decision",
+        "memory_response",
+        "register_writeback",
+        "consumer_commit"
+      ],
+      "missing_stages": [],
+      "chain_ptag": 1,
+      "chain_scoped": true,
+      "chain_source": "ptag",
+      "chain_events": 280,
+      "consumer_operand_records": 222,
+      "consumer_instructions": 206,
+      "taint_value_mismatch_records": 48,
+      "chain_integrity": "PASS",
+      "chain_reasons": [],
+      "execution_attempt_link": "SAME_ATTEMPT",
+      "terminal_state": "SDC",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "TRIGGERED",
+      "events": 6858,
+      "edges": 277,
+      "injections": 1,
+      "activations": 229,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "TRIGGERED",
+    "observed_terminal": "SDC",
+    "terminal_state": "SDC",
+    "terminal_state_reason": "ORACLE_FAIL",
+    "fault_causality": "DIRECT_DATAFLOW_EVIDENCE",
+    "terminal_evidence": {
+      "page_table_fault_addr": null,
+      "last_injection_dyn_seq": 13572,
+      "last_injection_new_value": "0x4919e8",
+      "address_match": false,
+      "stderr_has_page_table_fault": false
+    },
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "COMPLETE",
+    "structural_chain_completeness": "COMPLETE",
+    "fault_effect_propagation_coverage": "COMPLETE_CAUSAL_CHAIN",
+    "fault_effect_evidence": {
+      "model": "FW02",
+      "chain_identity": "ptag+dyn_inst_seq (str-normalized)",
+      "injection_event_id": 5426,
+      "activation_status": "TRIGGERED",
+      "chain_ptag": 1,
+      "chain_dyn_inst_seq": 13572,
+      "chain_events": 280,
+      "chain_event_types": [
+        "address_formed",
+        "commit",
+        "consumer_commit",
+        "errant_commit",
+        "forwarding_decision",
+        "fw02_decision",
+        "injection",
+        "lq_lifecycle",
+        "memory_response",
+        "register_writeback",
+        "taint_value_mismatch"
+      ],
+      "control_markers": [
+        "fault_decision"
+      ],
+      "value_divergence_count": 0,
+      "value_divergence": [],
+      "control_divergence_count": 2,
+      "control_divergence": [
+        {
+          "event_id": 5428,
+          "event_type": "fw02_decision",
+          "marker": "fault_decision",
+          "marker_value": "suppressed"
+        },
+        {
+          "event_id": 5429,
+          "event_type": "forwarding_decision",
+          "marker": "fault_decision",
+          "marker_value": "suppressed"
+        }
+      ],
+      "downstream_commit_types": [
+        "commit",
+        "consumer_commit",
+        "errant_commit"
+      ],
+      "oracle_failing_terminal": true
+    },
+    "fault_effect_reason": "DIVERGENCE_WITH_DOWNSTREAM_COMMIT",
+    "oracle_outcome": "FAIL"
+  },
+  "control_valid": "n/a",
+  "control_misfire": false,
+  "accepted": true,
+  "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
+  "crash_evidence": null
+}
