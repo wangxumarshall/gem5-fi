@@ -36,8 +36,8 @@ matched fault-control, and frozen experiment configuration. No formal campaign l
 - [x] P3 Representative fault/control pilots for every modified mechanism
 - [ ] P4 60-context full acceptance — BLOCKED: 42 controls missing, 45 historical-only, warm-up unfrozen
 - [ ] P5 Final regression done (180+107); freeze BLOCKED (no runner dry-run)
-- [ ] P6 Independent acceptance (Subagent F, second pass)
-- [ ] Deliverables + `LSU_12Model_PreFormal_Readiness_Package.zip`
+- [x] P6 Independent acceptance (Subagent F, second pass; MIXED, FW02 gap re-verified)
+- [x] Deliverables + `LSU_12Model_PreFormal_Readiness_Package.zip` (sha256 c35c8d5f…)
 
 ## Verification rules
 
