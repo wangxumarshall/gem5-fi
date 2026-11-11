@@ -205,6 +205,35 @@ struct ChaOSLsuTrigger
         return false;
     }
 
+    // Read-only counterpart of onEligible() for a matched no-fault control:
+    // advances the eligible space with the SAME F0 ordinal selection the
+    // fault run uses, but never counts an injection. Only F0 (A01's tier) is
+    // defined; the control probe is not used by any other model.
+    bool
+    onControlProbe()
+    {
+        if (tier != ChaOSLsuTier::F0 || spent)
+            return false;
+        ++eligible;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();
+        if (!armed) {
+            armed = true;
+            if (event_ordinal) {
+                next_fire = warmup_events + event_ordinal;
+            } else {
+                const uint64_t span = span_events ? span_events : 1;
+                rng = chaosSampleLCG(rng);
+                next_fire = warmup_events + rng % span;
+            }
+        }
+        if (eligible >= next_fire) {
+            spent = true;               // observe exactly once, inject never
+            return true;
+        }
+        return false;
+    }
+
     // The F6 event source calls this when the configured event occurs.
     // Returns true => inject at this event, once ever.
     bool

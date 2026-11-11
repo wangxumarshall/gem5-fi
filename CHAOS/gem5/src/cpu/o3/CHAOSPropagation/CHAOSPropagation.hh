@@ -407,6 +407,12 @@ class CHAOSPropagation : public SimObject
     // request=0 + discard_reason) converts that silent structural absence
     // into an on-chain fact. Read-only; the a01_ea node stays unchanged.
     void noteA01EADiscarded(uint64_t ptag, const chaos_a01::EACoords &c);
+    // [A01 v3.3 proposal] read-only control registration: a probe node, an
+    // a01_ea reference node (golden==actual, affected=0) and an addr_registry
+    // entry flagged control_only. No fault_seqs insert, no injection claim.
+    uint64_t registerControlProbe(const char *site, uint64_t dyn_seq, Addr addr,
+                                  unsigned size, bool is_load,
+                                  const chaos_a01::EACoords &c);
     // [LSU][V3.2.12][A03] the F5 stream sink (A03 audit §1 remedy): the
     // activation record (a03_activation, {tick,bit,mode} via the frozen
     // activationDetail — one per run; the recorder already rejects a
@@ -418,6 +424,10 @@ class CHAOSPropagation : public SimObject
     // ptag=0 "not bound to one chain" convention). Return: the ptag used.
     uint64_t noteA03Activation(uint64_t ptag, const chaos_a03::Activation &a);
     void noteA03Stream(uint64_t ptag, const chaos_a03::StreamEvent &e);
+    // [A03 v3.3 proposal] crash-address link: complete the last a03_stream
+    // row of this dyn seq with the raised fault VA and whether it equals the
+    // corrupted actual_ea. No-op unless the seq has a recorded stream row.
+    void noteA03FaultVA(uint64_t dyn_inst_seq, uint64_t fault_va);
 
     // SP05 (v3.2.9): injection ptag per target store, reused by completion.
     std::unordered_map<uint64_t, uint64_t> sp05_ptag;
@@ -502,6 +512,7 @@ class CHAOSPropagation : public SimObject
         Addr base;
         Addr size;                 // 0 = address-only marker (never matches)
         Tick registered;
+        bool control_only = false; // A01 v3.3: read-only control reference
     };
     std::map<Addr, AddrEntry> addr_registry;
 
@@ -599,6 +610,12 @@ class CHAOSPropagation : public SimObject
         uint64_t eligible_ordinal = 0;
         uint64_t resp_node = 0;
         bool wb_emitted = false;
+        // v3.3 proposal: read-only reload-consumer binding. The first later
+        // load whose request covers the injected lane and that reaches a
+        // memory response is recorded here; it is visibility evidence, never
+        // a second fault target (not added to fault_seqs or any taint set).
+        uint64_t reload_seq = 0;      // 0 = no reload observed
+        std::string reload_hash;      // that reload's response data hash
     };
     std::map<uint64_t, FW05Entry> fw05_registry;  // key: load dyn seq
 
@@ -665,6 +682,13 @@ class CHAOSPropagation : public SimObject
     // [LSU][V3.2.12][A03] sink-side emit-once guard for the a03_activation
     // node (the recorder-side guard lives in chaos_a03::StreamRecorder).
     bool a03_activation_emitted = false;
+    // [A03 v3.3 proposal] the last stream row per dyn seq (ptag + record),
+    // feeding the crash-address link. Observation only.
+    struct A03Row {
+        uint64_t ptag = 0;
+        chaos_a03::StreamEvent event;
+    };
+    std::map<uint64_t, A03Row> a03_last_row;
 
     struct ChainWbEntry {
         uint64_t ptag = 0;

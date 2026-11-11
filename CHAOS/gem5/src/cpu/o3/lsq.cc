@@ -927,9 +927,12 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
             // chain, so non-A01 faults are untouched.
             if (cpu->chaosPropagation && fault != NoFault) {
                 Addr a01_fva = 0;
-                if (ArmISA::getFaultVAddr(fault, a01_fva))
+                if (ArmISA::getFaultVAddr(fault, a01_fva)) {
                     cpu->chaosPropagation->noteA01FaultVA(
                         inst->seqNum, a01_fva);
+                    cpu->chaosPropagation->noteA03FaultVA(
+                        inst->seqNum, a01_fva);
+                }
             }
         } else if (isLoad) {
             inst->setMemAccPredicate(false);
@@ -974,6 +977,17 @@ LSQ::SingleDataRequest::finish(const Fault &fault, const RequestPtr &request,
 
         LSQRequest::_inst->fault = fault;
         LSQRequest::_inst->translationCompleted(true);
+        // [LSU][V3.3][A03] translation-time faults (e.g. a page-table fault
+        // raised for the corrupted EA) surface here, not in the LSQ::read /
+        // LSQ::write return value. Bind the fault VA to the last a03_stream
+        // row of this dyn seq; no-op for every non-A03 sequence.
+        if (fault != NoFault && LSQRequest::_inst->cpu &&
+                LSQRequest::_inst->cpu->chaosPropagation) {
+            Addr fva = 0;
+            if (ArmISA::getFaultVAddr(fault, fva))
+                LSQRequest::_inst->cpu->chaosPropagation->noteA03FaultVA(
+                    LSQRequest::_inst->seqNum, fva);
+        }
     }
 }
 
@@ -1019,6 +1033,16 @@ LSQ::SplitDataRequest::finish(const Fault &fault, const RequestPtr &req,
             } else {
                 _inst->fault = _fault[0];
                 setState(State::Fault);
+            }
+            // [LSU][V3.3][A03] split-request translation fault: bind the
+            // raised VA to the last a03_stream row (same rule as the single
+            // request path). No-op for non-A03 sequences.
+            if (_inst->fault != NoFault && _inst->cpu &&
+                    _inst->cpu->chaosPropagation) {
+                Addr fva = 0;
+                if (ArmISA::getFaultVAddr(_inst->fault, fva))
+                    _inst->cpu->chaosPropagation->noteA03FaultVA(
+                        _inst->seqNum, fva);
             }
         }
 

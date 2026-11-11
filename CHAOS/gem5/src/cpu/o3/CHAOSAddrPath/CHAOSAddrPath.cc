@@ -247,7 +247,14 @@ namespace gem5
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
         obs_pre_hook_injected = false;
-        if (probability <= 0.0f) return size;
+        if (probability <= 0.0f) {
+            // [A01 v3.3 proposal] matched control (probability 0.0): observe
+            // the ordinal-selected golden EA read-only. Never mutates addr or
+            // size and never counts an injection.
+            if (pre_mode == "a01_bit3_load")
+                probeA01Control(addr, size, isLoad, dyn_seq, pc);
+            return size;
+        }
 
         if (lsuTrigger) {
             lsuTrigger->onAttempt();
@@ -583,6 +590,28 @@ namespace gem5
         // copy is the sink-side prop-trace node, not this line.
         if (write_log && log_stream && log_stream->stream())
             *(log_stream->stream()) << tag << ": " << detail << std::endl;
+    }
+
+    void
+    CHAOSAddrPath::probeA01Control(Addr addr, unsigned size, bool isLoad,
+                                   uint64_t dyn_seq, uint64_t pc)
+    {
+        if (!o3cpu_resolved || !o3cpu_resolved->chaosPropagation)
+            return;
+        if (!lsuTrigger || lsuTrigger->tier != ChaOSLsuTier::F0)
+            return;                     // control probe is F0-only
+        if (!isLoad)
+            return;                     // a01_bit3_load is load-only
+        if (!lsuTrigger->onControlProbe())
+            return;                     // not the ordinal-selected load
+        const chaos_a01::EACoords c = chaos_a01::eaCoordsNoop(
+            0 /* fault_id: no injection */, dyn_seq,
+            pc ? pc : chaos_a01::kPcUnknown, addr, size);
+        o3cpu_resolved->chaosPropagation->registerControlProbe(
+            "lsq_pushRequest_PRE", dyn_seq, addr, size, isLoad, c);
+        if (write_log && log_stream && log_stream->stream())
+            *(log_stream->stream()) << "A01_CONTROL: "
+                << chaos_a01::eaDetail(c) << std::endl;
     }
 
     void

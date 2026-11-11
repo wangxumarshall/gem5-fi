@@ -93,6 +93,12 @@ class CHAOSAddrPath : public SimObject
     const chaos_a03::Activation &a03ActivationRecord() const
         { return a03_stream_rec.activation(); }
 
+    // [A01 v3.3 proposal] matched no-fault control: register the
+    // ordinal-selected load's golden EA read-only (no addr mutation, no
+    // injection) so the propagation tracer can emit mem_req/resp/DataDelta.
+    void probeA01Control(Addr addr, unsigned size, bool isLoad,
+                         uint64_t dyn_seq, uint64_t pc);
+
   private:
     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
     // sendFragmentToTranslation hook = DTLB-input semantics, W1 ⑦ ruling):

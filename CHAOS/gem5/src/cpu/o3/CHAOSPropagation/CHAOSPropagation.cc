@@ -351,6 +351,42 @@ namespace gem5
     }
 
     uint64_t
+    CHAOSPropagation::registerControlProbe(const char *site, uint64_t dyn_seq,
+                                           Addr addr, unsigned size,
+                                           bool is_load,
+                                           const chaos_a01::EACoords &c)
+    {
+        if (!write_log)
+            return 0;
+        // ptag 0 = deliberately outside the fault-chain ptag space: the trace
+        // validator ignores ptag<=0 for injection_event_id, so a matched
+        // control's golden-EA probe can never be mistaken for an injection.
+        const uint64_t ptag = 0;
+        {
+            std::ostringstream d;
+            d << "site=" << site << ";family=a01_control;is_load="
+              << (is_load ? 1 : 0) << ";size=" << size
+              << ";addr=" << std::hex << addr << std::dec
+              << ";injected=0;control_only=1";
+            writeNode(ptag, "probe", dyn_seq, true, 0, false, addr, true,
+                      0, false, 0, false, d.str());
+        }
+        writeNode(ptag, "a01_ea", c.dyn_inst_seq, true, 0, false,
+                  c.actual_ea, true, 0, false, 0, false,
+                  chaos_a01::eaDetail(c));
+        sweepExpired();
+        AddrEntry e;
+        e.ptag = ptag;
+        e.dyn_seq = dyn_seq;
+        e.base = addr;
+        e.size = size;
+        e.registered = curTick();
+        e.control_only = true;
+        addr_registry[addr] = e;
+        return ptag;
+    }
+
+    uint64_t
     CHAOSPropagation::registerCacheFault(Addr block_addr, int byte_offset,
                                          Addr block_size, const char *field)
     {
@@ -869,6 +905,7 @@ namespace gem5
 
         uint64_t hit_ptag = 0;
         const char *hit_family = nullptr;
+        bool hit_control = false;   // A01 v3.3: read-only control reference
 
         // LP01: the response is observed AFTER maybeCorrupt, so data_* is the
         // delivered (injected) payload. Bind directly by instruction identity.
@@ -920,6 +957,7 @@ namespace gem5
                         && e.dyn_seq == inst->seqNum) {
                     hit_ptag = e.ptag;
                     hit_family = "addrpath";
+                    hit_control = e.control_only;
                     break;
                 }
             }
@@ -1074,6 +1112,44 @@ namespace gem5
                 }
             }
         }
+        // [FW05 v3.3 proposal] reload-consumer binding (read-only): the first
+        // LATER load whose request covers the injected lane and that has a
+        // memory response records what memory actually delivered for that
+        // lane. This is the store->reload visibility leg the native FW05
+        // rows lacked; it changes no fault path and taints nothing.
+        if (!pkt->isWrite() && inst->isLoad() && pkt->req &&
+                pkt->req->hasVaddr()) {
+            const Addr ra = pkt->req->getVaddr();
+            const Addr ra_end = ra + (Addr)pkt->req->getSize();
+            for (auto &kv : fw05_registry) {
+                FW05Entry &fe = kv.second;
+                if (fe.reload_seq != 0 || kv.first == inst->seqNum)
+                    continue;               // one reload, never the load itself
+                if (ra >= fe.load_addr + fe.load_size || fe.load_addr >= ra_end)
+                    continue;               // reload must cover the affected lane
+                const unsigned rl = pkt->hasData() ? pkt->getSize() : 0;
+                fe.reload_seq = inst->seqNum;
+                fe.reload_hash = rl
+                    ? fnvHex(pkt->getPtr<uint8_t>(), rl) : "";
+                std::ostringstream rd;
+                rd << "record=reload_consumer;family=fw05"
+                   << ";load_seq=" << kv.first
+                   << ";reload_seq=" << inst->seqNum
+                   << ";reload_data_fnv="
+                   << (rl ? fe.reload_hash : "null")
+                   << ";true_fnv=" << fe.true_fnv
+                   << ";alt_fnv=" << fe.alt_fnv
+                   << ";reads_true_store="
+                   << (rl && fe.reload_hash == fe.true_fnv ? 1 : 0)
+                   << ";reads_alt_store="
+                   << (rl && fe.reload_hash == fe.alt_fnv ? 1 : 0)
+                   << ";lane_begin=0x" << std::hex << fe.load_addr
+                   << ";lane_size=" << std::dec << fe.load_size
+                   << ";reload_tick=" << curTick();
+                writeNode(fe.ptag, "fw05_reload", inst->seqNum, true, 0,
+                          false, ra, true, 0, false, 0, false, rd.str());
+            }
+        }
         if (!hit_ptag)
             return;
 
@@ -1216,7 +1292,7 @@ namespace gem5
         // The packet bytes are not the register value for size < 8
         // (endianness/extension), so hashing them here made the source hash
         // discontinuous with the consumer input (DA04's 4-byte load).
-        if (!wb_to_reg || inst->getFault() != NoFault)
+        if (!wb_to_reg || inst->getFault() != NoFault || hit_control)
             return;
         ChainWbEntry w;
         w.ptag = hit_ptag;
@@ -2038,6 +2114,38 @@ namespace gem5
         writeNode(ptag, "a03_stream", e.dyn_inst_seq, true, 0, false,
                   e.actual_ea, true, 0, false, 0, false,
                   chaos_a03::streamDetail(e));
+        a03_last_row[e.dyn_inst_seq] = A03Row{ptag, e};
+    }
+
+    void
+    CHAOSPropagation::noteA03FaultVA(uint64_t dyn_inst_seq, uint64_t fault_va)
+    {
+        if (!write_log)
+            return;
+        auto it = a03_last_row.find(dyn_inst_seq);
+        if (it == a03_last_row.end())
+            return;
+        const A03Row &row = it->second;
+        // A 0/0 pair is not an address match: some faults carry no fault VA
+        // (and some stream rows carry no EA). Refuse to emit a meaningless
+        // "crash_addr_matches=1" for that case.
+        if (fault_va == 0 && row.event.actual_ea == 0)
+            return;
+        std::ostringstream d;
+        d << "record=crash_addr_link;family=a03"
+          << ";dyn_inst_seq=" << dyn_inst_seq
+          << ";fault_va=" << std::hex << fault_va
+          << ";golden_ea=" << row.event.golden_ea
+          << ";actual_ea=" << row.event.actual_ea << std::dec
+          << ";crash_addr_matches="
+          << (fault_va == row.event.actual_ea ? 1 : 0)
+          << ";bit=" << (row.event.bit == chaos_a01::kNoBit
+                             ? "NOT_APPLICABLE"
+                             : std::to_string(row.event.bit))
+          << ";event_ordinal=" << row.event.event_ordinal
+          << ";reason=" << chaos_a03::streamReasonName(row.event.reason);
+        writeNode(row.ptag, "a03_fault", dyn_inst_seq, true, 0, false,
+                  fault_va, true, 0, false, 0, false, d.str());
     }
 
     void
