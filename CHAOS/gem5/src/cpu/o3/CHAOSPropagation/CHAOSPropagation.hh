@@ -126,6 +126,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -327,6 +328,74 @@ class CHAOSPropagation : public SimObject
         "post_overwrite_affected_reads",
         "post_overwrite_writes_total", "post_overwrite_writes_emitted",
         "post_overwrite_writes_affected",
+        // [MMU-TRACE v1] Unified MMU/TLB/PTW/LSU identity, address and
+        // control fields. Family-extension columns (outside the shared
+        // sheet-11 registry), same convention as the T-series fields above.
+        // The MMU trace is observation-only and uses fault_id=0 for
+        // fault-free infrastructure events.
+        "tlbi_id", "lookup_id", "translation_id", "walk_level",
+        "tlb_entry_id", "entry_generation", "tlb_instance",
+        "pte_address", "pte_value_before", "pte_value_after",
+        "descriptor_type", "permission_result", "memory_attribute",
+        "unique_request_id", "request_fragment_id", "response_id",
+        "execution_attempt_id", "replay_generation",
+        "commit_status", "squash_status", "fault_status",
+        "exception_class", "asid", "vmid", "mode", "stage", "pfn",
+        "page_size_n", "data_fnv",
+        "trace_integrity", "trace_completeness", "propagation_coverage",
+        "missing_edges",
+        // [MMU-TRACE v2] Structured causal key (regime/security state beyond
+        // VA/ASID/VMID), TLB entry lifecycle before/after evidence, and the
+        // M01/M02 one-shot latch provenance. Same family-extension convention
+        // as the fields above (outside the shared sheet-11 registry).
+        "regime", "security_state",
+        "entry_generation_after", "entry_valid", "entry_partial",
+        "fault_model", "fault_field", "fault_reason",
+        "old_pfn", "new_pfn", "old_pa", "new_pa", "pte_recheck",
+        "fault_arm_event_id", "first_tlbi_id", "suppressed_tlbi_ids",
+        "suppress_count", "fault_disarm_event_id", "match_event_id",
+        "retained_entry_id", "retained_entry_generation",
+        "consumption_event_id", "activation_event_id",
+        "result_event_id", "result_pa", "response_event_id",
+        "writeback_event_id", "commit_event_id",
+        // [MMU-TRACE v3] Per-level PTW identity and MMU-scoped cache
+        // observation identity (real request/response joins).
+        "ptw_request_id", "ptw_response_id",
+        "cache_req_id", "cache_name", "hit",
+        // [MMU-TRACE v4 / Phase 2.2] M02 TLB-entry fault lineage across
+        // dynamic instructions. The lineage is keyed by the REAL entry
+        // identity (instance + entry_id + generation); these fields carry
+        // BOTH causal endpoints (origin insert/refill and current lookup)
+        // so a consumer is never joined by VA/PA equality or tick order.
+        "origin_event_id", "origin_translation_id", "origin_walk_id",
+        "entry_insert_event_id", "lookup_event_id", "lineage_state",
+        "reuse_ordinal", "origin_dyn_inst_seq", "origin_squashed",
+        "origin_squash_event_id", "consumer_count", "lineage_entry_count",
+        "lineage_entries", "lineage_fault_id",
+        // [MMU-PHASE3] M03-M08 activation / consumption / candidate evidence.
+        // Same family-extension convention: these are event keys, not a
+        // change to the M01/M02 field semantics.
+        "fault_site", "fault_persistence",
+        "candidate_asid", "candidate_entry_id", "candidate_generation",
+        "candidate_pfn", "candidate_pa", "candidate_valid",
+        "candidate_partial", "candidate_global", "lookup_outcome",
+        "decoy_pfn", "decoy_pa",
+        "request_pa_before", "request_pa_after",
+        "permission_before", "permission_after",
+        "next_table_pa_before", "next_table_pa_after",
+        "descriptor_before", "descriptor_after",
+        "fault_consume_count", "fault_activation_status",
+        // [MMU-PHASE3 / M05 decoy selection + M06 exception evidence]
+        "decoy_va", "decoy_source", "decoy_entry_id",
+        "decoy_entry_generation", "decoy_vpn",
+        "pte_decode_event_id", "pte_memory_written",
+        "state_consumed", "result_propagated", "exception_delivered",
+        "fault_state_consumed_event_id",
+        "fault_result_propagated_event_id",
+        "exception_delivery_event_id",
+        "fault_source", "fault_source_level", "fault_va",
+        "is_fetch", "is_write", "isv", "delivery_target",
+        "faulting_inst_squashed", "faulting_inst_squash_event_id",
     };
     static constexpr int N_PROP_EVT_EXT_FIELDS =
         (int)(sizeof(PROP_EVT_EXT_FIELDS) / sizeof(PROP_EVT_EXT_FIELDS[0]));
@@ -790,6 +859,10 @@ class CHAOSPropagation : public SimObject
     static constexpr const char *CORR_ORIGIN = "origin";
     static constexpr const char *CORR_TAINT_PROP = "taint_prop";
     static constexpr const char *CORR_NONE = "none";
+    // [Phase 2.2] The join was made by the M02 entry-lineage registry using
+    // the REAL TLB entry identity (instance + entry_id + generation), not by
+    // VA/PA equality and not by tick proximity.
+    static constexpr const char *CORR_ENTRY_LINEAGE = "entry_lineage";
 
     // [MDSPEC][H1] Fault correlation for LSQ unified events: return the
     // ptag whose addr-registry entry matches (dyn_seq + range overlap) or
@@ -882,6 +955,396 @@ class CHAOSPropagation : public SimObject
     void emitDetectSignal(const char *layer, bool contained, uint64_t ptag,
                           const char *reason);
 
+    // ================= MMU unified trace (MMU-TRACE v1) ==================
+    // Observation-only events written to the SAME PROP-EVT stream as the
+    // fault-propagation events. fault_id=0 for fault-free infrastructure
+    // events; fault-injected events keep their ptag. A VA range gates the
+    // trace so a full-system run does not emit millions of unrelated hits.
+    bool mmuTraceEnabled() const { return write_log && mmu_trace; }
+    bool mmuTraceVa(Addr va) const
+    {
+        return mmu_trace_va_lo == 0 ||
+               (va >= mmu_trace_va_lo && va < mmu_trace_va_hi);
+    }
+
+    uint64_t mmuNewEntryId() { return ++next_mmu_entry_id; }
+    uint64_t mmuNewTlbiId() { return ++next_mmu_tlbi_id; }
+    uint64_t mmuNewLookupId() { return ++next_mmu_lookup_id; }
+    uint64_t mmuUniqueId(uint64_t translation_id) const;
+
+    // One MMU translation attempt. Returns 0 when tracing is disabled, the
+    // VA is outside the traced range, or the Request has no inst seq.
+    uint64_t mmuBeginTranslation(const RequestPtr &req, Addr va,
+                                 const char *mode, bool stage2);
+    // Miss-triggered transaction: the only warm-up-filtered entry point used
+    // by TLB::lookup. Hit-only repetitions of a warm VA create no event.
+    uint64_t mmuBeginMissTranslation(uint64_t seq, Addr va, const char *mode,
+                                     bool stage2, uint16_t asid = 0,
+                                     uint16_t vmid = 0, unsigned regime = 0,
+                                     unsigned ss = 0);
+    uint64_t mmuTxnForSeqVa(uint64_t seq, Addr va) const;
+    uint64_t mmuTxnForSeq(uint64_t seq) const;
+    uint64_t mmuTxnForVa(Addr va) const;
+    // [MMU-PHASE3 / M08] True when this dynamic instruction already has a
+    // REAL squash witness in the trace. A one-shot request-PA fault must not
+    // be spent on a wrong-path translation whose result can never commit;
+    // the activation waits for the first non-squashed translation of the
+    // target. Returns false when the seq is unknown or tracing is off.
+    bool mmuSeqSquashed(uint64_t seq) const;
+
+    // [MMU-TRACE v2] Registry/state names for the structured association key.
+    static const char *mmuRegimeName(unsigned regime)
+    {
+        switch (regime) {
+          case 0: return "EL10";
+          case 1: return "EL20";
+          case 2: return "EL2";
+          case 3: return "EL3";
+          default: return "Unknown";
+        }
+    }
+    static const char *mmuSecurityStateName(unsigned ss)
+    {
+        return ss == 1 ? "Secure" : "NonSecure";
+    }
+
+    uint64_t mmuNoteLookup(const std::string &instance, uint64_t lookup_id,
+                           uint64_t translation_id, uint64_t unique_id,
+                           uint64_t seq, Addr va, uint16_t asid, uint16_t vmid,
+                           bool hit, bool partial, Addr pfn, unsigned n,
+                           uint64_t entry_id, uint32_t gen, unsigned level,
+                           unsigned regime, unsigned ss,
+                           uint64_t fault_ptag = 0);
+    uint64_t mmuNoteWalkStart(uint64_t walk_id, uint64_t translation_id,
+                              uint64_t unique_id, uint64_t seq, Addr va,
+                              uint16_t asid, uint16_t vmid, unsigned level,
+                              const char *mode, bool stage2,
+                              unsigned regime, unsigned ss);
+    // [MMU-TRACE v3] Per-level PTW request identity. One ID is minted for
+    // each real descriptor fetch (walk level), independent of the walk ID:
+    // pte_read -> ptw_request -> ptw_response -> pte_decode all carry it.
+    uint64_t mmuNewPtwRequestId() { return ++next_mmu_ptw_request_id; }
+    uint64_t mmuNotePteRead(uint64_t walk_id, uint64_t translation_id,
+                            uint64_t unique_id, uint64_t seq, Addr va,
+                            Addr pte_addr, unsigned level,
+                            uint64_t ptw_request_id = 0);
+    uint64_t mmuNotePteDecode(uint64_t walk_id, uint64_t translation_id,
+                              uint64_t unique_id, uint64_t seq, Addr va,
+                              Addr pte_addr, uint64_t before, uint64_t after,
+                              unsigned level, const char *desc_type,
+                              uint64_t ptw_request_id = 0);
+    uint64_t mmuNotePtwRequest(uint64_t ptw_request_id, uint64_t walk_id,
+                               uint64_t translation_id, uint64_t unique_id,
+                               uint64_t seq, Addr va, Addr pte_addr,
+                               unsigned level, uint64_t pte_read_event);
+    uint64_t mmuNotePtwResponse(uint64_t ptw_request_id);
+    // [MMU-TRACE v3] Minimal classic-cache observation for a demand access
+    // whose Request carries an MMU transaction's dyn_inst_seq. The cache
+    // request identity is an explicit composite key (cache, seq, PA, isInst);
+    // it is minted once and reused by that access's lookup/MSHR/response
+    // events. Returns 0 for unrelated traffic (the trace stays MMU-scoped).
+    uint64_t mmuNoteCacheEvent(const char *kind, const std::string &cache,
+                               PacketPtr pkt, bool hit,
+                               uint64_t mshr_id = 0);
+    uint64_t mmuNoteTlbFill(uint64_t walk_id, uint64_t translation_id,
+                            uint64_t unique_id, uint64_t seq, Addr va,
+                            Addr pfn, unsigned n, bool partial,
+                            unsigned level);
+    // [Phase 2.2] Returns the emitted tlb_entry_insert event id (0 when the
+    // trace is off/out of range). `walk_id` is the owning table walk; it is
+    // the exact lineage key used to recognise a corrupted refill payload in
+    // EVERY TLB layer it is written to. `prev_entry_id/prev_generation` are
+    // the victim slot's identity being replaced, so the old lineage lifetime
+    // is closed explicitly (generation change alone also makes it
+    // unreachable, but the explicit end event is required evidence).
+    uint64_t mmuNoteEntryInsert(const std::string &instance, uint64_t entry_id,
+                                uint32_t gen, Addr va, uint16_t asid,
+                                uint16_t vmid, Addr pfn, unsigned n,
+                                bool partial, unsigned level, unsigned regime,
+                                unsigned ss, uint64_t translation_id,
+                                uint64_t unique_id, uint64_t walk_id = 0,
+                                uint64_t prev_entry_id = 0,
+                                uint32_t prev_generation = 0);
+    void mmuNotePermission(const RequestPtr &req, Addr va, bool grant,
+                           const char *mode, bool stage2);
+    void mmuNoteTranslationResult(const RequestPtr &req, Addr va, Addr pa,
+                                  bool has_pa, const char *fault, Addr pfn,
+                                  unsigned n, uint8_t mtype, bool shareable,
+                                  uint8_t inner, uint8_t outer,
+                                  bool noncacheable, bool xn, uint8_t ap,
+                                  uint64_t entry_id, uint32_t gen);
+    void mmuNoteLsuRequest(const RequestPtr &req, Addr va, Addr pa,
+                           const char *mode, bool is_fetch, bool has_pa);
+    void mmuNoteMemResponse(o3::DynInst *inst, Packet *pkt);
+    void mmuNoteWriteback(o3::DynInst *inst);
+    void mmuNoteCommit(o3::DynInst *inst);
+    void mmuNoteSquash(o3::DynInst *inst);
+    uint64_t mmuNoteTlbiIssue(uint64_t tlbi_id, const char *op,
+                              bool stage1, bool stage2);
+    uint64_t mmuNoteTlbiMatch(uint64_t tlbi_id, const std::string &instance,
+                              const char *op, uint64_t entry_id, uint32_t gen,
+                              Addr va, uint16_t asid, uint16_t vmid, unsigned n,
+                              unsigned regime, unsigned ss, bool suppressed,
+                              uint64_t fault_ptag = 0,
+                              const char *suppress_phase = nullptr);
+    // [Phase 2.2] Returns the emitted invalidation event id (0 = trace off),
+    // so the entry-lineage end event can name the real invalidating TLBI as
+    // its parent instead of guessing.
+    uint64_t mmuNoteTlbiInvalidate(uint64_t tlbi_id,
+                                   const std::string &instance,
+                                   const char *op, uint64_t entry_id,
+                                   uint32_t gen_before, uint32_t gen_after,
+                                   Addr va, uint16_t asid, uint16_t vmid,
+                                   unsigned regime, unsigned ss);
+
+    // ================= MMU fault injection (Phase 2 smoke) =================
+    // One-shot M01/M02 latches. Every entry point is a strict no-op unless
+    // mmuFaultModel selects that model, so fault-free runs stay
+    // byte-equivalent (the trace-only path is unchanged).
+    //
+    // [Phase 2.2] Fault ENABLEMENT and logging are independent controls:
+    //   * mmu_fault_enable (param mmuFaultEnable) selects whether the fault
+    //     model may mutate state at all;
+    //   * mmu_fault_model (param mmuFaultModel) selects WHICH model;
+    //   * write_log only gates trace/log output;
+    //   * mmu_trace only gates fault-free MMU trace events.
+    // Turning either logging switch off must NEVER disable the fault hook
+    // (measured Phase 2.1 coupling: `write_log && model` silently skipped
+    // injection when generic logging was disabled).
+    bool mmuFaultModelIs(const char *model) const;
+    bool mmuFaultEnabled() const { return mmu_fault_enable; }
+
+    struct MmuM01Decision
+    {
+        bool suppress = false;   // skip table.invalidate/invalidatePrev
+        bool first_arm = false;  // this match armed the one-shot latch
+        uint64_t fault_id = 0;
+        uint64_t arm_event = 0;
+    };
+    // TLB::flush, per matched entry. Only the l2_shared instance is
+    // considered; the latch is armed on the first exact-key complete 4 KiB
+    // entry and suppresses invalidations of that SAME entry identity.
+    MmuM01Decision mmuM01OnTlbiMatch(const std::string &instance, Addr va,
+                                     uint16_t asid, uint16_t vmid, unsigned n,
+                                     bool valid, bool partial, unsigned regime,
+                                     unsigned ss, uint64_t tlbi_id,
+                                     uint64_t entry_id, uint32_t generation,
+                                     const char *op);
+    // [MMU-TRACE v3] Emit mmu_fault_arm AFTER the tlbi_match event that
+    // triggered the one-shot arm, so the causal order is
+    // tlbi_issue -> tlbi_match -> mmu_fault_arm -> tlbi_suppressed.
+    // Returns 0 when no arm is pending or the trace is disabled.
+    uint64_t mmuM01EmitArm(uint64_t match_event);
+    // Emit tlbi_suppressed for the match just decided (after the match event).
+    void mmuM01NoteSuppressed(const std::string &instance, Addr va,
+                              uint16_t asid, uint16_t vmid, unsigned n,
+                              unsigned regime, unsigned ss, uint64_t tlbi_id,
+                              uint64_t entry_id, uint32_t generation,
+                              const char *op, uint64_t match_event);
+    // TLB::lookup on an l2_shared hit: true when this hit consumes the
+    // retained entry; the consuming translation is tagged with *fault_ptag.
+    bool mmuM01Consume(const std::string &instance, Addr va, uint16_t asid,
+                       uint16_t vmid, unsigned n, unsigned regime,
+                       unsigned ss, uint64_t entry_id, uint32_t generation,
+                       uint64_t translation_id, uint64_t *fault_ptag);
+    // Emit mmu_fault_disarm after the consuming lookup event.
+    void mmuM01EmitDisarm(uint64_t fault_ptag, uint64_t consume_event);
+
+    // M02: true when this refill payload must be corrupted (one shot).
+    bool mmuM02ShouldCorrupt(Addr va, Addr pfn, unsigned n, bool stage2,
+                             bool is_data, bool is_page, bool long_desc);
+    Addr mmuM02XorMask() const { return mmu_m02_xor_mask; }
+
+    // [MMU-TRACE v2] Insert attribution. The walker publishes the owning
+    // translation around mmu->insert so TLB::insert never has to guess from
+    // "the latest transaction for this VA" (that guess misattributed a later
+    // unrelated insert to a reused VA — measured in the M02 smoke).
+    void mmuSetInsertContext(uint64_t tid, uint64_t uid,
+                             uint64_t walk_id = 0)
+    {
+        mmu_insert_tid = tid;
+        mmu_insert_uid = uid;
+        mmu_insert_walk_id = walk_id;
+    }
+    void mmuClearInsertContext()
+    {
+        mmu_insert_tid = 0;
+        mmu_insert_uid = 0;
+        mmu_insert_walk_id = 0;
+    }
+    uint64_t mmuInsertTid() const { return mmu_insert_tid; }
+    uint64_t mmuInsertUid() const { return mmu_insert_uid; }
+    uint64_t mmuInsertWalkId() const { return mmu_insert_walk_id; }
+    // Emit refill_pfn_corrupt and tag the in-flight translation.
+    void mmuM02NoteActivation(uint64_t walk_id, uint64_t translation_id,
+                              uint64_t unique_id, uint64_t seq, Addr va,
+                              Addr old_pfn, Addr new_pfn, unsigned n,
+                              uint64_t descriptor_raw, Addr pte_addr,
+                              uint64_t walk_event,
+                              const char *mode);
+
+    // ============ [Phase 2.2] M02 entry-fault lineage =====================
+    // The lineage registry is keyed by the REAL inserted TLB entry identity
+    // (tlb_instance, entry_id, generation) — NOT by DynamicInstSeqNum, VA or
+    // PA. A corrupted refill registers one lineage PER LAYER it is inserted
+    // into (DTLB and l2_shared are distinct lifetimes). Any later dynamic
+    // instruction that hits the exact entry identity consumes the lineage:
+    //   1. its own per-instruction translation transaction is created (or
+    //      reused) and adopts the fault id;
+    //   2. a fault_entry_consume / fault_entry_reuse witness is emitted with
+    //      BOTH the origin insert/refill event ids and the current lookup
+    //      event id;
+    //   3. downstream translation_result -> lsu_request -> cache_* ->
+    //      memory_response -> rf_writeback -> commit/squash inherit it.
+    // Called from TLB::lookup on a demand hit (functional lookups excluded).
+    // Returns the fault ptag when the exact identity + architectural key
+    // match; 0 otherwise. *tid_out receives the consumer transaction id.
+    uint64_t mmuM02FindLineage(const std::string &instance, uint64_t entry_id,
+                               uint32_t gen, Addr va, uint16_t asid,
+                               uint16_t vmid, unsigned n, unsigned regime,
+                               unsigned ss, Addr pfn, uint64_t seq,
+                               const char *mode, bool functional,
+                               uint64_t *tid_out = nullptr);
+    // Emit the consume/reuse witness AFTER the real tlb_lookup_hit event.
+    void mmuM02NoteConsume(uint64_t lookup_event);
+    // Close a lineage lifetime on invalidate / replacement / flush.
+    void mmuEndEntryLineage(const std::string &instance, uint64_t entry_id,
+                            uint32_t gen, const char *reason,
+                            uint64_t parent_event = 0);
+    // A new entry was inserted by promoting an entry from another TLB layer
+    // (multiLookup DTLB refill from l2_shared). The lineage is propagated by
+    // the SOURCE entry identity, never by address equality.
+    void mmuM02NotePromotion(const std::string &new_instance,
+                             uint64_t new_entry_id, uint32_t new_gen,
+                             const std::string &src_instance,
+                             uint64_t src_entry_id, uint32_t src_gen,
+                             uint64_t insert_event);
+    // TLB::multiLookup publishes the SOURCE entry identity around the
+    // promotion insert; TLB::insert's event hook consumes it. Exact-entry
+    // lineage only — never a VA/PA guess.
+    void mmuSetPromotionSource(const std::string &instance, uint64_t entry_id,
+                               uint32_t gen)
+    {
+        mmu_promote_src_instance = instance;
+        mmu_promote_src_id = entry_id;
+        mmu_promote_src_gen = gen;
+    }
+    void mmuClearPromotionSource()
+    {
+        mmu_promote_src_instance.clear();
+        mmu_promote_src_id = 0;
+        mmu_promote_src_gen = 0;
+    }
+
+    // ============ [MMU-PHASE3] Fault models M03-M08 =======================
+    // Shared API used by the TLB / PTW / MMU hooks. Every entry point is a
+    // strict no-op unless mmuFaultModel selects the calling model, so
+    // M01/M02 and fault-free runs keep their exact semantics.
+    //
+    // Generic target selector. Returns true when EVERY configured guard
+    // matches. A nullptr / -1 / "" argument means "not constrained".
+    // `va` is compared at page granularity under mmuTargetN when that is
+    // set (otherwise exact-page 4 KiB granularity).
+    bool mmuTargetKeyMatch(Addr va, uint16_t asid, uint16_t vmid,
+                           unsigned n, unsigned regime, unsigned ss,
+                           const char *instance = nullptr,
+                           int walk_level = -1,
+                           const char *mode = nullptr) const;
+    bool mmuTargetSeqMatch(uint64_t seq) const;
+    bool mmuFaultPersistenceEntry() const
+    { return mmu_fault_persistence == "entry_lifetime"; }
+    // One counter per model event channel; true exactly on the configured
+    // 1-based eligible-event ordinal (mmuEligibleEventIndex).
+    bool mmuEligibleEvent(unsigned channel);
+    // Create (or reuse) the consumer transaction for a faulted access that
+    // has no miss-triggered transaction of its own (e.g. a warm TLB hit or
+    // a fabricated M03 hit). Returns 0 when tracing is disabled; the fault
+    // itself still activates.
+    uint64_t mmuBeginConsumerTranslation(uint64_t seq, Addr va,
+                                         const char *mode, bool stage2,
+                                         uint16_t asid, uint16_t vmid,
+                                         unsigned regime, unsigned ss,
+                                         uint64_t fault_ptag = 0);
+    // Allocate the one-shot fault id, tag the owning transaction and emit
+    // `mmu_fault_activate` (parent = the transaction's last event).
+    // Returns the ptag, or 0 when the model is not selected / not Idle.
+    // Extra kv pairs are appended to the activation event.
+    uint64_t mmuFaultActivate(const char *model, const char *site,
+                              uint64_t translation_id, uint64_t seq, Addr va,
+                              const std::vector<std::pair<std::string,
+                                              std::string>> &kv = {});
+    // Persistent entry-fault registry (M04/M05): keyed by the REAL entry
+    // lifetime. `source_event` is the activation witness later consumers
+    // name as their cause.
+    void mmuRegisterEntryFault(const std::string &instance,
+                               uint64_t entry_id, uint32_t generation,
+                               uint64_t fault_id, uint64_t source_event,
+                               uint64_t origin_seq, Addr va,
+                               const char *model);
+    uint64_t mmuEntryFaultPtag(const std::string &instance, uint64_t entry_id,
+                               uint32_t generation) const;
+    // Emit fault_entry_consume/reuse for a later hit of a corrupted entry.
+    uint64_t mmuNoteEntryConsume(const char *kind,
+                                 const std::string &instance,
+                                 uint64_t entry_id, uint32_t generation,
+                                 Addr va, uint16_t asid, uint16_t vmid,
+                                 unsigned n, unsigned regime, unsigned ss,
+                                 uint64_t seq, const char *mode,
+                                 uint64_t lookup_event);
+    // [M06] The corrupted descriptor state was CONSUMED by the decoder. This
+    // is distinct from the fault RESULT being propagated: the former only says
+    // the injected value entered the decode path (e.g. pte_decode Invalid).
+    uint64_t mmuNoteFaultStateConsumed(const char *model, uint64_t fault_id,
+                                       uint64_t walk_id,
+                                       uint64_t translation_id, uint64_t seq,
+                                       Addr va, const char *descriptor_type,
+                                       uint64_t pte_value_before,
+                                       uint64_t pte_value_after,
+                                       Addr pte_address,
+                                       bool pte_memory_written,
+                                       uint64_t pte_decode_event);
+    // [M06] A real Arm fault object was produced for the injected descriptor
+    // (generateLongDescFault). The class/level are the architectural fault,
+    // independent of whether it is later delivered at commit.
+    uint64_t mmuNoteFaultResultPropagated(
+        const char *model, uint64_t fault_id, uint64_t walk_id,
+        uint64_t translation_id, uint64_t seq, Addr va,
+        const char *exception_class, const char *fault_source,
+        unsigned fault_source_level, bool is_fetch, bool is_write,
+        Addr fault_va, const char *delivery_target);
+    // [M06] The fault became architectural at the O3 commit trap point.
+    uint64_t mmuNoteExceptionDelivery(uint64_t seq, const char *pc,
+                                      const char *exception_class);
+    // Honest "configured but not activated" reason (e.g. an M05 decoy VA
+    // with no live L2 partial entry, or a decoy-base mismatch). Emitted at
+    // most once per (model, reason, VA); never consumes the eligible-event
+    // ordinal and never mutates state.
+    void mmuNoteUnactivated(const char *model, const char *reason, Addr va,
+                            const std::vector<std::pair<std::string,
+                                            std::string>> &kv = {});
+    // Accessors for the model-specific hooks.
+    uint64_t mmuActiveFaultPtag() const
+    { return mmu_fault_activated ? mmu_fault_ptag : 0; }
+    // Event id of the one-shot activation witness (0 = not emitted/trace
+    // disabled). Persistent entry faults name it as their causality source.
+    uint64_t mmuFaultActivationEventId() const
+    { return mmu_fault_activation_event; }
+    int mmuM03CandidateAsid() const { return mmu_m03_candidate_asid; }
+    Addr mmuM04DecoyPfn() const { return mmu_m04_decoy_pfn; }
+    Addr mmuM05DecoyVa() const { return mmu_m05_decoy_va; }
+    Addr mmuM05DecoyTableBase() const { return mmu_m05_decoy_table_base; }
+    Addr mmuM08PaXorMask() const { return mmu_m08_pa_xor_mask; }
+    // Valid guest DRAM PA domain shared by the PA-candidate checks.
+    Addr mmuPaDomainLo() const { return mmu_m02_dram_lo; }
+    Addr mmuPaDomainHi() const { return mmu_m02_dram_hi; }
+    Addr mmuTargetVa() const { return mmu_target_va; }
+    int mmuTargetN() const { return mmu_target_n; }
+    uint64_t mmuEntryFaultConsumeCount() const
+    { return mmu_entry_fault_consume_count; }
+
+    // Exit-time honest lifecycle report for the selected model.
+    void mmuFaultExitReport();
+
   private:
     // [FSU][F5] Injector hooks flushed by the tracer's exit callback after
     // its own chain_end events and before the event stream is closed.
@@ -917,10 +1380,63 @@ class CHAOSPropagation : public SimObject
     // Lazy expiry sweep (called on insert/lookup; registries are tiny).
     void sweepExpired();
 
+    // Shared transaction constructor (pc=0 when unavailable). [Phase 2.2]
+    // `fault_ptag` is stamped on the transaction BEFORE translation_start is
+    // emitted, so a consumer transaction's very first event already carries
+    // the inherited fault id (no retroactive rewriting of the stream).
+    uint64_t mmuBeginTxn(uint64_t seq, Addr va, uint64_t pc, const char *mode,
+                         bool stage2, uint16_t asid, uint16_t vmid,
+                         unsigned regime, unsigned ss,
+                         uint64_t fault_ptag = 0);
+
+    // [Phase 2.2] Seq-keyed consumer inheritance for downstream hooks that
+    // only see the Request's dyn-inst seq. The ptag was established by a
+    // REAL TLB entry-lineage consumption, never by VA/PA matching here.
+    uint64_t mmuAdoptConsumerFault(uint64_t tid, uint64_t seq);
+
     BaseCPU *cpu;
     o3::CPU *o3cpu = nullptr;      // resolved at startup(); nullptr = disabled
     std::string trace_file;        // simout.resolve target (.gz, self-managed)
     bool write_log;                // gate ALL tracking + writing
+    // [MMU-TRACE v1] VA-gated unified MMU trace (params).
+    bool mmu_trace;
+    Addr mmu_trace_va_lo;
+    Addr mmu_trace_va_hi;
+    // [MMU-TRACE v2] M01/M02 one-shot fault configuration (params).
+    // [Phase 2.2] mmu_fault_enable is the INDEPENDENT injection switch; the
+    // model string alone never consults write_log/mmu_trace.
+    bool mmu_fault_enable;
+    std::string mmu_fault_model;   // "" | M01 | M02
+    Addr mmu_m01_va;
+    int mmu_m01_asid;              // -1 = any
+    int mmu_m01_vmid;              // -1 = any
+    int mmu_m01_regime;            // -1 = any [MMU-TRACE v3]
+    int mmu_m01_ss;                // -1 = any [MMU-TRACE v3]
+    unsigned mmu_m01_n;
+    Addr mmu_m02_va;
+    Addr mmu_m02_old_pfn;
+    Addr mmu_m02_xor_mask;
+    Addr mmu_m02_dram_lo;          // validity domain of old/new PA pages
+    Addr mmu_m02_dram_hi;
+    // [MMU-PHASE3] generic target selector + model-specific parameters.
+    Addr mmu_target_va;
+    int mmu_target_asid;
+    int mmu_target_vmid;
+    int mmu_target_n;
+    int mmu_target_regime;
+    int mmu_target_ss;
+    std::string mmu_target_instance;
+    int mmu_target_walk_level;
+    uint64_t mmu_target_seq;
+    std::string mmu_target_mode;
+    uint64_t mmu_eligible_index;
+    std::map<unsigned, uint64_t> mmu_eligible_counts;
+    std::string mmu_fault_persistence;
+    int mmu_m03_candidate_asid;
+    Addr mmu_m04_decoy_pfn;
+    Addr mmu_m05_decoy_va;
+    Addr mmu_m05_decoy_table_base;
+    Addr mmu_m08_pa_xor_mask;
     uint64_t addr_expiry_ticks;    // registry entry lifetime (0 = never expire)
     gzFile gz_file = nullptr;      // raw zlib stream; crash-durability note
 
@@ -1034,6 +1550,260 @@ class CHAOSPropagation : public SimObject
 
     uint64_t next_node_id = 0;
     uint64_t next_ptag = 0;        // 0 reserved ("no chain")
+
+    // [MMU-TRACE v1] Per-translation context. Keyed by MMU-allocated
+    // identities, never by pointer addresses. One PTW may serve several
+    // requests; one instruction may be retried (execution_attempt_id).
+    struct MmuTxnInfo
+    {
+        uint64_t translation_id = 0;
+        uint64_t unique_request_id = 0;
+        uint64_t dyn_seq = 0;
+        Addr va = 0;
+        uint64_t last_event = 0;
+        uint64_t req_event = 0;
+        uint64_t resp_event = 0;
+        uint64_t wb_event = 0;
+        uint64_t result_event = 0;
+        uint64_t attempt = 0;
+        // [MMU-TRACE v2] Injected-fault chain id (ptag) once this
+        // translation becomes a fault-chain member; 0 for fault-free
+        // infrastructure events. All later events of the translation adopt
+        // this fault_id, so FaultID joins the whole downstream chain.
+        uint64_t fault_ptag = 0;
+        // Structured association key captured at transaction creation.
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        unsigned regime = 0;
+        unsigned ss = 0;
+        // [Phase 2.2] Real squash witness of this dynamic instruction. The
+        // M02 lineage records whether the ORIGINAL refill instruction was
+        // squashed before a later dynamic consumer arrived.
+        uint64_t squash_event = 0;
+    };
+    std::map<uint64_t, MmuTxnInfo> mmu_txn;                 // tid -> info
+    std::map<uint64_t, uint64_t> mmu_txn_by_walk;           // walk_id -> tid
+    std::map<std::pair<uint64_t, Addr>, uint64_t> mmu_txn_by_seq_va;
+    std::map<Addr, uint64_t> mmu_txn_by_va;
+    std::map<uint64_t, uint64_t> mmu_seq_txn;               // seq -> tid
+    std::map<uint64_t, uint64_t> mmu_walk_last;             // walk_id -> evt
+    std::map<uint64_t, uint64_t> mmu_tlbi_last;             // tlbi_id -> evt
+    // [MMU-TRACE v2] Last maintenance event per EXACT association key
+    // (VA, ASID, VMID, regime, security state) — the explicit parent of the
+    // next miss-triggered translation of that same translation context.
+    // VA-only keying cannot distinguish equal-VA/different-ASID or
+    // equal-VA/different-regime entries (design §4.2).
+    struct MmuAssocKey
+    {
+        Addr va = 0;
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        uint8_t regime = 0;
+        uint8_t ss = 0;
+        bool operator<(const MmuAssocKey &o) const
+        {
+            return std::tie(va, asid, vmid, regime, ss) <
+                   std::tie(o.va, o.asid, o.vmid, o.regime, o.ss);
+        }
+    };
+    std::map<MmuAssocKey, uint64_t> mmu_last_tlbi_key;
+
+    // [MMU-TRACE v2] M01 one-shot latch + M02 activation lifecycle.
+    enum class MmuFaultState { Off, Idle, Armed, Consumed, Activated };
+    MmuFaultState mmu_fault_state = MmuFaultState::Off;
+    uint64_t mmu_fault_ptag = 0;
+    uint64_t mmu_fault_arm_event = 0;
+    uint64_t mmu_fault_disarm_event = 0;
+    uint64_t mmu_fault_consume_event = 0;
+    uint64_t mmu_fault_activation_event = 0;
+    uint64_t mmu_fault_first_tlbi_id = 0;
+    std::string mmu_fault_tlbi_op;      // op name of the arming TLBI
+    uint64_t mmu_fault_last_suppressed_event = 0;
+    uint64_t mmu_fault_suppress_count = 0;
+    std::vector<uint64_t> mmu_fault_suppressed_tlbi_ids;
+    uint64_t mmu_fault_entry_id = 0;
+    uint32_t mmu_fault_entry_generation = 0;
+    Addr mmu_fault_va = 0;
+    uint16_t mmu_fault_asid = 0;
+    uint16_t mmu_fault_vmid = 0;
+    uint8_t mmu_fault_regime = 0;
+    uint8_t mmu_fault_ss = 0;
+    unsigned mmu_fault_n = 0;
+    bool mmu_fault_armed = false;       // M01 maintenance window open
+    bool mmu_fault_consumed = false;
+    bool mmu_fault_activated = false;
+    // Downstream witnesses of the fault chain (filled by the emitters when
+    // the event's fault_id equals mmu_fault_ptag).
+    uint64_t mmu_fault_result_event = 0;
+    Addr mmu_fault_result_pa = 0;
+    uint64_t mmu_fault_response_event = 0;
+    uint64_t mmu_fault_wb_event = 0;
+    uint64_t mmu_fault_commit_event = 0;
+    uint64_t mmu_fault_consumer_event = 0;
+    // [M06] Consumed-state vs propagated-result evidence. `state_consumed`
+    // records that the injected descriptor entered decode; `result` records
+    // a real Arm fault object; `delivery` records the O3 commit trap.
+    uint64_t mmu_fault_state_consumed_event = 0;
+    uint64_t mmu_fault_result_propagated_event = 0;
+    uint64_t mmu_fault_exception_delivery_event = 0;
+    uint64_t mmu_fault_origin_seq = 0;
+    std::string mmu_fault_exception_class;
+    std::string mmu_fault_delivery_target;
+    bool mmu_fault_inst_squashed = false;
+    uint64_t mmu_fault_inst_squash_event = 0;
+    std::set<std::string> mmu_unactivated_emitted;
+    // [Phase 2.2] First cross-dynamic entry-lineage consumption witness and
+    // its consumer identity (summary evidence).
+    uint64_t mmu_fault_lineage_consume_event = 0;
+    uint64_t mmu_fault_lineage_consumer_seq = 0;
+    uint64_t mmu_fault_new_pfn = 0;
+    Addr mmu_fault_new_pa = 0;
+    Addr mmu_fault_old_pa = 0;
+    std::map<std::pair<uint64_t, Addr>, uint32_t>
+        mmu_attempts;                                       // (seq,va) -> n
+    std::set<uint64_t> mmu_traced_seqs;                     // commit filter
+    std::set<uint64_t> mmu_consumer_seqs;
+    std::map<uint64_t, std::set<std::pair<int, uint32_t>>>
+        mmu_traced_dests;                                   // seq -> dests
+    std::map<std::pair<int, uint32_t>, uint64_t>
+        mmu_dest_owner;                                     // reg -> seq
+    uint64_t next_mmu_translation_id = 0;
+    uint64_t next_mmu_unique_request_id = 0;
+    // [MMU-TRACE v3] PTW per-level request identity.
+    struct MmuPtwRequestInfo
+    {
+        uint64_t walk_id = 0;
+        uint64_t translation_id = 0;
+        uint64_t unique_id = 0;
+        uint64_t seq = 0;
+        Addr va = 0;
+        Addr pte_addr = 0;
+        unsigned level = 0;
+        uint64_t request_event = 0;
+        uint64_t response_event = 0;
+    };
+    uint64_t next_mmu_ptw_request_id = 0;
+    std::map<uint64_t, MmuPtwRequestInfo> mmu_ptw_info;
+    uint64_t next_mmu_cache_req_id = 0;
+    std::map<std::string, uint64_t> mmu_cache_req_ids;
+    uint64_t next_mmu_lookup_id = 0;
+    uint64_t next_mmu_tlbi_id = 0;
+    uint64_t next_mmu_response_id = 0;
+    uint64_t next_mmu_entry_id = 0;
+    // Insert-point translation context published by the walker (see
+    // mmuSetInsertContext); 0 = unknown (honest, no attribution).
+    uint64_t mmu_insert_tid = 0;
+    uint64_t mmu_insert_uid = 0;
+    uint64_t mmu_insert_walk_id = 0;
+
+    // [Phase 2.2] M02 entry-fault lineage. One record per REAL TLB entry
+    // lifetime. The key is instance + entry_id + generation; a generation
+    // change is a DIFFERENT lifetime and can never inherit an old fault.
+    struct MmuEntryLineageKey
+    {
+        std::string instance;
+        uint64_t entry_id = 0;
+        uint32_t generation = 0;
+        bool operator<(const MmuEntryLineageKey &o) const
+        {
+            return std::tie(instance, entry_id, generation) <
+                   std::tie(o.instance, o.entry_id, o.generation);
+        }
+    };
+    struct MmuEntryLineage
+    {
+        uint64_t fault_id = 0;
+        std::string fault_model = "M02";
+        // Origin (the corrupted refill and the instruction that walked).
+        uint64_t origin_event = 0;         // refill_pfn_corrupt event id
+        uint64_t origin_translation_id = 0;
+        uint64_t origin_walk_id = 0;
+        uint64_t origin_seq = 0;           // original dyn instruction
+        // The insert of THIS entry lifetime.
+        uint64_t insert_event = 0;
+        // Architectural identity of the corrupted translation.
+        Addr va = 0;
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        unsigned n = 0;
+        unsigned regime = 0;
+        unsigned ss = 0;
+        Addr old_pfn = 0, new_pfn = 0;
+        Addr old_pa = 0, new_pa = 0;
+        // Last event of THIS lifetime + how many dynamic consumers re-used it.
+        uint64_t last_event = 0;
+        uint64_t reuse_count = 0;
+    };
+    std::map<MmuEntryLineageKey, MmuEntryLineage> mmu_entry_lineage;
+
+    // [MMU-PHASE3] Persistent entry-fault registry for M04/M05. Separate
+    // from the M02 lineage so the M02 rules stay untouched. One record per
+    // REAL entry lifetime; a generation change never inherits the fault.
+    struct MmuEntryFaultRecord
+    {
+        uint64_t fault_id = 0;
+        uint64_t source_event = 0;
+        uint64_t origin_seq = 0;
+        Addr va = 0;
+        std::string model;
+        uint64_t reuse_count = 0;
+    };
+    std::map<MmuEntryLineageKey, MmuEntryFaultRecord> mmu_entry_faults;
+    uint64_t mmu_entry_fault_consume_count = 0;
+
+    // The one-shot corrupted refill waiting to be written into the TLBs.
+    // Matched at insert by walk_id + VA + N + new PFN (exact), never by
+    // address alone.
+    struct MmuM02Pending
+    {
+        bool active = false;
+        uint64_t ptag = 0;
+        uint64_t activation_event = 0;
+        uint64_t translation_id = 0;
+        uint64_t unique_id = 0;
+        uint64_t walk_id = 0;
+        uint64_t seq = 0;
+        Addr va = 0;
+        unsigned n = 0;
+        Addr old_pfn = 0, new_pfn = 0;
+        Addr old_pa = 0, new_pa = 0;
+    };
+    MmuM02Pending mmu_m02_pending;
+
+    // A lineage hit observed during TLB::lookup; the witness is emitted
+    // after tlb_lookup_hit so its parent is the real lookup event.
+    struct MmuM02ConsumePending
+    {
+        bool active = false;
+        uint64_t ptag = 0;
+        uint64_t tid = 0;
+        uint64_t uid = 0;
+        uint64_t seq = 0;
+        uint64_t attempt = 0;
+        std::string instance;
+        uint64_t entry_id = 0;
+        uint32_t generation = 0;
+        Addr va = 0, pfn = 0, pa = 0;
+        uint16_t asid = 0;
+        uint16_t vmid = 0;
+        unsigned n = 0;
+        unsigned regime = 0;
+        unsigned ss = 0;
+        uint64_t reuse_ordinal = 0;
+    };
+    MmuM02ConsumePending mmu_m02_consume_pending;
+
+    // Per-dynamic-instruction consumer identity established by a lineage
+    // hit. Cache/response/writeback/commit hooks that only have the Request
+    // seq use this to inherit the fault even when the instruction opened no
+    // miss transaction (a warm hit used to be dropped entirely).
+    std::map<uint64_t, uint64_t> mmu_consumer_seq_ptag;   // seq -> ptag
+    std::map<uint64_t, uint64_t> mmu_consumer_seq_tid;    // seq -> tid
+
+    // Promotion source identity (set by TLB::multiLookup around insert).
+    std::string mmu_promote_src_instance;
+    uint64_t mmu_promote_src_id = 0;
+    uint32_t mmu_promote_src_gen = 0;
     // [MDSPEC][R6-FIXCPP/T3] consumer_summary aggregation (see
     // chaos_consumer_summary.hh — the ONE shared definition, no drift). The
     // `consumer` kind is the ONLY aggregatable kind; every other event is a

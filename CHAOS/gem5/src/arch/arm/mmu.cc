@@ -50,7 +50,10 @@
 // [MDSPEC][H2] TLB translate unified event: reached through the static
 // instance (CHAOSCache precedent — the MMU has no CPU pointer).
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <cstdlib>
+#include <cxxabi.h>
 #include <sstream>
+#include <typeinfo>
 #include "arch/arm/tlbi_op.hh"
 #include "arch/arm/types.hh"
 #include "debug/MMU.hh"
@@ -207,6 +210,66 @@ MMU::invalidateMiscReg()
     s2State.computeAddrTop.flush();
 }
 
+namespace {
+
+// [MMU-TRACE v1] Demangled TLBI operation class name.
+std::string
+mmuTlbiOpName(const TLBIOp &op)
+{
+    int status = 0;
+    char *demangled = abi::__cxa_demangle(typeid(op).name(), nullptr, nullptr,
+                                          &status);
+    std::string out;
+    if (status == 0 && demangled) {
+        out = demangled;
+        const size_t pos = out.rfind("::");
+        if (pos != std::string::npos)
+            out = out.substr(pos + 2);
+    } else {
+        out = "TLBI";
+    }
+    std::free(demangled);
+    return out;
+}
+
+const char *
+mmuModeName(BaseMMU::Mode mode)
+{
+    switch (mode) {
+      case BaseMMU::Read:    return "Read";
+      case BaseMMU::Write:   return "Write";
+      case BaseMMU::Execute: return "Execute";
+      default:               return "Unknown";
+    }
+}
+
+} // anonymous namespace
+
+uint64_t
+MMU::beginTlbiTrace(const TLBIOp &tlbi_op)
+{
+    CHAOSPropagation *const prop = CHAOSPropagation::instance();
+    if (!prop || !prop->mmuTraceEnabled())
+        return 0;
+    const uint64_t id = prop->mmuNewTlbiId();
+    prop->mmuNoteTlbiIssue(id, mmuTlbiOpName(tlbi_op).c_str(),
+                           tlbi_op.stage1Flush(), tlbi_op.stage2Flush());
+    auto set_id = [&](const auto &tlbs) {
+        for (auto *tlb : tlbs) {
+            if (tlb)
+                static_cast<TLB *>(tlb)->chaosTlbiId = id;
+        }
+    };
+    set_id(instruction);
+    set_id(data);
+    set_id(unified);
+    if (itbStage2)
+        itbStage2->chaosTlbiId = id;
+    if (dtbStage2)
+        dtbStage2->chaosTlbiId = id;
+    return id;
+}
+
 void
 MMU::flush(const TLBIOp &tlbi_op)
 {
@@ -222,6 +285,9 @@ MMU::flush(const TLBIOp &tlbi_op)
 void
 MMU::flushStage1(const TLBIOp &tlbi_op)
 {
+    // TLBI VA/ASID ops call flushStage1 directly (tlbi_op.cc); the trace id
+    // must be allocated here, not only in MMU::flush.
+    beginTlbiTrace(tlbi_op);
     for (auto tlb : instruction) {
         static_cast<TLB*>(tlb)->flush(tlbi_op);
     }
@@ -236,6 +302,7 @@ MMU::flushStage1(const TLBIOp &tlbi_op)
 void
 MMU::flushStage2(const TLBIOp &tlbi_op)
 {
+    beginTlbiTrace(tlbi_op);
     itbStage2->flush(tlbi_op);
     dtbStage2->flush(tlbi_op);
 }
@@ -243,6 +310,7 @@ MMU::flushStage2(const TLBIOp &tlbi_op)
 void
 MMU::iflush(const TLBIOp &tlbi_op)
 {
+    beginTlbiTrace(tlbi_op);
     for (auto tlb : instruction) {
         static_cast<TLB*>(tlb)->flush(tlbi_op);
     }
@@ -254,6 +322,7 @@ MMU::iflush(const TLBIOp &tlbi_op)
 void
 MMU::dflush(const TLBIOp &tlbi_op)
 {
+    beginTlbiTrace(tlbi_op);
     for (auto tlb : data) {
         static_cast<TLB*>(tlb)->flush(tlbi_op);
     }
@@ -653,6 +722,72 @@ MMU::checkPermissions64(TlbEntry *te, const RequestPtr &req, Mode mode,
     } else {
         std::tie(grant, grant_read) = s1PermBits64(te, req, mode, tc, state,
             (!is_write && !is_fetch), is_write, is_fetch);
+    }
+
+    // [MMU-TRACE v1] Record the computed grant decision before the fault
+    // branch. Observation only; the decision is unchanged.
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        if (prop->mmuTraceEnabled())
+            prop->mmuNotePermission(req, vaddr_tainted, grant,
+                                    mmuModeName(mode), state.isStage2);
+    }
+
+    // [MMU-PHASE3 / M07] Permission-grant decision inversion. Stage-1 only:
+    // when the untouched permission evaluation above just denied the target
+    // access, the one-shot M07 event flips the decision to grant and skips
+    // the Permission Fault branch below. The translated PA is unchanged.
+    // mmuNotePermission has already observed the REAL (deny) decision; the
+    // activation event records the inversion explicitly and never feeds back
+    // into the evaluation.
+    if (!grant) {
+        if (CHAOSPropagation *const m07_prop =
+                CHAOSPropagation::instance()) {
+            if (m07_prop->mmuFaultModelIs("M07") && !state.isStage2) {
+                const uint64_t m07_seq = req->hasInstSeqNum()
+                    ? req->getReqInstSeqNum() : 0;
+                const char *const m07_mode =
+                    is_atomic ? "Atomic" : mmuModeName(mode);
+                if (m07_prop->mmuTargetKeyMatch(vaddr_tainted, te->asid,
+                        (uint16_t)te->vmid, te->N,
+                        (unsigned)te->regime, (unsigned)te->ss,
+                        nullptr, -1, m07_mode) &&
+                        m07_prop->mmuTargetSeqMatch(m07_seq) &&
+                        m07_prop->mmuEligibleEvent(7)) {
+                    // A warm TLB hit has no miss-triggered transaction, so
+                    // create the consumer transaction that owns this access
+                    // before activating (0 when tracing is off).
+                    uint64_t m07_tid =
+                        m07_prop->mmuTxnForSeqVa(m07_seq, vaddr_tainted);
+                    if (!m07_tid) {
+                        m07_tid = m07_prop->mmuBeginConsumerTranslation(
+                            m07_seq, vaddr_tainted, m07_mode, false,
+                            state.asid, state.vmid,
+                            (unsigned)state.currRegime,
+                            (unsigned)state.securityState);
+                    }
+                    const uint64_t m07_ptag = m07_prop->mmuFaultActivate(
+                        "M07", "mmu_checkPermissions64", m07_tid, m07_seq,
+                        vaddr_tainted,
+                        {
+                         {"permission_before", "false"},
+                         {"permission_after", "true"},
+                         {"mode", m07_mode},
+                         {"stage", "1"},
+                         {"asid", std::to_string(te->asid)},
+                         {"vmid", std::to_string((unsigned)te->vmid)},
+                         {"regime", CHAOSPropagation::mmuRegimeName(
+                             (unsigned)te->regime)},
+                         {"security_state",
+                             CHAOSPropagation::mmuSecurityStateName(
+                                 (unsigned)te->ss)},
+                        });
+                    // Invert ONLY on a real one-shot activation; otherwise
+                    // the normal Permission Fault is taken.
+                    if (m07_ptag)
+                        grant = true;
+                }
+            }
+        }
     }
 
     if (!grant) {
@@ -1142,6 +1277,61 @@ MMU::translateMmuOn(ThreadContext* tc, const RequestPtr &req, Mode mode,
 
         if (fault == NoFault)
             fault = testAndFinalize(req, tc, mode, te, state);
+
+        // [MMU-PHASE3 / M08] Final request-PA corruption. This runs ONLY
+        // after a complete translation AND a successful permission /
+        // alignment check, and it changes ONLY the outgoing Request's
+        // physical address. The TLB entry, its PFN and the page-table PTE
+        // stay correct (old_pfn == new_pfn is recorded as proof).
+        if (fault == NoFault) {
+            CHAOSPropagation *const pa_prop =
+                CHAOSPropagation::instance();
+            if (pa_prop && pa_prop->mmuFaultModelIs("M08")) {
+                const uint64_t pa_seq = req->hasInstSeqNum()
+                    ? req->getReqInstSeqNum() : 0;
+                // A translation whose instruction was already squashed is
+                // wrong-path: its request PA is never consumed, so spending
+                // the one-shot injection there would mask a real context
+                // (observed for M08 R02-R04). Wait for the first live
+                // translation of the target instead.
+                if (!pa_prop->mmuSeqSquashed(pa_seq) &&
+                        pa_prop->mmuTargetSeqMatch(pa_seq) &&
+                        pa_prop->mmuTargetKeyMatch(vaddr, te->asid,
+                            (uint16_t)te->vmid, te->N,
+                            (unsigned)te->regime, (unsigned)te->ss,
+                            nullptr, -1, mmuModeName(mode))) {
+                    const Addr new_pa = pa ^ pa_prop->mmuM08PaXorMask();
+                    if (new_pa >= pa_prop->mmuPaDomainLo() &&
+                            new_pa < pa_prop->mmuPaDomainHi() &&
+                            pa_prop->mmuEligibleEvent(8)) {
+                        const auto hexs = [](Addr v) {
+                            std::ostringstream os;
+                            os << "0x" << std::hex << v;
+                            return os.str();
+                        };
+                        pa_prop->mmuFaultActivate("M08",
+                            "mmu_translate_set_paddr", 0, pa_seq, vaddr,
+                            {
+                             {"old_pa", hexs(pa)},
+                             {"new_pa", hexs(new_pa)},
+                             {"pa", hexs(new_pa)},
+                             {"request_pa_before", hexs(pa)},
+                             {"request_pa_after", hexs(new_pa)},
+                             {"old_pfn", hexs(te->pfn)},
+                             {"new_pfn", hexs(te->pfn)},
+                             {"tlb_entry_id",
+                                 std::to_string(te->chaosEntryId)},
+                             {"entry_generation",
+                                 std::to_string(te->chaosEntryGeneration)},
+                             {"page_size_n", std::to_string(te->N)},
+                             {"stage", state.isStage2 ? "2" : "1"},
+                             {"mode", mmuModeName(mode)},
+                            });
+                        req->setPaddr(new_pa);
+                    }
+                }
+            }
+        }
     }
 
     // [MDSPEC][T-series] Close an injected lookup only after the MMU has
@@ -1155,6 +1345,22 @@ MMU::translateMmuOn(ThreadContext* tc, const RequestPtr &req, Mode mode,
                 req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0,
                 vaddr, req->hasPaddr(), req->hasPaddr() ? req->getPaddr() : 0,
                 fault != NoFault ? fault->name() : "NoFault");
+
+            // [MMU-TRACE v1] Materialized translation result + outgoing LSU
+            // request. TLB entry fields are the real selected entry.
+            if (tlb_prop->mmuTraceEnabled() && isCompleteTranslation(te)) {
+                tlb_prop->mmuNoteTranslationResult(
+                    req, vaddr,
+                    req->hasPaddr() ? req->getPaddr() : 0, req->hasPaddr(),
+                    fault != NoFault ? fault->name() : "NoFault", te->pfn,
+                    te->N, (uint8_t)te->mtype, te->shareable, te->innerAttrs,
+                    te->outerAttrs, te->nonCacheable, te->xn, te->ap,
+                    te->chaosEntryId, te->chaosEntryGeneration);
+                if (fault == NoFault && req->hasPaddr())
+                    tlb_prop->mmuNoteLsuRequest(
+                        req, vaddr, req->getPaddr(), mmuModeName(mode),
+                        mode == Execute, true);
+            }
         }
     }
     return fault;
@@ -1791,20 +1997,35 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
     // Cleared right after — every other TLB::lookup path (table walker's
     // mmu->lookup, MMU::translateFunctional) has no RequestPtr and must
     // honestly see 0. getTE is the only lookup caller that owns the req.
+    // [MMU-TRACE v1] Trace only translations that actually miss the L1 TLB.
+    // The miss-triggered transaction is created inside TLB::lookup (warm-hit
+    // repetitions therefore emit nothing); its identity is read back here
+    // and carried into the walk / result / LSU / commit chain.
+    CHAOSPropagation *const mmu_prop = CHAOSPropagation::instance();
+    uint64_t mmu_tid = 0;
+    uint64_t mmu_uid = 0;
+
     TLB *const chaos_lookup_tlb = getTlb(mode, state.isStage2);
     if (chaos_lookup_tlb) {
         chaos_lookup_tlb->chaosLookupReqSeq =
             req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
         chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+        chaos_lookup_tlb->chaosMmuTranslationId = mmu_tid;
+        chaos_lookup_tlb->chaosMmuUniqueReqId = mmu_uid;
     }
 
     *te = lookup(vaddr, state.asid, state.vmid, ss, false,
                  false, regime, state.isStage2, mode);
 
     if (chaos_lookup_tlb) {
+        mmu_tid = chaos_lookup_tlb->chaosMmuTranslationId;
+        mmu_uid = chaos_lookup_tlb->chaosMmuUniqueReqId;
         chaos_lookup_tlb->chaosLookupReqSeq = 0;
         chaos_lookup_tlb->chaosLookupReqSize = 0;
+        chaos_lookup_tlb->chaosMmuTranslationId = 0;
+        chaos_lookup_tlb->chaosMmuUniqueReqId = 0;
     }
+    (void)mmu_prop;
 
     if (!isCompleteTranslation(*te)) {
         if (req->isPrefetch()) {
@@ -1823,10 +2044,14 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
                 vaddr_tainted, state.asid, state.vmid);
 
         Fault fault;
+        if (walker && mmu_tid)
+            walker->setChaosMmuContext(mmu_tid, mmu_uid);
         fault =
             walker->walk(req, tc, state.asid, state.vmid, mode, translation,
                          timing, functional, ss, ipaspace, tran_type,
                          state.stage2DescReq, state.isStage2, *te);
+        if (walker && mmu_tid)
+            walker->setChaosMmuContext(0, 0);
 
         // for timing mode, return and wait for table walk,
         if (timing || fault != NoFault) {
@@ -1838,12 +2063,16 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
             chaos_lookup_tlb->chaosLookupReqSeq =
                 req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
             chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+            chaos_lookup_tlb->chaosMmuTranslationId = mmu_tid;
+            chaos_lookup_tlb->chaosMmuUniqueReqId = mmu_uid;
         }
         *te = lookup(vaddr, state.asid, state.vmid, ss,
                      true, false, regime, state.isStage2, mode);
         if (chaos_lookup_tlb) {
             chaos_lookup_tlb->chaosLookupReqSeq = 0;
             chaos_lookup_tlb->chaosLookupReqSize = 0;
+            chaos_lookup_tlb->chaosMmuTranslationId = 0;
+            chaos_lookup_tlb->chaosMmuUniqueReqId = 0;
         }
         assert(*te);
     }
