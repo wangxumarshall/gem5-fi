@@ -407,7 +407,7 @@ namespace gem5
             // event also records a03_activation {tick, bit, mode}.
             // Observes the same old_addr/addr pair the branch already
             // computed — no fault-semantics change, no data-path change.
-            a03NoteEligibleLoad(dyn_seq, old_addr, addr, 3);
+            a03NoteEligibleLoad(dyn_seq, old_addr, addr, 3, pc);
             if (addr == old_addr) {
                 ++obs_pre_nochange;
                 ++l0_funnel.injected;
@@ -417,18 +417,7 @@ namespace gem5
                         "lsq_pushRequest_PRE", dyn_seq, addr, pre_mode.c_str(),
                         0, 0);
                 notifyFunnelAtInjection();
-                if (write_log && log_stream && log_stream->stream()) {
-                    *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: lsq_pushRequest_PRE"
-                        << ", mode=" << pre_mode
-                        << ", old_addr=0x" << std::hex << old_addr
-                        << ", new_addr=0x" << addr
-                        << ", old_size=" << std::dec << old_size
-                        << ", new_size=" << size
-                        << ", value_changed=0"
-                        << ", faults_injected: " << faults_injected_count
-                        << std::endl;
-                }
+                logPreInjection(old_addr, addr, old_size, size, true);
                 return size;
             }
         } else {
@@ -442,9 +431,9 @@ namespace gem5
         // [LSU][V3.2.12][A01] a01_bit3_load (the v3.2 pilot path): stage
         // the golden/actual EA record at EA formation — golden = the AGU
         // EA at hook entry (old_addr), actual = the post-XOR addr, bit 3,
-        // access size as pushed. The PC flows through the new defaulted
-        // hook param (0 until the lsq.cc call site passes
-        // inst->pcState().instAddr(); 0 = kPcUnknown — never fabricated).
+        // access size as pushed. The PC flows through the hook param the
+        // lsq.cc call site passes (inst->pcState().instAddr(); 0 =
+        // kPcUnknown — never fabricated).
         // Read-only: no data-path change beyond the XOR above.
         if (pre_mode == "a01_bit3_load") {
             stageA01EA(chaos_a01::eaCoordsForFlip(
@@ -458,18 +447,42 @@ namespace gem5
         // addr registry); here we only owe the abort-survivable funnel row.
         obs_pre_hook_injected = true;
         notifyFunnelAtInjection();
-        if (write_log && log_stream && log_stream->stream()) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: lsq_pushRequest_PRE"
-                << ", mode=" << pre_mode
-                << ", old_addr=0x" << std::hex << old_addr
-                << ", new_addr=0x" << addr
-                << ", old_size=" << std::dec << old_size
-                << ", new_size=" << size
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
-        }
+        logPreInjection(old_addr, addr, old_size, size, false);
         return size;
+    }
+
+    void
+    CHAOSAddrPath::logPreInjection(uint64_t old_addr, uint64_t new_addr,
+                                   unsigned old_size, unsigned new_size,
+                                   bool nochange)
+    {
+        // [LSU][V3.3.2][A03] The persistent F5 mode applies the fault on
+        // every eligible load. A corrupted address can change control flow
+        // and drive the program into a long/pathological loop, so cap this
+        // per-application line for A03 only. Counters stay exact; the ROI
+        // evidence (A03_STREAM) has its own recorder; one marker records
+        // the cap. Other modes keep the unbounded legacy behaviour.
+        if (!write_log || !log_stream || !log_stream->stream())
+            return;
+        const bool a03 = (pre_mode == "a03_bit3_stuck0_load");
+        if (a03 && a03_pre_log_lines >= kA03PreLogCap)
+            return;
+        auto &s = *log_stream->stream();
+        s << "Tick: " << curTick()
+          << ", Site: lsq_pushRequest_PRE"
+          << ", mode=" << pre_mode
+          << ", old_addr=0x" << std::hex << old_addr
+          << ", new_addr=0x" << new_addr
+          << ", old_size=" << std::dec << old_size
+          << ", new_size=" << new_size;
+        if (nochange)
+            s << ", value_changed=0";
+        s << ", faults_injected: " << faults_injected_count << std::endl;
+        if (a03 && ++a03_pre_log_lines == kA03PreLogCap) {
+            s << "A03_LOG_CAPPED: cap=" << kA03PreLogCap
+              << " faults_injected=" << faults_injected_count
+              << " tick=" << curTick() << std::endl;
+        }
     }
 
     void
@@ -525,7 +538,7 @@ namespace gem5
 
     void
     CHAOSAddrPath::a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
-                                       Addr actual_ea, int bit)
+                                       Addr actual_ea, int bit, uint64_t pc)
     {
         // [LSU][V3.2.12][A03] read-only F5 eligibility stream (plan Task 8).
         // Called ONCE per trigger-fired eligible load from the
@@ -553,25 +566,38 @@ namespace gem5
                      // (manifests: --addrpath_lsu_tier F5); the legacy
                      // cycle-window path has no activation concept, so
                      // the stream is honestly absent there.
+        // event_ordinal: the trigger's eligible count AFTER onEligible()
+        // returned true for this load — this load's 1-based ordinal in the
+        // same eligible-event space the R01-R05 activation positions index
+        // (warmup_events + event_ordinal), so R05's first stream row is
+        // ordinal 5. The PC is threaded from the lsq.cc pushRequest call
+        // site (inst->pcState().instAddr(); 0 = genuinely unavailable ->
+        // kPcUnknown, never fabricated).
+        const uint64_t event_pc = pc ? pc : chaos_a01::kPcUnknown;
+        const chaos_a03::StreamEvent ev = chaos_a03::streamEvent(
+            lsuTrigger->eligible, dyn_seq, event_pc,
+            golden_ea, actual_ea, bit);
         if (!a03_stream_rec.activated()) {
             chaos_a03::Activation act;
             act.tick = curTick();
             act.bit = bit;
             act.mode = pre_mode;
+            // v3.3.2 P0-5: lifecycle identity of the persistent fault's
+            // activation row (ordinal/dyn seq/pc/golden EA); the frozen
+            // {tick, bit, mode} activationDetail line is unchanged.
+            act.event_ordinal = ev.event_ordinal;
+            act.dyn_inst_seq = dyn_seq;
+            act.pc = event_pc;
+            act.golden_ea = golden_ea;
             if (a03_stream_rec.activate(act)) {
+                // 1-based fault ordinal of this persistent fault: the
+                // activation application's own ordinal (faults_injected_count
+                // has not been incremented for this load yet).
+                a03_fault_id = faults_injected_count + 1;
                 writeA03LogLine("A03_ACTIVATION", chaos_a03::activationDetail(
                     a03_stream_rec.activation()));
             }
         }
-        // event_ordinal: the trigger's eligible count AFTER onEligible()
-        // returned true for this load — this load's 1-based ordinal in the
-        // same eligible-event space the R01-R05 activation positions index
-        // (warmup_events + event_ordinal), so R05's first stream row is
-        // ordinal 5. The PC is not observable at this hook (dyn_seq only;
-        // the a01 kPcUnknown precedent) — never fabricated.
-        const chaos_a03::StreamEvent ev = chaos_a03::streamEvent(
-            lsuTrigger->eligible, dyn_seq, chaos_a01::kPcUnknown,
-            golden_ea, actual_ea, bit);
         if (a03_stream_rec.record(ev)) {
             staged_a03_stream = ev;
             a03_stream_staged = true;
@@ -670,6 +696,17 @@ namespace gem5
                                             << std::endl
                                             << l0_funnel.line("CHAOSAddrPath")
                                             << std::endl;
+                }
+                // [LSU][V3.3.2][A03] one lifecycle line for the persistent
+                // stuck-at fault: applications (affected=1) vs already_stuck
+                // (affected=0) + the activation and first-affected identity.
+                // Observation only; emitted only when the A03 stream actually
+                // activated (never a silent zero line for other modes).
+                if (a03_stream_rec.activated()) {
+                    writeA03LogLine("A03_STUCK_LIFECYCLE",
+                                    chaos_a03::lifecycleDetail(
+                                        a03_stream_rec.lifecycle(a03_fault_id,
+                                                                 pre_mode)));
                 }
                 // [LSU][OBS-L3] final funnel row (final counts; runs only on
                 // normal exit — aborts keep the last injection-time node,

@@ -20,6 +20,14 @@
 //     with NO commas (a comma would corrupt the CSV trace, whose detail
 //     column is the last field), bare lowercase hex addresses, decimal
 //     ordinals/counts, and the literal NOT_APPLICABLE for absent values.
+//
+// v3.3.2 P0-5 additions:
+//   - a stream event built with a real PC (0x400558) prints that PC in the
+//     frozen detail (the PC is threaded from the lsq.cc call site);
+//   - the persistent stuck-at lifecycle counts applications (affected=1)
+//     and already_stuck (affected=0) separately, and first_affected is the
+//     FIRST affected row — not the first recorded row (an ALREADY_STUCK
+//     activation is a no-op application, the fault stays active later).
 
 #include <cstdio>
 #include <cstring>
@@ -247,6 +255,101 @@ main()
         const std::string dn = activationDetail(nobit);
         check(contains(dn, ";bit=NOT_APPLICABLE;"),
               "activation detail: bit=NOT_APPLICABLE for kNoBit");
+    }
+
+    // ---- v3.3.2 P0-5: real faulting PC --------------------------------
+    {
+        const uint64_t golden = 0x7ffffefda8ULL;   // bit3 = 1
+        const uint64_t actual = applyStuckAt(golden, 3, 0);
+        const StreamEvent e = streamEvent(1, 4242, 0x400558ULL, golden,
+                                          actual, 3);
+        check(e.pc == 0x400558ULL, "PC: the real faulting PC is carried");
+        const std::string d = streamDetail(e);
+        check(contains(d, ";pc=400558;"),
+              "detail: real PC prints as bare lowercase hex");
+        check(d.find(";pc=0;") == std::string::npos,
+              "detail: kPcUnknown sentinel not emitted when a PC exists");
+    }
+
+    // ---- v3.3.2 P0-5: persistent stuck-at lifecycle --------------------
+    {
+        StreamRecorder rec;
+        Activation act;
+        act.tick = 777;
+        act.bit = 3;
+        act.mode = "a03_bit3_stuck0_load";
+        act.event_ordinal = 1;
+        act.dyn_inst_seq = 900;
+        act.pc = 0x400500ULL;
+        act.golden_ea = 0x100ULL;      // bit3 = 0: activation is ALREADY_STUCK
+        check(rec.activate(act), "lifecycle: activation accepted");
+        check(rec.record(streamEvent(1, 900, 0x400500ULL, 0x100ULL,
+                                     applyStuckAt(0x100ULL, 3, 0), 3)),
+              "lifecycle: activation row recorded (no-op application)");
+        check(rec.record(streamEvent(2, 901, 0x400560ULL, 0x108ULL,
+                                     applyStuckAt(0x108ULL, 3, 0), 3)),
+              "lifecycle: first affected row recorded");
+        check(rec.record(streamEvent(3, 902, 0x400568ULL, 0x1a0ULL,
+                                     applyStuckAt(0x1a0ULL, 3, 0), 3)),
+              "lifecycle: later no-op row recorded");
+
+        check(rec.eligibleEvents() == 3, "lifecycle: three eligible events");
+        check(rec.appliedCount() == 1,
+              "lifecycle: exactly one application changed the EA");
+        check(rec.alreadyStuckCount() == 2,
+              "lifecycle: two ALREADY_STUCK no-op applications");
+        check(rec.hasFirstAffected(),
+              "lifecycle: a first-affected row exists");
+
+        const StuckLifecycle lc = rec.lifecycle(7, "a03_bit3_stuck0_load");
+        check(lc.fault_id == 7 && lc.bit == 3 &&
+              lc.mode == "a03_bit3_stuck0_load",
+              "lifecycle: fault identity {fault_id, bit, mode} carried");
+        check(lc.eligible_events == 3 && lc.applications == 1 &&
+              lc.already_stuck == 2,
+              "lifecycle: eligible/applications/already_stuck split");
+        check(lc.has_activation && lc.activation_ordinal == 1 &&
+              lc.activation_dyn_inst_seq == 900 &&
+              lc.activation_pc == 0x400500ULL &&
+              lc.activation_golden_ea == 0x100ULL,
+              "lifecycle: activation identity carried");
+        check(lc.has_first_affected && lc.first_affected_ordinal == 2 &&
+              lc.first_affected_dyn_inst_seq == 901 &&
+              lc.first_affected_pc == 0x400560ULL,
+              "lifecycle: first_affected is the FIRST affected row, not "
+              "the (already-stuck) activation row");
+
+        const std::string d = lifecycleDetail(lc);
+        check(contains(d, "fault_id=7;bit=3;mode=a03_bit3_stuck0_load;"),
+              "lifecycle detail: fault identity first");
+        check(contains(d, ";eligible_events=3;applications=1;already_stuck=2;"),
+              "lifecycle detail: application split decimal");
+        check(contains(d, ";activation_ordinal=1;activation_dyn_inst_seq=900;"
+                         "activation_pc=400500;activation_golden_ea=100;"),
+              "lifecycle detail: activation identity (bare hex PC/EA)");
+        check(contains(d, ";first_affected_ordinal=2;"
+                         "first_affected_dyn_inst_seq=901;"
+                         "first_affected_pc=400560"),
+              "lifecycle detail: first-affected identity, last fields");
+        check(d.find(',') == std::string::npos,
+              "lifecycle detail: NO commas (CSV last column)");
+
+        // No affected row -> first_affected is honestly absent, never 0.
+        StreamRecorder masked;
+        Activation act2;
+        act2.tick = 1;
+        act2.bit = 3;
+        act2.mode = "a03_bit3_stuck0_load";
+        act2.event_ordinal = 1;
+        act2.dyn_inst_seq = 5;
+        masked.activate(act2);
+        masked.record(streamEvent(1, 5, 0x400500ULL, 0x100ULL,
+                                  applyStuckAt(0x100ULL, 3, 0), 3));
+        const StuckLifecycle lc2 = masked.lifecycle(1, act2.mode);
+        check(!lc2.has_first_affected &&
+              contains(lifecycleDetail(lc2), ";first_affected_ordinal="
+                                             "NOT_APPLICABLE;"),
+              "lifecycle: no affected row -> NOT_APPLICABLE, no silent zero");
     }
 
     if (failures != 0) {

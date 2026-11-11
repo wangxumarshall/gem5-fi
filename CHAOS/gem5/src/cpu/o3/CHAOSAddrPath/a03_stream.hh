@@ -45,8 +45,20 @@
 // this load's 1-based ordinal in the trigger's eligible-event stream, the
 // SAME space the R01-R05 activation positions index into
 // (chaos_lsu_trigger.hh F5 case: start = warmup_events + event_ordinal).
-// pc is kPcUnknown when the observing hook cannot see the PC (the PRE hook
-// receives dyn_inst_seq only) — never fabricated.
+// pc is the faulting DynInst's PC, threaded from the lsq.cc pushRequest
+// call site (inst->pcState().instAddr() via the maybeCorruptPre pc param);
+// kPcUnknown only when the observing path genuinely cannot see a PC (the
+// legacy non-lsq hook) — never fabricated.
+//
+// LIFECYCLE (v3.3.2 P0-5): the F5 stuck-at fault is ONE persistent fault
+// observed at every eligible load, not a stream of independent injections.
+// StreamRecorder therefore also keeps the lifecycle split — applications
+// (affected=1) vs already_stuck (affected=0) — plus the identity of the
+// first activation row and of the first AFFECTED row. An ALREADY_STUCK
+// activation is a no-op APPLICATION (nothing to propagate at that load),
+// but the fault remains active for every later eligible load; the lifecycle
+// record keeps the two readings distinct instead of letting the ordinal
+// stream hide them.
 
 #include <cstdint>
 #include <sstream>
@@ -90,6 +102,12 @@ struct Activation {
     uint64_t tick = 0;                    // curTick() at the activation load
     int bit = chaos_a01::kNoBit;           // pinned stuck bit
     std::string mode;                      // injector mode string
+    // v3.3.2 P0-5 lifecycle identity of the activation row (defaults keep
+    // the frozen {tick, bit, mode} activationDetail byte-identical):
+    uint64_t event_ordinal = 0;            // activation load's ordinal
+    uint64_t dyn_inst_seq = 0;             // activation load's DynInst seq
+    uint64_t pc = chaos_a01::kPcUnknown;   // activation load's PC
+    uint64_t golden_ea = 0;                // activation load's pre-apply EA
 };
 
 // a03_stream: one eligible load after activation. Exactly the nine
@@ -181,6 +199,77 @@ streamDetail(const StreamEvent &e)
     return d.str();
 }
 
+// ---- persistent stuck-at lifecycle (v3.3.2 P0-5) --------------------------
+//
+// The F5 fault is ONE persistent fault with five observation points, not
+// five independent transient injections. The lifecycle record makes that
+// reading explicit: every recorded eligible load is an APPLICATION of the
+// same stuck bit; affected=1 means the application changed the EA (the
+// fault propagated at that load), affected=0 (ALREADY_STUCK) means the
+// application changed nothing at that load but the fault remains ACTIVE
+// for every later eligible load. first_activation is the activation-start
+// row (which may itself be ALREADY_STUCK — a no-op application), and
+// first_affected is the first row where the fault actually changed the EA
+// — the earliest load at which the persistent fault can have propagated.
+struct StuckLifecycle {
+    uint64_t fault_id = 0;                 // injector fault ordinal (1-based)
+    int bit = chaos_a01::kNoBit;           // pinned stuck bit
+    std::string mode;                      // injector mode string
+    uint64_t eligible_events = 0;          // recorded applications (all)
+    uint64_t applications = 0;             // affected=1 applications
+    uint64_t already_stuck = 0;            // affected=0 no-op applications
+    bool has_activation = false;           // an activation row exists
+    uint64_t activation_ordinal = 0;       // activation row identity
+    uint64_t activation_dyn_inst_seq = 0;
+    uint64_t activation_pc = chaos_a01::kPcUnknown;
+    uint64_t activation_golden_ea = 0;
+    bool has_first_affected = false;       // some application changed the EA
+    uint64_t first_affected_ordinal = 0;   // first affected row identity
+    uint64_t first_affected_dyn_inst_seq = 0;
+    uint64_t first_affected_pc = chaos_a01::kPcUnknown;
+};
+
+// a03_stuck_lifecycle detail: fault identity {fault_id, bit, mode}, the
+// application split {eligible_events, applications, already_stuck}, the
+// activation identity {ordinal, dyn seq, pc, golden EA} and the first
+// AFFECTED identity {ordinal, dyn seq, pc}. k=v;k=v, NO commas; addresses
+// bare lowercase hex, counts decimal, absent identities NOT_APPLICABLE.
+inline std::string
+lifecycleDetail(const StuckLifecycle &l)
+{
+    std::ostringstream d;
+    d << "fault_id=" << l.fault_id
+      << ";bit=" << (l.bit == chaos_a01::kNoBit
+                        ? "NOT_APPLICABLE" : std::to_string(l.bit))
+      << ";mode=" << l.mode
+      << ";eligible_events=" << l.eligible_events
+      << ";applications=" << l.applications
+      << ";already_stuck=" << l.already_stuck
+      << ";activation_ordinal="
+      << (l.has_activation ? std::to_string(l.activation_ordinal)
+                           : "NOT_APPLICABLE")
+      << ";activation_dyn_inst_seq="
+      << (l.has_activation ? std::to_string(l.activation_dyn_inst_seq)
+                           : "NOT_APPLICABLE")
+      << ";activation_pc="
+      << (l.has_activation ? chaos_a01::toHexField(l.activation_pc)
+                           : "NOT_APPLICABLE")
+      << ";activation_golden_ea="
+      << (l.has_activation ? chaos_a01::toHexField(l.activation_golden_ea)
+                           : "NOT_APPLICABLE")
+      << ";first_affected_ordinal="
+      << (l.has_first_affected ? std::to_string(l.first_affected_ordinal)
+                               : "NOT_APPLICABLE")
+      << ";first_affected_dyn_inst_seq="
+      << (l.has_first_affected ? std::to_string(l.first_affected_dyn_inst_seq)
+                               : "NOT_APPLICABLE")
+      << ";first_affected_pc="
+      << (l.has_first_affected
+              ? chaos_a01::toHexField(l.first_affected_pc)
+              : "NOT_APPLICABLE");
+    return d.str();
+}
+
 // ---- the exactly-once discipline (host-testable) ---------------------------
 //
 // StreamRecorder: one per injector instance. The injector routes EVERY
@@ -207,6 +296,8 @@ struct StreamRecorder {
     uint64_t applied_ = 0;
     uint64_t already_stuck_ = 0;
     uint64_t rejected_ = 0;
+    bool has_first_affected_ = false;
+    StreamEvent first_affected_;
 
   public:
     bool activated() const { return activated_; }
@@ -215,6 +306,37 @@ struct StreamRecorder {
     uint64_t appliedCount() const { return applied_; }
     uint64_t alreadyStuckCount() const { return already_stuck_; }
     uint64_t rejected() const { return rejected_; }
+    // v3.3.2 P0-5 lifecycle accessors: eligible_events is the recorded
+    // stream size (the recorder only sees post-activation fired events =
+    // the applications of this ONE persistent fault).
+    uint64_t eligibleEvents() const { return recorded_; }
+    bool hasFirstAffected() const { return has_first_affected_; }
+    const StreamEvent &firstAffected() const { return first_affected_; }
+
+    // Lifecycle record built from the counters this recorder owns. fault_id
+    // and mode come from the injector (the record shape cannot derive the
+    // run-level fault ordinal).
+    StuckLifecycle
+    lifecycle(uint64_t fault_id, const std::string &mode) const
+    {
+        StuckLifecycle l;
+        l.fault_id = fault_id;
+        l.bit = activation_.bit;
+        l.mode = mode;
+        l.eligible_events = recorded_;
+        l.applications = applied_;
+        l.already_stuck = already_stuck_;
+        l.has_activation = activated_;
+        l.activation_ordinal = activation_.event_ordinal;
+        l.activation_dyn_inst_seq = activation_.dyn_inst_seq;
+        l.activation_pc = activation_.pc;
+        l.activation_golden_ea = activation_.golden_ea;
+        l.has_first_affected = has_first_affected_;
+        l.first_affected_ordinal = first_affected_.event_ordinal;
+        l.first_affected_dyn_inst_seq = first_affected_.dyn_inst_seq;
+        l.first_affected_pc = first_affected_.pc;
+        return l;
+    }
 
     // One activation per run: the first call wins and is returned; every
     // later call is rejected (counted).
@@ -239,10 +361,18 @@ struct StreamRecorder {
         }
         last_ordinal_ = e.event_ordinal;
         ++recorded_;
-        if (e.reason == StreamReason::AlreadyStuck)
+        if (e.reason == StreamReason::AlreadyStuck) {
             ++already_stuck_;
-        else
+        } else {
             ++applied_;
+            // first_affected = the FIRST row that changed the EA, not the
+            // first recorded row (an ALREADY_STUCK activation is ordinal 1
+            // and must not be reported as the first affected row).
+            if (!has_first_affected_) {
+                has_first_affected_ = true;
+                first_affected_ = e;
+            }
+        }
         return true;
     }
 };

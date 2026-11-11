@@ -45,10 +45,10 @@ class CHAOSAddrPath : public SimObject
     // submodels are NOT expressible from the final addr — deferred, R5),
     // a06_size (access-size substitution; byte_enable is const at this
     // hook — size only), a08_subst (same-page, no object constraint).
-    // [LSU][V3.2.12][A01] pc (defaulted, 0 = not observable at the call
-    // site yet): the faulting PC for the staged a01_ea record; the lsq.cc
-    // call site passes inst->pcState().instAddr() (one-line shared-side
-    // patch, task-7-report.md §4B) — until then it stays kPcUnknown.
+    // [LSU][V3.2.12][A01] pc (defaulted, 0 = kPcUnknown): the faulting PC
+    // for the staged a01_ea / a03_stream records; the lsq.cc call site
+    // passes inst->pcState().instAddr() (task-7-report.md §4B), so 0 only
+    // remains for non-lsq callers — never fabricated.
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags, uint64_t dyn_seq = 0,
                                uint64_t pc = 0);
@@ -178,8 +178,26 @@ class CHAOSAddrPath : public SimObject
     chaos_a03::StreamRecorder a03_stream_rec;
     chaos_a03::StreamEvent staged_a03_stream;
     bool a03_stream_staged = false;
+    // [LSU][V3.3.2][A03] 1-based fault ordinal of the persistent stuck-at
+    // fault (the activation application's faults_injected_count + 1); 0
+    // until the activation row is seen. Used only by the exit-time
+    // A03_STUCK_LIFECYCLE line (observation only).
+    uint64_t a03_fault_id = 0;
+    // [LSU][V3.3.2][A03] Bound the per-application PRE log line for the
+    // persistent F5 mode. A stuck-at address fault can corrupt control
+    // flow and drive the program into a long/pathological loop; without a
+    // cap one pilot grew addrpath_injections.log past 5M lines / 591 MB.
+    // Counters and the lifecycle line stay exact; only the per-event text
+    // after the cap is suppressed (one A03_LOG_CAPPED marker is written).
+    static constexpr uint64_t kA03PreLogCap = 20000;
+    uint64_t a03_pre_log_lines = 0;
+    void logPreInjection(uint64_t old_addr, uint64_t new_addr,
+                         unsigned old_size, unsigned new_size,
+                         bool nochange);
+    // pc: the faulting DynInst PC threaded from the lsq.cc pushRequest call
+    // site (0 = genuinely unavailable -> kPcUnknown, never fabricated).
     void a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
-                             Addr actual_ea, int bit);
+                             Addr actual_ea, int bit, uint64_t pc);
     void writeA03LogLine(const char *tag, const std::string &detail);
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
