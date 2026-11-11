@@ -35,6 +35,30 @@ ORACLE = IMPL / "workloads/replay_dependency.golden"
 SEED = 3135797961  # RW01 seed (deterministic replay_dependency stream)
 
 
+def build_replay_command(gem5: Path, outdir: Path,
+                         probability: float = 1.0) -> list[str]:
+    """The exact gem5 argv for the replay pilot.
+
+    The FW02 carrier is ordinal-gated, not probability-gated: CHAOSLSQFwd
+    attaches the F6Fw02 mode even with ``probability == 0`` and its
+    suppression decision never consults probability.  A matched no-fault
+    control (``--probability 0.0``) must therefore omit the injector mount
+    or it would still fire (the same rule as run_pilot's FW02/LQ04 controls);
+    the replay tracer stays on so the control still records real replays.
+    """
+    cmd = [str(gem5), f"--outdir={outdir}", str(CONFIG),
+           f"--cmd={WORKLOAD}", "--cpu", "O3", "--variant", "B0",
+           "--probability", str(probability), "--chaos_propagation",
+           "--prop_trace_file", "replay_prop.csv.gz", "--prop_replay_all"]
+    if probability == 0.0:
+        return cmd
+    # FW02 is the fault carrier: one suppressed forwarding keeps the run
+    # alive long enough to observe the real partial-forward replays.
+    return cmd + ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+                  "--max_faults", "1", "--rng_seed", str(SEED),
+                  "--lsqfwd_event_ordinal", "1"]
+
+
 def _rows(path: Path):
     raw = path.read_bytes()
     text = zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(raw).decode(
@@ -55,20 +79,21 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--outdir", type=Path, required=True)
     ap.add_argument("--gem5", type=Path, default=GEM5)
+    ap.add_argument("--probability", type=float, default=1.0,
+                    help="injection probability (0.0 = matched no-fault control)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="build the exact gem5 command, print it (and write "
+                         "<outdir>/command.txt), then exit 0 without invoking "
+                         "gem5")
     args = ap.parse_args(argv)
     out = args.outdir.resolve()
     out.mkdir(parents=True, exist_ok=True)
 
-    cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
-           f"--cmd={WORKLOAD}", "--cpu", "O3", "--variant", "B0",
-           "--probability", "1.0", "--chaos_propagation",
-           "--prop_trace_file", "replay_prop.csv.gz", "--prop_replay_all",
-           # FW02 is the fault carrier: one suppressed forwarding keeps the
-           # run alive long enough to observe the real partial-forward replays.
-           "--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
-           "--max_faults", "1", "--rng_seed", str(SEED),
-           "--lsqfwd_event_ordinal", "1"]
+    cmd = build_replay_command(args.gem5, out, args.probability)
     (out / "command.txt").write_text("\n".join(cmd) + "\n")
+    if args.dry_run:
+        print(" ".join(cmd))
+        return 0
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
                           timeout=1800)
     (out / "stdout.log").write_text(proc.stdout)

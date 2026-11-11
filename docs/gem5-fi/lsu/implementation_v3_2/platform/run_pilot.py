@@ -487,6 +487,116 @@ def _fault_causality(events: list[dict], terminal: str,
     return "INDIRECT_EVIDENCE"
 
 
+def build_model_extra(model: str, probability: float, seed: int,
+                      ordinal) -> list[str]:
+    """Model-specific gem5 flags: injector mount + frozen run identity.
+
+    A matched no-fault control (``--probability 0.0``) must NOT mount an
+    injector whose firing decision is not gated by the global
+    ``--probability`` -- a mounted injector would still fire.  The LQ04
+    ordinal selector, the F6_fw02 / da04_be_bit0 LSQFwd struct modes (all
+    ordinal-gated F0/F6 selectors) and CHAOSMD04 (which gates only on its
+    own ``--md04_probability``) are such injectors, so those branches return
+    an empty list at probability 0.0; the propagation tracer stays on in the
+    base command.  Every other branch is probability-gated in its injector's
+    attach path, so its control keeps the mount and relies on that gate.
+
+    FAULT runs (probability > 0) are byte-identical to the pre-v3.3.2
+    command.
+    """
+    control = probability == 0.0
+    ordinal = str(ordinal)
+    if model == "A01":
+        return ["--chaos_addrpath", "--agu_pre_mode", "a01_bit3_load",
+                "--addrpath_lsu_tier", "F0", "--addrpath_max_faults", "1",
+                "--addrpath_warmup_events", "0", "--addrpath_span_events", "10",
+                "--addrpath_rng_seed", str(seed),
+                "--addrpath_event_ordinal", ordinal]
+    if model == "A03":
+        return ["--chaos_addrpath", "--agu_pre_mode", "a03_bit3_stuck0_load",
+                "--addrpath_lsu_tier", "F5", "--addrpath_max_faults", "0",
+                "--addrpath_warmup_events", "0",
+                "--addrpath_rng_seed", str(seed),
+                "--addrpath_event_ordinal", ordinal]
+    if model == "SQ01":
+        return ["--chaos_lsqfwd", "--lsq_struct_mode", "sq01_bit3",
+                "--lsqfwd_lsu_tier", "F0",
+                "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
+                "--max_faults", "1", "--rng_seed", str(seed),
+                "--lsqfwd_event_ordinal", ordinal]
+    if model == "DA04":
+        if control:
+            # Matched no-fault control (v3.3.2 fix): DA04 corrupts the store
+            # byte-enable through an ordinal-gated F0 selector; the decision
+            # never consults --probability, so a mounted injector would fire
+            # under --probability 0.0.  Omit the injector entirely (the same
+            # treatment as the LQ04/FW02 controls below).
+            return []
+        return ["--chaos_lsqfwd", "--lsq_struct_mode", "da04_be_bit0",
+                "--lsqfwd_lsu_tier", "F0",
+                "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
+                "--max_faults", "1", "--rng_seed", str(seed),
+                "--lsqfwd_event_ordinal", ordinal]
+    if model == "MD04":
+        if control:
+            # Matched no-fault control (v3.3.2 fix): CHAOSMD04 gates on its
+            # own --md04_probability (hard-coded 1.0 for fault runs) and
+            # never consults the global --probability, so the only honest
+            # control is to omit the injector and all of its arguments.
+            return []
+        return ["--chaos_md04", "--md04_first_clock", "0",
+                "--md04_max_faults", "1",
+                "--md04_probability", "1.0",
+                "--md04_rng_seed", str(seed),
+                "--md04_event_ordinal", ordinal]
+    if model == "LP01":
+        return ["--chaos_l1dfwd", "--l1dfwd_first_clock", "0",
+                "--l1dfwd_max_faults", "1",
+                "--l1dfwd_fault_mask", "0x8",
+                "--l1dfwd_rng_seed", str(seed),
+                "--l1dfwd_event_ordinal", ordinal]
+    if model == "SQ03":
+        return ["--chaos_lsqfwd", "--lsq_struct_mode", "sq03_canwb",
+                "--max_faults", "1", "--rng_seed", str(seed),
+                "--lsqfwd_event_ordinal", ordinal,
+                "--sq03_watchdog_cycles", "500000000"]
+    if model == "SP05":
+        return ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
+                "--max_faults", "1", "--rng_seed", str(seed),
+                "--sp05_event_ordinal", ordinal,
+                "--sp05_watchdog_cycles", "500000000"]
+    if model == "FW05":
+        return ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
+                "--max_faults", "1", "--rng_seed", str(seed),
+                "--lsqfwd_event_ordinal", ordinal]
+    if model == "LQ04":
+        if control:
+            # Matched no-fault control: the LQ04 selector is ordinal-gated,
+            # not probability-gated, so a mounted injector would still fire.
+            # Omit the injector entirely; --chaos_propagation stays on.
+            return []
+        return ["--chaos_lq04",
+                "--lq04_event_ordinal", ordinal,
+                "--lq04_max_faults", "1",
+                "--lq04_watchdog_cycles", "500000000"]
+    if model == "FW02":
+        if control:
+            # Matched no-fault control (v3.2.12 fix): the F6_fw02 selector is
+            # ordinal-gated, not probability-gated -- CHAOSLSQFwd attaches the
+            # F6Fw02 mode even with probability==0 and the suppression
+            # decision never consults probability, so a mounted injector
+            # would still fire (the SUPP-FW02-C01 misfire). Omit the injector
+            # entirely; --chaos_propagation stays on (same treatment as the
+            # LQ04 control branch).
+            return []
+        return ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+                "--max_faults", "1", "--rng_seed", str(seed),
+                "--lsqfwd_event_ordinal", ordinal]
+    return ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+            "--max_faults", "1", "--rng_seed", str(seed),
+            "--lsqfwd_event_ordinal", ordinal]
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True, choices=MODELS)
@@ -511,6 +621,10 @@ def main(argv=None) -> int:
                     help="TEMPORARY_EVENT_SELECTION override for the F0 "
                          "eligible-event ordinal (v3.2.4 DA04 pilots); the "
                          "Excel ordinal is recorded separately")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="build the exact gem5 command, print it (and write "
+                         "<outdir>/command.txt), then exit 0 without invoking "
+                         "gem5 -- no manifest or run artifacts are produced")
     args = ap.parse_args(argv)
 
     cfg = load_config(EXCEL, require_complete=False)
@@ -546,91 +660,8 @@ def main(argv=None) -> int:
     out = args.outdir.resolve()
     out.mkdir(parents=True, exist_ok=True)
 
-    extra = []
-    if args.model == "A01":
-        extra = ["--chaos_addrpath", "--agu_pre_mode", "a01_bit3_load",
-                 "--addrpath_lsu_tier", "F0", "--addrpath_max_faults", "1",
-                 "--addrpath_warmup_events", "0", "--addrpath_span_events", "10",
-                 "--addrpath_rng_seed", str(args.seed),
-                 "--addrpath_event_ordinal", str(sample.get("event_ordinal") or 1)]
-    elif args.model == "A03":
-        extra = ["--chaos_addrpath", "--agu_pre_mode", "a03_bit3_stuck0_load",
-                 "--addrpath_lsu_tier", "F5", "--addrpath_max_faults", "0",
-                 "--addrpath_warmup_events", "0",
-                 "--addrpath_rng_seed", str(args.seed),
-                 "--addrpath_event_ordinal", str(sample.get("event_ordinal") or 1)]
-    elif args.model == "SQ01":
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sq01_bit3",
-                 "--lsqfwd_lsu_tier", "F0",
-                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
-    elif args.model == "DA04":
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "da04_be_bit0",
-                 "--lsqfwd_lsu_tier", "F0",
-                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--lsqfwd_event_ordinal",
-                 str(sample.get("event_ordinal") or 1)]
-    elif args.model == "MD04":
-        extra = ["--chaos_md04", "--md04_first_clock", "0",
-                 "--md04_max_faults", "1",
-                 "--md04_probability", "1.0",
-                 "--md04_rng_seed", str(args.seed),
-                 "--md04_event_ordinal",
-                 str(sample.get("event_ordinal") or 1)]
-    elif args.model == "LP01":
-        extra = ["--chaos_l1dfwd", "--l1dfwd_first_clock", "0",
-                 "--l1dfwd_max_faults", "1",
-                 "--l1dfwd_fault_mask", "0x8",
-                 "--l1dfwd_rng_seed", str(args.seed),
-                 "--l1dfwd_event_ordinal",
-                 str(sample.get("event_ordinal") or 1)]
-    elif args.model == "SQ03":
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sq03_canwb",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--lsqfwd_event_ordinal",
-                 str(sample.get("event_ordinal") or 1),
-                 "--sq03_watchdog_cycles", "500000000"]
-    elif args.model == "SP05":
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--sp05_event_ordinal",
-                 str(sample.get("event_ordinal") or 1),
-                 "--sp05_watchdog_cycles", "500000000"]
-    elif args.model == "FW05":
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--lsqfwd_event_ordinal",
-                 str(sample.get("event_ordinal") or 1)]
-    elif args.model == "LQ04":
-        extra = ["--chaos_lq04",
-                 "--lq04_event_ordinal",
-                 str(sample.get("event_ordinal") or 1),
-                 "--lq04_max_faults", "1",
-                 "--lq04_watchdog_cycles", "500000000"]
-        if args.probability == 0.0:
-            # Matched no-fault control: the LQ04 selector is ordinal-gated,
-            # not probability-gated, so a mounted injector would still fire.
-            # Omit the injector entirely; --chaos_propagation stays on.
-            extra = []
-    elif args.model == "FW02":
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
-        if args.probability == 0.0:
-            # Matched no-fault control (v3.2.12 fix): the F6_fw02 selector is
-            # ordinal-gated, not probability-gated -- CHAOSLSQFwd attaches the
-            # F6Fw02 mode even with probability==0 and the suppression
-            # decision never consults probability, so a mounted injector
-            # would still fire (the SUPP-FW02-C01 misfire). Omit the injector
-            # entirely; --chaos_propagation stays on (same treatment as the
-            # LQ04 control branch above).
-            extra = []
-    else:
-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
-                 "--max_faults", "1", "--rng_seed", str(args.seed),
-                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
+    extra = build_model_extra(args.model, args.probability, args.seed,
+                              sample.get("event_ordinal") or 1)
 
     cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
            f"--cmd={workload_path}",
@@ -639,6 +670,12 @@ def main(argv=None) -> int:
            "--chaos_propagation",
            "--prop_trace_file", "prop_trace.csv.gz"] + extra
     (out / "command.txt").write_text("\n".join(cmd) + "\n")
+    if args.dry_run:
+        # Print the exact command that a real run would hand to gem5 and
+        # stop. No subprocess, no manifest, no run artifacts: a dry run can
+        # never be mistaken for an executed pilot.
+        print(" ".join(cmd))
+        return 0
     # build_manifest looks the sample up by SampleRunID: with
     # --preserve-sample-id that is the Excel id, not the pilot id.
     manifest = build_manifest(cfg2, sample["sample_run_id"], args.gem5, CONFIG,
