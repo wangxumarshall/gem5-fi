@@ -63,4 +63,4 @@ All commands below were executed in
 - `python3 -m pytest tests/ -q -p no:cacheprovider` -> **180 passed in 95.74s**
 - `python3 -m pytest docs/gem5-fi/lsu/implementation_v3_2/platform/tests -q -p no:cacheprovider` -> **107 passed in 3.45s**
 - Package: `LSU_v3.3.1_Context_Workload_Finalization_Package.zip`, 719 KiB, 948 files,
-  SHA256 `30ee4734e5e06542dcb2d75f788f596b3aeebee5c89ea4dabb0398e9185aac9a`.
+  SHA256 is recorded in the adjacent `.sha256` sidecar (the ZIP cannot contain its own final hash).
