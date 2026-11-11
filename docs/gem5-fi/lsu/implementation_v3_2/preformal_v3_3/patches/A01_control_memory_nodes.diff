@@ -1,0 +1,190 @@
+--- a/CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh
++++ b/CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh
+@@ -205,6 +205,35 @@
+         return false;
+     }
+ 
++    // Read-only counterpart of onEligible() for a matched no-fault control:
++    // advances the eligible space with the SAME F0 ordinal selection the
++    // fault run uses, but never counts an injection. Only F0 (A01's tier) is
++    // defined; the control probe is not used by any other model.
++    bool
++    onControlProbe()
++    {
++        if (tier != ChaOSLsuTier::F0 || spent)
++            return false;
++        ++eligible;
++        if (!first_eligible_tick) first_eligible_tick = curTick();
++        last_eligible_tick = curTick();
++        if (!armed) {
++            armed = true;
++            if (event_ordinal) {
++                next_fire = warmup_events + event_ordinal;
++            } else {
++                const uint64_t span = span_events ? span_events : 1;
++                rng = chaosSampleLCG(rng);
++                next_fire = warmup_events + rng % span;
++            }
++        }
++        if (eligible >= next_fire) {
++            spent = true;               // observe exactly once, inject never
++            return true;
++        }
++        return false;
++    }
++
+     // The F6 event source calls this when the configured event occurs.
+     // Returns true => inject at this event, once ever.
+     bool
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
+@@ -93,6 +93,12 @@
+     const chaos_a03::Activation &a03ActivationRecord() const
+         { return a03_stream_rec.activation(); }
+ 
++    // [A01 v3.3 proposal] matched no-fault control: register the
++    // ordinal-selected load's golden EA read-only (no addr mutation, no
++    // injection) so the propagation tracer can emit mem_req/resp/DataDelta.
++    void probeA01Control(Addr addr, unsigned size, bool isLoad,
++                         uint64_t dyn_seq, uint64_t pc);
++
+   private:
+     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
+     // sendFragmentToTranslation hook = DTLB-input semantics, W1 ⑦ ruling):
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
+@@ -247,7 +247,14 @@
+         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
+         // (flag-only modes S06/L02 leave addr/size untouched).
+         obs_pre_hook_injected = false;
+-        if (probability <= 0.0f) return size;
++        if (probability <= 0.0f) {
++            // [A01 v3.3 proposal] matched control (probability 0.0): observe
++            // the ordinal-selected golden EA read-only. Never mutates addr or
++            // size and never counts an injection.
++            if (pre_mode == "a01_bit3_load")
++                probeA01Control(addr, size, isLoad, dyn_seq, pc);
++            return size;
++        }
+ 
+         if (lsuTrigger) {
+             lsuTrigger->onAttempt();
+@@ -586,6 +593,28 @@
+     }
+ 
+     void
++    CHAOSAddrPath::probeA01Control(Addr addr, unsigned size, bool isLoad,
++                                   uint64_t dyn_seq, uint64_t pc)
++    {
++        if (!o3cpu_resolved || !o3cpu_resolved->chaosPropagation)
++            return;
++        if (!lsuTrigger || lsuTrigger->tier != ChaOSLsuTier::F0)
++            return;                     // control probe is F0-only
++        if (!isLoad)
++            return;                     // a01_bit3_load is load-only
++        if (!lsuTrigger->onControlProbe())
++            return;                     // not the ordinal-selected load
++        const chaos_a01::EACoords c = chaos_a01::eaCoordsNoop(
++            0 /* fault_id: no injection */, dyn_seq,
++            pc ? pc : chaos_a01::kPcUnknown, addr, size);
++        o3cpu_resolved->chaosPropagation->registerControlProbe(
++            "lsq_pushRequest_PRE", dyn_seq, addr, size, isLoad, c);
++        if (write_log && log_stream && log_stream->stream())
++            *(log_stream->stream()) << "A01_CONTROL: "
++                << chaos_a01::eaDetail(c) << std::endl;
++    }
++
++    void
+     CHAOSAddrPath::startup() {
+         SimObject::startup();
+         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -407,6 +407,12 @@
+     // request=0 + discard_reason) converts that silent structural absence
+     // into an on-chain fact. Read-only; the a01_ea node stays unchanged.
+     void noteA01EADiscarded(uint64_t ptag, const chaos_a01::EACoords &c);
++    // [A01 v3.3 proposal] read-only control registration: a probe node, an
++    // a01_ea reference node (golden==actual, affected=0) and an addr_registry
++    // entry flagged control_only. No fault_seqs insert, no injection claim.
++    uint64_t registerControlProbe(const char *site, uint64_t dyn_seq, Addr addr,
++                                  unsigned size, bool is_load,
++                                  const chaos_a01::EACoords &c);
+     // [LSU][V3.2.12][A03] the F5 stream sink (A03 audit §1 remedy): the
+     // activation record (a03_activation, {tick,bit,mode} via the frozen
+     // activationDetail — one per run; the recorder already rejects a
+@@ -502,6 +508,7 @@
+         Addr base;
+         Addr size;                 // 0 = address-only marker (never matches)
+         Tick registered;
++        bool control_only = false; // A01 v3.3: read-only control reference
+     };
+     std::map<Addr, AddrEntry> addr_registry;
+ 
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -351,6 +351,39 @@
+     }
+ 
+     uint64_t
++    CHAOSPropagation::registerControlProbe(const char *site, uint64_t dyn_seq,
++                                           Addr addr, unsigned size,
++                                           bool is_load,
++                                           const chaos_a01::EACoords &c)
++    {
++        if (!write_log)
++            return 0;
++        const uint64_t ptag = ++next_ptag;
++        {
++            std::ostringstream d;
++            d << "site=" << site << ";family=a01_control;is_load="
++              << (is_load ? 1 : 0) << ";size=" << size
++              << ";addr=" << std::hex << addr << std::dec
++              << ";injected=0;control_only=1";
++            writeNode(ptag, "probe", dyn_seq, true, 0, false, addr, true,
++                      0, false, 0, false, d.str());
++        }
++        writeNode(ptag, "a01_ea", c.dyn_inst_seq, true, 0, false,
++                  c.actual_ea, true, 0, false, 0, false,
++                  chaos_a01::eaDetail(c));
++        sweepExpired();
++        AddrEntry e;
++        e.ptag = ptag;
++        e.dyn_seq = dyn_seq;
++        e.base = addr;
++        e.size = size;
++        e.registered = curTick();
++        e.control_only = true;
++        addr_registry[addr] = e;
++        return ptag;
++    }
++
++    uint64_t
+     CHAOSPropagation::registerCacheFault(Addr block_addr, int byte_offset,
+                                          Addr block_size, const char *field)
+     {
+@@ -869,6 +902,7 @@
+ 
+         uint64_t hit_ptag = 0;
+         const char *hit_family = nullptr;
++        bool hit_control = false;   // A01 v3.3: read-only control reference
+ 
+         // LP01: the response is observed AFTER maybeCorrupt, so data_* is the
+         // delivered (injected) payload. Bind directly by instruction identity.
+@@ -920,6 +954,7 @@
+                         && e.dyn_seq == inst->seqNum) {
+                     hit_ptag = e.ptag;
+                     hit_family = "addrpath";
++                    hit_control = e.control_only;
+                     break;
+                 }
+             }
+@@ -1216,7 +1251,7 @@
+         // The packet bytes are not the register value for size < 8
+         // (endianness/extension), so hashing them here made the source hash
+         // discontinuous with the consumer input (DA04's 4-byte load).
+-        if (!wb_to_reg || inst->getFault() != NoFault)
++        if (!wb_to_reg || inst->getFault() != NoFault || hit_control)
+             return;
+         ChainWbEntry w;
+         w.ptag = hit_ptag;

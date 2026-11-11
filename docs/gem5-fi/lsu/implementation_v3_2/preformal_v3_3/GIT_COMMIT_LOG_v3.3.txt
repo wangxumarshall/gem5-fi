@@ -1,0 +1,4 @@
+c1846ae4 [LSU][MDSPEC][V3.3][W4] add a load-preserving W4 implementation (proposal)
+c8fc4353 [LSU][MDSPEC][V3.3][TRACE] record the squash trigger seq on lsq_squash
+364a6057 [LSU][MDSPEC][V3.3][CTRL] make the FW02 F6 decision honour probability 0
+5541648c [LSU][MDSPEC][V3.3][TRACE] add native control/consumer/crash evidence hooks

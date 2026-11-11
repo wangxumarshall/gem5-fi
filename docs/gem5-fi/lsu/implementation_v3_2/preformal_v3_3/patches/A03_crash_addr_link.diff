@@ -1,0 +1,79 @@
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -418,6 +418,10 @@
+     // ptag=0 "not bound to one chain" convention). Return: the ptag used.
+     uint64_t noteA03Activation(uint64_t ptag, const chaos_a03::Activation &a);
+     void noteA03Stream(uint64_t ptag, const chaos_a03::StreamEvent &e);
++    // [A03 v3.3 proposal] crash-address link: complete the last a03_stream
++    // row of this dyn seq with the raised fault VA and whether it equals the
++    // corrupted actual_ea. No-op unless the seq has a recorded stream row.
++    void noteA03FaultVA(uint64_t dyn_inst_seq, uint64_t fault_va);
+ 
+     // SP05 (v3.2.9): injection ptag per target store, reused by completion.
+     std::unordered_map<uint64_t, uint64_t> sp05_ptag;
+@@ -665,6 +669,13 @@
+     // [LSU][V3.2.12][A03] sink-side emit-once guard for the a03_activation
+     // node (the recorder-side guard lives in chaos_a03::StreamRecorder).
+     bool a03_activation_emitted = false;
++    // [A03 v3.3 proposal] the last stream row per dyn seq (ptag + record),
++    // feeding the crash-address link. Observation only.
++    struct A03Row {
++        uint64_t ptag = 0;
++        chaos_a03::StreamEvent event;
++    };
++    std::map<uint64_t, A03Row> a03_last_row;
+ 
+     struct ChainWbEntry {
+         uint64_t ptag = 0;
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -2038,6 +2038,33 @@
+         writeNode(ptag, "a03_stream", e.dyn_inst_seq, true, 0, false,
+                   e.actual_ea, true, 0, false, 0, false,
+                   chaos_a03::streamDetail(e));
++        a03_last_row[e.dyn_inst_seq] = A03Row{ptag, e};
++    }
++
++    void
++    CHAOSPropagation::noteA03FaultVA(uint64_t dyn_inst_seq, uint64_t fault_va)
++    {
++        if (!write_log)
++            return;
++        auto it = a03_last_row.find(dyn_inst_seq);
++        if (it == a03_last_row.end())
++            return;
++        const A03Row &row = it->second;
++        std::ostringstream d;
++        d << "record=crash_addr_link;family=a03"
++          << ";dyn_inst_seq=" << dyn_inst_seq
++          << ";fault_va=" << std::hex << fault_va
++          << ";golden_ea=" << row.event.golden_ea
++          << ";actual_ea=" << row.event.actual_ea << std::dec
++          << ";crash_addr_matches="
++          << (fault_va == row.event.actual_ea ? 1 : 0)
++          << ";bit=" << (row.event.bit == chaos_a01::kNoBit
++                             ? "NOT_APPLICABLE"
++                             : std::to_string(row.event.bit))
++          << ";event_ordinal=" << row.event.event_ordinal
++          << ";reason=" << chaos_a03::streamReasonName(row.event.reason);
++        writeNode(row.ptag, "a03_fault", dyn_inst_seq, true, 0, false,
++                  fault_va, true, 0, false, 0, false, d.str());
+     }
+ 
+     void
+--- a/CHAOS/gem5/src/cpu/o3/lsq.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq.cc
+@@ -927,9 +927,12 @@
+             // chain, so non-A01 faults are untouched.
+             if (cpu->chaosPropagation && fault != NoFault) {
+                 Addr a01_fva = 0;
+-                if (ArmISA::getFaultVAddr(fault, a01_fva))
++                if (ArmISA::getFaultVAddr(fault, a01_fva)) {
+                     cpu->chaosPropagation->noteA01FaultVA(
+                         inst->seqNum, a01_fva);
++                    cpu->chaosPropagation->noteA03FaultVA(
++                        inst->seqNum, a01_fva);
++                }
+             }
+         } else if (isLoad) {
+             inst->setMemAccPredicate(false);

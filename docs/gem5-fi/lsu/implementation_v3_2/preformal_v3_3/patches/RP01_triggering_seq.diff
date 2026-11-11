@@ -1,0 +1,22 @@
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -1238,7 +1238,8 @@
+             lq04Restore(loadQueue.back(), "squash");
+         if (cpu->chaosPropagation) {
+             cpu->chaosPropagation->noteSquash(
+-                loadQueue.back().instruction().get(), "lsq_squash");
++                loadQueue.back().instruction().get(), "lsq_squash",
++                squashed_num);
+             cpu->chaosPropagation->noteLQLifecycle(
+                 loadQueue.back().instruction()->seqNum,
+                 loadQueue.back().instruction()->lqIdx,
+@@ -1316,7 +1317,8 @@
+ 
+         if (cpu->chaosPropagation) {
+             cpu->chaosPropagation->noteSquash(
+-                storeQueue.back().instruction().get(), "lsq_squash");
++                storeQueue.back().instruction().get(), "lsq_squash",
++                squashed_num);
+             cpu->chaosPropagation->noteSQLifecycle(
+                 storeQueue.back().instruction()->seqNum,
+                 storeQueue.back().instruction()->sqIdx,

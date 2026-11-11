@@ -1,0 +1,62 @@
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -599,6 +599,12 @@
+         uint64_t eligible_ordinal = 0;
+         uint64_t resp_node = 0;
+         bool wb_emitted = false;
++        // v3.3 proposal: read-only reload-consumer binding. The first later
++        // load whose request covers the injected lane and that reaches a
++        // memory response is recorded here; it is visibility evidence, never
++        // a second fault target (not added to fault_seqs or any taint set).
++        uint64_t reload_seq = 0;      // 0 = no reload observed
++        std::string reload_hash;      // that reload's response data hash
+     };
+     std::map<uint64_t, FW05Entry> fw05_registry;  // key: load dyn seq
+ 
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -1074,6 +1074,44 @@
+                 }
+             }
+         }
++        // [FW05 v3.3 proposal] reload-consumer binding (read-only): the first
++        // LATER load whose request covers the injected lane and that has a
++        // memory response records what memory actually delivered for that
++        // lane. This is the store->reload visibility leg the native FW05
++        // rows lacked; it changes no fault path and taints nothing.
++        if (!pkt->isWrite() && inst->isLoad() && pkt->req &&
++                pkt->req->hasVaddr()) {
++            const Addr ra = pkt->req->getVaddr();
++            const Addr ra_end = ra + (Addr)pkt->req->getSize();
++            for (auto &kv : fw05_registry) {
++                FW05Entry &fe = kv.second;
++                if (fe.reload_seq != 0 || kv.first == inst->seqNum)
++                    continue;               // one reload, never the load itself
++                if (ra >= fe.load_addr + fe.load_size || fe.load_addr >= ra_end)
++                    continue;               // reload must cover the affected lane
++                const unsigned rl = pkt->hasData() ? pkt->getSize() : 0;
++                fe.reload_seq = inst->seqNum;
++                fe.reload_hash = rl
++                    ? fnvHex(pkt->getPtr<uint8_t>(), rl) : "";
++                std::ostringstream rd;
++                rd << "record=reload_consumer;family=fw05"
++                   << ";load_seq=" << kv.first
++                   << ";reload_seq=" << inst->seqNum
++                   << ";reload_data_fnv="
++                   << (rl ? fe.reload_hash : "null")
++                   << ";true_fnv=" << fe.true_fnv
++                   << ";alt_fnv=" << fe.alt_fnv
++                   << ";reads_true_store="
++                   << (rl && fe.reload_hash == fe.true_fnv ? 1 : 0)
++                   << ";reads_alt_store="
++                   << (rl && fe.reload_hash == fe.alt_fnv ? 1 : 0)
++                   << ";lane_begin=0x" << std::hex << fe.load_addr
++                   << ";lane_size=" << std::dec << fe.load_size
++                   << ";reload_tick=" << curTick();
++                writeNode(fe.ptag, "fw05_reload", inst->seqNum, true, 0,
++                          false, ra, true, 0, false, 0, false, rd.str());
++            }
++        }
+         if (!hit_ptag)
+             return;
+ 
