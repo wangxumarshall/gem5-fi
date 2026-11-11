@@ -180,3 +180,36 @@ def test_dry_run_prints_command_and_never_runs_gem5(
     assert not (outdir / "pilot_meta.json").exists()
     assert not (outdir / "manifest.json").exists()
     assert not (outdir / "stdout.log").exists()
+
+
+# ---------------------------------------------------------------------------
+# LP01 v3.3.2 record parser: the new pa/va/pc/dyn_inst_seq identity fields are
+# inserted between the old positional fields. The parser must still count the
+# injection (a single positional regex silently returned 0 and would have
+# rejected every LP01 fault as injection-free).
+# ---------------------------------------------------------------------------
+
+def test_l1dfwd_parser_accepts_v332_identity_fields(tmp_path):
+    log = tmp_path / "l1d_fwd_injections.log"
+    log.write_text(
+        "Tick: 172865, Site: l1d_load_complete, addr=0x80d90, "
+        "pa=0x80d90, va=0x7ffffefd90, pc=0x4005d0, size=8, mask=0x8, "
+        "dyn_inst_seq=5, lq_entry_id=1, entry_generation=1, request_id=0, "
+        "eligible_ordinal=1, byte0_changed=1, addr_unchanged=1, "
+        "size_unchanged=1, faults_injected: 1\n"
+        "Tick: 173000, Site: l1d_load_complete, addr=0x4919c8, size=8, "
+        "mask=0x8, eligible_ordinal=2, byte0_changed=1, "
+        "addr_unchanged=1, size_unchanged=1, faults_injected: 2\n")
+    events = run_pilot._l1dfwd_events(log)
+    assert len(events) == 2
+    first = events[0]
+    assert first["pc"] == 0x4005D0
+    assert first["va"] == 0x7FFFFEFD90
+    assert first["pa"] == first["addr"] == 0x80D90
+    assert first["dyn_inst_seq"] == 5
+    assert first["lq_entry_id"] == 1
+    assert first["entry_generation"] == 1
+    assert first["eligible_ordinal"] == 1
+    # Legacy line shape (no identity fields) still parses.
+    assert events[1]["addr"] == 0x4919C8
+    assert events[1]["eligible_ordinal"] == 2

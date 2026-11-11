@@ -392,20 +392,49 @@ def _md04_status(path: Path) -> str:
 
 
 def _l1dfwd_events(path: Path) -> list[dict]:
-    """Parse LP01 injection lines (one per injected load response)."""
+    """Parse LP01 injection lines (one per injected load response).
+
+    v3.3.2: the record now carries pa/va/pc/dyn_inst_seq/LQ identity fields,
+    which are inserted between the fields the v3.1 parser expected. Parse
+    field-by-field (name=value) instead of relying on one positional regex,
+    so both the old and the new line shapes are accepted.
+    """
     out = []
     if not path.exists():
         return out
+    hex_fields = ("addr", "pa", "va", "pc", "mask")
+    dec_fields = ("size", "dyn_inst_seq", "lq_entry_id", "entry_generation",
+                  "request_id", "eligible_ordinal", "faults_injected")
+    tick_re = re.compile(r"^Tick:\s*(\d+)")
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        m = re.search(
-            r"Tick:\s*(\d+).*addr=0x([0-9a-fA-F]+), size=(\d+), "
-            r"mask=0x([0-9a-fA-F]+),\s*eligible_ordinal=(\d+).*"
-            r"faults_injected:\s*(\d+)", line)
-        if m:
-            out.append({"tick": int(m[1]), "addr": int(m[2], 16),
-                        "size": int(m[3]), "mask": int(m[4], 16),
-                        "eligible_ordinal": int(m[5]),
-                        "faults_injected": int(m[6])})
+        if "Site: l1d_load_complete" not in line:
+            continue
+        m = tick_re.search(line)
+        if not m:
+            continue
+        rec = {"tick": int(m[1])}
+        for name, value in re.findall(r"([A-Za-z_]\w*)=(0x[0-9a-fA-F]+|\d+)",
+                                      line):
+            if name in hex_fields:
+                rec[name] = int(value, 16)
+            elif name in dec_fields:
+                rec[name] = int(value)
+        # The trailing counter is printed as "faults_injected: N" (colon),
+        # not name=value; accept either separator.
+        fi = re.search(r"faults_injected\s*[:=]\s*(\d+)", line)
+        if fi:
+            rec["faults_injected"] = int(fi[1])
+        if "faults_injected" not in rec:
+            continue
+        # Legacy aliases: addr is the physical address (kept as pa too).
+        if "pa" not in rec and "addr" in rec:
+            rec["pa"] = rec["addr"]
+        if "addr" not in rec and "pa" in rec:
+            rec["addr"] = rec["pa"]
+        rec.setdefault("size", 0)
+        rec.setdefault("mask", 0)
+        rec.setdefault("eligible_ordinal", 0)
+        out.append(rec)
     return out
 
 
