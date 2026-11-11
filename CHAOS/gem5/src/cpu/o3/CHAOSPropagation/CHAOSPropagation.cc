@@ -1354,6 +1354,13 @@ namespace gem5
           << ";fragment_id=" << e.fragment_id
           << ";request_tick=" << e.request_tick
           << ";injection_tick=" << curTick()
+          // v3.3.2 LP01 identity: the target instruction, not just its
+          // address. `addr=` below stays the physical address.
+          << ";dyn_inst_seq=" << inst->seqNum
+          << ";pc=0x" << std::hex << inst->pcState().instAddr() << std::dec
+          << ";vaddr=0x" << std::hex
+          << ((pkt->req && pkt->req->hasVaddr()) ? pkt->req->getVaddr() : 0)
+          << std::dec
           << ";lq_entry_id=" << inst->lqIdx
           << ";entry_generation=" << inst->lqEntryGeneration
           << ";execution_attempt_id=" << inst->executionAttemptId

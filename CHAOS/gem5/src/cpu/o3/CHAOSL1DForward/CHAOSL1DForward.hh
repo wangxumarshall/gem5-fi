@@ -12,7 +12,7 @@
 #include "cpu/base.hh"
 #include "mem/packet.hh"
 
-namespace gem5 { namespace o3 { class CPU; } }
+namespace gem5 { namespace o3 { class CPU; class DynInst; } }
 
 namespace gem5
 {
@@ -27,11 +27,14 @@ class CHAOSL1DForward : public SimObject
 
     // Called from LSQUnit::completeDataAccess BEFORE writeback(inst, pkt).
     // Corrupts byte lane 0 of the response payload (post-L1D-read,
-    // post-ECC-check) — the post-check escape path. `is_load` is true only
-    // for a data load (SC/atomic/I-fetch are rejected). When `before_out`
-    // is non-null and a fault is injected, it receives a copy of the
-    // pre-fault payload taken BEFORE the XOR. Returns true iff injected.
-    bool maybeCorrupt(PacketPtr pkt, bool is_load,
+    // post-ECC-check) — the post-check escape path. `inst` is the target
+    // dynamic instruction; it is recorded in the injection log as PC/VA/
+    // dyn_inst_seq/LQ identity so the fault is bound to an instruction, not
+    // merely to a physical address. `is_load` is true only for a data load
+    // (SC/atomic/I-fetch are rejected). When `before_out` is non-null and a
+    // fault is injected, it receives a copy of the pre-fault payload taken
+    // BEFORE the XOR. Returns true iff injected.
+    bool maybeCorrupt(o3::DynInst *inst, PacketPtr pkt, bool is_load,
                       std::vector<uint8_t> *before_out = nullptr,
                       uint64_t *mask_out = nullptr);
     uint64_t lastEligibleOrdinal() const { return last_eligible_ordinal; }

@@ -213,7 +213,7 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
             bool lp01_injected = false;
             if (cpu->chaosL1DFwd) {
                 lp01_injected = cpu->chaosL1DFwd->maybeCorrupt(
-                    request->mainPacket(), inst->isLoad(),
+                    inst.get(), request->mainPacket(), inst->isLoad(),
                     cpu->chaosPropagation ? &lp01_before : nullptr,
                     cpu->chaosPropagation ? &lp01_mask : nullptr);
             }

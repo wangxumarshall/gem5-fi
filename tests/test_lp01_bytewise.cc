@@ -1,11 +1,64 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
+#include <initializer_list>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include "cpu/o3/CHAOSL1DForward/lp01_bytewise.hh"
 
 using namespace gem5::chaos_lp01;
+
+namespace
+{
+
+std::string
+readFile(const std::string &path)
+{
+    std::ifstream f(path);
+    assert(f.good() && "cannot open source file");
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+bool
+contains(const std::string &hay, const std::string &needle)
+{
+    return hay.find(needle) != std::string::npos;
+}
+
+// Slice from `begin` (inclusive) to `end` (exclusive). Keeps the format
+// assertions scoped to the function that must emit the field rather than
+// accepting the token anywhere in the file.
+std::string
+slice(const std::string &text, const std::string &begin,
+      const std::string &end)
+{
+    const auto b = text.find(begin);
+    if (b == std::string::npos)
+        return {};
+    const auto e = text.find(end, b);
+    if (e == std::string::npos)
+        return {};
+    return text.substr(b, e - b);
+}
+
+// Path relative to the repository root, derived from this file's own path
+// (works for both `g++ tests/test_lp01_bytewise.cc` and an absolute path).
+std::string
+repoFile(const char *rel)
+{
+    const std::string self = __FILE__;
+    const auto slash = self.rfind('/');
+    const std::string here = slash == std::string::npos
+        ? std::string(".") : self.substr(0, slash);
+    return here + "/../" + rel;
+}
+
+} // namespace
 
 static void
 checkSize(unsigned n)
@@ -53,5 +106,48 @@ main()
     assert(eligibleOrdinal(4, 0) == 5);
 
     std::printf("LP01 byte-0 payload matrix (0/1/4/7/8/9/12/16): PASS\n");
+
+    // v3.3.2 LP01 identity: the injection must be bound to the target
+    // instruction, not only to a physical address. Assert on the emission
+    // code itself (scoped to the emitting function) so deleting a field
+    // fails here; a re-implemented format string would not prove anything.
+    const std::string fwd = readFile(
+        repoFile("CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc"));
+    const std::string prop = readFile(
+        repoFile("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc"));
+    const std::string lsq = readFile(
+        repoFile("CHAOS/gem5/src/cpu/o3/lsq_unit.cc"));
+
+    // Injector log line: instruction identity + both address spaces.
+    const std::string inj = slice(fwd, "CHAOSL1DForward::maybeCorrupt(",
+                                  "CHAOSL1DForward::startup(");
+    assert(!inj.empty());
+    for (const char *f : {"pc=0x", "va=0x", "pa=0x", "dyn_inst_seq=",
+                          "lq_entry_id=", "entry_generation=",
+                          "request_id=", "addr_unchanged=1",
+                          "size_unchanged=1"})
+        assert(contains(inj, f));
+
+    // inj_l1dfwd detail: new identity fields AND every pre-existing field.
+    const std::string note = slice(
+        prop, "CHAOSPropagation::noteL1DForwardInjection(",
+        "CHAOSPropagation::noteL1DForwardWriteback(");
+    assert(!note.empty());
+    for (const char *f : {";pc=0x", ";vaddr=0x", ";dyn_inst_seq=",
+                          ";lq_entry_id=", ";entry_generation=",
+                          ";request_id=", ";response_id=", ";fragment_id=",
+                          ";orig_data_fnv=", ";inj_data_fnv=", ";addr=0x",
+                          ";execution_attempt_id=", ";replay_generation=",
+                          ";wb_to_reg=", ";phys_regs=", ";mask=0x",
+                          ";eligible_ordinal="})
+        assert(contains(note, f));
+
+    // Call site: the target DynInst is actually passed to the injector.
+    const std::string call = slice(lsq, "chaosL1DFwd->maybeCorrupt(", ");");
+    assert(!call.empty());
+    assert(contains(call, "inst.get()"));
+
+    std::printf("LP01 identity record (l1d_fwd_injections.log + inj_l1dfwd): "
+                "PASS\n");
     return 0;
 }

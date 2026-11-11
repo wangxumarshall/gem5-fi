@@ -2,6 +2,7 @@
 #include "cpu/o3/CHAOSL1DForward/lp01_bytewise.hh"
 
 #include "cpu/o3/cpu.hh"          // o3::CPU
+#include "cpu/o3/dyn_inst.hh"     // o3::DynInst: pcState()/seqNum/lqIdx
 #include "debug/CHAOSL1DForward.hh"
 #include "sim/sim_exit.hh"
 #include "params/CHAOSL1DForward.hh"
@@ -66,7 +67,7 @@ namespace gem5
     }
 
     bool
-    CHAOSL1DForward::maybeCorrupt(PacketPtr pkt, bool is_load,
+    CHAOSL1DForward::maybeCorrupt(o3::DynInst *inst, PacketPtr pkt, bool is_load,
                                   std::vector<uint8_t> *before_out,
                                   uint64_t *mask_out)
     {
@@ -114,11 +115,29 @@ namespace gem5
         if (mask_out) *mask_out = mask;
         faults_injected_count++;
         if (write_log) {
+            // v3.3.2 LP01 identity: bind the injection to the dynamic
+            // instruction (PC/virtual address/LQ entry), not only to the
+            // physical address. `addr=` (PA) is kept for existing parsers.
+            // request_id lives in CHAOSPropagation::req_meta and is assigned
+            // by the paired noteL1DForwardInjection() row emitted right
+            // after this call, so it is not reachable here: it is logged as
+            // 0 and the authoritative value is in inj_l1dfwd.
+            const Addr pc = inst ? inst->pcState().instAddr() : 0;
+            const Addr va = (pkt->req && pkt->req->hasVaddr())
+                ? pkt->req->getVaddr() : 0;
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: l1d_load_complete, addr=0x" << std::hex
-                << pkt->getAddr() << std::dec
+                << pkt->getAddr()
+                << ", pa=0x" << pkt->getAddr()
+                << ", va=0x" << va
+                << ", pc=0x" << pc << std::dec
                 << ", size=" << sz
                 << ", mask=0x" << std::hex << mask << std::dec
+                << ", dyn_inst_seq=" << (inst ? inst->seqNum : 0)
+                << ", lq_entry_id=" << (inst ? (int64_t)inst->lqIdx : -1)
+                << ", entry_generation="
+                << (inst ? inst->lqEntryGeneration : 0)
+                << ", request_id=0"
                 << ", eligible_ordinal=" << last_eligible_ordinal
                 << ", byte0_changed=1"
                 << ", addr_unchanged=1, size_unchanged=1"
