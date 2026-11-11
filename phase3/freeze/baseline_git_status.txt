@@ -1,0 +1,168 @@
+ M CHAOS/gem5/src/arch/arm/mmu.cc
+ M CHAOS/gem5/src/arch/arm/mmu.hh
+ M CHAOS/gem5/src/arch/arm/pagetable.hh
+ M CHAOS/gem5/src/arch/arm/table_walker.cc
+ M CHAOS/gem5/src/arch/arm/table_walker.hh
+ M CHAOS/gem5/src/arch/arm/tlb.cc
+ M CHAOS/gem5/src/arch/arm/tlb.hh
+ M CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+ M CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+ M CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.py
+ M CHAOS/gem5/src/cpu/o3/commit.cc
+ M CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+ M CHAOS/gem5/src/mem/cache/base.cc
+ M CHAOS/gem5/src/mem/cache/base.hh
+ M CHAOS/gem5/src/mem/cache/cache.cc
+ M configs/se/arm_chaos_fs.py
+ D docs/gem5-fi/fsu/ACTIVE_SCOPE.md
+ D docs/gem5-fi/fsu/AUTONOMOUS-STATE.md
+ D docs/gem5-fi/fsu/CONVERSION_REPORT.md
+ D docs/gem5-fi/fsu/COVERAGE_STATUS.md
+ D docs/gem5-fi/fsu/F0-READINESS-ORDER.md
+ D docs/gem5-fi/fsu/F3-MULTIFAULT-GATE.md
+ D docs/gem5-fi/fsu/F5-PERMANENT-SEMANTICS.md
+ D docs/gem5-fi/fsu/F5-READINESS.md
+ D docs/gem5-fi/fsu/FAILED-GATE-INVENTORY.md
+ D docs/gem5-fi/fsu/FP04-F0-W4-PILOT-CLOSEOUT.md
+ D docs/gem5-fi/fsu/FP04-F0-W5-SUITE-RULING.md
+ D docs/gem5-fi/fsu/FP04-FIELD-LANE-GATE-CLOSEOUT.md
+ D docs/gem5-fi/fsu/FP04-W1-B0-CLOSEOUT.md
+ D docs/gem5-fi/fsu/FP04-W4-FREQUENCY-CLOSEOUT.md
+ D docs/gem5-fi/fsu/FP04-W5-W6-ARTIFACT-STATUS.md
+ D docs/gem5-fi/fsu/FP05-BURST-GATE-EVIDENCE.md
+ D docs/gem5-fi/fsu/FP05-BURST-IMPLEMENTATION.md
+ D docs/gem5-fi/fsu/FP05-BURST-PREP.md
+ D docs/gem5-fi/fsu/FP08-SUPPRESS-ROUNDING-GATE.md
+ D docs/gem5-fi/fsu/FQ08-FP08-GATE-AUDIT.md
+ D docs/gem5-fi/fsu/FQ08-FP08-GATE-EVIDENCE.md
+ D docs/gem5-fi/fsu/FQ08-FP08-REGRESSION.md
+ D docs/gem5-fi/fsu/FQ08-LIFECYCLE-FIX.md
+ D docs/gem5-fi/fsu/FR01-FR02-F0-AUDIT.md
+ D docs/gem5-fi/fsu/FR01-FR02-LIFECYCLE-GATE.md
+ D docs/gem5-fi/fsu/FR01-FR02-PRF-IDENTITY-AUDIT.md
+ D docs/gem5-fi/fsu/FR01-FR02-PROTOCOL-V2.md
+ D docs/gem5-fi/fsu/FR03-GENERATION-SEMANTICS.md
+ D docs/gem5-fi/fsu/FR03-SEED3-PROTOCOL-REVIEW.md
+ D docs/gem5-fi/fsu/FR07-PRF-WB-HOOK.md
+ D docs/gem5-fi/fsu/FR07-PRF-WB-POSITION-AUDIT.md
+ D docs/gem5-fi/fsu/FREQUENCY_SEMANTICS.md
+ D docs/gem5-fi/fsu/IMPLEMENTATION-STATUS-2026-11-03.md
+ D docs/gem5-fi/fsu/IMPLEMENTATION_AUDIT.md
+ D docs/gem5-fi/fsu/IMPLEMENTATION_MATRIX.csv
+ D docs/gem5-fi/fsu/IMPLEMENTATION_MATRIX.json
+ D docs/gem5-fi/fsu/NIGHT-QUEUE.md
+ D docs/gem5-fi/fsu/PHASE-A-ENV.md
+ D docs/gem5-fi/fsu/PILOT_EMITTER_CONTRACT.md
+ D docs/gem5-fi/fsu/SKIPPED-CLASSIFICATION.md
+ D docs/gem5-fi/fsu/W4-RATE-V1.md
+ D docs/gem5-fi/fsu/W6-ARTIFACT.md
+ D docs/gem5-fi/fsu/audit/CURRENT-AUDIT.json
+ D docs/gem5-fi/fsu/audit/CURRENT-AUDIT.md
+ D docs/gem5-fi/fsu/evidence/BASELINE.md
+ D docs/gem5-fi/fsu/evidence/PILOT_3_OF_3.md
+ D docs/gem5-fi/fsu/evidence/baseline_smoke/run1-stats.txt
+ D docs/gem5-fi/fsu/evidence/baseline_smoke/run1.err
+ D docs/gem5-fi/fsu/evidence/baseline_smoke/run1.out
+ D docs/gem5-fi/fsu/evidence/baseline_smoke/run2-stats.txt
+ D docs/gem5-fi/fsu/evidence/baseline_smoke/run2.err
+ D docs/gem5-fi/fsu/evidence/baseline_smoke/run2.out
+ D docs/gem5-fi/fsu/evidence/build/DEV_BUILD_j16_NON_AUTHORITATIVE.md
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T120626.log
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T120626.meta.txt
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T140829.log
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T140829.meta.txt
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T155856.log
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T155856.meta.txt
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T161607.log
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T161607.meta.txt
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T210520.log
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T210520.meta.txt
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T211141.after.txt
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T211141.before.txt
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T211141.log
+ D docs/gem5-fi/fsu/evidence/build/build-20261102T211141.meta.txt
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/FSU-FP04-F3-W4-GATE-seed1.md
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/SHA256SUMS
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/audit.json
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/audit.md
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/census/stats.txt
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/chain_report.json
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/evidence_sha256.json
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/inject/prop_evt.txt.gz
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/inject/stats.txt
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/manifest.json
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/oracle.json
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/ordinals.json
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/run.err
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/run.out
+ D docs/gem5-fi/fsu/evidence/f3-multifault-gate/stats.txt
+ D docs/gem5-fi/fsu/evidence/fr01-fr02-v4-gate.json
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/SHA256SUMS
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/census/stats.txt
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/census/w4rate_census.err
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/census/w4rate_census.out
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/census/w4rate_census.time
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run1.err
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run1.out
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run1.rc
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run1.stats.txt
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run1.time
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run2.err
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run2.out
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run2.rc
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run2.stats.txt
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run2.time
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run3.err
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run3.out
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run3.rc
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run3.stats.txt
+ D docs/gem5-fi/fsu/evidence/w4-rate-v1/golden/run3.time
+ D "docs/gem5-fi/fsu/gem5-fi-FSU\345\215\225\345\205\203\346\225\205\351\232\234\346\263\250\345\205\245\346\226\271\346\241\210_\351\200\220RunID\344\274\240\346\222\255\347\233\221\346\216\247-03-\344\275\215\347\275\256x\346\250\241\345\236\213\347\237\251\351\230\265.md"
+ D "docs/gem5-fi/fsu/gem5-fi-FSU\345\215\225\345\205\203\346\225\205\351\232\234\346\263\250\345\205\245\346\226\271\346\241\210_\351\200\220RunID\344\274\240\346\222\255\347\233\221\346\216\247-07-\345\261\225\345\274\200\346\211\247\350\241\214\347\237\251\351\230\265.md"
+ D "docs/gem5-fi/fsu/gem5-fi-FSU\345\215\225\345\205\203\346\225\205\351\232\234\346\263\250\345\205\245\346\226\271\346\241\210_\351\200\220RunID\344\274\240\346\222\255\347\233\221\346\216\247-09-\351\200\220RunID\344\274\240\346\222\255\347\233\221\346\216\247.md"
+ D "docs/gem5-fi/fsu/gem5-fi-FSU\345\215\225\345\205\203\346\225\205\351\232\234\346\263\250\345\205\245\346\226\271\346\241\210_\351\200\220RunID\344\274\240\346\222\255\347\233\221\346\216\247-10-\346\272\220\347\240\201\347\233\221\346\216\247\346\230\240\345\260\204.md"
+ D "docs/gem5-fi/fsu/gem5-fi-FSU\345\215\225\345\205\203\346\225\205\351\232\234\346\263\250\345\205\245\346\226\271\346\241\210_\351\200\220RunID\344\274\240\346\222\255\347\233\221\346\216\247.md"
+ D "docs/gem5-fi/fsu/gem5-fi-FSU\345\215\225\345\205\203\346\225\205\351\232\234\346\263\250\345\205\245\346\226\271\346\241\210_\351\200\220RunID\344\274\240\346\222\255\347\233\221\346\216\247.xlsx"
+ D docs/gem5-fi/fsu/runids.csv
+ D docs/gem5-fi/fsu/runids.json
+?? configs/fs/generated/
+?? configs/fs/mmu_control.rcS
+?? configs/fs/mmu_diag.rcS
+?? configs/fs/mmu_smoke.rcS
+?? configs/fs/mmu_w10.rcS
+?? configs/fs/mmu_w10_run.rcS
+?? configs/fs/mmu_w10s_run.rcS
+?? configs/fs/mmu_w11_run.rcS
+?? configs/fs/mmu_w12_run.rcS
+?? configs/fs/mmu_w13_run.rcS
+?? configs/fs/mmu_w14_run.rcS
+?? configs/fs/mmu_w9.rcS
+?? configs/fs/mmu_w9_run.rcS
+?? docs/gem5-fi/mmu/
+?? docs/superpowers/plans/2026-11-09-mmu-phase2-m01-m02.md
+?? docs/superpowers/plans/2026-11-10-mmu-phase2-2-lineage-repair.md
+?? docs/superpowers/plans/2026-11-11-mmu-formal-freeze.md
+?? docs/superpowers/plans/2026-11-11-mmu-preformal-closure.md
+?? phase2/
+?? phase2_1/
+?? phase2_2/
+?? phase3/
+?? tools/make_closure_package.py
+?? tools/mmu_build_evidence_index.py
+?? tools/mmu_chain_slice.py
+?? tools/mmu_collect_w12_decoy.py
+?? tools/mmu_compare.py
+?? tools/mmu_fault_report.py
+?? tools/mmu_formal_freeze_authority.py
+?? tools/mmu_formal_preflight.py
+?? tools/mmu_formal_runner.py
+?? tools/mmu_formal_validate.py
+?? tools/mmu_readiness_matrix.py
+?? tools/mmu_run_queue.py
+?? tools/mmu_trace_validate.py
+?? tools/mmu_trace_validate_v2.py
+?? tools/mmu_trace_validate_v3.py
+?? tools/mmu_trace_validate_v4.py
+?? tools/run_mmu_baselines.sh
+?? workloads/mmu/
+?? workloads/mmu_rev/

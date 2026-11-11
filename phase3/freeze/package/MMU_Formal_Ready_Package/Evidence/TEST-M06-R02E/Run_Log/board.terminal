@@ -1,0 +1,11 @@
+[mmu-install] checkpoint rc=0; reading payload
+[mmu-install] readfile rc=0
+[mmu-install] restore pass; exec payload
+[mmu-w10s] install
+[mmu-w10s] buffer_dir=/var/tmp/w10s
+[mmu-w10s] scoped template: M06_R02 only
+[mmu-w10s] variant=M06_R02 mode=cold target_va=0x4001100000
+W10S_ALLOC attempt=1 pages=4096 present_pages=4096 valid_pages=4096 pair=FOUND
+W10S_STORE mode=cold target_va=0x4001100000 neighbor_va=0x4001300000 buffer_va=0x4002000000 max_pages=65536 pages=4096 attempts=1 target_pfn=0x83530 neighbor_pfn=0x83531 pair_xor1=1 target_before=0x7d neighbor_before=0x51 warm_iters=0 walk=cold_write
+W10S_RESULT mode=cold target_va=0x4001100000 neighbor_va=0x4001300000 neighbor_alias_va=0x4001300000 buffer_va=0x4002000000 pages_requested=4096 max_pages=65536 pages=4096 attempts=1 target_pfn=0x83530 neighbor_pfn=0x83531 pair_xor1=1 stored=0xab target_before=0x7d target_after=0xab neighbor_before=0x51 neighbor_after=0x51 target_observed=0xab neighbor_alias_observed=0x51 store_fault=0 fault_phase=none fault_addr=0x0 pagemap=ok pfn_ok=1/1 pfn_match=1 walk=cold_write warm_iters=0 m08_redirect_signature=0 m06_write_fault_signature=0 selftest_store_fault=0 result=PASS
+[mmu-w10s] variant=M06_R02 rc=0

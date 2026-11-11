@@ -1,0 +1,40 @@
+W11_INFO ctx=R01 stage=parent_a_ready pid=317 va=0x4004000000 handshake=ready_rewarm fork_b=now
+W11_INFO ctx=R01 stage=a_ready pid=318 va=0x4004000000 handshake=ready_rewarm initial_warm=1
+W11_INFO ctx=R01 stage=b_setup_complete pid=319 va=0x4004000000 handshake=ready_rewarm target_untouched=1
+W11_INFO ctx=R01 stage=a_b_ready pid=318 va=0x4004000000 handshake=ready_rewarm b_setup_ok=1
+W11_INFO ctx=R01 stage=a_rewarmed pid=318 va=0x4004000000 handshake=ready_rewarm rewarm=64 flush=mprotect
+W11_INFO ctx=R01 stage=b_rewarmed pid=319 va=0x4004000000 handshake=ready_rewarm target_access=immediate
+W11_INFO ctx=R01 stage=a_released pid=318 va=0x4004000000 handshake=ready_rewarm exit=0
+W11_RESULT ctx=R01 va=0x4004000000 pid_a=318 pid_b=319 pfn_a=0x834ba pfn_b=0x8355c pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS
+W11_INFO ctx=R02 stage=parent_a_ready pid=320 va=0x4004000000 handshake=ready_rewarm fork_b=now
+W11_INFO ctx=R02 stage=a_ready pid=321 va=0x4004000000 handshake=ready_rewarm initial_warm=1
+W11_INFO ctx=R02 stage=b_setup_complete pid=322 va=0x4004000000 handshake=ready_rewarm target_untouched=1
+W11_INFO ctx=R02 stage=a_b_ready pid=321 va=0x4004000000 handshake=ready_rewarm b_setup_ok=1
+W11_INFO ctx=R02 stage=a_rewarmed pid=321 va=0x4004000000 handshake=ready_rewarm rewarm=64 flush=mprotect
+W11_INFO ctx=R02 stage=b_rewarmed pid=322 va=0x4004000000 handshake=ready_rewarm target_access=immediate
+W11_INFO ctx=R02 stage=a_released pid=321 va=0x4004000000 handshake=ready_rewarm exit=0
+W11_RESULT ctx=R02 va=0x4004000000 pid_a=321 pid_b=322 pfn_a=0x83485 pfn_b=0x834a4 pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS
+W11_INFO ctx=R03 stage=parent_a_ready pid=323 va=0x4004000000 handshake=ready_rewarm fork_b=now
+W11_INFO ctx=R03 stage=a_ready pid=324 va=0x4004000000 handshake=ready_rewarm initial_warm=1
+W11_INFO ctx=R03 stage=b_setup_complete pid=325 va=0x4004000000 handshake=ready_rewarm target_untouched=1
+W11_INFO ctx=R03 stage=a_b_ready pid=324 va=0x4004000000 handshake=ready_rewarm b_setup_ok=1
+W11_INFO ctx=R03 stage=a_rewarmed pid=324 va=0x4004000000 handshake=ready_rewarm rewarm=64 flush=mprotect
+W11_INFO ctx=R03 stage=b_rewarmed pid=325 va=0x4004000000 handshake=ready_rewarm target_access=immediate
+W11_INFO ctx=R03 stage=a_released pid=324 va=0x4004000000 handshake=ready_rewarm exit=0
+W11_RESULT ctx=R03 va=0x4004000000 pid_a=324 pid_b=325 pfn_a=0x83544 pfn_b=0x83545 pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=1 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS
+W11_INFO ctx=R04 stage=parent_a_ready pid=326 va=0x4004000000 handshake=ready_rewarm fork_b=now
+W11_INFO ctx=R04 stage=a_ready pid=327 va=0x4004000000 handshake=ready_rewarm initial_warm=1
+W11_INFO ctx=R04 stage=b_setup_complete pid=328 va=0x4004000000 handshake=ready_rewarm target_untouched=1
+W11_INFO ctx=R04 stage=a_b_ready pid=327 va=0x4004000000 handshake=ready_rewarm b_setup_ok=1
+W11_INFO ctx=R04 stage=a_rewarmed pid=327 va=0x4004000000 handshake=ready_rewarm rewarm=64 flush=mprotect
+W11_INFO ctx=R04 stage=b_rewarmed pid=328 va=0x4004000000 handshake=ready_rewarm target_access=immediate
+W11_INFO ctx=R04 stage=a_released pid=327 va=0x4004000000 handshake=ready_rewarm exit=0
+W11_RESULT ctx=R04 va=0x4004000000 pid_a=327 pid_b=328 pfn_a=0x834a2 pfn_b=0x8353f pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS
+W11_INFO ctx=R05 stage=parent_a_ready pid=329 va=0x4005000000 handshake=ready_rewarm fork_b=now
+W11_INFO ctx=R05 stage=a_ready pid=330 va=0x4005000000 handshake=ready_rewarm initial_warm=1
+W11_INFO ctx=R05 stage=b_setup_complete pid=331 va=0x4005000000 handshake=ready_rewarm target_untouched=1
+W11_INFO ctx=R05 stage=a_b_ready pid=330 va=0x4005000000 handshake=ready_rewarm b_setup_ok=1
+W11_INFO ctx=R05 stage=a_rewarmed pid=330 va=0x4005000000 handshake=ready_rewarm rewarm=64 flush=mprotect
+W11_INFO ctx=R05 stage=b_rewarmed pid=331 va=0x4005000000 handshake=ready_rewarm target_access=immediate
+W11_INFO ctx=R05 stage=a_released pid=330 va=0x4005000000 handshake=ready_rewarm exit=0
+W11_RESULT ctx=R05 va=0x4005000000 pid_a=330 pid_b=331 pfn_a=0x8355d pfn_b=0x83659 pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS

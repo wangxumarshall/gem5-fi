@@ -1,0 +1,111 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "pte_decode",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "faulted observation equals the independent control",
+      "control_observed": 125,
+      "diff": false,
+      "expected_sentinel": 125,
+      "faulted_observed": 125,
+      "line": "W10_RESULT ctx=R05 pages=4096 alias=0x4002000000 target=0x4001400000 target_pfn=0x83480 neighbor_pfn=0x83481 pa=0x83480000 pa_neigh=0x83481000 new_pfn_xor1=0x83481 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x7d neighbor_sentinel=0x51 observed=0x7d branch=0 vec0=0x7e result=PASS",
+      "path": "runs/TEST-ENV-CTRL-W10/Run_Log/golden_output.txt",
+      "present": true,
+      "sha256": "9e7d7a84866c739229fb692498e9b8464ff75531ab04e193bc1b66827df480b5"
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": "",
+      "last_event_id": 4563,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "267037934760",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "INJECTION_NOT_ACTIVATED",
+      "TRACE_INCOMPLETE"
+    ],
+    "m06_separation": {
+      "exception_delivered": "0",
+      "result_propagated": "1",
+      "state_consumed": "1"
+    },
+    "missing_kinds": [],
+    "observed_kinds": [
+      "chain_end",
+      "fault_result_propagated",
+      "fault_state_consumed",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "pte_decode"
+    ],
+    "oracle": {
+      "basis": "W10 target sentinel vs neighbor sentinel",
+      "context": "R05",
+      "golden": 125,
+      "line": "W10_RESULT ctx=R05 pages=4096 alias=0x4002000000 target=0x4001400000 target_pfn=0x83480 neighbor_pfn=0x83481 pa=0x83480000 pa_neigh=0x83481000 new_pfn_xor1=0x83481 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x7d neighbor_sentinel=0x51 observed=0x7d branch=0 vec0=0x7e result=PASS",
+      "observed": 125,
+      "workload_result": "PASS",
+      "wrong": 81
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "pte_decode"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 54,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "L3 descriptor bit0 cleared (0x60000083480fc3 -> 0x60000083480fc2) and decoded Invalid; Translation Fault path"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W10 target sentinel vs neighbor sentinel",
+    "context": "R05",
+    "golden": 125,
+    "line": "W10_RESULT ctx=R05 pages=4096 alias=0x4002000000 target=0x4001400000 target_pfn=0x83480 neighbor_pfn=0x83481 pa=0x83480000 pa_neigh=0x83481000 new_pfn_xor1=0x83481 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x7d neighbor_sentinel=0x51 observed=0x7d branch=0 vec0=0x7e result=PASS",
+    "observed": 125,
+    "workload_result": "PASS",
+    "wrong": 81
+  },
+  "OracleResult": "PASS_EXPECTED_DETECTION",
+  "PropagationStatus": "PARTIAL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "DETECTED_CONTAINED",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 4511,
+  "consumption_event_id": 4512,
+  "context": "R05",
+  "event_count": 4564,
+  "fault_id": "1",
+  "golden_output": "runs/TEST-M06-R05B/Run_Log/golden_output.txt",
+  "model": "M06",
+  "parse_skipped": 0,
+  "run_id": "TEST-M06-R05B",
+  "sample_run_id": "",
+  "target_mode": "Read",
+  "target_va": 274898878464,
+  "terminal": "runs/TEST-M06-R05B/Run_Log/board.terminal",
+  "trace": "runs/TEST-M06-R05B/Trace/prop_evt.txt.gz",
+  "trace_read_error": "",
+  "validator": "mmu_formal_validate",
+  "workload": "W10"
+}

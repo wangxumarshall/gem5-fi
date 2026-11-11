@@ -1,0 +1,130 @@
+{
+  "M01/R01": {
+    "run_id": "TEST-M01-R01",
+    "control_run": "runs/w9_trace_on_final"
+  },
+  "M02/R01": {
+    "run_id": "TEST-M02-R01",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M03/R01": {
+    "run_id": "TEST-M03-R01",
+    "control_run": "runs/TEST-CTRL-W11-CLOSURE"
+  },
+  "M03/R02": {
+    "run_id": "TEST-M03-R02",
+    "control_run": "runs/TEST-CTRL-W11-CLOSURE"
+  },
+  "M03/R03": {
+    "run_id": "TEST-M03-R03",
+    "control_run": "runs/TEST-CTRL-W11-CLOSURE"
+  },
+  "M03/R04": {
+    "run_id": "TEST-M03-R04",
+    "control_run": "runs/TEST-CTRL-W11-CLOSURE"
+  },
+  "M03/R05": {
+    "run_id": "TEST-M03-R05",
+    "control_run": "runs/TEST-CTRL-W11-CLOSURE"
+  },
+  "M04/R01": {
+    "run_id": "TEST-M04-FR01",
+    "control_run": "runs/TEST-CTRL-W12-R01"
+  },
+  "M04/R02": {
+    "run_id": "TEST-M04-FR02",
+    "control_run": "runs/TEST-CTRL-W12-R02"
+  },
+  "M04/R03": {
+    "run_id": "TEST-M04-FR03",
+    "control_run": "runs/TEST-CTRL-W12-R03"
+  },
+  "M04/R04": {
+    "run_id": "TEST-M04-FR04",
+    "control_run": "runs/TEST-CTRL-W12-R04"
+  },
+  "M04/R05": {
+    "run_id": "TEST-M04-FR05",
+    "control_run": "runs/TEST-CTRL-W12-R05"
+  },
+  "M05/R01": {
+    "run_id": "TEST-M05-R01",
+    "control_run": "runs/TEST-CTRL-W13-CLOSURE"
+  },
+  "M05/R02": {
+    "run_id": "TEST-M05-R02",
+    "control_run": "runs/TEST-CTRL-W13-CLOSURE"
+  },
+  "M05/R03": {
+    "run_id": "TEST-M05-R03",
+    "control_run": "runs/TEST-CTRL-W13-CLOSURE"
+  },
+  "M05/R04": {
+    "run_id": "TEST-M05-R04",
+    "control_run": "runs/TEST-CTRL-W13-CLOSURE"
+  },
+  "M05/R05": {
+    "run_id": "TEST-M05-R05",
+    "control_run": "runs/TEST-CTRL-W13-CLOSURE"
+  },
+  "M06/R01": {
+    "run_id": "TEST-M06-R01",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M06/R02": {
+    "run_id": "TEST-M06-R02C",
+    "control_run": "runs/TEST-CTRL-W10S-COLD"
+  },
+  "M06/R03": {
+    "run_id": "TEST-M06-R03B",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M06/R04": {
+    "run_id": "TEST-M06-R04B",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M06/R05": {
+    "run_id": "TEST-M06-R05B",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M07/R01": {
+    "run_id": "TEST-M07-R01",
+    "control_run": "runs/TEST-M07-P3B-CTRL-R01"
+  },
+  "M07/R02": {
+    "run_id": "TEST-M07-R02",
+    "control_run": "runs/TEST-M07-P3B-CTRL-R01"
+  },
+  "M07/R03": {
+    "run_id": "TEST-M07-R03",
+    "control_run": "runs/TEST-M07-P3B-CTRL-R01"
+  },
+  "M07/R04": {
+    "run_id": "TEST-M07-R04",
+    "control_run": "runs/TEST-M07-P3B-CTRL-R01"
+  },
+  "M07/R05": {
+    "run_id": "TEST-M07-R05",
+    "control_run": "runs/TEST-M07-P3B-CTRL-R01"
+  },
+  "M08/R01": {
+    "run_id": "TEST-M08-R01",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M08/R02": {
+    "run_id": "TEST-M08-R02",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M08/R03": {
+    "run_id": "TEST-M08-R03",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M08/R04": {
+    "run_id": "TEST-M08-R04",
+    "control_run": "runs/TEST-ENV-CTRL-W10"
+  },
+  "M08/R05": {
+    "run_id": "TEST-M08-R05B",
+    "control_run": "runs/TEST-CTRL-W10S-WARM"
+  }
+}

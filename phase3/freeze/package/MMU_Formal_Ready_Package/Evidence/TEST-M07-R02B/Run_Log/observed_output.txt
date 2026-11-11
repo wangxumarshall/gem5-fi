@@ -1,0 +1,1 @@
+W14_RESULT ctx=R02 signal=0 phase=atomic_rmw_ro observed=0x1122334455667789 observed_kind=value si_code=-1 fault_addr=0x0 shared_before=0x1122334455667788 shared_after=0x1122334455667789 shared_changed=1 injected_success=1 msg=done result=FAIL

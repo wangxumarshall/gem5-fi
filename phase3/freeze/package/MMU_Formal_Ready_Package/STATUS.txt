@@ -1,0 +1,15 @@
+MMU_FORMAL_READINESS = PARTIAL
+
+Frozen binary: a71ce0ca21de143d9aa5ab05e29d9bee86dff213576941a3191a256f1d842024
+Git HEAD: 2a8422b42dcd4f2b3f388f2dee27a237d23a9242
+40 SampleRunIDs: FROZEN (unique, 8 models x 5 contexts)
+Seed: N/A_DETERMINISTIC (SeedPolicy=DETERMINISTIC, no numeric seed)
+Formal preflight: 18 READY / 19 BLOCKED_BINARY / 3 BLOCKED_TRACE (40 total)
+READY models: M06 5/5, M08 5/5
+PARTIAL: M05 4/5, M07 3/5, M01 1/5
+BLOCKED (provenance): M02 0/5, M03 0/5, M04 0/5
+
+No formal SampleRunID was launched. The next step is researcher approval or a
+decision on the blockers in Reports/MMU_Final_Blockers.md (M07 R03/R05 are
+research-design decisions; M05 R05 and M02 need a small trace/config fix;
+M01-M04 need frozen-binary reruns).

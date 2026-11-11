@@ -1,0 +1,8 @@
+[mmu-install] checkpoint rc=0; reading payload
+[mmu-install] readfile rc=0
+[mmu-install] restore pass; exec payload
+[mmu-w14] install
+[mmu-w14] start
+W14_CHILD ctx=R04 pid=317 phase=exec_xn alias_va=0x400d400000 prot=PROT_READ access=execute
+W14_RESULT ctx=R04 signal=0 phase=exec_xn observed=0xc7 observed_kind=value si_code=-1 fault_addr=0x0 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=1 msg=done result=FAIL
+[mmu-w14] rc=1
