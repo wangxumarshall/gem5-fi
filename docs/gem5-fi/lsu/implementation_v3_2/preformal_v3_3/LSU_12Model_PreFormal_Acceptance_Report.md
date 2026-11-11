@@ -14,7 +14,7 @@ The 12 models are implemented and their evidence layer is substantively
 audited, and four source-level evidence/control defects were fixed and
 verified on the final binary. But three hard gates remain open: warm-up/ROI
 (and therefore the frozen EventOrdinal values), matched controls for 42/60
-contexts, and final-binary reproducibility for 45/60 contexts. Reporting
+contexts, and final-binary reproducibility for 56/60 contexts. Reporting
 `READY` would require exactly the substitutions this round forbids.
 
 ## 1. What changed this round (real, committed, verified)
@@ -22,7 +22,9 @@ contexts, and final-binary reproducibility for 45/60 contexts. Reporting
 | Commit | Change | Verification on final binary `d3807fbe…` |
 |---|---|---|
 | `5541648c` | A01 matched-control probe (golden EA, ptag-0 nodes); FW05 `fw05_reload` observation; A03 `a03_fault` crash-address link from translation-finish faults | `V33F-A01-C02` control_valid=true; `V33F-A03-R01` a03_fault fault_va `0xffffffffffb73c50` == actual_ea, matches=1; `V33F-FW05-R02` fw05_reload load_seq=12093 reload_seq=50512 |
-| `364a6057` | FW02 F6 decision honours `probability<=0` (fixes the `SUPP-FW02-C01` misfire) | `V33F-FW02-C01` control_valid=true, misfire=false; p=1.0 fault still suppresses |
+| `364a6057` | FW02 F6 decision honours `probability<=0` (fixes the `SUPP-FW02-C01` misfire) | `V33F-FW02-C01` control_valid=true, misfire=false; a mounted p=0 run
+(`V33G-FW02-MOUNTED-P0`) reports `CHAOS_FW02_SUMMARY observed=6 suppressed=0`
+and zero `fw02_decision` rows; p=1.0 fault still suppresses |
 | `c8fc4353` | RP01 records the real squash `triggering_seq` | `V33-RP01-R02` triggering_seq=87/110/237, `triggering_seq_recorded=1`; exit 0 |
 | `c1846ae4` | W4 load-preserving implementation **proposal** (`sq_forward_v33`, 10 loads/12 stores in main) | FW02 R01 on it: fw02_decision load_seq=258/store_seq=248, suppressed, memory_path=1; p=0 control valid |
 
@@ -48,8 +50,8 @@ this round's guard, fixed in `364a6057`. 0 UNIMPLEMENTED.
 | Status | Count |
 |---|---:|
 | READY | **0** |
-| PARTIAL | 3 |
-| BLOCKED | 35 |
+| PARTIAL | 2 |
+| BLOCKED | 36 |
 | DESIGN_CHANGE_REQUIRED | 22 |
 
 For comparison, the evidence-only grade before the formal gates is
@@ -60,14 +62,17 @@ controls/final-binary evidence. See `LSU_60Context_Readiness_Matrix.csv`
 `CurrentBinaryEvidence`, `WarmUpGate`, `FinalStatus`).
 
 **60 fault dynamic events.** All 60 have an injection/attempt record on some
-binary. Only 5 fault contexts and 2 controls were re-executed on the v3.3
-binary; 45/60 remain historical-only (two source binaries no longer exist on
+binary. Four fault contexts (A01 R02, A03 R01, FW02 R01, FW05 R02) and three
+controls (A01 C02, FW02 C01, and a genuinely **mounted** FW02 p=0 control)
+were re-executed on `d3807fbe`; RP01 R02 ran on the preceding candidate;
+56/60 remain historical-only (two source binaries no longer exist on
 disk). With `WarmUp=0`, the frozen ordinals 1–5 select startup events
 (A01 seq 48 PC 0x400ad0; FW02 stack pair 0x7ffffefbd0), so "event exists" is
 not "designed event is selected".
 
 **Fault/Control pairing.** 18/60 valid matched controls; 42 missing; the one
-historical misfire (FW02-C01) is fixed in code and re-verified. Control
+historical misfire (FW02-C01) is fixed in code and re-verified with the
+injector explicitly mounted at p=0 (`observed=6 suppressed=0`). Control
 validity is never inferred from `--probability 0.0` alone.
 
 **Workload golden.** W1–W8 final-binary baselines 9/9 PASS (exit 0 + oracle
@@ -110,6 +115,26 @@ SampleRunIDs are unchanged (60/60 unique, identical to v3.2.6/v3.2.7).
 - **A03** — Native crash link now on-chain (fault VA == stream actual EA,
   5/5 contexts); persistent stuck-at semantics and STUCK_APPLIED/
   ALREADY_STUCK were already correct; TRUNCATED stays honest.
+
+## 3b. Independent findings disposition
+
+Subagent F's independent pass (in `F_Independent/`) reproduced the four
+commits, the 60/60 seed identity, both test suites and the five pilot
+claims, and flagged six discrepancies. Disposition:
+
+- FW02 guard "unexercised": **resolved after F's snapshot** by a genuinely
+  mounted p=0 run (`V33G-FW02-MOUNTED-P0`, observed=6 suppressed=0).
+- READY rows lacking controls: the final `FinalStatus` is already
+  READY=0; the evidence-only column remains as historical context.
+- Binary SHA conflation: `LSU_v3.3_BINARY_PROVENANCE.md` now records all
+  three candidates and states that `d3807fbe` is the frozen one; the
+  commits' `f43c5ddf` citation is the pre-guard candidate.
+- `patches/README.md` "nothing applied": corrected with the applied-commit map.
+- A03 truncated gzip / 0-byte stats: expected fatal-cut artifact; recorded
+  as TRUNCATED, never graded as a complete run.
+- W4 proposal injected in libc at ordinal 1: correct and consistent with
+  B1 (the ordinal, not the ELF's load availability, selects the event); the
+  proposal does contain 10 loads in main.
 
 ## 4. Platform and resources
 

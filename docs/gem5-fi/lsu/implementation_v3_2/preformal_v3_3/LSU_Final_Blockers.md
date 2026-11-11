@@ -31,17 +31,20 @@ Only 18/60 formal contexts have a matched control with the same binary, seed,
 workload and dynamic context; 42 are `MISSING` (all of DA04, FW05, LP01,
 MD04, plus most FW02/A03 rows). The one historical misfire,
 `SUPP-FW02-C01` (`--probability 0.0` still fired), is now fixed in code
-(commit 364a6057) and re-verified (`V33F-FW02-C01`: control_valid=true,
-misfire=false), but the formal rows still need their own controls.
+(commit 364a6057) and re-verified with the injector explicitly mounted at
+p=0 (`V33G-FW02-MOUNTED-P0`: `CHAOS_FW02_SUMMARY observed=6 suppressed=0`,
+zero `fw02_decision` rows, checksum unchanged; `V33F-FW02-C01`
+control_valid=true), but the formal rows still need their own controls.
 
-## B3. 45/60 contexts have no evidence on the final binary
+## B3. 56/60 contexts have no evidence on the final binary
 
 Evidence is keyed by binary SHA: A01/A03/RP01 on `68c6ce73` (v3.2.12 final),
 FW02/SQ01/SQ03/SP05 on `720eb780`, FW05/LP01/MD04/DA04 on `e527f26a` /
 `0de25644` / `3e9148fc`, LQ04 on `f3c2a442`. The two binaries `720eb780`
 and `e527f26a` are no longer on disk, so those runs cannot be re-inspected
-or reproduced in place. Only 5 fault contexts and 2 controls were re-run on
-the v3.3 binary (`d3807fbe…`). A formal campaign must not mix these chains.
+or reproduced in place. Four fault contexts and three controls were re-run on the v3.3 binary
+(`d3807fbe…`); RP01 R02 ran on the preceding candidate. 56/60 remain
+historical-only. A formal campaign must not mix these chains.
 
 ## B4. W4 (FW02) frozen ELF cannot execute the designed event
 

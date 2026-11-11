@@ -85,3 +85,13 @@ the injector or apply the same guard. RP01's `maybeSkipPartialReplay` also
 does not consult `probability`, but RP01 is driven by `rp01_*_mode`/ordinal
 and its control story is the count-only mode (no fault action), not the
 probability knob.
+
+
+## Applied status (2026-11-11, v3.3.0 round)
+
+The FW02 guard, FW05 reload node, RP01 triggering_seq, A01 control probe and
+A03 crash-link diffs were applied and committed in `5541648c`, `364a6057` and
+`c8fc4353` (with a follow-up 0/0-match guard in `5541648c`'s area). The W4
+workload is tracked as a proposal (`c1846ae4`) and is NOT promoted to the
+formal workbook. The diffs remain here as the proposed-patch record; they now
+reverse-apply cleanly because the code is already in the branch.
