@@ -1238,7 +1238,8 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             lq04Restore(loadQueue.back(), "squash");
         if (cpu->chaosPropagation) {
             cpu->chaosPropagation->noteSquash(
-                loadQueue.back().instruction().get(), "lsq_squash");
+                loadQueue.back().instruction().get(), "lsq_squash",
+                squashed_num);
             cpu->chaosPropagation->noteLQLifecycle(
                 loadQueue.back().instruction()->seqNum,
                 loadQueue.back().instruction()->lqIdx,
@@ -1316,7 +1317,8 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
 
         if (cpu->chaosPropagation) {
             cpu->chaosPropagation->noteSquash(
-                storeQueue.back().instruction().get(), "lsq_squash");
+                storeQueue.back().instruction().get(), "lsq_squash",
+                squashed_num);
             cpu->chaosPropagation->noteSQLifecycle(
                 storeQueue.back().instruction()->seqNum,
                 storeQueue.back().instruction()->sqIdx,
