@@ -1,5 +1,5 @@
+ M audit_v3_3_1/report/GIT_STATUS.txt
 ?? .tmp_lsu_conc/
-?? audit_v3_3_1/
-?? docs/superpowers/plans/2026-11-11-lsu-v331-context-workload-finalization.md
-?? tools/lsu_v331_build_mapping.py
-?? tools/lsu_v331_census.py
+?? LSU_v3.3.1_Context_Workload_Finalization_Package.zip
+?? LSU_v3.3.1_Context_Workload_Finalization_Package.zip.sha256
+?? audit_v3_3_1/v33_package/
