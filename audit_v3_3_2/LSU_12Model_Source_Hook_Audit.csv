@@ -1,0 +1,13 @@
+ModelID,SimObject,HookSite,FaultSemantics,V332Change,FaultInjected,Contexts,Status
+A01,CHAOSAddrPath,"lsq_pushRequest_PRE (A01Bit F0, bit 3)",transient EA bit flip,none (v3.3.1 path),5,5,HOOK_VERIFIED
+A03,CHAOSAddrPath,"lsq_pushRequest_PRE (A03stuck0, F5)",persistent EA bit-3 stuck-at-0,PC threaded + stuck lifecycle,5,5,HOOK_VERIFIED
+FW02,CHAOSLSQFwd,store->load forward decision (f6_fw02),one suppressed forward,none,5,5,HOOK_VERIFIED
+FW05,CHAOSLSQFwd,forward decision (fw05_older_src),older-source substitution,none,5,5,HOOK_VERIFIED
+SQ01,CHAOSLSQFwd,lsq_write_sq_entry (sq01_bit3),SQ data bit-3 flip,none,5,5,HOOK_VERIFIED
+SQ03,CHAOSLSQFwd,executeStore _canWB (sq03_canwb),premature canWB,none,5,5,HOOK_VERIFIED
+SP05,CHAOSLSQFwd,completeStore (sp05_complete),store completion lost,none,5,5,HOOK_VERIFIED
+DA04,CHAOSLSQFwd,store byte-enable (da04_be_bit0),byte-enable bit flip,runner p=0 omit (control hazard closed),5,5,HOOK_VERIFIED
+LP01,CHAOSL1DForward,LSQ completeDataAccess post-check,byte-0 response bit flip,PC/VA/dyn-seq/LQ identity added,5,5,HOOK_VERIFIED
+MD04,CHAOSMD04,LSQUnit::checkViolations,violation report suppressed,runner p=0 omit (control hazard closed),5,5,HOOK_VERIFIED
+LQ04,CHAOSLQ04,LQ entry lifetime/ordinal,LQ entry lifetime fault,none,5,5,HOOK_VERIFIED
+RP01,CHAOSLSQFwd,read() PartialAddrRangeCoverage reschedule,replay reschedule skipped,none (v3.2.12 hook),5,5,HOOK_VERIFIED

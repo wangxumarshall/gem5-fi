@@ -1,0 +1,1750 @@
+== git log 3504ec23..HEAD ==
+fc608224 [LSU][V3.3.2][MD04][TOOLS] shrink the candidate workload and add the 60-context driver
+2fcaa6e8 [LSU][V3.3.2][RUNNER] parse the widened LP01 record without losing injections
+9e680087 [LSU][V3.3.2][LP01] bind the load-response fault to instruction identity (PC/VA/seq)
+ee4a98e6 [LSU][V3.3.2][A03] record the real PC and the persistent stuck-at lifecycle
+53d87287 [LSU][V3.3.2][MD04] add a candidate workload with eight in-main violation pairs
+fa9dafe1 [LSU][V3.3.2][RP01] add a partial-overlap store-load candidate workload
+5a95b12e [LSU][V3.3.2][W4] add a volatile W4 candidate with real in-main store-load pairs
+53517a9b [LSU][V3.3.2][RUNNER] make DA04/MD04/RP01 controls injector-free at p=0 and add dry-run
+ef1b4002 [LSU][V3.3.2][PLAN] baseline provenance, round log and final readiness plan
+
+== diffstat ==
+ .../gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc | 111 ++++---
+ .../gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh |  28 +-
+ CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/a03_stream.hh  | 138 +++++++-
+ .../src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc  |  23 +-
+ .../src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh  |  15 +-
+ .../cpu/o3/CHAOSPropagation/CHAOSPropagation.cc    |   7 +
+ CHAOS/gem5/src/cpu/o3/lsq_unit.cc                  |   2 +-
+ .../lsu/implementation_v3_2/platform/run_pilot.py  | 256 +++++++++------
+ .../platform/run_replay_pilot.py                   |  43 ++-
+ .../platform/tests/test_v332_control_guards.py     | 215 +++++++++++++
+ tests/test_addrpath_a03_stream.cc                  | 103 ++++++
+ tests/test_lp01_bytewise.cc                        |  96 ++++++
+ tools/lsu_v332_matrix.py                           | 352 +++++++++++++++++++++
+ workloads/directed/compile_md04_violations_v332.sh |   7 +
+ workloads/directed/compile_replay_partial_v332.sh  |   9 +
+ workloads/directed/compile_sq_forward_w4v2.sh      |   7 +
+ workloads/directed/md04_violations_v332            | Bin 0 -> 637096 bytes
+ workloads/directed/md04_violations_v332.c          | 203 ++++++++++++
+ workloads/directed/md04_violations_v332.golden     |   1 +
+ workloads/directed/replay_partial_v332             | Bin 0 -> 636880 bytes
+ workloads/directed/replay_partial_v332.c           |  83 +++++
+ workloads/directed/replay_partial_v332.golden      |   1 +
+ workloads/directed/sq_forward_w4v2                 | Bin 0 -> 636720 bytes
+ workloads/directed/sq_forward_w4v2.c               |  74 +++++
+ workloads/directed/sq_forward_w4v2.golden          |   1 +
+ 25 files changed, 1616 insertions(+), 159 deletions(-)
+
+== source diff (C++/tests/platform/tools) ==
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
+index 5c3413c3..636cedf2 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc
+@@ -407,7 +407,7 @@ namespace gem5
+             // event also records a03_activation {tick, bit, mode}.
+             // Observes the same old_addr/addr pair the branch already
+             // computed — no fault-semantics change, no data-path change.
+-            a03NoteEligibleLoad(dyn_seq, old_addr, addr, 3);
++            a03NoteEligibleLoad(dyn_seq, old_addr, addr, 3, pc);
+             if (addr == old_addr) {
+                 ++obs_pre_nochange;
+                 ++l0_funnel.injected;
+@@ -417,18 +417,7 @@ namespace gem5
+                         "lsq_pushRequest_PRE", dyn_seq, addr, pre_mode.c_str(),
+                         0, 0);
+                 notifyFunnelAtInjection();
+-                if (write_log && log_stream && log_stream->stream()) {
+-                    *(log_stream->stream()) << "Tick: " << curTick()
+-                        << ", Site: lsq_pushRequest_PRE"
+-                        << ", mode=" << pre_mode
+-                        << ", old_addr=0x" << std::hex << old_addr
+-                        << ", new_addr=0x" << addr
+-                        << ", old_size=" << std::dec << old_size
+-                        << ", new_size=" << size
+-                        << ", value_changed=0"
+-                        << ", faults_injected: " << faults_injected_count
+-                        << std::endl;
+-                }
++                logPreInjection(old_addr, addr, old_size, size, true);
+                 return size;
+             }
+         } else {
+@@ -442,9 +431,9 @@ namespace gem5
+         // [LSU][V3.2.12][A01] a01_bit3_load (the v3.2 pilot path): stage
+         // the golden/actual EA record at EA formation — golden = the AGU
+         // EA at hook entry (old_addr), actual = the post-XOR addr, bit 3,
+-        // access size as pushed. The PC flows through the new defaulted
+-        // hook param (0 until the lsq.cc call site passes
+-        // inst->pcState().instAddr(); 0 = kPcUnknown — never fabricated).
++        // access size as pushed. The PC flows through the hook param the
++        // lsq.cc call site passes (inst->pcState().instAddr(); 0 =
++        // kPcUnknown — never fabricated).
+         // Read-only: no data-path change beyond the XOR above.
+         if (pre_mode == "a01_bit3_load") {
+             stageA01EA(chaos_a01::eaCoordsForFlip(
+@@ -458,20 +447,44 @@ namespace gem5
+         // addr registry); here we only owe the abort-survivable funnel row.
+         obs_pre_hook_injected = true;
+         notifyFunnelAtInjection();
+-        if (write_log && log_stream && log_stream->stream()) {
+-            *(log_stream->stream()) << "Tick: " << curTick()
+-                << ", Site: lsq_pushRequest_PRE"
+-                << ", mode=" << pre_mode
+-                << ", old_addr=0x" << std::hex << old_addr
+-                << ", new_addr=0x" << addr
+-                << ", old_size=" << std::dec << old_size
+-                << ", new_size=" << size
+-                << ", faults_injected: " << faults_injected_count
+-                << std::endl;
+-        }
++        logPreInjection(old_addr, addr, old_size, size, false);
+         return size;
+     }
+ 
++    void
++    CHAOSAddrPath::logPreInjection(uint64_t old_addr, uint64_t new_addr,
++                                   unsigned old_size, unsigned new_size,
++                                   bool nochange)
++    {
++        // [LSU][V3.3.2][A03] The persistent F5 mode applies the fault on
++        // every eligible load. A corrupted address can change control flow
++        // and drive the program into a long/pathological loop, so cap this
++        // per-application line for A03 only. Counters stay exact; the ROI
++        // evidence (A03_STREAM) has its own recorder; one marker records
++        // the cap. Other modes keep the unbounded legacy behaviour.
++        if (!write_log || !log_stream || !log_stream->stream())
++            return;
++        const bool a03 = (pre_mode == "a03_bit3_stuck0_load");
++        if (a03 && a03_pre_log_lines >= kA03PreLogCap)
++            return;
++        auto &s = *log_stream->stream();
++        s << "Tick: " << curTick()
++          << ", Site: lsq_pushRequest_PRE"
++          << ", mode=" << pre_mode
++          << ", old_addr=0x" << std::hex << old_addr
++          << ", new_addr=0x" << new_addr
++          << ", old_size=" << std::dec << old_size
++          << ", new_size=" << new_size;
++        if (nochange)
++            s << ", value_changed=0";
++        s << ", faults_injected: " << faults_injected_count << std::endl;
++        if (a03 && ++a03_pre_log_lines == kA03PreLogCap) {
++            s << "A03_LOG_CAPPED: cap=" << kA03PreLogCap
++              << " faults_injected=" << faults_injected_count
++              << " tick=" << curTick() << std::endl;
++        }
++    }
++
+     void
+     CHAOSAddrPath::notifyFunnelAtInjection()
+     {
+@@ -525,7 +538,7 @@ namespace gem5
+ 
+     void
+     CHAOSAddrPath::a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
+-                                       Addr actual_ea, int bit)
++                                       Addr actual_ea, int bit, uint64_t pc)
+     {
+         // [LSU][V3.2.12][A03] read-only F5 eligibility stream (plan Task 8).
+         // Called ONCE per trigger-fired eligible load from the
+@@ -553,25 +566,38 @@ namespace gem5
+                      // (manifests: --addrpath_lsu_tier F5); the legacy
+                      // cycle-window path has no activation concept, so
+                      // the stream is honestly absent there.
++        // event_ordinal: the trigger's eligible count AFTER onEligible()
++        // returned true for this load — this load's 1-based ordinal in the
++        // same eligible-event space the R01-R05 activation positions index
++        // (warmup_events + event_ordinal), so R05's first stream row is
++        // ordinal 5. The PC is threaded from the lsq.cc pushRequest call
++        // site (inst->pcState().instAddr(); 0 = genuinely unavailable ->
++        // kPcUnknown, never fabricated).
++        const uint64_t event_pc = pc ? pc : chaos_a01::kPcUnknown;
++        const chaos_a03::StreamEvent ev = chaos_a03::streamEvent(
++            lsuTrigger->eligible, dyn_seq, event_pc,
++            golden_ea, actual_ea, bit);
+         if (!a03_stream_rec.activated()) {
+             chaos_a03::Activation act;
+             act.tick = curTick();
+             act.bit = bit;
+             act.mode = pre_mode;
++            // v3.3.2 P0-5: lifecycle identity of the persistent fault's
++            // activation row (ordinal/dyn seq/pc/golden EA); the frozen
++            // {tick, bit, mode} activationDetail line is unchanged.
++            act.event_ordinal = ev.event_ordinal;
++            act.dyn_inst_seq = dyn_seq;
++            act.pc = event_pc;
++            act.golden_ea = golden_ea;
+             if (a03_stream_rec.activate(act)) {
++                // 1-based fault ordinal of this persistent fault: the
++                // activation application's own ordinal (faults_injected_count
++                // has not been incremented for this load yet).
++                a03_fault_id = faults_injected_count + 1;
+                 writeA03LogLine("A03_ACTIVATION", chaos_a03::activationDetail(
+                     a03_stream_rec.activation()));
+             }
+         }
+-        // event_ordinal: the trigger's eligible count AFTER onEligible()
+-        // returned true for this load — this load's 1-based ordinal in the
+-        // same eligible-event space the R01-R05 activation positions index
+-        // (warmup_events + event_ordinal), so R05's first stream row is
+-        // ordinal 5. The PC is not observable at this hook (dyn_seq only;
+-        // the a01 kPcUnknown precedent) — never fabricated.
+-        const chaos_a03::StreamEvent ev = chaos_a03::streamEvent(
+-            lsuTrigger->eligible, dyn_seq, chaos_a01::kPcUnknown,
+-            golden_ea, actual_ea, bit);
+         if (a03_stream_rec.record(ev)) {
+             staged_a03_stream = ev;
+             a03_stream_staged = true;
+@@ -671,6 +697,17 @@ namespace gem5
+                                             << l0_funnel.line("CHAOSAddrPath")
+                                             << std::endl;
+                 }
++                // [LSU][V3.3.2][A03] one lifecycle line for the persistent
++                // stuck-at fault: applications (affected=1) vs already_stuck
++                // (affected=0) + the activation and first-affected identity.
++                // Observation only; emitted only when the A03 stream actually
++                // activated (never a silent zero line for other modes).
++                if (a03_stream_rec.activated()) {
++                    writeA03LogLine("A03_STUCK_LIFECYCLE",
++                                    chaos_a03::lifecycleDetail(
++                                        a03_stream_rec.lifecycle(a03_fault_id,
++                                                                 pre_mode)));
++                }
+                 // [LSU][OBS-L3] final funnel row (final counts; runs only on
+                 // normal exit — aborts keep the last injection-time node,
+                 // which is exactly why the per-injection rows exist).
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
+index 5464deb0..c8225a29 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh
+@@ -45,10 +45,10 @@ class CHAOSAddrPath : public SimObject
+     // submodels are NOT expressible from the final addr — deferred, R5),
+     // a06_size (access-size substitution; byte_enable is const at this
+     // hook — size only), a08_subst (same-page, no object constraint).
+-    // [LSU][V3.2.12][A01] pc (defaulted, 0 = not observable at the call
+-    // site yet): the faulting PC for the staged a01_ea record; the lsq.cc
+-    // call site passes inst->pcState().instAddr() (one-line shared-side
+-    // patch, task-7-report.md §4B) — until then it stays kPcUnknown.
++    // [LSU][V3.2.12][A01] pc (defaulted, 0 = kPcUnknown): the faulting PC
++    // for the staged a01_ea / a03_stream records; the lsq.cc call site
++    // passes inst->pcState().instAddr() (task-7-report.md §4B), so 0 only
++    // remains for non-lsq callers — never fabricated.
+     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
+                                Request::Flags& flags, uint64_t dyn_seq = 0,
+                                uint64_t pc = 0);
+@@ -178,8 +178,26 @@ class CHAOSAddrPath : public SimObject
+     chaos_a03::StreamRecorder a03_stream_rec;
+     chaos_a03::StreamEvent staged_a03_stream;
+     bool a03_stream_staged = false;
++    // [LSU][V3.3.2][A03] 1-based fault ordinal of the persistent stuck-at
++    // fault (the activation application's faults_injected_count + 1); 0
++    // until the activation row is seen. Used only by the exit-time
++    // A03_STUCK_LIFECYCLE line (observation only).
++    uint64_t a03_fault_id = 0;
++    // [LSU][V3.3.2][A03] Bound the per-application PRE log line for the
++    // persistent F5 mode. A stuck-at address fault can corrupt control
++    // flow and drive the program into a long/pathological loop; without a
++    // cap one pilot grew addrpath_injections.log past 5M lines / 591 MB.
++    // Counters and the lifecycle line stay exact; only the per-event text
++    // after the cap is suppressed (one A03_LOG_CAPPED marker is written).
++    static constexpr uint64_t kA03PreLogCap = 20000;
++    uint64_t a03_pre_log_lines = 0;
++    void logPreInjection(uint64_t old_addr, uint64_t new_addr,
++                         unsigned old_size, unsigned new_size,
++                         bool nochange);
++    // pc: the faulting DynInst PC threaded from the lsq.cc pushRequest call
++    // site (0 = genuinely unavailable -> kPcUnknown, never fabricated).
+     void a03NoteEligibleLoad(uint64_t dyn_seq, Addr golden_ea,
+-                             Addr actual_ea, int bit);
++                             Addr actual_ea, int bit, uint64_t pc);
+     void writeA03LogLine(const char *tag, const std::string &detail);
+ 
+     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/a03_stream.hh b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/a03_stream.hh
+index c30fc61b..68688752 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/a03_stream.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/a03_stream.hh
+@@ -45,8 +45,20 @@
+ // this load's 1-based ordinal in the trigger's eligible-event stream, the
+ // SAME space the R01-R05 activation positions index into
+ // (chaos_lsu_trigger.hh F5 case: start = warmup_events + event_ordinal).
+-// pc is kPcUnknown when the observing hook cannot see the PC (the PRE hook
+-// receives dyn_inst_seq only) — never fabricated.
++// pc is the faulting DynInst's PC, threaded from the lsq.cc pushRequest
++// call site (inst->pcState().instAddr() via the maybeCorruptPre pc param);
++// kPcUnknown only when the observing path genuinely cannot see a PC (the
++// legacy non-lsq hook) — never fabricated.
++//
++// LIFECYCLE (v3.3.2 P0-5): the F5 stuck-at fault is ONE persistent fault
++// observed at every eligible load, not a stream of independent injections.
++// StreamRecorder therefore also keeps the lifecycle split — applications
++// (affected=1) vs already_stuck (affected=0) — plus the identity of the
++// first activation row and of the first AFFECTED row. An ALREADY_STUCK
++// activation is a no-op APPLICATION (nothing to propagate at that load),
++// but the fault remains active for every later eligible load; the lifecycle
++// record keeps the two readings distinct instead of letting the ordinal
++// stream hide them.
+ 
+ #include <cstdint>
+ #include <sstream>
+@@ -90,6 +102,12 @@ struct Activation {
+     uint64_t tick = 0;                    // curTick() at the activation load
+     int bit = chaos_a01::kNoBit;           // pinned stuck bit
+     std::string mode;                      // injector mode string
++    // v3.3.2 P0-5 lifecycle identity of the activation row (defaults keep
++    // the frozen {tick, bit, mode} activationDetail byte-identical):
++    uint64_t event_ordinal = 0;            // activation load's ordinal
++    uint64_t dyn_inst_seq = 0;             // activation load's DynInst seq
++    uint64_t pc = chaos_a01::kPcUnknown;   // activation load's PC
++    uint64_t golden_ea = 0;                // activation load's pre-apply EA
+ };
+ 
+ // a03_stream: one eligible load after activation. Exactly the nine
+@@ -181,6 +199,77 @@ streamDetail(const StreamEvent &e)
+     return d.str();
+ }
+ 
++// ---- persistent stuck-at lifecycle (v3.3.2 P0-5) --------------------------
++//
++// The F5 fault is ONE persistent fault with five observation points, not
++// five independent transient injections. The lifecycle record makes that
++// reading explicit: every recorded eligible load is an APPLICATION of the
++// same stuck bit; affected=1 means the application changed the EA (the
++// fault propagated at that load), affected=0 (ALREADY_STUCK) means the
++// application changed nothing at that load but the fault remains ACTIVE
++// for every later eligible load. first_activation is the activation-start
++// row (which may itself be ALREADY_STUCK — a no-op application), and
++// first_affected is the first row where the fault actually changed the EA
++// — the earliest load at which the persistent fault can have propagated.
++struct StuckLifecycle {
++    uint64_t fault_id = 0;                 // injector fault ordinal (1-based)
++    int bit = chaos_a01::kNoBit;           // pinned stuck bit
++    std::string mode;                      // injector mode string
++    uint64_t eligible_events = 0;          // recorded applications (all)
++    uint64_t applications = 0;             // affected=1 applications
++    uint64_t already_stuck = 0;            // affected=0 no-op applications
++    bool has_activation = false;           // an activation row exists
++    uint64_t activation_ordinal = 0;       // activation row identity
++    uint64_t activation_dyn_inst_seq = 0;
++    uint64_t activation_pc = chaos_a01::kPcUnknown;
++    uint64_t activation_golden_ea = 0;
++    bool has_first_affected = false;       // some application changed the EA
++    uint64_t first_affected_ordinal = 0;   // first affected row identity
++    uint64_t first_affected_dyn_inst_seq = 0;
++    uint64_t first_affected_pc = chaos_a01::kPcUnknown;
++};
++
++// a03_stuck_lifecycle detail: fault identity {fault_id, bit, mode}, the
++// application split {eligible_events, applications, already_stuck}, the
++// activation identity {ordinal, dyn seq, pc, golden EA} and the first
++// AFFECTED identity {ordinal, dyn seq, pc}. k=v;k=v, NO commas; addresses
++// bare lowercase hex, counts decimal, absent identities NOT_APPLICABLE.
++inline std::string
++lifecycleDetail(const StuckLifecycle &l)
++{
++    std::ostringstream d;
++    d << "fault_id=" << l.fault_id
++      << ";bit=" << (l.bit == chaos_a01::kNoBit
++                        ? "NOT_APPLICABLE" : std::to_string(l.bit))
++      << ";mode=" << l.mode
++      << ";eligible_events=" << l.eligible_events
++      << ";applications=" << l.applications
++      << ";already_stuck=" << l.already_stuck
++      << ";activation_ordinal="
++      << (l.has_activation ? std::to_string(l.activation_ordinal)
++                           : "NOT_APPLICABLE")
++      << ";activation_dyn_inst_seq="
++      << (l.has_activation ? std::to_string(l.activation_dyn_inst_seq)
++                           : "NOT_APPLICABLE")
++      << ";activation_pc="
++      << (l.has_activation ? chaos_a01::toHexField(l.activation_pc)
++                           : "NOT_APPLICABLE")
++      << ";activation_golden_ea="
++      << (l.has_activation ? chaos_a01::toHexField(l.activation_golden_ea)
++                           : "NOT_APPLICABLE")
++      << ";first_affected_ordinal="
++      << (l.has_first_affected ? std::to_string(l.first_affected_ordinal)
++                               : "NOT_APPLICABLE")
++      << ";first_affected_dyn_inst_seq="
++      << (l.has_first_affected ? std::to_string(l.first_affected_dyn_inst_seq)
++                               : "NOT_APPLICABLE")
++      << ";first_affected_pc="
++      << (l.has_first_affected
++              ? chaos_a01::toHexField(l.first_affected_pc)
++              : "NOT_APPLICABLE");
++    return d.str();
++}
++
+ // ---- the exactly-once discipline (host-testable) ---------------------------
+ //
+ // StreamRecorder: one per injector instance. The injector routes EVERY
+@@ -207,6 +296,8 @@ struct StreamRecorder {
+     uint64_t applied_ = 0;
+     uint64_t already_stuck_ = 0;
+     uint64_t rejected_ = 0;
++    bool has_first_affected_ = false;
++    StreamEvent first_affected_;
+ 
+   public:
+     bool activated() const { return activated_; }
+@@ -215,6 +306,37 @@ struct StreamRecorder {
+     uint64_t appliedCount() const { return applied_; }
+     uint64_t alreadyStuckCount() const { return already_stuck_; }
+     uint64_t rejected() const { return rejected_; }
++    // v3.3.2 P0-5 lifecycle accessors: eligible_events is the recorded
++    // stream size (the recorder only sees post-activation fired events =
++    // the applications of this ONE persistent fault).
++    uint64_t eligibleEvents() const { return recorded_; }
++    bool hasFirstAffected() const { return has_first_affected_; }
++    const StreamEvent &firstAffected() const { return first_affected_; }
++
++    // Lifecycle record built from the counters this recorder owns. fault_id
++    // and mode come from the injector (the record shape cannot derive the
++    // run-level fault ordinal).
++    StuckLifecycle
++    lifecycle(uint64_t fault_id, const std::string &mode) const
++    {
++        StuckLifecycle l;
++        l.fault_id = fault_id;
++        l.bit = activation_.bit;
++        l.mode = mode;
++        l.eligible_events = recorded_;
++        l.applications = applied_;
++        l.already_stuck = already_stuck_;
++        l.has_activation = activated_;
++        l.activation_ordinal = activation_.event_ordinal;
++        l.activation_dyn_inst_seq = activation_.dyn_inst_seq;
++        l.activation_pc = activation_.pc;
++        l.activation_golden_ea = activation_.golden_ea;
++        l.has_first_affected = has_first_affected_;
++        l.first_affected_ordinal = first_affected_.event_ordinal;
++        l.first_affected_dyn_inst_seq = first_affected_.dyn_inst_seq;
++        l.first_affected_pc = first_affected_.pc;
++        return l;
++    }
+ 
+     // One activation per run: the first call wins and is returned; every
+     // later call is rejected (counted).
+@@ -239,10 +361,18 @@ struct StreamRecorder {
+         }
+         last_ordinal_ = e.event_ordinal;
+         ++recorded_;
+-        if (e.reason == StreamReason::AlreadyStuck)
++        if (e.reason == StreamReason::AlreadyStuck) {
+             ++already_stuck_;
+-        else
++        } else {
+             ++applied_;
++            // first_affected = the FIRST row that changed the EA, not the
++            // first recorded row (an ALREADY_STUCK activation is ordinal 1
++            // and must not be reported as the first affected row).
++            if (!has_first_affected_) {
++                has_first_affected_ = true;
++                first_affected_ = e;
++            }
++        }
+         return true;
+     }
+ };
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc
+index b3ec87ea..b3346c5a 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc
+@@ -2,6 +2,7 @@
+ #include "cpu/o3/CHAOSL1DForward/lp01_bytewise.hh"
+ 
+ #include "cpu/o3/cpu.hh"          // o3::CPU
++#include "cpu/o3/dyn_inst.hh"     // o3::DynInst: pcState()/seqNum/lqIdx
+ #include "debug/CHAOSL1DForward.hh"
+ #include "sim/sim_exit.hh"
+ #include "params/CHAOSL1DForward.hh"
+@@ -66,7 +67,7 @@ namespace gem5
+     }
+ 
+     bool
+-    CHAOSL1DForward::maybeCorrupt(PacketPtr pkt, bool is_load,
++    CHAOSL1DForward::maybeCorrupt(o3::DynInst *inst, PacketPtr pkt, bool is_load,
+                                   std::vector<uint8_t> *before_out,
+                                   uint64_t *mask_out)
+     {
+@@ -114,11 +115,29 @@ namespace gem5
+         if (mask_out) *mask_out = mask;
+         faults_injected_count++;
+         if (write_log) {
++            // v3.3.2 LP01 identity: bind the injection to the dynamic
++            // instruction (PC/virtual address/LQ entry), not only to the
++            // physical address. `addr=` (PA) is kept for existing parsers.
++            // request_id lives in CHAOSPropagation::req_meta and is assigned
++            // by the paired noteL1DForwardInjection() row emitted right
++            // after this call, so it is not reachable here: it is logged as
++            // 0 and the authoritative value is in inj_l1dfwd.
++            const Addr pc = inst ? inst->pcState().instAddr() : 0;
++            const Addr va = (pkt->req && pkt->req->hasVaddr())
++                ? pkt->req->getVaddr() : 0;
+             *(log_stream->stream()) << "Tick: " << curTick()
+                 << ", Site: l1d_load_complete, addr=0x" << std::hex
+-                << pkt->getAddr() << std::dec
++                << pkt->getAddr()
++                << ", pa=0x" << pkt->getAddr()
++                << ", va=0x" << va
++                << ", pc=0x" << pc << std::dec
+                 << ", size=" << sz
+                 << ", mask=0x" << std::hex << mask << std::dec
++                << ", dyn_inst_seq=" << (inst ? inst->seqNum : 0)
++                << ", lq_entry_id=" << (inst ? (int64_t)inst->lqIdx : -1)
++                << ", entry_generation="
++                << (inst ? inst->lqEntryGeneration : 0)
++                << ", request_id=0"
+                 << ", eligible_ordinal=" << last_eligible_ordinal
+                 << ", byte0_changed=1"
+                 << ", addr_unchanged=1, size_unchanged=1"
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh
+index 7cd43b3d..3d25440a 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh
+@@ -12,7 +12,7 @@
+ #include "cpu/base.hh"
+ #include "mem/packet.hh"
+ 
+-namespace gem5 { namespace o3 { class CPU; } }
++namespace gem5 { namespace o3 { class CPU; class DynInst; } }
+ 
+ namespace gem5
+ {
+@@ -27,11 +27,14 @@ class CHAOSL1DForward : public SimObject
+ 
+     // Called from LSQUnit::completeDataAccess BEFORE writeback(inst, pkt).
+     // Corrupts byte lane 0 of the response payload (post-L1D-read,
+-    // post-ECC-check) — the post-check escape path. `is_load` is true only
+-    // for a data load (SC/atomic/I-fetch are rejected). When `before_out`
+-    // is non-null and a fault is injected, it receives a copy of the
+-    // pre-fault payload taken BEFORE the XOR. Returns true iff injected.
+-    bool maybeCorrupt(PacketPtr pkt, bool is_load,
++    // post-ECC-check) — the post-check escape path. `inst` is the target
++    // dynamic instruction; it is recorded in the injection log as PC/VA/
++    // dyn_inst_seq/LQ identity so the fault is bound to an instruction, not
++    // merely to a physical address. `is_load` is true only for a data load
++    // (SC/atomic/I-fetch are rejected). When `before_out` is non-null and a
++    // fault is injected, it receives a copy of the pre-fault payload taken
++    // BEFORE the XOR. Returns true iff injected.
++    bool maybeCorrupt(o3::DynInst *inst, PacketPtr pkt, bool is_load,
+                       std::vector<uint8_t> *before_out = nullptr,
+                       uint64_t *mask_out = nullptr);
+     uint64_t lastEligibleOrdinal() const { return last_eligible_ordinal; }
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+index 87e7dfe0..4cd8d49f 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -1354,6 +1354,13 @@ namespace gem5
+           << ";fragment_id=" << e.fragment_id
+           << ";request_tick=" << e.request_tick
+           << ";injection_tick=" << curTick()
++          // v3.3.2 LP01 identity: the target instruction, not just its
++          // address. `addr=` below stays the physical address.
++          << ";dyn_inst_seq=" << inst->seqNum
++          << ";pc=0x" << std::hex << inst->pcState().instAddr() << std::dec
++          << ";vaddr=0x" << std::hex
++          << ((pkt->req && pkt->req->hasVaddr()) ? pkt->req->getVaddr() : 0)
++          << std::dec
+           << ";lq_entry_id=" << inst->lqIdx
+           << ";entry_generation=" << inst->lqEntryGeneration
+           << ";execution_attempt_id=" << inst->executionAttemptId
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index b7ce2ecd..af493088 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -213,7 +213,7 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
+             bool lp01_injected = false;
+             if (cpu->chaosL1DFwd) {
+                 lp01_injected = cpu->chaosL1DFwd->maybeCorrupt(
+-                    request->mainPacket(), inst->isLoad(),
++                    inst.get(), request->mainPacket(), inst->isLoad(),
+                     cpu->chaosPropagation ? &lp01_before : nullptr,
+                     cpu->chaosPropagation ? &lp01_mask : nullptr);
+             }
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+index 3960f244..422f369b 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py
+@@ -392,20 +392,49 @@ def _md04_status(path: Path) -> str:
+ 
+ 
+ def _l1dfwd_events(path: Path) -> list[dict]:
+-    """Parse LP01 injection lines (one per injected load response)."""
++    """Parse LP01 injection lines (one per injected load response).
++
++    v3.3.2: the record now carries pa/va/pc/dyn_inst_seq/LQ identity fields,
++    which are inserted between the fields the v3.1 parser expected. Parse
++    field-by-field (name=value) instead of relying on one positional regex,
++    so both the old and the new line shapes are accepted.
++    """
+     out = []
+     if not path.exists():
+         return out
++    hex_fields = ("addr", "pa", "va", "pc", "mask")
++    dec_fields = ("size", "dyn_inst_seq", "lq_entry_id", "entry_generation",
++                  "request_id", "eligible_ordinal", "faults_injected")
++    tick_re = re.compile(r"^Tick:\s*(\d+)")
+     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+-        m = re.search(
+-            r"Tick:\s*(\d+).*addr=0x([0-9a-fA-F]+), size=(\d+), "
+-            r"mask=0x([0-9a-fA-F]+),\s*eligible_ordinal=(\d+).*"
+-            r"faults_injected:\s*(\d+)", line)
+-        if m:
+-            out.append({"tick": int(m[1]), "addr": int(m[2], 16),
+-                        "size": int(m[3]), "mask": int(m[4], 16),
+-                        "eligible_ordinal": int(m[5]),
+-                        "faults_injected": int(m[6])})
++        if "Site: l1d_load_complete" not in line:
++            continue
++        m = tick_re.search(line)
++        if not m:
++            continue
++        rec = {"tick": int(m[1])}
++        for name, value in re.findall(r"([A-Za-z_]\w*)=(0x[0-9a-fA-F]+|\d+)",
++                                      line):
++            if name in hex_fields:
++                rec[name] = int(value, 16)
++            elif name in dec_fields:
++                rec[name] = int(value)
++        # The trailing counter is printed as "faults_injected: N" (colon),
++        # not name=value; accept either separator.
++        fi = re.search(r"faults_injected\s*[:=]\s*(\d+)", line)
++        if fi:
++            rec["faults_injected"] = int(fi[1])
++        if "faults_injected" not in rec:
++            continue
++        # Legacy aliases: addr is the physical address (kept as pa too).
++        if "pa" not in rec and "addr" in rec:
++            rec["pa"] = rec["addr"]
++        if "addr" not in rec and "pa" in rec:
++            rec["addr"] = rec["pa"]
++        rec.setdefault("size", 0)
++        rec.setdefault("mask", 0)
++        rec.setdefault("eligible_ordinal", 0)
++        out.append(rec)
+     return out
+ 
+ 
+@@ -487,6 +516,116 @@ def _fault_causality(events: list[dict], terminal: str,
+     return "INDIRECT_EVIDENCE"
+ 
+ 
++def build_model_extra(model: str, probability: float, seed: int,
++                      ordinal) -> list[str]:
++    """Model-specific gem5 flags: injector mount + frozen run identity.
++
++    A matched no-fault control (``--probability 0.0``) must NOT mount an
++    injector whose firing decision is not gated by the global
++    ``--probability`` -- a mounted injector would still fire.  The LQ04
++    ordinal selector, the F6_fw02 / da04_be_bit0 LSQFwd struct modes (all
++    ordinal-gated F0/F6 selectors) and CHAOSMD04 (which gates only on its
++    own ``--md04_probability``) are such injectors, so those branches return
++    an empty list at probability 0.0; the propagation tracer stays on in the
++    base command.  Every other branch is probability-gated in its injector's
++    attach path, so its control keeps the mount and relies on that gate.
++
++    FAULT runs (probability > 0) are byte-identical to the pre-v3.3.2
++    command.
++    """
++    control = probability == 0.0
++    ordinal = str(ordinal)
++    if model == "A01":
++        return ["--chaos_addrpath", "--agu_pre_mode", "a01_bit3_load",
++                "--addrpath_lsu_tier", "F0", "--addrpath_max_faults", "1",
++                "--addrpath_warmup_events", "0", "--addrpath_span_events", "10",
++                "--addrpath_rng_seed", str(seed),
++                "--addrpath_event_ordinal", ordinal]
++    if model == "A03":
++        return ["--chaos_addrpath", "--agu_pre_mode", "a03_bit3_stuck0_load",
++                "--addrpath_lsu_tier", "F5", "--addrpath_max_faults", "0",
++                "--addrpath_warmup_events", "0",
++                "--addrpath_rng_seed", str(seed),
++                "--addrpath_event_ordinal", ordinal]
++    if model == "SQ01":
++        return ["--chaos_lsqfwd", "--lsq_struct_mode", "sq01_bit3",
++                "--lsqfwd_lsu_tier", "F0",
++                "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
++                "--max_faults", "1", "--rng_seed", str(seed),
++                "--lsqfwd_event_ordinal", ordinal]
++    if model == "DA04":
++        if control:
++            # Matched no-fault control (v3.3.2 fix): DA04 corrupts the store
++            # byte-enable through an ordinal-gated F0 selector; the decision
++            # never consults --probability, so a mounted injector would fire
++            # under --probability 0.0.  Omit the injector entirely (the same
++            # treatment as the LQ04/FW02 controls below).
++            return []
++        return ["--chaos_lsqfwd", "--lsq_struct_mode", "da04_be_bit0",
++                "--lsqfwd_lsu_tier", "F0",
++                "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
++                "--max_faults", "1", "--rng_seed", str(seed),
++                "--lsqfwd_event_ordinal", ordinal]
++    if model == "MD04":
++        if control:
++            # Matched no-fault control (v3.3.2 fix): CHAOSMD04 gates on its
++            # own --md04_probability (hard-coded 1.0 for fault runs) and
++            # never consults the global --probability, so the only honest
++            # control is to omit the injector and all of its arguments.
++            return []
++        return ["--chaos_md04", "--md04_first_clock", "0",
++                "--md04_max_faults", "1",
++                "--md04_probability", "1.0",
++                "--md04_rng_seed", str(seed),
++                "--md04_event_ordinal", ordinal]
++    if model == "LP01":
++        return ["--chaos_l1dfwd", "--l1dfwd_first_clock", "0",
++                "--l1dfwd_max_faults", "1",
++                "--l1dfwd_fault_mask", "0x8",
++                "--l1dfwd_rng_seed", str(seed),
++                "--l1dfwd_event_ordinal", ordinal]
++    if model == "SQ03":
++        return ["--chaos_lsqfwd", "--lsq_struct_mode", "sq03_canwb",
++                "--max_faults", "1", "--rng_seed", str(seed),
++                "--lsqfwd_event_ordinal", ordinal,
++                "--sq03_watchdog_cycles", "500000000"]
++    if model == "SP05":
++        return ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
++                "--max_faults", "1", "--rng_seed", str(seed),
++                "--sp05_event_ordinal", ordinal,
++                "--sp05_watchdog_cycles", "500000000"]
++    if model == "FW05":
++        return ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
++                "--max_faults", "1", "--rng_seed", str(seed),
++                "--lsqfwd_event_ordinal", ordinal]
++    if model == "LQ04":
++        if control:
++            # Matched no-fault control: the LQ04 selector is ordinal-gated,
++            # not probability-gated, so a mounted injector would still fire.
++            # Omit the injector entirely; --chaos_propagation stays on.
++            return []
++        return ["--chaos_lq04",
++                "--lq04_event_ordinal", ordinal,
++                "--lq04_max_faults", "1",
++                "--lq04_watchdog_cycles", "500000000"]
++    if model == "FW02":
++        if control:
++            # Matched no-fault control (v3.2.12 fix): the F6_fw02 selector is
++            # ordinal-gated, not probability-gated -- CHAOSLSQFwd attaches the
++            # F6Fw02 mode even with probability==0 and the suppression
++            # decision never consults probability, so a mounted injector
++            # would still fire (the SUPP-FW02-C01 misfire). Omit the injector
++            # entirely; --chaos_propagation stays on (same treatment as the
++            # LQ04 control branch).
++            return []
++        return ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
++                "--max_faults", "1", "--rng_seed", str(seed),
++                "--lsqfwd_event_ordinal", ordinal]
++    return ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
++            "--max_faults", "1", "--rng_seed", str(seed),
++            "--lsqfwd_event_ordinal", ordinal]
++
++
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__)
+     ap.add_argument("--model", required=True, choices=MODELS)
+@@ -511,6 +650,10 @@ def main(argv=None) -> int:
+                     help="TEMPORARY_EVENT_SELECTION override for the F0 "
+                          "eligible-event ordinal (v3.2.4 DA04 pilots); the "
+                          "Excel ordinal is recorded separately")
++    ap.add_argument("--dry-run", action="store_true",
++                    help="build the exact gem5 command, print it (and write "
++                         "<outdir>/command.txt), then exit 0 without invoking "
++                         "gem5 -- no manifest or run artifacts are produced")
+     args = ap.parse_args(argv)
+ 
+     cfg = load_config(EXCEL, require_complete=False)
+@@ -546,91 +689,8 @@ def main(argv=None) -> int:
+     out = args.outdir.resolve()
+     out.mkdir(parents=True, exist_ok=True)
+ 
+-    extra = []
+-    if args.model == "A01":
+-        extra = ["--chaos_addrpath", "--agu_pre_mode", "a01_bit3_load",
+-                 "--addrpath_lsu_tier", "F0", "--addrpath_max_faults", "1",
+-                 "--addrpath_warmup_events", "0", "--addrpath_span_events", "10",
+-                 "--addrpath_rng_seed", str(args.seed),
+-                 "--addrpath_event_ordinal", str(sample.get("event_ordinal") or 1)]
+-    elif args.model == "A03":
+-        extra = ["--chaos_addrpath", "--agu_pre_mode", "a03_bit3_stuck0_load",
+-                 "--addrpath_lsu_tier", "F5", "--addrpath_max_faults", "0",
+-                 "--addrpath_warmup_events", "0",
+-                 "--addrpath_rng_seed", str(args.seed),
+-                 "--addrpath_event_ordinal", str(sample.get("event_ordinal") or 1)]
+-    elif args.model == "SQ01":
+-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sq01_bit3",
+-                 "--lsqfwd_lsu_tier", "F0",
+-                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
+-                 "--max_faults", "1", "--rng_seed", str(args.seed),
+-                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
+-    elif args.model == "DA04":
+-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "da04_be_bit0",
+-                 "--lsqfwd_lsu_tier", "F0",
+-                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "10",
+-                 "--max_faults", "1", "--rng_seed", str(args.seed),
+-                 "--lsqfwd_event_ordinal",
+-                 str(sample.get("event_ordinal") or 1)]
+-    elif args.model == "MD04":
+-        extra = ["--chaos_md04", "--md04_first_clock", "0",
+-                 "--md04_max_faults", "1",
+-                 "--md04_probability", "1.0",
+-                 "--md04_rng_seed", str(args.seed),
+-                 "--md04_event_ordinal",
+-                 str(sample.get("event_ordinal") or 1)]
+-    elif args.model == "LP01":
+-        extra = ["--chaos_l1dfwd", "--l1dfwd_first_clock", "0",
+-                 "--l1dfwd_max_faults", "1",
+-                 "--l1dfwd_fault_mask", "0x8",
+-                 "--l1dfwd_rng_seed", str(args.seed),
+-                 "--l1dfwd_event_ordinal",
+-                 str(sample.get("event_ordinal") or 1)]
+-    elif args.model == "SQ03":
+-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sq03_canwb",
+-                 "--max_faults", "1", "--rng_seed", str(args.seed),
+-                 "--lsqfwd_event_ordinal",
+-                 str(sample.get("event_ordinal") or 1),
+-                 "--sq03_watchdog_cycles", "500000000"]
+-    elif args.model == "SP05":
+-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "sp05_complete",
+-                 "--max_faults", "1", "--rng_seed", str(args.seed),
+-                 "--sp05_event_ordinal",
+-                 str(sample.get("event_ordinal") or 1),
+-                 "--sp05_watchdog_cycles", "500000000"]
+-    elif args.model == "FW05":
+-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "fw05_older_src",
+-                 "--max_faults", "1", "--rng_seed", str(args.seed),
+-                 "--lsqfwd_event_ordinal",
+-                 str(sample.get("event_ordinal") or 1)]
+-    elif args.model == "LQ04":
+-        extra = ["--chaos_lq04",
+-                 "--lq04_event_ordinal",
+-                 str(sample.get("event_ordinal") or 1),
+-                 "--lq04_max_faults", "1",
+-                 "--lq04_watchdog_cycles", "500000000"]
+-        if args.probability == 0.0:
+-            # Matched no-fault control: the LQ04 selector is ordinal-gated,
+-            # not probability-gated, so a mounted injector would still fire.
+-            # Omit the injector entirely; --chaos_propagation stays on.
+-            extra = []
+-    elif args.model == "FW02":
+-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+-                 "--max_faults", "1", "--rng_seed", str(args.seed),
+-                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
+-        if args.probability == 0.0:
+-            # Matched no-fault control (v3.2.12 fix): the F6_fw02 selector is
+-            # ordinal-gated, not probability-gated -- CHAOSLSQFwd attaches the
+-            # F6Fw02 mode even with probability==0 and the suppression
+-            # decision never consults probability, so a mounted injector
+-            # would still fire (the SUPP-FW02-C01 misfire). Omit the injector
+-            # entirely; --chaos_propagation stays on (same treatment as the
+-            # LQ04 control branch above).
+-            extra = []
+-    else:
+-        extra = ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+-                 "--max_faults", "1", "--rng_seed", str(args.seed),
+-                 "--lsqfwd_event_ordinal", str(sample.get("event_ordinal") or 1)]
++    extra = build_model_extra(args.model, args.probability, args.seed,
++                              sample.get("event_ordinal") or 1)
+ 
+     cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
+            f"--cmd={workload_path}",
+@@ -639,6 +699,12 @@ def main(argv=None) -> int:
+            "--chaos_propagation",
+            "--prop_trace_file", "prop_trace.csv.gz"] + extra
+     (out / "command.txt").write_text("\n".join(cmd) + "\n")
++    if args.dry_run:
++        # Print the exact command that a real run would hand to gem5 and
++        # stop. No subprocess, no manifest, no run artifacts: a dry run can
++        # never be mistaken for an executed pilot.
++        print(" ".join(cmd))
++        return 0
+     # build_manifest looks the sample up by SampleRunID: with
+     # --preserve-sample-id that is the Excel id, not the pilot id.
+     manifest = build_manifest(cfg2, sample["sample_run_id"], args.gem5, CONFIG,
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_replay_pilot.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_replay_pilot.py
+index 91452710..10c0bab0 100644
+--- a/docs/gem5-fi/lsu/implementation_v3_2/platform/run_replay_pilot.py
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/run_replay_pilot.py
+@@ -35,6 +35,30 @@ ORACLE = IMPL / "workloads/replay_dependency.golden"
+ SEED = 3135797961  # RW01 seed (deterministic replay_dependency stream)
+ 
+ 
++def build_replay_command(gem5: Path, outdir: Path,
++                         probability: float = 1.0) -> list[str]:
++    """The exact gem5 argv for the replay pilot.
++
++    The FW02 carrier is ordinal-gated, not probability-gated: CHAOSLSQFwd
++    attaches the F6Fw02 mode even with ``probability == 0`` and its
++    suppression decision never consults probability.  A matched no-fault
++    control (``--probability 0.0``) must therefore omit the injector mount
++    or it would still fire (the same rule as run_pilot's FW02/LQ04 controls);
++    the replay tracer stays on so the control still records real replays.
++    """
++    cmd = [str(gem5), f"--outdir={outdir}", str(CONFIG),
++           f"--cmd={WORKLOAD}", "--cpu", "O3", "--variant", "B0",
++           "--probability", str(probability), "--chaos_propagation",
++           "--prop_trace_file", "replay_prop.csv.gz", "--prop_replay_all"]
++    if probability == 0.0:
++        return cmd
++    # FW02 is the fault carrier: one suppressed forwarding keeps the run
++    # alive long enough to observe the real partial-forward replays.
++    return cmd + ["--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
++                  "--max_faults", "1", "--rng_seed", str(SEED),
++                  "--lsqfwd_event_ordinal", "1"]
++
++
+ def _rows(path: Path):
+     raw = path.read_bytes()
+     text = zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(raw).decode(
+@@ -55,20 +79,21 @@ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__)
+     ap.add_argument("--outdir", type=Path, required=True)
+     ap.add_argument("--gem5", type=Path, default=GEM5)
++    ap.add_argument("--probability", type=float, default=1.0,
++                    help="injection probability (0.0 = matched no-fault control)")
++    ap.add_argument("--dry-run", action="store_true",
++                    help="build the exact gem5 command, print it (and write "
++                         "<outdir>/command.txt), then exit 0 without invoking "
++                         "gem5")
+     args = ap.parse_args(argv)
+     out = args.outdir.resolve()
+     out.mkdir(parents=True, exist_ok=True)
+ 
+-    cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
+-           f"--cmd={WORKLOAD}", "--cpu", "O3", "--variant", "B0",
+-           "--probability", "1.0", "--chaos_propagation",
+-           "--prop_trace_file", "replay_prop.csv.gz", "--prop_replay_all",
+-           # FW02 is the fault carrier: one suppressed forwarding keeps the
+-           # run alive long enough to observe the real partial-forward replays.
+-           "--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
+-           "--max_faults", "1", "--rng_seed", str(SEED),
+-           "--lsqfwd_event_ordinal", "1"]
++    cmd = build_replay_command(args.gem5, out, args.probability)
+     (out / "command.txt").write_text("\n".join(cmd) + "\n")
++    if args.dry_run:
++        print(" ".join(cmd))
++        return 0
+     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
+                           timeout=1800)
+     (out / "stdout.log").write_text(proc.stdout)
+diff --git a/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_v332_control_guards.py b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_v332_control_guards.py
+new file mode 100644
+index 00000000..1af89147
+--- /dev/null
++++ b/docs/gem5-fi/lsu/implementation_v3_2/platform/tests/test_v332_control_guards.py
+@@ -0,0 +1,215 @@
++"""v3.3.2 P0 control-hazard guard tests.
++
++Two matched no-fault controls were not truly zero-injection in v3.3.1:
++
++* **DA04** always mounted ``--chaos_lsqfwd --lsq_struct_mode da04_be_bit0``.
++  The DA04 byte-enable corruption is *ordinal*-gated (F0 on
++  ``lsq_pushRequest_byte_enable``), never probability-gated, so
++  ``--probability 0.0`` still let the injector fire.
++* **MD04** hard-coded ``--md04_probability 1.0``; CHAOSMD04 gates on its own
++  ``md04_probability`` and never consults the global ``--probability``, so a
++  control that mounts the injector fires.
++
++The fix mirrors the LQ04/FW02 precedent: a control at probability 0.0 omits
++the injector mount entirely (the propagation tracer stays on).  FAULT runs
++must remain byte-identical.  ``run_pilot.build_model_extra`` is the extracted
++pure helper that owns this decision; these tests pin it directly, plus the
++RP01 replay-pilot command builder, plus the new ``--dry-run`` path.
++
++The dry-run test passes a nonexistent ``--gem5`` path: if the simulator were
++invoked at all the call would fail, so a clean exit 0 proves the command was
++only printed/written and gem5 was skipped.
++"""
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++import pytest
++
++PLATFORM = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PLATFORM))
++
++import run_pilot  # noqa: E402
++import run_replay_pilot  # noqa: E402
++
++
++def _has(cmd, flag):
++    return flag in cmd
++
++
++def _value(cmd, flag):
++    return cmd[cmd.index(flag) + 1]
++
++
++# ---------------------------------------------------------------------------
++# DA04: ordinal-gated byte-enable corruption
++# ---------------------------------------------------------------------------
++
++def test_da04_control_omits_injector():
++    cmd = run_pilot.build_model_extra("DA04", 0.0, seed=11, ordinal=3)
++    for absent in ("--chaos_lsqfwd", "--lsq_struct_mode", "da04_be_bit0",
++                   "--max_faults", "--rng_seed", "--lsqfwd_event_ordinal",
++                   "--lsqfwd_lsu_tier"):
++        assert absent not in cmd, f"{absent!r} must not be mounted for a DA04 control"
++
++
++def test_da04_fault_run_is_unchanged():
++    cmd = run_pilot.build_model_extra("DA04", 1.0, seed=11, ordinal=3)
++    assert _has(cmd, "--chaos_lsqfwd")
++    assert _value(cmd, "--lsq_struct_mode") == "da04_be_bit0"
++    assert _value(cmd, "--lsqfwd_lsu_tier") == "F0"
++    assert _value(cmd, "--max_faults") == "1"
++    assert _value(cmd, "--rng_seed") == "11"
++    assert _value(cmd, "--lsqfwd_event_ordinal") == "3"
++
++
++# ---------------------------------------------------------------------------
++# MD04: CHAOSMD04 gates on md04_probability, not --probability
++# ---------------------------------------------------------------------------
++
++def test_md04_control_omits_injector_and_its_probability():
++    cmd = run_pilot.build_model_extra("MD04", 0.0, seed=11, ordinal=3)
++    for absent in ("--chaos_md04", "--md04_probability", "--md04_first_clock",
++                   "--md04_max_faults", "--md04_rng_seed",
++                   "--md04_event_ordinal"):
++        assert absent not in cmd, f"{absent!r} must not be mounted for an MD04 control"
++
++
++def test_md04_fault_run_keeps_md04_probability_1():
++    cmd = run_pilot.build_model_extra("MD04", 1.0, seed=11, ordinal=3)
++    assert _has(cmd, "--chaos_md04")
++    assert _value(cmd, "--md04_probability") == "1.0"
++    assert _value(cmd, "--md04_max_faults") == "1"
++    assert _value(cmd, "--md04_rng_seed") == "11"
++    assert _value(cmd, "--md04_event_ordinal") == "3"
++
++
++# ---------------------------------------------------------------------------
++# LQ04 / FW02: pre-existing omit behaviour must be preserved exactly
++# ---------------------------------------------------------------------------
++
++def test_lq04_control_still_omits_and_fault_still_mounts():
++    control = run_pilot.build_model_extra("LQ04", 0.0, seed=11, ordinal=3)
++    assert control == []
++    fault = run_pilot.build_model_extra("LQ04", 1.0, seed=11, ordinal=3)
++    assert _has(fault, "--chaos_lq04")
++    assert _value(fault, "--lq04_max_faults") == "1"
++
++
++def test_fw02_control_still_omits_and_fault_still_mounts():
++    control = run_pilot.build_model_extra("FW02", 0.0, seed=11, ordinal=3)
++    assert control == []
++    fault = run_pilot.build_model_extra("FW02", 1.0, seed=11, ordinal=3)
++    assert _has(fault, "--chaos_lsqfwd")
++    assert _value(fault, "--lsq_struct_mode") == "f6_fw02"
++
++
++# ---------------------------------------------------------------------------
++# Other models: controls are deliberately untouched (probability-gated attach)
++# ---------------------------------------------------------------------------
++
++def test_probability_gated_models_keep_their_control_mount():
++    for model, flag in (("SQ01", "--chaos_lsqfwd"),
++                        ("SQ03", "--chaos_lsqfwd"),
++                        ("SP05", "--chaos_lsqfwd"),
++                        ("FW05", "--chaos_lsqfwd"),
++                        ("LP01", "--chaos_l1dfwd"),
++                        ("A01", "--chaos_addrpath"),
++                        ("A03", "--chaos_addrpath")):
++        cmd = run_pilot.build_model_extra(model, 0.0, seed=11, ordinal=3)
++        assert flag in cmd, f"{model} control attach is probability-gated; flag must stay"
++
++
++# ---------------------------------------------------------------------------
++# RP01 replay pilot: FP01 control omits --chaos_lsqfwd
++# ---------------------------------------------------------------------------
++
++def test_rp01_replay_control_omits_lsqfwd():
++    cmd = run_replay_pilot.build_replay_command(
++        Path("/nonexistent/gem5.opt"), Path("/tmp/rp01-out"), probability=0.0)
++    for absent in ("--chaos_lsqfwd", "--lsq_struct_mode", "f6_fw02",
++                   "--max_faults", "--rng_seed", "--lsqfwd_event_ordinal"):
++        assert absent not in cmd
++    assert _value(cmd, "--probability") == "0.0"
++    assert "--chaos_propagation" in cmd
++    assert "--prop_replay_all" in cmd
++
++
++def test_rp01_replay_fault_run_keeps_fw02_carrier():
++    cmd = run_replay_pilot.build_replay_command(
++        Path("/nonexistent/gem5.opt"), Path("/tmp/rp01-out"), probability=1.0)
++    assert _value(cmd, "--probability") == "1.0"
++    assert "--chaos_lsqfwd" in cmd
++    assert _value(cmd, "--lsq_struct_mode") == "f6_fw02"
++
++
++# ---------------------------------------------------------------------------
++# --dry-run: print + write command.txt, never invoke gem5
++# ---------------------------------------------------------------------------
++
++@pytest.mark.parametrize("model,probability,absent,expected", [
++    ("DA04", 0.0, ("--chaos_lsqfwd", "--lsq_struct_mode"), ()),
++    ("MD04", 0.0, ("--chaos_md04", "--md04_probability"), ()),
++    ("MD04", 1.0, (), ("--chaos_md04", "--md04_probability")),
++])
++def test_dry_run_prints_command_and_never_runs_gem5(
++        tmp_path, capsys, model, probability, absent, expected):
++    outdir = tmp_path / f"dry-{model}-{probability}"
++    rc = run_pilot.main([
++        "--model", model,
++        "--probability", str(probability),
++        "--pilot-id", f"V332-DRY-{model}",
++        "--context-index", "1",
++        "--outdir", str(outdir),
++        "--gem5", str(tmp_path / "does-not-exist-gem5.opt"),
++        "--dry-run",
++    ])
++    assert rc == 0
++    printed = capsys.readouterr().out
++    command_txt = (outdir / "command.txt").read_text().splitlines()
++    # The printed line is the exact command that was written to command.txt.
++    assert command_txt
++    assert str(tmp_path / "does-not-exist-gem5.opt") == command_txt[0]
++    assert printed.strip() == " ".join(command_txt)
++    for flag in absent:
++        assert flag not in command_txt
++    for flag in expected:
++        assert flag in command_txt
++    # gem5 was skipped: no run artifacts / manifest / meta exist.
++    assert not (outdir / "pilot_meta.json").exists()
++    assert not (outdir / "manifest.json").exists()
++    assert not (outdir / "stdout.log").exists()
++
++
++# ---------------------------------------------------------------------------
++# LP01 v3.3.2 record parser: the new pa/va/pc/dyn_inst_seq identity fields are
++# inserted between the old positional fields. The parser must still count the
++# injection (a single positional regex silently returned 0 and would have
++# rejected every LP01 fault as injection-free).
++# ---------------------------------------------------------------------------
++
++def test_l1dfwd_parser_accepts_v332_identity_fields(tmp_path):
++    log = tmp_path / "l1d_fwd_injections.log"
++    log.write_text(
++        "Tick: 172865, Site: l1d_load_complete, addr=0x80d90, "
++        "pa=0x80d90, va=0x7ffffefd90, pc=0x4005d0, size=8, mask=0x8, "
++        "dyn_inst_seq=5, lq_entry_id=1, entry_generation=1, request_id=0, "
++        "eligible_ordinal=1, byte0_changed=1, addr_unchanged=1, "
++        "size_unchanged=1, faults_injected: 1\n"
++        "Tick: 173000, Site: l1d_load_complete, addr=0x4919c8, size=8, "
++        "mask=0x8, eligible_ordinal=2, byte0_changed=1, "
++        "addr_unchanged=1, size_unchanged=1, faults_injected: 2\n")
++    events = run_pilot._l1dfwd_events(log)
++    assert len(events) == 2
++    first = events[0]
++    assert first["pc"] == 0x4005D0
++    assert first["va"] == 0x7FFFFEFD90
++    assert first["pa"] == first["addr"] == 0x80D90
++    assert first["dyn_inst_seq"] == 5
++    assert first["lq_entry_id"] == 1
++    assert first["entry_generation"] == 1
++    assert first["eligible_ordinal"] == 1
++    # Legacy line shape (no identity fields) still parses.
++    assert events[1]["addr"] == 0x4919C8
++    assert events[1]["eligible_ordinal"] == 2
+diff --git a/tests/test_addrpath_a03_stream.cc b/tests/test_addrpath_a03_stream.cc
+index b58618d2..616b3519 100644
+--- a/tests/test_addrpath_a03_stream.cc
++++ b/tests/test_addrpath_a03_stream.cc
+@@ -20,6 +20,14 @@
+ //     with NO commas (a comma would corrupt the CSV trace, whose detail
+ //     column is the last field), bare lowercase hex addresses, decimal
+ //     ordinals/counts, and the literal NOT_APPLICABLE for absent values.
++//
++// v3.3.2 P0-5 additions:
++//   - a stream event built with a real PC (0x400558) prints that PC in the
++//     frozen detail (the PC is threaded from the lsq.cc call site);
++//   - the persistent stuck-at lifecycle counts applications (affected=1)
++//     and already_stuck (affected=0) separately, and first_affected is the
++//     FIRST affected row — not the first recorded row (an ALREADY_STUCK
++//     activation is a no-op application, the fault stays active later).
+ 
+ #include <cstdio>
+ #include <cstring>
+@@ -249,6 +257,101 @@ main()
+               "activation detail: bit=NOT_APPLICABLE for kNoBit");
+     }
+ 
++    // ---- v3.3.2 P0-5: real faulting PC --------------------------------
++    {
++        const uint64_t golden = 0x7ffffefda8ULL;   // bit3 = 1
++        const uint64_t actual = applyStuckAt(golden, 3, 0);
++        const StreamEvent e = streamEvent(1, 4242, 0x400558ULL, golden,
++                                          actual, 3);
++        check(e.pc == 0x400558ULL, "PC: the real faulting PC is carried");
++        const std::string d = streamDetail(e);
++        check(contains(d, ";pc=400558;"),
++              "detail: real PC prints as bare lowercase hex");
++        check(d.find(";pc=0;") == std::string::npos,
++              "detail: kPcUnknown sentinel not emitted when a PC exists");
++    }
++
++    // ---- v3.3.2 P0-5: persistent stuck-at lifecycle --------------------
++    {
++        StreamRecorder rec;
++        Activation act;
++        act.tick = 777;
++        act.bit = 3;
++        act.mode = "a03_bit3_stuck0_load";
++        act.event_ordinal = 1;
++        act.dyn_inst_seq = 900;
++        act.pc = 0x400500ULL;
++        act.golden_ea = 0x100ULL;      // bit3 = 0: activation is ALREADY_STUCK
++        check(rec.activate(act), "lifecycle: activation accepted");
++        check(rec.record(streamEvent(1, 900, 0x400500ULL, 0x100ULL,
++                                     applyStuckAt(0x100ULL, 3, 0), 3)),
++              "lifecycle: activation row recorded (no-op application)");
++        check(rec.record(streamEvent(2, 901, 0x400560ULL, 0x108ULL,
++                                     applyStuckAt(0x108ULL, 3, 0), 3)),
++              "lifecycle: first affected row recorded");
++        check(rec.record(streamEvent(3, 902, 0x400568ULL, 0x1a0ULL,
++                                     applyStuckAt(0x1a0ULL, 3, 0), 3)),
++              "lifecycle: later no-op row recorded");
++
++        check(rec.eligibleEvents() == 3, "lifecycle: three eligible events");
++        check(rec.appliedCount() == 1,
++              "lifecycle: exactly one application changed the EA");
++        check(rec.alreadyStuckCount() == 2,
++              "lifecycle: two ALREADY_STUCK no-op applications");
++        check(rec.hasFirstAffected(),
++              "lifecycle: a first-affected row exists");
++
++        const StuckLifecycle lc = rec.lifecycle(7, "a03_bit3_stuck0_load");
++        check(lc.fault_id == 7 && lc.bit == 3 &&
++              lc.mode == "a03_bit3_stuck0_load",
++              "lifecycle: fault identity {fault_id, bit, mode} carried");
++        check(lc.eligible_events == 3 && lc.applications == 1 &&
++              lc.already_stuck == 2,
++              "lifecycle: eligible/applications/already_stuck split");
++        check(lc.has_activation && lc.activation_ordinal == 1 &&
++              lc.activation_dyn_inst_seq == 900 &&
++              lc.activation_pc == 0x400500ULL &&
++              lc.activation_golden_ea == 0x100ULL,
++              "lifecycle: activation identity carried");
++        check(lc.has_first_affected && lc.first_affected_ordinal == 2 &&
++              lc.first_affected_dyn_inst_seq == 901 &&
++              lc.first_affected_pc == 0x400560ULL,
++              "lifecycle: first_affected is the FIRST affected row, not "
++              "the (already-stuck) activation row");
++
++        const std::string d = lifecycleDetail(lc);
++        check(contains(d, "fault_id=7;bit=3;mode=a03_bit3_stuck0_load;"),
++              "lifecycle detail: fault identity first");
++        check(contains(d, ";eligible_events=3;applications=1;already_stuck=2;"),
++              "lifecycle detail: application split decimal");
++        check(contains(d, ";activation_ordinal=1;activation_dyn_inst_seq=900;"
++                         "activation_pc=400500;activation_golden_ea=100;"),
++              "lifecycle detail: activation identity (bare hex PC/EA)");
++        check(contains(d, ";first_affected_ordinal=2;"
++                         "first_affected_dyn_inst_seq=901;"
++                         "first_affected_pc=400560"),
++              "lifecycle detail: first-affected identity, last fields");
++        check(d.find(',') == std::string::npos,
++              "lifecycle detail: NO commas (CSV last column)");
++
++        // No affected row -> first_affected is honestly absent, never 0.
++        StreamRecorder masked;
++        Activation act2;
++        act2.tick = 1;
++        act2.bit = 3;
++        act2.mode = "a03_bit3_stuck0_load";
++        act2.event_ordinal = 1;
++        act2.dyn_inst_seq = 5;
++        masked.activate(act2);
++        masked.record(streamEvent(1, 5, 0x400500ULL, 0x100ULL,
++                                  applyStuckAt(0x100ULL, 3, 0), 3));
++        const StuckLifecycle lc2 = masked.lifecycle(1, act2.mode);
++        check(!lc2.has_first_affected &&
++              contains(lifecycleDetail(lc2), ";first_affected_ordinal="
++                                             "NOT_APPLICABLE;"),
++              "lifecycle: no affected row -> NOT_APPLICABLE, no silent zero");
++    }
++
+     if (failures != 0) {
+         std::printf("test_addrpath_a03_stream: %d failure(s)\n", failures);
+         return 1;
+diff --git a/tests/test_lp01_bytewise.cc b/tests/test_lp01_bytewise.cc
+index 0d0a9ac4..1e2cb84f 100644
+--- a/tests/test_lp01_bytewise.cc
++++ b/tests/test_lp01_bytewise.cc
+@@ -1,12 +1,65 @@
+ #include <cassert>
+ #include <cstdint>
+ #include <cstdio>
++#include <fstream>
++#include <initializer_list>
++#include <sstream>
++#include <string>
+ #include <vector>
+ 
+ #include "cpu/o3/CHAOSL1DForward/lp01_bytewise.hh"
+ 
+ using namespace gem5::chaos_lp01;
+ 
++namespace
++{
++
++std::string
++readFile(const std::string &path)
++{
++    std::ifstream f(path);
++    assert(f.good() && "cannot open source file");
++    std::ostringstream ss;
++    ss << f.rdbuf();
++    return ss.str();
++}
++
++bool
++contains(const std::string &hay, const std::string &needle)
++{
++    return hay.find(needle) != std::string::npos;
++}
++
++// Slice from `begin` (inclusive) to `end` (exclusive). Keeps the format
++// assertions scoped to the function that must emit the field rather than
++// accepting the token anywhere in the file.
++std::string
++slice(const std::string &text, const std::string &begin,
++      const std::string &end)
++{
++    const auto b = text.find(begin);
++    if (b == std::string::npos)
++        return {};
++    const auto e = text.find(end, b);
++    if (e == std::string::npos)
++        return {};
++    return text.substr(b, e - b);
++}
++
++// Path relative to the repository root, derived from this file's own path
++// (works for both `g++ tests/test_lp01_bytewise.cc` and an absolute path).
++std::string
++repoFile(const char *rel)
++{
++    const std::string self = __FILE__;
++    const auto slash = self.rfind('/');
++    const std::string here = slash == std::string::npos
++        ? std::string(".") : self.substr(0, slash);
++    return here + "/../" + rel;
++}
++
++} // namespace
++
+ static void
+ checkSize(unsigned n)
+ {
+@@ -53,5 +106,48 @@ main()
+     assert(eligibleOrdinal(4, 0) == 5);
+ 
+     std::printf("LP01 byte-0 payload matrix (0/1/4/7/8/9/12/16): PASS\n");
++
++    // v3.3.2 LP01 identity: the injection must be bound to the target
++    // instruction, not only to a physical address. Assert on the emission
++    // code itself (scoped to the emitting function) so deleting a field
++    // fails here; a re-implemented format string would not prove anything.
++    const std::string fwd = readFile(
++        repoFile("CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.cc"));
++    const std::string prop = readFile(
++        repoFile("CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc"));
++    const std::string lsq = readFile(
++        repoFile("CHAOS/gem5/src/cpu/o3/lsq_unit.cc"));
++
++    // Injector log line: instruction identity + both address spaces.
++    const std::string inj = slice(fwd, "CHAOSL1DForward::maybeCorrupt(",
++                                  "CHAOSL1DForward::startup(");
++    assert(!inj.empty());
++    for (const char *f : {"pc=0x", "va=0x", "pa=0x", "dyn_inst_seq=",
++                          "lq_entry_id=", "entry_generation=",
++                          "request_id=", "addr_unchanged=1",
++                          "size_unchanged=1"})
++        assert(contains(inj, f));
++
++    // inj_l1dfwd detail: new identity fields AND every pre-existing field.
++    const std::string note = slice(
++        prop, "CHAOSPropagation::noteL1DForwardInjection(",
++        "CHAOSPropagation::noteL1DForwardWriteback(");
++    assert(!note.empty());
++    for (const char *f : {";pc=0x", ";vaddr=0x", ";dyn_inst_seq=",
++                          ";lq_entry_id=", ";entry_generation=",
++                          ";request_id=", ";response_id=", ";fragment_id=",
++                          ";orig_data_fnv=", ";inj_data_fnv=", ";addr=0x",
++                          ";execution_attempt_id=", ";replay_generation=",
++                          ";wb_to_reg=", ";phys_regs=", ";mask=0x",
++                          ";eligible_ordinal="})
++        assert(contains(note, f));
++
++    // Call site: the target DynInst is actually passed to the injector.
++    const std::string call = slice(lsq, "chaosL1DFwd->maybeCorrupt(", ");");
++    assert(!call.empty());
++    assert(contains(call, "inst.get()"));
++
++    std::printf("LP01 identity record (l1d_fwd_injections.log + inj_l1dfwd): "
++                "PASS\n");
+     return 0;
+ }
+diff --git a/tools/lsu_v332_matrix.py b/tools/lsu_v332_matrix.py
+new file mode 100644
+index 00000000..8965989e
+--- /dev/null
++++ b/tools/lsu_v332_matrix.py
+@@ -0,0 +1,352 @@
++#!/usr/bin/env python3
++"""LSU v3.3.2 60-context fault/control matrix driver.
++
++Runs one FAULT and one matched CONTROL per (model, R01-R05) context on the
++frozen final binary, then records the observed injection identity, oracle,
++terminal and raw artifact paths. Census-only: nothing is graded and no
++formal identity is consumed.
++
++Drivers:
++  * run_pilot.py  -- A01, A03(control), FW02, FW05, SQ01, SQ03, SP05, DA04,
++                     LP01, LQ04, MD04
++  * direct gem5   -- A03 fault (bounded wall clock; the persistent stuck-at
++                     fault can hang and run_pilot's trace conversion is too
++                     expensive for a partial trace)
++  * direct gem5   -- RP01 (run_replay_pilot does not drive the RP01 modes)
++
++Usage:
++  python3 tools/lsu_v332_matrix.py --models A01,RP01 --roles fault,control
++  python3 tools/lsu_v332_matrix.py --models all --roles fault
++"""
++from __future__ import annotations
++
++import argparse
++import csv
++import json
++import os
++import re
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++PLATFORM = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/platform"
++RUN_PILOT = PLATFORM / "run_pilot.py"
++GEM5 = ROOT / "build/ARM/gem5.opt"
++CONFIG = ROOT / "configs/se/lsu_proxy.py"
++WORKLOADS = ROOT / "docs/gem5-fi/lsu/implementation_v3_2/workloads"
++DIRECTED = ROOT / "workloads/directed"
++OUT_BASE = ROOT / "audit_v3_3_2/runs"
++SUMMARY_CSV = ROOT / "audit_v3_3_2/controls/LSU_Fault_Control_Pair_Final.csv"
++
++MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
++          "LP01", "MD04", "LQ04", "RP01")
++
++# Percentile ordinals measured by the v3.3.2 census on binary 070d68a6
++# (v3.3.1 values reused where the workload and hook are unchanged).
++# ROI is the per-model eligible-event window inside main; ordinals are the
++# injector's global eligible ordinals.
++CONTEXTS = {
++    "A01":  dict(roi=(1040, 1234), n=195,  ordinals=[1059, 1098, 1137, 1176, 1215]),
++    "A03":  dict(roi=(1040, 1234), n=195,  ordinals=[1059, 1098, 1137, 1176, 1215]),
++    "FW02": dict(roi=(8, 67),      n=60,   ordinals=[13, 18, 30, 42, 54],
++                 workload=DIRECTED / "sq_forward_w4v2"),
++    "FW05": dict(roi=(1, 2000),    n=2000, ordinals=[200, 600, 1000, 1400, 1800]),
++    "SQ01": dict(roi=(1006, 1133), n=128,  ordinals=[1018, 1044, 1069, 1095, 1121],
++                 workload=WORKLOADS / "sq_reload_v3212"),
++    "SQ03": dict(roi=(1009, 1136), n=128,  ordinals=[1021, 1047, 1072, 1098, 1124],
++                 workload=WORKLOADS / "sq_reload_v3212"),
++    "SP05": dict(roi=(940, 1067),  n=128,  ordinals=[952, 978, 1003, 1029, 1055],
++                 workload=WORKLOADS / "sq_reload_v3212"),
++    "DA04": dict(roi=(33, 1056),   n=1024, ordinals=[135, 340, 544, 749, 954]),
++    "LP01": dict(roi=(886, 17525), n=16640, ordinals=[2549, 5877, 9205, 12533, 15861]),
++    "MD04": dict(roi=(3, 10),      n=8,    ordinals=[3, 5, 6, 8, 10],
++                 workload=DIRECTED / "md04_violations_v332"),
++    "LQ04": dict(roi=(1, 5),       n=5,    ordinals=[1, 2, 3, 4, 5]),
++    "RP01": dict(roi=(1, 255),     n=255,  ordinals=[26, 77, 128, 179, 230],
++                 workload=DIRECTED / "replay_partial_v332",
++                 seeds=[3135797961, 226489823, 1735144973, 2455796178,
++                        3984724524]),
++}
++
++# Per-model special handling.
++DIRECT = {"A03"}          # fault runs are direct + bounded
++RP01 = "RP01"
++A03_TIMEOUT = 30          # seconds of simulation before HANG is recorded
++RP01_TIMEOUT = 90
++
++
++def parse_kv(text: str) -> dict:
++    out = {}
++    for k, v in re.findall(r"([A-Za-z_]\w*)=([^;\s,]+)", text or ""):
++        out.setdefault(k, v)
++    return out
++
++
++def read_jsonl(path: Path, wanted=None):
++    rows = []
++    if not path.exists():
++        return rows
++    for line in path.read_text(errors="replace").splitlines():
++        try:
++            d = json.loads(line)
++        except json.JSONDecodeError:
++            continue
++        if wanted is None or d.get("event_type") in wanted:
++            rows.append(d)
++    return rows
++
++
++def first_injection(outdir: Path):
++    for ev in read_jsonl(outdir / "trace_v31.jsonl", {"injection"}):
++        detail = ev.get("detail") or ""
++        kv = parse_kv(detail)
++        row = {"seq": ev.get("dyn_inst_seq"), "detail": detail}
++        for k in ("pc", "vaddr", "va", "addr", "pa", "store_seq", "load_seq",
++                  "eligible_ordinal", "dyn_inst_seq", "lq_entry_id",
++                  "entry_generation", "request_id"):
++            if k in kv:
++                row[k] = kv[k]
++        return row
++    return None
++
++
++def parse_addrpath_log(path: Path) -> dict:
++    info = {"stream_rows": 0, "first_activation": None,
++            "first_affected": None, "capped": False, "injections": 0,
++            "last_line": None}
++    if not path.exists():
++        return info
++    for line in path.read_text(errors="replace").splitlines():
++        if line.startswith("A03_ACTIVATION:") and info["first_activation"] is None:
++            info["first_activation"] = line
++        elif line.startswith("A03_STREAM:"):
++            info["stream_rows"] += 1
++            kv = parse_kv(line)
++            if kv.get("affected") == "1" and info["first_affected"] is None:
++                info["first_affected"] = line
++        elif line.startswith("A03_STUCK_LIFECYCLE:"):
++            info["lifecycle"] = line
++        elif line.startswith("A03_LOG_CAPPED:"):
++            info["capped"] = True
++        elif "faults_injected:" in line:
++            info["injections"] += 1
++            info["last_line"] = line
++    return info
++
++
++def parse_rp01_stdout(path: Path) -> dict:
++    info = {"eligible": 0, "skips": 0, "watchdog": False,
++            "first_eligible": None, "first_skip": None, "checksum": None}
++    if not path.exists():
++        return info
++    for line in path.read_text(errors="replace").splitlines():
++        if line.startswith("RP01_ELIGIBLE"):
++            info["eligible"] += 1
++            if info["first_eligible"] is None:
++                info["first_eligible"] = line
++        elif line.startswith("RP01_SKIP_REPLAY"):
++            info["skips"] += 1
++            if info["first_skip"] is None:
++                info["first_skip"] = line
++        elif "CHAOS_RP01_WATCHDOG" in line:
++            info["watchdog"] = True
++        m = re.search(r"checksum=0x([0-9a-fA-F]+)", line)
++        if m:
++            info["checksum"] = m.group(1)
++    return info
++
++
++def run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload):
++    cmd = [sys.executable, str(RUN_PILOT), "--model", model,
++           "--context-index", str(ctx_idx),
++           "--event-ordinal", str(ordinal),
++           "--pilot-id", outdir.name,
++           "--outdir", str(outdir),
++           "--timeout", "180"]
++    if workload:
++        cmd += ["--workload", str(workload)]
++    if role == "control":
++        cmd += ["--probability", "0.0"]
++    return cmd
++
++
++def run_direct(cmd_base, outdir, timeout):
++    outdir.mkdir(parents=True, exist_ok=True)
++    # Drop any dry-run outdir token and inject ours right after the binary.
++    cmd = [c for c in cmd_base if not c.startswith("--outdir=")]
++    cmd.insert(1, f"--outdir={outdir}")
++    (outdir / "command.txt").write_text("\n".join(cmd) + "\n")
++    started = time.time()
++    timed_out = False
++    try:
++        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
++                              timeout=timeout)
++        rc, out, err = proc.returncode, proc.stdout, proc.stderr
++    except subprocess.TimeoutExpired as exc:
++        timed_out = True
++        rc = 124
++        out = (exc.stdout or b"").decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
++        err = (exc.stderr or b"").decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
++    (outdir / "stdout.log").write_text(out)
++    (outdir / "stderr.log").write_text(err)
++    return {"cmd": cmd, "exit_code": rc, "timed_out": timed_out,
++            "elapsed": round(time.time() - started, 3)}
++
++
++def dry_run_command(model, ctx_idx, ordinal, role, workload, outdir):
++    cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload)
++    cmd.append("--dry-run")
++    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
++    if proc.returncode != 0:
++        raise RuntimeError(f"dry-run failed: {proc.stderr[-500:]}")
++    return proc.stdout.strip().split()
++
++
++def run_context(model, ctx_idx, role):
++    spec = CONTEXTS[model]
++    ordinal = spec["ordinals"][ctx_idx - 1]
++    seed = spec.get("seeds", [None] * 5)[ctx_idx - 1]
++    workload = spec.get("workload")
++    tag = f"{model}-R{ctx_idx:02d}-{role}"
++    outdir = OUT_BASE / tag
++    if outdir.exists():
++        subprocess.run(["rm", "-rf", str(outdir)])
++    outdir.mkdir(parents=True, exist_ok=True)
++
++    summary = {"model": model, "context": f"R{ctx_idx:02d}",
++               "ctx_index": ctx_idx, "role": role, "ordinal": ordinal,
++               "seed": seed, "workload": str(workload) if workload else None,
++               "outdir": str(outdir), "binary": str(GEM5),
++               "binary_sha": None}
++
++    if model == RP01:
++        base = [str(GEM5), f"--outdir={outdir}", str(CONFIG),
++                f"--cmd={spec['workload']}", "--cpu", "O3",
++                "--variant", "B0", "--probability",
++                "1.0" if role == "fault" else "0.0",
++                "--chaos_propagation",
++                "--prop_trace_file", "prop_trace.csv.gz"]
++        if role == "fault":
++            base += ["--chaos_lsqfwd", "--lsq_struct_mode", "rp01_skip_replay",
++                     "--max_faults", "1", "--rng_seed", str(seed),
++                     "--rp01_event_ordinal", str(ordinal),
++                     "--rp01_watchdog_cycles", "500000000"]
++        info = run_direct(base, outdir, RP01_TIMEOUT)
++        parsed = parse_rp01_stdout(outdir / "stdout.log")
++        summary.update(info)
++        summary["rp01"] = parsed
++        summary["injection_count"] = parsed["skips"]
++        summary["terminal"] = ("HANG" if info["timed_out"] or parsed["watchdog"]
++                               else ("COMPLETED" if info["exit_code"] == 0
++                                     else "CRASH"))
++        summary["oracle"] = (parsed["checksum"] == "f3b1c554273d23f7")
++    elif model in DIRECT:
++        if role == "fault":
++            base = dry_run_command(model, ctx_idx, ordinal, role, workload, outdir)
++            # The A03 fault is persistent and may not terminate; do not pay
++            # the full-trace conversion, run gem5 directly and keep raw logs.
++            base = [c for c in base if not c.startswith("--outdir=")]
++            info = run_direct(base, outdir, A03_TIMEOUT)
++            parsed = parse_addrpath_log(outdir / "addrpath_injections.log")
++            summary.update(info)
++            summary["a03"] = parsed
++            summary["injection_count"] = parsed["injections"]
++            summary["terminal"] = ("HANG" if info["timed_out"]
++                                   else ("COMPLETED" if info["exit_code"] == 0
++                                         else "CRASH"))
++            # The oracle is absent on a partial trace; parse what exists.
++            m = re.search(r"checksum=0x([0-9a-fA-F]+)",
++                          (outdir / "stdout.log").read_text(errors="replace"))
++            summary["oracle"] = bool(m and m.group(1) == "728e604ffcec539d")
++        else:
++            cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload)
++            proc = subprocess.run(cmd, cwd=ROOT, capture_output=True,
++                                  text=True, timeout=300)
++            summary["cmd"] = cmd
++            summary["exit_code"] = proc.returncode
++            summary["injection_count"] = 0
++            meta = outdir / "pilot_meta.json"
++            if meta.exists():
++                m = json.load(open(meta))
++                summary["injection_count"] = m.get("injection_count")
++                summary["oracle"] = m.get("oracle_pass")
++                summary["terminal"] = m.get("terminal")
++    else:
++        cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload)
++        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
++                              timeout=400)
++        summary["cmd"] = cmd
++        summary["exit_code"] = proc.returncode
++        meta_path = outdir / "pilot_meta.json"
++        if meta_path.exists():
++            meta = json.load(open(meta_path))
++            summary["injection_count"] = meta.get("injection_count")
++            summary["oracle"] = meta.get("oracle_pass")
++            summary["terminal"] = meta.get("terminal")
++            summary["elapsed"] = meta.get("elapsed_seconds")
++            summary["injection_events"] = meta.get("injection", {}).get("events")
++            summary["trace_completeness"] = (meta.get("trace") or {}).get(
++                "completeness")
++        inj = first_injection(outdir)
++        if inj:
++            summary["first_injection"] = inj
++
++    # Common binary identity.
++    import hashlib
++    h = hashlib.sha256()
++    with open(GEM5, "rb") as f:
++        for chunk in iter(lambda: f.read(1 << 20), b""):
++            h.update(chunk)
++    summary["binary_sha"] = h.hexdigest()
++
++    (outdir / "summary.json").write_text(json.dumps(summary, indent=2))
++    return summary
++
++
++def main(argv=None):
++    ap = argparse.ArgumentParser()
++    ap.add_argument("--models", default="all")
++    ap.add_argument("--roles", default="fault,control")
++    ap.add_argument("--contexts", default="1,2,3,4,5")
++    ap.add_argument("--out-csv", default=str(SUMMARY_CSV))
++    args = ap.parse_args(argv)
++    models = list(MODELS) if args.models == "all" else args.models.split(",")
++    roles = args.roles.split(",")
++    ctxs = [int(x) for x in args.contexts.split(",")]
++    OUT_BASE.mkdir(parents=True, exist_ok=True)
++    SUMMARY_CSV.parent.mkdir(parents=True, exist_ok=True)
++    rows = []
++    for model in models:
++        if model not in CONTEXTS:
++            print(f"skip unknown model {model}", file=sys.stderr)
++            continue
++        for ctx in ctxs:
++            for role in roles:
++                print(f"== {model} R{ctx:02d} {role}", flush=True)
++                try:
++                    rows.append(run_context(model, ctx, role))
++                except Exception as exc:  # keep the matrix going; record it
++                    row = {"model": model, "context": f"R{ctx:02d}",
++                           "role": role, "error": repr(exc)}
++                    rows.append(row)
++                    print(f"   ERROR {exc!r}", file=sys.stderr)
++    write_csv(rows, Path(args.out_csv))
++    print(f"wrote {args.out_csv} ({len(rows)} rows)")
++    return 0
++
++
++def write_csv(rows, path=SUMMARY_CSV):
++    keys = ["model", "context", "role", "ordinal", "seed", "workload",
++            "injection_count", "oracle", "terminal", "exit_code",
++            "timed_out", "elapsed", "binary_sha", "outdir", "error"]
++    with open(SUMMARY_CSV, "w", newline="") as f:
++        w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
++        w.writeheader()
++        for r in rows:
++            w.writerow(r)
++
++
++if __name__ == "__main__":
++    sys.exit(main())

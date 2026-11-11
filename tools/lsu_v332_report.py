@@ -1,0 +1,331 @@
+#!/usr/bin/env python3
+"""Build the LSU v3.3.2 60-context acceptance tables from real run artifacts.
+
+Reads audit_v3_3_2/runs/<model>-R<ctx>-<role>/{summary.json,pilot_meta.json,
+trace_v31.jsonl,stderr.log,l1d_fwd_injections.log,addrpath_injections.log} and
+writes the four required CSVs. No value is invented: a field that was not
+observed is written as `n/a` or `NOT_OBSERVED`.
+"""
+from __future__ import annotations
+
+import csv
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+RUNS = ROOT / "audit_v3_3_2/runs"
+OUT = ROOT / "audit_v3_3_2"
+BINARY_SHA = "070d68a688464fa737e6bf102f44a27e911dc29d15142d77c82ec2083115f5ca"
+HEAD = "fc608224"
+
+MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
+          "LP01", "MD04", "LQ04", "RP01")
+TWO_PLACE = ("SQ01", "SQ03", "SP05")
+CANDIDATE = {"FW02", "RP01", "MD04", *TWO_PLACE}
+WORKLOAD = {
+    "A01": "agu_addrmodes", "A03": "agu_addrmodes",
+    "FW02": "sq_forward_w4v2 (candidate)", "FW05": "fw05_forward",
+    "SQ01": "sq_reload_v3212 (candidate)", "SQ03": "sq_reload_v3212 (candidate)",
+    "SP05": "sq_reload_v3212 (candidate)", "DA04": "alignment",
+    "LP01": "load_response", "MD04": "md04_violations_v332 (candidate)",
+    "LQ04": "lq_lifetime_ordinal",
+    "RP01": "replay_partial_v332 (candidate)",
+}
+ROI = {  # measured ROI (start,end), N, percentile ordinals
+    "A01": ((1040, 1234), 195, [1059, 1098, 1137, 1176, 1215]),
+    "A03": ((1040, 1234), 195, [1059, 1098, 1137, 1176, 1215]),
+    "FW02": ((8, 67), 60, [13, 25, 37, 49, 61]),
+    "FW05": ((1, 2000), 2000, [200, 600, 1000, 1400, 1800]),
+    "SQ01": ((1006, 1133), 128, [1018, 1044, 1069, 1095, 1121]),
+    "SQ03": ((1009, 1136), 128, [1021, 1047, 1072, 1098, 1124]),
+    "SP05": ((940, 1067), 128, [952, 978, 1003, 1029, 1055]),
+    "DA04": ((33, 1056), 1024, [135, 340, 544, 749, 954]),
+    "LP01": ((886, 17525), 16640, [2549, 5877, 9205, 12533, 15861]),
+    "MD04": ((3, 10), 8, [3, 5, 6, 8, 10]),
+    "LQ04": ((1, 5), 5, [1, 2, 3, 4, 5]),
+    "RP01": ((1, 255), 255, [26, 77, 128, 179, 230]),
+}
+CONSUMER_EVENTS = {"consumer_commit", "commit", "errant_commit"}
+QUALIFIER = {
+    "A01": "R03=UNRESOLVED_NO_WRITEBACK; R02=SQUASHED",
+    "A03": "PERSISTENT_STUCK: ONE FAULT, FIVE OBSERVATION POINTS; PARTIAL TRACE",
+    "SQ03": "VISIBILITY_TIMING_SHIFT (CHAIN_VISIBILITY_MOVED 4/5), NOT SDC",
+    "SP05": "SDC_with_store_data_fnv=NULL (RELOAD_UNVERIFIABLE qualifier)",
+    "RP01": "HANG_BY_INTERNAL_WATCHDOG; PARTIAL TRACE; NO SDC CLAIM",
+    "MD04": "R01=MASKED; CANDIDATE VIOLATION WORKLOAD",
+    "FW02": "CANDIDATE W4 LOAD-PRESERVING WORKLOAD",
+    "LQ04": "MASKED BY DESIGN (LQ LIFETIME CONSUMER)",
+}
+DIVERGENCE_EVENTS = {
+    "a01_ea": "A01_EA", "fw02_decision": "FW02_DECISION",
+    "forwarding_decision": "FORWARDING_DECISION",
+    "store_writeback": "STORE_WRITEBACK", "store_mem_write": "STORE_MEM_WRITE",
+    "sq03_complete": "SQ03_COMPLETE", "sp05_complete": "SP05_COMPLETE",
+    "memory_response": "MEMORY_RESPONSE", "register_writeback": "REGISTER_WRITEBACK",
+    "taint_value_mismatch": "TAINT_VALUE_MISMATCH",
+}
+
+
+def jload(p: Path, default=None):
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return default if default is not None else {}
+
+
+def trace_index(path: Path):
+    idx = {}
+    if not path.exists():
+        return idx
+    for line in path.read_text(errors="replace").splitlines():
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        seq = d.get("dyn_inst_seq")
+        idx.setdefault(seq, []).append(d)
+    return idx
+
+
+def rp01_watchdog(outdir: Path) -> bool:
+    for name in ("stderr.log", "stdout.log", "lsq_fwd_injections.log"):
+        p = outdir / name
+        if p.exists() and "CHAOS_RP01_WATCHDOG" in p.read_text(errors="replace"):
+            return True
+    return False
+
+
+def fault_row(model: str, ctx: int):
+    outdir = RUNS / f"{model}-R{ctx:02d}-fault"
+    s = jload(outdir / "summary.json")
+    meta = jload(outdir / "pilot_meta.json")
+    cls = meta.get("classification") or {}
+    seed = (s.get("seed") or meta.get("seed")
+            or (meta.get("excel_identity") or {}).get("seed"))
+    if not seed and (outdir / "command.txt").exists():
+        m = re.search(r"--[A-Za-z0-9_]*rng_seed\s+(\d+)",
+                      (outdir / "command.txt").read_text(errors="replace"))
+        if m:
+            seed = int(m.group(1))
+    row = {
+        "model": model, "context": f"R{ctx:02d}", "seed": seed,
+        "ordinal": s.get("ordinal"), "workload": WORKLOAD[model],
+        "workload_status": ("CANDIDATE_PENDING_APPROVAL" if model in CANDIDATE
+                            else "FORMAL"),
+        "binary_sha": s.get("binary_sha"), "outdir": str(outdir),
+    }
+    if model == "A03":
+        a03 = s.get("a03") or {}
+        row.update(injection_count=s.get("injection_count"),
+                   injection_identity=a03.get("first_activation"),
+                   activation=a03.get("first_activation"),
+                   first_divergence=a03.get("first_affected"),
+                   terminal=("HANG_TIMEOUT" if s.get("timed_out") else
+                             "COMPLETED" if s.get("exit_code") == 0 else "CRASH"),
+                   oracle="NO_CHECKSUM_ON_PARTIAL_TRACE",
+                   causal_class="HANG_PARTIAL_EVIDENCE",
+                   trace_completeness="PARTIAL",
+                   terminal_reason=f"A03_LOG_CAPPED={a03.get('capped')} "
+                                   f"stream_rows={a03.get('stream_rows')}")
+    elif model == "RP01":
+        rp = s.get("rp01") or {}
+        wd = rp01_watchdog(outdir)
+        row.update(injection_count=rp.get("skips"),
+                   injection_identity=rp.get("first_skip"),
+                   activation=rp.get("first_eligible"),
+                   first_divergence=rp.get("first_skip"),
+                   terminal=("HANG_WATCHDOG" if wd else
+                             "HANG_TIMEOUT" if s.get("timed_out") else "COMPLETED"),
+                   oracle=f"no_checksum (checksum={rp.get('checksum')})",
+                   causal_class=("DIRECT_SKIP_AND_WATCHDOG" if wd
+                                 else "HANG_PARTIAL_EVIDENCE"),
+                   trace_completeness="PARTIAL",
+                   terminal_reason=f"eligible={rp.get('eligible')} "
+                                   f"skip={rp.get('skips')} watchdog={wd}")
+    else:
+        inj = s.get("first_injection") or {}
+        idx = trace_index(outdir / "trace_v31.jsonl")
+        seq = inj.get("seq")
+        evs = idx.get(seq, [])
+        # Enrich the identity from every event belonging to the same DynInst:
+        # model-specific records (a01_ea, fw02_decision, store_writeback, ...)
+        # carry the PC/VA/EA that the generic injection detail may omit.
+        rich = {}
+        for e in evs:
+            for k, v in re.findall(r"([A-Za-z_]\w*)=([^;\s,]+)", e.get("detail") or ""):
+                rich.setdefault(k.lower(), v)
+        pc = inj.get("pc") or rich.get("pc")
+        va = (inj.get("vaddr") or inj.get("va")
+              or rich.get("vaddr") or rich.get("va"))
+        addr = (inj.get("addr") or rich.get("addr") or rich.get("pa")
+                or rich.get("actual_ea") or rich.get("new_addr")
+                or rich.get("golden_ea"))
+        lq = rich.get("lq_entry_id") or rich.get("lq_idx") or inj.get("lq_entry_id")
+        kinds = {e.get("event_type") for e in evs}
+        div = next((DIVERGENCE_EVENTS[k] for k in DIVERGENCE_EVENTS
+                    if k in kinds), "n/a")
+        consumer = "consumer_commit" if "consumer_commit" in kinds else (
+            "errant_commit" if "errant_commit" in kinds else (
+                "commit" if "commit" in kinds else "n/a"))
+        squash = "SQUASHED" if any(
+            "squash" in (e.get("event_type") or "") or
+            "squash" in (e.get("detail") or "").lower() for e in evs) else "no"
+        term = (cls.get("terminal_state") or s.get("terminal")
+                or "UNRESOLVED")
+        row.update(injection_count=s.get("injection_count"),
+                   injection_identity=(f"seq={seq};pc={pc};va={va};"
+                                       f"addr={addr};lq={lq}"),
+                   activation=f"injection seq={seq}",
+                   first_divergence=div,
+                   consumer=consumer,
+                   squash_or_replay=squash,
+                   terminal=term,
+                   oracle=("PASS" if meta.get("oracle_pass") else "FAIL"),
+                   causal_class=cls.get("fault_causality", "n/a"),
+                   trace_completeness=cls.get("trace_completeness", "n/a"),
+                   terminal_reason=cls.get("terminal_state_reason", "n/a"))
+    return row
+
+
+def control_row(model: str, ctx: int):
+    outdir = RUNS / f"{model}-R{ctx:02d}-control"
+    s = jload(outdir / "summary.json")
+    meta = jload(outdir / "pilot_meta.json")
+    cmd = " ".join(s.get("cmd") or [])
+    if not cmd and (outdir / "command.txt").exists():
+        cmd = (outdir / "command.txt").read_text(errors="replace")
+    injector_absent = ("--chaos_lsqfwd" not in cmd and "--chaos_md04" not in cmd
+                       and "--chaos_addrpath" not in cmd)
+    mounted = not injector_absent
+    inj = s.get("injection_count")
+    if model == "RP01":
+        inj = (s.get("rp01") or {}).get("skips")
+    proof = ("INJECTOR_ABSENT" if (inj == 0 and injector_absent) else
+             "MOUNTED_P0_INJECTED_0" if inj == 0 else "MISFIRE")
+    seed = (s.get("seed") or meta.get("seed")
+            or (meta.get("excel_identity") or {}).get("seed"))
+    return {
+        "model": model, "context": f"R{ctx:02d}", "seed": seed,
+        "ordinal": s.get("ordinal"), "workload": WORKLOAD[model],
+        "binary_sha": s.get("binary_sha"), "outdir": str(outdir),
+        "injection_count": inj, "zero_injection_proof": proof,
+        "oracle": ("PASS" if (meta.get("oracle_pass") or
+                              (s.get("rp01") or {}).get("checksum") ==
+                              "f3b1c554273d23f7" and model == "RP01") else
+                   "FAIL_OR_NO_CHECKSUM"),
+        "exit_code": s.get("exit_code"), "timed_out": s.get("timed_out"),
+        "command": cmd.replace("\n", " ")[:600],
+    }
+
+
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    faults, controls = [], []
+    mapping, distinct, matrix, causal = [], [], [], []
+    for model in MODELS:
+        (rs, re_), n, ords = ROI[model]
+        ids = []
+        for i, ctx in enumerate(range(1, 6)):
+            f = fault_row(model, ctx)
+            c = control_row(model, ctx)
+            faults.append(f)
+            controls.append(c)
+            ids.append(f.get("injection_identity"))
+            mapping.append({
+                "ModelID": model, "ContextID": f"R{ctx:02d}",
+                "SampleRunID": f"V332-{model}-R{ctx:02d}",
+                "Seed": f.get("seed"), "Workload": WORKLOAD[model],
+                "WorkloadStatus": f["workload_status"],
+                "ROI_Start_Ordinal": rs, "ROI_End_Ordinal": re_,
+                "ROI_N": n, "Percentile": [0.1, 0.3, 0.5, 0.7, 0.9][i],
+                "Rank_k": (int([0.1, 0.3, 0.5, 0.7, 0.9][i] * n) +
+                           (1 if [0.1, 0.3, 0.5, 0.7, 0.9][i] * n >
+                           int([0.1, 0.3, 0.5, 0.7, 0.9][i] * n) else 0)),
+                "Absolute_Eligible_Ordinal": ords[i],
+                "InjectionIdentity": ids[-1],
+                "EvidenceBinarySHA": f.get("binary_sha"),
+                "EvidencePath": f.get("outdir"),
+                "MappingStatus": ("MAPPED_ON_CANDIDATE_WORKLOAD"
+                                  if model in CANDIDATE else "MAPPED"),
+            })
+            distinct.append({
+                "ModelID": model, "ContextID": f"R{ctx:02d}",
+                "Identity": ids[-1],
+                "DistinctFromOtherContexts": "YES" if ids[-1] not in ids[:-1]
+                                              else "NO",
+                "Terminal": f.get("terminal"),
+                "EvidencePath": f.get("outdir"),
+            })
+            matrix.append({
+                "ModelID": model, "ContextID": f"R{ctx:02d}",
+                "WorkloadStatus": f["workload_status"],
+                "Ordinal": f.get("ordinal"),
+                "FaultInjected": "YES" if (f.get("injection_count") or 0) > 0
+                                 else "NO",
+                "FaultTerminal": f.get("terminal"),
+                "Oracle": f.get("oracle"),
+                "ControlInjected": c.get("injection_count"),
+                "ControlProof": c.get("zero_injection_proof"),
+                "ControlOracle": c.get("oracle"),
+                "Trace": f.get("trace_completeness"),
+                "CausalClass": f.get("causal_class"),
+                "Qualifier": QUALIFIER.get(model, ""),
+                "Ready": ("TECHNICALLY_READY_APPROVAL_PENDING"
+                          if f["workload_status"] == "CANDIDATE_PENDING_APPROVAL"
+                          else "TECHNICALLY_READY"),
+            })
+            causal.append({
+                "ModelID": model, "ContextID": f"R{ctx:02d}",
+                "FaultSource": f"{model} fault at ordinal {f.get('ordinal')}",
+                "Injection": f.get("injection_identity"),
+                "Activation": f.get("activation"),
+                "FirstDivergence": f.get("first_divergence"),
+                "Downstream": f.get("consumer", "n/a"),
+                "CommitSquashReplay": f.get("squash_or_replay", "n/a"),
+                "ArchitecturalOrTerminal": f.get("terminal"),
+                "TerminalReason": f.get("terminal_reason"),
+                "ApplicationOracle": f.get("oracle"),
+                "EvidenceClass": f.get("causal_class"),
+                "TraceCompleteness": f.get("trace_completeness"),
+                "EvidencePath": f.get("outdir"),
+            })
+
+    def write(name, rows):
+        p = OUT / name
+        with open(p, "w", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+        print("wrote", p, len(rows))
+
+    write("roi/LSU_60Context_ROI_Percentile_Mapping.csv", mapping)
+    write("roi/LSU_60Context_Distinctness_Audit.csv", distinct)
+    write("LSU_60Context_Final_Readiness_Matrix.csv", matrix)
+    pairs = []
+    for f, c in zip(faults, controls):
+        pairs.append({
+            "ModelID": f["model"], "ContextID": f["context"],
+            "Seed": f["seed"], "Ordinal": f["ordinal"],
+            "Workload": f["workload"], "WorkloadStatus": f["workload_status"],
+            "BinarySHA256": f.get("binary_sha"),
+            "FaultInjected": f.get("injection_count"),
+            "FaultIdentity": f.get("injection_identity"),
+            "FaultTerminal": f.get("terminal"),
+            "FaultOracle": f.get("oracle"),
+            "FaultCausalClass": f.get("causal_class"),
+            "FaultTrace": f.get("trace_completeness"),
+            "ControlInjected": c.get("injection_count"),
+            "ControlZeroProof": c.get("zero_injection_proof"),
+            "ControlOracle": c.get("oracle"),
+            "ControlExitCode": c.get("exit_code"),
+            "FaultEvidencePath": f.get("outdir"),
+            "ControlEvidencePath": c.get("outdir"),
+            "FaultCommand": (c.get("command", "") if False else ""),
+        })
+    write("controls/LSU_Fault_Control_Pair_Final.csv", pairs)
+    write("propagation/LSU_60Context_Causal_Propagation_Final.csv", causal)
+
+
+if __name__ == "__main__":
+    main()

@@ -50,7 +50,7 @@ MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
 CONTEXTS = {
     "A01":  dict(roi=(1040, 1234), n=195,  ordinals=[1059, 1098, 1137, 1176, 1215]),
     "A03":  dict(roi=(1040, 1234), n=195,  ordinals=[1059, 1098, 1137, 1176, 1215]),
-    "FW02": dict(roi=(8, 67),      n=60,   ordinals=[13, 18, 30, 42, 54],
+    "FW02": dict(roi=(8, 67),      n=60,   ordinals=[13, 25, 37, 49, 61],
                  workload=DIRECTED / "sq_forward_w4v2"),
     "FW05": dict(roi=(1, 2000),    n=2000, ordinals=[200, 600, 1000, 1400, 1800]),
     "SQ01": dict(roi=(1006, 1133), n=128,  ordinals=[1018, 1044, 1069, 1095, 1121],
@@ -63,7 +63,8 @@ CONTEXTS = {
     "LP01": dict(roi=(886, 17525), n=16640, ordinals=[2549, 5877, 9205, 12533, 15861]),
     "MD04": dict(roi=(3, 10),      n=8,    ordinals=[3, 5, 6, 8, 10],
                  workload=DIRECTED / "md04_violations_v332"),
-    "LQ04": dict(roi=(1, 5),       n=5,    ordinals=[1, 2, 3, 4, 5]),
+    "LQ04": dict(roi=(1, 5),       n=5,    ordinals=[1, 2, 3, 4, 5],
+                 workload=WORKLOADS / "lq_lifetime_ordinal"),
     "RP01": dict(roi=(1, 255),     n=255,  ordinals=[26, 77, 128, 179, 230],
                  workload=DIRECTED / "replay_partial_v332",
                  seeds=[3135797961, 226489823, 1735144973, 2455796178,
@@ -74,7 +75,7 @@ CONTEXTS = {
 DIRECT = {"A03"}          # fault runs are direct + bounded
 RP01 = "RP01"
 A03_TIMEOUT = 30          # seconds of simulation before HANG is recorded
-RP01_TIMEOUT = 90
+RP01_TIMEOUT = 300
 
 
 def parse_kv(text: str) -> dict:
@@ -232,7 +233,7 @@ def run_context(model, ctx_idx, role):
             base += ["--chaos_lsqfwd", "--lsq_struct_mode", "rp01_skip_replay",
                      "--max_faults", "1", "--rng_seed", str(seed),
                      "--rp01_event_ordinal", str(ordinal),
-                     "--rp01_watchdog_cycles", "500000000"]
+                     "--rp01_watchdog_cycles", "20000000"]
         info = run_direct(base, outdir, RP01_TIMEOUT)
         parsed = parse_rp01_stdout(outdir / "stdout.log")
         summary.update(info)
@@ -272,7 +273,9 @@ def run_context(model, ctx_idx, role):
                 m = json.load(open(meta))
                 summary["injection_count"] = m.get("injection_count")
                 summary["oracle"] = m.get("oracle_pass")
-                summary["terminal"] = m.get("terminal")
+                summary["terminal"] = (m.get("terminal")
+                                       or (m.get("classification") or {}).get(
+                                           "terminal_state"))
     else:
         cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload)
         proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
@@ -284,7 +287,9 @@ def run_context(model, ctx_idx, role):
             meta = json.load(open(meta_path))
             summary["injection_count"] = meta.get("injection_count")
             summary["oracle"] = meta.get("oracle_pass")
-            summary["terminal"] = meta.get("terminal")
+            summary["terminal"] = (meta.get("terminal")
+                                   or (meta.get("classification") or {}).get(
+                                       "terminal_state"))
             summary["elapsed"] = meta.get("elapsed_seconds")
             summary["injection_events"] = meta.get("injection", {}).get("events")
             summary["trace_completeness"] = (meta.get("trace") or {}).get(
@@ -341,7 +346,7 @@ def write_csv(rows, path=SUMMARY_CSV):
     keys = ["model", "context", "role", "ordinal", "seed", "workload",
             "injection_count", "oracle", "terminal", "exit_code",
             "timed_out", "elapsed", "binary_sha", "outdir", "error"]
-    with open(SUMMARY_CSV, "w", newline="") as f:
+    with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
         w.writeheader()
         for r in rows:

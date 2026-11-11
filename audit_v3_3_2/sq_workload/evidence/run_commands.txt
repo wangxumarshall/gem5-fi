@@ -1,0 +1,56 @@
+# LSU v3.3.2 SQ workload decision - exact commands executed
+#
+# Worktree: /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12
+# Binary (sha256 d3807fbef631354a41d9d6d8cf14c11020e396439f80bdd516225c6b5e37e2b2)
+# Configuration: configs/se/lsu_proxy.py  (sha256 01f912de3388aaf420aa69d5dd55098ddfb97851faf0269a6b009fcc389bf6e5)
+#
+# NOTE: tools/lsu_v331_census.py was NOT used. It hardcodes its output under
+# audit_v3_3_1/roi/census (outside this agent's ownership) and deletes the
+# trace. The runner it wraps, platform/run_pilot.py, was invoked directly so
+# the full trace_v31.jsonl / pilot_meta.json remain under evidence/.
+# Each probe is a census artifact: oracle outcomes are recorded, never used
+# to select ordinals.
+#
+# All runs used one gem5 process at a time.
+
+WORKLOAD_SQRELOAD="$PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_reload_v3212"
+WORKLOAD_W3="$PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/sq_drain"
+WORKLOAD_W6="$PWD/docs/gem5-fi/lsu/implementation_v3_2/workloads/store_path"
+
+# ---- ordinal establishment (boundary K*-1 / K*) ----
+# SQ01 seed 591611458, SQ03 seed 2214819981, SP05 seed 1489155957
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-K1005 --event-ordinal 1005 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/establish/SQ01_K1005 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-K1006 --event-ordinal 1006 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/establish/SQ01_K1006 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-K1008 --event-ordinal 1008 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/establish/SQ03_K1008 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-K1009 --event-ordinal 1009 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/establish/SQ03_K1009 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-K939 --event-ordinal 939 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/establish/SP05_K939 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-K940 --event-ordinal 940 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/establish/SP05_K940 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+
+# ---- five percentile contexts on sq_reload_v3212 ----
+# rank k = ceil(p*128) for p = 0.1/0.3/0.5/0.7/0.9 = 13/39/64/90/116
+# absolute eligible ordinal = ROI_start + (k-1)  (ROI_start = K*, the ordinal
+# of buf[0]; 1-indexed rank convention frozen in
+# audit_v3_3_1/roi/LSU_60Context_ROI_Percentile_Mapping.csv)
+# SQ01 ROI_start=1006 -> 1018,1044,1069,1095,1121
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-K1018 --event-ordinal 1018 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ01_K1018 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-K1044 --event-ordinal 1044 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ01_K1044 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-K1069 --event-ordinal 1069 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ01_K1069 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-K1095 --event-ordinal 1095 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ01_K1095 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-K1121 --event-ordinal 1121 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ01_K1121 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+# SQ03 ROI_start=1009 -> 1021,1047,1072,1098,1124
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-K1021 --event-ordinal 1021 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ03_K1021 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-K1047 --event-ordinal 1047 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ03_K1047 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-K1072 --event-ordinal 1072 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ03_K1072 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-K1098 --event-ordinal 1098 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ03_K1098 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-K1124 --event-ordinal 1124 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SQ03_K1124 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+# SP05 ROI_start=940 -> 952,978,1003,1029,1055
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-K952 --event-ordinal 952 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SP05_K952 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-K978 --event-ordinal 978 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SP05_K978 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-K1003 --event-ordinal 1003 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SP05_K1003 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-K1029 --event-ordinal 1029 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SP05_K1029 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-K1055 --event-ordinal 1055 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/contexts/SP05_K1055 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_SQRELOAD"
+
+# ---- original W3/W6 comparison on the same binary (ordinal 1) ----
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ01 --pilot-id PROBE-V332-SQ01-sq_drain-K1 --event-ordinal 1 --seed 591611458 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/original/SQ01_sq_drain_K1 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_W3"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SQ03 --pilot-id PROBE-V332-SQ03-sq_drain-K1 --event-ordinal 1 --seed 2214819981 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/original/SQ03_sq_drain_K1 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_W3"
+python3 docs/gem5-fi/lsu/implementation_v3_2/platform/run_pilot.py --model SP05 --pilot-id PROBE-V332-SP05-store_path-K1 --event-ordinal 1 --seed 1489155957 --context-index 1 --outdir audit_v3_3_2/sq_workload/evidence/original/SP05_store_path_K1 --gem5 build/ARM/gem5.opt --timeout 300 --workload "$WORKLOAD_W6"

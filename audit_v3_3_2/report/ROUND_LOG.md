@@ -11,3 +11,19 @@
   - LP01: `CHAOSPropagation::noteL1DForwardInjection` already records request/response ids and data hashes; `CHAOSL1DForward` log lacks PC/VA.
   - A03: `a03NoteEligibleLoad(dyn_seq, old_addr, addr, 3)` is called without a PC; the PRE hook accepts a defaulted `pc` argument.
   - Runner hazards: DA04 attaches at p=0; MD04 hard-codes `--md04_probability 1.0`.
+
+## 2026-11-11 — Matrix execution and finalization
+
+- Final binary `070d68a6…` built from HEAD source (two builds, 0 errors),
+  installed at repo-root `build/ARM/gem5.opt`; v3.3.1 binary retained.
+- 60/60 contexts mapped on the final binary (30 formal workloads, 30
+  candidate workloads pending approval). All percentile arithmetic
+  `start + ceil(p*N) - 1` validated; FW02 R02–R05 corrected and rerun.
+- 60/60 fault runs injected; 60/60 controls zero-injection with real artifacts.
+- Terminals: SDC 36, MASKED 12, HANG_TIMEOUT 5 (A03), HANG_WATCHDOG 5 (RP01),
+  SQUASHED 1 (A01-R02), UNRESOLVED 1 (A01-R03).
+- RP01 faults rerun with a 20M-cycle watchdog: all five print
+  `CHAOS_RP01_WATCHDOG=EXPIRED fired=1` (exit 1), classified HANG_WATCHDOG.
+- Regression: `pytest tests/ -q` 180 passed; platform 120 passed.
+- Independent Agent F found the FW02 ordinal-offset bug and stale provenance;
+  both fixed before packaging. Final verdict: PARTIALLY_READY.
