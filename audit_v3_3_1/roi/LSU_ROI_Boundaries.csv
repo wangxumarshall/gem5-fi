@@ -1,0 +1,13 @@
+ModelID,Workload,ROI_Start_Ordinal,ROI_End_Ordinal,N_ROI,ROI_Criterion,Evidence,Status
+A01,W1 agu_addrmodes,1040,1234,195,"PC in main [0x4004f0,0x40074c]",audit_v3_3_1/roi/census/A01_w1_r01.jsonl,MAPPED
+A03,W1 agu_addrmodes,1040,1234,195,shared A01 load-only eligible stream,audit_v3_3_1/roi/census/A03_w1_pct_r01.jsonl,MAPPED_WITH_CAVEAT
+LQ04,W2 lq_lifetime_ordinal,1,5,5,five _start anchor loads 0x400338..0x400348,pilots_v3_2_10/LQ04-R0*/lq04_injections.log,MAPPED
+FW05,W8a fw05_forward,1,2000,2000,"load PC 0x400564, addr in buf.0 [0x491990,0x491a90)",audit_v3_3_1/roi/census/FW05_w8a_r01.jsonl,MAPPED
+DA04,W8b alignment,33,1056,1024,"store addr in a.0 [0x491990,0x492990)",audit_v3_3_1/roi/census/DA04_w8b_r01.jsonl,MAPPED
+SQ01,sq_reload_v3212 (recommended),1006,1133,128,"store addr in buf [0x491990,0x492190)",SQ_Ordinal_Eligibility_Preflight_v3.2.12.md + census,MAPPED_PENDING_APPROVAL
+SQ03,sq_reload_v3212 (recommended),1009,1136,128,"store addr in buf [0x491990,0x492190)",SQ_Ordinal_Eligibility_Preflight_v3.2.12.md + census,MAPPED_PENDING_APPROVAL
+SP05,sq_reload_v3212 (recommended),940,1067,128,"store addr in buf [0x491990,0x492190)",SQ_Ordinal_Eligibility_Preflight_v3.2.12.md + census,MAPPED_PENDING_APPROVAL
+FW02,W4 sq_forward,n/a,n/a,0,main has no data load,audit_v3_3_1/audits/Agent_B_Workload_Disassembly_Findings.md,INSUFFICIENT_EVENTS
+MD04,W7 replay_dependency,3,3,1,only ordinal 3 in main (PC 0x400530),audit_v3_3_1/roi/census/MD04_w7_r01.jsonl,INSUFFICIENT_EVENTS
+LP01,W5 load_response,n/a,n/a,n/a,"record has PA only, no PC/VA",audit_v3_3_1/roi/census/LP01_w5_r01.jsonl,OBSERVABILITY_GAP
+RP01,W7 replay_dependency,n/a,n/a,0,no partial-overlap event in W7,RP01_CountOnly_Preflight_v3.2.12.csv,INSUFFICIENT_EVENTS

@@ -1,0 +1,133 @@
+{
+  "pilot_id": "PROBE-FW05_w8a_r01-FW05-K2004",
+  "model": "FW05",
+  "run_role": "FAULT",
+  "seed": 1025137124,
+  "event_selection": "TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; warm-up/ROI not frozen)",
+  "excel_identity": {
+    "run_id": "PILOT-FW05",
+    "sub_task_id": "PILOT-FW05-S01",
+    "sample_run_id": "PROBE-FW05_w8a_r01-FW05-K2004",
+    "seed": 1025137124,
+    "event_ordinal": 1,
+    "event_ordinal_used": 2004
+  },
+  "workload": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/fw05_forward",
+  "command": [
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/build/ARM/gem5.opt",
+    "--outdir=/tmp/v331_census/FW05_w8a_r01_FW05_K2004",
+    "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/configs/se/lsu_proxy.py",
+    "--cmd=/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/docs/gem5-fi/lsu/implementation_v3_2/workloads/fw05_forward",
+    "--cpu",
+    "O3",
+    "--variant",
+    "B0",
+    "--probability",
+    "1.0",
+    "--chaos_propagation",
+    "--prop_trace_file",
+    "prop_trace.csv.gz",
+    "--chaos_lsqfwd",
+    "--lsq_struct_mode",
+    "fw05_older_src",
+    "--max_faults",
+    "1",
+    "--rng_seed",
+    "1025137124",
+    "--lsqfwd_event_ordinal",
+    "2004"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 2.312,
+  "oracle_expected": "0x67afad307642983e",
+  "oracle_source": "workload_golden",
+  "oracle_pass": true,
+  "injection": {
+    "events": [],
+    "injected": 0
+  },
+  "injection_count": 0,
+  "target_event_proof": {
+    "site": "store->load_forward_decision",
+    "events": 0,
+    "all_distinct_stores": true,
+    "all_younger_load": true,
+    "all_full_cover": true,
+    "all_data_differs": true,
+    "all_address_size_unchanged": true
+  },
+  "trace": {
+    "csv_rows": 34522,
+    "truncated": false,
+    "validator_errors": [],
+    "completeness": {
+      "trace": "/tmp/v331_census/FW05_w8a_r01_FW05_K2004/trace_v31.jsonl",
+      "trace_completeness": "COMPLETE",
+      "record_integrity": "VALID",
+      "propagation_coverage": "PARTIAL",
+      "structural_chain_completeness": "PARTIAL",
+      "propagation_stages": [
+        "forwarding_decision",
+        "sq_lifecycle"
+      ],
+      "expected_stages": [
+        "injection"
+      ],
+      "missing_stages": [
+        "injection"
+      ],
+      "chain_ptag": null,
+      "chain_scoped": false,
+      "chain_source": "none",
+      "chain_events": 34522,
+      "consumer_operand_records": 0,
+      "consumer_instructions": 0,
+      "taint_value_mismatch_records": 0,
+      "chain_integrity": "UNKNOWN",
+      "chain_reasons": [
+        "no_injection_event"
+      ],
+      "execution_attempt_link": "UNKNOWN",
+      "terminal_state": "UNRESOLVED",
+      "run_status": "COMPLETED",
+      "fault_activation_status": "NOT_TRIGGERED",
+      "events": 34522,
+      "edges": 0,
+      "injections": 0,
+      "activations": 0,
+      "reasons": []
+    }
+  },
+  "classification": {
+    "run_status": "COMPLETED",
+    "fault_activation_status": "NOT_TRIGGERED",
+    "observed_terminal": "MASKED",
+    "terminal_state": "UNRESOLVED",
+    "terminal_state_reason": "NO_INJECTION_EVENT",
+    "fault_causality": "UNKNOWN",
+    "terminal_evidence": {
+      "page_table_fault_addr": null,
+      "last_injection_dyn_seq": null,
+      "last_injection_new_value": null,
+      "address_match": false,
+      "stderr_has_page_table_fault": false
+    },
+    "trace_completeness": "COMPLETE",
+    "record_integrity": "VALID",
+    "propagation_coverage": "PARTIAL",
+    "structural_chain_completeness": "PARTIAL",
+    "fault_effect_propagation_coverage": "UNRESOLVED",
+    "fault_effect_evidence": {
+      "model": "FW05",
+      "chain_identity": "ptag+dyn_inst_seq (str-normalized)",
+      "chain_events": 0
+    },
+    "fault_effect_reason": "NO_INJECTION_EVENT",
+    "oracle_outcome": "PASS"
+  },
+  "control_valid": "n/a",
+  "control_misfire": false,
+  "accepted": false,
+  "accepted_meaning": "record validity; not a claim that the fault caused the terminal",
+  "crash_evidence": null
+}

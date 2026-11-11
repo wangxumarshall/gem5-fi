@@ -1,0 +1,61 @@
+ModelID,ContextID,Percentile,StaticPC,DynInstSeq,Address,LQ_SQ_Entry,Generation,DataDependence,ReplayGeneration,SquashState,DistinctFromPrevious,Evidence,Notes
+A01,R01,0.1,0x400598,12978,0x493000,sq_idx=n/a,n/a,n/a,n/a,n/a,n/a,census A01_w1_r01#K1059,
+A01,R02,0.3,0x40068c,13638,0x493ff8,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A01_w1_r01#K1098,
+A01,R03,0.5,0x4006a8,14049,0x493040,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A01_w1_r01#K1137,
+A01,R04,0.7,0x4006d0,14719,0x493230,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A01_w1_r01#K1176,same static PC as another context; dynamic seq/address differ
+A01,R05,0.9,0x4006d0,15086,0x493368,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A01_w1_r01#K1215,same static PC as another context; dynamic seq/address differ
+A03,R01,0.1,n/a,12989,0x493008,sq_idx=n/a,n/a,n/a,n/a,n/a,n/a,census A03_w1_pct_r01#K1059,
+A03,R02,0.3,n/a,13638,0x493ff8,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A03_w1_pct_r01#K1098,
+A03,R03,0.5,n/a,14594,0x493208,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A03_w1_pct_r01#K1137,
+A03,R04,0.7,n/a,14744,0x493238,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A03_w1_pct_r01#K1176,
+A03,R05,0.9,n/a,15086,0x493368,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census A03_w1_pct_r01#K1215,
+FW02,R01,0.1,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,frozen W4 main has no data load (gcc -O2 folded every pair); N_ROI=0,INSUFFICIENT_EVENTS
+FW02,R02,0.3,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,frozen W4 main has no data load (gcc -O2 folded every pair); N_ROI=0,INSUFFICIENT_EVENTS
+FW02,R03,0.5,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,frozen W4 main has no data load (gcc -O2 folded every pair); N_ROI=0,INSUFFICIENT_EVENTS
+FW02,R04,0.7,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,frozen W4 main has no data load (gcc -O2 folded every pair); N_ROI=0,INSUFFICIENT_EVENTS
+FW02,R05,0.9,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,frozen W4 main has no data load (gcc -O2 folded every pair); N_ROI=0,INSUFFICIENT_EVENTS
+FW05,R01,0.1,0x400564,16084,0x4919c8,sq_idx=n/a,n/a,n/a,0,n/a,n/a,census FW05_w8a_pct_r01#K200,
+FW05,R02,0.3,0x400564,23684,0x491a48,sq_idx=n/a,n/a,n/a,0,n/a,YES (seq/address differ),census FW05_w8a_pct_r01#K600,
+FW05,R03,0.5,0x400564,31284,0x491ac8,sq_idx=n/a,n/a,n/a,0,n/a,YES (seq/address differ),census FW05_w8a_pct_r01#K1000,
+FW05,R04,0.7,0x400564,38884,0x491b48,sq_idx=n/a,n/a,n/a,0,n/a,YES (seq/address differ),census FW05_w8a_pct_r01#K1400,same static PC as another context; dynamic seq/address differ
+FW05,R05,0.9,0x400564,46484,0x4919c8,sq_idx=n/a,n/a,n/a,0,n/a,YES (seq/address differ),census FW05_w8a_pct_r01#K1800,same static PC as another context; dynamic seq/address differ
+SQ01,R01,0.1,n/a,13328,0x4919f0,sq_idx=n/a,1306,n/a,n/a,n/a,n/a,census SQ01_sqreload_pct#K1018,
+SQ01,R02,0.3,n/a,15122,0x491ac0,sq_idx=n/a,1332,n/a,n/a,n/a,YES (seq/address differ),census SQ01_sqreload_pct#K1044,
+SQ01,R03,0.5,n/a,16847,0x491b88,sq_idx=n/a,1357,n/a,n/a,n/a,YES (seq/address differ),census SQ01_sqreload_pct#K1069,
+SQ01,R04,0.7,n/a,18641,0x491c58,sq_idx=n/a,1383,n/a,n/a,n/a,YES (seq/address differ),census SQ01_sqreload_pct#K1095,
+SQ01,R05,0.9,n/a,20435,0x491d28,sq_idx=n/a,1409,n/a,n/a,n/a,YES (seq/address differ),census SQ01_sqreload_pct#K1121,
+SQ03,R01,0.1,0x40053c,13328,0x4919f0,sq_idx=13328,n/a,n/a,n/a,n/a,n/a,census SQ03_sqreload_pct#K1021,
+SQ03,R02,0.3,0x40053c,15122,0x491ac0,sq_idx=15122,n/a,n/a,n/a,n/a,YES (seq/address differ),census SQ03_sqreload_pct#K1047,
+SQ03,R03,0.5,0x40053c,16847,0x491b88,sq_idx=16847,n/a,n/a,n/a,n/a,YES (seq/address differ),census SQ03_sqreload_pct#K1072,
+SQ03,R04,0.7,0x40053c,18641,0x491c58,sq_idx=18641,n/a,n/a,n/a,n/a,YES (seq/address differ),census SQ03_sqreload_pct#K1098,
+SQ03,R05,0.9,0x40053c,20435,0x491d28,sq_idx=20435,n/a,n/a,n/a,n/a,YES (seq/address differ),census SQ03_sqreload_pct#K1124,
+SP05,R01,0.1,0x40053c,13328,0x4919f0,sq_idx=13328,n/a,n/a,n/a,n/a,n/a,census SP05_sqreload_pct#K952,
+SP05,R02,0.3,0x40053c,15122,0x491ac0,sq_idx=15122,n/a,n/a,n/a,n/a,YES (seq/address differ),census SP05_sqreload_pct#K978,
+SP05,R03,0.5,0x40053c,16847,0x491b88,sq_idx=16847,n/a,n/a,n/a,n/a,YES (seq/address differ),census SP05_sqreload_pct#K1003,
+SP05,R04,0.7,0x40053c,18641,0x491c58,sq_idx=18641,n/a,n/a,n/a,n/a,YES (seq/address differ),census SP05_sqreload_pct#K1029,
+SP05,R05,0.9,0x40053c,20435,0x491d28,sq_idx=20435,n/a,n/a,n/a,n/a,YES (seq/address differ),census SP05_sqreload_pct#K1055,
+DA04,R01,0.1,n/a,14320,0x491b29,sq_idx=n/a,n/a,n/a,n/a,n/a,n/a,census DA04_w8b_pct_r01#K135,
+DA04,R02,0.3,n/a,15345,0x491e5d,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census DA04_w8b_pct_r01#K340,
+DA04,R03,0.5,n/a,16365,0x49218d,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census DA04_w8b_pct_r01#K544,
+DA04,R04,0.7,n/a,17390,0x4924c1,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census DA04_w8b_pct_r01#K749,
+DA04,R05,0.9,n/a,18415,0x4927f5,sq_idx=n/a,n/a,n/a,n/a,n/a,YES (seq/address differ),census DA04_w8b_pct_r01#K954,
+LP01,R01,0.1,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,the L1DForward record exposes only a physical address and no PC; the eligible stream cannot be separated into the designed loop with the current observation hook,OBSERVABILITY_GAP
+LP01,R02,0.3,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,the L1DForward record exposes only a physical address and no PC; the eligible stream cannot be separated into the designed loop with the current observation hook,OBSERVABILITY_GAP
+LP01,R03,0.5,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,the L1DForward record exposes only a physical address and no PC; the eligible stream cannot be separated into the designed loop with the current observation hook,OBSERVABILITY_GAP
+LP01,R04,0.7,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,the L1DForward record exposes only a physical address and no PC; the eligible stream cannot be separated into the designed loop with the current observation hook,OBSERVABILITY_GAP
+LP01,R05,0.9,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,the L1DForward record exposes only a physical address and no PC; the eligible stream cannot be separated into the designed loop with the current observation hook,OBSERVABILITY_GAP
+MD04,R01,0.1,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"only ordinal 3 is in main (PC 0x400530, addr 0x491990); ordinals 1,2,4,5,6 are libc/helper. N_ROI=1 < 5",INSUFFICIENT_EVENTS
+MD04,R02,0.3,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"only ordinal 3 is in main (PC 0x400530, addr 0x491990); ordinals 1,2,4,5,6 are libc/helper. N_ROI=1 < 5",INSUFFICIENT_EVENTS
+MD04,R03,0.5,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"only ordinal 3 is in main (PC 0x400530, addr 0x491990); ordinals 1,2,4,5,6 are libc/helper. N_ROI=1 < 5",INSUFFICIENT_EVENTS
+MD04,R04,0.7,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"only ordinal 3 is in main (PC 0x400530, addr 0x491990); ordinals 1,2,4,5,6 are libc/helper. N_ROI=1 < 5",INSUFFICIENT_EVENTS
+MD04,R05,0.9,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"only ordinal 3 is in main (PC 0x400530, addr 0x491990); ordinals 1,2,4,5,6 are libc/helper. N_ROI=1 < 5",INSUFFICIENT_EVENTS
+LQ04,R01,0.1,0x400338,3,n/a,lq_idx=1,1,five distinct anchor loads,n/a,n/a,YES (distinct PC/seq/entry),LQ04-R01 lq04_injections.log,
+LQ04,R02,0.3,0x40033c,4,n/a,lq_idx=2,2,five distinct anchor loads,n/a,n/a,YES (distinct PC/seq/entry),LQ04-R02 lq04_injections.log,
+LQ04,R03,0.5,0x400340,5,n/a,lq_idx=3,3,five distinct anchor loads,n/a,n/a,YES (distinct PC/seq/entry),LQ04-R03 lq04_injections.log,
+LQ04,R04,0.7,0x400344,6,n/a,lq_idx=4,4,five distinct anchor loads,n/a,n/a,YES (distinct PC/seq/entry),LQ04-R04 lq04_injections.log,
+LQ04,R05,0.9,0x400348,7,n/a,lq_idx=5,5,five distinct anchor loads,n/a,n/a,YES (distinct PC/seq/entry),LQ04-R05 lq04_injections.log,
+RP01,R01,0.1,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"W7 main has only a full 8B store->8B load pair; no partial-overlap event exists in the workload (v3.2.12 preflight: 5 eligible, all libc). N_ROI=0; workload redesign required",INSUFFICIENT_EVENTS
+RP01,R02,0.3,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"W7 main has only a full 8B store->8B load pair; no partial-overlap event exists in the workload (v3.2.12 preflight: 5 eligible, all libc). N_ROI=0; workload redesign required",INSUFFICIENT_EVENTS
+RP01,R03,0.5,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"W7 main has only a full 8B store->8B load pair; no partial-overlap event exists in the workload (v3.2.12 preflight: 5 eligible, all libc). N_ROI=0; workload redesign required",INSUFFICIENT_EVENTS
+RP01,R04,0.7,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"W7 main has only a full 8B store->8B load pair; no partial-overlap event exists in the workload (v3.2.12 preflight: 5 eligible, all libc). N_ROI=0; workload redesign required",INSUFFICIENT_EVENTS
+RP01,R05,0.9,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,NO_EVIDENCE,"W7 main has only a full 8B store->8B load pair; no partial-overlap event exists in the workload (v3.2.12 preflight: 5 eligible, all libc). N_ROI=0; workload redesign required",INSUFFICIENT_EVENTS
