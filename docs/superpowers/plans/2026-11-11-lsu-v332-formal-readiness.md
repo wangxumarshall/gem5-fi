@@ -257,3 +257,19 @@ git commit -m "[LSU][V3.3.2][RUNNER] close DA04/MD04 control misfire paths and a
 
 - Spec coverage: P0-1→Task 5, P0-2→Task 6, P0-3→Task 7, P0-4→Task 3, P0-5→Task 4; controls→Tasks 2/10; propagation→Task 11; binary freeze→Task 8; package→Task 12.
 - Approval items (W4/RP01/MD04/SQ mapping, ROI/Warm-up freeze, config freeze) remain explicitly pending researcher approval; the final verdict cannot be `READY` for unapproved workload changes.
+
+## Execution status (2026-11-11)
+
+- [x] Task 1 baseline provenance
+- [x] Task 2 runner control guards (13 tests; DA04/MD04/RP01 omit injector at p=0; dry-run)
+- [x] Task 3 LP01 PC/VA identity (real pilot: pc/va/seq/lq in the record; parser fixed)
+- [x] Task 4 A03 real PC + stuck lifecycle (pc 0x400598; lifecycle line; log cap)
+- [x] Task 5 W4 candidate (in-main forward; observed=67; ordinal-50 SDC)
+- [x] Task 6 RP01 candidate (255 in-main events; five distinct; watchdog HANG)
+- [x] Task 7 MD04 candidate (8 in-main violations; five contexts; R01 MASKED + 4 SDC)
+- [x] Task 8 final build (070d68a6…, 0 errors; 180 + 120 tests passed)
+- [x] Task 9 60-context census/mapping (all arithmetic validated; FW02 offset fixed)
+- [x] Task 10 60 controls (60/60 zero-injection)
+- [x] Task 11 60 faults + causal rows (36 SDC, 12 MASKED, 1 SQUASHED, 10 HANG, 1 UNRESOLVED)
+- [x] Task 12 independent acceptance + package (Agent F found FW02 offset/stale provenance; fixed)
+- [ ] Researcher approval for 30 candidate contexts and config freeze (blocker B1/B6)
