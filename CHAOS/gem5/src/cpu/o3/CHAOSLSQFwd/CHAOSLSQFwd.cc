@@ -1022,6 +1022,13 @@ namespace gem5
     {
         if (struct_mode != StructMode::F6Fw02) return false;
         ++f6_observed;
+        // A mounted injector with probability 0.0 is the matched no-fault
+        // control: observe the pair (the funnel/summary still counts it) but
+        // never suppress the forwarding. Without this gate the decision never
+        // consults probability and SUPP-FW02-C01 misfires (v3.2.12 audit).
+        // Fault runs use probability 1.0, so this changes no frozen run.
+        if (probability <= 0.0f)
+            return false;
         if (f6_fired) return false;
         if (f6_event_ordinal && f6_observed != f6_event_ordinal) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults)
