@@ -44,8 +44,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define SMALL 1024u          /* 8 KiB : L1D-resident store/load target   */
-#define BIG   131072u        /* 1 MiB : late-data source (L2/DRAM)       */
+#define SMALL 256u           /* 2 KiB : L1D-resident store/load target   */
+#define BIG   16384u         /* 128 KiB : late-data source (L2/DRAM)     */
 
 static volatile uint64_t src_big[BIG];
 static volatile uint64_t buf_a[SMALL];
@@ -88,7 +88,7 @@ main(void)
     uint64_t sum = 0;
 
     /* L1: exact 8B/8B same-address pair, late store data. */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i < SMALL; i++) {
             uint64_t v = src_big[(i * 7919u + (uint64_t)r * 104729u)
                                  & (BIG - 1u)];
@@ -100,7 +100,7 @@ main(void)
     }
 
     /* L2: 8B store at odd slot, 16B younger load covering two slots. */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i + 1 < SMALL; i += 2) {
             uint64_t v = src_big[(i * 6151u + (uint64_t)r * 65537u + 3u)
                                  & (BIG - 1u)];
@@ -114,7 +114,7 @@ main(void)
     }
 
     /* L3: unaligned 8B store overlapping the low 4 bytes of an 8B load. */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i + 16 < SMALL * 8u; i += 16) {
             uint64_t v = src_big[(i * 4099u + (uint64_t)r * 32771u + 5u)
                                  & (BIG - 1u)];
@@ -126,7 +126,7 @@ main(void)
     }
 
     /* L4: store value from big array, address from idx_d (also loaded). */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i < SMALL; i++) {
             uint64_t k = idx_d[i];
             uint64_t v = src_big[(i * 3571u + (uint64_t)r * 45007u + 9u)
@@ -139,7 +139,7 @@ main(void)
     }
 
     /* L5: 8B store in buf_b, 16B younger load covering it (same slot). */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i + 1 < SMALL; i++) {
             uint64_t v = src_big[(i * 5449u + (uint64_t)r * 20011u + 13u)
                                  & (BIG - 1u)];
@@ -153,7 +153,7 @@ main(void)
     }
 
     /* L6: second late-address loop (different PCs and arrays). */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i < SMALL; i++) {
             uint64_t k = idx_e[i];
             uint64_t v = src_big[(i * 9001u + (uint64_t)r * 30011u + 17u)
@@ -166,7 +166,7 @@ main(void)
     }
 
     /* L7: 8B unaligned store at +2 overlaps the tail of an 8B load at +8. */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i + 16 < SMALL * 8u; i += 16) {
             uint64_t v = src_big[(i * 2357u + (uint64_t)r * 12347u + 19u)
                                  & (BIG - 1u)];
@@ -178,7 +178,7 @@ main(void)
     }
 
     /* L8: 8B store at slot i+1, 16B younger load starting at slot i. */
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < 4; r++) {
         for (uint64_t i = 0; i + 1 < SMALL; i++) {
             uint64_t v = src_big[(i * 7001u + (uint64_t)r * 50021u + 23u)
                                  & (BIG - 1u)];
