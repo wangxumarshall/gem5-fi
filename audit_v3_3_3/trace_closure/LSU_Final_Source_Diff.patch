@@ -1,0 +1,2089 @@
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+index b5c9cd03..d85816ef 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc
+@@ -12,6 +12,8 @@
+ 
+ #include "base/output.hh"
+ #include "cpu/o3/cpu.hh"
++#include "cpu/o3/dyn_inst.hh"   // complete DynInst before lsq_unit.hh
++#include "cpu/o3/lsq_unit.hh"   // [V3.3.3][RP01] read-only LQ/SQ snapshot
+ #include "debug/LSQUnit.hh"
+ 
+ namespace gem5
+@@ -215,8 +217,12 @@ namespace gem5
+                 rp01_watchdog_event = new EventFunctionWrapper(
+                     [this]() { this->rp01Watchdog(); }, "RP01 watchdog",
+                     true);
+-                schedule(rp01_watchdog_event,
+-                         cpu->clockEdge(Cycles(p.rp01WatchdogCycles)));
++                // [V3.3.3][RP01] Record the armed time/period for the
++                // terminal snapshot (read-only).
++                rp01_watchdog_cycles = p.rp01WatchdogCycles;
++                rp01_watchdog_armed_tick =
++                    cpu->clockEdge(Cycles(p.rp01WatchdogCycles));
++                schedule(rp01_watchdog_event, rp01_watchdog_armed_tick);
+             }
+             registerExitCallback([this]() {
+                 if (write_log && log_stream && log_stream->stream()) {
+@@ -619,6 +625,52 @@ namespace gem5
+                 << " eligible=" << eligible_count
+                 << " tick=" << curTick() << std::endl;
+         }
++        // [LSU][V3.3.3][RP01] Write the terminal record set BEFORE fatal():
++        // fatal -> ::exit(1) skips gem5's Python atexit exit callbacks, so
++        // without this the terminal metadata and the gzip trailer are lost.
++        // The snapshot is read-only and does not touch any replay decision,
++        // event schedule or RNG state.
++        if (cpu && cpu->chaosPropagation) {
++            CHAOSPropagation::WatchdogTerminalInfo info;
++            info.armed_tick = rp01_watchdog_armed_tick;
++            info.fired_tick = curTick();
++            info.deadline_cycles = rp01_watchdog_cycles;
++            info.fault_id = faults_injected_count;
++            info.injected = faults_injected_count;
++            info.eligible_count = eligible_count;
++            info.event_ordinal = rp01_event_ordinal;
++            info.replay_eligible = rp01_fired;
++            info.replay_decision_skip = rp01_fired;
++            info.replay_skip = rp01_fired;
++            info.last_eligible_seq = last_eligible_seq;
++            info.last_eligible_pc = last_eligible_pc;
++            info.last_lq_idx = last_eligible_lq_idx;
++            info.last_lq_gen = last_eligible_lq_gen;
++            info.last_store_seq = last_eligible_store_seq;
++            info.last_replay_gen = last_eligible_replay_gen;
++            info.last_eligible_tick = last_eligible_tick;
++            info.commit_seq = cpu->chaosPropagation->traceCommitSeq();
++            info.last_commit_dyn_seq =
++                cpu->chaosPropagation->lastCommitDynSeq();
++            info.last_commit_tick = cpu->chaosPropagation->lastCommitTick();
++
++            // Read-only LQ/SQ head/occupancy snapshot (guarded getters: the
++            // head accessors require a non-empty queue).
++            auto &ldst = cpu->o3IEW().ldstQueue;
++            if (ldst.numLSQUnits() > 0) {
++                auto &unit = ldst.getLSQUnit(0);
++                info.lq_loads = (uint64_t)unit.numLoads();
++                info.lq_free = (uint64_t)unit.numFreeLoadEntries();
++                info.sq_stores = (uint64_t)unit.numStores();
++                info.sq_free = (uint64_t)unit.numFreeStoreEntries();
++                if (info.lq_loads)
++                    info.lq_head_seq = (uint64_t)unit.getLoadHeadSeqNum();
++                if (info.sq_stores)
++                    info.sq_head_seq = (uint64_t)unit.getStoreHeadSeqNum();
++                info.lsu_stalled = unit.isStalled();
++            }
++            cpu->chaosPropagation->flushWatchdogTerminal(info);
++        }
+         // A watchdog expiry is a failed simulation, not a normal MAX_TICK
+         // exit: abort loudly so the process exit status is non-zero and the
+         // runner cannot classify the stalled run as MASKED (design gate
+@@ -652,6 +704,15 @@ namespace gem5
+         if (!chaos_rp01::isEligible(false /* load_squashed: site-guaranteed */))
+             return false;
+         ++eligible_count;
++        // [V3.3.3][RP01] Read-only last-eligible bookkeeping for the
++        // watchdog terminal snapshot. It never feeds shouldSkip().
++        last_eligible_seq = load_seq;
++        last_eligible_pc = load_pc;
++        last_eligible_lq_idx = lq_idx;
++        last_eligible_lq_gen = lq_gen;
++        last_eligible_store_seq = store_seq;
++        last_eligible_replay_gen = replay_gen;
++        last_eligible_tick = curTick();
+         const chaos_rp01::EventIdentity id{load_seq, lq_idx, lq_gen, store_seq,
+                                            replay_gen};
+         // instsToReplay membership, pre/post the call this hook guards
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+index fec8a8cc..8836bb18 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh
+@@ -260,6 +260,17 @@ class CHAOSLSQFwd : public SimObject
+     chaos_rp01::EventIdentity rp01_fired_id{};
+     uint64_t rp01_fired_pc = 0;
+     EventFunctionWrapper *rp01_watchdog_event = nullptr;
++    // [LSU][V3.3.3][RP01] Read-only terminal snapshot bookkeeping. None of
++    // these values participates in shouldSkip() or any replay decision.
++    Tick rp01_watchdog_armed_tick = 0;
++    uint64_t rp01_watchdog_cycles = 0;
++    uint64_t last_eligible_seq = 0;
++    uint64_t last_eligible_pc = 0;
++    uint64_t last_eligible_lq_idx = 0;
++    uint64_t last_eligible_lq_gen = 0;
++    uint64_t last_eligible_store_seq = 0;
++    uint64_t last_eligible_replay_gen = 0;
++    Tick last_eligible_tick = 0;
+ 
+     std::mt19937 rng;
+     std::random_device rd;
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+index 317e33fa..3e4993c2 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc
+@@ -22,6 +22,7 @@
+ #include "cpu/o3/CHAOSLSQFwd/sq01_rules.hh"    // SQ01 chain grading
+ #include "cpu/o3/CHAOSLSQFwd/sq03_rules.hh"    // SQ03 effect grading
+ #include "cpu/o3/CHAOSLSQFwd/sp05_rules.hh"    // SP05 stage grading
++#include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"   // sp05Mode() for commit capture
+ 
+ #include <cstring>
+ #include <sstream>
+@@ -217,6 +218,7 @@ namespace gem5
+         // Crash durability (W2.1 contract): one flush per node — an aborted
+         // run keeps every completed node readable (trailer-less prefix).
+         gzflush(gz_file, Z_SYNC_FLUSH);
++        last_node_tick = node_tick;          // [V3.3.3][RP01] progress witness
+         ++next_node_id;
+         return node_id;
+     }
+@@ -302,6 +304,7 @@ namespace gem5
+             panic("CHAOSPropagation: edge write failed (node %llu)",
+                   (unsigned long long)node_id);
+         gzflush(gz_file, Z_SYNC_FLUSH);
++        last_node_tick = curTick();          // [V3.3.3][RP01] progress witness
+     }
+ 
+     // ------------------------------------------------------- registration
+@@ -1817,8 +1820,7 @@ namespace gem5
+                                         Tick inject_tick,
+                                         uint64_t eligible_ordinal,
+                                         const uint8_t *store_data,
+-                                        unsigned data_len,
+-                                        Tick commit_tick)
++                                        unsigned data_len)
+     {
+         if (!write_log)
+             return;
+@@ -1835,14 +1837,17 @@ namespace gem5
+                 store_fnv.insert(0, 16 - store_fnv.size(), '0');
+             store_hex = bytesToHex(store_data, data_len);
+         }
+-        // The store's architectural commit happens in commitStores before
+-        // this premature completion, but that select tick is not exposed on
+-        // this hook. The caller passes its own curTick() and the record
+-        // labels it honestly; commit_tick is never written as a silent 0.
+-        const Tick effective_commit_tick = commit_tick ? commit_tick
+-                                                       : inject_tick;
+-        const char *commit_tick_source = commit_tick
+-            ? "caller_supplied" : "injection_bound_curTick";
++        // [V3.3.3][SP05] The store's architectural commit happened in
++        // commitStores before this premature completion. noteCommit captured
++        // that real tick for every store while SP05 is mounted; never fall
++        // back to the injection tick (caller_supplied is rejected by the
++        // qualified grader because it is not a commit observation).
++        auto co_it = store_commit_obs.find(dyn_seq);
++        const bool commit_observed = co_it != store_commit_obs.end();
++        const Tick effective_commit_tick =
++            commit_observed ? co_it->second.commit_tick : 0;
++        const char *commit_tick_source = commit_observed
++            ? "commit_stage_capture" : "unavailable";
+ 
+         std::ostringstream d;
+         d << "site=writebackStores_prematureComplete;family=sp05;model=SP05"
+@@ -1884,6 +1889,36 @@ namespace gem5
+         fe.data_hex = store_hex;
+         fe.store_commit_tick = effective_commit_tick;
+         fault_store_registry[dyn_seq] = fe;
++
++        // [V3.3.3][SP05] Emit the independent architectural-commit
++        // observation captured in noteCommit. The node timestamp is the real
++        // commit tick; the row is written now (injection time) so the ptag
++        // order is store_commit -> inj_sp05 -> skipped write. A missing
++        // capture emits nothing and the injection record stays
++        // commit_tick_source=unavailable (never a fabricated tick).
++        if (commit_observed) {
++            std::ostringstream c;
++            c << "site=commit_commitHead;family=sp05;model=SP05"
++              << ";trigger=sp05_target_store_commit"
++              << ";store_seq=" << dyn_seq
++              << ";store_pc=0x" << std::hex << co_it->second.pc << std::dec
++              << ";sq_entry_id=" << co_it->second.sq_idx
++              << ";sq_entry_generation=" << co_it->second.sq_gen
++              << ";store_size=" << co_it->second.size
++              << ";store_addr=0x" << std::hex << addr << std::dec
++              << ";commit_tick=" << co_it->second.commit_tick
++              << ";commit_seq=" << co_it->second.commit_seq
++              << ";commit_state=ARCHITECTURAL_COMMIT"
++              << ";commit_tick_source=commit_stage_capture"
++              << ";observation_tick=" << curTick()
++              << ";execution_attempt_id=" << co_it->second.attempt_id
++              << ";replay_generation=" << co_it->second.replay_gen;
++            writeNode(ptag, "store_commit", dyn_seq, true, 0, false,
++                      addr, true, 0, false, 0, false, c.str(),
++                      co_it->second.commit_tick);
++            store_commit_obs.erase(co_it);
++        }
++
+         writeNode(ptag, "inj_sp05", dyn_seq, true, 0, false, addr, true,
+                   0, false, 0, false, d.str());
+ 
+@@ -1941,6 +1976,139 @@ namespace gem5
+             fit->second.complete_tick = tick;
+     }
+ 
++    void
++    CHAOSPropagation::noteSP05WritebackSuppressed(uint64_t dyn_seq,
++                                                  uint64_t pc, Addr addr,
++                                                  unsigned size,
++                                                  uint64_t sq_idx,
++                                                  uint64_t sq_gen,
++                                                  bool request_present,
++                                                  bool request_sent_before,
++                                                  bool request_sent_after,
++                                                  bool mem_sent,
++                                                  bool write_skipped,
++                                                  Tick drain_tick,
++                                                  uint64_t stores_before,
++                                                  uint64_t stores_after,
++                                                  Tick tick)
++    {
++        if (!write_log)
++            return;
++        auto pit = sp05_ptag.find(dyn_seq);
++        const uint64_t ptag = pit == sp05_ptag.end() ? 0 : pit->second;
++        std::ostringstream d;
++        d << "site=writebackStores_sp05Branch"
++          << ";family=sp05_complete;model=SP05"
++          << ";store_seq=" << dyn_seq
++          << ";store_pc=0x" << std::hex << pc
++          << ";store_addr=0x" << addr << std::dec
++          << ";store_size=" << size
++          << ";sq_entry_id=" << sq_idx
++          << ";sq_entry_generation=" << sq_gen
++          << ";writeback_state=SUPPRESSED_BEFORE_SEND"
++          << ";writeback_stage_entered=1"
++          << ";request_present=" << (request_present ? 1 : 0)
++          << ";request_sent_before=" << (request_sent_before ? 1 : 0)
++          << ";request_sent_after=" << (request_sent_after ? 1 : 0)
++          << ";mem_sent=" << (mem_sent ? 1 : 0)
++          << ";write_skipped=" << (write_skipped ? 1 : 0)
++          << ";drain_tick=" << drain_tick
++          << ";visibility_tick=0"
++          << ";visibility_state=NEVER_WRITTEN"
++          << ";stores_to_wb_before=" << stores_before
++          << ";stores_to_wb_after=" << stores_after
++          << ";cache_port_available=1"
++          << ";observation_tick=" << tick;
++        writeNode(ptag, "store_writeback_suppressed", dyn_seq, true, 0, false,
++                  addr, true, 0, false, 0, false, d.str());
++    }
++
++    void
++    CHAOSPropagation::flushWatchdogTerminal(const WatchdogTerminalInfo &info)
++    {
++        // Idempotent: the first call owns the flush; a second call (or a
++        // future exit callback) is a no-op. Set the guard before writing so
++        // a re-entrant writer cannot duplicate the terminal record set.
++        if (!write_log || !gz_file || terminal_flushed)
++            return;
++        terminal_flushed = true;
++
++        const uint64_t prev_last = next_node_id ? next_node_id - 1 : 0;
++        const Tick last_tick = last_node_tick;
++        const Tick silent_ticks = info.fired_tick > last_tick
++            ? info.fired_tick - last_tick : 0;
++
++        {
++            std::ostringstream d;
++            d << "trigger=" << info.trigger
++              << ";trigger_reason=" << info.reason
++              << ";prev_last_event_id=" << prev_last
++              << ";armed_tick=" << info.armed_tick
++              << ";fired_tick=" << info.fired_tick
++              << ";deadline_cycles=" << info.deadline_cycles;
++            writeNode(0, "trace_flush_start", 0, false, 0, false, 0, false,
++                      0, false, 0, false, d.str());
++        }
++
++        {
++            std::ostringstream d;
++            d << "terminal_state=" << info.terminal_state
++              << ";terminal_source=MODEL_INTERNAL_WATCHDOG"
++              << ";trigger=" << info.trigger
++              << ";trigger_reason=" << info.reason
++              << ";fault_id=" << info.fault_id
++              << ";injected=" << info.injected
++              << ";eligible=" << info.eligible_count
++              << ";event_ordinal=" << info.event_ordinal
++              << ";last_valid_event_id=" << prev_last
++              << ";last_eligible_seq=" << info.last_eligible_seq
++              << ";last_eligible_pc=0x" << std::hex << info.last_eligible_pc
++              << std::dec
++              << ";lq_idx=" << info.last_lq_idx
++              << ";lq_gen=" << info.last_lq_gen
++              << ";store_seq=" << info.last_store_seq
++              << ";replay_gen=" << info.last_replay_gen
++              << ";replay_eligible=" << (info.replay_eligible ? 1 : 0)
++              << ";replay_decision="
++              << (info.replay_decision_skip ? "SKIP" : "NONE")
++              << ";replay_skip=" << (info.replay_skip ? 1 : 0)
++              << ";lq_loads=" << info.lq_loads
++              << ";lq_free=" << info.lq_free
++              << ";sq_stores=" << info.sq_stores
++              << ";sq_free=" << info.sq_free
++              << ";lq_head_seq=" << info.lq_head_seq
++              << ";sq_head_seq=" << info.sq_head_seq
++              << ";lsu_stalled=" << (info.lsu_stalled ? 1 : 0)
++              << ";last_trace_tick=" << last_tick
++              << ";silent_ticks=" << silent_ticks
++              << ";commit_seq=" << info.commit_seq
++              << ";last_commit_dyn_seq=" << info.last_commit_dyn_seq
++              << ";last_commit_tick=" << info.last_commit_tick;
++            writeNode(0, "watchdog_terminal", 0, false, 0, false, 0, false,
++                      0, false, 0, false, d.str());
++        }
++
++        {
++            std::ostringstream d;
++            d << "flushed_event_id=" << (next_node_id ? next_node_id - 1 : 0)
++              << ";nodes_written=3"
++              << ";gzflush=1"
++              << ";gzclose=1"
++              << ";final_terminal_state=" << info.terminal_state;
++            writeNode(0, "trace_flush_complete", 0, false, 0, false, 0, false,
++                      0, false, 0, false, d.str());
++        }
++
++        // Close (not just flush): this path is about to exit through
++        // fatal()/::exit(1), which skips gem5's exit callbacks. Closing
++        // writes the gzip trailer so the complete prefix plus the terminal
++        // record set is readable by ordinary gzip readers. TRACE_INCOMPLETE
++        // remains enforced by the watchdog flag, not by a missing trailer.
++        gzflush(gz_file, Z_SYNC_FLUSH);
++        gzclose(gz_file);
++        gz_file = nullptr;
++    }
++
+     void
+     CHAOSPropagation::noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
+                                         uint64_t true_seq, Addr true_addr,
+@@ -2515,6 +2683,30 @@ namespace gem5
+ 
+         ++commit_seq;
+         const uint64_t pc = head_inst->pcState().instAddr();
++        // [LSU][V3.3.3][RP01] Progress witness for the watchdog terminal
++        // record: the last architecturally committed dynamic instruction.
++        // Observation only.
++        last_commit_dyn_seq = head_inst->seqNum;
++        last_commit_tick = curTick();
++
++        // [LSU][V3.3.3][SP05] Capture the REAL architectural commit of every
++        // store while the SP05 injector is mounted. The SP05 target is only
++        // selected later in commitStores, so waiting for the target identity
++        // here would lose the event. Read-only: no ROB/LSQ state is touched.
++        if (head_inst->isStore() && o3cpu && o3cpu->lsqFwd
++                && o3cpu->lsqFwd->sp05Mode()) {
++            StoreCommitObs o;
++            o.commit_tick = curTick();
++            o.commit_seq = commit_seq;
++            o.pc = pc;
++            o.sq_idx = head_inst->sqIdx >= 0
++                ? (uint64_t)head_inst->sqIdx : 0;
++            o.sq_gen = head_inst->sqEntryGeneration;
++            o.size = head_inst->effSize;
++            o.attempt_id = head_inst->executionAttemptId;
++            o.replay_gen = head_inst->replayGeneration;
++            store_commit_obs[head_inst->seqNum] = o;
++        }
+ 
+         // v3.2.12 (tasks 11/12/13): a registered fault store's own
+         // architectural commit tick (sq03_effect.commit_tick /
+diff --git a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+index f14fd61b..881ff503 100644
+--- a/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
++++ b/CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh
+@@ -126,6 +126,7 @@
+ #include <map>
+ #include <set>
+ #include <string>
++#include <unordered_map>
+ #include <utility>
+ 
+ #include "base/types.hh"
+@@ -347,16 +348,17 @@ class CHAOSPropagation : public SimObject
+     // the pre-call values; stores_to_wb is the post-call counter.
+     // v3.3.3 (L-A05): store_data/data_len are the SQ entry bytes that the
+     // skipped cache write would have sent (storeWBIt->data(),
+-    // request->_size); commit_tick is the store's observed commit tick
+-    // (caller-supplied, never silently 0). Hashed into data_fnv so the
+-    // deferred sp05_stage record can compare intended vs. reloaded bytes.
++    // request->_size). Hashed into data_fnv so the deferred sp05_stage
++    // record can compare intended vs. reloaded bytes.
++    // v3.3.3 trace closure: the real commit tick comes from StoreCommitObs
++    // captured in noteCommit (commit_stage_capture); the injection tick is
++    // never relabelled as a commit.
+     void noteSP05Injection(uint64_t dyn_seq, uint64_t pc, Addr addr,
+                            unsigned size, uint64_t sq_idx, uint64_t sq_gen,
+                            bool completed_before, bool completed_after,
+                            uint64_t stores_before, uint64_t stores_after,
+                            Tick inject_tick, uint64_t eligible_ordinal,
+-                           const uint8_t *store_data, unsigned data_len,
+-                           Tick commit_tick);
++                           const uint8_t *store_data, unsigned data_len);
+ 
+     void noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx, uint64_t sq_gen,
+                           bool canwb, bool completed_before,
+@@ -364,6 +366,70 @@ class CHAOSPropagation : public SimObject
+                           uint64_t stores_to_wb_after, bool mem_sent,
+                           Tick tick);
+ 
++    // [LSU][V3.3.3][SP05] Independent observation of the writeback-stage
++    // OUTCOME when the fault suppresses the cache write. This is negative
++    // evidence (the send did not happen), never a fabricated store_wb: the
++    // kind name deliberately does not match the qualified grader's
++    // writeback-event set. Read-only; called after the real completeStore().
++    void noteSP05WritebackSuppressed(uint64_t dyn_seq, uint64_t pc, Addr addr,
++                                     unsigned size, uint64_t sq_idx,
++                                     uint64_t sq_gen, bool request_present,
++                                     bool request_sent_before,
++                                     bool request_sent_after, bool mem_sent,
++                                     bool write_skipped, Tick drain_tick,
++                                     uint64_t stores_before,
++                                     uint64_t stores_after, Tick tick);
++
++    // [LSU][V3.3.3][RP01] Snapshot handed to flushWatchdogTerminal() by the
++    // injector immediately before its fatal() exit. Pure POD, read-only.
++    struct WatchdogTerminalInfo
++    {
++        const char *trigger = "CHAOS_RP01_WATCHDOG";
++        const char *reason = "INTERNAL_WATCHDOG_DEADLINE";
++        const char *terminal_state = "HANG_WATCHDOG";
++        Tick armed_tick = 0;
++        Tick fired_tick = 0;
++        uint64_t deadline_cycles = 0;
++        uint64_t fault_id = 0;
++        uint64_t injected = 0;
++        uint64_t eligible_count = 0;
++        uint64_t event_ordinal = 0;
++        bool replay_eligible = false;
++        bool replay_decision_skip = false;
++        bool replay_skip = false;
++        uint64_t last_eligible_seq = 0;
++        uint64_t last_eligible_pc = 0;
++        uint64_t last_lq_idx = 0;
++        uint64_t last_lq_gen = 0;
++        uint64_t last_store_seq = 0;
++        uint64_t last_replay_gen = 0;
++        Tick last_eligible_tick = 0;
++        uint64_t lq_loads = 0;
++        uint64_t lq_free = 0;
++        uint64_t sq_stores = 0;
++        uint64_t sq_free = 0;
++        uint64_t lq_head_seq = 0;
++        uint64_t sq_head_seq = 0;
++        bool lsu_stalled = false;
++        uint64_t commit_seq = 0;
++        uint64_t last_commit_dyn_seq = 0;
++        Tick last_commit_tick = 0;
++    };
++
++    // [LSU][V3.3.3][RP01] Write the terminal record set before the process
++    // exits through fatal()/::exit(1) (which skips gem5's exit callbacks).
++    // Idempotent; writes trace_flush_start -> watchdog_terminal ->
++    // trace_flush_complete, flushes and closes the gzip stream. Observation
++    // only: it never changes replay, scheduling or injection state.
++    void flushWatchdogTerminal(const WatchdogTerminalInfo &info);
++
++    // Read-only accessors used to fill WatchdogTerminalInfo.
++    uint64_t lastCommitDynSeq() const { return last_commit_dyn_seq; }
++    Tick lastCommitTick() const { return last_commit_tick; }
++    uint64_t traceCommitSeq() const { return commit_seq; }
++    Tick traceLastNodeTick() const { return last_node_tick; }
++    uint64_t traceNextNodeId() const { return next_node_id; }
++
+     void noteFW05Injection(uint64_t load_seq, uint64_t load_pc,
+                            uint64_t true_seq, Addr true_addr,
+                            unsigned true_size, const std::string &true_fnv,
+@@ -494,6 +560,30 @@ class CHAOSPropagation : public SimObject
+     uint64_t commit_seq = 0;
+     bool errant_commit_seen = false;
+ 
++    // [LSU][V3.3.3][SP05] Real architectural commit of every store observed
++    // while the SP05 injector is mounted. The SP05 target is only selected
++    // later (commitStores), so the capture cannot wait for the target
++    // identity; noteSP05Injection consumes and erases the entry. Read-only.
++    struct StoreCommitObs
++    {
++        Tick commit_tick = 0;
++        uint64_t commit_seq = 0;
++        Addr pc = 0;
++        uint64_t sq_idx = 0;
++        uint64_t sq_gen = 0;
++        unsigned size = 0;
++        uint64_t attempt_id = 0;
++        uint64_t replay_gen = 0;
++    };
++    std::unordered_map<uint64_t, StoreCommitObs> store_commit_obs;
++
++    // [LSU][V3.3.3][RP01] Watchdog-terminal flush state. Observation only;
++    // none of these feed an injection or replay decision.
++    bool terminal_flushed = false;
++    Tick last_node_tick = 0;
++    uint64_t last_commit_dyn_seq = 0;
++    Tick last_commit_tick = 0;
++
+     struct RequestMeta {
+         uint64_t request_id = 0;
+         uint64_t fragment_id = 0;
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq.cc b/CHAOS/gem5/src/cpu/o3/lsq.cc
+index c50a28da..927d0543 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq.cc
+@@ -1796,5 +1796,19 @@ LSQ::write(LSQRequest* request, uint8_t *data, ssize_t store_idx)
+     return thread.at(tid).write(request, data, store_idx);
+ }
+ 
++// [LSU][V3.3.3][RP01] Read-only accessors for the watchdog terminal
++// snapshot (observation only).
++LSQUnit &
++LSQ::getLSQUnit(ThreadID tid)
++{
++    return thread.at(tid);
++}
++
++unsigned
++LSQ::numLSQUnits() const
++{
++    return (unsigned)thread.size();
++}
++
+ } // namespace o3
+ } // namespace gem5
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq.hh b/CHAOS/gem5/src/cpu/o3/lsq.hh
+index c208a9fd..ff5fcff7 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq.hh
++++ b/CHAOS/gem5/src/cpu/o3/lsq.hh
+@@ -923,6 +923,12 @@ class LSQ
+ 
+     void sendRetryResp();
+ 
++    // [LSU][V3.3.3][RP01] Read-only per-thread LSQ unit accessor used by
++    // the watchdog terminal snapshot. Observation only; no state is
++    // written. Defined in lsq.cc (LSQUnit is complete there).
++    LSQUnit &getLSQUnit(ThreadID tid);
++    unsigned numLSQUnits() const;
++
+   protected:
+     /** D-cache is blocked */
+     bool _cacheBlocked;
+diff --git a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+index c82d42cc..f9ab24cc 100644
+--- a/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
++++ b/CHAOS/gem5/src/cpu/o3/lsq_unit.cc
+@@ -1078,21 +1078,38 @@ LSQUnit::writebackStores()
+                                            inst->sqEntryGeneration, false)) {
+             DPRINTF(LSQUnit, "CHAOSLSQFwd SP05: completing [sn:%lli] before "
+                     "writeback\n", inst->seqNum);
+-            // v3.3.3 (L-A05): one tick for both the injection and the commit
+-            // observation. The store was selected at commitStores, but that
+-            // tick is not exposed here, so the record labels this as the
+-            // writebackStores observation tick instead of silently writing 0.
++            // v3.3.3 (L-A05): the injection tick is NOT a commit tick. The
++            // real architectural commit was captured by noteCommit
++            // (commit_stage_capture); capture the fields needed by the
++            // post-completion writeback-suppressed record before
++            // completeStore() may clear the store-queue entry/request.
+             const Tick sp05_tick = curTick();
++            const uint64_t sp05_stores_before = (uint64_t)storesToWB;
++            const bool sp05_sent_before = request->isSent();
++            const uint64_t sp05_seq = inst->seqNum;
++            const uint64_t sp05_pc = inst->pcState().instAddr();
++            const Addr sp05_addr = inst->effAddr;
++            const unsigned sp05_size = request->mainReq()->getSize();
++            const uint64_t sp05_sq_idx = inst->sqIdx;
++            const uint64_t sp05_sq_gen = inst->sqEntryGeneration;
+             if (cpu->chaosPropagation)
+                 cpu->chaosPropagation->noteSP05Injection(
+-                    inst->seqNum, inst->pcState().instAddr(), inst->effAddr,
+-                    request->mainReq()->getSize(), inst->sqIdx,
+-                    inst->sqEntryGeneration, false, true, (uint64_t)storesToWB,
+-                    (uint64_t)(storesToWB - 1), sp05_tick,
++                    sp05_seq, sp05_pc, sp05_addr,
++                    sp05_size, sp05_sq_idx, sp05_sq_gen, false, true,
++                    sp05_stores_before,
++                    (uint64_t)(sp05_stores_before - 1), sp05_tick,
+                     cpu->lsqFwd->sp05Eligible(),
+                     reinterpret_cast<const uint8_t *>(storeWBIt->data()),
+-                    request->_size, sp05_tick);
++                    request->_size);
+             completeStore(storeWBIt);
++            // [V3.3.3][SP05] Independent negative evidence: the entry
++            // entered the writeback stage but the cache write was suppressed
++            // before sendPacketToCache(). This is not a writeback event.
++            if (cpu->chaosPropagation)
++                cpu->chaosPropagation->noteSP05WritebackSuppressed(
++                    sp05_seq, sp05_pc, sp05_addr, sp05_size, sp05_sq_idx,
++                    sp05_sq_gen, true, sp05_sent_before, false, false, true,
++                    0, sp05_stores_before, (uint64_t)storesToWB, curTick());
+             if (!storeQueue.empty())
+                 storeWBIt++;
+             else
+diff --git a/tests/fixtures/lsu_v333_synthetic/build_fixtures.py b/tests/fixtures/lsu_v333_synthetic/build_fixtures.py
+index ad14aa89..3b79e58e 100644
+--- a/tests/fixtures/lsu_v333_synthetic/build_fixtures.py
++++ b/tests/fixtures/lsu_v333_synthetic/build_fixtures.py
+@@ -37,8 +37,8 @@ from pathlib import Path
+ FIXTURE_ROOT = Path(__file__).resolve().parent
+ 
+ # README_INTERFACES.md baseline SHAs (the campaign this fixture emulates).
+-BINARY_SHA = ("1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea31"
+-              "0960b4f338")
++BINARY_SHA = ("62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7"
++              "581467a6cd")
+ CONFIG_SHA = ("8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b8"
+               "1992cb225")
+ BAD_BINARY_SHA = "deadbeef" * 8
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/campaign.json
+index 3556497f..80d87fc1 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/summary.json
+index f8e99eb6..f6744587 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/campaign.json
+index 67661dc1..dc06f1fb 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/summary.json
+index 8bfaf292..e0426362 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "ctx_index": 1,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/campaign.json
+index 80b46965..bb75e246 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R02",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/summary.json
+index 7f23aa6e..754a1ee6 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R02",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 2,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-fault/campaign.json
+index 5d4d9a03..42772422 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R02-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R02",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/campaign.json
+index 7432007a..84c1f396 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R03",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/summary.json
+index d8dd9877..8914af15 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R03",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 3,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/campaign.json
+index 53b516da..8b069e18 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R03",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/summary.json
+index 90bc4138..ffe6cc7b 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R03-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R03",
+   "ctx_index": 3,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/campaign.json
+index e9c80006..597c10ac 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R04",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/summary.json
+index c9fb62ec..67a0689e 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R04",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 4,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/campaign.json
+index c7b4fcb8..c8ae6c1d 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R04",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/summary.json
+index 9aa7a3d9..4c8479f3 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R04-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R04",
+   "ctx_index": 4,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/campaign.json
+index 189e3eeb..ec61a298 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R05",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/summary.json
+index a7c50056..ee3dc4dc 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R05",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 5,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/campaign.json
+index abcf9539..ad3a8729 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R05",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/summary.json
+index e23b637c..5fd08b08 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A01-R05-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R05",
+   "ctx_index": 5,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/campaign.json
+index 41a5181e..323476b8 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/summary.json
+index e1df5e25..ec2da7f4 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/campaign.json
+index a0429fed..36417805 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R02",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/summary.json
+index 2a7df10c..ba84840b 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R02",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 2,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/campaign.json
+index d09be209..9485b2a3 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R02",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/summary.json
+index 11d9628a..0c486375 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R02-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R02",
+   "ctx_index": 2,
+   "elf_sha": "feedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedface",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/campaign.json
+index 207bc760..2d24bb16 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R03",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/summary.json
+index ea689928..5d5b6f96 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R03",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 3,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/campaign.json
+index cd31afe7..6dd805be 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R03",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/summary.json
+index 493802fd..3930881f 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R03-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R03",
+   "ctx_index": 3,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/campaign.json
+index 8855a4f7..ae5e5084 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R04",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/summary.json
+index 8791b79b..c73d92f9 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R04",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 4,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/campaign.json
+index 0836fcf9..a6149a32 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R04",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/summary.json
+index bdaf8287..7b5b03f1 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/A03-R04-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R04",
+   "ctx_index": 4,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/campaign.json
+index 053a264a..90681ef8 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/summary.json
+index 8f66a48d..e29d49a4 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/campaign.json
+index 33786217..babd45c3 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/summary.json
+index 244eedb6..f10dd882 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/FW02-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "ctx_index": 1,
+   "elf_sha": "9b4b8534cd9528624412d0c719b5c6691b94e6574e6ac2a800a3830a70e09eb7",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/campaign.json
+index fd4d7866..1c433471 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/summary.json
+index e2e06af8..11a30985 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "INJECTOR_ABSENT",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/campaign.json
+index 0c30e532..d60f32fe 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/summary.json
+index ec6d660b..d7e76592 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/RP01-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "ctx_index": 1,
+   "deadline_cycles": 20000000,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/campaign.json
+index 5ec9a6f8..8604ac61 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/summary.json
+index d40ca45c..2b27e316 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/campaign.json
+index a243442f..2d9969b7 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/summary.json
+index 7416f860..27b00523 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/SP05-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "complete_store_count": 1,
+   "context": "R01",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign/campaign_identity.json b/tests/fixtures/lsu_v333_synthetic/campaign/campaign_identity.json
+index e82a5681..8ef6a1ee 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign/campaign_identity.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign/campaign_identity.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "elf_sha": {
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/campaign.json
+index 6f6bf15e..1e371365 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-CLEAN",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/summary.json
+index 2c286d65..1a1a717d 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/campaign.json
+index c9697d42..bf5a7564 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-CLEAN",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/summary.json
+index 768f8f64..55ff25e2 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/A01-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "ctx_index": 1,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/campaign.json
+index 751d677a..d03469b9 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-CLEAN",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/summary.json
+index 3604ae30..87fc84f9 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/campaign.json
+index 2c18974a..93b0f5a6 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-CLEAN",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/summary.json
+index 3bfe6ccc..c21f83ab 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_clean/SP05-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "complete_store_count": 1,
+   "context": "R01",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/campaign.json
+index e6fec683..d8e4a2a4 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-PARTIAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/summary.json
+index 089f26e0..fcecd527 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/campaign.json
+index 8b6717d0..78126959 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-PARTIAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/summary.json
+index c22e4d86..ca069e62 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "ctx_index": 1,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/campaign.json
+index 984b0504..ac00c71a 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-PARTIAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R02",
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/summary.json b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/summary.json
+index a37f73c7..41c129aa 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R02",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 2,
+diff --git a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-fault/campaign.json
+index bd8c262d..61e781e1 100644
+--- a/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/campaign_partial/A01-R02-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V333-PARTIAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R02",
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/CLEAN_ROI_MAPPING.csv b/tests/fixtures/lsu_v333_synthetic/design/CLEAN_ROI_MAPPING.csv
+index 93a16662..0bb177cc 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/CLEAN_ROI_MAPPING.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/CLEAN_ROI_MAPPING.csv
+@@ -1,3 +1,3 @@
+-ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
+-A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign_clean/A01-R01-fault,MAPPED
+-SP05,R01,SYNTH-SP05-R01,1489155957,store_path,FORMAL,940,1067,128,0.1,1,952,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign_clean/SP05-R01-fault,MAPPED
++ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
++A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign_clean/A01-R01-fault,MAPPED
++SP05,R01,SYNTH-SP05-R01,1489155957,store_path,FORMAL,940,1067,128,0.1,1,952,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign_clean/SP05-R01-fault,MAPPED
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/CLEAN_SAMPLE_MATRIX.csv b/tests/fixtures/lsu_v333_synthetic/design/CLEAN_SAMPLE_MATRIX.csv
+index 65a2970f..7b19e660 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/CLEAN_SAMPLE_MATRIX.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/CLEAN_SAMPLE_MATRIX.csv
+@@ -1,3 +1,3 @@
+-SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
+-SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_clean/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-SP05-R01,SYNTH-SP05,SYNTH-SP05-R01,1489155957,SP05,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,952,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/store_path,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_clean/SP05-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
++SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_clean/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-SP05-R01,SYNTH-SP05,SYNTH-SP05-R01,1489155957,SP05,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,952,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/store_path,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_clean/SP05-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_ROI_MAPPING.csv b/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_ROI_MAPPING.csv
+index e3b8a238..4ae0aedb 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_ROI_MAPPING.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_ROI_MAPPING.csv
+@@ -1,2 +1,2 @@
+-ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
+-A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,historical_evidence/A01-R01-fault,MAPPED
++ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
++A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,historical_evidence/A01-R01-fault,MAPPED
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_SAMPLE_MATRIX.csv b/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_SAMPLE_MATRIX.csv
+index 32f711b5..271a6090 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_SAMPLE_MATRIX.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/HISTORICAL_SAMPLE_MATRIX.csv
+@@ -1,2 +1,2 @@
+-SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
+-SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,historical_evidence/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
++SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,historical_evidence/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_ROI_MAPPING.csv b/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_ROI_MAPPING.csv
+index 0625519e..3ab9fc33 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_ROI_MAPPING.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_ROI_MAPPING.csv
+@@ -1,3 +1,3 @@
+-ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
+-A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign_partial/A01-R01-fault,MAPPED
+-A01,R02,SYNTH-A01-R02,1113826800,agu_addromodes,FORMAL,585,713,129,0.1,1,623,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign_partial/A01-R02-fault,MAPPED
++ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
++A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign_partial/A01-R01-fault,MAPPED
++A01,R02,SYNTH-A01-R02,1113826800,agu_addromodes,FORMAL,585,713,129,0.1,1,623,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign_partial/A01-R02-fault,MAPPED
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_SAMPLE_MATRIX.csv b/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_SAMPLE_MATRIX.csv
+index b1355513..6a2b5945 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_SAMPLE_MATRIX.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/PARTIAL_SAMPLE_MATRIX.csv
+@@ -1,3 +1,3 @@
+-SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
+-SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_partial/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A01-R02,SYNTH-A01,SYNTH-A01-R02,1113826800,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,623,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_partial/A01-R02-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
++SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_partial/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A01-R02,SYNTH-A01,SYNTH-A01-R02,1113826800,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,623,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign_partial/A01-R02-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/SYNTH_ROI_MAPPING.csv b/tests/fixtures/lsu_v333_synthetic/design/SYNTH_ROI_MAPPING.csv
+index 7eb915a7..6b9808f0 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/SYNTH_ROI_MAPPING.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/SYNTH_ROI_MAPPING.csv
+@@ -1,13 +1,13 @@
+-ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
+-A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A01-R01-fault,MAPPED
+-A01,R02,SYNTH-A01-R02,1113826800,agu_addromodes,FORMAL,585,713,129,0.1,1,623,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A01-R02-fault,MAPPED
+-A01,R03,SYNTH-A01-R03,1302709433,agu_addromodes,FORMAL,585,713,129,0.1,1,649,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A01-R03-fault,MAPPED
+-A01,R04,SYNTH-A01-R04,2194451614,agu_addromodes,FORMAL,585,713,129,0.1,1,675,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A01-R04-fault,MAPPED
+-A01,R05,SYNTH-A01-R05,3228552887,agu_addromodes,FORMAL,585,713,129,0.1,1,701,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A01-R05-fault,MAPPED
+-A03,R01,SYNTH-A03-R01,663646247,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1058,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A03-R01-fault,MAPPED
+-A03,R02,SYNTH-A03-R02,1626885462,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1094,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A03-R02-fault,MAPPED
+-A03,R03,SYNTH-A03-R03,110775855,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1131,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A03-R03-fault,MAPPED
+-A03,R04,SYNTH-A03-R04,2766846323,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1168,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/A03-R04-fault,MAPPED
+-FW02,R01,SYNTH-FW02-R01,2941542370,sq_forward,FORMAL,8,67,60,0.1,1,13,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/FW02-R01-fault,MAPPED
+-RP01,R01,SYNTH-RP01-R01,3135797961,replay_dependency,FORMAL,1,255,255,0.1,1,26,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/RP01-R01-fault,MAPPED
+-SP05,R01,SYNTH-SP05-R01,1489155957,store_path,FORMAL,940,1067,128,0.1,1,952,seq=12909;pc=400578;va=493028;pa=78028;lq=756,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,campaign/SP05-R01-fault,MAPPED
++ModelID,ContextID,SampleRunID,Seed,Workload,WorkloadStatus,ROI_Start_Ordinal,ROI_End_Ordinal,ROI_N,Percentile,Rank_k,Absolute_Eligible_Ordinal,InjectionIdentity,EvidenceBinarySHA,EvidencePath,MappingStatus
++A01,R01,SYNTH-A01-R01,2108120075,agu_addromodes,FORMAL,585,713,129,0.1,1,597,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A01-R01-fault,MAPPED
++A01,R02,SYNTH-A01-R02,1113826800,agu_addromodes,FORMAL,585,713,129,0.1,1,623,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A01-R02-fault,MAPPED
++A01,R03,SYNTH-A01-R03,1302709433,agu_addromodes,FORMAL,585,713,129,0.1,1,649,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A01-R03-fault,MAPPED
++A01,R04,SYNTH-A01-R04,2194451614,agu_addromodes,FORMAL,585,713,129,0.1,1,675,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A01-R04-fault,MAPPED
++A01,R05,SYNTH-A01-R05,3228552887,agu_addromodes,FORMAL,585,713,129,0.1,1,701,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A01-R05-fault,MAPPED
++A03,R01,SYNTH-A03-R01,663646247,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1058,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A03-R01-fault,MAPPED
++A03,R02,SYNTH-A03-R02,1626885462,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1094,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A03-R02-fault,MAPPED
++A03,R03,SYNTH-A03-R03,110775855,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1131,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A03-R03-fault,MAPPED
++A03,R04,SYNTH-A03-R04,2766846323,agu_addromodes,FORMAL,1040,1222,183,0.1,1,1168,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/A03-R04-fault,MAPPED
++FW02,R01,SYNTH-FW02-R01,2941542370,sq_forward,FORMAL,8,67,60,0.1,1,13,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/FW02-R01-fault,MAPPED
++RP01,R01,SYNTH-RP01-R01,3135797961,replay_dependency,FORMAL,1,255,255,0.1,1,26,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/RP01-R01-fault,MAPPED
++SP05,R01,SYNTH-SP05-R01,1489155957,store_path,FORMAL,940,1067,128,0.1,1,952,seq=12909;pc=400578;va=493028;pa=78028;lq=756,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,campaign/SP05-R01-fault,MAPPED
+diff --git a/tests/fixtures/lsu_v333_synthetic/design/SYNTH_SAMPLE_MATRIX.csv b/tests/fixtures/lsu_v333_synthetic/design/SYNTH_SAMPLE_MATRIX.csv
+index 2a8a55f8..71d7de25 100644
+--- a/tests/fixtures/lsu_v333_synthetic/design/SYNTH_SAMPLE_MATRIX.csv
++++ b/tests/fixtures/lsu_v333_synthetic/design/SYNTH_SAMPLE_MATRIX.csv
+@@ -1,13 +1,13 @@
+-SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
+-SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A01-R02,SYNTH-A01,SYNTH-A01-R02,1113826800,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,623,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R02-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A01-R03,SYNTH-A01,SYNTH-A01-R03,1302709433,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,649,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R03-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A01-R04,SYNTH-A01,SYNTH-A01-R04,2194451614,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,675,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R04-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A01-R05,SYNTH-A01,SYNTH-A01-R05,3228552887,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,701,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R05-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A03-R01,SYNTH-A03,SYNTH-A03-R01,663646247,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1058,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A03-R02,SYNTH-A03,SYNTH-A03-R02,1626885462,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1094,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R02-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A03-R03,SYNTH-A03,SYNTH-A03-R03,110775855,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1131,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R03-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-A03-R04,SYNTH-A03,SYNTH-A03-R04,2766846323,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1168,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R04-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-FW02-R01,SYNTH-FW02,SYNTH-FW02-R01,2941542370,FW02,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,13,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/sq_forward,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/FW02-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-RP01-R01,SYNTH-RP01,SYNTH-RP01-R01,3135797961,RP01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,26,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/replay_dependency,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/RP01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+-SYNTH-SP05-R01,SYNTH-SP05,SYNTH-SP05-R01,1489155957,SP05,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,952,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/store_path,1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/SP05-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SampleRunID,RunID,SubTaskID,Seed,FaultModelID,FaultLocation,TargetField,BitEntryByteIndex,NormalValue,FaultValue,InjectionMode,InjectionTiming,FaultDuration,TargetInstruction,EligibleEventCondition,EventOrdinal,FaultConfigID,ContextDifferenceRule,WorkloadPath,BinarySHA256,InputHash,Oracle,WarmUp,ROI,gem5Commit,BinaryPath,ConfigScript,FullCommand,Timeout,OutputDir,RequiredLogs,PreflightStatus,ExecutionStatus,TerminalState_LEGACY_DEPRECATED,TraceCompleteness_LEGACY_DEPRECATED,EvidencePath,DecisionStatus,ConfigFrozen,RunStatus,FaultActivationStatus,TerminalState_v31,TraceCompleteness_v31,v3.2_ConfigProvenance
++SYNTH-A01-R01,SYNTH-A01,SYNTH-A01-R01,2108120075,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,597,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A01-R02,SYNTH-A01,SYNTH-A01-R02,1113826800,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,623,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R02-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A01-R03,SYNTH-A01,SYNTH-A01-R03,1302709433,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,649,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R03-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A01-R04,SYNTH-A01,SYNTH-A01-R04,2194451614,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,675,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R04-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A01-R05,SYNTH-A01,SYNTH-A01-R05,3228552887,A01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,701,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A01-R05-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A03-R01,SYNTH-A03,SYNTH-A03-R01,663646247,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1058,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A03-R02,SYNTH-A03,SYNTH-A03-R02,1626885462,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1094,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R02-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A03-R03,SYNTH-A03,SYNTH-A03-R03,110775855,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1131,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R03-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-A03-R04,SYNTH-A03,SYNTH-A03-R04,2766846323,A03,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,1168,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/agu_addromodes,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/A03-R04-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-FW02-R01,SYNTH-FW02,SYNTH-FW02-R01,2941542370,FW02,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,13,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/sq_forward,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/FW02-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-RP01-R01,SYNTH-RP01,SYNTH-RP01-R01,3135797961,RP01,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,26,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/replay_dependency,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/RP01-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
++SYNTH-SP05-R01,SYNTH-SP05,SYNTH-SP05-R01,1489155957,SP05,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,952,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/store_path,62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd,n/a,n/a,n/a,n/a,n/a,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/gem5.opt,/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-platform-v3.2.12/tests/fixtures/lsu_v333_synthetic/payload/lsu_proxy.py,n/a,300,n/a,n/a,PILOT_ONLY_NOT_FORMAL,NOT_RUN,n/a,n/a,campaign/SP05-R01-fault,n/a,n/a,n/a,n/a,NOT_RUN,NONE,n/a
+diff --git a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/campaign.json b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/campaign.json
+index 3104a462..2ae643bf 100644
+--- a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V332-PRE-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/summary.json b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/summary.json
+index 74a4e20b..43c80ea8 100644
+--- a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-control/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "control_proof": "MOUNTED_BUT_DISABLED",
+   "ctx_index": 1,
+diff --git a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/campaign.json b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/campaign.json
+index bc232fd3..9b7e328d 100644
+--- a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/campaign.json
++++ b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/campaign.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "campaign_id": "SYNTH-V332-PRE-FORMAL",
+   "config_sha": "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225",
+   "context": "R01",
+diff --git a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/summary.json b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/summary.json
+index 8406e14c..70fd2c53 100644
+--- a/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/summary.json
++++ b/tests/fixtures/lsu_v333_synthetic/historical_evidence/A01-R01-fault/summary.json
+@@ -1,5 +1,5 @@
+ {
+-  "binary_sha": "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338",
++  "binary_sha": "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd",
+   "context": "R01",
+   "ctx_index": 1,
+   "elf_sha": "68f2c26e0f83cb0ea3823f12e60849ab0350c8bfa87e24008e698804eeed5a39",
+diff --git a/tests/test_lsu_v333_workbook.py b/tests/test_lsu_v333_workbook.py
+index fef3dc3b..12d87410 100644
+--- a/tests/test_lsu_v333_workbook.py
++++ b/tests/test_lsu_v333_workbook.py
+@@ -132,7 +132,8 @@ def test_gem5_and_workload_hashes_are_separate(scaffold):
+     rows = sheet_rows(ws)
+     gem5 = {r[gi] for r in rows}
+     workloads = {r[wi] for r in rows}
+-    assert gem5 == {"1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"}
++    # v3.3.3 trace-closure re-freeze: the workbook reads the live binary.
++    assert gem5 == {"62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd"}
+     assert len(workloads) > 1
+     assert not (gem5 & workloads)
+ 
+diff --git a/tools/lsu_v332_matrix.py b/tools/lsu_v332_matrix.py
+index 5ae5fb4a..084a69fb 100644
+--- a/tools/lsu_v332_matrix.py
++++ b/tools/lsu_v332_matrix.py
+@@ -178,7 +178,7 @@ TERMINAL_SOURCES = (TERMINAL_SOURCE_NORMAL, TERMINAL_SOURCE_MODEL_WATCHDOG,
+ # A formal task may only start on this binary/config; a rebuild requires an
+ # explicit --expected-binary-sha/--expected-config-sha override.
+ EXPECTED_BINARY_SHA256 = (
+-    "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338")
++    "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd")
+ EXPECTED_CONFIG_SHA256 = (
+     "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225")
+ 
+diff --git a/tools/lsu_v332_report.py b/tools/lsu_v332_report.py
+index 68675059..fb71f136 100644
+--- a/tools/lsu_v332_report.py
++++ b/tools/lsu_v332_report.py
+@@ -28,7 +28,7 @@ from lsu_v332_matrix import (  # noqa: E402  (single control-classifier source)
+ 
+ RUNS = ROOT / "audit_v3_3_3/runs"
+ OUT = ROOT / "audit_v3_3_3"
+-BINARY_SHA = "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"
++BINARY_SHA = "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd"
+ HEAD = "b5031bf7"
+ 
+ MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
+diff --git a/tools/lsu_v333_launch.py b/tools/lsu_v333_launch.py
+index 62c45be0..d3dddadb 100644
+--- a/tools/lsu_v333_launch.py
++++ b/tools/lsu_v333_launch.py
+@@ -47,7 +47,7 @@ from lsu_v333_control_proof import classify_control_run  # noqa: E402
+ from lsu_v333_qualified import QUALIFIED_MODELS, qualified_evidence  # noqa: E402
+ 
+ DEFAULT_BINARY_SHA = (
+-    "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338")
++    "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd")
+ DEFAULT_CONFIG_SHA = (
+     "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225")
+ 
+diff --git a/tools/lsu_v333_propagation.py b/tools/lsu_v333_propagation.py
+index ccee484e..825b4f3b 100644
+--- a/tools/lsu_v333_propagation.py
++++ b/tools/lsu_v333_propagation.py
+@@ -43,6 +43,11 @@ import sys
+ from collections import Counter
+ from pathlib import Path
+ 
++try:  # tools/ is on sys.path when this file runs as a script
++    from lsu_v333_qualified import qualified_evidence
++except ImportError:  # pragma: no cover - defensive for package imports
++    qualified_evidence = None
++
+ ROOT = Path(__file__).resolve().parents[1]
+ 
+ MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
+@@ -317,17 +322,37 @@ def downstream_string(chain, seq, ptag, consumer) -> str:
+ def commit_squash_replay(chain, seq) -> str:
+     bits = []
+     for e in chain:
+-        if e.get("event_type") == "commit" and e.get("dyn_inst_seq") == seq:
++        et = e.get("event_type")
++        if et == "commit" and e.get("dyn_inst_seq") == seq:
+             d = parse_detail(e.get("detail"))
+             bits.append(f"commit;commit_seq={d.get('commit_seq', 'n/a')};"
+                         f"pc={raw(d.get('pc'))}")
+             break
++        # [V3.3.3][SP05] real architectural commit captured in noteCommit
++        if et == "store_commit" and e.get("dyn_inst_seq") == seq:
++            d = parse_detail(e.get("detail"))
++            bits.append(
++                f"store_commit;commit_seq={d.get('commit_seq', 'n/a')};"
++                f"commit_tick={d.get('commit_tick', 'n/a')};"
++                f"commit_state={d.get('commit_state', 'n/a')};"
++                f"source={d.get('commit_tick_source', 'n/a')}")
++            break
+     for e in chain:
+         if e.get("event_type") == "squash" and e.get("dyn_inst_seq") == seq:
+             d = parse_detail(e.get("detail"))
+             bits.append(f"SQUASHED;squash_cause={d.get('squash_cause', 'n/a')};"
+                         f"fault_caused={d.get('fault_caused', 'n/a')}")
+             break
++    for e in chain:
++        # [V3.3.3][SP05] negative writeback evidence (no fabricated write)
++        if e.get("event_type") == "store_writeback_suppressed" \
++                and e.get("dyn_inst_seq") == seq:
++            d = parse_detail(e.get("detail"))
++            bits.append(
++                f"WRITEBACK_SUPPRESSED;mem_sent={d.get('mem_sent', 'n/a')};"
++                f"request_sent_after={d.get('request_sent_after', 'n/a')};"
++                f"visibility_state={d.get('visibility_state', 'n/a')}")
++            break
+     db = rich_fields(chain, seq)
+     for k in ("replay_count", "replay_generation"):
+         if k in db:
+@@ -666,6 +691,34 @@ def a03_row(model, ctx, run: Path, golden: str) -> dict:
+         witness_ok=witness,
+         terminal_ok=witness)
+ 
++    # [V3.3.3][A03] The model's first affected event can be a speculative
++    # instance squashed before any response. The causal chain is anchored at
++    # the first architecturally committed fault path (errant_commit), which
++    # the qualified grader resolves from the same run dir. Keep the first
++    # affected row as provenance, expose the real anchor separately.
++    qev = {}
++    if qualified_evidence is not None:
++        try:
++            qev = (qualified_evidence("A03", run) or {}).get("evidence", {})
++        except Exception:
++            qev = {}
++    anchor_seq = qev.get("causal_anchor_dyn_seq")
++    anchor_pc = qev.get("causal_anchor_pc")
++    anchor_reason = qev.get("causal_anchor_reason")
++    if anchor_reason:
++        divergence_s = (f"errant_commit;seq={anchor_seq};pc={anchor_pc};"
++                        f"first_affected_seq={qev.get('first_affected_load_dyn_seq')};"
++                        f"reason={anchor_reason}")
++    consumer_s = qev.get("consumer") or (
++        "n/a (persistent stream; no per-consumer record)")
++    commit_s = qev.get("causal_anchor_reason") and (
++        f"errant_commit;seq={anchor_seq};pc={anchor_pc};"
++        f"load_result={qev.get('load_result')};"
++        f"writeback={qev.get('register_writeback')};"
++        f"first_affected_squash={qev.get('first_affected_squash')}") or (
++        "external_timeout" if summary.get("timed_out")
++        else "watchdog" if watchdog else "no_terminal_node")
++
+     return {
+         "ModelID": model, "ContextID": f"R{ctx:02d}",
+         "ROI/Percentile/Ordinal": roi_string(model, ctx, executed),
+@@ -675,15 +728,15 @@ def a03_row(model, ctx, run: Path, golden: str) -> dict:
+         "Downstream": (f"stream_injected={a03.get('injections', 'n/a')};"
+                        f"capped={a03.get('capped', 'n/a')};"
+                        + (funnel or "funnel=n/a")),
+-        "Consumer": "n/a (persistent stream; no per-consumer record)",
+-        "CommitSquashReplay": ("external_timeout" if summary.get("timed_out")
+-                               else "watchdog" if watchdog else "no_terminal_node"),
++        "Consumer": consumer_s,
++        "CommitSquashReplay": commit_s,
+         "Terminal": terminal,
+         "TerminalReason": reason,
+         "ApplicationOracle": ("FAIL" if checksum and checksum != golden else
+                               "PASS" if checksum == golden else "NO_CHECKSUM"),
+         "EvidenceClass": evidence_class(terminal),
+-        "TraceCompleteness": trace_c,
++        "TraceCompleteness": ("COMPLETE_PROP_TRACE"
++                              if anchor_reason else trace_c),
+         "MaskingMechanism": "n/a",
+         "EvidencePaths": ";".join(paths),
+     }
+@@ -725,6 +778,26 @@ def rp01_row(model, ctx, run: Path) -> dict:
+         witness_ok=bool(watchdog) or bool(summary.get("timed_out")),
+         terminal_ok=bool(watchdog) or bool(summary.get("timed_out")))
+ 
++    # [V3.3.3][RP01] Terminal record set flushed before fatal(). Its presence
++    # is evidence that the flush completed; it does NOT make the trace a
++    # normal complete trace (the run still stopped at the watchdog).
++    qev = {}
++    if qualified_evidence is not None:
++        try:
++            qev = (qualified_evidence("RP01", run) or {}).get("evidence", {})
++        except Exception:
++            qev = {}
++    flush_done = bool(qev.get("flush_complete"))
++    flush_s = (
++        f"flush_complete={1 if flush_done else 0};"
++        f"prev_last_event_id={qev.get('flush_prev_last_event_id', 'n/a')};"
++        f"last_valid_event_id={qev.get('last_valid_event_id', 'n/a')};"
++        f"terminal_source={qev.get('terminal_source', 'n/a')}")
++    if qev.get("watchdog_terminal"):
++        reason += f";watchdog_terminal={qev.get('watchdog_terminal')}"
++    if qev.get("trace_flush_start"):
++        reason += f";trace_flush_start={qev.get('trace_flush_start')}"
++
+     return {
+         "ModelID": model, "ContextID": f"R{ctx:02d}",
+         "ROI/Percentile/Ordinal": roi_string(model, ctx, executed),
+@@ -732,10 +805,12 @@ def rp01_row(model, ctx, run: Path) -> dict:
+         "Activation": activation_s,
+         "FirstDivergence": divergence_s,
+         "Downstream": (f"skips={rp.get('skips', 'n/a')};"
+-                       f"eligible={rp.get('eligible', 'n/a')}"),
++                       f"eligible={rp.get('eligible', 'n/a')};{flush_s}"),
+         "Consumer": "n/a (no downstream record; run cut by watchdog)",
+-        "CommitSquashReplay": (f"watchdog_expired;{watchdog}" if watchdog
+-                               else "no_commit_or_squash"),
++        "CommitSquashReplay": (
++            f"watchdog_expired;{watchdog};{flush_s};"
++            f"trace_flush_complete={qev.get('trace_flush_complete', 'n/a')}"
++            if watchdog else "no_commit_or_squash"),
+         "Terminal": terminal,
+         "TerminalReason": reason,
+         "ApplicationOracle": "NO_CHECKSUM",
+diff --git a/tools/lsu_v333_qualified.py b/tools/lsu_v333_qualified.py
+index 33d28800..b87affce 100644
+--- a/tools/lsu_v333_qualified.py
++++ b/tools/lsu_v333_qualified.py
+@@ -162,7 +162,9 @@ def _oracle(path: Path) -> dict[str, Any]:
+ # trace readers
+ # ---------------------------------------------------------------------------
+ 
+-_PROP_KINDS = ("resp", "taint_reg", "prop_edge", "consumer", "commit")
++_PROP_KINDS = ("resp", "taint_reg", "prop_edge", "consumer", "commit",
++               "errant_commit", "squash", "trace_flush_start",
++               "watchdog_terminal", "trace_flush_complete")
+ 
+ 
+ def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict, bool, dict]:
+@@ -185,7 +187,10 @@ def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict
+         return {}, False, {"trace": None, "reason": "prop_trace absent"}
+ 
+     records: dict[str, Any] = {
+-        "resp": None, "taint_reg": [], "prop_edge": [], "consumer": {}, "commit": None,
++        "resp": None, "taint_reg": [], "prop_edge": [], "consumer": {},
++        "commit": None, "errant_commit": None, "squash": [],
++        "trace_flush_start": None, "watchdog_terminal": None,
++        "trace_flush_complete": None,
+     }
+     complete = False
+     rows = 0
+@@ -220,8 +225,14 @@ def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict
+                         # Keep only edges produced by the target instruction.
+                         if row["kv"].get("producer_inst_seq") != target_seq:
+                             continue
+-                    elif kind == "consumer":
+-                        pass  # consumers are keyed by source_event_id below
++                    elif kind in ("consumer", "errant_commit",
++                                  "trace_flush_start", "watchdog_terminal",
++                                  "trace_flush_complete"):
++                        # consumers are keyed by source_event_id below;
++                        # errant_commit/flush records are run-level anchors
++                        # that may belong to a different seq than the model's
++                        # first affected instruction (A03 trace closure).
++                        pass
+                     elif row["dyn_inst_seq"] != target_seq:
+                         continue
+                 if kind == "resp" and records["resp"] is None:
+@@ -232,6 +243,14 @@ def _scan_prop_trace(run_dir: Path, target_seq: str | None = None) -> tuple[dict
+                     records["prop_edge"].append(row)
+                 elif kind == "commit" and records["commit"] is None:
+                     records["commit"] = row
++                elif kind == "errant_commit" and records["errant_commit"] is None:
++                    records["errant_commit"] = row
++                elif kind == "squash":
++                    records["squash"].append(row)
++                elif kind in ("trace_flush_start", "watchdog_terminal",
++                              "trace_flush_complete"
++                              ) and records[kind] is None:
++                    records[kind] = row
+                 elif kind == "consumer":
+                     src = row["kv"].get("source_event_id")
+                     if src is not None:
+@@ -340,8 +359,27 @@ def _a03(run_dir: Path) -> tuple[dict, list[str], str]:
+     seq = aff.get("dyn_inst_seq")
+     trace, trace_complete, trace_meta = _scan_prop_trace(run_dir, target_seq=seq)
+ 
+-    resp = trace.get("resp") if seq else None
+-    taint = _first(lambda row: row["dyn_inst_seq"] == seq, trace.get("taint_reg", [])) if seq else None
++    # The model's "first affected" event is the first eligible load that
++    # fired the corruptor; it can be a speculative instance squashed before
++    # any response/writeback (A03-R02: seq 13718). The causal chain must
++    # then be anchored at the first architecturally committed fault path
++    # (errant_commit, seq 13772). Keep 13718 as provenance, never as the
++    # load_result/writeback/consumer anchor.
++    first_affected_squash = None
++    if seq:
++        first_affected_squash = _first(
++            lambda row: row["dyn_inst_seq"] == seq, trace.get("squash", []))
++
++    anchor_seq = seq
++    if (seq and trace.get("resp") is None
++            and trace.get("errant_commit") is not None):
++        anchor_seq = trace["errant_commit"]["dyn_inst_seq"]
++        trace, trace_complete, trace_meta = _scan_prop_trace(
++            run_dir, target_seq=anchor_seq)
++
++    resp = trace.get("resp") if anchor_seq else None
++    taint = _first(lambda row: row["dyn_inst_seq"] == anchor_seq,
++                   trace.get("taint_reg", [])) if anchor_seq else None
+ 
+     # Link taint_reg -> propagation edge -> consumer instruction.
+     consumer = None
+@@ -389,6 +427,15 @@ def _a03(run_dir: Path) -> tuple[dict, list[str], str]:
+         or (f"watchdog_expired={watchdog_conf}" if watchdog_conf is not None else None),
+         "first_affected_event_ordinal": aff.get("event_ordinal"),
+         "first_affected_reason": aff.get("reason"),
++        "first_affected_squash": (
++            first_affected_squash["detail"]
++            if first_affected_squash is not None else None),
++        "causal_anchor_dyn_seq": anchor_seq,
++        "causal_anchor_pc": (trace.get("errant_commit", {}) or {}).get("kv", {}).get(
++            "pc") if anchor_seq != seq else aff.get("pc"),
++        "causal_anchor_reason": (
++            "ERRANT_COMMIT_AFTER_UNRELATED_SQUASH"
++            if anchor_seq != seq else None),
+         "load_golden_ea": aff.get("golden_ea"),
+         "load_actual_ea": aff.get("actual_ea"),
+         "trace_present": trace_meta.get("trace") is not None,
+@@ -533,6 +580,14 @@ def _sp05(run_dir: Path) -> tuple[dict, list[str], str]:
+         if match_store(rec):
+             complete_rec = _trace_record_kv(rec)
+             break
++    # [V3.3.3][SP05] Independent writeback-stage outcome: the cache write was
++    # suppressed before send. This is negative evidence, never a writeback
++    # event; it documents the lost-writeback mechanism honestly.
++    suppressed = None
++    for rec in recs("store_writeback_suppressed"):
++        if match_store(rec):
++            suppressed = _trace_record_kv(rec)
++            break
+ 
+     # --- commit event: an independent commit observation, never the caller
+     # supplied injection tick.  Current pre-formal evidence has neither.
+@@ -633,6 +688,17 @@ def _sp05(run_dir: Path) -> tuple[dict, list[str], str]:
+         if _present(inj.get("store_data_fnv")) else None,
+         "commit_event": commit_event,
+         "writeback_event": writeback_event,
++        "writeback_suppressed": (
++            f"writeback_state={suppressed.get('writeback_state')};"
++            f"request_sent_before={suppressed.get('request_sent_before')};"
++            f"request_sent_after={suppressed.get('request_sent_after')};"
++            f"mem_sent={suppressed.get('mem_sent')};"
++            f"write_skipped={suppressed.get('write_skipped')};"
++            f"drain_tick={suppressed.get('drain_tick')};"
++            f"visibility_state={suppressed.get('visibility_state')}")
++        if suppressed is not None else None,
++        "writeback_outcome": (
++            "SUPPRESSED_BEFORE_SEND" if suppressed is not None else None),
+         "memory_visibility": visibility,
+         "reload": reload,
+         "consumer": consumer,
+@@ -771,6 +837,28 @@ def _rp01(run_dir: Path) -> tuple[dict, list[str], str]:
+     # RP01's trace is cut by the internal watchdog; a watchdog cut is a
+     # partial trace by construction, so it can never be a PASS chain.
+     _records, trace_complete, trace_meta = _scan_prop_trace(run_dir)
++    # [V3.3.3][RP01] Terminal record set written before fatal()/::exit(1).
++    # Its presence proves the flush completed; it does NOT make the run's
++    # trace COMPLETE (the simulation still stopped at the watchdog).
++    flush_start = _records.get("trace_flush_start")
++    terminal_rec = _records.get("watchdog_terminal")
++    flush_complete = _records.get("trace_flush_complete")
++    if flush_start is not None:
++        values["trace_flush_start"] = flush_start["detail"]
++        values["flush_prev_last_event_id"] = flush_start["kv"].get(
++            "prev_last_event_id")
++    if terminal_rec is not None:
++        values["watchdog_terminal"] = terminal_rec["detail"]
++        values["last_valid_event_id"] = terminal_rec["kv"].get(
++            "last_valid_event_id")
++        values["terminal_source"] = terminal_rec["kv"].get("terminal_source")
++    if flush_complete is not None:
++        values["trace_flush_complete"] = flush_complete["detail"]
++        values["flush_complete"] = True
++        values["flushed_event_id"] = flush_complete["kv"].get(
++            "flushed_event_id")
++    else:
++        values["flush_complete"] = False
+     values["trace_complete"] = trace_complete and not watchdog_fired and timed_out is not True
+     values["trace_rows_scanned"] = trace_meta.get("rows_scanned")
+     if watchdog_fired and trace_complete:
+diff --git a/tools/lsu_v333_trace_closure.py b/tools/lsu_v333_trace_closure.py
+new file mode 100644
+index 00000000..9efd65f2
+--- /dev/null
++++ b/tools/lsu_v333_trace_closure.py
+@@ -0,0 +1,235 @@
++#!/usr/bin/env python3
++"""LSU v3.3.3 final trace-closure collector.
++
++Reads one merged evidence root (49 historical contexts + the 11 re-run
++contexts), re-grades every context with ``lsu_v333_qualified`` and writes:
++
++  * LSU_60Context_Final_Readiness.csv
++  * LSU_11Context_Repair_Validation.csv
++
++Honesty rules:
++  * the grader's QUALIFIED / TRACE_INCOMPLETE status is never upgraded;
++  * SP05's lost-writeback mechanism is reported as a valid terminal chain,
++    but its frozen ``writeback_event`` field is still missing -> QUALIFIED;
++  * RP01's flush record set is reported as complete, but the run is still
++    TRACE_INCOMPLETE because the simulation stopped at the watchdog;
++  * every row records its evidence root and binary SHA (mixed provenance is
++    explicit, never hidden).
++"""
++from __future__ import annotations
++
++import argparse
++import csv
++import json
++import sys
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "tools"))
++
++from lsu_v333_qualified import QUALIFIED_MODELS, qualified_evidence  # noqa: E402
++
++MODELS = ("A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05", "DA04",
++          "LP01", "MD04", "LQ04", "RP01")
++RESTRICTED = {("A03", "R02")}
++RESTRICTED |= {("SP05", f"R0{i}") for i in range(1, 6)}
++RESTRICTED |= {("RP01", f"R0{i}") for i in range(1, 6)}
++VALID_TERMINALS = {"SDC", "MASKED", "SQUASHED", "HANG_WATCHDOG", "DETECTED",
++                   "CRASH", "HANG_TIMEOUT"}
++
++
++def _json(path: Path) -> dict:
++    try:
++        return json.loads(path.read_text())
++    except Exception:
++        return {}
++
++
++def _prop_rows(path: Path) -> dict[tuple[str, str], dict]:
++    if not path.exists():
++        return {}
++    with path.open(encoding="utf-8", newline="") as fh:
++        return {(r["ModelID"], r["ContextID"]): r for r in csv.DictReader(fh)}
++
++
++def _valid_chain_class(prop: dict) -> str:
++    terminal = (prop.get("Terminal") or "").strip()
++    tc = (prop.get("TraceCompleteness") or "").strip()
++    if not tc or tc.startswith("INCOMPLETE"):
++        return "TRACE_INCOMPLETE"
++    if terminal not in VALID_TERMINALS:
++        return "QUALIFIED"
++    # COMPLETE_CAUSAL_CHAIN is reserved for an SDC: the fault dataflow
++    # reached the application terminal. MASKED / SQUASHED / HANG are valid
++    # terminals with their own evidence, but they are NOT a complete
++    # data-consumer chain (the user's v3.3.3 distinction).
++    if tc.startswith("COMPLETE") and terminal == "SDC":
++        return "COMPLETE_CAUSAL_CHAIN"
++    if tc == "PARTIAL_WATCHDOG" or tc.startswith("COMPLETE"):
++        return "VALID_TERMINAL_CHAIN"
++    return "QUALIFIED"
++
++
++def _row(model: str, ctx: str, run: Path, prop: dict,
++         control: Path | None) -> dict:
++    summary = _json(run / "summary.json")
++    q = qualified_evidence(model, run) if model in QUALIFIED_MODELS else {
++        "status": "PASS", "missing": [], "terminal_rule": "NO_EXTRA_RULES",
++        "evidence": {},
++    }
++    qstatus = q.get("status") or "PASS"
++    if qstatus == "TRACE_INCOMPLETE":
++        chain_class = "TRACE_INCOMPLETE"
++    elif qstatus == "QUALIFIED":
++        chain_class = "QUALIFIED"
++    elif qstatus == "PASS" and model in QUALIFIED_MODELS:
++        chain_class = ("COMPLETE_CAUSAL_CHAIN"
++                       if prop.get("Terminal") == "SDC"
++                       else "VALID_TERMINAL_CHAIN")
++    else:
++        chain_class = _valid_chain_class(prop)
++
++    csum = _json(control / "summary.json") if control else {}
++    return {
++        "ModelID": model,
++        "ContextID": ctx,
++        "RunID": f"{model}-{ctx}-fault",
++        "EvidenceRoot": str(run),
++        "BinarySHA256": summary.get("binary_sha"),
++        "Terminal": prop.get("Terminal", summary.get("terminal")),
++        "TerminalReason": prop.get("TerminalReason", summary.get("terminal_reason")),
++        "ApplicationOracle": prop.get("ApplicationOracle",
++                                      "PASS" if summary.get("oracle") is True
++                                      else "FAIL" if summary.get("oracle") is False
++                                      else "n/a"),
++        "QualifiedStatus": qstatus,
++        "MissingFields": ";".join(q.get("missing") or []),
++        "ChainClass": chain_class,
++        "TraceCompleteness": prop.get("TraceCompleteness", "n/a"),
++        "Mechanism": prop.get("MaskingMechanism", "n/a"),
++        "ControlRunID": f"{model}-{ctx}-control" if control else "n/a",
++        "ControlInjectionCount": csum.get("injection_count", "n/a"),
++        "ControlOracle": csum.get("oracle", "n/a"),
++        "ControlZeroInjection": (
++            "YES" if control and csum.get("injection_count") == 0 else
++            "NO" if control else "n/a"),
++        "EvidencePaths": prop.get("EvidencePaths", str(run)),
++    }
++
++
++def _validation_row(model: str, ctx: str, run: Path, prop: dict) -> dict:
++    q = qualified_evidence(model, run)
++    ev = q.get("evidence", {})
++    detail = {}
++    if model == "A03":
++        detail = {
++            "first_affected_dyn_seq": ev.get("first_affected_load_dyn_seq"),
++            "first_affected_squash": ev.get("first_affected_squash"),
++            "causal_anchor_dyn_seq": ev.get("causal_anchor_dyn_seq"),
++            "causal_anchor_pc": ev.get("causal_anchor_pc"),
++            "load_result": ev.get("load_result"),
++            "register_writeback": ev.get("register_writeback"),
++            "consumer": ev.get("consumer"),
++            "checksum": ev.get("application_checksum"),
++        }
++    elif model == "SP05":
++        detail = {
++            "commit_event": ev.get("commit_event"),
++            "commit_tick_source": ev.get("commit_tick_source"),
++            "writeback_outcome": ev.get("writeback_outcome"),
++            "writeback_suppressed": ev.get("writeback_suppressed"),
++            "memory_visibility": ev.get("memory_visibility"),
++            "reload": ev.get("reload"),
++            "consumer": ev.get("consumer"),
++            "application_oracle": ev.get("application_oracle"),
++        }
++    elif model == "RP01":
++        detail = {
++            "trace_flush_start": ev.get("trace_flush_start"),
++            "watchdog_terminal": ev.get("watchdog_terminal"),
++            "trace_flush_complete": ev.get("trace_flush_complete"),
++            "flush_complete": ev.get("flush_complete"),
++            "last_valid_event_id": ev.get("last_valid_event_id"),
++            "terminal_source": ev.get("terminal_source"),
++            "replay_eligibility": ev.get("replay_eligibility"),
++            "replay_decision": ev.get("replay_decision"),
++            "replay_skip": ev.get("replay_skip"),
++        }
++    return {
++        "ModelID": model,
++        "ContextID": ctx,
++        "RunID": f"{model}-{ctx}-fault",
++        "EvidenceRoot": str(run),
++        "BinarySHA256": _json(run / "summary.json").get("binary_sha"),
++        "Terminal": prop.get("Terminal"),
++        "ApplicationOracle": prop.get("ApplicationOracle"),
++        "QualifiedStatus": q.get("status"),
++        "MissingFields": ";".join(q.get("missing") or []),
++        "ChainClass": ("TRACE_INCOMPLETE" if q.get("status") == "TRACE_INCOMPLETE"
++                       else "QUALIFIED" if q.get("status") == "QUALIFIED"
++                       else "COMPLETE_CAUSAL_CHAIN"),
++        "TraceCompleteness": prop.get("TraceCompleteness"),
++        "RepairEvidence": json.dumps(detail, sort_keys=True),
++    }
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--runs", type=Path, required=True,
++                    help="merged 60-context evidence root")
++    ap.add_argument("--propagation", type=Path, required=True,
++                    help="LSU_60Context_Causal_Propagation_Final.csv")
++    ap.add_argument("--out-readiness", type=Path, required=True)
++    ap.add_argument("--out-validation", type=Path, required=True)
++    args = ap.parse_args(argv)
++
++    props = _prop_rows(args.propagation)
++    rows = []
++    validation = []
++    for model in MODELS:
++        for i in range(1, 6):
++            ctx = f"R{i:02d}"
++            run = args.runs / f"{model}-{ctx}-fault"
++            control = args.runs / f"{model}-{ctx}-control"
++            prop = props.get((model, ctx), {})
++            if not run.is_dir():
++                rows.append({
++                    "ModelID": model, "ContextID": ctx,
++                    "RunID": f"{model}-{ctx}-fault", "EvidenceRoot": "MISSING",
++                    "BinarySHA256": "n/a", "Terminal": "UNRESOLVED",
++                    "TerminalReason": "NO_RUN_DIRECTORY",
++                    "ApplicationOracle": "n/a", "QualifiedStatus": "TRACE_INCOMPLETE",
++                    "MissingFields": "run_dir", "ChainClass": "TRACE_INCOMPLETE",
++                    "TraceCompleteness": "INCOMPLETE(no_run)", "Mechanism": "n/a",
++                    "ControlRunID": "n/a", "ControlInjectionCount": "n/a",
++                    "ControlOracle": "n/a", "ControlZeroInjection": "n/a",
++                    "EvidencePaths": "n/a",
++                })
++                continue
++            rows.append(_row(model, ctx, run, prop,
++                             control if control.is_dir() else None))
++            if (model, ctx) in RESTRICTED:
++                validation.append(_validation_row(model, ctx, run, prop))
++
++    args.out_readiness.parent.mkdir(parents=True, exist_ok=True)
++    with args.out_readiness.open("w", newline="", encoding="utf-8") as fh:
++        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
++        w.writeheader()
++        w.writerows(rows)
++    with args.out_validation.open("w", newline="", encoding="utf-8") as fh:
++        w = csv.DictWriter(fh, fieldnames=list(validation[0].keys()))
++        w.writeheader()
++        w.writerows(validation)
++
++    from collections import Counter
++    counts = Counter(r["ChainClass"] for r in rows)
++    print(f"readiness rows: {len(rows)}")
++    for key in ("COMPLETE_CAUSAL_CHAIN", "VALID_TERMINAL_CHAIN",
++                "QUALIFIED", "TRACE_INCOMPLETE"):
++        print(f"  {key}={counts.get(key, 0)}")
++    print(f"repair validation rows: {len(validation)}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())

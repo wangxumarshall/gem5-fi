@@ -1,0 +1,20 @@
+| Model | Ctx | Role | Status | Terminal | Oracle | Injection | Old terminal | Old oracle | Match |
+|---|---|---|---|---|---|---:|---|---|---|---|
+| A01 | R03 | fault | ORACLE_FAIL | SDC | False | 1 | SDC | False | YES |
+| A01 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| FW02 | R03 | fault | COMPLETED | MASKED | True | 1 | MASKED | True | YES |
+| FW02 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| FW05 | R03 | fault | ORACLE_FAIL | SDC | False | 1 | SDC | False | YES |
+| FW05 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| MD04 | R03 | fault | ORACLE_FAIL | SDC | False | 1 | SDC | False | YES |
+| MD04 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| SQ01 | R03 | fault | ORACLE_FAIL | SDC | False | 1 | SDC | False | YES |
+| SQ01 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| SQ03 | R03 | fault | COMPLETED | MASKED | True | 1 | MASKED | True | YES |
+| SQ03 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| LP01 | R03 | fault | ORACLE_FAIL | SDC | False | 1 | SDC | False | YES |
+| LP01 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| LQ04 | R03 | fault | COMPLETED | MASKED | True | 1 | MASKED | True | YES |
+| LQ04 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
+| DA04 | R03 | fault | ORACLE_FAIL | SDC | False | 1 | SDC | False | YES |
+| DA04 | R03 | control | COMPLETED | UNRESOLVED | True | 0 | UNRESOLVED | True | YES |
