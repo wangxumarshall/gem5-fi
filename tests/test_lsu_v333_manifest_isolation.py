@@ -18,6 +18,7 @@ from __future__ import annotations
 import csv
 import importlib.util
 import json
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -112,8 +113,9 @@ def test_historical_root_never_yields_formal_records(tmp_path):
     rows = _manifest(out)
     assert rows, "collector produced no manifest rows"
     assert rc != 0, "a wholly non-formal root must exit nonzero"
+    assert sum(1 for row in rows if row["EvidenceKind"] == "FORMAL") == 0
     for row in rows:
-        assert row["EvidenceKind"] != "FORMAL", row
+        assert row["EvidenceKind"] == "NON_FORMAL", row
         assert row["Status"] not in {
             "PASS", "COMPLETED", "ORACLE_FAIL", "QUALIFIED"}, row
         assert row["Reason"] in {
@@ -127,7 +129,9 @@ def test_missing_summary_is_incomplete_without_a_numeric_count(tmp_path):
     out, rc = _run(tmp_path, "campaign", CAMPAIGN_ID, "SYNTH")
     row = _find(_manifest(out), "A01", "R02", "fault")
     assert row["Status"] == "OUTPUT_INCOMPLETE", row
-    assert row["EvidenceKind"] == "FORMAL", row
+    # v3.3.3: FORMAL requires complete canonical evidence, so a missing
+    # summary is NON_FORMAL (never admitted as formal evidence).
+    assert row["EvidenceKind"] == "NON_FORMAL", row
     assert row["Reason"] == "SUMMARY_MISSING", row
     count = str(row["InjectionCount"]).strip()
     assert not count.isdigit(), (
@@ -154,4 +158,213 @@ def test_matching_campaign_complete_run_is_formal(tmp_path):
         row = _find(rows, model, context, role)
         assert row["EvidenceKind"] == "FORMAL", row
         assert row["Status"] in {"COMPLETED", "ORACLE_FAIL"}, row
+        # Attempt and applied counts are always present as separate fields.
+        assert row["InjectionAttemptCount"] != "", row
+        assert row["InjectionAppliedCount"] != "", row
     assert rc == 0, f"an all-good campaign must exit 0, got {rc}"
+
+
+# ---------------------------------------------------------------------------
+# (e) canonical attempt resolution (v3.3.3 final-launch closure, BUG 2)
+# ---------------------------------------------------------------------------
+PASS_LIKE = {"PASS", "COMPLETED", "ORACLE_FAIL", "QUALIFIED"}
+
+
+def _copy_root(tmp_path: Path, source: str) -> Path:
+    runs = tmp_path / "runs"
+    shutil.copytree(FIX / source, runs)
+    return runs
+
+
+def _filtered_design(tmp_path: Path, source: str, sample_run_id: str
+                     ) -> tuple[Path, Path]:
+    """Write a one-row design matrix/mapping pair for ``sample_run_id``."""
+    design = tmp_path / "design"
+    design.mkdir(exist_ok=True)
+    paths = {}
+    for kind in ("SAMPLE_MATRIX", "ROI_MAPPING"):
+        src = FIX / "design" / f"{source}_{kind}.csv"
+        with src.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            fields = reader.fieldnames
+            rows = [row for row in reader
+                    if row.get("SampleRunID") == sample_run_id]
+        assert rows, f"{src} has no row for {sample_run_id}"
+        dst = design / f"{source}_{kind}.csv"
+        with dst.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(rows)
+        paths[kind] = dst
+    return paths["SAMPLE_MATRIX"], paths["ROI_MAPPING"]
+
+
+def _run_design(tmp_path: Path, runs: Path, campaign_id: str,
+                matrix: Path, mapping: Path,
+                tag: str = "out") -> tuple[Path, int]:
+    out = tmp_path / tag
+    rc = _collector().main([
+        "--runs", str(runs),
+        "--campaign-id", campaign_id,
+        "--design-matrix", str(matrix),
+        "--design-mapping", str(mapping),
+        "--out", str(out),
+        "--manifest-only",
+    ])
+    return out, rc
+
+
+def _adopt_attempt(run: Path, attempt_id: str = "attempt_001",
+                   status: str = "COMPLETED",
+                   campaign_id: str = CLEAN_ID) -> Path:
+    """Move a legacy flat run's evidence into ``attempts/<attempt_id>``."""
+    adir = run / "attempts" / attempt_id
+    adir.mkdir(parents=True)
+    for child in list(run.iterdir()):
+        if child.name == "attempts":
+            continue
+        child.rename(adir / child.name)
+    (adir / "attempt.json").write_text(json.dumps({
+        "attempt_id": attempt_id, "status": status,
+        "campaign_id": campaign_id}))
+    return adir
+
+
+def _clone_attempt(run: Path, source: str, attempt_id: str,
+                   status: str) -> Path:
+    src = run / "attempts" / source
+    dst = run / "attempts" / attempt_id
+    shutil.copytree(src, dst)
+    (dst / "attempt.json").write_text(json.dumps({
+        "attempt_id": attempt_id, "status": status,
+        "campaign_id": CLEAN_ID}))
+    return dst
+
+
+def _write_canonical(run: Path, attempt_id: str,
+                     campaign_id: str = CLEAN_ID) -> None:
+    (run / "canonical.json").write_text(json.dumps({
+        "attempt_id": attempt_id, "campaign_id": campaign_id}))
+
+
+def test_canonical_attempt_is_graded_not_a_failed_sibling(tmp_path):
+    runs = _copy_root(tmp_path, "campaign_clean")
+    run = runs / "A01-R01-fault"
+    adir = _adopt_attempt(run)
+    _clone_attempt(run, "attempt_001", "attempt_002", "FAILED")
+    _write_canonical(run, "attempt_001")
+    matrix, mapping = _filtered_design(tmp_path, "CLEAN", "SYNTH-A01-R01")
+
+    out, rc = _run_design(tmp_path, runs, CLEAN_ID, matrix, mapping)
+    row = _find(_manifest(out), "A01", "R01", "fault")
+    assert row["EvidenceKind"] == "FORMAL", row
+    assert row["Status"] in {"COMPLETED", "ORACLE_FAIL"}, row
+    # The canonical attempt is the evidence; the non-canonical FAILED sibling
+    # is never read.
+    assert "attempts/attempt_001" in row["Evidence"], row
+    assert "attempt_002" not in row["Evidence"], row
+    assert str(adir.resolve()) == str(Path(row["Evidence"]).resolve())
+    assert rc == 0, rc
+
+
+def test_canonical_failed_attempt_is_never_formal(tmp_path):
+    runs = _copy_root(tmp_path, "campaign_clean")
+    run = runs / "A01-R01-fault"
+    _adopt_attempt(run, "attempt_001", "COMPLETED")
+    _clone_attempt(run, "attempt_001", "attempt_002", "FAILED")
+    _write_canonical(run, "attempt_002")
+    matrix, mapping = _filtered_design(tmp_path, "CLEAN", "SYNTH-A01-R01")
+
+    out, rc = _run_design(tmp_path, runs, CLEAN_ID, matrix, mapping)
+    row = _find(_manifest(out), "A01", "R01", "fault")
+    assert row["EvidenceKind"] == "NON_FORMAL", row
+    assert row["Status"] not in PASS_LIKE, row
+    assert "CANONICAL_FAILED" in row["Reason"], row
+    assert rc != 0
+
+
+def test_uncanonical_attempts_are_never_formal(tmp_path):
+    experiments = tmp_path / "experiments"
+    experiments.mkdir()
+    # a non-canonical FAILED attempt (no canonical.json) must never be graded
+    runs = _copy_root(experiments, "campaign_clean")
+    run = runs / "A01-R01-fault"
+    _adopt_attempt(run, "attempt_001", "COMPLETED")
+    _clone_attempt(run, "attempt_001", "attempt_002", "FAILED")
+    matrix, mapping = _filtered_design(experiments, "CLEAN", "SYNTH-A01-R01")
+
+    out, rc = _run_design(experiments, runs, CLEAN_ID, matrix, mapping)
+    row = _find(_manifest(out), "A01", "R01", "fault")
+    assert row["EvidenceKind"] == "NON_FORMAL", row
+    assert row["Status"] not in PASS_LIKE, row
+    assert "CANONICAL" in row["Reason"], row
+    assert rc != 0
+
+
+def test_evidence_outside_runs_is_non_formal(tmp_path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    shutil.copytree(FIX / "campaign_clean" / "A01-R01-control",
+                    runs / "A01-R01-control")
+    outside = tmp_path / "outside" / "A01-R01-fault"
+    shutil.copytree(FIX / "campaign_clean" / "A01-R01-fault", outside)
+    (runs / "A01-R01-fault").symlink_to(outside)
+    matrix, mapping = _filtered_design(tmp_path, "CLEAN", "SYNTH-A01-R01")
+
+    out, rc = _run_design(tmp_path, runs, CLEAN_ID, matrix, mapping)
+    row = _find(_manifest(out), "A01", "R01", "fault")
+    assert row["EvidenceKind"] == "NON_FORMAL", row
+    assert row["Status"] not in PASS_LIKE, row
+    assert row["Reason"] == "EVIDENCE_OUTSIDE_RUNS", row
+    assert rc != 0
+
+
+def test_missing_summary_trace_or_oracle_are_never_pass(tmp_path):
+    # summary / trace defects already exist in the mixed campaign root.
+    out, rc = _run(tmp_path, "campaign", CAMPAIGN_ID, "SYNTH")
+    rows = _manifest(out)
+    for model, context, role in (("A01", "R02", "fault"),   # missing summary
+                                 ("A01", "R03", "fault"),   # missing trace
+                                 ("A01", "R03", "control")):  # missing trace
+        row = _find(rows, model, context, role)
+        assert row["EvidenceKind"] == "NON_FORMAL", row
+        assert row["Status"] not in PASS_LIKE, row
+    assert rc != 0
+
+    # Missing oracle.log on an otherwise complete run.
+    runs = _copy_root(tmp_path / "oracle", "campaign_clean")
+    (runs / "A01-R01-fault" / "oracle.log").unlink()
+    matrix, mapping = _filtered_design(tmp_path / "oracle", "CLEAN",
+                                       "SYNTH-A01-R01")
+    out2, rc2 = _run_design(tmp_path / "oracle", runs, CLEAN_ID, matrix,
+                            mapping)
+    row = _find(_manifest(out2), "A01", "R01", "fault")
+    assert row["EvidenceKind"] == "NON_FORMAL", row
+    assert row["Status"] not in PASS_LIKE, row
+    assert "oracle.log" in row["MissingEvidence"], row
+    assert rc2 != 0
+
+
+def test_qualified_is_never_upgraded_to_pass(tmp_path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    for role in ("fault", "control"):
+        shutil.copytree(FIX / "campaign" / f"SP05-R01-{role}",
+                        runs / f"SP05-R01-{role}")
+    # A non-SDC terminal lets the qualification verdict decide the status.
+    summary_path = runs / "SP05-R01-fault" / "summary.json"
+    summary = json.loads(summary_path.read_text())
+    summary["terminal"] = "UNRESOLVED"
+    summary["terminal_reason"] = "NO_TERMINAL"
+    summary_path.write_text(json.dumps(summary))
+    matrix, mapping = _filtered_design(tmp_path, "SYNTH", "SYNTH-SP05-R01")
+
+    out, _rc = _run_design(tmp_path, runs, CAMPAIGN_ID, matrix, mapping)
+    row = _find(_manifest(out), "SP05", "R01", "fault")
+    assert row["QualifiedStatus"] == "QUALIFIED", row
+    assert row["Status"] == "QUALIFIED", row
+    assert row["Status"] != "PASS", row
+    assert row["EvidenceKind"] == "FORMAL", row
+    # Separate counts survive even on a qualified record.
+    assert row["InjectionAppliedCount"] == "1", row
+    assert row["InjectionAttemptCount"] == "UNKNOWN", row

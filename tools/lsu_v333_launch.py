@@ -43,6 +43,7 @@ TOOLS = Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
+import lsu_run_state  # noqa: E402
 from lsu_v333_control_proof import classify_control_run  # noqa: E402
 from lsu_v333_qualified import QUALIFIED_MODELS, qualified_evidence  # noqa: E402
 
@@ -57,8 +58,14 @@ UNKNOWN = "UNKNOWN"
 NOT_AVAILABLE = "n/a"
 
 # Task outcomes that count as evidence-complete for the launch gate.
-SUCCESS_STATUSES = frozenset(
+# A fault run may legitimately terminate ORACLE_FAIL (the injected fault was
+# expected to change the checksum); a control run may not -- it must reproduce
+# the golden checksum, so only COMPLETED is a control success.
+FAULT_SUCCESS_STATUSES = frozenset(
     {"COMPLETED", "ORACLE_FAIL", "QUALIFIED", "TRACE_INCOMPLETE"})
+CONTROL_SUCCESS_STATUSES = frozenset({"COMPLETED"})
+# Backwards-compatible alias; role-aware gates use the two sets above.
+SUCCESS_STATUSES = FAULT_SUCCESS_STATUSES
 WATCHDOG_TERMINALS = frozenset({"HANG_WATCHDOG"})
 MEASURED_TERMINALS = frozenset(
     {"MASKED", "SQUASHED", "HANG_WATCHDOG", "CRASH"})
@@ -340,6 +347,9 @@ def _base_record(matrix_row: dict, mapping_row: dict | None,
         "InjectionConfig": info[1],
         "ExpectedTerminal": info[2],
         "InjectionEnabled": "YES" if role == "fault" else "NO",
+        "InjectionAttemptCount": UNKNOWN,
+        "InjectionAppliedCount": UNKNOWN,
+        "InjectionCount": UNKNOWN,
         "FormalManifest": "GENERATED_BY_COLLECTOR",
         "DynInstSeq": identity["seq"],
         "PC": identity["pc"],
@@ -369,26 +379,91 @@ def _finish(record: dict, status: str, reason: str,
     return record
 
 
+_ACCEPTED_ATTEMPT_STATES = (
+    lsu_run_state.STATUS_COMPLETED, lsu_run_state.STATUS_ORACLE_FAIL)
+
+
+def _canonical_evidence(run_dir: Path, campaign_id: str
+                        ) -> tuple[Path | None, str | None]:
+    """Resolve the canonical attempt directory for one task.
+
+    Returns ``(evidence_dir, reason)``.  ``reason`` is ``None`` when the
+    evidence is accepted; otherwise the task cannot be graded as FORMAL.
+    A legacy flat run dir (no ``attempts/``, no ``canonical.json``) is kept
+    readable as-is, but its evidence is graded normally later.
+    """
+    attempts_present = lsu_run_state.attempts_root(run_dir).is_dir()
+    canonical = lsu_run_state.read_canonical(run_dir)
+    if canonical is None:
+        if attempts_present:
+            # Executions exist but none was accepted: never read a blind flat
+            # file or an arbitrary attempt.
+            return None, "CANONICAL_MISSING"
+        return run_dir, None
+    attempt_id = str(canonical.get("attempt_id") or "")
+    adir = lsu_run_state.attempt_dir(run_dir, attempt_id) if attempt_id else None
+    if adir is None or not adir.is_dir():
+        return None, "CANONICAL_ATTEMPT_MISSING"
+    state = lsu_run_state.scan_task_state(run_dir, campaign_id)
+    if state.get("state") not in _ACCEPTED_ATTEMPT_STATES:
+        return None, f"CANONICAL_{state.get('state')}"
+    return adir, None
+
+
+def _contained(path: Path, root: Path) -> bool:
+    try:
+        return Path(path).resolve().is_relative_to(root)
+    except OSError:
+        return False
+
+
 def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
                  mapping_row: dict | None, role: str,
                  expected_binary_sha: str, expected_config_sha: str,
                  campaign_identity: dict | None) -> dict:
-    """Grade one scheduled (model, context, role) task from its run dir."""
+    """Grade one scheduled (model, context, role) task from its canonical run.
+
+    Evidence is read from ``lsu_run_state.canonical_dir(run_dir)`` (the
+    accepted attempt) rather than a flat run-dir read.  ``EvidenceKind`` is
+    FORMAL only when the resolved evidence is under ``--runs``, the
+    ``campaign.json`` campaign id and the full design identity match, the
+    frozen SHAs agree and every required artifact is present.
+    """
     model = str(matrix_row.get("FaultModelID") or "").strip()
     sample_run_id = str(matrix_row.get("SampleRunID") or "").strip()
     seed = matrix_row.get("Seed")
     ctx = _ctx_of(sample_run_id)
     run_dir = Path(runs) / f"{model}-{ctx}-{role}"
     record = _base_record(matrix_row, mapping_row, model, ctx, role, run_dir)
+    record["Evidence"] = str(run_dir)
 
     # 1. run directory ------------------------------------------------------
     if not run_dir.is_dir():
         return _finish(record, "OUTPUT_INCOMPLETE", "RUN_DIR_MISSING",
                        ["run_dir"])
 
+    # 1b. canonical attempt resolution --------------------------------------
+    evidence_dir, resolve_reason = _canonical_evidence(run_dir, campaign_id)
+    if resolve_reason is not None:
+        return _finish(record, "OUTPUT_INCOMPLETE", resolve_reason,
+                       ["canonical_attempt"])
+    evidence_dir = Path(evidence_dir)
+    record["Evidence"] = str(evidence_dir)
+
+    # 1c. containment: resolved evidence must stay under --runs -------------
+    runs_root = Path(runs).resolve()
+    if not _contained(evidence_dir, runs_root):
+        return _finish(record, "OUTPUT_INCOMPLETE", "EVIDENCE_OUTSIDE_RUNS",
+                       ["evidence_path"])
+
     # 2. campaign.json (runner-written manifest) ----------------------------
-    campaign_path = run_dir / "campaign.json"
-    campaign = _read_json(campaign_path)
+    campaign = None
+    for candidate in (evidence_dir / "campaign.json", run_dir / "campaign.json"):
+        if not candidate.is_file() or not _contained(candidate, runs_root):
+            continue
+        campaign = _read_json(candidate)
+        if campaign is not None:
+            break
     if campaign is None:
         return _finish(record, "OUTPUT_INCOMPLETE", "MANIFEST_MISSING",
                        ["campaign.json"])
@@ -416,10 +491,6 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
     if id_mismatch:
         return _finish(record, "OUTPUT_INCOMPLETE", "ID_MISMATCH",
                        id_mismatch)
-
-    # Identity matched: the run is a legitimate formal task unless a later
-    # evidence gate fails.
-    record["EvidenceKind"] = FORMAL
 
     # 3. SHA gate ------------------------------------------------------------
     binary = campaign.get("binary_sha")
@@ -456,7 +527,7 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
                        sha_problems)
 
     # 4. summary.json --------------------------------------------------------
-    summary = _read_json(run_dir / "summary.json")
+    summary = _read_json(evidence_dir / "summary.json")
     if summary is None:
         return _finish(record, "OUTPUT_INCOMPLETE", "SUMMARY_MISSING",
                        ["summary.json"])
@@ -493,6 +564,16 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
             trace_meta.get("trace_completeness") or NOT_AVAILABLE)
     record["TraceCompleteness"] = declared_trace
 
+    # Attempt and applied counts stay separate fields for every record.
+    applied = _as_int(summary.get("injection_applied_count"))
+    if applied is None:
+        applied = _as_int(summary.get("injection_count"))
+    attempt = _as_int(summary.get("injection_attempt_count"))
+    record["InjectionAttemptCount"] = (
+        attempt if attempt is not None else UNKNOWN)
+    record["InjectionAppliedCount"] = (
+        applied if applied is not None else UNKNOWN)
+
     # 5. timeout -------------------------------------------------------------
     if (_as_bool(campaign.get("timed_out")) is True
             or _as_bool(summary.get("timed_out")) is True
@@ -502,17 +583,21 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
                        ["wall_clock_timeout"])
 
     # 6. required outputs ----------------------------------------------------
-    partial_marker = _partial_watchdog(run_dir, model)
-    missing = _missing_outputs(run_dir, model, role, summary, partial_marker)
+    partial_marker = _partial_watchdog(evidence_dir, model)
+    missing = _missing_outputs(evidence_dir, model, role, summary, partial_marker)
     if missing:
         if "trace_v31.jsonl" in missing:
             record["TraceCompleteness"] = "MISSING"
         return _finish(record, "OUTPUT_INCOMPLETE", "MISSING_REQUIRED_OUTPUT",
                        missing)
 
+    # Evidence is now complete (identity + frozen SHAs + all artifacts):
+    # this is the only point where a record becomes FORMAL.
+    record["EvidenceKind"] = FORMAL
+
     # 7. control runs --------------------------------------------------------
     if role == "control":
-        result = classify_control_run(run_dir)
+        result = classify_control_run(evidence_dir)
         record["ControlZeroProof"] = result["proof_class"]
         record["InjectorMounted"] = _yes_no_unknown(result["injector_mounted"])
         record["FaultEnabled"] = _yes_no_unknown(result["fault_enabled"])
@@ -526,21 +611,23 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
                            f"CAMPAIGN_STATUS_{hard_failure}")
         control_status = result["status"]
         if control_status in ("FAIL", "CONTROL_PROOF_INCOMPLETE"):
+            # A missing count is CONTROL_PROOF_INCOMPLETE -- never a zero PASS.
             return _finish(record, control_status, f"CONTROL_{control_status}")
         if observed_oracle is True:
             return _finish(record, "COMPLETED", "CONTROL_ORACLE_PASS")
         if observed_oracle is False:
-            return _finish(record, "FAILED", "CONTROL_ORACLE_FAIL")
+            # The simulator ran fine; the *control* oracle failed.  That is an
+            # oracle verdict, not a simulator run failure.
+            return _finish(record, "ORACLE_FAIL", "CONTROL_ORACLE_FAIL")
         return _finish(record, "FAILED", "CONTROL_ORACLE_MISSING")
 
     # 8. fault runs ----------------------------------------------------------
-    injection_count = _as_int(summary.get("injection_count"))
     record["InjectionCount"] = (
-        injection_count if injection_count is not None else UNKNOWN)
+        applied if applied is not None else UNKNOWN)
 
     qualified_status = NOT_AVAILABLE
     if model in QUALIFIED_MODELS:
-        qualified = qualified_evidence(model, run_dir)
+        qualified = qualified_evidence(model, evidence_dir)
         qualified_status = qualified["status"]
         record["QualifiedStatus"] = qualified_status
         if record["TraceCompleteness"] == NOT_AVAILABLE:
@@ -556,6 +643,7 @@ def collect_task(runs: Path, campaign_id: str, matrix_row: dict,
     elif terminal in MEASURED_TERMINALS:
         status, reason = "COMPLETED", f"TERMINAL_{terminal}"
     elif qualified_status == "QUALIFIED":
+        # QUALIFIED evidence is reported as QUALIFIED, never upgraded to PASS.
         status, reason = "QUALIFIED", "QUALIFIED_EVIDENCE"
     else:
         status, reason = "FAILED", f"UNRECOGNIZED_TERMINAL_{terminal}"
@@ -735,9 +823,11 @@ def write_full_exports(out: Path, records: list[dict], faults: list[dict],
     readiness = []
     for fault, control in zip(faults, controls):
         problems = []
-        if fault["EvidenceKind"] != FORMAL or fault["Status"] not in SUCCESS_STATUSES:
+        if fault["EvidenceKind"] != FORMAL or \
+                fault["Status"] not in FAULT_SUCCESS_STATUSES:
             problems.append(f"fault:{fault['Status']}")
-        if control["EvidenceKind"] != FORMAL or control["Status"] not in SUCCESS_STATUSES:
+        if control["EvidenceKind"] != FORMAL or \
+                control["Status"] not in CONTROL_SUCCESS_STATUSES:
             problems.append(f"control:{control['Status']}")
         readiness.append({
             "ModelID": fault["ModelID"],
@@ -842,12 +932,15 @@ def main(argv: list[str] | None = None) -> int:
     print("statuses " + json.dumps(dict(sorted(status_tally.items()))))
     print("wrote artifacts to", out)
 
-    ok = all(record["EvidenceKind"] == FORMAL
-             and record["Status"] in SUCCESS_STATUSES for record in records)
+    def task_ok(record: dict) -> bool:
+        allowed = (CONTROL_SUCCESS_STATUSES if record.get("Role") == "control"
+                   else FAULT_SUCCESS_STATUSES)
+        return record["EvidenceKind"] == FORMAL and record["Status"] in allowed
+
+    ok = all(task_ok(record) for record in records)
     if not ok:
         for record in records:
-            if record["EvidenceKind"] != FORMAL or \
-                    record["Status"] not in SUCCESS_STATUSES:
+            if not task_ok(record):
                 print(f"  {record['EvidenceKind']}: {record['Status']}: "
                       f"{record['ModelID']}-{record['ContextID']}-"
                       f"{record['Role']} ({record['Reason']}; "
