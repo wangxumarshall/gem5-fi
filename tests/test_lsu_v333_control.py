@@ -6,6 +6,7 @@ the real source text of configs/se/lsu_proxy.py. Nothing here invokes gem5.
 from __future__ import annotations
 
 import ast
+import csv
 import json
 import sys
 from pathlib import Path
@@ -21,6 +22,7 @@ sys.path.insert(0, str(TOOLS))
 sys.path.insert(0, str(PLATFORM))
 
 import lsu_v332_matrix as mx  # noqa: E402
+import lsu_v333_control_proof as cp  # noqa: E402
 import run_pilot  # noqa: E402
 import terminal_rules  # noqa: E402
 
@@ -337,7 +339,10 @@ def test_planned_rp01_and_a03_commands():
 
 def test_csv_paths_are_distinct():
     import lsu_v332_report as report
-    assert mx.SUMMARY_CSV.name.endswith("_RAW.csv")
+    # Assert the module's *default* RAW path, not the process-global that an
+    # earlier in-process mx.main(--out-csv ...) call rebound.
+    default_raw = ROOT / "runs/lsu/formal_v333/LSU_Fault_Control_Pair_RAW.csv"
+    assert default_raw.name.endswith("_RAW.csv")
     assert report.OUT.name == "audit_v3_3_3"
     # The report's FINAL filename is produced inside main(); assert the source
     # constant is the FINAL name and never the RAW name.
@@ -347,3 +352,174 @@ def test_csv_paths_are_distinct():
     # History files are untouched by design.
     assert (ROOT / "audit_v3_3_2/controls/LSU_Fault_Control_Pair_Final_J.csv").exists()
     assert (ROOT / "audit_v3_3_2/controls/LSU_Fault_Control_Pair_Final_K.csv").exists()
+
+
+# --------------------------------------------------------------------------
+# Strict tri-state ControlInjected (v3.3.3 final-launch closure, BUG 1)
+# --------------------------------------------------------------------------
+def test_control_injected_constants():
+    assert cp.CONTROL_INJECTED_NO == "NO"
+    assert cp.CONTROL_INJECTED_YES == "YES"
+    assert cp.CONTROL_INJECTED_UNKNOWN == "UNKNOWN"
+    assert cp.CONTROL_INJECTED_INVALID == "INVALID"
+
+
+@pytest.mark.parametrize("value,state,reason", [
+    # zero (canonical int and signed/whitespace string forms)
+    (0, cp.CONTROL_INJECTED_NO, "ZERO"),
+    ("0", cp.CONTROL_INJECTED_NO, "ZERO"),
+    ("  0  ", cp.CONTROL_INJECTED_NO, "ZERO"),
+    ("+0", cp.CONTROL_INJECTED_NO, "ZERO"),
+    # positive
+    (1, cp.CONTROL_INJECTED_YES, "POSITIVE"),
+    (5, cp.CONTROL_INJECTED_YES, "POSITIVE"),
+    ("1", cp.CONTROL_INJECTED_YES, "POSITIVE"),
+    ("5", cp.CONTROL_INJECTED_YES, "POSITIVE"),
+    # missing / None is checked before empty
+    (None, cp.CONTROL_INJECTED_UNKNOWN, "MISSING"),
+    # empty
+    ("", cp.CONTROL_INJECTED_UNKNOWN, "EMPTY"),
+    ("   ", cp.CONTROL_INJECTED_UNKNOWN, "EMPTY"),
+    # unparseable -- never silently a zero
+    ("abc", cp.CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"),
+    ("1.0", cp.CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"),
+    (1.0, cp.CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"),
+    ("nan", cp.CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"),
+    ("0x0", cp.CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"),
+    ([0], cp.CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"),
+    (True, cp.CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"),
+    # negative
+    (-1, cp.CONTROL_INJECTED_INVALID, "NEGATIVE"),
+    ("-3", cp.CONTROL_INJECTED_INVALID, "NEGATIVE"),
+])
+def test_classify_injection_count(value, state, reason):
+    assert cp.classify_injection_count(value) == (state, reason)
+
+
+def test_missing_injection_count_key_is_missing_not_zero():
+    row = {"ModelID": "A01", "ContextID": "R01"}
+    assert cp.classify_injection_count(row.get("InjectionCount")) == (
+        cp.CONTROL_INJECTED_UNKNOWN, "MISSING")
+    # The former inline check treated "" as zero -- the classifier must not.
+    assert cp.classify_injection_count("") != (cp.CONTROL_INJECTED_NO, "ZERO")
+
+
+def _write_proof_csv(path: Path, rows: list[dict], fields=None) -> Path:
+    fields = fields or ["ModelID", "ContextID", "InjectionAttemptCount",
+                        "InjectionAppliedCount", "InjectionCount",
+                        "ControlZeroProof"]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def _emit(tmp_path: Path, proof: Path) -> tuple[Path, int]:
+    out = tmp_path / "control_audit.csv"
+    rc = cp.main(["--emit-control-audit", "--proof", str(proof),
+                  "--out", str(out)])
+    return out, rc
+
+
+def test_emit_control_audit_is_tristate_and_keeps_counts_separate(tmp_path):
+    rows = [
+        # 0, 1, 5 -> NO / YES / YES
+        {"ModelID": "A01", "ContextID": "R01", "InjectionAttemptCount": "7",
+         "InjectionAppliedCount": "0", "InjectionCount": "0",
+         "ControlZeroProof": "MOUNTED_BUT_DISABLED"},
+        {"ModelID": "A01", "ContextID": "R02", "InjectionAttemptCount": "8",
+         "InjectionAppliedCount": "1", "InjectionCount": "1",
+         "ControlZeroProof": "INJECTOR_ABSENT"},
+        {"ModelID": "A01", "ContextID": "R03", "InjectionAttemptCount": "9",
+         "InjectionAppliedCount": "5", "InjectionCount": "5",
+         "ControlZeroProof": "INJECTOR_ABSENT"},
+        # empty -> EMPTY (never NO)
+        {"ModelID": "A01", "ContextID": "R04", "InjectionAttemptCount": "4",
+         "InjectionAppliedCount": "4", "InjectionCount": "",
+         "ControlZeroProof": "CONTROL_PROOF_INCOMPLETE"},
+        # illegal -> UNPARSEABLE (never NO)
+        {"ModelID": "A01", "ContextID": "R05", "InjectionAttemptCount": "6",
+         "InjectionAppliedCount": "6", "InjectionCount": "abc",
+         "ControlZeroProof": "CONTROL_PROOF_INCOMPLETE"},
+        # float / nan -> UNPARSEABLE
+        {"ModelID": "A02", "ContextID": "R01", "InjectionAttemptCount": "2",
+         "InjectionAppliedCount": "2", "InjectionCount": "1.0",
+         "ControlZeroProof": "CONTROL_PROOF_INCOMPLETE"},
+        {"ModelID": "A02", "ContextID": "R02", "InjectionAttemptCount": "2",
+         "InjectionAppliedCount": "2", "InjectionCount": "nan",
+         "ControlZeroProof": "CONTROL_PROOF_INCOMPLETE"},
+        # negative -> INVALID (never NO)
+        {"ModelID": "A02", "ContextID": "R03", "InjectionAttemptCount": "3",
+         "InjectionAppliedCount": "3", "InjectionCount": "-3",
+         "ControlZeroProof": "CONTROL_PROOF_INCOMPLETE"},
+    ]
+    proof = _write_proof_csv(tmp_path / "proof.csv", rows)
+    out, rc = _emit(tmp_path, proof)
+    assert rc != 0, "UNKNOWN/INVALID controls must make the audit exit nonzero"
+
+    with out.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        assert reader.fieldnames == list(cp.CONTROL_AUDIT_COLUMNS)
+        emitted = list(reader)
+
+    by_ctx = {(r["ModelID"], r["ContextID"]): r for r in emitted}
+    expected = {
+        ("A01", "R01"): ("NO", "ZERO"),
+        ("A01", "R02"): ("YES", "POSITIVE"),
+        ("A01", "R03"): ("YES", "POSITIVE"),
+        ("A01", "R04"): ("UNKNOWN", "EMPTY"),
+        ("A01", "R05"): ("UNKNOWN", "UNPARSEABLE"),
+        ("A02", "R01"): ("UNKNOWN", "UNPARSEABLE"),
+        ("A02", "R02"): ("UNKNOWN", "UNPARSEABLE"),
+        ("A02", "R03"): ("INVALID", "NEGATIVE"),
+    }
+    for key, (state, reason) in expected.items():
+        got = by_ctx[key]
+        assert got["ControlInjected"] == state, got
+        assert got["ControlInjectedReason"] == reason, got
+        if state != "NO":
+            assert got["ControlInjected"] != "NO", (
+                "missing/illegal/negative counts must never emit NO: " + repr(got))
+    # attempt/applied/count stay separate columns with the original values
+    assert by_ctx[("A01", "R01")]["InjectionAttemptCount"] == "7"
+    assert by_ctx[("A01", "R01")]["InjectionAppliedCount"] == "0"
+    assert by_ctx[("A01", "R01")]["InjectionCount"] == "0"
+    assert by_ctx[("A02", "R03")]["InjectionAttemptCount"] == "3"
+    assert by_ctx[("A02", "R03")]["InjectionAppliedCount"] == "3"
+
+
+def test_emit_control_audit_missing_column_is_unknown_never_no(tmp_path):
+    # Entire InjectionCount column absent: the value is missing, so the audit
+    # must report UNKNOWN/MISSING and never NO.
+    rows = [{"ModelID": "A01", "ContextID": "R01",
+             "InjectionAttemptCount": "5", "InjectionAppliedCount": "5",
+             "ControlZeroProof": "MOUNTED_BUT_DISABLED"}]
+    fields = ["ModelID", "ContextID", "InjectionAttemptCount",
+              "InjectionAppliedCount", "ControlZeroProof"]
+    proof = _write_proof_csv(tmp_path / "proof_missing.csv", rows, fields)
+    out, rc = _emit(tmp_path, proof)
+    assert rc != 0
+    with out.open(newline="", encoding="utf-8") as handle:
+        row = next(csv.DictReader(handle))
+    assert row["ControlInjected"] == "UNKNOWN"
+    assert row["ControlInjectedReason"] == "MISSING"
+    assert row["InjectionAttemptCount"] == "5"
+    assert row["InjectionAppliedCount"] == "5"
+
+
+def test_emit_control_audit_all_zero_is_a_clean_pass(tmp_path):
+    rows = [
+        {"ModelID": "A01", "ContextID": "R01", "InjectionAttemptCount": "0",
+         "InjectionAppliedCount": "0", "InjectionCount": "0",
+         "ControlZeroProof": "INJECTOR_ABSENT"},
+        {"ModelID": "A01", "ContextID": "R02", "InjectionAttemptCount": "0",
+         "InjectionAppliedCount": "0", "InjectionCount": 0,
+         "ControlZeroProof": "MOUNTED_BUT_DISABLED"},
+    ]
+    proof = _write_proof_csv(tmp_path / "proof_ok.csv", rows)
+    out, rc = _emit(tmp_path, proof)
+    assert rc == 0
+    with out.open(newline="", encoding="utf-8") as handle:
+        emitted = list(csv.DictReader(handle))
+    assert {r["ControlInjected"] for r in emitted} == {"NO"}

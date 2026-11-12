@@ -60,6 +60,58 @@ SUPPRESS_FLAG_HINTS = (
 
 UNKNOWN = "UNKNOWN"
 
+# Strict tri-state ControlInjected classifier.  Used by ``--emit-control-audit``
+# so a missing/illegal ``InjectionCount`` can never become a zero-injection
+# PASS (the former inline ``in ("0", "")`` check in 04_final_reports.sh did
+# exactly that).
+CONTROL_INJECTED_NO = "NO"
+CONTROL_INJECTED_YES = "YES"
+CONTROL_INJECTED_UNKNOWN = "UNKNOWN"
+CONTROL_INJECTED_INVALID = "INVALID"
+
+_INTEGER_TEXT = re.compile(r"^[+-]?\d+$")
+
+
+def classify_injection_count(value: object) -> tuple[str, str]:
+    """Classify an ``InjectionCount`` value as ``(state, reason)``.
+
+    Rules (order matters -- missing is checked *before* empty):
+
+    * ``None`` / missing key            -> ``("UNKNOWN", "MISSING")``
+    * ``""`` or whitespace              -> ``("UNKNOWN", "EMPTY")``
+    * only ``^[+-]?\\d+$`` is accepted
+    * negative                          -> ``("INVALID", "NEGATIVE")``
+    * zero                              -> ``("NO", "ZERO")``
+    * positive                          -> ``("YES", "POSITIVE")``
+    * anything else (``"1.0"``, ``"nan"``, ``"abc"``, ``"0x0"``, lists,
+      bools, floats)                    -> ``("UNKNOWN", "UNPARSEABLE")``
+
+    A missing value is never defaulted to ``0``.
+    """
+    if value is None:
+        return CONTROL_INJECTED_UNKNOWN, "MISSING"
+    if isinstance(value, bool):
+        # bool is an int subclass but is not an integer count.
+        return CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"
+    if isinstance(value, int):
+        text = str(value)
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return CONTROL_INJECTED_UNKNOWN, "EMPTY"
+    else:
+        return CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"
+
+    if not _INTEGER_TEXT.fullmatch(text):
+        return CONTROL_INJECTED_UNKNOWN, "UNPARSEABLE"
+    number = int(text)
+    if number < 0:
+        return CONTROL_INJECTED_INVALID, "NEGATIVE"
+    if number == 0:
+        return CONTROL_INJECTED_NO, "ZERO"
+    return CONTROL_INJECTED_YES, "POSITIVE"
+
+
 PROOF_INJECTOR_ABSENT = "INJECTOR_ABSENT"
 PROOF_MOUNTED_BUT_DISABLED = "MOUNTED_BUT_DISABLED"
 PROOF_MOUNTED_BUT_SUPPRESSED = "MOUNTED_BUT_SUPPRESSED"
@@ -725,19 +777,124 @@ def write_csv(path: Path, rows) -> None:
         writer.writerows(rows)
 
 
+# --------------------------------------------------------------------------
+# CLI: strict tri-state control-audit CSV (ModelID-ContextID-control)
+# --------------------------------------------------------------------------
+CONTROL_AUDIT_COLUMNS = (
+    "ModelID",
+    "ContextID",
+    "InjectionAttemptCount",
+    "InjectionAppliedCount",
+    "InjectionCount",
+    "ControlInjected",
+    "ControlInjectedReason",
+    "ControlZeroProof",
+)
+
+
+def build_control_audit_rows(proof_rows: list[dict]) -> list[dict]:
+    """Classify ``InjectionCount`` for every proof row.
+
+    ``InjectionCount``, ``InjectionAttemptCount`` and ``InjectionAppliedCount``
+    stay separate columns: the applied/attempt counts are copied verbatim and
+    the tri-state is derived *only* from ``InjectionCount``.  A missing column
+    or ``None`` is UNKNOWN/MISSING -- never ``NO``.
+    """
+    rows: list[dict] = []
+    for proof in proof_rows:
+        raw = proof.get("InjectionCount")
+        state, reason = classify_injection_count(raw)
+        rows.append({
+            "ModelID": proof.get("ModelID", ""),
+            "ContextID": proof.get("ContextID", ""),
+            "InjectionAttemptCount": proof.get("InjectionAttemptCount", ""),
+            "InjectionAppliedCount": proof.get("InjectionAppliedCount", ""),
+            "InjectionCount": "" if raw is None else raw,
+            "ControlInjected": state,
+            "ControlInjectedReason": reason,
+            "ControlZeroProof": proof.get("ControlZeroProof", ""),
+        })
+    return rows
+
+
+def emit_control_audit(proof_path: Path, out_path: Path) -> int:
+    proof_path = Path(proof_path)
+    if not proof_path.is_file():
+        print(f"error: --proof is not a file: {proof_path}", file=sys.stderr)
+        return 2
+    try:
+        with proof_path.open(newline="", encoding="utf-8") as handle:
+            proof_rows = list(csv.DictReader(handle))
+    except (OSError, csv.Error) as exc:
+        print(f"error: unreadable --proof CSV: {exc}", file=sys.stderr)
+        return 2
+    if not proof_rows:
+        print(f"error: no control rows in {proof_path}", file=sys.stderr)
+        return 2
+
+    rows = build_control_audit_rows(proof_rows)
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=CONTROL_AUDIT_COLUMNS,
+                                extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    tally: dict[str, int] = {}
+    for row in rows:
+        state = row["ControlInjected"]
+        tally[state] = tally.get(state, 0) + 1
+    zero_proven = tally.get(CONTROL_INJECTED_NO, 0)
+    print(f"rows={len(rows)} out={out_path}")
+    print(f"ControlInjected {dict(sorted(tally.items()))}")
+    print(f"zero_injection_proven={zero_proven} "
+          f"not_proven={len(rows) - zero_proven}")
+
+    # UNKNOWN/INVALID (and an observed YES) are never counted as a pass.
+    problems = [row for row in rows
+                if row["ControlInjected"] != CONTROL_INJECTED_NO]
+    for row in problems:
+        print(f"  {row['ControlInjected']}"
+              f"({row['ControlInjectedReason']}): "
+              f"{row['ModelID']}-{row['ContextID']} "
+              f"InjectionCount={row['InjectionCount']!r} "
+              f"attempt={row['InjectionAttemptCount']!r} "
+              f"applied={row['InjectionAppliedCount']!r}",
+              file=sys.stderr)
+    return 1 if problems else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Classify LSU control zero-injection proofs into a CSV."
     )
-    parser.add_argument("--runs", required=True, type=Path,
-                        help="campaign runs root (e.g. audit_v3_3_3/runs)")
+    parser.add_argument("--runs", type=Path,
+                        help="campaign runs root (e.g. audit_v3_3_3/runs); "
+                             "required unless --emit-control-audit")
     parser.add_argument("--out", required=True, type=Path,
                         help="output CSV path")
+    parser.add_argument("--proof", type=Path,
+                        help="Control Zero Proof CSV (with --emit-control-audit)")
+    parser.add_argument("--emit-control-audit", action="store_true",
+                        help="emit the strict tri-state ControlInjected audit "
+                             "CSV from an existing Control Zero Proof CSV")
     parser.add_argument("--evidence-kind", default="PRE_FORMAL",
                         choices=("PRE_FORMAL", "FORMAL"),
                         help="EvidenceKind stamped on every row (default: PRE_FORMAL)")
     args = parser.parse_args(argv)
 
+    if args.emit_control_audit:
+        if args.proof is None:
+            print("error: --emit-control-audit requires --proof",
+                  file=sys.stderr)
+            return 2
+        return emit_control_audit(args.proof, args.out)
+
+    if args.runs is None:
+        print("error: --runs is required unless --emit-control-audit",
+              file=sys.stderr)
+        return 2
     if not args.runs.is_dir():
         print(f"error: --runs is not a directory: {args.runs}", file=sys.stderr)
         return 2
