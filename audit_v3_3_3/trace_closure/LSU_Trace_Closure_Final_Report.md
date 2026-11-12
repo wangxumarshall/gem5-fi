@@ -135,3 +135,13 @@ new binary SHA and config SHA, then `tools/lsu_v333_launch.py --manifest-only` t
    Campaign re-runs all 120 with the new binary.
 4. **A03 squash-cause identity**: `triggering_seq=13717` is not recorded as a PC; the branch
    mispredict reading is an inference from control flow, not a directly recorded instruction.
+
+## 8. Independent acceptance
+
+Independent Agent E audited the produced CSVs, the 40 raw runs, the three model evidence sets,
+the source diff and the frozen identities without using the authors' conclusions. Verdict:
+**`ACCEPT_READY_WITH_DOCUMENTED_LIMITATIONS`**. Checks A1–A8 pass on independently reproduced
+evidence; the only FAIL was A9, two documentation-only statements in the SP05 report (chain-class
+wording and node ordering), both corrected before publication. No fabricated writeback, forced
+PASS, SQUASHED mislabel or external-timeout masking was found. Full report:
+`LSU_Independent_Acceptance.md`.
