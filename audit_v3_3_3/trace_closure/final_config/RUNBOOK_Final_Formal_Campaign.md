@@ -69,7 +69,7 @@ python3 - <<'PY'
 import csv
 from pathlib import Path
 r = Path("runs/lsu/formal_v333_final_20261112")
-m = list(csv.DictReader(open(r/"LSU_120Run_Campaign_Manifest.csv")))
+m = list(csv.DictReader(open(r/"collector_full/LSU_120Run_Campaign_Manifest.csv")))
 print("manifest rows", len(m))
 print("formal", sum(1 for x in m if x["EvidenceKind"]=="FORMAL"))
 readiness = list(csv.DictReader(open(r/"LSU_60Context_Final_Readiness.csv")))

@@ -11,14 +11,15 @@
 | `baseline_source_commit` | `78ac9ba730afb5bf9a5714568a8b8fa197cf0bbb` | Start of the trace-closure round. |
 | `build_source_commit` | `e3293856` | Commit whose **tree content** is identical to the working tree used for the build. The build itself ran from that working tree before the commit was created. |
 | `audited_source_head` | `3d37218d` | HEAD audited by independent Agent E. `git diff e3293856..3d37218d -- CHAOS/gem5/src` is empty. |
-| `final_source_commit` | `c042d55d` | Current HEAD at this freeze. No C++ source changed after `e3293856`. |
+| `final_cpp_source_commit` | `e3293856` | Commit whose tree contains the final C++ source content. No C++ change after it. |
+| `metadata_freeze_head` | `db14c143` | Metadata-only HEAD (provenance/checksums/runbook); `git diff e3293856..db14c143 -- CHAOS/gem5/src` is empty. |
 | `git_status_at_freeze` | tracked tree clean | `git status --porcelain --untracked-files=no` is empty. |
 | `final_binary_sha256` | `62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd` | Measured `sha256sum build/ARM/gem5.opt`. |
 | `config_sha256` | `8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225` | Measured `sha256sum configs/se/lsu_proxy.py` (unchanged). |
 
 **The old “HEAD at generation = 78ac9ba7” line was misleading**: `78ac9ba7` is the round
 baseline, not the build/source commit. The binary was built from the working tree whose C++
-content was committed as `e3293856`; `c042d55d` is the final metadata HEAD.
+content was committed as `e3293856`; `db14c143` is the metadata-freeze HEAD; the final C++ content commit is `e3293856`.
 
 ## 2. Build evidence (no rebuild this round)
 
@@ -89,5 +90,5 @@ The full frozen workload table remains in
 ## 5. Source-file manifest at freeze
 
 `audit_v3_3_3/trace_closure/final_config/SOURCE_MANIFEST.sha256` records the seven changed C++
-files at HEAD `c042d55d`. It is a post-build content manifest; combined with the mtime/diff
+files at the final C++ content commit `e3293856` (identical at `db14c143`). It is a post-build content manifest; combined with the mtime/diff
 evidence above it pins the audited source state.

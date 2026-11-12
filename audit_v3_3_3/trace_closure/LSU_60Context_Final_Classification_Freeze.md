@@ -1,7 +1,8 @@
 # LSU v3.3.3 — 60-Context Final Classification Freeze
 
 **Freeze date:** 2026-11-12
-**Final source HEAD:** `c042d55d`
+**Final C++ source content commit:** `e3293856`
+**Metadata freeze HEAD:** `db14c143`
 **Final binary:** `62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd`
 **Config:** `8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225`
 

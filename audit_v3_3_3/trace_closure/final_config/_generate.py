@@ -19,7 +19,7 @@ AUTH = ROOT / "audit_launch_fix_v333/authorization"
 OLD_SHA = "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338"
 NEW_SHA = "62e1b1be0a01f852579293a4db372d6634ec44763c1439520c77b7581467a6cd"
 CONFIG_SHA = "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225"
-FORMAL_BASE = ROOT / "runs/lsu/formal_v333"
+FORMAL_BASE = ROOT / "runs/lsu/formal_v333_final_20261112"
 CAMPAIGN_ID = "LSU-V333-FINAL-20261112"
 
 
@@ -42,7 +42,7 @@ def main() -> int:
     for row in rows:
         row["Binary_SHA256"] = NEW_SHA
         row["Config_SHA256"] = CONFIG_SHA
-        row["Evidence"] = str(FORMAL_BASE / row["RunID"])
+        row["Evidence"] = str(FORMAL_BASE / f"{row['ModelID']}-{row['ContextID']}-{row['Role']}")
         row["EvidenceKind"] = "FORMAL_TEMPLATE"
     dst = OUT / "LSU_Final_Campaign_Manifest_Template.csv"
     with dst.open("w", encoding="utf-8", newline="") as fh:
@@ -124,17 +124,24 @@ The full frozen workload table remains in
 above; old-binary pilot traces are archived separately and must not be mixed
 into the formal result set.
 """
-    (OUT / "LSU_Final_Binary_Provenance.md").write_text(provenance)
+    # The corrected provenance is maintained explicitly; never overwrite it
+    # with this legacy template when it already exists.
+    if not (OUT / "LSU_Final_Binary_Provenance.md").exists():
+        (OUT / "LSU_Final_Binary_Provenance.md").write_text(provenance)
 
     # 4. checksums
     lines = []
     for name in ("LSU_Final_Experiment_Config.xlsx",
                  "LSU_Final_Campaign_Manifest_Template.csv",
+                 "LSU_Final_Binary_Provenance.md",
+                 "SOURCE_MANIFEST.sha256",
+                 "01_launch_campaign.sh", "02_manifest_only.sh",
+                 "03_full_collector.sh", "04_final_reports.sh",
                  "launch_commands_final.sh",
-                 "LSU_Final_Binary_Provenance.md"):
+                 "RUNBOOK_Final_Formal_Campaign.md"):
         p = OUT / name
         if p.exists():
-            lines.append(f"{sha(p)}  {name}")
+            lines.append(f"{sha(p)}  ./{name}")
     (OUT / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
     return 0
