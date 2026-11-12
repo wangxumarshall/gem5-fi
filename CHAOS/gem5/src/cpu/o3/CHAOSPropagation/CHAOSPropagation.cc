@@ -1815,10 +1815,35 @@ namespace gem5
                                         uint64_t stores_before,
                                         uint64_t stores_after,
                                         Tick inject_tick,
-                                        uint64_t eligible_ordinal)
+                                        uint64_t eligible_ordinal,
+                                        const uint8_t *store_data,
+                                        unsigned data_len,
+                                        Tick commit_tick)
     {
         if (!write_log)
             return;
+
+        // v3.3.3 (L-A05): bind the bytes the skipped cache write would have
+        // sent. writebackStores passes storeWBIt->data() / request->_size;
+        // hash them with the same FNV-1a-64 every store-family record uses.
+        // The 16-digit zero-padded form is the pinned field width.
+        std::string store_fnv;
+        std::string store_hex;
+        if (store_data && data_len) {
+            store_fnv = fnvHex(store_data, data_len);
+            if (store_fnv.size() < 16)
+                store_fnv.insert(0, 16 - store_fnv.size(), '0');
+            store_hex = bytesToHex(store_data, data_len);
+        }
+        // The store's architectural commit happens in commitStores before
+        // this premature completion, but that select tick is not exposed on
+        // this hook. The caller passes its own curTick() and the record
+        // labels it honestly; commit_tick is never written as a silent 0.
+        const Tick effective_commit_tick = commit_tick ? commit_tick
+                                                       : inject_tick;
+        const char *commit_tick_source = commit_tick
+            ? "caller_supplied" : "injection_bound_curTick";
+
         std::ostringstream d;
         d << "site=writebackStores_prematureComplete;family=sp05;model=SP05"
           << ";store_seq=" << dyn_seq
@@ -1833,8 +1858,13 @@ namespace gem5
           << ";stores_to_wb_after=" << stores_after
           << ";mem_sent=0"
           << ";inject_tick=" << inject_tick
+          << ";commit_tick=" << effective_commit_tick
+          << ";commit_tick_source=" << commit_tick_source
           << ";eligible_ordinal=" << eligible_ordinal
           << ";event_ordinal=" << eligible_ordinal
+          << ";store_data_fnv=" << (store_fnv.empty() ? "null" : store_fnv)
+          << ";store_data_hex=" << (store_hex.empty() ? "null" : store_hex)
+          << ";store_data_len=" << (store_data ? data_len : 0)
           << ";address_modified=0;size_modified=0;data_modified=0";
         const uint64_t ptag = ++next_ptag;
         sp05_ptag[dyn_seq] = ptag;
@@ -1850,9 +1880,32 @@ namespace gem5
         fe.byte_end = addr + size;
         fe.family = "sp05_complete";
         fe.registered = inject_tick;
+        fe.data_fnv = store_fnv;
+        fe.data_hex = store_hex;
+        fe.store_commit_tick = effective_commit_tick;
         fault_store_registry[dyn_seq] = fe;
         writeNode(ptag, "inj_sp05", dyn_seq, true, 0, false, addr, true,
                   0, false, 0, false, d.str());
+
+        // v3.3.3 (L-A05): explicit early anomaly for the skipped write. An
+        // SP05 chain is not injection-only: the selected store is completed
+        // in writebackStores while its cache write is never sent
+        // (mem_sent=0). This node records that lost write on the same ptag
+        // before the deferred sp05_stage verdict.
+        std::ostringstream w;
+        w << "site=writebackStores_prematureComplete"
+          << ";family=sp05_complete;model=SP05"
+          << ";write_skipped=1;mem_sent=0"
+          << ";store_seq=" << dyn_seq
+          << ";sq_entry_id=" << sq_idx
+          << ";sq_entry_generation=" << sq_gen
+          << ";store_data_fnv=" << (store_fnv.empty() ? "null" : store_fnv)
+          << ";store_data_len=" << (store_data ? data_len : 0)
+          << ";drain_tick=0"
+          << ";commit_tick=" << effective_commit_tick
+          << ";commit_tick_source=" << commit_tick_source;
+        writeNode(ptag, "sp05_write_skipped", dyn_seq, true, 0, false,
+                  addr, true, 0, false, 0, false, w.str());
     }
 
     void
@@ -2843,9 +2896,11 @@ namespace gem5
           << ";write_skipped=" << (chaos_sp05::writeSkipped(st) ? 1 : 0)
           << ";reload_seq=" << e.reload_seq
           << ";reload_data_hash=" << reload_hash
-          // store_data_fnv stays null until the shared-file request
-          // (noteSP05Injection needs the SQ entry's bytes) is wired;
-          // data_correct honestly follows (null = unknown).
+          // v3.3.3 (L-A05): the store's intended bytes are bound in
+          // noteSP05Injection, so the verdict compares real hashes. When the
+          // reload read the zero word (a8c7f832281a39c5) the packed form of
+          // stageVerdict yields CHAIN_VISIBILITY_LOST / data_correct=0; a
+          // missing hash stays honestly "null" (RELOAD_UNVERIFIABLE).
           << ";store_data_fnv="
           << (e.data_fnv.empty() ? "null" : e.data_fnv)
           << ";data_correct=" << data_correct

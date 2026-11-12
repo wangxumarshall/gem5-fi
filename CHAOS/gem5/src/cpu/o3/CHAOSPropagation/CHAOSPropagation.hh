@@ -345,11 +345,18 @@ class CHAOSPropagation : public SimObject
 
     // SP05 (v3.2.9): premature completion state change. canwb/completed are
     // the pre-call values; stores_to_wb is the post-call counter.
+    // v3.3.3 (L-A05): store_data/data_len are the SQ entry bytes that the
+    // skipped cache write would have sent (storeWBIt->data(),
+    // request->_size); commit_tick is the store's observed commit tick
+    // (caller-supplied, never silently 0). Hashed into data_fnv so the
+    // deferred sp05_stage record can compare intended vs. reloaded bytes.
     void noteSP05Injection(uint64_t dyn_seq, uint64_t pc, Addr addr,
                            unsigned size, uint64_t sq_idx, uint64_t sq_gen,
                            bool completed_before, bool completed_after,
                            uint64_t stores_before, uint64_t stores_after,
-                           Tick inject_tick, uint64_t eligible_ordinal);
+                           Tick inject_tick, uint64_t eligible_ordinal,
+                           const uint8_t *store_data, unsigned data_len,
+                           Tick commit_tick);
 
     void noteSP05Complete(uint64_t dyn_seq, uint64_t sq_idx, uint64_t sq_gen,
                           bool canwb, bool completed_before,

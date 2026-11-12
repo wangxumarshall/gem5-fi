@@ -277,3 +277,96 @@ def test_truncated_complete_requires_crash(tmp_path):
                 fault_model_id="A03", run_status="COMPLETED",
                 activation="TRIGGERED", terminal="MASKED", completeness="COMPLETE",
                 allow_truncated_complete=True)
+
+
+def _sp05_detail(text):
+    return dict(item.split("=", 1) for item in text.split(";") if "=" in item)
+
+
+def _sp05_stage_verdict(fields):
+    """Mirror CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/sp05_rules.hh stageVerdict."""
+    def hash_value(value):
+        if value in (None, "", "null", "None", "0"):
+            return 0
+        return int(value, 16)
+
+    if fields.get("reload_seq") in (None, "", "0"):
+        return "NO_RELOAD_OBSERVED", "null"
+    if (hash_value(fields.get("store_data_fnv")) == 0
+            or hash_value(fields.get("reload_data_hash")) == 0):
+        return "RELOAD_UNVERIFIABLE", "null"
+    if (hash_value(fields["reload_data_hash"])
+            == hash_value(fields["store_data_fnv"])):
+        return "MASKED", "1"
+    return "CHAIN_VISIBILITY_LOST", "0"
+
+
+def test_sp05_store_data_is_recorded(tmp_path):
+    """L-A05: the skipped store's bytes are bound, not left as a null hash.
+
+    noteSP05Injection now hashes the SQ entry bytes (FNV-1a-64, the same
+    idiom as every store-family record) and stores them on the fault store
+    entry, so the deferred sp05_stage record carries a 16-hex store_data_fnv.
+    With the reload reading the zero word (a8c7f832281a39c5) the verdict must
+    be data_correct=0 / CHAIN_VISIBILITY_LOST, not RELOAD_UNVERIFIABLE.
+    """
+    import gzip
+    import re
+
+    def fnv1a64(data):
+        h = 14695981039346656037
+        for byte in data:
+            h ^= byte
+            h = (h * 1099511628211) & 0xFFFFFFFFFFFFFFFF
+        return f"{h:016x}"
+
+    store_bytes = bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88])
+    store_fnv = fnv1a64(store_bytes)
+    zero_word_fnv = "a8c7f832281a39c5"
+    assert re.fullmatch(r"[0-9a-f]{16}", store_fnv)
+    assert store_fnv != zero_word_fnv
+
+    csv = tmp_path / "sp05.csv.gz"
+    with gzip.open(csv, "wt", encoding="utf-8") as fh:
+        fh.write(
+            "1,1500,1,sp05_stage,952,0,0,0,0,"
+            "record=sp05_stage;family=sp05_complete;model=SP05;"
+            "store_seq=952;sq_idx=7;gen=9;completion_tick=1400;"
+            "commit_tick=1450;writeback_tick=1440;drain_tick=0;"
+            "write_skipped=1;reload_seq=1010;"
+            f"reload_data_hash={zero_word_fnv};"
+            f"store_data_fnv={store_fnv};data_correct=0;"
+            "stage_outcome=CHAIN_VISIBILITY_LOST;"
+            "masking_mechanism=NOT_APPLICABLE\n")
+        fh.write(
+            "2,1450,1,sp05_write_skipped,952,0,0,0,0,"
+            "site=writebackStores_prematureComplete;family=sp05_complete;"
+            "model=SP05;write_skipped=1;mem_sent=0;store_seq=952;"
+            f"sq_entry_id=7;store_data_fnv={store_fnv};drain_tick=0\n")
+    out = tmp_path / "trace.jsonl"
+    convert(csv, out, sample_run_id="PILOT-SP05-TEST", run_id="PILOT-SP05",
+            sub_task_id="PILOT-SP05-S01", fault_id="SP05-CFG01",
+            fault_model_id="SP05", run_status="COMPLETED",
+            activation="TRIGGERED", terminal="SDC", completeness="COMPLETE")
+    events = [json.loads(line) for line in out.read_text().splitlines()]
+
+    stage = next(e for e in events if e.get("event_type") == "sp05_stage")
+    fields = _sp05_detail(stage["detail"])
+    assert re.fullmatch(r"[0-9a-f]{16}", fields["store_data_fnv"])
+    assert fields["store_data_fnv"] == store_fnv
+    assert fields["data_correct"] == "0"
+    assert fields["stage_outcome"] == "CHAIN_VISIBILITY_LOST"
+    assert fields["reload_data_hash"] == zero_word_fnv
+    assert _sp05_stage_verdict(fields) == ("CHAIN_VISIBILITY_LOST", "0")
+
+    # The pre-fix shape (no store hash) must stay honestly unverifiable: a
+    # null hash can never be promoted to a claimed chain.
+    null_fields = dict(fields, store_data_fnv="null")
+    assert _sp05_stage_verdict(null_fields) == ("RELOAD_UNVERIFIABLE", "null")
+
+    skipped = next(e for e in events
+                   if e.get("event_type") == "sp05_write_skipped")
+    skipped_fields = _sp05_detail(skipped["detail"])
+    assert skipped_fields["write_skipped"] == "1"
+    assert skipped_fields["mem_sent"] == "0"
+    assert skipped_fields["store_data_fnv"] == store_fnv
