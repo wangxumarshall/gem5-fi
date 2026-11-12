@@ -1,0 +1,95 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [],
+    "consumption_basis": "consumed_at_activation",
+    "consumption_kind": "mmu_fault_activate",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 2400,
+      "last_event_id": 258,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "260020422963",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [
+      "tlb_lookup_hit"
+    ],
+    "observed_kinds": [
+      "chain_end",
+      "mmu_fault_activate",
+      "mmu_fault_summary"
+    ],
+    "oracle": {
+      "basis": "W11 process-B marker vs process-A marker",
+      "context": "R05",
+      "golden": 90,
+      "line": "W11_RESULT ctx=R05 va=0x4005000000 pid_a=317 pid_b=318 pfn_a=0x83544 pfn_b=0x8355b pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0xa5 branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=FAIL",
+      "observed": 165,
+      "workload_result": "FAIL",
+      "wrong": 165
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "tlb_lookup_hit"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 18,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "real candidate entry 382 with ASID 236 != requester ASID 238"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [
+    "missing_kind:tlb_lookup_hit"
+  ],
+  "OracleEvidence": {
+    "basis": "W11 process-B marker vs process-A marker",
+    "context": "R05",
+    "golden": 90,
+    "line": "W11_RESULT ctx=R05 va=0x4005000000 pid_a=317 pid_b=318 pfn_a=0x83544 pfn_b=0x8355b pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0xa5 branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=FAIL",
+    "observed": 165,
+    "workload_result": "FAIL",
+    "wrong": 165
+  },
+  "OracleResult": "FAIL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "PARTIAL",
+  "activation_event_id": 220,
+  "consumption_event_id": 220,
+  "context": "R05",
+  "fault_id": "1",
+  "model": "M03",
+  "run_id": "TEST-M03-R05",
+  "sample_run_id": "",
+  "target_mode": "Execute",
+  "target_va": 274961793024,
+  "workload": "W11"
+}

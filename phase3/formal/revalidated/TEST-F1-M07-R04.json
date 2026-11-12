@@ -1,0 +1,104 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [
+      353
+    ],
+    "consumption_basis": "consumed_at_activation",
+    "consumption_kind": "mmu_fault_activate",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "faulted observation differs from the independent control",
+      "control_observed": 2,
+      "diff": true,
+      "expected_sentinel": null,
+      "faulted_observed": 199,
+      "line": "W14_RESULT ctx=R04 signal=11 phase=exec_xn observed=0x2 observed_kind=si_code si_code=2 fault_addr=0x400d400100 fault_class=permission fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=0 expected=0xc7 value_ok=0 msg=fault result=PASS",
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL2-W14-R04/Run_Log/golden_output.txt",
+      "present": true,
+      "sha256": "3fcd5a2a7d0aac1c240540b4870f5256ceed65a12930d2d7deb6e4e826f52171"
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 3600,
+      "last_event_id": 434,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "261023706342",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "ARCH_STATE_CORRUPTION",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "SDC",
+      "TRACE_INCOMPLETE"
+    ],
+    "ifu_lookup_identity_join": [],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [
+      "chain_end",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "permission_eval"
+    ],
+    "oracle": {
+      "basis": "W14 permission guard (shared_changed / injected_success)",
+      "context": "R04",
+      "golden": null,
+      "injected_success": 1,
+      "line": "W14_RESULT ctx=R04 signal=0 phase=exec_xn observed=0xc7 observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=1 expected=0xc7 value_ok=1 msg=done result=FAIL",
+      "observed": 199,
+      "shared_changed": 0,
+      "workload_result": "FAIL",
+      "wrong": null
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 90,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "permission grant false -> true"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W14 permission guard (shared_changed / injected_success)",
+    "context": "R04",
+    "golden": null,
+    "injected_success": 1,
+    "line": "W14_RESULT ctx=R04 signal=0 phase=exec_xn observed=0xc7 observed_kind=value si_code=-1 fault_addr=0x0 fault_class=none fault_code_ok=1 pte_present=1 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=1 expected=0xc7 value_ok=1 msg=done result=FAIL",
+    "observed": 199,
+    "shared_changed": 0,
+    "workload_result": "FAIL",
+    "wrong": null
+  },
+  "OracleResult": "FAIL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 354,
+  "consumption_event_id": 354,
+  "context": "R04",
+  "fault_id": "1",
+  "model": "M07",
+  "run_id": "TEST-F1-M07-R04",
+  "sample_run_id": "",
+  "target_mode": "Execute",
+  "target_va": 275100205312,
+  "workload": "W14"
+}

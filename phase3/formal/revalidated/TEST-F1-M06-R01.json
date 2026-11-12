@@ -1,0 +1,110 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [
+      4426,
+      4427
+    ],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "pte_decode",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "faulted observation equals the independent control",
+      "control_observed": 99,
+      "diff": false,
+      "expected_sentinel": 99,
+      "faulted_observed": 99,
+      "line": "W10_RESULT ctx=R01 pages=4096 alias=0x4002000000 target=0x4001000000 target_pfn=0x834b2 neighbor_pfn=0x834b3 pa=0x834b2000 pa_neigh=0x834b3000 new_pfn_xor1=0x834b3 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x63 branch=0 vec0=0x00 result=PASS",
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W10-R01/Run_Log/golden_output.txt",
+      "present": true,
+      "sha256": "0c129fccb17eab0c985f8ab5d14dd44f67ec7eb94d5c8f540c0aa776ec6a9800"
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 3600,
+      "last_event_id": 4486,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "281108854089",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "INJECTION_NOT_ACTIVATED",
+      "TRACE_INCOMPLETE"
+    ],
+    "ifu_lookup_identity_join": [],
+    "m06_separation": {
+      "exception_delivered": "1",
+      "result_propagated": "1",
+      "state_consumed": "1"
+    },
+    "missing_kinds": [],
+    "observed_kinds": [
+      "chain_end",
+      "exception_delivery",
+      "fault_result_propagated",
+      "fault_state_consumed",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "pte_decode",
+      "squash"
+    ],
+    "oracle": {
+      "basis": "W10 target sentinel vs neighbor sentinel",
+      "context": "R01",
+      "golden": 99,
+      "line": "W10_RESULT ctx=R01 pages=4096 alias=0x4002000000 target=0x4001000000 target_pfn=0x834b2 neighbor_pfn=0x834b3 pa=0x834b2000 pa_neigh=0x834b3000 new_pfn_xor1=0x834b3 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x63 branch=0 vec0=0x00 result=PASS",
+      "observed": 99,
+      "workload_result": "PASS",
+      "wrong": 96
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "pte_decode"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 57,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "L3 descriptor bit0 cleared (0x600000834b2fc3 -> 0x600000834b2fc2) and decoded Invalid; Translation Fault path"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W10 target sentinel vs neighbor sentinel",
+    "context": "R01",
+    "golden": 99,
+    "line": "W10_RESULT ctx=R01 pages=4096 alias=0x4002000000 target=0x4001000000 target_pfn=0x834b2 neighbor_pfn=0x834b3 pa=0x834b2000 pa_neigh=0x834b3000 new_pfn_xor1=0x834b3 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x63 branch=0 vec0=0x00 result=PASS",
+    "observed": 99,
+    "workload_result": "PASS",
+    "wrong": 96
+  },
+  "OracleResult": "PASS_EXPECTED_DETECTION",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "DETECTED_CONTAINED",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 4422,
+  "consumption_event_id": 4423,
+  "context": "R01",
+  "fault_id": "1",
+  "model": "M06",
+  "run_id": "TEST-F1-M06-R01",
+  "sample_run_id": "",
+  "target_mode": "Read",
+  "target_va": 274894684160,
+  "workload": "W10"
+}

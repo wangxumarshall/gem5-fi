@@ -1,0 +1,110 @@
+{
+  "ActivationStatus": "NO_ELIGIBLE_EVENT",
+  "Details": {
+    "activation_kind": "",
+    "associated_event_ids": [],
+    "consumption_basis": "no_fault",
+    "consumption_kind": "",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 3000,
+      "last_event_id": 407,
+      "last_event_kind": "mmu_fault_unactivated",
+      "last_tick": "259428837474",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "ARCH_STATE_CORRUPTION",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "SDC",
+      "TRACE_INCOMPLETE"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [
+      "commit",
+      "lsu_request",
+      "memory_response",
+      "permission_eval",
+      "rf_writeback",
+      "translation_result"
+    ],
+    "observed_kinds": [],
+    "oracle": {
+      "basis": "no injected fault activated; oracle comparison not applicable",
+      "context": "R03",
+      "golden": null,
+      "injected_success": 0,
+      "line": "W14_RESULT ctx=R03 signal=11 phase=read_prot_none observed=0x2 observed_kind=si_code si_code=2 fault_addr=0x400d200000 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=0 msg=fault result=PASS",
+      "observed": 2,
+      "shared_changed": 0,
+      "workload_result": "PASS",
+      "wrong": null
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "permission_eval",
+      "translation_result",
+      "lsu_request",
+      "memory_response",
+      "rf_writeback",
+      "commit"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 77,
+    "terminal_expected_by_model": false,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "no activation event"
+    ],
+    "wrong_value_proven": false
+  },
+  "FaultConsumptionStatus": "NOT_OBSERVED",
+  "MissingCausalEdges": [
+    "missing_kind:commit",
+    "missing_kind:lsu_request",
+    "missing_kind:memory_response",
+    "missing_kind:permission_eval",
+    "missing_kind:rf_writeback",
+    "missing_kind:translation_result"
+  ],
+  "OracleEvidence": {
+    "basis": "no injected fault activated; oracle comparison not applicable",
+    "context": "R03",
+    "golden": null,
+    "injected_success": 0,
+    "line": "W14_RESULT ctx=R03 signal=11 phase=read_prot_none observed=0x2 observed_kind=si_code si_code=2 fault_addr=0x400d200000 shared_before=0x1122334455667788 shared_after=0x1122334455667788 shared_changed=0 injected_success=0 msg=fault result=PASS",
+    "observed": 2,
+    "shared_changed": 0,
+    "workload_result": "PASS",
+    "wrong": null
+  },
+  "OracleResult": "NOT_OBSERVED",
+  "PropagationStatus": "NOT_OBSERVED",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "NO_ELIGIBLE_EVENT",
+  "TraceCompleteness": "NOT_OBSERVED",
+  "activation_event_id": 0,
+  "consumption_event_id": 0,
+  "context": "R03",
+  "fault_id": "0",
+  "model": "M07",
+  "run_id": "TEST-M07-R03B",
+  "sample_run_id": "",
+  "target_mode": "Read",
+  "target_va": 275098107904,
+  "workload": "W14"
+}

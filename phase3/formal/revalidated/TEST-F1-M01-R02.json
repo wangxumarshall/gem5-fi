@@ -1,0 +1,136 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_arm",
+    "associated_event_ids": [],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "tlb_lookup_hit",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "faulted observation differs from the independent control",
+      "control_observed": 85,
+      "diff": true,
+      "expected_sentinel": null,
+      "faulted_observed": 170,
+      "line": "W9_RESULT ctx=R02 va=0x4000000000 pa1=0x83483000 pa2=0x8346e000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0x55 old_alias=0xaa branch=0 vec0=0x00 result=PASS",
+      "path": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W9/Run_Log/golden_output.txt",
+      "present": true,
+      "sha256": "d643e2d62a1bd9a114bdf4375fd93e05e9cad07465f3f559f512d395e89c9d6e"
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 3600,
+      "last_event_id": 1462,
+      "last_event_kind": "squash",
+      "last_tick": "250894584936",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "ifu_lookup_identity_join": [],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [
+      "cache_lookup",
+      "cache_request",
+      "commit",
+      "fault_entry_consume",
+      "fault_entry_reuse",
+      "lsu_request",
+      "memory_response",
+      "mmu_fault_arm",
+      "mmu_fault_disarm",
+      "permission_eval",
+      "rf_writeback",
+      "squash",
+      "tlb_entry_insert",
+      "tlb_lookup_hit",
+      "tlbi_match",
+      "tlbi_suppressed",
+      "translation_result",
+      "translation_start"
+    ],
+    "oracle": {
+      "basis": "W9 PA2 marker vs PA1 stale marker",
+      "context": "R02",
+      "golden": 85,
+      "line": "W9_RESULT ctx=R02 va=0x4000000000 pa1=0x83470000 pa2=0x83461000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0xaa old_alias=0xaa branch=0 vec0=0x00 result=FAIL",
+      "observed": 170,
+      "workload_result": "FAIL",
+      "wrong": 170
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va+asid/tid/seq",
+    "scope_event_count": 1027,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": {
+      "fault_chain_completeness": {
+        "completeness": "COMPLETE",
+        "context_ids": [
+          "R02"
+        ],
+        "continuation_translation_ids": [],
+        "fault_effect_coverage": "COMPLETE_CAUSAL_CHAIN",
+        "identity_errors": [],
+        "missing_edges": [],
+        "missing_kinds": [],
+        "oracle_verified": "NOT_EVALUATED_IN_TRACE",
+        "squash_then_reexecution": false,
+        "structural_completeness": "COMPLETE",
+        "terminal_verified": true,
+        "translation_ids": [
+          "32",
+          "33",
+          "34",
+          "35"
+        ]
+      },
+      "lineage": null,
+      "run_trace_completeness": "PARTIAL"
+    },
+    "wrong_value_basis": [
+      "l2_shared entry 253:21 survived 2 matching TLBI(s), was consumed by lookup event 553, then disarmed"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W9 PA2 marker vs PA1 stale marker",
+    "context": "R02",
+    "golden": 85,
+    "line": "W9_RESULT ctx=R02 va=0x4000000000 pa1=0x83470000 pa2=0x83461000 pte_present=1/1 pagemap=ok old_marker=0xaa new_marker=0x55 observed=0xaa old_alias=0xaa branch=0 vec0=0x00 result=FAIL",
+    "observed": 170,
+    "workload_result": "FAIL",
+    "wrong": 170
+  },
+  "OracleResult": "FAIL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 544,
+  "consumption_event_id": 553,
+  "context": "R02",
+  "fault_id": "1",
+  "model": "M01",
+  "run_id": "TEST-F1-M01-R02",
+  "sample_run_id": "",
+  "target_mode": "",
+  "target_va": 274877906944,
+  "workload": "W9"
+}

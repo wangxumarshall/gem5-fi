@@ -1,0 +1,104 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "translation_result",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 4200,
+      "last_event_id": 4474,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "279563233257",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "ARCH_STATE_CORRUPTION",
+      "CRASH",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [
+      "cache_lookup",
+      "cache_request",
+      "cache_response",
+      "chain_end",
+      "commit",
+      "lsu_request",
+      "memory_response",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "mshr_alloc",
+      "rf_writeback",
+      "translation_result"
+    ],
+    "oracle": {
+      "basis": "W10 target sentinel vs neighbor sentinel",
+      "context": "R01",
+      "golden": 99,
+      "line": "W10_RESULT ctx=R01 pages=4096 alias=0x4002000000 target=0x4001000000 target_pfn=0x834b6 neighbor_pfn=0x834b7 pa=0x834b6000 pa_neigh=0x834b7000 new_pfn_xor1=0x834b7 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x60 branch=0 vec0=0x00 result=FAIL",
+      "observed": 96,
+      "workload_result": "FAIL",
+      "wrong": 96
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "translation_result",
+      "lsu_request",
+      "memory_response",
+      "rf_writeback",
+      "commit"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 45,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "request PA 0x834b6000 -> 0x834b7000 with TLB pfn unchanged (0x834b6); consumer 4429 carries new PA"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W10 target sentinel vs neighbor sentinel",
+    "context": "R01",
+    "golden": 99,
+    "line": "W10_RESULT ctx=R01 pages=4096 alias=0x4002000000 target=0x4001000000 target_pfn=0x834b6 neighbor_pfn=0x834b7 pa=0x834b6000 pa_neigh=0x834b7000 new_pfn_xor1=0x834b7 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x60 branch=0 vec0=0x00 result=FAIL",
+    "observed": 96,
+    "workload_result": "FAIL",
+    "wrong": 96
+  },
+  "OracleResult": "FAIL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 4428,
+  "consumption_event_id": 4429,
+  "context": "R01",
+  "fault_id": "1",
+  "model": "M08",
+  "run_id": "TEST-M08-R01B",
+  "sample_run_id": "",
+  "target_mode": "Read",
+  "target_va": 274894684160,
+  "workload": "W10"
+}

@@ -1108,19 +1108,21 @@ samples:
   InjectionMode: F0
   WorkloadID: W14
   ContextID: R03
-  DynamicContext: EL0 read through PROT_NONE
-  TargetVA: PROT_NONE VA
+  DynamicContext: EL0 load through an execute-only (PROT_EXEC) user mapping; valid
+    PAGE_EXECONLY leaf with AP[2:1] denying EL0 read and UXN=0 (requires runtime FEAT_EPAN)
+  TargetVA: execute-only VA 0x400d200000
   ASID_VMContext: same ASID
   AccessMode: Read
-  TargetEvent: target permission decision with normal grant=false
+  TargetEvent: target EL0 load permission decision with normal grant=false (AP[2:1]
+    denies EL0 read on a valid leaf)
   EventOrdinal: 1st event satisfying explicit predicate
   Seed: N/A_DETERMINISTIC
   SampleIDStatus: FROZEN
   OutputDir: ${OUTPUT_ROOT}/M07-F0-W14/M07-F0-W14-S01/R03/
   ExecutionStatus: NOT_STARTED
   FaultType: Invert one computed permission grant decision
-  TargetInstruction: EL0 store through read-only alias (primary); additional read/atomic/execute
-    contexts.
+  TargetInstruction: EL0 load from execute-only mapping (valid PAGE_EXECONLY descriptor;
+    denied by AP, not by translation)
   EligibleEventCondition: Stage-1; target VA/PC/DynInstSeqNum/mode/EL match; normal
     grant=false; no Stage-2.
   ExpectedPropagationPath: Translation -> permission grant false -> invert true ->
@@ -1128,8 +1130,9 @@ samples:
     -> commit/oracle.
   ExpectedTerminalStates: SDC, ARCH_STATE_CORRUPTION, DETECTED_CONTAINED, CRASH, ACTIVATED_MASKED,
     TRACE_INCOMPLETE.
-  OracleMethod: 'W14: baseline RO store faults; injected store succeeds and writable
-    alias observes the changed value.'
+  OracleMethod: 'W14: no-fault execute-only load faults with SEGV_ACCERR on a valid
+    AP-deny leaf; injected load returns sentinel byte 0x88; trace pte_decode L3 Page
+    must show AP not granting EL0 read and descriptor_type=Page.'
   SeedPolicy: DETERMINISTIC
   SeedSource: RESEARCHER_APPROVED
   SampleFreezeStatus: FROZEN
@@ -1174,19 +1177,22 @@ samples:
   InjectionMode: F0
   WorkloadID: W14
   ContextID: R05
-  DynamicContext: EL0 fetch from PROT_NONE mapping
-  TargetVA: PROT_NONE VA
+  DynamicContext: EL0 instruction fetch through a valid XN user mapping (PROT_READ,
+    PTE UXN=1) entered by an indirect branch (br xN, target loaded at run time from
+    a table)
+  TargetVA: XN indirect-branch code VA 0x400d600180
   ASID_VMContext: same ASID
   AccessMode: Execute
-  TargetEvent: target permission decision with normal grant=false
+  TargetEvent: target EL0 instruction-fetch permission decision with normal grant=false
+    (UXN=1 on a valid leaf)
   EventOrdinal: 1st event satisfying explicit predicate
   Seed: N/A_DETERMINISTIC
   SampleIDStatus: FROZEN
   OutputDir: ${OUTPUT_ROOT}/M07-F0-W14/M07-F0-W14-S01/R05/
   ExecutionStatus: NOT_STARTED
   FaultType: Invert one computed permission grant decision
-  TargetInstruction: EL0 store through read-only alias (primary); additional read/atomic/execute
-    contexts.
+  TargetInstruction: EL0 indirect-branch fetch into an XN page (br xN; target from
+    runtime table; distinct VA/code blob/consumer/marker from R04)
   EligibleEventCondition: Stage-1; target VA/PC/DynInstSeqNum/mode/EL match; normal
     grant=false; no Stage-2.
   ExpectedPropagationPath: Translation -> permission grant false -> invert true ->
@@ -1194,8 +1200,9 @@ samples:
     -> commit/oracle.
   ExpectedTerminalStates: SDC, ARCH_STATE_CORRUPTION, DETECTED_CONTAINED, CRASH, ACTIVATED_MASKED,
     TRACE_INCOMPLETE.
-  OracleMethod: 'W14: baseline RO store faults; injected store succeeds and writable
-    alias observes the changed value.'
+  OracleMethod: 'W14: no-fault XN fetch faults with SEGV_ACCERR on a valid UXN=1 leaf;
+    injected fetch executes the R05 code blob and returns marker 0x5a; trace pte_decode
+    L3 Page must show UXN=1.'
   SeedPolicy: DETERMINISTIC
   SeedSource: RESEARCHER_APPROVED
   SampleFreezeStatus: FROZEN
@@ -1355,25 +1362,34 @@ samples:
   SeedSource: RESEARCHER_APPROVED
   SampleFreezeStatus: FROZEN
 provenance_status: FROZEN_MAIN_BUILD
-gem5_sha256: a71ce0ca21de143d9aa5ab05e29d9bee86dff213576941a3191a256f1d842024
+gem5_sha256: b3eb1559f742e86f1f9796e8ad21d0bb4f35ae1106d3ddae22b9df1eb91f7185
 gem5_binary: CHAOS/gem5/build/ARM/gem5.opt
 source_sha256:
-  CHAOS/gem5/src/arch/arm/mmu.cc: bb2d62da2d4f2db7da00359ce85ecc860a9b30d39b3940af78b6bdb26e1bdded
+  CHAOS/gem5/src/arch/arm/mmu.cc: bba49e65398f80aaf58b3ce5a954f4ffbd68278dd0b5c888124d249e28dd1c1b
   CHAOS/gem5/src/arch/arm/table_walker.cc: 54dbeeff2e40891eb018c4bf891a5446ab2b8c4fe88f69c40647c26923595985
   CHAOS/gem5/src/arch/arm/table_walker.hh: 89110e2081da62743e4c2325aa656976e945f086959bcd29f18882412e44b611
-  CHAOS/gem5/src/arch/arm/tlb.cc: 1b7cc0f3a5c0ba374cf7b0886e25aa2680c46e88b47e86557823ced4fdf4c554
-  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc: 884278fa4c2774eab379f3d46f833c9521125202374afb93378be29c8b6b7cf6
-  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh: 6228ac54c9d7d49f53c618125b602353a1b4dba9641dff3085ea726e3abbcdab
+  CHAOS/gem5/src/arch/arm/tlb.cc: b81b7b4cc9eee2c7ba0b592775587dcc7610c8d18c237ba412d2c69ba80d52f4
+  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc: 38c0942ab5d2c4c73b7ee3763c1d7503b708ba9ba4f73c2fd051db6836052dc4
+  CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh: 90ea1b55a9a7e51db04fad4a23ceee3107ebc2d375c3d5c5902b9ffb6b2d3336
 workload_sha256:
   W9: ec525687a757fd0f3865294481c687e754c06dc6a073dd2aa80306b04621732b
-  W10: 20d9f249ae89981ea3bfe90873a88b8adf5c973a9ec0f13da025c1e66253262f
+  W10: 733b8a80150b9728b640fbaad0889f139b09b92a98462778753975a4917a63ae
   W10S: fede5f3ea4c3224f34ef9768a8cbb0fe49b071cab86306e67e7a73610f11b0a3
   W11: 1393b2737e33db75a8dfa38dbd0fa888d7640e7fb791cb7da1df815bd21451c4
   W12: 8fa269fd88eaf9126f67cf80d5d77f13600e211948db5cd7f4b89f42c147fdbc
   W13: 6e7d926e863c15433b3887e3ac069169e510751190d4b0de5dae0e7aa886ec70
-  W14: dea4330c72cf9c6d965c782257a2af40d1ba75515d13a91815590c1fcb0041c9
+  W14: f15dc78e2efc683f2a653a40ed47d293b71c27aaa018594e67274e9098a7be36
 workload_variant:
   M06/R02: W10S-COLD-STORE
   M08/R05: W10S-WARM-STORE
 provenance_note: Filled from the Main frozen build; every formal sample_manifest.json
   must match these hashes. A mismatch is BLOCKED_BINARY/BLOCKED_SOURCE.
+
+W9_executed_install_sha256: 4f3ddbf2615ebefcbc6e8499a862666679ba4c13e478af09dda9104ee6508c98
+W9_note: "EPAN checkpoint installs /root/mmu_w9 from the current W9 build; runner records the canonical source-identical build ec5256..."
+epan:
+  enabled: true
+  feature: FEAT_EPAN
+  id_aa64mmfr1_el1_pan: 3
+  checkpoint: runs/mmu_bootF1/cpt.244799013609
+  checkpoint_sha256: 4aa1ba38b5288fe1c7e58dde73a1f27166e67f846f77f241fcd1fb2cd89e6417

@@ -1,0 +1,102 @@
+{
+  "ActivationStatus": "NO_ELIGIBLE_EVENT",
+  "Details": {
+    "activation_kind": "",
+    "associated_event_ids": [],
+    "consumption_basis": "no_fault",
+    "consumption_kind": "",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 4200,
+      "last_event_id": 8577,
+      "last_event_kind": "mmu_fault_unactivated",
+      "last_tick": "285309971766",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "INJECTION_NOT_ACTIVATED",
+      "TRACE_INCOMPLETE"
+    ],
+    "m06_separation": {
+      "exception_delivered": null,
+      "result_propagated": null,
+      "state_consumed": null
+    },
+    "missing_kinds": [
+      "pte_decode"
+    ],
+    "observed_kinds": [],
+    "oracle": {
+      "basis": "no injected fault activated; oracle comparison not applicable",
+      "context": "R02",
+      "line": "W10S_RESULT mode=cold target_va=0x4001100000 neighbor_va=0x4001300000 neighbor_alias_va=0x4001300000 buffer_va=0x4002000000 pages_requested=4096 max_pages=65536 pages=4096 attempts=1 target_pfn=0x8349e neighbor_pfn=0x8349f pair_xor1=1 stored=0xab target_before=0x7d target_after=0xab neighbor_before=0x51 neighbor_after=0x51 target_observed=0xab neighbor_alias_observed=0x51 store_fault=0 fault_phase=none fault_addr=0x0 pagemap=ok pfn_ok=1/1 pfn_match=1 walk=cold_write warm_iters=0 m08_redirect_signature=0 m06_write_fault_signature=0 selftest_store_fault=0 result=PASS",
+      "m06_write_fault_signature": 0,
+      "m08_redirect_signature": 0,
+      "neighbor_alias_observed": 81,
+      "neighbor_before": 81,
+      "store_fault": 0,
+      "target_before": 125,
+      "target_observed": 171,
+      "workload_result": "PASS"
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "pte_decode"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 65,
+    "terminal_expected_by_model": false,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "no activation event"
+    ],
+    "wrong_value_proven": false
+  },
+  "FaultConsumptionStatus": "NOT_OBSERVED",
+  "MissingCausalEdges": [
+    "missing_kind:pte_decode"
+  ],
+  "OracleEvidence": {
+    "basis": "no injected fault activated; oracle comparison not applicable",
+    "context": "R02",
+    "line": "W10S_RESULT mode=cold target_va=0x4001100000 neighbor_va=0x4001300000 neighbor_alias_va=0x4001300000 buffer_va=0x4002000000 pages_requested=4096 max_pages=65536 pages=4096 attempts=1 target_pfn=0x8349e neighbor_pfn=0x8349f pair_xor1=1 stored=0xab target_before=0x7d target_after=0xab neighbor_before=0x51 neighbor_after=0x51 target_observed=0xab neighbor_alias_observed=0x51 store_fault=0 fault_phase=none fault_addr=0x0 pagemap=ok pfn_ok=1/1 pfn_match=1 walk=cold_write warm_iters=0 m08_redirect_signature=0 m06_write_fault_signature=0 selftest_store_fault=0 result=PASS",
+    "m06_write_fault_signature": 0,
+    "m08_redirect_signature": 0,
+    "neighbor_alias_observed": 81,
+    "neighbor_before": 81,
+    "store_fault": 0,
+    "target_before": 125,
+    "target_observed": 171,
+    "workload_result": "PASS"
+  },
+  "OracleResult": "NOT_OBSERVED",
+  "PropagationStatus": "NOT_OBSERVED",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "NO_ELIGIBLE_EVENT",
+  "TraceCompleteness": "NOT_OBSERVED",
+  "activation_event_id": 0,
+  "consumption_event_id": 0,
+  "context": "R02",
+  "fault_id": "0",
+  "model": "M06",
+  "run_id": "TEST-M06-R02C",
+  "sample_run_id": "",
+  "target_mode": "Write",
+  "target_va": 274895732736,
+  "workload": "W10"
+}

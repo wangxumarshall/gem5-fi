@@ -1,0 +1,103 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "tlb_lookup_hit",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 2400,
+      "last_event_id": 522,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "260011544184",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [
+      "cache_lookup",
+      "cache_request",
+      "cache_response",
+      "chain_end",
+      "lsu_request",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "mshr_alloc",
+      "permission_eval",
+      "squash",
+      "tlb_entry_insert",
+      "tlb_lookup_hit",
+      "translation_result"
+    ],
+    "oracle": {
+      "basis": "W11 process-B marker vs process-A marker",
+      "context": "R01",
+      "golden": 90,
+      "line": "W11_RESULT ctx=R01 va=0x4004000000 pid_a=317 pid_b=318 pfn_a=0x83544 pfn_b=0x8355b pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS",
+      "observed": 90,
+      "workload_result": "PASS",
+      "wrong": 165
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "tlb_lookup_hit",
+      "translation_result",
+      "squash"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 261,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "real candidate entry 382 with ASID 236 != requester ASID 238"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W11 process-B marker vs process-A marker",
+    "context": "R01",
+    "golden": 90,
+    "line": "W11_RESULT ctx=R01 va=0x4004000000 pid_a=317 pid_b=318 pfn_a=0x83544 pfn_b=0x8355b pagemap=ok marker_a=0xa5 marker_b=0x5a observed=0x5a branch=0 stage=0 b_signal=0 asid_source=trace pin_cpu=cpu0 handshake=ready_rewarm expect=0x5a result=PASS",
+    "observed": 90,
+    "workload_result": "PASS",
+    "wrong": 165
+  },
+  "OracleResult": "PASS",
+  "PropagationStatus": "PARTIAL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SQUASHED",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 422,
+  "consumption_event_id": 423,
+  "context": "R01",
+  "fault_id": "1",
+  "model": "M03",
+  "run_id": "TEST-M03-R01",
+  "sample_run_id": "",
+  "target_mode": "Read",
+  "target_va": 274945015808,
+  "workload": "W11"
+}

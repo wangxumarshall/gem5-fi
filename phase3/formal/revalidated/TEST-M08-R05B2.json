@@ -1,0 +1,110 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "translation_result",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 4200,
+      "last_event_id": 8714,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "286528267917",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "ARCH_STATE_CORRUPTION",
+      "CRASH",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [
+      "cache_lookup",
+      "cache_request",
+      "cache_response",
+      "chain_end",
+      "commit",
+      "lsu_request",
+      "memory_response",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "mshr_alloc",
+      "translation_result"
+    ],
+    "oracle": {
+      "basis": "W10S store-redirect / write-fault signature",
+      "context": "R05",
+      "line": "W10S_RESULT mode=warm target_va=0x4001400000 neighbor_va=0x4001600000 neighbor_alias_va=0x4001600000 buffer_va=0x4002000000 pages_requested=4096 max_pages=65536 pages=4096 attempts=1 target_pfn=0x83530 neighbor_pfn=0x83531 pair_xor1=1 stored=0xab target_before=0x7d target_after=0x7d neighbor_before=0x51 neighbor_after=0xab target_observed=0x7d neighbor_alias_observed=0xab store_fault=0 fault_phase=none fault_addr=0x0 pagemap=ok pfn_ok=1/1 pfn_match=1 walk=warm_hit warm_iters=128 m08_redirect_signature=1 m06_write_fault_signature=0 selftest_store_fault=0 result=FAIL",
+      "m06_write_fault_signature": 0,
+      "m08_redirect_signature": 1,
+      "neighbor_alias_observed": 171,
+      "neighbor_before": 81,
+      "store_fault": 0,
+      "target_before": 125,
+      "target_observed": 125,
+      "workload_result": "FAIL"
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "translation_result",
+      "lsu_request",
+      "memory_response",
+      "commit"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 139,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "request PA 0x83530000 -> 0x83531000 with TLB pfn unchanged (0x83530); consumer 8628 carries new PA"
+    ],
+    "wrong_value_proven": true
+  },
+  "FaultConsumptionStatus": "CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "W10S store-redirect / write-fault signature",
+    "context": "R05",
+    "line": "W10S_RESULT mode=warm target_va=0x4001400000 neighbor_va=0x4001600000 neighbor_alias_va=0x4001600000 buffer_va=0x4002000000 pages_requested=4096 max_pages=65536 pages=4096 attempts=1 target_pfn=0x83530 neighbor_pfn=0x83531 pair_xor1=1 stored=0xab target_before=0x7d target_after=0x7d neighbor_before=0x51 neighbor_after=0xab target_observed=0x7d neighbor_alias_observed=0xab store_fault=0 fault_phase=none fault_addr=0x0 pagemap=ok pfn_ok=1/1 pfn_match=1 walk=warm_hit warm_iters=128 m08_redirect_signature=1 m06_write_fault_signature=0 selftest_store_fault=0 result=FAIL",
+    "m06_write_fault_signature": 0,
+    "m08_redirect_signature": 1,
+    "neighbor_alias_observed": 171,
+    "neighbor_before": 81,
+    "store_fault": 0,
+    "target_before": 125,
+    "target_observed": 125,
+    "workload_result": "FAIL"
+  },
+  "OracleResult": "FAIL",
+  "PropagationStatus": "FULL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "SDC",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 8627,
+  "consumption_event_id": 8628,
+  "context": "R05",
+  "fault_id": "1",
+  "model": "M08",
+  "run_id": "TEST-M08-R05B2",
+  "sample_run_id": "",
+  "target_mode": "Write",
+  "target_va": 274898878464,
+  "workload": "W10"
+}

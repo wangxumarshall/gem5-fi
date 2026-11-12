@@ -81,8 +81,11 @@ def refresh():
     final_runs = os.path.join(FORMAL, "final_runs.json")
     manifest = final_runs if os.path.isfile(final_runs) else os.path.join(
         FORMAL, "pilot_runs.json")
+    # Recompute every verdict from the real trace with the frozen validator
+    # (the validator gained IFU/identity joins after some pilots ran; the run
+    # directories themselves are never modified).
     _run([sys.executable, "tools/mmu_build_evidence_index.py",
-          "--manifest", manifest,
+          "--manifest", manifest, "--revalidate",
           "--out", os.path.join(FORMAL, "evidence_index.json")])
     _run([sys.executable, "tools/mmu_formal_preflight.py",
           "--outdir", FORMAL,
@@ -146,6 +149,24 @@ def gen_source_report(bin_sha, bin_path, bin_state):
                if os.path.isfile(os.path.join(ROOT, bin_path)) else
                "<absent>"),
               "| Source commit | `%s` |" % commit, ""]
+    lines += ["## Platform checkpoint and capability", "", "| Field | Value |",
+              "|---|---|",
+              "| Checkpoint | `%s` |" % cfg.get("checkpoint", "<unset>"),
+              "| Checkpoint SHA256 (sorted file-manifest digest) | `%s` |" %
+              cfg.get("checkpoint_sha256", "<unset>"),
+              "| FEAT_EPAN | enabled: ID_AA64MMFR1_EL1.PAN=%s |" %
+              (cfg.get("epan", {}) or {}).get("id_aa64mmfr1_el1_pan", "?"),
+              "| EPAN scope | execute-only user mappings only "
+              "(protection_map[4/12]); read/execute and read-only mappings "
+              "are unchanged |", ""]
+    lines += ["## Commit provenance", "",
+              "Base commit the pilots were launched from: `%s`." %
+              cfg.get("base_commit", "<unset>"),
+              "The closure commit containing exactly the frozen source above:"
+              " `%s`." % commit,
+              "Pilot manifests record the base commit (`git_head`) plus the"
+              " six per-file `source_sha256` values; the preflight requires"
+              " those hashes to equal the frozen values.", ""]
     lines += ["## Frozen source hashes", "", "| File | SHA256 |",
               "|---|---|"]
     for path, value in sorted((cfg.get("source_sha256") or {}).items()):
@@ -157,6 +178,11 @@ def gen_source_report(bin_sha, bin_path, bin_state):
               "|---|---|"]
     for wid, value in sorted((cfg.get("workload_sha256") or {}).items()):
         lines.append("| %s | `%s` |" % (wid, value))
+    if cfg.get("W9_executed_install_sha256"):
+        lines += ["", "W9 executed guest binary (installed at `/root/mmu_w9`"
+                  " by the checkpoint): `%s`. %s" %
+                  (cfg["W9_executed_install_sha256"],
+                   cfg.get("W9_note", ""))]
     lines += ["", "If the final binary SHA is `PENDING_MAIN_FREEZE`, Main has "
               "not frozen the post-integration build yet; no hash is "
               "guessed.", ""]

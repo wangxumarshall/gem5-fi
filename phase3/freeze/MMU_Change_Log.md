@@ -86,3 +86,53 @@ not modified. No formal SampleRunID was launched.
     `phase3/freeze/evidence/reval/`.
 15. Metadata corrections are explicit in the manifests
     (`workload_sha256_recorded_pre_fix`, `source_sha256_note`), never silent.
+
+## Second pass — M07 R03/R05 researcher-approved context text (2026-11-12)
+
+Exact strings delivered by Agent C in `phase3/final/C_M07.md` §4 and applied
+verbatim by Agent E to the frozen authority (`07_Sample_Matrix`, the CSV
+mirror and `MMU_Formal_Config.json/.yaml`). ModelID, WorkloadID, SampleRunID,
+the 40-sample count, Seed, SeedPolicy, SeedSource and SampleFreezeStatus are
+unchanged. A machine-readable record is in
+`phase3/final/M07_CONTEXT_CHANGES.json`; the workbook carries a dedicated
+`17_M07_Context_Change_Record` sheet with one row per changed column.
+
+### M07-F0-W14-S01-R03
+
+| Column | Before | After |
+|---|---|---|
+| DynamicContext | EL0 read through PROT_NONE | EL0 load through an execute-only (PROT_EXEC) user mapping; valid PAGE_EXECONLY leaf with AP[2:1] denying EL0 read and UXN=0 (requires runtime FEAT_EPAN) |
+| TargetVA | PROT_NONE VA | execute-only VA 0x400d200000 |
+| AccessMode | Read | Read |
+| TargetEvent | target permission decision with normal grant=false | target EL0 load permission decision with normal grant=false (AP[2:1] denies EL0 read on a valid leaf) |
+| TargetInstruction | EL0 store through read-only alias (primary); additional read/atomic/execute contexts. | EL0 load from execute-only mapping (valid PAGE_EXECONLY descriptor; denied by AP, not by translation) |
+| OracleMethod | W14: baseline RO store faults; injected store succeeds and writable alias observes the changed value. | W14: no-fault execute-only load faults with SEGV_ACCERR on a valid AP-deny leaf; injected load returns sentinel byte 0x88; trace pte_decode L3 Page must show AP not granting EL0 read and descriptor_type=Page. |
+
+- Reason: PROT_NONE clears PTE_VALID, so the walker raises a Translation
+  fault before `checkPermissions64`; PROT_EXEC-only preserves the M07
+  grant-inversion mechanism.
+- Approval basis: researcher-approved 2026-11-12; exact text from Agent C.
+- Workload: W14. Golden:
+  `runs/TEST-F1-M07-CTRL-R03/Run_Log/golden_output.txt`.
+- Trace / final verification: PENDING Main final run on the frozen binary.
+
+### M07-F0-W14-S01-R05
+
+| Column | Before | After |
+|---|---|---|
+| DynamicContext | EL0 fetch from PROT_NONE mapping | EL0 instruction fetch through a valid XN user mapping (PROT_READ, PTE UXN=1) entered by an indirect branch (br xN, target loaded at run time from a table) |
+| TargetVA | PROT_NONE VA | XN indirect-branch code VA 0x400d600180 |
+| AccessMode | Execute | Execute |
+| TargetEvent | target permission decision with normal grant=false | target EL0 instruction-fetch permission decision with normal grant=false (UXN=1 on a valid leaf) |
+| TargetInstruction | EL0 store through read-only alias (primary); additional read/atomic/execute contexts. | EL0 indirect-branch fetch into an XN page (br xN; target from runtime table; distinct VA/code blob/consumer/marker from R04) |
+| OracleMethod | W14: baseline RO store faults; injected store succeeds and writable alias observes the changed value. | W14: no-fault XN fetch faults with SEGV_ACCERR on a valid UXN=1 leaf; injected fetch executes the R05 code blob and returns marker 0x5a; trace pte_decode L3 Page must show UXN=1. |
+
+- Reason: a valid XN mapping entered by a runtime indirect branch is a
+  distinct permission-denial context from R04; the old PROT_NONE fetch was a
+  translation fault and not a distinct M07 realization.
+- Approval basis: researcher-approved 2026-11-12; exact text from Agent C.
+- Workload: W14. Golden:
+  `runs/TEST-F1-M07-CTRL-R05/Run_Log/golden_output.txt`.
+- Trace / final verification: PENDING Main final run on the frozen binary.
+
+No authoritative row was renumbered, deleted or added.

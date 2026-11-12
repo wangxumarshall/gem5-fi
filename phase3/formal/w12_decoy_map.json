@@ -1,0 +1,97 @@
+{
+  "contexts": {
+    "R01": {
+      "decoy_pfn": 537916,
+      "line": "W12_RESULT ctx=R01 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=0 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=PASS",
+      "source_run": "TEST-F1-CTRL-W12-R01",
+      "source_sha256": "495cf3f383844e1c457cdb06447f751c6c1a4554ecd93e87b6f056a4122278b2",
+      "target_pfn": 537945,
+      "target_va": 275012124672
+    },
+    "R02": {
+      "decoy_pfn": 537916,
+      "line": "W12_RESULT ctx=R02 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=0 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=PASS",
+      "source_run": "TEST-F1-CTRL-W12-R02",
+      "source_sha256": "54ad087bbc333382f857d4bdff26f79de74d99b943d9c67fd88ecdab86708fd2",
+      "target_pfn": 537945,
+      "target_va": 275012124672
+    },
+    "R03": {
+      "decoy_pfn": 537916,
+      "line": "W12_RESULT ctx=R03 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=1 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=PASS",
+      "source_run": "TEST-F1-CTRL-W12-R03",
+      "source_sha256": "104562bb4de5674b95a3e09246b173e65a5880705a49ba34524c94d41cf0dcb7",
+      "target_pfn": 537945,
+      "target_va": 275012124672
+    },
+    "R04": {
+      "decoy_pfn": 537916,
+      "line": "W12_RESULT ctx=R04 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=0 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=PASS",
+      "source_run": "TEST-F1-CTRL-W12-R04",
+      "source_sha256": "c45d6e07f2d53db1ab644e669ae416177707c2b6a131b72c64d8d43cd74bf202",
+      "target_pfn": 537945,
+      "target_va": 275012124672
+    },
+    "R05": {
+      "decoy_pfn": 537916,
+      "line": "W12_RESULT ctx=R05 target_va=0x4008000000 target_pfn=0x83559 decoy_pfn=0x8353c observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=0 mode=auto decoy_pfn_arg=0x0 decoy_arg_match=0 pagemap=ok pfn_ok=1/1 result=PASS",
+      "source_run": "TEST-F1-CTRL-W12-R05",
+      "source_sha256": "ffac96ce5f5f785beea87e1288f20468178056f48557fd34000b1aad8b9cd2cc",
+      "target_pfn": 537945,
+      "target_va": 275012124672
+    }
+  },
+  "generated_from": "/home/sdc/gem5-fi-mmu-impl-v2/runs",
+  "sources": [
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-CTRL-W12-R01/Run_Log/golden_output.txt",
+      "run": "TEST-CTRL-W12-R01",
+      "sha256": "dfaaa85edf10125e3062a19ce5701845952612e1e4fe9b5b220ca7c082ba4102"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-CTRL-W12-R02/Run_Log/golden_output.txt",
+      "run": "TEST-CTRL-W12-R02",
+      "sha256": "a3c7873b97ef547f0ace21994f6997e2b974f3b92b5a3f6094e039fe549bced9"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-CTRL-W12-R03/Run_Log/golden_output.txt",
+      "run": "TEST-CTRL-W12-R03",
+      "sha256": "b5d06c5db96f4996bc57a3aec2eed41230c811274d67dcb3ddbe0b541560555a"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-CTRL-W12-R04/Run_Log/golden_output.txt",
+      "run": "TEST-CTRL-W12-R04",
+      "sha256": "5f3734d512bf9a958fe53c5231fbc68f37a1a789e6fb1de033239301350579b3"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-CTRL-W12-R05/Run_Log/golden_output.txt",
+      "run": "TEST-CTRL-W12-R05",
+      "sha256": "88f11adc166915350d85bcf9819a1f7db85156b2e6fb6d17e78c65c05d59729b"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W12-R01/Run_Log/golden_output.txt",
+      "run": "TEST-F1-CTRL-W12-R01",
+      "sha256": "495cf3f383844e1c457cdb06447f751c6c1a4554ecd93e87b6f056a4122278b2"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W12-R02/Run_Log/golden_output.txt",
+      "run": "TEST-F1-CTRL-W12-R02",
+      "sha256": "54ad087bbc333382f857d4bdff26f79de74d99b943d9c67fd88ecdab86708fd2"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W12-R03/Run_Log/golden_output.txt",
+      "run": "TEST-F1-CTRL-W12-R03",
+      "sha256": "104562bb4de5674b95a3e09246b173e65a5880705a49ba34524c94d41cf0dcb7"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W12-R04/Run_Log/golden_output.txt",
+      "run": "TEST-F1-CTRL-W12-R04",
+      "sha256": "c45d6e07f2d53db1ab644e669ae416177707c2b6a131b72c64d8d43cd74bf202"
+    },
+    {
+      "golden": "/home/sdc/gem5-fi-mmu-impl-v2/runs/TEST-F1-CTRL-W12-R05/Run_Log/golden_output.txt",
+      "run": "TEST-F1-CTRL-W12-R05",
+      "sha256": "ffac96ce5f5f785beea87e1288f20468178056f48557fd34000b1aad8b9cd2cc"
+    }
+  ]
+}

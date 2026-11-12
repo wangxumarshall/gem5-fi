@@ -1,0 +1,115 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [],
+    "consumption_basis": "explicit_consumer",
+    "consumption_kind": "pte_read",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 2400,
+      "last_event_id": 857,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "259595455023",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [
+      "cache_lookup",
+      "cache_request",
+      "cache_response",
+      "chain_end",
+      "commit",
+      "lsu_request",
+      "memory_response",
+      "mmu_fault_activate",
+      "mmu_fault_summary",
+      "mshr_alloc",
+      "partial_entry_insert",
+      "permission_eval",
+      "pte_decode",
+      "pte_read",
+      "ptw_request",
+      "ptw_response",
+      "rf_writeback",
+      "tlb_entry_insert",
+      "tlb_fill",
+      "tlb_lookup_hit",
+      "translation_result"
+    ],
+    "oracle": {
+      "basis": "target sentinel vs decoy sentinel",
+      "context": "R01",
+      "golden": 125,
+      "line": "W13_RESULT ctx=R01 target_va=0x4010000000 target_pfn=0x8353f decoy_va=0x4010200000 decoy_pfn=0x83577 observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=0 pagemap=ok pfn_ok=1/1 signal=0 fault_phase=none partial_hit=UNVERIFIED result=PASS",
+      "observed": 125,
+      "workload_result": "PASS",
+      "wrong": 81
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "partial_entry_insert",
+      "tlb_lookup_hit",
+      "translation_result",
+      "lsu_request",
+      "memory_response",
+      "rf_writeback",
+      "commit"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 420,
+    "terminal_expected_by_model": true,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "corrupted partial base 0x81c1f000 had no later partial hit; a level-2 partial entry was invalidated at event 828 (guest containment)"
+    ],
+    "wrong_value_proven": false
+  },
+  "FaultConsumptionStatus": "NOT_CONSUMED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "target sentinel vs decoy sentinel",
+    "context": "R01",
+    "golden": 125,
+    "line": "W13_RESULT ctx=R01 target_va=0x4010000000 target_pfn=0x8353f decoy_va=0x4010200000 decoy_pfn=0x83577 observed=0x7d sentinel=0x7d decoy_sentinel=0x51 branch=0 pagemap=ok pfn_ok=1/1 signal=0 fault_phase=none partial_hit=UNVERIFIED result=PASS",
+    "observed": 125,
+    "workload_result": "PASS",
+    "wrong": 81
+  },
+  "OracleResult": "PASS",
+  "PropagationStatus": "PARTIAL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "ACTIVATED_MASKED",
+  "TraceCompleteness": "COMPLETE",
+  "activation_event_id": 798,
+  "consumption_event_id": 801,
+  "context": "R01",
+  "fault_id": "1",
+  "model": "M05",
+  "run_id": "TEST-M05-R01",
+  "sample_run_id": "",
+  "target_mode": "Read",
+  "target_va": 275146342400,
+  "workload": "W13"
+}

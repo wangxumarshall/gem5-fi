@@ -1,0 +1,77 @@
+{
+  "changes": [
+    {
+      "after": {
+        "AccessMode": "Read",
+        "DynamicContext": "EL0 load through an execute-only (PROT_EXEC) user mapping; valid PAGE_EXECONLY leaf with AP[2:1] denying EL0 read and UXN=0 (requires runtime FEAT_EPAN)",
+        "OracleMethod": "W14: no-fault execute-only load faults with SEGV_ACCERR on a valid AP-deny leaf; injected load returns sentinel byte 0x88; trace pte_decode L3 Page must show AP not granting EL0 read and descriptor_type=Page.",
+        "TargetEvent": "target EL0 load permission decision with normal grant=false (AP[2:1] denies EL0 read on a valid leaf)",
+        "TargetInstruction": "EL0 load from execute-only mapping (valid PAGE_EXECONLY descriptor; denied by AP, not by translation)",
+        "TargetVA": "execute-only VA 0x400d200000"
+      },
+      "approval_basis": "Researcher-approved 2026-11-12; exact strings from Agent C phase3/final/C_M07.md \u00a74",
+      "before": {
+        "AccessMode": "Read",
+        "DynamicContext": "EL0 read through PROT_NONE",
+        "OracleMethod": "W14: baseline RO store faults; injected store succeeds and writable alias observes the changed value.",
+        "TargetEvent": "target permission decision with normal grant=false",
+        "TargetInstruction": "EL0 store through read-only alias (primary); additional read/atomic/execute contexts.",
+        "TargetVA": "PROT_NONE VA"
+      },
+      "final_verification": "READY: TEST-F1B-M07-R03 ACTIVATED/CONSUMED/FULL/COMPLETE/SDC/FAIL; golden SEGV_ACCERR on a VALID L3 leaf with AP=0b10, AF=1, UXN=0; injected load committed (observed=0x88, injected_success=1)",
+      "golden": "runs/TEST-F1-CTRL2-W14-R03/Run_Log/golden_output.txt",
+      "reason": "Researcher-approved M07 R03 realization: PROT_NONE clears PTE_VALID and is a translation fault, not a permission decision; PROT_EXEC-only (PAGE_EXECONLY) preserves the M07 grant-inversion mechanism.",
+      "sample_run_id": "M07-F0-W14-S01-R03",
+      "trace": "runs/TEST-F1B-M07-R03/Trace/prop_evt.txt.gz",
+      "workload": "W14 (binary SHA256 f15dc78e2efc683f2a653a40ed47d293b71c27aaa018594e67274e9098a7be36)"
+    },
+    {
+      "after": {
+        "AccessMode": "Execute",
+        "DynamicContext": "EL0 instruction fetch through a valid XN user mapping (PROT_READ, PTE UXN=1) entered by an indirect branch (br xN, target loaded at run time from a table)",
+        "OracleMethod": "W14: no-fault XN fetch faults with SEGV_ACCERR on a valid UXN=1 leaf; injected fetch executes the R05 code blob and returns marker 0x5a; trace pte_decode L3 Page must show UXN=1.",
+        "TargetEvent": "target EL0 instruction-fetch permission decision with normal grant=false (UXN=1 on a valid leaf)",
+        "TargetInstruction": "EL0 indirect-branch fetch into an XN page (br xN; target from runtime table; distinct VA/code blob/consumer/marker from R04)",
+        "TargetVA": "XN indirect-branch code VA 0x400d600180"
+      },
+      "approval_basis": "Researcher-approved 2026-11-12; exact strings from Agent C phase3/final/C_M07.md \u00a74",
+      "before": {
+        "AccessMode": "Execute",
+        "DynamicContext": "EL0 fetch from PROT_NONE mapping",
+        "OracleMethod": "W14: baseline RO store faults; injected store succeeds and writable alias observes the changed value.",
+        "TargetEvent": "target permission decision with normal grant=false",
+        "TargetInstruction": "EL0 store through read-only alias (primary); additional read/atomic/execute contexts.",
+        "TargetVA": "PROT_NONE VA"
+      },
+      "final_verification": "READY: TEST-F1-M07-R05 ACTIVATED/CONSUMED/FULL/COMPLETE/SDC/FAIL; golden SEGV_ACCERR at 0x400d600180 with UXN=1 on a VALID leaf; br xN fetch executed marker 0x5a",
+      "golden": "runs/TEST-F1-CTRL2-W14-R05/Run_Log/golden_output.txt",
+      "reason": "Researcher-approved M07 R05 realization: a valid XN mapping entered by a runtime indirect branch is a distinct permission-denial context from R04 (PROT_NONE fetch was a translation fault).",
+      "sample_run_id": "M07-F0-W14-S01-R05",
+      "trace": "runs/TEST-F1-M07-R05/Trace/prop_evt.txt.gz",
+      "workload": "W14 (binary SHA256 f15dc78e2efc683f2a653a40ed47d293b71c27aaa018594e67274e9098a7be36)"
+    }
+  ],
+  "model": "M07",
+  "sample_count": 40,
+  "seed": "N/A_DETERMINISTIC",
+  "unchanged_fields": [
+    "SampleRunID",
+    "RunID",
+    "SubTaskID",
+    "ModelID",
+    "TargetSubUnit",
+    "InjectionMode",
+    "WorkloadID",
+    "ContextID",
+    "Seed",
+    "SampleIDStatus",
+    "SeedPolicy",
+    "SeedSource",
+    "SampleFreezeStatus",
+    "ExecutionStatus",
+    "FaultType",
+    "EventOrdinal",
+    "EligibleEventCondition"
+  ],
+  "workload": "W14"
+}

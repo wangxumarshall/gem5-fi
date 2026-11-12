@@ -207,14 +207,14 @@ W10S_VARIANTS = {
 # hold all five contexts (one --all script) or only R01; the lookup function
 # verifies the context line really exists before accepting it.
 CONTROL_ORACLE_RUNS = {
-    ("M01", "W9"): "runs/w9_trace_on_final",
-    ("M02", "W10"): "runs/TEST-ENV-CTRL-W10",
-    ("M03", "W11"): "runs/TEST-P3-W11-CTRL",
-    ("M04", "W12"): "runs/TEST-P3-W12-CTRL",
-    ("M05", "W13"): "runs/TEST-P3-W13-CTRL",
-    ("M06", "W10"): "runs/TEST-M06-P3-CTRL-R01",
-    ("M07", "W14"): "runs/TEST-M07-P3B-CTRL-R01",
-    ("M08", "W10"): "runs/TEST-M08-P3-CTRL-R01",
+    ("M01", "W9"): "runs/TEST-F1-CTRL-W9",
+    ("M02", "W10"): "runs/TEST-F1-CTRL-W10-R01",
+    ("M03", "W11"): "runs/TEST-F1-CTRL-W11-R01",
+    ("M04", "W12"): "runs/TEST-F1-CTRL-W12-R01",
+    ("M05", "W13"): "runs/TEST-F1-CTRL-W13-R01",
+    ("M06", "W10"): "runs/TEST-F1-CTRL-W10-R01",
+    ("M07", "W14"): "runs/TEST-F1-CTRL2-W14-R01",
+    ("M08", "W10"): "runs/TEST-F1-CTRL-W10-R01",
 }
 
 # The W12 per-context scoped controls on the FINAL binary are the source of
@@ -234,20 +234,28 @@ W10_CONTROL_ROOT_DEFAULT = "runs"
 W10_CONTROL_NAME_RE = re.compile(r"W10(?!S).*R0[1-5]$")
 
 # Per-context controls take precedence over the model/workload default.
-CONTROL_ORACLE_CONTEXT_RUNS = {
-    ("M04", "R01"): "runs/TEST-CTRL-W12-R01",
-    ("M04", "R02"): "runs/TEST-CTRL-W12-R02",
-    ("M04", "R03"): "runs/TEST-CTRL-W12-R03",
-    ("M04", "R04"): "runs/TEST-CTRL-W12-R04",
-    ("M04", "R05"): "runs/TEST-CTRL-W12-R05",
-    ("M05", "R01"): "runs/TEST-CTRL-W13-CLOSURE",
-    ("M05", "R02"): "runs/TEST-CTRL-W13-CLOSURE",
-    ("M05", "R03"): "runs/TEST-CTRL-W13-CLOSURE",
-    ("M05", "R04"): "runs/TEST-CTRL-W13-CLOSURE",
-    ("M05", "R05"): "runs/TEST-CTRL-W13-CLOSURE",
-    ("M06", "R02"): "runs/TEST-CTRL-W10S-COLD",
-    ("M08", "R05"): "runs/TEST-CTRL-W10S-WARM",
-}
+# These are the F1 closure controls, all produced on the frozen binary and
+# the EPAN checkpoint.  Every model/context has its own independent no-fault
+# run; the W10-family controls are single-context (allocation history).
+CONTROL_ORACLE_CONTEXT_RUNS = {}
+for _c in ("R01", "R02", "R03", "R04", "R05"):
+    CONTROL_ORACLE_CONTEXT_RUNS[("M01", _c)] = "runs/TEST-F1-CTRL-W9"
+    CONTROL_ORACLE_CONTEXT_RUNS[("M02", _c)] = \
+        "runs/TEST-F1-CTRL-W10-%s" % _c
+    CONTROL_ORACLE_CONTEXT_RUNS[("M03", _c)] = \
+        "runs/TEST-F1-CTRL-W11-%s" % _c
+    CONTROL_ORACLE_CONTEXT_RUNS[("M04", _c)] = \
+        "runs/TEST-F1-CTRL-W12-%s" % _c
+    CONTROL_ORACLE_CONTEXT_RUNS[("M05", _c)] = \
+        "runs/TEST-F1-CTRL-W13-%s" % _c
+    CONTROL_ORACLE_CONTEXT_RUNS[("M06", _c)] = \
+        "runs/TEST-F1-CTRL-W10-%s" % _c
+    CONTROL_ORACLE_CONTEXT_RUNS[("M07", _c)] = \
+        "runs/TEST-F1-CTRL2-W14-%s" % _c
+    CONTROL_ORACLE_CONTEXT_RUNS[("M08", _c)] = \
+        "runs/TEST-F1-CTRL-W10-%s" % _c
+CONTROL_ORACLE_CONTEXT_RUNS[("M06", "R02")] = "runs/TEST-F1-CTRL-W10S-COLD"
+CONTROL_ORACLE_CONTEXT_RUNS[("M08", "R05")] = "runs/TEST-F1-CTRL-W10S-WARM"
 
 EVIDENCE_INDEX_DEFAULT = "phase3/formal/evidence_index.json"
 

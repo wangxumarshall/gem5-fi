@@ -1,0 +1,87 @@
+{
+  "ActivationStatus": "NO_ELIGIBLE_EVENT",
+  "Details": {
+    "activation_kind": "",
+    "associated_event_ids": [],
+    "consumption_basis": "no_fault",
+    "consumption_kind": "",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 4200,
+      "last_event_id": 4478,
+      "last_event_kind": "mmu_fault_unactivated",
+      "last_tick": "279562335156",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [],
+    "observed_kinds": [],
+    "oracle": {
+      "basis": "no injected fault activated; oracle comparison not applicable",
+      "context": "R02",
+      "golden": 99,
+      "line": "W10_RESULT ctx=R02 pages=4096 alias=0x4002000000 target=0x4001100000 target_pfn=0x834b6 neighbor_pfn=0x834b7 pa=0x834b6000 pa_neigh=0x834b7000 new_pfn_xor1=0x834b7 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x63 branch=0 vec0=0x00 result=PASS",
+      "observed": 99,
+      "workload_result": "PASS",
+      "wrong": 96
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 49,
+    "terminal_expected_by_model": false,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": {
+      "fault_chain_completeness": null,
+      "lineage": null,
+      "run_trace_completeness": "PARTIAL"
+    },
+    "wrong_value_basis": [],
+    "wrong_value_proven": false
+  },
+  "FaultConsumptionStatus": "NOT_OBSERVED",
+  "MissingCausalEdges": [],
+  "OracleEvidence": {
+    "basis": "no injected fault activated; oracle comparison not applicable",
+    "context": "R02",
+    "golden": 99,
+    "line": "W10_RESULT ctx=R02 pages=4096 alias=0x4002000000 target=0x4001100000 target_pfn=0x834b6 neighbor_pfn=0x834b7 pa=0x834b6000 pa_neigh=0x834b7000 new_pfn_xor1=0x834b7 pte_present=1 pfn_match=1 page_size=KernelPageSize:        4 kB,MMUPageSize:           4 kB sentinel=0x63 neighbor_sentinel=0x60 observed=0x63 branch=0 vec0=0x00 result=PASS",
+    "observed": 99,
+    "workload_result": "PASS",
+    "wrong": 96
+  },
+  "OracleResult": "NOT_OBSERVED",
+  "PropagationStatus": "NOT_OBSERVED",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "NO_ELIGIBLE_EVENT",
+  "TraceCompleteness": "NOT_OBSERVED",
+  "activation_event_id": 0,
+  "consumption_event_id": 0,
+  "context": "R02",
+  "fault_id": "0",
+  "model": "M02",
+  "run_id": "TEST-M02-R02B",
+  "sample_run_id": "",
+  "target_mode": "",
+  "target_va": 274895732736,
+  "workload": "W10"
+}

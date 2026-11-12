@@ -1,0 +1,107 @@
+{
+  "ActivationStatus": "ACTIVATED",
+  "Details": {
+    "activation_kind": "mmu_fault_activate",
+    "associated_event_ids": [],
+    "consumption_basis": "no_consumer",
+    "consumption_kind": "",
+    "contradictions": [],
+    "control_oracle": {
+      "basis": "no independent control supplied",
+      "present": false
+    },
+    "control_oracle_contradiction": "",
+    "deadline_evidence": {
+      "deadline_sec": 3000,
+      "last_event_id": 238,
+      "last_event_kind": "mmu_fault_summary",
+      "last_tick": "259715872152",
+      "timed_out": false
+    },
+    "expected_terminals": [
+      "ACTIVATED_MASKED",
+      "CRASH",
+      "DETECTED_CONTAINED",
+      "HANG/TIMEOUT",
+      "SDC",
+      "SQUASHED"
+    ],
+    "m06_separation": null,
+    "missing_kinds": [
+      "commit",
+      "lsu_request",
+      "memory_response",
+      "partial_entry_insert",
+      "translation_result"
+    ],
+    "observed_kinds": [
+      "chain_end",
+      "mmu_fault_activate",
+      "mmu_fault_summary"
+    ],
+    "oracle": {
+      "basis": "target sentinel vs decoy sentinel",
+      "context": "R05",
+      "golden": 125,
+      "line": "W13_RESULT ctx=R05 target_va=0x4010000000 target_pfn=0x83546 decoy_va=0x4010200000 decoy_pfn=0x83545 alias_va=0x4010001000 observed=0x51 sentinel=0x7d decoy_sentinel=0x51 branch=0 pagemap=ok pfn_ok=1/1 signal=0 fault_phase=none partial_hit=TRACE_CONFIRMED result=FAIL",
+      "observed": 81,
+      "workload_result": "FAIL",
+      "wrong": 81
+    },
+    "record_integrity": {
+      "duplicate_event_ids": [],
+      "errors": [],
+      "status": "PASS"
+    },
+    "required_kinds": [
+      "partial_entry_insert",
+      "translation_result",
+      "lsu_request",
+      "memory_response",
+      "commit"
+    ],
+    "scope_ambiguous_multi_fault": false,
+    "scope_basis": "va/tid/seq",
+    "scope_event_count": 13,
+    "terminal_expected_by_model": false,
+    "terminal_text_crash_evidence": false,
+    "timed_out": false,
+    "v3_v4_result": null,
+    "wrong_value_basis": [
+      "corrupted partial base 0x81c1f000 had no later partial hit; a level-2 partial entry was invalidated at event 204 (guest containment)"
+    ],
+    "wrong_value_proven": false
+  },
+  "FaultConsumptionStatus": "NOT_CONSUMED",
+  "MissingCausalEdges": [
+    "missing_kind:commit",
+    "missing_kind:lsu_request",
+    "missing_kind:memory_response",
+    "missing_kind:partial_entry_insert",
+    "missing_kind:translation_result"
+  ],
+  "OracleEvidence": {
+    "basis": "target sentinel vs decoy sentinel",
+    "context": "R05",
+    "golden": 125,
+    "line": "W13_RESULT ctx=R05 target_va=0x4010000000 target_pfn=0x83546 decoy_va=0x4010200000 decoy_pfn=0x83545 alias_va=0x4010001000 observed=0x51 sentinel=0x7d decoy_sentinel=0x51 branch=0 pagemap=ok pfn_ok=1/1 signal=0 fault_phase=none partial_hit=TRACE_CONFIRMED result=FAIL",
+    "observed": 81,
+    "workload_result": "FAIL",
+    "wrong": 81
+  },
+  "OracleResult": "NOT_OBSERVED",
+  "PropagationStatus": "PARTIAL",
+  "RecordIntegrity": "PASS",
+  "TerminalState": "TRACE_INCOMPLETE",
+  "TraceCompleteness": "PARTIAL",
+  "activation_event_id": 193,
+  "consumption_event_id": 0,
+  "context": "R05",
+  "fault_id": "1",
+  "model": "M05",
+  "run_id": "TEST-M05-R05B",
+  "sample_run_id": "",
+  "target_mode": "Execute",
+  "target_va": 275146342400,
+  "workload": "W13"
+}
