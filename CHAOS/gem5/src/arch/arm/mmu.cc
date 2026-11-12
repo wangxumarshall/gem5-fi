@@ -2006,10 +2006,24 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
     uint64_t mmu_uid = 0;
 
     TLB *const chaos_lookup_tlb = getTlb(mode, state.isStage2);
+    // [MMU-TRACE v4] An Execute-mode fetch Request carries no dynamic-
+    // instruction sequence. Mint ONE synthetic, reserved-namespace identity
+    // for this translation so the miss-triggered trace transaction (and thus
+    // the whole walk -> fill -> insert -> result chain) is joined. The id is
+    // reused by the post-walk re-lookup below. It is pure observation:
+    // mmuNewSyntheticSeq returns 0 when the trace is off or vaddr is outside
+    // --prop_mmu_va_lo/hi, and it is published only through the dedicated
+    // TLB trace field (chaosLookupSyntheticSeq), never through
+    // chaosLookupReqSeq, so no fault-model gate or translation result can
+    // observe it.
+    uint64_t chaos_synthetic_seq = 0;
+    if (!req->hasInstSeqNum() && mode == Execute && mmu_prop)
+        chaos_synthetic_seq = mmu_prop->mmuNewSyntheticSeq(vaddr);
     if (chaos_lookup_tlb) {
         chaos_lookup_tlb->chaosLookupReqSeq =
             req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
         chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+        chaos_lookup_tlb->chaosLookupSyntheticSeq = chaos_synthetic_seq;
         chaos_lookup_tlb->chaosMmuTranslationId = mmu_tid;
         chaos_lookup_tlb->chaosMmuUniqueReqId = mmu_uid;
     }
@@ -2022,6 +2036,7 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
         mmu_uid = chaos_lookup_tlb->chaosMmuUniqueReqId;
         chaos_lookup_tlb->chaosLookupReqSeq = 0;
         chaos_lookup_tlb->chaosLookupReqSize = 0;
+        chaos_lookup_tlb->chaosLookupSyntheticSeq = 0;
         chaos_lookup_tlb->chaosMmuTranslationId = 0;
         chaos_lookup_tlb->chaosMmuUniqueReqId = 0;
     }
@@ -2063,6 +2078,9 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
             chaos_lookup_tlb->chaosLookupReqSeq =
                 req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
             chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+            // Reuse the SAME synthetic identity; the miss transaction (and
+            // its completion) belongs to one fetch translation.
+            chaos_lookup_tlb->chaosLookupSyntheticSeq = chaos_synthetic_seq;
             chaos_lookup_tlb->chaosMmuTranslationId = mmu_tid;
             chaos_lookup_tlb->chaosMmuUniqueReqId = mmu_uid;
         }
@@ -2071,6 +2089,7 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
         if (chaos_lookup_tlb) {
             chaos_lookup_tlb->chaosLookupReqSeq = 0;
             chaos_lookup_tlb->chaosLookupReqSize = 0;
+            chaos_lookup_tlb->chaosLookupSyntheticSeq = 0;
             chaos_lookup_tlb->chaosMmuTranslationId = 0;
             chaos_lookup_tlb->chaosMmuUniqueReqId = 0;
         }

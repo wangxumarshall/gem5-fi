@@ -1256,6 +1256,17 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // execution doesn't generate extra squashes.
         thread[tid]->noSquashFromTC = true;
 
+        // [MMU-PHASE3 / M06] Architectural exception delivery: the faulting
+        // instruction reached the head of the ROB and the trap is about to
+        // be taken. This is the point where a propagated translation fault
+        // becomes architectural (it will not commit). ReExec is a replay
+        // signal, not a real fault, so it is not reported as delivery.
+        if (cpu->chaosPropagation && !head_inst->notAnInst() &&
+                dynamic_cast<ReExec*>(inst_fault.get()) == nullptr) {
+            cpu->chaosPropagation->mmuNoteExceptionDelivery(
+                head_inst->seqNum, nullptr, inst_fault->name());
+        }
+
         // Execute the trap.  Although it's slightly unrealistic in
         // terms of timing (as it doesn't wait for the full timing of
         // the trap event to complete before updating state), it's
@@ -1340,6 +1351,9 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // rob->retireHead) so all three observation layers see the same
         // commit stream. nullptr = no tracer (zero regression).
         chaosPropagation->noteCommit(tid, head_inst.get());
+        // [MMU-TRACE v1] Commit / consumer events for traced MMU requests.
+        // ParentEventID is the producing writeback event, not tick order.
+        chaosPropagation->mmuNoteCommit(head_inst.get());
     }
 
     /* gem5-fi [FSU] */ if (cpu->chaosFPU) {

@@ -714,6 +714,18 @@ BaseCache::chaosMshrOccArbitrate(PacketPtr pkt, MSHR *mshr)
     }
 }
 
+// [MMU-TRACE v3] MSHR allocation for an MMU transaction's demand miss.
+// Only the real allocateMissBuffer tail calls this; unrelated traffic is
+// filtered inside mmuNoteCacheEvent by the Request's dyn_inst_seq.
+void
+BaseCache::chaosMmuMshrAlloc(PacketPtr pkt, MSHR *mshr)
+{
+    if (CHAOSPropagation *const mp = CHAOSPropagation::instance()) {
+        mp->mmuNoteCacheEvent("mshr_alloc", name(), pkt, false,
+                              mshr ? mshr->order : 0);
+    }
+}
+
 // [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW hook (declared in base.hh).
 // Called from satisfyRequest's SwapReq branch right after the atomic op
 // functor ran, so `blk_data` holds the NEW memory value and the packet's
@@ -732,6 +744,12 @@ void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
+
+    // [MMU-TRACE v3] Cache response for an MMU transaction's demand access.
+    // Correlated by the Request's dyn_inst_seq + composite cache_req_id,
+    // never by address/tick proximity.
+    if (CHAOSPropagation *const mp = CHAOSPropagation::instance())
+        mp->mmuNoteCacheEvent("cache_response", name(), pkt, true);
 
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above

@@ -40,6 +40,7 @@
 
 #include <cassert>
 #include <memory>
+#include <sstream>   // [MMU-PHASE3 / M05,M06] hex kv formatting
 
 #include "arch/arm/faults.hh"
 #include "arch/arm/mmu.hh"
@@ -49,6 +50,7 @@
 #include "arch/arm/tlb.hh"
 #include "base/compiler.hh"
 #include "cpu/base.hh"
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [MMU-TRACE v1]
 #include "cpu/thread_context.hh"
 #include "debug/Checkpoint.hh"
 #include "debug/Drain.hh"
@@ -63,6 +65,73 @@ namespace gem5
 {
 
 using namespace ArmISA;
+
+// [MMU-PHASE3 / M05, M06] BaseMMU::Mode -> the mode string expected by the
+// shared target selector (CHAOSPropagation::mmuTargetKeyMatch's `mode`
+// argument). The equivalent helpers in mmu.cc / tlb.cc (`mmuModeName`) have
+// internal linkage and are not visible from this translation unit.
+static const char *
+chaosPtwModeName(BaseMMU::Mode mode)
+{
+    switch (mode) {
+      case BaseMMU::Read:    return "Read";
+      case BaseMMU::Write:   return "Write";
+      case BaseMMU::Execute: return "Execute";
+      default:               return "Unknown";
+    }
+}
+
+// [MMU-PHASE3 / M06] Generic ArmFault::FaultSource -> the class name used by
+// the exception-evidence trace. The concrete FSC adds the lookup level
+// (fault_source + lookupLevel), which is emitted separately as
+// `fault_source_level`; the class name here stays level-independent.
+static const char *
+chaosArmFaultSourceName(ArmFault::FaultSource src)
+{
+    switch (src) {
+      case ArmFault::AlignmentFault:              return "AlignmentFault";
+      case ArmFault::InstructionCacheMaintenance:
+          return "InstructionCacheMaintenance";
+      case ArmFault::SynchExtAbtOnTranslTableWalkLL:
+          return "SynchExtAbtOnTranslTableWalkLL";
+      case ArmFault::SynchPtyErrOnTranslTableWalkLL:
+          return "SynchPtyErrOnTranslTableWalkLL";
+      case ArmFault::TranslationLL:               return "TranslationLL";
+      case ArmFault::AccessFlagLL:                return "AccessFlagLL";
+      case ArmFault::DomainLL:                    return "DomainLL";
+      case ArmFault::PermissionLL:                return "PermissionLL";
+      case ArmFault::DebugEvent:                  return "DebugEvent";
+      case ArmFault::SynchronousExternalAbort:
+          return "SynchronousExternalAbort";
+      case ArmFault::TLBConflictAbort:            return "TLBConflictAbort";
+      case ArmFault::SynchPtyErrOnMemoryAccess:
+          return "SynchPtyErrOnMemoryAccess";
+      case ArmFault::AsynchronousExternalAbort:
+          return "AsynchronousExternalAbort";
+      case ArmFault::AsynchPtyErrOnMemoryAccess:
+          return "AsynchPtyErrOnMemoryAccess";
+      case ArmFault::AddressSizeLL:               return "AddressSizeLL";
+      case ArmFault::PrefetchTLBMiss:             return "PrefetchTLBMiss";
+      case ArmFault::PrefetchUncacheable:         return "PrefetchUncacheable";
+      default:                                    return "Unknown";
+    }
+}
+
+// [MMU-PHASE3 / M06] Fault delivery target for the exception-evidence trace.
+// A stage-1 abort taken from EL0 is routed to the OS at EL1 (or to a higher
+// exception level when EL2/EL3 own the vector); we report the architectural
+// destination level honestly instead of assuming userspace observes it.
+static const char *
+chaosDeliveryTarget(ExceptionLevel el)
+{
+    switch (el) {
+      case EL0: return "OS/EL1";
+      case EL1: return "EL1";
+      case EL2: return "EL2";
+      case EL3: return "EL3";
+      default:  return "unknown";
+    }
+}
 
 TableWalker::TableWalker(const Params &p)
     : ClockedObject(p),
@@ -188,6 +257,10 @@ TableWalker::walk(const RequestPtr &req, ThreadContext *tc, uint16_t asid,
     // when no injector is attached (chaosTLB == nullptr).
     curr_state->chaosWalkId = ++chaosNextWalkId;
     curr_state->chaosWalkStartTick = curTick();
+    // [MMU-TRACE v1] Copy the in-flight translation identity synchronously;
+    // a timing walk keeps it after MMU::getTE clears the setter.
+    curr_state->chaosMmuTranslationId = chaosMmuTranslationId;
+    curr_state->chaosMmuUniqueReqId = chaosMmuUniqueReqId;
     curr_state->tc = tc;
     curr_state->isStage2 = stage2;
     curr_state->el =
@@ -229,6 +302,25 @@ TableWalker::walk(const RequestPtr &req, ThreadContext *tc, uint16_t asid,
             curr_state->mode == BaseMMU::Execute);
     } else {
         curr_state->vaddr = curr_state->vaddr_tainted;
+    }
+
+    // [MMU-TRACE v1] Raise the walk event. obs only: the walk itself is
+    // unchanged. ParentEventID is the last event of the same translation
+    // (normally the DTLB/L2 miss), set explicitly by the tracer.
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        if (prop->mmuTraceEnabled() && curr_state->chaosMmuTranslationId) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            curr_state->chaosLastEvent = prop->mmuNoteWalkStart(
+                curr_state->chaosWalkId, curr_state->chaosMmuTranslationId,
+                curr_state->chaosMmuUniqueReqId, seq, curr_state->vaddr,
+                curr_state->asid, (uint16_t)curr_state->vmid,
+                1 /* L1 initial walk level */,
+                curr_state->mode == BaseMMU::Execute ? "Execute" :
+                curr_state->mode == BaseMMU::Write ? "Write" : "Read",
+                stage2, (unsigned)curr_state->regime,
+                (unsigned)curr_state->ss);
+        }
     }
 
     if (curr_state->aarch64) {
@@ -548,6 +640,7 @@ TableWalker::Port::createPacket(
     auto state = new TableWalkerState;
     state->event = event;
     state->delay = delay;
+    state->chaosPtwRequestId = chaosPtwRequestId;
 
     pkt->senderState = state;
     return pkt;
@@ -608,6 +701,13 @@ TableWalker::Port::handleRespPacket(PacketPtr pkt, Tick delay)
     // Get the DMA sender state.
     auto *state = dynamic_cast<TableWalkerState*>(pkt->senderState);
     assert(state);
+
+    // [MMU-TRACE v3] Response is correlated by the exact PTW request ID
+    // carried in the packet's sender state, not by address/tick proximity.
+    if (state->chaosPtwRequestId) {
+        if (CHAOSPropagation *const prop = CHAOSPropagation::instance())
+            prop->mmuNotePtwResponse(state->chaosPtwRequestId);
+    }
 
     handleResp(state, pkt->getAddr(), pkt->req->getSize(), delay);
 
@@ -1958,6 +2058,24 @@ Fault
 WalkUnit::generateLongDescFault(WalkerState *curr_state,
                                 ArmFault::FaultSource src)
 {
+    // [MMU-PHASE3 / M06] A REAL Arm fault object is being produced for the
+    // injected descriptor. This is the result-propagation witness: it is
+    // independent of the later commit trap (exception_delivery) and of the
+    // consumed-state witness (fault_state_consumed).
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        if (curr_state->chaosMmuFaultPtag && curr_state->req) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            prop->mmuNoteFaultResultPropagated("M06",
+                curr_state->chaosMmuFaultPtag, curr_state->chaosWalkId,
+                curr_state->chaosMmuTranslationId, seq, curr_state->vaddr,
+                chaosArmFaultSourceName(src), chaosArmFaultSourceName(src),
+                (unsigned)curr_state->longDesc.lookupLevel,
+                curr_state->isFetch, curr_state->isWrite,
+                curr_state->vaddr_tainted, chaosDeliveryTarget(curr_state->el));
+        }
+    }
+
     if (curr_state->isFetch) {
         return std::make_shared<PrefetchAbort>(
             curr_state->vaddr_tainted, src + curr_state->longDesc.lookupLevel,
@@ -1988,6 +2106,8 @@ WalkUnit::doLongDescriptor(WalkerState *curr_state)
     curr_state->longDesc.data =
         htog(curr_state->longDesc.data, byteOrder(curr_state->tc));
 
+    const uint64_t mmu_pte_before = curr_state->longDesc.data;
+
     // §2.10 CHAOSPTW: bit-flip the fetched PTE pre-eval (the longDesc.data
     // is the just-fetched page-table descriptor). HONEST: FS-only — SE走
     // translateMmuOff (doLongDescriptor never called in SE, doc §0.3).
@@ -1996,6 +2116,128 @@ WalkUnit::doLongDescriptor(WalkerState *curr_state)
         chaosPTW->maybeCorrupt(curr_state->longDesc.data,
                                curr_state->longDesc.lookupLevel,
                                curr_state->vaddr_tainted);
+    }
+
+    // ================= [MMU-PHASE3 / M06] =================================
+    // Local L3 leaf-descriptor Valid/type-bit clear (0b11 -> 0b10).
+    //
+    // HONEST memory property: `longDesc.data` is a HOST-ORDER COPY of the
+    // fetched PTE. fetchDescriptor() passes descriptor.getRawPtr() (i.e.
+    // &longDesc.data) as the destination buffer of readData*(); the guest
+    // page-table word is never written back by this walker (there is no PTE
+    // write-back path in table_walker.cc — `dirty()` is never called by any
+    // builder in the tree, and the decode below returns via the Invalid
+    // branch before any access-flag update could run).
+    //
+    // Clearing bit0 makes LongDescriptor::type() read bits[1:0]==0b10, which
+    // is Invalid for the long-descriptor format, so the normal decode path
+    // below (case LongDescriptor::Invalid) produces a Translation Fault at
+    // L3. The model therefore terminals as a detected exception, not SDC.
+    //
+    // Mutate only AFTER mmuFaultActivate() returned a ptag, so the one-shot
+    // latch and the activation witness always agree (no activation -> no
+    // mutation). Strict no-op for every other model.
+    if (CHAOSPropagation *const m06 = CHAOSPropagation::instance()) {
+        if (m06->mmuFaultModelIs("M06") && !curr_state->isStage2 &&
+                curr_state->longDesc.lookupLevel == LookupLevel::L3 &&
+                bits(curr_state->longDesc.data, 1, 0) == 0x3) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            const unsigned n = curr_state->longDesc.offsetBits();
+            if (m06->mmuTargetSeqMatch(seq) &&
+                    m06->mmuTargetKeyMatch(curr_state->vaddr,
+                        curr_state->asid, (uint16_t)curr_state->vmid, n,
+                        (unsigned)curr_state->regime, (unsigned)curr_state->ss,
+                        nullptr, (int)LookupLevel::L3,
+                        chaosPtwModeName(curr_state->mode)) &&
+                    m06->mmuEligibleEvent(6)) {
+                const uint64_t before = curr_state->longDesc.data;
+                const uint64_t after = before & ~((uint64_t)1);
+                const auto hexs = [](uint64_t v) {
+                    std::ostringstream os;
+                    os << "0x" << std::hex << v;
+                    return os.str();
+                };
+                const uint64_t ptag = m06->mmuFaultActivate("M06",
+                    "ptw_doLongDescriptor_valid_clear",
+                    curr_state->chaosMmuTranslationId, seq,
+                    curr_state->vaddr,
+                    {
+                     {"descriptor_before", hexs(before)},
+                     {"descriptor_after", hexs(after)},
+                     {"pte_address", hexs(curr_state->chaosLastPteAddr)},
+                     {"walk_level", "L3"},
+                     {"page_size_n", std::to_string(n)},
+                     {"stage", "1"},
+                     {"mode", chaosPtwModeName(curr_state->mode)},
+                    });
+                if (ptag) {
+                    curr_state->longDesc.data = after;
+                    // Remember that THIS walk carries the injected
+                    // descriptor: the L3 decode below and the fault emitted
+                    // by generateLongDescFault are the real consume /
+                    // propagate witnesses for this fault id.
+                    curr_state->chaosMmuFaultPtag = ptag;
+                    DPRINTF(PageTableWalker,
+                            "M06 local L3 valid-bit clear at %#llx: "
+                            "%#llx -> %#llx (fault_id=%llu)\n",
+                            curr_state->chaosLastPteAddr,
+                            (unsigned long long)before,
+                            (unsigned long long)after,
+                            (unsigned long long)ptag);
+                }
+            }
+        }
+    }
+
+    // [MMU-TRACE v1] PTE decode, with before/after around the local hook.
+    // PTE memory is never written; before != after only when a local
+    // descriptor fault actually applied.
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        if (prop->mmuTraceEnabled() && curr_state->chaosMmuTranslationId) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            const char *dt = "Unknown";
+            switch (curr_state->longDesc.type()) {
+              case LongDescriptor::Invalid: dt = "Invalid"; break;
+              case LongDescriptor::Block:   dt = "Block";   break;
+              case LongDescriptor::Page:    dt = "Page";    break;
+              case LongDescriptor::Table:   dt = "Table";   break;
+            }
+            curr_state->chaosLastEvent = prop->mmuNotePteDecode(
+                curr_state->chaosWalkId, curr_state->chaosMmuTranslationId,
+                curr_state->chaosMmuUniqueReqId, seq, curr_state->vaddr,
+                curr_state->chaosLastPteAddr, mmu_pte_before,
+                curr_state->longDesc.data,
+                (unsigned)curr_state->longDesc.lookupLevel, dt,
+                curr_state->chaosPtwRequestId);
+            // [MMU-PHASE3 / M06] The injected local descriptor reached the
+            // decoder: this is the fault STATE being consumed. It is NOT a
+            // result/propagation witness (a squash-only event can never be
+            // reported as consumed). pte_memory_written=0 is a hard property
+            // of this implementation (no PTE write-back path): only the
+            // host-order `longDesc.data` copy changed.
+            if (curr_state->chaosMmuFaultPtag != 0 &&
+                    curr_state->longDesc.lookupLevel == LookupLevel::L3) {
+                const char *consumed_type = "Unknown";
+                switch (curr_state->longDesc.type()) {
+                  case LongDescriptor::Invalid:
+                      consumed_type = "Invalid"; break;
+                  case LongDescriptor::Block:
+                      consumed_type = "Block"; break;
+                  case LongDescriptor::Page:
+                      consumed_type = "Page"; break;
+                  case LongDescriptor::Table:
+                      consumed_type = "Table"; break;
+                }
+                prop->mmuNoteFaultStateConsumed("M06",
+                    curr_state->chaosMmuFaultPtag, curr_state->chaosWalkId,
+                    curr_state->chaosMmuTranslationId, seq,
+                    curr_state->vaddr, consumed_type, mmu_pte_before,
+                    curr_state->longDesc.data, curr_state->chaosLastPteAddr,
+                    false, curr_state->chaosLastEvent);
+            }
+        }
     }
 
     DPRINTF(PageTableWalker, "L%d descriptor for %#llx is %#llx (%s)\n",
@@ -2404,6 +2646,38 @@ WalkUnit::fetchDescriptor(
             "Fetching descriptor at address: 0x%x stage2Req: %d\n", desc_addr,
             curr_state->stage2Req);
 
+    // [MMU-TRACE v1] Record the descriptor physical address at the actual
+    // request issue point. The decoded value is recorded later in
+    // doLongDescriptor (PTEValueBefore/After).
+    curr_state->chaosLastPteAddr = desc_addr;
+    // [MMU-TRACE v3] One PTW request ID per real descriptor fetch. It is
+    // minted before the request is issued and travels with the packet's
+    // sender state to the response, so pte_read -> ptw_request ->
+    // ptw_response -> pte_decode share a real ID (walk_id alone is not
+    // unique across levels).
+    curr_state->chaosPtwRequestId = 0;
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        if (prop->mmuTraceEnabled() && curr_state->chaosMmuTranslationId) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            curr_state->chaosPtwRequestId = prop->mmuNewPtwRequestId();
+            curr_state->chaosPteReadEvent = prop->mmuNotePteRead(
+                curr_state->chaosWalkId, curr_state->chaosMmuTranslationId,
+                curr_state->chaosMmuUniqueReqId, seq, curr_state->vaddr,
+                desc_addr, (unsigned)lookup_level,
+                curr_state->chaosPtwRequestId);
+            prop->mmuNotePtwRequest(
+                curr_state->chaosPtwRequestId, curr_state->chaosWalkId,
+                curr_state->chaosMmuTranslationId,
+                curr_state->chaosMmuUniqueReqId, seq, curr_state->vaddr,
+                desc_addr, (unsigned)lookup_level,
+                curr_state->chaosPteReadEvent);
+            curr_state->chaosLastEvent = curr_state->chaosPteReadEvent;
+        }
+    }
+    // A later readData* call is synchronous from here to createPacket.
+    port->setChaosPtwRequestId(curr_state->chaosPtwRequestId);
+
     // If this translation has a stage 2 then we know desc_addr is an IPA and
     // needs to be translated before we can access the page table. Do that
     // check here.
@@ -2413,9 +2687,11 @@ WalkUnit::fetchDescriptor(
         if (curr_state->timing) {
             auto *tran =
                 new Stage2Walk(*this, data, event, curr_state->vaddr,
-                               curr_state->mode, curr_state->tranType, port);
+                               curr_state->mode, curr_state->tranType, port,
+                               curr_state->chaosPtwRequestId);
             curr_state->stage2Tran = tran;
-            readDataTimed(curr_state->tc, desc_addr, tran, num_bytes, flags);
+            readDataTimed(curr_state->tc, desc_addr, tran, num_bytes, flags,
+                          curr_state->chaosPtwRequestId);
             fault = tran->fault;
 
             if (fault != NoFault) {
@@ -2451,14 +2727,17 @@ WalkUnit::fetchDescriptor(
         if (curr_state->timing) {
             port->sendTimingReq(
                 req, data, curr_state->tc->getCpuPtr()->clockPeriod(), event);
+            port->setChaosPtwRequestId(0);
 
         } else if (!curr_state->functional) {
             port->sendAtomicReq(req, data,
                                 curr_state->tc->getCpuPtr()->clockPeriod());
+            port->setChaosPtwRequestId(0);
 
             (this->*doDescriptor)(curr_state);
         } else {
             port->sendFunctionalReq(req, data);
+            port->setChaosPtwRequestId(0);
             (this->*doDescriptor)(curr_state);
         }
     }
@@ -2488,12 +2767,137 @@ WalkUnit::busyOnSamePage(Addr iaddr) const
     return false;
 }
 
+// ================= [MMU-PHASE3 / M05 helpers] ============================
+// M05 substitutes the L2 partial walk-cache entry's next-table base (stored
+// in partial TlbEntry::pfn). Only the stage-1 l2_shared TLB caches L2
+// partial entries (ArmMMU.py: `l2_shared = ArmTLB(... partial_levels=["L2"])`;
+// dtb/itb have no partial levels). WalkUnit::tlb is always NULL (constructor
+// line `tlb(NULL)`), so resolve l2_shared through the PUBLIC
+// BaseMMU::dtb/itb pointers + public BaseTLB::nextLevel() and
+// ArmISA::TLB::entryTable(). Read-only; used for decoy selection and for
+// reading back the real inserted entry identity.
+static TLB *
+chaosM05L2Shared(BaseMMU *mmu, BaseMMU::Mode mode)
+{
+    if (!mmu)
+        return nullptr;
+    BaseTLB *const l1 = (mode == BaseMMU::Execute) ? mmu->itb : mmu->dtb;
+    if (!l1)
+        return nullptr;
+    return static_cast<TLB *>(l1->nextLevel());
+}
+
+// Pick a LIVE compatible L2 partial entry's next-table base as the decoy.
+// Compatibility follows the design row: same level (L2), same entry page
+// size (N) and granule, same regime / security state / VMID, and a
+// compatible ASID (both global, or the same address space). The candidate
+// pfn is a real table base of another live partial entry, so the decoy walk
+// reads a legal (mapped) L3 table instead of an unbacked PA.
+static Addr
+chaosM05PickLiveDecoy(const TLB &l2, const TlbEntry &te, Addr lo, Addr hi)
+{
+    for (const TlbEntry &cand : l2.entryTable()) {
+        if (!cand.valid || !cand.partial)
+            continue;
+        if (cand.lookupLevel != enums::ArmLookupLevel::L2)
+            continue;
+        if (cand.N != te.N || cand.tg != te.tg)
+            continue;
+        if (cand.regime != te.regime || cand.ss != te.ss)
+            continue;
+        if (cand.vmid != te.vmid)
+            continue;
+        if (!((cand.global && te.global) || cand.asid == te.asid))
+            continue;
+        if (cand.pfn == 0 || cand.pfn == te.pfn)
+            continue;
+        if (cand.pfn < lo || cand.pfn >= hi)
+            continue;
+        return cand.pfn;
+    }
+    return 0;
+}
+
+// Resolve the decoy next-table base from a WORKLOAD-OWNED decoy VA: the live
+// L2 partial entry whose VA range covers `decoy_va` (TlbEntry::matchAddress).
+// This is the formal-run path: the selected base is the real L3 table of the
+// VA region the workload actually mapped, so the resumed walk decodes that
+// region's leaf instead of an arbitrary live table. Returns false when no
+// compatible live partial entry covers the VA (the caller must stay honestly
+// unactivated, never fall back to an arbitrary entry).
+static bool
+chaosM05FindDecoyByVa(const TLB &l2, const TlbEntry &te, Addr decoy_va,
+                      Addr lo, Addr hi, Addr &out_base, uint64_t &out_id,
+                      uint32_t &out_gen)
+{
+    TLBTypes::KeyType key;
+    key.va = decoy_va;
+    for (const TlbEntry &cand : l2.entryTable()) {
+        if (!cand.valid || !cand.partial)
+            continue;
+        if (cand.lookupLevel != enums::ArmLookupLevel::L2)
+            continue;
+        if (cand.N != te.N || cand.tg != te.tg)
+            continue;
+        if (cand.regime != te.regime || cand.ss != te.ss)
+            continue;
+        if (cand.vmid != te.vmid)
+            continue;
+        if (!((cand.global && te.global) || cand.asid == te.asid))
+            continue;
+        if (cand.pfn == 0 || cand.pfn == te.pfn)
+            continue;
+        if (cand.pfn < lo || cand.pfn >= hi)
+            continue;
+        if (!cand.matchAddress(key))
+            continue;
+        out_base = cand.pfn;
+        out_id = cand.chaosEntryId;
+        out_gen = cand.chaosEntryGeneration;
+        return true;
+    }
+    return false;
+}
+
+// Read back the REAL TLB entry identity (slot id + generation) that
+// TLB::insert() assigned to the just-inserted partial entry. TLB::insert
+// does not return it, so re-find the exact entry by its architectural key.
+static bool
+chaosM05FindEntryIdentity(const TLB &l2, const TlbEntry &te,
+                          uint64_t &entry_id, uint32_t &generation)
+{
+    for (const TlbEntry &cand : l2.entryTable()) {
+        if (!cand.valid || !cand.partial)
+            continue;
+        if (cand.vpn != te.vpn || cand.N != te.N ||
+                cand.lookupLevel != te.lookupLevel ||
+                cand.pfn != te.pfn || cand.regime != te.regime ||
+                cand.ss != te.ss || cand.vmid != te.vmid)
+            continue;
+        if (!cand.global && cand.asid != te.asid)
+            continue;
+        entry_id = cand.chaosEntryId;
+        generation = cand.chaosEntryGeneration;
+        return entry_id != 0;
+    }
+    return false;
+}
+
 void
 WalkUnit::insertPartialTableEntry(WalkerState *curr_state)
 {
     LongDescriptor &descriptor = curr_state->longDesc;
     const bool have_security = mmu->release()->has(ArmExtension::SECURITY);
     TlbEntry te;
+
+    // [MMU-PHASE3 / M05] Activation state carried to the post-insert entry
+    // lineage registration at the end of this function. Zero = model not
+    // selected / no decoy / not activated.
+    uint64_t m05_ptag = 0;
+    uint64_t m05_seq = 0;
+    uint64_t m05_source_event = 0;
+    Addr m05_old_base = 0;
+    Addr m05_decoy = 0;
 
     // Create and fill a new page table entry
     te.valid          = true;
@@ -2527,6 +2931,135 @@ WalkUnit::insertPartialTableEntry(WalkerState *curr_state)
 
     memAttrsWalkAArch64(curr_state, te);
 
+    // ================= [MMU-PHASE3 / M05] =================================
+    // L2 partial walk-cache next-table base substitution.
+    //
+    // The partial entry's pfn is the table base the PTW resumes from on a
+    // later walk-cache hit: MMU::getTE() passes the partial entry as
+    // `walk_entry`, and WalkUnit::walkAddresses() computes
+    //   table_addr  = entry->pfn;
+    //   first_level = entry->lookupLevel + 1;    // L2 + 1 = L3
+    // so the resumed walk fetches its L3 descriptor from
+    // decoy_base + index(vaddr, L3). Only this partial entry's base is
+    // substituted; the leaf/data entry and the final PFN are untouched.
+    //
+    // A leaf-only TLBI (lastLevel VALE1IS) does not match partial entries
+    // (tlbi_op.cc: `!lastLevel || !te->partial`), so the corrupted partial
+    // entry survives and the next access to the 2 MiB range resumes through
+    // it. Mutation happens only when mmuFaultActivate() returns a ptag.
+    if (CHAOSPropagation *const m05 = CHAOSPropagation::instance()) {
+        if (m05->mmuFaultModelIs("M05") && !curr_state->isStage2 &&
+                curr_state->longDesc.lookupLevel == LookupLevel::L2 &&
+                descriptor.type() == LongDescriptor::Table) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            if (m05->mmuTargetSeqMatch(seq) &&
+                    m05->mmuTargetKeyMatch(curr_state->vaddr,
+                        curr_state->asid, (uint16_t)curr_state->vmid, te.N,
+                        (unsigned)curr_state->regime, (unsigned)curr_state->ss,
+                        "l2_shared", (int)LookupLevel::L2,
+                        chaosPtwModeName(curr_state->mode))) {
+                const Addr lo = m05->mmuPaDomainLo();
+                const Addr hi = m05->mmuPaDomainHi();
+                const Addr grain_mask = (te.tg == ReservedGrain)
+                    ? 0xFFFULL : ((1ULL << te.tg) - 1);
+                const auto hexs = [](Addr v) {
+                    std::ostringstream os;
+                    os << "0x" << std::hex << v;
+                    return os.str();
+                };
+                const Addr decoy_va = m05->mmuM05DecoyVa();
+                const Addr configured = m05->mmuM05DecoyTableBase();
+                const char *src = "none";
+                const char *fail = nullptr;
+                Addr decoy = 0;
+                uint64_t decoy_id = 0;
+                uint32_t decoy_gen = 0;
+                TLB *l2 = chaosM05L2Shared(mmu, curr_state->mode);
+                if (decoy_va) {
+                    // FORMAL path: the workload-owned decoy VA selects the
+                    // live partial entry. No arbitrary live-scan fallback is
+                    // allowed when this knob is set.
+                    if (!l2 || !chaosM05FindDecoyByVa(*l2, te, decoy_va,
+                            lo, hi, decoy, decoy_id, decoy_gen)) {
+                        fail = "decoy_va_no_live_partial_entry";
+                    } else if (configured && decoy != configured) {
+                        fail = "decoy_base_mismatch";
+                    } else {
+                        src = "decoy_va";
+                    }
+                } else if (configured) {
+                    // Explicit operator override (documented unsafe if the
+                    // value is not a real table of the workload).
+                    decoy = configured;
+                    src = "configured";
+                } else if (l2) {
+                    // PILOT fallback only: first compatible live partial
+                    // entry. It is NOT workload-owned in general.
+                    decoy = chaosM05PickLiveDecoy(*l2, te, lo, hi);
+                    if (decoy)
+                        src = "live_partial_scan";
+                }
+                if (!fail && decoy == 0)
+                    fail = "no_decoy_table_base";
+                // The decoy must be a DIFFERENT, granule-aligned table base
+                // inside the guest PA domain; otherwise this is an honest
+                // no-op (no mutation, no activation, no eligible-event
+                // ordinal consumed).
+                const bool decoy_ok = !fail && decoy != 0 &&
+                    decoy != te.pfn && (decoy & grain_mask) == 0 &&
+                    decoy >= lo && decoy < hi;
+                if (!decoy_ok && !fail)
+                    fail = "illegal_decoy_base";
+                if (!decoy_ok) {
+                    m05->mmuNoteUnactivated("M05",
+                        fail ? fail : "no_legal_decoy",
+                        curr_state->vaddr,
+                        {
+                         {"decoy_va", hexs(decoy_va)},
+                         {"decoy_source", src},
+                         {"next_table_pa_before", hexs(te.pfn)},
+                         {"next_table_pa_after", hexs(decoy)},
+                         {"walk_level", "L2"},
+                         {"page_size_n", std::to_string(te.N)},
+                        });
+                }
+                if (decoy_ok && m05->mmuEligibleEvent(5)) {
+                    m05_seq = seq;
+                    m05_old_base = te.pfn;
+                    m05_decoy = decoy;
+                    m05_ptag = m05->mmuFaultActivate("M05",
+                        "ptw_insertPartialTableEntry",
+                        curr_state->chaosMmuTranslationId, seq,
+                        curr_state->vaddr,
+                        {
+                         {"next_table_pa_before", hexs(m05_old_base)},
+                         {"next_table_pa_after", hexs(m05_decoy)},
+                         {"decoy_source", src},
+                         {"decoy_va", hexs(decoy_va)},
+                         {"decoy_entry_id", std::to_string(decoy_id)},
+                         {"decoy_entry_generation",
+                             std::to_string(decoy_gen)},
+                         {"walk_level", "L2"},
+                         {"page_size_n", std::to_string(te.N)},
+                         {"partial_vpn", hexs(te.vpn << te.N)},
+                         {"stage", "1"},
+                         {"mode", chaosPtwModeName(curr_state->mode)},
+                        });
+                    if (m05_ptag) {
+                        te.pfn = m05_decoy;
+                        DPRINTF(TLB,
+                                "M05 L2 partial next-table base %#llx -> "
+                                "%#llx (%s, fault_id=%llu)\n",
+                                (unsigned long long)m05_old_base,
+                                (unsigned long long)m05_decoy, src,
+                                (unsigned long long)m05_ptag);
+                    }
+                }
+            }
+        }
+    }
+
     // Debug output
     DPRINTF(TLB, descriptor.dbgHeader().c_str());
     DPRINTF(TLB, " - N:%d pfn:%#x size:%#x global:%d valid:%d\n",
@@ -2539,8 +3072,56 @@ WalkUnit::insertPartialTableEntry(WalkerState *curr_state)
             descriptor.lookupLevel, static_cast<uint8_t>(descriptor.domain()),
             descriptor.getRawData());
 
-    // Insert the entry into the TLBs
+    // [MMU-TRACE v1] Partial walk-cache entry insertion (next-table base is
+    // stored in the partial entry's pfn).
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        if (prop->mmuTraceEnabled() && curr_state->chaosMmuTranslationId) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            const uint64_t fill_event = prop->mmuNoteTlbFill(
+                curr_state->chaosWalkId,
+                curr_state->chaosMmuTranslationId,
+                curr_state->chaosMmuUniqueReqId, seq, curr_state->vaddr,
+                te.pfn, te.N, true, (unsigned)te.lookupLevel);
+            if (m05_ptag)
+                m05_source_event = fill_event;
+        }
+    }
+
+    // Insert the entry into the TLBs. Publish the owning translation so
+    // TLB::insert attributes its events to this walk (never to "the latest
+    // transaction for this VA").
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance())
+        prop->mmuSetInsertContext(curr_state->chaosMmuTranslationId,
+                                  curr_state->chaosMmuUniqueReqId,
+                                  curr_state->chaosWalkId);
     mmu->insert(te, curr_state->mode, isStage2);
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance())
+        prop->mmuClearInsertContext();
+
+    // [MMU-PHASE3 / M05] Register the corrupted partial entry under its REAL
+    // l2_shared entry lifetime (slot id + generation) so a later consumer can
+    // be joined by entry identity. TLB::insert() does not return the victim,
+    // so the identity is read back by exact architectural key. `source_event`
+    // is the `partial_entry_insert` witness emitted above when the trace is
+    // on; 0 when the trace is off (the shared API exposes no
+    // activation-event getter — see PTW_M05_M06_IMPLEMENTATION.md).
+    // Registration is metadata; the decoy base itself is already in the
+    // inserted entry.
+    if (m05_ptag) {
+        if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+            if (TLB *const l2 = chaosM05L2Shared(mmu, curr_state->mode)) {
+                uint64_t entry_id = 0;
+                uint32_t generation = 0;
+                if (chaosM05FindEntryIdentity(*l2, te, entry_id,
+                                              generation)) {
+                    prop->mmuRegisterEntryFault("l2_shared", entry_id,
+                        generation, m05_ptag, m05_source_event, m05_seq,
+                        curr_state->vaddr, "M05");
+                }
+            }
+        }
+    }
 }
 
 void
@@ -2639,7 +3220,58 @@ WalkUnit::insertTableEntry(WalkerState *curr_state, DescriptorBase &descriptor,
             curr_state->chaosWalkStartTick, /*level=*/1, &te);
     }
 
-    // Insert the entry into the TLBs
+    // [MMU-TRACE v1] Complete refill payload (before mmu->insert). This is
+    // the row where M02's refill-PFN fault will be attached; the clean
+    // trace shows the descriptor-derived pfn and N.
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        if (prop->mmuTraceEnabled() && curr_state->chaosMmuTranslationId) {
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            curr_state->chaosLastEvent = prop->mmuNoteTlbFill(
+                curr_state->chaosWalkId, curr_state->chaosMmuTranslationId,
+                curr_state->chaosMmuUniqueReqId, seq, curr_state->vaddr,
+                te.pfn, te.N, false, (unsigned)te.lookupLevel);
+        }
+    }
+
+    // [MMU-TRACE v2 / M02] One-shot PTW refill-PFN corruption. The clean
+    // tlb_fill event above already recorded the descriptor-derived payload;
+    // this mutates ONLY the local refill TlbEntry (`te.pfn`), immediately
+    // before `mmu->insert`. The page-table memory, the descriptor value and
+    // every other entry are untouched. Strict no-op unless
+    // mmuFaultModel=M02 and every eligibility guard holds.
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance()) {
+        bool is_page = false;
+        if (long_descriptor) {
+            LongDescriptor &l_desc =
+                dynamic_cast<LongDescriptor &>(descriptor);
+            is_page = (l_desc.type() == LongDescriptor::Page);
+        }
+        const bool is_data = curr_state->mode != BaseMMU::Execute;
+        if (prop->mmuM02ShouldCorrupt(curr_state->vaddr, te.pfn, te.N,
+                                      isStage2, is_data, is_page,
+                                      long_descriptor)) {
+            const Addr old_pfn = te.pfn;
+            const uint64_t raw_desc = descriptor.getRawData();
+            const uint64_t seq = curr_state->req->hasInstSeqNum()
+                ? curr_state->req->getReqInstSeqNum() : 0;
+            te.pfn ^= prop->mmuM02XorMask();
+            prop->mmuM02NoteActivation(
+                curr_state->chaosWalkId, curr_state->chaosMmuTranslationId,
+                curr_state->chaosMmuUniqueReqId, seq, curr_state->vaddr,
+                old_pfn, te.pfn, te.N, raw_desc,
+                curr_state->chaosLastPteAddr, curr_state->chaosLastEvent,
+                curr_state->mode == BaseMMU::Read ? "Read" :
+                curr_state->mode == BaseMMU::Write ? "Write" : "Execute");
+        }
+    }
+
+    // Insert the entry into the TLBs. Publish the owning translation on the
+    // walker-owned insert path (see mmuSetInsertContext).
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance())
+        prop->mmuSetInsertContext(curr_state->chaosMmuTranslationId,
+                                  curr_state->chaosMmuUniqueReqId,
+                                  curr_state->chaosWalkId);
     mmu->insert(te, curr_state->mode, isStage2);
 
     // T08-b duplicated refill: the same walk's result is written a SECOND
@@ -2647,6 +3279,8 @@ WalkUnit::insertTableEntry(WalkerState *curr_state, DescriptorBase &descriptor,
     if (chaos_dup_refill) {
         mmu->insert(te, curr_state->mode, isStage2);
     }
+    if (CHAOSPropagation *const prop = CHAOSPropagation::instance())
+        prop->mmuClearInsertContext();
 }
 
 WalkUnit::LookupLevel
@@ -2709,7 +3343,8 @@ Fault
 WalkUnit::readDataUntimed(ThreadContext *tc, Addr vaddr, Addr desc_addr,
                           uint8_t *data, int num_bytes, Request::Flags flags,
                           BaseMMU::Mode mode,
-                          MMU::ArmTranslationType tran_type, bool functional)
+                          MMU::ArmTranslationType tran_type, bool functional,
+                          uint64_t ptw_request_id)
 {
     Fault fault;
 
@@ -2736,6 +3371,13 @@ WalkUnit::readDataUntimed(ThreadContext *tc, Addr vaddr, Addr desc_addr,
             port->sendAtomic(&pkt);
         }
         assert(!pkt.isError());
+        // Functional/atomic descriptors have no async response packet; the
+        // access completed synchronously under the same PTW request ID.
+        if (ptw_request_id) {
+            if (CHAOSPropagation *const prop =
+                    CHAOSPropagation::instance())
+                prop->mmuNotePtwResponse(ptw_request_id);
+        }
     }
 
     // If there was a fault annotate it with the flag saying the foult occured
@@ -2757,11 +3399,14 @@ WalkUnit::mpamTagTableWalk(WalkerState *curr_state, RequestPtr &req) const
 void
 WalkUnit::readDataTimed(ThreadContext *tc, Addr desc_addr,
                         Stage2Walk *translation, int num_bytes,
-                        Request::Flags flags)
+                        Request::Flags flags, uint64_t ptw_request_id)
 {
     // translate to physical address using the second stage MMU
     translation->setVirt(desc_addr, num_bytes, flags | Request::PT_WALK,
                          port->requestorId());
+    // Stage2Walk::finish re-sets this immediately before its send; setting
+    // it here covers a translation that completes synchronously.
+    port->setChaosPtwRequestId(ptw_request_id);
     translation->translateTiming(tc);
 }
 
@@ -2769,7 +3414,8 @@ WalkUnit::Stage2Walk::Stage2Walk(WalkUnit &_parent, uint8_t *_data,
                                  Event *_event, Addr vaddr,
                                  BaseMMU::Mode _mode,
                                  MMU::ArmTranslationType tran_type,
-                                 TableWalker::Port *_port)
+                                 TableWalker::Port *_port,
+                                 uint64_t ptw_request_id)
     : data(_data),
       numBytes(0),
       event(_event),
@@ -2778,6 +3424,7 @@ WalkUnit::Stage2Walk::Stage2Walk(WalkUnit &_parent, uint8_t *_data,
       mode(_mode),
       tranType(tran_type),
       port(_port),
+      chaosPtwRequestId(ptw_request_id),
       fault(NoFault)
 {
     req = std::make_shared<Request>();
@@ -2798,7 +3445,9 @@ WalkUnit::Stage2Walk::finish(const Fault &_fault, const RequestPtr &req,
     }
 
     if (_fault == NoFault && !req->getFlags().isSet(Request::NO_ACCESS)) {
+        port->setChaosPtwRequestId(chaosPtwRequestId);
         port->sendTimingReq(req, data, tc->getCpuPtr()->clockPeriod(), event);
+        port->setChaosPtwRequestId(0);
     } else {
         // We can't do the DMA access as there's been a problem, so tell the
         // event we're done

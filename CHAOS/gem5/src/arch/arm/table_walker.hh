@@ -861,6 +861,9 @@ class TableWalker : public ClockedObject
       public:
         Tick delay = 0;
         Event *event = nullptr;
+        // [MMU-TRACE v3] PTW request id carried from the fetch to the
+        // response, so request/response correlating uses a real ID.
+        uint64_t chaosPtwRequestId = 0;
     };
 
     class WalkerState
@@ -1011,6 +1014,21 @@ class TableWalker : public ClockedObject
         uint64_t chaosWalkId = 0;
         Tick chaosWalkStartTick = 0;
 
+        // [MMU-TRACE v1] Translation identity of the request this walk
+        // serves (copied at WalkerState construction) and the walk's own
+        // explicit event cursor. These are observation-only.
+        uint64_t chaosMmuTranslationId = 0;
+        uint64_t chaosMmuUniqueReqId = 0;
+        uint64_t chaosLastEvent = 0;
+        uint64_t chaosPteReadEvent = 0;
+        Addr chaosLastPteAddr = 0;
+        // [MMU-TRACE v3] per-level PTW request identity (one fetchDescriptor).
+        uint64_t chaosPtwRequestId = 0;
+        // [MMU-PHASE3 / M06] Non-zero when a descriptor fault was injected
+        // into THIS walk. generateLongDescFault uses it to emit the real
+        // fault-result propagation witness only for the injected walk.
+        uint64_t chaosMmuFaultPtag = 0;
+
         /** Timestamp for calculating elapsed time in service (for stats) */
         Tick startTime;
 
@@ -1032,6 +1050,9 @@ class TableWalker : public ClockedObject
       public:
         Port(TableWalker &_walker, RequestorID id);
 
+        // [MMU-TRACE v3] Set immediately before a synchronous send; consumed
+        // by createPacket and stored in TableWalkerState.
+        void setChaosPtwRequestId(uint64_t id) { chaosPtwRequestId = id; }
         void sendFunctionalReq(const RequestPtr &req, uint8_t *data);
         void sendAtomicReq(const RequestPtr &req, uint8_t *data, Tick delay);
         void sendTimingReq(const RequestPtr &req, uint8_t *data, Tick delay,
@@ -1050,6 +1071,7 @@ class TableWalker : public ClockedObject
         void handleResp(TableWalkerState *state, Addr addr,
                         Addr size, Tick delay=0);
 
+        uint64_t chaosPtwRequestId = 0;
         PacketPtr createPacket(const RequestPtr &req, uint8_t *data,
                                Tick delay, Event *event);
 
@@ -1085,6 +1107,17 @@ class TableWalker : public ClockedObject
     // Monotonic per-walk id source (pairing key). Incremented once per
     // WalkerState created in walk().
     uint64_t chaosNextWalkId = 0;
+
+    // [MMU-TRACE v1] Translation identity in flight (set by MMU::getTE around
+    // walk(); copied into the WalkerState synchronously, so a timing walk
+    // keeps its identity after the setter is cleared).
+    uint64_t chaosMmuTranslationId = 0;
+    uint64_t chaosMmuUniqueReqId = 0;
+    void setChaosMmuContext(uint64_t tid, uint64_t uid)
+    {
+        chaosMmuTranslationId = tid;
+        chaosMmuUniqueReqId = uid;
+    }
 
     WalkUnit *getAvailableWalk(BaseMMU::Mode mode, bool stage2,
                                bool functional) const;
@@ -1232,6 +1265,7 @@ class WalkUnit : public ClockedObject
         MMU::ArmTranslationType tranType;
 
         TableWalker::Port *port;
+        uint64_t chaosPtwRequestId;
 
       public:
         Fault fault;
@@ -1239,7 +1273,8 @@ class WalkUnit : public ClockedObject
         Stage2Walk(WalkUnit &_parent, uint8_t *_data, Event *_event,
                    Addr vaddr, BaseMMU::Mode mode,
                    MMU::ArmTranslationType tran_type,
-                   TableWalker::Port *_port);
+                   TableWalker::Port *_port,
+                   uint64_t ptw_request_id = 0);
 
         void markDelayed() {}
 
@@ -1260,10 +1295,10 @@ class WalkUnit : public ClockedObject
     Fault readDataUntimed(ThreadContext *tc, Addr vaddr, Addr desc_addr,
                           uint8_t *data, int num_bytes, Request::Flags flags,
                           BaseMMU::Mode mode, MMU::ArmTranslationType tran_type,
-                          bool functional);
+                          bool functional, uint64_t ptw_request_id = 0);
     void readDataTimed(ThreadContext *tc, Addr desc_addr,
                        Stage2Walk *translation, int num_bytes,
-                       Request::Flags flags);
+                       Request::Flags flags, uint64_t ptw_request_id = 0);
 
     /** Timing mode: saves the currState into the stateQueues */
     void stashCurrState(WalkerState *state, int queue_idx);

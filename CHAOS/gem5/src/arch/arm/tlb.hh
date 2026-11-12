@@ -41,6 +41,7 @@
 #ifndef __ARCH_ARM_TLB_HH__
 #define __ARCH_ARM_TLB_HH__
 
+#include <string>
 
 #include "arch/arm/faults.hh"
 #include "arch/arm/pagetable.hh"
@@ -250,6 +251,37 @@ class TLB : public BaseTLB
     // (gem5 is event-driven single-threaded; no cross-event lifetime).
     uint64_t chaosLookupReqSeq = 0;   // Request-stamped dyn-inst seq
     uint64_t chaosLookupReqSize = 0;  // Request byte size
+    // [MMU-TRACE v4] TRACE-ONLY synthetic seq for Execute-mode lookups whose
+    // Request has no inst seq. It NEVER participates in a fault-model gate
+    // (those keep reading chaosLookupReqSeq, which stays 0 for fetch), so
+    // translation/permission/fault semantics are unchanged. Only the MMU
+    // trace transaction identity is created from it.
+    uint64_t chaosLookupSyntheticSeq = 0;
+
+    // [MMU-TRACE v1] Translation identity in flight at this lookup (set by
+    // MMU::getTE / propagated through multiLookup). Read synchronously inside
+    // TLB::lookup; 0 = no MMU trace context.
+    uint64_t chaosMmuTranslationId = 0;
+    uint64_t chaosMmuUniqueReqId = 0;
+    // One TLBI operation id shared by every TLB instance the operation
+    // traverses (set by MMU::flush / iflush / dflush).
+    uint64_t chaosTlbiId = 0;
+
+    // [MMU-PHASE3][M04] Cross-layer promotion context. TLB::multiLookup sets
+    // these around the promotion insert it performs on THIS TLB after a
+    // child layer returned a hit: the source instance and the REAL child
+    // lookup event that found the promoted entry. TLB::insert uses them to
+    // propagate the M04 fault registry to the promoted identity and to name
+    // the real source lookup in the lineage record. Empty/0 = an ordinary
+    // walker insert, never a promotion.
+    std::string chaosPromoteSrcInstance;
+    uint64_t chaosPromoteSrcLookupEvent = 0;
+    // Last tlb_lookup_hit event emitted by THIS TLB (0 = none). Read by the
+    // promoting layer right after the child lookup returns.
+    uint64_t chaosMmuLastLookupEventId = 0;
+    // Honest one-shot report for a configured decoy that could not be
+    // validated. Keeps a per-hit no-op from flooding the trace.
+    bool chaosM04DecoyNoopReported = false;
 
     int getsize() const { return size; }
 
@@ -334,6 +366,20 @@ class TLB : public BaseTLB
     void _flushMva(Addr mva, uint64_t asn, bool secure_lookup,
                    bool ignore_asn, ExceptionLevel target_el,
                    bool in_host, TypeTLB entry_type);
+
+    // [MMU-PHASE3][M04] Resident-decoy validation and cross-layer mutation.
+    // The scan follows nextLevel() down the stage-1 chain (dtb/itb ->
+    // l2_shared) and never enters a stage2 TLB.
+    void m04FindDecoy(const TlbEntry &hit, Addr decoy_pfn,
+                      TlbEntry *&entry, bool &pfn_seen);
+    unsigned m04PropagateAliasLineage(const Lookup &key, const TlbEntry &hit,
+                                      Addr old_pfn, Addr decoy_pfn,
+                                      uint64_t ptag, uint64_t activation_event,
+                                      uint64_t origin_seq,
+                                      const std::string &origin_instance,
+                                      uint64_t origin_entry_id,
+                                      uint32_t origin_generation,
+                                      const char *mode);
 
     /** Check if the tlb entry passed as an argument needs to
      * be "promoted" as a unified entry:

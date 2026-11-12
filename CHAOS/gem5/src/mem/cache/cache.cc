@@ -173,6 +173,14 @@ bool
 Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
               PacketList &writebacks)
 {
+    // [MMU-TRACE v3] MMU-scoped cache request observation. Only a demand
+    // access whose Request carries an MMU transaction's dyn_inst_seq emits;
+    // unrelated traffic is untouched. Read-only.
+    if (CHAOSPropagation *const mp = CHAOSPropagation::instance()) {
+        if (pkt)
+            mp->mmuNoteCacheEvent("cache_request", name(), pkt, false);
+    }
+
     // [MDSPEC][H4] unified cache_access event (spec sheet 9: L1 — cache
     // tag lookup on a faulted block). Fault-correlated only (blk registry
     // overlap; the propagation stream is a fault stream, spec sheet 11).
@@ -237,6 +245,10 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // 注册在访问时、load 翻译结构性先于注册（C01 实证：tlb_translate
     // 对 cache 链恒不关联），这是规格 C 路径 L2 的正确落点）。
     const bool h4_result = BaseCache::access(pkt, blk, lat, writebacks);
+    // [MMU-TRACE v3] Real lookup outcome (hit/miss) for the MMU transaction.
+    if (CHAOSPropagation *const mp = CHAOSPropagation::instance()) {
+        mp->mmuNoteCacheEvent("cache_lookup", name(), pkt, h4_result);
+    }
     {
         CHAOSPropagation *h4r = CHAOSPropagation::instance();
         if (h4r && pkt) {

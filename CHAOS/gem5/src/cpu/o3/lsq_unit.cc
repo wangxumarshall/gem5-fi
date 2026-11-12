@@ -245,9 +245,12 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
     // v1 (the campaign runs one injector per sample). nullptr = no tracer.
     // [MDSPEC][R4-5.3] `target`: the delivered-to load (L04 exchange) —
     // the resp/lq_complete/taint_reg nodes carry the CONSUMER's identity.
-    if (cpu->chaosPropagation)
+    if (cpu->chaosPropagation) {
         cpu->chaosPropagation->noteMemResponse(target.get(), pkt,
                                                request->needWBToRegister());
+        // [MMU-TRACE v1] Fault-free response event for traced MMU requests.
+        cpu->chaosPropagation->mmuNoteMemResponse(target.get(), pkt);
+    }
 
     assert(!cpu->switchedOut());
     if (!target->isSquashed()) {
@@ -1201,6 +1204,9 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             cpu->chaosPropagation->noteSquashDiscarded(
                 loadQueue.back().instruction().get(), true,
                 "load_queue_uncommitted");
+            // [MMU-TRACE v1] Real squash witness for a traced request.
+            cpu->chaosPropagation->mmuNoteSquash(
+                loadQueue.back().instruction().get());
         }
         loadQueue.back().clear();
 
@@ -1277,6 +1283,9 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
             cpu->chaosPropagation->noteSquashDiscarded(
                 storeQueue.back().instruction().get(), false,
                 "store_queue_uncommitted");
+            // [MMU-TRACE v1] Real squash witness for a traced request.
+            cpu->chaosPropagation->mmuNoteSquash(
+                storeQueue.back().instruction().get());
         }
 
         // Must delete request now that it wasn't handed off to
@@ -1380,6 +1389,12 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
                     "due to pending fault.\n", inst->seqNum);
         }
     }
+
+    // [MMU-TRACE v1] Register-writeback observation for traced MMU
+    // requests (after completeAcc, before the instruction is queued to
+    // commit). Observation only.
+    if (cpu->chaosPropagation)
+        cpu->chaosPropagation->mmuNoteWriteback(inst.get());
 
     // Need to insert instruction into queue to commit
     iewStage->instToCommit(inst);

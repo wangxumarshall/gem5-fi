@@ -302,6 +302,25 @@ struct TlbEntry : public ReplaceableEntry, Serializable
 
     bool xs;                // xs attribute from FEAT_XS
 
+    // [MMU-TRACE v1] Stable, non-pointer TLB entry identity. Assigned by
+    // TLB::insert (and lazily on lookup for checkpoint-restored entries).
+    // NOT serialized: checkpoint compatibility is preserved; a restored
+    // entry receives an id on its first observed lookup. Generation
+    // increments on every invalidation and on every slot reuse.
+    uint64_t chaosEntryId = 0;
+    uint32_t chaosEntryGeneration = 0;
+
+    // [MMU-PHASE3][M04] Fault-lineage carry for a PROMOTED copy. When an
+    // already-substituted entry is copied into another TLB layer
+    // (multiLookup -> insert), the new identity must inherit the same fault.
+    // `chaosFaultOriginSeq` is the real dynamic instruction that performed
+    // the original substitution; it travels with the entry payload (and the
+    // swap/copy below) so the destination can register its own lineage
+    // without guessing from VA/PA or tick order.
+    // NOT serialized (same checkpoint-compatibility rule as the identity
+    // fields above).
+    uint64_t chaosFaultOriginSeq = 0;
+
     //Construct an entry that maps to physical address addr for SE mode
     TlbEntry(Addr _asn, Addr _vaddr, Addr _paddr,
              bool uncacheable, bool read_only) :
@@ -384,6 +403,9 @@ struct TlbEntry : public ReplaceableEntry, Serializable
         std::swap(xn, rhs.xn);
         std::swap(pxn, rhs.pxn);
         std::swap(xs, rhs.xs);
+        std::swap(chaosEntryId, rhs.chaosEntryId);
+        std::swap(chaosEntryGeneration, rhs.chaosEntryGeneration);
+        std::swap(chaosFaultOriginSeq, rhs.chaosFaultOriginSeq);
     }
 
     /** Need for compliance with the AssociativeCache interface */
@@ -391,6 +413,9 @@ struct TlbEntry : public ReplaceableEntry, Serializable
     invalidate()
     {
         valid = false;
+        // [MMU-TRACE v1] Every invalidation closes this entry lifetime. The
+        // next insert into this slot increments the generation again.
+        ++chaosEntryGeneration;
     }
 
     /** Need for compliance with the AssociativeCache interface */

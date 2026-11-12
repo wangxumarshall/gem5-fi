@@ -73,6 +73,8 @@ class ArmExtension(ScopedEnum):
         # Armv8.1
         "FEAT_VHE",
         "FEAT_PAN",
+        # Armv8.8 execute-only permissions (EPAN).
+        "FEAT_EPAN",
         "FEAT_LSE",
         "FEAT_HPDS",
         "FEAT_VMID16",
@@ -203,6 +205,11 @@ class ArmDefaultRelease(Armv8):
         # Armv8.1
         "FEAT_LSE",
         "FEAT_PAN",
+        # [MMU-F1] FEAT_EPAN makes execute-only user mappings (AP[2:1]=0b10)
+        # a real architectural capability. Only exec-only mappings change;
+        # read/execute and read-only protection_map entries are untouched.
+        # Required by the approved M07 R03 context (PROT_EXEC + EL0 load).
+        "FEAT_EPAN",
         "FEAT_HPDS",
         "FEAT_VMID16",
         "FEAT_RDM",

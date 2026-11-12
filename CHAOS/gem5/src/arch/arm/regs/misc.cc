@@ -5810,7 +5810,11 @@ ISA::initializeMiscRegMetadata()
             release->has(ArmExtension::FEAT_VMID16) ? 0x2 : 0x0;
           mmfr1_el1.vh = release->has(ArmExtension::FEAT_VHE) ? 0x1 : 0x0;
           mmfr1_el1.hpds = release->has(ArmExtension::FEAT_HPDS) ? 0x1 : 0x0;
-          mmfr1_el1.pan = release->has(ArmExtension::FEAT_PAN) ? 0x1 : 0x0;
+          // [MMU-F1] PAN field 0x3 advertises FEAT_EPAN (execute-only user
+          // permissions), which the guest kernel gates on PAN>=3. The
+          // permission check itself is the generic AP-bit evaluation.
+          mmfr1_el1.pan = release->has(ArmExtension::FEAT_EPAN) ? 0x3 :
+                          (release->has(ArmExtension::FEAT_PAN) ? 0x1 : 0x0);
           mmfr1_el1.hcx = release->has(ArmExtension::FEAT_HCX) ? 0x1 : 0x0;
           mmfr1_el1.afp = release->has(ArmExtension::FEAT_AFP) ? 0x1 : 0x0;
           return mmfr1_el1;

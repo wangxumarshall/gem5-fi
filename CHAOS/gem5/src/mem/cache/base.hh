@@ -214,6 +214,11 @@ class BaseCache : public ClockedObject
     // chaosMshrOccHook is null.
     void chaosMshrOccArbitrate(PacketPtr pkt, MSHR *mshr);
 
+    // [MMU-TRACE v3] Out-of-line MSHR-allocation observation for an MMU
+    // transaction's demand miss (base.hh cannot include the tracer header
+    // without a cycle). Read-only; no state change.
+    void chaosMmuMshrAlloc(PacketPtr pkt, MSHR *mshr);
+
     // [MDSPEC][R4-5.2] C12 public trampoline: re-enter the (protected)
     // recvTimingResp with a previously deferred fill-response packet. Only
     // the C12 resume event calls this (single deferred slot on the
@@ -1298,6 +1303,7 @@ class BaseCache : public ClockedObject
         // just set above. A no-op when no C15 injector is mounted, so the
         // normal path is byte-for-byte unchanged.
         chaosMshrOccArbitrate(pkt, mshr);
+        chaosMmuMshrAlloc(pkt, mshr);
 
         if (sched_send) {
             // schedule the send

@@ -972,6 +972,22 @@ class CHAOSPropagation : public SimObject
     uint64_t mmuNewLookupId() { return ++next_mmu_lookup_id; }
     uint64_t mmuUniqueId(uint64_t translation_id) const;
 
+    // [MMU-TRACE v4] Execute-mode lookups (instruction fetch) carry no
+    // Request inst seq, so the walk/insert/result chain used to start with a
+    // zero identity. Mint a TRACE-ONLY identity from a reserved namespace
+    // instead. Values >= 2^63 cannot be a real DynInst::seqNum in any run
+    // this repository can execute; mmuBeginTxn additionally refuses a seq in
+    // this namespace that was not minted here, so a synthetic id can never
+    // collide with a real one. Returns 0 unless tracing is enabled and the
+    // VA is inside --prop_mmu_va_lo/hi (observation is therefore unchanged
+    // for untraced runs).
+    static constexpr uint64_t mmuSyntheticSeqBase() { return 1ULL << 63; }
+    static bool mmuIsSyntheticSeq(uint64_t seq)
+    {
+        return seq >= (1ULL << 63);
+    }
+    uint64_t mmuNewSyntheticSeq(Addr va);
+
     // One MMU translation attempt. Returns 0 when tracing is disabled, the
     // VA is outside the traced range, or the Request has no inst seq.
     uint64_t mmuBeginTranslation(const RequestPtr &req, Addr va,
@@ -1586,6 +1602,12 @@ class CHAOSPropagation : public SimObject
     std::map<std::pair<uint64_t, Addr>, uint64_t> mmu_txn_by_seq_va;
     std::map<Addr, uint64_t> mmu_txn_by_va;
     std::map<uint64_t, uint64_t> mmu_seq_txn;               // seq -> tid
+    // [MMU-TRACE v4] Reserved-namespace identities minted for Execute-mode
+    // lookups. A high-bit seq that is NOT in this set is a real dynamic
+    // sequence that reached the reserved range; mmuBeginTxn refuses it
+    // rather than risk a collision.
+    uint64_t next_mmu_synthetic_seq = 0;
+    std::set<uint64_t> mmu_synthetic_seqs;
     std::map<uint64_t, uint64_t> mmu_walk_last;             // walk_id -> evt
     std::map<uint64_t, uint64_t> mmu_tlbi_last;             // tlbi_id -> evt
     // [MMU-TRACE v2] Last maintenance event per EXACT association key

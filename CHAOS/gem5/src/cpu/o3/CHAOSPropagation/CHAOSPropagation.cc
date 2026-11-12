@@ -3099,6 +3099,24 @@ namespace gem5
     }
 
     uint64_t
+    CHAOSPropagation::mmuNewSyntheticSeq(Addr va)
+    {
+        // Observation-only: no trace, or VA outside the configured window,
+        // means no synthetic identity is created and the caller keeps its
+        // previous behaviour (seq == 0).
+        if (!mmuTraceEnabled() || !mmuTraceVa(va))
+            return 0;
+        if (next_mmu_synthetic_seq == 0)
+            next_mmu_synthetic_seq = mmuSyntheticSeqBase();
+        if (next_mmu_synthetic_seq == UINT64_MAX)
+            return 0;   // reserved namespace exhausted: drop the trace, never
+                        // reuse an id
+        const uint64_t seq = ++next_mmu_synthetic_seq;
+        mmu_synthetic_seqs.insert(seq);
+        return seq;
+    }
+
+    uint64_t
     CHAOSPropagation::mmuBeginTxn(uint64_t seq, Addr va, uint64_t pc,
                                   const char *mode, bool stage2, uint16_t asid,
                                   uint16_t vmid, unsigned regime,
@@ -3106,6 +3124,12 @@ namespace gem5
     {
         if (!mmuTraceEnabled() || !mmuTraceVa(va) || seq == 0)
             return 0;       // no instruction identity: outside MMU trace scope
+        // [MMU-TRACE v4] A reserved-namespace seq must have been minted by
+        // mmuNewSyntheticSeq. A real DynInst::seqNum that ever reached this
+        // range is refused, so synthetic and real identities can never
+        // collide in the transaction map or in the trace.
+        if (mmuIsSyntheticSeq(seq) && !mmu_synthetic_seqs.count(seq))
+            return 0;
 
         // A retranslation of the same (instruction, VA) reuses the open
         // transaction so the walk/result events keep one causal chain; it
@@ -3167,6 +3191,12 @@ namespace gem5
             {"security_state", mmuSecurityStateName(ss)},
             {"corr", CORR_NONE},
         };
+        // [MMU-TRACE v4] Explicit marker: this dyn_inst_seq is a synthetic
+        // Execute-fetch identity, not a real DynInst::seqNum. Any reader can
+        // also detect it from the 2^63 namespace bit.
+        if (mmuIsSyntheticSeq(seq))
+            kv.push_back(
+                {"dyn_inst_seq_kind", "synthetic_execute_fetch"});
         if (pc)
             kv.push_back({"pc", mmuHex(pc)});
         // [MMU-TRACE v2] Explicit maintenance -> miss edge on the EXACT
@@ -3274,6 +3304,9 @@ namespace gem5
             {"mode", partial ? "partial" : "complete"},
             {"corr", CORR_NONE},
         };
+        if (mmuIsSyntheticSeq(seq))
+            kv.push_back(
+                {"dyn_inst_seq_kind", "synthetic_execute_fetch"});
         if (hit) {
             kv.push_back({"pfn", mmuHex(pfn)});
             kv.push_back({"page_size_n", std::to_string(n)});
@@ -3746,6 +3779,9 @@ namespace gem5
             {"entry_partial", partial ? "1" : "0"},
             {"corr", CORR_NONE},
         };
+        if (mmuIsSyntheticSeq(seq))
+            kv.push_back(
+                {"dyn_inst_seq_kind", "synthetic_execute_fetch"});
         mmuSetParent(kv, parent);
         const uint64_t eid = notePropEvt("tlb_entry_insert", kv);
         if (tid)
@@ -3807,7 +3843,18 @@ namespace gem5
     {
         const uint64_t seq =
             (req && req->hasInstSeqNum()) ? req->getReqInstSeqNum() : 0;
-        const uint64_t tid = mmuTxnForSeqVa(seq, va);
+        uint64_t tid = mmuTxnForSeqVa(seq, va);
+        // [MMU-TRACE v4] A fetch Request has no inst seq; join the open
+        // synthetic Execute transaction for this VA. A completed synthetic
+        // transaction is never reused (warm hits stay silent).
+        if (!tid && !seq) {
+            tid = mmuTxnForVa(va);
+            const auto tit = mmu_txn.find(tid);
+            if (!tid || tit == mmu_txn.end() ||
+                    (mmuIsSyntheticSeq(tit->second.dyn_seq) &&
+                     tit->second.result_event != 0))
+                tid = 0;
+        }
         if (!tid || !mmuTraceEnabled())
             return;
         const auto it = mmu_txn.find(tid);
@@ -3842,8 +3889,17 @@ namespace gem5
         const uint64_t seq =
             (req && req->hasInstSeqNum()) ? req->getReqInstSeqNum() : 0;
         uint64_t tid = mmuTxnForSeqVa(seq, va);
-        if (!tid && !seq)
+        if (!tid && !seq) {
             tid = mmuTxnForVa(va);
+            // [MMU-TRACE v4] Only the first result joins a synthetic
+            // Execute transaction; a later warm fetch hit to the same VA
+            // must not re-attribute an event to the completed translation.
+            const auto tit = mmu_txn.find(tid);
+            if (!tid || tit == mmu_txn.end() ||
+                    (mmuIsSyntheticSeq(tit->second.dyn_seq) &&
+                     tit->second.result_event != 0))
+                tid = 0;
+        }
         if (!tid || !mmuTraceEnabled())
             return;
         const auto it = mmu_txn.find(tid);
@@ -3895,7 +3951,17 @@ namespace gem5
     {
         const uint64_t seq =
             (req && req->hasInstSeqNum()) ? req->getReqInstSeqNum() : 0;
-        const uint64_t tid = mmuTxnForSeqVa(seq, va);
+        uint64_t tid = mmuTxnForSeqVa(seq, va);
+        // [MMU-TRACE v4] Join the open synthetic Execute transaction for a
+        // fetch (no inst seq). One LSU request per synthetic translation.
+        if (!tid && !seq) {
+            tid = mmuTxnForVa(va);
+            const auto tit = mmu_txn.find(tid);
+            if (!tid || tit == mmu_txn.end() ||
+                    (mmuIsSyntheticSeq(tit->second.dyn_seq) &&
+                     tit->second.req_event != 0))
+                tid = 0;
+        }
         if (!tid || !mmuTraceEnabled())
             return;
         const auto it = mmu_txn.find(tid);

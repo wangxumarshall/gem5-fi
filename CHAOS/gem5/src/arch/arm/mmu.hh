@@ -275,6 +275,10 @@ class MMU : public BaseMMU
     void iflush(const TLBIOp &tlbi_op);
     void dflush(const TLBIOp &tlbi_op);
 
+    // [MMU-TRACE v1] One TLBI trace id + issue event shared by every TLB
+    // instance the operation traverses. Returns 0 when tracing is off.
+    uint64_t beginTlbiTrace(const TLBIOp &tlbi_op);
+
     void flushAll() override;
 
     uint64_t
