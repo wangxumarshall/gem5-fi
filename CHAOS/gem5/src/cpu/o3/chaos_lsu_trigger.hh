@@ -234,6 +234,18 @@ struct ChaOSLsuTrigger
         return false;
     }
 
+    // Census-only counterpart: advances the eligible ordinal without any
+    // injection decision (the v3.3.3 A01 8-byte count stream). `injected`
+    // stays 0; the caller logs the returned ordinal and never writes.
+    uint64_t
+    noteEligibleForCensus()
+    {
+        ++eligible;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();
+        return eligible;
+    }
+
     // The F6 event source calls this when the configured event occurs.
     // Returns true => inject at this event, once ever.
     bool

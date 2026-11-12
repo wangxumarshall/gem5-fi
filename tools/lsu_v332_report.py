@@ -47,7 +47,8 @@ WORKLOAD = {
 ROI = {  # measured ROI (start,end), N, percentile ordinals
     # v3.3.3 re-census after the PRE retry exclusion (L-A01): 1040-1222 (183)
     # on the fixed stream; the v3.3.2 1040-1234/195 set is history.
-    "A01": ((1040, 1222), 183, [1058, 1094, 1131, 1168, 1204]),
+    # A01 v3.3.3 correction (L-A12): 8-byte-only stream, 585-713 (129).
+    "A01": ((585, 713), 129, [597, 623, 649, 675, 701]),
     "A03": ((1040, 1222), 183, [1058, 1094, 1131, 1168, 1204]),
     "FW02": ((8, 67), 60, [13, 25, 37, 49, 61]),
     "FW05": ((1, 2000), 2000, [200, 600, 1000, 1400, 1800]),

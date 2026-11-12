@@ -22,6 +22,7 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           a03_watchdog_cycles(p.watchdogCycles),
+          count_only(p.countOnly),
           pre_mode(p.preMode),
           agu_size_to(p.aguSizeTo)
     {
@@ -252,7 +253,10 @@ namespace gem5
             // [A01 v3.3 proposal] matched control (probability 0.0): observe
             // the ordinal-selected golden EA read-only. Never mutates addr or
             // size and never counts an injection.
-            if (pre_mode == "a01_bit3_load")
+            // v3.3.3 L-A12: the control must advance the SAME 8-byte-only
+            // eligible space as the fault run, or the target ordinal selects
+            // a different instruction.
+            if (pre_mode == "a01_bit3_load" && isLoad && size == 8)
                 probeA01Control(addr, size, isLoad, dyn_seq, pc);
             return size;
         }
@@ -277,6 +281,27 @@ namespace gem5
                                          pre_mode == "s11_store_lost");
             if ((pre_load_only && !isLoad) || (pre_store_only && isLoad))
                 return size;   // op class not eligible for this model
+            // [LSU][V3.3.3][A01] size filter (ledger L-A12): A01 targets a
+            // 64-bit GPR load. A 16-byte vector load (ldr q) becomes
+            // misaligned after EA^0x8, splits, and bypasses the GPR
+            // writeback observer; it is not an A01-eligible event. A03
+            // (persistent) stays size-agnostic.
+            if (pre_mode == "a01_bit3_load" && size != 8)
+                return size;
+            if (count_only) {
+                // Census-only: advance the eligible ordinal and log it; no
+                // injection decision, no fault write.
+                const uint64_t ord = lsuTrigger->noteEligibleForCensus();
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "CHAOS_ELIGIBLE: ordinal="
+                        << ord << ";dyn_inst_seq=" << dyn_seq
+                        << ";pc=0x" << std::hex << pc
+                        << ";size=" << std::dec << size
+                        << ";ea=0x" << std::hex << addr << std::dec
+                        << std::endl;
+                }
+                return size;
+            }
             bool go;
             if (lsuTrigger->tier == ChaOSLsuTier::F6) {
                 go = f6_pending;

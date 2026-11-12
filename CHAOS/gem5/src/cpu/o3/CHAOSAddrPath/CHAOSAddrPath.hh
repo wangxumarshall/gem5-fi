@@ -224,6 +224,9 @@ class CHAOSAddrPath : public SimObject
     // flush and the gzip trailer run. 0 = disabled (default; every other
     // model is byte-identical).
     uint64_t a03_watchdog_cycles = 0;
+    // [LSU][V3.3.3][A01] count-only eligible-stream log: never injects; used
+    // to re-census the 8-byte A01 stream (ledger L-A12).
+    bool count_only;
     EventFunctionWrapper *a03_watchdog_event = nullptr;
     bool a03_watchdog_fired = false;
     bool a03_lifecycle_emitted = false;

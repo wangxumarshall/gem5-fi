@@ -60,7 +60,9 @@ CONTEXTS = {
     # eligible window on the fixed stream is 1040-1222 (N=183); the five
     # percentile ordinals are measured from that window. SampleRunID/Seed
     # unchanged; the v3.3.2 1040-1234/195 set is retained as history.
-    "A01":  dict(roi=(1040, 1222), n=183,  ordinals=[1058, 1094, 1131, 1168, 1204]),
+    # A01 v3.3.3 correction (ledger L-A12): 8-byte-only eligible stream
+    # (count-only census, 817 eligible; main-loop window 585-713, N=129).
+    "A01":  dict(roi=(585, 713),   n=129,  ordinals=[597, 623, 649, 675, 701]),
     "A03":  dict(roi=(1040, 1222), n=183,  ordinals=[1058, 1094, 1131, 1168, 1204],
                  workload=WORKLOADS / "agu_addrmodes",
                  seeds=[663646247, 1626885462, 110775855, 2766846323,

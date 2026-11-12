@@ -542,6 +542,9 @@ p.add_argument("--addrpath_watchdog_cycles", type=lambda x: int(x,0),
                default=0,
                help="A03: in-simulator watchdog clock cycles after activation "
                     "(0 = disabled)")
+p.add_argument("--addrpath_count_only", action="store_true",
+               help="A01: log every eligible 8-byte load as CHAOS_ELIGIBLE "
+                    "and never inject (v3.3.3 ROI re-census, ledger L-A12)")
 # W4: AGU A-series. Bit-level family (A01-A03) rides the sendFragment hook
 # via --addrpath_mode; the PRE family (A04/A05/A06/A08) rides the
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
@@ -1155,6 +1158,7 @@ if args.chaos_addrpath:
         preMode=args.agu_pre_mode,
         aguSizeTo=args.agu_size_to,
         watchdogCycles=args.addrpath_watchdog_cycles,
+        countOnly=args.addrpath_count_only,
     )
     board.chaos_addrpath = ap
 

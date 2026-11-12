@@ -66,3 +66,8 @@ class CHAOSAddrPath(SimObject):
     watchdogCycles = Param.UInt64(0,
         "A03: in-simulator watchdog clock cycles after activation "
         "(0 = disabled)")
+    # v3.3.3 A01 re-census (ledger L-A12): log every eligible 8-byte load as
+    # CHAOS_ELIGIBLE and never inject. The A01 size==8 filter makes this the
+    # exact eligible stream used for the percentile ROI.
+    countOnly = Param.Bool(False,
+        "A01: count-only eligible-stream log; never injects")
