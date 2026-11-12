@@ -24,11 +24,14 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 PLATFORM = Path(__file__).resolve().parent
@@ -64,6 +67,123 @@ MOUNT_FLAGS = ("--chaos_lsqfwd", "--chaos_addrpath", "--chaos_l1dfwd",
                "--chaos_lq04", "--chaos_md04")
 ORDINAL_GATED = {"A01", "A03", "FW02", "FW05", "SQ01", "SQ03", "SP05",
                  "LQ04", "DA04", "RP01"}
+
+# v3.3.3 launch-critical output validation (audit_launch_fix_v333/
+# README_INTERFACES.md).  A run that leaves no trace/oracle/log, or whose
+# result cannot be parsed, is never accepted -- it returns nonzero.
+MODEL_LOG_NAME = {
+    "A01": "addrpath_injections.log",
+    "A03": "addrpath_injections.log",
+    "FW02": "lsq_fwd_injections.log",
+    "FW05": "lsq_fwd_injections.log",
+    "SQ01": "lsq_fwd_injections.log",
+    "SQ03": "lsq_fwd_injections.log",
+    "SP05": "lsq_fwd_injections.log",
+    "DA04": "lsq_fwd_injections.log",
+    "LP01": "l1d_fwd_injections.log",
+    "MD04": "md04_injections.log",
+    "LQ04": "lq04_injections.log",
+    "RP01": "lsq_fwd_injections.log",
+}
+BASE_REQUIRED_OUTPUTS = ("command.txt", "prop_trace.csv.gz", "oracle.log")
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def required_output_names(model: str, probability: float) -> list[str]:
+    """Artifacts a completed run must leave; the injector log is fault-only."""
+    names = list(BASE_REQUIRED_OUTPUTS)
+    if probability > 0:
+        names.append(MODEL_LOG_NAME[model])
+    return names
+
+
+def output_validation(out, model: str, probability: float) -> dict:
+    """Missing trace/oracle/log => OUTPUT_INCOMPLETE (never a silent pass)."""
+    out = Path(out)
+    required = required_output_names(model, probability)
+    missing = [name for name in required if not (out / name).exists()]
+    return {
+        "status": "OK" if not missing else "OUTPUT_INCOMPLETE",
+        "required": required,
+        "missing": missing,
+    }
+
+
+def acceptance_exit_code(accepted, validation, parse_error=None,
+                         runner_error=None) -> int:
+    """Nonzero unless the run is accepted AND its outputs are complete."""
+    ok = (bool(accepted) and validation.get("status") == "OK"
+          and not parse_error and not runner_error)
+    return 0 if ok else 1
+
+
+def terminal_source(*, timed_out: bool, watchdog: bool, exit_code,
+                    text: str = "") -> str:
+    """Distinguish the model's own watchdog from external/timeouts."""
+    if timed_out:
+        return "PYTHON_TIMEOUT"
+    if watchdog:
+        return "MODEL_INTERNAL_WATCHDOG"
+    if exit_code == 124 or "TIMEOUT: external wall-clock limit" in (text or ""):
+        return "EXTERNAL_TIMEOUT"
+    return "NORMAL"
+
+
+def _kill_process_group(proc) -> None:
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+
+
+def run_gem5(cmd, timeout: int) -> dict:
+    """Run gem5 in its own session; kill the whole group on timeout.
+
+    OSError is converted to FAILED evidence instead of escaping.  A timeout
+    always reports TIMEOUT (exit 124) and never a completed run.
+    """
+    started_at = _now_iso()
+    started = time.monotonic()
+    try:
+        proc = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True,
+                                start_new_session=True)
+    except OSError as exc:
+        return {"returncode": 126, "stdout": "",
+                "stderr": f"OSError: {exc!r}\n", "timed_out": False,
+                "pid": None, "runner_error": repr(exc),
+                "elapsed": round(time.monotonic() - started, 3),
+                "started_at": started_at, "ended_at": _now_iso()}
+    timed_out = False
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        _kill_process_group(proc)
+        try:
+            out, err = proc.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            out, err = "", ""
+        err = (err or "") + (
+            "\nTIMEOUT: external wall-clock limit reached; "
+            "process group killed\n")
+    return {
+        "returncode": 124 if timed_out else proc.returncode,
+        "stdout": out or "",
+        "stderr": err or "",
+        "timed_out": timed_out,
+        "pid": proc.pid,
+        "runner_error": None,
+        "elapsed": round(time.monotonic() - started, 3),
+        "started_at": started_at,
+        "ended_at": _now_iso(),
+    }
 
 
 def _workload_for(model: str) -> str:
@@ -717,141 +837,9 @@ def build_model_extra(model: str, probability: float, seed: int,
             "--lsqfwd_event_ordinal", ordinal]
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--model", required=True, choices=MODELS)
-    ap.add_argument("--probability", type=float, default=1.0,
-                    help="injection probability (0.0 = matched no-fault control)")
-    ap.add_argument("--timeout", type=int, default=900,
-                    help="external wall-clock timeout in seconds")
-    ap.add_argument("--workload", default=None,
-                    help="pilot-only workload override (recorded in the "
-                         "manifest; the Excel path is retained)")
-    ap.add_argument("--pilot-id", required=True)
-    ap.add_argument("--seed", type=int, default=None,
-                    help="override seed; default = the selected Excel context row")
-    ap.add_argument("--context-index", type=int, default=1, choices=[1,2,3,4,5],
-                    help="R01-R05: select the Excel sample row for this context")
-    ap.add_argument("--outdir", type=Path, required=True)
-    ap.add_argument("--gem5", type=Path, default=GEM5)
-    ap.add_argument("--preserve-sample-id", action="store_true",
-                    help="Keep the Excel SampleRunID/RunID/SubTaskID "
-                         "(pilots still write only to --outdir); v3.2.4 DA04")
-    ap.add_argument("--event-ordinal", type=int, default=None,
-                    help="TEMPORARY_EVENT_SELECTION override for the F0 "
-                         "eligible-event ordinal (v3.2.4 DA04 pilots); the "
-                         "Excel ordinal is recorded separately")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="build the exact gem5 command, print it (and write "
-                         "<outdir>/command.txt), then exit 0 without invoking "
-                         "gem5 -- no manifest or run artifacts are produced")
-    args = ap.parse_args(argv)
-
-    cfg = load_config(EXCEL, require_complete=False)
-    model_rows = [s for s in cfg["samples"] if s["model_id"] == args.model]
-    sample = copy.deepcopy(model_rows[args.context_index - 1])
-    excel_seed = sample["seed"]
-    excel_event_ordinal = sample.get("event_ordinal")
-    if args.event_ordinal is not None:
-        sample["event_ordinal"] = args.event_ordinal
-    if args.seed is None:
-        args.seed = excel_seed
-    if args.preserve_sample_id:
-        excel = model_rows[args.context_index - 1]
-        sample["sample_run_id"] = excel["sample_run_id"]
-        sample["run_id"] = excel["run_id"]
-        sample["sub_task_id"] = excel["sub_task_id"]
-    else:
-        sample["sample_run_id"] = args.pilot_id
-        sample["run_id"] = f"PILOT-{args.model}"
-        sample["sub_task_id"] = f"PILOT-{args.model}-S01"
-    sample["seed"] = args.seed
-    workload_name = args.workload or _workload_for(args.model)
-    workload_path = Path(workload_name)
-    if not workload_path.is_absolute():
-        workload_path = WORKLOADS / workload_name
-        if not workload_path.exists() and (DIRECTED / workload_name).exists():
-            # v3.3.3 RP01: the candidate workload lives under workloads/directed.
-            workload_path = DIRECTED / workload_name
-    sample["workload_path"] = str(workload_path)
-    sample["workload_exists"] = workload_path.exists()
-    cfg2 = copy.deepcopy(cfg)
-    cfg2["samples"] = [sample]
-    # gem5 runs with cwd=ROOT, so a relative --outdir would land its
-    # artifacts outside this script's output directory. Pin the path at the
-    # caller's cwd before gem5 sees it.
-    out = args.outdir.resolve()
-    out.mkdir(parents=True, exist_ok=True)
-
-    extra = build_model_extra(args.model, args.probability, args.seed,
-                              sample.get("event_ordinal") or 1)
-
-    cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
-           f"--cmd={workload_path}",
-           "--cpu", "O3", "--variant", "B0",
-           "--probability", str(args.probability),
-           "--chaos_propagation",
-           "--prop_trace_file", "prop_trace.csv.gz"] + extra
-    (out / "command.txt").write_text("\n".join(cmd) + "\n")
-    if args.dry_run:
-        # Print the exact command that a real run would hand to gem5 and
-        # stop. No subprocess, no manifest, no run artifacts: a dry run can
-        # never be mistaken for an executed pilot.
-        print(" ".join(cmd))
-        return 0
-    # build_manifest looks the sample up by SampleRunID: with
-    # --preserve-sample-id that is the Excel id, not the pilot id.
-    manifest = build_manifest(cfg2, sample["sample_run_id"], args.gem5, CONFIG,
-                              output_dir=out, command=cmd,
-                              allow_workload_override=bool(args.workload))
-    if args.workload:
-        manifest["workload"]["path"] = str(workload_path)
-        manifest["workload"]["path_source"] = (
-            "pilot_override (Excel path retained in sample)")
-        manifest["workload"]["sha256"] = hashlib.sha256(
-            workload_path.read_bytes()).hexdigest()
-        manifest["workload"]["oracle_expected"] = (
-            workload_path.with_suffix(".golden").read_text().strip()
-            if workload_path.with_suffix(".golden").exists() else None)
-    if args.seed != excel_seed:
-        manifest["seed_source"] = "pilot_cli_override (not Excel)"
-        manifest["manifest_sha256"] = hashlib.sha256(
-            canonical_json(manifest).encode("utf-8")).hexdigest()
-    write_manifest(manifest, out / "manifest.json")
-    started = time.time()
-    timed_out = False
-    try:
-        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
-                              timeout=args.timeout)
-    except subprocess.TimeoutExpired as exc:
-        timed_out = True
-        partial_out = exc.stdout or ""
-        partial_err = exc.stderr or ""
-        if isinstance(partial_out, bytes):
-            partial_out = partial_out.decode("utf-8", "replace")
-        if isinstance(partial_err, bytes):
-            partial_err = partial_err.decode("utf-8", "replace")
-        proc = type("P", (), {"returncode": 124,
-                              "stdout": partial_out,
-                              "stderr": partial_err + "\nTIMEOUT: external wall-clock limit reached\n"})()
-    elapsed = time.time() - started
-    (out / "stdout.log").write_text(proc.stdout)
-    (out / "stderr.log").write_text(proc.stderr)
-
-    expected = str(sample.get("oracle"))
-    oracle_source = "excel"
-    if args.workload or expected.strip().upper() in ("N/A", "NONE", "", "NAN"):
-        golden = workload_path.with_suffix(".golden")
-        if golden.exists():
-            expected = golden.read_text().strip()
-            oracle_source = "workload_golden"
-    oracle = subprocess.run(
-        [sys.executable, str(WORKLOADS / "oracle_check.py"), expected,
-         str(out / "stdout.log")], capture_output=True, text=True)
-    (out / "oracle.log").write_text(oracle.stdout + oracle.stderr)
-    oracle_pass = oracle.returncode == 0
-
-    events: list[dict] = []  # A01/A03 address-path events; empty for FW02
+def _parse_model_events(args, out: Path, sample: dict):
+    """Per-model result parsing (extracted so failures are caught)."""
+    events: list[dict] = []
     if args.model in ("A01", "A03"):
         inj = _funnel(out / "addrpath_injections.log")
         events = _addrpath_events(out / "addrpath_injections.log")
@@ -1004,6 +992,146 @@ def main(argv=None) -> int:
         target_proof = {"site": "store->load_forward_decision", **inj}
         injected = inj.get("suppressed", 0)
 
+    return events, inj, injected, target_proof
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--model", required=True, choices=MODELS)
+    ap.add_argument("--probability", type=float, default=1.0,
+                    help="injection probability (0.0 = matched no-fault control)")
+    ap.add_argument("--timeout", type=int, default=900,
+                    help="external wall-clock timeout in seconds")
+    ap.add_argument("--workload", default=None,
+                    help="pilot-only workload override (recorded in the "
+                         "manifest; the Excel path is retained)")
+    ap.add_argument("--pilot-id", required=True)
+    ap.add_argument("--seed", type=int, default=None,
+                    help="override seed; default = the selected Excel context row")
+    ap.add_argument("--context-index", type=int, default=1, choices=[1,2,3,4,5],
+                    help="R01-R05: select the Excel sample row for this context")
+    ap.add_argument("--outdir", type=Path, required=True)
+    ap.add_argument("--gem5", type=Path, default=GEM5)
+    ap.add_argument("--preserve-sample-id", action="store_true",
+                    help="Keep the Excel SampleRunID/RunID/SubTaskID "
+                         "(pilots still write only to --outdir); v3.2.4 DA04")
+    ap.add_argument("--event-ordinal", type=int, default=None,
+                    help="TEMPORARY_EVENT_SELECTION override for the F0 "
+                         "eligible-event ordinal (v3.2.4 DA04 pilots); the "
+                         "Excel ordinal is recorded separately")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="build the exact gem5 command, print it (and write "
+                         "<outdir>/command.txt), then exit 0 without invoking "
+                         "gem5 -- no manifest or run artifacts are produced")
+    args = ap.parse_args(argv)
+
+    cfg = load_config(EXCEL, require_complete=False)
+    model_rows = [s for s in cfg["samples"] if s["model_id"] == args.model]
+    sample = copy.deepcopy(model_rows[args.context_index - 1])
+    excel_seed = sample["seed"]
+    excel_event_ordinal = sample.get("event_ordinal")
+    if args.event_ordinal is not None:
+        sample["event_ordinal"] = args.event_ordinal
+    if args.seed is None:
+        args.seed = excel_seed
+    if args.preserve_sample_id:
+        excel = model_rows[args.context_index - 1]
+        sample["sample_run_id"] = excel["sample_run_id"]
+        sample["run_id"] = excel["run_id"]
+        sample["sub_task_id"] = excel["sub_task_id"]
+    else:
+        sample["sample_run_id"] = args.pilot_id
+        sample["run_id"] = f"PILOT-{args.model}"
+        sample["sub_task_id"] = f"PILOT-{args.model}-S01"
+    sample["seed"] = args.seed
+    workload_name = args.workload or _workload_for(args.model)
+    workload_path = Path(workload_name)
+    if not workload_path.is_absolute():
+        workload_path = WORKLOADS / workload_name
+        if not workload_path.exists() and (DIRECTED / workload_name).exists():
+            # v3.3.3 RP01: the candidate workload lives under workloads/directed.
+            workload_path = DIRECTED / workload_name
+    sample["workload_path"] = str(workload_path)
+    sample["workload_exists"] = workload_path.exists()
+    cfg2 = copy.deepcopy(cfg)
+    cfg2["samples"] = [sample]
+    # gem5 runs with cwd=ROOT, so a relative --outdir would land its
+    # artifacts outside this script's output directory. Pin the path at the
+    # caller's cwd before gem5 sees it.
+    out = args.outdir.resolve()
+    out.mkdir(parents=True, exist_ok=True)
+
+    extra = build_model_extra(args.model, args.probability, args.seed,
+                              sample.get("event_ordinal") or 1)
+
+    cmd = [str(args.gem5), f"--outdir={out}", str(CONFIG),
+           f"--cmd={workload_path}",
+           "--cpu", "O3", "--variant", "B0",
+           "--probability", str(args.probability),
+           "--chaos_propagation",
+           "--prop_trace_file", "prop_trace.csv.gz"] + extra
+    (out / "command.txt").write_text("\n".join(cmd) + "\n")
+    if args.dry_run:
+        # Print the exact command that a real run would hand to gem5 and
+        # stop. No subprocess, no manifest, no run artifacts: a dry run can
+        # never be mistaken for an executed pilot.
+        print(" ".join(cmd))
+        return 0
+    # build_manifest looks the sample up by SampleRunID: with
+    # --preserve-sample-id that is the Excel id, not the pilot id.
+    manifest = build_manifest(cfg2, sample["sample_run_id"], args.gem5, CONFIG,
+                              output_dir=out, command=cmd,
+                              allow_workload_override=bool(args.workload))
+    if args.workload:
+        manifest["workload"]["path"] = str(workload_path)
+        manifest["workload"]["path_source"] = (
+            "pilot_override (Excel path retained in sample)")
+        manifest["workload"]["sha256"] = hashlib.sha256(
+            workload_path.read_bytes()).hexdigest()
+        manifest["workload"]["oracle_expected"] = (
+            workload_path.with_suffix(".golden").read_text().strip()
+            if workload_path.with_suffix(".golden").exists() else None)
+    if args.seed != excel_seed:
+        manifest["seed_source"] = "pilot_cli_override (not Excel)"
+        manifest["manifest_sha256"] = hashlib.sha256(
+            canonical_json(manifest).encode("utf-8")).hexdigest()
+    write_manifest(manifest, out / "manifest.json")
+    run_info = run_gem5(cmd, args.timeout)
+    proc = type("P", (), {"returncode": run_info["returncode"],
+                          "stdout": run_info["stdout"],
+                          "stderr": run_info["stderr"]})()
+    timed_out = run_info["timed_out"]
+    runner_error = run_info["runner_error"]
+    elapsed = run_info["elapsed"]
+    (out / "stdout.log").write_text(proc.stdout)
+    (out / "stderr.log").write_text(proc.stderr)
+
+    expected = str(sample.get("oracle"))
+    oracle_source = "excel"
+    if args.workload or expected.strip().upper() in ("N/A", "NONE", "", "NAN"):
+        golden = workload_path.with_suffix(".golden")
+        if golden.exists():
+            expected = golden.read_text().strip()
+            oracle_source = "workload_golden"
+    oracle = subprocess.run(
+        [sys.executable, str(WORKLOADS / "oracle_check.py"), expected,
+         str(out / "stdout.log")], capture_output=True, text=True)
+    (out / "oracle.log").write_text(oracle.stdout + oracle.stderr)
+    oracle_pass = oracle.returncode == 0
+
+    events: list[dict] = []  # A01/A03 address-path events; empty for FW02
+    parse_error = None
+    try:
+        events, inj, injected, target_proof = _parse_model_events(
+            args, out, sample)
+    except (KeyError, ValueError, IndexError, TypeError, OSError,
+            EOFError) as exc:
+        # A malformed/truncated artifact is a FAILED parse, never a silent
+        # zero that could pass the acceptance gates.
+        parse_error = repr(exc)
+        events, inj, injected = [], {"parse_error": parse_error}, 0
+        target_proof = {"events": 0, "parse_error": parse_error}
+
     crash_by_fault = False
     crash_evidence = None
     pt_fault_addr = None
@@ -1053,6 +1181,15 @@ def main(argv=None) -> int:
         run_status, activation, terminal, completeness = (
             "COMPLETED", "TRIGGERED" if injected else "NOT_TRIGGERED",
             "MASKED", "COMPLETE")
+
+    # v3.3.3 output validation: missing trace/oracle/log and parse failures
+    # are explicit non-acceptance conditions, never a silent pass.
+    validation = output_validation(out, args.model, args.probability)
+    if parse_error or runner_error:
+        run_status = "FAILED"
+        completeness = "INCOMPLETE"
+    tx_source = terminal_source(timed_out=timed_out, watchdog=watchdog_hit,
+                                exit_code=proc.returncode, text=proc.stderr)
 
     csv_path = out / "prop_trace.csv.gz"
     jsonl_path = out / "trace_v31.jsonl"
@@ -1146,7 +1283,10 @@ def main(argv=None) -> int:
     # passed it. The misfire is flagged explicitly in pilot_meta.json.
     run_role = run_roles.classify_run_role(args.probability)
     fault_valid = (
-        (proc.returncode == 0 or crash_by_fault) and injected > 0
+        # A timeout is never a completed fault run, even if a trace was
+        # partially written before the kill.
+        not timed_out
+        and (proc.returncode == 0 or crash_by_fault) and injected > 0
         and target_proof.get("events", 1) > 0
         and final_terminal not in (None, "UNRESOLVED")
         and not trace_errors
@@ -1162,13 +1302,27 @@ def main(argv=None) -> int:
         if run_role == "CONTROL" else False
     )
     control_misfire = run_role == "CONTROL" and injected > 0
-    accepted = run_roles.compute_acceptance(run_role, fault_valid,
-                                            control_valid)
+    # Output completeness/parse health is an additional, role-independent
+    # gate: a run whose artifacts are missing or unparseable is never accepted.
+    outputs_ok = (validation["status"] == "OK"
+                  and parse_error is None and runner_error is None)
+    accepted = (run_roles.compute_acceptance(run_role, fault_valid,
+                                             control_valid)
+                and outputs_ok)
     meta = {
         "pilot_id": args.pilot_id,
         "model": args.model,
         "run_role": run_role,
         "seed": args.seed,
+        # v3.3.3 runner robustness evidence.
+        "timed_out": timed_out,
+        "pid": run_info.get("pid"),
+        "started_at": run_info.get("started_at"),
+        "ended_at": run_info.get("ended_at"),
+        "terminal_source": tx_source,
+        "output_validation": validation,
+        "parse_error": parse_error,
+        "runner_error": runner_error,
         "event_selection": ("TEMPORARY_EVENT_SELECTION (Excel EventOrdinal; "
                             "warm-up/ROI not frozen)"),
         "excel_identity": {
@@ -1226,7 +1380,8 @@ def main(argv=None) -> int:
     }
     (out / "pilot_meta.json").write_text(json.dumps(meta, indent=2))
     print(json.dumps(meta, indent=2))
-    return 0 if accepted else 1
+    return acceptance_exit_code(accepted, validation, parse_error,
+                                runner_error)
 
 
 if __name__ == "__main__":

@@ -23,15 +23,19 @@ from __future__ import annotations
 import argparse
 import csv
 import fcntl
+import hashlib
 import json
 import os
 import re
 import shlex
+import shutil
+import signal
 import subprocess
 import sys
 import time
 from collections import Counter
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -133,6 +137,455 @@ SUPPRESS_FLAGS = ("--chaos_suppress", "--injector_suppress",
 PROOFS = ("INJECTOR_ABSENT", "MOUNTED_BUT_DISABLED",
           "MOUNTED_BUT_SUPPRESSED", "MOUNTED_BUT_ACTIVE",
           "NO_COMMAND_EVIDENCE")
+
+# ---------------------------------------------------------------------------
+# v3.3.3 launch-critical status vocabulary (audit_launch_fix_v333/
+# README_INTERFACES.md).  ORACLE_FAIL is a *measured* terminal (SDC), never a
+# runner failure by itself; every other non-COMPLETED status is an execution
+# or integrity failure that must make the campaign exit nonzero.
+# ---------------------------------------------------------------------------
+CAMPAIGN_ID_DEFAULT = "LSU-V333-FORMAL-20261112"
+
+STATUS_PENDING = "PENDING"
+STATUS_RUNNING = "RUNNING"
+STATUS_COMPLETED = "COMPLETED"
+STATUS_FAILED = "FAILED"
+STATUS_TIMEOUT = "TIMEOUT"
+STATUS_OUTPUT_INCOMPLETE = "OUTPUT_INCOMPLETE"
+STATUS_HASH_MISMATCH = "HASH_MISMATCH"
+STATUS_ORACLE_FAIL = "ORACLE_FAIL"
+TASK_STATUSES = (STATUS_PENDING, STATUS_RUNNING, STATUS_COMPLETED,
+                 STATUS_FAILED, STATUS_TIMEOUT, STATUS_OUTPUT_INCOMPLETE,
+                 STATUS_HASH_MISMATCH, STATUS_ORACLE_FAIL)
+# The only statuses that may coexist with campaign exit 0.  ORACLE_FAIL is a
+# valid measured terminal: it is recorded but never forces a nonzero exit.
+ACCEPTED_STATUSES = frozenset({STATUS_COMPLETED, STATUS_ORACLE_FAIL})
+FAILURE_STATUSES = frozenset({STATUS_FAILED, STATUS_TIMEOUT,
+                              STATUS_OUTPUT_INCOMPLETE,
+                              STATUS_HASH_MISMATCH})
+# Internal preflight marker -- never written as a task terminal status.
+PREFLIGHT_OK = "OK"
+
+TERMINAL_SOURCE_NORMAL = "NORMAL"
+TERMINAL_SOURCE_MODEL_WATCHDOG = "MODEL_INTERNAL_WATCHDOG"
+TERMINAL_SOURCE_EXTERNAL_TIMEOUT = "EXTERNAL_TIMEOUT"
+TERMINAL_SOURCE_PYTHON_TIMEOUT = "PYTHON_TIMEOUT"
+TERMINAL_SOURCES = (TERMINAL_SOURCE_NORMAL, TERMINAL_SOURCE_MODEL_WATCHDOG,
+                    TERMINAL_SOURCE_EXTERNAL_TIMEOUT,
+                    TERMINAL_SOURCE_PYTHON_TIMEOUT)
+
+# Frozen v3.3.3 baseline (README_INTERFACES.md + LSU_v3.3.3_PACKAGE_README.md).
+# A formal task may only start on this binary/config; a rebuild requires an
+# explicit --expected-binary-sha/--expected-config-sha override.
+EXPECTED_BINARY_SHA256 = (
+    "1126e0fd1fea8e123f78d17559f10f51ce52025f75350f7b45ea310960b4f338")
+EXPECTED_CONFIG_SHA256 = (
+    "8309da72e9fd97e8eb3271c680bb0da5fc22f8d65188502076996b81992cb225")
+
+# Runtime overrides (--expected-*-sha); the defaults are the frozen baseline.
+EXPECTED_BINARY_SHA = EXPECTED_BINARY_SHA256
+EXPECTED_CONFIG_SHA = EXPECTED_CONFIG_SHA256
+EXPECTED_ELF_SHA = None
+
+# The model-specific injection log each model's result parser reads.  For a
+# FAULT run it is a required output; a matched control may legitimately omit
+# the injector (and therefore the log).
+MODEL_LOG_NAME = {
+    "A01": "addrpath_injections.log",
+    "A03": "addrpath_injections.log",
+    "FW02": "lsq_fwd_injections.log",
+    "FW05": "lsq_fwd_injections.log",
+    "SQ01": "lsq_fwd_injections.log",
+    "SQ03": "lsq_fwd_injections.log",
+    "SP05": "lsq_fwd_injections.log",
+    "DA04": "lsq_fwd_injections.log",
+    "LP01": "l1d_fwd_injections.log",
+    "MD04": "md04_injections.log",
+    "LQ04": "lq04_injections.log",
+    "RP01": "lsq_fwd_injections.log",
+}
+# A03/RP01 have documented partial-output terminals: prop_trace + oracle +
+# the in-simulator watchdog marker are enough even when the per-model log or
+# the converted trace_v31.jsonl was truncated by the model-terminal hang.
+PARTIAL_MARKER_MODELS = frozenset({"A03", "RP01"})
+WATCHDOG_MARKERS = {
+    "A03": ("A03_WATCHDOG_EXPIRED",),
+    "RP01": ("CHAOS_RP01_WATCHDOG", "CHAOS_RP01_WATCHDOG=EXPIRED"),
+}
+
+# Default workload per model when CONTEXTS does not pin one (mirrors
+# run_pilot._workload_for; preflight needs the real ELF path).
+DEFAULT_WORKLOADS = {
+    "A01": WORKLOADS / "agu_addrmodes",
+    "A03": WORKLOADS / "agu_addrmodes",
+    "FW02": DIRECTED / "sq_forward_w4v2",
+    "FW05": WORKLOADS / "fw05_forward",
+    "SQ01": WORKLOADS / "sq_reload_v3212",
+    "SQ03": WORKLOADS / "sq_reload_v3212",
+    "SP05": WORKLOADS / "sq_reload_v3212",
+    "DA04": WORKLOADS / "alignment",
+    "LP01": WORKLOADS / "load_response",
+    "MD04": DIRECTED / "md04_violations_v332",
+    "LQ04": WORKLOADS / "lq_lifetime_ordinal",
+    "RP01": DIRECTED / "replay_partial_v332",
+}
+
+_SHA_CACHE: dict[tuple, str] = {}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _sha256_cached(path: Path) -> str:
+    """SHA256 with a (path,size,mtime) cache so 120 preflights stay cheap."""
+    path = Path(path)
+    st = path.stat()
+    key = (str(path.resolve()), st.st_size, st.st_mtime_ns)
+    if key not in _SHA_CACHE:
+        _SHA_CACHE[key] = _sha256(path)
+    return _SHA_CACHE[key]
+
+
+def resolve_workload(model, workload=None) -> Path | None:
+    """The ELF a matrix row will execute (CONTEXTS override wins)."""
+    if workload:
+        return Path(workload)
+    return DEFAULT_WORKLOADS.get(model)
+
+
+def driver_for(model: str, role: str) -> str:
+    """Which driver run_context dispatches to (mirrors planned_command)."""
+    if model == RP01 or (model in DIRECT and role == "fault"):
+        return "direct"
+    return "run_pilot"
+
+
+def required_outputs(model: str, role: str) -> list[str]:
+    """Artifacts a successful task of this model/role must leave behind."""
+    names = ["summary.json", "prop_trace.csv.gz", "oracle.log"]
+    if role == "fault":
+        names.append(MODEL_LOG_NAME[model])
+    if driver_for(model, role) == "run_pilot":
+        names.append("trace_v31.jsonl")
+    return names
+
+
+def _file_contains(path: Path, tokens) -> bool:
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return any(token in text for token in tokens)
+
+
+def watchdog_marker_present(outdir: Path, model: str) -> bool:
+    """True when the model's own in-simulator watchdog marker was written."""
+    tokens = WATCHDOG_MARKERS.get(model)
+    if not tokens:
+        return False
+    outdir = Path(outdir)
+    candidates = [outdir / name for name in
+                  (MODEL_LOG_NAME.get(model), "stdout.log", "stderr.log")
+                  if name]
+    return any(_file_contains(p, tokens) for p in candidates)
+
+
+def preflight_task(*, model: str, role: str, binary, config, workload, seed,
+                   sample_run_id, outdir, expected_binary_sha=None,
+                   expected_config_sha=None, expected_elf_sha=None,
+                   force: bool = False, sha_fn=None,
+                   outdir_exists: bool | None = None) -> dict:
+    """Validate every input BEFORE gem5 is launched.
+
+    Missing metadata/artifact => FAILED; a present artifact whose SHA differs
+    from the expected frozen hash => HASH_MISMATCH.  Nothing is executed and
+    no existing run dir is touched on failure.
+    """
+    sha_fn = sha_fn or _sha256_cached
+    evidence = {"checks": {}, "missing": [], "sha_mismatches": [],
+                "observed_sha": {}, "expected_sha": {}}
+
+    def check_file(name: str, path) -> None:
+        if path is None:
+            evidence["checks"][name] = "MISSING"
+            evidence["missing"].append(name)
+            return
+        p = Path(path)
+        if not p.is_file():
+            evidence["checks"][name] = "MISSING"
+            evidence["missing"].append(name)
+            return
+        evidence["checks"][name] = "PRESENT"
+        evidence["observed_sha"][name] = sha_fn(p)
+
+    check_file("binary", binary)
+    check_file("config", config)
+    check_file("workload", workload)
+
+    for name, value in (("seed", seed), ("sample_run_id", sample_run_id)):
+        if value is None or str(value).strip() == "":
+            evidence["checks"][name] = "MISSING"
+            evidence["missing"].append(name)
+        else:
+            evidence["checks"][name] = "PRESENT"
+
+    outdir = Path(outdir)
+    if outdir_exists is None:
+        outdir_exists = (outdir.exists()
+                         and (not outdir.is_dir() or any(outdir.iterdir())))
+    if outdir_exists and not force:
+        evidence["checks"]["outdir_unique"] = "COLLISION"
+        evidence["missing"].append("outdir_unique")
+    else:
+        evidence["checks"]["outdir_unique"] = "OK"
+
+    for key, expected in (("binary", expected_binary_sha),
+                          ("config", expected_config_sha),
+                          ("workload", expected_elf_sha)):
+        observed = evidence["observed_sha"].get(key)
+        if expected and observed and observed != expected:
+            evidence["sha_mismatches"].append(key)
+            evidence["expected_sha"][key] = expected
+
+    if evidence["sha_mismatches"]:
+        status = STATUS_HASH_MISMATCH
+    elif evidence["missing"]:
+        status = STATUS_FAILED
+    else:
+        status = PREFLIGHT_OK
+    return {
+        "status": status,
+        "ok": status == PREFLIGHT_OK,
+        "model": model,
+        "role": role,
+        "evidence": evidence,
+        "binary_sha": evidence["observed_sha"].get("binary"),
+        "config_sha": evidence["observed_sha"].get("config"),
+        "elf_sha": evidence["observed_sha"].get("workload"),
+    }
+
+
+def validate_outputs(model: str, outdir, *, role: str, parse_error=None,
+                     sha_evidence=None) -> dict:
+    """Post-run artifact validation.
+
+    summary.json is mandatory; FAULT runs must also leave their model log;
+    run_pilot rows must leave the converted trace.  A03/RP01 may instead
+    present the documented partial set (prop_trace + oracle + watchdog
+    marker).  A result-parsing exception is FAILED, never a silent pass.
+    """
+    outdir = Path(outdir)
+    required = required_outputs(model, role)
+    present = {name: (outdir / name).is_file() for name in required}
+    missing = [name for name in required if not present[name]]
+    marker = watchdog_marker_present(outdir, model)
+    partial = False
+    if (missing and model in PARTIAL_MARKER_MODELS and marker
+            and {"summary.json", "prop_trace.csv.gz", "oracle.log"}
+            .isdisjoint(missing)):
+        # Documented A03/RP01 partial: prop_trace + oracle + marker stand in
+        # for the per-model log / converted trace cut by the model hang.
+        if set(missing) <= {"trace_v31.jsonl", MODEL_LOG_NAME[model]}:
+            partial = True
+            missing = []
+
+    sha_status = (sha_evidence or {}).get("status")
+    if sha_status == STATUS_HASH_MISMATCH:
+        status = STATUS_HASH_MISMATCH
+    elif parse_error:
+        status = STATUS_FAILED
+    elif missing:
+        status = STATUS_OUTPUT_INCOMPLETE
+    else:
+        status = PREFLIGHT_OK
+    return {
+        "status": status,
+        "required": required,
+        "present": present,
+        "missing": missing,
+        "partial": partial,
+        "watchdog_marker": marker,
+        "parse_error": parse_error,
+    }
+
+
+MODEL_TERMINALS = frozenset({"MASKED", "SQUASHED", "HANG_WATCHDOG"})
+
+
+def measured_status(*, model: str, role: str, terminal, oracle_pass,
+                    exit_code, timed_out: bool, validation_status,
+                    parse_error=None, runner_status=None,
+                    crash_by_fault: bool = False) -> str:
+    """Map a finished run to the v3.3.3 task-status vocabulary.
+
+    A timeout (Python or the inner runner) is TIMEOUT; a measured SDC is
+    ORACLE_FAIL; model terminals (MASKED/SQUASHED/HANG_WATCHDOG, plus a
+    fault-induced CRASH) are COMPLETED.  Anything else is an execution
+    failure.
+    """
+    if parse_error or runner_status == STATUS_FAILED:
+        return STATUS_FAILED
+    if timed_out or runner_status == STATUS_TIMEOUT:
+        return STATUS_TIMEOUT
+    if validation_status == STATUS_HASH_MISMATCH:
+        return STATUS_HASH_MISMATCH
+    if validation_status == STATUS_OUTPUT_INCOMPLETE:
+        return STATUS_OUTPUT_INCOMPLETE
+    if validation_status == STATUS_FAILED:
+        return STATUS_FAILED
+    if role == "fault":
+        if terminal == "SDC":
+            return STATUS_ORACLE_FAIL
+        if terminal in MODEL_TERMINALS:
+            return STATUS_COMPLETED
+        if terminal == "CRASH" and crash_by_fault:
+            return STATUS_COMPLETED
+        return STATUS_FAILED
+    # CONTROL: only a clean-exit run is a completed control.  A control's
+    # oracle FAIL is an infrastructure defect (golden mismatch), not SDC.
+    control_ok = frozenset({"UNRESOLVED"}) | MODEL_TERMINALS
+    if exit_code == 0 and terminal in control_ok:
+        return STATUS_COMPLETED
+    return STATUS_FAILED
+
+
+def terminal_source(*, timed_out: bool = False, exit_code=None,
+                    watchdog: bool = False, text: str = "") -> str:
+    """Never conflate the model's own watchdog with an external kill.
+
+    * Python/subprocess timeout in this driver   -> PYTHON_TIMEOUT
+    * the inner runner's wall-clock timeout      -> EXTERNAL_TIMEOUT
+    * A03_WATCHDOG_EXPIRED / CHAOS_RP01_WATCHDOG -> MODEL_INTERNAL_WATCHDOG
+    * otherwise                                  -> NORMAL
+    """
+    if timed_out:
+        return TERMINAL_SOURCE_PYTHON_TIMEOUT
+    # An external/inner timeout means the process was killed: that fact wins
+    # over a watchdog marker the model may have written before being cut.
+    if exit_code == 124 or "TIMEOUT: external wall-clock limit" in (text or ""):
+        return TERMINAL_SOURCE_EXTERNAL_TIMEOUT
+    if watchdog:
+        return TERMINAL_SOURCE_MODEL_WATCHDOG
+    return TERMINAL_SOURCE_NORMAL
+
+
+def campaign_record(*, campaign_id: str, model: str, context: str, role: str,
+                    sample_run_id, seed, status: str, binary_sha, config_sha,
+                    elf_sha, started_at, ended_at, exit_code, timed_out: bool,
+                    terminal_source: str, **extra) -> dict:
+    """The per-run campaign.json record the collector reads."""
+    record = {
+        "campaign_id": campaign_id,
+        "model": model,
+        "context": context,
+        "role": role,
+        "sample_run_id": sample_run_id,
+        "seed": seed,
+        "status": status,
+        "binary_sha": binary_sha,
+        "config_sha": config_sha,
+        "elf_sha": elf_sha,
+        "started_at": started_at,
+        "ended_at": ended_at,
+        "exit_code": exit_code,
+        "timed_out": bool(timed_out),
+        "terminal_source": terminal_source,
+    }
+    record.update(extra)
+    return record
+
+
+def write_campaign_json(outdir, record: dict) -> Path:
+    path = Path(outdir) / "campaign.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record, indent=2, sort_keys=False) + "\n",
+                    encoding="utf-8")
+    return path
+
+
+def campaign_exit_code(rows) -> int:
+    """0 iff every scheduled task ended COMPLETED/ORACLE_FAIL, else 1."""
+    rows = list(rows)
+    if any(row.get("status") not in ACCEPTED_STATUSES for row in rows):
+        return 1
+    return 0
+
+
+def status_summary(rows) -> dict:
+    counts = Counter(row.get("status", STATUS_FAILED) for row in rows)
+    for status in TASK_STATUSES:
+        counts.setdefault(status, 0)
+    return dict(counts)
+
+
+def _kill_process_group(proc) -> None:
+    """Kill the child AND its descendants (gem5 may fork helpers)."""
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+
+
+def run_subprocess(cmd, *, outdir, timeout, cwd=None,
+                   stdout_name="stdout.log", stderr_name="stderr.log") -> dict:
+    """Run a child in its own session and kill the whole group on timeout.
+
+    Records start time, PID, timeout, exit code and both streams.  A timeout
+    is always TIMEOUT; never COMPLETED.  OSError (missing binary/permission)
+    is converted to FAILED evidence instead of escaping.
+    """
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    started_at = _now_iso()
+    started_mono = time.monotonic()
+    result = {"cmd": list(cmd), "pid": None, "exit_code": None,
+              "timed_out": False, "elapsed": None, "started_at": started_at,
+              "ended_at": None, "status": None}
+    try:
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, start_new_session=True)
+    except OSError as exc:
+        (outdir / stdout_name).write_text("")
+        (outdir / stderr_name).write_text(f"OSError: {exc!r}\n")
+        result.update(exit_code=None, error=repr(exc), status=STATUS_FAILED,
+                      ended_at=_now_iso(),
+                      elapsed=round(time.monotonic() - started_mono, 3))
+        return result
+
+    result["pid"] = proc.pid
+    timed_out = False
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        _kill_process_group(proc)
+        try:
+            out, err = proc.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            out, err = "", ""
+        err = (err or "") + (
+            "\nTIMEOUT: external wall-clock limit reached; "
+            "process group killed\n")
+    (outdir / stdout_name).write_text(out or "")
+    (outdir / stderr_name).write_text(err or "")
+    result.update(
+        # A killed child reports -SIGKILL; record the documented wall-clock
+        # timeout code 124 and keep the raw signal in evidence.
+        exit_code=(124 if timed_out else proc.returncode),
+        signal=(-proc.returncode if (timed_out and proc.returncode
+                                    and proc.returncode < 0) else None),
+        timed_out=timed_out,
+        elapsed=round(time.monotonic() - started_mono, 3),
+        ended_at=_now_iso(),
+        status=(STATUS_TIMEOUT if timed_out else None),
+        stdout=out or "",
+        stderr=err or "",
+    )
+    return result
 
 
 def read_command(outdir: Path) -> str:
@@ -594,26 +1047,13 @@ def matrix_lock(path: Path = LOCK_FILE):
 
 
 def run_direct(cmd_base, outdir, timeout):
+    outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     # Drop any dry-run outdir token and inject ours right after the binary.
     cmd = [c for c in cmd_base if not c.startswith("--outdir=")]
     cmd.insert(1, f"--outdir={outdir}")
     (outdir / "command.txt").write_text("\n".join(cmd) + "\n")
-    started = time.time()
-    timed_out = False
-    try:
-        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
-                              timeout=timeout)
-        rc, out, err = proc.returncode, proc.stdout, proc.stderr
-    except subprocess.TimeoutExpired as exc:
-        timed_out = True
-        rc = 124
-        out = (exc.stdout or b"").decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        err = (exc.stderr or b"").decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-    (outdir / "stdout.log").write_text(out)
-    (outdir / "stderr.log").write_text(err)
-    return {"cmd": cmd, "exit_code": rc, "timed_out": timed_out,
-            "elapsed": round(time.time() - started, 3)}
+    return run_subprocess(cmd, outdir=outdir, timeout=timeout, cwd=ROOT)
 
 
 def _seed_from_command(outdir: Path):
@@ -622,141 +1062,312 @@ def _seed_from_command(outdir: Path):
     return int(m.group(1)) if m else None
 
 
-def run_context(model, ctx_idx, role):
+WATCHDOG_ANY = ("CHAOS_SQ03_WATCHDOG_EXPIRED", "CHAOS_SP05_WATCHDOG_EXPIRED",
+                "CHAOS_LQ04_WATCHDOG_EXPIRED", "CHAOS_RP01_WATCHDOG",
+                "CHAOS_RP01_WATCHDOG=EXPIRED", "A03_WATCHDOG_EXPIRED")
+
+
+def any_watchdog_marker(outdir: Path) -> bool:
+    outdir = Path(outdir)
+    for name in ("stdout.log", "stderr.log", "addrpath_injections.log",
+                 "lsq_fwd_injections.log", "lq04_injections.log"):
+        if _file_contains(outdir / name, WATCHDOG_ANY):
+            return True
+    return False
+
+
+def run_context(model, ctx_idx, role, campaign_id=CAMPAIGN_ID_DEFAULT):
     spec = CONTEXTS[model]
     ordinal = spec["ordinals"][ctx_idx - 1]
-    _sid, seed = FROZEN_ID[(model, f"R{ctx_idx:02d}")]
-    workload = spec.get("workload")
+    sample_run_id, seed = FROZEN_ID[(model, f"R{ctx_idx:02d}")]
+    # CONTEXTS pins an override for some models; run_pilot must keep receiving
+    # the RAW override (None = its own default), never the resolved path --
+    # passing it explicitly would switch run_pilot's manifest/oracle source.
+    workload_override = spec.get("workload")
+    workload = resolve_workload(model, workload_override)
     tag = f"{model}-R{ctx_idx:02d}-{role}"
     outdir = OUT_BASE / tag
+    started_at = _now_iso()
+
+    # ---- Preflight BEFORE any gem5 process --------------------------------
+    pre = preflight_task(
+        model=model, role=role, binary=GEM5, config=CONFIG,
+        workload=workload, seed=seed, sample_run_id=sample_run_id,
+        outdir=outdir, expected_binary_sha=EXPECTED_BINARY_SHA,
+        expected_config_sha=EXPECTED_CONFIG_SHA,
+        expected_elf_sha=EXPECTED_ELF_SHA, force=FORCE)
+    binary_sha = pre["binary_sha"]
+    config_sha = pre["config_sha"]
+    elf_sha = pre["elf_sha"]
+    base_row = {"model": model, "context": f"R{ctx_idx:02d}", "role": role,
+                "ordinal": ordinal, "seed": seed,
+                "sample_run_id": sample_run_id,
+                "workload": str(workload) if workload else None,
+                "outdir": str(outdir), "campaign_id": campaign_id,
+                "binary_sha": binary_sha, "config_sha": config_sha,
+                "elf_sha": elf_sha, "started_at": started_at}
+    if not pre["ok"]:
+        # Never run gem5, and never write into (or delete) a run dir this
+        # task does not own.  A fresh empty dir may hold the evidence.
+        if not outdir.exists():
+            write_campaign_json(outdir, campaign_record(
+                campaign_id=campaign_id, model=model,
+                context=f"R{ctx_idx:02d}", role=role,
+                sample_run_id=sample_run_id, seed=seed,
+                status=pre["status"], binary_sha=binary_sha,
+                config_sha=config_sha, elf_sha=elf_sha,
+                started_at=started_at, ended_at=_now_iso(),
+                exit_code=None, timed_out=False,
+                terminal_source=TERMINAL_SOURCE_NORMAL,
+                preflight=pre["evidence"]))
+        row = dict(base_row)
+        row.update(
+            status=pre["status"], ended_at=_now_iso(),
+            terminal_source=TERMINAL_SOURCE_NORMAL,
+            error="preflight " + ",".join(
+                pre["evidence"]["missing"] or
+                pre["evidence"]["sha_mismatches"]),
+            preflight=pre["evidence"])
+        return row
+
     if outdir.exists():
-        if not FORCE:
-            raise SystemExit(
-                f"refusing to overwrite existing run dir {outdir}; "
-                f"use --force or a new --out-base")
-        subprocess.run(["rm", "-rf", str(outdir)])
+        if FORCE:
+            shutil.rmtree(outdir)
+        else:
+            # Defensive: preflight already flagged a non-empty collision.
+            outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
     summary = {"model": model, "context": f"R{ctx_idx:02d}",
                "ctx_index": ctx_idx, "role": role, "ordinal": ordinal,
-               "seed": seed, "workload": str(workload) if workload else None,
+               "seed": seed, "sample_run_id": sample_run_id,
+               "workload": str(workload) if workload else None,
                "outdir": str(outdir), "binary": str(GEM5),
-               "binary_sha": None}
+               "binary_sha": binary_sha, "config_sha": config_sha,
+               "elf_sha": elf_sha, "campaign_id": campaign_id,
+               "started_at": started_at, "status": STATUS_RUNNING}
+    write_campaign_json(outdir, campaign_record(
+        campaign_id=campaign_id, model=model, context=f"R{ctx_idx:02d}",
+        role=role, sample_run_id=sample_run_id, seed=seed,
+        status=STATUS_RUNNING, binary_sha=binary_sha, config_sha=config_sha,
+        elf_sha=elf_sha, started_at=started_at, ended_at=None,
+        exit_code=None, timed_out=False,
+        terminal_source=TERMINAL_SOURCE_NORMAL))
 
-    if model == RP01:
-        cmd = build_rp01_cmd(role, ordinal, seed, workload, outdir)
-        info = run_direct(cmd, outdir, RP01_TIMEOUT)
-        parsed = parse_rp01_evidence(outdir)
-        extra = {"terminal_reason": parsed.get("terminal_reason"),
-                 "injection_count": parsed["skips"],
-                 "probability": 1.0 if role == "fault" else 0.0,
-                 "watchdog": parsed["watchdog"],
-                 "deadline_cycles": parsed["deadline_cycles"],
-                 "no_checksum": parsed["no_checksum"],
-                 "raw_fatal_path": parsed["raw_fatal_path"]}
-        direct = write_direct_artifacts(
-            model, role, outdir, cmd, workload, ordinal, seed, info,
-            parsed["terminal"], parsed.get("oracle_pass"),
-            parsed.get("checksum"), extra)
-        summary.update(info)
-        summary["rp01"] = parsed
-        summary["injection_count"] = parsed["skips"]
-        summary["terminal"] = parsed["terminal"]
-        summary["terminal_reason"] = parsed.get("terminal_reason")
-        summary["watchdog"] = parsed["watchdog"]
-        summary["deadline_cycles"] = parsed["deadline_cycles"]
-        summary["no_checksum"] = parsed["no_checksum"]
-        summary["raw_fatal_path"] = parsed["raw_fatal_path"]
-        summary["checksum"] = parsed.get("checksum")
-        summary["oracle"] = direct["oracle_pass"]
-    elif model in DIRECT and role == "fault":
-        workload = workload or (WORKLOADS / "agu_addrmodes")
-        summary["workload"] = str(workload)
-        cmd = build_a03_fault_cmd(ordinal, seed, workload, outdir)
-        info = run_direct(cmd, outdir, A03_TIMEOUT)
-        parsed = parse_addrpath_log(outdir / "addrpath_injections.log")
-        stdout_text = (outdir / "stdout.log").read_text(errors="replace")
-        checksum = parse_bare_checksum(stdout_text)
-        # Task 3 may emit the marker on stdout (after the addrpath log flush);
-        # accept either location.
-        if "A03_WATCHDOG_EXPIRED" in stdout_text:
-            parsed["watchdog_expired"] = True
-        term = a03_terminal(checksum, parsed["watchdog_expired"],
-                            info["timed_out"], info["exit_code"])
-        extra = {"terminal_reason": term["terminal_reason"],
-                 "terminal_qualifier": term["terminal_qualifier"],
-                 "injection_count": parsed["injected_applications"],
-                 "a03_log_capped": parsed["capped"],
-                 "watchdog_expired": parsed["watchdog_expired"],
-                 "watchdog_cycles": A03_WATCHDOG_CYCLES,
-                 "probability": 1.0}
-        direct = write_direct_artifacts(
-            model, role, outdir, cmd, workload, ordinal, seed, info,
-            term["terminal"], term["oracle_pass"], checksum, extra)
-        summary.update(info)
-        summary["a03"] = parsed
-        summary["injection_count"] = parsed["injected_applications"]
-        summary["a03_log_capped"] = parsed["capped"]
-        summary["watchdog_expired"] = parsed["watchdog_expired"]
-        summary["watchdog_cycles"] = A03_WATCHDOG_CYCLES
-        summary["checksum"] = checksum
-        summary["oracle"] = direct["oracle_pass"]
-        summary["terminal"] = term["terminal"]
-        summary["terminal_qualifier"] = term["terminal_qualifier"]
-        summary["terminal_reason"] = term["terminal_reason"]
-    else:
-        cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role, workload)
-        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
-                              timeout=400)
-        summary["cmd"] = cmd
-        summary["exit_code"] = proc.returncode
-        meta_path = outdir / "pilot_meta.json"
-        meta = json.load(open(meta_path)) if meta_path.exists() else {}
-        if meta:
-            summary["injection_count"] = meta.get("injection_count")
-            summary["oracle"] = meta.get("oracle_pass")
-            summary["terminal"] = (meta.get("terminal")
-                                   or (meta.get("classification") or {}).get(
-                                       "terminal_state"))
+    info = None
+    meta = {}
+    parsed = {}
+    cmd = []
+    parse_error = None
+    runner_status = None
+    watchdog = False
+    crash_by_fault = False
+    inner_exit = None
+    timeout_seconds = None
+    try:
+        if model == RP01:
+            timeout_seconds = RP01_TIMEOUT
+            cmd = build_rp01_cmd(role, ordinal, seed, workload, outdir)
+            info = run_direct(cmd, outdir, RP01_TIMEOUT)
+            runner_status = info.get("status")
+            parsed = parse_rp01_evidence(outdir)
+            watchdog = bool(parsed.get("watchdog"))
+            extra = {"terminal_reason": parsed.get("terminal_reason"),
+                     "injection_count": parsed["skips"],
+                     "probability": 1.0 if role == "fault" else 0.0,
+                     "watchdog": parsed["watchdog"],
+                     "deadline_cycles": parsed["deadline_cycles"],
+                     "no_checksum": parsed["no_checksum"],
+                     "raw_fatal_path": parsed["raw_fatal_path"]}
+            direct = write_direct_artifacts(
+                model, role, outdir, cmd, workload, ordinal, seed, info,
+                parsed["terminal"], parsed.get("oracle_pass"),
+                parsed.get("checksum"), extra)
+            summary.update({k: info[k] for k in
+                            ("exit_code", "timed_out", "elapsed") if k in info})
+            summary["pid"] = info.get("pid")
+            summary["rp01"] = parsed
+            summary["injection_count"] = parsed["skips"]
+            summary["terminal"] = parsed["terminal"]
+            summary["terminal_reason"] = parsed.get("terminal_reason")
+            summary["watchdog"] = parsed["watchdog"]
+            summary["deadline_cycles"] = parsed["deadline_cycles"]
+            summary["no_checksum"] = parsed["no_checksum"]
+            summary["raw_fatal_path"] = parsed["raw_fatal_path"]
+            summary["checksum"] = parsed.get("checksum")
+            summary["oracle"] = direct["oracle_pass"]
+        elif model in DIRECT and role == "fault":
+            workload = workload or (WORKLOADS / "agu_addrmodes")
+            summary["workload"] = str(workload)
+            timeout_seconds = A03_TIMEOUT
+            cmd = build_a03_fault_cmd(ordinal, seed, workload, outdir)
+            info = run_direct(cmd, outdir, A03_TIMEOUT)
+            runner_status = info.get("status")
+            parsed = parse_addrpath_log(outdir / "addrpath_injections.log")
+            stdout_text = (outdir / "stdout.log").read_text(errors="replace")
+            checksum = parse_bare_checksum(stdout_text)
+            # Task 3 may emit the marker on stdout (after the addrpath log
+            # flush); accept either location.
+            if "A03_WATCHDOG_EXPIRED" in stdout_text:
+                parsed["watchdog_expired"] = True
+            watchdog = bool(parsed["watchdog_expired"])
+            term = a03_terminal(checksum, parsed["watchdog_expired"],
+                                info["timed_out"], info["exit_code"])
+            extra = {"terminal_reason": term["terminal_reason"],
+                     "terminal_qualifier": term["terminal_qualifier"],
+                     "injection_count": parsed["injected_applications"],
+                     "a03_log_capped": parsed["capped"],
+                     "watchdog_expired": parsed["watchdog_expired"],
+                     "watchdog_cycles": A03_WATCHDOG_CYCLES,
+                     "probability": 1.0}
+            direct = write_direct_artifacts(
+                model, role, outdir, cmd, workload, ordinal, seed, info,
+                term["terminal"], term["oracle_pass"], checksum, extra)
+            summary.update({k: info[k] for k in
+                            ("exit_code", "timed_out", "elapsed") if k in info})
+            summary["pid"] = info.get("pid")
+            summary["a03"] = parsed
+            summary["injection_count"] = parsed["injected_applications"]
+            summary["a03_log_capped"] = parsed["capped"]
+            summary["watchdog_expired"] = parsed["watchdog_expired"]
+            summary["watchdog_cycles"] = A03_WATCHDOG_CYCLES
+            summary["checksum"] = checksum
+            summary["oracle"] = direct["oracle_pass"]
+            summary["terminal"] = term["terminal"]
+            summary["terminal_qualifier"] = term["terminal_qualifier"]
+            summary["terminal_reason"] = term["terminal_reason"]
+        else:
+            timeout_seconds = 400
+            cmd = run_pilot_cmd(model, ctx_idx, ordinal, outdir, role,
+                                workload_override)
+            info = run_subprocess(
+                cmd, outdir=outdir, timeout=400, cwd=ROOT,
+                stdout_name="runner_stdout.log",
+                stderr_name="runner_stderr.log")
+            runner_status = info.get("status")
+            summary["cmd"] = cmd
+            summary["exit_code"] = info.get("exit_code")
+            summary["pid"] = info.get("pid")
+            summary["timed_out"] = info.get("timed_out")
+            summary["elapsed"] = info.get("elapsed")
+            meta_path = outdir / "pilot_meta.json"
+            try:
+                meta = (json.load(open(meta_path))
+                        if meta_path.exists() else {})
+            except (json.JSONDecodeError, OSError) as exc:
+                parse_error = repr(exc)
+                meta = {}
+            if meta:
+                inner_exit = meta.get("exit_code")
+                summary["injection_count"] = meta.get("injection_count")
+                summary["oracle"] = meta.get("oracle_pass")
+                summary["terminal"] = (
+                    meta.get("terminal")
+                    or (meta.get("classification") or {}).get("terminal_state"))
+                summary["terminal_reason"] = (
+                    meta.get("classification") or {}).get(
+                        "terminal_state_reason")
+                summary["elapsed"] = meta.get("elapsed_seconds",
+                                              summary.get("elapsed"))
+                summary["injection_events"] = (
+                    meta.get("injection", {}).get("events"))
+                summary["trace_completeness"] = (
+                    meta.get("trace") or {}).get("completeness")
+                summary["seed"] = summary.get("seed") or meta.get("seed")
+                crash_by_fault = bool(meta.get("crash_evidence"))
+                if (meta.get("classification") or {}).get("run_status") == \
+                        "TIMEOUT":
+                    runner_status = STATUS_TIMEOUT
+            watchdog = any_watchdog_marker(outdir)
+            inj = first_injection(outdir)
+            if inj:
+                summary["first_injection"] = inj
+
+        # Common provenance population (L-D02/L-D04): seed, terminal,
+        # workload and the executed FaultCommand all come from the run
+        # artifacts, never from a re-derived argv.
+        if not meta and (outdir / "pilot_meta.json").exists():
+            try:
+                meta = json.load(open(outdir / "pilot_meta.json"))
+            except (json.JSONDecodeError, OSError) as exc:
+                parse_error = parse_error or repr(exc)
+                meta = {}
+        if summary.get("seed") is None:
+            summary["seed"] = meta.get("seed") or _seed_from_command(outdir)
+        if not summary.get("workload"):
+            summary["workload"] = meta.get("workload")
+        if not summary.get("terminal"):
+            summary["terminal"] = ((meta.get("classification") or {}).get(
+                "terminal_state") or "UNRESOLVED")
+        if not summary.get("terminal_reason"):
             summary["terminal_reason"] = (meta.get("classification") or {}).get(
                 "terminal_state_reason")
-            summary["elapsed"] = meta.get("elapsed_seconds")
-            summary["injection_events"] = meta.get("injection", {}).get("events")
-            summary["trace_completeness"] = (meta.get("trace") or {}).get(
-                "completeness")
-            summary["seed"] = summary.get("seed") or meta.get("seed")
-        inj = first_injection(outdir)
-        if inj:
-            summary["first_injection"] = inj
+        command_text = read_command(outdir)
+        summary["fault_command"] = command_text
+        control = classify_control(command_text)
+        summary["control_proof"] = control["proof"]
+        summary["mount_evidence"] = control
+        if role == "control" and summary.get("injection_count") is None:
+            summary["injection_count"] = 0
+        if summary.get("binary_sha") is None:
+            summary["binary_sha"] = binary_sha
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError,
+            KeyError, ValueError, IndexError, EOFError) as exc:
+        # Any parse/execution failure becomes an explicit FAILED row; it is
+        # never allowed to escape and be dropped from the campaign tally.
+        parse_error = repr(exc)
+        if info is None:
+            info = {"exit_code": None, "timed_out": False, "pid": None,
+                    "elapsed": None, "status": STATUS_FAILED}
 
-    # Common provenance population (L-D02/L-D04): seed, terminal, workload and
-    # the executed FaultCommand all come from the run artifacts, never from a
-    # re-derived argv.
-    meta = {}
-    if (outdir / "pilot_meta.json").exists():
-        meta = json.load(open(outdir / "pilot_meta.json"))
-    if summary.get("seed") is None:
-        summary["seed"] = meta.get("seed") or _seed_from_command(outdir)
-    if not summary.get("workload"):
-        summary["workload"] = meta.get("workload")
-    if not summary.get("terminal"):
-        summary["terminal"] = ((meta.get("classification") or {}).get(
-            "terminal_state") or "UNRESOLVED")
-    if not summary.get("terminal_reason"):
-        summary["terminal_reason"] = (meta.get("classification") or {}).get(
-            "terminal_state_reason")
-    command_text = read_command(outdir)
-    summary["fault_command"] = command_text
-    control = classify_control(command_text)
-    summary["control_proof"] = control["proof"]
-    summary["mount_evidence"] = control
-    if role == "control" and summary.get("injection_count") is None:
-        summary["injection_count"] = 0
-    if summary.get("binary_sha") is None:
-        summary["binary_sha"] = _sha256(GEM5)
-
+    # Write a provisional summary so output validation can require it.
+    summary["status"] = STATUS_RUNNING
     (outdir / "summary.json").write_text(json.dumps(summary, indent=2))
-    return summary
+
+    exit_code = inner_exit if inner_exit is not None else (
+        info.get("exit_code") if info else None)
+    timed_out = bool(info and info.get("timed_out"))
+    source = terminal_source(
+        timed_out=timed_out, exit_code=exit_code, watchdog=watchdog,
+        text=(info or {}).get("stderr") or "")
+    validation = validate_outputs(model, outdir, role=role,
+                                  parse_error=parse_error)
+    status = measured_status(
+        model=model, role=role, terminal=summary.get("terminal"),
+        oracle_pass=summary.get("oracle"), exit_code=exit_code,
+        timed_out=timed_out, validation_status=validation["status"],
+        parse_error=parse_error, runner_status=runner_status,
+        crash_by_fault=crash_by_fault)
+    ended_at = _now_iso()
+
+    summary.update(status=status, terminal_source=source,
+                   ended_at=ended_at, timed_out=timed_out,
+                   timeout_seconds=timeout_seconds,
+                   output_validation=validation,
+                   crash_by_fault=crash_by_fault)
+    if summary.get("exit_code") is None:
+        summary["exit_code"] = exit_code
+    if summary.get("pid") is None:
+        summary["pid"] = (info or {}).get("pid")
+    (outdir / "summary.json").write_text(json.dumps(summary, indent=2))
+    write_campaign_json(outdir, campaign_record(
+        campaign_id=campaign_id, model=model, context=f"R{ctx_idx:02d}",
+        role=role, sample_run_id=sample_run_id, seed=seed, status=status,
+        binary_sha=binary_sha, config_sha=config_sha, elf_sha=elf_sha,
+        started_at=started_at, ended_at=ended_at, exit_code=exit_code,
+        timed_out=timed_out, terminal_source=source,
+        pid=(info or {}).get("pid"), timeout_seconds=timeout_seconds,
+        terminal=summary.get("terminal"),
+        terminal_reason=summary.get("terminal_reason"),
+        output_validation=validation,
+        parse_error=parse_error))
+
+    row = dict(base_row)
+    row.update(summary)
+    row.update(status=status, terminal_source=source, ended_at=ended_at,
+               timed_out=timed_out, exit_code=exit_code,
+               output_validation=validation, parse_error=parse_error)
+    return row
 
 
 def main(argv=None):
@@ -775,10 +1386,22 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true",
                     help="print the exact command for every row and exit; "
                          "no run dir, summary or CSV is written")
+    ap.add_argument("--campaign-id", default=CAMPAIGN_ID_DEFAULT,
+                    help="campaign id recorded in every run's campaign.json")
+    ap.add_argument("--expected-binary-sha", default=EXPECTED_BINARY_SHA256,
+                    help="frozen gem5.opt SHA256 enforced at preflight")
+    ap.add_argument("--expected-config-sha", default=EXPECTED_CONFIG_SHA256,
+                    help="frozen lsu_proxy.py SHA256 enforced at preflight")
+    ap.add_argument("--expected-elf-sha", default=None,
+                    help="optional workload ELF SHA256 enforced at preflight")
     args = ap.parse_args(argv)
     OUT_BASE = Path(args.out_base)
     FORCE = args.force
     SUMMARY_CSV = Path(args.out_csv)
+    global EXPECTED_BINARY_SHA, EXPECTED_CONFIG_SHA, EXPECTED_ELF_SHA
+    EXPECTED_BINARY_SHA = args.expected_binary_sha
+    EXPECTED_CONFIG_SHA = args.expected_config_sha
+    EXPECTED_ELF_SHA = args.expected_elf_sha
     models = list(MODELS) if args.models == "all" else args.models.split(",")
     roles = args.roles.split(",")
     ctxs = [int(x) for x in args.contexts.split(",")]
@@ -811,24 +1434,36 @@ def main(argv=None):
                 for role in roles:
                     print(f"== {model} R{ctx:02d} {role}", flush=True)
                     try:
-                        rows.append(run_context(model, ctx, role))
+                        rows.append(run_context(model, ctx, role,
+                                                campaign_id=args.campaign_id))
                     except Exception as exc:  # keep the matrix going; record it
+                        # An escaped exception is an execution failure: it is
+                        # never silently dropped and always trips the exit.
                         row = {"model": model, "context": f"R{ctx:02d}",
-                               "role": role, "error": repr(exc)}
+                               "role": role, "status": STATUS_FAILED,
+                               "campaign_id": args.campaign_id,
+                               "terminal_source": TERMINAL_SOURCE_NORMAL,
+                               "error": repr(exc)}
                         rows.append(row)
                         print(f"   ERROR {exc!r}", file=sys.stderr)
+                    print(f"   status {rows[-1].get('status')}", flush=True)
         write_csv(rows, Path(args.out_csv))
+    counts = status_summary(rows)
+    print("status summary: " + ", ".join(
+        f"{k}={v}" for k, v in sorted(counts.items())))
     print(f"wrote {args.out_csv} ({len(rows)} rows)")
-    return 0
+    return campaign_exit_code(rows)
 
 
 def write_csv(rows, path=SUMMARY_CSV):
-    keys = ["model", "context", "role", "ordinal", "seed", "workload",
+    keys = ["model", "context", "role", "ordinal", "seed", "sample_run_id",
             "injection_count", "oracle", "terminal", "terminal_qualifier",
             "terminal_reason", "watchdog", "watchdog_expired",
             "deadline_cycles", "checksum", "a03_log_capped",
             "control_proof", "exit_code", "timed_out", "elapsed",
-            "binary_sha", "outdir", "fault_command", "error"]
+            "status", "campaign_id", "terminal_source", "started_at",
+            "ended_at", "pid", "binary_sha", "config_sha", "elf_sha",
+            "outdir", "fault_command", "error"]
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
         w.writeheader()
