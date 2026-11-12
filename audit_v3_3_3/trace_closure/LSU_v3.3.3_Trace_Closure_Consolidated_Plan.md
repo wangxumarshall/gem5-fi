@@ -40,7 +40,7 @@
 - [x] U6（Python/SP05）：解析 `store_commit` / `store_writeback_suppressed`；`commit_event` 接受真实 commit；新增 `writeback_suppressed` 证据；不升级 PASS。
 - [x] U7（Python/RP01）：解析 flush 三节点；新增 `trace_flush_start/complete`、`watchdog_terminal`、`last_valid_event_id` 证据；保持 TRACE_INCOMPLETE。
 - [x] U8（Python/最终汇总）：新 `tools/lsu_v333_trace_closure.py` 生成两份最终 CSV 与验证 CSV。
-- [ ] U9（文档/交付）：最终报告、provenance、独立验收、ZIP。
+- [x] U9（文档/交付）：最终报告、provenance、独立验收、ZIP。
 
 ## 3. 编译与冻结（只编译一次）
 
